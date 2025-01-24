@@ -1,0 +1,12 @@
+.github
+.vscode
+dist/**/*.js.map
+node_modules
+src
+test-workspace
+.eslintrc.json
+.gitignore
+.vscodeignore
+tsconfig.json
+webpack.config.js
+*.vsix

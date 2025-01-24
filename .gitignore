@@ -1,0 +1,6 @@
+node_modules
+dist
+*.vsix
+*.log
+test-workspace/*
+!test-workspace/.vscode
