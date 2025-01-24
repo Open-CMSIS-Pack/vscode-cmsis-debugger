@@ -31,6 +31,84 @@
     "embedded",
     "CMSIS"
   ],
+  "extensionPack": [
+    "arm.environment-manager",
+    "eclipse-cdt.cdt-gdb-vscode",
+    "eclipse-cdt.memory-inspector",
+    "eclipse-cdt.peripheral-inspector"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "debuggers": [
+      {
+        "type": "cmsis-pyocd-debug",
+        "label": "CMSIS pyOCD Debug",
+        "initialConfigurations": [
+          {
+            "name": "CMSIS: pyOCD Debug",
+            "type": "gdbtarget",
+            "request": "launch",
+            "cwd": "${workspace}",
+            "program": "${command:cmsis-csolution.getBinaryFile}",
+            "gdb": "arm-none-eabi-gdb",
+            "initCommands": [
+              "load",
+              "monitor reset halt"
+            ],
+            "target": {
+              "server": "pyOCD",
+              "serverParameters": [
+                "gdbserver",
+                "--target",
+                "${command:cmsis-csolution.getDeviceName}",
+                "--pack",
+                "<Enter absolute path to target device DFP>",
+                "--port",
+                "3333"
+              ],
+              "port": "3333"
+            }
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "CMSIS: pyOCD Debug",
+            "description": "Debug with CDT GDB debug adapter extension and pyOCD.",
+            "body": {
+              "name": "CMSIS: pyOCD Debug",
+              "type": "gdbtarget",
+              "request": "launch",
+              "cwd": "^\"\\${workspace}\"",
+              "program": "^\"\\${command:cmsis-csolution.getBinaryFile}\"",
+              "gdb": "arm-none-eabi-gdb",
+              "initCommands": [
+                "load",
+                "monitor reset halt"
+              ],
+              "target": {
+                "server": "pyOCD",
+                "serverParameters": [
+                  "gdbserver",
+                  "--target",
+                  "^\"\\${command:cmsis-csolution.getDeviceName}\"",
+                  "--pack",
+                  "<Enter absolute path to target device DFP>",
+                  "--port",
+                  "3333"
+                ],
+                "port": "3333"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
   "scripts": {
     "prepare": "yarn run build",
     "clean": "git clean -f -x ./node_modules ./dist ./coverage",
@@ -38,6 +116,10 @@
     "watch": "webpack -w",
     "lint": "eslint .",
     "package": "vsce package --yarn"
+  },
+  "vsce": {
+    "yarn": true,
+    "baseContentUrl": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/blob/main/README.md"
   },
   "devDependencies": {
     "@types/node": "^20.14.8",
@@ -52,21 +134,5 @@
     "typescript-eslint": "8.21.0",
     "webpack": "^5.97.1",
     "webpack-cli": "^6.0.1"
-  },
-  "activationEvents": [
-    "onStartupFinished"
-  ],
-  "vsce": {
-    "yarn": true,
-    "baseContentUrl": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/blob/main/README.md"
-  },
-  "extensionPack": [
-    "arm.environment-manager",
-    "eclipse-cdt.cdt-gdb-vscode",
-    "eclipse-cdt.memory-inspector",
-    "eclipse-cdt.peripheral-inspector"
-  ],
-  "extensionKind": [
-    "workspace"
-  ]
+  }
 }
