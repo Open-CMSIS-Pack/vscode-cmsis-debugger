@@ -106,6 +106,42 @@
             }
           }
         ]
+      },
+      {
+        "type": "*",
+        "configurationAttributes": {
+          "launch": {
+            "properties": {
+              "cmsis": {
+                "type": "object",
+                "description": "Configures CMSIS specific debug settings.",
+                "additionalProperties": false,
+                "properties": {
+                  "cbuildRunPath": {
+                    "type": "string",
+                    "description": "Path to the *.cbuild-run.yml debug configuration file generated with the CMSIS-Toolbox."
+                  }
+                }
+
+              }
+            }
+          },
+          "attach": {
+            "properties": {
+              "cmsis": {
+                "type": "object",
+                "description": "Configures CMSIS specific debug settings.",
+                "additionalProperties": false,
+                "properties": {
+                  "cbuildRunPath": {
+                    "type": "string",
+                    "description": "Path to the *.cbuild-run.yml debug configuration file generated with the CMSIS-Toolbox."
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     ]
   },
