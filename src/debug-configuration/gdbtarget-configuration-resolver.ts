@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Arm Limited
+ * Copyright 2025 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-import * as vscode from 'vscode';
-import { GDBTargetConfigurationProvider } from '../debug-configuration';
 import { logger } from '../logger';
+import { GDBTargetConfiguration } from './gdbtarget-configuration';
 
-export const activate = async (context: vscode.ExtensionContext): Promise<void> => {
-    const gdbtargetConfigurationProvider = new GDBTargetConfigurationProvider();
+export class GDBTargetConfigurationResolver {
 
-    // Activate components
-    gdbtargetConfigurationProvider.activate(context);
+    public resolveWithSubstitutedVariables(config: GDBTargetConfiguration): GDBTargetConfiguration {
+        logger.warn('resolving config');
+        return config;
+    };
 
-    logger.warn('Arm CMSIS Debugger Extension Pack activated');
-};
+}
