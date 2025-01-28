@@ -46,11 +46,11 @@
   "contributes": {
     "debuggers": [
       {
-        "type": "cmsis-pyocd-debug",
-        "label": "CMSIS pyOCD Debug",
+        "type": "cmsis-debug-pyocd",
+        "label": "CMSIS Debugger (pyOCD)",
         "initialConfigurations": [
           {
-            "name": "CMSIS: pyOCD Debug",
+            "name": "CMSIS Debugger: pyOCD",
             "type": "gdbtarget",
             "request": "launch",
             "cwd": "${workspace}",
@@ -77,10 +77,10 @@
         ],
         "configurationSnippets": [
           {
-            "label": "CMSIS: pyOCD Debug",
-            "description": "Debug with CDT GDB debug adapter extension and pyOCD.",
+            "label": "CMSIS Debugger: pyOCD",
+            "description": "CMSIS Debugger via pyOCD GDB adapter.",
             "body": {
-              "name": "CMSIS: pyOCD Debug",
+              "name": "CMSIS Debugger: pyOCD",
               "type": "gdbtarget",
               "request": "launch",
               "cwd": "^\"\\${workspace}\"",
@@ -114,12 +114,12 @@
             "properties": {
               "cmsis": {
                 "type": "object",
-                "description": "Configures CMSIS specific debug settings.",
+                "description": "Configures CMSIS Debugger settings.",
                 "additionalProperties": false,
                 "properties": {
                   "cbuildRunPath": {
                     "type": "string",
-                    "description": "Path to the *.cbuild-run.yml debug configuration file generated with the CMSIS-Toolbox."
+                    "description": "Path to *.cbuild-run.yml debug configuration file generated with CMSIS-Toolbox."
                   }
                 }
 
@@ -130,12 +130,12 @@
             "properties": {
               "cmsis": {
                 "type": "object",
-                "description": "Configures CMSIS specific debug settings.",
+                "description": "Configures CMSIS Debugger settings.",
                 "additionalProperties": false,
                 "properties": {
                   "cbuildRunPath": {
                     "type": "string",
-                    "description": "Path to the *.cbuild-run.yml debug configuration file generated with the CMSIS-Toolbox."
+                    "description": "Path to *.cbuild-run.yml debug configuration file generated with CMSIS-Toolbox."
                   }
                 }
               }
