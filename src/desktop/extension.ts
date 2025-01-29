@@ -24,5 +24,5 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     // Activate components
     gdbtargetConfigurationProvider.activate(context);
 
-    logger.warn('Arm CMSIS Debugger Extension Pack activated');
+    logger.warn('Extension Pack activated');
 };

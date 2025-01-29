@@ -17,16 +17,19 @@
 import * as vscode from 'vscode';
 import { logger } from '../logger';
 import { GDBTargetConfiguration } from './gdbtarget-configuration';
-import { GDBTargetConfigurationValidator } from './gdbtarget-configuration-validator';
-import { GDBTargetConfigurationResolver } from './gdbtarget-configuration-resolver';
 
 const GDB_TARGET_DEBUGGER_TYPE = 'gdbtarget';
+
+export interface GDBTargetConfigurationSubProvider {
+    serverType: string;
+    provider: vscode.DebugConfigurationProvider;
+    triggerKind?: vscode.DebugConfigurationProviderTriggerKind;
+}
 
 export class GDBTargetConfigurationProvider implements vscode.DebugConfigurationProvider {
 
     public constructor(
-        protected resolver: GDBTargetConfigurationResolver = new GDBTargetConfigurationResolver(),
-        protected validator: GDBTargetConfigurationValidator = new GDBTargetConfigurationValidator(),
+        protected subProviders: GDBTargetConfigurationSubProvider[] = []
     ) {}
 
     public activate(context: vscode.ExtensionContext) {
@@ -35,20 +38,30 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         );
     }
 
-    public resolveDebugConfigurationWithSubstitutedVariables(
-        _folder: vscode.WorkspaceFolder | undefined,
+    public async resolveDebugConfigurationWithSubstitutedVariables(
+        folder: vscode.WorkspaceFolder | undefined,
         debugConfiguration: vscode.DebugConfiguration,
-        _token?: vscode.CancellationToken
-    ): vscode.ProviderResult<vscode.DebugConfiguration> {
-        logger.warn('resolving debug configuration with substituted variables');
-        const originalConfig = debugConfiguration as GDBTargetConfiguration;
-        logger.warn('\toriginal config');
-        logger.warn(JSON.stringify(originalConfig));
-        const resolvedConfig = this.resolver.resolveWithSubstitutedVariables(originalConfig);
-        logger.warn('\tresolved config');
-        logger.warn(JSON.stringify(resolvedConfig));
-        this.validator.validate(resolvedConfig);
-        logger.warn('\tconfig validated');
-        return debugConfiguration;
+        token?: vscode.CancellationToken
+    ): Promise<vscode.DebugConfiguration | null | undefined> {
+        logger.warn('Check for relevant configuration subproviders');
+        const gdbTargetConfig: GDBTargetConfiguration = debugConfiguration;
+        const relevantSubProviders = this.subProviders.filter(subProvider => gdbTargetConfig.target?.server === subProvider.serverType && subProvider.provider.resolveDebugConfigurationWithSubstitutedVariables);
+        if (relevantSubProviders.length === 0) {
+            logger.warn('No relevant configuration subproviders found');
+            return debugConfiguration;
+        }
+
+        logger.warn('Apply resolveDebugConfigurationWithSubstitutedVariables from all configuration subproviders');
+        const resolvedConfigPromises = relevantSubProviders.map(async (subProvider) => subProvider.provider.resolveDebugConfigurationWithSubstitutedVariables!(folder, debugConfiguration, token));
+        const resolvedConfigs = await Promise.all(resolvedConfigPromises);
+        const firstFailed = resolvedConfigs.findIndex(config => !config);
+        if (firstFailed !== -1) {
+            logger.warn(`Call to resolveDebugConfigurationWithSubstitutedVariables of configuration subprovider '${relevantSubProviders[firstFailed].serverType}'failed`);
+            return resolvedConfigs[firstFailed];
+        }
+        logger.warn('Merging results from resolveDebugConfigurationWithSubstitutedVariables call of all configuration subproviders');
+        const resolvedDebugConfiguration = resolvedConfigs.reduce((acc, config) => acc = Object.assign(acc ?? {}, config));
+        return resolvedDebugConfiguration;
     }
+
 }
