@@ -72,15 +72,15 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
             return debugConfiguration;
         }
 
-        logger.debug('Apply resolveDebugConfigurationWithSubstitutedVariables from all configuration subproviders');
+        logger.debug('Resolve config for relevant subproviders');
         const resolvedConfigPromises = relevantSubProviders.map(async (subProvider) => subProvider.provider.resolveDebugConfigurationWithSubstitutedVariables!(folder, debugConfiguration, token));
         const resolvedConfigs = await Promise.all(resolvedConfigPromises);
         const firstFailed = resolvedConfigs.findIndex(config => !config);
         if (firstFailed !== -1) {
-            logger.error(`Call to resolveDebugConfigurationWithSubstitutedVariables of configuration subprovider '${relevantSubProviders[firstFailed].serverRegExp}'failed`);
+            logger.error(`Resolving config failed for subprovider '${relevantSubProviders[firstFailed].serverRegExp}'`);
             return resolvedConfigs[firstFailed];
         }
-        logger.debug('Merging results from resolveDebugConfigurationWithSubstitutedVariables call of all configuration subproviders');
+        logger.debug('Merging resolved configs from all configuration subproviders');
         const resolvedDebugConfiguration = resolvedConfigs.reduce((acc, config) => acc = Object.assign(acc ?? {}, config));
         return resolvedDebugConfiguration;
     }

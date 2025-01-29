@@ -26,7 +26,7 @@ export class PyocdConfigurationProvider implements vscode.DebugConfigurationProv
         debugConfiguration: vscode.DebugConfiguration,
         _token?: vscode.CancellationToken
     ): Promise<vscode.DebugConfiguration | null | undefined> {
-        logger.debug('Resolving pyocd configuration');
+        logger.debug('Resolving pyOCD configuration');
         return debugConfiguration;
     }
 
