@@ -37,28 +37,42 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         );
     }
 
+    private isRelevantSubprovider(serverType: string, subProvider: GDBTargetConfigurationSubProvider): boolean {
+        const serverTypeMatch = serverType === subProvider.serverType;
+        const hasResolverFunction = !!subProvider.provider.resolveDebugConfigurationWithSubstitutedVariables;
+        return serverTypeMatch && hasResolverFunction;
+    }
+
+    private getRelevantSubproviders(serverType?: string): GDBTargetConfigurationSubProvider[] {
+        if (!serverType) {
+            return [];
+        }
+        return this.subProviders.filter(subProvider => this.isRelevantSubprovider(serverType, subProvider));
+    }
+
     public async resolveDebugConfigurationWithSubstitutedVariables(
         folder: vscode.WorkspaceFolder | undefined,
         debugConfiguration: vscode.DebugConfiguration,
         token?: vscode.CancellationToken
     ): Promise<vscode.DebugConfiguration | null | undefined> {
-        logger.warn('Check for relevant configuration subproviders');
+        logger.debug('Check for relevant configuration subproviders');
         const gdbTargetConfig: GDBTargetConfiguration = debugConfiguration;
-        const relevantSubProviders = this.subProviders.filter(subProvider => gdbTargetConfig.target?.server === subProvider.serverType && subProvider.provider.resolveDebugConfigurationWithSubstitutedVariables);
-        if (relevantSubProviders.length === 0) {
-            logger.warn('No relevant configuration subproviders found');
+        const gdbServerType = gdbTargetConfig.target?.server;
+        const relevantSubProviders = this.getRelevantSubproviders(gdbServerType);
+        if (!relevantSubProviders.length) {
+            logger.debug('No relevant configuration subproviders found');
             return debugConfiguration;
         }
 
-        logger.warn('Apply resolveDebugConfigurationWithSubstitutedVariables from all configuration subproviders');
+        logger.debug('Apply resolveDebugConfigurationWithSubstitutedVariables from all configuration subproviders');
         const resolvedConfigPromises = relevantSubProviders.map(async (subProvider) => subProvider.provider.resolveDebugConfigurationWithSubstitutedVariables!(folder, debugConfiguration, token));
         const resolvedConfigs = await Promise.all(resolvedConfigPromises);
         const firstFailed = resolvedConfigs.findIndex(config => !config);
         if (firstFailed !== -1) {
-            logger.warn(`Call to resolveDebugConfigurationWithSubstitutedVariables of configuration subprovider '${relevantSubProviders[firstFailed].serverType}'failed`);
+            logger.error(`Call to resolveDebugConfigurationWithSubstitutedVariables of configuration subprovider '${relevantSubProviders[firstFailed].serverType}'failed`);
             return resolvedConfigs[firstFailed];
         }
-        logger.warn('Merging results from resolveDebugConfigurationWithSubstitutedVariables call of all configuration subproviders');
+        logger.debug('Merging results from resolveDebugConfigurationWithSubstitutedVariables call of all configuration subproviders');
         const resolvedDebugConfiguration = resolvedConfigs.reduce((acc, config) => acc = Object.assign(acc ?? {}, config));
         return resolvedDebugConfiguration;
     }

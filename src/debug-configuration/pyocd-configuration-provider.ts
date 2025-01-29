@@ -15,14 +15,19 @@
  */
 
 import * as vscode from 'vscode';
-import { GDBTargetConfigurationProvider } from '../debug-configuration';
 import { logger } from '../logger';
 
-export const activate = async (context: vscode.ExtensionContext): Promise<void> => {
-    const gdbtargetConfigurationProvider = new GDBTargetConfigurationProvider();
+export const PYOCD_SERVER_TYPE = 'pyocd';
 
-    // Activate components
-    gdbtargetConfigurationProvider.activate(context);
+export class PyocdConfigurationProvider implements vscode.DebugConfigurationProvider {
 
-    logger.debug('Extension Pack activated');
-};
+    public async resolveDebugConfigurationWithSubstitutedVariables(
+        _folder: vscode.WorkspaceFolder | undefined,
+        debugConfiguration: vscode.DebugConfiguration,
+        _token?: vscode.CancellationToken
+    ): Promise<vscode.DebugConfiguration | null | undefined> {
+        logger.debug('Resolving pyocd configuration');
+        return debugConfiguration;
+    }
+
+}
