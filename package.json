@@ -67,11 +67,16 @@
                 "--target",
                 "${command:cmsis-csolution.getDeviceName}",
                 "--pack",
-                "<Enter absolute path to target device DFP>",
+                "${command:cmsis-csolution.getDfpPath}",
+                "--cbuild-run",
+                "${command:cmsis-csolution.getCbuildRunPath}",
                 "--port",
                 "3333"
               ],
               "port": "3333"
+            },
+            "cmsis": {
+              "cbuildRunPath": "${command:cmsis-csolution.getCbuildRunPath}"
             }
           }
         ],
@@ -97,11 +102,16 @@
                   "--target",
                   "^\"\\${command:cmsis-csolution.getDeviceName}\"",
                   "--pack",
-                  "<Enter absolute path to target device DFP>",
+                  "^\"\\${command:cmsis-csolution.getDfpPath}\"",
+                  "--cbuild-run",
+                  "^\"\\${command:cmsis-csolution.getCbuildRunPath}\"",
                   "--port",
                   "3333"
                 ],
                 "port": "3333"
+              },
+              "cmsis": {
+                "cbuildRunPath": "^\"\\${command:cmsis-csolution.getCbuildRunPath}\""
               }
             }
           }
