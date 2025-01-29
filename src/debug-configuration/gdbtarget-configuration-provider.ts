@@ -17,8 +17,12 @@
 import * as vscode from 'vscode';
 import { logger } from '../logger';
 import { GDBTargetConfiguration } from './gdbtarget-configuration';
-import { PYOCD_SERVER_TYPE_REGEXP, PyocdConfigurationProvider } from './pyocd-configuration-provider';
-import { JLINK_SERVER_TYPE_REGEXP, JlinkConfigurationProvider } from './jlink-configuration-provider';
+import {
+    PYOCD_SERVER_TYPE_REGEXP,
+    PyocdConfigurationProvider,
+    JLINK_SERVER_TYPE_REGEXP,
+    JlinkConfigurationProvider
+} from './subproviders';
 
 const GDB_TARGET_DEBUGGER_TYPE = 'gdbtarget';
 

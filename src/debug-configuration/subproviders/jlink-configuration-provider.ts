@@ -15,7 +15,7 @@
  */
 
 import * as vscode from 'vscode';
-import { logger } from '../logger';
+import { logger } from '../../logger';
 
 export const JLINK_SERVER_TYPE_REGEXP = /.*JLinkGDBServer(|.exe)\s*$/i;
 

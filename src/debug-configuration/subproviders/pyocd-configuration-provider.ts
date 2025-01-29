@@ -15,7 +15,7 @@
  */
 
 import * as vscode from 'vscode';
-import { logger } from '../logger';
+import { logger } from '../../logger';
 
 export const PYOCD_SERVER_TYPE_REGEXP = /.*pyocd(|.exe)\s*$/i;
 
