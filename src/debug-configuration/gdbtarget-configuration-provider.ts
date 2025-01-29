@@ -17,6 +17,8 @@
 import * as vscode from 'vscode';
 import { logger } from '../logger';
 import { GDBTargetConfiguration } from './gdbtarget-configuration';
+import { PYOCD_SERVER_TYPE, PyocdConfigurationProvider } from './pyocd-configuration-provider';
+import { JLINK_SERVER_TYPE, JlinkConfigurationProvider } from './jlink-configuration-provider';
 
 const GDB_TARGET_DEBUGGER_TYPE = 'gdbtarget';
 
@@ -25,10 +27,16 @@ export interface GDBTargetConfigurationSubProvider {
     provider: vscode.DebugConfigurationProvider;
 }
 
+const SUPPORTED_SUBPROVIDERS: GDBTargetConfigurationSubProvider[] = [
+    { serverType: PYOCD_SERVER_TYPE, provider: new PyocdConfigurationProvider() },
+    { serverType: JLINK_SERVER_TYPE, provider: new JlinkConfigurationProvider() },
+];
+
+
 export class GDBTargetConfigurationProvider implements vscode.DebugConfigurationProvider {
 
     public constructor(
-        protected subProviders: GDBTargetConfigurationSubProvider[] = []
+        protected subProviders: GDBTargetConfigurationSubProvider[] = SUPPORTED_SUBPROVIDERS
     ) {}
 
     public activate(context: vscode.ExtensionContext) {
