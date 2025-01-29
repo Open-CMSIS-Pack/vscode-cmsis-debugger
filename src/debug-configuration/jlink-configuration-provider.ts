@@ -17,7 +17,7 @@
 import * as vscode from 'vscode';
 import { logger } from '../logger';
 
-export const JLINK_SERVER_TYPE = 'JLinkGDBServer';
+export const JLINK_SERVER_TYPE_REGEXP = /.*JLinkGDBServer(|.exe)\s*$/i;
 
 export class JlinkConfigurationProvider implements vscode.DebugConfigurationProvider {
 

@@ -17,19 +17,19 @@
 import * as vscode from 'vscode';
 import { logger } from '../logger';
 import { GDBTargetConfiguration } from './gdbtarget-configuration';
-import { PYOCD_SERVER_TYPE, PyocdConfigurationProvider } from './pyocd-configuration-provider';
-import { JLINK_SERVER_TYPE, JlinkConfigurationProvider } from './jlink-configuration-provider';
+import { PYOCD_SERVER_TYPE_REGEXP, PyocdConfigurationProvider } from './pyocd-configuration-provider';
+import { JLINK_SERVER_TYPE_REGEXP, JlinkConfigurationProvider } from './jlink-configuration-provider';
 
 const GDB_TARGET_DEBUGGER_TYPE = 'gdbtarget';
 
 export interface GDBTargetConfigurationSubProvider {
-    serverType: string;
+    serverRegExp: RegExp;
     provider: vscode.DebugConfigurationProvider;
 }
 
 const SUPPORTED_SUBPROVIDERS: GDBTargetConfigurationSubProvider[] = [
-    { serverType: PYOCD_SERVER_TYPE, provider: new PyocdConfigurationProvider() },
-    { serverType: JLINK_SERVER_TYPE, provider: new JlinkConfigurationProvider() },
+    { serverRegExp: PYOCD_SERVER_TYPE_REGEXP, provider: new PyocdConfigurationProvider() },
+    { serverRegExp: JLINK_SERVER_TYPE_REGEXP, provider: new JlinkConfigurationProvider() },
 ];
 
 
@@ -46,7 +46,7 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
     }
 
     private isRelevantSubprovider(serverType: string, subProvider: GDBTargetConfigurationSubProvider): boolean {
-        const serverTypeMatch = serverType === subProvider.serverType;
+        const serverTypeMatch = subProvider.serverRegExp.test(serverType);
         const hasResolverFunction = !!subProvider.provider.resolveDebugConfigurationWithSubstitutedVariables;
         return serverTypeMatch && hasResolverFunction;
     }
@@ -77,7 +77,7 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         const resolvedConfigs = await Promise.all(resolvedConfigPromises);
         const firstFailed = resolvedConfigs.findIndex(config => !config);
         if (firstFailed !== -1) {
-            logger.error(`Call to resolveDebugConfigurationWithSubstitutedVariables of configuration subprovider '${relevantSubProviders[firstFailed].serverType}'failed`);
+            logger.error(`Call to resolveDebugConfigurationWithSubstitutedVariables of configuration subprovider '${relevantSubProviders[firstFailed].serverRegExp}'failed`);
             return resolvedConfigs[firstFailed];
         }
         logger.debug('Merging results from resolveDebugConfigurationWithSubstitutedVariables call of all configuration subproviders');
