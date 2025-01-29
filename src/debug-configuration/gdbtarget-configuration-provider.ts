@@ -23,7 +23,6 @@ const GDB_TARGET_DEBUGGER_TYPE = 'gdbtarget';
 export interface GDBTargetConfigurationSubProvider {
     serverType: string;
     provider: vscode.DebugConfigurationProvider;
-    triggerKind?: vscode.DebugConfigurationProviderTriggerKind;
 }
 
 export class GDBTargetConfigurationProvider implements vscode.DebugConfigurationProvider {
