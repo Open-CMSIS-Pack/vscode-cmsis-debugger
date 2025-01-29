@@ -66,23 +66,26 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         logger.debug('Check for relevant configuration subproviders');
         const gdbTargetConfig: GDBTargetConfiguration = debugConfiguration;
         const gdbServerType = gdbTargetConfig.target?.server;
-        const relevantSubProviders = this.getRelevantSubproviders(gdbServerType);
-        if (!relevantSubProviders.length) {
+        const relevantSubproviders = this.getRelevantSubproviders(gdbServerType);
+        if (!relevantSubproviders.length) {
             logger.debug('No relevant configuration subproviders found');
             return debugConfiguration;
         }
-
-        logger.debug('Resolve config for relevant subproviders');
-        const resolvedConfigPromises = relevantSubProviders.map(subProvider => subProvider.provider.resolveDebugConfigurationWithSubstitutedVariables!(folder, debugConfiguration, token));
-        const resolvedConfigs = await Promise.all(resolvedConfigPromises);
-        const firstFailed = resolvedConfigs.findIndex(config => !config);
-        if (firstFailed !== -1) {
-            logger.error(`Resolving config failed for subprovider '${relevantSubProviders[firstFailed].serverRegExp}'`);
-            return resolvedConfigs[firstFailed];
+        if (relevantSubproviders.length > 1) {
+            logger.warn(`Multiple subproviders detected for '${debugConfiguration.request}' configuration '${debugConfiguration.name}'. Using first in list:`);
+            relevantSubproviders.forEach((subprovider, index) => logger.warn(`#${index}: '${subprovider.serverRegExp}'`));
         }
-        logger.debug('Merging resolved configs from all configuration subproviders');
-        const resolvedDebugConfiguration = resolvedConfigs.reduce((acc, config) => acc = Object.assign(acc ?? {}, config));
-        return resolvedDebugConfiguration;
+        const selectedSubprovider = relevantSubproviders[0];
+        if (!selectedSubprovider.provider.resolveDebugConfigurationWithSubstitutedVariables) {
+            logger.debug(`Subprovider '${selectedSubprovider.serverRegExp}' does not implement 'resolveDebugConfigurationWithSubstitutedVariables'.`);
+            return debugConfiguration;
+        }
+        logger.debug(`Resolve config with subprovider '${selectedSubprovider.serverRegExp}'`);
+        const resolvedConfig = await selectedSubprovider.provider.resolveDebugConfigurationWithSubstitutedVariables(folder, debugConfiguration, token);
+        if (!resolvedConfig) {
+            logger.error(`Resolving config failed with subprovider '${selectedSubprovider.serverRegExp}'`);
+        }
+        return resolvedConfig;
     }
 
 }
