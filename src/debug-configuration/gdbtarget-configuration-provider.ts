@@ -73,7 +73,7 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         }
 
         logger.debug('Resolve config for relevant subproviders');
-        const resolvedConfigPromises = relevantSubProviders.map(async (subProvider) => subProvider.provider.resolveDebugConfigurationWithSubstitutedVariables!(folder, debugConfiguration, token));
+        const resolvedConfigPromises = relevantSubProviders.map(subProvider => subProvider.provider.resolveDebugConfigurationWithSubstitutedVariables!(folder, debugConfiguration, token));
         const resolvedConfigs = await Promise.all(resolvedConfigPromises);
         const firstFailed = resolvedConfigs.findIndex(config => !config);
         if (firstFailed !== -1) {
