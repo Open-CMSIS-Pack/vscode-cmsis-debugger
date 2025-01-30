@@ -114,6 +114,46 @@
                 "cbuildRunPath": "^\"\\${command:cmsis-csolution.getCbuildRunPath}\""
               }
             }
+          },
+          {
+            "label": "CMSIS Debugger: J-Link",
+            "description": "CMSIS Debugger via J-Link GDB adapter.",
+            "body": {
+              "name": "CMSIS Debugger: J-Link",
+              "type": "gdbtarget",
+              "request": "launch",
+              "cwd": "^\"\\${workspace}\"",
+              "program": "^\"\\${command:cmsis-csolution.getBinaryFile}\"",
+              "gdb": "arm-none-eabi-gdb",
+              "initCommands": [
+                "monitor reset",
+                "load",
+                "break main",
+                "continue"
+              ],
+              "target": {
+                "server": "JLinkGDBServer",
+                "serverParameters": [
+                  "-select",
+                  "USB",
+                  "-device",
+                  "^\"\\${command:cmsis-csolution.getDeviceName}\"",
+                  "-endian",
+                  "little",
+                  "-if",
+                  "SWD",
+                  "-speed",
+                  "auto",
+                  "-noir",
+                  "-LocalhostOnly",
+                  "-vd",
+                  "-nogui",
+                  "-port",
+                  "3333"
+                ],
+                "port": "3333"
+              }
+            }
           }
         ]
       },
