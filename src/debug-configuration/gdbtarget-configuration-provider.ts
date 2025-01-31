@@ -31,6 +31,8 @@ export interface GDBTargetConfigurationSubProvider {
     provider: vscode.DebugConfigurationProvider;
 }
 
+type ResolverType = 'resolveDebugConfiguration' | 'resolveDebugConfigurationWithSubstitutedVariables';
+
 const SUPPORTED_SUBPROVIDERS: GDBTargetConfigurationSubProvider[] = [
     { serverRegExp: PYOCD_SERVER_TYPE_REGEXP, provider: new PyocdConfigurationProvider() },
     { serverRegExp: JLINK_SERVER_TYPE_REGEXP, provider: new JlinkConfigurationProvider() },
@@ -49,47 +51,77 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         );
     }
 
-    private isRelevantSubprovider(serverType: string, subProvider: GDBTargetConfigurationSubProvider): boolean {
+    private isRelevantSubprovider(resolverType: ResolverType, serverType: string, subProvider: GDBTargetConfigurationSubProvider): boolean {
         const serverTypeMatch = subProvider.serverRegExp.test(serverType);
-        const hasResolverFunction = !!subProvider.provider.resolveDebugConfigurationWithSubstitutedVariables;
+        const hasResolverFunction = !!subProvider.provider[resolverType];
         return serverTypeMatch && hasResolverFunction;
     }
 
-    private getRelevantSubproviders(serverType?: string): GDBTargetConfigurationSubProvider[] {
+    private getRelevantSubproviders(resolverType: ResolverType, serverType?: string): GDBTargetConfigurationSubProvider[] {
         if (!serverType) {
             return [];
         }
-        return this.subProviders.filter(subProvider => this.isRelevantSubprovider(serverType, subProvider));
+        return this.subProviders.filter(subProvider => this.isRelevantSubprovider(resolverType, serverType, subProvider));
     }
 
-    public async resolveDebugConfigurationWithSubstitutedVariables(
+    private getRelevantSubprovider(resolverType: ResolverType, serverType?: string): GDBTargetConfigurationSubProvider | undefined {
+        const subproviders = this.getRelevantSubproviders(resolverType, serverType);
+        if (!subproviders.length) {
+            logger.debug('No relevant configuration subproviders found');
+            return undefined;
+        }
+        if (subproviders.length > 1) {
+            logger.warn('Multiple configuration subproviders detected. Using first in list:');
+            subproviders.forEach((subprovider, index) => logger.warn(`#${index}: '${subprovider.serverRegExp}'`));
+        }
+        return subproviders[0];
+    }
+
+    private async resolveDebugConfigurationByResolverType(
+        resolverType: ResolverType,
         folder: vscode.WorkspaceFolder | undefined,
         debugConfiguration: vscode.DebugConfiguration,
         token?: vscode.CancellationToken
     ): Promise<vscode.DebugConfiguration | null | undefined> {
-        logger.debug('Check for relevant configuration subproviders');
+        logger.debug(`${resolverType}: Check for relevant configuration subproviders`);
         const gdbTargetConfig: GDBTargetConfiguration = debugConfiguration;
         const gdbServerType = gdbTargetConfig.target?.server;
-        const relevantSubproviders = this.getRelevantSubproviders(gdbServerType);
-        if (!relevantSubproviders.length) {
-            logger.debug('No relevant configuration subproviders found');
+        const subprovider = this.getRelevantSubprovider(resolverType, gdbServerType);
+        if (!subprovider) {
             return debugConfiguration;
         }
-        if (relevantSubproviders.length > 1) {
-            logger.warn(`Multiple subproviders detected for '${debugConfiguration.request}' configuration '${debugConfiguration.name}'. Using first in list:`);
-            relevantSubproviders.forEach((subprovider, index) => logger.warn(`#${index}: '${subprovider.serverRegExp}'`));
-        }
-        const selectedSubprovider = relevantSubproviders[0];
-        if (!selectedSubprovider.provider.resolveDebugConfigurationWithSubstitutedVariables) {
-            logger.debug(`Subprovider '${selectedSubprovider.serverRegExp}' does not implement 'resolveDebugConfigurationWithSubstitutedVariables'.`);
+        if (!subprovider.provider[resolverType]) {
+            logger.debug(`${resolverType}: Subprovider '${subprovider.serverRegExp}' does not implement '${resolverType}'.`);
             return debugConfiguration;
         }
-        logger.debug(`Resolve config with subprovider '${selectedSubprovider.serverRegExp}'`);
-        const resolvedConfig = await selectedSubprovider.provider.resolveDebugConfigurationWithSubstitutedVariables(folder, debugConfiguration, token);
+        logger.debug(`${resolverType}: Resolve config with subprovider '${subprovider.serverRegExp}'`);
+        logger.debug(`${resolverType}: original config:`);
+        logger.debug(JSON.stringify(debugConfiguration));
+        const resolvedConfig = await subprovider.provider[resolverType](folder, debugConfiguration, token);
         if (!resolvedConfig) {
-            logger.error(`Resolving config failed with subprovider '${selectedSubprovider.serverRegExp}'`);
+            logger.error(`${resolverType}: Resolving config failed with subprovider '${subprovider.serverRegExp}'`);
         }
+        logger.debug(`${resolverType}: resolved config:`);
+        logger.debug(JSON.stringify(resolvedConfig));
+        logger.debug(`${resolverType}: expected server command line:`);
+        const resolvedGDBConfig = resolvedConfig as GDBTargetConfiguration;
+        logger.debug(`${resolvedGDBConfig.target?.server} ${resolvedGDBConfig.target?.serverParameters?.join(' ')}`);
         return resolvedConfig;
     }
 
+    public resolveDebugConfiguration(
+        folder: vscode.WorkspaceFolder | undefined,
+        debugConfiguration: vscode.DebugConfiguration,
+        token?: vscode.CancellationToken
+    ): Promise<vscode.DebugConfiguration | null | undefined> {
+        return this.resolveDebugConfigurationByResolverType('resolveDebugConfiguration', folder, debugConfiguration, token);
+    }
+
+    public resolveDebugConfigurationWithSubstitutedVariables(
+        folder: vscode.WorkspaceFolder | undefined,
+        debugConfiguration: vscode.DebugConfiguration,
+        token?: vscode.CancellationToken
+    ): Promise<vscode.DebugConfiguration | null | undefined> {
+        return this.resolveDebugConfigurationByResolverType('resolveDebugConfigurationWithSubstitutedVariables', folder, debugConfiguration, token);
+    }
 }
