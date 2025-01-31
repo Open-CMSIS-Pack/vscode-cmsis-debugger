@@ -16,18 +16,69 @@
 
 import * as vscode from 'vscode';
 import { logger } from '../../logger';
+import { GDBTargetConfiguration } from '../gdbtarget-configuration';
 
 export const PYOCD_SERVER_TYPE_REGEXP = /.*pyocd(|.exe)\s*$/i;
 
 export class PyocdConfigurationProvider implements vscode.DebugConfigurationProvider {
 
-    public async resolveDebugConfigurationWithSubstitutedVariables(
+    protected async hasCommand(commandName: string): Promise<boolean> {
+        const commands = await vscode.commands.getCommands();
+        return !!commands.find(command => command === commandName);
+    };
+
+    protected hasParam(name: string, params: string[]): boolean {
+        return !!params.find(param => param.trim() === name);
+    }
+
+    protected async shouldAppendParam(params: string[], paramName: string, commandName?: string): Promise<boolean> {
+        return !this.hasParam(paramName, params) && (!commandName || await this.hasCommand(commandName));
+    }
+
+    protected async resolveServerParameters(debugConfiguration: GDBTargetConfiguration): Promise<GDBTargetConfiguration> {
+        if (!debugConfiguration.target) {
+            return debugConfiguration;
+        }
+        const parameters = debugConfiguration.target.serverParameters ??= [];
+        // gdbserver
+        if (await this.shouldAppendParam(parameters, 'gdbserver')) {
+            parameters.push('gdbserver');
+        }
+        // target
+        if (await this.shouldAppendParam(parameters, '--target')) {
+            parameters.push('--target');
+            parameters.push('${command:cmsis-csolution.getDeviceName}');
+        }
+        // pack
+        if (await this.shouldAppendParam(parameters, '--pack')) {
+            parameters.push('--pack');
+            parameters.push('${command:cmsis-csolution.getDfpPath}');
+        }
+        // port (use value defined in 'port' outside 'serverParamters')
+        const port = debugConfiguration.target?.port;
+        if (await this.shouldAppendParam(parameters, '--port') && port) {
+            parameters.push('--port');
+            parameters.push(`${port}`);
+        }
+        // cbuild-run (ToDo: comment in the code when pyOCD supports it)
+        /*
+        const cbuildRunPath = debugConfiguration.cmsis?.cbuildRunPath;
+        if (await this.shouldAppendParam(parameters, '--cbuild-run') && cbuildRunPath) {
+            parameters.push('--cbuild-run');
+            parameters.push(`${cbuildRunPath}`);
+        }
+        */
+        return debugConfiguration;
+    }
+
+    public async resolveDebugConfiguration(
         _folder: vscode.WorkspaceFolder | undefined,
         debugConfiguration: vscode.DebugConfiguration,
         _token?: vscode.CancellationToken
     ): Promise<vscode.DebugConfiguration | null | undefined> {
         logger.debug('Resolving pyOCD configuration');
-        return debugConfiguration;
+        const resolvedConfig = await this.resolveServerParameters(debugConfiguration);
+        return resolvedConfig;
     }
 
 }
