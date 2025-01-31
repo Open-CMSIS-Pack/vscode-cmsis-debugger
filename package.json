@@ -70,10 +70,11 @@
                 "${command:cmsis-csolution.getDeviceName}",
                 "--pack",
                 "${command:cmsis-csolution.getDfpPath}",
-                "--cbuild-run",
-                "${command:cmsis-csolution.getCbuildRunPath}",
                 "--port",
-                "3333"
+                "3333",
+                "!!!REMOVE THIS AND FOLLOWING NOT YET SUPPORTED OPTIONS!!!",
+                "--cbuild-run",
+                "${command:cmsis-csolution.getCbuildRunPath}"
               ],
               "port": "3333"
             },
@@ -107,10 +108,11 @@
                   "^\"\\${command:cmsis-csolution.getDeviceName}\"",
                   "--pack",
                   "^\"\\${command:cmsis-csolution.getDfpPath}\"",
-                  "--cbuild-run",
-                  "^\"\\${command:cmsis-csolution.getCbuildRunPath}\"",
                   "--port",
-                  "3333"
+                  "3333",
+                  "!!!REMOVE THIS AND FOLLOWING NOT YET SUPPORTED OPTIONS!!!",
+                  "--cbuild-run",
+                  "^\"\\${command:cmsis-csolution.getCbuildRunPath}\""
                 ],
                 "port": "3333"
               },
