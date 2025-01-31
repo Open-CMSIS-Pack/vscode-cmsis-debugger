@@ -56,6 +56,10 @@ interface TargetConfiguration {
     uart?: UARTConfiguration;
 };
 
+interface CMSISConfiguration {
+    cbuildRunPath: string;
+}
+
 export interface GDBTargetConfiguration extends vscode.DebugConfiguration {
     program?: string; // required as per 'gdbtarget' debugger contribution, but can be omitted anyway
     gdb?: string;
@@ -70,4 +74,5 @@ export interface GDBTargetConfiguration extends vscode.DebugConfiguration {
     preRunCommands?: string[];
     imageAndSymbols?: ImageAndSymbolsConfiguration;
     target?: TargetConfiguration;
+    cmsis?: CMSISConfiguration;
 };
