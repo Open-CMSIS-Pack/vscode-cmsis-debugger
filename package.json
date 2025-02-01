@@ -64,18 +64,6 @@
             ],
             "target": {
               "server": "pyOCD",
-              "serverParameters": [
-                "gdbserver",
-                "--target",
-                "${command:cmsis-csolution.getDeviceName}",
-                "--pack",
-                "${command:cmsis-csolution.getDfpPath}",
-                "--port",
-                "3333",
-                "!!!REMOVE THIS AND FOLLOWING NOT YET SUPPORTED OPTIONS!!!",
-                "--cbuild-run",
-                "${command:cmsis-csolution.getCbuildRunPath}"
-              ],
               "port": "3333"
             },
             "cmsis": {
@@ -102,18 +90,6 @@
               ],
               "target": {
                 "server": "pyOCD",
-                "serverParameters": [
-                  "gdbserver",
-                  "--target",
-                  "^\"\\${command:cmsis-csolution.getDeviceName}\"",
-                  "--pack",
-                  "^\"\\${command:cmsis-csolution.getDfpPath}\"",
-                  "--port",
-                  "3333",
-                  "!!!REMOVE THIS AND FOLLOWING NOT YET SUPPORTED OPTIONS!!!",
-                  "--cbuild-run",
-                  "^\"\\${command:cmsis-csolution.getCbuildRunPath}\""
-                ],
                 "port": "3333"
               },
               "cmsis": {
