@@ -234,12 +234,15 @@
     "baseContentUrl": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/blob/main/README.md"
   },
   "devDependencies": {
+    "@types/jest": "^29.5.14",
     "@types/node": "^20.14.8",
     "@types/vscode": "^1.63.0",
     "@typescript-eslint/eslint-plugin": "^8.21.0",
     "@typescript-eslint/parser": "^8.21.0",
     "@vscode/vsce": "^3.2.1",
     "eslint": "^9.19.0",
+    "jest": "^29.7.0",
+    "ts-jest": "29.2.5",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5",
