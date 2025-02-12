@@ -227,6 +227,7 @@
     "build": "webpack --mode production && yarn lint",
     "watch": "webpack -w",
     "lint": "eslint .",
+    "test": "jest --passWithNoTests",
     "package": "vsce package --yarn"
   },
   "vsce": {
