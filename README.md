@@ -33,7 +33,16 @@ This section describes the contributed pseudo debugger types and their support t
 
 #### CMSIS Debugger (pyOCD) - `cmsis-debug-pyocd`
 
+TODO:
+- Assumed setup and where to find things.
+- Automatically filled in values on debug start.
+
 #### CMSIS Debugger (J-Link) - `cmsis-debug-jlink`
+
+TODO:
+- Assumed setup and where to find things.
+- Automatically filled in values on debug start.
 
 ## Trademarks
 Visual Studio is a trademark of the Microsoft group of companies.
+TODO: Review other things to be mentioned here.
