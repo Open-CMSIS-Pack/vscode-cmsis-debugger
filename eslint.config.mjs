@@ -22,6 +22,7 @@ export default [
         ignores: [
             "dist",
             "**/*.d.ts",
+            "jest.config.js",
             "node_modules",
             "webpack.config.js"
         ]
