@@ -67,7 +67,7 @@
               "port": "3333"
             },
             "cmsis": {
-              "cbuildRunPath": "${command:cmsis-csolution.getCbuildRunPath}"
+              "cbuildRunFile": "${command:cmsis-csolution.getCbuildRunFile}"
             }
           }
         ],
@@ -93,7 +93,7 @@
                 "port": "3333"
               },
               "cmsis": {
-                "cbuildRunPath": "^\"\\${command:cmsis-csolution.getCbuildRunPath}\""
+                "cbuildRunFile": "^\"\\${command:cmsis-csolution.getCbuildRunFile}\""
               }
             }
           }
@@ -193,7 +193,7 @@
                 "description": "Configures CMSIS Debugger settings.",
                 "additionalProperties": false,
                 "properties": {
-                  "cbuildRunPath": {
+                  "cbuildRunFile": {
                     "type": "string",
                     "description": "Path to *.cbuild-run.yml debug configuration file generated with CMSIS-Toolbox."
                   }
@@ -209,7 +209,7 @@
                 "description": "Configures CMSIS Debugger settings.",
                 "additionalProperties": false,
                 "properties": {
-                  "cbuildRunPath": {
+                  "cbuildRunFile": {
                     "type": "string",
                     "description": "Path to *.cbuild-run.yml debug configuration file generated with CMSIS-Toolbox."
                   }
