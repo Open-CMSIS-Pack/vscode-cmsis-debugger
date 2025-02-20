@@ -42,7 +42,8 @@ export class PyocdConfigurationProvider implements vscode.DebugConfigurationProv
         const parameters = debugConfiguration.target.serverParameters ??= [];
         // gdbserver
         if (await this.shouldAppendParam(parameters, 'gdbserver')) {
-            parameters.push('gdbserver');
+            // Prepend, it must be the first argument
+            parameters.unshift('gdbserver');
         }
         // target
         if (await this.shouldAppendParam(parameters, '--target')) {
