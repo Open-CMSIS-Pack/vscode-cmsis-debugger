@@ -19,6 +19,8 @@
     "theme": "dark"
   },
   "engines": {
+    "node": "^20.18.0",
+    "yarn": "^1.22.0",
     "vscode": "^1.63.0"
   },
   "categories": [
