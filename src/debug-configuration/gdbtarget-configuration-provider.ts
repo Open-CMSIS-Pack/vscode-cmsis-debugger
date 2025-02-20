@@ -51,6 +51,17 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         );
     }
 
+    private logDebugConfiguration(resolverType: ResolverType, config: vscode.DebugConfiguration, message = '') {
+        logger.debug(`${resolverType}: ${message}`);
+        logger.debug(JSON.stringify(config));
+    }
+
+    private logGdbServerCommandLine(resolverType: ResolverType, config: vscode.DebugConfiguration) {
+        logger.debug(`${resolverType}: GDB server command line`);
+        const resolvedGDBConfig = config as GDBTargetConfiguration;
+        logger.debug(`\t${resolvedGDBConfig.target?.server} ${resolvedGDBConfig.target?.serverParameters?.join(' ')}`);
+    }
+
     private isRelevantSubprovider(resolverType: ResolverType, serverType: string, subProvider: GDBTargetConfigurationSubProvider): boolean {
         const serverTypeMatch = subProvider.serverRegExp.test(serverType);
         const hasResolverFunction = !!subProvider.provider[resolverType];
@@ -65,6 +76,7 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
     }
 
     private getRelevantSubprovider(resolverType: ResolverType, serverType?: string): GDBTargetConfigurationSubProvider | undefined {
+        logger.debug(`${resolverType}: Check for relevant configuration subproviders`);
         const subproviders = this.getRelevantSubproviders(resolverType, serverType);
         if (!subproviders.length) {
             logger.debug('No relevant configuration subproviders found');
@@ -74,7 +86,12 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
             logger.warn('Multiple configuration subproviders detected. Using first in list:');
             subproviders.forEach((subprovider, index) => logger.warn(`#${index}: '${subprovider.serverRegExp}'`));
         }
-        return subproviders[0];
+        const relevantProvider = subproviders[0];
+        if (!relevantProvider.provider[resolverType]) {
+            logger.debug(`${resolverType}: Subprovider '${relevantProvider.serverRegExp}' does not implement '${resolverType}'.`);
+            return undefined;
+        }
+        return relevantProvider;
     }
 
     private async resolveDebugConfigurationByResolverType(
@@ -83,29 +100,22 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         debugConfiguration: vscode.DebugConfiguration,
         token?: vscode.CancellationToken
     ): Promise<vscode.DebugConfiguration | null | undefined> {
-        logger.debug(`${resolverType}: Check for relevant configuration subproviders`);
+        this.logDebugConfiguration(resolverType, debugConfiguration, 'original config');
         const gdbTargetConfig: GDBTargetConfiguration = debugConfiguration;
         const gdbServerType = gdbTargetConfig.target?.server;
         const subprovider = this.getRelevantSubprovider(resolverType, gdbServerType);
         if (!subprovider) {
-            return debugConfiguration;
-        }
-        if (!subprovider.provider[resolverType]) {
-            logger.debug(`${resolverType}: Subprovider '${subprovider.serverRegExp}' does not implement '${resolverType}'.`);
+            this.logGdbServerCommandLine(resolverType, debugConfiguration);
             return debugConfiguration;
         }
         logger.debug(`${resolverType}: Resolve config with subprovider '${subprovider.serverRegExp}'`);
-        logger.debug(`${resolverType}: original config:`);
-        logger.debug(JSON.stringify(debugConfiguration));
-        const resolvedConfig = await subprovider.provider[resolverType](folder, debugConfiguration, token);
+        const resolvedConfig = await subprovider.provider[resolverType]!(folder, debugConfiguration, token);
         if (!resolvedConfig) {
             logger.error(`${resolverType}: Resolving config failed with subprovider '${subprovider.serverRegExp}'`);
+            return undefined;
         }
-        logger.debug(`${resolverType}: resolved config:`);
-        logger.debug(JSON.stringify(resolvedConfig));
-        logger.debug(`${resolverType}: expected server command line:`);
-        const resolvedGDBConfig = resolvedConfig as GDBTargetConfiguration;
-        logger.debug(`${resolvedGDBConfig.target?.server} ${resolvedGDBConfig.target?.serverParameters?.join(' ')}`);
+        this.logDebugConfiguration(resolverType, resolvedConfig, 'resolved config');
+        this.logGdbServerCommandLine(resolverType, resolvedConfig);
         return resolvedConfig;
     }
 
