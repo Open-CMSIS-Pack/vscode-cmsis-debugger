@@ -47,7 +47,7 @@ export class PyocdConfigurationProvider implements vscode.DebugConfigurationProv
         }
         // port (use value defined in 'port' outside 'serverParamters')
         const port = debugConfiguration.target?.port;
-        if (await this.shouldAppendParam(parameters, '--port') && port) {
+        if (port && await this.shouldAppendParam(parameters, '--port')) {
             parameters.push('--port');
             parameters.push(`${port}`);
         }
