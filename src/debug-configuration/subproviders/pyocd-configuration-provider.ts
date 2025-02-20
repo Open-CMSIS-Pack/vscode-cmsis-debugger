@@ -60,7 +60,7 @@ export class PyocdConfigurationProvider implements vscode.DebugConfigurationProv
         return debugConfiguration;
     }
 
-    public async resolveDebugConfiguration(
+    public async resolveDebugConfigurationWithSubstitutedVariables(
         _folder: vscode.WorkspaceFolder | undefined,
         debugConfiguration: vscode.DebugConfiguration,
         _token?: vscode.CancellationToken
