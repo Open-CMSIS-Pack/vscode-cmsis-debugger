@@ -51,14 +51,12 @@ export class PyocdConfigurationProvider implements vscode.DebugConfigurationProv
             parameters.push('--port');
             parameters.push(`${port}`);
         }
-        // cbuild-run (ToDo: comment in the code when pyOCD supports it)
-        /*
+        // cbuild-run
         const cbuildRunFile = debugConfiguration.cmsis?.cbuildRunFile;
-        if (await this.shouldAppendParam(parameters, '--cbuild-run') && cbuildRunFile) {
+        if (cbuildRunFile && await this.shouldAppendParam(parameters, '--cbuild-run')) {
             parameters.push('--cbuild-run');
             parameters.push(`${cbuildRunFile}`);
         }
-        */
         return debugConfiguration;
     }
 
