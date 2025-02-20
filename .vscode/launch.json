@@ -17,7 +17,16 @@
             ],
             "sourceMapPathOverrides": {
                 "webpack://?:*/*": "${workspaceFolder}/*"
-            }
-        }
+            },
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Run download-tools.ts",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}/scripts/download-tools.ts",
+            "runtimeArgs": ["-r", "ts-node/register"],
+            "args": ["pyocd"]
+          }
     ]
 }

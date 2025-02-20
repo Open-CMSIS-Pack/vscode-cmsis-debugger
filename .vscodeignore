@@ -11,3 +11,4 @@ src
 test-workspace
 tsconfig.json
 webpack.config.js
+scripts
