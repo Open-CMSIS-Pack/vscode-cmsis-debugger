@@ -45,16 +45,6 @@ export class PyocdConfigurationProvider implements vscode.DebugConfigurationProv
             // Prepend, it must be the first argument
             parameters.unshift('gdbserver');
         }
-        // target
-        if (await this.shouldAppendParam(parameters, '--target')) {
-            parameters.push('--target');
-            parameters.push('${command:cmsis-csolution.getDeviceName}');
-        }
-        // pack
-        if (await this.shouldAppendParam(parameters, '--pack')) {
-            parameters.push('--pack');
-            parameters.push('${command:cmsis-csolution.getDfpPath}');
-        }
         // port (use value defined in 'port' outside 'serverParamters')
         const port = debugConfiguration.target?.port;
         if (await this.shouldAppendParam(parameters, '--port') && port) {
