@@ -12,3 +12,5 @@ test-workspace
 tsconfig.json
 webpack.config.js
 scripts
+tools/**/version.txt
+tools/**/target.txt
