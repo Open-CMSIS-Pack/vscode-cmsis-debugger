@@ -240,7 +240,7 @@
     "@types/node-fetch": "^2.6.12",
     "@types/vscode": "^1.63.0",
     "@typescript-eslint/eslint-plugin": "^8.21.0",
-    "@typescript-eslint/parser": "^8.21.0",
+    "@typescript-eslint/parser": "^8.24.1",
     "@vscode/vsce": "^3.2.1",
     "eslint": "^9.19.0",
     "extract-zip": "^2.0.1",
