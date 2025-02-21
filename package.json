@@ -62,7 +62,7 @@
               "continue"
             ],
             "target": {
-              "server": "pyOCD",
+              "server": "pyocd",
               "port": "3333"
             },
             "cmsis": {
@@ -87,7 +87,7 @@
                 "continue"
               ],
               "target": {
-                "server": "pyOCD",
+                "server": "pyocd",
                 "port": "3333"
               },
               "cmsis": {
