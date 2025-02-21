@@ -8,19 +8,6 @@ Related open source projects are
 - [pyOCD](https://pyocd.io/), a Python based tool and API for debugging, programming, and exploring Arm Cortex microcontrollers.
 - [GDB](https://www.sourceware.org/gdb/), the GNU Project debugger.
 
-## Prerequisites
-
-- (Temporary, should become obsolete with full `*.cbuild-run.yml` support in pyOCD)<br> 
-  Make sure to set up your CMSIS Pack installation root folder by one of the following methods:
-  - Set your system environment variable `CMSIS_PACK_ROOT`.
-  - Add the following to your debug launch configuration
-    ```
-    "environment": {
-      "CMSIS_PACK_ROOT": "</path/to/your/pack/cache>"
-    }
-
-    ```
-
 ## The Arm CMSIS Debugger Extension Pack
 
 The Arm CMSIS Debugger extension is actually an [extension pack](https://code.visualstudio.com/api/references/extension-manifest#extension-packs). It allows to install multiple separate extensions together.
@@ -33,7 +20,22 @@ The following extensions are included in this extension pack:
 - [Memory Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector), an Eclipse CDT Cloud extension that provides a powerful and configurable memory viewer that works with debug adapters.
 - [Peripheral Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector), an Eclipse CDT Cloud extension that provides a CMSIS SVD viewer and works with debug adapters.
 
-## Additional Functionality
+## pyOCD Debug Setup
+
+- Install `GCC compiler for ARM CPUs` with the `Arm Tools Environment Manager` to get access to a GDB (`arm-none-eabi-gdb`).
+
+- (Temporary, should become obsolete with full `*.cbuild-run.yml` support in pyOCD)<br> 
+  Make sure to set up your CMSIS Pack installation root folder by one of the following methods:
+  - Set your system environment variable `CMSIS_PACK_ROOT`.
+  - Add the following to your debug launch configuration
+    ```
+    "environment": {
+      "CMSIS_PACK_ROOT": "</path/to/your/pack/cache>"
+    }
+
+    ```
+
+## Additional Extension Functionality
 
 This extension contributes additional functionality to more seamlessly integrate the included extensions:
 - The pseudo debugger types `cmsis-debug-pyocd` and `cmsis-debug-jlink`. These types allow a more seamless integration into the VS Code IDE. However, these are not full debug adapters but generate debug configurations of type `gdbtarget` which comes with the [CDT GDB Debug Adapter Extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode).
