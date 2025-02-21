@@ -87,7 +87,7 @@ jobs:
       - name: Download tools
         run: |
           yarn --frozen-lockfile --ignore-scripts --prefer-offline
-          yarn download-tools --target ${{ matrix.target }}
+          yarn download-tools --target ${{ matrix.target }} --no-cache
 
       - name: Create vsix package
         run: |

@@ -13,7 +13,8 @@
 
 ## Building
 
-Major parts are platform independent but due to the inclusion of binary tools the resulting packages become platform-specific, i.e. for on `<target>`.
+Major parts are platform independent but due to the inclusion of binary tools the resulting
+packages become platform-specific, i.e. for on `<target>`.
 
 Supported `<target>`s are:
 
@@ -24,7 +25,8 @@ Supported `<target>`s are:
 - darwin-x64 (MacOS, Intel, x86-64)
 - darwin-arm64 (MacOS, Arm, aarch64)
 
-1. Open a terminal and execute the following command to download NPM dependencies and tools, and to build the Typescript code:
+1. Open a terminal and execute the following command to download NPM dependencies and tools, and
+   to build the Typescript code:
 
     ```sh
     > yarn
@@ -33,10 +35,12 @@ Supported `<target>`s are:
 2. Download binary tools
 
     ```sh
-    > yarn download-tools [--target <target>]
+    > yarn download-tools [--target <target>] [--no-cache]
     ```
 
     If no `<target>` is specified the local system's architecture is used by default.
+    By default, tool downloads are cached in the yarn cache (see `yarn cache dir`) to prevent
+    recurring downloads of exact same archives on clean builds.
 
 3. Package the extension as a locally installable VSIX file:
 
@@ -46,13 +50,16 @@ Supported `<target>`s are:
 
 ## Developing
 
-1. If you are developing and debugging this extension, we recommend you run the following command after an initial build:
+1. If you are developing and debugging this extension, we recommend you run the following command
+   after an initial build:
 
     ```sh
     > yarn watch
     ```
 
-    While just calling `yarn` creates a production build of the extension, running the above creates a build dedicated for debug. Additionally, it sets up a watch which detects code changes and rebuilds them incrementally.
+    While just calling `yarn` creates a production build of the extension, running the above
+    creates a build dedicated for debug. Additionally, it sets up a watch which detects code
+    changes and rebuilds them incrementally.
 
 2. Switch to the VS Code `Run and Debug` view.
 

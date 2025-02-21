@@ -101,7 +101,7 @@ async function retrieveSha256(url?: string, token?: string) {
 }
 
 async function download(url: string, options?: ToolOptions & { cache_key?: string }) {
-    const cachePath = (options?.cache && options?.cache_key) ? path.join(options.cache, options.cache_key): undefined;
+    const cachePath = (options?.cache && options?.cache_key) ? path.join(options.cache, options.cache_key) : undefined;
     if (cachePath && existsSync(cachePath)) {
         console.debug(`Found asset in cache ${cachePath} ...`);
         return { mode: 'cache', path: cachePath};
@@ -170,7 +170,12 @@ async function downloadPyOCD(target: VsceTarget, dest: string, options?: ToolOpt
         }
     }
 
-    const { mode, path: extractPath } = await download(asset.url, { token: githubToken, cache: options?.cache, cache_key: `cmsis-pyocd-${version}-${sha256sum}` });
+    const dloptions = { 
+        token: githubToken, 
+        cache: options?.cache, 
+        cache_key: sha256sum ? `cmsis-pyocd-${version}-${sha256sum}` : undefined
+    };
+    const { mode, path: extractPath } = await download(asset.url, dloptions);
 
     if (existsSync(destPath)) {
         console.debug(`Removing existing ${destPath} ...`);
@@ -197,7 +202,7 @@ async function main() {
     const yarnCacheDir = execSync('yarn cache dir').toString().trim();
     console.debug(`Yarn cache directory: ${yarnCacheDir}`);
 
-    const { target, dest, cache, cache_disable, tools } = yargs
+    const { target, dest, cache, tools } = yargs
         .option('t', {
             alias: 'target',
             description: 'VS Code extension target, defaults to system',
@@ -214,11 +219,6 @@ async function main() {
             description: 'Directory for caching tool downloads',
             default: yarnCacheDir
         })
-        .option('no-cache', {
-            description: 'Disable caching of tool downloads',
-            type: 'boolean',
-            default: false
-        })
         .version(false)
         .strict()
         .command('$0 [<tools> ...]', 'Downloads the tool(s) for the given architecture and OS', y => {
@@ -229,14 +229,23 @@ async function main() {
                 default: Object.keys(TOOLS)
             });
         })
-        .argv as unknown as { target: VsceTarget, dest: string, cache: string, cache_disable: boolean, tools: (keyof typeof TOOLS)[] };
+        .argv as unknown as { target: VsceTarget, dest: string, cache: string | boolean, tools: (keyof typeof TOOLS)[] };
 
     if (!existsSync(dest)) {
         mkdirSync(dest, { recursive: true });
     }
 
+    const cacheFolder = (cache: string | boolean) => {
+        if (typeof cache === 'string') {
+            return cache;
+        } else if(cache === true) {
+            return yarnCacheDir;
+        }
+        return undefined;
+    }
+
     for (const tool of new Set(tools)) {
-        TOOLS[tool](target, dest, { cache: cache_disable ? undefined : cache });
+        TOOLS[tool](target, dest, { cache: cacheFolder(cache) });
     }
 }
 
