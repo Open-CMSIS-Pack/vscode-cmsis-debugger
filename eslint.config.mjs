@@ -21,6 +21,7 @@ export default [
     {
         ignores: [
             "dist",
+            "scripts",
             "**/*.d.ts",
             "jest.config.js",
             "node_modules",

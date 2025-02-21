@@ -67,3 +67,15 @@ Supported `<target>`s are:
     ```
 
     **Note**: At this point, no tests have been added to this repository.
+
+## Updating tool dependencies
+
+Tool dependencies are recorded in `package.json`:
+
+```json
+  "cmsis": {
+    "<tool>": "[<owner>/<repo>@]<version>"
+  }
+````
+
+The `<version>` must match the tools release version tag.

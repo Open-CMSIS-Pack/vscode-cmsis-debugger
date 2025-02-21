@@ -223,7 +223,7 @@
   "scripts": {
     "prepare": "yarn run build",
     "download-tools": "ts-node scripts/download-tools.ts",
-    "clean": "git clean -f -x ./node_modules ./dist ./coverage",
+    "clean": "git clean -f -x ./node_modules ./dist ./coverage ./tools",
     "build": "webpack --mode production && yarn lint",
     "watch": "webpack -w",
     "lint": "eslint .",
@@ -259,6 +259,6 @@
     "yargs": "^17.7.2"
   },
   "cmsis": {
-    "pyocd": "0.0.0-standalone"
+    "pyocd": "MatthiasHertel80/pyOCD@0.0.0-standalone-cbuild1"
   }
 }
