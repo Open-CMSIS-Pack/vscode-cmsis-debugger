@@ -5,3 +5,4 @@ dist
 test-workspace/*
 !test-workspace/.vscode
 tools
+coverage

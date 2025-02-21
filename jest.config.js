@@ -4,4 +4,16 @@ module.exports = {
   transform: {
     "^.+.tsx?$": ["ts-jest",{}],
   },
+  collectCoverage: true,
+  collectCoverageFrom: [
+    "src/**/*.{ts,tsx}",
+    "!**/*.d.ts",
+    "!**/*.factories.{ts,tsx}",
+    "!src/desktop/extension.ts",
+  ],
+  coverageDirectory: "./coverage",
+  coverageReporters: [
+    "lcov",
+    "text"
+  ]
 };
