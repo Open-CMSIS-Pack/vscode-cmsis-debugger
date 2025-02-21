@@ -27,21 +27,21 @@ jobs:
           node-version-file: package.json
           registry-url: https://npm.pkg.github.com
           always-auth: true
+          cache: 'yarn'
 
       - name: Build
         env:
           GITHUB_TOKEN: ${{github.token}}
-        run: yarn --frozen-lockfile
+        run: yarn --frozen-lockfile --prefer-offline
 
       - name: Test
         run: yarn test
 
-      - name: Upload build
+      - name: Upload dist
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.6.0
         with:
-          name: build
+          name: dist
           path: |
-            ./node_modules
             ./dist
           retention-days: 1
 
@@ -67,11 +67,12 @@ jobs:
           node-version-file: package.json
           registry-url: https://npm.pkg.github.com
           always-auth: true
+          cache: 'yarn'
 
-      - name: Download build
+      - name: Download dist
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: build
+          name: dist
 
       - name: Cache tools
         uses: actions/cache@0c907a75c2c80ebcb7f088228285e798b750cf8f # v4.2.6
@@ -84,7 +85,7 @@ jobs:
 
       - name: Download tools
         run: |
-          yarn --frozen-lockfile --ignore-scripts
+          yarn --frozen-lockfile --ignore-scripts --prefer-offline
           yarn download-tools --target ${{ matrix.target }}
 
       - name: Create vsix package
