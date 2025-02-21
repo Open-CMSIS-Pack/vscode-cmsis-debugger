@@ -23,7 +23,7 @@ export const downloadFile: DownloadFile = (url, outputPath, token?) => new Promi
     const requestOptions = {
         headers: {
             Accept: 'application/octet-stream',
-            'User-Agent': 'Arm-Debug',
+            'User-Agent': 'vscode-cmsis-debugger',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
     };
