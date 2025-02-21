@@ -91,8 +91,6 @@ jobs:
 
       - name: Create vsix package
         run: |
-          ls -lah
-          find ./dist
           yarn package --target ${{ matrix.target }}
 
       - name: Upload package
