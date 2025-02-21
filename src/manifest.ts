@@ -14,5 +14,7 @@
  * limitations under the License.
  */
 
-export const PACKAGE_NAME = 'vscode-cmsis-debugger';
+export const PUBLISHER_NAME = 'arm';
+export const EXTENSION_NAME = 'vscode-cmsis-debugger';
+export const EXTENSION_ID = `${PUBLISHER_NAME}.${EXTENSION_NAME}`;
 export const DISPLAY_NAME = 'Arm CMSIS Debugger';
