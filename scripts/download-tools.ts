@@ -32,7 +32,11 @@ type Repo = { repo: string };
 type Owner = { owner: string };
 type Token = { token: string };
 
-type ToolOptions = { token?: string, cache?: string };
+type ToolOptions = { 
+    token?: string,
+    cache?: string,
+    force?: boolean
+};
 
 const TOOLS = {
     'pyocd': downloadPyOCD,
@@ -93,7 +97,7 @@ async function retrieveSha256(url?: string, token?: string) {
         const downloadFilePath = tempfile.default({ extension: '.sha256' });
         console.debug(`Downloading ${url} ...`);
         await downloadFile(url, downloadFilePath, token);
-        const sha256 = readFileSync(downloadFilePath, { encoding: 'utf8' });
+        const sha256 = readFileSync(downloadFilePath, { encoding: 'utf8' }).trim();
         rmSync(downloadFilePath, { force: true });
         return sha256;
     }
@@ -159,7 +163,7 @@ async function downloadPyOCD(target: VsceTarget, dest: string, options?: ToolOpt
         return undefined;
     });
 
-    if (existsSync(versionFilePath) && existsSync(targetFilePath)) {
+    if (!options?.force && existsSync(versionFilePath) && existsSync(targetFilePath)) {
         const hasVersion = readFileSync(versionFilePath, { encoding: 'utf8' });
         const hasTarget = readFileSync(targetFilePath, { encoding: 'utf8' });
         const hasSha256Sum = existsSync(sha256FilePath) ? readFileSync(sha256FilePath, { encoding: 'utf8' }) : undefined;
@@ -202,7 +206,7 @@ async function main() {
     const yarnCacheDir = execSync('yarn cache dir').toString().trim();
     console.debug(`Yarn cache directory: ${yarnCacheDir}`);
 
-    const { target, dest, cache, tools } = yargs
+    const { target, dest, cache, force, tools } = yargs
         .option('t', {
             alias: 'target',
             description: 'VS Code extension target, defaults to system',
@@ -219,6 +223,12 @@ async function main() {
             description: 'Directory for caching tool downloads',
             default: yarnCacheDir
         })
+        .option('f', {
+            alias: 'force',
+            description: 'Force download of tools',
+            type: 'boolean',
+            default: false
+        })
         .version(false)
         .strict()
         .command('$0 [<tools> ...]', 'Downloads the tool(s) for the given architecture and OS', y => {
@@ -229,7 +239,7 @@ async function main() {
                 default: Object.keys(TOOLS)
             });
         })
-        .argv as unknown as { target: VsceTarget, dest: string, cache: string | boolean, tools: (keyof typeof TOOLS)[] };
+        .argv as unknown as { target: VsceTarget, dest: string, cache: string | boolean, force: boolean, tools: (keyof typeof TOOLS)[] };
 
     if (!existsSync(dest)) {
         mkdirSync(dest, { recursive: true });
@@ -245,7 +255,7 @@ async function main() {
     }
 
     for (const tool of new Set(tools)) {
-        TOOLS[tool](target, dest, { cache: cacheFolder(cache) });
+        TOOLS[tool](target, dest, { cache: cacheFolder(cache), force });
     }
 }
 
