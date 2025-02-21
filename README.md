@@ -8,6 +8,19 @@ Related open source projects are
 - [pyOCD](https://pyocd.io/), a Python based tool and API for debugging, programming, and exploring Arm Cortex microcontrollers.
 - [GDB](https://www.sourceware.org/gdb/), the GNU Project debugger.
 
+## Prerequisites
+
+- (Temporary, should become obsolete with full `*.cbuild-run.yml` support in pyOCD)<br> 
+  Make sure to set up your CMSIS Pack installation root folder by one of the following methods:
+  - Set your system environment variable `CMSIS_PACK_ROOT`.
+  - Add the following to your debug launch configuration
+    ```
+    "environment": {
+      "CMSIS_PACK_ROOT": "</path/to/your/pack/cache>"
+    }
+
+    ```
+
 ## The Arm CMSIS Debugger Extension Pack
 
 The Arm CMSIS Debugger extension is actually an [extension pack](https://code.visualstudio.com/api/references/extension-manifest#extension-packs). It allows to install multiple separate extensions together.
