@@ -2,6 +2,7 @@
 .gitignore
 .vscode
 .vscodeignore
+.yarn
 *.vsix
 DEVELOPMENT.md
 dist/**/*.js.map

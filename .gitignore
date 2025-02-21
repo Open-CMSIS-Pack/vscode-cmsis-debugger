@@ -4,3 +4,4 @@ dist
 *.log
 test-workspace/*
 !test-workspace/.vscode
+.yarn

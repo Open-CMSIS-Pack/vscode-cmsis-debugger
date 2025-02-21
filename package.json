@@ -19,7 +19,8 @@
     "theme": "dark"
   },
   "engines": {
-    "vscode": "^1.63.0"
+    "vscode": "^1.63.0",
+    "yarn": "^4.6.0"
   },
   "categories": [
     "Debuggers",
@@ -196,7 +197,6 @@
                     "description": "Path to *.cbuild-run.yml debug configuration file generated with CMSIS-Toolbox."
                   }
                 }
-
               }
             }
           },
@@ -248,5 +248,6 @@
     "typescript-eslint": "8.21.0",
     "webpack": "^5.97.1",
     "webpack-cli": "^6.0.1"
-  }
+  },
+  "packageManager": "yarn@4.6.0"
 }

@@ -27,7 +27,7 @@ jobs:
       - name: Build
         env:
           GITHUB_TOKEN: ${{github.token}}
-        run: yarn --frozen-lockfile
+        run: yarn --immutable
       - name: Test
         run: yarn test
       - name: Package desktop
