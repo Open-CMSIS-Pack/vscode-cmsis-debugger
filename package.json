@@ -19,6 +19,8 @@
     "theme": "dark"
   },
   "engines": {
+    "node": "^20.18.0",
+    "yarn": "^1.22.0",
     "vscode": "^1.63.0"
   },
   "categories": [
@@ -196,7 +198,6 @@
                     "description": "Path to *.cbuild-run.yml debug configuration file generated with CMSIS-Toolbox."
                   }
                 }
-
               }
             }
           },
@@ -221,7 +222,8 @@
   },
   "scripts": {
     "prepare": "yarn run build",
-    "clean": "git clean -f -x ./node_modules ./dist ./coverage",
+    "download-tools": "ts-node scripts/download-tools.ts",
+    "clean": "git clean -f -x ./node_modules ./dist ./coverage ./tools",
     "build": "webpack --mode production && yarn lint",
     "watch": "webpack -w",
     "lint": "eslint .",
@@ -235,18 +237,28 @@
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "@types/node": "^20.14.8",
+    "@types/node-fetch": "^2.6.12",
     "@types/vscode": "^1.63.0",
     "@typescript-eslint/eslint-plugin": "^8.21.0",
     "@typescript-eslint/parser": "^8.21.0",
     "@vscode/vsce": "^3.2.1",
     "eslint": "^9.19.0",
+    "extract-zip": "^2.0.1",
     "jest": "^29.7.0",
+    "node-fetch": "^3.3.2",
+    "octokit": "^4.1.2",
+    "tempfile": "^5.0.0",
+    "ts-command-line-args": "^2.5.1",
     "ts-jest": "29.2.5",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5",
     "typescript-eslint": "8.21.0",
     "webpack": "^5.97.1",
-    "webpack-cli": "^6.0.1"
+    "webpack-cli": "^6.0.1",
+    "yargs": "^17.7.2"
+  },
+  "cmsis": {
+    "pyocd": "MatthiasHertel80/pyOCD@0.0.0-standalone-cbuild1"
   }
 }
