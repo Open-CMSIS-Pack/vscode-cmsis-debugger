@@ -1,0 +1,56 @@
+name: Bug Report
+description: Report a bug
+title: "[Bug]: "
+type: "Bug"
+projects: "github/21"
+labels: []
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: "### Thank you for reporting a problem!"
+
+  - type: input
+    id: summary
+    attributes:
+      label: "Summary"
+      description: "Briefly describe the bug."
+      placeholder: "e.g., App crashes when opening settings"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Description"
+      description: "Provide details about the bug."
+      placeholder: "Explain the unexpected behavior in detail."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Steps to Reproduce"
+      description: "List the steps to reproduce the bug."
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error"
+    validations:
+      required: false
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: "Expected Behavior"
+      description: "What should happen instead?"
+      placeholder: "Describe what you expected to happen."
+
+  - type: textarea
+    id: additional_info
+    attributes:
+      label: "Additional Information"
+      description: "Any extra context or screenshots?"
+      placeholder: "Paste logs, screenshots, or links here."

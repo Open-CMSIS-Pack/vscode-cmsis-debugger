@@ -16,11 +16,15 @@
 
 import * as vscode from 'vscode';
 import { logger } from '../../logger';
-import { GDBTargetConfiguration } from '../gdbtarget-configuration';
+import { GDBTargetConfiguration, TargetConfiguration } from '../gdbtarget-configuration';
+import { BuiltinToolPath } from '../../desktop/builtin-tool-path';
 
+const PYOCD_BUILTIN_PATH = 'tools/pyocd/pyocd';
+export const PYOCD_EXECUTABLE_ONLY_REGEXP = /^\s*pyocd(|.exe)\s*$/i;
 export const PYOCD_SERVER_TYPE_REGEXP = /.*pyocd(|.exe)\s*$/i;
 
 export class PyocdConfigurationProvider implements vscode.DebugConfigurationProvider {
+    protected builtinPyocd = new BuiltinToolPath(PYOCD_BUILTIN_PATH);
 
     protected async hasCommand(commandName: string): Promise<boolean> {
         const commands = await vscode.commands.getCommands();
@@ -35,10 +39,22 @@ export class PyocdConfigurationProvider implements vscode.DebugConfigurationProv
         return !this.hasParam(paramName, params) && (!commandName || await this.hasCommand(commandName));
     }
 
+    protected resolveServerPath(target: TargetConfiguration): void {
+        const targetServer = target.server;
+        const useBuiltin = !targetServer || PYOCD_EXECUTABLE_ONLY_REGEXP.test(targetServer);
+        const builtinUri = useBuiltin ? this.builtinPyocd.getAbsolutePath() : undefined;
+        if (builtinUri) {
+            target.server = builtinUri.fsPath;
+        }
+    }
+
     protected async resolveServerParameters(debugConfiguration: GDBTargetConfiguration): Promise<GDBTargetConfiguration> {
         if (!debugConfiguration.target) {
             return debugConfiguration;
         }
+        // server
+        this.resolveServerPath(debugConfiguration.target);
+        // serverParameters
         const parameters = debugConfiguration.target.serverParameters ??= [];
         // gdbserver
         if (await this.shouldAppendParam(parameters, 'gdbserver')) {

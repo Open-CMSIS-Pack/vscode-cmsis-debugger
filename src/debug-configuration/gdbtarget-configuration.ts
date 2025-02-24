@@ -40,7 +40,7 @@ interface UARTConfiguration {
     eolCharacter?: string;
 };
 
-interface TargetConfiguration {
+export interface TargetConfiguration {
     type?: string;
     parameters?: string[];
     host?: string;
