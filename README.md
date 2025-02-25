@@ -48,15 +48,22 @@ This section describes the contributed pseudo debugger types and their support t
 
 #### CMSIS Debugger (pyOCD) - `cmsis-debug-pyocd`
 
-TODO:
-- Assumed setup and where to find things.
-- Automatically filled in values on debug start.
+The `cmsis-debug-pyocd` debugger type allows to add default debug configurations to the workspace's `launch.json` file to debug via GDB and pyOCD. The actually used debugger type is `gdbtarget`.
+
+In addition this extension contributes a debug configuration resolver which automatically fills the following gaps during debug launch:
+- If option `target`.`server` is set to `pyocd`, then it expands this option to the absolute path of the built-in pyOCD distribution.
+- Adds/extends the `target`.`serverParameters` list of `pyocd` command line arguments:
+  - Prepends `gdbserver` if not present.
+  - Appends `--port` and the corresponding `port` value if `target`.`port` is set.
+  - Appends `--cbuild-run` and the corresponding `cbuildRunFile` path if `cmsis`.`cbuildRunFile` is set.
+
+**Note**: The built-in version of pyOCD supports the command line option `--cbuild-run`. However, this is a new option which isn't contained yet in releases outside this extension.
 
 #### CMSIS Debugger (J-Link) - `cmsis-debug-jlink`
 
-TODO:
-- Assumed setup and where to find things.
-- Automatically filled in values on debug start.
+The `cmsis-debug-jlink` debugger type allows to add default debug configurations to the workspace's `launch.json` file to debug via GDB and the Segger J-Link GDB server. The actually used debugger type is `gdbtarget`.
+
+**Note**: The generated default debug configuration uses `JLinkGDBServer` as `target`.`server` setting. The executable with this name has slightly differing behavior depending on your host platform. It launches a GUI-less server on Linux and MacOS. Whereas a GDB server with GUI is launched on Windows. Please change the value to `JLinkGDBServerCL` to suppress the GUI on Windows.
 
 ## Trademarks
 Visual Studio is a trademark of the Microsoft group of companies.
