@@ -29,6 +29,27 @@ jobs:
           always-auth: true
           cache: 'yarn'
 
+      - name: Set version
+        run: |
+          case ${{ github.event_name }} in
+            release)
+              VERSION="${{ github.event.release.tag_name }}"
+              yarn version --no-git-tag-version --new-version "${VERSION#v}"
+              ;;
+            pull_request)
+              VERSION=$(git describe --tags | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+')
+              QUALIFIER=$(git describe --tags | grep -Eo '\-g[0-9a-f]+$')
+              yarn version -s --no-git-tag-version --new-version "${VERSION#v}"
+              yarn version --no-git-tag-version --prepatch --preid "pr${{ github.event.number }}${QUALIFIER}"
+              ;;
+            *)
+              VERSION=$(git describe --tags | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+')
+              QUALIFIER=$(git describe --tags | grep -Eo '[0-9]+\-g[0-9a-f]+$')
+              yarn version -s --no-git-tag-version --new-version "${VERSION#v}"
+              yarn version --no-git-tag-version --prepatch --preid "${{ github.ref_name }}${QUALIFIER}"
+              ;;
+          esac
+
       - name: Build
         env:
           GITHUB_TOKEN: ${{github.token}}
