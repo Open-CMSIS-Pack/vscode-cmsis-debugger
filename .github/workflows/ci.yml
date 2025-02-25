@@ -75,6 +75,7 @@ jobs:
         if: github.event_name == 'release'
         run: |
           sed -i '3i ## Unreleased\n' CHANGELOG.md
+          git checkout main
           git config user.name github-actions
           git config user.email git@github.com
           git add CHANGELOG.md
