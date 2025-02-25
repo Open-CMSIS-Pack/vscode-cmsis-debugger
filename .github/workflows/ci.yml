@@ -33,22 +33,25 @@ jobs:
         run: |
           case ${{ github.event_name }} in
             release)
-              VERSION="${{ github.event.release.tag_name }}"
-              yarn version --no-git-tag-version --new-version "${VERSION#v}"
+              TAG="${{ github.event.release.tag_name }}"
+              yarn version --no-git-tag-version --new-version "${TAG#v}"
               ;;
             pull_request)
-              VERSION=$(git describe --tags | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+')
+              DESCRIBE=$(git describe --tags | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+')
               QUALIFIER=$(git describe --tags | grep -Eo '\-g[0-9a-f]+$')
-              yarn version -s --no-git-tag-version --new-version "${VERSION#v}"
+              yarn version -s --no-git-tag-version --new-version "${DESCRIBE#v}"
               yarn version --no-git-tag-version --prepatch --preid "pr${{ github.event.number }}${QUALIFIER}"
               ;;
             *)
-              VERSION=$(git describe --tags | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+')
+              DESCRIBE=$(git describe --tags | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+')
               QUALIFIER=$(git describe --tags | grep -Eo '[0-9]+\-g[0-9a-f]+$')
-              yarn version -s --no-git-tag-version --new-version "${VERSION#v}"
+              yarn version -s --no-git-tag-version --new-version "${DESCRIBE#v}"
               yarn version --no-git-tag-version --prepatch --preid "${{ github.ref_name }}${QUALIFIER}"
               ;;
           esac
+          VERSION="$(jq -r ".version" < package.json)"
+          sed -i "s/## Unreleased/## ${VERSION}/" CHANGELOG.md
+          echo "Version is ${VERSION}"
 
       - name: Build
         env:
@@ -63,9 +66,20 @@ jobs:
         with:
           name: dist
           path: |
+            ./CHANGELOG.md
             ./package.json
             ./dist
           retention-days: 1
+
+      - name: Commit changelog
+        if: github.event_name == 'release'
+        run: |
+          sed -i '3i ## Unreleased\n' CHANGELOG.md
+          git config user.name github-actions
+          git config user.email git@github.com
+          git add CHANGELOG.md
+          git commit -m "Update CHANGELOG.md after release [skip ci]"
+          git push
 
   package:
     name: Package
