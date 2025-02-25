@@ -25,10 +25,9 @@ export default [
             "dist",
             "scripts",
             "**/*.d.ts",
-            "*.config.{ts,js}",
+            "*.config.{ts,js,mjs}",
             "*.setup.{ts,js}",
             "node_modules",
-            "webpack.config.js"
         ]
     },
     js.configs.recommended,
