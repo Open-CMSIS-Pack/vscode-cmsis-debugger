@@ -227,7 +227,7 @@
     "build": "webpack --mode production && yarn lint",
     "watch": "webpack -w",
     "lint": "eslint .",
-    "test": "jest --passWithNoTests",
+    "test": "jest",
     "package": "vsce package --yarn"
   },
   "vsce": {
@@ -254,6 +254,7 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5",
     "typescript-eslint": "8.24.1",
+    "vscode-uri": "^3.1.0",
     "webpack": "^5.98.0",
     "webpack-cli": "^6.0.1",
     "yargs": "^17.7.2"
