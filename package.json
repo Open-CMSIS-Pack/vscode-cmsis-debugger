@@ -259,6 +259,6 @@
     "yargs": "^17.7.2"
   },
   "cmsis": {
-    "pyocd": "MatthiasHertel80/pyOCD@0.0.0-standalone-cbuild1"
+    "pyocd": "MatthiasHertel80/pyOCD@0.0.0-standalone-cbuild2"
   }
 }
