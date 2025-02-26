@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    paths:
+      - '.github/workflows/tpip.yml'
+      - docs/third-party-licenses.json
+      - docs/tpip-header.md
+      - scripts/tpip-reporter.ts
+    branches:
+      - main
+    
+  workflow_dispatch:
+
+jobs:
+  report:
+    name: Generate Third-Party licenses report
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '20'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn --frozen-lockfile --prefer-offline
+
+      - name: Generate third-party licenses report
+        run: yarn run tpip:report
+
+      - name: Commit changes
+        run: |
+          git config --local user.email "git@github.com
+          git config --local user.name "GitHub Action"
+          git add TPIP.md
+          git commit -m "Update third-party licenses report [skip ci]"
+          git push

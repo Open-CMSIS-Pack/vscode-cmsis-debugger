@@ -228,7 +228,8 @@
     "watch": "webpack -w",
     "lint": "eslint .",
     "test": "jest",
-    "package": "vsce package --yarn"
+    "package": "vsce package --yarn",
+    "tpip:report": "ts-node scripts/tpip-reporter --header docs/tpip-header.md docs/third-party-licenses.json TPIP.md"
   },
   "vsce": {
     "yarn": true,
