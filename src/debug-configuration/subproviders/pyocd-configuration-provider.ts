@@ -18,26 +18,16 @@ import * as vscode from 'vscode';
 import { logger } from '../../logger';
 import { GDBTargetConfiguration, TargetConfiguration } from '../gdbtarget-configuration';
 import { BuiltinToolPath } from '../../desktop/builtin-tool-path';
+import { BaseConfigurationProvider } from './base-configuration-provider';
 
 const PYOCD_BUILTIN_PATH = 'tools/pyocd/pyocd';
-export const PYOCD_EXECUTABLE_ONLY_REGEXP = /^\s*pyocd(|.exe)\s*$/i;
+const PYOCD_EXECUTABLE_ONLY_REGEXP = /^\s*pyocd(|.exe)\s*$/i;
 export const PYOCD_SERVER_TYPE_REGEXP = /.*pyocd(|.exe)\s*$/i;
 
-export class PyocdConfigurationProvider implements vscode.DebugConfigurationProvider {
+const PYOCD_CLI_ARG_PORT = '--port';
+
+export class PyocdConfigurationProvider extends BaseConfigurationProvider {
     protected builtinPyocd = new BuiltinToolPath(PYOCD_BUILTIN_PATH);
-
-    protected async hasCommand(commandName: string): Promise<boolean> {
-        const commands = await vscode.commands.getCommands();
-        return !!commands.find(command => command === commandName);
-    };
-
-    protected hasParam(name: string, params: string[]): boolean {
-        return !!params.find(param => param.trim() === name);
-    }
-
-    protected async shouldAppendParam(params: string[], paramName: string, commandName?: string): Promise<boolean> {
-        return !this.hasParam(paramName, params) && (!commandName || await this.hasCommand(commandName));
-    }
 
     protected resolveServerPath(target: TargetConfiguration): void {
         const targetServer = target.server;
@@ -49,6 +39,7 @@ export class PyocdConfigurationProvider implements vscode.DebugConfigurationProv
     }
 
     protected async resolveServerParameters(debugConfiguration: GDBTargetConfiguration): Promise<GDBTargetConfiguration> {
+        logger.debug('Resolving pyOCD server parameters');
         if (!debugConfiguration.target) {
             return debugConfiguration;
         }
@@ -63,8 +54,8 @@ export class PyocdConfigurationProvider implements vscode.DebugConfigurationProv
         }
         // port (use value defined in 'port' outside 'serverParamters')
         const port = debugConfiguration.target?.port;
-        if (port && await this.shouldAppendParam(parameters, '--port')) {
-            parameters.push('--port');
+        if (port && await this.shouldAppendParam(parameters, PYOCD_CLI_ARG_PORT)) {
+            parameters.push(PYOCD_CLI_ARG_PORT);
             parameters.push(`${port}`);
         }
         // cbuild-run
@@ -74,16 +65,6 @@ export class PyocdConfigurationProvider implements vscode.DebugConfigurationProv
             parameters.push(`${cbuildRunFile}`);
         }
         return debugConfiguration;
-    }
-
-    public async resolveDebugConfigurationWithSubstitutedVariables(
-        _folder: vscode.WorkspaceFolder | undefined,
-        debugConfiguration: vscode.DebugConfiguration,
-        _token?: vscode.CancellationToken
-    ): Promise<vscode.DebugConfiguration | null | undefined> {
-        logger.debug('Resolving pyOCD configuration');
-        const resolvedConfig = await this.resolveServerParameters(debugConfiguration);
-        return resolvedConfig;
     }
 
 }
