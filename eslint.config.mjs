@@ -20,12 +20,14 @@ import tseslint from 'typescript-eslint';
 export default [
     {
         ignores: [
+            "__mocks__/**/*",
+            "coverage/**/*",
             "dist",
             "scripts",
             "**/*.d.ts",
-            "jest.config.js",
+            "*.config.{ts,js,mjs}",
+            "*.setup.{ts,js}",
             "node_modules",
-            "webpack.config.js"
         ]
     },
     js.configs.recommended,
