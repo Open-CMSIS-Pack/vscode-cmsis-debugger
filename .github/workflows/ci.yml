@@ -72,7 +72,7 @@ jobs:
           retention-days: 1
 
       - name: Commit changelog
-        if: github.event_name == 'release'
+        if: false && github.event_name == 'release'
         run: |
           sed -i '3i ## Unreleased\n' CHANGELOG.md
           git checkout main
