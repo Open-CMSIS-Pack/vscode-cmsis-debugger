@@ -119,8 +119,6 @@
             "target": {
               "server": "JLinkGDBServer",
               "serverParameters": [
-                "-select",
-                "USB",
                 "-device",
                 "${command:cmsis-csolution.getDeviceName}",
                 "-endian",
@@ -130,11 +128,9 @@
                 "-speed",
                 "auto",
                 "-noir",
-                "-LocalhostOnly",
                 "-vd",
                 "-nogui",
-                "-port",
-                "3333"
+                "-localhostonly"
               ],
               "port": "3333"
             }
@@ -160,8 +156,6 @@
               "target": {
                 "server": "JLinkGDBServer",
                 "serverParameters": [
-                  "-select",
-                  "USB",
                   "-device",
                   "^\"\\${command:cmsis-csolution.getDeviceName}\"",
                   "-endian",
@@ -171,11 +165,9 @@
                   "-speed",
                   "auto",
                   "-noir",
-                  "-LocalhostOnly",
                   "-vd",
                   "-nogui",
-                  "-port",
-                  "3333"
+                  "-localhostonly"
                 ],
                 "port": "3333"
               }

@@ -14,76 +14,57 @@
  * limitations under the License.
  */
 
-import * as vscode from 'vscode';
 import { logger } from '../../logger';
 import { GDBTargetConfiguration, TargetConfiguration } from '../gdbtarget-configuration';
 import { BuiltinToolPath } from '../../desktop/builtin-tool-path';
+import { BaseConfigurationProvider } from './base-configuration-provider';
 
 const PYOCD_BUILTIN_PATH = 'tools/pyocd/pyocd';
-export const PYOCD_EXECUTABLE_ONLY_REGEXP = /^\s*pyocd(|.exe)\s*$/i;
+const PYOCD_EXECUTABLE_ONLY_REGEXP = /^\s*pyocd(|.exe)\s*$/i;
 export const PYOCD_SERVER_TYPE_REGEXP = /.*pyocd(|.exe)\s*$/i;
 
-export class PyocdConfigurationProvider implements vscode.DebugConfigurationProvider {
+const PYOCD_CLI_ARG_GDBSERVER = 'gdbserver';
+const PYOCD_CLI_ARG_PORT = '--port';
+const PYOCD_CLI_ARG_CBUILDRUN = '--cbuild-run';
+
+export class PyocdConfigurationProvider extends BaseConfigurationProvider {
     protected builtinPyocd = new BuiltinToolPath(PYOCD_BUILTIN_PATH);
-
-    protected async hasCommand(commandName: string): Promise<boolean> {
-        const commands = await vscode.commands.getCommands();
-        return !!commands.find(command => command === commandName);
-    };
-
-    protected hasParam(name: string, params: string[]): boolean {
-        return !!params.find(param => param.trim() === name);
-    }
-
-    protected async shouldAppendParam(params: string[], paramName: string, commandName?: string): Promise<boolean> {
-        return !this.hasParam(paramName, params) && (!commandName || await this.hasCommand(commandName));
-    }
 
     protected resolveServerPath(target: TargetConfiguration): void {
         const targetServer = target.server;
         const useBuiltin = !targetServer || PYOCD_EXECUTABLE_ONLY_REGEXP.test(targetServer);
-        const builtinUri = useBuiltin ? this.builtinPyocd.getAbsolutePath() : undefined;
-        if (builtinUri) {
-            target.server = builtinUri.fsPath;
+        const updateUri = useBuiltin ? this.builtinPyocd.getAbsolutePath() : undefined;
+        if (updateUri) {
+            target.server = updateUri.fsPath;
         }
     }
 
     protected async resolveServerParameters(debugConfiguration: GDBTargetConfiguration): Promise<GDBTargetConfiguration> {
+        logger.debug('Resolving pyOCD server parameters');
         if (!debugConfiguration.target) {
             return debugConfiguration;
         }
         // server
         this.resolveServerPath(debugConfiguration.target);
         // serverParameters
-        const parameters = debugConfiguration.target.serverParameters ??= [];
+        debugConfiguration.target.serverParameters ??= [];
+        const parameters = debugConfiguration.target.serverParameters;
         // gdbserver
-        if (await this.shouldAppendParam(parameters, 'gdbserver')) {
+        if (await this.shouldAppendParameter(parameters, PYOCD_CLI_ARG_GDBSERVER)) {
             // Prepend, it must be the first argument
-            parameters.unshift('gdbserver');
+            parameters.unshift(PYOCD_CLI_ARG_GDBSERVER);
         }
         // port (use value defined in 'port' outside 'serverParamters')
         const port = debugConfiguration.target?.port;
-        if (port && await this.shouldAppendParam(parameters, '--port')) {
-            parameters.push('--port');
-            parameters.push(`${port}`);
+        if (port && await this.shouldAppendParameter(parameters, PYOCD_CLI_ARG_PORT)) {
+            parameters.push(PYOCD_CLI_ARG_PORT, `${port}`);
         }
         // cbuild-run
         const cbuildRunFile = debugConfiguration.cmsis?.cbuildRunFile;
-        if (cbuildRunFile && await this.shouldAppendParam(parameters, '--cbuild-run')) {
-            parameters.push('--cbuild-run');
-            parameters.push(`${cbuildRunFile}`);
+        if (cbuildRunFile && await this.shouldAppendParameter(parameters, PYOCD_CLI_ARG_CBUILDRUN)) {
+            parameters.push(PYOCD_CLI_ARG_CBUILDRUN, `${cbuildRunFile}`);
         }
         return debugConfiguration;
-    }
-
-    public async resolveDebugConfigurationWithSubstitutedVariables(
-        _folder: vscode.WorkspaceFolder | undefined,
-        debugConfiguration: vscode.DebugConfiguration,
-        _token?: vscode.CancellationToken
-    ): Promise<vscode.DebugConfiguration | null | undefined> {
-        logger.debug('Resolving pyOCD configuration');
-        const resolvedConfig = await this.resolveServerParameters(debugConfiguration);
-        return resolvedConfig;
     }
 
 }
