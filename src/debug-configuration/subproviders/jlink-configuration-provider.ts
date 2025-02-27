@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import * as vscode from 'vscode';
 import { logger } from '../../logger';
 import { BaseConfigurationProvider } from './base-configuration-provider';
 import { GDBTargetConfiguration } from '../gdbtarget-configuration';
@@ -26,17 +25,17 @@ const JLINK_CLI_ARG_PORT = '-port';
 export class JlinkConfigurationProvider extends BaseConfigurationProvider {
 
     protected async resolveServerParameters(debugConfiguration: GDBTargetConfiguration): Promise<GDBTargetConfiguration> {
-        logger.debug('Resolving J-Link configuration');
+        logger.debug('Resolving J-Link GDB server parameters');
         if (!debugConfiguration.target) {
             return debugConfiguration;
         }
         // serverParameters
-        const parameters = debugConfiguration.target.serverParameters ??= [];
+        debugConfiguration.target.serverParameters ??= [];
+        const parameters = debugConfiguration.target.serverParameters;
         // port (use value defined in 'port' outside 'serverParamters')
         const port = debugConfiguration.target?.port;
-        if (port && await this.shouldAppendParam(parameters, JLINK_CLI_ARG_PORT)) {
-            parameters.push(JLINK_CLI_ARG_PORT);
-            parameters.push(`${port}`);
+        if (port && await this.shouldAppendParameter(parameters, JLINK_CLI_ARG_PORT)) {
+            parameters.push(JLINK_CLI_ARG_PORT, `${port}`);
         }
         return debugConfiguration;
     }

@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import * as vscode from 'vscode';
 import { logger } from '../../logger';
 import { GDBTargetConfiguration, TargetConfiguration } from '../gdbtarget-configuration';
 import { BuiltinToolPath } from '../../desktop/builtin-tool-path';
@@ -24,7 +23,9 @@ const PYOCD_BUILTIN_PATH = 'tools/pyocd/pyocd';
 const PYOCD_EXECUTABLE_ONLY_REGEXP = /^\s*pyocd(|.exe)\s*$/i;
 export const PYOCD_SERVER_TYPE_REGEXP = /.*pyocd(|.exe)\s*$/i;
 
+const PYOCD_CLI_ARG_GDBSERVER = 'gdbserver';
 const PYOCD_CLI_ARG_PORT = '--port';
+const PYOCD_CLI_ARG_CBUILDRUN = '--cbuild-run';
 
 export class PyocdConfigurationProvider extends BaseConfigurationProvider {
     protected builtinPyocd = new BuiltinToolPath(PYOCD_BUILTIN_PATH);
@@ -32,9 +33,9 @@ export class PyocdConfigurationProvider extends BaseConfigurationProvider {
     protected resolveServerPath(target: TargetConfiguration): void {
         const targetServer = target.server;
         const useBuiltin = !targetServer || PYOCD_EXECUTABLE_ONLY_REGEXP.test(targetServer);
-        const builtinUri = useBuiltin ? this.builtinPyocd.getAbsolutePath() : undefined;
-        if (builtinUri) {
-            target.server = builtinUri.fsPath;
+        const updateUri = useBuiltin ? this.builtinPyocd.getAbsolutePath() : undefined;
+        if (updateUri) {
+            target.server = updateUri.fsPath;
         }
     }
 
@@ -46,23 +47,22 @@ export class PyocdConfigurationProvider extends BaseConfigurationProvider {
         // server
         this.resolveServerPath(debugConfiguration.target);
         // serverParameters
-        const parameters = debugConfiguration.target.serverParameters ??= [];
+        debugConfiguration.target.serverParameters ??= [];
+        const parameters = debugConfiguration.target.serverParameters;
         // gdbserver
-        if (await this.shouldAppendParam(parameters, 'gdbserver')) {
+        if (await this.shouldAppendParameter(parameters, PYOCD_CLI_ARG_GDBSERVER)) {
             // Prepend, it must be the first argument
-            parameters.unshift('gdbserver');
+            parameters.unshift(PYOCD_CLI_ARG_GDBSERVER);
         }
         // port (use value defined in 'port' outside 'serverParamters')
         const port = debugConfiguration.target?.port;
-        if (port && await this.shouldAppendParam(parameters, PYOCD_CLI_ARG_PORT)) {
-            parameters.push(PYOCD_CLI_ARG_PORT);
-            parameters.push(`${port}`);
+        if (port && await this.shouldAppendParameter(parameters, PYOCD_CLI_ARG_PORT)) {
+            parameters.push(PYOCD_CLI_ARG_PORT, `${port}`);
         }
         // cbuild-run
         const cbuildRunFile = debugConfiguration.cmsis?.cbuildRunFile;
-        if (cbuildRunFile && await this.shouldAppendParam(parameters, '--cbuild-run')) {
-            parameters.push('--cbuild-run');
-            parameters.push(`${cbuildRunFile}`);
+        if (cbuildRunFile && await this.shouldAppendParameter(parameters, PYOCD_CLI_ARG_CBUILDRUN)) {
+            parameters.push(PYOCD_CLI_ARG_CBUILDRUN, `${cbuildRunFile}`);
         }
         return debugConfiguration;
     }

@@ -19,28 +19,27 @@ import { GDBTargetConfiguration } from '../gdbtarget-configuration';
 
 export abstract class BaseConfigurationProvider implements vscode.DebugConfigurationProvider {
 
-    protected async hasCommand(commandName: string): Promise<boolean> {
+    protected async commandExists(commandName: string): Promise<boolean> {
         const commands = await vscode.commands.getCommands();
         return !!commands.find(command => command === commandName);
     };
 
-    protected hasParam(name: string, params: string[]): boolean {
+    protected parameterExists(name: string, params: string[]): boolean {
         return !!params.find(param => param.trim() === name);
     }
 
-    protected async shouldAppendParam(params: string[], paramName: string, commandName?: string): Promise<boolean> {
-        return !this.hasParam(paramName, params) && (!commandName || await this.hasCommand(commandName));
+    protected async shouldAppendParameter(params: string[], paramName: string, commandName?: string): Promise<boolean> {
+        return !this.parameterExists(paramName, params) && (!commandName || await this.commandExists(commandName));
     }
 
     protected abstract resolveServerParameters(debugConfiguration: GDBTargetConfiguration): Promise<GDBTargetConfiguration>;
 
-    public async resolveDebugConfigurationWithSubstitutedVariables(
+    public resolveDebugConfigurationWithSubstitutedVariables(
         _folder: vscode.WorkspaceFolder | undefined,
         debugConfiguration: vscode.DebugConfiguration,
         _token?: vscode.CancellationToken
     ): Promise<vscode.DebugConfiguration | null | undefined> {
-        const resolvedConfig = await this.resolveServerParameters(debugConfiguration);
-        return resolvedConfig;
+        return this.resolveServerParameters(debugConfiguration);
     }
 
 }
