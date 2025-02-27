@@ -72,6 +72,9 @@ In addition this extension contributes a debug configuration resolver which auto
 - Adds/extends the `target`.`serverParameters` list of `JLinkGDBServer`/`JLinkGDBServerCL` command line arguments:
   - Appends `--port` and the corresponding `port` value if `target`.`port` is set.
 
+## Known Limitations
+- Requires ELF files built with GCC and DWARF5 debug information to operate seamlessly.
+- The shipped pyOCD version accepts the new command line option `--cbuild-run`. But only extracts device and DFP names.
+
 ## Trademarks
 Visual Studio is a trademark of the Microsoft group of companies.
-TODO: Review other things to be mentioned here.
