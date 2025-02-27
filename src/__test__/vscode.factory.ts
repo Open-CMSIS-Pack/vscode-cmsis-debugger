@@ -61,6 +61,7 @@ export function extensionContextFactory(): jest.Mocked<vscode.ExtensionContext> 
             activate: jest.fn(),
             exports: {},
             extensionKind: 2,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as unknown as vscode.Extension<any>,
         languageModelAccessInformation: {
             getLanguageModel: jest.fn(),
