@@ -1,4 +1,4 @@
-name: CI
+name: TPIP
 
 on:
   push:
@@ -14,7 +14,7 @@ on:
 
 jobs:
   report:
-    name: Generate Third-Party licenses report
+    name: Generate report
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +34,7 @@ jobs:
 
       - name: Commit changes
         run: |
-          git config --local user.email "git@github.com
+          git config --local user.email "git@github.com"
           git config --local user.name "GitHub Action"
           git add TPIP.md
           git commit -m "Update third-party licenses report [skip ci]"
