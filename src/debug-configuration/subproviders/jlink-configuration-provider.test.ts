@@ -14,16 +14,48 @@
  * limitations under the License.
  */
 
-import { debugConfigurationFactory } from '../debug-configuration.factory';
+import { gdbTargetConfiguration, targetConfigurationFactory } from '../debug-configuration.factory';
 import { JlinkConfigurationProvider } from './jlink-configuration-provider';
 
 describe('JlinkConfigurationProvider', () => {
 
-    it('resolveDebugConfigurationWithSubstitutedVariables', async () => {
-        const configProvider = new JlinkConfigurationProvider();
-        const config = debugConfigurationFactory();
-        const debugConfig = await configProvider.resolveDebugConfigurationWithSubstitutedVariables(undefined, config, undefined);
-        expect(debugConfig).toBeDefined();
+    describe('resolveDebugConfigurationWithSubstitutedVariables', () => {
+
+        it('does not add undefined server parameters', async () => {
+            const configProvider = new JlinkConfigurationProvider();
+            const config = gdbTargetConfiguration({
+                target: targetConfigurationFactory(),
+            });
+            const debugConfig = await configProvider.resolveDebugConfigurationWithSubstitutedVariables(undefined, config, undefined);
+            expect(debugConfig).toBeDefined();
+            expect(debugConfig?.target?.serverParameters).not.toContain('-port');
+        });
+
+        it('adds port to server parameters', async () => {
+            const configProvider = new JlinkConfigurationProvider();
+            const config = gdbTargetConfiguration({
+                target: targetConfigurationFactory({ port: '4711' }),
+            });
+            const debugConfig = await configProvider.resolveDebugConfigurationWithSubstitutedVariables(undefined, config, undefined);
+            expect(debugConfig).toBeDefined();
+            expect(debugConfig?.target?.serverParameters).toContain('-port');
+            expect(debugConfig?.target?.serverParameters).toContain('4711');
+        });
+
+        it('does not overwrite port in server parameters', async () => {
+            const configProvider = new JlinkConfigurationProvider();
+            const config = gdbTargetConfiguration({
+                target: targetConfigurationFactory({
+                    port: '4711',
+                    serverParameters: ['-port', '10815'],
+                }),
+            });
+            const debugConfig = await configProvider.resolveDebugConfigurationWithSubstitutedVariables(undefined, config, undefined);
+            expect(debugConfig).toBeDefined();
+            expect(debugConfig?.target?.serverParameters).toContain('-port');
+            expect(debugConfig?.target?.serverParameters).toContain('10815');
+        });
+
     });
 
 });

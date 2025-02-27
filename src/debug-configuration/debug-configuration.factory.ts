@@ -16,7 +16,7 @@
 
 import * as vscode from 'vscode';
 import { makeFactory } from '../__test__/test-data-factory';
-import { GDBTargetConfiguration } from './gdbtarget-configuration';
+import { GDBTargetConfiguration, TargetConfiguration } from './gdbtarget-configuration';
 
 export const debugConfigurationFactory = makeFactory<vscode.DebugConfiguration>({
     type: () => 'cppdbg',
@@ -24,21 +24,36 @@ export const debugConfigurationFactory = makeFactory<vscode.DebugConfiguration>(
     request: () => 'launch',
 });
 
+export const targetConfigurationFactory = makeFactory<TargetConfiguration>({
+    type: () => undefined,
+    parameters: () => undefined,
+    host: () => undefined,
+    port: () => undefined,
+    cwd: () => undefined,
+    environment: () => undefined,
+    server: () => undefined,
+    serverParameters: () => undefined,
+    serverPortRegExp: () => undefined,
+    serverStartupDelay: () => undefined,
+    automaticallyKillServer: () => false,
+    uart: () => undefined,
+});
+
 export const gdbTargetConfiguration = makeFactory<GDBTargetConfiguration>({
     type: () => 'gdb',
     name: () => 'Debug',
     request: () => 'launch',
-    program: () => 'program',
-    gdb: () => 'gdb',
-    cwd: () => 'cwd',
-    environment: () => ({ additionalProperties: 'additionalProperties' }),
-    gdbAsync: () => false,
-    gdbNonStop: () => false,
-    verbose: () => false,
-    logFile: () => 'logFile',
-    openGdbConsole: () => false,
-    initCommands: () => [],
-    preRunCommands: () => [],
+    program: () => undefined,
+    gdb: () => undefined,
+    cwd: () => undefined,
+    environment: () => undefined,
+    gdbAsync: () => undefined,
+    gdbNonStop: () => undefined,
+    verbose: () => undefined,
+    logFile: () => undefined,
+    openGdbConsole: () => undefined,
+    initCommands: () => undefined,
+    preRunCommands: () => undefined,
     imageAndSymbols: () => undefined,
     target: () => undefined,
     cmsis: () => undefined,
