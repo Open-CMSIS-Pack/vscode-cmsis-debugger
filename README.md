@@ -68,6 +68,10 @@ The `cmsis-debug-jlink` debugger type allows to add default debug configurations
 
 **Note**: The generated default debug configuration uses `JLinkGDBServer` as `target`.`server` setting. The executable with this name has slightly differing behavior depending on your host platform. It launches a GUI-less server on Linux and MacOS. Whereas a GDB server with GUI is launched on Windows. Please change the value to `JLinkGDBServerCL` to suppress the GUI on Windows.
 
+In addition this extension contributes a debug configuration resolver which automatically fills the following gaps during debug launch:
+- Adds/extends the `target`.`serverParameters` list of `JLinkGDBServer`/`JLinkGDBServerCL` command line arguments:
+  - Appends `--port` and the corresponding `port` value if `target`.`port` is set.
+
 ## Trademarks
 Visual Studio is a trademark of the Microsoft group of companies.
 TODO: Review other things to be mentioned here.
