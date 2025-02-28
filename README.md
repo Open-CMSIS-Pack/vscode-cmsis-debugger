@@ -1,8 +1,12 @@
+[![Maintainability](https://api.codeclimate.com/v1/badges/0f12a7e73736f8bbfb9d/maintainability)](https://codeclimate.com/github/Open-CMSIS-Pack/vscode-cmsis-debugger/maintainability)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/0f12a7e73736f8bbfb9d/test_coverage)](https://codeclimate.com/github/Open-CMSIS-Pack/vscode-cmsis-debugger/test_coverage)
+
 # Arm CMSIS Debugger Extension for Visual Studio Code (In Progress)
 
-The Arm CMSIS Debugger extension for Visual Studio Code is an extension pack demonstrating how to combine technologies from various open source projects to create a comprehensive debug platform for Arm based IoT solutions. 
+The Arm CMSIS Debugger extension for Visual Studio Code is an extension pack demonstrating how to combine technologies from various open source projects to create a comprehensive debug platform for Arm based IoT solutions.
 
 Related open source projects are
+
 - [Open-CMSIS-Pack](https://www.open-cmsis-pack.org/) of which this extension is part of.
 - [Eclipse CDT Cloud](https://eclipse.dev/cdt-cloud/), an open-source project that hosts a number of components and best practices for building customizable web-based C/C++ tools.
 - [pyOCD](https://pyocd.io/), a Python based tool and API for debugging, programming, and exploring Arm Cortex microcontrollers.
@@ -15,6 +19,7 @@ The Arm CMSIS Debugger extension is actually an [extension pack](https://code.vi
 ## Included Extensions
 
 The following extensions are included in this extension pack:
+
 - [Arm Tools Environment Manager](https://marketplace.visualstudio.com/items?itemName=Arm.environment-manager), an extension that allows to download, install, and manage software development tools using [Microsoft vcpkg](https://vcpkg.io/en/index.html) artifacts.
 - [CDT GDB Debug Adapter Extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode), an Eclipse CDT Cloud extension that supports debugging using gdb and any other debuggers that supports the MI protocol.
 - [Memory Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector), an Eclipse CDT Cloud extension that provides a powerful and configurable memory viewer that works with debug adapters.
@@ -23,10 +28,11 @@ The following extensions are included in this extension pack:
 ## pyOCD Debug Setup
 
 - Install `GCC compiler for ARM CPUs` with the `Arm Tools Environment Manager` to get access to a GDB (`arm-none-eabi-gdb`).
-- **Temporary** - should become obsolete with full `*.cbuild-run.yml` support in pyOCD:<br> 
+- **Temporary** - should become obsolete with full `*.cbuild-run.yml` support in pyOCD:<br>
   Make sure to set up your CMSIS Pack installation root folder by one of the following methods:
   - Set your system environment variable `CMSIS_PACK_ROOT`.
   - Add the following to your debug launch configuration
+
     ```
     "environment": {
       "CMSIS_PACK_ROOT": "</path/to/your/pack/cache>"
@@ -41,6 +47,7 @@ The following extensions are included in this extension pack:
 ## Additional Extension Functionality
 
 This extension contributes additional functionality to more seamlessly integrate the included extensions:
+
 - The pseudo debugger types `cmsis-debug-pyocd` and `cmsis-debug-jlink`. These types allow a more seamless integration into the VS Code IDE. However, these are not full debug adapters but generate debug configurations of type `gdbtarget` which comes with the [CDT GDB Debug Adapter Extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode).
 - A [debug configuration provider](https://code.visualstudio.com/api/references/vscode-api#DebugConfigurationProvider) for the type `gdbtarget` which comes with the [CDT GDB Debug Adapter Extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode). This provider automatically fills in default values for known remote GDB servers when launching a debug session.
 - CMSIS specific launch configuration items for the `*` debugger type, i.e. visible for all debugger types. It depends on the actually used debug adapter type if this information is known and utilized.
@@ -54,6 +61,7 @@ This section describes the contributed pseudo debugger types and their support t
 The `cmsis-debug-pyocd` debugger type allows to add default debug configurations to the workspace's `launch.json` file to debug via GDB and pyOCD. The actually used debugger type is `gdbtarget`.
 
 In addition this extension contributes a debug configuration resolver which automatically fills the following gaps during debug launch:
+
 - If option `target`.`server` is set to `pyocd`, then it expands this option to the absolute path of the built-in pyOCD distribution.
 - Adds/extends the `target`.`serverParameters` list of `pyocd` command line arguments:
   - Prepends `gdbserver` if not present.
@@ -69,12 +77,15 @@ The `cmsis-debug-jlink` debugger type allows to add default debug configurations
 **Note**: The generated default debug configuration uses `JLinkGDBServer` as `target`.`server` setting. The executable with this name has slightly differing behavior depending on your host platform. It launches a GUI-less server on Linux and MacOS. Whereas a GDB server with GUI is launched on Windows. Please change the value to `JLinkGDBServerCL` to suppress the GUI on Windows.
 
 In addition this extension contributes a debug configuration resolver which automatically fills the following gaps during debug launch:
+
 - Adds/extends the `target`.`serverParameters` list of `JLinkGDBServer`/`JLinkGDBServerCL` command line arguments:
   - Appends `--port` and the corresponding `port` value if `target`.`port` is set.
 
 ## Known Limitations
+
 - Requires ELF files built with GCC and DWARF5 debug information to operate seamlessly.
 - The shipped pyOCD version accepts the new command line option `--cbuild-run`. But only extracts device and DFP names.
 
 ## Trademarks
+
 Visual Studio is a trademark of the Microsoft group of companies.
