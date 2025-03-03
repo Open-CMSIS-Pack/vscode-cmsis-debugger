@@ -246,7 +246,7 @@
     "octokit": "^4.1.2",
     "tempfile": "^5.0.0",
     "ts-command-line-args": "^2.5.1",
-    "ts-jest": "29.2.5",
+    "ts-jest": "29.2.6",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "type-fest": "^4.35.0",
