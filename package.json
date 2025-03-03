@@ -249,7 +249,7 @@
     "ts-jest": "29.2.6",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
-    "type-fest": "^4.35.0",
+    "type-fest": "^4.36.0",
     "typescript": "^5.4.5",
     "typescript-eslint": "8.25.0",
     "vscode-uri": "^3.1.0",
