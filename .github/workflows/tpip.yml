@@ -1,7 +1,7 @@
 name: TPIP
 
 on:
-  push:
+  pull_request:
     paths:
       - '.github/workflows/tpip.yml'
       - docs/third-party-licenses.json
@@ -19,9 +19,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.head_ref }}
 
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'yarn'
