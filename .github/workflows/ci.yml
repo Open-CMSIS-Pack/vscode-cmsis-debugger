@@ -119,7 +119,7 @@ jobs:
           path: .
 
       - name: Cache tools
-        uses: actions/cache@0c907a75c2c80ebcb7f088228285e798b750cf8f # v4.2.6
+        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.6
         with:
           path: tools
           key: tools-${{ matrix.target }}-${{ github.head_ref || github.ref_name }}
