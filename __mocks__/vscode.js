@@ -14,10 +14,32 @@
  * limitations under the License.
  */
 
+require('domain');
 const { URI } = require('vscode-uri');
 
 module.exports = {
+    EventEmitter: jest.fn(() => {
+        const callbacks = [];
+        return {
+            dispose: jest.fn(),
+            event: (callback, thisArg) => {
+                callbacks.push(thisArg ? callback.bind(thisArg) : callback);
+                return { dispose: jest.fn() };
+            },
+            fire: event => callbacks.forEach(callback => callback(event))
+        };
+    }),
     Uri: URI,
+    window: {
+        createOutputChannel: jest.fn(() => ({
+            appendLine: jest.fn(),
+            trace: jest.fn(),
+            debug: jest.fn(),
+            info: jest.fn(),
+            warn: jest.fn(),
+            error: jest.fn(),
+        })),
+    },
     workspace: {
         getConfiguration: jest.fn(() => ({
             get: jest.fn(),
@@ -28,5 +50,8 @@ module.exports = {
     },
     commands: {
         executeCommand: jest.fn(),
-    }
+    },
+    debug: {
+        registerDebugConfigurationProvider: jest.fn(),
+    },
 };
