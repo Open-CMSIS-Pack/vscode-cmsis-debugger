@@ -70,6 +70,7 @@ jobs:
         with:
           name: dist
           path: |
+            ./README.md
             ./CHANGELOG.md
             ./package.json
             ./dist
