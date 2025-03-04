@@ -46,6 +46,32 @@
     "onStartupFinished"
   ],
   "contributes": {
+    "configuration": {
+      "title": "Arm CMSIS Debugger",
+      "properties": {
+        "toolMapping.GDB": {
+          "type": "object",
+          "markdownDescription": "GDB executable used for `gdb` in launch configurations. Enter the GDB's file path as Value to override default behavior. Add new items to extend the list of mappings.\n * By default, the extension expects the tool to be available through the **Arm Tools Environment Manager** or the `PATH` environment variable.",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {
+            "arm-none-eabi-gdb": ""
+          }
+        },
+        "toolMapping.GDBServer": {
+          "type": "object",
+          "markdownDescription": "GDB server executable used for `server` in launch configurations. Enter the GDB server's file path as Value to override default behavior. Add new items to extend the list of mappings.\n * `pyocd`: By default invokes pyOCD shipped with this extension.\n * `Other`: By default the extension expects the tool to be available through the **Arm Tools Environment Manager** or the `PATH` environment variable.",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {
+            "pyocd": "",
+            "JLinkGDBServer": ""
+          }
+        }
+      }
+    },
     "debuggers": [
       {
         "type": "cmsis-debug-pyocd",
