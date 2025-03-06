@@ -28,7 +28,7 @@ describe('GDBTargetDebugTracker', () => {
         debugTracker.activate(contextMock);
 
         expect(contextMock.subscriptions).toHaveLength(1);
-        expect(vscode.debug.registerDebugAdapterTrackerFactory as jest.Mock).toHaveBeenCalledWith('gdbtarget', expect.objectContaining({createDebugAdapterTracker: expect.any(Function)}));
+        expect(vscode.debug.registerDebugAdapterTrackerFactory as jest.Mock).toHaveBeenCalledWith('gdbtarget', expect.objectContaining({ createDebugAdapterTracker: expect.any(Function) }));
     });
 
     it('brings the debug console to front \'onWillStartSession\' is called', async () => {
