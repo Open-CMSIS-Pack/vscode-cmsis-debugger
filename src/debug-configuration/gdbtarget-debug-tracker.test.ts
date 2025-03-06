@@ -19,7 +19,7 @@ import { extensionContextFactory } from '../__test__/vscode.factory';
 
 import * as vscode from 'vscode';
 
-describe('GDBTargetConfigurationProvider', () => {
+describe('GDBTargetDebugTracker', () => {
 
     it('should activate', async () => {
         const debugTracker = new GDBTargetDebugTracker();
