@@ -20,14 +20,20 @@ The Arm CMSIS Debugger extension is actually an [extension pack](https://code.vi
 
 The following extensions are included in this extension pack:
 
-- [Arm Tools Environment Manager](https://marketplace.visualstudio.com/items?itemName=Arm.environment-manager), an extension that allows to download, install, and manage software development tools using [Microsoft vcpkg](https://vcpkg.io/en/index.html) artifacts.
 - [CDT GDB Debug Adapter Extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode), an Eclipse CDT Cloud extension that supports debugging using gdb and any other debuggers that supports the MI protocol.
 - [Memory Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector), an Eclipse CDT Cloud extension that provides a powerful and configurable memory viewer that works with debug adapters.
 - [Peripheral Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector), an Eclipse CDT Cloud extension that provides a CMSIS SVD viewer and works with debug adapters.
 
+## Recommended Extensions
+
+We recommend to install the following extensions to simplify the user experience:
+
+- [Arm Tools Environment Manager](https://marketplace.visualstudio.com/items?itemName=Arm.environment-manager), an extension that allows to download, install, and manage software development tools using [Microsoft vcpkg](https://vcpkg.io/en/index.html) artifacts. Use this extension to for example install the `GCC compiler for ARM CPUs` which comes with a GDB variant for Arm CPUs.
+- [Arm CMSIS Solution](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution), an extension that is a graphical user interface for csolution projects that use the [CMSIS-Toolbox](https://open-cmsis-pack.github.io/cmsis-toolbox/). Use this extension to build your csolution projects, to generate `*.cbuild-run.yml` debug configuration files, and to make use of contributed commands in your debug launch configurations.
+
 ## pyOCD Debug Setup
 
-- Install `GCC compiler for ARM CPUs` with the `Arm Tools Environment Manager` to get access to a GDB (`arm-none-eabi-gdb`).
+- Install `GCC compiler for ARM CPUs` with the `Arm Tools Environment Manager` extension to get access to a GDB (`arm-none-eabi-gdb`).
 - **Temporary** - should become obsolete with full `*.cbuild-run.yml` support in pyOCD:<br>
   Make sure to set up your CMSIS Pack installation root folder by one of the following methods:
   - Set your system environment variable `CMSIS_PACK_ROOT`.
