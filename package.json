@@ -59,8 +59,7 @@
             "gdb": "arm-none-eabi-gdb",
             "initCommands": [
               "load",
-              "break main",
-              "continue"
+              "break main"
             ],
             "target": {
               "server": "pyocd",
@@ -84,8 +83,7 @@
               "gdb": "arm-none-eabi-gdb",
               "initCommands": [
                 "load",
-                "break main",
-                "continue"
+                "break main"
               ],
               "target": {
                 "server": "pyocd",
@@ -110,10 +108,8 @@
             "program": "${command:cmsis-csolution.getBinaryFile}",
             "gdb": "arm-none-eabi-gdb",
             "initCommands": [
-              "monitor reset",
               "load",
-              "break main",
-              "continue"
+              "break main"
             ],
             "target": {
               "server": "JLinkGDBServer",
@@ -147,10 +143,8 @@
               "program": "^\"\\${command:cmsis-csolution.getBinaryFile}\"",
               "gdb": "arm-none-eabi-gdb",
               "initCommands": [
-                "monitor reset",
                 "load",
-                "break main",
-                "continue"
+                "break main"
               ],
               "target": {
                 "server": "JLinkGDBServer",
