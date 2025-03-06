@@ -15,13 +15,16 @@
  */
 
 import * as vscode from 'vscode';
+import { GDBTargetDebugTracker } from '../debug-configuration/gdbtarget-debug-tracker';
 import { GDBTargetConfigurationProvider } from '../debug-configuration';
 import { logger } from '../logger';
 
 export const activate = async (context: vscode.ExtensionContext): Promise<void> => {
+    const gdbtargetDebugTracker = new GDBTargetDebugTracker();
     const gdbtargetConfigurationProvider = new GDBTargetConfigurationProvider();
 
     // Activate components
+    gdbtargetDebugTracker.activate(context);
     gdbtargetConfigurationProvider.activate(context);
 
     logger.debug('Extension Pack activated');
