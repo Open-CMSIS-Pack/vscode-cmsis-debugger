@@ -54,7 +54,7 @@
             "name": "CMSIS Debugger: pyOCD",
             "type": "gdbtarget",
             "request": "launch",
-            "cwd": "${workspace}",
+            "cwd": "${workspaceFolder}",
             "program": "${command:cmsis-csolution.getBinaryFile}",
             "gdb": "arm-none-eabi-gdb",
             "initCommands": [
@@ -78,7 +78,7 @@
               "name": "CMSIS Debugger: pyOCD",
               "type": "gdbtarget",
               "request": "launch",
-              "cwd": "^\"\\${workspace}\"",
+              "cwd": "^\"\\${workspaceFolder}\"",
               "program": "^\"\\${command:cmsis-csolution.getBinaryFile}\"",
               "gdb": "arm-none-eabi-gdb",
               "initCommands": [
@@ -104,7 +104,7 @@
             "name": "CMSIS Debugger: J-Link",
             "type": "gdbtarget",
             "request": "launch",
-            "cwd": "${workspace}",
+            "cwd": "${workspaceFolder}",
             "program": "${command:cmsis-csolution.getBinaryFile}",
             "gdb": "arm-none-eabi-gdb",
             "initCommands": [
@@ -139,7 +139,7 @@
               "name": "CMSIS Debugger: J-Link",
               "type": "gdbtarget",
               "request": "launch",
-              "cwd": "^\"\\${workspace}\"",
+              "cwd": "^\"\\${workspaceFolder}\"",
               "program": "^\"\\${command:cmsis-csolution.getBinaryFile}\"",
               "gdb": "arm-none-eabi-gdb",
               "initCommands": [
