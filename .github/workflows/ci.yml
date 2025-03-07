@@ -137,9 +137,9 @@ jobs:
           yarn --frozen-lockfile --ignore-scripts --prefer-offline
           yarn download-tools --target ${{ matrix.target }} --no-cache
 
-      - name: Create vsix package
+      - name: Create vsix package (pre-release)
         run: |
-          yarn package --target ${{ matrix.target }}
+          yarn package --target ${{ matrix.target }} --pre-release
 
       - name: Upload package
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
