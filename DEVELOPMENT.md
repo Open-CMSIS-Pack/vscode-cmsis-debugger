@@ -2,8 +2,8 @@
 
 ## Prerequisites
 
-- Install **Visual Studio Code**.
-- Install **Node.js** on your machine and ensure it is on your path.
+- Install **Visual Studio Code®**.
+- Install **Node.js®** on your machine and ensure it is on your path.
   - The currently recommended version is 20.x (LTS).
 - Install **Yarn** which is used to build and execute scripts in this repository:
 
@@ -18,15 +18,15 @@ packages become platform-specific, i.e. for on `<target>`.
 
 Supported `<target>`s are:
 
-- win32-x64 (Windows, Intel, x86-64)
-- win32-arm64 (Windows, Arm, aarch64)
-- linux-x64 (Linux, Intel, x86-64)
+- win32-x64 (Windows®, x86-64)
+- win32-arm64 (Windows, Arm®, aarch64)
+- linux-x64 (Linux, x86-64)
 - linux-arm64 (Linux, Arm, aarch64)
-- darwin-x64 (MacOS, Intel, x86-64)
-- darwin-arm64 (MacOS, Arm, aarch64)
+- darwin-x64 (macOS, x86-64)
+- darwin-arm64 (macOS, Arm, aarch64)
 
 1. Open a terminal and execute the following command to download NPM dependencies and tools, and
-   to build the Typescript code:
+   to build the TypeScript code:
 
     ```sh
     > yarn
@@ -61,7 +61,7 @@ Supported `<target>`s are:
     creates a build dedicated for debug. Additionally, it sets up a watch which detects code
     changes and rebuilds them incrementally.
 
-2. Switch to the VS Code `Run and Debug` view.
+2. Switch to the VS Code® `Run and Debug` view.
 
 3. Select and run `Desktop Extension`. This launches an extension host that runs this extension.
 

@@ -98,10 +98,10 @@
       },
       {
         "type": "cmsis-debug-jlink",
-        "label": "CMSIS Debugger (J-Link)",
+        "label": "CMSIS Debugger (J-LINK)",
         "initialConfigurations": [
           {
-            "name": "CMSIS Debugger: J-Link",
+            "name": "CMSIS Debugger: J-LINK",
             "type": "gdbtarget",
             "request": "launch",
             "cwd": "${workspaceFolder}",
@@ -133,10 +133,10 @@
         ],
         "configurationSnippets": [
           {
-            "label": "CMSIS Debugger: J-Link",
-            "description": "CMSIS Debugger via J-Link GDB adapter.",
+            "label": "CMSIS Debugger: J-LINK",
+            "description": "CMSIS Debugger via J-LINK GDB adapter.",
             "body": {
-              "name": "CMSIS Debugger: J-Link",
+              "name": "CMSIS Debugger: J-LINK",
               "type": "gdbtarget",
               "request": "launch",
               "cwd": "^\"\\${workspaceFolder}\"",
