@@ -38,7 +38,7 @@ jobs:
 
       - name: Autobuild
         id: autobuild
-        uses: github/codeql-action/autobuild@b2e6519679e446e7bb7c3466d70f13a6b5461fcd # v3.28.9
+        uses: github/codeql-action/autobuild@b2e6519679e446e7bb7c3466d70f13a6b5461fcd # v3.28.11
 
       - name: Perform CodeQL Analysis
         id: analyze
