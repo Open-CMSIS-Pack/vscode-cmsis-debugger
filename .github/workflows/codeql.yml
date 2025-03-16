@@ -30,7 +30,7 @@ jobs:
 
       - name: Initialize CodeQL
         id: initialize
-        uses: github/codeql-action/init@b2e6519679e446e7bb7c3466d70f13a6b5461fcd # v3.28.11
+        uses: github/codeql-action/init@70df9def86d22bf0ea4e7f8b956e7b92e7c1ea22 # v3.28.11
         with:
           queries: security-extended 
           languages: TypeScript
@@ -38,8 +38,8 @@ jobs:
 
       - name: Autobuild
         id: autobuild
-        uses: github/codeql-action/autobuild@b2e6519679e446e7bb7c3466d70f13a6b5461fcd # v3.28.11
+        uses: github/codeql-action/autobuild@70df9def86d22bf0ea4e7f8b956e7b92e7c1ea22 # v3.28.11
 
       - name: Perform CodeQL Analysis
         id: analyze
-        uses: github/codeql-action/analyze@b2e6519679e446e7bb7c3466d70f13a6b5461fcd # v3.28.11
+        uses: github/codeql-action/analyze@70df9def86d22bf0ea4e7f8b956e7b92e7c1ea22 # v3.28.11
