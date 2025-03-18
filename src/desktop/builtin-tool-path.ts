@@ -19,8 +19,9 @@ import * as fs from 'fs';
 import { EXTENSION_ID } from '../manifest';
 import * as os from 'os';
 import * as vscode from 'vscode';
+import * as path from 'path';
 
-const isWindows = os.platform() === 'win32';
+export const isWindows = os.platform() === 'win32';
 
 export class BuiltinToolPath {
     constructor(protected toolPath: string) {
@@ -32,5 +33,13 @@ export class BuiltinToolPath {
         const absoluteUri = extensionUri?.with({ path: `${extensionUri.path}/${this.toolPath}${isWindows ? '.exe' : ''}` });
         const fsPath = absoluteUri?.fsPath;
         return (fsPath && fs.existsSync(fsPath)) ? absoluteUri : undefined;
+    }
+
+    public getAbsolutePathDir(): string | undefined{
+        const pathToFile = this.getAbsolutePath()?.fsPath;
+        if(pathToFile){
+            return path.dirname(pathToFile);
+        }
+        return undefined;
     }
 }
