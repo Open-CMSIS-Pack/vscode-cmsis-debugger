@@ -38,5 +38,5 @@ export function addPyocdToPath(context: vscode.ExtensionContext): void {
     const delimiter = isWindows ? ';' : ':';
     const updatePath = pathPyOCD?.concat(delimiter, pathVariable);
     //add updated path to PATH variable, but only for the terminal inside of vscode
-    context.environmentVariableCollection.replace('PATH', updatePath!);
+    context.environmentVariableCollection.replace('PATH', updatePath);
 }

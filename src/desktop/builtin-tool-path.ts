@@ -37,7 +37,7 @@ export class BuiltinToolPath {
 
     public getAbsolutePathDir(): string | undefined{
         const pathToFile = this.getAbsolutePath()?.fsPath;
-        if(pathToFile){
+        if (pathToFile) {
             return path.dirname(pathToFile);
         }
         return undefined;
