@@ -223,7 +223,7 @@
   "dependencies": {},
   "devDependencies": {
     "@types/jest": "^29.5.14",
-    "@types/node": "^20.14.8",
+    "@types/node": "^22.13.11",
     "@types/node-fetch": "^2.6.12",
     "@types/vscode": "^1.63.0",
     "@types/yargs": "^17.0.33",
