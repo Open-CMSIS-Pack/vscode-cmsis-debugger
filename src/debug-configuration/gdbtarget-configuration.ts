@@ -18,6 +18,7 @@ import * as vscode from 'vscode';
 
 interface EnvironmentConfiguration {
     additionalProperties?: string;
+    cmsisPackRoot?: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     default?: any;
 };
