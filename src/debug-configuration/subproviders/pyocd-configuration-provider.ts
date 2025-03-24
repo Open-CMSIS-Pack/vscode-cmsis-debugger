@@ -18,6 +18,8 @@ import { logger } from '../../logger';
 import { GDBTargetConfiguration, TargetConfiguration } from '../gdbtarget-configuration';
 import { BuiltinToolPath } from '../../desktop/builtin-tool-path';
 import { BaseConfigurationProvider } from './base-configuration-provider';
+import * as os from 'os';
+import * as path from 'path';
 
 const PYOCD_BUILTIN_PATH = 'tools/pyocd/pyocd';
 const PYOCD_EXECUTABLE_ONLY_REGEXP = /^\s*pyocd(|.exe)\s*$/i;
@@ -63,6 +65,13 @@ export class PyocdConfigurationProvider extends BaseConfigurationProvider {
         const cbuildRunFile = debugConfiguration.cmsis?.cbuildRunFile;
         if (cbuildRunFile && await this.shouldAppendParameter(parameters, PYOCD_CLI_ARG_CBUILDRUN)) {
             parameters.push(PYOCD_CLI_ARG_CBUILDRUN, `${cbuildRunFile}`);
+        }
+        // CMSIS_PACK_ROOT
+        const cmsisPackRoot = debugConfiguration.environment?.cmsisPackRoot;
+        if (!cmsisPackRoot) {
+            os.platform() === 'win32'
+            ? path.join(process.env['LOCALAPPDATA'] ?? os.homedir(), 'arm', 'packs')
+            : path.join(os.homedir(), '.cache', 'arm', 'packs');
         }
         return debugConfiguration;
     }
