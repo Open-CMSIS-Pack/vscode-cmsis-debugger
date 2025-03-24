@@ -42,16 +42,16 @@ export class PyocdConfigurationProvider extends BaseConfigurationProvider {
     }
 
     protected resolveCmsisPackRootPath(target: TargetConfiguration): void {
-        const environmentValue = process.env.CMSIS_PACK_ROOT;
+        const environmentValue = process.env['CMSIS_PACK_ROOT'];
         if (environmentValue) {
             return;
         }
 
-        if(target.environment?.CMSIS_PACK_ROOT) {
+        if (target.environment?.CMSIS_PACK_ROOT) {
             return;
         }
         const cmsisPackRootDefault = os.platform() === 'win32'
-            ? path.join(process.env['LOCALAPPDATA'] ?? os.homedir(), 'arm', 'packs')
+            ? path.join(process.env['LOCALAPPDATA'] ?? os.homedir(), 'Arm', 'Packs')
             : path.join(os.homedir(), '.cache', 'arm', 'packs');
 
         target.environment ??= {};
