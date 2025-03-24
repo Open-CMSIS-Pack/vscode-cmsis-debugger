@@ -16,11 +16,8 @@
 
 import * as vscode from 'vscode';
 
-interface EnvironmentConfiguration {
-    additionalProperties?: string;
-    cmsisPackRoot?: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    default?: any;
+interface TargetEnvironmentConfiguration {
+    CMSIS_PACK_ROOT?: string;
 };
 
 interface ImageAndSymbolsConfiguration {
@@ -47,8 +44,7 @@ export interface TargetConfiguration {
     host?: string;
     port?: string;
     cwd?: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    environment?: any;
+    environment?: TargetEnvironmentConfiguration;
     server?: string;
     serverParameters?: string[];
     serverPortRegExp?: string;
@@ -65,7 +61,8 @@ export interface GDBTargetConfiguration extends vscode.DebugConfiguration {
     program?: string; // required as per 'gdbtarget' debugger contribution, but can be omitted anyway
     gdb?: string;
     cwd?: string;
-    environment?: EnvironmentConfiguration;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    environment?: any;
     gdbAsync?: boolean;
     gdbNonStop?: boolean;
     verbose?: boolean;

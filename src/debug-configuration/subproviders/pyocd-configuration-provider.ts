@@ -41,6 +41,23 @@ export class PyocdConfigurationProvider extends BaseConfigurationProvider {
         }
     }
 
+    protected resolveCmsisPackRootPath(target: TargetConfiguration): void {
+        const environmentValue = process.env.CMSIS_PACK_ROOT;
+        if (environmentValue) {
+            return;
+        }
+
+        if(target.environment?.CMSIS_PACK_ROOT) {
+            return;
+        }
+        const cmsisPackRootDefault = os.platform() === 'win32'
+            ? path.join(process.env['LOCALAPPDATA'] ?? os.homedir(), 'arm', 'packs')
+            : path.join(os.homedir(), '.cache', 'arm', 'packs');
+
+        target.environment ??= {};
+        target.environment.CMSIS_PACK_ROOT = cmsisPackRootDefault;
+    }
+
     protected async resolveServerParameters(debugConfiguration: GDBTargetConfiguration): Promise<GDBTargetConfiguration> {
         logger.debug('Resolving pyOCD server parameters');
         if (!debugConfiguration.target) {
@@ -67,12 +84,7 @@ export class PyocdConfigurationProvider extends BaseConfigurationProvider {
             parameters.push(PYOCD_CLI_ARG_CBUILDRUN, `${cbuildRunFile}`);
         }
         // CMSIS_PACK_ROOT
-        const cmsisPackRoot = debugConfiguration.environment?.cmsisPackRoot;
-        if (!cmsisPackRoot) {
-            os.platform() === 'win32'
-            ? path.join(process.env['LOCALAPPDATA'] ?? os.homedir(), 'arm', 'packs')
-            : path.join(os.homedir(), '.cache', 'arm', 'packs');
-        }
+        this.resolveCmsisPackRootPath(debugConfiguration.target);
         return debugConfiguration;
     }
 
