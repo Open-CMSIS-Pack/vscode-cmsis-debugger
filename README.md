@@ -34,16 +34,6 @@ We recommend to install the following extensions to simplify the user experience
 ## pyOCD Debug Setup
 
 - Install `GCC compiler for ARM CPUs` with the `Arm Tools Environment Manager` extension to get access to a GDB (`arm-none-eabi-gdb`).
-- **Temporary** - should become obsolete with full `*.cbuild-run.yml` support in pyOCD:<br>
-  Make sure to set up your CMSIS Pack installation root folder by one of the following methods:
-  - Set your system environment variable `CMSIS_PACK_ROOT`.
-  - Add the following to your debug launch configuration
-
-    ```
-    "environment": {
-      "CMSIS_PACK_ROOT": "</path/to/your/pack/cache>"
-    }
-    ```
 
 ## SEGGER® J-LINK® Debug Setup
 
