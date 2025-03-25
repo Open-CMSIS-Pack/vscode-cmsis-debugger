@@ -8,8 +8,8 @@
   - Fixes [#100](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/100): [macOS] - Cannot connect with pyOCD and ULINKplus. Fixes missing `libusb` for macOS.
   - Fixes [#91](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/91): "Zephyr kernel detected" warning in shipped pyOCD.
   - Extends support for `*.cbuild-run.yml` debug configuration files.
-  - Fixes auto-detection of APv2.
-  - Fixes missing XPSR register update before executing flash algorithm function.
+  - Fixes [#127](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/127) CoreSight root component discovery fails. Fixes how to address APv2.
+  - Fixes [#126](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/126): Flash programming fails on devices where the flash memory's erased value is 0x00. Initializes XPSR register before executing flash algorithm function.
   - Adds support for AP CSW SPROT bit handling.
   - Skips reading programmed flash memory if `Verify` function is provided by flash algorithm.
 
