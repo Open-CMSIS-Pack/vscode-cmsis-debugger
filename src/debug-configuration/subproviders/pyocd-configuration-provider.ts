@@ -18,6 +18,8 @@ import { logger } from '../../logger';
 import { GDBTargetConfiguration, TargetConfiguration } from '../gdbtarget-configuration';
 import { BuiltinToolPath } from '../../desktop/builtin-tool-path';
 import { BaseConfigurationProvider } from './base-configuration-provider';
+import * as os from 'os';
+import * as path from 'path';
 
 const PYOCD_BUILTIN_PATH = 'tools/pyocd/pyocd';
 const PYOCD_EXECUTABLE_ONLY_REGEXP = /^\s*pyocd(|.exe)\s*$/i;
@@ -37,6 +39,23 @@ export class PyocdConfigurationProvider extends BaseConfigurationProvider {
         if (updateUri) {
             target.server = updateUri.fsPath;
         }
+    }
+
+    protected resolveCmsisPackRootPath(target: TargetConfiguration): void {
+        const environmentValue = process.env['CMSIS_PACK_ROOT'];
+        if (environmentValue) {
+            return;
+        }
+
+        if (target.environment?.CMSIS_PACK_ROOT) {
+            return;
+        }
+        const cmsisPackRootDefault = os.platform() === 'win32'
+            ? path.join(process.env['LOCALAPPDATA'] ?? os.homedir(), 'Arm', 'Packs')
+            : path.join(os.homedir(), '.cache', 'arm', 'packs');
+
+        target.environment ??= {};
+        target.environment.CMSIS_PACK_ROOT = cmsisPackRootDefault;
     }
 
     protected async resolveServerParameters(debugConfiguration: GDBTargetConfiguration): Promise<GDBTargetConfiguration> {
@@ -64,6 +83,8 @@ export class PyocdConfigurationProvider extends BaseConfigurationProvider {
         if (cbuildRunFile && await this.shouldAppendParameter(parameters, PYOCD_CLI_ARG_CBUILDRUN)) {
             parameters.push(PYOCD_CLI_ARG_CBUILDRUN, `${cbuildRunFile}`);
         }
+        // CMSIS_PACK_ROOT
+        this.resolveCmsisPackRootPath(debugConfiguration.target);
         return debugConfiguration;
     }
 
