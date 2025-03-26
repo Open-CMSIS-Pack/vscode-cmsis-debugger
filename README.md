@@ -31,14 +31,23 @@ We recommend to install the following extensions to simplify the user experience
 - [Arm Tools Environment Manager](https://marketplace.visualstudio.com/items?itemName=Arm.environment-manager), an extension that allows to download, install, and manage software development tools using [Microsoft® Vcpkg](https://vcpkg.io/en/index.html) artifacts. Use this extension to for example install the `GCC compiler for ARM CPUs` which comes with a GDB variant for Arm CPUs.
 - [Arm CMSIS Solution](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution), an extension that is a graphical user interface for csolution projects that use the [CMSIS-Toolbox](https://open-cmsis-pack.github.io/cmsis-toolbox/). Use this extension to build your csolution projects, to generate `*.cbuild-run.yml` debug configuration files, and to make use of contributed commands in your debug launch configurations.
 
-## pyOCD Debug Setup
+## Debug Setup
 
-- Install `GCC compiler for ARM CPUs` with the `Arm Tools Environment Manager` extension to get access to a GDB (`arm-none-eabi-gdb`).
+All debug setups require a GDB installation which supports the GDB remote protocol and can establish the connection to a GDB server like pyOCD.
 
-## SEGGER® J-LINK® Debug Setup
+We recommend to install the `GCC compiler for ARM CPUs` with the `Arm Tools Environment Manager` extension to get access to such a GDB variant. It comes with `arm-none-eabi-gdb` which is used in this extension's default debug configurations.
 
-- Install the latest [J-LINK Software and Documentation Pack](https://www.segger.com/downloads/jlink/#J-LinkSoftwareAndDocumentationPack) from [SEGGER](https://www.segger.com/). Ensure all required drivers and host platform specific settings are done.
-- Ensure the installation folder is added to your system's `PATH` environment variable. Alternatively, you can add an absolute path to your installation in the debug launch configuration.
+### pyOCD Debug Setup
+
+This extension includes a pyOCD distribution which is used by default.
+
+If you would like to use a different pyOCD installation, then update the `target`.`server` item of your debug launch configuration with the path to its `pyocd` executable.
+
+### SEGGER® J-LINK® Debug Setup
+
+Install the latest [J-LINK Software and Documentation Pack](https://www.segger.com/downloads/jlink/#J-LinkSoftwareAndDocumentationPack) from [SEGGER](https://www.segger.com/). Ensure all required drivers and host platform specific settings are done.
+
+Ensure the installation folder is added to your system's `PATH` environment variable to use default debug configurations provided by this extension. Alternatively, update the `target`.`server` item of your debug launch configuration with the path to the J-LINK GDB server executable to use.
 
 ## Additional Extension Functionality
 
@@ -80,7 +89,6 @@ In addition this extension contributes a debug configuration resolver which auto
 ## Known Limitations
 
 - Requires ELF files built with GCC and DWARF5 debug information to operate seamlessly.
-- The shipped pyOCD version accepts the new command line option `--cbuild-run`. But only extracts device and DFP names.
 
 ## Trademarks
 
