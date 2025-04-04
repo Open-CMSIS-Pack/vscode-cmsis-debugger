@@ -1,7 +1,11 @@
 # Change Log
 
 ## Unreleased
-
+- Updates included pyOCD distribution
+  - Fixes support for `<memory>` elements from CMSIS PDSC files.
+  - Fixes progress bar output during program download.
+  - Improves connection robustness and DP sticky error bits handling for temporary target communication losses and `__errorcontrol` usage (CMSIS debug descriptions). For example in reset scenarios.
+  - Extends and improves support for `*.cbuild-run.yml` debug configuration files.
 
 ## 0.0.3
 - Fixes [#84](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/84): Cannot use cbuild-run files with pyOCD without CMSIS_PACK_ROOT environment variable.
