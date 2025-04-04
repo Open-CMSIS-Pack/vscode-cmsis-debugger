@@ -19,10 +19,16 @@ import { GDBTargetDebugTracker } from '../debug-configuration/gdbtarget-debug-tr
 import { GDBTargetConfigurationProvider } from '../debug-configuration';
 import { logger } from '../logger';
 import { addPyocdToPath } from './add-to-path';
+import { CbuildRunReader } from '../cbuild-run/cbuild-run-reader';
+import { CbuildRunType } from '../cbuild-run/cbuild-run';
 
 export const activate = async (context: vscode.ExtensionContext): Promise<void> => {
     const gdbtargetDebugTracker = new GDBTargetDebugTracker();
     const gdbtargetConfigurationProvider = new GDBTargetConfigurationProvider();
+
+    const reader = new CbuildRunReader();
+    const contents: CbuildRunType = await reader.parse('D:\\jenrei02\\work\\Projects\\led_blinky\\led_blinky\\led_blinky+mdk.cbuild-run.yml');
+    console.log(contents);
 
     addPyocdToPath(context);
     // Activate components
