@@ -10,7 +10,7 @@
   - Fixes [#92](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/92): `monitor reset halt` command fails for LPCXpresso55S69 if using CMSIS Pack support in pyOCD.
   - Fixes [#93](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/93): Download to LPC55S69 flash with GDB and pyOCD ends in errors.
   - Fixes [#94](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/94): Cannot connect to NXP FRDM-K32L3A6 with pyOCD.
-
+  - Updates CMSIS-DAP probe detection (filters out Cypress KitProg3 bridge).
 ## 0.0.3
 - Fixes [#84](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/84): Cannot use cbuild-run files with pyOCD without CMSIS_PACK_ROOT environment variable.
 - Implements [#83](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/83): Make built-in pyOCD available in VS Code terminals.
