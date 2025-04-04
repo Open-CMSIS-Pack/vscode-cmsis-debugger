@@ -33,27 +33,25 @@ We recommend to install the following extensions to simplify the user experience
 
 ## Debug Setup
 
-All debug setups require a GDB installation that supports the GDB remote protocol and can connect to a GDB server like pyOCD.
+The debug setup requires a GDB installation supporting the GDB remote protocol and that can connect to a GDB server like pyOCD.
 
-We recommend to install the `GCC compiler for ARM CPUs` using the `Arm Tools Environment Manager` extension.<br>
-It comes with `arm-none-eabi-gdb` which is used in the Arm CMSIS Debugger default debug configurations.
+We recommend to install the [`Arm GNU Toolchain`](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain) using the `Arm Tools Environment Manager` extension. It comes with `arm-none-eabi-gdb` which is used in the Arm CMSIS Debugger default debug configurations.
 
 ### pyOCD Debug Setup
 
 This extension includes a pyOCD distribution which is used by default.
 
-Update your debug configuration's `target`>`server` setting to use a different pyOCD installation. Enter the full path to its `pyocd` executable (including the file name).
+If you wish to use a different pyOCD installation, enter the full path to the executable (including the file name) in the `target`>`server` setting.
 
 ### SEGGER® J-LINK® Debug Setup
 
 Install the latest [J-LINK Software and Documentation Pack](https://www.segger.com/downloads/jlink/#J-LinkSoftwareAndDocumentationPack) from [SEGGER](https://www.segger.com/). Ensure all required drivers and host platform specific settings are done.
 
-The extension expects the installation folder to be on your system `PATH` environment variable.<br>
-Alternatively, update your debug configuration's `target`>`server` setting to contain the full path to the J-LINK GDB server executable (including the file name).
+The extension expects the installation folder to be on your system `PATH` environment variable. Alternatively, update your debug configuration's `target`>`server` setting to contain the full path to the J-LINK GDB server executable (including the file name).
 
 ## Extension Functionality
 
-This extension contributes additional functionality to more seamlessly integrate the included extensions:
+This extension contributes additional functionality to work seamlessly with other extensions.
 
 - The pseudo debugger types `cmsis-debug-pyocd` and `cmsis-debug-jlink`. These types allow a more seamless integration into your IDE. However, these are not full debug adapters but generate debug configurations of type `gdbtarget` which comes with the [CDT GDB Debug Adapter Extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode).
 - A [debug configuration provider](https://code.visualstudio.com/api/references/vscode-api#DebugConfigurationProvider) for the type `gdbtarget` which comes with the [CDT GDB Debug Adapter Extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode). This provider automatically fills in default values for known remote GDB servers when launching a debug session.
@@ -65,8 +63,8 @@ This section describes the contributed pseudo debugger types and their support t
 
 #### CMSIS Debugger (pyOCD) - `cmsis-debug-pyocd`
 
-The `cmsis-debug-pyocd` debugger type allows to add default debug configurations to the workspace's `launch.json` file for debug with GDB and pyOCD.<br>
-Those configurations then use the `gdbtarget` debugger type registered by the CDT GDB Debug Adapter Extension.
+The `cmsis-debug-pyocd` debugger type is used to add a debug configuration in the `launch.json` file for debugging with GDB and pyOCD.<br>
+This configuration uses the `gdbtarget` debugger type registered by the CDT GDB Debug Adapter Extension.
 
 Additionaly, the extension contributes a debug configuration resolver which automatically fills the following gaps during debug launch:
 
@@ -76,12 +74,12 @@ Additionaly, the extension contributes a debug configuration resolver which auto
   - Appends `--port <gdbserver_port>` if the `target`>`port` setting is set, where `<gdbserver_port>` gets that port setting's value.
   - Appends `--cbuild-run` and the corresponding `cbuildRunFile` path if `cmsis`>`cbuildRunFile` is set.
 
-**Note**: The built-in version of pyOCD supports the command line option `--cbuild-run`. However, this is a new option which isn't contained yet in releases outside this extension.
+**Note**: The built-in version of pyOCD supports the command line option `--cbuild-run` which isn't available in releases outside this extension.
 
 #### CMSIS Debugger (J-LINK) - `cmsis-debug-jlink`
 
-The `cmsis-debug-jlink` debugger type allows to add default debug configurations to the workspace's `launch.json` file for debug with GDB and the SEGGER J-LINK GDB server.<br>
-Those configurations then use the `gdbtarget` debugger type registered by the CDT GDB Debug Adapter Extension.
+The `cmsis-debug-jlink` debugger type is used to add a debug configuration in the launch.json file for debug with GDB and the SEGGER J-LINK GDB server.<br>
+This configuration uses the `gdbtarget` debugger type registered by the CDT GDB Debug Adapter Extension.
 
 **Note**: The generated default debug configuration uses the value `JLinkGDBServer` as `target`>`server` setting. This executable has differing behavior on supported host platform:
 * Linux and macOS: A GUI-less version of the GDB server is launched.
@@ -100,17 +98,17 @@ When I use the default debug configuration for pyOCD, I get errors that pyOCD ca
 
 **Possible Reasons**:
 
-1. The application's CSolution was initially built with a CMSIS-Toolbox version prior to v2.8.0 which is the first version to generate `*.cbuild-run.yml` files.
-1. You are using an [Arm CMSIS Solution](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution) prior to v1.52.0 which is the first version to fully support the `${command:cmsis-csolution.getCbuildRunFile}` command.
+1. The application's CMSIS solution was initially built with a CMSIS-Toolbox version prior to v2.8.0 which is the first version to generate `*.cbuild-run.yml` files.
+1. You are using an [Arm CMSIS Solution](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution) extension prior to v1.52.0 which is the first version to fully support the `${command:cmsis-csolution.getCbuildRunFile}` command.
 
 **Workarounds/Solutions**:
 
-1. Update the CMSIS Toolbox to the latest version. Additionally, you may have to run `cbuild setup --update-rte` in a terminal for a first-time generation of `*.cbuild-run.yml` file in an existing workspace.
-1. Update to Arm CMSIS Solution v1.52.0. Alternatively, replace `${command:cmsis-csolution.getCbuildRunFile}` with the path to the `*.cbuild-run.yml` in your workspace (`cmsis`>`cbuildRunFile` debug configuration setting).
+1. Update the CMSIS-Toolbox to the latest version. Additionally, you may have to run `cbuild setup --update-rte` in a terminal for a first-time generation of `*.cbuild-run.yml` file in an existing workspace.
+1. Update to Arm CMSIS Solution extension v1.52.0. Alternatively, replace `${command:cmsis-csolution.getCbuildRunFile}` with the path to the `*.cbuild-run.yml` in your workspace (`cmsis`>`cbuildRunFile` debug configuration setting).
 
 ### AXF files built with Arm Compiler 6 toolchain
 
-When I download an AXF file built with Arm Compiler 6 I see the following warning and my application does not execute correctly. This happens regardless of the selected GDB server.
+When I download an AXF file built with Arm Compiler 6, I see the following warning and my application does not execute correctly. This happens regardless of the selected GDB server.
 ```
 warning: Loadable section "RW_RAM0" outside of ELF segments
   in /path/to/my/application.axf
@@ -141,7 +139,7 @@ warning: Loadable section "RW_RAM0" outside of ELF segments
             ],
 ```
 
-The debugger then loads the debug information from the ELF file. But uses the HEX file instead of the ELF file for program download.
+This instructs the debugger to load the debug information from the ELF file and to use the HEX file for program download.
 
 ### `arm-none-eabi-gdb` requires DWARF5 debug information
 
@@ -152,7 +150,7 @@ warning: (Internal error: pc 0x8006a18 in read in CU, but not in symtab.)
 
 **Possible Reason**: `arm-none-eabi-gdb` works best with DWARF debug information of standard version 5.
 
-**Solution**: Make sure to build your application ELF file with DWARF version 5 debug information. Please refer to your toolchain's user reference manual. This may require updates to all build tools like compiler, assembler, and linker.
+**Solution**: Make sure to build your application ELF file with DWARF version 5 debug information. Please refer to your toolchain's user reference manual. This may require updates to all build tools like compiler and assembler. For example use `-gdwarf-5` for `armclang`.
 
 ## Trademarks
 
