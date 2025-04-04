@@ -1,6 +1,9 @@
 # Change Log
 
 ## Unreleased
+
+
+## 0.0.3
 - Fixes [#84](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/84): Cannot use cbuild-run files with pyOCD without CMSIS_PACK_ROOT environment variable.
 - Implements [#83](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/83): Make built-in pyOCD available in VS Code terminals.
   - Note that there is a known issue with a pyOCD installation in Python virtual environments taking precedence over the built-in pyOCD variant.
