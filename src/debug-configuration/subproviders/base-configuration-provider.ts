@@ -16,6 +16,12 @@
 
 import * as vscode from 'vscode';
 import { GDBTargetConfiguration } from '../gdbtarget-configuration';
+import { CbuildRunType } from '../../cbuild-run/cbuild-run';
+import { CbuildRunReader } from '../../cbuild-run/cbuild-run-reader';
+import { getCmsisPackRootPath } from '../../desktop/cmsis-utils';
+
+const DEFAULT_SVD_SETTING_NAME = 'definitionPath';
+const CMSIS_PACK_ROOT_ENVVAR = '${CMSIS_PACK_ROOT}';
 
 export abstract class BaseConfigurationProvider implements vscode.DebugConfigurationProvider {
 
@@ -32,13 +38,39 @@ export abstract class BaseConfigurationProvider implements vscode.DebugConfigura
         return !this.parameterExists(paramName, params) && (!commandName || await this.commandExists(commandName));
     }
 
+    protected async resolveSvdFile(debugConfiguration: GDBTargetConfiguration) {
+        const cbuildRunFilePath = debugConfiguration.cmsis?.cbuildRunFile;
+        // 'definitionPath' is current default name for SVD file settings in Eclipse CDT Cloud Peripheral Inspector.
+        if (debugConfiguration[DEFAULT_SVD_SETTING_NAME] || !cbuildRunFilePath?.length) {
+            return;
+        }
+        const cbuildRunReader = new CbuildRunReader();
+        let cbuildRunContents: CbuildRunType|undefined;
+        try {
+            cbuildRunContents = await cbuildRunReader.parse(cbuildRunFilePath);
+        } catch {
+            // Failed to read file, nothing to set
+            return;
+        }
+        const systemDescriptions = cbuildRunContents['system-descriptions'];
+        const svdFileDescriptors = systemDescriptions?.filter(descriptor => descriptor.type === 'svd') ?? [];
+        if (svdFileDescriptors.length === 0) {
+            return;
+        }
+        const cmsisPackRootValue = debugConfiguration?.target?.environment?.CMSIS_PACK_ROOT ?? getCmsisPackRootPath();
+        debugConfiguration[DEFAULT_SVD_SETTING_NAME] = cmsisPackRootValue
+            ? svdFileDescriptors[0].file.replaceAll(CMSIS_PACK_ROOT_ENVVAR, cmsisPackRootValue)
+            : svdFileDescriptors[0].file;
+    }
+
     protected abstract resolveServerParameters(debugConfiguration: GDBTargetConfiguration): Promise<GDBTargetConfiguration>;
 
-    public resolveDebugConfigurationWithSubstitutedVariables(
+    public async resolveDebugConfigurationWithSubstitutedVariables(
         _folder: vscode.WorkspaceFolder | undefined,
         debugConfiguration: vscode.DebugConfiguration,
         _token?: vscode.CancellationToken
     ): Promise<vscode.DebugConfiguration | null | undefined> {
+        await this.resolveSvdFile(debugConfiguration);
         return this.resolveServerParameters(debugConfiguration);
     }
 

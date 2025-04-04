@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-import { logger } from '../../logger';
+import { BaseConfigurationProvider } from './base-configuration-provider';
 import { GDBTargetConfiguration, TargetConfiguration } from '../gdbtarget-configuration';
 import { BuiltinToolPath } from '../../desktop/builtin-tool-path';
-import { BaseConfigurationProvider } from './base-configuration-provider';
-import * as os from 'os';
-import * as path from 'path';
+import { getCmsisPackRootPath } from '../../desktop/cmsis-utils';
+import { logger } from '../../logger';
 
 const PYOCD_BUILTIN_PATH = 'tools/pyocd/pyocd';
 const PYOCD_EXECUTABLE_ONLY_REGEXP = /^\s*pyocd(|.exe)\s*$/i;
@@ -42,20 +41,13 @@ export class PyocdConfigurationProvider extends BaseConfigurationProvider {
     }
 
     protected resolveCmsisPackRootPath(target: TargetConfiguration): void {
-        const environmentValue = process.env['CMSIS_PACK_ROOT'];
-        if (environmentValue) {
-            return;
-        }
-
         if (target.environment?.CMSIS_PACK_ROOT) {
             return;
         }
-        const cmsisPackRootDefault = os.platform() === 'win32'
-            ? path.join(process.env['LOCALAPPDATA'] ?? os.homedir(), 'Arm', 'Packs')
-            : path.join(os.homedir(), '.cache', 'arm', 'packs');
 
+        const cmsisPackRootPath = getCmsisPackRootPath();
         target.environment ??= {};
-        target.environment.CMSIS_PACK_ROOT = cmsisPackRootDefault;
+        target.environment.CMSIS_PACK_ROOT = cmsisPackRootPath;
     }
 
     protected async resolveServerParameters(debugConfiguration: GDBTargetConfiguration): Promise<GDBTargetConfiguration> {

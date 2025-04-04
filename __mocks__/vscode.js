@@ -44,6 +44,9 @@ module.exports = {
         getConfiguration: jest.fn(() => ({
             get: jest.fn(),
         })),
+        fs: {
+            readFile: jest.fn(),
+        }
     },
     extensions: {
         getExtension: jest.fn(),

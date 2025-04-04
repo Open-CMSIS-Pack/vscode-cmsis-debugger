@@ -27,6 +27,27 @@
             "program": "${workspaceFolder}/scripts/download-tools.ts",
             "runtimeArgs": ["-r", "ts-node/register"],
             "args": ["pyocd"]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Unit Test Current File",
+            "program": "${workspaceFolder}/node_modules/.bin/jest",
+            "args": [
+              "--collectCoverage",
+              "false",
+              "${fileBasenameNoExtension}"
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "windows": {
+              "program": "${workspaceFolder}/node_modules/jest/bin/jest"
+            },
+            "presentation": {
+                "hidden": false,
+                "group": "Tests",
+                "order": 1
+            }
           }
     ]
 }
