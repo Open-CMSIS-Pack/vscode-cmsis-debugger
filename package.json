@@ -228,7 +228,7 @@
     "@types/vscode": "^1.63.0",
     "@types/yargs": "^17.0.33",
     "@types/yarnpkg__lockfile": "^1.1.9",
-    "@typescript-eslint/eslint-plugin": "^8.28.0",
+    "@typescript-eslint/eslint-plugin": "^8.29.0",
     "@typescript-eslint/parser": "^8.28.0",
     "@vscode/vsce": "^3.3.2",
     "@yarnpkg/lockfile": "^1.1.0",
