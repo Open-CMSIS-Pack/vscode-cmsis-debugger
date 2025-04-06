@@ -239,7 +239,7 @@
     "octokit": "^4.1.2",
     "tempfile": "^5.0.0",
     "ts-command-line-args": "^2.5.1",
-    "ts-jest": "29.3.0",
+    "ts-jest": "29.3.1",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "type-fest": "^4.38.0",
