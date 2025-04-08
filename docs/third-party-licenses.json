@@ -5,5 +5,12 @@
         "spdx": "Apache-2.0",
         "url": "https://github.com/pyocd/pyOCD",
         "license": "https://github.com/pyocd/pyOCD/blob/v0.36.0/LICENSE"
+    },
+    {
+        "name": "yaml",
+        "version": "2.7.1",
+        "spdx": "ISC",
+        "url": "https://github.com/eemeli/yaml",
+        "license": "https://github.com/eemeli/yaml/blob/main/LICENSE"
     }
 ]
