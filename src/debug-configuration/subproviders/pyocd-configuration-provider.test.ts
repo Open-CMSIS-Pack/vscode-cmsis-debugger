@@ -26,5 +26,4 @@ describe('PyocdConfigurationProvider', () => {
         expect(debugConfig).toBeDefined();
     });
 
-
 });

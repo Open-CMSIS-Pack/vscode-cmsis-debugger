@@ -45,9 +45,8 @@ export class PyocdConfigurationProvider extends BaseConfigurationProvider {
             return;
         }
 
-        const cmsisPackRootPath = getCmsisPackRootPath();
         target.environment ??= {};
-        target.environment.CMSIS_PACK_ROOT = cmsisPackRootPath;
+        target.environment.CMSIS_PACK_ROOT = getCmsisPackRootPath();
     }
 
     protected async resolveServerParameters(debugConfiguration: GDBTargetConfiguration): Promise<GDBTargetConfiguration> {
