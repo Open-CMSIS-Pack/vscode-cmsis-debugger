@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-import assert from 'assert';
 import * as fs from 'fs';
-import { EXTENSION_ID } from '../manifest';
-import * as os from 'os';
-import * as vscode from 'vscode';
 import * as path from 'path';
-
-export const isWindows = os.platform() === 'win32';
+import * as vscode from 'vscode';
+import { EXTENSION_ID } from '../manifest';
+import { isWindows } from '../utils';
+import assert from 'assert';
 
 export class BuiltinToolPath {
     constructor(protected toolPath: string) {

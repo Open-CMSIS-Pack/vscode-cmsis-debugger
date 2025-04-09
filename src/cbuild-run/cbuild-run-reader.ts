@@ -14,23 +14,22 @@
  * limitations under the License.
  */
 
-import { Uri, workspace } from 'vscode';
 import * as yaml from 'yaml';
-import { CbuildRunType } from './cbuild-run';
+import { CbuildRunType } from './cbuild-run-types';
+import { FileReader, VscodeFileReader } from '../desktop/file-reader';
 
 const ROOT_NODE = 'cbuild-run';
 
 export class CbuildRunReader {
+    constructor(private reader: FileReader = new VscodeFileReader()) {}
 
     public async parse(filePath: string): Promise<CbuildRunType> {
-        const uri = Uri.file(filePath);
-        const binData = await workspace.fs.readFile(uri);
-        const textData = new TextDecoder().decode(binData);
-        const fileContentRoot = yaml.parse(textData);
-        const fileContent = fileContentRoot ? fileContentRoot[ROOT_NODE] : undefined;
-        if (!fileContent) {
+        const fileContents = await this.reader.readFileToString(filePath);
+        const fileRoot = yaml.parse(fileContents);
+        const cbuildRun = fileRoot ? fileRoot[ROOT_NODE] : undefined;
+        if (!cbuildRun) {
             throw new Error(`Invalid '*.cbuild-run.yml' file: ${filePath}`);
         }
-        return fileContent;
+        return cbuildRun;
     }
 }

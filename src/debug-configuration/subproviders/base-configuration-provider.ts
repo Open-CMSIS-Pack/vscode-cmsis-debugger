@@ -16,9 +16,8 @@
 
 import * as vscode from 'vscode';
 import { GDBTargetConfiguration } from '../gdbtarget-configuration';
-import { CbuildRunType } from '../../cbuild-run/cbuild-run';
-import { CbuildRunReader } from '../../cbuild-run/cbuild-run-reader';
-import { getCmsisPackRootPath } from '../../desktop/cmsis-utils';
+import { CbuildRunReader, CbuildRunType } from '../../cbuild-run';
+import { getCmsisPackRootPath } from '../../utils';
 
 const DEFAULT_SVD_SETTING_NAME = 'definitionPath';
 const CMSIS_PACK_ROOT_ENVVAR = '${CMSIS_PACK_ROOT}';

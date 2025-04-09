@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-type OutputFileType = 'lib'|'elf'|'hex'|'bin';
+export type OutputFileType = 'lib'|'elf'|'hex'|'bin';
 
-interface OutputType {
+export interface OutputType {
     file: string;
     type: OutputFileType;
     info: string;
@@ -24,7 +24,7 @@ interface OutputType {
     debug: string;
 };
 
-interface MemoryType {
+export interface MemoryType {
     name: string;
     access: string;
     start: number;
@@ -34,21 +34,21 @@ interface MemoryType {
     'from-pack'?: string;
 };
 
-interface SystemResourcesType {
+export interface SystemResourcesType {
     memory?: MemoryType[];
 };
 
 export type SystemDescriptionTypeType = 'svd'|'scvd';
 
-interface SystemDescriptionType {
+export interface SystemDescriptionType {
     file: string;
     type: SystemDescriptionTypeType;
     info?: string;
 };
 
-type ProtocolType = 'swd'|'jtag';
+export type ProtocolType = 'swd'|'jtag';
 
-interface DebuggerType {
+export interface DebuggerType {
     name: string;
     info?: string;
     protocol: ProtocolType;
@@ -56,11 +56,11 @@ interface DebuggerType {
     dbgconf: string;
 };
 
-interface DebugVarsType {
+export interface DebugVarsType {
     vars: string;
 };
 
-interface BlockType {
+export interface BlockType {
     info?: string;
     blocks?: BlockType[];
     execute?: string;
@@ -70,14 +70,14 @@ interface BlockType {
     timeout?: number;
 };
 
-interface DebugSequenceType {
+export interface DebugSequenceType {
     name: string;
     info?: string;
     blocks?: BlockType[];
     pname?: string;
 };
 
-interface ProgrammingType {
+export interface ProgrammingType {
     algorithm: string;
     start: number;
     size: number;
@@ -86,43 +86,43 @@ interface ProgrammingType {
     pname?: string;
 };
 
-interface JtagType {
+export interface JtagType {
     tapindex?: number;
 };
 
-interface SwdType {
+export interface SwdType {
     targetsel?: number;
 };
 
-interface AccessPortType {
+export interface AccessPortType {
     apid: number;
     index?: number;
     address?: number;
     accessports?: AccessPortType[];
 };
 
-interface DebugPortType {
+export interface DebugPortType {
     dpid: number;
     jtag?: JtagType;
     swd?: SwdType;
     accessports?: AccessPortType[];
 };
 
-type ResetSequenceType = 'ResetSystem'|'ResetHardware'|'ResetProcessor'|string;
+export type ResetSequenceType = 'ResetSystem'|'ResetHardware'|'ResetProcessor'|string;
 
-interface PunitType {
+export interface PunitType {
     punit: number;
     address?: number;
 };
 
-interface ProcessorType {
+export interface ProcessorType {
     pname: string;
     punits?: PunitType[];
     apid?: number;
     'reset-sequence': ResetSequenceType;
 };
 
-interface DebugTopologyType {
+export interface DebugTopologyType {
     debugports?: DebugPortType[];
     processors?: ProcessorType[];
     swj?: boolean;

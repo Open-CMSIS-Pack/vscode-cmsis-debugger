@@ -17,7 +17,7 @@
 import { BaseConfigurationProvider } from './base-configuration-provider';
 import { GDBTargetConfiguration, TargetConfiguration } from '../gdbtarget-configuration';
 import { BuiltinToolPath } from '../../desktop/builtin-tool-path';
-import { getCmsisPackRootPath } from '../../desktop/cmsis-utils';
+import { getCmsisPackRootPath } from '../../utils';
 import { logger } from '../../logger';
 
 const PYOCD_BUILTIN_PATH = 'tools/pyocd/pyocd';

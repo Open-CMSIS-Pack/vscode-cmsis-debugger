@@ -14,16 +14,5 @@
  * limitations under the License.
  */
 
-import { CbuildRunReader } from './cbuild-run-reader';
-
-const TEST_CBUILD_RUN_FILE = '../test-data/multi-core.cbuild-run.yml';
-
-describe('CbuildRunReader', () => {
-
-    it.skip('parses', async () => {
-        const reader = new CbuildRunReader();
-        const contents = await reader.parse(TEST_CBUILD_RUN_FILE);
-        expect(contents).toMatchSnapshot();
-    });
-
-});
+export * from './cbuild-run-reader';
+export * from './cbuild-run-types';
