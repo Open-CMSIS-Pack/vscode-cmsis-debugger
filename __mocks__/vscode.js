@@ -16,6 +16,8 @@
 
 require('domain');
 const { URI } = require('vscode-uri');
+const path = require('path');
+const fs = require('fs');
 
 module.exports = {
     EventEmitter: jest.fn(() => {
@@ -45,8 +47,18 @@ module.exports = {
             get: jest.fn(),
         })),
         fs: {
-            readFile: jest.fn(),
-        }
+            readFile: jest.fn(uri => {
+                const buffer = fs.readFileSync(uri.fsPath);
+                return new Promise(resolve => resolve(new Uint8Array(buffer)));
+            })
+        },
+        workspaceFolders: [
+            {
+                uri: URI.file(path.join(__dirname, '..')),
+                name: 'folderName',
+                index: 0
+            }
+        ]
     },
     extensions: {
         getExtension: jest.fn(),

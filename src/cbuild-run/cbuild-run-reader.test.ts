@@ -16,14 +16,20 @@
 
 import { CbuildRunReader } from './cbuild-run-reader';
 
-const TEST_CBUILD_RUN_FILE = '../test-data/multi-core.cbuild-run.yml';
+const TEST_CBUILD_RUN_FILE = 'test-data/multi-core.cbuild-run.yml'; // Relative to repo root
+const TEST_FILE_PATH = 'test-data/fileReaderTest.txt'; // Relative to repo root
 
 describe('CbuildRunReader', () => {
 
-    it.skip('parses', async () => {
+    it('successfully parses a *.cbuild-run.yml file', async () => {
         const reader = new CbuildRunReader();
         const contents = await reader.parse(TEST_CBUILD_RUN_FILE);
         expect(contents).toMatchSnapshot();
     });
 
+    it('throws if it parses something other than a *.cbuild-run.yml file', async () => {
+        const expectedError = /Invalid '\*\.cbuild-run\.yml' file: .*test-data\/fileReaderTest\.txt/;
+        const reader = new CbuildRunReader();
+        await expect(reader.parse(TEST_FILE_PATH)).rejects.toThrow(expectedError);
+    });
 });

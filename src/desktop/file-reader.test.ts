@@ -14,19 +14,13 @@
  * limitations under the License.
  */
 
-import * as vscode from 'vscode';
-import * as fs from 'fs';
 import { VscodeFileReader } from './file-reader';
 
-const TEST_FILE_PATH = './../../test-data/fileReaderTest.txt';
+const TEST_FILE_PATH = 'test-data/fileReaderTest.txt'; // Relative to repo root
 const TEST_FILE_CONTENTS = 'Simple file';
 
 describe('FileReader', () => {
     it('parses a simple file', async () =>{
-        (vscode.workspace.fs.readFile as jest.Func) = (uri: vscode.Uri): Thenable<Uint8Array> => {
-            const buffer = fs.readFileSync(uri.fsPath);
-            return new Promise(resolve => resolve(new Uint8Array(buffer)));
-        };
         const fileReader = new VscodeFileReader();
         const fileContents = await fileReader.readFileToString(TEST_FILE_PATH);
         expect(fileContents).toEqual(TEST_FILE_CONTENTS);
