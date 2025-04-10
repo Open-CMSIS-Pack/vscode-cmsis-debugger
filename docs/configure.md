@@ -136,7 +136,7 @@ For a multi-core device, you need to:
             "cmsis": {
                 "cbuildRunFile": "FRDM-K32L3A6.cbuild-run.yml"
             },
-            "definitionPath": "/Users/chrsei01/.cache/arm/packs/NXP/K32L3A60_DFP/19.0.0/devices/K32L3A60/K32L3A60_cm4.xml"
+            "definitionPath": "/Users/user/.cache/arm/packs/NXP/K32L3A60_DFP/19.0.0/devices/K32L3A60/K32L3A60_cm4.xml"
         },
         {
             "name": "CM0+: CMSIS Debugger: pyOCD",
