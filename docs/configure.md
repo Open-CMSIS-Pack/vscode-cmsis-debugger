@@ -153,7 +153,7 @@ For a multi-core device, you need to:
                 "server": "pyocd",
                 "port": "3334"
             },
-            "definitionPath": "/Users/chrsei01/.cache/arm/packs/NXP/K32L3A60_DFP/19.0.0/devices/K32L3A60/K32L3A60_cm0plus.xml"
+            "definitionPath": "/Users/user/.cache/arm/packs/NXP/K32L3A60_DFP/19.0.0/devices/K32L3A60/K32L3A60_cm0plus.xml"
         }
     ]
 }
