@@ -18,19 +18,21 @@ Make sure you have made the [required changes](./setup.md#project-setup) to your
 
 If your project does not yet contain a `launch.json` file, create it as follows:
 
-- In your top-level directory, create a subfolder called `.vscode`.
+- Go to the **Rund and Debug view**.
 
-- Right-click on the folder and select **New File...**.
+![Run and Debug view](./images/create-launch-json.png)
 
-- Name the new file `launch.json` and open it in the editor.
+- Click **create a launch.json file** link in the text. A quick-pick shows:
 
-- Click on the **Add Configuration...** button in the bottom right corner of the `launch.json` file to open the
-  configuration picker:  
-  ![Add Configuration...](./images/add_configuration.png)
+![Debugger quick pick](./images/select-debugger.png)
+
+- Select **CMSIS Debugger (pyOCD)** or **CMSIS Debugger (J-LINK)**.
+
+- This creates a new `launch.json` file under `.vscode` pre-filled with the selected default configuration.
 
 ## Debugging with pyOCD
 
-For debugging with pyOCD, select **CMSIS Debugger: pyOCD**. The following is added to the `launch.json` file:
+For debugging with pyOCD, the following is added to the `launch.json` file:
 
 ```yml
 {
@@ -164,8 +166,8 @@ For a multi-core device, you need to:
 
 ## Debugging with J-Link
 
-For debugging with Segger J-Link (using the [J-Link GDB Server](https://kb.segger.com/J-Link_GDB_Server)), select
-**CMSIS Debugger: J-LINK**. The following is added to the `launch.json` file:
+For debugging with Segger J-Link (using the [J-Link GDB Server](https://kb.segger.com/J-Link_GDB_Server)), the following is
+added to the `launch.json` file:
 
 ```yml
 {
