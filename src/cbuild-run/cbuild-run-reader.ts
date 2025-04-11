@@ -31,6 +31,10 @@ export class CbuildRunReader {
         return !!this.cbuildRun;
     }
 
+    public getContents(): CbuildRunType|undefined {
+        return this.cbuildRun;
+    }
+
     public async parse(filePath: string): Promise<void> {
         const fileContents = await this.reader.readFileToString(filePath);
         const fileRoot = yaml.parse(fileContents);

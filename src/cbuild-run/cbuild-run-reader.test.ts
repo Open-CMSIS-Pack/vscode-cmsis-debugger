@@ -21,15 +21,38 @@ const TEST_FILE_PATH = 'test-data/fileReaderTest.txt'; // Relative to repo root
 
 describe('CbuildRunReader', () => {
 
-    it('successfully parses a *.cbuild-run.yml file', async () => {
-        const reader = new CbuildRunReader();
-        const contents = await reader.parse(TEST_CBUILD_RUN_FILE);
-        expect(contents).toMatchSnapshot();
+    describe('Parser', () => {
+        it('successfully parses a *.cbuild-run.yml file', async () => {
+            const cbuildRunReader = new CbuildRunReader();
+            await expect(cbuildRunReader.parse(TEST_CBUILD_RUN_FILE)).resolves.not.toThrow();
+            expect(cbuildRunReader.hasContents()).toBe(true);
+            const contents = cbuildRunReader.getContents();
+            expect(contents).toBeDefined();
+            expect(contents).toMatchSnapshot();
+        });
+
+        it('throws if it parses something other than a *.cbuild-run.yml file', async () => {
+            const expectedError = /Invalid '\*\.cbuild-run\.yml' file: .*test-data\/fileReaderTest\.txt/;
+            const cbuildRunReader = new CbuildRunReader();
+            await expect(cbuildRunReader.parse(TEST_FILE_PATH)).rejects.toThrow(expectedError);
+            expect(cbuildRunReader.hasContents()).toBe(false);
+            expect(cbuildRunReader.getContents()).toBeUndefined();
+        });
     });
 
-    it('throws if it parses something other than a *.cbuild-run.yml file', async () => {
-        const expectedError = /Invalid '\*\.cbuild-run\.yml' file: .*test-data\/fileReaderTest\.txt/;
-        const reader = new CbuildRunReader();
-        await expect(reader.parse(TEST_FILE_PATH)).rejects.toThrow(expectedError);
+    describe('Extract Values', () => {
+        let cbuildRunReader: CbuildRunReader;
+
+        beforeAll(async () => {
+            cbuildRunReader = new CbuildRunReader();
+        });
+
+        it('returns SVD file path', async () => {
+            const expectedSvdFilePaths = ['/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core0.svd'];
+            await cbuildRunReader.parse(TEST_CBUILD_RUN_FILE);
+            const svdFilePaths = cbuildRunReader.getSvdFilePaths('/my/pack/root');
+            expect(svdFilePaths).toEqual(expectedSvdFilePaths);
+        });
+
     });
 });

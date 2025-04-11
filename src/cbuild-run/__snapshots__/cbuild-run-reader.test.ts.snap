@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`CbuildRunReader successfully parses a *.cbuild-run.yml file 1`] = `
+exports[`CbuildRunReader Parser successfully parses a *.cbuild-run.yml file 1`] = `
 {
   "compiler": "AC6",
   "debug-sequences": [
