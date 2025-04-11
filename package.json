@@ -59,7 +59,7 @@
             "gdb": "arm-none-eabi-gdb",
             "initCommands": [
               "load",
-              "break main"
+              "tbreak main"
             ],
             "target": {
               "server": "pyocd",
@@ -83,7 +83,7 @@
               "gdb": "arm-none-eabi-gdb",
               "initCommands": [
                 "load",
-                "break main"
+                "tbreak main"
               ],
               "target": {
                 "server": "pyocd",
@@ -109,7 +109,7 @@
             "gdb": "arm-none-eabi-gdb",
             "initCommands": [
               "load",
-              "break main"
+              "tbreak main"
             ],
             "target": {
               "server": "JLinkGDBServer",
@@ -144,7 +144,7 @@
               "gdb": "arm-none-eabi-gdb",
               "initCommands": [
                 "load",
-                "break main"
+                "tbreak main"
               ],
               "target": {
                 "server": "JLinkGDBServer",
