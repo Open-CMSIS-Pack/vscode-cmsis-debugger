@@ -128,6 +128,9 @@
                 "-localhostonly"
               ],
               "port": "3333"
+            },
+            "cmsis": {
+              "cbuildRunFile": "${command:cmsis-csolution.getCbuildRunFile}"
             }
           }
         ],
@@ -163,6 +166,9 @@
                   "-localhostonly"
                 ],
                 "port": "3333"
+              },
+              "cmsis": {
+                "cbuildRunFile": "^\"\\${command:cmsis-csolution.getCbuildRunFile}\""
               }
             }
           }
