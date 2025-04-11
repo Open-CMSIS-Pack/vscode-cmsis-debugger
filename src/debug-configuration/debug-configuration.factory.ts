@@ -19,7 +19,7 @@ import { makeFactory } from '../__test__/test-data-factory';
 import { GDBTargetConfiguration, TargetConfiguration } from './gdbtarget-configuration';
 
 export const debugConfigurationFactory = makeFactory<vscode.DebugConfiguration>({
-    type: () => 'cppdbg',
+    type: () => 'mydebug',
     name: () => 'Debug',
     request: () => 'launch',
 });
@@ -40,7 +40,7 @@ export const targetConfigurationFactory = makeFactory<TargetConfiguration>({
 });
 
 export const gdbTargetConfiguration = makeFactory<GDBTargetConfiguration>({
-    type: () => 'gdb',
+    type: () => 'gdbtarget',
     name: () => 'Debug',
     request: () => 'launch',
     program: () => undefined,

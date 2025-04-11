@@ -54,7 +54,7 @@ export interface TargetConfiguration {
 };
 
 interface CMSISConfiguration {
-    cbuildRunFile: string;
+    cbuildRunFile?: string;
 }
 
 export interface GDBTargetConfiguration extends vscode.DebugConfiguration {

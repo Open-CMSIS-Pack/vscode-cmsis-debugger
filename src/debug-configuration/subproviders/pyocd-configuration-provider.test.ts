@@ -14,17 +14,69 @@
  * limitations under the License.
  */
 
-import { debugConfigurationFactory } from '../debug-configuration.factory';
+import { gdbTargetConfiguration, targetConfigurationFactory } from '../debug-configuration.factory';
+import { GDBTargetConfiguration } from '../gdbtarget-configuration';
 import { PyocdConfigurationProvider } from './pyocd-configuration-provider';
 
 describe('PyocdConfigurationProvider', () => {
 
-    it('resolveDebugConfigurationWithSubstitutedVariables', async () => {
-        const configProvider = new PyocdConfigurationProvider();
-        const config = debugConfigurationFactory();
-        const debugConfig = await configProvider.resolveDebugConfigurationWithSubstitutedVariables(undefined, config, undefined);
-        expect(debugConfig).toBeDefined();
-    });
+    describe('resolveDebugConfigurationWithSubstitutedVariables', () => {
 
+        it('adds gdbserver to minimal configuration serverParameters', async () => {
+            const configProvider = new PyocdConfigurationProvider();
+            const config = gdbTargetConfiguration({
+                target: targetConfigurationFactory(),
+            });
+            const debugConfig = await configProvider.resolveDebugConfigurationWithSubstitutedVariables(undefined, config, undefined);
+            expect(debugConfig).toBeDefined();
+            const gdbtargetConfig = debugConfig as GDBTargetConfiguration;
+            expect(gdbtargetConfig?.target?.serverParameters).toContain('gdbserver');
+            expect(gdbtargetConfig?.target?.serverParameters).not.toContain('--port');
+        });
+
+        it('adds port to server parameters, gdbserver always gets added', async () => {
+            const configProvider = new PyocdConfigurationProvider();
+            const config = gdbTargetConfiguration({
+                target: targetConfigurationFactory({ port: '4711' }),
+            });
+            const debugConfig = await configProvider.resolveDebugConfigurationWithSubstitutedVariables(undefined, config, undefined);
+            expect(debugConfig).toBeDefined();
+            const gdbtargetConfig = debugConfig as GDBTargetConfiguration;
+            expect(gdbtargetConfig?.target?.serverParameters).toContain('gdbserver');
+            expect(gdbtargetConfig?.target?.serverParameters).toContain('--port');
+            expect(gdbtargetConfig?.target?.serverParameters).toContain('4711');
+        });
+
+        it('does not overwrite port in server parameters', async () => {
+            const configProvider = new PyocdConfigurationProvider();
+            const config = gdbTargetConfiguration({
+                target: targetConfigurationFactory({
+                    port: '4711',
+                    serverParameters: ['-port', '10815'],
+                }),
+            });
+            const debugConfig = await configProvider.resolveDebugConfigurationWithSubstitutedVariables(undefined, config, undefined);
+            expect(debugConfig).toBeDefined();
+            const gdbtargetConfig = debugConfig as GDBTargetConfiguration;
+            expect(gdbtargetConfig?.target?.serverParameters).toContain('--port');
+            expect(gdbtargetConfig?.target?.serverParameters).toContain('10815');
+        });
+
+        it.each([
+            { host: 'keep absolute path on Unix', pyocdPath: '/my/pyocd' },
+            { host: 'keep absolute path on Win', pyocdPath: 'C:\\my\\pyocd' },
+        ])('handles server path if absolute or adds absolute path for built-in', async ({ pyocdPath }) => {
+            const configProvider = new PyocdConfigurationProvider();
+            const config = gdbTargetConfiguration({
+                target: targetConfigurationFactory({
+                    server: pyocdPath
+                }),
+            });
+            const debugConfig = await configProvider.resolveDebugConfigurationWithSubstitutedVariables(undefined, config, undefined);
+            expect(debugConfig).toBeDefined();
+            const gdbtargetConfig = debugConfig as GDBTargetConfiguration;
+            expect(gdbtargetConfig?.target?.server).toContain(pyocdPath);
+        });
+    });
 
 });

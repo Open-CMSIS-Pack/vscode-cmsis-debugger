@@ -14,29 +14,21 @@
  * limitations under the License.
  */
 
-import type { Config } from 'jest';
 
-const config: Config = {  
-  testEnvironment: "node",
-  preset: "ts-jest",
-  transform: {
-    "^.+\\.tsx?$": [
-      "ts-jest", {
-      }
-    ],
-  },
-  setupFiles: ["<rootDir>/jest.setup.ts"],
-  clearMocks: true,
-  collectCoverage: true,
-  collectCoverageFrom: [
-    "src/**/*.{ts,tsx}",
-    "!**/*.d.ts",
-    "!**/*.factories.{ts,tsx}",
-    "!**/__test__/**/*",
-    "!src/desktop/extension.ts",
-  ],
-  coverageDirectory: "./coverage",
-  coverageReporters: ["lcov", "text"],
+import * as os from 'os';
+import * as path from 'path';
+
+export const isWindows = os.platform() === 'win32';
+
+export const getCmsisPackRootPath = (): string|undefined => {
+    const environmentValue = process.env['CMSIS_PACK_ROOT'];
+    if (environmentValue) {
+        return environmentValue;
+    }
+
+    const cmsisPackRootDefault = os.platform() === 'win32'
+        ? path.join(process.env['LOCALAPPDATA'] ?? os.homedir(), 'Arm', 'Packs')
+        : path.join(os.homedir(), '.cache', 'arm', 'packs');
+
+    return cmsisPackRootDefault;
 };
-
-export default config;

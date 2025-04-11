@@ -15,6 +15,7 @@
  */
 
 import { gdbTargetConfiguration, targetConfigurationFactory } from '../debug-configuration.factory';
+import { GDBTargetConfiguration } from '../gdbtarget-configuration';
 import { JlinkConfigurationProvider } from './jlink-configuration-provider';
 
 describe('JlinkConfigurationProvider', () => {
@@ -28,7 +29,8 @@ describe('JlinkConfigurationProvider', () => {
             });
             const debugConfig = await configProvider.resolveDebugConfigurationWithSubstitutedVariables(undefined, config, undefined);
             expect(debugConfig).toBeDefined();
-            expect(debugConfig?.target?.serverParameters).not.toContain('-port');
+            const gdbtargetConfig = debugConfig as GDBTargetConfiguration;
+            expect(gdbtargetConfig?.target?.serverParameters).not.toContain('-port');
         });
 
         it('adds port to server parameters', async () => {
@@ -38,8 +40,9 @@ describe('JlinkConfigurationProvider', () => {
             });
             const debugConfig = await configProvider.resolveDebugConfigurationWithSubstitutedVariables(undefined, config, undefined);
             expect(debugConfig).toBeDefined();
-            expect(debugConfig?.target?.serverParameters).toContain('-port');
-            expect(debugConfig?.target?.serverParameters).toContain('4711');
+            const gdbtargetConfig = debugConfig as GDBTargetConfiguration;
+            expect(gdbtargetConfig?.target?.serverParameters).toContain('-port');
+            expect(gdbtargetConfig?.target?.serverParameters).toContain('4711');
         });
 
         it('does not overwrite port in server parameters', async () => {
@@ -52,8 +55,9 @@ describe('JlinkConfigurationProvider', () => {
             });
             const debugConfig = await configProvider.resolveDebugConfigurationWithSubstitutedVariables(undefined, config, undefined);
             expect(debugConfig).toBeDefined();
-            expect(debugConfig?.target?.serverParameters).toContain('-port');
-            expect(debugConfig?.target?.serverParameters).toContain('10815');
+            const gdbtargetConfig = debugConfig as GDBTargetConfiguration;
+            expect(gdbtargetConfig?.target?.serverParameters).toContain('-port');
+            expect(gdbtargetConfig?.target?.serverParameters).toContain('10815');
         });
 
     });

@@ -14,29 +14,15 @@
  * limitations under the License.
  */
 
-import type { Config } from 'jest';
+import { VscodeFileReader } from './file-reader';
 
-const config: Config = {  
-  testEnvironment: "node",
-  preset: "ts-jest",
-  transform: {
-    "^.+\\.tsx?$": [
-      "ts-jest", {
-      }
-    ],
-  },
-  setupFiles: ["<rootDir>/jest.setup.ts"],
-  clearMocks: true,
-  collectCoverage: true,
-  collectCoverageFrom: [
-    "src/**/*.{ts,tsx}",
-    "!**/*.d.ts",
-    "!**/*.factories.{ts,tsx}",
-    "!**/__test__/**/*",
-    "!src/desktop/extension.ts",
-  ],
-  coverageDirectory: "./coverage",
-  coverageReporters: ["lcov", "text"],
-};
+const TEST_FILE_PATH = 'test-data/fileReaderTest.txt'; // Relative to repo root
+const TEST_FILE_CONTENTS = 'Simple file';
 
-export default config;
+describe('FileReader', () => {
+    it('parses a simple file', async () =>{
+        const fileReader = new VscodeFileReader();
+        const fileContents = await fileReader.readFileToString(TEST_FILE_PATH);
+        expect(fileContents).toEqual(TEST_FILE_CONTENTS);
+    });
+});
