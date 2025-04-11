@@ -17,19 +17,46 @@
 import * as yaml from 'yaml';
 import { CbuildRunType } from './cbuild-run-types';
 import { FileReader, VscodeFileReader } from '../desktop/file-reader';
+import { getCmsisPackRootPath } from '../utils';
 
 const ROOT_NODE = 'cbuild-run';
+const CMSIS_PACK_ROOT_ENVVAR = '${CMSIS_PACK_ROOT}';
 
 export class CbuildRunReader {
+    private cbuildRun?: CbuildRunType;
+
     constructor(private reader: FileReader = new VscodeFileReader()) {}
 
-    public async parse(filePath: string): Promise<CbuildRunType> {
+    public hasContents(): boolean {
+        return !!this.cbuildRun;
+    }
+
+    public async parse(filePath: string): Promise<void> {
         const fileContents = await this.reader.readFileToString(filePath);
         const fileRoot = yaml.parse(fileContents);
-        const cbuildRun = fileRoot ? fileRoot[ROOT_NODE] : undefined;
-        if (!cbuildRun) {
+        this.cbuildRun = fileRoot ? fileRoot[ROOT_NODE] : undefined;
+        if (!this.cbuildRun) {
             throw new Error(`Invalid '*.cbuild-run.yml' file: ${filePath}`);
         }
-        return cbuildRun;
     }
+
+    public getSvdFilePaths(cmsisPackRoot?: string): string[] {
+        if (!this.cbuildRun) {
+            return [];
+        }
+        // Get SVD file descriptors
+        const systemDescriptions = this.cbuildRun['system-descriptions'];
+        const svdFileDescriptors = systemDescriptions?.filter(descriptor => descriptor.type === 'svd') ?? [];
+        if (svdFileDescriptors.length === 0) {
+            return [];
+        }
+        // Replace potential ${CMSIS_PACK_ROOT} placeholder
+        const effectiveCmsisPackRoot = cmsisPackRoot ?? getCmsisPackRootPath();
+        // Map to copies, leave originals untouched
+        const svdFilePaths = svdFileDescriptors.map(descriptor => `${effectiveCmsisPackRoot
+            ? descriptor.file.replaceAll(CMSIS_PACK_ROOT_ENVVAR, effectiveCmsisPackRoot)
+            : descriptor.file}`);
+        return svdFilePaths;
+    }
+
 }
