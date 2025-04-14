@@ -226,7 +226,9 @@
     "yarn": true,
     "baseContentUrl": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/blob/main/README.md"
   },
-  "dependencies": {},
+  "dependencies": {
+    "yaml": "^2.7.1"
+  },
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "@types/node": "^20.17.30",

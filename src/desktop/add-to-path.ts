@@ -17,7 +17,8 @@
 
 import * as vscode from 'vscode';
 import { logger } from '../logger';
-import { BuiltinToolPath, isWindows } from './builtin-tool-path';
+import { isWindows } from '../utils';
+import { BuiltinToolPath } from './builtin-tool-path';
 
 const PYOCD_BUILTIN_PATH = 'tools/pyocd/pyocd';
 

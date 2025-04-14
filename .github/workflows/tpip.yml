@@ -33,6 +33,7 @@ jobs:
         run: yarn run tpip:report
 
       - name: Commit changes
+        if: false
         run: |
           git config --local user.email "git@github.com"
           git config --local user.name "GitHub Action"
