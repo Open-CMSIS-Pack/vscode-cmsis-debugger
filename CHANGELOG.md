@@ -1,6 +1,13 @@
 # Change Log
 
-## Unreleased
+## 0.1.1
+- Fixes [#153](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/153): PATH variable in terminal sometimes loses modifications from other extensions.
+- Fixes [#155](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/155): Go-to-main in `initCommands` of the `launch.json` leaves behind the breakpoint.
+- Adds initial version of extension [documentation](./docs/index.md).
+- Updates included pyOCD distribution
+  - TODO: Fill in
+
+## 0.1.0
 - Updates included pyOCD distribution
   - Fixes [#92](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/92): `monitor reset halt` command fails for LPCXpresso55S69 if using CMSIS Pack support in pyOCD.
   - Fixes [#93](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/93): Download to LPC55S69 flash with GDB and pyOCD ends in errors.
