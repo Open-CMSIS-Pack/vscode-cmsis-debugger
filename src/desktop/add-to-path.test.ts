@@ -13,24 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-jest.mock('vscode')
+
 import * as vscode from 'vscode';
 import { addPyocdToPath } from './add-to-path';
 import { BuiltinToolPath } from './builtin-tool-path';
-import { mockContext } from 'vscode';
+import { extensionContextFactory } from '../__test__/vscode.factory';
+
 jest.mock('./builtin-tool-path');
 const pathPyOCD = 'tools/pyocd/pyocd';
 const BuiltinToolPathMock = BuiltinToolPath as jest.MockedClass<typeof BuiltinToolPath>;
 
-
-
 describe('addPyocdToPath', () => {
+    let extensionMock: vscode.ExtensionContext;
     beforeEach(() => {
+        extensionMock = extensionContextFactory();
         jest.clearAllMocks();
     });
 
     it('calls prepend with correct path when path is available and not already included', () => {
-    // Mock instance of BuiltinToolPath
+        // Mock instance of BuiltinToolPath
         const mockInstance = {
             getAbsolutePathDir: jest.fn().mockReturnValue(pathPyOCD),
         } as unknown as BuiltinToolPath;
@@ -39,14 +40,14 @@ describe('addPyocdToPath', () => {
         BuiltinToolPathMock.mockImplementation(() => mockInstance);
 
         // Simulate no existing mutator
-        mockContext.environmentVariableCollection.get.mockReturnValue({
+        (extensionMock.environmentVariableCollection.get as jest.Mock).mockReturnValue({
             type: vscode.EnvironmentVariableMutatorType.Append,
             value: 'pathPyOCD'
         });
 
-        addPyocdToPath(mockContext as unknown as vscode.ExtensionContext);
+        addPyocdToPath(extensionMock);
 
-        expect(mockContext.environmentVariableCollection.prepend).toHaveBeenCalledWith('PATH', expect.stringContaining(pathPyOCD));
+        expect(extensionMock.environmentVariableCollection.prepend).toHaveBeenCalledWith('PATH', expect.stringContaining(pathPyOCD));
     });
 
     it('does nothing if getAbsolutePathDir returns undefined', () => {
@@ -56,9 +57,9 @@ describe('addPyocdToPath', () => {
 
         BuiltinToolPathMock.mockImplementation(() => mockInstance);
 
-        addPyocdToPath(mockContext as unknown as vscode.ExtensionContext);
+        addPyocdToPath(extensionMock);
 
-        expect(mockContext.environmentVariableCollection.prepend).not.toHaveBeenCalled();
+        expect(extensionMock.environmentVariableCollection.prepend).not.toHaveBeenCalled();
     });
 
     it('does nothing if PATH is already prepended with same path', () => {
@@ -68,13 +69,13 @@ describe('addPyocdToPath', () => {
 
         BuiltinToolPathMock.mockImplementation(() => mockInstance);
 
-        mockContext.environmentVariableCollection.get.mockReturnValue({
+        (extensionMock.environmentVariableCollection.get as jest.Mock).mockReturnValue({
             type: vscode.EnvironmentVariableMutatorType.Prepend,
             value: '/already/included/path:'
         });
 
-        addPyocdToPath(mockContext as unknown as vscode.ExtensionContext);
+        addPyocdToPath(extensionMock);
 
-        expect(mockContext.environmentVariableCollection.prepend).not.toHaveBeenCalled();
+        expect(extensionMock.environmentVariableCollection.prepend).not.toHaveBeenCalled();
     });
 });

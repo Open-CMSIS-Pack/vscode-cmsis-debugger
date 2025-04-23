@@ -13,6 +13,6 @@
         ]
     },
     "include": [
-        "src", "test-types"
+        "src"
     ]
 }

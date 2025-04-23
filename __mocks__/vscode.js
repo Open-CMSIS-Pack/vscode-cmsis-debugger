@@ -25,13 +25,6 @@ const EnvironmentVariableMutatorType = {
     Prepend: 3
 };
 
-const mockContext =  {
-            environmentVariableCollection: {
-                prepend: jest.fn(),
-                get: jest.fn()
-            }
-        };
-
 module.exports = {
     EventEmitter: jest.fn(() => {
         const callbacks = [];
@@ -84,5 +77,4 @@ module.exports = {
         registerDebugAdapterTrackerFactory: jest.fn(),
     },
     EnvironmentVariableMutatorType,
-    mockContext
 };
