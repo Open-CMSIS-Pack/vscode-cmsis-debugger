@@ -19,6 +19,19 @@ const { URI } = require('vscode-uri');
 const path = require('path');
 const fs = require('fs');
 
+const EnvironmentVariableMutatorType = {
+    Replace: 1,
+    Append: 2,
+    Prepend: 3
+};
+
+const mockContext =  {
+            environmentVariableCollection: {
+                prepend: jest.fn(),
+                get: jest.fn()
+            }
+        };
+
 module.exports = {
     EventEmitter: jest.fn(() => {
         const callbacks = [];
@@ -70,4 +83,6 @@ module.exports = {
         registerDebugConfigurationProvider: jest.fn(),
         registerDebugAdapterTrackerFactory: jest.fn(),
     },
+    EnvironmentVariableMutatorType,
+    mockContext
 };
