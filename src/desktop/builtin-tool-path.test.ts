@@ -56,5 +56,22 @@ describe('BuiltinToolPath', () => {
         expect(result).toBeUndefined();
     });
 
+    it('should return the directory of the tool', () => {
+        const builtinToolPath = new BuiltinToolPath('tools/pyocd/pyocd');
+        fs.mkdirSync(`${testFolder}/tools/pyocd`, { recursive: true });
+        fs.writeFileSync(`${testFolder}/tools/pyocd/pyocd${TOOL_EXTENSION}`, '');
+
+        const expected = vscode.Uri.file(`${testFolder}/tools/pyocd`);
+        const result = builtinToolPath.getAbsolutePathDir();
+        expect(result).toBe(expected.fsPath);
+    });
+
+    it('should return undefined if tool does not exist', () => {
+        const builtinToolPath = new BuiltinToolPath('tools/pyocd/pyocd');
+
+        const result = builtinToolPath.getAbsolutePathDir();
+        expect(result).toBeUndefined();
+    });
+
 });
 
