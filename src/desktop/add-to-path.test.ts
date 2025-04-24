@@ -70,12 +70,9 @@ describe('addPyocdToPath', () => {
 
         BuiltinToolPathMock.mockImplementation(() => mockInstance);
 
-        isWindows? (extensionMock.environmentVariableCollection.get as jest.Mock).mockReturnValue({
+        (extensionMock.environmentVariableCollection.get as jest.Mock).mockReturnValue({
             type: vscode.EnvironmentVariableMutatorType.Prepend,
-            value: '/already/included/path;'
-        }):(extensionMock.environmentVariableCollection.get as jest.Mock).mockReturnValue({
-            type: vscode.EnvironmentVariableMutatorType.Prepend,
-            value: '/already/included/path:'
+            value: `/already/included/path${isWindows ? ';' : ':'}`
         });
 
         addPyocdToPath(extensionMock);
