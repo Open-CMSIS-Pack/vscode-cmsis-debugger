@@ -18,6 +18,7 @@ import * as vscode from 'vscode';
 import { addPyocdToPath } from './add-to-path';
 import { BuiltinToolPath } from './builtin-tool-path';
 import { extensionContextFactory } from '../__test__/vscode.factory';
+import { isWindows } from '../utils';
 
 jest.mock('./builtin-tool-path');
 const pathPyOCD = 'tools/pyocd/pyocd';
@@ -69,7 +70,10 @@ describe('addPyocdToPath', () => {
 
         BuiltinToolPathMock.mockImplementation(() => mockInstance);
 
-        (extensionMock.environmentVariableCollection.get as jest.Mock).mockReturnValue({
+        isWindows? (extensionMock.environmentVariableCollection.get as jest.Mock).mockReturnValue({
+            type: vscode.EnvironmentVariableMutatorType.Prepend,
+            value: '/already/included/path;'
+        }):(extensionMock.environmentVariableCollection.get as jest.Mock).mockReturnValue({
             type: vscode.EnvironmentVariableMutatorType.Prepend,
             value: '/already/included/path:'
         });
