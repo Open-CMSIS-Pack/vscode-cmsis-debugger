@@ -268,4 +268,4 @@ closing of quotes, and other language features.
 The following example shows how to check the currently set breakpoints with the `> info break` command. Afterwards, the
 application is run with the `> continue` command.
 
-![Entering GDN commands in the Debug Console REPL](./images/entering_gdb_commands.gif)
+![Entering GDB commands in the Debug Console REPL](./images/entering_gdb_commands.gif)
