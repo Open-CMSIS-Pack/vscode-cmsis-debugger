@@ -21,6 +21,8 @@ following aspects:
 
 - [Disassembly View](#disassembly-view) can be opened.
 
+- [Debug Console](#debug-console) can be used to enter GDB commands.
+
 !!! Note
     The following is using information from
     [Debug code with Visual Studio Code](https://code.visualstudio.com/docs/debugtest/debugging#_debugger-user-interface),
@@ -200,7 +202,7 @@ Just like regular breakpoints, logpoints can be enabled or disabled and can also
 
 The Eclipse CDT Cloud **Periperhal Inspector** is a standalone SVD Viewer extension.
 
-![MPeripheral Inspector](./images/peripheral-inspector.png)
+![Peripheral Inspector](./images/peripheral-inspector.png)
 
 For more information, refer to the
 [Peripheral Inspector GitHub repository](https://github.com/eclipse-cdt-cloud/vscode-peripheral-inspector).
@@ -247,3 +249,23 @@ To open the **Disassembly View**:
 - Right-click an item in the [**CALL STACK section**](#call-stack-section) and select "Open Disassembly View"
 
 ![Disassembly View](./images/disassembly-view.png)
+
+## Debug Console
+
+The **Debug Console** enables viewing and interacting with the output of your code running in the debugger. Expressions can
+be evaluated with the **Debug Console REPL** (Read-Eval-Print Loop) feature.
+
+With the CMSIS Debug extension, you can use the Debug Console REPL to enter
+[GDB commands](https://sourceware.org/gdb/current/onlinedocs/gdb.html/index.html) while debugging. Before entering a GDB
+command, you have to explicitly enter a greater than sign `>` so that the following strings can be evaluated as a GDB
+command.
+
+Debug Console input uses the mode of the active editor, which means that it supports syntax coloring, indentation, auto
+closing of quotes, and other language features.
+
+**Example**
+
+The following example shows how to check the currently set breakpoints with the `> info break` command. Afterwards, the
+application is run with the `> continue` command.
+
+![Entering GDN commands in the Debug Console REPL](./images/entering_gdb_commands.gif)
