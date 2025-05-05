@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="img/favicon.ico" />
+    <title>Setup - Arm CMSIS Debuger</title>
+    <link rel="stylesheet" href="css/theme.css" />
+    <link rel="stylesheet" href="css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="css/extra.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Setup";
+        var mkdocs_page_input_path = "setup.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="index.html" class="icon icon-home"> Arm CMSIS Debuger
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="./search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="index.html">Home</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Setup</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#debug-setup">Debug Setup</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#pyocd-debug-setup">pyOCD Debug Setup</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#segger-j-link-debug-setup">SEGGER® J-LINK® Debug Setup</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#project-setup">Project setup</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="configure.html">Create launch configuration</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="debug.html">Start debugging</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="debug_views.html">Debug views</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Arm CMSIS Debuger</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html" class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Setup</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/edit/main/docs/setup.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="setup">Setup</h1>
+<!-- markdownlint-disable MD036 -->
+
+<p>This chapter describes how to install the <strong>Arm CMSIS Debugger</strong> extension pack and how to configure the debug connection
+for single- and multi-core devices.</p>
+<h2 id="installation">Installation</h2>
+<p>The <strong>Arm CMSIS Debugger</strong> extension pack includes extensions that you can use to debug CMSIS solution-based projects.</p>
+<ol>
+<li>
+<p>In Visual Studio Code, open the <strong>Extensions</strong> view and type <code>Arm CMSIS Debugger</code> in the search bar.</p>
+</li>
+<li>
+<p>Click <strong>Install</strong> to start the installation.</p>
+</li>
+</ol>
+<h2 id="debug-setup">Debug Setup</h2>
+<p>The debug setup requires a GDB installation supporting the GDB remote protocol and that can connect to a GDB server like pyOCD.</p>
+<p>We recommend installing the <a href="https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain"><code>Arm GNU Toolchain</code></a> using the
+<code>Arm Tools Environment Manager</code> extension. It comes with <code>arm-none-eabi-gdb</code> which is used in the Arm CMSIS Debugger default
+debug configurations.</p>
+<h3 id="pyocd-debug-setup">pyOCD Debug Setup</h3>
+<p>This extension includes a pyOCD distribution which is used by default.</p>
+<p>The <code>cmsis-debug-pyocd</code> debugger type is used to add a debug configuration in the <code>launch.json</code> file for debugging with GDB
+and pyOCD. This configuration uses the <code>gdbtarget</code> debugger type registered by the CDT GDB Debug Adapter Extension.</p>
+<p>If you wish to use a different pyOCD installation, enter the full path to the executable (including the file name) in the
+<code>target</code>&gt;<code>server</code> setting in the <code>launch.json</code> configuration file.</p>
+<h3 id="segger-j-link-debug-setup">SEGGER® J-LINK® Debug Setup</h3>
+<p>Install the latest <a href="https://www.segger.com/downloads/jlink/#J-LinkSoftwareAndDocumentationPack">J-LINK Software and Documentation Pack</a>
+from <a href="https://www.segger.com/">SEGGER</a>. Ensure all required drivers and host platform specific settings are done.</p>
+<p>The extension expects the installation folder to be on your system <code>PATH</code> environment variable. Alternatively, update your
+debug configuration's <code>target</code>&gt;<code>server</code> setting to contain the full path to the J-LINK GDB server executable (including the file
+name).</p>
+<p>The <code>cmsis-debug-jlink</code> debugger type is used to add a debug configuration in the <code>launch.json</code> file for debug with GDB and
+the SEGGER J-LINK GDB server. This configuration uses the <code>gdbtarget</code> debugger type registered by the CDT GDB Debug Adapter
+Extension.</p>
+<h2 id="project-setup">Project setup</h2>
+<p>To be able to use the GNU Debugger under the hood, you need to make sure that the project build process creates the right
+binary files in the correct formats. Thus, you need to amend your project's <code>*.csolution.yml</code> and <code>*.cproject.yml</code> files.</p>
+<ul>
+<li>Make sure that the <a href="https://developer.arm.com/documentation/dui0101/latest/">ELF</a> file is written using the
+  <a href="https://dwarfstd.org/dwarf5std.html">DWARF Verion 5</a> format. For example, when generated with the
+  <a href="https://developer.arm.com/Tools%20and%20Software/Arm%20Compiler%20for%20Embedded">Arm Compiler for Embedded</a>, add the
+  following to your <code>*.csolution.yml</code> file (before the <code>projects:</code> section for example):</li>
+</ul>
+<pre><code class="language-yml">  misc:
+    - for-compiler: AC6
+      C-CPP:
+        - -gdwarf-5
+      ASM:
+        - -gdwarf-5
+      Link:
+        - --entry=Reset_Handler
+</code></pre>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For other toolchians, please consult the reference manual on how to generate DWARF Version 5 formatted ELF files.</p>
+</div>
+<ul>
+<li>In addition to generating an ELF file, you also need to create a <a href="https://developer.arm.com/documentation/ka003292/latest/">HEX</a>
+  file that will be used to flash the firmware image. Add the following to any of your <code>*.cproject.yml</code> files (at the end of
+  the file):</li>
+</ul>
+<pre><code class="language-yml">  output:
+    type:
+    - elf
+    - hex
+</code></pre>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="index.html" class="btn btn-neutral float-left" title="Home"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="configure.html" class="btn btn-neutral float-right" title="Create launch configuration">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="index.html" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="configure.html" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = ".";</script>
+    <script src="js/theme_extra.js"></script>
+    <script src="js/theme.js"></script>
+      <script src="search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

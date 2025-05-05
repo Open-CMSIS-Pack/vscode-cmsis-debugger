@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="img/favicon.ico" />
+    <title>Debug views - Arm CMSIS Debuger</title>
+    <link rel="stylesheet" href="css/theme.css" />
+    <link rel="stylesheet" href="css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="css/extra.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Debug views";
+        var mkdocs_page_input_path = "debug_views.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="index.html" class="icon icon-home"> Arm CMSIS Debuger
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="./search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="index.html">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="setup.html">Setup</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="configure.html">Create launch configuration</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="debug.html">Start debugging</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Debug views</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#debug-toolbar">Debug toolbar</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#variables-section">VARIABLES section</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#watch-section">WATCH section</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#call-stack-section">CALL STACK section</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#breakpoints-section">BREAKPOINTS section</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#setting-breakpoints">Setting breakpoints</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#breakpoint-types">Breakpoint types</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#conditional-breakpoints">Conditional breakpoints</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#triggered-breakpoints">Triggered breakpoints</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#inline-breakpoints">Inline breakpoints</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#function-breakpoints">Function breakpoints</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#data-breakpoints">Data breakpoints</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#logpoints">Logpoints</a>
+    </li>
+        </ul>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#peripheral-inspector">PERIPHERAL Inspector</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#memory-inspector">Memory Inspector</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#disassembly-view">Disassembly View</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#debug-console">Debug Console</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Arm CMSIS Debuger</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html" class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Debug views</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/edit/main/docs/debug_views.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="run-and-debug-view">Run and Debug view</h1>
+<p><img alt="Run and Debug view" src="images/run-debug-view.png" /></p>
+<p>The <strong>Run and debug view</strong> <img alt="Run and debug view" src="images/run-debug-view-icon.png" /> differs from the other views in the
+following aspects:</p>
+<ul>
+<li>
+<p><a href="#debug-toolbar">Debug toolbar</a> is available.</p>
+</li>
+<li>
+<p><a href="#variables-section">VARIABLE section</a> is available.</p>
+</li>
+<li>
+<p><a href="#watch-section">WATCH section</a> is available.</p>
+</li>
+<li>
+<p><a href="#call-stack-section">CALL STACK section</a> is available.</p>
+</li>
+<li>
+<p><a href="#breakpoints-section">BREAKPOINTS section</a> is available.</p>
+</li>
+<li>
+<p><a href="#peripherals-inspector">Peripheral Inspector</a> is available (requires configuration).</p>
+</li>
+<li>
+<p><a href="#memory-inspector">Memory Inspector</a> can be opened.</p>
+</li>
+<li>
+<p><a href="#disassembly-view">Disassembly View</a> can be opened.</p>
+</li>
+<li>
+<p><a href="#debug-console">Debug Console</a> can be used to enter GDB commands.</p>
+</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The following is using information from
+<a href="https://code.visualstudio.com/docs/debugtest/debugging#_debugger-user-interface">Debug code with Visual Studio Code</a>,
+<a href="https://github.com/eclipse-cdt-cloud/vscode-memory-inspector">Eclipse CDT Cloud - Memory Inspector</a>,
+<a href="https://github.com/eclipse-cdt-cloud/vscode-peripheral-inspector">Eclipse CDT Cloud - Peripherals Inspector</a>.</p>
+</div>
+<h2 id="debug-toolbar">Debug toolbar</h2>
+<p>Once a debug session starts, the <strong>Debug toolbar</strong> appears at the top of the window. The toolbar contains actions to control
+the flow of the debug session, such as stepping through code, pausing execution, and stopping the debug session.</p>
+<p><img alt="Debug toolbar" src="images/debug-toolbar.png" /></p>
+<p>The following table describes the actions available in the debug toolbar:</p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Continue/Pause (F5)</td>
+<td><strong>Continue</strong>: Resume normal program/script execution (up to the next breakpoint).<br><strong>Pause</strong>: Inspect code executing at the current line and debug line-by-line.</td>
+</tr>
+<tr>
+<td>Step Over (F10)</td>
+<td>Execute the next method as a single command without inspecting or following its component steps.</td>
+</tr>
+<tr>
+<td>Step Into (F11)</td>
+<td>Enter the next method to follow its execution line-by-line.</td>
+</tr>
+<tr>
+<td>Step Out (Shift + F11)</td>
+<td>When inside a method or subroutine, return to the earlier execution context by completing remaining lines of the current method as though it were a single command.</td>
+</tr>
+<tr>
+<td>Restart (Shift + Ctrl/Cmd + F5)</td>
+<td>Terminate the current program execution and start debugging again using the current run configuration.</td>
+</tr>
+<tr>
+<td>Stop (Shift + F5)</td>
+<td>Terminate the current program execution.</td>
+</tr>
+</tbody>
+</table>
+<p>If your debugging sessions involve multiple targets (for example, a multi-core device), the debug toolbar shows the list
+of sessions and lets you switch between them.</p>
+<h2 id="variables-section">VARIABLES section</h2>
+<p>During a debugging session, you can inspect variables, expressions, and registers in the <strong>VARIABLES section</strong> of the
+<strong>Run and Debug view</strong> or by hovering over their source in the editor. Variable values and expression evaluation are
+relative to the selected stack frame in the <strong>CALL STACK section</strong>. In case of multi-core, registers are relative to the
+core that you are debugging.</p>
+<p><img alt="VARIABLES section" src="images/VARIABLES-section.png" /></p>
+<p>To change the value of a variable during the debugging session, right-click on the variable in the <strong>VARIABLES section</strong> and
+select <strong>Set Value</strong>.</p>
+<p>You can use the <strong>Copy Value action</strong> to copy the variable's value, or the <strong>Copy as Expression action</strong> to copy an
+iexpression to access the variable. You can then use this expression in the <a href="#watch-section"><strong>WATCH section</strong></a>.</p>
+<p>To filter variables by their name or value, use the Alt/Opt + Ctrl/Cmd + F keyboard shortcut while the focus is on the
+<strong>VARIABLES section</strong>, and type a search term.</p>
+<p><img alt="Searching in VARIABLES section" src="images/search-VARIABLES.png" /></p>
+<h2 id="watch-section">WATCH section</h2>
+<p>Variables and expressions can also be evaluated and watched in the Run and Debug view's WATCH section.</p>
+<p><img alt="WATCH section" src="images/WATCH-section.png" /></p>
+<h2 id="call-stack-section">CALL STACK section</h2>
+<p>The <strong>CALL STACK</strong> sections shows objects that are currently on stack. Threads are shown for applications that use an RTOS.
+Each object is associated to its location or value, and type.</p>
+<p><img alt="CALL STACK section" src="images/call-stack-section.png" /></p>
+<p>The window content is updated automatically whenever program execution stops.</p>
+<p>The context menu allows to:</p>
+<ul>
+<li>
+<p>copy the call stack.</p>
+</li>
+<li>
+<p>open <strong>Disassembly View</strong>.</p>
+</li>
+</ul>
+<h2 id="breakpoints-section">BREAKPOINTS section</h2>
+<p>A breakpoint pauses the execution of your code at a specific point, so you can inspect the state of your application at that
+point. VS Code supports several types of breakpoints.</p>
+<h3 id="setting-breakpoints">Setting breakpoints</h3>
+<p>To set or unset a breakpoint, click on the editor margin or use <strong>F9</strong> on the current line.</p>
+<ul>
+<li>
+<p>Breakpoints in the editor margin are normally shown as red filled circles.</p>
+</li>
+<li>
+<p>Disabled breakpoints have a filled gray circle.</p>
+</li>
+<li>
+<p>When a debugging session starts, breakpoints that can't be registered with the debugger change to a gray hollow circle.
+  The same might happen if the source is edited while a debug session without live-edit support is running.</p>
+</li>
+</ul>
+<p><img alt="Breakpoint in the edirot margin" src="images/bkpt-in-editor-margin.png" /></p>
+<p>For more control of your breakpoints, use the Run and Debug view's <strong>BREAKPOINTS section</strong>. This section lists all
+breakpoints in your code and provides extra actions to manage them.</p>
+<p><img alt="BREAKPOINTS section" src="images/breakpoints-section.png" /></p>
+<h3 id="breakpoint-types">Breakpoint types</h3>
+<h4 id="conditional-breakpoints">Conditional breakpoints</h4>
+<p>A powerful VS Code debugging feature is the ability to set conditions based on expressions, hit counts, or a combination of both.</p>
+<ul>
+<li>
+<p>Expression condition: The breakpoint is hit whenever the expression evaluates to true.</p>
+</li>
+<li>
+<p>Hit count: The hit count controls how many times a breakpoint needs to be hit before it interrupts execution.</p>
+</li>
+<li>
+<p>Wait for breakpoint: The breakpoint is activated when another breakpoint is hit (<a href="#triggered-breakpoints">triggered breakpoint</a>).</p>
+</li>
+</ul>
+<p>To add a conditional breakpoint:</p>
+<ul>
+<li>
+<p>Create a conditional breakpoint</p>
+<ul>
+<li>
+<p>Right-click in the editor margin and select Add Conditional Breakpoint.</p>
+</li>
+<li>
+<p>Use the Add Conditional Breakpoint command in the Command Palette (⇧⌘P).</p>
+</li>
+</ul>
+</li>
+<li>
+<p>Choose the type of condition you want to set (expression, hit count, or wait for breakpoint).</p>
+</li>
+</ul>
+<p><img alt="Creating a conditional breakpoint" src="images/conditional-bkpt.gif" /></p>
+<p>To add a condition to an existing breakpoint:</p>
+<ul>
+<li>
+<p>Edit an existing breakpoint</p>
+<ul>
+<li>
+<p>Right-click on the breakpoint in the editor margin and select Edit Breakpoint.</p>
+</li>
+<li>
+<p>Select the pencil icon next for an existing breakpoint in the <strong>BREAKPOINTS section</strong> of the <strong>Run and Debug view</strong>.</p>
+</li>
+</ul>
+</li>
+<li>
+<p>Edit the condition (expression, hit count, or wait for breakpoint).</p>
+</li>
+</ul>
+<h4 id="triggered-breakpoints">Triggered breakpoints</h4>
+<p>A triggered breakpoint is type of conditional breakpoint that is enabled once another breakpoint is hit. They can be useful
+when diagnosing failure cases in code that happen only after a certain precondition.</p>
+<p>Triggered breakpoints can be set by right-clicking on the glyph margin, selecting <strong>Add Triggered Breakpoint</strong>, and then
+choosing which other breakpoint enables the breakpoint.</p>
+<p><img alt="Creating a triggered breakpoint" src="images/triggered-bkpt.gif" /></p>
+<h4 id="inline-breakpoints">Inline breakpoints</h4>
+<p>Inline breakpoints are only hit when the execution reaches the column associated with the inline breakpoint. This is useful
+when debugging minified code, which contains multiple statements in a single line.</p>
+<p>An inline breakpoint can be set using <strong>Shift + F9</strong> or through the context menu during a debug session. Inline breakpoint
+ are shown inline in the editor.</p>
+<p>Inline breakpoints can also have conditions. Editing multiple breakpoints on a line is possible through the context menu in
+the editor's left margin.</p>
+<h4 id="function-breakpoints">Function breakpoints</h4>
+<p>Instead of placing breakpoints directly in source code, a debugger can support creating breakpoints by specifying a function
+name. This is useful in situations where source is not available but a function name is known.</p>
+<p>To create a function breakpoint, select the + button in the <strong>BREAKPOINTS section</strong> header and enter the function name. Function
+breakpoints are shown with a red triangle in the <strong>BREAKPOINTS section</strong>.</p>
+<h4 id="data-breakpoints">Data breakpoints</h4>
+<p>If a debugger supports data breakpoints, they can be set from the context menu in the <strong>VARIABLES section</strong>. The Break on
+Value Change/Read/Access commands add a data breakpoint that is hit when the value of the underlying variable changes/is
+read/is accessed. Data breakpoints are shown with a red hexagon in the <strong>BREAKPOINTS section</strong>.</p>
+<h4 id="logpoints">Logpoints</h4>
+<p>A logpoint is a variant of a breakpoint that does not interrupt into the debugger, but instead logs a message to the debug
+console. Logpoints can help you save time by not having to add or remove logging statements in your code.</p>
+<p>A logpoint is represented by a diamond-shaped icon. Log messages are plain text but can also include expressions to be
+evaluated within curly braces ('{}').</p>
+<p>To add a logpoint, right-click in the editor left margin and select Add Logpoint, or use the <strong>Debug: Add Logpoint...</strong>
+command in the Command Palette (<strong>Ctrl/Cmd + Shift + p</strong>).</p>
+<p><img alt="Creating a logpoint" src="images/create-logpoint.gif" /></p>
+<p>Just like regular breakpoints, logpoints can be enabled or disabled and can also be controlled by a condition and/or hit count.</p>
+<h2 id="peripheral-inspector">PERIPHERAL Inspector</h2>
+<p>The Eclipse CDT Cloud <strong>Periperhal Inspector</strong> is a standalone SVD Viewer extension.</p>
+<p><img alt="Peripheral Inspector" src="images/peripheral-inspector.png" /></p>
+<p>For more information, refer to the
+<a href="https://github.com/eclipse-cdt-cloud/vscode-peripheral-inspector">Peripheral Inspector GitHub repository</a>.</p>
+<h2 id="memory-inspector">Memory Inspector</h2>
+<p>The Eclipse CDT Cloud <strong>Memory Inspector</strong> provides a powerful and configurable memory viewer that works with debug adapters.</p>
+<p><img alt="Memory Inspector" src="images/memory-inspector.png" /></p>
+<p>It features:</p>
+<ul>
+<li>
+<p>Configurable Memory Display: Shows memory data with various display options.</p>
+</li>
+<li>
+<p>Address Navigation: Easily jump to and scroll through memory addresses.</p>
+</li>
+<li>
+<p>Variable Highlights: Colors memory ranges for variables.</p>
+</li>
+<li>
+<p>Multiple Memory Formats: Shows memory data on hover in multiple formats.</p>
+</li>
+<li>
+<p>Edit Memory: Allows in-place memory editing, if the debug adapter supports the WriteMemoryRequest.</p>
+</li>
+<li>
+<p>Memory Management: Enables saving and restoring memory data for specific address ranges (Intel Hex format).</p>
+</li>
+<li>
+<p>Customized Views: Create and customize as many memory views as you need.</p>
+</li>
+<li>
+<p>Lock Views: Keep views static, unaffected by updates from the debug session.</p>
+</li>
+<li>
+<p>Periodic Refresh: Automatically refresh the memory data.</p>
+</li>
+<li>
+<p>Multiple Debug Sessions: Switch between multiple debug sessions using a dropdown in the memory view.</p>
+</li>
+</ul>
+<p>For more information, refer to the
+<a href="https://github.com/eclipse-cdt-cloud/vscode-memory-inspector">Memory Inspector GitHub repository</a>.</p>
+<h2 id="disassembly-view">Disassembly View</h2>
+<p>The <strong>Disassembly View</strong> shows the program execution in assembly code intermixed with the source code.</p>
+<p>To open the <strong>Disassembly View</strong>:</p>
+<ul>
+<li>
+<p>press <strong>Ctrl/Cmd + Shift + p</strong> and select "Open Disassembly View" or</p>
+</li>
+<li>
+<p>Right-click an item in the <a href="#call-stack-section"><strong>CALL STACK section</strong></a> and select "Open Disassembly View"</p>
+</li>
+</ul>
+<p><img alt="Disassembly View" src="images/disassembly-view.png" /></p>
+<h2 id="debug-console">Debug Console</h2>
+<p>The <strong>Debug Console</strong> enables viewing and interacting with the output of your code running in the debugger. Expressions can
+be evaluated with the <strong>Debug Console REPL</strong> (Read-Eval-Print Loop) feature.</p>
+<p>With the CMSIS Debug extension, you can use the Debug Console REPL to enter
+<a href="https://sourceware.org/gdb/current/onlinedocs/gdb.html/index.html">GDB commands</a> while debugging. Before entering a GDB
+command, you have to explicitly enter a "greater-than"-character <code>&gt;</code> so that the following strings can be evaluated as a GDB
+command.</p>
+<p>Debug Console input uses the mode of the active editor, which means that it supports syntax coloring, indentation, auto
+closing of quotes, and other language features.</p>
+<p><strong>Example</strong></p>
+<p>The following example shows how to check the currently set breakpoints with the <code>&gt; info break</code> command. Afterwards, the
+application is run with the <code>&gt; continue</code> command.</p>
+<p><img alt="Entering GDB commands in the Debug Console REPL" src="images/entering_gdb_commands.gif" /></p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="debug.html" class="btn btn-neutral float-left" title="Start debugging"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="debug.html" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+  </span>
+</div>
+    <script src="js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = ".";</script>
+    <script src="js/theme_extra.js"></script>
+    <script src="js/theme.js"></script>
+      <script src="search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
