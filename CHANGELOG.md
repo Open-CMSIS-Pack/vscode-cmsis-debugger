@@ -5,7 +5,7 @@
 - Fixes [#155](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/155): Go-to-main in `initCommands` of the `launch.json` leaves behind the breakpoint.
 - Partially implements [#96](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/96): Enable Peripheral Inspector.
   - Extracts first SVD file path found in `*.cbuild-run.yml` debug configuration file to automatically set up Peripheral Inspector.
-- Adds initial version of extension [documentation](./docs/index.md).
+- Adds initial version of extension [documentation](https://open-cmsis-pack.github.io/vscode-cmsis-debugger/).
 - Updates included pyOCD distribution
   - Fixes [#133](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/133): Adds default memory map for Cortex-M devices.
   - Improves memory map creation and flash algorithms sorting.
