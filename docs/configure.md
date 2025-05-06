@@ -208,7 +208,7 @@ added to the `launch.json` file:
 
 ### Single-core (J-Link)
 
-For a single-core device, the configuration template contains all the information that is requires to start debugging.
+For a single-core device, the configuration template contains all the information that is required to start debugging.
 
 !!! Attention
     **Check if the above statement is true!**
