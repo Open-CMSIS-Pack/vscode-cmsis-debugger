@@ -151,7 +151,7 @@ To add a condition to an existing breakpoint:
 #### Triggered breakpoints
 
 A triggered breakpoint is type of conditional breakpoint that is enabled once another breakpoint is hit. They can be useful
-when diagnosing failure cases in code that happen only after a certain precondition.
+when diagnosing failure cases in code that happens only after a certain precondition.
 
 Triggered breakpoints can be set by right-clicking on the glyph margin, selecting **Add Triggered Breakpoint**, and then
 choosing which other breakpoint enables the breakpoint.
@@ -163,7 +163,7 @@ choosing which other breakpoint enables the breakpoint.
 Inline breakpoints are only hit when the execution reaches the column associated with the inline breakpoint. This is useful
 when debugging minified code, which contains multiple statements in a single line.
 
-An inline breakpoint can be set using **Shift + F9** or through the context menu during a debug session. Inline breakpoint
+An inline breakpoint can be set using **Shift + F9** or through the context menu during a debug session. Inline breakpoints
  are shown inline in the editor.
 
 Inline breakpoints can also have conditions. Editing multiple breakpoints on a line is possible through the context menu in
