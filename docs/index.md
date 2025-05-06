@@ -6,7 +6,7 @@ create the debug environment and is shipped with [pyOCD](https://pyocd.io/) and 
 
 The following extensions are included in this extension pack:
 
-- [CDT™ GDB Debug Adapter Extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode), an Eclipse CDT.cloud extension that supports debugging using GDB and any other debuggers that supports the MI protocol.
+- [CDT™ GDB Debug Adapter Extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode), an Eclipse CDT.cloud extension that supports debugging using GDB and any other debuggers that support the MI protocol.
 
 - [Memory Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector), an Eclipse CDT.cloud extension that provides a powerful and configurable memory viewer that works with debug adapters.
 
