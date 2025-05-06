@@ -1,5 +1,6 @@
 # Change Log
 
+
 ## 0.1.1
 - Fixes [#153](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/153): PATH variable in terminal sometimes loses modifications from other extensions.
 - Fixes [#155](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/155): Go-to-main in `initCommands` of the `launch.json` leaves behind the breakpoint.
