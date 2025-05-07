@@ -10,17 +10,22 @@ This document outlines the security procedures and policies for the Open-CMSIS-P
 
 ## Reporting a Security Issue  
 
-The Open-CMSIS-Pack vscode-cmsis-debugger maintainers take security issues seriously and appreciate responsible disclosure. Your efforts to improve project security are highly valued.  
+The Open-CMSIS-Pack vscode-cmsis-debugger maintainers take security issues seriously and appreciate responsible
+disclosure. Your efforts to improve project security are highly valued.  
 
-We use GitHub's [private vulnerability reporting](https://docs.github.com/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability) guidelines.
-To report a security issue, please click on [Report a vulnerability](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/security/advisories/new) and include:  
+We use GitHub's [private vulnerability reporting](https://docs.github.com/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability)
+guidelines.
+To report a security issue, please click on
+[Report a vulnerability](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/security/advisories/new) and
+include:  
 
 - A detailed description of the issue  
 - Steps to reproduce the vulnerability  
 - Affected project versions  
 - Any known mitigations  
 
-A maintainer will acknowledge your report as soon as possible and guide the next steps. We will keep you informed of progress toward a fix and may request additional details if needed.  
+A maintainer will acknowledge your report as soon as possible and guide the next steps. We will keep you informed of
+progress toward a fix and may request additional details if needed.  
 
 ## Vulnerability Management  
 
