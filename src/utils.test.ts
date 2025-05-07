@@ -14,23 +14,24 @@
  * limitations under the License.
  */
 
-jest.mock('path')
+jest.mock('path');
 import * as os from 'os';
 import * as path from 'path';
 import { getCmsisPackRootPath, isWindows } from './utils';
 
 const CMSIS_PACK_ROOT_DEFAULT = 'mock/path';
 describe('getCmsisPackRoot', () => {
-    
+
     beforeEach(() => {
     });
-    
+
     afterEach(() => {
-           jest.clearAllMocks();
-       });
+        jest.clearAllMocks();
+    });
+
     it('check if CMSIS_PACK_ROOT already exists', () => {
         const originalProcessEnv = process.env;
-        process.env = {...originalProcessEnv, CMSIS_PACK_ROOT: CMSIS_PACK_ROOT_DEFAULT}
+        process.env = { ...originalProcessEnv, CMSIS_PACK_ROOT: CMSIS_PACK_ROOT_DEFAULT };
         const returnValue = getCmsisPackRootPath();
         expect(returnValue).toBe(CMSIS_PACK_ROOT_DEFAULT);
         process.env = originalProcessEnv;
@@ -38,7 +39,11 @@ describe('getCmsisPackRoot', () => {
 
     it('check of CMSIS_PACK_ROOT has been added or not', () => {
         const spy = jest.spyOn(path, 'join');
-        const cmsisPackRootPath = getCmsisPackRootPath();
-        isWindows ? expect(spy).toHaveBeenCalledWith(process.env['LOCALAPPDATA'] ?? os.homedir(), 'Arm', 'Packs') : expect(spy).toHaveBeenCalledWith(os.homedir(), '.cache', 'arm', 'packs');
+        getCmsisPackRootPath();
+        if (isWindows) {
+            expect(spy).toHaveBeenCalledWith(process.env['LOCALAPPDATA'] ?? os.homedir(), 'Arm', 'Packs');
+        } else {
+            expect(spy).toHaveBeenCalledWith(os.homedir(), '.cache', 'arm', 'packs');
+        }
     });
 });
