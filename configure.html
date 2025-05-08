@@ -80,6 +80,10 @@
                 <li class="toctree-l1"><a class="reference internal" href="debug_views.html">Debug views</a>
                 </li>
               </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a>
+                </li>
+              </ul>
       </div>
     </div>
     </nav>
@@ -162,15 +166,7 @@ part of the Arm CMSIS Debugger extension pack.</p>
 }
 </code></pre>
 <h3 id="single-core-pyocd">Single-core (pyOCD)</h3>
-<p>For a single-core device, you need to add:</p>
-<ul>
-<li>
-<p>the relative path to the HEX file to <code>"initCommands"</code> - <code>"load"</code>.</p>
-</li>
-<li>
-<p>an absolute <code>"definitionPath"</code> to the device's SVD file to be able to use the <a href="debug.html">Periperals view</a>.</p>
-</li>
-</ul>
+<p>For a single-core device, you need to add the relative path to the HEX file to <code>"initCommands"</code> - <code>"load"</code>.</p>
 <p><strong>Example</strong></p>
 <pre><code class="language-yml">{
     &quot;configurations&quot;: [
@@ -192,7 +188,6 @@ part of the Arm CMSIS Debugger extension pack.</p>
             &quot;cmsis&quot;: {
                 &quot;cbuildRunFile&quot;: &quot;${command:cmsis-csolution.getCbuildRunFile}&quot;
             }
-            &quot;definitionPath&quot;: &quot;/Users/user/.cache/arm/packs/Keil/STM32U5xx_DFP/3.0.0/CMSIS/SVD/STM32U585.svd&quot;
         }
     ]
 }
@@ -207,16 +202,7 @@ part of the Arm CMSIS Debugger extension pack.</p>
 <p>for the secondary core: comment out the  <code>"initCommands"</code>.</p>
 </li>
 <li>
-<p>for each core:</p>
-<ul>
-<li>
-<p>add an absolute <code>"definitionPath"</code> to the device's SVD file to be able to use the
-  <a href="debug.html">Periperals view</a>.</p>
-</li>
-<li>
-<p>add the relative path to the AXF (ELF) files for each core to <code>"program"</code>.</p>
-</li>
-</ul>
+<p>add for each core the relative path to the AXF (ELF) files for each core to <code>"program"</code>.</p>
 </li>
 </ul>
 <p><strong>Example</strong></p>
@@ -240,9 +226,8 @@ part of the Arm CMSIS Debugger extension pack.</p>
                 &quot;port&quot;: &quot;3333&quot;
             },
             &quot;cmsis&quot;: {
-                &quot;cbuildRunFile&quot;: &quot;FRDM-K32L3A6.cbuild-run.yml&quot;
+                &quot;cbuildRunFile&quot;: &quot;${command:cmsis-csolution.getCbuildRunFile}&quot;
             },
-            &quot;definitionPath&quot;: &quot;/Users/user/.cache/arm/packs/NXP/K32L3A60_DFP/19.0.0/devices/K32L3A60/K32L3A60_cm4.xml&quot;
         },
         {
             &quot;name&quot;: &quot;CM0+: CMSIS Debugger: pyOCD&quot;,
@@ -259,7 +244,6 @@ part of the Arm CMSIS Debugger extension pack.</p>
                 &quot;server&quot;: &quot;pyocd&quot;,
                 &quot;port&quot;: &quot;3334&quot;
             },
-            &quot;definitionPath&quot;: &quot;/Users/user/.cache/arm/packs/NXP/K32L3A60_DFP/19.0.0/devices/K32L3A60/K32L3A60_cm0plus.xml&quot;
         }
     ]
 }
@@ -308,10 +292,6 @@ added to the <code>launch.json</code> file:</p>
 </code></pre>
 <h3 id="single-core-j-link">Single-core (J-Link)</h3>
 <p>For a single-core device, the configuration template contains all the information that is required to start debugging.</p>
-<div class="admonition attention">
-<p class="admonition-title">Attention</p>
-<p><strong>Check if the above statement is true!</strong></p>
-</div>
 <h3 id="multi-core-j-link">Multi-core (J-Link)</h3>
 <p>For a multi-core device, you need to:</p>
 <ul>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="img/favicon.ico" />
+    <title>Troubleshooting - Arm CMSIS Debuger</title>
+    <link rel="stylesheet" href="css/theme.css" />
+    <link rel="stylesheet" href="css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="css/extra.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Troubleshooting";
+        var mkdocs_page_input_path = "troubleshooting.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="index.html" class="icon icon-home"> Arm CMSIS Debuger
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="./search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="index.html">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="setup.html">Setup</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="configure.html">Create launch configuration</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="debug.html">Start debugging</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="debug_views.html">Debug views</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Troubleshooting</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#loadable-section-outside-of-elf-segments">Loadable section outside of ELF segments</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#possible-reason-scatterloading-issues">Possible Reason: scatterloading issues</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#workaround-generate-a-hex-file">Workaround: Generate a HEX file</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#broken-debug-illusion">Broken debug illusion</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#possible-reason-missing-dwarf5-debug-information">Possible Reason: Missing DWARF5 debug information</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#solution-build-the-elf-file-using-dwarf5">Solution: Build the ELF file using DWARF5</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#pyocd-port-not-available">pyOCD port not available</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#possible-reason-a-running-instance-of-pyocd">Possible reason: A running instance of pyOCD</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#solution-check-open-files-and-kill-pyocd">Solution: Check open files and kill pyOCD</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Arm CMSIS Debuger</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html" class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Troubleshooting</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/edit/main/docs/troubleshooting.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="troubleshooting">Troubleshooting</h1>
+<p>This chapter describes problems that might occur during debugging and how to solve them.</p>
+<h2 id="loadable-section-outside-of-elf-segments">Loadable section outside of ELF segments</h2>
+<p>When downloading an AXF file built with <a href="https://developer.arm.com/Tools%20and%20Software/Arm%20Compiler%20for%20Embedded">Arm Compiler for Embedded</a>,
+the following warning might appear and the application does not execute correctly. This happens regardless of the selected GDB server.</p>
+<pre><code class="language-txt">warning: Loadable section &quot;RW_RAM0&quot; outside of ELF segments
+  in /path/to/my/application.axf
+</code></pre>
+<h3 id="possible-reason-scatterloading-issues">Possible Reason: scatterloading issues</h3>
+<p><code>arm-none-eabi-gdb</code> does not correctly load ELF program segments due to the way that Arm Compiler for Embedded generates
+section and program header information when scatterloading is used.</p>
+<h3 id="workaround-generate-a-hex-file">Workaround: Generate a HEX file</h3>
+<p>Generate a HEX file for the program download, and the ELF file for debug purposes only.</p>
+<p>Refer to the <a href="setup.html#project-setup">Project setup</a> section for further details.</p>
+<h2 id="broken-debug-illusion">Broken debug illusion</h2>
+<p>When debugging ELF files with <a href="https://dwarfstd.org/">DWARF</a> debug information of standard version 4 and earlier, <code>arm-none-eabi-gdb</code> generates the following warnings:</p>
+<pre><code class="language-txt">warning: (Internal error: pc 0x8006a18 in read in CU, but not in symtab.)
+</code></pre>
+<p>The debug illusion will be broken in many places.</p>
+<h3 id="possible-reason-missing-dwarf5-debug-information">Possible Reason: Missing DWARF5 debug information</h3>
+<p><code>arm-none-eabi-gdb</code> works best with DWARF debug information of standard version 5.</p>
+<h3 id="solution-build-the-elf-file-using-dwarf5">Solution: Build the ELF file using DWARF5</h3>
+<p>Make sure to build your application ELF file with DWARF version 5 debug information.</p>
+<p>Follow the steps explained in <a href="setup.html#project-setup">Project setup</a>.</p>
+<h2 id="pyocd-port-not-available">pyOCD port not available</h2>
+<p>When starting a debug session, you might see this error:</p>
+<p><img alt="Remote communication error" src="images/remote_comms_err.png" /></p>
+<h3 id="possible-reason-a-running-instance-of-pyocd">Possible reason: A running instance of pyOCD</h3>
+<p>This error might occur if a previous debug session has ended prematuerly and pyOCD has not exited. The orphaned instance
+will still keep the port open (usually 3333) and thus you won't be able to open the port again in the new session.</p>
+<h3 id="solution-check-open-files-and-kill-pyocd">Solution: Check open files and kill pyOCD</h3>
+<p>On Linux and macOS you can check the running open files using the <a href="https://de.wikipedia.org/wiki/Lsof"><code>lsof</code></a> command:</p>
+<pre><code class="language-sh">sudo lsof -i -n -P | grep 3333
+
+Python    41836       user01    3u  IPv4 0xa6ef66ad5be49a4f      0t0    TCP *:3333 (LISTEN)
+pyocd     41842       user01    8u  IPv4 0x9d09900145f3ca41
+</code></pre>
+<p>To kill the running pyOCD process, use:</p>
+<pre><code class="language-sh">sudo killall pyocd
+</code></pre>
+<p>On Windows systems, use the
+<a href="https://learn.microsoft.com/en-us/troubleshoot/windows-server/support-tools/support-tools-task-manager">Windows Task Manager</a>
+or the <a href="https://learn.microsoft.com/en-us/sysinternals/downloads/process-explorer">Process Explorer</a> to find orphaned
+processes.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="debug_views.html" class="btn btn-neutral float-left" title="Debug views"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="debug_views.html" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+  </span>
+</div>
+    <script src="js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = ".";</script>
+    <script src="js/theme_extra.js"></script>
+    <script src="js/theme.js"></script>
+      <script src="search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

@@ -72,6 +72,10 @@
                 <li class="toctree-l1"><a class="reference internal" href="debug_views.html">Debug views</a>
                 </li>
               </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a>
+                </li>
+              </ul>
       </div>
     </div>
     </nav>
@@ -116,7 +120,7 @@ create the debug environment and is shipped with <a href="https://pyocd.io/">pyO
 <p>We recommend installing the following extensions to simplify the user experience:</p>
 <ul>
 <li>
-<p><a href="https://marketplace.visualstudio.com/items?itemName=Arm.environment-manager">Arm Tools Environment Manager</a>, an extension that allows to download, install, and manage software development tools using <a href="https://vcpkg.io/en/index.html">Microsoft® Vcpkg</a> artifacts. Use this extension to for example install the <code>GCC compiler for ARM CPUs</code> which comes with a GDB variant for Arm CPUs.</p>
+<p><a href="https://marketplace.visualstudio.com/items?itemName=Arm.environment-manager">Arm Tools Environment Manager</a>, an extension that allows you to download, install, and manage software development tools using <a href="https://vcpkg.io/en/index.html">Microsoft® Vcpkg</a> artifacts. For example, use this extension to install the <a href="https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain">Arm GNU Toolchain</a> which comes with a GDB variant for Arm CPUs.</p>
 </li>
 <li>
 <p><a href="https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution">Arm CMSIS Solution</a>, an extension that is a graphical user interface for csolution projects that use the <a href="https://open-cmsis-pack.github.io/cmsis-toolbox/">CMSIS-Toolbox</a>. Use this extension to build your csolution projects, to generate <code>*.cbuild-run.yml</code> debug configuration files, and to make use of contributed commands in your debug launch configurations.</p>
@@ -129,19 +133,20 @@ create the debug environment and is shipped with <a href="https://pyocd.io/">pyO
 <p><a href="https://arm-software.github.io/CMSIS-DAP/latest/">CMSIS-DAP v2.x</a>.</p>
 </li>
 <li>
-<p><a href="https://www.st.com/en/development-tools/hardware-debugger-and-programmer-tools-for-stm32/products.html">STMicroeletronics ST-LINK/V2/V3</a>.</p>
+<p><a href="https://www.st.com/en/development-tools/hardware-debugger-and-programmer-tools-for-stm32/products.html">STMicroelectronics ST-LINK/V2/V3</a>.</p>
 </li>
 <li>
 <p><a href="https://www.segger.com/products/debug-probes/j-link/">Segger J-Link</a>.</p>
 </li>
 <li>
-<p>any debug probe that comes with a GDB Server.</p>
+<p>debug probes with a compatible GDB server interface.</p>
 </li>
 </ul>
 <h2 id="multi-core-debugging">Multi-core debugging</h2>
-<p>The Arm CMSIS Debugger is capable of multi-core debugging. For every core that you wish to connect to, you need to
-<a href="configure.html#create-a-launch-configuration">create a debug configuration</a>. Using the same debug adapter, you can connect
-to the different target cores within one instance of VS Code.</p>
+<p>The Arm CMSIS Debugger is capable of multi-core debugging. You can
+<a href="configure.html#create-a-launch-configuration">create a debug configuration</a> for multiple target cores to be debugged within
+a single VS Code session using the same debug adapter, provided the adapter and target support concurrent multi-core
+debugging.</p>
 <h2 id="contents">Contents</h2>
 <ul>
 <li>
@@ -154,7 +159,7 @@ to the different target cores within one instance of VS Code.</p>
 <p><a href="debug.html"><strong>Start debugging</strong></a> demonstrates how to enter the VS Code debugger.</p>
 </li>
 <li>
-<p><a href="debug_views.html"><strong>Debug views</strong></a> give you access to the code execution and device peripherals.</p>
+<p><a href="debug_views.html"><strong>Debug views</strong></a> provide access to code execution and device peripherals.</p>
 </li>
 </ul>
 <h2 id="revision-history">Revision history</h2>
@@ -167,8 +172,12 @@ to the different target cores within one instance of VS Code.</p>
 </thead>
 <tbody>
 <tr>
+<td style="text-align: left;">0.1.1</td>
+<td style="text-align: left;">Release for the Arm CMSIS Debugger extension version 0.1.1</td>
+</tr>
+<tr>
 <td style="text-align: left;">0.1.0</td>
-<td style="text-align: left;">Initial release for the CMSIS Debugger extension version 0.1.0</td>
+<td style="text-align: left;">Initial release for the Arm CMSIS Debugger extension version 0.1.0</td>
 </tr>
 </tbody>
 </table>
@@ -224,5 +233,5 @@ to the different target cores within one instance of VS Code.</p>
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2025-05-06 14:25:07.407237+00:00
+Build Date UTC : 2025-05-08 11:30:52.463666+00:00
 -->
