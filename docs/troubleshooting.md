@@ -70,3 +70,8 @@ To kill the running pyOCD process, use:
 ```sh
 sudo killall pyocd
 ```
+
+On Windows systems, use the
+[Windows Task Manager](https://learn.microsoft.com/en-us/troubleshoot/windows-server/support-tools/support-tools-task-manager)
+or the [Process Explorer](https://learn.microsoft.com/en-us/sysinternals/downloads/process-explorer) to find orphaned
+processes.
