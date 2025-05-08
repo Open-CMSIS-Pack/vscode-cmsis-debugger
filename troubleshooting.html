@@ -118,7 +118,8 @@
 <p>This chapter describes problems that might occur during debugging and how to solve them.</p>
 <h2 id="loadable-section-outside-of-elf-segments">Loadable section outside of ELF segments</h2>
 <p>When downloading an AXF file built with <a href="https://developer.arm.com/Tools%20and%20Software/Arm%20Compiler%20for%20Embedded">Arm Compiler for Embedded</a>,
-the following warning might appear and the application does not execute correctly. This happens regardless of the selected GDB server.</p>
+the following warning might appear and the application does not execute correctly. This happens regardless of
+the selected GDB server.</p>
 <pre><code class="language-txt">warning: Loadable section &quot;RW_RAM0&quot; outside of ELF segments
   in /path/to/my/application.axf
 </code></pre>
@@ -129,7 +130,8 @@ section and program header information when scatterloading is used.</p>
 <p>Generate a HEX file for the program download, and the ELF file for debug purposes only.</p>
 <p>Refer to the <a href="setup.html#project-setup">Project setup</a> section for further details.</p>
 <h2 id="broken-debug-illusion">Broken debug illusion</h2>
-<p>When debugging ELF files with <a href="https://dwarfstd.org/">DWARF</a> debug information of standard version 4 and earlier, <code>arm-none-eabi-gdb</code> generates the following warnings:</p>
+<p>When debugging ELF files with <a href="https://dwarfstd.org/">DWARF</a> debug information of standard version 4 and earlier,
+<code>arm-none-eabi-gdb</code> generates the following warnings:</p>
 <pre><code class="language-txt">warning: (Internal error: pc 0x8006a18 in read in CU, but not in symtab.)
 </code></pre>
 <p>The debug illusion will be broken in many places.</p>

@@ -167,6 +167,7 @@ part of the Arm CMSIS Debugger extension pack.</p>
 </code></pre>
 <h3 id="single-core-pyocd">Single-core (pyOCD)</h3>
 <p>For a single-core device, you need to add the relative path to the HEX file to <code>"initCommands"</code> - <code>"load"</code>.</p>
+<!-- markdownlint-disable-next-line MD036 -->
 <p><strong>Example</strong></p>
 <pre><code class="language-yml">{
     &quot;configurations&quot;: [
@@ -205,6 +206,7 @@ part of the Arm CMSIS Debugger extension pack.</p>
 <p>add for each core the relative path to the AXF (ELF) files for each core to <code>"program"</code>.</p>
 </li>
 </ul>
+<!-- markdownlint-disable-next-line MD036 -->
 <p><strong>Example</strong></p>
 <pre><code class="language-yml">{
     &quot;configurations&quot;: [
@@ -253,8 +255,8 @@ part of the Arm CMSIS Debugger extension pack.</p>
 <p>In this example, the <code>"set $pc = Reset_Handler",</code> is required to set the program counter to the correct value.</p>
 </div>
 <h2 id="debugging-with-j-link">Debugging with J-Link</h2>
-<p>For debugging with Segger J-Link (using the <a href="https://kb.segger.com/J-Link_GDB_Server">J-Link GDB Server</a>), the following is
-added to the <code>launch.json</code> file:</p>
+<p>For debugging with Segger J-Link (using the <a href="https://kb.segger.com/J-Link_GDB_Server">J-Link GDB Server</a>), the following
+is added to the <code>launch.json</code> file:</p>
 <pre><code class="language-yml">{
     &quot;configurations&quot;: [
     {
@@ -306,6 +308,7 @@ added to the <code>launch.json</code> file:</p>
 <p>add the XML file to the <code>"serverParameters"</code> so that the Segger GDB server can pick them up.</p>
 </li>
 </ul>
+<!-- markdownlint-disable-next-line MD036 -->
 <p><strong>Example</strong></p>
 <pre><code class="language-yml">{
     &quot;version&quot;: &quot;0.2.0&quot;,
@@ -347,6 +350,8 @@ added to the <code>launch.json</code> file:</p>
 }
 </code></pre>
 <p>For this example, the content of the <code>JLinkDevices.xml</code> file is as follows:</p>
+<!-- markdownlint-disable MD013 -->
+
 <pre><code class="language-xml">&lt;DataBase&gt;
   &lt;Device&gt;
     &lt;ChipInfo Vendor=&quot;AlifSemiconductor&quot; Name=&quot;AE722F80F55D5_HP&quot; Aliases=&quot;AE722F80F55D5LS_M55_HP; AE722F80F55D5AS_M55_HP&quot; /&gt;
@@ -356,6 +361,7 @@ added to the <code>launch.json</code> file:</p>
   &lt;/Device&gt;
 &lt;/DataBase&gt;
 </code></pre>
+<!-- markdownlint-enable MD013 -->
               
             </div>
           </div><footer>

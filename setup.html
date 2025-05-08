@@ -103,10 +103,8 @@
             <div class="section" itemprop="articleBody">
               
                 <h1 id="setup">Setup</h1>
-<!-- markdownlint-disable MD036 -->
-
-<p>This chapter describes how to install the <strong>Arm CMSIS Debugger</strong> extension pack and how to configure the debug connection
-for single- and multi-core devices.</p>
+<p>This chapter describes how to install the <strong>Arm CMSIS Debugger</strong> extension pack and how to configure the debug
+connection for single- and multi-core devices.</p>
 <h2 id="installation">Installation</h2>
 <p>The <strong>Arm CMSIS Debugger</strong> extension pack includes extensions that you can use to debug CMSIS solution-based projects.</p>
 <ol>
@@ -118,10 +116,11 @@ for single- and multi-core devices.</p>
 </li>
 </ol>
 <h2 id="debug-setup">Debug Setup</h2>
-<p>The debug setup requires a GDB installation supporting the GDB remote protocol and that can connect to a GDB server like pyOCD.</p>
-<p>We recommend installing the <a href="https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain"><code>Arm GNU Toolchain</code></a> using the
-<code>Arm Tools Environment Manager</code> extension. It comes with <code>arm-none-eabi-gdb</code> which is used in the Arm CMSIS Debugger default
-debug configurations.</p>
+<p>The debug setup requires a GDB installation supporting the GDB remote protocol and that can connect to a GDB
+server like pyOCD.</p>
+<p>We recommend installing the <a href="https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain"><code>Arm GNU Toolchain</code></a>
+using the <code>Arm Tools Environment Manager</code> extension. It comes with <code>arm-none-eabi-gdb</code> which is used in the Arm
+CMSIS Debugger default debug configurations.</p>
 <h3 id="pyocd-debug-setup">pyOCD Debug Setup</h3>
 <p>This extension includes a pyOCD distribution which is used by default.</p>
 <p>The <code>cmsis-debug-pyocd</code> debugger type is used to add a debug configuration in the <code>launch.json</code> file for debugging with GDB
@@ -132,8 +131,8 @@ and pyOCD. This configuration uses the <code>gdbtarget</code> debugger type regi
 <p>Install the latest <a href="https://www.segger.com/downloads/jlink/#J-LinkSoftwareAndDocumentationPack">J-LINK Software and Documentation Pack</a>
 from <a href="https://www.segger.com/">SEGGER</a>. Ensure all required drivers and host platform specific settings are done.</p>
 <p>The extension expects the installation folder to be on your system <code>PATH</code> environment variable. Alternatively, update your
-debug configuration's <code>target</code>&gt;<code>server</code> setting to contain the full path to the J-LINK GDB server executable (including the file
-name).</p>
+debug configuration's <code>target</code>&gt;<code>server</code> setting to contain the full path to the J-LINK GDB server executable
+(including the file name).</p>
 <p>The <code>cmsis-debug-jlink</code> debugger type is used to add a debug configuration in the <code>launch.json</code> file for debug with GDB and
 the SEGGER J-LINK GDB server. This configuration uses the <code>gdbtarget</code> debugger type registered by the CDT GDB Debug Adapter
 Extension.</p>
@@ -161,8 +160,8 @@ binary files in the correct formats. Thus, you need to amend your project's <cod
 </div>
 <ul>
 <li>In addition to generating an ELF file, you also need to create a <a href="https://developer.arm.com/documentation/ka003292/latest/">HEX</a>
-  file that will be used to flash the firmware image. Add the following to any of your <code>*.cproject.yml</code> files (at the end of
-  the file):</li>
+  file that will be used to flash the firmware image. Add the following to any of your <code>*.cproject.yml</code> files
+  (at the end of the file):</li>
 </ul>
 <pre><code class="language-yml">  output:
     type:
