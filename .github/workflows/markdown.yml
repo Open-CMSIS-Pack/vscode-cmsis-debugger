@@ -1,0 +1,54 @@
+name: Markdown
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/markdown.yml'
+      - '.github/markdownlint.json'
+      - '.github/markdownlint.jsonc'
+      - '**/*.md'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linter:
+    name: Lint Markdown Files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout vscode-cmsis-debugger
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Register Markdownlint Warning Matcher
+        run: echo "::add-matcher::.github/markdownlint.json"
+
+      - name: Lint Markdown Files
+        uses: avto-dev/markdown-lint@04d43ee9191307b50935a753da3b775ab695eceb # v1.5.0
+        with:
+          args: '**/*.md'
+          config: '.github/markdownlint.jsonc'
+
+      - name: Remove Markdownlint Warning Matcher
+        if: always()
+        run: echo "::remove-matcher owner=markdownlint::"
+
+  check-links:
+    name: Check Markdown Links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Check Links
+        uses: gaurav-nelson/github-action-markdown-link-check@3c3b66f1f7d0900e37b71eca45b63ea9eedfce31 # master
+        with:
+          use-quiet-mode: 'yes'
+          use-verbose-mode: 'yes'
+          base-branch: ${{ github.base_ref }}
+          config-file: '.github/markdown-link-check.jsonc'

@@ -5,7 +5,8 @@ This chapter describes problems that might occur during debugging and how to sol
 ## Loadable section outside of ELF segments
 
 When downloading an AXF file built with [Arm Compiler for Embedded](https://developer.arm.com/Tools%20and%20Software/Arm%20Compiler%20for%20Embedded),
-the following warning might appear and the application does not execute correctly. This happens regardless of the selected GDB server.
+the following warning might appear and the application does not execute correctly. This happens regardless of
+the selected GDB server.
 
 ```txt
 warning: Loadable section "RW_RAM0" outside of ELF segments
@@ -25,7 +26,8 @@ Refer to the [Project setup](./setup.md#project-setup) section for further detai
 
 ## Broken debug illusion
 
-When debugging ELF files with [DWARF](https://dwarfstd.org/) debug information of standard version 4 and earlier, `arm-none-eabi-gdb` generates the following warnings:
+When debugging ELF files with [DWARF](https://dwarfstd.org/) debug information of standard version 4 and earlier,
+`arm-none-eabi-gdb` generates the following warnings:
 
 ```txt
 warning: (Internal error: pc 0x8006a18 in read in CU, but not in symtab.)

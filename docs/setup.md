@@ -1,9 +1,7 @@
 # Setup
 
-<!-- markdownlint-disable MD036 -->
-
-This chapter describes how to install the **Arm CMSIS Debugger** extension pack and how to configure the debug connection
-for single- and multi-core devices.
+This chapter describes how to install the **Arm CMSIS Debugger** extension pack and how to configure the debug
+connection for single- and multi-core devices.
 
 ## Installation
 
@@ -15,11 +13,12 @@ The **Arm CMSIS Debugger** extension pack includes extensions that you can use t
 
 ## Debug Setup
 
-The debug setup requires a GDB installation supporting the GDB remote protocol and that can connect to a GDB server like pyOCD.
+The debug setup requires a GDB installation supporting the GDB remote protocol and that can connect to a GDB
+server like pyOCD.
 
-We recommend installing the [`Arm GNU Toolchain`](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain) using the
-`Arm Tools Environment Manager` extension. It comes with `arm-none-eabi-gdb` which is used in the Arm CMSIS Debugger default
-debug configurations.
+We recommend installing the [`Arm GNU Toolchain`](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain)
+using the `Arm Tools Environment Manager` extension. It comes with `arm-none-eabi-gdb` which is used in the Arm
+CMSIS Debugger default debug configurations.
 
 ### pyOCD Debug Setup
 
@@ -37,8 +36,8 @@ Install the latest [J-LINK Software and Documentation Pack](https://www.segger.c
 from [SEGGER](https://www.segger.com/). Ensure all required drivers and host platform specific settings are done.
 
 The extension expects the installation folder to be on your system `PATH` environment variable. Alternatively, update your
-debug configuration's `target`>`server` setting to contain the full path to the J-LINK GDB server executable (including the file
-name).
+debug configuration's `target`>`server` setting to contain the full path to the J-LINK GDB server executable
+(including the file name).
 
 The `cmsis-debug-jlink` debugger type is used to add a debug configuration in the `launch.json` file for debug with GDB and
 the SEGGER J-LINK GDB server. This configuration uses the `gdbtarget` debugger type registered by the CDT GDB Debug Adapter
@@ -69,8 +68,8 @@ binary files in the correct formats. Thus, you need to amend your project's `*.c
     For other toolchains, please consult the reference manual on how to generate DWARF Version 5 formatted ELF files.
 
 - In addition to generating an ELF file, you also need to create a [HEX](https://developer.arm.com/documentation/ka003292/latest/)
-  file that will be used to flash the firmware image. Add the following to any of your `*.cproject.yml` files (at the end of
-  the file):
+  file that will be used to flash the firmware image. Add the following to any of your `*.cproject.yml` files
+  (at the end of the file):
 
 ```yml
   output:
