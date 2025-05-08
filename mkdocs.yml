@@ -8,7 +8,7 @@ nav:
     - Create launch configuration: configure.md
     - Start debugging: debug.md
     - Debug views: debug_views.md
-    - Troubleshooting: trblshooting.md
+    - Troubleshooting: troubleshooting.md
 theme:
   name: readthedocs
 markdown_extensions:
