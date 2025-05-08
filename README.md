@@ -87,7 +87,7 @@ This configuration uses the `gdbtarget` debugger type registered by the CDT GDB 
 **Note**: The generated default debug configuration uses the value `JLinkGDBServer` as `target`>`server` setting. This executable has differing behavior on supported host platform:
 
 - Linux and macOS: A GUI-less version of the GDB server is launched.
--* Windows®: A GDB server with GUI is launched. Update `target`>`server` to `JLinkGDBServerCL` to launch a GUI-less version on Windows, too.
+- Windows®: A GDB server with GUI is launched. Update `target`>`server` to `JLinkGDBServerCL` to launch a GUI-less version on Windows, too.
 
 Additionaly, the extension contributes a debug configuration resolver which automatically fills the following gaps during debug launch:
 
