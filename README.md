@@ -106,10 +106,10 @@ the following gaps during debug launch:
 - If option `target`>`server` is set to `pyocd`, then it expands to the absolute path of
  the built-in pyOCD distribution.
 - Extends the `target`>`serverParameters` list of `pyocd` command line arguments:
-  - Prepends `gdbserver` if not present.
-  - Appends `--port <gdbserver_port>` if the `target`>`port` setting is set, where `<gdbserver_port>` gets
-  that port setting's value.
-  - Appends `--cbuild-run` and the corresponding `cbuildRunFile` path if `cmsis`>`cbuildRunFile` is set.
+    - Prepends `gdbserver` if not present.
+    - Appends `--port <gdbserver_port>` if the `target`>`port` setting is set, where `<gdbserver_port>` gets
+    that port setting's value.
+    - Appends `--cbuild-run` and the corresponding `cbuildRunFile` path if `cmsis`>`cbuildRunFile` is set.
 
 **Note**: The built-in version of pyOCD supports the command line option `--cbuild-run` which isn't available
 in releases outside this extension.
@@ -131,8 +131,8 @@ Additionally, the extension contributes a debug configuration resolver which aut
 gaps during debug launch:
 
 - Extends the `target`>`serverParameters` list of `JLinkGDBServer`/`JLinkGDBServerCL` command line arguments:
-  - Appends `--port <gdbserver_port>` if the `target`>`port` setting is set, where `<gdbserver_port>` gets that port
-  setting's value.
+    - Appends `--port <gdbserver_port>` if the `target`>`port` setting is set, where `<gdbserver_port>` gets that
+    port setting's value.
 
 ## Known Limitations and Workarounds
 

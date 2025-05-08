@@ -133,9 +133,9 @@ To add a conditional breakpoint:
 
 - Create a conditional breakpoint
 
-  - Right-click in the editor margin and select Add Conditional Breakpoint.
+    - Right-click in the editor margin and select Add Conditional Breakpoint.
 
-  - Use the Add Conditional Breakpoint command in the Command Palette (⇧⌘P).
+    - Use the Add Conditional Breakpoint command in the Command Palette (⇧⌘P).
 
 - Choose the type of condition you want to set (expression, hit count, or wait for breakpoint).
 
@@ -145,10 +145,10 @@ To add a condition to an existing breakpoint:
 
 - Edit an existing breakpoint
 
-  - Right-click on the breakpoint in the editor margin and select Edit Breakpoint.
+    - Right-click on the breakpoint in the editor margin and select Edit Breakpoint.
 
-  - Select the pencil icon next for an existing breakpoint in the **BREAKPOINTS section** of
-  the **Run and Debug view**.
+    - Select the pencil icon next for an existing breakpoint in the **BREAKPOINTS section** of
+    the **Run and Debug view**.
 
 - Edit the condition (expression, hit count, or wait for breakpoint).
 
