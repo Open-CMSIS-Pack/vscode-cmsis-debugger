@@ -62,11 +62,7 @@ For debugging with pyOCD, the following is added to the `launch.json` file:
 
 ### Single-core (pyOCD)
 
-For a single-core device, you need to add:
-
-- the relative path to the HEX file to `"initCommands"` - `"load"`.
-
-- an absolute `"definitionPath"` to the device's SVD file to be able to use the [Periperals view](./debug.md).
+For a single-core device, you need to add the relative path to the HEX file to `"initCommands"` - `"load"`.
 
 **Example**
 
@@ -91,7 +87,6 @@ For a single-core device, you need to add:
             "cmsis": {
                 "cbuildRunFile": "${command:cmsis-csolution.getCbuildRunFile}"
             }
-            "definitionPath": "/Users/user/.cache/arm/packs/Keil/STM32U5xx_DFP/3.0.0/CMSIS/SVD/STM32U585.svd"
         }
     ]
 }
@@ -105,13 +100,7 @@ For a multi-core device, you need to:
 
 - for the secondary core: comment out the  `"initCommands"`.
 
-- for each core:
-
-    - add an absolute `"definitionPath"` to the device's SVD file to be able to use the
-      [Periperals view](./debug.md).
-
-    - add the relative path to the AXF (ELF) files for each core to `"program"`.
-
+- add for each core the relative path to the AXF (ELF) files for each core to `"program"`.
 
 **Example**
 
@@ -136,9 +125,8 @@ For a multi-core device, you need to:
                 "port": "3333"
             },
             "cmsis": {
-                "cbuildRunFile": "FRDM-K32L3A6.cbuild-run.yml"
+                "cbuildRunFile": "${command:cmsis-csolution.getCbuildRunFile}"
             },
-            "definitionPath": "/Users/user/.cache/arm/packs/NXP/K32L3A60_DFP/19.0.0/devices/K32L3A60/K32L3A60_cm4.xml"
         },
         {
             "name": "CM0+: CMSIS Debugger: pyOCD",
@@ -155,7 +143,6 @@ For a multi-core device, you need to:
                 "server": "pyocd",
                 "port": "3334"
             },
-            "definitionPath": "/Users/user/.cache/arm/packs/NXP/K32L3A60_DFP/19.0.0/devices/K32L3A60/K32L3A60_cm0plus.xml"
         }
     ]
 }
@@ -209,9 +196,6 @@ added to the `launch.json` file:
 ### Single-core (J-Link)
 
 For a single-core device, the configuration template contains all the information that is required to start debugging.
-
-!!! Attention
-    **Check if the above statement is true!**
 
 ### Multi-core (J-Link)
 

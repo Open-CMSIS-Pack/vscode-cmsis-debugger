@@ -15,7 +15,7 @@ following aspects:
 
 - [BREAKPOINTS section](#breakpoints-section) is available.
 
-- [Peripheral Inspector](#peripherals-inspector) is available (requires configuration).
+- [Peripheral Inspector](#peripheral-inspector) is available (requires configuration).
 
 - [Memory Inspector](#memory-inspector) can be opened.
 
