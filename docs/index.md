@@ -19,7 +19,7 @@ an Eclipse CDT.cloud extension that provides a CMSIS SVD viewer and works with d
 
 We recommend installing the following extensions to simplify the user experience:
 
-- [Arm Tools Environment Manager](https://marketplace.visualstudio.com/items?itemName=Arm.environment-manager), an 
+- [Arm Tools Environment Manager](https://marketplace.visualstudio.com/items?itemName=Arm.environment-manager), an
 extension that allows you to download, install, and manage software development tools using
 [Microsoft® Vcpkg](https://vcpkg.io/en/index.html) artifacts. For example, use this extension to install the
 [Arm GNU Toolchain](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain) which comes with a GDB

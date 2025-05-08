@@ -25,39 +25,30 @@ It allows to install multiple separate extensions together.
 
 The following extensions are included in this extension pack:
 
-<<<<<<< HEAD
-- [CDT™ GDB Debug Adapter Extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode), an Eclipse CDT.cloud extension that supports debugging using GDB and any other debuggers that supports the MI protocol.
-
-- [Memory Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector), an Eclipse CDT.cloud extension that provides a powerful and configurable memory viewer that works with debug adapters.
-
-- [Peripheral Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector), an Eclipse CDT.cloud extension that provides a CMSIS SVD viewer and works with debug adapters.
-=======
 - [CDT™ GDB Debug Adapter Extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode),
-an Eclipse CDT.cloud extension that supports debugging using GDB and any other debuggers that supports the MI protocol.
+an Eclipse CDT.cloud extension that supports debugging using GDB and any other debuggers that
+supports the MI protocol.
+
 - [Memory Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector), an Eclipse
 CDT.cloud extension that provides a powerful and configurable memory viewer that works with debug adapters.
-- [Peripheral Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector),
-an Eclipse CDT.cloud extension that provides a CMSIS SVD viewer and works with debug adapters.
->>>>>>> cb1e6f0 (Markdown linter and link checker jobs)
+
+- [Peripheral Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector), an EclipseCDT.cloud extension that provides a CMSIS SVD viewer and works with debug adapters.
 
 ## Recommended Extensions
 
 We recommend to install the following extensions to simplify the user experience:
 
-<<<<<<< HEAD
-- [Arm Tools Environment Manager](https://marketplace.visualstudio.com/items?itemName=Arm.environment-manager), an extension that allows you to download, install, and manage software development tools using [Microsoft® Vcpkg](https://vcpkg.io/en/index.html) artifacts. For example, use this extension to install the [Arm GNU Toolchain](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain) which comes with a GDB variant for Arm CPUs.
-
-- [Arm CMSIS Solution](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution), an extension that is a graphical user interface for csolution projects that use the [CMSIS-Toolbox](https://open-cmsis-pack.github.io/cmsis-toolbox/). Use this extension to build your csolution projects, to generate `*.cbuild-run.yml` debug configuration files, and to make use of contributed commands in your debug launch configurations.
-=======
 - [Arm Tools Environment Manager](https://marketplace.visualstudio.com/items?itemName=Arm.environment-manager), an
-extension that allows to download, install, and manage software development tools using
-[Microsoft® Vcpkg](https://vcpkg.io/en/index.html) artifacts. Use this extension to for example install the
-`GCC compiler for ARM CPUs` which comes with a GDB variant for Arm CPUs.
+extension that allows you to download, install, and manage software development tools using
+[Microsoft® Vcpkg](https://vcpkg.io/en/index.html) artifacts. For example, use this extension to install the
+[Arm GNU Toolchain](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain) which comes with a GDB
+variant for Arm CPUs.
+
 - [Arm CMSIS Solution](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution), an extension that
-is a graphical user interface for csolution projects that use the [CMSIS-Toolbox](https://open-cmsis-pack.github.io/cmsis-toolbox/).
-Use this extension to build your csolution projects, to generate `*.cbuild-run.yml` debug configuration files,
-and to make use of contributed commands in your debug launch configurations.
->>>>>>> cb1e6f0 (Markdown linter and link checker jobs)
+is a graphical user interface for csolution projects that use the
+[CMSIS-Toolbox](https://open-cmsis-pack.github.io/cmsis-toolbox/). Use this extension to build your csolution
+projects, to generate `*.cbuild-run.yml` debug configuration files, and to make use of contributed commands in
+your debug launch configurations.
 
 ## Debug Setup
 
@@ -114,10 +105,10 @@ the following gaps during debug launch:
 - If option `target`>`server` is set to `pyocd`, then it expands to the absolute path of
  the built-in pyOCD distribution.
 - Extends the `target`>`serverParameters` list of `pyocd` command line arguments:
-    - Prepends `gdbserver` if not present.
-    - Appends `--port <gdbserver_port>` if the `target`>`port` setting is set, where `<gdbserver_port>` gets
+  - Prepends `gdbserver` if not present.
+  - Appends `--port <gdbserver_port>` if the `target`>`port` setting is set, where `<gdbserver_port>` gets
 	that port setting's value.
-    - Appends `--cbuild-run` and the corresponding `cbuildRunFile` path if `cmsis`>`cbuildRunFile` is set.
+  - Appends `--cbuild-run` and the corresponding `cbuildRunFile` path if `cmsis`>`cbuildRunFile` is set.
 
 **Note**: The built-in version of pyOCD supports the command line option `--cbuild-run` which isn't available
 in releases outside this extension.
