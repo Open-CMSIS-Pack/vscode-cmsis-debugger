@@ -30,6 +30,7 @@ jobs:
           cache: 'yarn'
 
       - name: Set version
+        if: github.repository_owner == 'Open-CMSIS-Pack'
         run: |
           case ${{ github.event_name }} in
             release)
@@ -88,6 +89,7 @@ jobs:
           git push
 
       - name: Publish coverage report to Code Climate
+        if: github.repository_owner == 'Open-CMSIS-Pack'
         uses: paambaati/codeclimate-action@f429536ee076d758a24705203199548125a28ca7 # v9.0.0
         env:
           CC_TEST_REPORTER_ID: ${{secrets.CC_TEST_REPORTER_ID}}

@@ -50,7 +50,7 @@ To be able to use the GNU Debugger under the hood, you need to make sure that th
 binary files in the correct formats. Thus, you need to amend your project's `*.csolution.yml` and `*.cproject.yml` files.
 
 - Make sure that the [ELF](https://developer.arm.com/documentation/dui0101/latest/) file is written using the
-  [DWARF Verion 5](https://dwarfstd.org/dwarf5std.html) format. For example, when generated with the
+  [DWARF Version 5](https://dwarfstd.org/dwarf5std.html) format. For example, when generated with the
   [Arm Compiler for Embedded](https://developer.arm.com/Tools%20and%20Software/Arm%20Compiler%20for%20Embedded), add the
   following to your `*.csolution.yml` file (before the `projects:` section for example):
 
@@ -66,7 +66,7 @@ binary files in the correct formats. Thus, you need to amend your project's `*.c
 ```
 
 !!! Note
-    For other toolchians, please consult the reference manual on how to generate DWARF Version 5 formatted ELF files.
+    For other toolchains, please consult the reference manual on how to generate DWARF Version 5 formatted ELF files.
 
 - In addition to generating an ELF file, you also need to create a [HEX](https://developer.arm.com/documentation/ka003292/latest/)
   file that will be used to flash the firmware image. Add the following to any of your `*.cproject.yml` files (at the end of
