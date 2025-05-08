@@ -32,7 +32,8 @@ supports the MI protocol.
 - [Memory Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector), an Eclipse
 CDT.cloud extension that provides a powerful and configurable memory viewer that works with debug adapters.
 
-- [Peripheral Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector), an EclipseCDT.cloud extension that provides a CMSIS SVD viewer and works with debug adapters.
+- [Peripheral Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector), an
+EclipseCDT.cloud extension that provides a CMSIS SVD viewer and works with debug adapters.
 
 ## Recommended Extensions
 
@@ -107,7 +108,7 @@ the following gaps during debug launch:
 - Extends the `target`>`serverParameters` list of `pyocd` command line arguments:
   - Prepends `gdbserver` if not present.
   - Appends `--port <gdbserver_port>` if the `target`>`port` setting is set, where `<gdbserver_port>` gets
-	that port setting's value.
+  that port setting's value.
   - Appends `--cbuild-run` and the corresponding `cbuildRunFile` path if `cmsis`>`cbuildRunFile` is set.
 
 **Note**: The built-in version of pyOCD supports the command line option `--cbuild-run` which isn't available
