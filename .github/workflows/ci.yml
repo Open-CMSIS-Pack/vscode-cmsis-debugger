@@ -57,6 +57,7 @@ jobs:
       - name: Remove Badges for dist
         run: |
           sed -i "/https:\/\/codeclimate\.com\/github\/Open\-CMSIS\-Pack\/vscode\-cmsis\-debugger/d" README.md
+          sed -i "/https:\/\/securityscorecards\.dev\/viewer/d" README.md
 
       - name: Build
         env:
