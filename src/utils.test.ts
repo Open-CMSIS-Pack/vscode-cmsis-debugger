@@ -37,7 +37,7 @@ describe('getCmsisPackRoot', () => {
         process.env = originalProcessEnv;
     });
 
-    it('check of CMSIS_PACK_ROOT has been added or not', () => {
+    it('checks if CMSIS_PACK_ROOT has been added or not', () => {
         const spy = jest.spyOn(path, 'join');
         getCmsisPackRootPath();
         if (isWindows) {
