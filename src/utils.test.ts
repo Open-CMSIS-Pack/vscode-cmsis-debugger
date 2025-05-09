@@ -44,6 +44,6 @@ describe('getCmsisPackRoot', () => {
         } else {
             expect(spy).toHaveBeenCalledWith(os.homedir(), '.cache', 'arm', 'packs');
         }
-        process.env = originalProcessEnv
+        process.env = originalProcessEnv;
     });
 });
