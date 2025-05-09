@@ -29,7 +29,7 @@ describe('getCmsisPackRoot', () => {
         jest.clearAllMocks();
     });
 
-    it('check if CMSIS_PACK_ROOT already exists', () => {
+    it('checks if CMSIS_PACK_ROOT already exists', () => {
         const originalProcessEnv = process.env;
         process.env = { ...originalProcessEnv, CMSIS_PACK_ROOT: CMSIS_PACK_ROOT_DEFAULT };
         const returnValue = getCmsisPackRootPath();
