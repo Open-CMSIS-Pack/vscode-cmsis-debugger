@@ -22,9 +22,6 @@ import { getCmsisPackRootPath, isWindows } from './utils';
 const CMSIS_PACK_ROOT_DEFAULT = 'mock/path';
 describe('getCmsisPackRoot', () => {
 
-    beforeEach(() => {
-    });
-
     afterEach(() => {
         jest.clearAllMocks();
     });
@@ -38,6 +35,8 @@ describe('getCmsisPackRoot', () => {
     });
 
     it('checks if CMSIS_PACK_ROOT has been added or not', () => {
+        const originalProcessEnv = process.env;
+        delete process.env['CMSIS_PACK_ROOT'];
         const spy = jest.spyOn(path, 'join');
         getCmsisPackRootPath();
         if (isWindows) {
@@ -45,5 +44,6 @@ describe('getCmsisPackRoot', () => {
         } else {
             expect(spy).toHaveBeenCalledWith(os.homedir(), '.cache', 'arm', 'packs');
         }
+        process.env = originalProcessEnv
     });
 });
