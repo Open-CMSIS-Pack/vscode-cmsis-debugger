@@ -64,6 +64,7 @@ For debugging with pyOCD, the following is added to the `launch.json` file:
 
 For a single-core device, you need to add the relative path to the HEX file to `"initCommands"` - `"load"`.
 
+<!-- markdownlint-disable-next-line MD036 -->
 **Example**
 
 ```yml
@@ -102,6 +103,7 @@ For a multi-core device, you need to:
 
 - add for each core the relative path to the AXF (ELF) files for each core to `"program"`.
 
+<!-- markdownlint-disable-next-line MD036 -->
 **Example**
 
 ```yml
@@ -153,8 +155,8 @@ For a multi-core device, you need to:
 
 ## Debugging with J-Link
 
-For debugging with Segger J-Link (using the [J-Link GDB Server](https://kb.segger.com/J-Link_GDB_Server)), the following is
-added to the `launch.json` file:
+For debugging with Segger J-Link (using the [J-Link GDB Server](https://kb.segger.com/J-Link_GDB_Server)), the following
+is added to the `launch.json` file:
 
 ```yml
 {
@@ -208,6 +210,7 @@ For a multi-core device, you need to:
 
 - add the XML file to the `"serverParameters"` so that the Segger GDB server can pick them up.
 
+<!-- markdownlint-disable-next-line MD036 -->
 **Example**
 
 ```yml
@@ -253,6 +256,7 @@ For a multi-core device, you need to:
 
 For this example, the content of the `JLinkDevices.xml` file is as follows:
 
+<!-- markdownlint-disable MD013 -->
 ```xml
 <DataBase>
   <Device>
@@ -263,3 +267,4 @@ For this example, the content of the `JLinkDevices.xml` file is as follows:
   </Device>
 </DataBase>
 ```
+<!-- markdownlint-enable MD013 -->
