@@ -233,7 +233,7 @@
     "@types/jest": "^29.5.14",
     "@types/node": "^20.17.46",
     "@types/node-fetch": "^2.6.12",
-    "@types/vscode": "^1.100.0",
+    "@types/vscode": "^1.63.0",
     "@types/yargs": "^17.0.33",
     "@types/yarnpkg__lockfile": "^1.1.9",
     "@typescript-eslint/eslint-plugin": "^8.32.0",
