@@ -168,7 +168,7 @@ Inline breakpoints are only hit when the execution reaches the column associated
 This is useful when debugging minified code, which contains multiple statements in a single line.
 
 An inline breakpoint can be set using **Shift + F9** or through the context menu during a debug session.
-Inline breakpoint are shown inline in the editor.
+Inline breakpoints are shown inline in the editor.
 
 Inline breakpoints can also have conditions. Editing multiple breakpoints on a line is possible through the
 context menu in the editor's left margin.
