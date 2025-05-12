@@ -62,12 +62,9 @@ For debugging with pyOCD, the following is added to the `launch.json` file:
 
 ### Single-core (pyOCD)
 
-For a single-core device, you need to add:
+For a single-core device, you need to add the relative path to the HEX file to `"initCommands"` - `"load"`.
 
-- the relative path to the HEX file to `"initCommands"` - `"load"`.
-
-- an absolute `"definitionPath"` to the device's SVD file to be able to use the [Periperals view](./debug.md).
-
+<!-- markdownlint-disable-next-line MD036 -->
 **Example**
 
 ```yml
@@ -91,7 +88,6 @@ For a single-core device, you need to add:
             "cmsis": {
                 "cbuildRunFile": "${command:cmsis-csolution.getCbuildRunFile}"
             }
-            "definitionPath": "/Users/user/.cache/arm/packs/Keil/STM32U5xx_DFP/3.0.0/CMSIS/SVD/STM32U585.svd"
         }
     ]
 }
@@ -105,14 +101,9 @@ For a multi-core device, you need to:
 
 - for the secondary core: comment out the  `"initCommands"`.
 
-- for each core:
+- add for each core the relative path to the AXF (ELF) files for each core to `"program"`.
 
-    - add an absolute `"definitionPath"` to the device's SVD file to be able to use the
-      [Periperals view](./debug.md).
-
-    - add the relative path to the AXF (ELF) files for each core to `"program"`.
-
-
+<!-- markdownlint-disable-next-line MD036 -->
 **Example**
 
 ```yml
@@ -136,9 +127,8 @@ For a multi-core device, you need to:
                 "port": "3333"
             },
             "cmsis": {
-                "cbuildRunFile": "FRDM-K32L3A6.cbuild-run.yml"
+                "cbuildRunFile": "${command:cmsis-csolution.getCbuildRunFile}"
             },
-            "definitionPath": "/Users/user/.cache/arm/packs/NXP/K32L3A60_DFP/19.0.0/devices/K32L3A60/K32L3A60_cm4.xml"
         },
         {
             "name": "CM0+: CMSIS Debugger: pyOCD",
@@ -155,7 +145,6 @@ For a multi-core device, you need to:
                 "server": "pyocd",
                 "port": "3334"
             },
-            "definitionPath": "/Users/user/.cache/arm/packs/NXP/K32L3A60_DFP/19.0.0/devices/K32L3A60/K32L3A60_cm0plus.xml"
         }
     ]
 }
@@ -166,8 +155,8 @@ For a multi-core device, you need to:
 
 ## Debugging with J-Link
 
-For debugging with Segger J-Link (using the [J-Link GDB Server](https://kb.segger.com/J-Link_GDB_Server)), the following is
-added to the `launch.json` file:
+For debugging with Segger J-Link (using the [J-Link GDB Server](https://kb.segger.com/J-Link_GDB_Server)), the following
+is added to the `launch.json` file:
 
 ```yml
 {
@@ -210,9 +199,6 @@ added to the `launch.json` file:
 
 For a single-core device, the configuration template contains all the information that is required to start debugging.
 
-!!! Attention
-    **Check if the above statement is true!**
-
 ### Multi-core (J-Link)
 
 For a multi-core device, you need to:
@@ -224,6 +210,7 @@ For a multi-core device, you need to:
 
 - add the XML file to the `"serverParameters"` so that the Segger GDB server can pick them up.
 
+<!-- markdownlint-disable-next-line MD036 -->
 **Example**
 
 ```yml
@@ -269,6 +256,7 @@ For a multi-core device, you need to:
 
 For this example, the content of the `JLinkDevices.xml` file is as follows:
 
+<!-- markdownlint-disable MD013 -->
 ```xml
 <DataBase>
   <Device>
@@ -279,3 +267,4 @@ For this example, the content of the `JLinkDevices.xml` file is as follows:
   </Device>
 </DataBase>
 ```
+<!-- markdownlint-enable MD013 -->
