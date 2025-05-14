@@ -65,13 +65,15 @@ exports[`CbuildRunReader Parser successfully parses a *.cbuild-run.yml file 1`] 
       },
     ],
   },
-  "debugger": [
-    {
-      "clock": 10000000,
-      "name": "<default>",
-      "port": "swd",
-    },
-  ],
+  "debugger": {
+    "clock": 10000000,
+    "gdbserver": "My Server Options
+",
+    "name": "<default>",
+    "port": "swd",
+    "start-pname": "Core0",
+    "terminal": 4444,
+  },
   "device": "MyVendor::MyDevice",
   "device-pack": "MyVendor::MyDevice@1.0.0",
   "generated-by": "csolution version 2.8.0",

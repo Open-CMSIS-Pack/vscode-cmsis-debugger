@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
-export type OutputFileType = 'lib'|'elf'|'hex'|'bin';
+export type OutputFileType = 'lib'|'elf'|'hex'|'bin'|string;
+export type LoadType = 'image+symbols'|'symbols'|'image'|'none';
 
 export interface OutputType {
     file: string;
     type: OutputFileType;
-    info: string;
-    run: string;
-    debug: string;
+    info?: string;
+    load: LoadType;
+    'load-offset'?: number;
+    pname?: string;
 };
 
 export interface MemoryType {
@@ -44,6 +46,13 @@ export interface SystemDescriptionType {
     file: string;
     type: SystemDescriptionTypeType;
     info?: string;
+    pname?: string;
+};
+
+export interface GdbserverType {
+    port: number;
+    pname?: string;
+    punit?: number;
 };
 
 export type ProtocolType = 'swd'|'jtag';
@@ -51,9 +60,13 @@ export type ProtocolType = 'swd'|'jtag';
 export interface DebuggerType {
     name: string;
     info?: string;
-    protocol: ProtocolType;
-    clock: number;
-    dbgconf: string;
+    protocol?: ProtocolType;
+    clock?: number;
+    dbgconf?: string;
+    'start-pname'?: string;
+    gdbserver?: GdbserverType[];
+    terminal?: string;
+    trace?: string;
 };
 
 export interface DebugVarsType {
@@ -94,10 +107,21 @@ export interface SwdType {
     targetsel?: number;
 };
 
+export interface DatapatchType {
+    address: number;
+    value: number;
+    mask?: number;
+    type?: string;
+    info?: string;
+};
+
 export interface AccessPortType {
     apid: number;
     index?: number;
     address?: number;
+    HPROT?: number;
+    SPROT?: number;
+    datapatch?: DatapatchType[];
     accessports?: AccessPortType[];
 };
 
@@ -112,14 +136,14 @@ export type ResetSequenceType = 'ResetSystem'|'ResetHardware'|'ResetProcessor'|s
 
 export interface PunitType {
     punit: number;
-    address?: number;
+    address: number;
 };
 
 export interface ProcessorType {
-    pname: string;
+    pname?: string;
     punits?: PunitType[];
     apid?: number;
-    'reset-sequence': ResetSequenceType;
+    'reset-sequence'?: ResetSequenceType;
 };
 
 export interface DebugTopologyType {
@@ -134,6 +158,7 @@ export interface CbuildRunType {
     'generated-by'?: string;
     'solution'?: string;
     'target-type'?: string;
+    'target-set'?: string;
     compiler?: string;
     board?: string;
     'board-pack'?: string;
@@ -142,7 +167,7 @@ export interface CbuildRunType {
     output: OutputType[];
     'system-resources'?: SystemResourcesType;
     'system-descriptions'?: SystemDescriptionType[];
-    debugger: DebuggerType[];
+    debugger: DebuggerType;
     'debug-vars': DebugVarsType;
     'debug-sequences'?: DebugSequenceType[];
     programming?: ProgrammingType[];

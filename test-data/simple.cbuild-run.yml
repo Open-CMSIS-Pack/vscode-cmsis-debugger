@@ -68,9 +68,13 @@ cbuild-run:
         pname: Core0
         from-pack: MyVendor::MyDevice@1.0.0
   debugger:
-    - name: <default>
-      port: swd
-      clock: 10000000
+    name: <default>
+    port: swd
+    clock: 10000000
+    start-pname: Core0
+    terminal: 4444
+    gdbserver: |
+      My Server Options
   debug-sequences:
     - name: MySequence
       blocks:
