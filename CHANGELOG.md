@@ -1,5 +1,8 @@
 # Change Log
 
+## 0.2.0
+- TODO
+
 ## 0.1.1
 
 - Fixes [#153](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/153): PATH variable in terminal sometimes
