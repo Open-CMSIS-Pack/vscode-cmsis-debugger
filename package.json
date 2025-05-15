@@ -36,7 +36,8 @@
   "extensionPack": [
     "eclipse-cdt.cdt-gdb-vscode",
     "eclipse-cdt.memory-inspector",
-    "eclipse-cdt.peripheral-inspector"
+    "eclipse-cdt.peripheral-inspector",
+    "ms-vscode.vscode-serial-monitor"
   ],
   "extensionKind": [
     "workspace"
