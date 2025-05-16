@@ -2,7 +2,7 @@
 
 ## 0.2.0
 
-- **Important**: This release requires 
+- **Important**: This release requires
 [CMSIS-Toolbox v2.9.0](https://github.com/Open-CMSIS-Pack/cmsis-toolbox/releases/tag/2.9.0)
 to function correctly. Update your workspace's `vcpkg-configuration.json` file accordingly.
 - Updates [documentation](https://open-cmsis-pack.github.io/vscode-cmsis-debugger/).
