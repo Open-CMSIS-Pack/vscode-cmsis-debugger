@@ -7,7 +7,9 @@
 [`*.cbuild-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/YML-CBuild-Format/#file-structure-of-cbuild-runyml)
 file changes in [CMSIS-Toolbox v2.9.0](https://github.com/Open-CMSIS-Pack/cmsis-toolbox/releases/tag/2.9.0).
 - Updates included pyOCD distribution
-    - TODO: changes
+    - Updates `*.cbuild-run.yml` support to changes in CMSIS-Toolbox 2.9.0.
+    - Implements [#208](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/208): `--cbuild-run` target support in pyOCD subcommands.
+    - Implements [#241](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/241): Use default values for CMSIS_PACK_ROOT if variable is not explicitly set.
 
 ## 0.1.1
 
