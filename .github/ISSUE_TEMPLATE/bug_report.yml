@@ -11,15 +11,6 @@ body:
     attributes:
       value: "### Thank you for reporting a problem!"
 
-  - type: input
-    id: summary
-    attributes:
-      label: "Summary"
-      description: "Briefly describe the bug."
-      placeholder: "e.g., App crashes when opening settings"
-    validations:
-      required: true
-
   - type: textarea
     id: description
     attributes:
