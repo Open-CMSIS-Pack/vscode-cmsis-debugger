@@ -45,6 +45,26 @@
     "onStartupFinished"
   ],
   "contributes": {
+    "commands": [
+      {
+        "category": "CMSIS",
+        "command": "vscode-cmsis-debugger.open-manual",
+        "title": "Open CMSIS Debugger manual",
+        "icon": "$(book)"
+      }      
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "vscode-cmsis-debugger.open-manual"
+        }
+      ],
+      "debug/toolBar": [
+        {
+          "command": "vscode-cmsis-debugger.open-manual"
+        }
+      ]
+    },
     "debuggers": [
       {
         "type": "cmsis-debug-pyocd",

@@ -29,5 +29,13 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     gdbtargetDebugTracker.activate(context);
     gdbtargetConfigurationProvider.activate(context);
 
+    const manualHandler = () => {
+        logger.warn('DOCS OPEN');
+    };
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('vscode-cmsis-debugger.open-manual', manualHandler)
+    );
+
     logger.debug('Extension Pack activated');
 };
