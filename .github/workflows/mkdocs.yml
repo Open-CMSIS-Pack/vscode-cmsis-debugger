@@ -36,7 +36,7 @@ jobs:
 
       - name: Install MkDocs
         run: |
-          pip install mkdocs
+          pip install mkdocs==1.6.1
 
       - name: Build Documentation
         run: mkdocs build
