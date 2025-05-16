@@ -2,10 +2,13 @@
 
 ## 0.2.0
 
+- **Important**: This release requires 
+[CMSIS-Toolbox v2.9.0](https://github.com/Open-CMSIS-Pack/cmsis-toolbox/releases/tag/2.9.0)
+to function correctly. Update your workspace's `vcpkg-configuration.json` file accordingly.
 - Updates [documentation](https://open-cmsis-pack.github.io/vscode-cmsis-debugger/).
 - Implements [#238](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/238): Support
 [`*.cbuild-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/YML-CBuild-Format/#file-structure-of-cbuild-runyml)
-file changes in [CMSIS-Toolbox v2.9.0](https://github.com/Open-CMSIS-Pack/cmsis-toolbox/releases/tag/2.9.0).
+file changes in CMSIS-Toolbox v2.9.0.
 - Updates included pyOCD distribution
     - Updates `*.cbuild-run.yml` support to changes in CMSIS-Toolbox 2.9.0.
     - Implements [#208](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/208):
