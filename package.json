@@ -56,18 +56,14 @@
     "menus": {
       "commandPalette": [
         {
-          "command": "vscode-cmsis-debugger.open-manual"
+          "command": "vscode-cmsis-debugger.openHelp"
         }
       ],
       "view/title": [
         {
-          "command": "vscode-cmsis-debugger.open-manual",
-          
-        }
-      ],
-      "debug/toolBar": [
-        {
-          "command": "vscode-cmsis-debugger.open-manual"
+          "command": "vscode-cmsis-debugger.openHelp",
+          "when": "view == cmsis-csolution.outline",
+          "group": "SolutionHelp@100"
         }
       ]
     },
