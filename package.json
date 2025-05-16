@@ -45,6 +45,28 @@
     "onStartupFinished"
   ],
   "contributes": {
+    "commands": [
+      {
+        "category": "CMSIS",
+        "command": "vscode-cmsis-debugger.openHelp",
+        "title": "Help - CMSIS Debugger",
+        "icon": "$(book)"
+      }      
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "vscode-cmsis-debugger.openHelp"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "vscode-cmsis-debugger.openHelp",
+          "when": "view == cmsis-csolution.outline",
+          "group": "SolutionHelp@100"
+        }
+      ]
+    },
     "debuggers": [
       {
         "type": "cmsis-debug-pyocd",
