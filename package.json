@@ -48,8 +48,8 @@
     "commands": [
       {
         "category": "CMSIS",
-        "command": "vscode-cmsis-debugger.open-manual",
-        "title": "Open CMSIS Debugger manual",
+        "command": "vscode-cmsis-debugger.openHelp",
+        "title": "Help - CMSIS Debugger",
         "icon": "$(book)"
       }      
     ],
@@ -57,6 +57,12 @@
       "commandPalette": [
         {
           "command": "vscode-cmsis-debugger.open-manual"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "vscode-cmsis-debugger.open-manual",
+          
         }
       ],
       "debug/toolBar": [
