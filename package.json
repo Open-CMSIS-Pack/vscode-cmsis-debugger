@@ -220,7 +220,8 @@
     "lint": "eslint .",
     "test": "jest",
     "package": "vsce package --yarn",
-    "tpip:report": "ts-node scripts/tpip-reporter --header docs/tpip-header.md docs/third-party-licenses.json TPIP.md"
+    "tpip:report": "ts-node scripts/tpip-reporter --header docs/tpip-header.md docs/third-party-licenses.json TPIP.md",
+    "lint:md": "markdownlint **/*.md -c ./.github/markdownlint.jsonc -i ./node_modules ./dist ./coverage ./tools"
   },
   "vsce": {
     "yarn": true,
@@ -256,7 +257,8 @@
     "vscode-uri": "^3.1.0",
     "webpack": "^5.99.8",
     "webpack-cli": "^6.0.1",
-    "yargs": "^17.7.2"
+    "yargs": "^17.7.2",
+    "markdownlint-cli": "^0.45.0"
   },
   "cmsis": {
     "pyocd": "MatthiasHertel80/pyOCD@0.0.0-standalone-cbuild8"
