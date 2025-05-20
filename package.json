@@ -222,7 +222,7 @@
     "package": "vsce package --yarn",
     "tpip:report": "ts-node scripts/tpip-reporter --header docs/tpip-header.md docs/third-party-licenses.json TPIP.md",
     "lint:md": "markdownlint **/*.md -c ./.github/markdownlint.jsonc -i ./node_modules ./dist ./coverage ./tools",
-    "check:links": "find . -name '*.md' -not -path './node_modules/*' -not -path './.github/*' -exec npx markdown-link-check -v -c ./.github/markdown-link-check.jsonc {} +"
+    "check:links": "ts-node scripts/check-links.ts -i ./node_modules/** -i ./.github/** -c ./.github/markdown-link-check.jsonc"
   },
   "vsce": {
     "yarn": true,
@@ -244,6 +244,7 @@
     "@yarnpkg/lockfile": "^1.1.0",
     "eslint": "^9.26.0",
     "extract-zip": "^2.0.1",
+    "globby": "^13.2.2",
     "jest": "^29.7.0",
     "markdownlint-cli": "^0.45.0",
     "markdown-link-check": "^3.13.7",
