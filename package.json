@@ -53,6 +53,12 @@
         "icon": "$(book)"
       }      
     ],
+    "submenus": [
+      {
+        "id": "vscode-cmsis-debugger.helpSubMenu",
+        "label": "Help SubMenu"
+      }
+    ],
     "menus": {
       "commandPalette": [
         {
@@ -61,9 +67,15 @@
       ],
       "view/title": [
         {
-          "command": "vscode-cmsis-debugger.openHelp",
+          "submenu": "vscode-cmsis-debugger.helpSubMenu",
           "when": "view == cmsis-csolution.outline",
           "group": "SolutionHelp@100"
+        }
+      ],
+      "vscode-cmsis-debugger.helpSubMenu": [
+        {
+          "command": "vscode-cmsis-debugger.openHelp",
+          "when": "view == cmsis-csolution.outline"
         }
       ]
     },
