@@ -7,4 +7,8 @@
       }
     }
   ],
+  "ignorePatterns": [
+    { "pattern": "^#" },
+    { "pattern": "https://www\\.st\\.com/en/development-tools/hardware-debugger-and-programmer-tools-for-stm32/products\\.html" }
+  ]
 }

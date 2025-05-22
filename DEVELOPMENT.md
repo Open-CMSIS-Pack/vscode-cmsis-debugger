@@ -86,3 +86,30 @@ Tool dependencies are recorded in `package.json`:
 ````
 
 The `<version>` must match the tools release version tag.
+
+## Updating documentation
+
+Contributors who make changes to the documentation are encouraged to validate their updates using the
+Markdown linter to ensure consistency and adherence to the project's formatting standards.
+
+Run the following command from the project root:
+
+```bash
+    yarn lint:md
+````
+
+This command checks Markdown files against the linting rules defined in the
+[markdownlint.jsonc](./.github/markdownlint.jsonc) configuration file.
+
+Any formatting issues or deviations from the defined standards will be reported in the console. Addressing these helps
+maintain high-quality, readable, and standardized documentation across the project.
+
+Additionally, if your changes involve updating or adding links within the documentation, you can verify the validity
+of all links by running:
+
+```bash
+    yarn check:links
+````
+
+This will check each link to ensure it is reachable (i.e., returns a 200 OK status). Identifying and correcting broken
+links contributes to a better reader experience and ensures long-term reliability of the documentation.
