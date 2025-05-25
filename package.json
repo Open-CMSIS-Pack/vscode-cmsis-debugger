@@ -240,7 +240,7 @@
     "@types/yarnpkg__lockfile": "^1.1.9",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
     "@typescript-eslint/parser": "^8.32.1",
-    "@vscode/vsce": "^3.4.1",
+    "@vscode/vsce": "^3.4.2",
     "@yarnpkg/lockfile": "^1.1.0",
     "eslint": "^9.27.0",
     "extract-zip": "^2.0.1",
