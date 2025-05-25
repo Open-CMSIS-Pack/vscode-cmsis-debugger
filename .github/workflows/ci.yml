@@ -101,14 +101,12 @@ jobs:
           git commit -m "Update CHANGELOG.md after release [skip ci]"
           git push
 
-      - name: Publish coverage report to Code Climate
+      - name: Publish coverage report to QLTY
         if: github.repository_owner == 'Open-CMSIS-Pack'
-        uses: paambaati/codeclimate-action@f429536ee076d758a24705203199548125a28ca7 # v9.0.0
-        env:
-          CC_TEST_REPORTER_ID: ${{secrets.CC_TEST_REPORTER_ID}}
+        uses: qltysh/qlty-action/coverage@v1
         with:
-          debug: true
-          coverageLocations: coverage/lcov.info:lcov
+          token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
+          files: coverage/lcov.info
 
   package:
     name: Package
