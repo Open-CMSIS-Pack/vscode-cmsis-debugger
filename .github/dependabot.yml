@@ -16,3 +16,16 @@ updates:
   schedule:
     interval: "weekly"
     day: "sunday"
+
+- package-ecosystem: "pip"
+  directory: "/.github"
+  schedule:
+    interval: "weekly"
+    day: "sunday"
+  allow:
+    - dependency-type: all
+  commit-message:
+    prefix: "chore(deps)"
+  labels:
+    - "dependencies"
+    - "pip"

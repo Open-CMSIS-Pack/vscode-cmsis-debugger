@@ -1,0 +1,50 @@
+name: Recompile requirements.txt on Dependabot PRs
+
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+    paths:
+      - '.github/requirements.in'
+
+permissions:
+  contents: read
+
+jobs:
+  recompile:
+    permissions:
+      contents: write  # for stefanzweifel/git-auto-commit-action to push code in repo
+    if: github.actor == 'dependabot[bot]' || github.actor == 'dependabot-preview[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository with the PR branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+    #   - name: Set up Python
+    #     uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+    #     with:
+    #       python-version: '3.12'
+
+      - name: Install pip-tools
+        run: pip install pip-tools
+
+      - name: Recompile requirements.txt
+        run: |
+          pip-compile .github/requirements.in --output-file .github/requirements.txt --generate-hashes
+
+      - name: Commit and push updated lockfile
+        uses: stefanzweifel/git-auto-commit-action@b863ae1933cb653a53c021fe36dbb774e1fb9403 # v5.2.0
+        with:
+          commit_message: "chore(deps): update requirements.txt (auto-generated)"
+          branch: ${{ github.event.pull_request.head.ref }}
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "github-actions[bot]@users.noreply.github.com"

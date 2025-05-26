@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/mkdocs.yml'
+      - '.github/requirements.in'
       - 'docs/**/*'
   push:
     branches: [ main ]
@@ -36,7 +37,7 @@ jobs:
 
       - name: Install MkDocs
         run: |
-          pip install mkdocs==1.6.1
+          pip install --require-hashes -r .github/requirements.txt
 
       - name: Build Documentation
         run: mkdocs build
