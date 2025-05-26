@@ -1,5 +1,5 @@
-[![Maintainability](https://api.codeclimate.com/v1/badges/0f12a7e73736f8bbfb9d/maintainability)](https://codeclimate.com/github/Open-CMSIS-Pack/vscode-cmsis-debugger/maintainability)
-[![Test Coverage](https://api.codeclimate.com/v1/badges/0f12a7e73736f8bbfb9d/test_coverage)](https://codeclimate.com/github/Open-CMSIS-Pack/vscode-cmsis-debugger/test_coverage)
+[![Maintainability](https://qlty.sh/badges/2170b449-4b4b-43e8-8bba-18665ed21a08/maintainability.svg)](https://qlty.sh/gh/Open-CMSIS-Pack/projects/vscode-cmsis-debugger)
+[![Test Coverage](https://qlty.sh/badges/2170b449-4b4b-43e8-8bba-18665ed21a08/test_coverage.svg)](https://qlty.sh/gh/Open-CMSIS-Pack/projects/vscode-cmsis-debugger)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/badge)](https://securityscorecards.dev/viewer/?uri=github.com/Open-CMSIS-Pack/vscode-cmsis-debugger)
 
 # Arm CMSIS Debugger
