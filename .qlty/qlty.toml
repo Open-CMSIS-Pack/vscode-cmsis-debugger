@@ -71,19 +71,3 @@ name = "trivy"            # Scans for vulnerabilities in containers and dependen
 
 [[plugin]]
 name = "trufflehog"       # Detects secrets and sensitive data in code
-
-[[plugin]]
-name = "yamllint"         # Lints YAML files for syntax and style
-enabled = false
-
-[[plugin]]
-name = "markdownlint"     # Lints Markdown files
-enabled = false
-
-[[plugin]]
-name = "prettier"         # Ensures consistent code formatting
-enabled = false
-
-[[plugin]]
-name = "checkov"          # Performs security and compliance checks on IaC files
-enabled = false
