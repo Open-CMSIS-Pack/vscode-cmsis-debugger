@@ -1,0 +1,89 @@
+# Configuration version for compatibility with the tool
+config_version = "0"
+
+# Glob patterns to exclude from analysis (e.g., build artifacts and dependencies)
+exclude_patterns = [
+    "**/node_modules/**",  # Ignore node_modules directories
+    "**/dist/**",          # Ignore distribution/build output
+    "**/coverage/**"       # Ignore code coverage output
+]
+
+# Glob patterns to identify test files
+test_patterns = [
+    "**/*.test.ts"         # Match TypeScript test files
+]
+
+# === Smells Configuration ===
+# Controls how detected code smells are reported
+[smells]
+mode = "comment"          # Adds comments in code or PRs to report smells
+
+# === Source Configuration ===
+# Defines a code source for analysis
+[[source]]
+name = "default"          # Name of the source
+default = true            # Marks this as the default source to scan
+
+# === Individual Code Smell Toggles ===
+# Enables or disables detection of specific code smells
+
+[smells.boolean_logic]
+enabled = true            # Detects overly complex or nested boolean logic
+
+[smells.similar_code]
+enabled = true            # Detects similar (but not identical) code blocks
+
+[smells.duplication]
+enabled = true            # Detects duplication of code blocks
+
+[smells.identical_code]
+enabled = true            # Detects exact duplicate code blocks
+
+[smells.function_parameters]
+enabled = false           # Flags functions with too many parameters
+
+[smells.nested_control_flow]
+enabled = false           # Would flag deeply nested control flow (e.g., many if/else)
+
+[smells.file_complexity]
+enabled = false           # Would flag files with high overall complexity
+
+[smells.function_complexity]
+enabled = false           # Would flag individual functions that are too complex
+
+[smells.return_statements]
+enabled = false           # Would flag functions with multiple return paths
+
+# === Plugins Section ===
+# Each plugin performs a specific type of analysis or linting
+
+[[plugin]]
+name = "actionlint"       # Validates GitHub Actions workflows
+
+[[plugin]]
+name = "osv-scanner"      # Scans for known vulnerabilities using OSV database
+
+[[plugin]]
+name = "ripgrep"          # Fast searching for pattern matching in codebase
+
+[[plugin]]
+name = "trivy"            # Scans for vulnerabilities in containers and dependencies
+
+[[plugin]]
+name = "trufflehog"       # Detects secrets and sensitive data in code
+
+[[plugin]]
+name = "yamllint"         # Lints YAML files for syntax and style
+enabled = false
+
+[[plugin]]
+name = "markdownlint"     # Lints Markdown files
+enabled = false
+
+[[plugin]]
+name = "prettier"         # Ensures consistent code formatting
+enabled = false
+
+[[plugin]]
+name = "checkov"          # Performs security and compliance checks on IaC files
+enabled = false
