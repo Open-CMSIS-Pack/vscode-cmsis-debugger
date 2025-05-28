@@ -547,8 +547,6 @@ The debug illusion will be broken in many places.
 
 Make sure to build your application ELF file with DWARF version 5 debug information.
 
-Follow the steps explained in [Project setup](./setup.md#project-setup).
-
 ### pyOCD port not available
 
 When starting a debug session, you might see this error:
