@@ -1,5 +1,10 @@
 # Change Log
 
+## Unreleased
+
+- Included [Microsoft® Serial `Monitor`](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor)
+in extension pack.
+
 ## 0.2.0
 
 - **Important**: This release requires
