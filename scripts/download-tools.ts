@@ -23,6 +23,7 @@ import { downloadFile } from './file-download';
 import yargs from 'yargs';
 import extractZip from 'extract-zip';
 import { execSync } from 'child_process';
+import { hideBin } from 'yargs/helpers';
 
 // OS/architecture pairs from vsce --publish
 type VsceTarget = 'win32-x64' | 'win32-arm64' | 'linux-x64' | 'linux-arm64' | 'darwin-x64' | 'darwin-arm64';
@@ -206,7 +207,7 @@ async function main() {
     const yarnCacheDir = execSync('yarn cache dir').toString().trim();
     console.debug(`Yarn cache directory: ${yarnCacheDir}`);
 
-    const { target, dest, cache, force, tools } = yargs
+    const { target, dest, cache, force, tools } = yargs(hideBin(process.argv))
         .option('t', {
             alias: 'target',
             description: 'VS Code extension target, defaults to system',

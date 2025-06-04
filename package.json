@@ -262,7 +262,7 @@
     "vscode-uri": "^3.1.0",
     "webpack": "^5.99.9",
     "webpack-cli": "^6.0.1",
-    "yargs": "^17.7.2"
+    "yargs": "^18.0.0"
   },
   "cmsis": {
     "pyocd": "MatthiasHertel80/pyOCD@0.0.0-standalone-cbuild8"
