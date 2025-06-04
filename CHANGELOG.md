@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Switch away from `pre-release` distribution channel. Extension remains at `preview` status.
 - Included [Microsoft® Serial `Monitor`](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor)
 in extension pack.
 
