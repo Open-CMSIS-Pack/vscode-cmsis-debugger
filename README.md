@@ -34,7 +34,7 @@ CDT.cloud extension that provides a powerful and configurable memory viewer that
 - [Peripheral Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector), an
 EclipseCDT.cloud extension that provides a CMSIS SVD viewer and works with debug adapters.
 
-- [Microsoft® Serial Monitor](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor),
+- [Serial Monitor](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor),
 an extension that provides a serial monitor to view output from as well as send messages to serial ports.
 
 ## Recommended Extensions
