@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.3.1
+
+- Fixed image links in [README](https://marketplace.visualstudio.com/items?itemName=Arm.vscode-cmsis-debugger).
+
 ## 0.3.0
 
 - Switches away from `pre-release` distribution channel. Extension remains at `preview` status.
