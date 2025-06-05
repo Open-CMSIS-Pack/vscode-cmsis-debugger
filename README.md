@@ -84,13 +84,18 @@ your debug configuration's `target`>`server` setting to contain the full path to
 There are two ways to start a debug session:
 
 1. If you have installed the CMSIS Solution extension, in the **CMSIS view**
-   ![CMSIS view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/cmsis-view-icon.png), click on the **Debug** icon
-   ![Debug icon in the CMSIS view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/debug-icon.png). Depending on the number of configurations in your
+   ![CMSIS view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/cmsis-view-icon.png),
+   click on the **Debug** icon
+   ![Debug icon in the CMSIS view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/debug-icon.png).
+   Depending on the number of configurations in your
    `launch.json` file, you will be asked to select a configuration for the debug session.
 
-2. In the **Run and debug view** ![Run and debug view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/run-debug-view-icon.png), click the **Play** icon
-   next to the selected debug connection ![Play button](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/play-debug-button.png). The debug starts with the
-   selected configuration.
+2. In the **Run and debug view**
+![Run and debug view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/run-debug-view-icon.png),
+click the **Play** icon
+   next to the selected debug connection
+   ![Play button](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/play-debug-button.png).
+   The debug starts with the selected configuration.
 
 The debugger loads the application program and executes the startup code. When program execution stops (by default at
 `main`), the source code opens at the next executable statement which is marked with a yellow arrow in the editor:
@@ -104,15 +109,17 @@ errors.
 
 If you do not wish to enter a debug session, you can issue a flash download only, followed by a reset of the device.
 
-In the **CMSIS view** ![CMSIS view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/cmsis-view-icon.png), click on the **Run** icon
+In the **CMSIS view** ![CMSIS view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/cmsis-view-icon.png),
+click on the **Run** icon
 ![Run icon in the CMSIS view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/run-icon.png).
 
 ## Run and Debug view
 
 ![Run and Debug view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/run-debug-view.png)
 
-The **Run and debug view** ![Run and debug view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/run-debug-view-icon.png) differs from the other views in the
-following aspects:
+The **Run and debug view**
+![Run and debug view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/run-debug-view-icon.png)
+differs from the other views in the following aspects:
 
 - [Debug toolbar](#debug-toolbar) is available.
 
