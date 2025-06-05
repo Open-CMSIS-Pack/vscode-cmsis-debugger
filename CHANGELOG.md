@@ -7,7 +7,9 @@
 in extension pack.
 - Updates [README](https://marketplace.visualstudio.com/items?itemName=Arm.vscode-cmsis-debugger) with usage documentation.
 - Updates included pyOCD distribution
-    - TODO
+    - Improves robustness of debug sequence execution.
+    - Updates behavior when `cbuild-run` target clashes with an internally registered target, to overwrite.
+    - Sets debugger clock based on the `debugger` node in `*.cbuilld-run.yml` file.
 
 ## 0.2.0
 
