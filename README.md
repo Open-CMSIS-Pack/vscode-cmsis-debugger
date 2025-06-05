@@ -84,18 +84,18 @@ your debug configuration's `target`>`server` setting to contain the full path to
 There are two ways to start a debug session:
 
 1. If you have installed the CMSIS Solution extension, in the **CMSIS view**
-   ![CMSIS view](./images/cmsis-view-icon.png), click on the **Debug** icon
-   ![Debug icon in the CMSIS view](./images/debug-icon.png). Depending on the number of configurations in your
+   ![CMSIS view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/cmsis-view-icon.png), click on the **Debug** icon
+   ![Debug icon in the CMSIS view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/debug-icon.png). Depending on the number of configurations in your
    `launch.json` file, you will be asked to select a configuration for the debug session.
 
-2. In the **Run and debug view** ![Run and debug view](./images/run-debug-view-icon.png), click the **Play** icon
-   next to the selected debug connection ![Play button](./images/play-debug-button.png). The debug starts with the
+2. In the **Run and debug view** ![Run and debug view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/run-debug-view-icon.png), click the **Play** icon
+   next to the selected debug connection ![Play button](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/play-debug-button.png). The debug starts with the
    selected configuration.
 
 The debugger loads the application program and executes the startup code. When program execution stops (by default at
 `main`), the source code opens at the next executable statement which is marked with a yellow arrow in the editor:
 
-![Execution stopped at main](./images/stop-at-main.png)
+![Execution stopped at main](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/stop-at-main.png)
 
 Most editor features are available in debug mode. For example, developers can use the Find command and can correct program
 errors.
@@ -104,14 +104,14 @@ errors.
 
 If you do not wish to enter a debug session, you can issue a flash download only, followed by a reset of the device.
 
-In the **CMSIS view** ![CMSIS view](./images/cmsis-view-icon.png), click on the **Run** icon
-![Run icon in the CMSIS view](./images/run-icon.png).
+In the **CMSIS view** ![CMSIS view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/cmsis-view-icon.png), click on the **Run** icon
+![Run icon in the CMSIS view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/run-icon.png).
 
 ## Run and Debug view
 
-![Run and Debug view](./images/run-debug-view.png)
+![Run and Debug view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/run-debug-view.png)
 
-The **Run and debug view** ![Run and debug view](./images/run-debug-view-icon.png) differs from the other views in the
+The **Run and debug view** ![Run and debug view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/run-debug-view-icon.png) differs from the other views in the
 following aspects:
 
 - [Debug toolbar](#debug-toolbar) is available.
@@ -144,7 +144,7 @@ Once a debug session starts, the **Debug toolbar** appears at the top of the win
 control the flow of the debug session, such as stepping through code, pausing execution, and stopping the debug
 session.
 
-![Debug toolbar](./images/debug-toolbar.png)
+![Debug toolbar](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/debug-toolbar.png)
 
 The following table describes the actions available in the debug toolbar:
 
@@ -168,7 +168,7 @@ During a debugging session, you can inspect variables, expressions, and register
 relative to the selected stack frame in the **CALL STACK section**. In case of multi-core, registers are relative to
 the core that you are debugging.
 
-![VARIABLES section](./images/VARIABLES-section.png)
+![VARIABLES section](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/VARIABLES-section.png)
 
 To change the value of a variable during the debugging session, right-click on the variable in the
 **VARIABLES section** and select **Set Value**.
@@ -179,20 +179,20 @@ iexpression to access the variable. You can then use this expression in the [**W
 To filter variables by their name or value, use the Alt/Opt + Ctrl/Cmd + F keyboard shortcut while the focus is on the
 **VARIABLES section**, and type a search term.
 
-![Searching in VARIABLES section](./images/search-VARIABLES.png)
+![Searching in VARIABLES section](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/search-VARIABLES.png)
 
 ### WATCH section
 
 Variables and expressions can also be evaluated and watched in the Run and Debug view's WATCH section.
 
-![WATCH section](./images/WATCH-section.png)
+![WATCH section](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/WATCH-section.png)
 
 ### CALL STACK section
 
 The **CALL STACK** sections shows objects that are currently on stack. Threads are shown for applications
 that use an RTOS. Each object is associated to its location or value, and type.
 
-![CALL STACK section](./images/call-stack-section.png)
+![CALL STACK section](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/call-stack-section.png)
 
 The window content is updated automatically whenever program execution stops.
 
@@ -218,12 +218,12 @@ To set or unset a breakpoint, click on the editor margin or use **F9** on the cu
 - When a debugging session starts, breakpoints that can't be registered with the debugger change to a gray hollow
 circle. The same might happen if the source is edited while a debug session without live-edit support is running.
 
-![Breakpoint in the edirot margin](./images/bkpt-in-editor-margin.png)
+![Breakpoint in the edirot margin](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/bkpt-in-editor-margin.png)
 
 For more control of your breakpoints, use the Run and Debug view's **BREAKPOINTS section**. This section lists all
 breakpoints in your code and provides extra actions to manage them.
 
-![BREAKPOINTS section](./images/breakpoints-section.png)
+![BREAKPOINTS section](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/breakpoints-section.png)
 
 #### Breakpoint types
 
@@ -248,7 +248,7 @@ To add a conditional breakpoint:
 
 - Choose the type of condition you want to set (expression, hit count, or wait for breakpoint).
 
-![Creating a conditional breakpoint](./images/conditional-bkpt.gif)
+![Creating a conditional breakpoint](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/conditional-bkpt.gif)
 
 To add a condition to an existing breakpoint:
 
@@ -269,7 +269,7 @@ be useful when diagnosing failure cases in code that happen only after a certain
 Triggered breakpoints can be set by right-clicking on the glyph margin, selecting **Add Triggered Breakpoint**, and
 then choosing which other breakpoint enables the breakpoint.
 
-![Creating a triggered breakpoint](./images/triggered-bkpt.gif)
+![Creating a triggered breakpoint](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/triggered-bkpt.gif)
 
 ##### Inline breakpoints
 
@@ -307,7 +307,7 @@ evaluated within curly braces ('{}').
 To add a logpoint, right-click in the editor left margin and select Add Logpoint, or use the
 **Debug: Add Logpoint...** command in the Command Palette (**Ctrl/Cmd + Shift + p**).
 
-![Creating a logpoint](./images/create-logpoint.gif)
+![Creating a logpoint](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/create-logpoint.gif)
 
 Just like regular breakpoints, logpoints can be enabled or disabled and can also be controlled by a condition
 and/or hit count.
@@ -316,7 +316,7 @@ and/or hit count.
 
 The Eclipse CDT Cloud **Periperhal Inspector** is a standalone SVD Viewer extension.
 
-![Peripheral Inspector](./images/peripheral-inspector.png)
+![Peripheral Inspector](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/peripheral-inspector.png)
 
 For more information, refer to the
 [Peripheral Inspector GitHub repository](https://github.com/eclipse-cdt-cloud/vscode-peripheral-inspector).
@@ -326,7 +326,7 @@ For more information, refer to the
 The Eclipse CDT Cloud **Memory Inspector** provides a powerful and configurable memory viewer that works with
 debug adapters.
 
-![Memory Inspector](./images/memory-inspector.png)
+![Memory Inspector](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/memory-inspector.png)
 
 It features:
 
@@ -362,7 +362,7 @@ To open the **Disassembly View**:
 - press **Ctrl/Cmd + Shift + p** and select "Open Disassembly View" or
 - Right-click an item in the [**CALL STACK section**](#call-stack-section) and select "Open Disassembly View"
 
-![Disassembly View](./images/disassembly-view.png)
+![Disassembly View](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/disassembly-view.png)
 
 ### Debug Console
 
@@ -384,7 +384,7 @@ closing of quotes, and other language features.
 The following example shows how to check the currently set breakpoints with the `> info break` command. Afterwards, the
 application is run with the `> continue` command.
 
-![Entering GDB commands in the Debug Console REPL](./images/entering_gdb_commands.gif)
+![Entering GDB commands in the Debug Console REPL](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/entering_gdb_commands.gif)
 
 ## Extension Functionality
 
@@ -554,7 +554,7 @@ Make sure to build your application ELF file with DWARF version 5 debug informat
 
 When starting a debug session, you might see this error:
 
-![Remote communication error](./images/remote_comms_err.png)
+![Remote communication error](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/remote_comms_err.png)
 
 **Possible reason**: A running instance of pyOCD
 
