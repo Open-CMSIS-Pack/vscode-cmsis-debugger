@@ -3,7 +3,7 @@
 ## 0.3.0
 
 - Switches away from `pre-release` distribution channel. Extension remains at `preview` status.
-- Includes [Microsoft® Serial `Monitor`](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor)
+- Includes Microsoft® [Serial `Monitor`](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor)
 in extension pack.
 - Updates [README](https://marketplace.visualstudio.com/items?itemName=Arm.vscode-cmsis-debugger) with usage documentation.
 - Updates included pyOCD distribution
