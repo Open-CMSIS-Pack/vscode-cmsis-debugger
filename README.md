@@ -87,8 +87,7 @@ There are two ways to start a debug session:
    ![CMSIS view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/cmsis-view-icon.png),
    click on the **Debug** icon
    ![Debug icon in the CMSIS view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/debug-icon.png).
-   Depending on the number of configurations in your
-   `launch.json` file, you will be asked to select a configuration for the debug session.
+   The current configurations in your `launch.json` file will be used to start the debug session.
 
 2. In the **Run and debug view**
 ![Run and debug view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/run-debug-view-icon.png),
