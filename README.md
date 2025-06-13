@@ -4,54 +4,44 @@
 
 # Arm CMSIS Debugger
 
-The Arm® CMSIS Debugger is an extension pack for Visual Studio Code® that demonstrates how to combine technologies from
-various open source projects to create a comprehensive debug platform for Arm-based IoT solutions. It allows to install
-multiple separate extensions together.
+The Arm® CMSIS Debugger is a comprehensive debug platform for VS Code using the [GDB/MI protocol](https://directory.fsf.org/wiki/GDB-Machine_Interface_library) for Arm Cortex-M processor-based devices.
 
-- [Arm CMSIS Debugger](#arm-cmsis-debugger)
-    - [Included Extensions](#included-extensions)
-    - [Recommended Extensions](#recommended-extensions)
-    - [Debug Setup](#debug-setup)
-    - [Start Debugging](#start-debugging)
-    - [Flash and Run](#flash-and-run)
-    - [Run and Debug view](#run-and-debug-view)
-    - [Extension Functionality](#extension-functionality)
-    - [Known Limitations and Workarounds](#known-limitations-and-workarounds)
-    - [Related projects](#related-projects)
-    - [Trademarks](#trademarks)
+- Supports single and multi-core processor systems, optionally running a RTOS (FreeRTOS, RTX, Zephyr).
+- Interfaces to various debug adapters (CMSIS-DAP, JLink, ST-Link, ULink).
+- Can be combined with other VS Code Debug extensions, for example for Linux application debugging.
 
-## Included Extensions
+The Arm CMSIS Debugger includes [pyOCD](https://pyocd.io/) for target connection and Flash download, [GNU GDB](https://www.sourceware.org/gdb/documentation/), and adds these VS Code extensions:
 
-The following extensions are included in this extension pack:
+- [CDT™ GDB Debug Adapter Extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode) for starting applications (*launch*) or connecting to running systems (*attach*).
+- [Memory Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector) provides a powerful and configurable memory viewer.
+- [Peripheral Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector) provides a structured view to device peripheral registers during debugging.
+- [Serial Monitor](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor) to view output from and send messages to serial (UART) or TCP ports.
 
-- [CDT™ GDB Debug Adapter Extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode),
-an Eclipse CDT.cloud extension that supports debugging using GDB and any other debuggers that
-supports the MI protocol.
+This extension is [free to use](https://marketplace.visualstudio.com/items/Arm.vscode-cmsis-debugger/license) and you can install it individually or as part of the [Arm Keil® Studio Pack](https://marketplace.visualstudio.com/items?itemName=Arm.keil-studio-pack). For optimum user experience we recommend these extensions:
 
-- [Memory Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector), an Eclipse
-CDT.cloud extension that provides a powerful and configurable memory viewer that works with debug adapters.
+- [Arm CMSIS Solution](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution) a user interface for *csolution* projects that simplifies the [Run and Debug configuration](https://mdk-packs.github.io/vscode-cmsis-solution-docs/configuration.html#configure-run-and-debug).
+- [Arm Tools Environment Manager](https://marketplace.visualstudio.com/items?itemName=Arm.environment-manager) installs tools (compiler, simulation models, and utilities) for software development.
 
-- [Peripheral Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector), an
-EclipseCDT.cloud extension that provides a CMSIS SVD viewer and works with debug adapters.
+## Debugger User Interface
 
-- [Serial Monitor](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor),
-an extension that provides a serial monitor to view output from as well as send messages to serial ports.
+Most features of the CMSIS Debugger extension are exposed in the **Run and Debug** view of VS Code. The configuration for the debug adapters is provided in the file `.vscode/launch.json`. To setup this file it is recommended to use the [Run and Debug configuration](https://mdk-packs.github.io/vscode-cmsis-solution-docs/configuration.html#configure-run-and-debug) features of the Arm CMSIS Solution extension. The **Load & Debug application** action button of the CMSIS View can be used to start the CMSIS Debugger. 
 
-## Recommended Extensions
+- As an alternative use **① Start debugging** to select a configuration: _(launch)_ starts download/debug, _(attach)_ connects to a running system.
+- The **② Debug Toolbar** has buttons for the most common debugging actions that control execution.
+- The **③ Debug Statusbar** shows the configuration along with the workspace name. A color change indicates an active debug session.
 
-We recommend to install the following extensions to improve the user experience:
+![Run and Debug view](./images/RunAndDebugView.png)
 
-- [Arm Tools Environment Manager](https://marketplace.visualstudio.com/items?itemName=Arm.environment-manager), an
-extension that allows you to download, install, and manage software development tools using
-[Microsoft Vcpkg](https://vcpkg.io/en/index.html) artifacts. For example, use this extension to install the
-[Arm GNU Toolchain](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain) which comes with a GDB
-variant for Arm CPUs.
+- **Variables** shows local variables and CPU register values.
+- **Watch** allows to view user-defined expressions, for example variable values.
+- **Call Stack** shows active RTOS threads along with the call stack.
+- **Breakpoints** controls current breakpoints or lets you add breakpoints on function symbols.
 
-- [Arm CMSIS Solution](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution), an extension that
-is a graphical user interface for csolution projects that use the
-[CMSIS-Toolbox](https://open-cmsis-pack.github.io/cmsis-toolbox/). Use this extension to build your csolution
-projects, to generate `*.cbuild-run.yml` debug configuration files, and to make use of contributed commands in
-your debug launch configurations.
+[!TIP] Click on *line number batch* to navigate to the source code line.
+
+- **Open Disassembly View** from the context menu (right click) in a source file window.
+- **Debug Console** shows debug messages, lets you enter expressions or GDB commands.
+
 
 ## Debug Setup
 
