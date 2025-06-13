@@ -26,9 +26,9 @@ This extension is [free to use](https://marketplace.visualstudio.com/items/Arm.v
 
 Most features of the CMSIS Debugger extension are exposed in the **Run and Debug** view of VS Code. The configuration for the debug adapters is provided in the file `.vscode/launch.json`. To setup this file it is recommended to use the [Run and Debug configuration](https://mdk-packs.github.io/vscode-cmsis-solution-docs/configuration.html#configure-run-and-debug) features of the Arm CMSIS Solution extension. The **Load & Debug application** action button of the CMSIS View can be used to start the CMSIS Debugger. 
 
-- As an alternative use **① Start debugging** to select a configuration: _(launch)_ starts download/debug, _(attach)_ connects to a running system.
-- The **② Debug Toolbar** has buttons for the most common debugging actions that control execution.
-- The **③ Debug Statusbar** shows the configuration along with the workspace name. A color change indicates an active debug session.
+- As an alternative use ① **Start debugging** to select a configuration: _(launch)_ starts download/debug, _(attach)_ connects to a running system.
+- The ② **Debug Toolbar** has buttons for the most common debugging actions that control execution.
+- The ③ **Debug Statusbar** shows the configuration along with the workspace name. A color change indicates an active debug session.
 
 ![Run and Debug view](./images/RunAndDebugView.png)
 
@@ -38,7 +38,7 @@ Most features of the CMSIS Debugger extension are exposed in the **Run and Debug
 - **Breakpoints** controls current breakpoints or lets you add breakpoints on function symbols.
 
 > [!TIP]
-> Click on *line number batch* to navigate to the source code line.
+> Click on a *line number batch* to navigate to the source code line.
 
 - **Open Disassembly View** from the context menu (right click) in a source file window.
 - **Debug Console** shows debug messages, lets you enter expressions or GDB commands.
