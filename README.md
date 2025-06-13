@@ -37,7 +37,7 @@ Most features of the CMSIS Debugger extension are exposed in the **Run and Debug
 - **Call Stack** shows active RTOS threads along with the call stack.
 - **Breakpoints** controls current breakpoints or lets you add breakpoints on function symbols.
 
-[!TIP] Click on *line number batch* to navigate to the source code line.
+> [!TIP] Click on *line number batch* to navigate to the source code line.
 
 - **Open Disassembly View** from the context menu (right click) in a source file window.
 - **Debug Console** shows debug messages, lets you enter expressions or GDB commands.
