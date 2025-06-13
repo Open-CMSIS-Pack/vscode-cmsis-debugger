@@ -24,11 +24,16 @@ This extension is [free to use](https://marketplace.visualstudio.com/items/Arm.v
 
 ## Debugger User Interface
 
-Most features of the CMSIS Debugger extension are exposed in the **Run and Debug** view of VS Code. The configuration for the debug adapters is provided in the file `.vscode/launch.json`. To setup this file it is recommended to use the [Run and Debug configuration](https://mdk-packs.github.io/vscode-cmsis-solution-docs/configuration.html#configure-run-and-debug) features of the Arm CMSIS Solution extension. The **Load & Debug application** action button of the CMSIS View can be used to start the CMSIS Debugger. 
+Most features of the CMSIS Debugger extension are exposed in the **Run and Debug** view of VS Code. The configuration for the debug adapters is provided in the file `.vscode/launch.json`. To setup this file it is recommended to use the [Run and Debug configuration](https://mdk-packs.github.io/vscode-cmsis-solution-docs/configuration.html#configure-run-and-debug) features of the Arm CMSIS Solution extension. Action buttons in the CMSIS View interact with the CMSIS Debugger:
 
-- As an alternative use ① **Start debugging** to select a configuration: _(launch)_ starts download/debug, _(attach)_ connects to a running system.
-- The ② **Debug Toolbar** has buttons for the most common debugging actions that control execution.
-- The ③ **Debug Statusbar** shows the configuration along with the workspace name. A color change indicates an active debug session.
+- **Load & Debug application** action button of the CMSIS View can be used to start the CMSIS Debugger.
+- 
+
+**Run and Debug** view provides these features:
+
+- ① **Start debugging** selects a configuration with: _(launch)_ to start download/debug, _(attach)_ to connects with a running system.
+- ② **Debug Toolbar** has buttons for the most common debugging actions that control execution.
+- ③ **Debug Statusbar** shows the configuration along with the workspace name. A color change indicates an active debug session.
 
 ![Run and Debug view](./images/RunAndDebugView.png)
 
