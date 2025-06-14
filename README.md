@@ -22,14 +22,18 @@ This extension is [free to use](https://marketplace.visualstudio.com/items/Arm.v
 - [Arm CMSIS Solution](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution) a user interface for *csolution* projects that simplifies the [Run and Debug configuration](https://mdk-packs.github.io/vscode-cmsis-solution-docs/configuration.html#configure-run-and-debug).
 - [Arm Tools Environment Manager](https://marketplace.visualstudio.com/items?itemName=Arm.environment-manager) installs tools (compiler, simulation models, and utilities) for software development.
 
+## Debugger Configuration
+
+VS Code uses the configuration file `.vscode/launch.json` that stores several target-specific debug parameters such as debug adapter, project files, and device. The Arm CMSIS Solution automatically generates this file with all [required settings](https://mdk-packs.github.io/vscode-cmsis-solution-docs/configuration.html#configure-run-and-debug), streamlining this setup. It provides both _launch_ and _attach_ configurations; for multi-processor system each core gets an _attach_ configuration, while the start core also gets a _launch_ configuration.
+
+To start the debug system, the CMSIS Solution offers two action buttons:
+
+- **Load & Debug application** starts the CMSIS Debugger with _launch_ configuration.
+- **Load & Run application** starts GDB server; use then _attach_ configurations to connect to the running system.
+
 ## Debugger User Interface
 
-Most features of the CMSIS Debugger extension are exposed in the **Run and Debug** view of VS Code. The configuration for the debug adapters is provided in the file `.vscode/launch.json`. To setup this file it is recommended to use the [Run and Debug configuration](https://mdk-packs.github.io/vscode-cmsis-solution-docs/configuration.html#configure-run-and-debug) features of the Arm CMSIS Solution extension. Action buttons in the CMSIS View interact with the CMSIS Debugger:
-
-- **Load & Debug application** action button of the CMSIS View can be used to start the CMSIS Debugger.
-- 
-
-**Run and Debug** view provides these features:
+Most features of the CMSIS Debugger extension are exposed in the **Run and Debug** view of VS Code. 
 
 - ① **Start debugging** selects a configuration with: _(launch)_ to start download/debug, _(attach)_ to connects with a running system.
 - ② **Debug Toolbar** has buttons for the most common debugging actions that control execution.
