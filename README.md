@@ -4,20 +4,20 @@
 
 # Arm CMSIS Debugger
 
-The Arm® CMSIS Debugger is a comprehensive debug platform for VS Code using the [GDB/MI protocol](https://directory.fsf.org/wiki/GDB-Machine_Interface_library) for Arm Cortex-M processor-based devices.
+The Arm® CMSIS Debugger extension pack is a comprehensive debug platform for VS Code using the [GDB/MI protocol](https://directory.fsf.org/wiki/GDB-Machine_Interface_library) for Arm Cortex-M processor-based devices.
 
 - Supports single and multi-core processor systems, optionally running a RTOS (FreeRTOS, RTX, Zephyr).
 - Interfaces to various debug adapters (CMSIS-DAP, JLink, ST-Link, ULink).
 - Can be combined with other VS Code Debug extensions, for example for Linux application debugging.
 
-The Arm CMSIS Debugger includes [pyOCD](https://pyocd.io/) for target connection and Flash download, [GNU GDB](https://www.sourceware.org/gdb/documentation/), and adds these VS Code extensions:
+The Arm CMSIS Debugger includes [pyOCD](https://pyocd.io/) for target connection and Flash download, [GNU GDB](https://www.sourceware.org/gdb/documentation/) for core debug features, and adds these VS Code extensions:
 
 - [CDT™ GDB Debug Adapter Extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode) for starting applications (*launch*) or connecting to running systems (*attach*).
 - [Memory Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector) provides a powerful and configurable memory viewer.
 - [Peripheral Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector) provides a structured view to device peripheral registers during debugging.
 - [Serial Monitor](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor) to view output from and send messages to serial (UART) or TCP ports.
 
-This extension is [free to use](https://marketplace.visualstudio.com/items/Arm.vscode-cmsis-debugger/license) and you can install it individually or as part of the [Arm Keil® Studio Pack](https://marketplace.visualstudio.com/items?itemName=Arm.keil-studio-pack). For optimum user experience we recommend these extensions:
+This extension is [free to use](https://marketplace.visualstudio.com/items/Arm.vscode-cmsis-debugger/license) and you can install it individually or as part of the [Arm Keil® Studio pack](https://marketplace.visualstudio.com/items?itemName=Arm.keil-studio-pack). The Keil Studio pack adds for optimum user experience with the debugger these extensions:
 
 - [Arm CMSIS Solution](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution) a user interface for *csolution* projects that simplifies the [Run and Debug configuration](https://mdk-packs.github.io/vscode-cmsis-solution-docs/configuration.html#configure-run-and-debug).
 - [Arm Tools Environment Manager](https://marketplace.visualstudio.com/items?itemName=Arm.environment-manager) installs tools (compiler, simulation models, and utilities) for software development.
@@ -26,7 +26,7 @@ This extension is [free to use](https://marketplace.visualstudio.com/items/Arm.v
 
 VS Code uses the configuration file `.vscode/launch.json` that stores several target-specific debug parameters such as debug adapter, project files, and device. The Arm CMSIS Solution automatically generates this file with all [required settings](https://mdk-packs.github.io/vscode-cmsis-solution-docs/configuration.html#configure-run-and-debug), streamlining this setup. It provides both _launch_ and _attach_ configurations; for multi-processor system each core gets an _attach_ configuration, while the start core also gets a _launch_ configuration.
 
-To start the debug system, the CMSIS Solution offers two action buttons:
+To start debugging, the CMSIS Solution offers two action buttons:
 
 - **Load & Debug application** starts the CMSIS Debugger with _launch_ configuration.
 - **Load & Run application** starts GDB server; use then _attach_ configurations to connect to the running system.
@@ -41,8 +41,10 @@ Most features of the CMSIS Debugger extension are exposed in the **Run and Debug
 
 ![Run and Debug view](./images/RunAndDebugView.png)
 
-- **Variables** shows local variables and CPU register values.
-- **Watch** allows to view user-defined expressions, for example variable values.
+The **Run and Debug** view provides access to:
+
+- **Variables** which include local function variables and CPU register values.
+- **Watch** which allows to view user-defined expressions, for example variable values.
 - **Call Stack** shows active RTOS threads along with the call stack.
 - **Breakpoints** controls current breakpoints or lets you add breakpoints on function symbols.
 
