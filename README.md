@@ -73,10 +73,10 @@ During debugging, the **Debug toolbar** contains actions to control the flow of 
 
 | Action | Description |
 |--------|-------------|
-| Continue/Pause | **Continue**: Resume normal program/script execution (up to the next breakpoint).<br>**Pause**: Inspect code executing at the current line and debug line-by-line. |
-| Step Over | Execute the next method as a single command without inspecting or following its component steps. |
-| Step Into | Enter the next method to follow its execution line-by-line. |
-| Step Out | When inside a method or subroutine, return to the earlier execution context by completing remaining lines of the current method as though it were a single command. |
+| Continue/Pause | **Continue**: Resume normal program execution (up to the next breakpoint).<br>**Pause**: Inspect code executing at the current location. |
+| Step Over | Execute the next statement as a single command without inspecting or following its component steps. |
+| Step Into | Enter the next statement to follow its execution line-by-line. |
+| Step Out | When inside a function, return to the earlier execution context by completing remaining lines of the current method as though it were a single command. |
 | Restart | Terminate the current program execution and start debugging again using the current run configuration. |
 | Stop/Disconnect | **Stop**: Terminate the current debug session.<br>**Disconnect:** Detach debugger from a core without changing the execution status (running/pause). |
 | Debug Session | For multi-core devices, the list of active debug sessions and switch between them. |
@@ -107,10 +107,10 @@ You can use the Copy Value action to copy the variable's value, or the Copy as E
 
 ### CALL STACK
 
-The **CALL STACK** sections shows objects that are currently on stack. Threads are shown for applications
-that use an RTOS. Each object is associated to its location or value, and type.
+The **CALL STACK** sections shows function call tree that is currently on stack. Threads are shown for applications
+that use an RTOS. Each function call is associated to its location and when source code is available a _line number badge_ is shown. A click on this badge navigates to source file location.
 
-The window content is updated whenever program execution stops. A click on a _line number badge_ in the call stack window navigates to source file location.
+The window content is updated whenever program execution stops.
 
 ![CALL STACK section](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/call-stack-section.png)
 
