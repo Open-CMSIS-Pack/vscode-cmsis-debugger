@@ -7,7 +7,7 @@
 <!-- markdownlint-disable MD033 -->
 <!-- markdownlint-disable MD013 -->
 
-The Arm® CMSIS Debugger extension pack is a comprehensive debug platform for Arm Cortex-M processor-based devices that uses the [GDB/MI protocol](https://directory.fsf.org/wiki/GDB-Machine_Interface_library).
+The Arm® CMSIS Debugger extension pack is a comprehensive debug platform for Arm Cortex-M processor-based devices that uses the GDB/MI protocol.
 
 - Supports single and multi-core processor systems.
 - Built-in RTOS kernel support for FreeRTOS, RTX, ThreadX, and Zephyr.
