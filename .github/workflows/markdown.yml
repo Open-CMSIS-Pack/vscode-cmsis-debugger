@@ -57,9 +57,15 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
 
-      - name: Check Links
-        uses: tcort/github-action-markdown-link-check@a800ad5f1c35bf61987946fd31c15726a1c9f2ba # v1.1.0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          use-quiet-mode: 'no'
-          use-verbose-mode: 'yes'
-          config-file: '.github/markdown-link-check.jsonc'
+          node-version: '20'
+
+      - name: Install markdown-link-check
+        run: npm install --save-dev markdown-link-check
+
+      - name: Run markdown-link-check on all markdown files
+        run: |
+          npx find . -name '*.md' -not -path './node_modules/*' \
+          -exec npx markdown-link-check '{}' --config .github/markdown-link-check.jsonc -v ';'
