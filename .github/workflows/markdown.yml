@@ -60,6 +60,5 @@ jobs:
       - name: Check Links
         uses: tcort/github-action-markdown-link-check@a800ad5f1c35bf61987946fd31c15726a1c9f2ba # v1.1.0
         with:
-          use-quiet-mode: 'no'
           use-verbose-mode: 'yes'
           config-file: '.github/markdown-link-check.jsonc'
