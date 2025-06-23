@@ -28,6 +28,8 @@ jobs:
 
       - name: Checkout vscode-cmsis-debugger
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.head_ref }}
 
       - name: Register Markdownlint Warning Matcher
         run: echo "::add-matcher::.github/markdownlint.json"
@@ -52,11 +54,12 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.head_ref }}
 
       - name: Check Links
-        uses: gaurav-nelson/github-action-markdown-link-check@3c3b66f1f7d0900e37b71eca45b63ea9eedfce31 # master
+        uses: tcort/github-action-markdown-link-check@a800ad5f1c35bf61987946fd31c15726a1c9f2ba # v1.1.0
         with:
           use-quiet-mode: 'yes'
           use-verbose-mode: 'yes'
-          base-branch: ${{ github.base_ref }}
           config-file: '.github/markdown-link-check.jsonc'
