@@ -155,7 +155,6 @@ session.
 
 The following table describes the actions available in the debug toolbar:
 
-<!-- markdownlint-disable MD013 MD033 -->
 | Action | Description |
 |--------|-------------|
 | Continue/Pause (F5) | **Continue**: Resume normal program/script execution (up to the next breakpoint).<br>**Pause**: Inspect code executing at the current line and debug line-by-line. |
@@ -164,7 +163,7 @@ The following table describes the actions available in the debug toolbar:
 | Step Out (Shift + F11) | When inside a method or subroutine, return to the earlier execution context by completing remaining lines of the current method as though it were a single command. |
 | Restart (Shift + Ctrl/Cmd + F5) | Terminate the current program execution and start debugging again using the current run configuration. |
 | Stop (Shift + F5) | Terminate the current program execution. |
-<!-- markdownlint-enable MD013 MD033 -->
+
 If your debugging sessions involve multiple targets (for example, a multi-core device), the debug toolbar shows the
 list of sessions and lets you switch between them.
 
