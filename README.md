@@ -413,7 +413,7 @@ value.
 
 - If option `target`>`server` is set to `pyocd`, then it expands to the absolute path of
  the built-in pyOCD distribution.
-- If option `target`>`server` contains `pyocd`, then the `target`>`serverParameters` list
+- If option `target`>`server` contains `pyocd`, then it extends the `target`>`serverParameters` list
 of `pyocd` command line arguments:
     - Prepends `gdbserver` if not present.
     - Appends `--port <gdbserver_port>` if the `target`>`port` setting is set, where `<gdbserver_port>` gets
@@ -426,7 +426,7 @@ of `pyocd` command line arguments:
 
 #### J-LINK
 
-- If option `target`>`server` contains `JLinkGDBServer` or `JLinkGDBServerCL`, then the
+- If option `target`>`server` contains `JLinkGDBServer` or `JLinkGDBServerCL`, then it extends the
 `target`>`serverParameters` list of `JLinkGDBServer`/`JLinkGDBServerCL` command line arguments:
     - Appends `--port <gdbserver_port>` if the `target`>`port` setting is set, where `<gdbserver_port>` gets that
     port setting's value.
