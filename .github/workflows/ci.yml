@@ -16,6 +16,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# this is a dummy change
 permissions:
   contents: read
 
