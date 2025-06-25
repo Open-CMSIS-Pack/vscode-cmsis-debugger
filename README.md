@@ -4,8 +4,6 @@
 
 # Arm CMSIS Debugger
 
-<!-- markdownlint-disable MD033 -->
-<!-- markdownlint-disable MD013 -->
 
 The Arm® CMSIS Debugger extension pack is a comprehensive debug platform for Arm Cortex-M processor-based devices that uses the GDB/MI protocol.
 
