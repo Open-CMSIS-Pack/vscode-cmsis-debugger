@@ -277,41 +277,18 @@ The [Serial Monitor](https://learn.microsoft.com/en-us/cpp/embedded/serial-monit
 
 ## Extension Functionality
 
-This extension contributes additional functionality to work seamlessly with other extensions.
+This extension adds functionality to work seamlessly with other extensions.
 
 - A [debug configuration provider](https://code.visualstudio.com/api/references/vscode-api#DebugConfigurationProvider)
 for the type `gdbtarget` which comes with the [CDT GDB Debug Adapter Extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode).
-This provider automatically fills in default values for known remote GDB servers when launching a debug session.
+This provider manages the use of tools shipped with the extension:
+  - If option `target`>`server` is set to `pyocd`, then it expands to the absolute path of the built-in pyOCD distribution.
 - CMSIS specific _launch_ configuration items for the `*` debugger type, i.e. visible for all debugger types.
 It depends on the actually used debug adapter type if this information is known and utilized.
-
-### Debug Configuration Provider
-
-The extension contributes a debug configuration provider which automatically fills gaps in a `gdbtarget`
-debug launch configuration on debug launch. The exact functionality depends on the used `target`>`server`
-value.
-
-#### pyOCD
-
-- If option `target`>`server` is set to `pyocd`, then it expands to the absolute path of
- the built-in pyOCD distribution.
-- If option `target`>`server` contains `pyocd`, then it extends the `target`>`serverParameters` list
-of `pyocd` command line arguments:
-    - Prepends `gdbserver` if not present.
-    - Appends `--port <gdbserver_port>` if the `target`>`port` setting is set, where `<gdbserver_port>` gets
-    that port setting's value.
-    - Appends `--cbuild-run` and the corresponding `cbuildRunFile` path if `cmsis`>`cbuildRunFile` is set.
 
 > 📝 **Note:**  
 > The built-in version of pyOCD supports the command line option `--cbuild-run` which isn't available
 > in releases outside this extension.
-
-#### J-LINK
-
-- If option `target`>`server` contains `JLinkGDBServer` or `JLinkGDBServerCL`, then it extends the
-`target`>`serverParameters` list of `JLinkGDBServer`/`JLinkGDBServerCL` command line arguments:
-    - Appends `--port <gdbserver_port>` if the `target`>`port` setting is set, where `<gdbserver_port>` gets that
-    port setting's value.
 
 ## Known Limitations and Workarounds
 
