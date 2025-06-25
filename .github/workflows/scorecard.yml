@@ -10,6 +10,8 @@ on:
     - cron: '0 0 * * *'
   push:
     branches: [ "main" ]
+    paths-ignore:
+      - '**/*.md'
 
 permissions:
   contents: read

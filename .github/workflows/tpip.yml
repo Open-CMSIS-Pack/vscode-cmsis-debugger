@@ -7,9 +7,9 @@ on:
       - docs/third-party-licenses.json
       - docs/tpip-header.md
       - scripts/tpip-reporter.ts
+      - '!**/*.md'
     branches:
       - main
-    
   workflow_dispatch:
 
 concurrency:
