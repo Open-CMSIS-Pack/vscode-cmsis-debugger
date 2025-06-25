@@ -48,134 +48,6 @@
   "contributes": {
     "debuggers": [
       {
-        "type": "cmsis-debug-pyocd",
-        "label": "CMSIS Debugger (pyOCD)",
-        "initialConfigurations": [
-          {
-            "name": "CMSIS Debugger: pyOCD",
-            "type": "gdbtarget",
-            "request": "launch",
-            "cwd": "${workspaceFolder}",
-            "program": "${command:cmsis-csolution.getBinaryFile}",
-            "gdb": "arm-none-eabi-gdb",
-            "initCommands": [
-              "load",
-              "tbreak main"
-            ],
-            "target": {
-              "server": "pyocd",
-              "port": "3333"
-            },
-            "cmsis": {
-              "cbuildRunFile": "${command:cmsis-csolution.getCbuildRunFile}"
-            }
-          }
-        ],
-        "configurationSnippets": [
-          {
-            "label": "CMSIS Debugger: pyOCD",
-            "description": "CMSIS Debugger via pyOCD GDB adapter.",
-            "body": {
-              "name": "CMSIS Debugger: pyOCD",
-              "type": "gdbtarget",
-              "request": "launch",
-              "cwd": "^\"\\${workspaceFolder}\"",
-              "program": "^\"\\${command:cmsis-csolution.getBinaryFile}\"",
-              "gdb": "arm-none-eabi-gdb",
-              "initCommands": [
-                "load",
-                "tbreak main"
-              ],
-              "target": {
-                "server": "pyocd",
-                "port": "3333"
-              },
-              "cmsis": {
-                "cbuildRunFile": "^\"\\${command:cmsis-csolution.getCbuildRunFile}\""
-              }
-            }
-          }
-        ]
-      },
-      {
-        "type": "cmsis-debug-jlink",
-        "label": "CMSIS Debugger (J-LINK)",
-        "initialConfigurations": [
-          {
-            "name": "CMSIS Debugger: J-LINK",
-            "type": "gdbtarget",
-            "request": "launch",
-            "cwd": "${workspaceFolder}",
-            "program": "${command:cmsis-csolution.getBinaryFile}",
-            "gdb": "arm-none-eabi-gdb",
-            "initCommands": [
-              "load",
-              "tbreak main"
-            ],
-            "target": {
-              "server": "JLinkGDBServer",
-              "serverParameters": [
-                "-device",
-                "${command:cmsis-csolution.getDeviceName}",
-                "-endian",
-                "little",
-                "-if",
-                "SWD",
-                "-speed",
-                "auto",
-                "-noir",
-                "-vd",
-                "-nogui",
-                "-localhostonly"
-              ],
-              "port": "3333"
-            },
-            "cmsis": {
-              "cbuildRunFile": "${command:cmsis-csolution.getCbuildRunFile}"
-            }
-          }
-        ],
-        "configurationSnippets": [
-          {
-            "label": "CMSIS Debugger: J-LINK",
-            "description": "CMSIS Debugger via J-LINK GDB adapter.",
-            "body": {
-              "name": "CMSIS Debugger: J-LINK",
-              "type": "gdbtarget",
-              "request": "launch",
-              "cwd": "^\"\\${workspaceFolder}\"",
-              "program": "^\"\\${command:cmsis-csolution.getBinaryFile}\"",
-              "gdb": "arm-none-eabi-gdb",
-              "initCommands": [
-                "load",
-                "tbreak main"
-              ],
-              "target": {
-                "server": "JLinkGDBServer",
-                "serverParameters": [
-                  "-device",
-                  "^\"\\${command:cmsis-csolution.getDeviceName}\"",
-                  "-endian",
-                  "little",
-                  "-if",
-                  "SWD",
-                  "-speed",
-                  "auto",
-                  "-noir",
-                  "-vd",
-                  "-nogui",
-                  "-localhostonly"
-                ],
-                "port": "3333"
-              },
-              "cmsis": {
-                "cbuildRunFile": "^\"\\${command:cmsis-csolution.getCbuildRunFile}\""
-              }
-            }
-          }
-        ]
-      },
-      {
         "type": "*",
         "configurationAttributes": {
           "launch": {
@@ -233,32 +105,32 @@
     "yaml": "^2.8.0"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.14",
-    "@types/node": "^20.17.57",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.19.1",
     "@types/node-fetch": "^2.6.12",
     "@types/vscode": "^1.63.0",
     "@types/yargs": "^17.0.33",
     "@types/yarnpkg__lockfile": "^1.1.9",
-    "@typescript-eslint/eslint-plugin": "^8.32.1",
-    "@typescript-eslint/parser": "^8.33.0",
-    "@vscode/vsce": "^3.4.2",
+    "@typescript-eslint/eslint-plugin": "^8.33.1",
+    "@typescript-eslint/parser": "^8.34.0",
+    "@vscode/vsce": "^3.5.0",
     "@yarnpkg/lockfile": "^1.1.0",
-    "eslint": "^9.28.0",
+    "eslint": "^9.29.0",
     "extract-zip": "^2.0.1",
     "globby": "^14.1.0",
-    "jest": "^29.7.0",
+    "jest": "^30.0.2",
     "markdownlint-cli": "^0.45.0",
     "markdown-link-check": "^3.13.7",
     "node-fetch": "^3.3.2",
     "octokit": "^5.0.3",
     "tempfile": "^5.0.0",
     "ts-command-line-args": "^2.5.1",
-    "ts-jest": "29.3.4",
+    "ts-jest": "29.4.0",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "type-fest": "^4.41.0",
     "typescript": "^5.8.3",
-    "typescript-eslint": "8.33.0",
+    "typescript-eslint": "8.34.1",
     "vscode-uri": "^3.1.0",
     "webpack": "^5.99.9",
     "webpack-cli": "^6.0.1",

@@ -1,5 +1,14 @@
 # Change Log
 
+## Unreleased
+
+- Removes pseudo debugger types `cmsis-debug-pyocd` and `cmsis-debug-jlink`.
+CMSIS debug launch configurations and tasks are managed by
+[Arm CMSIS Solution extension](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution)
+since v1.54.0.  
+If you need to manually set up a `gdbtarget` connection, then refer to
+[CDT GDB Adapter extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode).
+
 ## 0.3.1
 
 - Fixed image links in [README](https://marketplace.visualstudio.com/items?itemName=Arm.vscode-cmsis-debugger).
