@@ -396,32 +396,24 @@ application is run with the `> continue` command.
 
 This extension contributes additional functionality to work seamlessly with other extensions.
 
-- The pseudo debugger types `cmsis-debug-pyocd` and `cmsis-debug-jlink`. These types allow a more seamless
-integration into your IDE. However, these are not full debug adapters but generate debug configurations of
-type `gdbtarget` which comes with the [CDT GDB Debug Adapter Extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode).
 - A [debug configuration provider](https://code.visualstudio.com/api/references/vscode-api#DebugConfigurationProvider)
 for the type `gdbtarget` which comes with the [CDT GDB Debug Adapter Extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode).
 This provider automatically fills in default values for known remote GDB servers when launching a debug session.
 - CMSIS specific launch configuration items for the `*` debugger type, i.e. visible for all debugger types.
 It depends on the actually used debug adapter type if this information is known and utilized.
 
-### Pseudo Debugger Types
+### Debug Configuration Provider
 
-This section describes the contributed pseudo debugger types and their support through the contributed debug
-configuration provider for type `gdbtarget`.
+The extension contributes a debug configuration provider which automatically fills gaps in a `gdbtarget`
+debug launch configuration on debug launch. The exact functionality depends on the used `target`>`server`
+value.
 
-#### CMSIS Debugger (pyOCD) - `cmsis-debug-pyocd`
-
-The `cmsis-debug-pyocd` debugger type is used to add a debug configuration in the
-`launch.json` file for debugging with GDB and pyOCD.  
-This configuration uses the `gdbtarget` debugger type registered by the CDT GDB Debug Adapter Extension.
-
-Additionally, the extension contributes a debug configuration resolver which automatically fills
-the following gaps during debug launch:
+#### pyOCD
 
 - If option `target`>`server` is set to `pyocd`, then it expands to the absolute path of
  the built-in pyOCD distribution.
-- Extends the `target`>`serverParameters` list of `pyocd` command line arguments:
+- If option `target`>`server` contains `pyocd`, then it extends the `target`>`serverParameters` list
+of `pyocd` command line arguments:
     - Prepends `gdbserver` if not present.
     - Appends `--port <gdbserver_port>` if the `target`>`port` setting is set, where `<gdbserver_port>` gets
     that port setting's value.
@@ -431,24 +423,10 @@ the following gaps during debug launch:
 > The built-in version of pyOCD supports the command line option `--cbuild-run` which isn't available
 > in releases outside this extension.
 
-#### CMSIS Debugger (J-LINK) - `cmsis-debug-jlink`
+#### J-LINK
 
-The `cmsis-debug-jlink` debugger type is used to add a debug configuration in the launch.json file for debug
-with GDB and the SEGGER J-LINK GDB server.  
-This configuration uses the `gdbtarget` debugger type registered by the CDT GDB Debug Adapter Extension.
-
-> 📝 **Note:**  
-> The generated default debug configuration uses the value `JLinkGDBServer` as `target`>`server` setting.
-> This executable has differing behavior on supported host platform:
-
-- Linux and macOS: A GUI-less version of the GDB server is launched.
-- Windows®: A GDB server with GUI is launched. Update `target`>`server` to `JLinkGDBServerCL` to launch a
- GUI-less version on Windows, too.
-
-Additionally, the extension contributes a debug configuration resolver which automatically fills the following
-gaps during debug launch:
-
-- Extends the `target`>`serverParameters` list of `JLinkGDBServer`/`JLinkGDBServerCL` command line arguments:
+- If option `target`>`server` contains `JLinkGDBServer` or `JLinkGDBServerCL`, then it extends the
+`target`>`serverParameters` list of `JLinkGDBServer`/`JLinkGDBServerCL` command line arguments:
     - Appends `--port <gdbserver_port>` if the `target`>`port` setting is set, where `<gdbserver_port>` gets that
     port setting's value.
 
