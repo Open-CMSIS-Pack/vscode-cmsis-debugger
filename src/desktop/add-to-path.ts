@@ -34,6 +34,8 @@ export function addToolToPath(context: vscode.ExtensionContext, toolToAdd: strin
     const updatePath = `${pathTool}${delimiter}`;
     // get current environment variable collection
     const mutator = context.environmentVariableCollection.get('PATH');
+    // Path included and previously used type was 'Prepend'. Change mutator
+    // if other type (we previously used 'Replace' which caused trouble).
     if (mutator?.type === vscode.EnvironmentVariableMutatorType.Prepend && mutator?.value.includes(updatePath)) {
         // Nothing to update
         return;
