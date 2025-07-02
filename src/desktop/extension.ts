@@ -20,8 +20,7 @@ import { GDBTargetConfigurationProvider } from '../debug-configuration';
 import { logger } from '../logger';
 import { addPyocdToPath } from './add-to-path';
 import { EXTENSION_NAME } from '../manifest';
-import { promisify } from 'util';
-import { execFile } from 'child_process';
+import { spawn } from 'child_process';
 
 export const activate = async (context: vscode.ExtensionContext): Promise<void> => {
     const gdbtargetDebugTracker = new GDBTargetDebugTracker();
@@ -36,27 +35,66 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand(`${EXTENSION_NAME}.getGdbVersion`, async () => {
         const execPath = 'arm-none-eabi-gdb';
         const execArgs = ['--version'];
-        const { stdout, stderr } = await promisify(execFile)(
-            execPath,
-            execArgs,
-            { cwd: process.cwd(), env: process.env }
-        );
-        logger.warn(`Called '${execPath} ${execArgs.join(' ')}'`);
-        logger.warn(`\t stdout: ${stdout}`);
-        logger.warn(`\t stderr: ${stderr}`);
+        const { stdout, stderr } = await new Promise<{ stdout: string, stderr: string}>((resolve, reject) => {
+            const childProcess = spawn(
+                execPath,
+                execArgs,
+                {
+                    cwd: process.cwd(),
+                    env: process.env,
+                    stdio: ['ignore', 'pipe', 'pipe'],
+                }
+            );
+
+            if (!childProcess || !childProcess.stdout || !childProcess.stderr) {
+                reject('Cannot properly launch child process');
+                return;
+            }
+            let stdout = '', stderr = '';
+            childProcess.stdout.on('data', data => stdout += data.toString());
+            childProcess.stderr.on('data', data => stderr += data.toString());
+            childProcess.on('error', err => reject(`Error: ${(err as Error).message}`));
+            childProcess.on('exit', (_code, _signal) => resolve({ stdout, stderr }));
+        });
+        logger.warn(`Spawned '${execPath} ${execArgs.join(' ')}'`);
+        logger.warn(`\t stdout (${stdout.length}):`);
+        logger.warn(`\t\t ${stdout}`);
+        logger.warn(`\t stderr (${stderr.length}):`);
+        logger.warn(`\t\t ${stderr}`);
     });
+
 
     vscode.commands.registerCommand(`${EXTENSION_NAME}.getGdbVersionShell`, async () => {
         const execPath = 'arm-none-eabi-gdb';
         const execArgs = ['--version'];
-        const { stdout, stderr } = await promisify(execFile)(
-            execPath,
-            execArgs,
-            { cwd: process.cwd(), env: process.env, shell: true }
-        );
-        logger.warn(`Called (via shell) '${execPath} ${execArgs.join(' ')}'`);
-        logger.warn(`\t stdout: ${stdout}`);
-        logger.warn(`\t stderr: ${stderr}`);
+        const { stdout, stderr } = await new Promise<{ stdout: string, stderr: string}>((resolve, reject) => {
+            const childProcess = spawn(
+                execPath,
+                execArgs,
+                {
+                    cwd: process.cwd(),
+                    env: process.env,
+                    stdio: ['ignore', 'pipe', 'pipe'],
+                    shell: true,
+                    windowsHide: true
+                }
+            );
+
+            if (!childProcess || !childProcess.stdout || !childProcess.stderr) {
+                reject('Cannot properly launch child process');
+                return;
+            }
+            let stdout = '', stderr = '';
+            childProcess.stdout.on('data', data => stdout += data.toString());
+            childProcess.stderr.on('data', data => stderr += data.toString());
+            childProcess.on('error', err => reject(`Error: ${(err as Error).message}`));
+            childProcess.on('exit', (_code, _signal) => resolve({ stdout, stderr }));
+        });
+        logger.warn(`Spawned (with shell) '${execPath} ${execArgs.join(' ')}'`);
+        logger.warn(`\t stdout (${stdout.length}):`);
+        logger.warn(`\t\t ${stdout}`);
+        logger.warn(`\t stderr (${stderr.length}):`);
+        logger.warn(`\t\t ${stderr}`);
     });
 
     logger.debug('Extension Pack activated');
