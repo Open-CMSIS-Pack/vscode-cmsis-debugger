@@ -66,6 +66,26 @@
     },
     "commands": [
       {
+        "command": "vscode-cmsis-debugger.getGdbVersionSpawn",
+        "title": "Get GDB Version (TEST) - Spawn",
+        "category": "test"
+      },
+      {
+        "command": "vscode-cmsis-debugger.getGdbVersionShellSpawn",
+        "title": "Get GDB Version via Shell (TEST) - Spawn",
+        "category": "test"
+      },
+      {
+        "command": "vscode-cmsis-debugger.getGdbVersionExecFile",
+        "title": "Get GDB Version (TEST) - ExecFile",
+        "category": "test"
+      },
+      {
+        "command": "vscode-cmsis-debugger.getGdbVersionShellExecFile",
+        "title": "Get GDB Version via Shell (TEST) - ExecFile",
+        "category": "test"
+      },
+      {
         "title": "CPU Time",
         "shortTitle": "CPU Time",
         "command": "vscode-cmsis-debugger.showCpuTimeHistory",
@@ -158,6 +178,18 @@
         }
       ],
       "commandPalette": [
+        {
+          "command": "vscode-cmsis-debugger.getGdbVersionSpawn"
+        },
+        {
+          "command": "vscode-cmsis-debugger.getGdbVersionShellSpawn"
+        },
+        {
+          "command": "vscode-cmsis-debugger.getGdbVersionExecFile"
+        },
+        {
+          "command": "vscode-cmsis-debugger.getGdbVersionShellExecFile"
+        },
         {
           "command": "vscode-cmsis-debugger.showCpuTimeHistory",
           "when": "inDebugMode"
