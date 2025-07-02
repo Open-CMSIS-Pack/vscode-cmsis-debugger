@@ -46,6 +46,28 @@
     "onStartupFinished"
   ],
   "contributes": {
+    "commands": [
+      {
+        "command": "vscode-cmsis-debugger.getGdbVersion",
+        "title": "Get GDB Version (TEST)",
+        "category": "test"
+      },
+      {
+        "command": "vscode-cmsis-debugger.getGdbVersionShell",
+        "title": "Get GDB Version via Shell (TEST)",
+        "category": "test"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "vscode-cmsis-debugger.getGdbVersion"
+        },
+        {
+          "command": "vscode-cmsis-debugger.getGdbVersionShell"
+        }
+      ]
+    },
     "debuggers": [
       {
         "type": "*",

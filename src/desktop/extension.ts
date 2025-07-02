@@ -19,6 +19,9 @@ import { GDBTargetDebugTracker } from '../debug-configuration/gdbtarget-debug-tr
 import { GDBTargetConfigurationProvider } from '../debug-configuration';
 import { logger } from '../logger';
 import { addPyocdToPath } from './add-to-path';
+import { EXTENSION_NAME } from '../manifest';
+import { promisify } from 'util';
+import { execFile } from 'child_process';
 
 export const activate = async (context: vscode.ExtensionContext): Promise<void> => {
     const gdbtargetDebugTracker = new GDBTargetDebugTracker();
@@ -28,6 +31,33 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     // Activate components
     gdbtargetDebugTracker.activate(context);
     gdbtargetConfigurationProvider.activate(context);
+
+
+    vscode.commands.registerCommand(`${EXTENSION_NAME}.getGdbVersion`, async () => {
+        const execPath = 'arm-none-eabi-gdb';
+        const execArgs = ['--version'];
+        const { stdout, stderr } = await promisify(execFile)(
+            execPath,
+            execArgs,
+            { cwd: process.cwd(), env: process.env }
+        );
+        logger.warn(`Called '${execPath} ${execArgs.join(' ')}'`);
+        logger.warn(`\t stdout: ${stdout}`);
+        logger.warn(`\t stderr: ${stderr}`);
+    });
+
+    vscode.commands.registerCommand(`${EXTENSION_NAME}.getGdbVersionShell`, async () => {
+        const execPath = 'arm-none-eabi-gdb';
+        const execArgs = ['--version'];
+        const { stdout, stderr } = await promisify(execFile)(
+            execPath,
+            execArgs,
+            { cwd: process.cwd(), env: process.env, shell: true }
+        );
+        logger.warn(`Called (via shell) '${execPath} ${execArgs.join(' ')}'`);
+        logger.warn(`\t stdout: ${stdout}`);
+        logger.warn(`\t stderr: ${stderr}`);
+    });
 
     logger.debug('Extension Pack activated');
 };
