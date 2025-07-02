@@ -18,14 +18,17 @@ import * as vscode from 'vscode';
 import { GDBTargetDebugTracker } from '../debug-configuration/gdbtarget-debug-tracker';
 import { GDBTargetConfigurationProvider } from '../debug-configuration';
 import { logger } from '../logger';
-import { addPyocdToPath, addGdbToPath } from './add-to-path';
+import { addToolToPath } from './add-to-path';
+
+const PYOCD_BUILTIN_PATH = 'tools/pyocd/pyocd';
+const GDB_BUILTIN_PATH = 'tools/gdb/gdb';
 
 export const activate = async (context: vscode.ExtensionContext): Promise<void> => {
     const gdbtargetDebugTracker = new GDBTargetDebugTracker();
     const gdbtargetConfigurationProvider = new GDBTargetConfigurationProvider();
 
-    addPyocdToPath(context);
-    addGdbToPath(context);
+    addToolToPath(context, PYOCD_BUILTIN_PATH);
+    addToolToPath(context, GDB_BUILTIN_PATH);
     // Activate components
     gdbtargetDebugTracker.activate(context);
     gdbtargetConfigurationProvider.activate(context);

@@ -15,7 +15,7 @@
  */
 
 import * as vscode from 'vscode';
-import { addPyocdToPath } from './add-to-path';
+import { addToolToPath } from './add-to-path';
 import { BuiltinToolPath } from './builtin-tool-path';
 import { extensionContextFactory } from '../__test__/vscode.factory';
 import { isWindows } from '../utils';
@@ -24,7 +24,7 @@ jest.mock('./builtin-tool-path');
 const pathPyOCD = 'tools/pyocd/pyocd';
 const BuiltinToolPathMock = BuiltinToolPath as jest.MockedClass<typeof BuiltinToolPath>;
 
-describe('addPyocdToPath', () => {
+describe('addToolToPath', () => {
     let extensionMock: vscode.ExtensionContext;
     beforeEach(() => {
         extensionMock = extensionContextFactory();
@@ -46,7 +46,7 @@ describe('addPyocdToPath', () => {
             value: 'pathPyOCD'
         });
 
-        addPyocdToPath(extensionMock);
+        addToolToPath(extensionMock, pathPyOCD);
 
         expect(extensionMock.environmentVariableCollection.prepend).toHaveBeenCalledWith('PATH', expect.stringContaining(pathPyOCD));
     });
@@ -58,7 +58,7 @@ describe('addPyocdToPath', () => {
 
         BuiltinToolPathMock.mockImplementation(() => mockInstance);
 
-        addPyocdToPath(extensionMock);
+        addToolToPath(extensionMock, pathPyOCD);
 
         expect(extensionMock.environmentVariableCollection.prepend).not.toHaveBeenCalled();
     });
@@ -75,7 +75,7 @@ describe('addPyocdToPath', () => {
             value: `/already/included/path${isWindows ? ';' : ':'}`
         });
 
-        addPyocdToPath(extensionMock);
+        addToolToPath(extensionMock, pathPyOCD);
 
         expect(extensionMock.environmentVariableCollection.prepend).not.toHaveBeenCalled();
     });
