@@ -20,19 +20,19 @@ import { logger } from '../logger';
 import { isWindows } from '../utils';
 import { BuiltinToolPath } from './builtin-tool-path';
 
-const PYOCD_BUILTIN_PATH = 'tools/pyocd/pyocd';
-
-export function addPyocdToPath(context: vscode.ExtensionContext): void {
-    //get pyOCD path from tools folder
-    const builtinPyocd = new BuiltinToolPath(PYOCD_BUILTIN_PATH);
-    const pathPyOCD = builtinPyocd.getAbsolutePathDir();
-    if (!pathPyOCD) {
-        logger.debug('pyOCD is not available');
+export function addToolToPath(context: vscode.ExtensionContext, toolToAdd: string): void {
+    // get gdb path from tools folder
+    const builtinTool = new BuiltinToolPath(toolToAdd);
+    const pathTool = builtinTool.getAbsolutePathDir();
+    // check if path exists
+    if (!pathTool) {
+        logger.debug(`${toolToAdd} is not available`);
         return;
     }
+    // add a delimiter and prepare gdb path to be added to PATH variable
     const delimiter = isWindows ? ';' : ':';
-    const updatePath = `${pathPyOCD}${delimiter}`;
-    //get current environment variable collection
+    const updatePath = `${pathTool}${delimiter}`;
+    // get current environment variable collection
     const mutator = context.environmentVariableCollection.get('PATH');
     // Path included and previously used type was 'Prepend'. Change mutator
     // if other type (we previously used 'Replace' which caused trouble).
@@ -43,3 +43,4 @@ export function addPyocdToPath(context: vscode.ExtensionContext): void {
     //add updated path to PATH variable, but only for the terminal inside of vscode
     context.environmentVariableCollection.prepend('PATH', updatePath);
 }
+
