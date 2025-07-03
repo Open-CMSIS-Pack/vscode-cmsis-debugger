@@ -20,9 +20,12 @@ import { GDBTargetConfigurationProvider } from '../debug-configuration';
 import { logger } from '../logger';
 import { addToolToPath } from './add-to-path';
 import { EXTENSION_NAME } from '../manifest';
-import { spawn } from 'child_process';
+import { execFile, spawn } from 'child_process';
+import { promisify } from 'util';
 
 const PYOCD_BUILTIN_PATH = 'tools/pyocd/pyocd';
+
+type CodeType = number | NodeJS.Signals | null;
 
 export const activate = async (context: vscode.ExtensionContext): Promise<void> => {
     const gdbtargetDebugTracker = new GDBTargetDebugTracker();
@@ -33,11 +36,9 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     gdbtargetDebugTracker.activate(context);
     gdbtargetConfigurationProvider.activate(context);
 
-
-    vscode.commands.registerCommand(`${EXTENSION_NAME}.getGdbVersion`, async () => {
-        const execPath = 'arm-none-eabi-gdb';
-        const execArgs = ['--version'];
-        const { stdout, stderr } = await new Promise<{ stdout: string, stderr: string}>((resolve, reject) => {
+    const runExecSpawn = async (execPath: string, extHeadline: string, args: string[] = [], shell?: boolean) => {
+        const execArgs = args;
+        const { stdout, stderr, exitCode } = await new Promise<{ stdout: string, stderr: string, exitCode: CodeType }>((resolve, reject) => {
             const childProcess = spawn(
                 execPath,
                 execArgs,
@@ -45,7 +46,9 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
                     cwd: process.cwd(),
                     env: process.env,
                     stdio: ['ignore', 'pipe', 'pipe'],
-                }
+                    shell,
+                    windowsHide: shell
+                },
             );
 
             if (!childProcess || !childProcess.stdout || !childProcess.stderr) {
@@ -53,50 +56,84 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
                 return;
             }
             let stdout = '', stderr = '';
-            childProcess.stdout.on('data', data => stdout += data.toString());
-            childProcess.stderr.on('data', data => stderr += data.toString());
+            let exitCode: CodeType = null;
+            childProcess.stdout.on('data', data => {
+                stdout += data.toString();
+            });
+            childProcess.stderr.on('data', data => {
+                stderr += data.toString();
+            });
             childProcess.on('error', err => reject(`Error: ${(err as Error).message}`));
-            childProcess.on('exit', (_code, _signal) => resolve({ stdout, stderr }));
+            childProcess.on('exit', (code, signal) => {
+                exitCode = code !== null ? code : signal;
+                logger.warn(`\t Killed: ${childProcess.killed}`);
+                logger.warn(`\t stdout errored?: ${childProcess.stdout.errored === null ? '' : (childProcess.stdout.errored as Error).message}`);
+                logger.warn(`\t stderr errored?: ${childProcess.stderr.errored === null ? '' : (childProcess.stderr.errored as Error).message}`);
+                resolve({ stdout, stderr, exitCode });
+            });
+
+            logger.warn(`Spawned ${extHeadline}'${execPath} ${execArgs.join(' ')}'`);
+            logger.warn(`\t spawnfile: ${childProcess.spawnfile}`);
+            logger.warn(`\t spawnargs: ${childProcess.spawnargs}`);
         });
-        logger.warn(`Spawned '${execPath} ${execArgs.join(' ')}'`);
+        logger.warn(`\t Exited with ${typeof exitCode === 'number' ? 'exit code' : 'signal'} ${exitCode}`);
         logger.warn(`\t stdout (${stdout.length}):`);
         logger.warn(`\t\t ${stdout}`);
         logger.warn(`\t stderr (${stderr.length}):`);
         logger.warn(`\t\t ${stderr}`);
+    };
+
+    const runExecExecFile = async (execPath: string, extHeadline: string, args: string[] = [], shell?: boolean) => {
+        const execArgs = args;
+        const { stdout, stderr } = await promisify(execFile)(
+            execPath,
+            execArgs,
+            { cwd: process.cwd(), env: process.env, shell }
+        );
+        logger.warn(`ExecFiled ${extHeadline}'${execPath} ${execArgs.join(' ')}'`);
+        logger.warn(`\t stdout (${stdout.length}):`);
+        logger.warn(`\t\t ${stdout}`);
+        logger.warn(`\t stderr (${stderr.length}):`);
+        logger.warn(`\t\t ${stderr}`);
+    };
+
+
+    vscode.commands.registerCommand(`${EXTENSION_NAME}.getGdbVersionSpawn`, async () => {
+        await runExecSpawn('arm-none-eabi-gdb', '', ['--version']);
+        await runExecSpawn('cbuild', '', ['--version']);
+        // await runExecSpawn('pyocd', '', ['--version']);
+        await runExecSpawn('where', '', ['arm-none-eabi-gdb']);
+        await runExecSpawn('where', '', ['cbuild']);
+        // await runExecSpawn('where', '', ['pyocd']);
     });
 
 
-    vscode.commands.registerCommand(`${EXTENSION_NAME}.getGdbVersionShell`, async () => {
-        const execPath = 'arm-none-eabi-gdb';
-        const execArgs = ['--version'];
-        const { stdout, stderr } = await new Promise<{ stdout: string, stderr: string}>((resolve, reject) => {
-            const childProcess = spawn(
-                execPath,
-                execArgs,
-                {
-                    cwd: process.cwd(),
-                    env: process.env,
-                    stdio: ['ignore', 'pipe', 'pipe'],
-                    shell: true,
-                    windowsHide: true
-                }
-            );
+    vscode.commands.registerCommand(`${EXTENSION_NAME}.getGdbVersionShellSpawn`, async () => {
+        await runExecSpawn('arm-none-eabi-gdb', '(via shell) ', ['--version'], true);
+        await runExecSpawn('cbuild', '(via shell) ', ['--version'], true);
+        // await runExecSpawn('pyocd', '(via shell) ', ['--version'], true);
+        await runExecSpawn('where', '(via shell) ', ['arm-none-eabi-gdb'], true);
+        await runExecSpawn('where', '(via shell) ', ['cbuild'], true);
+        // await runExecSpawn('where', '(via shell) ', ['pyocd'], true);
+    });
 
-            if (!childProcess || !childProcess.stdout || !childProcess.stderr) {
-                reject('Cannot properly launch child process');
-                return;
-            }
-            let stdout = '', stderr = '';
-            childProcess.stdout.on('data', data => stdout += data.toString());
-            childProcess.stderr.on('data', data => stderr += data.toString());
-            childProcess.on('error', err => reject(`Error: ${(err as Error).message}`));
-            childProcess.on('exit', (_code, _signal) => resolve({ stdout, stderr }));
-        });
-        logger.warn(`Spawned (with shell) '${execPath} ${execArgs.join(' ')}'`);
-        logger.warn(`\t stdout (${stdout.length}):`);
-        logger.warn(`\t\t ${stdout}`);
-        logger.warn(`\t stderr (${stderr.length}):`);
-        logger.warn(`\t\t ${stderr}`);
+    vscode.commands.registerCommand(`${EXTENSION_NAME}.getGdbVersionExecFile`, async () => {
+        await runExecExecFile('arm-none-eabi-gdb', '', ['--version']);
+        await runExecExecFile('cbuild', '', ['--version']);
+        // await runExecExecFile('pyocd', '', ['--version']);
+        await runExecExecFile('where', '', ['arm-none-eabi-gdb']);
+        await runExecExecFile('where', '', ['cbuild']);
+        // await runExecExecFile('where', '', ['pyocd']);
+    });
+
+
+    vscode.commands.registerCommand(`${EXTENSION_NAME}.getGdbVersionShellExecFile`, async () => {
+        await runExecExecFile('arm-none-eabi-gdb', '(via shell) ', ['--version'], true);
+        await runExecExecFile('cbuild', '(via shell) ', ['--version'], true);
+        // await runExecExecFile('pyocd', '(via shell) ', ['--version'], true);
+        await runExecExecFile('where', '(via shell) ', ['arm-none-eabi-gdb'], true);
+        await runExecExecFile('where', '(via shell) ', ['cbuild'], true);
+        // await runExecExecFile('where', '(via shell) ', ['pyocd'], true);
     });
 
     logger.debug('Extension Pack activated');
