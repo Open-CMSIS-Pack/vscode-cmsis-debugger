@@ -52,6 +52,7 @@ async function main() {
         data += "# TPIP Report\n\n";
     }
 
+    data += '\n';
     data += `Report prepared at: ${new Date().toLocaleString('en-GB')}\n\n`;
     data += '| *Package* | *Version* | *Repository* | *License* |\n';
     data += '|---|---|---|---|\n';
