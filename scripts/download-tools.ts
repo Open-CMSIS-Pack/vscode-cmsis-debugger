@@ -130,7 +130,7 @@ async function download(url: string, options?: ToolOptions & { cache_key?: strin
 }
 
 async function downloadPyOCD(target: VsceTarget, dest: string, options?: ToolOptions) {
-    const repoAndOwnerDefault = { owner: 'MatthiasHertel80', repo: 'pyOCD' } as const;
+    const repoAndOwnerDefault = { owner: 'pyocd', repo: 'pyOCD' } as const;
     const jsonVersion = getVersionFromPackageJson(PACKAGE_JSON, 'pyocd');
 
     if (!jsonVersion) {

@@ -2,7 +2,7 @@
   "name": "vscode-cmsis-debugger",
   "displayName": "Arm CMSIS Debugger",
   "description": "Run and debug embedded and IoT projects on Arm Cortex-M single or multi core devices. Connects via pyOCD to CMSIS-DAP or other GDB servers.",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "preview": true,
   "publisher": "Arm",
   "author": "Jens Reinecke <jens.reinecke@arm.com>",
@@ -138,6 +138,6 @@
     "yargs": "^18.0.0"
   },
   "cmsis": {
-    "pyocd": "MatthiasHertel80/pyOCD@0.0.0-standalone-cbuild9"
+    "pyocd": "pyocd/pyOCD@0.37.0"
   }
 }

@@ -1,6 +1,6 @@
 # Change Log
 
-## Unreleased
+## 0.4.0
 
 - Removes pseudo debugger types `cmsis-debug-pyocd` and `cmsis-debug-jlink`.
 CMSIS debug launch configurations and tasks are managed by
@@ -8,6 +8,8 @@ CMSIS debug launch configurations and tasks are managed by
 since v1.54.0.  
 If you need to manually set up a `gdbtarget` connection, then refer to
 [CDT GDB Adapter extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode).
+- Updates [documentation](https://open-cmsis-pack.github.io/vscode-cmsis-debugger/).
+- Updates included pyOCD distribution to v0.37.0.
 
 ## 0.3.1
 
