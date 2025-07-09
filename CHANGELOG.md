@@ -1,5 +1,9 @@
 # Change Log
 
+## Unreleased
+
+- Replace outdated documentation links in Change Log.
+
 ## 0.4.0
 
 - Removes pseudo debugger types `cmsis-debug-pyocd` and `cmsis-debug-jlink`.
@@ -8,7 +12,7 @@ CMSIS debug launch configurations and tasks are managed by
 since v1.54.0.  
 If you need to manually set up a `gdbtarget` connection, then refer to
 [CDT GDB Adapter extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode).
-- Updates [documentation](https://open-cmsis-pack.github.io/vscode-cmsis-debugger/).
+- Updates [documentation](https://marketplace.visualstudio.com/items?itemName=Arm.vscode-cmsis-debugger).
 - Updates included pyOCD distribution to v0.37.0.
 
 ## 0.3.1
@@ -31,7 +35,7 @@ in extension pack.
 - **Important**: This release requires
 [CMSIS-Toolbox v2.9.0](https://github.com/Open-CMSIS-Pack/cmsis-toolbox/releases/tag/2.9.0)
 to function correctly. Update your workspace's `vcpkg-configuration.json` file accordingly.
-- Updates [documentation](https://open-cmsis-pack.github.io/vscode-cmsis-debugger/).
+- Updates [documentation](https://marketplace.visualstudio.com/items?itemName=Arm.vscode-cmsis-debugger).
 - Implements [#238](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/238): Support
 [`*.cbuild-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/YML-CBuild-Format/#file-structure-of-cbuild-runyml)
 file changes in CMSIS-Toolbox v2.9.0.
@@ -52,7 +56,7 @@ loses modifications from other extensions.
 Inspector.
     - Extracts first SVD file path found in `*.cbuild-run.yml` debug configuration file to automatically set up
   Peripheral Inspector.
-- Adds initial version of extension [documentation](https://open-cmsis-pack.github.io/vscode-cmsis-debugger/).
+- Adds initial version of extension [documentation](https://marketplace.visualstudio.com/items?itemName=Arm.vscode-cmsis-debugger).
 - Updates included pyOCD distribution
     - Fixes [#133](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/133): Adds default memory map for
     Cortex-M devices.
