@@ -1,16 +1,17 @@
 {
     "compilerOptions": {
-        "target": "ESNext",
+        "target": "ES2024",
         "module": "commonjs",
         "strict": true,
         "declaration": false,
         "outDir": "dist",
         "esModuleInterop": true,
+        "isolatedModules": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noImplicitReturns": true,
         "skipLibCheck": true,
         "sourceMap": true,
-        "lib": [
-            "ESNext"
-        ]
     },
     "include": [
         "src"

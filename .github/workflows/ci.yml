@@ -105,6 +105,16 @@ jobs:
           git commit -m "Update CHANGELOG.md after release [skip ci]"
           git push
 
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-coverage
+          path: ./coverage
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-report
+          path: ./test-report.html
+
       - name: Publish coverage report to QLTY
         if: github.repository_owner == 'Open-CMSIS-Pack'
         uses: qltysh/qlty-action/coverage@f13b3559771beedd11e68b03d49512f3c21a75ba # v1
@@ -188,7 +198,21 @@ jobs:
         with:
           pattern: vsix-package-*
 
+      - name: Download coverage report
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: test-coverage
+
+      - name: Download test report
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: test-report
+
       - name: Attach packages
         uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
         with:
-          files: "**/*.vsix"
+          files: |
+            **/*.vsix
+            test-report.html
+            coverage/*
+

@@ -7,3 +7,4 @@ test-workspace/*
 tools
 coverage
 site/*
+test-report.html
