@@ -29,8 +29,6 @@ export default [
             "*.config.{ts,js,mjs}",
             "*.setup.{ts,js}",
             "node_modules",
-            "**/__test__/**/*",
-            "**/*.test.ts",
         ]
     },
     js.configs.recommended,
