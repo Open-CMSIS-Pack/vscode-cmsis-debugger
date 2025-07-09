@@ -12,6 +12,9 @@
         "noImplicitReturns": true,
         "skipLibCheck": true,
         "sourceMap": true,
+        "noImplicitAny": true,
+        "noFallthroughCasesInSwitch": true,
+        "exactOptionalPropertyTypes": true,
     },
     "include": [
         "src"

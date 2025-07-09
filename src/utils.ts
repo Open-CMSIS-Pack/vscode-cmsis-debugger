@@ -20,7 +20,7 @@ import * as path from 'path';
 
 export const isWindows = os.platform() === 'win32';
 
-export const getCmsisPackRootPath = (): string|undefined => {
+export const getCmsisPackRootPath = (): string => {
     const environmentValue = process.env['CMSIS_PACK_ROOT'];
     if (environmentValue) {
         return environmentValue;
