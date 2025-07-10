@@ -242,14 +242,16 @@ async function downloadGDB(target: VsceTarget, dest: string, options?: ToolOptio
 
     const tempfile = await import('tempfile');
     
-    const { mode, downloadFilePath } = (options?.cache)
-        ? { mode: 'cache', downloadFilePath: path.join(options.cache, asset_name) }
-        : { mode: 'temp', downloadFilePath: path.join(tempfile.default(), asset_name) };
+    const { mode, downloadPath } = (options?.cache)
+        ? { mode: 'cache', downloadPath: options.cache }
+        : { mode: 'temp', downloadPath: tempfile.default() };
+    const downloadFilePath = path.join(downloadPath, asset_name);
 
     if (options?.force === false && mode === 'cache' && existsSync(downloadFilePath)) {
         console.debug(`Found GDB asset in cache ${downloadFilePath} ...`);
     } else {
         console.debug(`Downloading ${url} ...`);
+        mkdirSync(downloadPath, { recursive: true });
         await downloadFile(url, downloadFilePath)
     }
 
@@ -263,8 +265,8 @@ async function downloadGDB(target: VsceTarget, dest: string, options?: ToolOptio
     await decompress(downloadFilePath, destPath, { strip: 1 });
 
     if (mode === 'temp') {
-        console.debug(`Removing temporary ${downloadFilePath} ...`);
-        rmSync(downloadFilePath, { recursive: true, force: true });
+        console.debug(`Removing temporary ${downloadPath} ...`);
+        rmSync(downloadPath, { recursive: true, force: true });
     }
 
     writeFileSync(versionFilePath, jsonVersion, { encoding: 'utf8' });
