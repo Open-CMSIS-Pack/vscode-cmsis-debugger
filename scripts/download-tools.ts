@@ -24,6 +24,8 @@ import yargs from 'yargs';
 import extractZip from 'extract-zip';
 import { execSync } from 'child_process';
 import { hideBin } from 'yargs/helpers';
+import console from 'console';
+import decompress from 'decompress';
 
 // OS/architecture pairs from vsce --publish
 type VsceTarget = 'win32-x64' | 'win32-arm64' | 'linux-x64' | 'linux-arm64' | 'darwin-x64' | 'darwin-arm64';
@@ -41,6 +43,7 @@ type ToolOptions = {
 
 const TOOLS = {
     'pyocd': downloadPyOCD,
+    'gdb': downloadGDB,
 };
 
 const PACKAGE_JSON = path.resolve(__dirname, '../package.json');
@@ -104,8 +107,7 @@ async function retrieveSha256(url?: string, token?: string) {
     }
     return undefined;
 }
-
-async function download(url: string, options?: ToolOptions & { cache_key?: string }) {
+async function downloadAsset(url: string, options?: ToolOptions & { cache_key?: string }) {
     const cachePath = (options?.cache && options?.cache_key) ? path.join(options.cache, options.cache_key) : undefined;
     if (cachePath && existsSync(cachePath)) {
         console.debug(`Found asset in cache ${cachePath} ...`);
@@ -180,7 +182,7 @@ async function downloadPyOCD(target: VsceTarget, dest: string, options?: ToolOpt
         cache: options?.cache, 
         cache_key: sha256sum ? `cmsis-pyocd-${version}-${sha256sum}` : undefined
     };
-    const { mode, path: extractPath } = await download(asset.url, dloptions);
+    const { mode, path: extractPath } = await downloadAsset(asset.url, dloptions);
 
     if (existsSync(destPath)) {
         console.debug(`Removing existing ${destPath} ...`);
@@ -200,6 +202,73 @@ async function downloadPyOCD(target: VsceTarget, dest: string, options?: ToolOpt
     if (sha256sum) {
         writeFileSync(sha256FilePath, sha256sum, { encoding: 'utf8' });
     }
+}
+
+async function downloadGDB(target: VsceTarget, dest: string, options?: ToolOptions) {
+
+    const jsonVersion = getVersionFromPackageJson(PACKAGE_JSON, 'gdb');
+
+    if (!jsonVersion) {
+        throw new Error('GDB version not found in package.json');
+    }
+
+    const destPath = path.join(dest, 'gdb');
+    const versionFilePath = path.join(destPath, 'version.txt');
+    const targetFilePath = path.join(destPath, 'target.txt');
+
+    if (!options?.force && existsSync(versionFilePath) && existsSync(targetFilePath)) {
+        const hasVersion = readFileSync(versionFilePath, { encoding: 'utf8' });
+        const hasTarget = readFileSync(targetFilePath, { encoding: 'utf8' });
+
+        if (jsonVersion === hasVersion && target === hasTarget) {
+            console.log(`GDB version ${jsonVersion} (${target}) already available.`);
+            return;
+        }
+    }
+
+    console.log(`Downloading GDB version ${jsonVersion} (${target}) ...`);
+
+    const { build, ext }  = {
+        'win32-x64': { build: 'mingw-w64-x86_64', ext: 'zip' },
+        'win32-arm64': { build: 'mingw-w64-x86_64', ext: 'zip' },
+        'linux-x64': { build: 'x86_64', ext: 'tar.xz'},
+        'linux-arm64': { build: 'aarch64', ext: 'tar.xz'},
+        'darwin-x64': { build: 'darwin-arm64', ext: 'tar.xz'},
+        'darwin-arm64': { build: 'darwin-arm64', ext: 'tar.xz'},
+    }[target];
+
+    const asset_name = `arm-gnu-toolchain-${build}-arm-none-eabi-gdb.${ext}`;
+    const url = `https://artifacts.tools.arm.com/arm-none-eabi-gdb/${jsonVersion}/${asset_name}`;
+
+    const tempfile = await import('tempfile');
+    
+    const { mode, downloadFilePath } = (options?.cache)
+        ? { mode: 'cache', downloadFilePath: path.join(options.cache, asset_name) }
+        : { mode: 'temp', downloadFilePath: path.join(tempfile.default(), asset_name) };
+
+    if (options?.force === false && mode === 'cache' && existsSync(downloadFilePath)) {
+        console.debug(`Found GDB asset in cache ${downloadFilePath} ...`);
+    } else {
+        console.debug(`Downloading ${url} ...`);
+        await downloadFile(url, downloadFilePath)
+    }
+
+    if (existsSync(destPath)) {
+        console.debug(`Removing existing ${destPath} ...`);
+        rmSync(destPath, { recursive: true, force: true });
+    }
+
+    console.debug(`Extracting ${downloadFilePath} to ${destPath} ...`);
+    mkdirSync(dest, { recursive: true });
+    await decompress(downloadFilePath, destPath, { strip: 1 });
+
+    if (mode === 'temp') {
+        console.debug(`Removing temporary ${downloadFilePath} ...`);
+        rmSync(downloadFilePath, { recursive: true, force: true });
+    }
+
+    writeFileSync(versionFilePath, jsonVersion, { encoding: 'utf8' });
+    writeFileSync(targetFilePath, target, { encoding: 'utf8' });
 }
 
 async function main() {
@@ -262,5 +331,5 @@ async function main() {
 
 main().catch(error => {
     console.error(error);
-    process.exit(1);
+    process.exitCode = 1;
 });

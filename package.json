@@ -105,6 +105,7 @@
     "yaml": "^2.8.0"
   },
   "devDependencies": {
+    "@types/decompress": "^4.2.7",
     "@types/jest": "^30.0.0",
     "@types/node": "^20.19.4",
     "@types/node-fetch": "^2.6.12",
@@ -115,6 +116,10 @@
     "@typescript-eslint/parser": "^8.35.1",
     "@vscode/vsce": "^3.6.0",
     "@yarnpkg/lockfile": "^1.1.0",
+    "decompress": "^4.2.1",
+    "decompress-targz": "^4.1.1",
+    "decompress-tarxz": "^3.0.0",
+    "decompress-unzip": "^4.0.1",
     "eslint": "^9.30.1",
     "eslint-plugin-security": "^3.0.1",
     "extract-zip": "^2.0.1",
@@ -139,6 +144,7 @@
     "yargs": "^18.0.0"
   },
   "cmsis": {
-    "pyocd": "pyocd/pyOCD@0.37.0"
+    "pyocd": "pyocd/pyOCD@0.37.0",
+    "gdb": "14.3.1"
   }
 }

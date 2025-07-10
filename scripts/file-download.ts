@@ -29,11 +29,11 @@ export const downloadFile: DownloadFile = (url, outputPath, token?) => new Promi
     };
 
     const req = https.request(url, requestOptions, res => {
-        if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
-            return downloadFile(res.headers.location, outputPath, token).then(resolve, reject);
-        }
-
-        if (res.statusCode && (res.statusCode < 200 || res.statusCode >= 300)) {
+        if (res.statusCode !== undefined && (res.statusCode < 200 || res.statusCode >= 300)) {
+            res.destroy();
+            if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
+                return downloadFile(res.headers.location, outputPath, token).then(resolve, reject);
+            }
             return reject(new Error(`Status Code: ${res.statusCode}`));
         }
 
