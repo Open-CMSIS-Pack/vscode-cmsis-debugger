@@ -21,11 +21,10 @@ import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } fr
 import path from 'path';
 import { downloadFile } from './file-download';
 import yargs from 'yargs';
-import extractZip from 'extract-zip';
 import { execSync } from 'child_process';
 import { hideBin } from 'yargs/helpers';
 import console from 'console';
-import decompress from 'decompress';
+import fastExtract from 'fast-extract';
 
 // OS/architecture pairs from vsce --publish
 type VsceTarget = 'win32-x64' | 'win32-arm64' | 'linux-x64' | 'linux-arm64' | 'darwin-x64' | 'darwin-arm64';
@@ -123,7 +122,7 @@ async function downloadAsset(url: string, options?: ToolOptions & { cache_key?: 
 
     const extractPath = cachePath ?? downloadFilePath.replace('.zip', '');
     console.debug(`Extracting to ${extractPath} ...`);
-    await extractZip(downloadFilePath, { dir: extractPath }).catch(error => {
+    await fastExtract(downloadFilePath, extractPath).catch(error => {
         throw new Error(`Failed to extract ${url}`, { cause: error });
     });
 
@@ -262,7 +261,13 @@ async function downloadGDB(target: VsceTarget, dest: string, options?: ToolOptio
 
     console.debug(`Extracting ${downloadFilePath} to ${destPath} ...`);
     mkdirSync(dest, { recursive: true });
-    await decompress(downloadFilePath, destPath, { strip: 1 });
+
+    const {fileTypeFromFile} = await import('file-type');
+
+    const fileType  = await fileTypeFromFile(downloadFilePath);
+    await fastExtract(downloadFilePath, destPath, { strip: 1, type: fileType?.ext }).catch(error => {
+        throw new Error(`Failed to extract ${downloadFilePath}`, { cause: error });
+    });
 
     // Remove doc directory as it contains duplicate files (names differ only in case)
     // which are not supported by ZIP (VSIX) archives
@@ -331,7 +336,7 @@ async function main() {
     }
 
     for (const tool of new Set(tools)) {
-        TOOLS[tool](target, dest, { cache: cacheFolder(cache), force });
+        await TOOLS[tool](target, dest, { cache: cacheFolder(cache), force });
     }
 }
 
