@@ -264,6 +264,10 @@ async function downloadGDB(target: VsceTarget, dest: string, options?: ToolOptio
     mkdirSync(dest, { recursive: true });
     await decompress(downloadFilePath, destPath, { strip: 1 });
 
+    // Remove doc directory as it contains duplicate files (names differ only in case)
+    // which are not supported by ZIP (VSIX) archives
+    rmSync(path.join(destPath, 'share', 'doc'), { recursive: true, force: true });
+
     if (mode === 'temp') {
         console.debug(`Removing temporary ${downloadPath} ...`);
         rmSync(downloadPath, { recursive: true, force: true });
