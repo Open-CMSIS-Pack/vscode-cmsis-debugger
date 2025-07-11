@@ -25,6 +25,7 @@ import { execSync } from 'child_process';
 import { hideBin } from 'yargs/helpers';
 import console from 'console';
 import fastExtract from 'fast-extract';
+import extractZip from 'extract-zip';
 
 // OS/architecture pairs from vsce --publish
 type VsceTarget = 'win32-x64' | 'win32-arm64' | 'linux-x64' | 'linux-arm64' | 'darwin-x64' | 'darwin-arm64';
@@ -265,9 +266,17 @@ async function downloadGDB(target: VsceTarget, dest: string, options?: ToolOptio
     const {fileTypeFromFile} = await import('file-type');
 
     const fileType  = await fileTypeFromFile(downloadFilePath);
-    await fastExtract(downloadFilePath, destPath, { strip: 1, type: fileType?.ext }).catch(error => {
-        throw new Error(`Failed to extract ${downloadFilePath}`, { cause: error });
-    });
+
+    if (nodeOs.platform() === 'win32') {
+        await extractZip(downloadFilePath, { dir: destPath }).catch(error => {
+            throw new Error(`Failed to extract ${url}`, { cause: error });
+        });
+    } else {
+        await fastExtract(downloadFilePath, destPath, { strip: 1, type: fileType?.ext }).catch(error => {
+            throw new Error(`Failed to extract ${downloadFilePath}`, { cause: error });
+        });
+    }
+
 
     // Remove doc directory as it contains duplicate files (names differ only in case)
     // which are not supported by ZIP (VSIX) archives
