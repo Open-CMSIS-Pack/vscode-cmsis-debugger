@@ -27,7 +27,7 @@ import { BuiltinToolPath } from '../desktop/builtin-tool-path';
 
 const GDB_TARGET_DEBUGGER_TYPE = 'gdbtarget';
 const ARM_NONE_EABI_GDB_NAME = 'arm-none-eabi-gdb';
-const ARM_NONE_EABI_GDB_BUILTIN_PATH = 'tools/gdb/arm-none-eabi-gdb';
+const ARM_NONE_EABI_GDB_BUILTIN_PATH = 'tools/gdb/bin/arm-none-eabi-gdb';
 const ARM_NONE_EABI_GDB_EXECUTABLE_ONLY_REGEXP = /^\s*arm-none-eabi-gdb(|.exe)\s*$/i;
 
 export interface GDBTargetConfigurationSubProvider {
@@ -106,9 +106,7 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         token?: vscode.CancellationToken
     ): Promise<vscode.DebugConfiguration | null | undefined> {
         this.logDebugConfiguration(resolverType, debugConfiguration, 'original config');
-        logger.debug(`${resolverType}: Resolve GDB path`);
         const gdbTargetConfig: GDBTargetConfiguration = debugConfiguration;
-        this.resolveGdbPath(gdbTargetConfig);
         const gdbServerType = gdbTargetConfig.target?.server;
         const subprovider = this.getRelevantSubprovider(resolverType, gdbServerType);
         if (!subprovider) {
@@ -139,6 +137,9 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         debugConfiguration: vscode.DebugConfiguration,
         token?: vscode.CancellationToken
     ): Promise<vscode.DebugConfiguration | null | undefined> {
+        // Only resolve GDB path once, otherwise regexp check will fail
+        logger.debug('resolveDebugConfigurationWithSubstitutedVariables: Resolve GDB path');
+        this.resolveGdbPath(debugConfiguration);
         return this.resolveDebugConfigurationByResolverType('resolveDebugConfigurationWithSubstitutedVariables', folder, debugConfiguration, token);
     }
 
