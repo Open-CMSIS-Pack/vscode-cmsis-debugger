@@ -91,7 +91,7 @@
     "build": "webpack --mode production && yarn lint",
     "watch": "webpack -w",
     "lint": "eslint .",
-    "test": "jest --reporters=./node_modules/jest-html-reporter",
+    "test": "jest --reporters=default --reporters=./node_modules/jest-html-reporter",
     "package": "vsce package --yarn",
     "tpip:report": "ts-node scripts/tpip-reporter --header docs/tpip-header.md docs/third-party-licenses.json TPIP.md",
     "lint:md": "markdownlint **/*.md -c ./.github/markdownlint.jsonc -i ./node_modules ./dist ./coverage ./tools",
