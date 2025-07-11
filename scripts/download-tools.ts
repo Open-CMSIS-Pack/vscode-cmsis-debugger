@@ -267,7 +267,7 @@ async function downloadGDB(target: VsceTarget, dest: string, options?: ToolOptio
 
     const fileType  = await fileTypeFromFile(downloadFilePath);
 
-    if (nodeOs.platform() === 'win32') {
+    if (fileType?.mime === 'application/zip' || fileType?.ext === 'zip') {
         await extractZip(downloadFilePath, { dir: destPath }).catch(error => {
             throw new Error(`Failed to extract ${url}`, { cause: error });
         });
