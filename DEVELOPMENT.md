@@ -80,9 +80,9 @@ Supported `<target>`s are:
 To simplify setup of you environment, an `all` script exists which runs build, tool download,
 and unit tests. Run:
 
-    ```sh
-    > yarn all
-    ```
+```sh
+> yarn all
+```
 
 ## Updating tool dependencies
 
