@@ -26,6 +26,7 @@ import {
 import { BuiltinToolPath } from '../desktop/builtin-tool-path';
 
 const GDB_TARGET_DEBUGGER_TYPE = 'gdbtarget';
+const ARM_NONE_EABI_GDB_NAME = 'arm-none-eabi-gdb';
 const ARM_NONE_EABI_GDB_BUILTIN_PATH = 'tools/gdb/arm-none-eabi-gdb';
 const ARM_NONE_EABI_GDB_EXECUTABLE_ONLY_REGEXP = /^\s*arm-none-eabi-gdb(|.exe)\s*$/i;
 
@@ -147,6 +148,8 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         const updateUri = useBuiltin ? this.builtinArmNoneEabiGdb.getAbsolutePath() : undefined;
         if (updateUri) {
             config.gdb = updateUri.fsPath;
+        } else {
+            vscode.window.showWarningMessage(`Cannot find ${ARM_NONE_EABI_GDB_BUILTIN_PATH} in CMSIS Debugger installation.\nUsing ${ARM_NONE_EABI_GDB_NAME} from PATH instead.`);
         }
     }
 
