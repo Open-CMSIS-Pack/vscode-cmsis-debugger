@@ -23,8 +23,11 @@ import {
     JLINK_SERVER_TYPE_REGEXP,
     JlinkConfigurationProvider
 } from './subproviders';
+import { BuiltinToolPath } from '../desktop/builtin-tool-path';
 
 const GDB_TARGET_DEBUGGER_TYPE = 'gdbtarget';
+const ARM_NONE_EABI_GDB_BUILTIN_PATH = 'tools/gdb/arm-none-eabi-gdb';
+const ARM_NONE_EABI_GDB_EXECUTABLE_ONLY_REGEXP = /^\s*arm-none-eabi-gdb(|.exe)\s*$/i;
 
 export interface GDBTargetConfigurationSubProvider {
     serverRegExp: RegExp;
@@ -40,6 +43,7 @@ const SUPPORTED_SUBPROVIDERS: GDBTargetConfigurationSubProvider[] = [
 
 
 export class GDBTargetConfigurationProvider implements vscode.DebugConfigurationProvider {
+    protected builtinArmNoneEabiGdb = new BuiltinToolPath(ARM_NONE_EABI_GDB_BUILTIN_PATH);
 
     public constructor(
         protected subProviders: GDBTargetConfigurationSubProvider[] = SUPPORTED_SUBPROVIDERS
@@ -101,7 +105,9 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         token?: vscode.CancellationToken
     ): Promise<vscode.DebugConfiguration | null | undefined> {
         this.logDebugConfiguration(resolverType, debugConfiguration, 'original config');
+        logger.debug(`${resolverType}: Resolve GDB path`);
         const gdbTargetConfig: GDBTargetConfiguration = debugConfiguration;
+        this.resolveGdbPath(gdbTargetConfig);
         const gdbServerType = gdbTargetConfig.target?.server;
         const subprovider = this.getRelevantSubprovider(resolverType, gdbServerType);
         if (!subprovider) {
@@ -134,4 +140,14 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
     ): Promise<vscode.DebugConfiguration | null | undefined> {
         return this.resolveDebugConfigurationByResolverType('resolveDebugConfigurationWithSubstitutedVariables', folder, debugConfiguration, token);
     }
+
+    protected resolveGdbPath(config: GDBTargetConfiguration): void {
+        const gdb = config.gdb;
+        const useBuiltin = !gdb || ARM_NONE_EABI_GDB_EXECUTABLE_ONLY_REGEXP.test(gdb);
+        const updateUri = useBuiltin ? this.builtinArmNoneEabiGdb.getAbsolutePath() : undefined;
+        if (updateUri) {
+            config.gdb = updateUri.fsPath;
+        }
+    }
+
 }
