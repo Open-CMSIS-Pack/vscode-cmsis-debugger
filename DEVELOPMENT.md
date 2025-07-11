@@ -75,6 +75,15 @@ Supported `<target>`s are:
 
     **Note**: At this point, no tests have been added to this repository.
 
+## 'all' script
+
+To simplify setup of you environment, an `all` script exists which runs build, tool download,
+and unit tests. Run:
+
+    ```sh
+    > yarn all
+    ```
+
 ## Updating tool dependencies
 
 Tool dependencies are recorded in `package.json`:
