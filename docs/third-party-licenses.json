@@ -3,7 +3,7 @@
         "name": "arm-none-eabi-gdb",
         "version": "14.3.1",
         "spdx": "GPL-3.0-or-later",
-        "url": "https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads#",
+        "url": "https://artifacts.tools.arm.com/arm-none-eabi-gdb/14.3.1/",
         "license": "https://developer.arm.com/GetEula?Id=15d9660a-2059-4985-85e9-c01cdd4b1ba0"
     },
     {
