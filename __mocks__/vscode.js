@@ -47,6 +47,7 @@ module.exports = {
             warn: jest.fn(),
             error: jest.fn(),
         })),
+        showWarningMessage: jest.fn(),
     },
     workspace: {
         getConfiguration: jest.fn(() => ({

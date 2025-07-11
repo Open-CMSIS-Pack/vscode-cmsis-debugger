@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
+import * as vscode from 'vscode';
 import { BaseConfigurationProvider } from './base-configuration-provider';
 import { GDBTargetConfiguration, TargetConfiguration } from '../gdbtarget-configuration';
 import { BuiltinToolPath } from '../../desktop/builtin-tool-path';
 import { getCmsisPackRootPath } from '../../utils';
 import { logger } from '../../logger';
 
+const PYOCD_NAME = 'pyocd';
 const PYOCD_BUILTIN_PATH = 'tools/pyocd/pyocd';
 const PYOCD_EXECUTABLE_ONLY_REGEXP = /^\s*pyocd(|.exe)\s*$/i;
 export const PYOCD_SERVER_TYPE_REGEXP = /.*pyocd(|.exe)\s*$/i;
@@ -37,6 +39,8 @@ export class PyocdConfigurationProvider extends BaseConfigurationProvider {
         const updateUri = useBuiltin ? this.builtinPyocd.getAbsolutePath() : undefined;
         if (updateUri) {
             target.server = updateUri.fsPath;
+        } else {
+            vscode.window.showWarningMessage(`Cannot find ${PYOCD_BUILTIN_PATH} in CMSIS Debugger installation.\nUsing ${PYOCD_NAME} from PATH instead.`);
         }
     }
 

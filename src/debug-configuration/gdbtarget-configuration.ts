@@ -69,6 +69,7 @@ export interface GDBTargetConfiguration extends vscode.DebugConfiguration {
     logFile?: string;
     openGdbConsole?: boolean;
     initCommands?: string[];
+    customResetCommands?: string[];
     preRunCommands?: string[];
     imageAndSymbols?: ImageAndSymbolsConfiguration;
     target?: TargetConfiguration;

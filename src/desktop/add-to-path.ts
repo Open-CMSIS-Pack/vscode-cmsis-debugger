@@ -20,27 +20,35 @@ import { logger } from '../logger';
 import { isWindows } from '../utils';
 import { BuiltinToolPath } from './builtin-tool-path';
 
-export function addToolToPath(context: vscode.ExtensionContext, toolToAdd: string): void {
-    // get gdb path from tools folder
-    const builtinTool = new BuiltinToolPath(toolToAdd);
-    const pathTool = builtinTool.getAbsolutePathDir();
-    // check if path exists
-    if (!pathTool) {
-        logger.debug(`${toolToAdd} is not available`);
+export function addToolsToPath(context: vscode.ExtensionContext, toolsToAdd: string[]): void {
+    const delimiter = isWindows ? ';' : ':';
+    const absolutePaths = toolsToAdd.map((toolToAdd) => {
+        // get gdb path from tools folder
+        const builtinTool = new BuiltinToolPath(toolToAdd);
+        const pathTool = builtinTool.getAbsolutePathDir();
+        // check if path exists
+        if (!pathTool) {
+            logger.debug(`${toolToAdd} is not available`);
+        }
+        return pathTool;
+    });
+    const definedPaths = absolutePaths.filter(path => path !== undefined && path !== '');
+    if (definedPaths.length === 0) {
         return;
     }
-    // add a delimiter and prepare gdb path to be added to PATH variable
-    const delimiter = isWindows ? ';' : ':';
-    const updatePath = `${pathTool}${delimiter}`;
-    // get current environment variable collection
+    // get current environment variable collection and extract list of set paths
     const mutator = context.environmentVariableCollection.get('PATH');
-    // Path included and previously used type was 'Prepend'. Change mutator
+    const mutatorPaths = mutator?.value.split(delimiter);
+    // All paths included and previously used type was 'Prepend'. Change mutator
     // if other type (we previously used 'Replace' which caused trouble).
-    if (mutator?.type === vscode.EnvironmentVariableMutatorType.Prepend && mutator?.value.includes(updatePath)) {
+    const allIncluded = mutatorPaths && definedPaths.every(path => path && mutatorPaths.includes(path));
+    if (mutator?.type === vscode.EnvironmentVariableMutatorType.Prepend && allIncluded) {
         // Nothing to update
         return;
     }
-    //add updated path to PATH variable, but only for the terminal inside of vscode
+    // create string to be added to PATH variable
+    const updatePath = definedPaths.join(delimiter) + delimiter;
+    // add updated path to PATH variable, but only for the terminal inside of vscode
     context.environmentVariableCollection.prepend('PATH', updatePath);
 }
 
