@@ -119,6 +119,8 @@
     "eslint": "^9.30.1",
     "eslint-plugin-security": "^3.0.1",
     "extract-zip": "^2.0.1",
+    "fast-extract": "^1.7.2",
+    "file-type": "^21.0.0",
     "globby": "^14.1.0",
     "jest": "^30.0.4",
     "jest-html-reporter": "^4.3.0",
@@ -140,6 +142,7 @@
     "yargs": "^18.0.0"
   },
   "cmsis": {
-    "pyocd": "pyocd/pyOCD@0.37.0"
+    "pyocd": "pyocd/pyOCD@0.37.0",
+    "gdb": "14.3.1"
   }
 }
