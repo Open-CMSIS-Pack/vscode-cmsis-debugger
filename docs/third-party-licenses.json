@@ -1,5 +1,12 @@
 [
     {
+        "name": "arm-none-eabi-gdb",
+        "version": "14.3.1",
+        "spdx": "GPL-3.0-or-later",
+        "url": "https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads#",
+        "license": "https://developer.arm.com/GetEula?Id=15d9660a-2059-4985-85e9-c01cdd4b1ba0"
+    },
+    {
         "name": "pyocd",
         "version": "0.37.0",
         "spdx": "Apache-2.0",
