@@ -263,16 +263,12 @@ async function downloadGDB(target: VsceTarget, dest: string, options?: ToolOptio
     console.debug(`Extracting ${downloadFilePath} to ${destPath} ...`);
     mkdirSync(dest, { recursive: true });
 
-    const {fileTypeFromFile} = await import('file-type');
-
-    const fileType  = await fileTypeFromFile(downloadFilePath);
-
-    if (fileType?.mime === 'application/zip' || fileType?.ext === 'zip') {
+    if (ext === 'zip') {
         await extractZip(downloadFilePath, { dir: destPath }).catch(error => {
             throw new Error(`Failed to extract ${url}`, { cause: error });
         });
     } else {
-        await fastExtract(downloadFilePath, destPath, { strip: 1, type: fileType?.ext }).catch(error => {
+        await fastExtract(downloadFilePath, destPath, { strip: 1, type: ext }).catch(error => {
             throw new Error(`Failed to extract ${downloadFilePath}`, { cause: error });
         });
     }
