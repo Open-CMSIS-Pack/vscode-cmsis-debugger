@@ -458,7 +458,7 @@ GDB server like pyOCD.
 This extension includes `arm-none-eabi-gdb` which is used in the Arm CMSIS Debugger default debug configurations.
 
 If you wish to use a different GDB installation, enter the full path to the executable (including the file name)
-in the `gdb` setting.
+in the `gdb` setting in the `launch.json` file.
 
 ### pyOCD Debug Setup
 
