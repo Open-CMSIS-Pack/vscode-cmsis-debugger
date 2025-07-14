@@ -15,13 +15,15 @@
  */
 
 import * as vscode from 'vscode';
-import { addToolToPath } from './add-to-path';
+import { addToolsToPath } from './add-to-path';
 import { BuiltinToolPath } from './builtin-tool-path';
 import { extensionContextFactory } from '../__test__/vscode.factory';
 import { isWindows } from '../utils';
 
 jest.mock('./builtin-tool-path');
-const pathPyOCD = 'tools/pyocd/pyocd';
+const delimiter = isWindows ? ';' : ':';
+const pyOCD = 'pyocd/pyocd';
+const pyOCDPath = '/tools/' + pyOCD;
 const BuiltinToolPathMock = BuiltinToolPath as jest.MockedClass<typeof BuiltinToolPath>;
 
 describe('addToolToPath', () => {
@@ -34,21 +36,21 @@ describe('addToolToPath', () => {
     it('calls prepend with correct path when path is available and not already included', () => {
         // Mock instance of BuiltinToolPath
         const mockInstance = {
-            getAbsolutePathDir: jest.fn().mockReturnValue(pathPyOCD),
+            getAbsolutePathDir: jest.fn().mockReturnValue(pyOCDPath),
         } as unknown as BuiltinToolPath;
 
         // Provide the fake instance when BuiltinToolPath is instantiated
         BuiltinToolPathMock.mockImplementation(() => mockInstance);
 
-        // Simulate no existing mutator
+        // Simulate previously appended mutator
         (extensionMock.environmentVariableCollection.get as jest.Mock).mockReturnValue({
             type: vscode.EnvironmentVariableMutatorType.Append,
             value: 'pathPyOCD'
         });
 
-        addToolToPath(extensionMock, pathPyOCD);
+        addToolsToPath(extensionMock, [pyOCD]);
 
-        expect(extensionMock.environmentVariableCollection.prepend).toHaveBeenCalledWith('PATH', expect.stringContaining(pathPyOCD));
+        expect(extensionMock.environmentVariableCollection.prepend).toHaveBeenCalledWith('PATH', expect.stringContaining(pyOCDPath));
     });
 
     it('does nothing if getAbsolutePathDir returns undefined', () => {
@@ -58,7 +60,7 @@ describe('addToolToPath', () => {
 
         BuiltinToolPathMock.mockImplementation(() => mockInstance);
 
-        addToolToPath(extensionMock, pathPyOCD);
+        addToolsToPath(extensionMock, [pyOCD]);
 
         expect(extensionMock.environmentVariableCollection.prepend).not.toHaveBeenCalled();
     });
@@ -72,11 +74,129 @@ describe('addToolToPath', () => {
 
         (extensionMock.environmentVariableCollection.get as jest.Mock).mockReturnValue({
             type: vscode.EnvironmentVariableMutatorType.Prepend,
-            value: `/already/included/path${isWindows ? ';' : ':'}`
+            value: `/already/included/path${delimiter}`
         });
 
-        addToolToPath(extensionMock, pathPyOCD);
+        addToolsToPath(extensionMock, [pyOCD]);
 
         expect(extensionMock.environmentVariableCollection.prepend).not.toHaveBeenCalled();
     });
+
+    it('prepends a list of available paths that is not prepended yet', () => {
+        const anotherTool = 'another/tool';
+        const anotherToolPath = '/tools/' + anotherTool;
+        // Mock instance of BuiltinToolPath
+        const mockInstance = {
+            getAbsolutePathDir: jest.fn()
+                .mockReturnValueOnce(pyOCDPath)
+                .mockReturnValueOnce(anotherToolPath)
+        } as unknown as BuiltinToolPath;
+
+        // Provide the fake instance when BuiltinToolPath is instantiated
+        BuiltinToolPathMock.mockImplementation(() => mockInstance);
+
+        // Simulate no existing mutator
+        (extensionMock.environmentVariableCollection.get as jest.Mock).mockReturnValue(undefined);
+
+        addToolsToPath(extensionMock, [pyOCD, anotherTool]);
+
+        const expectedPath = pyOCDPath + delimiter + anotherToolPath + delimiter;
+        expect(extensionMock.environmentVariableCollection.prepend).toHaveBeenCalledWith('PATH', expectedPath);
+    });
+
+    it('does not prepend a list of available paths if already prepended in different order', () => {
+        const anotherTool = 'another/tool';
+        const anotherToolPath = '/tools/' + anotherTool;
+        // Mock instance of BuiltinToolPath
+        const mockInstance = {
+            getAbsolutePathDir: jest.fn()
+                .mockReturnValueOnce(pyOCDPath)
+                .mockReturnValueOnce(anotherToolPath)
+        } as unknown as BuiltinToolPath;
+
+        // Provide the fake instance when BuiltinToolPath is instantiated
+        BuiltinToolPathMock.mockImplementation(() => mockInstance);
+
+        // Simulate no existing mutator
+        (extensionMock.environmentVariableCollection.get as jest.Mock).mockReturnValue({
+            type: vscode.EnvironmentVariableMutatorType.Prepend,
+            value: `${anotherToolPath}${delimiter}${pyOCDPath}${delimiter}`
+        });
+
+        addToolsToPath(extensionMock, [pyOCD, anotherTool]);
+
+        expect(extensionMock.environmentVariableCollection.prepend).not.toHaveBeenCalled();
+    });
+
+    it('does not prepend a list of available paths if already prepended in different order and with other paths', () => {
+        const anotherTool = 'another/tool';
+        const anotherToolPath = '/tools/' + anotherTool;
+        // Mock instance of BuiltinToolPath
+        const mockInstance = {
+            getAbsolutePathDir: jest.fn()
+                .mockReturnValueOnce(pyOCDPath)
+                .mockReturnValueOnce(anotherToolPath)
+        } as unknown as BuiltinToolPath;
+
+        // Provide the fake instance when BuiltinToolPath is instantiated
+        BuiltinToolPathMock.mockImplementation(() => mockInstance);
+
+        // Simulate no existing mutator
+        (extensionMock.environmentVariableCollection.get as jest.Mock).mockReturnValue({
+            type: vscode.EnvironmentVariableMutatorType.Prepend,
+            value: `${anotherToolPath}${delimiter}/yet/another/tool${delimiter}${pyOCDPath}${delimiter}`
+        });
+
+        addToolsToPath(extensionMock, [pyOCD, anotherTool]);
+
+        expect(extensionMock.environmentVariableCollection.prepend).not.toHaveBeenCalled();
+    });
+
+    it('prepends a list of available paths if existing list misses one', () => {
+        const anotherTool = 'another/tool';
+        const anotherToolPath = '/tools/' + anotherTool;
+        // Mock instance of BuiltinToolPath
+        const mockInstance = {
+            getAbsolutePathDir: jest.fn()
+                .mockReturnValueOnce(pyOCDPath)
+                .mockReturnValueOnce(anotherToolPath)
+        } as unknown as BuiltinToolPath;
+
+        // Provide the fake instance when BuiltinToolPath is instantiated
+        BuiltinToolPathMock.mockImplementation(() => mockInstance);
+
+        // Simulate no existing mutator
+        (extensionMock.environmentVariableCollection.get as jest.Mock).mockReturnValue({
+            type: vscode.EnvironmentVariableMutatorType.Prepend,
+            value: `${anotherToolPath}${delimiter}/yet/another/tool${delimiter}`
+        });
+
+        addToolsToPath(extensionMock, [pyOCD, anotherTool]);
+
+        const expectedPath = pyOCDPath + delimiter + anotherToolPath + delimiter;
+        expect(extensionMock.environmentVariableCollection.prepend).toHaveBeenCalledWith('PATH', expectedPath);
+    });
+
+    it('prepends the available path if the other of the input list is not available', () => {
+        const anotherTool = 'another/tool';
+        const anotherToolPath = '/tools/' + anotherTool;
+        // Mock instance of BuiltinToolPath
+        const mockInstance = {
+            getAbsolutePathDir: jest.fn()
+                .mockReturnValueOnce(undefined)
+                .mockReturnValueOnce(anotherToolPath)
+        } as unknown as BuiltinToolPath;
+
+        // Provide the fake instance when BuiltinToolPath is instantiated
+        BuiltinToolPathMock.mockImplementation(() => mockInstance);
+
+        // Simulate no existing mutator
+        (extensionMock.environmentVariableCollection.get as jest.Mock).mockReturnValue(undefined);
+
+        addToolsToPath(extensionMock, [pyOCD, anotherTool]);
+
+        const expectedPath = anotherToolPath + delimiter;
+        expect(extensionMock.environmentVariableCollection.prepend).toHaveBeenCalledWith('PATH', expectedPath);
+    });
+
 });
