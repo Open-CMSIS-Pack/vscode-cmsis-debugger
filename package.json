@@ -96,7 +96,9 @@
     "package": "vsce package --yarn",
     "tpip:report": "ts-node scripts/tpip-reporter --header docs/tpip-header.md docs/third-party-licenses.json TPIP.md",
     "lint:md": "markdownlint **/*.md -c ./.github/markdownlint.jsonc -i ./node_modules ./dist ./coverage ./tools",
-    "check:links": "ts-node scripts/check-links.ts -i ./node_modules/** -i ./.github/** -c ./.github/markdown-link-check.jsonc"
+    "check:links": "ts-node scripts/check-links.ts -i ./node_modules/** -i ./.github/** -c ./.github/markdown-link-check.jsonc",
+    "copyright:check": "ts-node scripts/copyright-manager.ts --mode=check --include=src/**/*.ts,scripts/**/*.ts --exclude=**/node_modules/**,coverage/**,dist/**,tools/**",
+    "copyright:fix": "ts-node scripts/copyright-manager.ts --mode=fix --include=src/**/*.ts,scripts/**/*.ts --exclude=**/node_modules/**,coverage/**,dist/**,tools/**"
   },
   "vsce": {
     "yarn": true,
@@ -106,7 +108,9 @@
     "yaml": "^2.8.0"
   },
   "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
     "@types/jest": "^30.0.0",
+    "@types/minimist": "^1.2.5",
     "@types/node": "^20.19.7",
     "@types/node-fetch": "^2.6.12",
     "@types/vscode": "^1.63.0",
@@ -121,12 +125,15 @@
     "extract-zip": "^2.0.1",
     "fast-extract": "^1.7.2",
     "file-type": "^21.0.0",
+    "fs-extra": "^11.3.0",
+    "glob": "^11.0.3",
     "globby": "^14.1.0",
     "jest": "^30.0.4",
     "jest-html-reporter": "^4.3.0",
     "lzma-native": "8.0.6",
     "markdown-link-check": "^3.13.7",
     "markdownlint-cli": "^0.45.0",
+    "minimist": "^1.2.8",
     "node-fetch": "^3.3.2",
     "octokit": "^5.0.3",
     "tempfile": "^5.0.0",
