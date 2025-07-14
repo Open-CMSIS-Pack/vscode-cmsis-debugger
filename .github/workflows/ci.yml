@@ -205,13 +205,20 @@ jobs:
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: test-coverage
-          path: coverage
 
       - name: Download test report
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: test-report
 
+      - name: Zip test reports
+        run: zip -r testreport.zip *
+        working-directory: test-report
+
+      - name: Zip test coverage
+        run: zip -r coverage.zip *
+        working-directory: test-coverage
+        
       - name: List files
         run: |
           ls -l test-report
@@ -222,6 +229,6 @@ jobs:
         with:
           files: |
             **/*.vsix
-            coverage
-            test-report
+            coverage.zip
+            testreport.zip
 
