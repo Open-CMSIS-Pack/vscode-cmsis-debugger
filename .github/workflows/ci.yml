@@ -218,17 +218,12 @@ jobs:
       - name: Zip test coverage
         run: zip -r coverage.zip *
         working-directory: test-coverage
-        
-      - name: List files
-        run: |
-          ls -l test-report
-          ls -l test-coverage
-          
+         
       - name: Attach packages
         uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
         with:
           files: |
             **/*.vsix
-            coverage.zip
-            testreport.zip
+            test-coverage/coverage.zip
+            test-report/testreport.zip
 
