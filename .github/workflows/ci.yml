@@ -219,6 +219,6 @@ jobs:
         with:
           files: |
             **/*.vsix
-            test-report.html
-            coverage/*
+            test-coverage/*
+            test-report/*
 
