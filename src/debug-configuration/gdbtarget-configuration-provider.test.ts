@@ -14,11 +14,17 @@
  * limitations under the License.
  */
 
-import { GDBTargetConfigurationProvider } from './gdbtarget-configuration-provider';
+import { GDBTargetConfiguration, GDBTargetConfigurationProvider } from '.'; // use index.ts to cover it in one test
 import { extensionContextFactory } from '../__test__/vscode.factory';
 
 import * as vscode from 'vscode';
+import { URI } from 'vscode-uri';
 import { debugConfigurationFactory } from './debug-configuration.factory';
+import { BuiltinToolPath } from '../desktop/builtin-tool-path';
+import { isWindows } from '../utils';
+
+jest.mock('../desktop/builtin-tool-path');
+const BuiltinToolPathMock = BuiltinToolPath as jest.MockedClass<typeof BuiltinToolPath>;
 
 describe('GDBTargetConfigurationProvider', () => {
 
@@ -48,5 +54,47 @@ describe('GDBTargetConfigurationProvider', () => {
         const resolvedDebugConfig = await configProvider.resolveDebugConfigurationWithSubstitutedVariables(undefined, debugConfig, undefined);
 
         expect(resolvedDebugConfig).toBeDefined();
+    });
+
+    it('resolves debug configuration and keeps gdb path if other than \'arm-none-eabi-gdb\'', async () => {
+        const absoluteGdbPath = '/absolute/path/to/gdb/arm-none-eabi-gdb';
+        const debugConfig = debugConfigurationFactory({
+            gdb: absoluteGdbPath
+        });
+
+        const getAbsolutePathSpy = jest.spyOn(BuiltinToolPath.prototype, 'getAbsolutePath');
+
+        const configProvider = new GDBTargetConfigurationProvider([]);
+        const resolvedDebugConfig = await configProvider.resolveDebugConfigurationWithSubstitutedVariables(
+            undefined,
+            debugConfig,
+            undefined) as GDBTargetConfiguration;
+
+        expect(resolvedDebugConfig).toBeDefined();
+        expect(resolvedDebugConfig.gdb).toEqual(absoluteGdbPath);
+        expect(getAbsolutePathSpy).not.toHaveBeenCalled();
+    });
+
+    it('resolves debug configuration and replaces \'arm-none-eabi-gdb\' with built-in tool path', async () => {
+        const absoluteGdbPath = '/absolute/path/to/gdb/arm-none-eabi-gdb';
+        const expectedGdbPath = isWindows ? absoluteGdbPath.replaceAll('/', '\\') : absoluteGdbPath;
+        const gdbUri = URI.parse(absoluteGdbPath);
+        const debugConfig = debugConfigurationFactory({
+            gdb: 'arm-none-eabi-gdb'
+        });
+
+        const builtinToolMockInstance = {
+            getAbsolutePath: jest.fn().mockReturnValue(gdbUri),
+        } as unknown as BuiltinToolPath;
+        BuiltinToolPathMock.mockImplementation(() => builtinToolMockInstance);
+
+        const configProvider = new GDBTargetConfigurationProvider([]);
+        const resolvedDebugConfig = await configProvider.resolveDebugConfigurationWithSubstitutedVariables(
+            undefined,
+            debugConfig,
+            undefined) as GDBTargetConfiguration;
+
+        expect(resolvedDebugConfig).toBeDefined();
+        expect(resolvedDebugConfig.gdb).toEqual(expectedGdbPath);
     });
 });

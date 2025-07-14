@@ -53,6 +53,7 @@ export const gdbTargetConfiguration = makeFactory<GDBTargetConfiguration>({
     logFile: () => undefined,
     openGdbConsole: () => undefined,
     initCommands: () => undefined,
+    customResetCommands: () => undefined,
     preRunCommands: () => undefined,
     imageAndSymbols: () => undefined,
     target: () => undefined,
