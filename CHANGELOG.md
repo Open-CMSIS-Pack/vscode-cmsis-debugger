@@ -1,8 +1,11 @@
 # Change Log
 
-## Unreleased
+## 0.5.0
 
-- Replace outdated documentation links in Change Log.
+- Adds `arm-none-eabi-gdb` v14.3.1 to CMSIS Debugger extension pack. This removes
+the need to install the `Arm GNU Toolchain` for each workspace using the
+`Arm Tools Environment Manager` extension .
+- Updates outdated documentation links in Change Log.
 
 ## 0.4.0
 

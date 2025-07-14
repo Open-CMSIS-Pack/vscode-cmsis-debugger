@@ -455,9 +455,10 @@ Related open source projects are:
 The debug setup requires a GDB installation supporting the GDB remote protocol and that can connect to a
 GDB server like pyOCD.
 
-We recommend to install the [`Arm GNU Toolchain`](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain)
-using the `Arm Tools Environment Manager` extension. It comes with `arm-none-eabi-gdb` which is used in the
-Arm CMSIS Debugger default debug configurations.
+This extension includes `arm-none-eabi-gdb` which is used in the Arm CMSIS Debugger default debug configurations.
+
+If you wish to use a different GDB installation, enter the full path to the executable (including the file name)
+in the `gdb` setting.
 
 ### pyOCD Debug Setup
 
