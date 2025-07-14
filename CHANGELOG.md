@@ -2,6 +2,7 @@
 
 ## 0.5.0
 
+- **IMPORTANT**: This release updates the [license](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/blob/main/LICENSE) for the CMSIS Debugger extension from `Apache License 2.0` to `Apache License 2.0 and GNU General Public License v3.0 or later`.
 - Adds [`arm-none-eabi-gdb` v14.3.1](https://artifacts.tools.arm.com/arm-none-eabi-gdb/14.3.1/) to CMSIS Debugger extension pack. This removes
 the need to install the `GCC compiler for ARM CPUs` for a workspace using the
 `Arm Tools Environment Manager` extension.
