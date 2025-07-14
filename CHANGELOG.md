@@ -2,9 +2,9 @@
 
 ## 0.5.0
 
-- Adds `arm-none-eabi-gdb` v14.3.1 to CMSIS Debugger extension pack. This removes
-the need to install the `Arm GNU Toolchain` for each workspace using the
-`Arm Tools Environment Manager` extension .
+- Adds [`arm-none-eabi-gdb` v14.3.1](https://artifacts.tools.arm.com/arm-none-eabi-gdb/14.3.1/) to CMSIS Debugger extension pack. This removes
+the need to install the `GCC compiler for ARM CPUs` for a workspace using the
+`Arm Tools Environment Manager` extension.
 - Updates outdated documentation links in Change Log.
 
 ## 0.4.0
