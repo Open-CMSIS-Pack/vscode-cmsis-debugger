@@ -211,11 +211,11 @@ jobs:
         with:
           pattern: test-report
 
-      - name: Zip test reports
+      - name: Zip testreports
         run: zip -r testreport.zip *
         working-directory: test-report
 
-      - name: Zip test coverage
+      - name: Zip coverage report
         run: zip -r coverage.zip *
         working-directory: test-coverage
          
