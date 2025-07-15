@@ -211,12 +211,12 @@ jobs:
         with:
           pattern: test-report
 
-      - name: Zip testreports
-        run: zip -r testreport.zip *
+      - name: Zip test report
+        run: zip -r test-report.zip *
         working-directory: test-report
 
-      - name: Zip coverage report
-        run: zip -r coverage.zip *
+      - name: Zip test coverage
+        run: zip -r test-coverage.zip *
         working-directory: test-coverage
          
       - name: Attach packages
@@ -224,6 +224,6 @@ jobs:
         with:
           files: |
             **/*.vsix
-            test-coverage/coverage.zip
-            test-report/testreport.zip
+            test-coverage/test-coverage.zip
+            test-report/test-report.zip
 
