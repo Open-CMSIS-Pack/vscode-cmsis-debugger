@@ -34,7 +34,8 @@ export const downloadFile: DownloadFile = (url, outputPath, token?) => new Promi
             if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
                 return downloadFile(res.headers.location, outputPath, token).then(resolve, reject);
             }
-            return reject(new Error(`Status Code: ${res.statusCode}`));
+            const headers = JSON.stringify(res.headers, null, 2);
+            return reject(new Error(`Status Code: ${res.statusCode}\n${url}: ${res.statusMessage ?? ''}\n${headers}`));
         }
 
         const writeStream = createWriteStream(outputPath);
