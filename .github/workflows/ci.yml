@@ -28,21 +28,29 @@ jobs:
     strategy:
       matrix:
         platform: [ubuntu-24.04, windows-2022, macos-14]
+        include:
+          - platform: ubuntu-24.04
+            target: linux
+          - platform: windows-2022
+            target: windows
+          - platform: macos-14
+            target: darwin
     runs-on: ${{ matrix.platform }}
-    name: 'Build and test (${{ matrix.platform }})'
+    name: 'Build and test (${{ matrix.target }})'
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@6c439dc8bdf85cadbbce9ed30d1c7b959517bc49
+        uses: step-security/harden-runner@6c439dc8bdf85cadbbce9ed30d1c7b959517bc49 # v2.12.2
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
           submodules: true
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: package.json
           registry-url: https://npm.pkg.github.com
@@ -50,7 +58,7 @@ jobs:
           cache: 'yarn'
 
       - name: Set version (Linux/macOS)
-        if: runner.os != 'Windows'
+        if: runner.os == 'Linux' && github.repository_owner == 'Open-CMSIS-Pack'
         run: |
           case ${{ github.event_name }} in
             release)
@@ -74,49 +82,16 @@ jobs:
           sed -i "s/## Unreleased/## ${VERSION}/" CHANGELOG.md
           echo "Version is ${VERSION}"
 
-      - name: Set version (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          switch ("${{ github.event_name }}") {
-            "release" {
-              $tag = "${{ github.event.release.tag_name }}"
-              yarn version --no-git-tag-version --new-version $tag.TrimStart("v")
-            }
-            "pull_request" {
-              $describe = git describe --tags | Select-String -Pattern 'v\d+\.\d+\.\d+' | ForEach-Object { $_.Matches[0].Value }
-              $qualifier = git describe --tags | Select-String -Pattern '-g[0-9a-f]+$' | ForEach-Object { $_.Matches[0].Value }
-              yarn version -s --no-git-tag-version --new-version $describe.TrimStart("v")
-              yarn version --no-git-tag-version --prepatch --preid "pr${{ github.event.number }}$qualifier"
-            }
-            default {
-              $describe = git describe --tags | Select-String -Pattern 'v\d+\.\d+\.\d+' | ForEach-Object { $_.Matches[0].Value }
-              $qualifier = git describe --tags | Select-String -Pattern '\d+-g[0-9a-f]+$' | ForEach-Object { $_.Matches[0].Value }
-              yarn version -s --no-git-tag-version --new-version $describe.TrimStart("v")
-              yarn version --no-git-tag-version --prepatch --preid "${{ github.ref_name }}$qualifier"
-            }
-          }
-          $version = (Get-Content package.json | ConvertFrom-Json).version
-          (Get-Content CHANGELOG.md) -replace '## Unreleased', "## $version" | Set-Content CHANGELOG.md
-          Write-Output "Version is $version"
-
       - name: Remove badges (Linux/macOS)
-        if: runner.os != 'Windows'
+        if: runner.os == 'Linux'
         run: |
           sed -i "/https:\/\/qlty\.sh\/gh/d" README.md
           sed -i "/https:\/\/securityscorecards\.dev\/viewer/d" README.md
 
-      - name: Remove badges (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          (Get-Content README.md) |
-            Where-Object { $_ -notmatch 'qlty\.sh|securityscorecards\.dev' } |
-            Set-Content README.md
-
       - name: Build
         env:
           GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
         run: yarn --frozen-lockfile --prefer-offline
 
       - name: Check copyright
@@ -126,7 +101,8 @@ jobs:
         run: yarn test
 
       - name: Upload dist
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: dist
           path: |
@@ -137,7 +113,7 @@ jobs:
           retention-days: 1
 
       - name: Commit changelog
-        if: false && github.event_name == 'release' && runner.os != 'Windows'
+        if: false && github.event_name == 'release' && runner.os == 'Linux'
         run: |
           sed -i '3i ## Unreleased\n' CHANGELOG.md
           git checkout main
@@ -147,19 +123,20 @@ jobs:
           git commit -m "Update CHANGELOG.md after release [skip ci]"
           git push
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: runner.os == 'Linux'
         with:
           name: test-coverage
           path: ./coverage
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: test-report
+          name: test-report-${{ matrix.target }}
           path: ./test-report.html
 
       - name: Publish coverage report to QLTY
-        if: github.repository_owner == 'Open-CMSIS-Pack'
-        uses: qltysh/qlty-action/coverage@f13b3559771beedd11e68b03d49512f3c21a75ba
+        if: github.repository_owner == 'Open-CMSIS-Pack' && runner.os == 'Linux'
+        uses: qltysh/qlty-action/coverage@f13b3559771beedd11e68b03d49512f3c21a75ba # v1
         with:
           token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
           files: coverage/lcov.info
@@ -248,11 +225,14 @@ jobs:
       - name: Download test report
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: test-report
+          pattern: test-report-linux
+
+      - name: List downloaded files
+        run: ls -la
 
       - name: Zip test report
         run: zip -r test-report.zip *
-        working-directory: test-report
+        working-directory: test-report-linux
 
       - name: Zip test coverage
         run: zip -r test-coverage.zip *
@@ -264,5 +244,5 @@ jobs:
           files: |
             **/*.vsix
             test-coverage/test-coverage.zip
-            test-report/test-report.zip
+            test-report-linux/test-report.zip
 
