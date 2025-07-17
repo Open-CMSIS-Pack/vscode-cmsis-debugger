@@ -80,6 +80,9 @@ jobs:
           GITHUB_TOKEN: ${{github.token}}
         run: yarn --frozen-lockfile --prefer-offline
 
+      - name: Check copyright
+        run: yarn copyright:check
+
       - name: Test
         run: yarn test
 
@@ -208,11 +211,19 @@ jobs:
         with:
           pattern: test-report
 
+      - name: Zip test report
+        run: zip -r test-report.zip *
+        working-directory: test-report
+
+      - name: Zip test coverage
+        run: zip -r test-coverage.zip *
+        working-directory: test-coverage
+         
       - name: Attach packages
         uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
         with:
           files: |
             **/*.vsix
-            test-report.html
-            coverage/*
+            test-coverage/test-coverage.zip
+            test-report/test-report.zip
 
