@@ -25,8 +25,11 @@ permissions:
 
 jobs:
   build:
-    name: Build and test
-    runs-on: [ubuntu-latest]
+    strategy:
+      matrix:
+        platform: [ubuntu-24.04, windows-2022, macos-14]
+    runs-on: ${{ matrix.platform }}
+    name: 'Build and test (${{ matrix.platform }})'
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@6c439dc8bdf85cadbbce9ed30d1c7b959517bc49 # v2.12.2
