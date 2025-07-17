@@ -22,7 +22,7 @@ import { isWindows } from '../utils';
 import assert from 'assert';
 
 export class BuiltinToolPath {
-    constructor(protected toolPath: string) {
+    constructor(public readonly toolPath: string) {
         assert(toolPath.length, 'BuiltinToolManager: \'toolPath\' must not be empty');
     }
 

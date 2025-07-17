@@ -24,6 +24,7 @@ import {
     JlinkConfigurationProvider
 } from './subproviders';
 import { BuiltinToolPath } from '../desktop/builtin-tool-path';
+import { resolveToolPath } from '../desktop/tool-path-utils';
 
 const GDB_TARGET_DEBUGGER_TYPE = 'gdbtarget';
 const ARM_NONE_EABI_GDB_NAME = 'arm-none-eabi-gdb';
@@ -139,19 +140,8 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
     ): Promise<vscode.DebugConfiguration | null | undefined> {
         // Only resolve GDB path once, otherwise regexp check will fail
         logger.debug('resolveDebugConfigurationWithSubstitutedVariables: Resolve GDB path');
-        this.resolveGdbPath(debugConfiguration);
+        debugConfiguration.gdb = resolveToolPath(debugConfiguration.gdb, ARM_NONE_EABI_GDB_NAME, ARM_NONE_EABI_GDB_EXECUTABLE_ONLY_REGEXP, this.builtinArmNoneEabiGdb);
         return this.resolveDebugConfigurationByResolverType('resolveDebugConfigurationWithSubstitutedVariables', folder, debugConfiguration, token);
-    }
-
-    protected resolveGdbPath(config: GDBTargetConfiguration): void {
-        const gdb = config.gdb;
-        const useBuiltin = !gdb || ARM_NONE_EABI_GDB_EXECUTABLE_ONLY_REGEXP.test(gdb);
-        const updateUri = useBuiltin ? this.builtinArmNoneEabiGdb.getAbsolutePath() : undefined;
-        if (updateUri) {
-            config.gdb = updateUri.fsPath;
-        } else {
-            vscode.window.showWarningMessage(`Cannot find ${ARM_NONE_EABI_GDB_BUILTIN_PATH} in CMSIS Debugger installation.\nUsing ${ARM_NONE_EABI_GDB_NAME} from PATH instead.`);
-        }
     }
 
 }

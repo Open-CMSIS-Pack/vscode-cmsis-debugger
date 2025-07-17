@@ -1,5 +1,9 @@
 # Change Log
 
+## Unreleased
+
+- Fixes [#407](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/407): Warning pops up when using an absolute path in the launch config.
+
 ## 0.5.0
 
 - **IMPORTANT**: This release updates the [license](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/blob/main/LICENSE) for the CMSIS Debugger extension from `Apache License 2.0` to `Apache License 2.0 and GNU General Public License v3.0 or later`.
