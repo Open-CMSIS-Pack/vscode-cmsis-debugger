@@ -27,7 +27,7 @@ export const resolveToolPath = (toolpath: string | undefined, toolName: string, 
     if (!updateUri) {
         const warnMessage =
             `Cannot find './${builtInTool.toolPath}' in CMSIS Debugger extension installation.\n`
-            + `Using ${toolName} from PATH instead.`;
+            + `Using '${toolName}' from PATH instead.`;
         vscode.window.showWarningMessage(warnMessage);
         return toolName;
     }
