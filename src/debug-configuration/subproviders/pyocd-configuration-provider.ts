@@ -36,12 +36,19 @@ export class PyocdConfigurationProvider extends BaseConfigurationProvider {
     protected resolveServerPath(target: TargetConfiguration): void {
         const targetServer = target.server;
         const useBuiltin = !targetServer || PYOCD_EXECUTABLE_ONLY_REGEXP.test(targetServer);
-        const updateUri = useBuiltin ? this.builtinPyocd.getAbsolutePath() : undefined;
-        if (updateUri) {
-            target.server = updateUri.fsPath;
-        } else {
-            vscode.window.showWarningMessage(`Cannot find ${PYOCD_BUILTIN_PATH} in CMSIS Debugger installation.\nUsing ${PYOCD_NAME} from PATH instead.`);
+        if (!useBuiltin) {
+            // Leave as is
+            return;
         }
+        const updateUri = this.builtinPyocd.getAbsolutePath();
+        if (!updateUri) {
+            const warnMessage =
+                `Cannot find './${PYOCD_BUILTIN_PATH}' in CMSIS Debugger extension installation.\n`
+                + `Using ${PYOCD_NAME} from PATH instead.`;
+            vscode.window.showWarningMessage(warnMessage);
+            return;
+        }
+        target.server = updateUri.fsPath;
     }
 
     protected resolveCmsisPackRootPath(target: TargetConfiguration): void {

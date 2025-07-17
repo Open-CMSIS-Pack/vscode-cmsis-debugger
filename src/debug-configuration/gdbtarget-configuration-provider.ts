@@ -146,12 +146,19 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
     protected resolveGdbPath(config: GDBTargetConfiguration): void {
         const gdb = config.gdb;
         const useBuiltin = !gdb || ARM_NONE_EABI_GDB_EXECUTABLE_ONLY_REGEXP.test(gdb);
-        const updateUri = useBuiltin ? this.builtinArmNoneEabiGdb.getAbsolutePath() : undefined;
-        if (updateUri) {
-            config.gdb = updateUri.fsPath;
-        } else {
-            vscode.window.showWarningMessage(`Cannot find ${ARM_NONE_EABI_GDB_BUILTIN_PATH} in CMSIS Debugger installation.\nUsing ${ARM_NONE_EABI_GDB_NAME} from PATH instead.`);
+        if (!useBuiltin) {
+            // Leave as is
+            return;
         }
+        const updateUri = this.builtinArmNoneEabiGdb.getAbsolutePath();
+        if (!updateUri) {
+            const warnMessage =
+                `Cannot find './${ARM_NONE_EABI_GDB_BUILTIN_PATH}' in CMSIS Debugger extension installation.\n`
+                + `Using ${ARM_NONE_EABI_GDB_NAME} from PATH instead.`;
+            vscode.window.showWarningMessage(warnMessage);
+            return;
+        }
+        config.gdb = updateUri.fsPath;
     }
 
 }
