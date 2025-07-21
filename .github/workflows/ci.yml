@@ -57,7 +57,7 @@ jobs:
           always-auth: true
           cache: 'yarn'
 
-      - name: Set version (Linux/macOS)
+      - name: Set version
         if: runner.os == 'Linux' && github.repository_owner == 'Open-CMSIS-Pack'
         run: |
           case ${{ github.event_name }} in
@@ -82,7 +82,7 @@ jobs:
           sed -i "s/## Unreleased/## ${VERSION}/" CHANGELOG.md
           echo "Version is ${VERSION}"
 
-      - name: Remove badges (Linux/macOS)
+      - name: Remove badges
         if: runner.os == 'Linux'
         run: |
           sed -i "/https:\/\/qlty\.sh\/gh/d" README.md
@@ -233,9 +233,6 @@ jobs:
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: test-report-linux
-
-      - name: List downloaded files
-        run: ls -la
 
       - name: Zip test report
         run: zip -r test-report.zip *
