@@ -92,7 +92,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         shell: bash
-        run: yarn --frozen-lockfile --prefer-offline
+        run: |
+          if [[ "${RUNNER_OS}" == "Linux" ]]; then
+            export RUN_LINT=false
+          fi
+          yarn --frozen-lockfile --prefer-offline
 
       - name: Check copyright
         run: yarn copyright:check
