@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import * as vscode from 'vscode';
 import { BaseConfigurationProvider } from './base-configuration-provider';
 import { GDBTargetConfiguration, TargetConfiguration } from '../gdbtarget-configuration';
 import { BuiltinToolPath } from '../../desktop/builtin-tool-path';
 import { getCmsisPackRootPath } from '../../utils';
 import { logger } from '../../logger';
+import { resolveToolPath } from '../../desktop/tool-path-utils';
 
 const PYOCD_NAME = 'pyocd';
 const PYOCD_BUILTIN_PATH = 'tools/pyocd/pyocd';
@@ -32,17 +32,6 @@ const PYOCD_CLI_ARG_CBUILDRUN = '--cbuild-run';
 
 export class PyocdConfigurationProvider extends BaseConfigurationProvider {
     protected builtinPyocd = new BuiltinToolPath(PYOCD_BUILTIN_PATH);
-
-    protected resolveServerPath(target: TargetConfiguration): void {
-        const targetServer = target.server;
-        const useBuiltin = !targetServer || PYOCD_EXECUTABLE_ONLY_REGEXP.test(targetServer);
-        const updateUri = useBuiltin ? this.builtinPyocd.getAbsolutePath() : undefined;
-        if (updateUri) {
-            target.server = updateUri.fsPath;
-        } else {
-            vscode.window.showWarningMessage(`Cannot find ${PYOCD_BUILTIN_PATH} in CMSIS Debugger installation.\nUsing ${PYOCD_NAME} from PATH instead.`);
-        }
-    }
 
     protected resolveCmsisPackRootPath(target: TargetConfiguration): void {
         if (target.environment?.CMSIS_PACK_ROOT) {
@@ -59,7 +48,7 @@ export class PyocdConfigurationProvider extends BaseConfigurationProvider {
             return debugConfiguration;
         }
         // server
-        this.resolveServerPath(debugConfiguration.target);
+        debugConfiguration.target.server = resolveToolPath(debugConfiguration.target.server, PYOCD_NAME, PYOCD_EXECUTABLE_ONLY_REGEXP, this.builtinPyocd);
         // serverParameters
         debugConfiguration.target.serverParameters ??= [];
         const parameters = debugConfiguration.target.serverParameters;

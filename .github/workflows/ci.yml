@@ -29,7 +29,7 @@ jobs:
     runs-on: [ubuntu-latest]
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@6c439dc8bdf85cadbbce9ed30d1c7b959517bc49 # v2.12.2
+        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
         with:
           egress-policy: audit
 
@@ -139,7 +139,7 @@ jobs:
           - darwin-arm64
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@6c439dc8bdf85cadbbce9ed30d1c7b959517bc49 # v2.12.2
+        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
         with:
           egress-policy: audit
 
@@ -192,7 +192,7 @@ jobs:
       contents: write  # for softprops/action-gh-release to create a GitHub release
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@6c439dc8bdf85cadbbce9ed30d1c7b959517bc49 # v2.12.2
+        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
         with:
           egress-policy: audit
 
@@ -211,11 +211,19 @@ jobs:
         with:
           pattern: test-report
 
+      - name: Zip test report
+        run: zip -r test-report.zip *
+        working-directory: test-report
+
+      - name: Zip test coverage
+        run: zip -r test-coverage.zip *
+        working-directory: test-coverage
+         
       - name: Attach packages
         uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
         with:
           files: |
             **/*.vsix
-            test-report.html
-            coverage/*
+            test-coverage/test-coverage.zip
+            test-report/test-report.zip
 
