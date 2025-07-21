@@ -88,12 +88,18 @@ jobs:
           sed -i "/https:\/\/qlty\.sh\/gh/d" README.md
           sed -i "/https:\/\/securityscorecards\.dev\/viewer/d" README.md
 
-      - name: Build
+      - name: Install dependencies
         env:
-          npm_config_skip_lint: ${{ runner.os != 'Linux' }}
           GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          yarn --frozen-lockfile --prefer-offline
+        run: yarn --frozen-lockfile --prefer-offline --ignore-scripts
+
+      - name: Build on Windows or macOS
+        if: runner.os != 'Linux'
+        run: yarn build:no-lint
+
+      - name: Build on Linux
+        if: runner.os == 'Linux'
+        run: yarn build
 
       - name: Check copyright
         run: yarn copyright:check
@@ -246,4 +252,3 @@ jobs:
             **/*.vsix
             test-coverage/test-coverage.zip
             test-report-linux/test-report.zip
-
