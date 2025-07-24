@@ -25,9 +25,9 @@
             "name": "Run download-tools.ts",
             "skipFiles": ["<node_internals>/**"],
             "program": "${workspaceFolder}/scripts/download-tools.ts",
-            "runtimeExecutable": "${workspaceRoot}/node_modules/.bin/ts-node",
-            "runtimeArgs": [],
-            "args": ["-f", "gdb"]
+            "runtimeExecutable": "npx",
+            "runtimeArgs": ["tsx"],
+            "args": ["-f", "gdb", "-t", "win32-x64"]
         },
         {
             "type": "node",

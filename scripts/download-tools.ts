@@ -67,13 +67,13 @@ const pyocd : Downloadable = new Downloadable(
 const gdb : Downloadable = new Downloadable(
     'GNU Debugger for Arm', 'gdb',
     async (target) => {
-        const { build, ext }  = {
-            'win32-x64': { build: 'mingw-w64-x86_64', ext: 'zip' },
-            'win32-arm64': { build: 'mingw-w64-x86_64', ext: 'zip' },
-            'linux-x64': { build: 'x86_64', ext: 'tar.xz'},
-            'linux-arm64': { build: 'aarch64', ext: 'tar.xz'},
-            'darwin-x64': { build: 'darwin-arm64', ext: 'tar.xz'},
-            'darwin-arm64': { build: 'darwin-arm64', ext: 'tar.xz'},
+        const { build, ext, strip }  = {
+            'win32-x64': { build: 'mingw-w64-x86_64', ext: 'zip', strip: 0 },
+            'win32-arm64': { build: 'mingw-w64-x86_64', ext: 'zip', strip: 0 },
+            'linux-x64': { build: 'x86_64', ext: 'tar.xz', strip: 1 },
+            'linux-arm64': { build: 'aarch64', ext: 'tar.xz', strip: 1 },
+            'darwin-x64': { build: 'darwin-arm64', ext: 'tar.xz', strip: 1 },
+            'darwin-arm64': { build: 'darwin-arm64', ext: 'tar.xz', strip: 1 },
         }[target];
     
         const json = await downloader.getPackageJson<CmsisPackageJson>();
@@ -81,7 +81,7 @@ const gdb : Downloadable = new Downloadable(
         const asset_name = `arm-gnu-toolchain-${build}-arm-none-eabi-gdb.${ext}`;
         const url = new URL(`https://artifacts.tools.arm.com/arm-none-eabi-gdb/${version}/${asset_name}`);
         const dlAsset = new WebFileAsset(url, asset_name, version);
-        const asset = new ArchiveFileAsset(dlAsset, 1);
+        const asset = new ArchiveFileAsset(dlAsset, strip);
         return asset;
     },
 );
