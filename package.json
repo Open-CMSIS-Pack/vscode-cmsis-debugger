@@ -109,6 +109,7 @@
     "yaml": "^2.8.0"
   },
   "devDependencies": {
+    "@open-cmsis-pack/vsce-helper": "^0.1.1",
     "@types/fs-extra": "^11.0.4",
     "@types/jest": "^30.0.0",
     "@types/minimist": "^1.2.5",
@@ -142,6 +143,7 @@
     "ts-jest": "29.4.0",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
+    "tsx": "^4.20.3",
     "type-fest": "^4.41.0",
     "typescript": "^5.8.3",
     "typescript-eslint": "8.37.0",
