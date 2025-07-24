@@ -17,7 +17,6 @@
  */
 
 import { ArchiveFileAsset, Downloadable, Downloader, GitHubReleaseAsset, WebFileAsset  } from '@open-cmsis-pack/vsce-helper';
-import { arch } from 'process';
 import { PackageJson } from 'type-fest';
 
 type CmsisPackageJson = PackageJson & {
@@ -53,7 +52,7 @@ const pyocd : Downloadable = new Downloadable(
         const reqVersion = json?.cmsis?.pyocd;
         if (reqVersion === undefined) {
             console.warn('No pyOCD version specified in package.json');
-            return undefined
+            return undefined;
         }
         const { repo, owner, version } = splitGitReleaseVersion(reqVersion, 'pyocd', 'pyOCD');
         const releaseAsset = new GitHubReleaseAsset(

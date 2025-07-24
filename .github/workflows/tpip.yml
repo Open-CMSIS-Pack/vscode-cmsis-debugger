@@ -16,13 +16,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-
 jobs:
   report:
     permissions:
       contents: write  # for Git to git push
+      packages: read
+
     name: Generate report
     runs-on: ubuntu-latest
     steps:
@@ -36,8 +35,12 @@ jobs:
           ref: ${{ github.head_ref }}
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           node-version: '20'
+          registry-url: https://npm.pkg.github.com
+          always-auth: true
           cache: 'yarn'
 
       - name: Install dependencies
