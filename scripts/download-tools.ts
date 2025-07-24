@@ -18,6 +18,8 @@
 
 import { ArchiveFileAsset, Downloadable, Downloader, GitHubReleaseAsset, WebFileAsset  } from '@open-cmsis-pack/vsce-helper';
 import { PackageJson } from 'type-fest';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 type CmsisPackageJson = PackageJson & {
     cmsis: {
@@ -64,6 +66,16 @@ const pyocd : Downloadable = new Downloadable(
     },
 )
 
+class GDBArchiveFileAsset extends ArchiveFileAsset {
+    public async copyTo(dest?: string) {
+        dest = await super.copyTo(dest);
+        // Remove doc directory as it contains duplicate files (names differ only in case)
+        // which are not supported by ZIP (VSIX) archives
+        await fs.rm(path.join(dest, 'share', 'doc'), { recursive: true, force: true });
+        return dest;
+    }
+}
+
 const gdb : Downloadable = new Downloadable(
     'GNU Debugger for Arm', 'gdb',
     async (target) => {
@@ -81,7 +93,7 @@ const gdb : Downloadable = new Downloadable(
         const asset_name = `arm-gnu-toolchain-${build}-arm-none-eabi-gdb.${ext}`;
         const url = new URL(`https://artifacts.tools.arm.com/arm-none-eabi-gdb/${version}/${asset_name}`);
         const dlAsset = new WebFileAsset(url, asset_name, version);
-        const asset = new ArchiveFileAsset(dlAsset, strip);
+        const asset = new GDBArchiveFileAsset(dlAsset, strip);
         return asset;
     },
 );
