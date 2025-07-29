@@ -21,7 +21,8 @@ import {
     PYOCD_SERVER_TYPE_REGEXP,
     PyocdConfigurationProvider,
     JLINK_SERVER_TYPE_REGEXP,
-    JlinkConfigurationProvider
+    JlinkConfigurationProvider,
+    GenericConfigurationProvider
 } from './subproviders';
 import { BuiltinToolPath } from '../desktop/builtin-tool-path';
 import { resolveToolPath } from '../desktop/tool-path-utils';
@@ -41,6 +42,7 @@ type ResolverType = 'resolveDebugConfiguration' | 'resolveDebugConfigurationWith
 const SUPPORTED_SUBPROVIDERS: GDBTargetConfigurationSubProvider[] = [
     { serverRegExp: PYOCD_SERVER_TYPE_REGEXP, provider: new PyocdConfigurationProvider() },
     { serverRegExp: JLINK_SERVER_TYPE_REGEXP, provider: new JlinkConfigurationProvider() },
+    { serverRegExp: /^/i, provider: new GenericConfigurationProvider() }
 ];
 
 
@@ -76,16 +78,18 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
 
     private getRelevantSubproviders(resolverType: ResolverType, serverType?: string): GDBTargetConfigurationSubProvider[] {
         if (!serverType) {
+            // if no serverType provided, extension should provide generic configurations
             return [];
         }
         return this.subProviders.filter(subProvider => this.isRelevantSubprovider(resolverType, serverType, subProvider));
     }
 
-    private getRelevantSubprovider(resolverType: ResolverType, serverType?: string): GDBTargetConfigurationSubProvider | undefined {
+    private getRelevantSubprovider(resolverType: ResolverType, serverType?: string): GDBTargetConfigurationSubProvider | undefined{
         logger.debug(`${resolverType}: Check for relevant configuration subproviders`);
         const subproviders = this.getRelevantSubproviders(resolverType, serverType);
         if (!subproviders.length) {
-            logger.debug('No relevant configuration subproviders found');
+            logger.debug('No relevant configuration subproviders found, using generic configuration');
+            //return "generic";
             return undefined;
         }
         if (subproviders.length > 1) {
