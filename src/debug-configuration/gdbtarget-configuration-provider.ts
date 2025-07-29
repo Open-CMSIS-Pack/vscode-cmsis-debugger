@@ -42,7 +42,7 @@ type ResolverType = 'resolveDebugConfiguration' | 'resolveDebugConfigurationWith
 const SUPPORTED_SUBPROVIDERS: GDBTargetConfigurationSubProvider[] = [
     { serverRegExp: PYOCD_SERVER_TYPE_REGEXP, provider: new PyocdConfigurationProvider() },
     { serverRegExp: JLINK_SERVER_TYPE_REGEXP, provider: new JlinkConfigurationProvider() },
-    { serverRegExp: /^/i, provider: new GenericConfigurationProvider() }
+    { serverRegExp: /generic/i, provider: new GenericConfigurationProvider() }
 ];
 
 
@@ -113,7 +113,7 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         this.logDebugConfiguration(resolverType, debugConfiguration, 'original config');
         const gdbTargetConfig: GDBTargetConfiguration = debugConfiguration;
         const gdbServerType = gdbTargetConfig.target?.server;
-        const subprovider = this.getRelevantSubprovider(resolverType, gdbServerType);
+        const subprovider = gdbServerType ? this.getRelevantSubprovider(resolverType, gdbServerType): this.getRelevantSubprovider(resolverType, 'generic');
         if (!subprovider) {
             this.logGdbServerCommandLine(resolverType, debugConfiguration);
             return debugConfiguration;
