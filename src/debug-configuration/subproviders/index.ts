@@ -16,3 +16,4 @@
 
 export * from './pyocd-configuration-provider';
 export * from './jlink-configuration-provider';
+export * from './generic-configuration-provider';

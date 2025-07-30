@@ -21,7 +21,8 @@ import {
     PYOCD_SERVER_TYPE_REGEXP,
     PyocdConfigurationProvider,
     JLINK_SERVER_TYPE_REGEXP,
-    JlinkConfigurationProvider
+    JlinkConfigurationProvider,
+    GenericConfigurationProvider
 } from './subproviders';
 import { BuiltinToolPath } from '../desktop/builtin-tool-path';
 import { resolveToolPath } from '../desktop/tool-path-utils';
@@ -42,6 +43,8 @@ const SUPPORTED_SUBPROVIDERS: GDBTargetConfigurationSubProvider[] = [
     { serverRegExp: PYOCD_SERVER_TYPE_REGEXP, provider: new PyocdConfigurationProvider() },
     { serverRegExp: JLINK_SERVER_TYPE_REGEXP, provider: new JlinkConfigurationProvider() },
 ];
+
+const GENERIC_SUBPROVIDER: GDBTargetConfigurationSubProvider = { serverRegExp: /^.*/i, provider: new GenericConfigurationProvider() };
 
 
 export class GDBTargetConfigurationProvider implements vscode.DebugConfigurationProvider {
@@ -85,8 +88,8 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         logger.debug(`${resolverType}: Check for relevant configuration subproviders`);
         const subproviders = this.getRelevantSubproviders(resolverType, serverType);
         if (!subproviders.length) {
-            logger.debug('No relevant configuration subproviders found');
-            return undefined;
+            logger.debug('No relevant configuration subproviders found, using generic configuration');
+            subproviders.push(GENERIC_SUBPROVIDER);
         }
         if (subproviders.length > 1) {
             logger.warn('Multiple configuration subproviders detected. Using first in list:');
