@@ -42,8 +42,9 @@ type ResolverType = 'resolveDebugConfiguration' | 'resolveDebugConfigurationWith
 const SUPPORTED_SUBPROVIDERS: GDBTargetConfigurationSubProvider[] = [
     { serverRegExp: PYOCD_SERVER_TYPE_REGEXP, provider: new PyocdConfigurationProvider() },
     { serverRegExp: JLINK_SERVER_TYPE_REGEXP, provider: new JlinkConfigurationProvider() },
-    { serverRegExp: /generic/i, provider: new GenericConfigurationProvider() }
 ];
+
+const GENERIC_SUBPROVIDER: GDBTargetConfigurationSubProvider = { serverRegExp: /^.*/i, provider: new GenericConfigurationProvider() };
 
 
 export class GDBTargetConfigurationProvider implements vscode.DebugConfigurationProvider {
@@ -78,19 +79,17 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
 
     private getRelevantSubproviders(resolverType: ResolverType, serverType?: string): GDBTargetConfigurationSubProvider[] {
         if (!serverType) {
-            // if no serverType provided, extension should provide generic configurations
             return [];
         }
         return this.subProviders.filter(subProvider => this.isRelevantSubprovider(resolverType, serverType, subProvider));
     }
 
-    private getRelevantSubprovider(resolverType: ResolverType, serverType?: string): GDBTargetConfigurationSubProvider | undefined{
+    private getRelevantSubprovider(resolverType: ResolverType, serverType?: string): GDBTargetConfigurationSubProvider | undefined {
         logger.debug(`${resolverType}: Check for relevant configuration subproviders`);
         const subproviders = this.getRelevantSubproviders(resolverType, serverType);
         if (!subproviders.length) {
             logger.debug('No relevant configuration subproviders found, using generic configuration');
-            //return "generic";
-            return undefined;
+            subproviders.push(GENERIC_SUBPROVIDER);
         }
         if (subproviders.length > 1) {
             logger.warn('Multiple configuration subproviders detected. Using first in list:');
@@ -113,7 +112,7 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         this.logDebugConfiguration(resolverType, debugConfiguration, 'original config');
         const gdbTargetConfig: GDBTargetConfiguration = debugConfiguration;
         const gdbServerType = gdbTargetConfig.target?.server;
-        const subprovider = gdbServerType ? this.getRelevantSubprovider(resolverType, gdbServerType): this.getRelevantSubprovider(resolverType, 'generic');
+        const subprovider = this.getRelevantSubprovider(resolverType, gdbServerType);
         if (!subprovider) {
             this.logGdbServerCommandLine(resolverType, debugConfiguration);
             return debugConfiguration;
