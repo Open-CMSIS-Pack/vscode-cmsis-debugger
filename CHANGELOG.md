@@ -1,8 +1,20 @@
 # Change Log
 
-## Unreleased
+## 1.0.0
 
+- Removes `Preview` status from extension.
 - Fixes [#407](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/407): Warning pops up when using an absolute path in the launch config.
+- Fixes [#428](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/428): `PERIPHERALS` view not shown when attaching to a running debug session.
+- Implements [#357](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/357): Create extension variant for Windows on Arm (WoA).
+- Updates included pyOCD distribution to v0.38.0
+    - Implements [#313](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/313): Add CoreSight AP specific CSW handling for AHB-AP, AXI-AP, APB-AP.
+    - Cortex-M: configure AP for cacheable access when cache is present.
+    - Add support for SW breakpoints when cache is present
+    - Add more debug logging information for cbuild-run targets.
+    - Fixes [#108](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/108): Flash algorithms - Relax memory layout rules and add RAM alignment and minimum stack size checking.
+    - Fixes [#382](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/382): CMSIS-DAP probe: fix macOS HID read/write.
+    - Fixes [#387](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/387): cbuild-run: use cbuild-run.yml parent folder as working directory for relative paths
+    - Fixes: Flash region builder - remove flash algorithm page size adjustment
 
 ## 0.5.0
 
