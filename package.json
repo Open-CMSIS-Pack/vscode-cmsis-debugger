@@ -121,7 +121,7 @@
     "@typescript-eslint/parser": "^8.39.0",
     "@vscode/vsce": "^3.6.0",
     "@yarnpkg/lockfile": "^1.1.0",
-    "eslint": "^9.31.0",
+    "eslint": "^9.32.0",
     "eslint-plugin-security": "^3.0.1",
     "extract-zip": "^2.0.1",
     "fast-extract": "^1.7.2",
