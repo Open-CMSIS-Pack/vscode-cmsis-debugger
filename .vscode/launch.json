@@ -27,7 +27,7 @@
             "program": "${workspaceFolder}/scripts/download-tools.ts",
             "runtimeExecutable": "npx",
             "runtimeArgs": ["tsx"],
-            "args": ["-f", "gdb", "-t", "win32-x64"]
+            "args": []
         },
         {
             "type": "node",

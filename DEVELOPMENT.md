@@ -4,12 +4,22 @@
 
 - Install **Visual Studio Code®**.
 - Install **Node.js®** on your machine and ensure it is on your path.
-    - The currently minimum required version is 20.19.x (LTS).
+  - The currently minimum required version is 20.19.x (LTS).
 - Install **Yarn** which is used to build and execute scripts in this repository:
 
   ```sh
   > npm install -g yarn
   ```
+
+- Point npm to GitHub Package registry via `~/npmrc`:
+  
+  ```txt
+  @open-cmsis-pack:registry=https://npm.pkg.github.com
+  //npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+  ```
+
+  And ensure your GitHub token is present in your environment's
+  `GITHUB_TOKEN` variable.
 
 ## Building
 
