@@ -4,7 +4,7 @@
 
 - Install **Visual Studio Code®**.
 - Install **Node.js®** on your machine and ensure it is on your path.
-  - The currently minimum required version is 20.19.x (LTS).
+    - The currently minimum required version is 20.19.x (LTS).
 - Install **Yarn** which is used to build and execute scripts in this repository:
 
   ```sh
