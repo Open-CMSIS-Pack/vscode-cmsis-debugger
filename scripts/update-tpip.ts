@@ -1,4 +1,4 @@
-#!npx ts-node
+#!npx tsx
 
 /**
  * Copyright 2025 Arm Limited

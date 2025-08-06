@@ -11,6 +11,16 @@
   > npm install -g yarn
   ```
 
+- Point npm to GitHub Package registry via `~/npmrc`:
+  
+  ```txt
+  @open-cmsis-pack:registry=https://npm.pkg.github.com
+  //npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+  ```
+
+  And ensure your GitHub token is present in your environment's
+  `GITHUB_TOKEN` variable.
+
 ## Building
 
 Major parts are platform independent but due to the inclusion of binary tools the resulting
