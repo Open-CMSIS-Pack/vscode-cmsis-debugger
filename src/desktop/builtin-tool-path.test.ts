@@ -41,7 +41,9 @@ describe('BuiltinToolPath', () => {
     it('should return the correct path for a given tool', () => {
         const builtinToolPath = new BuiltinToolPath('tools/pyocd/pyocd');
 
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
         fs.mkdirSync(`${testFolder}/tools/pyocd`, { recursive: true });
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
         fs.writeFileSync(`${testFolder}/tools/pyocd/pyocd${TOOL_EXTENSION}`, '');
 
         const expected = vscode.Uri.file(`${testFolder}/tools/pyocd/pyocd${TOOL_EXTENSION}`);
@@ -58,7 +60,9 @@ describe('BuiltinToolPath', () => {
 
     it('should return the directory of the tool', () => {
         const builtinToolPath = new BuiltinToolPath('tools/pyocd/pyocd');
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
         fs.mkdirSync(`${testFolder}/tools/pyocd`, { recursive: true });
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
         fs.writeFileSync(`${testFolder}/tools/pyocd/pyocd${TOOL_EXTENSION}`, '');
 
         const expected = vscode.Uri.file(`${testFolder}/tools/pyocd`);
