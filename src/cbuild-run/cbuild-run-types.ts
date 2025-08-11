@@ -173,3 +173,7 @@ export interface CbuildRunType {
     programming?: ProgrammingType[];
     'debug-topology'?: DebugTopologyType;
 };
+
+export interface CbuildRunRootType {
+    'cbuild-run': CbuildRunType;
+};

@@ -15,11 +15,9 @@
  */
 
 import * as vscode from 'vscode';
-import { GDBTargetConfiguration } from '../gdbtarget-configuration';
+import { ExtendedGDBTargetConfiguration, GDBTargetConfiguration } from '../gdbtarget-configuration';
 import { CbuildRunReader } from '../../cbuild-run';
 import { logger } from '../../logger';
-
-const DEFAULT_SVD_SETTING_NAME = 'definitionPath';
 
 export abstract class BaseConfigurationProvider implements vscode.DebugConfigurationProvider {
     protected _cbuildRunReader?: CbuildRunReader;
@@ -54,14 +52,15 @@ export abstract class BaseConfigurationProvider implements vscode.DebugConfigura
     }
 
     protected resolveSvdFile(debugConfiguration: GDBTargetConfiguration) {
+        const extDebugConfig = debugConfiguration as ExtendedGDBTargetConfiguration;
         const cbuildRunFilePath = debugConfiguration.cmsis?.cbuildRunFile;
         // 'definitionPath' is current default name for SVD file settings in Eclipse CDT Cloud Peripheral Inspector.
-        if (debugConfiguration[DEFAULT_SVD_SETTING_NAME] || !cbuildRunFilePath?.length) {
+        if (extDebugConfig.definitionPath !== undefined || !cbuildRunFilePath?.length) {
             return;
         }
         const svdFilePaths = this.cbuildRunReader.getSvdFilePaths(debugConfiguration?.target?.environment?.CMSIS_PACK_ROOT);
         // Needs update when we better support multiple `debugger:` YAML nodes
-        debugConfiguration[DEFAULT_SVD_SETTING_NAME] = svdFilePaths[0];
+        extDebugConfig.definitionPath = svdFilePaths[0];
     }
 
     protected abstract resolveServerParameters(debugConfiguration: GDBTargetConfiguration): Promise<GDBTargetConfiguration>;

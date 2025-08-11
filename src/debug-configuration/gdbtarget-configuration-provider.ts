@@ -71,10 +71,18 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         logger.debug(`\t${resolvedGDBConfig.target?.server} ${resolvedGDBConfig.target?.serverParameters?.join(' ')}`);
     }
 
+    private hasResolverFunction(resolverType: ResolverType, provider: vscode.DebugConfigurationProvider): boolean {
+        switch (resolverType) {
+            case 'resolveDebugConfiguration':
+                return !!provider.resolveDebugConfiguration;
+            case 'resolveDebugConfigurationWithSubstitutedVariables':
+                return !!provider.resolveDebugConfigurationWithSubstitutedVariables;
+        }
+    }
+
     private isRelevantSubprovider(resolverType: ResolverType, serverType: string, subProvider: GDBTargetConfigurationSubProvider): boolean {
         const serverTypeMatch = subProvider.serverRegExp.test(serverType);
-        const hasResolverFunction = !!subProvider.provider[resolverType];
-        return serverTypeMatch && hasResolverFunction;
+        return serverTypeMatch && this.hasResolverFunction(resolverType, subProvider.provider);
     }
 
     private getRelevantSubproviders(resolverType: ResolverType, serverType?: string): GDBTargetConfigurationSubProvider[] {
@@ -96,7 +104,7 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
             subproviders.forEach((subprovider, index) => logger.warn(`#${index}: '${subprovider.serverRegExp}'`));
         }
         const relevantProvider = subproviders[0];
-        if (!relevantProvider.provider[resolverType]) {
+        if (!this.hasResolverFunction(resolverType, relevantProvider.provider)) {
             logger.debug(`${resolverType}: Subprovider '${relevantProvider.serverRegExp}' does not implement '${resolverType}'.`);
             return undefined;
         }
@@ -118,7 +126,9 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
             return debugConfiguration;
         }
         logger.debug(`${resolverType}: Resolve config with subprovider '${subprovider.serverRegExp}'`);
-        const resolvedConfig = await subprovider.provider[resolverType]!(folder, debugConfiguration, token);
+        const resolvedConfig = resolverType === 'resolveDebugConfiguration'
+            ? await subprovider.provider.resolveDebugConfiguration!(folder, debugConfiguration, token)
+            : await subprovider.provider.resolveDebugConfigurationWithSubstitutedVariables!(folder, debugConfiguration, token);
         if (!resolvedConfig) {
             logger.error(`${resolverType}: Resolving config failed with subprovider '${subprovider.serverRegExp}'`);
             return undefined;
