@@ -51,16 +51,46 @@ export abstract class BaseConfigurationProvider implements vscode.DebugConfigura
         return !this.parameterExists(paramName, params) && (!commandName || await this.commandExists(commandName));
     }
 
-    protected resolveSvdFile(debugConfiguration: GDBTargetConfiguration) {
+    protected resolveSvdFile(debugConfiguration: GDBTargetConfiguration, pname?: string) {
         const extDebugConfig = debugConfiguration as ExtendedGDBTargetConfiguration;
         const cbuildRunFilePath = debugConfiguration.cmsis?.cbuildRunFile;
         // 'definitionPath' is current default name for SVD file settings in Eclipse CDT Cloud Peripheral Inspector.
         if (extDebugConfig.definitionPath !== undefined || !cbuildRunFilePath?.length) {
             return;
         }
-        const svdFilePaths = this.cbuildRunReader.getSvdFilePaths(debugConfiguration?.target?.environment?.CMSIS_PACK_ROOT);
-        // Needs update when we better support multiple `debugger:` YAML nodes
+        const svdFilePaths = this.cbuildRunReader.getSvdFilePaths(debugConfiguration?.target?.environment?.CMSIS_PACK_ROOT, pname);
+        if (!svdFilePaths.length) {
+            // No SVD file found for config
+            return;
+        }
+        // Only one SVD file per pname should be left, log a warning if more
+        if (svdFilePaths.length > 1) {
+            let message = 'Found more than one SVD file';
+            if (pname) {
+                message += ` for Pname '${pname}'`;
+            }
+            message += ', using first';
+            logger.warn(message);
+        }
         extDebugConfig.definitionPath = svdFilePaths[0];
+    }
+
+    protected extractPname(debugConfiguration: GDBTargetConfiguration): string | undefined {
+        const pnames = this.cbuildRunReader.getPnames();
+        if (!pnames.length) {
+            return undefined;
+        }
+        // Config names in debugger templates are pretty free-form. Hence, can't do a lot
+        // of format validation without reading debugger templates. Only check if name
+        // begins with valid pname string, and if string is part of processor list.
+        const configName = debugConfiguration.name.trim();
+        const pnameRegexp = /[-_A-Za-z0-9]+\s+.+/;
+        if (!pnameRegexp.test(configName)) {
+            // Not the right format, Pname is 'RestrictedString' in PDSC format.
+            return undefined;
+        }
+        const pname = configName.slice(0, configName.indexOf(' '));
+        return pnames.includes(pname) ? pname : undefined;
     }
 
     protected abstract resolveServerParameters(debugConfiguration: GDBTargetConfiguration): Promise<GDBTargetConfiguration>;
@@ -71,7 +101,7 @@ export abstract class BaseConfigurationProvider implements vscode.DebugConfigura
         _token?: vscode.CancellationToken
     ): Promise<vscode.DebugConfiguration | null | undefined> {
         await this.parseCbuildRunFile(debugConfiguration);
-        this.resolveSvdFile(debugConfiguration);
+        this.resolveSvdFile(debugConfiguration, this.extractPname(debugConfiguration));
         return this.resolveServerParameters(debugConfiguration);
     }
 

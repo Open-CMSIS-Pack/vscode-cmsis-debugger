@@ -43,7 +43,7 @@ export class CbuildRunReader {
         }
     }
 
-    public getSvdFilePaths(cmsisPackRoot?: string): string[] {
+    public getSvdFilePaths(cmsisPackRoot?: string, pname?: string): string[] {
         if (!this.cbuildRun) {
             return [];
         }
@@ -56,10 +56,23 @@ export class CbuildRunReader {
         // Replace potential ${CMSIS_PACK_ROOT} placeholder
         const effectiveCmsisPackRoot = cmsisPackRoot ?? getCmsisPackRootPath();
         // Map to copies, leave originals untouched
-        const svdFilePaths = svdFileDescriptors.map(descriptor => `${effectiveCmsisPackRoot
+        const filteredSvdDescriptors = pname ? svdFileDescriptors.filter(descriptor => descriptor.pname === pname): svdFileDescriptors;
+        const svdFilePaths = filteredSvdDescriptors.map(descriptor => `${effectiveCmsisPackRoot
             ? descriptor.file.replaceAll(CMSIS_PACK_ROOT_ENVVAR, effectiveCmsisPackRoot)
             : descriptor.file}`);
         return svdFilePaths;
+    }
+
+    public getPnames(): string[] {
+        if (!this.cbuildRun) {
+            return [];
+        }
+        const processors = this.cbuildRun['debug-topology']?.processors;
+        const pnameProcessors = processors?.filter(p => p.pname);
+        if (!pnameProcessors?.length) {
+            return [];
+        }
+        return pnameProcessors.map(p => p.pname!);
     }
 
 }
