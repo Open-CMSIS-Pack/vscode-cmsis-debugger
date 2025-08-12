@@ -35,8 +35,8 @@ describe('GenericConfigurationProvider', () => {
 
         it.each([
             { info: 'no pname', pname: undefined, expectedSvdPath: '/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core0.svd' },
-            { info: 'no pname', pname: 'Core0', expectedSvdPath: '/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core0.svd' },
-            { info: 'no pname', pname: 'Core1', expectedSvdPath: '/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core1.svd' },
+            { info: 'Core0', pname: 'Core0', expectedSvdPath: '/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core0.svd' },
+            { info: 'Core1', pname: 'Core1', expectedSvdPath: '/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core1.svd' },
         ])('parses a cbuild-run file and returns pname and svd file paths ($info)', async ({ pname, expectedSvdPath }) => {
             const configProvider = new GenericConfigurationProvider();
             const config = gdbTargetConfiguration({
