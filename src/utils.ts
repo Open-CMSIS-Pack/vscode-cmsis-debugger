@@ -38,7 +38,7 @@ export const extractPname = (configString: string, pnames?: string[]): string | 
     // Config names in debugger templates are pretty free-form. Hence, can't do a lot
     // of format validation without reading debugger templates. Only check if name
     // begins with valid pname string, and if string is part of processor list.
-    const pnameRegexp = /[-_A-Za-z0-9]+\s+.+/;
+    const pnameRegexp = /^[-_A-Za-z0-9]+\s+.+$/;
     if (!pnameRegexp.test(trimmedString)) {
         // Not the right format, Pname is 'RestrictedString' in PDSC format.
         return undefined;
