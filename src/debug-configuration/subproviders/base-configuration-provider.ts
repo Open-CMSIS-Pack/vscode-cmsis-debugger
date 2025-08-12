@@ -18,6 +18,7 @@ import * as vscode from 'vscode';
 import { ExtendedGDBTargetConfiguration, GDBTargetConfiguration } from '../gdbtarget-configuration';
 import { CbuildRunReader } from '../../cbuild-run';
 import { logger } from '../../logger';
+import { extractPname } from '../../utils';
 
 export abstract class BaseConfigurationProvider implements vscode.DebugConfigurationProvider {
     protected _cbuildRunReader?: CbuildRunReader;
@@ -75,22 +76,12 @@ export abstract class BaseConfigurationProvider implements vscode.DebugConfigura
         extDebugConfig.definitionPath = svdFilePaths[0];
     }
 
-    protected extractPname(debugConfiguration: GDBTargetConfiguration): string | undefined {
+    protected extractPnameFromDebugConfig(debugConfiguration: GDBTargetConfiguration): string | undefined {
         const pnames = this.cbuildRunReader.getPnames();
         if (!pnames.length) {
             return undefined;
         }
-        // Config names in debugger templates are pretty free-form. Hence, can't do a lot
-        // of format validation without reading debugger templates. Only check if name
-        // begins with valid pname string, and if string is part of processor list.
-        const configName = debugConfiguration.name.trim();
-        const pnameRegexp = /[-_A-Za-z0-9]+\s+.+/;
-        if (!pnameRegexp.test(configName)) {
-            // Not the right format, Pname is 'RestrictedString' in PDSC format.
-            return undefined;
-        }
-        const pname = configName.slice(0, configName.indexOf(' '));
-        return pnames.includes(pname) ? pname : undefined;
+        return extractPname(debugConfiguration.name, pnames);
     }
 
     protected abstract resolveServerParameters(debugConfiguration: GDBTargetConfiguration): Promise<GDBTargetConfiguration>;
@@ -101,7 +92,7 @@ export abstract class BaseConfigurationProvider implements vscode.DebugConfigura
         _token?: vscode.CancellationToken
     ): Promise<vscode.DebugConfiguration | null | undefined> {
         await this.parseCbuildRunFile(debugConfiguration);
-        this.resolveSvdFile(debugConfiguration, this.extractPname(debugConfiguration));
+        this.resolveSvdFile(debugConfiguration, this.extractPnameFromDebugConfig(debugConfiguration));
         return this.resolveServerParameters(debugConfiguration);
     }
 
