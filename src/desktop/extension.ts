@@ -42,6 +42,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     const runExecSpawn = async (execPath: string, extHeadline: string, args: string[] = [], shell?: boolean) => {
         const execArgs = args;
         const { stdout, stderr, exitCode } = await new Promise<{ stdout: string, stderr: string, exitCode: CodeType }>((resolve, reject) => {
+            let receivedData = false;
             const childProcess = spawn(
                 execPath,
                 execArgs,
@@ -62,16 +63,37 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
             let exitCode: CodeType = null;
             childProcess.stdout.on('data', data => {
                 stdout += data.toString();
+                if (data.length) {
+                    receivedData = true;
+                }
             });
             childProcess.stderr.on('data', data => {
                 stderr += data.toString();
+                if (data.length) {
+                    receivedData = true;
+                }
             });
             childProcess.on('error', err => reject(`Error: ${(err as Error).message}`));
-            childProcess.on('exit', (code, signal) => {
+            childProcess.on('exit', async (code, signal) => {
                 exitCode = code !== null ? code : signal;
                 logger.warn(`\t Killed: ${childProcess.killed}`);
                 logger.warn(`\t stdout errored?: ${childProcess.stdout.errored === null ? '' : (childProcess.stdout.errored as Error).message}`);
                 logger.warn(`\t stderr errored?: ${childProcess.stderr.errored === null ? '' : (childProcess.stderr.errored as Error).message}`);
+                if (!receivedData) {
+                    await new Promise<boolean>((resolve) => {
+                        logger.warn('waiting for output...');
+                        let timeout;
+                        childProcess.on('data', () => {
+                            clearTimeout(timeout);
+                            logger.warn('received output data');
+                            resolve(receivedData);
+                        });
+                        setTimeout(() => {
+                            logger.warn('waiting for output timed out');
+                            resolve(receivedData);
+                        }, 10000);
+                    });
+                }
                 resolve({ stdout, stderr, exitCode });
             });
 
