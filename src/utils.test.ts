@@ -56,12 +56,12 @@ describe('extractPname', () => {
 
     it('extracts pname if first part of string but with now pname list', () => {
         const result = extractPname('dev-ice_name01 probe@gdbserver');
-        expect(result).toStrictEqual('dev-ice_name01');
+        expect(result).toEqual('dev-ice_name01');
     });
 
     it('extracts pname if first part of string and in pname list', () => {
         const result = extractPname('dev-ice_name01 probe@gdbserver', ['dev2', 'dev-ice_name01']);
-        expect(result).toStrictEqual('dev-ice_name01');
+        expect(result).toEqual('dev-ice_name01');
     });
 
     it('fails to extract if pname not first part of string but in pname list', () => {

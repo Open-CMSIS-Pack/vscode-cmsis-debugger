@@ -15,7 +15,10 @@
  */
 
 import { gdbTargetConfiguration, targetConfigurationFactory } from '../debug-configuration.factory';
+import { ExtendedGDBTargetConfiguration } from '../gdbtarget-configuration';
 import { GenericConfigurationProvider } from './generic-configuration-provider';
+
+const TEST_CBUILD_RUN_FILE = 'test-data/multi-core.cbuild-run.yml'; // Relative to repo root
 
 describe('GenericConfigurationProvider', () => {
 
@@ -29,6 +32,25 @@ describe('GenericConfigurationProvider', () => {
             const debugConfig = await configProvider.resolveDebugConfigurationWithSubstitutedVariables(undefined, config, undefined);
             expect(debugConfig).toBeDefined();
         });
+
+        it.each([
+            { info: 'no pname', pname: undefined, expectedSvdPath: '/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core0.svd' },
+            { info: 'no pname', pname: 'Core0', expectedSvdPath: '/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core0.svd' },
+            { info: 'no pname', pname: 'Core1', expectedSvdPath: '/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core1.svd' },
+        ])('parses a cbuild-run file and returns pname and svd file paths ($info)', async ({ pname, expectedSvdPath }) => {
+            const configProvider = new GenericConfigurationProvider();
+            const config = gdbTargetConfiguration({
+                name: `${pname} probe@gdbserver (launch)`,
+                target: targetConfigurationFactory(),
+                cmsis: {
+                    cbuildRunFile: TEST_CBUILD_RUN_FILE
+                }
+            });
+            const debugConfig = await configProvider.resolveDebugConfigurationWithSubstitutedVariables(undefined, config, undefined);
+            const gdbTargetConfig = debugConfig as ExtendedGDBTargetConfiguration;
+            expect(gdbTargetConfig.definitionPath?.endsWith(expectedSvdPath)).toBeTruthy();
+        });
+
     });
 
 });
