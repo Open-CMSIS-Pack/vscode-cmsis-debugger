@@ -18,20 +18,37 @@ import * as vscode from 'vscode';
 
 const GDB_TARGET_DEBUGGER_TYPE = 'gdbtarget';
 
-export class GDBTargetDebugTracker implements vscode.DebugAdapterTracker {
+export class GDBTargetDebugTracker {
+    private sessions: Map<string, vscode.DebugSession> = new Map();
+
+    private readonly _onWillStartSession: vscode.EventEmitter<vscode.DebugSession> = new vscode.EventEmitter<vscode.DebugSession>();
+    public readonly onWillStartSession: vscode.Event<vscode.DebugSession> = this._onWillStartSession.event;
+
+    private readonly _onDidChangeActiveDebugSession: vscode.EventEmitter<vscode.DebugSession|undefined> = new vscode.EventEmitter<vscode.DebugSession|undefined>();
+    public readonly onDidChangeActiveDebugSession: vscode.Event<vscode.DebugSession|undefined> = this._onDidChangeActiveDebugSession.event;
 
     public activate(context: vscode.ExtensionContext) {
-        // Use vscode debug tracker
-        const createDebugAdapterTracker = (_session: vscode.DebugSession): vscode.DebugAdapterTracker => ({
-            onWillStartSession: () => this.onWillStartSession.apply(this)
-        });
+        const createDebugAdapterTracker = (session: vscode.DebugSession): vscode.ProviderResult<vscode.DebugAdapterTracker> => {
+            return {
+                onWillStartSession: () => {
+                    this.sessions.set(session.id, session);
+                    this.bringConsoleToFront.apply(this);
+                    this._onWillStartSession.fire(session);
+                },
+                onWillStopSession: () => {
+                    this.sessions.delete(session.id);
+                },
+            };
+        };
 
+        // Register the tracker for a specific debug type (e.g., 'node')
         context.subscriptions.push(
-            vscode.debug.registerDebugAdapterTrackerFactory(GDB_TARGET_DEBUGGER_TYPE, { createDebugAdapterTracker })
+            vscode.debug.registerDebugAdapterTrackerFactory(GDB_TARGET_DEBUGGER_TYPE, { createDebugAdapterTracker }),
+            vscode.debug.onDidChangeActiveDebugSession(session => this._onDidChangeActiveDebugSession.fire(session))
         );
-    }
+    };
 
-    public onWillStartSession(): void {
+    public bringConsoleToFront(): void {
         // Bring debug console to front, let promise float.
         vscode.commands.executeCommand('workbench.debug.action.focusRepl');
     }
