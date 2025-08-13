@@ -17,7 +17,7 @@
 jest.mock('path');
 import * as os from 'os';
 import * as path from 'path';
-import { getCmsisPackRootPath, isWindows } from './utils';
+import { extractPname, getCmsisPackRootPath, isWindows } from './utils';
 
 const CMSIS_PACK_ROOT_DEFAULT = 'mock/path';
 describe('getCmsisPackRoot', () => {
@@ -46,4 +46,47 @@ describe('getCmsisPackRoot', () => {
         }
         process.env = originalProcessEnv;
     });
+});
+
+describe('extractPname', () => {
+
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('extracts pname if first part of string but with now pname list', () => {
+        const result = extractPname('dev-ice_name01 probe@gdbserver');
+        expect(result).toEqual('dev-ice_name01');
+    });
+
+    it('extracts pname if first part of string and in pname list', () => {
+        const result = extractPname('dev-ice_name01 probe@gdbserver', ['dev2', 'dev-ice_name01']);
+        expect(result).toEqual('dev-ice_name01');
+    });
+
+    it('fails to extract if pname not first part of string but in pname list', () => {
+        const result = extractPname('prefix dev-ice_name01 probe@gdbserver', ['dev2', 'dev-ice_name01']);
+        expect(result).toBeUndefined();
+    });
+
+    it('fails to extract if pname first part of string but not in pname list', () => {
+        const result = extractPname('dev-ice_name01 probe@gdbserver', ['dev2', 'dev-ice_name03']);
+        expect(result).toBeUndefined();
+    });
+
+    it('fails to extract if first part contains char invalid in pname', () => {
+        const result = extractPname('dev-ice_*name01 probe@gdbserver', ['dev2', 'dev-ice_*name01']);
+        expect(result).toBeUndefined();
+    });
+
+    it('fails to extract if first part contains char invalid in pname and in pname list', () => {
+        const result = extractPname('dev-ice_*name01 probe@gdbserver', ['dev2', 'dev-ice_*name01']);
+        expect(result).toBeUndefined();
+    });
+
+    it('fails to extract if first part contains char invalid in pname and no pname list', () => {
+        const result = extractPname('dev-ice_*name01 probe@gdbserver');
+        expect(result).toBeUndefined();
+    });
+
 });

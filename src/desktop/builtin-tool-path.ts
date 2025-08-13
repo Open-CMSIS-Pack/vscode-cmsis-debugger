@@ -29,8 +29,14 @@ export class BuiltinToolPath {
     public getAbsolutePath(): vscode.Uri | undefined {
         const extensionUri = vscode.extensions.getExtension(EXTENSION_ID)?.extensionUri;
         const absoluteUri = extensionUri?.with({ path: `${extensionUri.path}/${this.toolPath}${isWindows ? '.exe' : ''}` });
-        const fsPath = absoluteUri?.fsPath;
-        return (fsPath && fs.existsSync(fsPath)) ? absoluteUri : undefined;
+        if (!absoluteUri?.fsPath) {
+            return undefined;
+        }
+        const normalizedUri = vscode.Uri.file(path.normalize(absoluteUri.fsPath));
+        const normalizedFsPath = normalizedUri.fsPath;
+        // Cannot avoid it, but also no real user input here. `toolPath` only given programmatically.
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
+        return fs.existsSync(normalizedFsPath) ? normalizedUri : undefined;
     }
 
     public getAbsolutePathDir(): string | undefined{

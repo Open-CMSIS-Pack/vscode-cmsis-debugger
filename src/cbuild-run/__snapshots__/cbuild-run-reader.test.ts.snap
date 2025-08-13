@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`CbuildRunReader Parser successfully parses a *.cbuild-run.yml file 1`] = `
 {
@@ -67,8 +67,16 @@ exports[`CbuildRunReader Parser successfully parses a *.cbuild-run.yml file 1`] 
   },
   "debugger": {
     "clock": 10000000,
-    "gdbserver": "My Server Options
-",
+    "gdbserver": [
+      {
+        "pname": "Core0",
+        "port": 3336,
+      },
+      {
+        "pname": "Core1",
+        "port": 3339,
+      },
+    ],
     "name": "<default>",
     "port": "swd",
     "start-pname": "Core0",
@@ -81,18 +89,19 @@ exports[`CbuildRunReader Parser successfully parses a *.cbuild-run.yml file 1`] 
     {
       "file": "out/MyApp.bin",
       "info": "generate by MyApp",
+      "load": "image",
       "type": "bin",
     },
     {
       "file": "out/out/MyApp.axf",
       "info": "generate by MyApp",
+      "load": "symbols",
       "type": "elf",
     },
   ],
   "programming": [
     {
       "algorithm": "\${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Flash/algorithms/MyAlgorithm_Core0.FLM",
-      "default": true,
       "pname": "Core0",
       "ram-size": 131072,
       "ram-start": 536870912,
@@ -101,7 +110,6 @@ exports[`CbuildRunReader Parser successfully parses a *.cbuild-run.yml file 1`] 
     },
     {
       "algorithm": "\${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Flash/algorithms/MyAlgorithm_Extern.FLM",
-      "default": true,
       "pname": "Core0",
       "ram-size": 131072,
       "ram-start": 536870912,
@@ -116,12 +124,16 @@ exports[`CbuildRunReader Parser successfully parses a *.cbuild-run.yml file 1`] 
       "pname": "Core0",
       "type": "svd",
     },
+    {
+      "file": "\${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core1.svd",
+      "pname": "Core1",
+      "type": "svd",
+    },
   ],
   "system-resources": {
     "memory": [
       {
         "access": "rx",
-        "default": true,
         "from-pack": "MyVendor::MyDevice@1.0.0",
         "name": "Flash",
         "pname": "Core0",
@@ -130,7 +142,6 @@ exports[`CbuildRunReader Parser successfully parses a *.cbuild-run.yml file 1`] 
       },
       {
         "access": "rwx",
-        "default": true,
         "from-pack": "MyVendor::MyDevice@1.0.0",
         "name": "SRAM0",
         "pname": "Core0",
@@ -139,7 +150,6 @@ exports[`CbuildRunReader Parser successfully parses a *.cbuild-run.yml file 1`] 
       },
       {
         "access": "rwx",
-        "default": true,
         "from-pack": "MyVendor::MyDevice@1.0.0",
         "name": "SRAM1",
         "pname": "Core0",

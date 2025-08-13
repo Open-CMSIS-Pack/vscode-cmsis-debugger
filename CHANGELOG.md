@@ -1,5 +1,9 @@
 # Change Log
 
+## Unreleased
+
+- Fixes [#439](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/439): Peripheral Inspector receives wrong SVD file path for secondary core of a multi-core connection.
+
 ## 1.0.0
 
 - Removes `Preview` status from extension.

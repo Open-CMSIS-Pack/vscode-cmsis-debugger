@@ -15,11 +15,10 @@
  */
 
 import * as vscode from 'vscode';
-import { GDBTargetConfiguration } from '../gdbtarget-configuration';
+import { ExtendedGDBTargetConfiguration, GDBTargetConfiguration } from '../gdbtarget-configuration';
 import { CbuildRunReader } from '../../cbuild-run';
 import { logger } from '../../logger';
-
-const DEFAULT_SVD_SETTING_NAME = 'definitionPath';
+import { extractPname } from '../../utils';
 
 export abstract class BaseConfigurationProvider implements vscode.DebugConfigurationProvider {
     protected _cbuildRunReader?: CbuildRunReader;
@@ -53,15 +52,36 @@ export abstract class BaseConfigurationProvider implements vscode.DebugConfigura
         return !this.parameterExists(paramName, params) && (!commandName || await this.commandExists(commandName));
     }
 
-    protected resolveSvdFile(debugConfiguration: GDBTargetConfiguration) {
+    protected resolveSvdFile(debugConfiguration: GDBTargetConfiguration, pname?: string) {
+        const extDebugConfig = debugConfiguration as ExtendedGDBTargetConfiguration;
         const cbuildRunFilePath = debugConfiguration.cmsis?.cbuildRunFile;
         // 'definitionPath' is current default name for SVD file settings in Eclipse CDT Cloud Peripheral Inspector.
-        if (debugConfiguration[DEFAULT_SVD_SETTING_NAME] || !cbuildRunFilePath?.length) {
+        if (extDebugConfig.definitionPath !== undefined || !cbuildRunFilePath?.length) {
             return;
         }
-        const svdFilePaths = this.cbuildRunReader.getSvdFilePaths(debugConfiguration?.target?.environment?.CMSIS_PACK_ROOT);
-        // Needs update when we better support multiple `debugger:` YAML nodes
-        debugConfiguration[DEFAULT_SVD_SETTING_NAME] = svdFilePaths[0];
+        const svdFilePaths = this.cbuildRunReader.getSvdFilePaths(debugConfiguration?.target?.environment?.CMSIS_PACK_ROOT, pname);
+        if (!svdFilePaths.length) {
+            // No SVD file found for config
+            return;
+        }
+        // Only one SVD file per pname should be left, log a warning if more
+        if (svdFilePaths.length > 1) {
+            let message = 'Found more than one SVD file';
+            if (pname) {
+                message += ` for Pname '${pname}'`;
+            }
+            message += ', using first';
+            logger.warn(message);
+        }
+        extDebugConfig.definitionPath = svdFilePaths[0];
+    }
+
+    protected extractPnameFromDebugConfig(debugConfiguration: GDBTargetConfiguration): string | undefined {
+        const pnames = this.cbuildRunReader.getPnames();
+        if (!pnames.length) {
+            return undefined;
+        }
+        return extractPname(debugConfiguration.name, pnames);
     }
 
     protected abstract resolveServerParameters(debugConfiguration: GDBTargetConfiguration): Promise<GDBTargetConfiguration>;
@@ -72,7 +92,7 @@ export abstract class BaseConfigurationProvider implements vscode.DebugConfigura
         _token?: vscode.CancellationToken
     ): Promise<vscode.DebugConfiguration | null | undefined> {
         await this.parseCbuildRunFile(debugConfiguration);
-        this.resolveSvdFile(debugConfiguration);
+        this.resolveSvdFile(debugConfiguration, this.extractPnameFromDebugConfig(debugConfiguration));
         return this.resolveServerParameters(debugConfiguration);
     }
 

@@ -22,7 +22,6 @@ concurrency:
 
 permissions:
   contents: read
-  packages: read
 
 jobs:
   build:
@@ -37,6 +36,8 @@ jobs:
           - platform: macos-14
             target: darwin
     runs-on: ${{ matrix.platform }}
+    permissions:
+      packages: read
     name: 'Build and test (${{ matrix.target }})'
 
     steps:
@@ -164,6 +165,8 @@ jobs:
           - linux-x64
           - linux-arm64
           - darwin-arm64
+    permissions:
+      packages: read
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
