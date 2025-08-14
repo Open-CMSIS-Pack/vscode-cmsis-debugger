@@ -76,6 +76,7 @@ module.exports = {
     debug: {
         registerDebugConfigurationProvider: jest.fn(),
         registerDebugAdapterTrackerFactory: jest.fn(),
+        onDidChangeActiveDebugSession: jest.fn(),
     },
     EnvironmentVariableMutatorType,
 };
