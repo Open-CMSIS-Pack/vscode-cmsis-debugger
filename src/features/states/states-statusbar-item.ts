@@ -17,7 +17,7 @@
 import * as vscode from 'vscode';
 import { EXTENSION_NAME } from '../../manifest';
 import { extractPname } from '../../utils';
-import { GDBTargetDebugTracker } from '../../debug-session';
+import { ContinuedEvent, GDBTargetDebugTracker, StoppedEvent } from '../../debug-session';
 import { CbuildRunReader } from '../../cbuild-run';
 import { ExtendedGDBTargetConfiguration } from '../../debug-configuration';
 import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-session';
@@ -43,8 +43,19 @@ export class StatesStatusBarItem {
         this.statusBarItem = undefined;
     }
 
-    protected async handleActiveSessionChanged(session: GDBTargetDebugSession | undefined): Promise<void> {
+    protected async handleActiveSessionChanged(session?: GDBTargetDebugSession): Promise<void> {
         this.activeSession = session;
+        return this.updateItem();
+    }
+
+    protected async handleContinuedEvent(_event: ContinuedEvent): Promise<void> {
+        // Do nothing for now
+    }
+
+    protected async handleStoppedEvent(event: StoppedEvent): Promise<void> {
+        if (event.session.id !== event.session.id) {
+            return;
+        }
         return this.updateItem();
     }
 

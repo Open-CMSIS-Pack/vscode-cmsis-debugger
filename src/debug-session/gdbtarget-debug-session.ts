@@ -41,4 +41,28 @@ export class GDBTargetDebugSession {
         }
         return undefined;
     }
+
+    public async readMemory(address: number, length = 4): Promise<ArrayBuffer|undefined> {
+        try {
+            const args: DebugProtocol.ReadMemoryArguments = {
+                memoryReference: `${address}`,
+                count: length
+            };
+            const response = await this.session.customRequest('readMemory', args) as DebugProtocol.ReadMemoryResponse['body'];
+            if (!response) {
+                return undefined;
+            }
+            const respAddress = parseInt(response.address, response.address.startsWith('0x') ? 16 : 10);
+            if (address !== respAddress || !response.data) {
+                return undefined;
+            }
+            const respLen = length - (response.unreadableBytes ?? 0);
+            const decodedBuffer = Buffer.from(response.data, 'base64').buffer;
+            return respLen !== length ? decodedBuffer.slice(0, respLen) : decodedBuffer;
+        } catch (error: unknown) {
+            const errorMessage = (error as Error)?.message;
+            logger.debug(`Session '${this.session.name}': Cannot read ${length} Bytes from address ${address} - '${errorMessage}'`);
+        }
+        return undefined;
+    }
 }
