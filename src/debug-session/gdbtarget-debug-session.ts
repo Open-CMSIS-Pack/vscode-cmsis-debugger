@@ -15,6 +15,8 @@
  */
 
 import * as vscode from 'vscode';
+import { DebugProtocol } from '@vscode/debugprotocol';
+import { logger } from '../logger';
 
 /**
  * GDBTargetDebugSession - Wrapper class to provide session state/details
@@ -23,4 +25,20 @@ export class GDBTargetDebugSession {
 
     constructor(public session: vscode.DebugSession) {}
 
+    public async evaluateGlobalExpression(expression: string): Promise<string|undefined> {
+        try {
+            const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
+            const args: DebugProtocol.EvaluateArguments = {
+                expression,
+                frameId, // Currently required by CDT GDB Adapter // TODO: track frameId
+                context: 'hover'
+            };
+            const response = await this.session.customRequest('evaluate', args) as DebugProtocol.EvaluateResponse['body'];
+            return response.result.match(/\d+/) ? response.result : undefined;
+        } catch (error: unknown) {
+            const errorMessage = (error as Error)?.message;
+            logger.debug(`Session '${this.session.name}': Failed to evaluate global expression '${expression}' - '${errorMessage}'`);
+        }
+        return undefined;
+    }
 }

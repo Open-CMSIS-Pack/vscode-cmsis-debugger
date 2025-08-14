@@ -21,19 +21,20 @@ import { GDBTargetDebugSession } from './gdbtarget-debug-session';
 export class GDBTargetDebugSessions {
     private sessions: Map<string, GDBTargetDebugSession> = new Map();
 
-    private readonly _onWillStartSession: vscode.EventEmitter<vscode.DebugSession> = new vscode.EventEmitter<vscode.DebugSession>();
-    public readonly onWillStartSession: vscode.Event<vscode.DebugSession> = this._onWillStartSession.event;
+    private readonly _onWillStartSession: vscode.EventEmitter<GDBTargetDebugSession> = new vscode.EventEmitter<GDBTargetDebugSession>();
+    public readonly onWillStartSession: vscode.Event<GDBTargetDebugSession> = this._onWillStartSession.event;
 
-    private readonly _onDidChangeActiveDebugSession: vscode.EventEmitter<vscode.DebugSession|undefined> = new vscode.EventEmitter<vscode.DebugSession|undefined>();
-    public readonly onDidChangeActiveDebugSession: vscode.Event<vscode.DebugSession|undefined> = this._onDidChangeActiveDebugSession.event;
+    private readonly _onDidChangeActiveDebugSession: vscode.EventEmitter<GDBTargetDebugSession|undefined> = new vscode.EventEmitter<GDBTargetDebugSession|undefined>();
+    public readonly onDidChangeActiveDebugSession: vscode.Event<GDBTargetDebugSession|undefined> = this._onDidChangeActiveDebugSession.event;
 
     public activate(context: vscode.ExtensionContext) {
         const createDebugAdapterTracker = (session: vscode.DebugSession): vscode.ProviderResult<vscode.DebugAdapterTracker> => {
             return {
                 onWillStartSession: () => {
-                    this.sessions.set(session.id, new GDBTargetDebugSession(session));
+                    const gdbTargetSession = new GDBTargetDebugSession(session);
+                    this.sessions.set(session.id, gdbTargetSession);
                     this.bringConsoleToFront.apply(this);
-                    this._onWillStartSession.fire(session);
+                    this._onWillStartSession.fire(gdbTargetSession);
                 },
                 onWillStopSession: () => {
                     this.sessions.delete(session.id);
@@ -44,7 +45,7 @@ export class GDBTargetDebugSessions {
         // Register the tracker for a specific debug type (e.g., 'node')
         context.subscriptions.push(
             vscode.debug.registerDebugAdapterTrackerFactory(GDB_TARGET_DEBUGGER_TYPE, { createDebugAdapterTracker }),
-            vscode.debug.onDidChangeActiveDebugSession(session => this._onDidChangeActiveDebugSession.fire(session))
+            vscode.debug.onDidChangeActiveDebugSession(session => this._onDidChangeActiveDebugSession.fire(session?.id ? this.sessions.get(session?.id) : undefined))
         );
     };
 

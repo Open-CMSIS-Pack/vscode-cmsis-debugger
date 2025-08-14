@@ -20,10 +20,12 @@ import { extractPname } from '../../utils';
 import { GDBTargetDebugSessions } from '../../debug-session';
 import { CbuildRunReader } from '../../cbuild-run';
 import { ExtendedGDBTargetConfiguration } from '../../debug-configuration';
+import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-session';
 
 export class StatesStatusBarItem {
     private readonly statusBarItemID = `${EXTENSION_NAME}.statesItem`;
     private statusBarItem: vscode.StatusBarItem | undefined;
+    private activeSession: GDBTargetDebugSession | undefined;
 
     public activate(context: vscode.ExtensionContext, sessions: GDBTargetDebugSessions): void {
         this.statusBarItem = vscode.window.createStatusBarItem(
@@ -41,10 +43,16 @@ export class StatesStatusBarItem {
         this.statusBarItem = undefined;
     }
 
-    protected async handleActiveSessionChanged(session: vscode.DebugSession | undefined): Promise<void> {
+    protected async handleActiveSessionChanged(session: GDBTargetDebugSession | undefined): Promise<void> {
+        this.activeSession = session;
+        return this.updateItem();
+    }
+
+    protected async updateItem(): Promise<void> {
         if (!this.statusBarItem) {
             return;
         }
+        const session = this.activeSession?.session;
         if (!session?.name.length) {
             this.statusBarItem.hide();
             return;
@@ -58,15 +66,16 @@ export class StatesStatusBarItem {
         }
         const pnames = cbuildRunReader.getPnames();
         const pname = pnames.length > 1 ? extractPname(session.name) : undefined;
-        this.updateText(pname);
+        await this.updateText(pname);
         this.statusBarItem.show();
     }
 
-    protected updateText(pname?: string): void {
+    protected async updateText(pname?: string): Promise<void> {
         if (!this.statusBarItem) {
             return;
         }
         const cpuName = pname ? ` ${pname} ` : '';
-        this.statusBarItem.text = `$(watch)${cpuName} 0ms`;
+        const statesValue = await this.activeSession?.evaluateGlobalExpression('SystemCoreClock');
+        this.statusBarItem.text = `$(watch)${cpuName} ${statesValue} states`;
     }
 };
