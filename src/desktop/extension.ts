@@ -15,7 +15,7 @@
  */
 
 import * as vscode from 'vscode';
-import { GDBTargetDebugSessions } from '../debug-session';
+import { GDBTargetDebugTracker } from '../debug-session';
 import { GDBTargetConfigurationProvider } from '../debug-configuration';
 import { logger } from '../logger';
 import { addToolsToPath } from './add-to-path';
@@ -27,16 +27,16 @@ const BUILTIN_TOOLS_PATHS = [
 ];
 
 export const activate = async (context: vscode.ExtensionContext): Promise<void> => {
-    const gdbtargetDebugSessions = new GDBTargetDebugSessions();
+    const gdbtargetDebugTracker = new GDBTargetDebugTracker();
     const gdbtargetConfigurationProvider = new GDBTargetConfigurationProvider();
     const statesStatusBarItem = new StatesStatusBarItem();
 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);
     // Activate components
-    gdbtargetDebugSessions.activate(context);
+    gdbtargetDebugTracker.activate(context);
     gdbtargetConfigurationProvider.activate(context);
 
-    statesStatusBarItem.activate(context, gdbtargetDebugSessions);
+    statesStatusBarItem.activate(context, gdbtargetDebugTracker);
 
     logger.debug('Extension Pack activated');
 };

@@ -15,4 +15,4 @@
  */
 
 export * from './constants';
-export * from './gdbtarget-debug-sessions';
+export * from './gdbtarget-debug-tracker';

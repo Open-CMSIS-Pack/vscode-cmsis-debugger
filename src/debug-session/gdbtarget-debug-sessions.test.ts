@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { GDBTargetDebugSessions } from './gdbtarget-debug-sessions';
+import { GDBTargetDebugTracker } from './gdbtarget-debug-tracker';
 import { extensionContextFactory } from '../__test__/vscode.factory';
 
 import * as vscode from 'vscode';
 
-describe('GDBTargetDebugSessions', () => {
+describe('GDBTargetDebugTracker', () => {
 
     it('should activate', async () => {
-        const debugTracker = new GDBTargetDebugSessions();
+        const debugTracker = new GDBTargetDebugTracker();
         const contextMock = extensionContextFactory();
 
         debugTracker.activate(contextMock);
@@ -33,7 +33,7 @@ describe('GDBTargetDebugSessions', () => {
     });
 
     it('brings the debug console to front \'onWillStartSession\' is called', async () => {
-        const debugTracker = new GDBTargetDebugSessions();
+        const debugTracker = new GDBTargetDebugTracker();
 
         debugTracker.bringConsoleToFront();
 

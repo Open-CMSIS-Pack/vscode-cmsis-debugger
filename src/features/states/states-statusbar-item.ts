@@ -17,7 +17,7 @@
 import * as vscode from 'vscode';
 import { EXTENSION_NAME } from '../../manifest';
 import { extractPname } from '../../utils';
-import { GDBTargetDebugSessions } from '../../debug-session';
+import { GDBTargetDebugTracker } from '../../debug-session';
 import { CbuildRunReader } from '../../cbuild-run';
 import { ExtendedGDBTargetConfiguration } from '../../debug-configuration';
 import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-session';
@@ -27,7 +27,7 @@ export class StatesStatusBarItem {
     private statusBarItem: vscode.StatusBarItem | undefined;
     private activeSession: GDBTargetDebugSession | undefined;
 
-    public activate(context: vscode.ExtensionContext, sessions: GDBTargetDebugSessions): void {
+    public activate(context: vscode.ExtensionContext, tracker: GDBTargetDebugTracker): void {
         this.statusBarItem = vscode.window.createStatusBarItem(
             this.statusBarItemID,
             vscode.StatusBarAlignment.Left
@@ -36,7 +36,7 @@ export class StatesStatusBarItem {
         context.subscriptions.push(
             this.statusBarItem
         );
-        sessions.onDidChangeActiveDebugSession(session => this.handleActiveSessionChanged(session));
+        tracker.onDidChangeActiveDebugSession(session => this.handleActiveSessionChanged(session));
     }
 
     public deactivate(): void {

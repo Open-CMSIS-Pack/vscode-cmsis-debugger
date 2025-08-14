@@ -15,10 +15,19 @@
  */
 
 import * as vscode from 'vscode';
+import { DebugProtocol } from '@vscode/debugprotocol';
 import { GDB_TARGET_DEBUGGER_TYPE } from './constants';
 import { GDBTargetDebugSession } from './gdbtarget-debug-session';
 
-export class GDBTargetDebugSessions {
+export interface SessionEvent<T extends DebugProtocol.Event> {
+    session: vscode.DebugSession;
+    event: T;
+}
+
+export type ContinuedEvent = SessionEvent<DebugProtocol.ContinuedEvent>;
+export type StoppedEvent = SessionEvent<DebugProtocol.StoppedEvent>;
+
+export class GDBTargetDebugTracker {
     private sessions: Map<string, GDBTargetDebugSession> = new Map();
 
     private readonly _onWillStartSession: vscode.EventEmitter<GDBTargetDebugSession> = new vscode.EventEmitter<GDBTargetDebugSession>();
@@ -26,6 +35,12 @@ export class GDBTargetDebugSessions {
 
     private readonly _onDidChangeActiveDebugSession: vscode.EventEmitter<GDBTargetDebugSession|undefined> = new vscode.EventEmitter<GDBTargetDebugSession|undefined>();
     public readonly onDidChangeActiveDebugSession: vscode.Event<GDBTargetDebugSession|undefined> = this._onDidChangeActiveDebugSession.event;
+
+    private readonly _onContinued: vscode.EventEmitter<ContinuedEvent> = new vscode.EventEmitter<ContinuedEvent>();
+    public readonly onContinued: vscode.Event<ContinuedEvent> = this._onContinued.event;
+
+    private readonly _onStopped: vscode.EventEmitter<StoppedEvent> = new vscode.EventEmitter<StoppedEvent>();
+    public readonly onStopped: vscode.Event<StoppedEvent> = this._onStopped.event;
 
     public activate(context: vscode.ExtensionContext) {
         const createDebugAdapterTracker = (session: vscode.DebugSession): vscode.ProviderResult<vscode.DebugAdapterTracker> => {
@@ -36,9 +51,8 @@ export class GDBTargetDebugSessions {
                     this.bringConsoleToFront.apply(this);
                     this._onWillStartSession.fire(gdbTargetSession);
                 },
-                onWillStopSession: () => {
-                    this.sessions.delete(session.id);
-                },
+                onWillStopSession: () => this.sessions.delete(session.id),
+                onDidSendMessage: (message) => this.handleOnDidSendMessage(session, message),
             };
         };
 
@@ -48,6 +62,23 @@ export class GDBTargetDebugSessions {
             vscode.debug.onDidChangeActiveDebugSession(session => this._onDidChangeActiveDebugSession.fire(session?.id ? this.sessions.get(session?.id) : undefined))
         );
     };
+
+    protected handleOnDidSendMessage(session: vscode.DebugSession, message?: DebugProtocol.ProtocolMessage): void {
+        if (!message) {
+            return;
+        }
+        if (message.type === 'event') {
+            const event = message as DebugProtocol.Event;
+            switch (event.event) {
+                case 'continued':
+                    this._onContinued.fire({ session, event } as ContinuedEvent);
+                    break;
+                case 'stopped':
+                    this._onStopped.fire({ session, event } as StoppedEvent);
+                    break;
+            }
+        }
+    }
 
     public bringConsoleToFront(): void {
         // Bring debug console to front, let promise float.
