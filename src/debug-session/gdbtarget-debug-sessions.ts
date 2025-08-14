@@ -15,11 +15,11 @@
  */
 
 import * as vscode from 'vscode';
+import { GDB_TARGET_DEBUGGER_TYPE } from './constants';
+import { GDBTargetDebugSession } from './gdbtarget-debug-session';
 
-const GDB_TARGET_DEBUGGER_TYPE = 'gdbtarget';
-
-export class GDBTargetDebugTracker {
-    private sessions: Map<string, vscode.DebugSession> = new Map();
+export class GDBTargetDebugSessions {
+    private sessions: Map<string, GDBTargetDebugSession> = new Map();
 
     private readonly _onWillStartSession: vscode.EventEmitter<vscode.DebugSession> = new vscode.EventEmitter<vscode.DebugSession>();
     public readonly onWillStartSession: vscode.Event<vscode.DebugSession> = this._onWillStartSession.event;
@@ -31,7 +31,7 @@ export class GDBTargetDebugTracker {
         const createDebugAdapterTracker = (session: vscode.DebugSession): vscode.ProviderResult<vscode.DebugAdapterTracker> => {
             return {
                 onWillStartSession: () => {
-                    this.sessions.set(session.id, session);
+                    this.sessions.set(session.id, new GDBTargetDebugSession(session));
                     this.bringConsoleToFront.apply(this);
                     this._onWillStartSession.fire(session);
                 },

@@ -15,11 +15,11 @@
  */
 
 import * as vscode from 'vscode';
-import { GDBTargetDebugTracker } from '../debug-configuration/gdbtarget-debug-tracker';
+import { GDBTargetDebugSessions } from '../debug-session';
 import { GDBTargetConfigurationProvider } from '../debug-configuration';
 import { logger } from '../logger';
 import { addToolsToPath } from './add-to-path';
-import { StatesStatusBarItem } from '../features/states-display/states-statusbar-item';
+import { StatesStatusBarItem } from '../features/states/states-statusbar-item';
 
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
@@ -27,16 +27,16 @@ const BUILTIN_TOOLS_PATHS = [
 ];
 
 export const activate = async (context: vscode.ExtensionContext): Promise<void> => {
-    const gdbtargetDebugTracker = new GDBTargetDebugTracker();
+    const gdbtargetDebugSessions = new GDBTargetDebugSessions();
     const gdbtargetConfigurationProvider = new GDBTargetConfigurationProvider();
     const statesStatusBarItem = new StatesStatusBarItem();
 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);
     // Activate components
-    gdbtargetDebugTracker.activate(context);
+    gdbtargetDebugSessions.activate(context);
     gdbtargetConfigurationProvider.activate(context);
 
-    statesStatusBarItem.activate(context, gdbtargetDebugTracker);
+    statesStatusBarItem.activate(context, gdbtargetDebugSessions);
 
     logger.debug('Extension Pack activated');
 };
