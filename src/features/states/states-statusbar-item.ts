@@ -21,19 +21,40 @@ import { ContinuedEvent, GDBTargetDebugTracker, StoppedEvent } from '../../debug
 import { CbuildRunReader } from '../../cbuild-run';
 import { ExtendedGDBTargetConfiguration } from '../../debug-configuration';
 import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-session';
+import { logger } from '../../logger';
 
 const DWT_CYCCNT_ADDRESS = 0xE0001004;
 
+const HISTORIC_STATES_MAX = 5;
+
+interface HistoricStates {
+    states: bigint;
+    reason: string;
+}
+
 interface States {
-    cpuStates: bigint;
+    states: bigint;
     lastCycles?: number;
+    statesHistory: HistoricStates[];  // FIFO containing previous 5 historic states with reason
+}
+
+interface StatesHistoryColumn {
+    title: string;
+    length: number;
 }
 
 export class StatesStatusBarItem {
     private readonly statusBarItemID = `${EXTENSION_NAME}.statesItem`;
+    private readonly showStatesHistoryCommmandID = `${EXTENSION_NAME}.showStatesHistory`;
     private statusBarItem: vscode.StatusBarItem | undefined;
     private activeSession: GDBTargetDebugSession | undefined;
     private sessionStates: Map<string, States> = new Map();
+    private readonly statesHistoryColumns: StatesHistoryColumn[] = [
+        { title: 'Diff', length: 4+2 },
+        { title: 'CPU STATES', length: 10+6 },
+        { title: 'CPU TIME', length: 8+7 },
+        { title: 'Reason (TODO: Corename)', length: 6+17 }
+    ];
 
     public activate(context: vscode.ExtensionContext, tracker: GDBTargetDebugTracker): void {
         this.statusBarItem = vscode.window.createStatusBarItem(
@@ -41,8 +62,10 @@ export class StatesStatusBarItem {
             vscode.StatusBarAlignment.Left
         );
         this.statusBarItem.name = 'CPU States';
+        this.statusBarItem.command = 'vscode-cmsis-debugger.showStatesHistory';
         context.subscriptions.push(
-            this.statusBarItem
+            this.statusBarItem,
+            vscode.commands.registerCommand(this.showStatesHistoryCommmandID, () => this.handleShowStatesHistory())
         );
         tracker.onWillStartSession(session => this.handleOnWillStartSession(session));
         tracker.onWillStopSession(session => this.handleOnWillStopSession(session));
@@ -56,7 +79,8 @@ export class StatesStatusBarItem {
 
     protected async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
         const states: States = {
-            cpuStates: BigInt(0)
+            states: BigInt(0),
+            statesHistory: []
         };
         this.sessionStates.set(session.session.id, states);
     }
@@ -75,10 +99,10 @@ export class StatesStatusBarItem {
     }
 
     protected async handleStoppedEvent(event: StoppedEvent): Promise<void> {
-        return this.updateStates(event.session);
+        return this.updateStates(event.session, event.event.body.reason);
     }
 
-    protected async updateStates(session: GDBTargetDebugSession): Promise<void> {
+    protected async updateStates(session: GDBTargetDebugSession, reason?: string): Promise<void> {
         const states = this.sessionStates.get(session.session.id);
         if (!states) {
             return;
@@ -94,7 +118,14 @@ export class StatesStatusBarItem {
         const cycleAdd = cycleDiff >= 0 ? cycleDiff : newCycles + Math.pow(2, 32) - states.lastCycles;
         // Caution with types...
         states.lastCycles = newCycles;
-        states.cpuStates += BigInt(cycleAdd);
+        if (states.statesHistory.length >= HISTORIC_STATES_MAX + 1) {
+            states.statesHistory.shift();
+        }
+        states.states += BigInt(cycleAdd);
+        states.statesHistory.push({
+            states: states.states,
+            reason: reason ?? 'Unknown'
+        });
         return this.updateItem();
     }
 
@@ -135,8 +166,8 @@ export class StatesStatusBarItem {
         const frequency = await this.getFrequency();
         const displayString =
             frequency === undefined || frequency // TODO: Remove
-                ? states.cpuStates.toString()
-                : (states.cpuStates / BigInt(frequency)).toString();
+                ? states.states.toString()
+                : (states.states / BigInt(frequency)).toString();
         this.statusBarItem.text = `$(watch)${cpuName} ${displayString} states`;
     }
 
@@ -147,5 +178,59 @@ export class StatesStatusBarItem {
         }
         const frequencyValue = parseInt(frequencyString);
         return isNaN(frequencyValue) ? undefined : frequencyValue;
+    }
+
+    protected printStatesHistoryHeader(): void {
+        const columnHeaders = this.statesHistoryColumns.map(columnHeader => columnHeader.title.padEnd(columnHeader.length));
+        const header = columnHeaders.join('');
+        logger.error(header);
+    }
+
+    protected printStatesHistoryContents(contents: string[][]): void {
+        if (contents.some(row => row.length !== this.statesHistoryColumns.length)) {
+            throw new Error('States history row has unexpected number of columns');
+        }
+        const paddedContents = contents.map(row => row.map((value, index) => value.padEnd(this.statesHistoryColumns.at(index)!.length)).join(''));
+        paddedContents.forEach(line => logger.error(line));
+    }
+
+    protected handleShowStatesHistory(): void {
+        if (!this.activeSession) {
+            return;
+        }
+        const states = this.sessionStates.get(this.activeSession?.session.id);
+        if (!states) {
+            return;
+        }
+        this.printStatesHistoryHeader();
+        const contents: string[][] = [];
+        if (states.statesHistory.length === 0) {
+            logger.error('No state history captured');
+            return;
+        } else if (states.statesHistory.length > 1) {
+            const history = states.statesHistory.slice(0, -1);
+            const historyContents = history.map((histStates, index) => {
+                const referenceStates = states.statesHistory.at(index + 1)!.states;
+                const indexDiff = index - (states.statesHistory.length - 1);
+                const diffNum = -indexDiff - 1;
+                const statesDiff = referenceStates - histStates.states;
+                return [
+                    indexDiff.toString(),
+                    `d${diffNum}:${statesDiff.toString()}`,
+                    histStates.states.toString(),
+                    histStates.reason
+                ];
+            });
+            contents.push(...historyContents);
+        }
+        const currentStates = states.statesHistory.at(states.statesHistory.length - 1)!;
+        const currentContents = [
+            '0',
+            currentStates.states.toString(),
+            currentStates.states.toString(),
+            currentStates.reason
+        ];
+        contents.push(currentContents);
+        this.printStatesHistoryContents(contents);
     }
 };
