@@ -18,10 +18,15 @@ import * as vscode from 'vscode';
 import { EXTENSION_NAME } from '../../manifest';
 import { calculateTime, extractPname } from '../../utils';
 import { CpuStates } from './cpu-states';
+import { CpuStatesCommands } from './cpu-states-commands';
+
+interface QuickPickHandlerItem extends vscode.QuickPickItem {
+    handler(): unknown;
+}
 
 export class CpuStatesStatusBarItem {
-    private readonly statusBarItemID = `${EXTENSION_NAME}.statesItem`;
-    private readonly showCpuStatesHistoryCommmandID = `${EXTENSION_NAME}.showCpuStatesHistory`;
+    private readonly statusBarItemID = `${EXTENSION_NAME}.cpuStatesItem`;
+    private readonly statusBarItemCommandID = `${EXTENSION_NAME}.cpuStatesItemCommand`;
     private statusBarItem: vscode.StatusBarItem | undefined;
     private cpuStates?: CpuStates;
 
@@ -32,19 +37,15 @@ export class CpuStatesStatusBarItem {
             vscode.StatusBarAlignment.Left
         );
         this.statusBarItem.name = 'CPU States';
-        this.statusBarItem.command = 'vscode-cmsis-debugger.showStatesHistory';
+        this.statusBarItem.command = this.statusBarItemCommandID;
         // Register item and command
         context.subscriptions.push(
             this.statusBarItem,
-            vscode.commands.registerCommand(this.showCpuStatesHistoryCommmandID, () => this.handleShowHistory())
+            vscode.commands.registerCommand(this.statusBarItemCommandID, () => this.handleItemCommand())
         );
         // Register refresh handler and save CpuStates instance // TODO: needs better decoupling
         cpuStates.onRefresh(() => this.handleRefresh());
         this.cpuStates = cpuStates;
-    }
-
-    public deactivate(): void {
-        this.statusBarItem = undefined;
     }
 
     protected async handleRefresh(): Promise<void> {
@@ -81,11 +82,18 @@ export class CpuStatesStatusBarItem {
         this.statusBarItem.text = `$(watch)${cpuName} ${displayString}`;
     }
 
-    protected async handleShowHistory(): Promise<void> {
-        if (!this.cpuStates) {
+    protected async handleItemCommand(): Promise<void> {
+        const items: QuickPickHandlerItem[] = [
+            {
+                label: 'Run and Debug: CPU Time Information',
+                detail: 'Print CPU execution time information to TBD',
+                handler: () => vscode.commands.executeCommand(CpuStatesCommands.showCpuTimeHistoryCommmandID)
+            }
+        ];
+        const selection = await vscode.window.showQuickPick(items);
+        if (!selection) {
             return;
         }
-        await this.cpuStates.updateFrequency();
-        this.cpuStates.showStatesHistory();
+        selection.handler();
     }
 };

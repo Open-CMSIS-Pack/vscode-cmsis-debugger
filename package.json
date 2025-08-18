@@ -48,9 +48,10 @@
   "contributes": {
     "commands": [
       {
-        "title": "Show States History",
-        "shortTitle": "States History",
-        "command": "vscode-cmsis-debugger.showCpuStatesHistory",
+        "title": "CPU Time History",
+        "shortTitle": "CPU Time History",
+        "command": "vscode-cmsis-debugger.showCpuTimeHistory",
+        "category": "Run and Debug",
         "when": "true"
       }
     ],
