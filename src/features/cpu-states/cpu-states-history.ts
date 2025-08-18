@@ -36,7 +36,7 @@ export class CpuStatesHistory {
     private readonly historyColumns: HistoryColumn[] = [
         { title: 'Diff', length: 4+2 },
         { title: 'CPU TIME', length: 8+9 },
-        // { title: 'CPU STATES', length: 8+7 },
+        { title: 'CPU STATES', length: 8+7 },
         { title: 'Reason (TODO: Corename)', length: 6+17 }
     ];
 
@@ -85,7 +85,7 @@ export class CpuStatesHistory {
                 return [
                     indexDiff.toString(),
                     `d${diffNum}:${cpuStatesDiffString}`,
-                    // histStates.states.toString(),
+                    historyEntry.cpuStates.toString(),
                     historyEntry.reason
                 ];
             });
@@ -98,7 +98,7 @@ export class CpuStatesHistory {
         const currentContents = [
             '0',
             currentCpuStatesString,
-            // currentStates.states.toString(),
+            current.cpuStates.toString(),
             current.reason
         ];
         contents.push(currentContents);
