@@ -18,6 +18,7 @@ import * as vscode from 'vscode';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { GDB_TARGET_DEBUGGER_TYPE } from './constants';
 import { GDBTargetDebugSession } from './gdbtarget-debug-session';
+import { GDBTargetConfiguration } from '../debug-configuration';
 
 export interface SessionEvent<T extends DebugProtocol.Event> {
     session: GDBTargetDebugSession;
@@ -62,6 +63,7 @@ export class GDBTargetDebugTracker {
                     }
                 },
                 onDidSendMessage: (message) => this.handleOnDidSendMessage(session, message),
+                onWillReceiveMessage: (message) => this.handleOnWillReceiveMessage(session, message),
             };
         };
 
@@ -86,6 +88,26 @@ export class GDBTargetDebugTracker {
                 case 'stopped':
                     this._onStopped.fire({ session: gdbTargetSession, event } as StoppedEvent);
                     break;
+            }
+        }
+    }
+
+    protected handleOnWillReceiveMessage(session: vscode.DebugSession, message?: DebugProtocol.ProtocolMessage): void {
+        if (!message) {
+            return;
+        }
+        if (message.type === 'request') {
+            const request = message as DebugProtocol.Request;
+            const gdbTargetSession = this.sessions.get(session.id);
+            if (request.command === 'launch' || request.command === 'attach') {
+                const gdbTargetConfig = request.arguments as GDBTargetConfiguration;
+                const cbuildRunFile = gdbTargetConfig.cmsis?.cbuildRunFile;
+                if (cbuildRunFile && gdbTargetSession) {
+                    // Do not wait for it to keep the message flowing.
+                    // Session class will do the waiting in case requests
+                    // come early.
+                    gdbTargetSession.parseCbuildRun(cbuildRunFile);
+                }
             }
         }
     }

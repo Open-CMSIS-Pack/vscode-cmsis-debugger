@@ -17,13 +17,35 @@
 import * as vscode from 'vscode';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { logger } from '../logger';
+import { CbuildRunReader } from '../cbuild-run';
 
 /**
  * GDBTargetDebugSession - Wrapper class to provide session state/details
  */
 export class GDBTargetDebugSession {
+    private _cbuildRun: CbuildRunReader|undefined;
+    private _cbuildRunParsePromise: Promise<void>|undefined;
 
     constructor(public session: vscode.DebugSession) {}
+
+    public async getCbuildRun(): Promise<CbuildRunReader|undefined> {
+        if (!this._cbuildRun) {
+            return;
+        }
+        if (this._cbuildRunParsePromise) {
+            await this._cbuildRunParsePromise;
+        }
+        return this._cbuildRun.hasContents() ? this._cbuildRun : undefined;
+    }
+
+    public async parseCbuildRun(filePath: string): Promise<void> {
+        if (!this._cbuildRun) {
+            this._cbuildRun = new CbuildRunReader;
+        }
+        this._cbuildRunParsePromise = this._cbuildRun.parse(filePath);
+        await this._cbuildRunParsePromise;
+        this._cbuildRunParsePromise = undefined;
+    }
 
     public async evaluateGlobalExpression(expression: string): Promise<string|undefined> {
         try {
