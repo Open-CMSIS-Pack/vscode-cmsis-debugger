@@ -56,13 +56,22 @@ export class GDBTargetDebugSession {
             if (address !== respAddress || !response.data) {
                 return undefined;
             }
-            const respLen = length - (response.unreadableBytes ?? 0);
-            const decodedBuffer = Buffer.from(response.data, 'base64').buffer;
-            return respLen !== length ? decodedBuffer.slice(0, respLen) : decodedBuffer;
+            const responseLength = length - (response.unreadableBytes ?? 0);
+            const decodedBuffer = Buffer.from(response.data, 'base64');
+            return decodedBuffer.buffer.slice(decodedBuffer.byteOffset, decodedBuffer.byteOffset + responseLength);
         } catch (error: unknown) {
             const errorMessage = (error as Error)?.message;
             logger.debug(`Session '${this.session.name}': Cannot read ${length} Bytes from address ${address} - '${errorMessage}'`);
         }
         return undefined;
+    }
+
+    public async readMemoryU32(address: number): Promise<number|undefined> {
+        const data = await this.readMemory(address, 4);
+        if (!data) {
+            return undefined;
+        }
+        const dataView = new DataView(data);
+        return dataView.getUint32(0, true);
     }
 }

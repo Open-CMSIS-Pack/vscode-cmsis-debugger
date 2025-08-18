@@ -22,10 +22,18 @@ import { CbuildRunReader } from '../../cbuild-run';
 import { ExtendedGDBTargetConfiguration } from '../../debug-configuration';
 import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-session';
 
+const DWT_CYCCNT_ADDRESS = 0xE0001004;
+
+interface States {
+    cpuStates: bigint;
+    lastCycles?: number;
+}
+
 export class StatesStatusBarItem {
     private readonly statusBarItemID = `${EXTENSION_NAME}.statesItem`;
     private statusBarItem: vscode.StatusBarItem | undefined;
     private activeSession: GDBTargetDebugSession | undefined;
+    private sessionStates: Map<string, States> = new Map();
 
     public activate(context: vscode.ExtensionContext, tracker: GDBTargetDebugTracker): void {
         this.statusBarItem = vscode.window.createStatusBarItem(
@@ -36,11 +44,25 @@ export class StatesStatusBarItem {
         context.subscriptions.push(
             this.statusBarItem
         );
+        tracker.onWillStartSession(session => this.handleOnWillStartSession(session));
+        tracker.onWillStopSession(session => this.handleOnWillStopSession(session));
         tracker.onDidChangeActiveDebugSession(session => this.handleActiveSessionChanged(session));
+        tracker.onStopped((event) => this.handleStoppedEvent(event));
     }
 
     public deactivate(): void {
         this.statusBarItem = undefined;
+    }
+
+    protected async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
+        const states: States = {
+            cpuStates: BigInt(0)
+        };
+        this.sessionStates.set(session.session.id, states);
+    }
+
+    protected async handleOnWillStopSession(session: GDBTargetDebugSession): Promise<void> {
+        this.sessionStates.delete(session.session.id);
     }
 
     protected async handleActiveSessionChanged(session?: GDBTargetDebugSession): Promise<void> {
@@ -53,9 +75,26 @@ export class StatesStatusBarItem {
     }
 
     protected async handleStoppedEvent(event: StoppedEvent): Promise<void> {
-        if (event.session.id !== event.session.id) {
+        return this.updateStates(event.session);
+    }
+
+    protected async updateStates(session: GDBTargetDebugSession): Promise<void> {
+        const states = this.sessionStates.get(session.session.id);
+        if (!states) {
             return;
         }
+        const newCycles = await session.readMemoryU32(DWT_CYCCNT_ADDRESS);
+        if (newCycles === undefined) {
+            return;
+        }
+        if (states.lastCycles === undefined) {
+            states.lastCycles = newCycles;
+        }
+        const cycleDiff = newCycles - states.lastCycles;
+        const cycleAdd = cycleDiff >= 0 ? cycleDiff : newCycles + Math.pow(2, 32) - states.lastCycles;
+        // Caution with types...
+        states.lastCycles = newCycles;
+        states.cpuStates += BigInt(cycleAdd);
         return this.updateItem();
     }
 
@@ -85,8 +124,28 @@ export class StatesStatusBarItem {
         if (!this.statusBarItem) {
             return;
         }
+        if (!this.activeSession) {
+            return;
+        }
+        const states = this.sessionStates.get(this.activeSession?.session.id);
+        if (!states) {
+            return;
+        }
         const cpuName = pname ? ` ${pname} ` : '';
-        const statesValue = await this.activeSession?.evaluateGlobalExpression('SystemCoreClock');
-        this.statusBarItem.text = `$(watch)${cpuName} ${statesValue} states`;
+        const frequency = await this.getFrequency();
+        const displayString =
+            frequency === undefined || frequency // TODO: Remove
+                ? states.cpuStates.toString()
+                : (states.cpuStates / BigInt(frequency)).toString();
+        this.statusBarItem.text = `$(watch)${cpuName} ${displayString} states`;
+    }
+
+    protected async getFrequency(): Promise<number|undefined> {
+        const frequencyString = await this.activeSession?.evaluateGlobalExpression('SystemCoreClock');
+        if (!frequencyString) {
+            return undefined;
+        }
+        const frequencyValue = parseInt(frequencyString);
+        return isNaN(frequencyValue) ? undefined : frequencyValue;
     }
 };

@@ -20,7 +20,7 @@ import { GDB_TARGET_DEBUGGER_TYPE } from './constants';
 import { GDBTargetDebugSession } from './gdbtarget-debug-session';
 
 export interface SessionEvent<T extends DebugProtocol.Event> {
-    session: vscode.DebugSession;
+    session: GDBTargetDebugSession;
     event: T;
 }
 
@@ -32,6 +32,9 @@ export class GDBTargetDebugTracker {
 
     private readonly _onWillStartSession: vscode.EventEmitter<GDBTargetDebugSession> = new vscode.EventEmitter<GDBTargetDebugSession>();
     public readonly onWillStartSession: vscode.Event<GDBTargetDebugSession> = this._onWillStartSession.event;
+
+    private readonly _onWillStopSession: vscode.EventEmitter<GDBTargetDebugSession> = new vscode.EventEmitter<GDBTargetDebugSession>();
+    public readonly onWillStopSession: vscode.Event<GDBTargetDebugSession> = this._onWillStopSession.event;
 
     private readonly _onDidChangeActiveDebugSession: vscode.EventEmitter<GDBTargetDebugSession|undefined> = new vscode.EventEmitter<GDBTargetDebugSession|undefined>();
     public readonly onDidChangeActiveDebugSession: vscode.Event<GDBTargetDebugSession|undefined> = this._onDidChangeActiveDebugSession.event;
@@ -51,7 +54,13 @@ export class GDBTargetDebugTracker {
                     this.bringConsoleToFront.apply(this);
                     this._onWillStartSession.fire(gdbTargetSession);
                 },
-                onWillStopSession: () => this.sessions.delete(session.id),
+                onWillStopSession: () => {
+                    const gdbTargetSession = this.sessions.get(session.id);
+                    if (gdbTargetSession) {
+                        this.sessions.delete(session.id);
+                        this._onWillStopSession.fire(gdbTargetSession);
+                    }
+                },
                 onDidSendMessage: (message) => this.handleOnDidSendMessage(session, message),
             };
         };
@@ -69,12 +78,13 @@ export class GDBTargetDebugTracker {
         }
         if (message.type === 'event') {
             const event = message as DebugProtocol.Event;
+            const gdbTargetSession = this.sessions.get(session.id);
             switch (event.event) {
                 case 'continued':
-                    this._onContinued.fire({ session, event } as ContinuedEvent);
+                    this._onContinued.fire({ session: gdbTargetSession, event } as ContinuedEvent);
                     break;
                 case 'stopped':
-                    this._onStopped.fire({ session, event } as StoppedEvent);
+                    this._onStopped.fire({ session: gdbTargetSession, event } as StoppedEvent);
                     break;
             }
         }
