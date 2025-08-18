@@ -16,7 +16,7 @@
 
 import * as vscode from 'vscode';
 import { EXTENSION_NAME } from '../../manifest';
-import { extractPname } from '../../utils';
+import { calculateTime, extractPname } from '../../utils';
 import { ContinuedEvent, GDBTargetDebugTracker, StoppedEvent } from '../../debug-session';
 import { CbuildRunReader } from '../../cbuild-run';
 import { ExtendedGDBTargetConfiguration } from '../../debug-configuration';
@@ -51,8 +51,8 @@ export class StatesStatusBarItem {
     private sessionStates: Map<string, States> = new Map();
     private readonly statesHistoryColumns: StatesHistoryColumn[] = [
         { title: 'Diff', length: 4+2 },
-        { title: 'CPU STATES', length: 10+6 },
-        { title: 'CPU TIME', length: 8+7 },
+        { title: 'CPU TIME', length: 8+9 },
+        // { title: 'CPU STATES', length: 8+7 },
         { title: 'Reason (TODO: Corename)', length: 6+17 }
     ];
 
@@ -99,7 +99,10 @@ export class StatesStatusBarItem {
     }
 
     protected async handleStoppedEvent(event: StoppedEvent): Promise<void> {
-        return this.updateStates(event.session, event.event.body.reason);
+        // TODO: Temp solution, needs to be connected to stacktrace request and cancelled
+        // on continued event before stacktrace event.
+        setTimeout(() => this.updateStates(event.session, event.event.body.reason), 50);
+        return ;
     }
 
     protected async updateStates(session: GDBTargetDebugSession, reason?: string): Promise<void> {
@@ -165,10 +168,10 @@ export class StatesStatusBarItem {
         const cpuName = pname ? ` ${pname} ` : '';
         const frequency = await this.getFrequency();
         const displayString =
-            frequency === undefined || frequency // TODO: Remove
-                ? states.states.toString()
-                : (states.states / BigInt(frequency)).toString();
-        this.statusBarItem.text = `$(watch)${cpuName} ${displayString} states`;
+            frequency === undefined
+                ? `${states.states.toString()} states`
+                : calculateTime(states.states, frequency);
+        this.statusBarItem.text = `$(watch)${cpuName} ${displayString}`;
     }
 
     protected async getFrequency(): Promise<number|undefined> {
@@ -194,7 +197,7 @@ export class StatesStatusBarItem {
         paddedContents.forEach(line => logger.error(line));
     }
 
-    protected handleShowStatesHistory(): void {
+    protected async handleShowStatesHistory(): Promise<void> {
         if (!this.activeSession) {
             return;
         }
@@ -202,6 +205,7 @@ export class StatesStatusBarItem {
         if (!states) {
             return;
         }
+        const frequency = await this.getFrequency();
         this.printStatesHistoryHeader();
         const contents: string[][] = [];
         if (states.statesHistory.length === 0) {
@@ -214,20 +218,22 @@ export class StatesStatusBarItem {
                 const indexDiff = index - (states.statesHistory.length - 1);
                 const diffNum = -indexDiff - 1;
                 const statesDiff = referenceStates - histStates.states;
+                const statesDiffString = frequency === undefined ? statesDiff.toString() : calculateTime(statesDiff, frequency);
                 return [
                     indexDiff.toString(),
-                    `d${diffNum}:${statesDiff.toString()}`,
-                    histStates.states.toString(),
+                    `d${diffNum}:${statesDiffString}`,
+                    // histStates.states.toString(),
                     histStates.reason
                 ];
             });
             contents.push(...historyContents);
         }
         const currentStates = states.statesHistory.at(states.statesHistory.length - 1)!;
+        const statesString = frequency === undefined ? currentStates.states.toString() : calculateTime(currentStates.states, frequency);
         const currentContents = [
             '0',
-            currentStates.states.toString(),
-            currentStates.states.toString(),
+            statesString,
+            // currentStates.states.toString(),
             currentStates.reason
         ];
         contents.push(currentContents);
