@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
+import * as vscode from 'vscode';
 import { calculateTime } from '../../utils';
-import { logger } from '../../logger';
 
 const HISTORY_ENTRIES_MAX = 5;  // Excluding current
 
@@ -34,10 +34,11 @@ export class CpuStatesHistory {
     public frequency: number|undefined;
 
     private readonly historyColumns: HistoryColumn[] = [
-        { title: 'Diff', length: 4+2 },
-        { title: 'CPU TIME', length: 8+9 },
-        { title: 'CPU STATES', length: 8+7 },
-        { title: 'Reason (TODO: Corename)', length: 6+17 }
+        { title: 'Diff', length: 6 },
+        { title: 'CPU Time', length: 16 },
+        { title: 'CPU States', length: 12 },
+        { title: 'Reason', length: 8 },
+        { title: '(TODO: Corename)', length: 12 },
     ];
 
     public updateHistory(cpuStates: bigint, reason?: string): void {
@@ -50,10 +51,14 @@ export class CpuStatesHistory {
         });
     }
 
+    protected printLine(message: string) {
+        vscode.debug.activeDebugConsole.appendLine(message);
+    }
+
     protected printHeader(): void {
         const columnHeaders = this.historyColumns.map(columnHeader => columnHeader.title.padEnd(columnHeader.length));
         const header = columnHeaders.join('');
-        logger.error(header);
+        this.printLine(header);
     }
 
     protected printContents(contents: string[][]): void {
@@ -61,12 +66,14 @@ export class CpuStatesHistory {
             throw new Error('CPU states history row has unexpected number of columns');
         }
         const paddedContents = contents.map(row => row.map((value, index) => value.padEnd(this.historyColumns.at(index)!.length)).join(''));
-        paddedContents.forEach(line => logger.error(line));
+        paddedContents.forEach(line => this.printLine(line));
     }
 
     public showHistory(): void {
+        this.printLine('');
         if (this.historyValues.length === 0) {
-            logger.error('No CPU state history captured');
+            this.printLine('No CPU state history captured');
+            this.printLine('');
             return;
         }
 
@@ -86,7 +93,8 @@ export class CpuStatesHistory {
                     indexDiff.toString(),
                     `d${diffNum}:${cpuStatesDiffString}`,
                     historyEntry.cpuStates.toString(),
-                    historyEntry.reason
+                    historyEntry.reason,
+                    '' // placeholder for pname column
                 ];
             });
             contents.push(...historyContents);
@@ -96,12 +104,16 @@ export class CpuStatesHistory {
             ? current.cpuStates.toString()
             : calculateTime(current.cpuStates, this.frequency);
         const currentContents = [
-            '0',
+            ' 0',
             currentCpuStatesString,
             current.cpuStates.toString(),
-            current.reason
+            current.reason,
+            '' // placeholder for pname column
         ];
         contents.push(currentContents);
         this.printContents(contents);
+        this.printLine('');
+        // Focus debug console
+        vscode.commands.executeCommand('workbench.debug.action.focusRepl');
     }
 };
