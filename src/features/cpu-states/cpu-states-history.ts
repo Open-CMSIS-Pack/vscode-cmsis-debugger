@@ -157,6 +157,9 @@ export class CpuStatesHistory {
 
     public resetHistory(): void {
         const lastEntry = this.lastEntry;
+        if (lastEntry) {
+            lastEntry.cpuStates = BigInt(0);
+        }
         // Clear history and init with last entry if existent
         this.historyEntries = lastEntry ? [lastEntry] : [];
     }
