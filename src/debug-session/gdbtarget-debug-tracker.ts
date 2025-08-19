@@ -28,6 +28,20 @@ export interface SessionEvent<T extends DebugProtocol.Event> {
 export type ContinuedEvent = SessionEvent<DebugProtocol.ContinuedEvent>;
 export type StoppedEvent = SessionEvent<DebugProtocol.StoppedEvent>;
 
+export interface SessionResponse<T extends DebugProtocol.Response> {
+    session: GDBTargetDebugSession;
+    response: T;
+}
+
+export type StackTraceResponse = SessionResponse<DebugProtocol.StackTraceResponse>;
+
+export type StackItem = vscode.DebugThread | vscode.DebugStackFrame | undefined;
+
+export interface SessionStackItem {
+    session: GDBTargetDebugSession;
+    item: StackItem;
+}
+
 export class GDBTargetDebugTracker {
     private sessions: Map<string, GDBTargetDebugSession> = new Map();
 
@@ -40,11 +54,17 @@ export class GDBTargetDebugTracker {
     private readonly _onDidChangeActiveDebugSession: vscode.EventEmitter<GDBTargetDebugSession|undefined> = new vscode.EventEmitter<GDBTargetDebugSession|undefined>();
     public readonly onDidChangeActiveDebugSession: vscode.Event<GDBTargetDebugSession|undefined> = this._onDidChangeActiveDebugSession.event;
 
+    private readonly _onDidChangeActiveStackItem: vscode.EventEmitter<SessionStackItem> = new vscode.EventEmitter<SessionStackItem>();
+    public readonly onDidChangeActiveStackItem: vscode.Event<SessionStackItem> = this._onDidChangeActiveStackItem.event;
+
     private readonly _onContinued: vscode.EventEmitter<ContinuedEvent> = new vscode.EventEmitter<ContinuedEvent>();
     public readonly onContinued: vscode.Event<ContinuedEvent> = this._onContinued.event;
 
     private readonly _onStopped: vscode.EventEmitter<StoppedEvent> = new vscode.EventEmitter<StoppedEvent>();
     public readonly onStopped: vscode.Event<StoppedEvent> = this._onStopped.event;
+
+    private readonly _onStackTraceResponse: vscode.EventEmitter<StackTraceResponse> = new vscode.EventEmitter<StackTraceResponse>();
+    public readonly onStackTraceResponse: vscode.Event<StackTraceResponse> = this._onStackTraceResponse.event;
 
     public activate(context: vscode.ExtensionContext) {
         const createDebugAdapterTracker = (session: vscode.DebugSession): vscode.ProviderResult<vscode.DebugAdapterTracker> => {
@@ -70,7 +90,8 @@ export class GDBTargetDebugTracker {
         // Register the tracker for a specific debug type (e.g., 'node')
         context.subscriptions.push(
             vscode.debug.registerDebugAdapterTrackerFactory(GDB_TARGET_DEBUGGER_TYPE, { createDebugAdapterTracker }),
-            vscode.debug.onDidChangeActiveDebugSession(session => this._onDidChangeActiveDebugSession.fire(session?.id ? this.sessions.get(session?.id) : undefined))
+            vscode.debug.onDidChangeActiveDebugSession(session => this._onDidChangeActiveDebugSession.fire(session?.id ? this.sessions.get(session?.id) : undefined)),
+            vscode.debug.onDidChangeActiveStackItem(item => this.handleOnDidChangeActiveStackItem(item))
         );
     };
 
@@ -87,6 +108,17 @@ export class GDBTargetDebugTracker {
                     break;
                 case 'stopped':
                     this._onStopped.fire({ session: gdbTargetSession, event } as StoppedEvent);
+                    break;
+            }
+        } else if (message.type === 'response') {
+            const response = message as DebugProtocol.Response;
+            const gdbTargetSession = this.sessions.get(session.id);
+            switch (response.command) {
+                case 'stackTrace':
+                    if (!gdbTargetSession) {
+                        break;
+                    }
+                    this._onStackTraceResponse.fire({ session: gdbTargetSession, response } as StackTraceResponse);
                     break;
             }
         }
@@ -110,6 +142,14 @@ export class GDBTargetDebugTracker {
                 }
             }
         }
+    }
+
+    protected handleOnDidChangeActiveStackItem(item: StackItem): void {
+        const gdbTargetSession = item?.session.id ? this.sessions.get(item?.session.id) : undefined;
+        if (!gdbTargetSession) {
+            return;
+        }
+        this._onDidChangeActiveStackItem.fire({ session: gdbTargetSession, item });
     }
 
     public bringConsoleToFront(): void {

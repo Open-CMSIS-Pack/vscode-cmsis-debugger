@@ -44,25 +44,25 @@ export class CpuStatesStatusBarItem {
             vscode.commands.registerCommand(this.statusBarItemCommandID, () => this.handleItemCommand())
         );
         // Register refresh handler and save CpuStates instance // TODO: needs better decoupling
-        cpuStates.onRefresh(() => this.handleRefresh());
+        cpuStates.onRefresh((delay) => this.handleRefresh(delay));
         this.cpuStates = cpuStates;
     }
 
-    protected async handleRefresh(): Promise<void> {
+    protected async handleRefresh(delay: number): Promise<void> {
         if (!this.statusBarItem) {
             return;
         }
         const activeSession = this.cpuStates?.activeSession;
         const sessionName = activeSession?.session?.name;
         if (!sessionName?.length) {
-            this.statusBarItem.hide();
+            setTimeout(() => this.statusBarItem!.hide(), delay);
             return;
         }
         const cbuildRunReader = await activeSession?.getCbuildRun();
         const pnames = cbuildRunReader?.getPnames();
         const pname = pnames && pnames.length > 1 ? extractPname(sessionName) : undefined;
         await this.updateDisplayText(pname);
-        this.statusBarItem.show();
+        setTimeout(() => this.statusBarItem!.show(), delay);
     }
 
     protected async updateDisplayText(pname?: string): Promise<void> {
@@ -74,7 +74,11 @@ export class CpuStatesStatusBarItem {
         if (!activeSession || !activeStates) {
             return;
         }
-        await this.cpuStates.updateFrequency();
+        if (!activeStates.isRunning) {
+            // Only update frequency while stopped. User previous otherwise
+            // to avoid switching between states and time display.
+            await this.cpuStates.updateFrequency();
+        }
         const cpuName = pname ? ` ${pname} ` : '';
         const displayString = activeStates.frequency === undefined
             ? `${activeStates.states.toString()} states`

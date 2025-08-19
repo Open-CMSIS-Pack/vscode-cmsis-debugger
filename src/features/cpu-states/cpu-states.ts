@@ -15,7 +15,13 @@
  */
 
 import * as vscode from 'vscode';
-import { ContinuedEvent, GDBTargetDebugTracker, StoppedEvent } from '../../debug-session';
+import {
+    ContinuedEvent,
+    GDBTargetDebugTracker,
+    SessionStackItem,
+    StackTraceResponse,
+    StoppedEvent
+} from '../../debug-session';
 import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-session';
 import { CpuStatesHistory } from './cpu-states-history';
 
@@ -26,11 +32,12 @@ interface SessionCpuStates {
     frequency: number|undefined;
     lastCycles?: number;
     statesHistory: CpuStatesHistory;
+    isRunning: boolean;
 }
 
 export class CpuStates {
-    private readonly _onRefresh: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
-    public readonly onRefresh: vscode.Event<void> = this._onRefresh.event;
+    private readonly _onRefresh: vscode.EventEmitter<number> = new vscode.EventEmitter<number>();
+    public readonly onRefresh: vscode.Event<number> = this._onRefresh.event;
 
     public activeSession: GDBTargetDebugSession | undefined;
     private sessionCpuStates: Map<string, SessionCpuStates> = new Map();
@@ -46,14 +53,18 @@ export class CpuStates {
         tracker.onWillStartSession(session => this.handleOnWillStartSession(session));
         tracker.onWillStopSession(session => this.handleOnWillStopSession(session));
         tracker.onDidChangeActiveDebugSession(session => this.handleActiveSessionChanged(session));
-        tracker.onStopped((event) => this.handleStoppedEvent(event));
+        tracker.onDidChangeActiveStackItem(item => this.handleOnDidChangeActiveStackItem(item));
+        tracker.onContinued(event => this.handleContinuedEvent(event));
+        tracker.onStopped(event => this.handleStoppedEvent(event));
+        tracker.onStackTraceResponse(response => this.handleStackTraceResponse(response));
     }
 
     protected handleOnWillStartSession(session: GDBTargetDebugSession): void {
         const states: SessionCpuStates = {
             states: BigInt(0),
             frequency: undefined,
-            statesHistory: new CpuStatesHistory()
+            statesHistory: new CpuStatesHistory(),
+            isRunning: true,
         };
         this.sessionCpuStates.set(session.session.id, states);
     }
@@ -64,18 +75,35 @@ export class CpuStates {
 
     protected handleActiveSessionChanged(session?: GDBTargetDebugSession): void {
         this.activeSession = session;
-        this._onRefresh.fire();
+        this._onRefresh.fire(0);
     }
 
-    protected handleContinuedEvent(_event: ContinuedEvent): void {
-        // Do nothing for now
+    protected handleContinuedEvent(event: ContinuedEvent): void {
+        const cpuStates = this.sessionCpuStates.get(event.session.session.id);
+        if (!cpuStates) {
+            return;
+        }
+        cpuStates.isRunning = true;
     }
 
     protected async handleStoppedEvent(event: StoppedEvent): Promise<void> {
-        // TODO: Temp solution, needs to be connected to stacktrace request and cancelled
-        // on continued event before stacktrace event.
-        setTimeout(() => this.updateCpuStates(event.session, event.event.body.reason), 500);
-        return ;
+        const cpuStates = this.sessionCpuStates.get(event.session.session.id);
+        if (!cpuStates) {
+            return;
+        }
+        cpuStates.isRunning = false;
+        return this.updateCpuStates(event.session, event.event.body.reason);
+    }
+
+    protected async handleStackTraceResponse(_response: StackTraceResponse): Promise<void> {
+        // Workaround for VS Code not automatically selecting stack frame without source info.
+        // Assuming the correct stack frame is selected within 100ms. To revisit if something
+        // can be done without fixed delays and duplicate updates.
+        this._onRefresh.fire(100);
+    }
+
+    protected async handleOnDidChangeActiveStackItem(_item: SessionStackItem): Promise<void> {
+        this._onRefresh.fire(0);
     }
 
     protected async updateCpuStates(session: GDBTargetDebugSession, reason?: string): Promise<void> {
@@ -97,7 +125,6 @@ export class CpuStates {
         states.lastCycles = newCycles;
         states.states += BigInt(cycleAdd);
         states.statesHistory.updateHistory(states.states, reason);
-        this._onRefresh.fire();
     }
 
     public async updateFrequency(): Promise<void> {
