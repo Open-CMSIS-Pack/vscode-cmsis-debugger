@@ -19,6 +19,20 @@ import { calculateTime } from '../../utils';
 
 const HISTORY_ENTRIES_MAX = 5;  // Excluding current
 
+/**
+ * Reasons of stopped events for which to not
+ * capture states to history.
+ */
+/*
+const EXCLUDE_REASONS = [
+    'step',
+    'pause',
+    'entry',
+    'goto',
+    'Unknown'
+];
+*/
+
 interface HistoryValues {
     cpuStates: bigint;
     reason: string;
@@ -35,7 +49,7 @@ export class CpuStatesHistory {
 
     private readonly historyColumns: HistoryColumn[] = [
         { title: 'Diff', length: 6 },
-        { title: 'CPU Time', length: 16 },
+        { title: 'CPU Time', length: 18 },
         { title: 'CPU States', length: 12 },
         { title: 'Reason', length: 10 },
     ];
@@ -48,12 +62,23 @@ export class CpuStatesHistory {
     }
 
     public updateHistory(cpuStates: bigint, reason?: string): void {
+        const newReason = reason ?? 'Unknown';
+        // TODO: Discuss if filtering helps. Feels like not.
+        /*
+        const previousEntry = this.historyValues.length ? this.historyValues.at(this.historyValues.length - 1) : undefined;
+        const overwritePrevious = previousEntry && (!previousEntry.reason || EXCLUDE_REASONS.includes(previousEntry.reason));
+        if (overwritePrevious) {
+            previousEntry.cpuStates = cpuStates;
+            previousEntry.reason = newReason;
+            return;
+        }
+            */
         if (this.historyValues.length >= HISTORY_ENTRIES_MAX + 1) {
             this.historyValues.shift();
         }
         this.historyValues.push({
             cpuStates,
-            reason: reason ?? 'Unknown'
+            reason: newReason
         });
     }
 
