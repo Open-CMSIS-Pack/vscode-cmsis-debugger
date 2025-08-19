@@ -24,6 +24,7 @@ import {
 } from '../../debug-session';
 import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-session';
 import { CpuStatesHistory } from './cpu-states-history';
+import { extractPname } from '../../utils';
 
 const DWT_CYCCNT_ADDRESS = 0xE0001004;
 
@@ -59,11 +60,11 @@ export class CpuStates {
         tracker.onStackTraceResponse(response => this.handleStackTraceResponse(response));
     }
 
-    protected handleOnWillStartSession(session: GDBTargetDebugSession): void {
+    protected async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
         const states: SessionCpuStates = {
             states: BigInt(0),
             frequency: undefined,
-            statesHistory: new CpuStatesHistory(),
+            statesHistory: new CpuStatesHistory(extractPname(session.session.name)),
             isRunning: true,
         };
         this.sessionCpuStates.set(session.session.id, states);

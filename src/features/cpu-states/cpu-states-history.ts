@@ -30,16 +30,22 @@ interface HistoryColumn {
 }
 
 export class CpuStatesHistory {
-    private historyValues: HistoryValues[] = [];
     public frequency: number|undefined;
+    private historyValues: HistoryValues[] = [];
 
     private readonly historyColumns: HistoryColumn[] = [
         { title: 'Diff', length: 6 },
         { title: 'CPU Time', length: 16 },
         { title: 'CPU States', length: 12 },
-        { title: 'Reason', length: 8 },
-        { title: '(TODO: Corename)', length: 12 },
+        { title: 'Reason', length: 10 },
     ];
+
+    constructor(private pname?: string) {}
+
+    private get effectiveHistoryColumns(): HistoryColumn[] {
+        const excludeTitle = this.frequency === undefined ? 'CPU Time' : 'CPU States';
+        return this.historyColumns.filter(col => col.title !== excludeTitle);
+    }
 
     public updateHistory(cpuStates: bigint, reason?: string): void {
         if (this.historyValues.length >= HISTORY_ENTRIES_MAX + 1) {
@@ -56,16 +62,20 @@ export class CpuStatesHistory {
     }
 
     protected printHeader(): void {
-        const columnHeaders = this.historyColumns.map(columnHeader => columnHeader.title.padEnd(columnHeader.length));
+        const columnHeaders = this.effectiveHistoryColumns.map(columnHeader => columnHeader.title.padEnd(columnHeader.length));
+        // Append pname value if present
+        if (this.pname?.length) {
+            columnHeaders.push(`(${this.pname})`);
+        }
         const header = columnHeaders.join('');
         this.printLine(header);
     }
 
     protected printContents(contents: string[][]): void {
-        if (contents.some(row => row.length !== this.historyColumns.length)) {
+        if (contents.some(row => row.length !== this.effectiveHistoryColumns.length)) {
             throw new Error('CPU states history row has unexpected number of columns');
         }
-        const paddedContents = contents.map(row => row.map((value, index) => value.padEnd(this.historyColumns.at(index)!.length)).join(''));
+        const paddedContents = contents.map(row => row.map((value, index) => value.padEnd(this.effectiveHistoryColumns.at(index)!.length)).join(''));
         paddedContents.forEach(line => this.printLine(line));
     }
 
@@ -92,9 +102,7 @@ export class CpuStatesHistory {
                 return [
                     indexDiff.toString(),
                     `d${diffNum}:${cpuStatesDiffString}`,
-                    historyEntry.cpuStates.toString(),
                     historyEntry.reason,
-                    '' // placeholder for pname column
                 ];
             });
             contents.push(...historyContents);
@@ -106,9 +114,7 @@ export class CpuStatesHistory {
         const currentContents = [
             ' 0',
             currentCpuStatesString,
-            current.cpuStates.toString(),
             current.reason,
-            '' // placeholder for pname column
         ];
         contents.push(currentContents);
         this.printContents(contents);
