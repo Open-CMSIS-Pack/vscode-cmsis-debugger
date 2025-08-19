@@ -151,6 +151,7 @@ export class CpuStatesHistory {
         contents.push(currentContents);
         this.printContents(contents);
         this.printLine('');
+
         // Focus debug console
         vscode.commands.executeCommand('workbench.debug.action.focusRepl');
     }
