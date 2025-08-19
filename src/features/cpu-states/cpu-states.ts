@@ -154,4 +154,15 @@ export class CpuStates {
         }
         states.statesHistory.showHistory();
     }
+
+    public resetStatesHistory(): void {
+        const states = this.activeCpuStates;
+        if (!states) {
+            return;
+        }
+        states.statesHistory.resetHistory();
+        // TODO: Discuss if also to reset the full execution time
+        states.states = BigInt(0);
+        this._onRefresh.fire(0);
+    }
 };

@@ -33,7 +33,7 @@ const EXCLUDE_REASONS = [
 ];
 */
 
-interface HistoryValues {
+interface HistoryEntry {
     cpuStates: bigint;
     reason: string;
 }
@@ -45,7 +45,7 @@ interface HistoryColumn {
 
 export class CpuStatesHistory {
     public frequency: number|undefined;
-    private historyValues: HistoryValues[] = [];
+    private historyEntries: HistoryEntry[] = [];
 
     private readonly historyColumns: HistoryColumn[] = [
         { title: 'Diff', length: 6 },
@@ -61,6 +61,13 @@ export class CpuStatesHistory {
         return this.historyColumns.filter(col => col.title !== excludeTitle);
     }
 
+    private get lastEntry(): HistoryEntry|undefined {
+        if (!this.historyEntries.length) {
+            return undefined;
+        }
+        return this.historyEntries.at(this.historyEntries.length - 1);
+    }
+
     public updateHistory(cpuStates: bigint, reason?: string): void {
         const newReason = reason ?? 'Unknown';
         // TODO: Discuss if filtering helps. Feels like not.
@@ -73,10 +80,10 @@ export class CpuStatesHistory {
             return;
         }
             */
-        if (this.historyValues.length >= HISTORY_ENTRIES_MAX + 1) {
-            this.historyValues.shift();
+        if (this.historyEntries.length >= HISTORY_ENTRIES_MAX + 1) {
+            this.historyEntries.shift();
         }
-        this.historyValues.push({
+        this.historyEntries.push({
             cpuStates,
             reason: newReason
         });
@@ -106,7 +113,7 @@ export class CpuStatesHistory {
 
     public showHistory(): void {
         this.printLine('');
-        if (this.historyValues.length === 0) {
+        if (this.historyEntries.length === 0) {
             this.printLine('No CPU state history captured');
             this.printLine('');
             return;
@@ -114,11 +121,11 @@ export class CpuStatesHistory {
 
         this.printHeader();
         const contents: string[][] = [];
-        if (this.historyValues.length > 1) {
-            const history = this.historyValues.slice(0, -1);
+        if (this.historyEntries.length > 1) {
+            const history = this.historyEntries.slice(0, -1);
             const historyContents = history.map((historyEntry, index) => {
-                const refCpuStates = this.historyValues.at(index + 1)!.cpuStates;
-                const indexDiff = index - (this.historyValues.length - 1);
+                const refCpuStates = this.historyEntries.at(index + 1)!.cpuStates;
+                const indexDiff = index - (this.historyEntries.length - 1);
                 const diffNum = -indexDiff - 1;
                 const cpuStatesDiff = refCpuStates - historyEntry.cpuStates;
                 const cpuStatesDiffString = this.frequency === undefined
@@ -132,7 +139,7 @@ export class CpuStatesHistory {
             });
             contents.push(...historyContents);
         }
-        const current = this.historyValues.at(this.historyValues.length - 1)!;
+        const current = this.lastEntry!;
         const currentCpuStatesString = this.frequency === undefined
             ? current.cpuStates.toString()
             : calculateTime(current.cpuStates, this.frequency);
@@ -146,5 +153,11 @@ export class CpuStatesHistory {
         this.printLine('');
         // Focus debug console
         vscode.commands.executeCommand('workbench.debug.action.focusRepl');
+    }
+
+    public resetHistory(): void {
+        const lastEntry = this.lastEntry;
+        // Clear history and init with last entry if existent
+        this.historyEntries = lastEntry ? [lastEntry] : [];
     }
 };

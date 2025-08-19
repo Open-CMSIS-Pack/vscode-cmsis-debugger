@@ -48,13 +48,32 @@
   "contributes": {
     "commands": [
       {
-        "title": "CPU Time History",
-        "shortTitle": "CPU Time History",
+        "title": "CPU Time",
+        "shortTitle": "CPU Time",
         "command": "vscode-cmsis-debugger.showCpuTimeHistory",
         "category": "Run and Debug",
-        "when": "true"
+        "when": "inDebugMode"
+      },
+      {
+        "title": "Reset CPU Time",
+        "shortTitle": "CPU Time",
+        "command": "vscode-cmsis-debugger.resetCpuTimeHistory",
+        "category": "Run and Debug",
+        "when": "inDebugMode"
       }
     ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "vscode-cmsis-debugger.showCpuTimeHistory",
+          "when": "inDebugMode"
+        },
+        {
+          "command": "vscode-cmsis-debugger.resetCpuTimeHistory",
+          "when": "inDebugMode"
+        }
+      ]
+    },
     "debuggers": [
       {
         "type": "*",

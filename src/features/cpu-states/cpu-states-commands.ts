@@ -19,13 +19,15 @@ import { EXTENSION_NAME } from '../../manifest';
 import { CpuStates } from './cpu-states';
 
 export class CpuStatesCommands {
-    public static readonly showCpuTimeHistoryCommmandID = `${EXTENSION_NAME}.showCpuTimeHistory`;
+    public static readonly showCpuTimeHistoryID = `${EXTENSION_NAME}.showCpuTimeHistory`;
+    public static readonly resetCpuTimeHistoryID = `${EXTENSION_NAME}.resetCpuTimeHistory`;
     private cpuStates?: CpuStates;
 
     public activate(context: vscode.ExtensionContext, cpuStates: CpuStates): void {
         // Register item and command
         context.subscriptions.push(
-            vscode.commands.registerCommand(CpuStatesCommands.showCpuTimeHistoryCommmandID, () => this.handleShowHistory())
+            vscode.commands.registerCommand(CpuStatesCommands.showCpuTimeHistoryID, () => this.handleShowHistory()),
+            vscode.commands.registerCommand(CpuStatesCommands.resetCpuTimeHistoryID, () => this.handleResetHistory())
         );
         this.cpuStates = cpuStates;
     }
@@ -36,5 +38,12 @@ export class CpuStatesCommands {
         }
         await this.cpuStates.updateFrequency();
         this.cpuStates.showStatesHistory();
+    }
+
+    protected async handleResetHistory(): Promise<void> {
+        if (!this.cpuStates) {
+            return;
+        }
+        this.cpuStates.resetStatesHistory();
     }
 };

@@ -89,9 +89,14 @@ export class CpuStatesStatusBarItem {
     protected async handleItemCommand(): Promise<void> {
         const items: QuickPickHandlerItem[] = [
             {
-                label: 'Run and Debug: CPU Time Information',
-                detail: 'Print CPU execution time information to TBD',
-                handler: () => vscode.commands.executeCommand(CpuStatesCommands.showCpuTimeHistoryCommmandID)
+                label: 'CPU Time',
+                detail: 'Print CPU execution time and history to Debug Console',
+                handler: () => vscode.commands.executeCommand(CpuStatesCommands.showCpuTimeHistoryID)
+            },
+            {
+                label: 'Reset CPU Time',
+                detail: 'Reset CPU execution time and history',
+                handler: () => vscode.commands.executeCommand(CpuStatesCommands.resetCpuTimeHistoryID)
             }
         ];
         const selection = await vscode.window.showQuickPick(items);
