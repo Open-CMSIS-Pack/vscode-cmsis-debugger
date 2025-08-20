@@ -26,6 +26,7 @@ import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-sessi
 import { CpuStatesHistory } from './cpu-states-history';
 import { extractPname } from '../../utils';
 import { GDBTargetConfiguration } from '../../debug-configuration';
+import { DebugProtocol } from '@vscode/debugprotocol';
 
 // Architecturally defined registers (M-profile)
 const DWT_CTRL_ADDRESS = 0xE0001000;
@@ -120,10 +121,33 @@ export class CpuStates {
         if (!cpuStates.hasStates) {
             return;
         }
-        return this.updateCpuStates(event.session, event.event.body.reason);
+        return this.updateCpuStates(event.session, event.event.body.threadId, event.event.body.reason);
     }
 
-    protected async handleStackTraceResponse(_response: StackTraceResponse): Promise<void> {
+    protected async handleStackTraceResponse(response: StackTraceResponse): Promise<void> {
+        // TODO: Refactor
+        const states = this.activeCpuStates;
+        if (!states) {
+            return;
+        }
+        const responseBody: DebugProtocol.StackTraceResponse['body'] = response.response.body;
+        const hasValidFrames = response.response.success && responseBody.totalFrames;
+        const topFrame = hasValidFrames ? responseBody.stackFrames[0] : undefined;
+        // TODO: Match sequence numbers between request and response to assign to assign to correct threadId.
+        let locationString = '';
+        if (topFrame) {
+            if (topFrame.instructionPointerReference) {
+                locationString += `PC=${topFrame.instructionPointerReference} `;
+            }
+            locationString += `<${topFrame.name}>`;
+            if (topFrame.source?.name) {
+                locationString += `, ${topFrame.source?.name}`;
+            }
+            if (topFrame.line) {
+                locationString += `::${topFrame.line}`;
+            }
+        }
+        states.statesHistory.insertStopLocation(locationString, undefined);
         // Workaround for VS Code not automatically selecting stack frame without source info.
         // Assuming the correct stack frame is selected within 100ms. To revisit if something
         // can be done without fixed delays and duplicate updates.
@@ -146,7 +170,7 @@ export class CpuStates {
         return dwtCtrlValue !== undefined && !(dwtCtrlValue & DWT_CTRL_NOCYCCNT) && !!(dwtCtrlValue & DWT_CTRL_CYCCNTENA);
     }
 
-    protected async updateCpuStates(session: GDBTargetDebugSession, reason?: string): Promise<void> {
+    protected async updateCpuStates(session: GDBTargetDebugSession, threadId?: number, reason?: string): Promise<void> {
         // Update for passed session, not necessarily the active session
         const states = this.sessionCpuStates.get(session.session.id);
         if (!states) {
@@ -164,7 +188,7 @@ export class CpuStates {
         // Caution with types...
         states.lastCycles = newCycles;
         states.states += BigInt(cycleAdd);
-        states.statesHistory.updateHistory(states.states, reason);
+        states.statesHistory.updateHistory(states.states, threadId, reason);
     }
 
     public async updateFrequency(): Promise<void> {

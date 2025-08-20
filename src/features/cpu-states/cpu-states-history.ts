@@ -35,6 +35,8 @@ const EXCLUDE_REASONS = [
 
 interface HistoryEntry {
     cpuStates: bigint;
+    threadId: number|undefined;
+    location: string|undefined;
     reason: string;
 }
 
@@ -70,7 +72,7 @@ export class CpuStatesHistory {
         return this.historyEntries.at(this.historyEntries.length - 1);
     }
 
-    public updateHistory(cpuStates: bigint, reason?: string): void {
+    public updateHistory(cpuStates: bigint, threadId?: number, reason?: string): void {
         const newReason = reason ?? 'Unknown';
         // TODO: Discuss if filtering helps. Feels like not.
         /*
@@ -87,8 +89,21 @@ export class CpuStatesHistory {
         }
         this.historyEntries.push({
             cpuStates,
+            threadId,
+            location: undefined,
             reason: newReason
         });
+    }
+
+    public insertStopLocation(location: string, threadId?: number|undefined) {
+        if (!this.historyEntries.length) {
+            return;
+        }
+        const entryToUpdate = this.historyEntries.findLast(entry => !entry.location && (threadId === undefined || entry.threadId === threadId));
+        if (!entryToUpdate) {
+            return;
+        }
+        entryToUpdate.location = location;
     }
 
     protected printLine(message: string) {
@@ -144,7 +159,7 @@ export class CpuStatesHistory {
         return [
             indexDiff.toString(),
             `${cpuStatesDiffString}`,
-            entry.reason,
+            `${entry.reason}${entry.location?.length ? ` (${entry.location})` : ''}`
         ];
     }
 
@@ -156,7 +171,7 @@ export class CpuStatesHistory {
         return [
             '0',
             `${currentCpuStatesString}`,
-            current.reason,
+            `${current.reason}${current.location?.length ? ` (${current.location})` : ''}`
         ];
     }
 
