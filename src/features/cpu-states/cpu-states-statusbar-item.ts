@@ -37,7 +37,6 @@ export class CpuStatesStatusBarItem {
             vscode.StatusBarAlignment.Left
         );
         this.statusBarItem.name = 'CPU States';
-        this.statusBarItem.command = this.statusBarItemCommandID;
         // Register item and command
         context.subscriptions.push(
             this.statusBarItem,
@@ -54,14 +53,21 @@ export class CpuStatesStatusBarItem {
         }
         const activeSession = this.cpuStates?.activeSession;
         const sessionName = activeSession?.session?.name;
-        if (!sessionName?.length) {
+        if (!sessionName?.length || this.cpuStates?.activeCpuStates?.hasStates === undefined) {
+            // Hide if no valid session name or if cpuStates support not yet determined
             setTimeout(() => this.statusBarItem!.hide(), delay);
             return;
         }
-        const cbuildRunReader = await activeSession?.getCbuildRun();
-        const pnames = cbuildRunReader?.getPnames();
-        const pname = pnames && pnames.length > 1 ? extractPname(sessionName) : undefined;
-        await this.updateDisplayText(pname);
+        if (!this.cpuStates.activeCpuStates.hasStates) {
+            this.statusBarItem.text = '$(watch) N/A';
+            this.statusBarItem.command = undefined;
+        } else {
+            const cbuildRunReader = await activeSession?.getCbuildRun();
+            const pnames = cbuildRunReader?.getPnames();
+            const pname = pnames && pnames.length > 1 ? extractPname(sessionName) : undefined;
+            await this.updateDisplayText(pname);
+            this.statusBarItem.command = this.statusBarItemCommandID;
+        }
         setTimeout(() => this.statusBarItem!.show(), delay);
     }
 

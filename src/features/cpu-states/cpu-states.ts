@@ -25,8 +25,14 @@ import {
 import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-session';
 import { CpuStatesHistory } from './cpu-states-history';
 import { extractPname } from '../../utils';
+import { GDBTargetConfiguration } from '../../debug-configuration';
 
+// Architecturally defined registers (M-profile)
+const DWT_CTRL_ADDRESS = 0xE0001000;
 const DWT_CYCCNT_ADDRESS = 0xE0001004;
+
+const DWT_CTRL_NOCYCCNT = 0x02000000; // Only for v7-M and v8-M
+const DWT_CTRL_CYCCNTENA = 0x00000001;
 
 interface SessionCpuStates {
     states: bigint;
@@ -34,6 +40,7 @@ interface SessionCpuStates {
     lastCycles?: number;
     statesHistory: CpuStatesHistory;
     isRunning: boolean;
+    hasStates: boolean|undefined;
 }
 
 export class CpuStates {
@@ -55,6 +62,7 @@ export class CpuStates {
         tracker.onWillStopSession(session => this.handleOnWillStopSession(session));
         tracker.onDidChangeActiveDebugSession(session => this.handleActiveSessionChanged(session));
         tracker.onDidChangeActiveStackItem(item => this.handleOnDidChangeActiveStackItem(item));
+        tracker.onConnected(session => this.handleConnected(session));
         tracker.onContinued(event => this.handleContinuedEvent(event));
         tracker.onStopped(event => this.handleStoppedEvent(event));
         tracker.onStackTraceResponse(response => this.handleStackTraceResponse(response));
@@ -66,6 +74,7 @@ export class CpuStates {
             frequency: undefined,
             statesHistory: new CpuStatesHistory(extractPname(session.session.name)),
             isRunning: true,
+            hasStates: undefined
         };
         this.sessionCpuStates.set(session.session.id, states);
     }
@@ -77,6 +86,16 @@ export class CpuStates {
     protected handleActiveSessionChanged(session?: GDBTargetDebugSession): void {
         this.activeSession = session;
         this._onRefresh.fire(0);
+    }
+
+    protected async handleConnected(session: GDBTargetDebugSession): Promise<void> {
+        const cpuStates = this.sessionCpuStates.get(session.session.id);
+        if (!cpuStates) {
+            return;
+        }
+        // Following call might fail if target not stopped on connect, returns undefined
+        // Retry on first Stopped Event.
+        cpuStates.hasStates = await this.supportsCpuStates(session);
     }
 
     protected handleContinuedEvent(event: ContinuedEvent): void {
@@ -93,6 +112,14 @@ export class CpuStates {
             return;
         }
         cpuStates.isRunning = false;
+        if (cpuStates.hasStates === undefined) {
+            // Retry if early read after launch/attach response failed (e.g. if
+            // target was running).
+            cpuStates.hasStates = await this.supportsCpuStates(event.session);
+        }
+        if (!cpuStates.hasStates) {
+            return;
+        }
         return this.updateCpuStates(event.session, event.event.body.reason);
     }
 
@@ -105,6 +132,18 @@ export class CpuStates {
 
     protected async handleOnDidChangeActiveStackItem(_item: SessionStackItem): Promise<void> {
         this._onRefresh.fire(0);
+    }
+
+    protected async supportsCpuStates(session: GDBTargetDebugSession): Promise<boolean> {
+        if (!(session.session.configuration as GDBTargetConfiguration)?.cmsis) {
+            // Only enable feature if launch config contains CMSIS parts.
+            return false;
+        }
+        const dwtCtrlValue = await session.readMemoryU32(DWT_CTRL_ADDRESS);
+        // Expect DWT CYCCNT to be enabled by debugger backend. This also covers
+        // v6-M where DWT_CTRL_NOCYCCNT is not implemented and always reads '0' while
+        // not having a cycle counter.
+        return dwtCtrlValue !== undefined && !(dwtCtrlValue & DWT_CTRL_NOCYCCNT) && !!(dwtCtrlValue & DWT_CTRL_CYCCNTENA);
     }
 
     protected async updateCpuStates(session: GDBTargetDebugSession, reason?: string): Promise<void> {
@@ -152,12 +191,20 @@ export class CpuStates {
         if (!states) {
             return;
         }
+        if (!states.hasStates) {
+            vscode.window.showWarningMessage('CPU Time commands not available for target');
+            return;
+        }
         states.statesHistory.showHistory();
     }
 
     public resetStatesHistory(): void {
         const states = this.activeCpuStates;
         if (!states) {
+            return;
+        }
+        if (!states.hasStates) {
+            vscode.window.showWarningMessage('CPU Time commands not available for target');
             return;
         }
         states.statesHistory.resetHistory();

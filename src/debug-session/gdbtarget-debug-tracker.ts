@@ -57,6 +57,9 @@ export class GDBTargetDebugTracker {
     private readonly _onDidChangeActiveStackItem: vscode.EventEmitter<SessionStackItem> = new vscode.EventEmitter<SessionStackItem>();
     public readonly onDidChangeActiveStackItem: vscode.Event<SessionStackItem> = this._onDidChangeActiveStackItem.event;
 
+    private readonly _onConnected: vscode.EventEmitter<GDBTargetDebugSession> = new vscode.EventEmitter<GDBTargetDebugSession>();
+    public readonly onConnected: vscode.Event<GDBTargetDebugSession> = this._onConnected.event;
+
     private readonly _onContinued: vscode.EventEmitter<ContinuedEvent> = new vscode.EventEmitter<ContinuedEvent>();
     public readonly onContinued: vscode.Event<ContinuedEvent> = this._onContinued.event;
 
@@ -119,6 +122,12 @@ export class GDBTargetDebugTracker {
                         break;
                     }
                     this._onStackTraceResponse.fire({ session: gdbTargetSession, response } as StackTraceResponse);
+                    break;
+                case 'launch':
+                case 'attach':
+                    if (response.success && gdbTargetSession) {
+                        this._onConnected.fire(gdbTargetSession);
+                    }
                     break;
             }
         }
