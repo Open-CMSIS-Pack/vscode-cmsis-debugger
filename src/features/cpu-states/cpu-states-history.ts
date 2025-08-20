@@ -41,6 +41,8 @@ interface HistoryEntry {
 interface HistoryColumn {
     title: string;
     length: number;
+    alignRight?: boolean;
+    deltaIndex?: boolean;
 }
 
 export class CpuStatesHistory {
@@ -48,10 +50,10 @@ export class CpuStatesHistory {
     private historyEntries: HistoryEntry[] = [];
 
     private readonly historyColumns: HistoryColumn[] = [
-        { title: 'Diff', length: 6 },
-        { title: 'CPU Time', length: 18 },
-        { title: 'CPU States', length: 12 },
-        { title: 'Reason', length: 10 },
+        { title: 'Diff', length: 6, alignRight: true },
+        { title: 'CPU Time', length: 18, alignRight: true, deltaIndex: true },
+        { title: 'CPU States', length: 12, alignRight: true, deltaIndex: true },
+        { title: 'Reason', length: 10, alignRight: false },
     ];
 
     constructor(private pname?: string) {}
@@ -111,6 +113,53 @@ export class CpuStatesHistory {
         paddedContents.forEach(line => this.printLine(line));
     }
 
+    protected formatContents(contents: string[][]): void {
+        this.effectiveHistoryColumns.forEach((col, columnIndex) => {
+            let widest = 0;
+            contents.forEach(rowEntry => {
+                widest = Math.max(widest, rowEntry.at(columnIndex)?.length ?? 0);
+            });
+            contents.forEach((rowEntry, rowIndex) => {
+                const value = col.alignRight ? rowEntry.at(columnIndex)?.padStart(widest, ' ') : rowEntry.at(columnIndex)?.padEnd(widest, ' ');
+                const deltaNum = contents.length - rowIndex - 2;
+                if (col.deltaIndex) {
+                    const prefix = (rowIndex !== contents.length - 1) ? `d${deltaNum.toString()}: ` : '    ';
+                    // eslint-disable-next-line security/detect-object-injection
+                    rowEntry[columnIndex] = `${prefix}${value ?? ''}`;
+                } else {
+                    // eslint-disable-next-line security/detect-object-injection
+                    rowEntry[columnIndex] = value ?? '';
+                }
+            });
+        });
+    }
+
+    protected prepareDiffRowContents(entry: HistoryEntry, index: number): string[] {
+        const refCpuStates = this.historyEntries.at(index + 1)!.cpuStates;
+        const indexDiff = index - (this.historyEntries.length - 1);
+        const cpuStatesDiff = refCpuStates - entry.cpuStates;
+        const cpuStatesDiffString = this.frequency === undefined
+            ? cpuStatesDiff.toString()
+            : calculateTime(cpuStatesDiff, this.frequency);
+        return [
+            indexDiff.toString(),
+            `${cpuStatesDiffString}`,
+            entry.reason,
+        ];
+    }
+
+    protected prepareCurrentRowContents(): string[] {
+        const current = this.lastEntry!;
+        const currentCpuStatesString = this.frequency === undefined
+            ? current.cpuStates.toString()
+            : calculateTime(current.cpuStates, this.frequency);
+        return [
+            '0',
+            `${currentCpuStatesString}`,
+            current.reason,
+        ];
+    }
+
     public showHistory(): void {
         this.printLine('');
         if (this.historyEntries.length === 0) {
@@ -123,32 +172,12 @@ export class CpuStatesHistory {
         const contents: string[][] = [];
         if (this.historyEntries.length > 1) {
             const history = this.historyEntries.slice(0, -1);
-            const historyContents = history.map((historyEntry, index) => {
-                const refCpuStates = this.historyEntries.at(index + 1)!.cpuStates;
-                const indexDiff = index - (this.historyEntries.length - 1);
-                const diffNum = -indexDiff - 1;
-                const cpuStatesDiff = refCpuStates - historyEntry.cpuStates;
-                const cpuStatesDiffString = this.frequency === undefined
-                    ? cpuStatesDiff.toString()
-                    : calculateTime(cpuStatesDiff, this.frequency);
-                return [
-                    indexDiff.toString(),
-                    `d${diffNum}:${cpuStatesDiffString}`,
-                    historyEntry.reason,
-                ];
-            });
+            const historyContents = history.map((historyEntry, index) => this.prepareDiffRowContents(historyEntry, index));
             contents.push(...historyContents);
         }
-        const current = this.lastEntry!;
-        const currentCpuStatesString = this.frequency === undefined
-            ? current.cpuStates.toString()
-            : calculateTime(current.cpuStates, this.frequency);
-        const currentContents = [
-            ' 0',
-            currentCpuStatesString,
-            current.reason,
-        ];
+        const currentContents = this.prepareCurrentRowContents();
         contents.push(currentContents);
+        this.formatContents(contents);
         this.printContents(contents);
         this.printLine('');
 

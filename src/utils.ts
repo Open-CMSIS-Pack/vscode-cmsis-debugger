@@ -51,28 +51,33 @@ export const extractPname = (configString: string, pnames?: string[]): string | 
 };
 
 export const calculateTime = (states: bigint, frequency: number): string => {
-    const milliUnit = { unit: 'ms', factor: 1000.0, fractDigits: 2 };
-    const microUnit = { unit: 'us', factor: 1000000.0, fractDigits: 2 };
-    const nanoUnit = { unit: 'ns', factor: 1000000000.0, fractDigits: 2 };
+    const milliUnit = { unit: 'ms', factor: 1000.0, fractDigits: 3 };
+    const microUnit = { unit: 'us', factor: 1000000.0, fractDigits: 3 };
+    const nanoUnit = { unit: 'ns', factor: 1000000000.0, fractDigits: 3 };
     const fractionalUnits = [
         milliUnit,
         microUnit,
         nanoUnit
     ];
-    // TODO: review precision
     const frequencyBigInt = BigInt(frequency);
-    const nonFractional = states / frequencyBigInt;
-    const fractional = states - nonFractional*frequencyBigInt;
+    const integerPart = states / frequencyBigInt;
+    const fractional = states - integerPart*frequencyBigInt;
     const fractionalNumber = Number(fractional) / frequency;
-    const unit = nonFractional > 0 ? milliUnit : fractionalUnits.find(unit => fractionalNumber*unit.factor >= 1.0) ?? nanoUnit;
+    const unit = integerPart > 0 ? milliUnit : fractionalUnits.find(unit => fractionalNumber*unit.factor >= 1.0) ?? nanoUnit;
     if (!unit) {
         throw new Error('Error calculating time value');
     }
-    const fractionalPart = (fractionalNumber*unit.factor).toFixed(unit.fractDigits);
-    if (nonFractional > 0) {
-        const nonFractionalPart = nonFractional*BigInt(unit.factor);
-        return `${nonFractionalPart.toString()}${fractionalPart.slice(1)}${unit.unit}`;
+    const scaledFractionalPart = (fractionalNumber*unit.factor);
+    const scaledFractionalString = scaledFractionalPart.toFixed(unit.fractDigits);
+    const scaledIntegerString = (integerPart*BigInt(unit.factor)).toString();
+    if (scaledFractionalPart > 1.0) {
+        // Print full scaled fractional part
+        return `${scaledFractionalString}${unit.unit}`;
+    } else if (scaledFractionalPart > 0.0) {
+        // Concatenate scaled fractional part with scaled integer part
+        return `${scaledIntegerString}${scaledFractionalString.slice(1)}${unit.unit}`;
     } else {
-        return `${fractionalPart}${unit.unit}`;
+        // No fractional part, only print scaled integer part
+        return `${scaledIntegerString}${unit.unit}`;
     }
 };
