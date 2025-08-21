@@ -20,6 +20,7 @@ import { calculateTime } from '../../utils';
 const HISTORY_ENTRIES_MAX = 5;  // Excluding current
 const COLUMN_SEPARATOR = '   ';  // 3 spaces
 const DELTA_PLACEHOLDER = '    ';  // 4 spaces ('d<n>: ')
+const DELTA = '\u0394';  // Capital Delta
 
 interface HistoryEntry {
     cpuStates: bigint;
@@ -40,7 +41,7 @@ export class CpuStatesHistory {
     private historyEntries: HistoryEntry[] = [];
 
     private readonly historyColumns: HistoryColumn[] = [
-        { title: 'Diff', length: 4, alignRight: true },
+        { title: `${DELTA}T`, length: 4, alignRight: true },
         { title: 'CPU Time', length: 8, alignRight: true, deltaIndex: true },
         { title: 'CPU States', length: 10, alignRight: true, deltaIndex: true },
         { title: 'Reason', length: 6, alignRight: false },
@@ -115,7 +116,7 @@ export class CpuStatesHistory {
                 const value = col.alignRight ? rowEntry.at(columnIndex)?.padStart(widest, ' ') : rowEntry.at(columnIndex)?.padEnd(widest, ' ');
                 const deltaNum = contents.length - rowIndex - 2;
                 if (col.deltaIndex) {
-                    const prefix = (rowIndex !== contents.length - 1) ? `d${deltaNum.toString()}: ` : DELTA_PLACEHOLDER;
+                    const prefix = (rowIndex !== contents.length - 1) ? `${DELTA}${deltaNum.toString()}: ` : DELTA_PLACEHOLDER;
                     // eslint-disable-next-line security/detect-object-injection
                     rowEntry[columnIndex] = `${prefix}${value ?? ''}`;
                 } else {
