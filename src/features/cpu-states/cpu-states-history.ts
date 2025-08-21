@@ -18,20 +18,8 @@ import * as vscode from 'vscode';
 import { calculateTime } from '../../utils';
 
 const HISTORY_ENTRIES_MAX = 5;  // Excluding current
-
-/**
- * Reasons of stopped events for which to not
- * capture states to history.
- */
-/*
-const EXCLUDE_REASONS = [
-    'step',
-    'pause',
-    'entry',
-    'goto',
-    'Unknown'
-];
-*/
+const COLUMN_SEPARATOR = '   ';  // 3 spaces
+const DELTA_PLACEHOLDER = '    ';  // 4 spaces ('d<n>: ')
 
 interface HistoryEntry {
     cpuStates: bigint;
@@ -52,16 +40,16 @@ export class CpuStatesHistory {
     private historyEntries: HistoryEntry[] = [];
 
     private readonly historyColumns: HistoryColumn[] = [
-        { title: 'Diff', length: 6, alignRight: true },
-        { title: 'CPU Time', length: 18, alignRight: true, deltaIndex: true },
-        { title: 'CPU States', length: 12, alignRight: true, deltaIndex: true },
-        { title: 'Reason', length: 10, alignRight: false },
+        { title: 'Diff', length: 4, alignRight: true },
+        { title: 'CPU Time', length: 8, alignRight: true, deltaIndex: true },
+        { title: 'CPU States', length: 10, alignRight: true, deltaIndex: true },
+        { title: 'Reason', length: 6, alignRight: false },
     ];
 
     constructor(private pname?: string) {}
 
     private get effectiveHistoryColumns(): HistoryColumn[] {
-        const excludeTitle = this.frequency === undefined ? 'CPU Time' : 'CPU States';
+        const excludeTitle = this.frequency === undefined ? 'CPU Time' : '';
         return this.historyColumns.filter(col => col.title !== excludeTitle);
     }
 
@@ -74,16 +62,6 @@ export class CpuStatesHistory {
 
     public updateHistory(cpuStates: bigint, threadId?: number, reason?: string): void {
         const newReason = reason ?? 'Unknown';
-        // TODO: Discuss if filtering helps. Feels like not.
-        /*
-        const previousEntry = this.historyValues.length ? this.historyValues.at(this.historyValues.length - 1) : undefined;
-        const overwritePrevious = previousEntry && (!previousEntry.reason || EXCLUDE_REASONS.includes(previousEntry.reason));
-        if (overwritePrevious) {
-            previousEntry.cpuStates = cpuStates;
-            previousEntry.reason = newReason;
-            return;
-        }
-            */
         if (this.historyEntries.length >= HISTORY_ENTRIES_MAX + 1) {
             this.historyEntries.shift();
         }
@@ -110,35 +88,31 @@ export class CpuStatesHistory {
         vscode.debug.activeDebugConsole.appendLine(message);
     }
 
-    protected printHeader(): void {
-        const columnHeaders = this.effectiveHistoryColumns.map(columnHeader => columnHeader.title.padEnd(columnHeader.length));
-        // Append pname value if present
-        if (this.pname?.length) {
-            columnHeaders.push(`(${this.pname})`);
-        }
-        const header = columnHeaders.join('');
-        this.printLine(header);
-    }
-
     protected printContents(contents: string[][]): void {
         if (contents.some(row => row.length !== this.effectiveHistoryColumns.length)) {
             throw new Error('CPU states history row has unexpected number of columns');
         }
-        const paddedContents = contents.map(row => row.map((value, index) => value.padEnd(this.effectiveHistoryColumns.at(index)!.length)).join(''));
+        const paddedContents = contents.map(row => row.map((value, index) => value.padEnd(this.effectiveHistoryColumns.at(index)!.length)).join(COLUMN_SEPARATOR));
         paddedContents.forEach(line => this.printLine(line));
     }
 
-    protected formatContents(contents: string[][]): void {
+    protected formatContents(headers: string[], contents: string[][]): void {
         this.effectiveHistoryColumns.forEach((col, columnIndex) => {
             let widest = 0;
             contents.forEach(rowEntry => {
                 widest = Math.max(widest, rowEntry.at(columnIndex)?.length ?? 0);
             });
+            const headerPadWidth = col.deltaIndex ? widest + DELTA_PLACEHOLDER.length : widest;
+            const header = headers.at(columnIndex);
+            if (header) {
+                // eslint-disable-next-line security/detect-object-injection
+                headers[columnIndex] = header.padEnd(headerPadWidth, ' ');
+            }
             contents.forEach((rowEntry, rowIndex) => {
                 const value = col.alignRight ? rowEntry.at(columnIndex)?.padStart(widest, ' ') : rowEntry.at(columnIndex)?.padEnd(widest, ' ');
                 const deltaNum = contents.length - rowIndex - 2;
                 if (col.deltaIndex) {
-                    const prefix = (rowIndex !== contents.length - 1) ? `d${deltaNum.toString()}: ` : '    ';
+                    const prefix = (rowIndex !== contents.length - 1) ? `d${deltaNum.toString()}: ` : DELTA_PLACEHOLDER;
                     // eslint-disable-next-line security/detect-object-injection
                     rowEntry[columnIndex] = `${prefix}${value ?? ''}`;
                 } else {
@@ -149,30 +123,58 @@ export class CpuStatesHistory {
         });
     }
 
+    protected prepareHeaderContents(): string[] {
+        const columnHeaders = this.effectiveHistoryColumns.map(columnHeader => {
+            const title = columnHeader.title.padEnd(columnHeader.length);
+            // Append pname value if present
+            const appendPname = (columnHeader.title === 'Reason' && !!this.pname?.length);
+            return appendPname ? `${title}    (${this.pname})` : title;
+        });
+        return columnHeaders;
+    }
+
     protected prepareDiffRowContents(entry: HistoryEntry, index: number): string[] {
         const refCpuStates = this.historyEntries.at(index + 1)!.cpuStates;
         const indexDiff = index - (this.historyEntries.length - 1);
         const cpuStatesDiff = refCpuStates - entry.cpuStates;
-        const cpuStatesDiffString = this.frequency === undefined
-            ? cpuStatesDiff.toString()
-            : calculateTime(cpuStatesDiff, this.frequency);
-        return [
-            indexDiff.toString(),
-            `${cpuStatesDiffString}`,
-            `${entry.reason}${entry.location?.length ? ` (${entry.location})` : ''}`
-        ];
+        const cpuStatesDiffString = cpuStatesDiff.toString();
+        if (this.frequency === undefined) {
+            return [
+                indexDiff.toString(),
+                `${cpuStatesDiffString}`,
+                `${entry.reason}${entry.location?.length ? ` (${entry.location})` : ''}`
+            ];
+        } else {
+            const cpuTimeDiffString = calculateTime(cpuStatesDiff, this.frequency);
+            return [
+                indexDiff.toString(),
+                `${cpuTimeDiffString}`,
+                `${cpuStatesDiffString}`,
+                `${entry.reason}${entry.location?.length ? ` (${entry.location})` : ''}`
+            ];
+        }
     }
 
     protected prepareCurrentRowContents(): string[] {
         const current = this.lastEntry!;
-        const currentCpuStatesString = this.frequency === undefined
-            ? current.cpuStates.toString()
+        const cpuStatesString = current.cpuStates.toString();
+        const currentCpuTimeString = this.frequency === undefined
+            ? cpuStatesString
             : calculateTime(current.cpuStates, this.frequency);
-        return [
-            '0',
-            `${currentCpuStatesString}`,
-            `${current.reason}${current.location?.length ? ` (${current.location})` : ''}`
-        ];
+        if (this.frequency === undefined) {
+            return [
+                '0',
+                `${cpuStatesString}`,
+                `${current.reason}${current.location?.length ? ` (${current.location})` : ''}`
+            ];
+        } else {
+            return [
+                '0',
+                `${currentCpuTimeString}`,
+                `${cpuStatesString}`,
+                `${current.reason}${current.location?.length ? ` (${current.location})` : ''}`
+            ];
+        }
     }
 
     public showHistory(): void {
@@ -183,8 +185,8 @@ export class CpuStatesHistory {
             return;
         }
 
-        this.printHeader();
         const contents: string[][] = [];
+        const headerContents = this.prepareHeaderContents();
         if (this.historyEntries.length > 1) {
             const history = this.historyEntries.slice(0, -1);
             const historyContents = history.map((historyEntry, index) => this.prepareDiffRowContents(historyEntry, index));
@@ -192,7 +194,8 @@ export class CpuStatesHistory {
         }
         const currentContents = this.prepareCurrentRowContents();
         contents.push(currentContents);
-        this.formatContents(contents);
+        this.formatContents(headerContents, contents);
+        this.printLine(headerContents.join(COLUMN_SEPARATOR));
         this.printContents(contents);
         this.printLine('');
 
