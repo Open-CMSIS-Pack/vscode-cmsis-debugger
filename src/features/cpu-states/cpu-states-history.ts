@@ -102,10 +102,12 @@ export class CpuStatesHistory {
 
     protected formatContents(headers: string[], contents: string[][]): void {
         this.effectiveHistoryColumns.forEach((col, columnIndex) => {
-            let widest = 0;
+            let widestContent = 0;
             contents.forEach(rowEntry => {
-                widest = Math.max(widest, rowEntry.at(columnIndex)?.length ?? 0);
+                widestContent = Math.max(widestContent, rowEntry.at(columnIndex)?.length ?? 0);
             });
+            const headerWidth = headers.at(columnIndex)?.length ?? 0;
+            const widest = Math.max(widestContent, col.deltaIndex ? headerWidth - 4 : headerWidth);
             const headerPadWidth = col.deltaIndex ? widest + DELTA_PLACEHOLDER.length : widest;
             const header = headers.at(columnIndex);
             if (header) {
