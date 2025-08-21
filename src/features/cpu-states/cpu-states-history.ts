@@ -44,13 +44,16 @@ export class CpuStatesHistory {
         { title: 'CPU Time', length: 8, alignRight: true, deltaIndex: true },
         { title: 'CPU States', length: 10, alignRight: true, deltaIndex: true },
         { title: 'Reason', length: 6, alignRight: false },
+        { title: '', length: 0, alignRight: false },
     ];
 
     constructor(private pname?: string) {}
 
     private get effectiveHistoryColumns(): HistoryColumn[] {
-        const excludeTitle = this.frequency === undefined ? 'CPU Time' : '';
-        return this.historyColumns.filter(col => col.title !== excludeTitle);
+        if (this.frequency === undefined) {
+            return this.historyColumns.filter(col => col.title !== 'CPU Time');
+        }
+        return this.historyColumns;
     }
 
     private get lastEntry(): HistoryEntry|undefined {
@@ -126,9 +129,9 @@ export class CpuStatesHistory {
     protected prepareHeaderContents(): string[] {
         const columnHeaders = this.effectiveHistoryColumns.map(columnHeader => {
             const title = columnHeader.title.padEnd(columnHeader.length);
-            // Append pname value if present
-            const appendPname = (columnHeader.title === 'Reason' && !!this.pname?.length);
-            return appendPname ? `${title}    (${this.pname})` : title;
+            // Set title to Pname
+            const setPname = (columnHeader.title === '' && !!this.pname?.length);
+            return setPname ? `(${this.pname})` : title;
         });
         return columnHeaders;
     }
@@ -141,16 +144,18 @@ export class CpuStatesHistory {
         if (this.frequency === undefined) {
             return [
                 indexDiff.toString(),
-                `${cpuStatesDiffString}`,
-                `${entry.reason}${entry.location?.length ? ` (${entry.location})` : ''}`
+                cpuStatesDiffString,
+                entry.reason,
+                entry.location?.length ? `(${entry.location})` : ''
             ];
         } else {
             const cpuTimeDiffString = calculateTime(cpuStatesDiff, this.frequency);
             return [
                 indexDiff.toString(),
-                `${cpuTimeDiffString}`,
-                `${cpuStatesDiffString}`,
-                `${entry.reason}${entry.location?.length ? ` (${entry.location})` : ''}`
+                cpuTimeDiffString,
+                cpuStatesDiffString,
+                entry.reason,
+                entry.location?.length ? `(${entry.location})` : ''
             ];
         }
     }
@@ -164,15 +169,17 @@ export class CpuStatesHistory {
         if (this.frequency === undefined) {
             return [
                 '0',
-                `${cpuStatesString}`,
-                `${current.reason}${current.location?.length ? ` (${current.location})` : ''}`
+                cpuStatesString,
+                current.reason,
+                current.location?.length ? `(${current.location})` : ''
             ];
         } else {
             return [
                 '0',
-                `${currentCpuTimeString}`,
-                `${cpuStatesString}`,
-                `${current.reason}${current.location?.length ? ` (${current.location})` : ''}`
+                currentCpuTimeString,
+                cpuStatesString,
+                current.reason,
+                current.location?.length ? `(${current.location})` : ''
             ];
         }
     }
