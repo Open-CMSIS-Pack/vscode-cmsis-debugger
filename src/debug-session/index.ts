@@ -16,3 +16,4 @@
 
 export * from './constants';
 export * from './gdbtarget-debug-tracker';
+export * from './gdbtarget-debug-session';
