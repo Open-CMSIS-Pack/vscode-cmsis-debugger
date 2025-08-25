@@ -1,0 +1,166 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`GDBTargetDebugSession returns a cbuild object after parsing one 1`] = `
+CbuildRunReader {
+  "cbuildRun": {
+    "compiler": "AC6",
+    "debug-sequences": [
+      {
+        "blocks": [
+          {
+            "execute": "Write32(0x20000000, 0xA5A5A5A5);
+",
+          },
+          {
+            "blocks": [
+              {
+                "execute": "Read32(0x20000004);
+",
+              },
+            ],
+            "if": "condition == true",
+          },
+          {
+            "execute": "Write32(0x20000008, 0x5);
+",
+          },
+        ],
+        "name": "MySequence",
+        "pname": "Core0",
+      },
+      {
+        "blocks": [
+          {
+            "execute": "DAP_Delay(500000);  // Delay for 500ms
+",
+          },
+        ],
+        "name": "DebugDeviceUnlock",
+        "pname": "Core0",
+      },
+    ],
+    "debug-topology": {
+      "debugports": [
+        {
+          "accessports": [
+            {
+              "address": 0,
+              "apid": 0,
+            },
+            {
+              "address": 1048576,
+              "apid": 1,
+            },
+          ],
+          "dpid": 0,
+        },
+      ],
+      "processors": [
+        {
+          "apid": 0,
+          "pname": "Core0",
+        },
+        {
+          "apid": 1,
+          "pname": "Core1",
+        },
+      ],
+    },
+    "debugger": {
+      "clock": 10000000,
+      "gdbserver": [
+        {
+          "pname": "Core0",
+          "port": 3336,
+        },
+        {
+          "pname": "Core1",
+          "port": 3339,
+        },
+      ],
+      "name": "<default>",
+      "port": "swd",
+      "start-pname": "Core0",
+      "terminal": 4444,
+    },
+    "device": "MyVendor::MyDevice",
+    "device-pack": "MyVendor::MyDevice@1.0.0",
+    "generated-by": "csolution version 2.8.0",
+    "output": [
+      {
+        "file": "out/MyApp.bin",
+        "info": "generate by MyApp",
+        "load": "image",
+        "type": "bin",
+      },
+      {
+        "file": "out/out/MyApp.axf",
+        "info": "generate by MyApp",
+        "load": "symbols",
+        "type": "elf",
+      },
+    ],
+    "programming": [
+      {
+        "algorithm": "\${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Flash/algorithms/MyAlgorithm_Core0.FLM",
+        "pname": "Core0",
+        "ram-size": 131072,
+        "ram-start": 536870912,
+        "size": 524288,
+        "start": 0,
+      },
+      {
+        "algorithm": "\${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Flash/algorithms/MyAlgorithm_Extern.FLM",
+        "pname": "Core0",
+        "ram-size": 131072,
+        "ram-start": 536870912,
+        "size": 33554432,
+        "start": 3221225472,
+      },
+    ],
+    "solution": "my-test.csolution.yml",
+    "system-descriptions": [
+      {
+        "file": "\${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core0.svd",
+        "pname": "Core0",
+        "type": "svd",
+      },
+      {
+        "file": "\${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core1.svd",
+        "pname": "Core1",
+        "type": "svd",
+      },
+    ],
+    "system-resources": {
+      "memory": [
+        {
+          "access": "rx",
+          "from-pack": "MyVendor::MyDevice@1.0.0",
+          "name": "Flash",
+          "pname": "Core0",
+          "size": 524288,
+          "start": 0,
+        },
+        {
+          "access": "rwx",
+          "from-pack": "MyVendor::MyDevice@1.0.0",
+          "name": "SRAM0",
+          "pname": "Core0",
+          "size": 4194304,
+          "start": 33554432,
+        },
+        {
+          "access": "rwx",
+          "from-pack": "MyVendor::MyDevice@1.0.0",
+          "name": "SRAM1",
+          "pname": "Core0",
+          "size": 2621440,
+          "start": 134217728,
+        },
+      ],
+    },
+    "target-type": "My-Test-Target-Type",
+  },
+  "reader": VscodeFileReader {},
+}
+`;

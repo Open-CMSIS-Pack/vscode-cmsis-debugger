@@ -49,3 +49,34 @@ export const extractPname = (configString: string, pnames?: string[]): string | 
     }
     return undefined;
 };
+
+export const calculateTime = (states: bigint, frequency: number): string => {
+    const milliUnit = { unit: 'ms', factor: 1000.0, fractDigits: 3 };
+    const microUnit = { unit: 'us', factor: 1000000.0, fractDigits: 3 };
+    const nanoUnit = { unit: 'ns', factor: 1000000000.0, fractDigits: 3 };
+    const fractionalUnits = [
+        milliUnit,
+        microUnit,
+        nanoUnit
+    ];
+    const frequencyBigInt = BigInt(frequency);
+    const integerPart = states / frequencyBigInt;
+    const fractionalPart = states - integerPart*frequencyBigInt;
+    const fractionalNumber = Number(fractionalPart) / frequency;
+    const unit = integerPart > 0 ? milliUnit : fractionalUnits.find(unit => fractionalNumber*unit.factor >= 1.0) ?? nanoUnit;
+    if (!unit) {
+        throw new Error('Error calculating time value');
+    }
+    const scaledFractionalPart = (fractionalNumber*unit.factor);
+    // Scaling creates additional integer part
+    const scaledIntegerPart = (integerPart*BigInt(unit.factor)) + BigInt(Math.trunc(scaledFractionalPart));
+    const trueFractionalPart = scaledFractionalPart - Math.trunc(scaledFractionalPart);
+    if (trueFractionalPart > 0.0) {
+        // Concatenate scaled fractional part with scaled integer part
+        const trueFractionalString = (trueFractionalPart).toFixed(unit.fractDigits);
+        return `${scaledIntegerPart.toString()}${trueFractionalString.slice(1)}${unit.unit}`;
+    } else {
+        // No fractional part, only print scaled integer part
+        return `${scaledIntegerPart.toString()}${unit.unit}`;
+    }
+};
