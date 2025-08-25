@@ -72,6 +72,7 @@ module.exports = {
     },
     commands: {
         executeCommand: jest.fn(),
+        registerCommand: jest.fn(),
     },
     debug: {
         registerDebugConfigurationProvider: jest.fn(),
