@@ -72,7 +72,7 @@ export class CpuStates {
         tracker.onStackTraceResponse(response => this.handleStackTraceResponse(response));
     }
 
-    protected async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
+    protected handleOnWillStartSession(session: GDBTargetDebugSession): void {
         const states: SessionCpuStates = {
             states: BigInt(0),
             frequency: undefined,
@@ -128,7 +128,7 @@ export class CpuStates {
         return this.updateCpuStates(event.session, event.event.body.threadId, event.event.body.reason);
     }
 
-    protected async handleStackTraceRequest(request: StackTraceRequest): Promise<void> {
+    protected handleStackTraceRequest(request: StackTraceRequest): void {
         const cpuStates = this.sessionCpuStates.get(request.session.session.id);
         if (!cpuStates) {
             // No need to continue
@@ -138,7 +138,7 @@ export class CpuStates {
         stackTraceRequests.set(request.request.seq, request.request.arguments.threadId);
     }
 
-    protected async handleStackTraceResponse(response: StackTraceResponse): Promise<void> {
+    protected handleStackTraceResponse(response: StackTraceResponse): void {
         // Retrieve and delete tracked request from map first
         const stackTraceRequest = this.stackTraceRequests.get(response.session.session.id);
         const threadId = stackTraceRequest?.get(response.response.request_seq);
@@ -170,7 +170,7 @@ export class CpuStates {
         this._onRefresh.fire(100);
     }
 
-    protected async handleOnDidChangeActiveStackItem(_item: SessionStackItem): Promise<void> {
+    protected handleOnDidChangeActiveStackItem(_item: SessionStackItem): void {
         this._onRefresh.fire(0);
     }
 
