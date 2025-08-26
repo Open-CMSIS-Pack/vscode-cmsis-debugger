@@ -28,11 +28,17 @@ export interface SessionEvent<T extends DebugProtocol.Event> {
 export type ContinuedEvent = SessionEvent<DebugProtocol.ContinuedEvent>;
 export type StoppedEvent = SessionEvent<DebugProtocol.StoppedEvent>;
 
+export interface SessionRequest<T extends DebugProtocol.Request> {
+    session: GDBTargetDebugSession;
+    request: T;
+}
+
 export interface SessionResponse<T extends DebugProtocol.Response> {
     session: GDBTargetDebugSession;
     response: T;
 }
 
+export type StackTraceRequest = SessionRequest<DebugProtocol.StackTraceRequest>;
 export type StackTraceResponse = SessionResponse<DebugProtocol.StackTraceResponse>;
 
 export type StackItem = vscode.DebugThread | vscode.DebugStackFrame | undefined;
@@ -65,6 +71,9 @@ export class GDBTargetDebugTracker {
 
     private readonly _onStopped: vscode.EventEmitter<StoppedEvent> = new vscode.EventEmitter<StoppedEvent>();
     public readonly onStopped: vscode.Event<StoppedEvent> = this._onStopped.event;
+
+    private readonly _onStackTraceRequest: vscode.EventEmitter<StackTraceRequest> = new vscode.EventEmitter<StackTraceRequest>();
+    public readonly onStackTraceRequest: vscode.Event<StackTraceRequest> = this._onStackTraceRequest.event;
 
     private readonly _onStackTraceResponse: vscode.EventEmitter<StackTraceResponse> = new vscode.EventEmitter<StackTraceResponse>();
     public readonly onStackTraceResponse: vscode.Event<StackTraceResponse> = this._onStackTraceResponse.event;
@@ -140,15 +149,26 @@ export class GDBTargetDebugTracker {
         if (message.type === 'request') {
             const request = message as DebugProtocol.Request;
             const gdbTargetSession = this.sessions.get(session.id);
-            if (request.command === 'launch' || request.command === 'attach') {
-                const gdbTargetConfig = request.arguments as GDBTargetConfiguration;
-                const cbuildRunFile = gdbTargetConfig.cmsis?.cbuildRunFile;
-                if (cbuildRunFile && gdbTargetSession) {
-                    // Do not wait for it to keep the message flowing.
-                    // Session class will do the waiting in case requests
-                    // come early.
-                    gdbTargetSession.parseCbuildRun(cbuildRunFile);
-                }
+            switch (request.command) {
+                case 'launch':
+                case 'attach':
+                    {
+                        const gdbTargetConfig = request.arguments as GDBTargetConfiguration;
+                        const cbuildRunFile = gdbTargetConfig.cmsis?.cbuildRunFile;
+                        if (cbuildRunFile && gdbTargetSession) {
+                            // Do not wait for it to keep the message flowing.
+                            // Session class will do the waiting in case requests
+                            // come early.
+                            gdbTargetSession.parseCbuildRun(cbuildRunFile);
+                        }
+                    }
+                    break;
+                case 'stackTrace':
+                    if (!gdbTargetSession) {
+                        break;
+                    }
+                    this._onStackTraceRequest.fire({ session: gdbTargetSession, request } as StackTraceRequest);
+                    break;
             }
         }
     }

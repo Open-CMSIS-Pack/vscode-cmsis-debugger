@@ -19,6 +19,7 @@ import {
     ContinuedEvent,
     GDBTargetDebugTracker,
     SessionStackItem,
+    StackTraceRequest,
     StackTraceResponse,
     StoppedEvent
 } from '../../debug-session';
@@ -50,6 +51,7 @@ export class CpuStates {
 
     public activeSession: GDBTargetDebugSession | undefined;
     private sessionCpuStates: Map<string, SessionCpuStates> = new Map();
+    private stackTraceRequests: Map<string, Map<number, number>> = new Map();
 
     public get activeCpuStates(): SessionCpuStates|undefined {
         if (!this.activeSession) {
@@ -66,6 +68,7 @@ export class CpuStates {
         tracker.onConnected(session => this.handleConnected(session));
         tracker.onContinued(event => this.handleContinuedEvent(event));
         tracker.onStopped(event => this.handleStoppedEvent(event));
+        tracker.onStackTraceRequest(request => this.handleStackTraceRequest(request));
         tracker.onStackTraceResponse(response => this.handleStackTraceResponse(response));
     }
 
@@ -81,6 +84,7 @@ export class CpuStates {
     }
 
     protected handleOnWillStopSession(session: GDBTargetDebugSession): void {
+        this.stackTraceRequests.delete(session.session.id);
         this.sessionCpuStates.delete(session.session.id);
     }
 
@@ -124,8 +128,21 @@ export class CpuStates {
         return this.updateCpuStates(event.session, event.event.body.threadId, event.event.body.reason);
     }
 
+    protected async handleStackTraceRequest(request: StackTraceRequest): Promise<void> {
+        const cpuStates = this.sessionCpuStates.get(request.session.session.id);
+        if (!cpuStates) {
+            // No need to continue
+            return;
+        }
+        const stackTraceRequests = this.stackTraceRequests.get(request.session.session.id) ?? new Map();
+        stackTraceRequests.set(request.request.seq, request.request.arguments.threadId);
+    }
+
     protected async handleStackTraceResponse(response: StackTraceResponse): Promise<void> {
-        // TODO: Refactor
+        // Retrieve and delete tracked request from map first
+        const stackTraceRequest = this.stackTraceRequests.get(response.session.session.id);
+        const threadId = stackTraceRequest?.get(response.response.request_seq);
+        stackTraceRequest?.delete(response.response.request_seq);
         const states = this.activeCpuStates;
         if (!states) {
             return;
@@ -133,7 +150,6 @@ export class CpuStates {
         const responseBody: DebugProtocol.StackTraceResponse['body'] = response.response.body;
         const hasValidFrames = response.response.success && responseBody.totalFrames;
         const topFrame = hasValidFrames ? responseBody.stackFrames[0] : undefined;
-        // TODO: Match sequence numbers between request and response to assign to assign to correct threadId.
         let locationString = '';
         if (topFrame) {
             if (topFrame.instructionPointerReference) {
@@ -147,7 +163,7 @@ export class CpuStates {
                 locationString += `::${topFrame.line}`;
             }
         }
-        states.statesHistory.insertStopLocation(locationString, undefined);
+        states.statesHistory.insertStopLocation(locationString, threadId);
         // Workaround for VS Code not automatically selecting stack frame without source info.
         // Assuming the correct stack frame is selected within 100ms. To revisit if something
         // can be done without fixed delays and duplicate updates.
@@ -232,7 +248,6 @@ export class CpuStates {
             return;
         }
         states.statesHistory.resetHistory();
-        // TODO: Discuss if also to reset the full execution time
         states.states = BigInt(0);
         this._onRefresh.fire(0);
     }
