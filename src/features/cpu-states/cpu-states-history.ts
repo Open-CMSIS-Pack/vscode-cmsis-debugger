@@ -41,7 +41,7 @@ export class CpuStatesHistory {
     private historyEntries: HistoryEntry[] = [];
 
     private readonly historyColumns: HistoryColumn[] = [
-        { title: `${DELTA}T`, length: 4, alignRight: true },
+        { title: `${DELTA}T`, length: 2, alignRight: true },
         { title: 'CPU Time', length: 8, alignRight: true, deltaIndex: true },
         { title: 'CPU States', length: 10, alignRight: true, deltaIndex: true },
         { title: 'Reason', length: 6, alignRight: false },
