@@ -86,6 +86,9 @@ export class CpuStates {
     protected handleOnWillStopSession(session: GDBTargetDebugSession): void {
         this.stackTraceRequests.delete(session.session.id);
         this.sessionCpuStates.delete(session.session.id);
+        if (this.activeSession?.session.id && this.activeSession?.session.id === session.session.id) {
+            this.activeSession = undefined;
+        }
     }
 
     protected handleActiveSessionChanged(session?: GDBTargetDebugSession): void {
