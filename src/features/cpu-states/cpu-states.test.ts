@@ -152,7 +152,7 @@ describe('CpuStates', () => {
             expect(cpuStates.activeCpuStates?.isRunning).toBeTruthy();
             expect(cpuStates.activeCpuStates?.states).toEqual(BigInt(0));
             expect(cpuStates.activeCpuStates?.frequency).toBeUndefined();
-            expect(cpuStates.activeCpuStates?.hasStates).toBeUndefined();
+            expect(cpuStates.activeHasStates()).toBeUndefined();
             expect(cpuStates.activeCpuStates?.statesHistory).toBeDefined();
         });
 
@@ -168,7 +168,7 @@ describe('CpuStates', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (tracker as any)._onConnected.fire(gdbtargetDebugSession);
             await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
-            expect(cpuStates.activeCpuStates?.hasStates).toEqual(false);
+            expect(cpuStates.activeHasStates()).toEqual(false);
         });
 
         it.each([
@@ -194,7 +194,7 @@ describe('CpuStates', () => {
             (tracker as any)._onConnected.fire(gdbtargetDebugSession);
             // Let events get processed
             await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
-            expect(cpuStates.activeCpuStates?.hasStates).toEqual(expected);
+            expect(cpuStates.activeHasStates()).toEqual(expected);
         });
 
     });
@@ -248,6 +248,8 @@ describe('CpuStates', () => {
                 await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
             }
             expect(cpuStates.activeCpuStates?.states).toEqual(BigInt(4));
+            expect(await cpuStates.getActivePname()).toBeUndefined();
+            expect(await cpuStates.getActiveTimeString()).toEqual(' 4 states');
             cpuStates.showStatesHistory();
             expect(debugConsoleOutput).toMatchSnapshot();
         });
@@ -275,6 +277,8 @@ describe('CpuStates', () => {
                 await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
             }
             expect(cpuStates.activeCpuStates?.states).toEqual(BigInt(4));
+            expect(await cpuStates.getActivePname()).toBeUndefined();
+            expect(await cpuStates.getActiveTimeString()).toEqual(' 4 states');
         });
 
         it('captures states for multiple continued/stopped events and resets correctly', async () => {
@@ -291,8 +295,10 @@ describe('CpuStates', () => {
                 await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
             }
             expect(cpuStates.activeCpuStates?.states).toEqual(BigInt(20));
+            expect(await cpuStates.getActiveTimeString()).toEqual(' 20 states');
             cpuStates.resetStatesHistory();
             expect(cpuStates.activeCpuStates?.states).toEqual(BigInt(0));
+            expect(await cpuStates.getActiveTimeString()).toEqual(' 0 states');
         });
 
         it('fires refresh events on active stack item change', async () => {
@@ -317,6 +323,7 @@ describe('CpuStates', () => {
             expect(cpuStates.activeCpuStates).toBeDefined();
             expect(cpuStates.activeCpuStates?.frequency).toBeUndefined();
             expect(cpuStates.activeCpuStates?.statesHistory.frequency).toBeUndefined();
+            expect(await cpuStates.getActiveTimeString()).toEqual(' 0 states');
         });
 
         it('passes undefined frequency to states if getting SystemCoreClock does not return a number', async () => {
@@ -325,6 +332,7 @@ describe('CpuStates', () => {
             expect(cpuStates.activeCpuStates).toBeDefined();
             expect(cpuStates.activeCpuStates?.frequency).toBeUndefined();
             expect(cpuStates.activeCpuStates?.statesHistory.frequency).toBeUndefined();
+            expect(await cpuStates.getActiveTimeString()).toEqual(' 0 states');
         });
 
         it('passes valid frequency to states', async () => {
@@ -333,6 +341,7 @@ describe('CpuStates', () => {
             expect(cpuStates.activeCpuStates).toBeDefined();
             expect(cpuStates.activeCpuStates?.frequency).toEqual(12000000);
             expect(cpuStates.activeCpuStates?.statesHistory.frequency).toEqual(12000000);
+            expect(await cpuStates.getActiveTimeString()).toEqual(' 0ns');
         });
 
         it('assigns frame location to captured stop point based on threadId match', async () => {
@@ -396,16 +405,18 @@ describe('CpuStates', () => {
             await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
         });
 
-        it('shows warning notification on show history that CPU time is not available', () => {
+        it('shows warning notification on show history that CPU time is not available', async () => {
             const warningMessageSpy = jest.spyOn(vscode.window, 'showWarningMessage');
             cpuStates.showStatesHistory();
             expect(warningMessageSpy).toHaveBeenCalledWith('CPU Time commands not available for target');
+            expect(await cpuStates.getActiveTimeString()).toEqual(' N/A');
         });
 
-        it('shows warning notification on reset history that CPU time is not available', () => {
+        it('shows warning notification on reset history that CPU time is not available', async () => {
             const warningMessageSpy = jest.spyOn(vscode.window, 'showWarningMessage');
             cpuStates.resetStatesHistory();
             expect(warningMessageSpy).toHaveBeenCalledWith('CPU Time commands not available for target');
+            expect(await cpuStates.getActiveTimeString()).toEqual(' N/A');
         });
 
     });

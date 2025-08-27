@@ -25,7 +25,7 @@ import {
 } from '../../debug-session';
 import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-session';
 import { CpuStatesHistory } from './cpu-states-history';
-import { extractPname } from '../../utils';
+import { calculateTime, extractPname } from '../../utils';
 import { GDBTargetConfiguration } from '../../debug-configuration';
 import { DebugProtocol } from '@vscode/debugprotocol';
 
@@ -214,6 +214,56 @@ export class CpuStates {
         states.statesHistory.updateHistory(states.states, threadId, reason);
     }
 
+    protected async getFrequency(): Promise<number|undefined> {
+        const frequencyString = await this.activeSession?.evaluateGlobalExpression('SystemCoreClock');
+        if (!frequencyString) {
+            return undefined;
+        }
+        const frequencyValue = parseInt(frequencyString);
+        return isNaN(frequencyValue) ? undefined : frequencyValue;
+    }
+
+    public async getActivePname(): Promise<string|undefined> {
+        if (!this.activeSession) {
+            return undefined;
+        }
+        const sessionName = this.activeSession.session?.name;
+        if (!sessionName) {
+            return undefined;
+        }
+        const cbuildRunReader = await this.activeSession.getCbuildRun();
+        const pnames = cbuildRunReader?.getPnames();
+        const pname = pnames && pnames.length > 1 ? extractPname(sessionName) : undefined;
+        return pname;
+    }
+
+    public activeHasStates(): boolean|undefined {
+        if (this.activeCpuStates?.hasStates === undefined) {
+            return undefined;
+        }
+        return this.activeCpuStates.hasStates;
+    }
+
+    public async getActiveTimeString(): Promise<string|undefined> {
+        if (!this.activeCpuStates || this.activeHasStates() === undefined ) {
+            return undefined;
+        }
+        const pname = await this.getActivePname();
+        if (!this.activeCpuStates.isRunning) {
+            // Only update frequency while stopped. User previous otherwise
+            // to avoid switching between states and time display.
+            await this.updateFrequency();
+        }
+        const cpuName = pname ? ` ${pname} ` : '';
+        if (!this.activeHasStates()) {
+            return `${cpuName} N/A`;
+        }
+        const timeString = this.activeCpuStates.frequency === undefined
+            ? `${this.activeCpuStates.states.toString()} states`
+            : calculateTime(this.activeCpuStates.states, this.activeCpuStates.frequency);
+        return `${cpuName} ${timeString}`;
+    }
+
     public async updateFrequency(): Promise<void> {
         const states = this.activeCpuStates;
         if (!states) {
@@ -222,15 +272,6 @@ export class CpuStates {
         const frequency = await this.getFrequency();
         states.frequency = frequency;
         states.statesHistory.frequency = frequency;
-    }
-
-    protected async getFrequency(): Promise<number|undefined> {
-        const frequencyString = await this.activeSession?.evaluateGlobalExpression('SystemCoreClock');
-        if (!frequencyString) {
-            return undefined;
-        }
-        const frequencyValue = parseInt(frequencyString);
-        return isNaN(frequencyValue) ? undefined : frequencyValue;
     }
 
     public showStatesHistory(): void {

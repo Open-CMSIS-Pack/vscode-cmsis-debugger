@@ -16,7 +16,6 @@
 
 import * as vscode from 'vscode';
 import { EXTENSION_NAME } from '../../manifest';
-import { calculateTime, extractPname } from '../../utils';
 import { CpuStates } from './cpu-states';
 import { CpuStatesCommands } from './cpu-states-commands';
 
@@ -53,43 +52,17 @@ export class CpuStatesStatusBarItem {
         }
         const activeSession = this.cpuStates?.activeSession;
         const sessionName = activeSession?.session?.name;
-        if (!sessionName?.length || this.cpuStates?.activeCpuStates?.hasStates === undefined) {
+        const activeHasStates = this.cpuStates?.activeHasStates();
+        if (!sessionName?.length || activeHasStates === undefined) {
             // Hide if no valid session name or if cpuStates support not yet determined
             setTimeout(() => this.statusBarItem!.hide(), delay);
             return;
         }
-        if (!this.cpuStates.activeCpuStates.hasStates) {
-            this.statusBarItem.text = '$(watch) N/A';
-            this.statusBarItem.command = undefined;
-        } else {
-            const cbuildRunReader = await activeSession?.getCbuildRun();
-            const pnames = cbuildRunReader?.getPnames();
-            const pname = pnames && pnames.length > 1 ? extractPname(sessionName) : undefined;
-            await this.updateDisplayText(pname);
-            this.statusBarItem.command = this.statusBarItemCommandID;
-        }
+        // cpuStates defined, otherwise activeHasStates would have been undefined
+        const displayString = await this.cpuStates!.getActiveTimeString();
+        this.statusBarItem.text = `$(watch)${displayString}`;
+        this.statusBarItem.command = activeHasStates ? this.statusBarItemCommandID : undefined;
         setTimeout(() => this.statusBarItem!.show(), delay);
-    }
-
-    protected async updateDisplayText(pname?: string): Promise<void> {
-        if (!this.statusBarItem || !this.cpuStates) {
-            return;
-        }
-        const activeSession = this.cpuStates.activeSession;
-        const activeStates = this.cpuStates.activeCpuStates;
-        if (!activeSession || !activeStates) {
-            return;
-        }
-        if (!activeStates.isRunning) {
-            // Only update frequency while stopped. User previous otherwise
-            // to avoid switching between states and time display.
-            await this.cpuStates.updateFrequency();
-        }
-        const cpuName = pname ? ` ${pname} ` : '';
-        const displayString = activeStates.frequency === undefined
-            ? `${activeStates.states.toString()} states`
-            : calculateTime(activeStates.states, activeStates.frequency);
-        this.statusBarItem.text = `$(watch)${cpuName} ${displayString}`;
     }
 
     protected async handleItemCommand(): Promise<void> {
