@@ -137,7 +137,11 @@ export class CpuStates {
             // No need to continue
             return;
         }
-        const stackTraceRequests = this.stackTraceRequests.get(request.session.session.id) ?? new Map();
+        let stackTraceRequests = this.stackTraceRequests.get(request.session.session.id);
+        if (stackTraceRequests === undefined) {
+            stackTraceRequests = new Map();
+            this.stackTraceRequests.set(request.session.session.id, stackTraceRequests);
+        }
         stackTraceRequests.set(request.request.seq, request.request.arguments.threadId);
     }
 
