@@ -54,6 +54,7 @@ module.exports = {
         })),
         showWarningMessage: jest.fn(),
         createStatusBarItem: jest.fn(),
+        showQuickPick: jest.fn(),
     },
     workspace: {
         getConfiguration: jest.fn(() => ({

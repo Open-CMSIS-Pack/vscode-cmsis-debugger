@@ -20,7 +20,7 @@ import { calculateTime, extractPname } from '../../utils';
 import { CpuStates } from './cpu-states';
 import { CpuStatesCommands } from './cpu-states-commands';
 
-interface QuickPickHandlerItem extends vscode.QuickPickItem {
+export interface QuickPickHandlerItem extends vscode.QuickPickItem {
     handler(): unknown;
 }
 
