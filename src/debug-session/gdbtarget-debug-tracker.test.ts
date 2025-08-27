@@ -14,17 +14,34 @@
  * limitations under the License.
  */
 
-import { GDBTargetDebugTracker } from './gdbtarget-debug-tracker';
-import { extensionContextFactory } from '../__test__/vscode.factory';
+import { ContinuedEvent, GDBTargetDebugTracker, StackTraceRequest, StackTraceResponse, StoppedEvent } from './gdbtarget-debug-tracker';
+import { debugSessionFactory, extensionContextFactory } from '../__test__/vscode.factory';
 
 import * as vscode from 'vscode';
+import { GDBTargetDebugSession } from './gdbtarget-debug-session';
+import { DebugProtocol } from '@vscode/debugprotocol';
+import { GDBTargetConfiguration } from '../debug-configuration';
+
+const TEST_CBUILD_RUN_FILE = 'test-data/multi-core.cbuild-run.yml'; // Relative to repo root
 
 describe('GDBTargetDebugTracker', () => {
+    const defaultConfig = (): vscode.DebugConfiguration => {
+        return {
+            name: 'session-name',
+            type: 'gdbtarget',
+            request: 'launch',
+        };
+    };
+
+    let debugTracker: GDBTargetDebugTracker;
+    let contextMock: vscode.ExtensionContext;
+
+    beforeEach(() => {
+        debugTracker = new GDBTargetDebugTracker();
+        contextMock = extensionContextFactory();
+    });
 
     it('should activate', async () => {
-        const debugTracker = new GDBTargetDebugTracker();
-        const contextMock = extensionContextFactory();
-
         debugTracker.activate(contextMock);
 
         expect(contextMock.subscriptions).toHaveLength(3);
@@ -33,11 +50,181 @@ describe('GDBTargetDebugTracker', () => {
     });
 
     it('brings the debug console to front \'onWillStartSession\' is called', async () => {
-        const debugTracker = new GDBTargetDebugTracker();
-
         debugTracker.bringConsoleToFront();
 
         expect(vscode.commands.executeCommand as jest.Mock).toHaveBeenCalledWith('workbench.debug.action.focusRepl');
+    });
+
+    describe('test forwarding to event emitters', () => {
+        let adapterFactory: vscode.DebugAdapterTrackerFactory|undefined;
+
+        beforeEach(() => {
+            adapterFactory = undefined;
+            (vscode.debug.registerDebugAdapterTrackerFactory as jest.Mock).mockImplementation((_debugType: string, factory: vscode.DebugAdapterTrackerFactory): vscode.Disposable => {
+                adapterFactory = factory;
+                return { dispose: jest.fn() };
+            });
+            debugTracker.activate(contextMock);
+        });
+
+        it('defines relevant event handlers', async () => {
+            expect(adapterFactory).toBeDefined();
+            const tracker = await adapterFactory!.createDebugAdapterTracker(debugSessionFactory(defaultConfig()));
+            expect(tracker?.onWillStartSession).toBeDefined();
+            expect(tracker?.onWillStopSession).toBeDefined();
+            expect(tracker?.onDidSendMessage).toBeDefined();
+            expect(tracker?.onWillReceiveMessage).toBeDefined();
+        });
+
+        it('forwards start and stop session events', async () => {
+            const tracker = await adapterFactory!.createDebugAdapterTracker(debugSessionFactory(defaultConfig()));
+            let startTargetSession: GDBTargetDebugSession|undefined = undefined;
+            let stopTargetSession: GDBTargetDebugSession|undefined = undefined;
+            debugTracker.onWillStartSession(session => startTargetSession = session);
+            debugTracker.onWillStopSession(session => stopTargetSession = session);
+            tracker!.onWillStartSession!();
+            expect(startTargetSession).toBeDefined();
+            tracker!.onWillStopSession!();
+            expect(stopTargetSession).toBeDefined();
+            expect(stopTargetSession).toEqual(startTargetSession);
+        });
+
+        it('parses cbuildrun file', async () => {
+            const debugConfig: GDBTargetConfiguration = {
+                ...defaultConfig(),
+                cmsis: { cbuildRunFile: TEST_CBUILD_RUN_FILE }
+            };
+            const tracker = await adapterFactory!.createDebugAdapterTracker(debugSessionFactory(debugConfig));
+            let gdbSession: GDBTargetDebugSession|undefined = undefined;
+            debugTracker.onWillStartSession(session => gdbSession = session);
+            tracker!.onWillStartSession!();
+            const cbuildRunBeforeAttach = await gdbSession!.getCbuildRun();
+            expect(cbuildRunBeforeAttach).toBeUndefined();
+            const attachRequest: DebugProtocol.AttachRequest = {
+                command: 'attach',
+                type: 'request',
+                seq: 1,
+                arguments: debugConfig as unknown as DebugProtocol.AttachRequestArguments
+            };
+            tracker!.onWillReceiveMessage!(attachRequest);
+            const cbuildRunAfterAttach = await gdbSession!.getCbuildRun();
+            expect(cbuildRunAfterAttach).toBeDefined();
+        });
+
+        it('sends an onConnected event', async () => {
+            let connectedSession: GDBTargetDebugSession|undefined = undefined;
+            debugTracker.onConnected(session => connectedSession = session);
+            const tracker = await adapterFactory!.createDebugAdapterTracker(debugSessionFactory(defaultConfig()));
+            tracker!.onWillStartSession!();
+            const launchRequest: DebugProtocol.LaunchResponse = {
+                command: 'launch',
+                type: 'response',
+                success: true,
+                seq: 1,
+                request_seq: 1,
+                body: {}
+            };
+            tracker!.onDidSendMessage!(launchRequest);
+            expect(connectedSession).toBeDefined();
+        });
+
+        it('sends an onStackTraceRequest event', async () => {
+            const tracker = await adapterFactory!.createDebugAdapterTracker(debugSessionFactory(defaultConfig()));
+            let gdbSession: GDBTargetDebugSession|undefined = undefined;
+            debugTracker.onWillStartSession(session => gdbSession = session);
+            let result: StackTraceRequest|undefined = undefined;
+            debugTracker.onStackTraceRequest(request => result = request);
+            tracker!.onWillStartSession!();
+            const stackTraceRequest: DebugProtocol.StackTraceRequest = {
+                command: 'stackTrace',
+                type: 'request',
+                seq: 1,
+                arguments: {
+                    threadId: 1
+                }
+            };
+            tracker!.onWillReceiveMessage!(stackTraceRequest);
+            expect(gdbSession).toBeDefined();
+            expect(result).toBeDefined();
+            expect(result!.session).toEqual(gdbSession);
+            expect(result!.request).toEqual(stackTraceRequest);
+        });
+
+        it('sends an onStackTraceResponse event', async () => {
+            let gdbSession: GDBTargetDebugSession|undefined = undefined;
+            debugTracker.onWillStartSession(session => gdbSession = session);
+            let result: StackTraceResponse|undefined = undefined;
+            debugTracker.onStackTraceResponse(response => result = response);
+            const tracker = await adapterFactory!.createDebugAdapterTracker(debugSessionFactory(defaultConfig()));
+            tracker!.onWillStartSession!();
+            const stackTraceResponse: DebugProtocol.StackTraceResponse = {
+                command: 'stackTrace',
+                type: 'response',
+                success: true,
+                seq: 1,
+                request_seq: 1,
+                body: {
+                    stackFrames: [
+                        {
+                            id: 0,
+                            column: 0,
+                            line: 0,
+                            name: 'stackframe'
+                        }
+                    ]
+                }
+            };
+            tracker!.onDidSendMessage!(stackTraceResponse);
+            expect(gdbSession).toBeDefined();
+            expect(result).toBeDefined();
+            expect(result!.session).toEqual(gdbSession);
+            expect(result!.response).toEqual(stackTraceResponse);
+        });
+
+        it('sends a session continued event', async () => {
+            let gdbSession: GDBTargetDebugSession|undefined = undefined;
+            debugTracker.onWillStartSession(session => gdbSession = session);
+            let result: ContinuedEvent|undefined = undefined;
+            debugTracker.onContinued(event => result = event);
+            const tracker = await adapterFactory!.createDebugAdapterTracker(debugSessionFactory(defaultConfig()));
+            tracker!.onWillStartSession!();
+            const continuedEvent: DebugProtocol.ContinuedEvent = {
+                event: 'continued',
+                type: 'event',
+                seq: 1,
+                body: {
+                    threadId: 1
+                }
+            };
+            tracker!.onDidSendMessage!(continuedEvent);
+            expect(gdbSession).toBeDefined();
+            expect(result).toBeDefined();
+            expect(result!.session).toEqual(gdbSession);
+            expect(result!.event).toEqual(continuedEvent);
+        });
+
+        it('sends a session stopped event', async () => {
+            let gdbSession: GDBTargetDebugSession|undefined = undefined;
+            debugTracker.onWillStartSession(session => gdbSession = session);
+            let result: StoppedEvent|undefined = undefined;
+            debugTracker.onStopped(event => result = event);
+            const tracker = await adapterFactory!.createDebugAdapterTracker(debugSessionFactory(defaultConfig()));
+            tracker!.onWillStartSession!();
+            const stoppedEvent: DebugProtocol.StoppedEvent = {
+                event: 'stopped',
+                type: 'event',
+                seq: 1,
+                body: {
+                    reason: 'step'
+                }
+            };
+            tracker!.onDidSendMessage!(stoppedEvent);
+            expect(gdbSession).toBeDefined();
+            expect(result).toBeDefined();
+            expect(result!.session).toEqual(gdbSession);
+            expect(result!.event).toEqual(stoppedEvent);
+        });
+
     });
 
 });
