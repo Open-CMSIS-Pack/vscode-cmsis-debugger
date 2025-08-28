@@ -14,7 +14,14 @@
  * limitations under the License.
  */
 
-import { ContinuedEvent, GDBTargetDebugTracker, StackTraceRequest, StackTraceResponse, StoppedEvent } from './gdbtarget-debug-tracker';
+import {
+    ContinuedEvent,
+    GDBTargetDebugTracker,
+    SessionStackItem,
+    StackTraceRequest,
+    StackTraceResponse,
+    StoppedEvent
+} from './gdbtarget-debug-tracker';
 import { debugSessionFactory, extensionContextFactory } from '../__test__/vscode.factory';
 
 import * as vscode from 'vscode';
@@ -87,6 +94,38 @@ describe('GDBTargetDebugTracker', () => {
             tracker!.onWillStopSession!();
             expect(stopTargetSession).toBeDefined();
             expect(stopTargetSession).toEqual(startTargetSession);
+        });
+
+        it('sends event on changing active debug session to a valid session', async () => {
+            type ActiveStackItemListener = (e: vscode.DebugThread | vscode.DebugStackFrame | undefined) => any;
+            let stackItemListener: ActiveStackItemListener|undefined = undefined;
+            (vscode.debug.onDidChangeActiveStackItem as jest.Mock).mockImplementation(
+                ((listener: ActiveStackItemListener): vscode.Disposable => {
+                    stackItemListener = listener;
+                    return { dispose: jest.fn() };
+                })
+            );
+            let result: SessionStackItem | undefined = undefined;
+            debugTracker.onDidChangeActiveStackItem((stackItem: SessionStackItem) => {
+                result = stackItem;
+            });
+            const session = debugSessionFactory(defaultConfig());
+            const tracker = await adapterFactory!.createDebugAdapterTracker(session);
+            let gdbSession: GDBTargetDebugSession|undefined = undefined;
+            debugTracker.onWillStartSession(session => gdbSession = session);
+
+            // Activate again to reuse beforeEach but get the listener
+            debugTracker.activate(contextMock);
+            await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+            expect(stackItemListener).toBeDefined();
+            tracker!.onWillStartSession!();
+            await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+            const sentStackItem = { session, frameId: 0, threadId: 0 };
+            stackItemListener!(sentStackItem);
+            await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+            expect(result).toBeDefined();
+            expect(result!.session).toEqual(gdbSession);
+            expect(result!.item).toEqual(sentStackItem);
         });
 
         it('parses cbuildrun file', async () => {
