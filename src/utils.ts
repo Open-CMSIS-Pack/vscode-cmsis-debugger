@@ -80,3 +80,7 @@ export const calculateTime = (states: bigint, frequency: number): string => {
         return `${scaledIntegerPart.toString()}${unit.unit}`;
     }
 };
+
+export const waitForMs = async (ms: number): Promise<void> => {
+    return new Promise<void>(resolve => setTimeout(() => resolve(), ms));
+};

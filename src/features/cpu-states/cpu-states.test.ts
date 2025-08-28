@@ -20,21 +20,12 @@ import { GDBTargetConfiguration } from '../../debug-configuration';
 import { ContinuedEvent, GDBTargetDebugSession, GDBTargetDebugTracker, SessionStackItem, StackTraceRequest, StackTraceResponse, StoppedEvent } from '../../debug-session';
 import { CpuStates } from './cpu-states';
 import { DebugProtocol } from '@vscode/debugprotocol';
+import { waitForMs } from '../../utils';
+import { gdbTargetConfiguration } from '../../debug-configuration/debug-configuration.factory';
 
 const TEST_CBUILD_RUN_FILE = 'test-data/multi-core.cbuild-run.yml'; // Relative to repo root
 
 describe('CpuStates', () => {
-    const defaultConfig = (): GDBTargetConfiguration => {
-        return {
-            name: 'session-name',
-            type: 'gdbtarget',
-            request: 'launch',
-            cmsis: {
-                cbuildRunFile: TEST_CBUILD_RUN_FILE
-            }
-        };
-    };
-
     const createContinuedEvent = (session: GDBTargetDebugSession, threadId: number): ContinuedEvent => ({
         session,
         event: {
@@ -66,6 +57,17 @@ describe('CpuStates', () => {
         }
     });
 
+    const createStackFrame = (): DebugProtocol.StackFrame => ({
+        column: 0,
+        id: 1,
+        line: 2,
+        name: 'myframe',
+        instructionPointerReference: '0x08000396',
+        source: {
+            name: 'myfunction'
+        }
+    });
+
     const createStackTraceResponse = (session: GDBTargetDebugSession, seq: number, request_seq: number): StackTraceResponse => ({
         session,
         response: {
@@ -77,20 +79,10 @@ describe('CpuStates', () => {
             body: {
                 totalFrames: 1,
                 stackFrames: [
-                    {
-                        column: 0,
-                        id: 1,
-                        line: 2,
-                        name: 'myframe',
-                        instructionPointerReference: '0x08000396',
-                        source: {
-                            name: 'myfunction'
-                        }
-                    }
+                    createStackFrame()
                 ]
             }
         }
-
     });
 
     let debugConfig: GDBTargetConfiguration;
@@ -100,7 +92,7 @@ describe('CpuStates', () => {
     let gdbtargetDebugSession: GDBTargetDebugSession;
 
     beforeEach(() => {
-        debugConfig = defaultConfig();
+        debugConfig = gdbTargetConfiguration({ cmsis: { cbuildRunFile: TEST_CBUILD_RUN_FILE } });
         cpuStates = new CpuStates();
         tracker = new GDBTargetDebugTracker();
         debugSession = debugSessionFactory(debugConfig);
@@ -167,7 +159,7 @@ describe('CpuStates', () => {
             // Connected
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (tracker as any)._onConnected.fire(gdbtargetDebugSession);
-            await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+            await waitForMs(0);
             expect(cpuStates.activeHasStates()).toEqual(false);
         });
 
@@ -193,7 +185,7 @@ describe('CpuStates', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (tracker as any)._onConnected.fire(gdbtargetDebugSession);
             // Let events get processed
-            await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+            await waitForMs(0);
             expect(cpuStates.activeHasStates()).toEqual(expected);
         });
 
@@ -215,7 +207,7 @@ describe('CpuStates', () => {
             // Connected
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (tracker as any)._onConnected.fire(gdbtargetDebugSession);
-            await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+            await waitForMs(0);
         });
 
         it('handles running state correctly', async () => {
@@ -223,11 +215,11 @@ describe('CpuStates', () => {
             expect(cpuStates.activeCpuStates?.isRunning).toEqual(true);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (tracker as any)._onStopped.fire(createStoppedEvent(gdbtargetDebugSession, 'step', 0));
-            await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+            await waitForMs(0);
             expect(cpuStates.activeCpuStates?.isRunning).toEqual(false);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (tracker as any)._onContinued.fire(createContinuedEvent(gdbtargetDebugSession, 0));
-            await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+            await waitForMs(0);
             expect(cpuStates.activeCpuStates?.isRunning).toEqual(true);
         });
 
@@ -242,10 +234,10 @@ describe('CpuStates', () => {
                 });
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (tracker as any)._onStopped.fire(createStoppedEvent(gdbtargetDebugSession, 'step', 0));
-                await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+                await waitForMs(0);
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (tracker as any)._onContinued.fire(createContinuedEvent(gdbtargetDebugSession, 0));
-                await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+                await waitForMs(0);
             }
             expect(cpuStates.activeCpuStates?.states).toEqual(BigInt(4));
             expect(await cpuStates.getActivePname()).toBeUndefined();
@@ -271,10 +263,10 @@ describe('CpuStates', () => {
             for (let i = 0; i < 3; i++) {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (tracker as any)._onStopped.fire(createStoppedEvent(gdbtargetDebugSession, 'step', 0));
-                await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+                await waitForMs(0);
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (tracker as any)._onContinued.fire(createContinuedEvent(gdbtargetDebugSession, 0));
-                await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+                await waitForMs(0);
             }
             expect(cpuStates.activeCpuStates?.states).toEqual(BigInt(4));
             expect(await cpuStates.getActivePname()).toBeUndefined();
@@ -289,10 +281,10 @@ describe('CpuStates', () => {
                 });
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (tracker as any)._onStopped.fire(createStoppedEvent(gdbtargetDebugSession, 'step', 0));
-                await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+                await waitForMs(0);
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (tracker as any)._onContinued.fire(createContinuedEvent(gdbtargetDebugSession, 0));
-                await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+                await waitForMs(0);
             }
             expect(cpuStates.activeCpuStates?.states).toEqual(BigInt(20));
             expect(await cpuStates.getActiveTimeString()).toEqual(' 20 states');
@@ -312,7 +304,7 @@ describe('CpuStates', () => {
             };
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (tracker as any)._onDidChangeActiveStackItem.fire(sessionStackItem);
-            await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+            await waitForMs(0);
             expect(delays.length).toEqual(1);
             expect(delays[0]).toEqual(0);
         });
@@ -353,13 +345,13 @@ describe('CpuStates', () => {
             });
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (tracker as any)._onStopped.fire(createStoppedEvent(gdbtargetDebugSession, 'step', 1 /*threadId*/));
-            await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+            await waitForMs(0);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (tracker as any)._onStackTraceRequest.fire(createStackTraceRequest(gdbtargetDebugSession, 1, 1));
-            await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+            await waitForMs(0);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (tracker as any)._onStackTraceResponse.fire(createStackTraceResponse(gdbtargetDebugSession, 4, 1));
-            await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+            await waitForMs(0);
             cpuStates.showStatesHistory();
             expect(debugConsoleOutput.find(line => line.includes('(PC=0x08000396 <myframe>, myfunction::2)'))).toBeDefined();
         });
@@ -373,13 +365,13 @@ describe('CpuStates', () => {
             });
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (tracker as any)._onStopped.fire(createStoppedEvent(gdbtargetDebugSession, 'step', 2 /*threadId*/));
-            await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+            await waitForMs(0);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (tracker as any)._onStackTraceRequest.fire(createStackTraceRequest(gdbtargetDebugSession, 1, 1));
-            await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+            await waitForMs(0);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (tracker as any)._onStackTraceResponse.fire(createStackTraceResponse(gdbtargetDebugSession, 4, 1));
-            await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+            await waitForMs(0);
             cpuStates.showStatesHistory();
             expect(debugConsoleOutput.find(line => line.includes('(PC=0x08000396 <myframe>::2)'))).toBeUndefined();
         });
@@ -402,7 +394,7 @@ describe('CpuStates', () => {
             // Connected
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (tracker as any)._onConnected.fire(gdbtargetDebugSession);
-            await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+            await waitForMs(0);
         });
 
         it('shows warning notification on show history that CPU time is not available', async () => {

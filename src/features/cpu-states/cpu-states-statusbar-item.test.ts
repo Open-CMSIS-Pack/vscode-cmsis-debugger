@@ -19,17 +19,10 @@ import { debugSessionFactory, extensionContextFactory } from '../../__test__/vsc
 import { CpuStates } from './cpu-states';
 import { CpuStatesStatusBarItem, QuickPickHandlerItem } from './cpu-states-statusbar-item';
 import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
-import { GDBTargetConfiguration } from '../../debug-configuration';
+import { waitForMs } from '../../utils';
+import { gdbTargetConfiguration } from '../../debug-configuration/debug-configuration.factory';
 
 describe('CpuStatesStatusBarItem', () => {
-    const defaultConfig = (): GDBTargetConfiguration => {
-        return {
-            name: 'session-name',
-            type: 'gdbtarget',
-            request: 'launch',
-            cmsis: {}
-        };
-    };
     let context: vscode.ExtensionContext;
     let cpuStates: CpuStates;
     let statusBarItem: vscode.StatusBarItem|undefined;
@@ -80,7 +73,7 @@ describe('CpuStatesStatusBarItem', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (cpuStates as any)['_onRefresh'].fire(0);
         // Let events get processed
-        await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+        await waitForMs(0);
         expect(statusBarItem?.show as jest.Mock).not.toHaveBeenCalled();
         expect(statusBarItem?.hide as jest.Mock).toHaveBeenCalled();
         expect(statusBarItem?.text).toEqual('');
@@ -91,7 +84,7 @@ describe('CpuStatesStatusBarItem', () => {
         const tracker = new GDBTargetDebugTracker();
         cpuStates.activate(tracker);
         cpuStatesStatusBarItem.activate(context, cpuStates);
-        const debugSession = debugSessionFactory(defaultConfig());
+        const debugSession = debugSessionFactory(gdbTargetConfiguration({ cmsis: {} }));
         (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({
             address: '0xE0001000',
             data:  new Uint8Array([ 0x01, 0x00, 0x00, 0x00 ]).buffer
@@ -100,17 +93,17 @@ describe('CpuStatesStatusBarItem', () => {
         // Add session
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (tracker as any)._onWillStartSession.fire(gdbtargetDebugSession);
-        await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+        await waitForMs(0);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (tracker as any)._onDidChangeActiveDebugSession.fire(gdbtargetDebugSession);
         // Connected
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (tracker as any)._onConnected.fire(gdbtargetDebugSession);
-        await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+        await waitForMs(0);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (cpuStates as any)['_onRefresh'].fire(0);
         // Let events get processed
-        await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
+        await waitForMs(0);
         // Can't test for show/hide. Using setTimeout in implementation to delay refresh
         // makes behavior a little less predictable for tests.
         expect(statusBarItem?.text).toEqual('$(watch) 0 states');
