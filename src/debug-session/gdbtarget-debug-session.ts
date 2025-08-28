@@ -52,7 +52,7 @@ export class GDBTargetDebugSession {
             const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
             const args: DebugProtocol.EvaluateArguments = {
                 expression,
-                frameId, // Currently required by CDT GDB Adapter // TODO: track frameId
+                frameId, // Currently required by CDT GDB Adapter
                 context: 'hover'
             };
             const response = await this.session.customRequest('evaluate', args) as DebugProtocol.EvaluateResponse['body'];

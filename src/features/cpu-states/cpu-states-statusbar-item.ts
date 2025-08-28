@@ -41,7 +41,7 @@ export class CpuStatesStatusBarItem {
             this.statusBarItem,
             vscode.commands.registerCommand(this.statusBarItemCommandID, () => this.handleItemCommand())
         );
-        // Register refresh handler and save CpuStates instance // TODO: needs better decoupling
+        // Register refresh handler and save CpuStates instance
         cpuStates.onRefresh((delay) => this.handleRefresh(delay));
         this.cpuStates = cpuStates;
     }
