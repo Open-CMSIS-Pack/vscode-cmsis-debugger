@@ -97,7 +97,7 @@ describe('GDBTargetDebugTracker', () => {
         });
 
         it('sends event on changing active debug session to a valid session', async () => {
-            type ActiveStackItemListener = (e: vscode.DebugThread | vscode.DebugStackFrame | undefined) => any;
+            type ActiveStackItemListener = (e: vscode.DebugThread | vscode.DebugStackFrame | undefined) => unknown;
             let stackItemListener: ActiveStackItemListener|undefined = undefined;
             (vscode.debug.onDidChangeActiveStackItem as jest.Mock).mockImplementation(
                 ((listener: ActiveStackItemListener): vscode.Disposable => {
