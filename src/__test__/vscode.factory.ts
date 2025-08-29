@@ -68,3 +68,17 @@ export function extensionContextFactory(): jest.Mocked<vscode.ExtensionContext> 
         } as unknown as vscode.LanguageModelAccessInformation,
     };
 };
+
+export function debugSessionFactory(
+    configuration: vscode.DebugConfiguration
+): jest.Mocked<vscode.DebugSession> {
+    return {
+        id: '{session-id}',
+        name: configuration.name,
+        type: configuration.type,
+        workspaceFolder: undefined,
+        configuration,
+        customRequest: jest.fn(),
+        getDebugProtocolBreakpoint: jest.fn()
+    };
+};

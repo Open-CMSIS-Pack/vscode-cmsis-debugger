@@ -46,6 +46,34 @@
     "onStartupFinished"
   ],
   "contributes": {
+    "commands": [
+      {
+        "title": "CPU Time",
+        "shortTitle": "CPU Time",
+        "command": "vscode-cmsis-debugger.showCpuTimeHistory",
+        "category": "Run and Debug",
+        "when": "inDebugMode"
+      },
+      {
+        "title": "Reset CPU Time",
+        "shortTitle": "CPU Time",
+        "command": "vscode-cmsis-debugger.resetCpuTimeHistory",
+        "category": "Run and Debug",
+        "when": "inDebugMode"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "vscode-cmsis-debugger.showCpuTimeHistory",
+          "when": "inDebugMode"
+        },
+        {
+          "command": "vscode-cmsis-debugger.resetCpuTimeHistory",
+          "when": "inDebugMode"
+        }
+      ]
+    },
     "debuggers": [
       {
         "type": "*",
@@ -120,6 +148,7 @@
     "@types/yarnpkg__lockfile": "^1.1.9",
     "@typescript-eslint/eslint-plugin": "^8.39.0",
     "@typescript-eslint/parser": "^8.39.0",
+    "@vscode/debugprotocol": "^1.68.0",
     "@vscode/vsce": "^3.6.0",
     "@yarnpkg/lockfile": "^1.1.0",
     "eslint": "^9.32.0",

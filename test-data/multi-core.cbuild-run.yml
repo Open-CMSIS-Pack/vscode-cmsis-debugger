@@ -24,47 +24,47 @@ cbuild-run:
       size: 0x00080000
       ram-start: 0x20000000
       ram-size: 0x00020000
-      default: true
       pname: Core0
     - algorithm: ${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Flash/algorithms/MyAlgorithm_Extern.FLM
       start: 0xC0000000
       size: 0x02000000
       ram-start: 0x20000000
       ram-size: 0x00020000
-      default: true
       pname: Core0
   system-descriptions:
     - file: ${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core0.svd
       type: svd
       pname: Core0
+    - file: ${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core1.svd
+      type: svd
+      pname: Core1
   output:
     - file: out/MyApp.bin
       info: generate by MyApp
       type: bin
+      load: image
     - file: out/out/MyApp.axf
       info: generate by MyApp
       type: elf
+      load: symbols
   system-resources:
     memory:
       - name: Flash
         access: rx
         start: 0x00000000
         size: 0x00080000
-        default: true
         pname: Core0
         from-pack: MyVendor::MyDevice@1.0.0
       - name: SRAM0
         access: rwx
         start: 0x02000000
         size: 0x00400000
-        default: true
         pname: Core0
         from-pack: MyVendor::MyDevice@1.0.0
       - name: SRAM1
         access: rwx
         start: 0x08000000
         size: 0x00280000
-        default: true
         pname: Core0
         from-pack: MyVendor::MyDevice@1.0.0
   debugger:
@@ -73,8 +73,11 @@ cbuild-run:
     clock: 10000000
     start-pname: Core0
     terminal: 4444
-    gdbserver: |
-      My Server Options
+    gdbserver:
+      - port: 3336
+        pname: Core0
+      - port: 3339
+        pname: Core1
   debug-sequences:
     - name: MySequence
       blocks:

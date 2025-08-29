@@ -1,0 +1,14 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`CpuStates tests with established connection and CPU states supported captures states for multiple continued/stopped events and shows history 1`] = `
+[
+  "",
+  "ΔT   CPU States   Reason   ",
+  "-4   Δ3:      1   step     ",
+  "-3   Δ2:      1   step     ",
+  "-2   Δ1:      1   step     ",
+  "-1   Δ0:      1   step     ",
+  " 0            4   step     ",
+  "",
+]
+`;

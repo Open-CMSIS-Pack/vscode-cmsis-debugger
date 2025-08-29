@@ -16,7 +16,7 @@
 
 import { CbuildRunReader } from './cbuild-run-reader';
 
-const TEST_CBUILD_RUN_FILE = 'test-data/simple.cbuild-run.yml'; // Relative to repo root
+const TEST_CBUILD_RUN_FILE = 'test-data/multi-core.cbuild-run.yml'; // Relative to repo root
 const TEST_FILE_PATH = 'test-data/fileReaderTest.txt'; // Relative to repo root
 
 describe('CbuildRunReader', () => {
@@ -53,11 +53,37 @@ describe('CbuildRunReader', () => {
             cbuildRunReader = new CbuildRunReader();
         });
 
-        it('returns SVD file path', async () => {
-            const expectedSvdFilePaths = ['/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core0.svd'];
+        it.each([
+            {
+                info: 'no pname',
+                pname: undefined,
+                expectedSvdPaths: [
+                    '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core0.svd',
+                    '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core1.svd'
+                ]
+            },
+            {
+                info: 'Core0',
+                pname: 'Core0',
+                expectedSvdPaths: [
+                    '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core0.svd',
+                ]
+            },
+            {
+                info: 'Core1',
+                pname: 'Core1',
+                expectedSvdPaths: [
+                    '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core1.svd'
+                ]
+            },
+        ])('returns SVD file path ($info)', async ({ pname, expectedSvdPaths }) => {
             await cbuildRunReader.parse(TEST_CBUILD_RUN_FILE);
-            const svdFilePaths = cbuildRunReader.getSvdFilePaths('/my/pack/root');
-            expect(svdFilePaths).toEqual(expectedSvdFilePaths);
+            const svdFilePaths = cbuildRunReader.getSvdFilePaths('/my/pack/root', pname);
+            expect(svdFilePaths.length).toEqual(svdFilePaths.length);
+            for (let i = 0; i < svdFilePaths.length; i++) {
+                // eslint-disable-next-line security/detect-object-injection
+                expect(expectedSvdPaths[i]).toEqual(svdFilePaths[i]);
+            }
         });
 
         it('returns empty SVD file path list if nothing is parsed', () => {

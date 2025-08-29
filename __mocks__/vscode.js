@@ -25,6 +25,11 @@ const EnvironmentVariableMutatorType = {
     Prepend: 3
 };
 
+const StatusBarAlignment = {
+    Left: 1,
+    Right: 2
+};
+
 module.exports = {
     EventEmitter: jest.fn(() => {
         const callbacks = [];
@@ -48,6 +53,8 @@ module.exports = {
             error: jest.fn(),
         })),
         showWarningMessage: jest.fn(),
+        createStatusBarItem: jest.fn(),
+        showQuickPick: jest.fn(),
     },
     workspace: {
         getConfiguration: jest.fn(() => ({
@@ -72,10 +79,19 @@ module.exports = {
     },
     commands: {
         executeCommand: jest.fn(),
+        registerCommand: jest.fn(),
     },
     debug: {
         registerDebugConfigurationProvider: jest.fn(),
         registerDebugAdapterTrackerFactory: jest.fn(),
+        onDidChangeActiveDebugSession: jest.fn(),
+        onDidChangeActiveStackItem: jest.fn(),
+        activeStackItem: undefined,
+        activeDebugConsole: {
+            append: jest.fn(),
+            appendLine: jest.fn()
+        }
     },
     EnvironmentVariableMutatorType,
+    StatusBarAlignment,
 };

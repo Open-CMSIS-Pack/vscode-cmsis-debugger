@@ -1,0 +1,42 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`CpuStatesHistory without Pname prints history with frequency and with stop locations 1`] = `
+[
+  "",
+  "ΔT   CPU Time        CPU States   Reason       ",
+  "-3   Δ2:  16.667ns   Δ2:      2   step         (location1)",
+  "-2   Δ1:      50ns   Δ1:      6   breakpoint   (location2)",
+  "-1   Δ0:  41.667ns   Δ0:      5   step         (location3)",
+  " 0       108.333ns           13   step         (location4)",
+  "",
+]
+`;
+
+exports[`CpuStatesHistory without Pname prints history without frequency and without stop locations 1`] = `
+[
+  "",
+  "ΔT   CPU States   Reason       ",
+  "-3   Δ2:      2   step         ",
+  "-2   Δ1:      6   breakpoint   ",
+  "-1   Δ0:      5   step         ",
+  " 0           13   step         ",
+  "",
+]
+`;
+
+exports[`CpuStatesHistory without Pname prints no history message 1`] = `
+[
+  "",
+  "No CPU state history captured",
+  "",
+]
+`;
+
+exports[`CpuStatesHistory without Pname prints only latest stop point after reset 1`] = `
+[
+  "",
+  "ΔT   CPU States   Reason   ",
+  " 0            0   step     ",
+  "",
+]
+`;

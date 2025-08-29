@@ -75,3 +75,8 @@ export interface GDBTargetConfiguration extends vscode.DebugConfiguration {
     target?: TargetConfiguration;
     cmsis?: CMSISConfiguration;
 };
+
+export interface ExtendedGDBTargetConfiguration extends GDBTargetConfiguration {
+    // For additional configuration items not part of GDBTargetConfiguration but known to other extensions
+    definitionPath?: string;  // Default SVD path setting for Peripheral Inspector
+};

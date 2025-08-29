@@ -35,6 +35,8 @@ export function makeFactory<T extends object>(initializer: Initializer<T>): Fact
         const result = { ...options } as Mutable<T>;
         for (const key in initializer) {
             if (!(key in result)) {
+                // disable rule for next line, not used in production code
+                // eslint-disable-next-line security/detect-object-injection
                 result[key] = initializer[key].call(result, result);
             }
         }
