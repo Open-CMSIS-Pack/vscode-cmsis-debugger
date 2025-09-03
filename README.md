@@ -225,7 +225,7 @@ Command	       | Description
 CPU Time       | Print CPU execution time and history of past program stops.
 Reset CPU Time | Reset CPU execution time and history. Set new reference time (zero point).
 
-![CPU Time](images/CPU_Time.png)
+![CPU Time](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/CPU_Time.png)
 
 > 📝 **Notes:**  
 > - The first program stop (typically at function `main`) is the initial reference time (zero point).
@@ -253,12 +253,12 @@ The `start-pname` indicates the processor that starts first and boots the system
 1. Select a processor and **Start Debug**. This connects the debugger.
 2. **Select a Processor** in the debug toolbar, or
 3. Click in **CALL STACK** on a thread or function name to select a processor.
-4. The selected processor is also shown **CPU Time Status bar**. This processor context is used in the VARIABLES or WATCH view.
+4. The selected processor is also shown in the **CPU Time Status bar**. This processor context is used in the VARIABLES and WATCH view.
 
-![Multicore Debug](images/multicore.png)
+![Multicore Debug](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/multicore.png)
 
 > 📝 **Notes:**  
-> - The SEGGER JLink GDB server uses a *launch* command to connect to a running processor whereas other GDB servers use a *attach* command.
+> - The SEGGER JLink GDB server uses a *launch* command to connect to a running processor whereas other GDB servers use an *attach* command.
 > - A [Disassembly View](#disassembly) opens only for a selected processor; otherwise the command is shown as disabled.
 
 ### Peripherals
@@ -338,7 +338,7 @@ It depends on the actually used debug adapter type if this information is known 
 
 ## Known Limitations and Workarounds
 
-### Internal Errors on stepping thru code
+### Internal Errors on stepping through code
 
 There is an [chip errata](https://developer.arm.com/documentation/SDEN1068427/latest/) that single stepping on Cortex-M7 r0p1 processors enters the pending exception handler incorrectly which may result in error messages. Check the processor revision that is shown at debug start in the DEBUG CONSOLE.
 
