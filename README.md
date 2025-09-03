@@ -228,6 +228,7 @@ Most Arm Cortex-M processors (except Cortex-M0/M0+/M23) include a `DWT->CYCCNT` 
 ![CPU Time](images/CPU_Time.png)
 
 > 📝 **Notes:**
+>
 > - The first program stop (typically at function `main`) is the initial reference time (zero point).
 > - `DWT->CYCCNT` is a 32-bit register incremented with [`SystemCoreClock`](https://arm-software.github.io/CMSIS_6/latest/Core/group__system__init__gr.html) frequency. The time calculation copes with one overflow between program stops. Multiple overflows between program stops deliver wrong time information.
 > - Each processor in a multi-processor system has and independent `DWT->CYCCNT` register.
@@ -258,6 +259,7 @@ The `start-pname` indicates the processor that starts first and boots the system
 ![Multicore Debug](images/multicore.png)
 
 > 📝 **Notes:**
+>
 > - The SEGGER JLink GDB server uses a _launch_ command to connect to a running processor whereas other GDB servers use a _attach_ command.
 > - A [Disassembly View](#disassembly) opens only for a selected processor; otherwise the command is shown as disabled.
 
@@ -297,6 +299,7 @@ The command **Open Disassembly View** (available from [command palette](https://
 ![Disassembly View](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/disassembly-view.png)
 
 > 📝 **Note:**
+>
 > - Enable the [VS Code setting](https://code.visualstudio.com/docs/configure/settings) **Features > Debug > Disassembly View: Show Source Code** to show assembler instructions interleaved with source code.
 
 ### Debug Console
