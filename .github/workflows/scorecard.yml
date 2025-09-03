@@ -12,6 +12,9 @@ on:
     branches: [ "main" ]
     paths-ignore:
       - '**/*.md'
+      - '.github/workflows/markdown.yml'
+      - '.github/markdownlint.json'
+      - '.github/markdownlint.jsonc'
 
 permissions:
   contents: read

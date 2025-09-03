@@ -6,11 +6,17 @@ on:
       - main
     paths-ignore:
       - '**/*.md'
+      - '.github/workflows/markdown.yml'
+      - '.github/markdownlint.json'
+      - '.github/markdownlint.jsonc'
   push:
     branches:
       - main
     paths-ignore:
       - '**/*.md'
+      - '.github/workflows/markdown.yml'
+      - '.github/markdownlint.json'
+      - '.github/markdownlint.jsonc'
 
 permissions:
   contents: read

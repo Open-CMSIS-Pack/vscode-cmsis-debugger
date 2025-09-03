@@ -8,6 +8,9 @@ on:
       - docs/tpip-header.md
       - scripts/tpip-reporter.ts
       - '!**/*.md'
+      - '!.github/workflows/markdown.yml'
+      - '!.github/markdownlint.json'
+      - '!.github/markdownlint.jsonc'
     branches:
       - main
   workflow_dispatch:

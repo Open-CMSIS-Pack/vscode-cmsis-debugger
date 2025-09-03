@@ -6,11 +6,17 @@ on:
       - main
     paths-ignore:
       - '**/*.md'
+      - '.github/workflows/markdown.yml'
+      - '.github/markdownlint.json'
+      - '.github/markdownlint.jsonc'
   pull_request:
     branches:
       - main
     paths-ignore:
       - '**/*.md'
+      - '.github/workflows/markdown.yml'
+      - '.github/markdownlint.json'
+      - '.github/markdownlint.jsonc'
   workflow_dispatch:
   merge_group:
   release:
