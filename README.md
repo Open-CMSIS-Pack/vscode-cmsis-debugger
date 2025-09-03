@@ -33,6 +33,7 @@ To start debugging, the CMSIS Solution offers action buttons and menu commands.
 
 - **Load & Debug application** starts the CMSIS Debugger with _launch_ configuration.
 - **Load & Run application** starts program execution and the GDB server; use then _attach_ configurations to connect to the running system.
+- **Target Information** (...) shows the available debugger adapters.
 
 ## Debugger User Interface
 
@@ -56,12 +57,14 @@ The **Run and Debug** view provides:
 > **TIP**<br>
 > Click on a _line number badge_ to navigate to the source code line.
 
-Other debugger-specific views:
+Other debugger specific views or features:
 
-- [**Disassembly**](#disassembly) shows assembly instructions and supports run control, for example, with stepping and breakpoints.
+- [**Disassembly**](#disassembly) shows assembly instructions and supports run control, for example with stepping and breakpoints.
 - [**Debug Console**](#debug-console) lists debug output messages and allows entering expressions or GDB commands.
 - [**Peripherals**](#peripherals) show the device peripheral registers and allow changing their values.
 - [**Serial Monitor**](#serial-monitor) uses serial or TCP communication to interact with application I/O functions (`printf`, `getc`, etc.).
+- [**CPU Time**](#cpu-time) shows execution timing and statistics of the past five breakpoints.
+- [**Multi-Core Debug**](#multi-core-debug) to view and control several processors in a device.
 
 ### Debug toolbar
 
@@ -74,9 +77,9 @@ During debugging, the **Debug toolbar** contains actions to control the flow of 
 | Continue/Pause | **Continue**: Resume normal program execution (up to the next breakpoint).<br>**Pause**: Inspect code executing at the current location. |
 | Step Over | Execute the next statement as a single command without inspecting or following its component steps. |
 | Step Into | Enter the next statement to follow its execution line-by-line. |
-| Step Out | When inside a function, return to the earlier execution context by completing the remaining lines of the current method as though it were a single command. |
+| Step Out | When inside a function, return to the earlier execution context by completing remaining lines of the current method as though it were a single command. |
 | Restart | Terminate the current program execution and start debugging again using the current run configuration. |
-| Stop/Disconnect | **Stop**: Terminate the current debug session.<br>**Disconnect:** Detach debugger from a core without changing the execution status (running/paused). |
+| Stop/Disconnect | **Stop**: Terminate the current debug session.<br>**Disconnect:** Detach debugger from a core without changing the execution status (running/pause). |
 | Debug Session | For multi-core devices, the list of active debug sessions and switch between them. |
 | Reset Target | Reset the target device. |
 
@@ -205,7 +208,7 @@ debug console. Logpoints can help you save time by not having to add or remove l
 A logpoint is represented by a diamond-shaped icon. Log messages are plain text, but can also include expressions to be
 evaluated within curly braces ('{}').
 
-To add a logpoint, right-click in the editor's left margin and select Add Logpoint, or use the
+To add a logpoint, right-click in the editor left margin and select Add Logpoint, or use the
 **Debug: Add Logpoint...** command in the Command Palette (**Ctrl/Cmd + Shift + p**).
 
 ![Creating a logpoint](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/create-logpoint.gif)
@@ -213,9 +216,56 @@ To add a logpoint, right-click in the editor's left margin and select Add Logpoi
 Just like regular breakpoints, logpoints can be enabled or disabled and can also be controlled by a condition
 and/or hit count.
 
+### CPU Time
+
+Most Arm Cortex-M processors (except Cortex-M0/M0+/M23) include a `DWT->CYCCNT` register that counts CPU states. In combination with the CMSIS variable [`SystemCoreClock`](https://arm-software.github.io/CMSIS_6/latest/Core/group__system__init__gr.html) the CMSIS Debugger calculates execution time and displays it along with the selected processor core in the CPU Time Status bar.  A click on the CPU Time Status bar opens the related [VS Code command palette](https://code.visualstudio.com/docs/getstarted/userinterface#_command-palette).
+
+|Command        | Description  |
+|:--------------|:-------------|
+|CPU Time       | Print CPU execution time and history of past program stops. |
+|Reset CPU Time | Reset CPU execution time and history. Set new reference time (zero point). |
+
+![CPU Time](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/CPU_Time.png)
+
+> 📝 **Notes:**
+>
+> - The first program stop (typically at function `main`) is the initial reference time (zero point).
+> - `DWT->CYCCNT` is a 32-bit register incremented with [`SystemCoreClock`](https://arm-software.github.io/CMSIS_6/latest/Core/group__system__init__gr.html) frequency. The time calculation copes with one overflow between program stops. Multiple overflows between program stops deliver wrong time information.
+> - Each processor in a multi-processor system has and independent `DWT->CYCCNT` register.
+
+### Multi-Core Debug
+
+A GDB server provides multiple connections to the processor cores (identified with `pname`) of a device. The list below shows the output of pyOCD in the DEBUG CONSOLE of VS Code.
+
+```txt
+0000680 I Target device: MCXN947VDF [cbuild_run]
+0001585 I core 0: Cortex-M33 r0p4, pname: cm33_core0 [cbuild_run]
+0001585 I core 1: Cortex-M33 r0p4, pname: cm33_core1 [cbuild_run]
+0001585 I start-pname: cm33_core0 [cbuild_run]
+0001600 I Semihost server started on port 4444 (core 0) [server]
+0001636 I GDB server started on port 3333 (core 0) [gdbserver]
+0001641 I Semihost server started on port 4445 (core 1) [server]
+0001642 I GDB server started on port 3334 (core 1) [gdbserver]
+0007560 I Client connected to port 3333! [gdbserver]
+```
+
+The `start-pname` indicates the processor that starts first and boots the system. A debug _launch_ command connects to this processor. Use a debug _attach_ command to connect to  processors that are running. The picture below highlights the parts of the user interface that interact with processors.
+
+1. Select a processor and **Start Debug**. This connects the debugger.
+2. **Select a Processor** in the debug toolbar, or
+3. Click in **CALL STACK** on a thread or function name to select a processor.
+4. The selected processor is also shown in the **CPU Time Status bar**. This processor context is used in the VARIABLES and WATCH view.
+
+![Multicore Debug](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/multicore.png)
+
+> 📝 **Notes:**
+>
+> - The SEGGER JLink GDB server uses a _launch_ command to connect to a running processor whereas other GDB servers use an _attach_ command.
+> - A [Disassembly View](#disassembly) opens only for a selected processor; otherwise the command is shown as disabled.
+
 ### Peripherals
 
-The **Peripherals** view shows the device peripheral registers and allows you to change their values. It uses the CMSIS-SVD files that are provided by silicon vendors and distributed as part of the CMSIS Device Family Packs (DFP).
+The **Peripherals** view shows the device peripheral registers and allows to change their values. It uses the CMSIS-SVD files that are provided by silicon vendors and distributed as part of the CMSIS Device Family Packs (DFP).
 
 ![Peripheral Inspector](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/peripheral-inspector.png)
 
@@ -232,7 +282,7 @@ The **Memory Inspector** provides a powerful and configurable memory viewer that
 - Multiple Memory Formats: Shows memory data on hover in multiple formats.
 - Edit Memory: Allows in-place memory editing if the debug adapter supports the WriteMemoryRequest.
 - Memory Management: Enables saving and restoring memory data for specific address ranges (Intel Hex format).
-- Customised Views: Create and customise as many memory views as you need.
+- Customized Views: Create and customize as many memory views as you need.
 - Lock Views: Keep views static, unaffected by updates from the debug session.
 - Periodic Refresh: Automatically refresh the memory data.
 - Multiple Debug Sessions: Switch between multiple debug sessions using a dropdown in the memory view.
@@ -247,6 +297,10 @@ For more information, refer to the
 The command **Open Disassembly View** (available from [command palette](https://code.visualstudio.com/docs/getstarted/userinterface#_command-palette) or context menus) shows the assembler instructions of the program intermixed with the source code. Using this view allows single stepping or managing breakpoints at the CPU instruction level.
 
 ![Disassembly View](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/disassembly-view.png)
+
+> 📝 **Note:**
+>
+> - Enable the [VS Code setting](https://code.visualstudio.com/docs/configure/settings) **Features > Debug > Disassembly View: Show Source Code** to show assembler instructions interleaved with source code.
 
 ### Debug Console
 
@@ -283,13 +337,17 @@ for the type `gdbtarget` which comes with the [CDT GDB Debug Adapter Extension](
 This provider manages the use of tools shipped with the extension:
     - If option `target`>`server` is set to `pyocd`, then it expands to the absolute path of the built-in pyOCD distribution.
 - CMSIS specific _launch_ configuration items for the `*` debugger type, i.e. visible for all debugger types.
-It depends on the actually used debug adapter type if this information is known and utilised.
-
-> 📝 **Note:**  
-> The built-in version of pyOCD supports the command line option `--cbuild-run`, which isn't available
-> in releases outside this extension.
+It depends on the actually used debug adapter type if this information is known and utilized.
 
 ## Known Limitations and Workarounds
+
+### Internal Errors on stepping through code
+
+There is an [chip errata](https://developer.arm.com/documentation/SDEN1068427/latest/) that single stepping on Cortex-M7 r0p1 processors enters the pending exception handler incorrectly which may result in error messages. Check the processor revision that is shown at debug start in the DEBUG CONSOLE.
+
+**Workaround/Solution**:
+
+Some devices allow to stop timer interrupts with control registers. For the example the STM32 devices have `DbgMCU_APB1_Fz` registers. Stop all timers that are active in your application. This can be typially configured in the [`*.dbgconf` file](https://open-cmsis-pack.github.io/cmsis-toolbox/build-overview/#device-configuration) of your project.
 
 ### pyOCD fails to load `*.cbuild-run.yml` in the default configuration
 
@@ -298,7 +356,7 @@ When I use the default debug configuration for pyOCD, I get errors that pyOCD ca
 
 **Possible Reasons**:
 
-1. The application's CMSIS solution was initially built with a CMSIS-Toolbox version prior to v2.8.0, which is
+1. The application's CMSIS solution was initially built with a CMSIS-Toolbox version prior to v2.8.0 which is
 the first version to generate `*.cbuild-run.yml` files.
 1. You are using an [Arm CMSIS Solution](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution) extension
 prior to v1.52.0 which is the first version to fully support the `${command:cmsis-csolution.getCbuildRunFile}` command.
@@ -322,7 +380,7 @@ warning: Loadable section "RW_RAM0" outside of ELF segments
 ```
 
 **Possible Reason**: `arm-none-eabi-gdb` does not correctly load ELF program segments due to the way that
-Arm Compiler 6 generates section and program header information when scatterloading is used.
+Arm Compiler 6 generates section and program header information when scatter loading is used.
 
 **Workaround**: You can generate a HEX file for the program download, and the ELF file for debug purposes only.
 The following steps are required if you build a [CSolution](https://open-cmsis-pack.github.io/cmsis-toolbox/build-overview/)-based
@@ -371,8 +429,8 @@ warning: (Internal error: pc 0x8006a18 in read in CU, but not in symtab.)
 **Possible Reason**: `arm-none-eabi-gdb` works best with DWARF debug information of standard version 5.
 
 **Solution**: Make sure to build your application ELF file with DWARF version 5 debug information. Please refer to
-your toolchain's user reference manual. This may require updates to all build tools, like the compiler and assembler.
-For example, use `-gdwarf-5` for `armclang`.
+your toolchain's user reference manual. This may require updates to all build tools like compiler and assembler.
+For example use `-gdwarf-5` for `armclang`.
 
 ### Broken debug illusion
 
@@ -401,12 +459,12 @@ When starting a debug session, you might see this error:
 
 **Possible reason**: A running instance of pyOCD
 
-This error might occur if a previous debug session has ended prematurely and pyOCD has not exited. The orphaned instance
-will still keep the port open (usually 3333), and thus you won't be able to open the port again in the new session.
+This error might occur if a previous debug session has ended prematuerly and pyOCD has not exited. The orphaned instance
+will still keep the port open (usually 3333) and thus you won't be able to open the port again in the new session.
 
 **Solution**: Check open files and kill pyOCD
 
-On Linux and macOS, you can check the running open files using the [`lsof`](https://de.wikipedia.org/wiki/Lsof) command:
+On Linux and macOS you can check the running open files using the [`lsof`](https://de.wikipedia.org/wiki/Lsof) command:
 
 ```sh
 sudo lsof -i -n -P | grep 3333
@@ -426,14 +484,24 @@ On Windows systems, use the
 or the [Process Explorer](https://learn.microsoft.com/en-us/sysinternals/downloads/process-explorer) to find orphaned
 processes.
 
+## Requirements
+
+- **GDB** supporting the GDB remote protocol. `arm-none-eabi-gdb` is included in CMSIS Debugger extension. To use a different GDB installation, enter the full path/filename to the executable in the `gdb:` node of the `launch.json` file.
+
+- **pyOCD** for connecting to a target. pyOCD is included in CMSIS Debugger extension. To use a different pyOCD installation, enter the full path/filename to the executable in the `target:` `server:` node of the `launch.json` file.
+
+- **SEGGER® J-LINK®** is an alternative GDB server for target connection. Install the latest
+[J-LINK Software and Documentation Pack](https://www.segger.com/downloads/jlink/#J-LinkSoftwareAndDocumentationPack)
+from [SEGGER](https://www.segger.com/). Ensure all required drivers and host platform-specific settings are done. The extension expects that the `PATH` environment variable is set to the J-Link executables.
+
 ## Related projects
 
 Related open source projects are:
 
-- [Open-CMSIS-Pack](https://www.open-cmsis-pack.org/) of which this extension is part.
-- [Eclipse® CDT.cloud™](https://eclipse.dev/cdt-cloud/), an open-source project that hosts a number of components and
+- The [Open-CMSIS-Pack](https://www.open-cmsis-pack.org/) project includes the CMSIS Debugger extension.
+- [Eclipse® CDT.cloud™](https://eclipse.dev/cdt-cloud/) hosts a number of components and
   best practices for building customizable web-based C/C++ tools.
-- [pyOCD](https://pyocd.io/), a Python-based tool and API for debugging, programming, and exploring Arm Cortex®
+- [pyOCD](https://pyocd.io/), a Python based tool and API for debugging, programming, and exploring Arm Cortex®
   microcontrollers.
 - [GDB](https://www.sourceware.org/gdb/), the debugger of the GNU Project.
 
@@ -447,76 +515,3 @@ Related open source projects are:
 - SEGGER and J-LINK are registered trademarks of SEGGER Microcontroller GmbH.  
 - Node.js is a registered trademark of the OpenJS Foundation.  
 - GDB and GCC are part of the GNU Project and are maintained by the Free Software Foundation.  
-
------
-
-## Debug Setup
-
-The debug setup requires a GDB installation supporting the GDB remote protocol and that can connect to a
-GDB server like pyOCD.
-
-This extension includes `arm-none-eabi-gdb`, which is used in the Arm CMSIS Debugger default debug configurations.
-
-If you wish to use a different GDB installation, enter the full path to the executable (including the file name)
-in the `gdb` setting in the `launch.json` file.
-
-### pyOCD Debug Setup
-
-This extension includes a pyOCD distribution, which is used by default.
-
-If you wish to use a different pyOCD installation, enter the full path to the executable (including the file name)
-in the `target`>`server` setting.
-
-### SEGGER® J-LINK® Debug Setup
-
-Install the latest
-[J-LINK Software and Documentation Pack](https://www.segger.com/downloads/jlink/#J-LinkSoftwareAndDocumentationPack)
-from [SEGGER](https://www.segger.com/). Ensure all required drivers and host platform-specific settings are done.
-
-The extension expects the installation folder to be on your system `PATH` environment variable. Alternatively, update
-your debug configuration's `target`>`server` setting to contain the full path to the J-LINK GDB server executable
-(including the file name).
-
-## Start Debugging
-
-There are two ways to start a debug session:
-
-1. If you have installed the CMSIS Solution extension, in the **CMSIS view**
-   ![CMSIS view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/cmsis-view-icon.png),
-   click on the **Debug** icon
-   ![Debug icon in the CMSIS view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/debug-icon.png).
-   The configuration for the debugger configured in the active `target-set` is written to the launch.json file and will
-   be used to start the debug session.
-
-2. In the **Run and debug view**
-![Run and debug view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/run-debug-view-icon.png),
-click the **Play** icon
-   next to the selected debug connection
-   ![Play button](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/play-debug-button.png).
-   The debug starts with the selected configuration.
-
-The debugger loads the application program and executes the startup code. When program execution stops (by default at
-`main`), the source code opens at the next executable statement, which is marked with a yellow arrow in the editor:
-
-![Execution stopped at main](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/stop-at-main.png)
-
-Most editor features are available in debug mode. For example, developers can use the Find command and can correct program
-errors.
-
-## Flash and Run
-
-If you do not wish to enter a debug session, you can issue a flash download only, followed by a reset of the device.
-
-In the **CMSIS view** ![CMSIS view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/cmsis-view-icon.png),
-click on the **Run** icon
-![Run icon in the CMSIS view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/run-icon.png).
-
-## Run and Debug view
-
-![Run and Debug view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/run-debug-view.png)
-
-> 📝 **Note:**  
-> The following is using information from
-> [Debug code with Visual Studio Code](https://code.visualstudio.com/docs/debugtest/debugging#_debugger-user-interface),
-> [Eclipse CDT Cloud - Memory Inspector](https://github.com/eclipse-cdt-cloud/vscode-memory-inspector),
-> [Eclipse CDT Cloud - Peripherals Inspector](https://github.com/eclipse-cdt-cloud/vscode-peripheral-inspector).
