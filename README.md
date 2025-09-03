@@ -296,6 +296,9 @@ The command **Open Disassembly View** (available from [command palette](https://
 
 ![Disassembly View](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/disassembly-view.png)
 
+> 📝 **Note:**  
+> - Enable the [VS Code setting](https://code.visualstudio.com/docs/configure/settings) **Features > Debug > Disassembly View: Show Source Code** to show assembler instructions interleaved with source code.
+
 ### Debug Console
 
 The **Debug Console** enables viewing and interacting with the output of your code running in the debugger.
