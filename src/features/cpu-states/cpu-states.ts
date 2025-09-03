@@ -43,6 +43,7 @@ interface SessionCpuStates {
     statesHistory: CpuStatesHistory;
     isRunning: boolean;
     hasStates: boolean|undefined;
+    readTimer: NodeJS.Timeout|undefined;
 }
 
 export class CpuStates {
@@ -78,7 +79,8 @@ export class CpuStates {
             frequency: undefined,
             statesHistory: new CpuStatesHistory(extractPname(session.session.name)),
             isRunning: true,
-            hasStates: undefined
+            hasStates: undefined,
+            readTimer: undefined
         };
         this.sessionCpuStates.set(session.session.id, states);
     }
@@ -112,12 +114,35 @@ export class CpuStates {
             return;
         }
         cpuStates.isRunning = true;
+        if (cpuStates.readTimer) {
+            clearTimeout(cpuStates.readTimer);
+        }
+        const doPeriodicUpdate = async () => {
+            if (cpuStates.hasStates === undefined) {
+                // Retry if early read after launch/attach response failed (e.g. if
+                // target was running).
+                cpuStates.hasStates = await this.supportsCpuStates(event.session);
+            }
+            if (!cpuStates.hasStates) {
+                return;
+            }
+            await this.updateCpuStates(event.session, event.event.body.threadId);
+            this._onRefresh.fire(0);
+            if (cpuStates.readTimer) {
+                // Reload only if still set, otherwise cleared by stopped event
+                cpuStates.readTimer = setTimeout(async () => await doPeriodicUpdate(), 250);
+            }
+        };
+        cpuStates.readTimer = setTimeout(async () => await doPeriodicUpdate(), 250);
     }
 
     protected async handleStoppedEvent(event: StoppedEvent): Promise<void> {
         const cpuStates = this.sessionCpuStates.get(event.session.session.id);
         if (!cpuStates) {
             return;
+        }
+        if (cpuStates.readTimer) {
+            clearTimeout(cpuStates.readTimer);
         }
         cpuStates.isRunning = false;
         if (cpuStates.hasStates === undefined) {
