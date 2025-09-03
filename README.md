@@ -220,12 +220,12 @@ and/or hit count.
 
 Most Arm Cortex-M processors (except Cortex-M0/M0+/M23) include a `DWT->CYCCNT` register that counts CPU states. In combination with the CMSIS variable [`SystemCoreClock`](https://arm-software.github.io/CMSIS_6/latest/Core/group__system__init__gr.html) the CMSIS Debugger calculates execution time and displays it along with the selected processor core in the CPU Time Status bar.  A click on the CPU Time Status bar opens the related [VS Code command palette](https://code.visualstudio.com/docs/getstarted/userinterface#_command-palette).
 
-| Command        | Description |
-| :--------------|:-------------|
-| CPU Time       | Print CPU execution time and history of past program stops.|
-| Reset CPU Time | Reset CPU execution time and history. Set new reference time (zero point).|
+|Command        | Description  |
+|:--------------|:-------------|
+|CPU Time       | Print CPU execution time and history of past program stops. |
+|Reset CPU Time | Reset CPU execution time and history. Set new reference time (zero point). |
 
-![CPU Time](images/CPU_Time.png)
+![CPU Time](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/CPU_Time.png)
 
 > 📝 **Notes:**
 >
@@ -254,13 +254,13 @@ The `start-pname` indicates the processor that starts first and boots the system
 1. Select a processor and **Start Debug**. This connects the debugger.
 2. **Select a Processor** in the debug toolbar, or
 3. Click in **CALL STACK** on a thread or function name to select a processor.
-4. The selected processor is also shown **CPU Time Status bar**. This processor context is used in the VARIABLES or WATCH view.
+4. The selected processor is also shown in the **CPU Time Status bar**. This processor context is used in the VARIABLES and WATCH view.
 
-![Multicore Debug](images/multicore.png)
+![Multicore Debug](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/multicore.png)
 
 > 📝 **Notes:**
 >
-> - The SEGGER JLink GDB server uses a _launch_ command to connect to a running processor whereas other GDB servers use a _attach_ command.
+> - The SEGGER JLink GDB server uses a _launch_ command to connect to a running processor whereas other GDB servers use an _attach_ command.
 > - A [Disassembly View](#disassembly) opens only for a selected processor; otherwise the command is shown as disabled.
 
 ### Peripherals
@@ -341,7 +341,7 @@ It depends on the actually used debug adapter type if this information is known 
 
 ## Known Limitations and Workarounds
 
-### Internal Errors on stepping thru code
+### Internal Errors on stepping through code
 
 There is an [chip errata](https://developer.arm.com/documentation/SDEN1068427/latest/) that single stepping on Cortex-M7 r0p1 processors enters the pending exception handler incorrectly which may result in error messages. Check the processor revision that is shown at debug start in the DEBUG CONSOLE.
 
