@@ -220,14 +220,14 @@ and/or hit count.
 
 Most Arm Cortex-M processors (except Cortex-M0/M0+/M23) include a `DWT->CYCCNT` register that counts CPU states. In combination with the CMSIS variable [`SystemCoreClock`](https://arm-software.github.io/CMSIS_6/latest/Core/group__system__init__gr.html) the CMSIS Debugger calculates execution time and displays it along with the selected processor core in the CPU Time Status bar.  A click on the CPU Time Status bar opens the related [VS Code command palette](https://code.visualstudio.com/docs/getstarted/userinterface#_command-palette).
 
-Command	       | Description
-:--------------|:-------------
-CPU Time       | Print CPU execution time and history of past program stops.
-Reset CPU Time | Reset CPU execution time and history. Set new reference time (zero point).
+| Command        | Description |
+| :--------------|:-------------|
+| CPU Time       | Print CPU execution time and history of past program stops.|
+| Reset CPU Time | Reset CPU execution time and history. Set new reference time (zero point).|
 
 ![CPU Time](images/CPU_Time.png)
 
-> 📝 **Notes:**  
+> 📝 **Notes:**
 > - The first program stop (typically at function `main`) is the initial reference time (zero point).
 > - `DWT->CYCCNT` is a 32-bit register incremented with [`SystemCoreClock`](https://arm-software.github.io/CMSIS_6/latest/Core/group__system__init__gr.html) frequency. The time calculation copes with one overflow between program stops. Multiple overflows between program stops deliver wrong time information.
 > - Each processor in a multi-processor system has and independent `DWT->CYCCNT` register.
@@ -248,7 +248,7 @@ A GDB server provides multiple connections to the processor cores (identified wi
 0007560 I Client connected to port 3333! [gdbserver]
 ```
 
-The `start-pname` indicates the processor that starts first and boots the system. A debug *launch* command connects to this processor. Use a debug *attach* command to connect to  processors that are running. The picture below highlights the parts of the user interface that interact with processors.
+The `start-pname` indicates the processor that starts first and boots the system. A debug _launch_ command connects to this processor. Use a debug _attach_ command to connect to  processors that are running. The picture below highlights the parts of the user interface that interact with processors.
 
 1. Select a processor and **Start Debug**. This connects the debugger.
 2. **Select a Processor** in the debug toolbar, or
@@ -257,8 +257,8 @@ The `start-pname` indicates the processor that starts first and boots the system
 
 ![Multicore Debug](images/multicore.png)
 
-> 📝 **Notes:**  
-> - The SEGGER JLink GDB server uses a *launch* command to connect to a running processor whereas other GDB servers use a *attach* command.
+> 📝 **Notes:**
+> - The SEGGER JLink GDB server uses a _launch_ command to connect to a running processor whereas other GDB servers use a _attach_ command.
 > - A [Disassembly View](#disassembly) opens only for a selected processor; otherwise the command is shown as disabled.
 
 ### Peripherals
@@ -296,7 +296,7 @@ The command **Open Disassembly View** (available from [command palette](https://
 
 ![Disassembly View](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/disassembly-view.png)
 
-> 📝 **Note:**  
+> 📝 **Note:**
 > - Enable the [VS Code setting](https://code.visualstudio.com/docs/configure/settings) **Features > Debug > Disassembly View: Show Source Code** to show assembler instructions interleaved with source code.
 
 ### Debug Console
@@ -512,4 +512,3 @@ Related open source projects are:
 - SEGGER and J-LINK are registered trademarks of SEGGER Microcontroller GmbH.  
 - Node.js is a registered trademark of the OpenJS Foundation.  
 - GDB and GCC are part of the GNU Project and are maintained by the Free Software Foundation.  
-
