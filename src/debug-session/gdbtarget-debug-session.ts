@@ -89,7 +89,8 @@ export class GDBTargetDebugSession {
     }
 
     public async readMemoryU32(address: number): Promise<number|undefined> {
-        const data = await this.readMemory(address, 4);
+        // TODO: Remove the 8 byte read, must be a caching issue somewher to fix
+        const data = await this.readMemory(address, 8);
         if (!data) {
             return undefined;
         }

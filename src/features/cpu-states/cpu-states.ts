@@ -236,7 +236,10 @@ export class CpuStates {
         // Caution with types...
         states.lastCycles = newCycles;
         states.states += BigInt(cycleAdd);
-        states.statesHistory.updateHistory(states.states, threadId, reason);
+        if (reason) {
+            // Stopped events always have a reason, only update history then
+            states.statesHistory.updateHistory(states.states, threadId, reason);
+        }
     }
 
     protected async getFrequency(): Promise<number|undefined> {
