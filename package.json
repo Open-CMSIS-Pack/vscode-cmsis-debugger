@@ -182,7 +182,7 @@
     "yargs": "^18.0.0"
   },
   "cmsis": {
-    "pyocd": "pyocd/pyOCD@0.38.0",
+    "pyocd": "pyocd/pyOCD@0.39.0-pre0",
     "gdb": "14.3.1"
   }
 }
