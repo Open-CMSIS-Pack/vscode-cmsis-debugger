@@ -1,8 +1,21 @@
 # Change Log
 
-## Unreleased
+## 1.1.0
 
+- Implements [#443](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/443): Show CPU execution time (from connection start and between breakpoints).
+- Fixes [#159](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/159): Documentation updates - GDB sets off assertion when debugging with NUCLEO-F746ZG.
+- Fixes [#374](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/374): Documentation updates - Disassembly view interleaved with source code.
 - Fixes [#439](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/439): Peripheral Inspector receives wrong SVD file path for secondary core of a multi-core connection.
+- Updates included pyOCD distribution to v0.39.0
+    - Set debugger protocol based on information from `*.cbuild-run.yml` file.
+    - Fixes [#370](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/370):
+        - Improve error messages for JTAG/SWD protocol errors.
+        - Improve handling of attaching probe while pyOCD is waiting.
+    - Fixes [#435](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/435): Increase number of transfer retries after WAIT response.
+    - Fixes [#461](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/461): Unable to use GD-Link programmer in version 1.0.0. Fixes support for USB HID based probes without serial number.
+    - Fixes [#472](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/472): Stop pyOCD if `*.cbuild-run.yml` file is missing.
+    - Fixes [#473](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/473): Improve error handling if packs required in `*.cbuild-run.yml` file are missing.
+    - Fixes [#504](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/504): pyOCD should extract file type from cbuild-run descriptions.
 
 ## 1.0.0
 
