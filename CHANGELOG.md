@@ -14,8 +14,9 @@
     - Fixes [#435](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/435): Increase number of transfer retries after WAIT response.
     - Fixes [#461](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/461): Unable to use GD-Link programmer in version 1.0.0. Fixes support for USB HID based probes without serial number.
     - Fixes [#472](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/472): Stop pyOCD if `*.cbuild-run.yml` file is missing.
-    - Fixes [#473](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/473): Improve error handling if packs required in `*.cbuild-run.yml` file are missing.
+    - Fixes [#473](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/473): Show warning when packs required by `*.cbuild-run.yml` file are missing.
     - Fixes [#504](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/504): pyOCD should extract file type from cbuild-run descriptions.
+    - Fixes semihosting support: Fix read when no data is available.
 
 ## 1.0.0
 
