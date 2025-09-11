@@ -249,18 +249,14 @@ jobs:
         with:
           pattern: test-report-linux
 
-      - name: Zip test report
-        run: zip -r test-report.zip *
-        working-directory: test-report-linux
-
       - name: Zip test coverage
         run: zip -r test-coverage.zip *
-        working-directory: test-coverage
+        working-directory: coverage
          
       - name: Attach packages
         uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836 # v2.3.3
         with:
           files: |
             **/*.vsix
-            test-coverage/test-coverage.zip
-            test-report-linux/test-report.zip
+            coverage/test-coverage.zip
+            test-report.html
