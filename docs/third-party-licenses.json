@@ -8,10 +8,10 @@
     },
     {
         "name": "pyocd",
-        "version": "0.39.0-pre0",
+        "version": "0.39.0-pre1",
         "spdx": "Apache-2.0",
         "url": "https://github.com/pyocd/pyOCD",
-        "license": "https://github.com/pyocd/pyOCD/blob/v0.39.0-pre0/LICENSE"
+        "license": "https://github.com/pyocd/pyOCD/blob/v0.39.0-pre1/LICENSE"
     },
     {
         "name": "yaml",
