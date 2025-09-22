@@ -196,9 +196,17 @@ name. Function breakpoints are shown with a red triangle in the **BREAKPOINTS se
 
 ##### Data breakpoints
 
-If a debugger supports data breakpoints, they can be set from the context menu in the **VARIABLES section**. The Break
-on Value Change/Read/Access commands add a data breakpoint that is hit when the value of the underlying variable
-changes/is read/is accessed. Data breakpoints are shown with a red hexagon in the **BREAKPOINTS section**.
+If a debugger supports data breakpoints, they can be set from the context menu of a variable in the **WATCH section**.
+The Break on Value Change/Read/Access commands add a data breakpoint that is hit when the value of the underlying
+variable changes/is read/is accessed. Data breakpoints are shown with a red hexagon in the **BREAKPOINTS section**.
+
+![Creating a data breakpoint](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/data-breakpoint.gif)
+
+> 📝 **Note:**
+>
+> When hitting a data breakpoint, the program execution does not stop exactly on that line of code. Depending on the
+> underlying CPU architecture, stopping can be delayed by up to 5 cycles. Use the
+> [Call Stack](#call-stack) view to determine what caused the execution to stop.
 
 ##### Logpoints
 
