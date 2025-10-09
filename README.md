@@ -200,7 +200,7 @@ If a debugger supports data breakpoints, they can be set from the context menu o
 The Break on Value Change/Read/Access commands add a data breakpoint that is hit when the value of the underlying
 variable changes/is read/is accessed. Data breakpoints are shown with a red hexagon in the **BREAKPOINTS section**.
 
-![Creating a data breakpoint](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/data-breakpoint.gif)
+![Creating a data breakpoint](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/data-breakpoints.gif)
 
 > 📝 **Note:**
 >
