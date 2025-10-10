@@ -46,6 +46,25 @@
     "onStartupFinished"
   ],
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "cmsis-debugger",
+          "title": "CMSIS-DAP",
+          "icon": "$(rocket)"
+        }
+      ]
+    },
+    "views": {
+      "cmsis-debugger": [
+        {
+          "id": "cmsis-debugger-view",
+          "name": "Live Watch",
+          "type": "webview",
+          "icon": "$(eye)"
+        }
+      ]
+    },
     "commands": [
       {
         "title": "CPU Time",
@@ -60,6 +79,14 @@
         "command": "vscode-cmsis-debugger.resetCpuTimeHistory",
         "category": "Run and Debug",
         "when": "inDebugMode"
+      },
+      {
+        "command": "cmsis-debugger-view.add",
+        "title": "Add Row"
+      },
+      {
+        "command": "cmsis-debugger-view.clear",
+        "title": "Clear All"
       }
     ],
     "menus": {
