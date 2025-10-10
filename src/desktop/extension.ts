@@ -22,6 +22,7 @@ import { addToolsToPath } from './add-to-path';
 import { CpuStatesStatusBarItem } from '../features/cpu-states/cpu-states-statusbar-item';
 import { CpuStates } from '../features/cpu-states/cpu-states';
 import { CpuStatesCommands } from '../features/cpu-states/cpu-states-commands';
+import { LiveWatchTreeDataProvider } from '../live-watch/live-watch';
 
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
@@ -34,6 +35,21 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     const cpuStates = new CpuStates();
     const cpuStatesCommands = new CpuStatesCommands();
     const cpuStatesStatusBarItem = new CpuStatesStatusBarItem();
+    // Register commands related to LiveWatchView
+    const liveWatchTreeDataProvider = new LiveWatchTreeDataProvider(context);
+    context.subscriptions.push(
+        vscode.commands.registerCommand('cmsis-debugger-view.add', async () => {
+            const expression = await vscode.window.showInputBox({ prompt: 'Expression' });
+            if (!expression) return;
+            const value = await vscode.window.showInputBox({ prompt: 'Value (optional)' });
+            await liveWatchTreeDataProvider.add(expression, value ?? '');
+        }),
+
+        vscode.commands.registerCommand('cmsis-debugger-view.clear', async () => {
+            const confirm = await vscode.window.showWarningMessage('Clear all expressions?', { modal: true }, 'Yes');
+            if (confirm === 'Yes') await liveWatchTreeDataProvider.clear();
+        }),
+    );
 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);
     // Activate components
