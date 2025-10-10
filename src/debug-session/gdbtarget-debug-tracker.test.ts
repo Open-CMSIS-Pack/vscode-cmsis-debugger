@@ -19,8 +19,7 @@ import {
     ContinuedEvent,
     GDBTargetDebugTracker,
     SessionStackItem,
-    StackTraceRequest,
-    StackTraceResponse,
+    SessionStackTrace,
     StoppedEvent
 } from './gdbtarget-debug-tracker';
 import { debugSessionFactory, extensionContextFactory } from '../__test__/vscode.factory';
@@ -160,13 +159,12 @@ describe('GDBTargetDebugTracker', () => {
             expect(connectedSession).toBeDefined();
         });
 
-        it('sends an onStackTraceRequest event', async () => {
+        it('sends an onStackTrace event', async () => {
             const tracker = await adapterFactory!.createDebugAdapterTracker(debugSessionFactory(debugConfigurationFactory()));
             let gdbSession: GDBTargetDebugSession|undefined = undefined;
             debugTracker.onWillStartSession(session => gdbSession = session);
-            let result: StackTraceRequest|undefined = undefined;
-            debugTracker.onStackTraceRequest(request => result = request);
-            tracker!.onWillStartSession!();
+            let result: SessionStackTrace;
+            debugTracker.onStackTrace(request => result = request);
             const stackTraceRequest: DebugProtocol.StackTraceRequest = {
                 command: 'stackTrace',
                 type: 'request',
@@ -175,20 +173,6 @@ describe('GDBTargetDebugTracker', () => {
                     threadId: 1
                 }
             };
-            tracker!.onWillReceiveMessage!(stackTraceRequest);
-            expect(gdbSession).toBeDefined();
-            expect(result).toBeDefined();
-            expect(result!.session).toEqual(gdbSession);
-            expect(result!.request).toEqual(stackTraceRequest);
-        });
-
-        it('sends an onStackTraceResponse event', async () => {
-            let gdbSession: GDBTargetDebugSession|undefined = undefined;
-            debugTracker.onWillStartSession(session => gdbSession = session);
-            let result: StackTraceResponse|undefined = undefined;
-            debugTracker.onStackTraceResponse(response => result = response);
-            const tracker = await adapterFactory!.createDebugAdapterTracker(debugSessionFactory(debugConfigurationFactory()));
-            tracker!.onWillStartSession!();
             const stackTraceResponse: DebugProtocol.StackTraceResponse = {
                 command: 'stackTrace',
                 type: 'response',
@@ -206,11 +190,15 @@ describe('GDBTargetDebugTracker', () => {
                     ]
                 }
             };
+            tracker!.onWillStartSession!();
+            tracker!.onWillReceiveMessage!(stackTraceRequest);
             tracker!.onDidSendMessage!(stackTraceResponse);
             expect(gdbSession).toBeDefined();
-            expect(result).toBeDefined();
+            expect(result!).toBeDefined();
             expect(result!.session).toEqual(gdbSession);
-            expect(result!.response).toEqual(stackTraceResponse);
+            expect(result!.threadId).toEqual(stackTraceRequest.arguments.threadId);
+            expect(result!.stackFrames).toEqual(stackTraceResponse.body!.stackFrames);
+            expect(result!.totalFrames).toEqual(stackTraceResponse.body!.totalFrames);
         });
 
         it('sends a session continued event', async () => {

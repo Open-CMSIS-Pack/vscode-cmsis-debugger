@@ -19,15 +19,13 @@ import {
     ContinuedEvent,
     GDBTargetDebugTracker,
     SessionStackItem,
-    StackTraceRequest,
-    StackTraceResponse,
+    SessionStackTrace,
     StoppedEvent
 } from '../../debug-session';
 import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-session';
 import { CpuStatesHistory } from './cpu-states-history';
 import { calculateTime, extractPname } from '../../utils';
 import { GDBTargetConfiguration } from '../../debug-configuration';
-import { DebugProtocol } from '@vscode/debugprotocol';
 
 // Architecturally defined registers (M-profile)
 const DWT_CTRL_ADDRESS = 0xE0001000;
@@ -51,7 +49,6 @@ export class CpuStates {
 
     public activeSession: GDBTargetDebugSession | undefined;
     private sessionCpuStates: Map<string, SessionCpuStates> = new Map();
-    private stackTraceRequests: Map<string, Map<number, number>> = new Map();
 
     public get activeCpuStates(): SessionCpuStates|undefined {
         if (!this.activeSession) {
@@ -68,8 +65,7 @@ export class CpuStates {
         tracker.onConnected(session => this.handleConnected(session));
         tracker.onContinued(event => this.handleContinuedEvent(event));
         tracker.onStopped(event => this.handleStoppedEvent(event));
-        tracker.onStackTraceRequest(request => this.handleStackTraceRequest(request));
-        tracker.onStackTraceResponse(response => this.handleStackTraceResponse(response));
+        tracker.onStackTrace(stackTrace => this.handleStackTrace(stackTrace));
     }
 
     protected handleOnWillStartSession(session: GDBTargetDebugSession): void {
@@ -84,7 +80,6 @@ export class CpuStates {
     }
 
     protected handleOnWillStopSession(session: GDBTargetDebugSession): void {
-        this.stackTraceRequests.delete(session.session.id);
         this.sessionCpuStates.delete(session.session.id);
         if (this.activeSession?.session.id && this.activeSession?.session.id === session.session.id) {
             this.activeSession = undefined;
@@ -131,32 +126,13 @@ export class CpuStates {
         return this.updateCpuStates(event.session, event.event.body.threadId, event.event.body.reason);
     }
 
-    protected handleStackTraceRequest(request: StackTraceRequest): void {
-        const cpuStates = this.sessionCpuStates.get(request.session.session.id);
-        if (!cpuStates) {
-            // No need to continue
-            return;
-        }
-        let stackTraceRequests = this.stackTraceRequests.get(request.session.session.id);
-        if (stackTraceRequests === undefined) {
-            stackTraceRequests = new Map();
-            this.stackTraceRequests.set(request.session.session.id, stackTraceRequests);
-        }
-        stackTraceRequests.set(request.request.seq, request.request.arguments.threadId);
-    }
-
-    protected handleStackTraceResponse(response: StackTraceResponse): void {
-        // Retrieve and delete tracked request from map first
-        const stackTraceRequest = this.stackTraceRequests.get(response.session.session.id);
-        const threadId = stackTraceRequest?.get(response.response.request_seq);
-        stackTraceRequest?.delete(response.response.request_seq);
+    protected handleStackTrace(stackTrace: SessionStackTrace): void {
         const states = this.activeCpuStates;
         if (!states) {
             return;
         }
-        const responseBody: DebugProtocol.StackTraceResponse['body'] = response.response.body;
-        const hasValidFrames = response.response.success && responseBody.totalFrames;
-        const topFrame = hasValidFrames ? responseBody.stackFrames[0] : undefined;
+        const hasValidFrames = stackTrace.totalFrames;
+        const topFrame = hasValidFrames ? stackTrace.stackFrames[0] : undefined;
         let locationString = '';
         if (topFrame) {
             if (topFrame.instructionPointerReference) {
@@ -170,7 +146,7 @@ export class CpuStates {
                 locationString += `::${topFrame.line}`;
             }
         }
-        states.statesHistory.insertStopLocation(locationString, threadId);
+        states.statesHistory.insertStopLocation(locationString, stackTrace.threadId);
         // Workaround for VS Code not automatically selecting stack frame without source info.
         // Assuming the correct stack frame is selected within 100ms. To revisit if something
         // can be done without fixed delays and duplicate updates.

@@ -17,7 +17,7 @@
 import * as vscode from 'vscode';
 import { debugSessionFactory } from '../../__test__/vscode.factory';
 import { GDBTargetConfiguration } from '../../debug-configuration';
-import { ContinuedEvent, GDBTargetDebugSession, GDBTargetDebugTracker, SessionStackItem, StackTraceRequest, StackTraceResponse, StoppedEvent } from '../../debug-session';
+import { ContinuedEvent, GDBTargetDebugSession, GDBTargetDebugTracker, SessionStackItem, SessionStackTrace, StoppedEvent } from '../../debug-session';
 import { CpuStates } from './cpu-states';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { waitForMs } from '../../utils';
@@ -45,18 +45,6 @@ describe('CpuStates', () => {
         } as unknown as DebugProtocol.StoppedEvent
     });
 
-    const createStackTraceRequest = (session: GDBTargetDebugSession, seq: number, threadId: number): StackTraceRequest => ({
-        session,
-        request: {
-            command: 'stackTrace',
-            seq,
-            type: 'request',
-            arguments: {
-                threadId
-            }
-        }
-    });
-
     const createStackFrame = (): DebugProtocol.StackFrame => ({
         column: 0,
         id: 1,
@@ -68,21 +56,13 @@ describe('CpuStates', () => {
         }
     });
 
-    const createStackTraceResponse = (session: GDBTargetDebugSession, seq: number, request_seq: number): StackTraceResponse => ({
+    const createSessionStackTrace = (session: GDBTargetDebugSession, threadId: number): SessionStackTrace => ({
         session,
-        response: {
-            command: 'stackTrace',
-            type: 'response',
-            seq,
-            request_seq,
-            success: true,
-            body: {
-                totalFrames: 1,
-                stackFrames: [
-                    createStackFrame()
-                ]
-            }
-        }
+        threadId,
+        stackFrames: [
+            createStackFrame()
+        ],
+        totalFrames: 1
     });
 
     let debugConfig: GDBTargetConfiguration;
@@ -347,33 +327,10 @@ describe('CpuStates', () => {
             (tracker as any)._onStopped.fire(createStoppedEvent(gdbtargetDebugSession, 'step', 1 /*threadId*/));
             await waitForMs(0);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (tracker as any)._onStackTraceRequest.fire(createStackTraceRequest(gdbtargetDebugSession, 1, 1));
-            await waitForMs(0);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (tracker as any)._onStackTraceResponse.fire(createStackTraceResponse(gdbtargetDebugSession, 4, 1));
+            (tracker as any)._onStackTrace.fire(createSessionStackTrace(gdbtargetDebugSession, 1));
             await waitForMs(0);
             cpuStates.showStatesHistory();
             expect(debugConsoleOutput.find(line => line.includes('(PC=0x08000396 <myframe>, myfunction::2)'))).toBeDefined();
-        });
-
-        it('does not assign frame location to captured stop point due to threadId mismatch', async () => {
-            const debugConsoleOutput: string[] = [];
-            (vscode.debug.activeDebugConsole.appendLine as jest.Mock).mockImplementation(line => debugConsoleOutput.push(line));
-            (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({
-                address: '0xE0001004',
-                data:  new Uint8Array([ 10, 0x00, 0x00, 0x00 ]).buffer
-            });
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (tracker as any)._onStopped.fire(createStoppedEvent(gdbtargetDebugSession, 'step', 2 /*threadId*/));
-            await waitForMs(0);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (tracker as any)._onStackTraceRequest.fire(createStackTraceRequest(gdbtargetDebugSession, 1, 1));
-            await waitForMs(0);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (tracker as any)._onStackTraceResponse.fire(createStackTraceResponse(gdbtargetDebugSession, 4, 1));
-            await waitForMs(0);
-            cpuStates.showStatesHistory();
-            expect(debugConsoleOutput.find(line => line.includes('(PC=0x08000396 <myframe>::2)'))).toBeUndefined();
         });
 
     });
