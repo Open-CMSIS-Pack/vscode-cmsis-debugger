@@ -126,6 +126,10 @@ export class GDBTargetDebugTracker {
                 gdbTargetSession?.refreshTimer.stop();
                 this._onStopped.fire({ session: gdbTargetSession, event } as StoppedEvent);
                 break;
+            case 'terminated':
+            case 'exited':
+                gdbTargetSession?.refreshTimer.stop();
+                break;
         }
     }
 
@@ -184,6 +188,11 @@ export class GDBTargetDebugTracker {
                     break;
                 case 'stackTrace':
                     this.handleStackTraceRequest(gdbTargetSession, request as DebugProtocol.StackTraceRequest);
+                    break;
+                case 'next':
+                case 'stepIn':
+                case 'stepOut':
+                    gdbTargetSession.refreshTimer.start();
                     break;
             }
         }

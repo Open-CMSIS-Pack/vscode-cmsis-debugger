@@ -36,6 +36,10 @@ export class PeriodicRefreshTimer<T> {
         }
     }
 
+    public get isRunning(): boolean {
+        return !!this._timer;
+    }
+
     constructor(public session: T, public interval: number = DEFAULT_REFRESH_INTERVAL) {
     }
 
