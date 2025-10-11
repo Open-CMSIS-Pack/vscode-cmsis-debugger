@@ -18,15 +18,22 @@ import * as vscode from 'vscode';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { logger } from '../logger';
 import { CbuildRunReader } from '../cbuild-run';
+import { PeriodicRefreshTimer } from './periodic-refresh-timer';
 
 /**
  * GDBTargetDebugSession - Wrapper class to provide session state/details
  */
 export class GDBTargetDebugSession {
+    public readonly refreshTimer: PeriodicRefreshTimer<GDBTargetDebugSession>;
     private _cbuildRun: CbuildRunReader|undefined;
     private _cbuildRunParsePromise: Promise<void>|undefined;
 
-    constructor(public session: vscode.DebugSession) {}
+    constructor(public session: vscode.DebugSession) {
+        this.refreshTimer = new PeriodicRefreshTimer(this);
+        if (this.session.configuration.type === 'gdbtarget') {
+            this.refreshTimer.enabled = this.session.configuration['auxiliaryGdb'] === true;
+        }
+    }
 
     public async getCbuildRun(): Promise<CbuildRunReader|undefined> {
         if (!this._cbuildRun) {
@@ -89,7 +96,7 @@ export class GDBTargetDebugSession {
     }
 
     public async readMemoryU32(address: number): Promise<number|undefined> {
-        const data = await this.readMemory(address, 4);
+        const data = await this.readMemory(address, 8 /* 4 */); // Temporary workaround for GDB servers with extra caching of 4 byte reads
         if (!data) {
             return undefined;
         }

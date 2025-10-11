@@ -120,8 +120,10 @@ export class GDBTargetDebugTracker {
         switch (event.event) {
             case 'continued':
                 this._onContinued.fire({ session: gdbTargetSession, event } as ContinuedEvent);
+                gdbTargetSession?.refreshTimer.start();
                 break;
             case 'stopped':
+                gdbTargetSession?.refreshTimer.stop();
                 this._onStopped.fire({ session: gdbTargetSession, event } as StoppedEvent);
                 break;
         }

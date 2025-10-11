@@ -77,6 +77,7 @@ export class CpuStates {
             hasStates: undefined
         };
         this.sessionCpuStates.set(session.session.id, states);
+        session.refreshTimer.onRefresh(async (refreshSession) => this.handlePeriodicRefresh(refreshSession));
     }
 
     protected handleOnWillStopSession(session: GDBTargetDebugSession): void {
@@ -109,21 +110,39 @@ export class CpuStates {
         cpuStates.isRunning = true;
     }
 
+    private async shouldUpdate(session: GDBTargetDebugSession, cpuStates: SessionCpuStates): Promise<boolean> {
+        if (cpuStates.hasStates === undefined) {
+            // Retry if early read after launch/attach response failed (e.g. if
+            // target was running).
+            cpuStates.hasStates = await this.supportsCpuStates(session);
+        }
+        return cpuStates.hasStates;
+    }
+
     protected async handleStoppedEvent(event: StoppedEvent): Promise<void> {
         const cpuStates = this.sessionCpuStates.get(event.session.session.id);
         if (!cpuStates) {
             return;
         }
         cpuStates.isRunning = false;
-        if (cpuStates.hasStates === undefined) {
-            // Retry if early read after launch/attach response failed (e.g. if
-            // target was running).
-            cpuStates.hasStates = await this.supportsCpuStates(event.session);
-        }
-        if (!cpuStates.hasStates) {
+        const doUpdate = await this.shouldUpdate(event.session, cpuStates);
+        if (!doUpdate) {
             return;
         }
         return this.updateCpuStates(event.session, event.event.body.threadId, event.event.body.reason);
+    }
+
+    protected async handlePeriodicRefresh(session: GDBTargetDebugSession): Promise<void> {
+        const cpuStates = this.sessionCpuStates.get(session.session.id);
+        if (!cpuStates) {
+            return;
+        }
+        const doUpdate = await this.shouldUpdate(session, cpuStates);
+        if (!doUpdate) {
+            return;
+        }
+        await this.updateCpuStates(session);
+        this._onRefresh.fire(0);
     }
 
     protected handleStackTrace(stackTrace: SessionStackTrace): void {
@@ -186,7 +205,10 @@ export class CpuStates {
         // Caution with types...
         states.lastCycles = newCycles;
         states.states += BigInt(cycleAdd);
-        states.statesHistory.updateHistory(states.states, threadId, reason);
+        if (reason) {
+            // Stopped events always have a reason, only update history for them
+            states.statesHistory.updateHistory(states.states, threadId, reason);
+        }
     }
 
     protected async getFrequency(): Promise<number|undefined> {
