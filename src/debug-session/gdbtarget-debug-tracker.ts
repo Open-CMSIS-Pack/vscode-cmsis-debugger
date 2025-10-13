@@ -91,7 +91,7 @@ export class GDBTargetDebugTracker {
     private handleOnWillStartSession(session: vscode.DebugSession): void {
         const gdbTargetSession = new GDBTargetDebugSession(session);
         this.sessions.set(session.id, gdbTargetSession);
-        this.bringConsoleToFront.apply(this);
+        this.bringConsoleToFront();
         this._onWillStartSession.fire(gdbTargetSession);
     }
 
@@ -153,14 +153,14 @@ export class GDBTargetDebugTracker {
         const stackTraceRequest = this.stackTraceRequests.get(gdbTargetSession.session.id);
         const threadId = stackTraceRequest?.get(response.request_seq);
         stackTraceRequest?.delete(response.request_seq);
-        if (!response.success) {
+        if (!response.success || threadId === undefined) {
             return;
         }
         const stackTrace = {
             session: gdbTargetSession,
             threadId,
-            stackFrames: (response as DebugProtocol.StackTraceResponse).body.stackFrames,
-            totalFrames: (response as DebugProtocol.StackTraceResponse).body.totalFrames
+            stackFrames: response.body.stackFrames,
+            totalFrames: response.body.totalFrames
         } as SessionStackTrace;
         this._onStackTrace.fire(stackTrace);
     }
