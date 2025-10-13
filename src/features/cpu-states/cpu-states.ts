@@ -206,7 +206,8 @@ export class CpuStates {
         states.lastCycles = newCycles;
         states.states += BigInt(cycleAdd);
         if (reason) {
-            // Stopped events always have a reason, only update history for them
+            // Only update history when a reason is present, i.e. for stopped events.
+            // Periodic updates do not have a reason and should not create history entries.
             states.statesHistory.updateHistory(states.states, threadId, reason);
         }
     }
