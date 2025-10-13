@@ -273,6 +273,42 @@ describe('CpuStates', () => {
             expect(await cpuStates.getActiveTimeString()).toEqual(' 0 states');
         });
 
+        it('captures states for periodic refreshs but does not add to history', async () => {
+            const debugConsoleOutput: string[] = [];
+            (vscode.debug.activeDebugConsole.appendLine as jest.Mock).mockImplementation(line => debugConsoleOutput.push(line));
+
+            // Initial stopped event to capture initial states.
+            (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({
+                address: '0xE0001004',
+                data:  new Uint8Array([ 0x01, 0x00, 0x00, 0x00 ]).buffer
+            });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (tracker as any)._onStopped.fire(createStoppedEvent(gdbtargetDebugSession, 'step', 0));
+            await waitForMs(0);
+
+            // Capture initial history and clear console while keeping object unchanged for above callback.
+            cpuStates.showStatesHistory();
+            const initialHistoryLength = debugConsoleOutput.length;
+
+            // Refresh event to add states but not history entry.
+            (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({
+                address: '0xE0001004',
+                data:  new Uint8Array([ 0x04, 0x00, 0x00, 0x00 ]).buffer
+            });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (gdbtargetDebugSession.refreshTimer as any)._onRefresh.fire(gdbtargetDebugSession);
+            await waitForMs(0);
+
+            // Diff is 4 - 1 = 3 states, but no new history entry.
+            expect(cpuStates.activeCpuStates?.states).toEqual(BigInt(3));
+            expect(await cpuStates.getActiveTimeString()).toEqual(' 3 states');
+            cpuStates.showStatesHistory();
+            // Expecting same output length, i.e. no additional lines due to added history entries.
+            expect(debugConsoleOutput.length).toEqual(2*initialHistoryLength);
+            // Match snapshot to notice any unexpected changes.
+            expect(debugConsoleOutput).toMatchSnapshot();
+        });
+
         it('fires refresh events on active stack item change', async () => {
             const delays: number[] = [];
             const listener = (delay: number) => delays.push(delay);

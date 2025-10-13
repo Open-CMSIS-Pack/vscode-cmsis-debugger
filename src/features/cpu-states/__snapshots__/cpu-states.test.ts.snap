@@ -12,3 +12,16 @@ exports[`CpuStates tests with established connection and CPU states supported ca
   "",
 ]
 `;
+
+exports[`CpuStates tests with established connection and CPU states supported captures states for periodic refreshs but does not add to history 1`] = `
+[
+  "",
+  "ΔT   CPU States   Reason   ",
+  " 0            0   step     ",
+  "",
+  "",
+  "ΔT   CPU States   Reason   ",
+  " 0            0   step     ",
+  "",
+]
+`;
