@@ -131,8 +131,7 @@ export class CpuStates {
         if (!states) {
             return;
         }
-        const hasValidFrames = stackTrace.totalFrames;
-        const topFrame = hasValidFrames ? stackTrace.stackFrames[0] : undefined;
+        const topFrame = stackTrace.stackFrames.length > 0 ? stackTrace.stackFrames[0] : undefined;
         let locationString = '';
         if (topFrame) {
             if (topFrame.instructionPointerReference) {

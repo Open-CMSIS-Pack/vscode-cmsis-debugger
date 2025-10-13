@@ -32,7 +32,7 @@ export interface SessionStackTrace {
     session: GDBTargetDebugSession;
     threadId: number;
     stackFrames: DebugProtocol.StackFrame[];
-    totalFrames?: number;
+    totalFrames?: number|undefined;
 }
 
 export type StackItem = vscode.DebugThread | vscode.DebugStackFrame | undefined;
@@ -161,7 +161,7 @@ export class GDBTargetDebugTracker {
             threadId,
             stackFrames: response.body.stackFrames,
             totalFrames: response.body.totalFrames
-        } as SessionStackTrace;
+        };
         this._onStackTrace.fire(stackTrace);
     }
 
