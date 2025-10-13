@@ -75,7 +75,7 @@ describe('PeriodicRefreshTimer', () => {
         refreshTimer.stop();
         // Between one and two calls should have been made.
         // Timing sensitive, so only check we are in an expected range rather
-        // than full accurracy.
+        // than full accuracy.
         expect(refreshListener.mock.calls.length).toBeGreaterThanOrEqual(1);
         expect(refreshListener.mock.calls.length).toBeLessThanOrEqual(2);
         expect(refreshListener).toHaveBeenCalledWith('test-timer');

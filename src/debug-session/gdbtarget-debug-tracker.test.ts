@@ -297,7 +297,7 @@ describe('GDBTargetDebugTracker', () => {
 
         it.each([
             { eventName: 'stopped', eventData: { event: 'stopped', type: 'event', seq: 1, body: { reason: 'step' } } },
-            { eventName: 'terminated', eventData: { event: 'terminated', type: 'event', seq: 1, body: { } } }, // Does't pass optional 'restart' property
+            { eventName: 'terminated', eventData: { event: 'terminated', type: 'event', seq: 1, body: { } } }, // Doesn't pass optional 'restart' property
             { eventName: 'exited', eventData: { event: 'exited', type: 'event', seq: 1, body: { exitCode: 0 } } },
         ])('starts refresh timer on session continued event, and stops on $eventName event', async ({ eventData }) => {
             expect(gdbSession).toBeDefined();

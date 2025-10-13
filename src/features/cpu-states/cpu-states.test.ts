@@ -273,7 +273,7 @@ describe('CpuStates', () => {
             expect(await cpuStates.getActiveTimeString()).toEqual(' 0 states');
         });
 
-        it('captures states for periodic refreshs but does not add to history', async () => {
+        it('captures states for periodic refreshes but does not add to history', async () => {
             const debugConsoleOutput: string[] = [];
             (vscode.debug.activeDebugConsole.appendLine as jest.Mock).mockImplementation(line => debugConsoleOutput.push(line));
 
