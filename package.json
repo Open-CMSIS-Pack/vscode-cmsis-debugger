@@ -50,7 +50,7 @@
       "activitybar": [
         {
           "id": "cmsis-debugger",
-          "title": "CMSIS-DAP",
+          "title": "CMSIS",
           "icon": "$(rocket)"
         }
       ]
@@ -59,8 +59,7 @@
       "cmsis-debugger": [
         {
           "id": "cmsis-debugger-view",
-          "name": "Live Watch",
-          "icon": "$(eye)"
+          "name": "Live Watch"
         }
       ]
     },
@@ -81,11 +80,28 @@
       },
       {
         "command": "cmsis-debugger-view.add",
-        "title": "Add Row"
+        "title": "Add Expression",
+        "icon": "$(add)"
       },
       {
         "command": "cmsis-debugger-view.clear",
-        "title": "Clear All"
+        "title": "Clear All",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "cmsis-debugger-view.delete",
+        "title": "Delete",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "cmsis-debugger-view.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "cmsis-debugger-view.rename",
+        "title": "Rename",
+        "icon": "$(pencil)"
       }
     ],
     "menus": {
@@ -108,7 +124,24 @@
         {
           "command": "cmsis-debugger-view.clear",
           "when": "view == cmsis-debugger-view",
+          "group": "navigation@3"
+        },
+        {
+          "command": "cmsis-debugger-view.refresh",
+          "when": "view == cmsis-debugger-view",
           "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "cmsis-debugger-view.rename",
+          "when": "view == cmsis-debugger-view && viewItem == expression",
+          "group": "inline@1"
+        },
+        {
+          "command": "cmsis-debugger-view.delete",
+          "when": "view == cmsis-debugger-view && viewItem == expression",
+          "group": "inline@2"
         }
       ]
     },

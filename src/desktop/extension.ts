@@ -35,25 +35,9 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     const cpuStates = new CpuStates();
     const cpuStatesCommands = new CpuStatesCommands();
     const cpuStatesStatusBarItem = new CpuStatesStatusBarItem();
-    // Register commands related to LiveWatchView
-    const liveWatchTreeDataProvider = new LiveWatchTreeDataProvider(context);
     // Register the Tree View under the id from package.json
-    context.subscriptions.push(
-        vscode.window.registerTreeDataProvider('cmsis-debugger-view', liveWatchTreeDataProvider)
-    );
-    context.subscriptions.push(
-        vscode.commands.registerCommand('cmsis-debugger-view.add', async () => {
-            const expression = await vscode.window.showInputBox({ prompt: 'Expression' });
-            if (!expression) return;
-            const value = await vscode.window.showInputBox({ prompt: 'Value (optional)' });
-            await liveWatchTreeDataProvider.add(expression, value ?? '');
-        }),
-
-        vscode.commands.registerCommand('cmsis-debugger-view.clear', async () => {
-            const confirm = await vscode.window.showWarningMessage('Clear all expressions?', { modal: true }, 'Yes');
-            if (confirm === 'Yes') await liveWatchTreeDataProvider.clear();
-        }),
-    );
+    const liveWatchTreeDataProvider = new LiveWatchTreeDataProvider(context);
+    liveWatchTreeDataProvider.activate();
 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);
     // Activate components
