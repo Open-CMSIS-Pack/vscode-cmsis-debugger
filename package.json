@@ -60,7 +60,6 @@
         {
           "id": "cmsis-debugger-view",
           "name": "Live Watch",
-          "type": "webview",
           "icon": "$(eye)"
         }
       ]
@@ -98,6 +97,18 @@
         {
           "command": "vscode-cmsis-debugger.resetCpuTimeHistory",
           "when": "inDebugMode"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "cmsis-debugger-view.add",
+          "when": "view == cmsis-debugger-view",
+          "group": "navigation@1"
+        },
+        {
+          "command": "cmsis-debugger-view.clear",
+          "when": "view == cmsis-debugger-view",
+          "group": "navigation@2"
         }
       ]
     },

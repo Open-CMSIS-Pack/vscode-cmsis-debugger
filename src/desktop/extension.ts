@@ -37,6 +37,10 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     const cpuStatesStatusBarItem = new CpuStatesStatusBarItem();
     // Register commands related to LiveWatchView
     const liveWatchTreeDataProvider = new LiveWatchTreeDataProvider(context);
+    // Register the Tree View under the id from package.json
+    context.subscriptions.push(
+        vscode.window.registerTreeDataProvider('cmsis-debugger-view', liveWatchTreeDataProvider)
+    );
     context.subscriptions.push(
         vscode.commands.registerCommand('cmsis-debugger-view.add', async () => {
             const expression = await vscode.window.showInputBox({ prompt: 'Expression' });

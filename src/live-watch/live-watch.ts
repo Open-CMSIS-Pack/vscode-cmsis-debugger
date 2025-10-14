@@ -1,27 +1,34 @@
 import * as vscode from 'vscode';
 
-export interface LiveWatchNode {
-  id: string;
+interface LiveWatchNode {
+  id: number;
   expression: string;
   value: string;
-  parent?: LiveWatchNode;
+  parent: LiveWatchNode | LiveWatchRoot;
   children?: LiveWatchNode[]; // keep for future grouping; flat list for now
 }
 
+interface LiveWatchRoot {
+    numberOfNodes: number;
+    children: LiveWatchNode[];
+}
+
 export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWatchNode> {
-    private readonly STORAGE_KEY = 'expressions.tree.items';
+    private readonly STORAGE_KEY = 'cmsis-debugger-view.tree.items';
 
     private readonly _onDidChangeTreeData = new vscode.EventEmitter<LiveWatchNode | void>();
     readonly onDidChangeTreeData: vscode.Event<LiveWatchNode | void> = this._onDidChangeTreeData.event;
 
-    private roots: LiveWatchNode[] = [];
+    private root: LiveWatchRoot;
 
     constructor(private readonly context: vscode.ExtensionContext) {
-        this.roots = this.context.globalState.get<LiveWatchNode[]>(this.STORAGE_KEY) ?? [];
+        this.root = this.context.globalState.get<LiveWatchRoot>(this.STORAGE_KEY) ?? {numberOfNodes: 0, children: []};
     }
 
-    getChildren(element?: LiveWatchNode): Thenable<LiveWatchNode[]> {
-        if (!element) return Promise.resolve(this.roots);
+    getChildren(element?: LiveWatchNode): Promise<LiveWatchNode[]> {
+        if (!element) {
+            return Promise.resolve(this.root.children);
+        }
         return Promise.resolve(element.children ?? []);
     }
 
@@ -33,26 +40,35 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         return item;
     }
 
-    async add(expression: string, value = '') {
-        this.roots = [...this.roots, { id: this.uuid(), expression, value }];
+    getNumberOfNodes(): number {
+        return this.root.children.length;
+    }
+
+    async add(expression: string, value = '', parent?: LiveWatchNode) {
+        const newNode: LiveWatchNode = {
+            id: this.root.numberOfNodes + 1,
+            expression,
+            value,
+            parent: parent ?? this.root
+        }
         await this.save();
         this.refresh();
     }
 
     async clear() {
-        this.roots = [];
+        this.root = [];
         await this.save();
         this.refresh();
     }
 
     async delete(node: LiveWatchNode) {
-        this.roots = this.roots.filter(n => n.id !== node.id);
+        this.root = this.root.filter(n => n.id !== node.id);
         await this.save();
         this.refresh();
     }
 
     async rename(node: LiveWatchNode, newExpression: string) {
-        this.roots = this.roots.map(n => (n.id === node.id ? { ...n, expression: newExpression } : n));
+        this.root = this.root.map(n => (n.id === node.id ? { ...n, expression: newExpression } : n));
         await this.save();
         this.refresh();
     }
@@ -60,7 +76,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
     refresh(node?: LiveWatchNode) { this._onDidChangeTreeData.fire(node); }
 
     private async save() {
-        await this.context.globalState.update(this.STORAGE_KEY, this.roots);
+        await this.context.globalState.update(this.STORAGE_KEY, this.root);
     }
 
     private uuid() {
