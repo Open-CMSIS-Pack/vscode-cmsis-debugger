@@ -3,9 +3,9 @@
 ## Unreleased
 
 - Implements [#181](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/181): RTOS Viewer
-    - Includes mcu-debug [`RTOS Views`](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views)
-in extension pack, which installs the mcu-debug [`debug-tracker-vscode`](https://marketplace.visualstudio.com/items?itemName=mcu-debug.debug-tracker-vscode)
-extension as a dependency.
+    - Includes mcu-debug [RTOS Views extension](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views)
+in extension pack, which installs the mcu-debug [debug-tracker-vscode extension](https://marketplace.visualstudio.com/items?itemName=mcu-debug.debug-tracker-vscode)
+as a dependency.
     - Use with [CDT GDB Adapter extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode)
 v2.4.1 or later to work best.
 

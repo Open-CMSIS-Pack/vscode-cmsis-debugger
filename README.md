@@ -16,6 +16,7 @@ The Arm CMSIS Debugger includes [pyOCD](https://pyocd.io/) for target connection
 - [CDT™ GDB Debug Adapter Extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode) for starting applications (_launch_) or connecting to running systems (_attach_).
 - [Memory Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector) provides a powerful and configurable memory viewer.
 - [Peripheral Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector) provides a structured view to device peripheral registers during debugging.
+- [RTOS Views](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views) provides insights into resources of popular RTOS implementations at runtime.
 - [Serial Monitor](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor) to view output from and send messages to serial (UART) or TCP ports.
 
 This extension is [free to use](https://marketplace.visualstudio.com/items/Arm.vscode-cmsis-debugger/license) and you can install it individually or as part of the [Arm Keil® Studio pack](https://marketplace.visualstudio.com/items?itemName=Arm.keil-studio-pack). For optimum debugger experience, use it with these extensions (included in the Arm Keil Studio pack):
