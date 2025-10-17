@@ -44,6 +44,7 @@ interface SessionCpuStates {
 }
 
 export class CpuStates {
+    // onRefresh event to notify GUI components of the cpu states updates (This is different than that of the periodic refresh timer)
     private readonly _onRefresh: vscode.EventEmitter<number> = new vscode.EventEmitter<number>();
     public readonly onRefresh: vscode.Event<number> = this._onRefresh.event;
 

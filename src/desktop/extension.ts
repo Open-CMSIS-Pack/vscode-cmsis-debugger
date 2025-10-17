@@ -37,7 +37,6 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     const cpuStatesStatusBarItem = new CpuStatesStatusBarItem();
     // Register the Tree View under the id from package.json
     const liveWatchTreeDataProvider = new LiveWatchTreeDataProvider(context);
-    liveWatchTreeDataProvider.activate();
 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);
     // Activate components
@@ -47,6 +46,8 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     cpuStates.activate(gdbtargetDebugTracker);
     cpuStatesCommands.activate(context, cpuStates);
     cpuStatesStatusBarItem.activate(context, cpuStates);
+    // Live Watch view
+    liveWatchTreeDataProvider.activate(gdbtargetDebugTracker);
 
     logger.debug('Extension Pack activated');
 };
