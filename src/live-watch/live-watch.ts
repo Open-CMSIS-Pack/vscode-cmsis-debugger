@@ -47,11 +47,18 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         this.addVSCodeCommands();
         const onDidChangeActiveDebugSession = tracker.onDidChangeActiveDebugSession((session) => {
             this.activeSession = session;
+            this.refresh();
             this.continueEvaluate = false;
         });
         const onWillStartSession =  tracker.onWillStartSession(session => this.handleOnWillStartSession(session));
+        // Doing a refresh on stop to ensure we have the latest data
+        const onStopped = tracker.onStopped(() => this.refresh());
+        // Using this event because this is when the threadId is available for evaluations
+        const onStackTrace = tracker.onDidChangeActiveStackItem(() => this.refresh());
         this._context.subscriptions.push(onDidChangeActiveDebugSession);
         this._context.subscriptions.push(onWillStartSession);
+        this._context.subscriptions.push(onStopped);
+        this._context.subscriptions.push(onStackTrace);
     }
 
     handleOnWillStartSession(session: GDBTargetDebugSession): void {
