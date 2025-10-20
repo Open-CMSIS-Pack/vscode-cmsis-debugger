@@ -14,7 +14,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
 
     private readonly _onDidChangeTreeData = new vscode.EventEmitter<LiveWatchNode | void>();
     readonly onDidChangeTreeData: vscode.Event<LiveWatchNode | void> = this._onDidChangeTreeData.event;
-    
+
     private roots: LiveWatchNode[] = [];
     private _context: vscode.ExtensionContext;
     private continueEvaluate: boolean = true;
@@ -51,20 +51,26 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             this.continueEvaluate = false;
         });
         const onWillStartSession =  tracker.onWillStartSession(session => this.handleOnWillStartSession(session));
-        // Doing a refresh on stop to ensure we have the latest data
+        // Doing a refresh on pausing to ensure we have the latest data
         const onStopped = tracker.onStopped(() => this.refresh());
         // Using this event because this is when the threadId is available for evaluations
         const onStackTrace = tracker.onDidChangeActiveStackItem(() => this.refresh());
+        // Clearing active session on closing the session
+        const onWillStopSession = tracker.onWillStopSession(session => {
+            this.activeSession = session;
+            this.refresh();
+        });
         this._context.subscriptions.push(onDidChangeActiveDebugSession);
         this._context.subscriptions.push(onWillStartSession);
         this._context.subscriptions.push(onStopped);
         this._context.subscriptions.push(onStackTrace);
+        this._context.subscriptions.push(onWillStopSession);
     }
 
     handleOnWillStartSession(session: GDBTargetDebugSession): void {
         session.refreshTimer.onRefresh(async (refreshSession) => {
             this.activeSession = refreshSession;
-            this.refresh()
+            this.refresh();
         });
     }
     addVSCodeCommands() {
