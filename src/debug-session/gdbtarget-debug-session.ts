@@ -67,7 +67,7 @@ export class GDBTargetDebugSession {
         } catch (error: unknown) {
             const errorMessage = (error as Error)?.message;
             logger.debug(`Session '${this.session.name}': Failed to evaluate global expression '${expression}' - '${errorMessage}'`);
-            return errorMessage;
+            return errorMessage === 'custom request failed' ? 'No active session' : errorMessage;
         }
     }
 

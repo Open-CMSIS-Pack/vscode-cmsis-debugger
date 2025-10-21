@@ -50,7 +50,7 @@
       "activitybar": [
         {
           "id": "cmsis-debugger",
-          "title": "CMSIS",
+          "title": "CMSIS-Debug",
           "icon": "$(rocket)"
         }
       ]
@@ -58,7 +58,7 @@
     "views": {
       "cmsis-debugger": [
         {
-          "id": "cmsis-debugger-view",
+          "id": "cmsis-debugger.liveWatch",
           "name": "Live Watch"
         }
       ]
@@ -79,28 +79,28 @@
         "when": "inDebugMode"
       },
       {
-        "command": "cmsis-debugger-view.add",
+        "command": "cmsis-debugger.liveWatch.add",
         "title": "Add Expression",
         "icon": "$(add)"
       },
       {
-        "command": "cmsis-debugger-view.clear",
-        "title": "Clear All",
-        "icon": "$(trash)"
+        "command": "cmsis-debugger.liveWatch.deleteAll",
+        "title": "Delete All",
+        "icon": "$(close-all)"
       },
       {
-        "command": "cmsis-debugger-view.delete",
+        "command": "cmsis-debugger.liveWatch.delete",
         "title": "Delete",
-        "icon": "$(trash)"
+        "icon": "$(close)"
       },
       {
-        "command": "cmsis-debugger-view.refresh",
+        "command": "cmsis-debugger.liveWatch.refresh",
         "title": "Refresh",
         "icon": "$(refresh)"
       },
       {
-        "command": "cmsis-debugger-view.rename",
-        "title": "Rename",
+        "command": "cmsis-debugger.liveWatch.modify",
+        "title": "Modify",
         "icon": "$(pencil)"
       }
     ],
@@ -117,30 +117,30 @@
       ],
       "view/title": [
         {
-          "command": "cmsis-debugger-view.add",
-          "when": "view == cmsis-debugger-view",
+          "command": "cmsis-debugger.liveWatch.add",
+          "when": "view == cmsis-debugger.liveWatch",
           "group": "navigation@1"
         },
         {
-          "command": "cmsis-debugger-view.clear",
-          "when": "view == cmsis-debugger-view",
+          "command": "cmsis-debugger.liveWatch.deleteAll",
+          "when": "view == cmsis-debugger.liveWatch",
           "group": "navigation@3"
         },
         {
-          "command": "cmsis-debugger-view.refresh",
-          "when": "view == cmsis-debugger-view",
+          "command": "cmsis-debugger.liveWatch.refresh",
+          "when": "view == cmsis-debugger.liveWatch",
           "group": "navigation@2"
         }
       ],
       "view/item/context": [
         {
-          "command": "cmsis-debugger-view.rename",
-          "when": "view == cmsis-debugger-view && viewItem == expression",
+          "command": "cmsis-debugger.liveWatch.modify",
+          "when": "view == cmsis-debugger.liveWatch && viewItem == expression",
           "group": "inline@1"
         },
         {
-          "command": "cmsis-debugger-view.delete",
-          "when": "view == cmsis-debugger-view && viewItem == expression",
+          "command": "cmsis-debugger.liveWatch.delete",
+          "when": "view == cmsis-debugger.liveWatch && viewItem == expression",
           "group": "inline@2"
         }
       ]
