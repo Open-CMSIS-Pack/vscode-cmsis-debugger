@@ -56,6 +56,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const item = new vscode.TreeItem(element.expression + ' = ', vscode.TreeItemCollapsibleState.None);
         item.description = element.value || '';
         item.contextValue = 'expression';
+        item.tooltip = element.expression;
         return item;
     }
 
@@ -73,7 +74,9 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const onStackTrace = tracker.onDidChangeActiveStackItem(async () => await this.refresh());
         // Clearing active session on closing the session
         const onWillStopSession = tracker.onWillStopSession(async (session) => {
-            this._activeSession = session;
+            if (this.activeSession?.session.id && this.activeSession?.session.id === session.session.id) {
+            this._activeSession = undefined;
+            }
             await this.refresh();
             await this.save();
         });
