@@ -79,7 +79,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         // Clearing active session on closing the session
         const onWillStopSession = tracker.onWillStopSession(async (session) => {
             if (this.activeSession?.session.id && this.activeSession?.session.id === session.session.id) {
-            this._activeSession = undefined;
+                this._activeSession = undefined;
             }
             await this.refresh();
             await this.save();
