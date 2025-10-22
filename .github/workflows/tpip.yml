@@ -47,7 +47,7 @@ jobs:
           node-version: '20'
           registry-url: https://npm.pkg.github.com
           always-auth: true
-          cache: 'yarn'
+          package-manager-cache: false
 
       - name: Install dependencies
         run: yarn --frozen-lockfile --prefer-offline
