@@ -60,4 +60,4 @@ export const deactivate = async (): Promise<void> => {
         await liveWatchTreeDataProvider.deactivate();
     }
     logger.debug('Extension Pack deactivated');
-}
+};

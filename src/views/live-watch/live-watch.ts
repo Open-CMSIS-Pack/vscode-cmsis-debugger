@@ -32,17 +32,16 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
     readonly onDidChangeTreeData: vscode.Event<LiveWatchNode | void> = this._onDidChangeTreeData.event;
 
     private roots: LiveWatchNode[] = [];
-    private NodeID: number;
+    private nodeID: number;
     private _context: vscode.ExtensionContext;
     private activeSession: GDBTargetDebugSession | undefined;
 
     constructor(private readonly context: vscode.ExtensionContext) {
         this.roots = this.context.workspaceState.get<LiveWatchNode[]>(this.STORAGE_KEY) ?? [];
         this._context = context;
-        this.NodeID = 0;
+        this.nodeID = 0;
         for (const node of this.roots) {
-            node.id = this.NodeID;
-            this.NodeID++;
+            node.id = this.nodeID++;
         }
     }
 
@@ -74,16 +73,16 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             await this.refresh();
             await this.save();
         });
-        // 
+        //
         const onContinued = tracker.onContinued(async () => {
             await this.refresh();
         });
-        this._context.subscriptions.push(onContinued, 
-                onDidChangeActiveDebugSession, 
-                onWillStartSession,
-                onStopped,
-                onStackTrace,
-                onWillStopSession);
+        this._context.subscriptions.push(onContinued,
+            onDidChangeActiveDebugSession,
+            onWillStartSession,
+            onStopped,
+            onStackTrace,
+            onWillStopSession);
     }
 
     public async deactivate(): Promise<void> {
@@ -155,7 +154,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
     private async add(expression: string, parent?: LiveWatchNode) {
         // Create a new node with a unique ID and evaluate its value
         const newNode: LiveWatchNode = {
-            id: this.NodeID + 1,
+            id: ++this.nodeID,
             expression,
             value : await this.evaluate(expression),
             parent: parent ?? undefined
@@ -165,7 +164,6 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         } else {
             parent.children?.push(newNode);
         }
-        this.NodeID++;
         await this.refresh();
     }
 
