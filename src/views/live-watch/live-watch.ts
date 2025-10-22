@@ -34,7 +34,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
     private roots: LiveWatchNode[] = [];
     private nodeID: number;
     private _context: vscode.ExtensionContext;
-    private activeSession: GDBTargetDebugSession | undefined;
+    private _activeSession: GDBTargetDebugSession | undefined;
 
     constructor(private readonly context: vscode.ExtensionContext) {
         this.roots = this.context.workspaceState.get<LiveWatchNode[]>(this.STORAGE_KEY) ?? [];
@@ -53,10 +53,14 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
     }
 
     public getTreeItem(element: LiveWatchNode): vscode.TreeItem {
-        const item = new vscode.TreeItem(element.expression, vscode.TreeItemCollapsibleState.None);
+        const item = new vscode.TreeItem(element.expression + ' = ', vscode.TreeItemCollapsibleState.None);
         item.description = element.value || '';
         item.contextValue = 'expression';
         return item;
+    }
+
+    public get activeSession(): GDBTargetDebugSession | undefined {
+        return this._activeSession;
     }
 
     public async activate(tracker: GDBTargetDebugTracker): Promise<void> {
@@ -69,7 +73,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const onStackTrace = tracker.onDidChangeActiveStackItem(async () => await this.refresh());
         // Clearing active session on closing the session
         const onWillStopSession = tracker.onWillStopSession(async (session) => {
-            this.activeSession = session;
+            this._activeSession = session;
             await this.refresh();
             await this.save();
         });
@@ -90,13 +94,13 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
     }
 
     private async handleOnDidChangeActiveDebugSession(session: GDBTargetDebugSession | undefined): Promise<void> {
-        this.activeSession = session;
+        this._activeSession = session;
         await this.refresh();
     }
 
     private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
         session.refreshTimer.onRefresh(async (refreshSession) => {
-            this.activeSession = refreshSession;
+            this._activeSession = refreshSession;
             await this.refresh();
         });
     }
@@ -144,10 +148,10 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
     }
 
     private async evaluate(expression: string): Promise<string> {
-        if (!this.activeSession) {
+        if (!this._activeSession) {
             return 'No active session';
         }
-        const result = await this.activeSession.evaluateGlobalExpression(expression);
+        const result = await this._activeSession.evaluateGlobalExpression(expression, 'watch');
         return result;
     }
 
@@ -187,14 +191,14 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
 
     private async refresh(node?: LiveWatchNode) {
         if (node) {
-            this._onDidChangeTreeData.fire(node);
             node.value = await this.evaluate(node.expression);
+            this._onDidChangeTreeData.fire(node);
             return;
         }
-        this._onDidChangeTreeData.fire();
         for (const n of this.roots) {
             n.value = await this.evaluate(n.expression);
         }
+        this._onDidChangeTreeData.fire();
     }
 
     private async save() {

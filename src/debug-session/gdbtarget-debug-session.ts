@@ -54,13 +54,13 @@ export class GDBTargetDebugSession {
         this._cbuildRunParsePromise = undefined;
     }
 
-    public async evaluateGlobalExpression(expression: string): Promise<string> {
+    public async evaluateGlobalExpression(expression: string, context = 'hover'): Promise<string> {
         try {
             const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
             const args: DebugProtocol.EvaluateArguments = {
                 expression,
                 frameId, // Currently required by CDT GDB Adapter
-                context: 'hover'
+                context: context
             };
             const response = await this.session.customRequest('evaluate', args) as DebugProtocol.EvaluateResponse['body'];
             return response.result;
