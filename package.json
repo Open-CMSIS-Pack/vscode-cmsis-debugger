@@ -50,7 +50,7 @@
       "activitybar": [
         {
           "id": "cmsis-debugger",
-          "title": "CMSIS-Debug",
+          "title": "CMSIS Debug",
           "icon": "$(rocket)"
         }
       ]
@@ -85,12 +85,12 @@
       },
       {
         "command": "cmsis-debugger.liveWatch.deleteAll",
-        "title": "Delete All",
+        "title": "Delete All Expressions",
         "icon": "$(close-all)"
       },
       {
         "command": "cmsis-debugger.liveWatch.delete",
-        "title": "Delete",
+        "title": "Delete Expression",
         "icon": "$(close)"
       },
       {
@@ -100,7 +100,7 @@
       },
       {
         "command": "cmsis-debugger.liveWatch.modify",
-        "title": "Modify",
+        "title": "Modify Expression",
         "icon": "$(pencil)"
       }
     ],

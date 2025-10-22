@@ -32,35 +32,35 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
     readonly onDidChangeTreeData: vscode.Event<LiveWatchNode | void> = this._onDidChangeTreeData.event;
 
     private roots: LiveWatchNode[] = [];
-    private numberOfNodes: number;
+    private NodeID: number;
     private _context: vscode.ExtensionContext;
     private activeSession: GDBTargetDebugSession | undefined;
 
     constructor(private readonly context: vscode.ExtensionContext) {
         this.roots = this.context.workspaceState.get<LiveWatchNode[]>(this.STORAGE_KEY) ?? [];
         this._context = context;
-        this.numberOfNodes = this.roots.length;
+        this.NodeID = 0;
+        for (const node of this.roots) {
+            node.id = this.NodeID;
+            this.NodeID++;
+        }
     }
 
-    getChildren(element?: LiveWatchNode): Promise<LiveWatchNode[]> {
+    public getChildren(element?: LiveWatchNode): Promise<LiveWatchNode[]> {
         if (!element) {
             return Promise.resolve(this.roots);
         }
         return Promise.resolve(element.children ?? []);
     }
 
-    getTreeItem(element: LiveWatchNode): vscode.TreeItem {
+    public getTreeItem(element: LiveWatchNode): vscode.TreeItem {
         const item = new vscode.TreeItem(element.expression, vscode.TreeItemCollapsibleState.None);
         item.description = element.value || '';
         item.contextValue = 'expression';
         return item;
     }
 
-    getNumberOfNodes(): number {
-        return this.roots.length;
-    }
-
-    async activate(tracker: GDBTargetDebugTracker): Promise<void> {
+    public async activate(tracker: GDBTargetDebugTracker): Promise<void> {
         this.addVSCodeCommands();
         const onDidChangeActiveDebugSession = tracker.onDidChangeActiveDebugSession(async (session) => await this.handleOnDidChangeActiveDebugSession(session));
         const onWillStartSession =  tracker.onWillStartSession(async (session) => await this.handleOnWillStartSession(session));
@@ -78,11 +78,16 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const onContinued = tracker.onContinued(async () => {
             await this.refresh();
         });
-        this._context.subscriptions.push(onContinued, onDidChangeActiveDebugSession, onWillStartSession, onStopped, onStackTrace, onWillStopSession);
+        this._context.subscriptions.push(onContinued, 
+                onDidChangeActiveDebugSession, 
+                onWillStartSession,
+                onStopped,
+                onStackTrace,
+                onWillStopSession);
     }
 
-    async deactivate(): Promise<void> {
-        this.save();
+    public async deactivate(): Promise<void> {
+        await this.save();
     }
 
     private async handleOnDidChangeActiveDebugSession(session: GDBTargetDebugSession | undefined): Promise<void> {
@@ -104,12 +109,16 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const deleteCommand = vscode.commands.registerCommand('cmsis-debugger.liveWatch.delete', async (node) => await this.registerDeleteCommand(node));
         const refreshCommand = vscode.commands.registerCommand('cmsis-debugger.liveWatch.refresh', async () => await this.refresh());
         const modifyCommand = vscode.commands.registerCommand('cmsis-debugger.liveWatch.modify', async (node) => await this.registerRenameCommand(node));
-        this._context.subscriptions.push(registerLiveWatchView, addCommand, deleteAllCommand, deleteCommand, refreshCommand, modifyCommand);
+        this._context.subscriptions.push(registerLiveWatchView,
+            addCommand,
+            deleteAllCommand, deleteCommand, refreshCommand, modifyCommand);
     }
 
     private async registerAddCommand() {
         const expression = await vscode.window.showInputBox({ prompt: 'Expression' });
-        if (!expression) return;
+        if (!expression) {
+            return;
+        }
         await this.add(expression);
     }
 
@@ -118,19 +127,24 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
     }
 
     private async registerDeleteCommand(node: LiveWatchNode) {
-        if (!node) return;
+        if (!node) {
+            return;
+        }
         await this.delete(node);
     }
 
     private async registerRenameCommand(node: LiveWatchNode) {
-        if (!node) return;
+        if (!node) {
+            return;
+        }
         const expression = await vscode.window.showInputBox({ prompt: 'Expression', value: node.expression });
-        if (!expression) return;
+        if (!expression) {
+            return;
+        }
         await this.rename(node, expression);
     }
 
     private async evaluate(expression: string): Promise<string> {
-        console.log('Evaluating expression:', expression);
         if (!this.activeSession) {
             return 'No active session';
         }
@@ -141,7 +155,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
     private async add(expression: string, parent?: LiveWatchNode) {
         // Create a new node with a unique ID and evaluate its value
         const newNode: LiveWatchNode = {
-            id: this.numberOfNodes + 1,
+            id: this.NodeID + 1,
             expression,
             value : await this.evaluate(expression),
             parent: parent ?? undefined
@@ -151,7 +165,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         } else {
             parent.children?.push(newNode);
         }
-        this.numberOfNodes++;
+        this.NodeID++;
         await this.refresh();
     }
 
