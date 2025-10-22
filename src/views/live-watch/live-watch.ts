@@ -68,12 +68,6 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         this.addVSCodeCommands();
         const onDidChangeActiveDebugSession = tracker.onDidChangeActiveDebugSession(async (session) => await this.handleOnDidChangeActiveDebugSession(session));
         const onWillStartSession =  tracker.onWillStartSession(async (session) => await this.handleOnWillStartSession(session));
-        // Doing a refresh on pausing to ensure we have the latest data
-        const onStopped = tracker.onStopped(async (event) => {
-            if (this._activeSession?.session.id === event.session.session.id) {
-                await this.refresh();
-            }
-        });
         // Using this event because this is when the threadId is available for evaluations
         const onStackTrace = tracker.onDidChangeActiveStackItem(async (item) => {
             if ((item.item as vscode.DebugStackFrame).frameId !== undefined) {
@@ -91,7 +85,6 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         this._context.subscriptions.push(
             onDidChangeActiveDebugSession,
             onWillStartSession,
-            onStopped,
             onStackTrace,
             onWillStopSession);
     }
