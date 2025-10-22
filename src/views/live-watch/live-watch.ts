@@ -101,9 +101,8 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
     }
 
     private async handleOnDidChangeActiveDebugSession(session: GDBTargetDebugSession | undefined): Promise<void> {
-        if (this._activeSession?.session.id === session?.session.id) {
-            await this.refresh();
-        }
+        this._activeSession = session;
+        await this.refresh();
     }
 
     private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
