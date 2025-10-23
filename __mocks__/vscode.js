@@ -47,6 +47,8 @@ class MockTreeItem {
     }
 }
 
+const registerTreeDataProviderMock = jest.fn(() => ({ dispose: jest.fn() }));
+
 module.exports = {
     EventEmitter: jest.fn(() => {
         const callbacks = [];
@@ -71,6 +73,7 @@ module.exports = {
             warn: jest.fn(),
             error: jest.fn(),
         })),
+        registerTreeDataProvider: registerTreeDataProviderMock,
         showWarningMessage: jest.fn(),
         createStatusBarItem: jest.fn(),
         showQuickPick: jest.fn(),
