@@ -30,6 +30,23 @@ const StatusBarAlignment = {
     Right: 2
 };
 
+const MockTreeItemCollapsibleState = { 
+    None: 0, 
+    Collapsed: 1, 
+    Expanded: 2 
+};
+
+class MockTreeItem {
+    label;
+    description;
+    contextValue;
+    collapsibleState;
+    constructor(label, collapsibleState) {
+        this.label = label;
+        this.collapsibleState = collapsibleState;
+    }
+}
+
 module.exports = {
     EventEmitter: jest.fn(() => {
         const callbacks = [];
@@ -43,6 +60,8 @@ module.exports = {
         };
     }),
     Uri: URI,
+    TreeItem: MockTreeItem,
+    TreeItemCollapsibleState: MockTreeItemCollapsibleState,
     window: {
         createOutputChannel: jest.fn(() => ({
             appendLine: jest.fn(),

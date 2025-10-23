@@ -54,21 +54,21 @@ export class GDBTargetDebugSession {
         this._cbuildRunParsePromise = undefined;
     }
 
-    public async evaluateGlobalExpression(expression: string): Promise<string|undefined> {
+    public async evaluateGlobalExpression(expression: string, context = 'hover'): Promise<string> {
         try {
             const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
             const args: DebugProtocol.EvaluateArguments = {
                 expression,
                 frameId, // Currently required by CDT GDB Adapter
-                context: 'hover'
+                context: context
             };
             const response = await this.session.customRequest('evaluate', args) as DebugProtocol.EvaluateResponse['body'];
-            return response.result.match(/\d+/) ? response.result : undefined;
+            return response.result;
         } catch (error: unknown) {
             const errorMessage = (error as Error)?.message;
             logger.debug(`Session '${this.session.name}': Failed to evaluate global expression '${expression}' - '${errorMessage}'`);
+            return errorMessage === 'custom request failed' ? 'No active session' : errorMessage;
         }
-        return undefined;
     }
 
     public async readMemory(address: number, length = 4): Promise<ArrayBuffer|undefined> {
