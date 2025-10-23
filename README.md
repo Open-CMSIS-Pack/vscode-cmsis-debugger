@@ -291,10 +291,10 @@ extension is used. Currently, it supports FreeRTOS, Zephyr, embOS,and various fl
 > 📝 **Note:**
 >
 > - This is not a live view. It only gets updated when the program execution is stopped.
-> - To enable the view, you need to go to the debug view and press CTRL/CMD - Shift - P. Select
+> - To enable the view, you need to go to the debug view and press Ctrl/Cmd - Shift - P. Select
 >   **RTOS Views: Toggle RTOS Panel**. Afterwards, start your debug session.
 > - The view is located in the Terminal panel at the bottom and is called **XRTOS**.
-> - If it does not show values after entering a debug session and running the application, press CTRL/CMD - Shift - P
+> - If it does not show values after entering a debug session and running the application, press Ctrl/Cmd - Shift - P
 >   again and select **RTOS Views: Refresh**.
 
 ### Debug Console
