@@ -242,39 +242,9 @@ Most Arm Cortex-M processors (except Cortex-M0/M0+/M23) include a `DWT->CYCCNT` 
 > - `DWT->CYCCNT` is a 32-bit register incremented with [`SystemCoreClock`](https://arm-software.github.io/CMSIS_6/latest/Core/group__system__init__gr.html) frequency. The time calculation copes with one overflow between program stops. Multiple overflows between program stops deliver wrong time information.
 > - Each processor in a multi-processor system has and independent `DWT->CYCCNT` register.
 
-### Multi-Core Debug
+### PERIPHERALS
 
-A GDB server provides multiple connections to the processor cores (identified with `pname`) of a device. The list below shows the output of pyOCD in the DEBUG CONSOLE of VS Code.
-
-```txt
-0000680 I Target device: MCXN947VDF [cbuild_run]
-0001585 I core 0: Cortex-M33 r0p4, pname: cm33_core0 [cbuild_run]
-0001585 I core 1: Cortex-M33 r0p4, pname: cm33_core1 [cbuild_run]
-0001585 I start-pname: cm33_core0 [cbuild_run]
-0001600 I Semihost server started on port 4444 (core 0) [server]
-0001636 I GDB server started on port 3333 (core 0) [gdbserver]
-0001641 I Semihost server started on port 4445 (core 1) [server]
-0001642 I GDB server started on port 3334 (core 1) [gdbserver]
-0007560 I Client connected to port 3333! [gdbserver]
-```
-
-The `start-pname` indicates the processor that starts first and boots the system. A debug _launch_ command connects to this processor. Use a debug _attach_ command to connect to  processors that are running. The picture below highlights the parts of the user interface that interact with processors.
-
-1. Select a processor and **Start Debug**. This connects the debugger.
-2. **Select a Processor** in the debug toolbar, or
-3. Click in **CALL STACK** on a thread or function name to select a processor.
-4. The selected processor is also shown in the **CPU Time Status bar**. This processor context is used in the VARIABLES and WATCH view.
-
-![Multicore Debug](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/multicore.png)
-
-> 📝 **Notes:**
->
-> - The SEGGER JLink GDB server uses a _launch_ command to connect to a running processor whereas other GDB servers use an _attach_ command.
-> - A [Disassembly View](#disassembly) opens only for a selected processor; otherwise the command is shown as disabled.
-
-### Peripherals
-
-The **Peripherals** view shows the device peripheral registers and allows to change their values. It uses the CMSIS-SVD files that are provided by silicon vendors and distributed as part of the CMSIS Device Family Packs (DFP).
+The **PERIPHERALS** view shows the device peripheral registers and allows to change their values. It uses the CMSIS-SVD files that are provided by silicon vendors and distributed as part of the CMSIS Device Family Packs (DFP).
 
 ![Peripheral Inspector](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/peripheral-inspector.png)
 
@@ -311,6 +281,22 @@ The command **Open Disassembly View** (available from [command palette](https://
 >
 > - Enable the [VS Code setting](https://code.visualstudio.com/docs/configure/settings) **Features > Debug > Disassembly View: Show Source Code** to show assembler instructions interleaved with source code.
 
+### RTOS Views
+
+For RTOS awareness, the [RTOS Views](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views)
+extension is used. Currently, it supports FreeRTOS, Zephyr, embOS,and various flavors of uC/OS. Keil RTX5 will be added soon.
+
+![RTOS Views with FreeRTOS](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/rtos-views.png)
+
+> 📝 **Note:**
+>
+> - This is not a live view. It only gets updated when the program execution is stopped.
+> - To enable the view, you need to go to the debug view and press CTRL/CMD - Shift - P. Select
+>   **RTOS Views: Toggle RTOS Panel**. Afterwards, start your debug session.
+> - The view is located in the Terminal panel at the bottom and is called **XRTOS**.
+> - If it does not show values after entering a debug session and running the application, press CTRL/CMD - Shift - P
+>   again and select **RTOS Views: Refresh**.
+
 ### Debug Console
 
 The **Debug Console** enables viewing and interacting with the output of your code running in the debugger.
@@ -336,6 +322,36 @@ application is run with the `> continue` command.
 ### Serial Monitor
 
 The [Serial Monitor](https://learn.microsoft.com/en-us/cpp/embedded/serial-monitor?view=msvc-170&tabs=visual-studio) allows users to configure, monitor, and communicate with serial or TCP ports.
+
+## Multi-Core Debug
+
+A GDB server provides multiple connections to the processor cores (identified with `pname`) of a device. The list below shows the output of pyOCD in the DEBUG CONSOLE of VS Code.
+
+```txt
+0000680 I Target device: MCXN947VDF [cbuild_run]
+0001585 I core 0: Cortex-M33 r0p4, pname: cm33_core0 [cbuild_run]
+0001585 I core 1: Cortex-M33 r0p4, pname: cm33_core1 [cbuild_run]
+0001585 I start-pname: cm33_core0 [cbuild_run]
+0001600 I Semihost server started on port 4444 (core 0) [server]
+0001636 I GDB server started on port 3333 (core 0) [gdbserver]
+0001641 I Semihost server started on port 4445 (core 1) [server]
+0001642 I GDB server started on port 3334 (core 1) [gdbserver]
+0007560 I Client connected to port 3333! [gdbserver]
+```
+
+The `start-pname` indicates the processor that starts first and boots the system. A debug _launch_ command connects to this processor. Use a debug _attach_ command to connect to  processors that are running. The picture below highlights the parts of the user interface that interact with processors.
+
+1. Select a processor and **Start Debug**. This connects the debugger.
+2. **Select a Processor** in the debug toolbar, or
+3. Click in **CALL STACK** on a thread or function name to select a processor.
+4. The selected processor is also shown in the **CPU Time Status bar**. This processor context is used in the VARIABLES and WATCH view.
+
+![Multicore Debug](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/multicore.png)
+
+> 📝 **Notes:**
+>
+> - The SEGGER JLink GDB server uses a _launch_ command to connect to a running processor whereas other GDB servers use an _attach_ command.
+> - A [Disassembly View](#disassembly) opens only for a selected processor; otherwise the command is shown as disabled.
 
 ## Extension Functionality
 
