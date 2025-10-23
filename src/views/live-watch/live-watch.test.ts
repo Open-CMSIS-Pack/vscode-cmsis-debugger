@@ -1,5 +1,5 @@
 /**
-* Copyright 2025 Arm Limited
+ * Copyright 2025 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,16 +17,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as vscode from 'vscode';
 import { debugSessionFactory, extensionContextFactory } from '../../__test__/vscode.factory';
-//import { LiveWatchTreeDataProvider } from './live-watch';
+import { LiveWatchTreeDataProvider } from './live-watch';
 import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
 import { gdbTargetConfiguration } from '../../debug-configuration/debug-configuration.factory';
 import { GDBTargetConfiguration } from '../../debug-configuration';
 
 // Inline mock for registerTreeDataProvider specific to these tests
 const registerTreeDataProviderMock = jest.fn(() => ({ dispose: jest.fn() }));
-
-import { LiveWatchTreeDataProvider } from './live-watch';
-
 
 describe('LiveWatchTreeDataProvider', () => {
     let liveWatchTreeDataProvider: LiveWatchTreeDataProvider;
