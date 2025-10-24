@@ -8,6 +8,8 @@ in extension pack, which installs the mcu-debug [debug-tracker-vscode extension]
 as a dependency.
     - Use with [CDT GDB Adapter extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode)
 v2.4.1 or later to work best.
+- Updates included pyOCD distribution to v0.40.0
+    - ToDo: Add release notes.
 
 ## 1.1.0
 
