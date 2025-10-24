@@ -15,14 +15,20 @@
  */
 
 import * as vscode from 'vscode';
+import { DebugProtocol } from '@vscode/debugprotocol';
 import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
 
 interface LiveWatchNode {
   id: number;
   expression: string;
-  value: string;
   parent: LiveWatchNode | undefined; // if undefined, it's a root node
-  children?: LiveWatchNode[]; // keep for future grouping; flat list for now
+  children: LiveWatchNode[];
+  value: LiveWatchValue
+}
+
+export interface LiveWatchValue {
+    result: string;
+    variablesReference: number;
 }
 
 export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWatchNode> {
@@ -45,18 +51,37 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         }
     }
 
-    public getChildren(element?: LiveWatchNode): Promise<LiveWatchNode[]> {
+    public async getChildren(element?: LiveWatchNode): Promise<LiveWatchNode[]> {
         if (!element) {
             return Promise.resolve(this.roots);
         }
-        return Promise.resolve(element.children ?? []);
+        try {
+            const children = await this._activeSession?.session.customRequest('variables', { variablesReference: element.value.variablesReference });
+            const childNodes = children?.variables.map((child: DebugProtocol.Variable) => ({
+                id: this.nodeID++,
+                expression: child.name,
+                children: [],
+                parent: element,
+                value: {
+                    result: child.value,
+                    variablesReference: child.variablesReference
+                }
+            })) ?? [];
+
+            // We do not store children of nodes in the tree, as they are dynamic
+            return childNodes;
+        } catch (error) {
+            console.error('Error fetching children:', error);
+            return [];
+        }
     }
 
     public getTreeItem(element: LiveWatchNode): vscode.TreeItem {
-        const item = new vscode.TreeItem(element.expression + ' = ', vscode.TreeItemCollapsibleState.None);
-        item.description = element.value || '';
+        const item = new vscode.TreeItem(element.expression + ' = ');
+        item.description = element.value.result;
         item.contextValue = 'expression';
         item.tooltip = element.expression;
+        item.collapsibleState = element.value.variablesReference !== 0 ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None;
         return item;
     }
 
@@ -108,14 +133,15 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
 
     private addVSCodeCommands() {
         const registerLiveWatchView = vscode.window.registerTreeDataProvider('cmsis-debugger.liveWatch', this);
-        const addCommand = vscode.commands.registerCommand('cmsis-debugger.liveWatch.add', async () => await this.registerAddCommand());
-        const deleteAllCommand = vscode.commands.registerCommand('cmsis-debugger.liveWatch.deleteAll', async () => await this.registerDeleteAllCommand());
-        const deleteCommand = vscode.commands.registerCommand('cmsis-debugger.liveWatch.delete', async (node) => await this.registerDeleteCommand(node));
-        const refreshCommand = vscode.commands.registerCommand('cmsis-debugger.liveWatch.refresh', async () => await this.refresh());
-        const modifyCommand = vscode.commands.registerCommand('cmsis-debugger.liveWatch.modify', async (node) => await this.registerRenameCommand(node));
+        const addCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.add', async () => await this.registerAddCommand());
+        const deleteAllCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.deleteAll', async () => await this.registerDeleteAllCommand());
+        const deleteCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.delete', async (node) => await this.registerDeleteCommand(node));
+        const refreshCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.refresh', async () => await this.refresh());
+        const modifyCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.modify', async (node) => await this.registerRenameCommand(node));
+        const copyCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.copy', async (node) => { await this.registerCopyCommand(node); });
         this._context.subscriptions.push(registerLiveWatchView,
             addCommand,
-            deleteAllCommand, deleteCommand, refreshCommand, modifyCommand);
+            deleteAllCommand, deleteCommand, refreshCommand, modifyCommand, copyCommand);
     }
 
     private async registerAddCommand() {
@@ -123,7 +149,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         if (!expression) {
             return;
         }
-        await this.add(expression);
+        await this.addToRoots(expression);
     }
 
     private async registerDeleteAllCommand() {
@@ -148,22 +174,39 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         await this.rename(node, expression);
     }
 
-    private async evaluate(expression: string): Promise<string> {
-        if (!this._activeSession) {
-            return 'No active session';
+    private async registerCopyCommand(node: LiveWatchNode) {
+        if(!node) {
+            return;
         }
-        const result = await this._activeSession.evaluateGlobalExpression(expression, 'watch');
-        return result;
+        await vscode.env.clipboard.writeText(node.expression);
     }
 
-    private async add(expression: string, parent?: LiveWatchNode) {
+    private async evaluate(expression: string): Promise<LiveWatchValue> {
+        const response: LiveWatchValue = { result: '', variablesReference: 0 };
+        if (!this._activeSession) {
+            response.result = 'No active session';
+            return response;
+        }
+        const result = await this._activeSession.evaluateGlobalExpression(expression, 'watch');
+        if (typeof result == 'string') {
+            response.result = result;
+            return response;
+        }
+        response.result = result.result;
+        response.variablesReference = result.variablesReference;
+        return response;
+    }
+
+    private async addToRoots(expression: string, parent?: LiveWatchNode) {
         // Create a new node with a unique ID and evaluate its value
         const newNode: LiveWatchNode = {
-            id: ++this.nodeID,
+            id: this.nodeID++,
+            children: [],
             expression,
-            value : await this.evaluate(expression),
-            parent: parent ?? undefined
+            parent: parent ?? undefined,
+            value: await this.evaluate(expression)
         };
+
         if (!parent) {
             this.roots.push(newNode);
         } else {
@@ -176,6 +219,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         // Clear all nodes by resetting the roots array
         this.roots = [];
         await this.refresh();
+        await this.context.workspaceState.update(this.STORAGE_KEY, undefined);
     }
 
     private async delete(node: LiveWatchNode) {
@@ -196,8 +240,8 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             this._onDidChangeTreeData.fire(node);
             return;
         }
-        for (const n of this.roots) {
-            n.value = await this.evaluate(n.expression);
+        for (const node of this.roots) {
+            node.value = await this.evaluate(node.expression);
         }
         this._onDidChangeTreeData.fire();
     }
@@ -206,3 +250,4 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         await this.context.workspaceState.update(this.STORAGE_KEY, this.roots);
     }
 }
+

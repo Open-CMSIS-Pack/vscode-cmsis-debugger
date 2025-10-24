@@ -51,8 +51,8 @@
       "activitybar": [
         {
           "id": "cmsis-debugger",
-          "title": "CMSIS Debug",
-          "icon": "$(rocket)"
+          "title": "Trace and Live View",
+          "icon": "media/trace-and-live-dark.svg"
         }
       ]
     },
@@ -60,7 +60,8 @@
       "cmsis-debugger": [
         {
           "id": "cmsis-debugger.liveWatch",
-          "name": "Live Watch"
+          "name": "Live Watch",
+          "icon": "media/trace-and-live-light.svg"
         }
       ]
     },
@@ -80,29 +81,39 @@
         "when": "inDebugMode"
       },
       {
-        "command": "cmsis-debugger.liveWatch.add",
+        "command": "vscode-cmsis-debugger.liveWatch.add",
         "title": "Add Expression",
-        "icon": "$(add)"
+        "icon": "$(add)",
+        "category": "Live Watch"
       },
       {
-        "command": "cmsis-debugger.liveWatch.deleteAll",
+        "command": "vscode-cmsis-debugger.liveWatch.deleteAll",
         "title": "Delete All Expressions",
-        "icon": "$(close-all)"
+        "icon": "$(close-all)",
+        "category": "Live Watch"
       },
       {
-        "command": "cmsis-debugger.liveWatch.delete",
+        "command": "vscode-cmsis-debugger.liveWatch.delete",
         "title": "Delete Expression",
-        "icon": "$(close)"
+        "icon": "$(close)",
+        "category": "Live Watch"
       },
       {
-        "command": "cmsis-debugger.liveWatch.refresh",
+        "command": "vscode-cmsis-debugger.liveWatch.refresh",
         "title": "Refresh",
-        "icon": "$(refresh)"
+        "icon": "$(refresh)",
+        "category": "Live Watch"
       },
       {
-        "command": "cmsis-debugger.liveWatch.modify",
+        "command": "vscode-cmsis-debugger.liveWatch.modify",
         "title": "Modify Expression",
-        "icon": "$(pencil)"
+        "icon": "$(pencil)",
+        "category": "Live Watch"
+      },
+      {
+        "command": "vscode-cmsis-debugger.liveWatch.copy",
+        "title": "Copy Expression",
+        "category": "Live Watch"
       }
     ],
     "menus": {
@@ -114,35 +125,101 @@
         {
           "command": "vscode-cmsis-debugger.resetCpuTimeHistory",
           "when": "inDebugMode"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.add",
+          "when": "true"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.deleteAll",
+          "when": "true"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.refresh",
+          "when": "inDebugMode"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.modify",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.delete",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.copy",
+          "when": "false"
         }
       ],
       "view/title": [
         {
-          "command": "cmsis-debugger.liveWatch.add",
+          "command": "vscode-cmsis-debugger.liveWatch.add",
+          "when": "view == cmsis-debugger.liveWatch"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.deleteAll",
+          "when": "view == cmsis-debugger.liveWatch"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.refresh",
+          "when": "view == cmsis-debugger.liveWatch"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.add",
           "when": "view == cmsis-debugger.liveWatch",
           "group": "navigation@1"
         },
         {
-          "command": "cmsis-debugger.liveWatch.deleteAll",
+          "command": "vscode-cmsis-debugger.liveWatch.deleteAll",
           "when": "view == cmsis-debugger.liveWatch",
           "group": "navigation@3"
         },
         {
-          "command": "cmsis-debugger.liveWatch.refresh",
+          "command": "vscode-cmsis-debugger.liveWatch.refresh",
           "when": "view == cmsis-debugger.liveWatch",
           "group": "navigation@2"
         }
       ],
       "view/item/context": [
         {
-          "command": "cmsis-debugger.liveWatch.modify",
+          "command": "vscode-cmsis-debugger.liveWatch.modify",
           "when": "view == cmsis-debugger.liveWatch && viewItem == expression",
           "group": "inline@1"
         },
         {
-          "command": "cmsis-debugger.liveWatch.delete",
+          "command": "vscode-cmsis-debugger.liveWatch.delete",
           "when": "view == cmsis-debugger.liveWatch && viewItem == expression",
           "group": "inline@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.modify",
+          "when": "view == cmsis-debugger.liveWatch && viewItem == expression",
+          "group": "contextMenuG1@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.delete",
+          "when": "view == cmsis-debugger.liveWatch && viewItem == expression",
+          "group": "contextMenuG1@4"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.add",
+          "when": "view == cmsis-debugger.liveWatch",
+          "group": "contextMenuG1@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.deleteAll",
+          "when": "view == cmsis-debugger.liveWatch",
+          "group": "contextMenuG2@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.refresh",
+          "when": "view == cmsis-debugger.liveWatch",
+          "group": "contextMenuG2@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.copy",
+          "when": "view == cmsis-debugger.liveWatch && viewItem == expression",
+          "group": "contextMenuG1@3"
         }
       ]
     },

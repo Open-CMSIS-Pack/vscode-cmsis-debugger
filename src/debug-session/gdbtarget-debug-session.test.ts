@@ -59,18 +59,18 @@ describe('GDBTargetDebugSession', () => {
 
     it('evaluates a global expression without active stack frame and returns a value', async () => {
         // Only mock relevant properties, return value is body of EvaluateResponse
-        (debugSession.customRequest as jest.Mock).mockReturnValueOnce({ result: '1234567' });
+        (debugSession.customRequest as jest.Mock).mockReturnValueOnce({ result: '1234567', variableReference: 0 });
         const result = await gdbTargetSession.evaluateGlobalExpression('myGlobalVariable');
-        expect(result).toEqual('1234567');
+        expect(result).toEqual({ result: '1234567', variableReference: 0 });
         expect(debugSession.customRequest as jest.Mock).toHaveBeenCalledWith('evaluate', { expression: 'myGlobalVariable', frameId: 0, context: 'hover' });
     });
 
     it('evaluates a global expression with active stack frame and returns a value', async () => {
         // Only mock relevant properties, return value is body of EvaluateResponse
-        (debugSession.customRequest as jest.Mock).mockReturnValueOnce({ result: '1234567' });
+        (debugSession.customRequest as jest.Mock).mockReturnValueOnce({ result: '1234567', variableReference: 0 });
         (vscode.debug.activeStackItem as unknown) = { session: debugSession, threadId: 1, frameId: 2 };
         const result = await gdbTargetSession.evaluateGlobalExpression('myGlobalVariable');
-        expect(result).toEqual('1234567');
+        expect(result).toEqual({ result: '1234567', variableReference: 0 });
         expect(debugSession.customRequest as jest.Mock).toHaveBeenCalledWith('evaluate', { expression: 'myGlobalVariable', frameId: 2, context: 'hover' });
         // restore default
         (vscode.debug.activeStackItem as unknown) = undefined;

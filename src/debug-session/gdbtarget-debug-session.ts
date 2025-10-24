@@ -54,7 +54,8 @@ export class GDBTargetDebugSession {
         this._cbuildRunParsePromise = undefined;
     }
 
-    public async evaluateGlobalExpression(expression: string, context = 'hover'): Promise<string> {
+    /** Function returns string only in case of failure */
+    public async evaluateGlobalExpression(expression: string, context = 'hover'): Promise<DebugProtocol.EvaluateResponse['body'] | string> {
         try {
             const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
             const args: DebugProtocol.EvaluateArguments = {
@@ -63,7 +64,7 @@ export class GDBTargetDebugSession {
                 context: context
             };
             const response = await this.session.customRequest('evaluate', args) as DebugProtocol.EvaluateResponse['body'];
-            return response.result;
+            return response;
         } catch (error: unknown) {
             const errorMessage = (error as Error)?.message;
             logger.debug(`Session '${this.session.name}': Failed to evaluate global expression '${expression}' - '${errorMessage}'`);
