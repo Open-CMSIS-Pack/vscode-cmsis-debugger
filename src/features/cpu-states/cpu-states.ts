@@ -215,7 +215,10 @@ export class CpuStates {
 
     protected async getFrequency(): Promise<number|undefined> {
         const result = await this.activeSession?.evaluateGlobalExpression('SystemCoreClock');
-        const frequencyString = result?.match(/\d+/) ? result : undefined;
+        if (typeof result == 'string') {
+            return undefined;
+        }
+        const frequencyString = result?.result.match(/\d+/) ? result.result : undefined;
         if (!frequencyString) {
             return undefined;
         }
