@@ -243,11 +243,11 @@ describe('LiveWatchTreeDataProvider', () => {
             liveWatchTreeDataProvider.activate(tracker);
             const calls = (vscode.commands.registerCommand as jest.Mock).mock.calls.map(call => call[0]);
             expect(calls).toEqual(expect.arrayContaining([
-                'cmsis-debugger.liveWatch.add',
-                'cmsis-debugger.liveWatch.deleteAll',
-                'cmsis-debugger.liveWatch.delete',
-                'cmsis-debugger.liveWatch.refresh',
-                'cmsis-debugger.liveWatch.modify'
+                'vscode-cmsis-debugger.liveWatch.add',
+                'vscode-cmsis-debugger.liveWatch.deleteAll',
+                'vscode-cmsis-debugger.liveWatch.delete',
+                'vscode-cmsis-debugger.liveWatch.refresh',
+                'vscode-cmsis-debugger.liveWatch.modify'
             ]));
         });
 
@@ -255,7 +255,7 @@ describe('LiveWatchTreeDataProvider', () => {
             (vscode.window as any).showInputBox = jest.fn().mockResolvedValue('expression');
             const evaluateSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'evaluate').mockResolvedValue('someValue');
             liveWatchTreeDataProvider.activate(tracker);
-            const handler = getRegisteredHandler('cmsis-debugger.liveWatch.add');
+            const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.add');
             expect(handler).toBeDefined();
             await handler();
             const roots = (liveWatchTreeDataProvider as any).roots;
@@ -267,7 +267,7 @@ describe('LiveWatchTreeDataProvider', () => {
         it('add command does nothing when expression undefined', async () => {
             (vscode.window as any).showInputBox = jest.fn().mockResolvedValue(undefined);
             liveWatchTreeDataProvider.activate(tracker);
-            const handler = getRegisteredHandler('cmsis-debugger.liveWatch.add');
+            const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.add');
             await handler();
             expect((liveWatchTreeDataProvider as any).roots.length).toBe(0);
         });
@@ -276,7 +276,7 @@ describe('LiveWatchTreeDataProvider', () => {
             (liveWatchTreeDataProvider as any).roots = [makeNode('nodeA', { result: '1', variablesReference: 0 }, 1), makeNode('nodeB', { result: '2', variablesReference: 0 }, 2)];
             const clearSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'clear');
             liveWatchTreeDataProvider.activate(tracker);
-            const handler = getRegisteredHandler('cmsis-debugger.liveWatch.deleteAll');
+            const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.deleteAll');
             await handler();
             expect(clearSpy).toHaveBeenCalled();
             expect((liveWatchTreeDataProvider as any).roots.length).toBe(0);
@@ -286,7 +286,7 @@ describe('LiveWatchTreeDataProvider', () => {
             (liveWatchTreeDataProvider as any).roots = [makeNode('nodeA', { result: '1', variablesReference: 0 }, 1), makeNode('nodeB', { result: '2', variablesReference: 0 }, 2)];
             const deleteSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'delete');
             liveWatchTreeDataProvider.activate(tracker);
-            const handler = getRegisteredHandler('cmsis-debugger.liveWatch.delete');
+            const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.delete');
             const target = (liveWatchTreeDataProvider as any).roots[0];
             await handler(target);
             expect(deleteSpy).toHaveBeenCalledWith(target);
@@ -299,7 +299,7 @@ describe('LiveWatchTreeDataProvider', () => {
             (vscode.window as any).showInputBox = jest.fn().mockResolvedValue('newExpression');
             const renameSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'rename');
             liveWatchTreeDataProvider.activate(tracker);
-            const handler = getRegisteredHandler('cmsis-debugger.liveWatch.modify');
+            const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.modify');
             await handler(node);
             expect(renameSpy).toHaveBeenCalledWith(node,'newExpression');
             expect(node.expression).toBe('newExpression');
@@ -311,7 +311,7 @@ describe('LiveWatchTreeDataProvider', () => {
             (vscode.window as any).showInputBox = jest.fn().mockResolvedValue(undefined);
             const renameSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'rename');
             liveWatchTreeDataProvider.activate(tracker);
-            const handler = getRegisteredHandler('cmsis-debugger.liveWatch.modify');
+            const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.modify');
             await handler(node);
             expect(renameSpy).not.toHaveBeenCalled();
             expect(node.expression).toBe('oldExpression');
@@ -320,7 +320,7 @@ describe('LiveWatchTreeDataProvider', () => {
         it('refresh command triggers provider.refresh()', async () => {
             const refreshSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'refresh').mockResolvedValue(undefined);
             liveWatchTreeDataProvider.activate(tracker);
-            const handler = getRegisteredHandler('cmsis-debugger.liveWatch.refresh');
+            const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.refresh');
             await handler();
             expect(refreshSpy).toHaveBeenCalled();
         });
