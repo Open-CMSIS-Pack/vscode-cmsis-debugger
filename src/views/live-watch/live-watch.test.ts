@@ -22,8 +22,6 @@ import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-sessio
 import { gdbTargetConfiguration } from '../../debug-configuration/debug-configuration.factory';
 import { GDBTargetConfiguration } from '../../debug-configuration';
 
-// Inline mock for registerTreeDataProvider specific to these tests
-const registerTreeDataProviderMock = jest.fn(() => ({ dispose: jest.fn() }));
 
 describe('LiveWatchTreeDataProvider', () => {
     let liveWatchTreeDataProvider: LiveWatchTreeDataProvider;
@@ -50,19 +48,15 @@ describe('LiveWatchTreeDataProvider', () => {
 
     describe('session management and connection tests', () => {
         it('should activate the live watch tree data provider', () => {
-            (vscode.window).registerTreeDataProvider = registerTreeDataProviderMock;
             liveWatchTreeDataProvider.activate(tracker);
         });
 
         it('registers the live watch tree data provider', async () => {
-            (vscode.window).registerTreeDataProvider = registerTreeDataProviderMock;
-            registerTreeDataProviderMock.mockClear();
             liveWatchTreeDataProvider.activate(tracker);
-            expect(registerTreeDataProviderMock).toHaveBeenCalledWith('cmsis-debugger.liveWatch', liveWatchTreeDataProvider);
+            expect(vscode.window.registerTreeDataProvider).toHaveBeenCalledWith('cmsis-debugger.liveWatch', liveWatchTreeDataProvider);
         });
 
         it('manages session lifecycles correctly', async () => {
-            (vscode.window).registerTreeDataProvider = registerTreeDataProviderMock;
             liveWatchTreeDataProvider.activate(tracker);
             // No active session yet
             expect((liveWatchTreeDataProvider as any).activeSession).toBeUndefined();
@@ -221,7 +215,6 @@ describe('LiveWatchTreeDataProvider', () => {
     describe('command registration', () => {
         beforeEach(() => {
             (vscode.commands as any).registerCommand?.mockClear?.();
-            (vscode.window as any).registerTreeDataProvider = registerTreeDataProviderMock;
         });
 
         function getRegisteredHandler(commandId: string) {

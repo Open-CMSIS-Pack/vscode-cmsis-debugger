@@ -36,6 +36,8 @@ const MockTreeItemCollapsibleState = {
     Expanded: 2 
 };
 
+const registerTreeDataProviderMock = jest.fn(() => ({ dispose: jest.fn() }));
+
 class MockTreeItem {
     label;
     description;
@@ -71,6 +73,7 @@ module.exports = {
             warn: jest.fn(),
             error: jest.fn(),
         })),
+        registerTreeDataProvider: registerTreeDataProviderMock,
         showWarningMessage: jest.fn(),
         createStatusBarItem: jest.fn(),
         showQuickPick: jest.fn(),
