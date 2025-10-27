@@ -60,7 +60,8 @@
       "cmsis-debugger": [
         {
           "id": "cmsis-debugger.liveWatch",
-          "name": "Live Watch"
+          "name": "Live Watch",
+          "icon": "images/live-watch-dark.svg"
         }
       ]
     },
