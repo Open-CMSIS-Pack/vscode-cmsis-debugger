@@ -52,7 +52,7 @@
         {
           "id": "cmsis-debugger",
           "title": "CMSIS Debug",
-          "icon": "$(rocket)"
+          "icon": {"light": "images/trace-and-live-light.svg", "dark": "images/trace-and-live-dark.svg"}
         }
       ]
     },

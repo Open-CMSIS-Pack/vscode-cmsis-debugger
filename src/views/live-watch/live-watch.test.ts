@@ -17,7 +17,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as vscode from 'vscode';
 import { debugSessionFactory, extensionContextFactory } from '../../__test__/vscode.factory';
-import { LiveWatchTreeDataProvider } from './live-watch';
+import { EvaluateNodeResponse, LiveWatchTreeDataProvider } from './live-watch';
 import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
 import { gdbTargetConfiguration } from '../../debug-configuration/debug-configuration.factory';
 import { GDBTargetConfiguration } from '../../debug-configuration';
@@ -33,8 +33,8 @@ describe('LiveWatchTreeDataProvider', () => {
     let debugConfig: GDBTargetConfiguration;
 
     // Helper: create a dummy node
-    function makeNode(expression = 'x', value = '1', id = 1) {
-        return { id, expression, value, parent: undefined };
+    function makeNode(expression = 'x', value: EvaluateNodeResponse = { result: '1', variablesReference: 0 }, id = 1) {
+        return { id, expression, value, parent: undefined, children: [] };
     }
 
     beforeEach(() => {
@@ -129,7 +129,7 @@ describe('LiveWatchTreeDataProvider', () => {
 
     describe('tree data methods', () => {
         it('getChildren returns roots when no element is passed', async () => {
-            (liveWatchTreeDataProvider as any).roots = [makeNode('node-1', '1', 1), makeNode('node-2', '2', 2)];
+            (liveWatchTreeDataProvider as any).roots = [makeNode('node-1', { result: '1', variablesReference: 0 }, 1), makeNode('node-2', { result: '2', variablesReference: 0 }, 2)];
             const children = await liveWatchTreeDataProvider.getChildren();
             expect(children.length).toBe(2);
             expect(children[0].expression).toBe('node-1');
@@ -137,16 +137,31 @@ describe('LiveWatchTreeDataProvider', () => {
         });
 
         it('getChildren returns children of element', async () => {
-            const childNode = makeNode('childNode', '2', 2);
-            const parent = { ...makeNode('parentNode', '1', 1), children: [childNode] };
+            const parent = makeNode('parentNode', { result: '1', variablesReference: 123 }, 1);
             (liveWatchTreeDataProvider as any).roots = [parent];
+            // Mock active session with customRequest returning one variable
+            (liveWatchTreeDataProvider as any)._activeSession = {
+                session: {
+                    customRequest: jest.fn().mockResolvedValue({
+                        variables: [
+                            { name: 'childNode', value: '2', variablesReference: 0 }
+                        ]
+                    })
+                },
+                evaluateGlobalExpression: jest.fn()
+            };
             const children = await liveWatchTreeDataProvider.getChildren(parent);
+            expect((liveWatchTreeDataProvider as any)._activeSession.session.customRequest).toHaveBeenCalledWith('variables', { variablesReference: parent.value.variablesReference });
             expect(children.length).toBe(1);
             expect(children[0].expression).toBe('childNode');
+            expect(children[0].value.result).toBe('2');
+            expect(children[0].value.variablesReference).toBe(0);
+            // Ensure dynamic children not persisted on parent
+            expect(parent.children.length).toBe(0);
         });
 
         it('getTreeItem returns correct TreeItem', () => {
-            const node = makeNode('expression', 'value', 1);
+            const node = makeNode('expression', { result: 'value', variablesReference: 1 }, 1);
             const item = liveWatchTreeDataProvider.getTreeItem(node);
             expect(item.label).toBe('expression = ');
             expect(item.description).toBe('value');
@@ -156,28 +171,29 @@ describe('LiveWatchTreeDataProvider', () => {
 
     describe('node management', () => {
         it('add creates a new root node', async () => {
-            jest.spyOn(liveWatchTreeDataProvider as any, 'evaluate').mockResolvedValue('1234');
-            await (liveWatchTreeDataProvider as any).add('expression');
+            jest.spyOn(liveWatchTreeDataProvider as any, 'evaluate').mockResolvedValue({ result: '1234', variablesReference: 0 });
+            // adapt method name addToRoots (changed implementation)
+            await (liveWatchTreeDataProvider as any).addToRoots('expression');
             expect((liveWatchTreeDataProvider as any).roots.length).toBe(1);
             expect((liveWatchTreeDataProvider as any).roots[0].expression).toBe('expression');
-            expect((liveWatchTreeDataProvider as any).roots[0].value).toBe('1234');
+            expect((liveWatchTreeDataProvider as any).roots[0].value.result).toBe('1234');
         });
 
         it('clear removes all nodes', async () => {
-            (liveWatchTreeDataProvider as any).roots = [makeNode('expression', '1', 1)];
+            (liveWatchTreeDataProvider as any).roots = [makeNode('expression', { result: '1', variablesReference: 0 })];
             await (liveWatchTreeDataProvider as any).clear();
             expect((liveWatchTreeDataProvider as any).roots.length).toBe(0);
         });
 
         it('delete removes a node by id', async () => {
-            (liveWatchTreeDataProvider as any).roots = [makeNode('node-1', '1', 1), makeNode('node-2', '2', 2)];
+            (liveWatchTreeDataProvider as any).roots = [makeNode('node-1', { result: '1', variablesReference: 0 }, 1), makeNode('node-2', { result: '2', variablesReference: 0 }, 2)];
             await (liveWatchTreeDataProvider as any).delete({ id: 1 });
             expect((liveWatchTreeDataProvider as any).roots.length).toBe(1);
             expect((liveWatchTreeDataProvider as any).roots[0].id).toBe(2);
         });
 
         it('rename updates node expression', async () => {
-            const node = makeNode('node-1', '1', 1);
+            const node = makeNode('node-1', { result: '1', variablesReference: 0 }, 1);
             (liveWatchTreeDataProvider as any).roots = [node];
             await (liveWatchTreeDataProvider as any).rename(node, 'node-1-renamed');
             expect(node.expression).toBe('node-1-renamed');
@@ -186,19 +202,19 @@ describe('LiveWatchTreeDataProvider', () => {
 
     describe('refresh', () => {
         it('refresh updates all root node values', async () => {
-            const node = makeNode('expression', 'old-value', 1);
+            const node = makeNode('expression', { result: 'old-value', variablesReference: 1 }, 1);
             (liveWatchTreeDataProvider as any).roots = [node];
-            jest.spyOn(liveWatchTreeDataProvider as any, 'evaluate').mockResolvedValue('new-value');
+            jest.spyOn(liveWatchTreeDataProvider as any, 'evaluate').mockResolvedValue({ result: 'new-value', variablesReference: 0 });
             await (liveWatchTreeDataProvider as any).refresh();
-            expect(node.value).toBe('new-value');
+            expect(node.value.result).toBe('new-value');
         });
 
         it('refresh(node) updates only that node', async () => {
-            const node = makeNode('expression', 'old-value', 1);
+            const node = makeNode('expression', { result: 'old-value', variablesReference: 1 }, 1);
             (liveWatchTreeDataProvider as any).roots = [node];
-            jest.spyOn(liveWatchTreeDataProvider as any, 'evaluate').mockResolvedValue('new-value');
+            jest.spyOn(liveWatchTreeDataProvider as any, 'evaluate').mockResolvedValue({ result: 'new-value', variablesReference: 0 });
             await (liveWatchTreeDataProvider as any).refresh(node);
-            expect(node.value).toBe('new-value');
+            expect(node.value.result).toBe('new-value');
         });
     });
 
@@ -248,7 +264,7 @@ describe('LiveWatchTreeDataProvider', () => {
         });
 
         it('deleteAll command clears roots', async () => {
-            (liveWatchTreeDataProvider as any).roots = [makeNode('nodeA','1',1), makeNode('nodeB','2',2)];
+            (liveWatchTreeDataProvider as any).roots = [makeNode('nodeA', { result: '1', variablesReference: 0 }, 1), makeNode('nodeB', { result: '2', variablesReference: 0 }, 2)];
             const clearSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'clear');
             liveWatchTreeDataProvider.activate(tracker);
             const handler = getRegisteredHandler('cmsis-debugger.liveWatch.deleteAll');
@@ -258,7 +274,7 @@ describe('LiveWatchTreeDataProvider', () => {
         });
 
         it('delete command removes provided node', async () => {
-            (liveWatchTreeDataProvider as any).roots = [makeNode('nodeA','1',1), makeNode('nodeB','2',2)];
+            (liveWatchTreeDataProvider as any).roots = [makeNode('nodeA', { result: '1', variablesReference: 0 }, 1), makeNode('nodeB', { result: '2', variablesReference: 0 }, 2)];
             const deleteSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'delete');
             liveWatchTreeDataProvider.activate(tracker);
             const handler = getRegisteredHandler('cmsis-debugger.liveWatch.delete');
@@ -269,7 +285,7 @@ describe('LiveWatchTreeDataProvider', () => {
         });
 
         it('modify command renames a node when expression provided', async () => {
-            const node = makeNode('oldExpression','1',1);
+            const node = makeNode('oldExpression',{ result: '1', variablesReference: 0 },1);
             (liveWatchTreeDataProvider as any).roots = [node];
             (vscode.window as any).showInputBox = jest.fn().mockResolvedValue('newExpression');
             const renameSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'rename');
@@ -281,7 +297,7 @@ describe('LiveWatchTreeDataProvider', () => {
         });
 
         it('modify command does nothing when expression undefined', async () => {
-            const node = makeNode('oldExpression','1',1);
+            const node = makeNode('oldExpression', { result: '1', variablesReference: 0 }, 1);
             (liveWatchTreeDataProvider as any).roots = [node];
             (vscode.window as any).showInputBox = jest.fn().mockResolvedValue(undefined);
             const renameSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'rename');

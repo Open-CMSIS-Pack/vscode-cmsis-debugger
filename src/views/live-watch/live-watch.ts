@@ -25,7 +25,7 @@ interface LiveWatchNode {
   value: EvaluateNodeResponse
 }
 
-interface EvaluateNodeResponse {
+export interface EvaluateNodeResponse {
     result: string;
     variablesReference: number;
 }
