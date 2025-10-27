@@ -15,17 +15,18 @@
  */
 
 import * as vscode from 'vscode';
+import { DebugProtocol } from '@vscode/debugprotocol';
 import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
 
 interface LiveWatchNode {
   id: number;
   expression: string;
   parent: LiveWatchNode | undefined; // if undefined, it's a root node
-  children: LiveWatchNode[]; // keep for future grouping; flat list for now
-  value: EvaluateNodeResponse
+  children: LiveWatchNode[];
+  value: LiveWatchValue
 }
 
-export interface EvaluateNodeResponse {
+export interface LiveWatchValue {
     result: string;
     variablesReference: number;
 }
@@ -56,31 +57,28 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         }
         try {
             const children = await this._activeSession?.session.customRequest('variables', { variablesReference: element.value.variablesReference });
-            const childNodes: LiveWatchNode[] = [];
-            for(const child of children?.variables || []) {
-                const childNode: LiveWatchNode = {
-                    id: this.nodeID++,
-                    expression: child.name,
-                    children: [],
-                    parent: element,
-                    value: {
-                        result: child.value,
-                        variablesReference: child.variablesReference
-                    }
-                };
-                childNodes.push(childNode);
-            }
+            const childNodes = children?.variables.map((child: DebugProtocol.Variable) => ({
+                id: this.nodeID++,
+                expression: child.name,
+                children: [],
+                parent: element,
+                value: {
+                    result: child.value,
+                    variablesReference: child.variablesReference
+                }
+            })) ?? [];
+
             // We do not store children of nodes in the tree, as they are dynamic
-            return Promise.resolve(childNodes);
+            return childNodes;
         } catch (error) {
             console.error('Error fetching children:', error);
-            return Promise.resolve([]);
+            return [];
         }
     }
 
     public getTreeItem(element: LiveWatchNode): vscode.TreeItem {
         const item = new vscode.TreeItem(element.expression + ' = ');
-        item.description = element.value.result || '';
+        item.description = element.value.result;
         item.contextValue = 'expression';
         item.tooltip = element.expression;
         item.collapsibleState = element.value.variablesReference !== 0 ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None;
@@ -175,8 +173,8 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         await this.rename(node, expression);
     }
 
-    private async evaluate(expression: string): Promise<EvaluateNodeResponse> {
-        const response: EvaluateNodeResponse = { result: '', variablesReference: 0 };
+    private async evaluate(expression: string): Promise<LiveWatchValue> {
+        const response: LiveWatchValue = { result: '', variablesReference: 0 };
         if (!this._activeSession) {
             response.result = 'No active session';
             return response;

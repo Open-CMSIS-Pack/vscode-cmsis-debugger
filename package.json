@@ -51,7 +51,7 @@
       "activitybar": [
         {
           "id": "cmsis-debugger",
-          "title": "CMSIS Debug",
+          "title": "Trace and Live View",
           "icon": "images/trace-and-live-dark.svg"
         }
       ]

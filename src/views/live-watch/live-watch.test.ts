@@ -17,7 +17,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as vscode from 'vscode';
 import { debugSessionFactory, extensionContextFactory } from '../../__test__/vscode.factory';
-import { EvaluateNodeResponse, LiveWatchTreeDataProvider } from './live-watch';
+import { LiveWatchValue, LiveWatchTreeDataProvider } from './live-watch';
 import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
 import { gdbTargetConfiguration } from '../../debug-configuration/debug-configuration.factory';
 import { GDBTargetConfiguration } from '../../debug-configuration';
@@ -31,7 +31,7 @@ describe('LiveWatchTreeDataProvider', () => {
     let debugConfig: GDBTargetConfiguration;
 
     // Helper: create a dummy node
-    function makeNode(expression = 'x', value: EvaluateNodeResponse = { result: '1', variablesReference: 0 }, id = 1) {
+    function makeNode(expression = 'x', value: LiveWatchValue = { result: '1', variablesReference: 0 }, id = 1) {
         return { id, expression, value, parent: undefined, children: [] };
     }
 

@@ -54,6 +54,7 @@ export class GDBTargetDebugSession {
         this._cbuildRunParsePromise = undefined;
     }
 
+    /** Function returns string only in case of failure */
     public async evaluateGlobalExpression(expression: string, context = 'hover'): Promise<DebugProtocol.EvaluateResponse['body'] | string> {
         try {
             const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
