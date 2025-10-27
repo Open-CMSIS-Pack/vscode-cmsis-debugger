@@ -52,7 +52,7 @@
         {
           "id": "cmsis-debugger",
           "title": "Trace and Live View",
-          "icon": "images/trace-and-live-dark.svg"
+          "icon": "media/trace-and-live-dark.svg"
         }
       ]
     },
@@ -61,7 +61,7 @@
         {
           "id": "cmsis-debugger.liveWatch",
           "name": "Live Watch",
-          "icon": "images/live-watch-dark.svg"
+          "icon": "media/trace-and-live-light.svg"
         }
       ]
     },
