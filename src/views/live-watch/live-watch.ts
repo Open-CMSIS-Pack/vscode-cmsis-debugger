@@ -133,11 +133,11 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
 
     private addVSCodeCommands() {
         const registerLiveWatchView = vscode.window.registerTreeDataProvider('cmsis-debugger.liveWatch', this);
-        const addCommand = vscode.commands.registerCommand('cmsis-debugger.liveWatch.add', async () => await this.registerAddCommand());
-        const deleteAllCommand = vscode.commands.registerCommand('cmsis-debugger.liveWatch.deleteAll', async () => await this.registerDeleteAllCommand());
-        const deleteCommand = vscode.commands.registerCommand('cmsis-debugger.liveWatch.delete', async (node) => await this.registerDeleteCommand(node));
-        const refreshCommand = vscode.commands.registerCommand('cmsis-debugger.liveWatch.refresh', async () => await this.refresh());
-        const modifyCommand = vscode.commands.registerCommand('cmsis-debugger.liveWatch.modify', async (node) => await this.registerRenameCommand(node));
+        const addCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.add', async () => await this.registerAddCommand());
+        const deleteAllCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.deleteAll', async () => await this.registerDeleteAllCommand());
+        const deleteCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.delete', async (node) => await this.registerDeleteCommand(node));
+        const refreshCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.refresh', async () => await this.refresh());
+        const modifyCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.modify', async (node) => await this.registerRenameCommand(node));
         this._context.subscriptions.push(registerLiveWatchView,
             addCommand,
             deleteAllCommand, deleteCommand, refreshCommand, modifyCommand);
