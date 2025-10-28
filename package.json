@@ -117,17 +117,17 @@
       },
       {
         "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromTextEditor",
-        "title": "Add To Live Watch",
+        "title": "Add to Live Watch",
         "category": "Live Watch"
       },
       {
         "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromWatchWindow",
-        "title": "Add To Live Watch",
+        "title": "Add to Live Watch",
         "category": "Live Watch"
       },
       {
         "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromVariablesView",
-        "title": "Add To Live Watch",
+        "title": "Add to Live Watch",
         "category": "Live Watch"
       }
     ],
