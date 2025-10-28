@@ -199,6 +199,20 @@ describe('LiveWatchTreeDataProvider', () => {
             await (liveWatchTreeDataProvider as any).registerCopyCommand(node);
             expect(vscode.env.clipboard.writeText).toHaveBeenCalledWith('node-to-copy');
         });
+
+        it('AddFromSelection adds selected text as new live watch expression to roots', async () => {
+            (vscode.window as any).activeTextEditor = {
+                document: {
+                    getText: jest.fn().mockReturnValue('selected-expression')
+                },
+                selection: {} // dummy selection
+            };
+            jest.spyOn(liveWatchTreeDataProvider as any, 'evaluate').mockResolvedValue({ result: '5678', variablesReference: 0 });
+            await (liveWatchTreeDataProvider as any).registerAddFromSelectionCommand();
+            expect((liveWatchTreeDataProvider as any).roots.length).toBe(1);
+            expect((liveWatchTreeDataProvider as any).roots[0].expression).toBe('selected-expression');
+            expect((liveWatchTreeDataProvider as any).roots[0].value.result).toBe('5678');
+        });
     });
 
     describe('refresh', () => {
@@ -255,7 +269,8 @@ describe('LiveWatchTreeDataProvider', () => {
                 'vscode-cmsis-debugger.liveWatch.delete',
                 'vscode-cmsis-debugger.liveWatch.refresh',
                 'vscode-cmsis-debugger.liveWatch.modify',
-                'vscode-cmsis-debugger.liveWatch.copy'
+                'vscode-cmsis-debugger.liveWatch.copy',
+                'vscode-cmsis-debugger.liveWatch.addToLiveWatch'
             ]));
         });
 

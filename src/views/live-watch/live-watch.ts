@@ -139,9 +139,10 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const refreshCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.refresh', async () => await this.refresh());
         const modifyCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.modify', async (node) => await this.registerRenameCommand(node));
         const copyCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.copy', async (node) => { await this.registerCopyCommand(node); });
+        const addToLiveWatchCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.addToLiveWatch', async () => { await this.registerAddFromSelectionCommand(); });
         this._context.subscriptions.push(registerLiveWatchView,
             addCommand,
-            deleteAllCommand, deleteCommand, refreshCommand, modifyCommand, copyCommand);
+            deleteAllCommand, deleteCommand, refreshCommand, modifyCommand, copyCommand, addToLiveWatchCommand);
     }
 
     private async registerAddCommand() {
@@ -179,6 +180,19 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             return;
         }
         await vscode.env.clipboard.writeText(node.expression);
+    }
+
+    private async registerAddFromSelectionCommand() {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            return;
+        }
+        const selection = editor.selection;
+        const selectedText = editor.document.getText(selection).trim();
+        if (!selectedText) {
+            return;
+        }
+        await this.addToRoots(selectedText);
     }
 
     private async evaluate(expression: string): Promise<LiveWatchValue> {

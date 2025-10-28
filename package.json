@@ -114,9 +114,21 @@
         "command": "vscode-cmsis-debugger.liveWatch.copy",
         "title": "Copy Expression",
         "category": "Live Watch"
+      },
+      {
+        "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatch",
+        "title": "Add To Live Watch",
+        "category": "Live Watch"
       }
     ],
     "menus": {
+      "editor/context": [
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatch",
+          "when": "editorTextFocus && editorHasSelection && resourceScheme == file",
+          "group": "5_cutcopypaste@1"
+        }
+      ],
       "commandPalette": [
         {
           "command": "vscode-cmsis-debugger.showCpuTimeHistory",
@@ -148,6 +160,10 @@
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.copy",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatch",
           "when": "false"
         }
       ],
