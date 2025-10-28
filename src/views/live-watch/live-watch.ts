@@ -140,10 +140,12 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const refreshCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.refresh', async () => await this.refresh());
         const modifyCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.modify', async (node) => await this.registerRenameCommand(node));
         const copyCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.copy', async (node) => { await this.registerCopyCommand(node); });
-        const addToLiveWatchCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.addToLiveWatch', async () => { await this.registerAddFromSelectionCommand(); });
+        const addToLiveWatchCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.addToLiveWatchFromTextEditor', async () => { await this.registerAddFromSelectionCommand(); });
+        const addToLiveWatchFromWatchWindowCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.addToLiveWatchFromWatchWindow', async (expression) => { await this.registerAddToLiveWatchFromWatchWindow(expression); });
+        const addToLiveWatchFromVariablesViewCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.addToLiveWatchFromVariablesView', async (payload: { container: DebugProtocol.Scope; variable: DebugProtocol.Variable;}) => { await this.registerAddToLiveWatchFromVariablesView(payload); });
         this._context.subscriptions.push(registerLiveWatchView,
             addCommand,
-            deleteAllCommand, deleteCommand, refreshCommand, modifyCommand, copyCommand, addToLiveWatchCommand);
+            deleteAllCommand, deleteCommand, refreshCommand, modifyCommand, copyCommand, addToLiveWatchCommand, addToLiveWatchFromWatchWindowCommand, addToLiveWatchFromVariablesViewCommand);
     }
 
     private async registerAddCommand() {
@@ -197,6 +199,20 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             return;
         }
         await this.addToRoots(selectedText);
+    }
+
+    private async registerAddToLiveWatchFromWatchWindow(expression: any) {
+        if (!expression) {
+            return;
+        }
+        await this.addToRoots(expression.variable.name);
+    }
+
+    private async registerAddToLiveWatchFromVariablesView(payload: { container: DebugProtocol.Scope; variable: DebugProtocol.Variable;}) {
+        if (!payload || !payload.variable) {
+            return;
+        }
+        await this.addToRoots(payload.variable.name);
     }
 
     private async evaluate(expression: string): Promise<LiveWatchValue> {

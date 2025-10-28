@@ -116,7 +116,17 @@
         "category": "Live Watch"
       },
       {
-        "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatch",
+        "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromTextEditor",
+        "title": "Add To Live Watch",
+        "category": "Live Watch"
+      },
+      {
+        "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromWatchWindow",
+        "title": "Add To Live Watch",
+        "category": "Live Watch"
+      },
+      {
+        "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromVariablesView",
         "title": "Add To Live Watch",
         "category": "Live Watch"
       }
@@ -124,8 +134,22 @@
     "menus": {
       "editor/context": [
         {
-          "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatch",
+          "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromTextEditor",
           "when": "editorTextFocus && resourceScheme == file",
+          "group": "z_commands"
+        }
+      ],
+      "debug/variables/context": [
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromVariablesView",
+          "when": "inDebugMode",
+          "group": "z_commands"
+        }
+      ],
+      "debug/watch/context": [
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromWatchWindow",
+          "when": "inDebugMode",
           "group": "z_commands"
         }
       ],
@@ -163,7 +187,7 @@
           "when": "false"
         },
         {
-          "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatch",
+          "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromTextEditor",
           "when": "false"
         }
       ],

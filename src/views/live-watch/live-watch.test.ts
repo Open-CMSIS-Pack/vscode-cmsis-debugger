@@ -277,7 +277,9 @@ describe('LiveWatchTreeDataProvider', () => {
                 'vscode-cmsis-debugger.liveWatch.refresh',
                 'vscode-cmsis-debugger.liveWatch.modify',
                 'vscode-cmsis-debugger.liveWatch.copy',
-                'vscode-cmsis-debugger.liveWatch.addToLiveWatch'
+                'vscode-cmsis-debugger.liveWatch.addToLiveWatchFromTextEditor',
+                'vscode-cmsis-debugger.liveWatch.addToLiveWatchFromWatchWindow',
+                'vscode-cmsis-debugger.liveWatch.addToLiveWatchFromVariablesView'
             ]));
         });
 
@@ -353,6 +355,43 @@ describe('LiveWatchTreeDataProvider', () => {
             const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.refresh');
             await handler();
             expect(refreshSpy).toHaveBeenCalled();
+        });
+
+        it('watch window command adds variable name root', async () => {
+            jest.spyOn(liveWatchTreeDataProvider as any, 'evaluate').mockResolvedValue({ result: 'value', variablesReference: 0 });
+            liveWatchTreeDataProvider.activate(tracker);
+            const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.addToLiveWatchFromWatchWindow');
+            expect(handler).toBeDefined();
+            await handler({ variable: { name: 'myWatchVariable' } });
+            const roots = (liveWatchTreeDataProvider as any).roots;
+            expect(roots.length).toBe(1);
+            expect(roots[0].expression).toBe('myWatchVariable');
+        });
+
+        it('watch window command does nothing with falsy payload', async () => {
+            liveWatchTreeDataProvider.activate(tracker);
+            const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.addToLiveWatchFromWatchWindow');
+            await handler(undefined);
+            expect((liveWatchTreeDataProvider as any).roots.length).toBe(0);
+        });
+
+        it('variables view command adds variable name root', async () => {
+            jest.spyOn(liveWatchTreeDataProvider as any, 'evaluate').mockResolvedValue({ result: '12345', variablesReference: 0 });
+            liveWatchTreeDataProvider.activate(tracker);
+            const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.addToLiveWatchFromVariablesView');
+            expect(handler).toBeDefined();
+            const payload = { container: { name: 'local' }, variable: { name: 'localVariable' } };
+            await handler(payload);
+            const roots = (liveWatchTreeDataProvider as any).roots;
+            expect(roots.length).toBe(1);
+            expect(roots[0].expression).toBe('localVariable');
+        });
+
+        it('variables view command does nothing when variable missing', async () => {
+            liveWatchTreeDataProvider.activate(tracker);
+            const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.addToLiveWatchFromVariablesView');
+            await handler({ container: { name: 'local' } });
+            expect((liveWatchTreeDataProvider as any).roots.length).toBe(0);
         });
     });
 
