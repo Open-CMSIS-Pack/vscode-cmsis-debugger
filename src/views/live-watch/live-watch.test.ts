@@ -201,17 +201,24 @@ describe('LiveWatchTreeDataProvider', () => {
         });
 
         it('AddFromSelection adds selected text as new live watch expression to roots', async () => {
-            (vscode.window as any).activeTextEditor = {
+            jest.spyOn(liveWatchTreeDataProvider as any, 'evaluate').mockResolvedValue({ result: '5678', variablesReference: 0 });
+            // Mock the active text editor with a selection whose active position returns a word range
+            const fakeRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 10 } };
+            const mockEditor: any = {
                 document: {
+                    getWordRangeAtPosition: jest.fn().mockReturnValue(fakeRange),
                     getText: jest.fn().mockReturnValue('selected-expression')
                 },
-                selection: {} // dummy selection
+                selection: { active: { line: 0, character: 5 } }
             };
-            jest.spyOn(liveWatchTreeDataProvider as any, 'evaluate').mockResolvedValue({ result: '5678', variablesReference: 0 });
+            (vscode.window as any).activeTextEditor = mockEditor;
             await (liveWatchTreeDataProvider as any).registerAddFromSelectionCommand();
-            expect((liveWatchTreeDataProvider as any).roots.length).toBe(1);
-            expect((liveWatchTreeDataProvider as any).roots[0].expression).toBe('selected-expression');
-            expect((liveWatchTreeDataProvider as any).roots[0].value.result).toBe('5678');
+            const roots = (liveWatchTreeDataProvider as any).roots;
+            expect(mockEditor.document.getWordRangeAtPosition).toHaveBeenCalledWith(mockEditor.selection.active);
+            expect(mockEditor.document.getText).toHaveBeenCalledWith(fakeRange);
+            expect(roots.length).toBe(1);
+            expect(roots[0].expression).toBe('selected-expression');
+            expect(roots[0].value.result).toBe('5678');
         });
     });
 

@@ -125,8 +125,8 @@
       "editor/context": [
         {
           "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatch",
-          "when": "editorTextFocus && editorHasSelection && resourceScheme == file",
-          "group": "5_cutcopypaste@1"
+          "when": "editorTextFocus && resourceScheme == file",
+          "group": "z_commands"
         }
       ],
       "commandPalette": [
