@@ -29,6 +29,7 @@ interface LiveWatchNode {
 export interface LiveWatchValue {
     result: string;
     variablesReference: number;
+    type?: string;
 }
 
 export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWatchNode> {
@@ -80,7 +81,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const item = new vscode.TreeItem(element.expression + ' = ');
         item.description = element.value.result;
         item.contextValue = 'expression';
-        item.tooltip = element.expression;
+        item.tooltip = element.value.type;
         item.collapsibleState = element.value.variablesReference !== 0 ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None;
         return item;
     }
@@ -211,6 +212,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         }
         response.result = result.result;
         response.variablesReference = result.variablesReference;
+        response.type = result.type ?? '';
         return response;
     }
 
