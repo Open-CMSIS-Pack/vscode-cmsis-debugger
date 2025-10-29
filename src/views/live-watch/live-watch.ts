@@ -201,7 +201,6 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const document = editor.document;
         const range = document.getWordRangeAtPosition(selection.active);
         const selectedText = range ? document.getText(range).trim() : '';
-        //const selectedText = editor.document.getText(selection[0]).trim();
         if (!selectedText) {
             return;
         }
@@ -222,7 +221,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const extensionId = 'eclipse-cdt.memory-inspector';
         const memoryInspectorExtension = vscode.extensions.getExtension(extensionId);
         if (!memoryInspectorExtension) {
-            vscode.window.showErrorMessage(`Memory Inspector extension is not installed. Please install it to use this feature.`);
+            vscode.window.showErrorMessage('Memory Inspector extension is not installed. Please install it to use this feature.');
             return;
         }
         const args = {
@@ -231,11 +230,11 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
                 name: node.expression,
                 variablesReference: node.value.variablesReference
             },
-            variable: { 
-                name: node.expression, 
+            variable: {
+                name: node.expression,
                 value: node.value.result,
                 variablesReference: node.value.variablesReference,
-                memoryReference: `&(${node.expression})` 
+                memoryReference: `&(${node.expression})`
             }
         };
         const result = await vscode.commands.executeCommand('memory-inspector.show-variable', args);
