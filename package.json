@@ -129,6 +129,11 @@
         "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromVariablesView",
         "title": "Add to Live Watch",
         "category": "Live Watch"
+      },
+      {
+        "command": "vscode-cmsis-debugger.liveWatch.showInMemoryInspector",
+        "title": "Show in Memory Inspector",
+        "category": "Live Watch"
       }
     ],
     "menus": {
@@ -149,6 +154,11 @@
       "debug/watch/context": [
         {
           "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromWatchWindow",
+          "when": "inDebugMode",
+          "group": "z_commands"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.showInMemoryInspector",
           "when": "inDebugMode",
           "group": "z_commands"
         }
@@ -188,6 +198,18 @@
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromTextEditor",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromWatchWindow",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromVariablesView",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.showInMemoryInspector",
           "when": "false"
         }
       ],
@@ -232,19 +254,24 @@
           "group": "inline@2"
         },
         {
+          "command": "vscode-cmsis-debugger.liveWatch.add",
+          "when": "view == cmsis-debugger.liveWatch",
+          "group": "contextMenuG1@1"
+        },
+        {
           "command": "vscode-cmsis-debugger.liveWatch.modify",
           "when": "view == cmsis-debugger.liveWatch && viewItem == expression",
           "group": "contextMenuG1@2"
         },
         {
+          "command": "vscode-cmsis-debugger.liveWatch.copy",
+          "when": "view == cmsis-debugger.liveWatch && viewItem == expression",
+          "group": "contextMenuG1@3"
+        },
+        {
           "command": "vscode-cmsis-debugger.liveWatch.delete",
           "when": "view == cmsis-debugger.liveWatch && viewItem == expression",
           "group": "contextMenuG1@4"
-        },
-        {
-          "command": "vscode-cmsis-debugger.liveWatch.add",
-          "when": "view == cmsis-debugger.liveWatch",
-          "group": "contextMenuG1@1"
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.deleteAll",
@@ -257,9 +284,10 @@
           "group": "contextMenuG2@2"
         },
         {
-          "command": "vscode-cmsis-debugger.liveWatch.copy",
+          "command": "vscode-cmsis-debugger.liveWatch.showInMemoryInspector",
           "when": "view == cmsis-debugger.liveWatch && viewItem == expression",
-          "group": "contextMenuG1@3"
+          "group": "contextMenuG3@1",
+          "extensionDependency": "eclipse-cdt.memory-inspector"
         }
       ]
     },

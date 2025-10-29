@@ -149,9 +149,10 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         */
         const addToLiveWatchFromWatchWindowCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.addToLiveWatchFromWatchWindow', async (payload: { container: DebugProtocol.Scope; variable: DebugProtocol.Variable; }) => { await this.registerAddToLiveWatchFromVariablesView(payload); });
         const addToLiveWatchFromVariablesViewCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.addToLiveWatchFromVariablesView', async (payload: { container: DebugProtocol.Scope; variable: DebugProtocol.Variable; }) => { await this.registerAddToLiveWatchFromVariablesView(payload); });
+        const showInMemoryInspectorCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.showInMemoryInspector', async (node: LiveWatchNode) => { await this.showInMemoryInspector(node); });
         this._context.subscriptions.push(registerLiveWatchView,
             addCommand,
-            deleteAllCommand, deleteCommand, refreshCommand, modifyCommand, copyCommand, addToLiveWatchCommand, addToLiveWatchFromWatchWindowCommand, addToLiveWatchFromVariablesViewCommand);
+            deleteAllCommand, deleteCommand, refreshCommand, modifyCommand, copyCommand, addToLiveWatchCommand, addToLiveWatchFromWatchWindowCommand, addToLiveWatchFromVariablesViewCommand, showInMemoryInspectorCommand);
     }
 
     private async registerAddCommand() {
@@ -212,6 +213,33 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             return;
         }
         await this.addToRoots(payload.variable.name);
+    }
+
+    private async showInMemoryInspector(node: LiveWatchNode) {
+        if (!node) {
+            return;
+        }
+        const extensionId = 'eclipse-cdt.memory-inspector';
+        const memoryInspectorExtension = vscode.extensions.getExtension(extensionId);
+        if (!memoryInspectorExtension) {
+            vscode.window.showErrorMessage(`Memory Inspector extension is not installed. Please install it to use this feature.`);
+            return;
+        }
+        const args = {
+            sessionId: this._activeSession?.session.id,
+            container: {
+                name: node.expression,
+                variablesReference: node.value.variablesReference
+            },
+            variable: { 
+                name: node.expression, 
+                value: node.value.result,
+                variablesReference: node.value.variablesReference,
+                memoryReference: `&(${node.expression})` 
+            }
+        };
+        const result = await vscode.commands.executeCommand('memory-inspector.show-variable', args);
+        console.log(result);
     }
 
     private async evaluate(expression: string): Promise<LiveWatchValue> {

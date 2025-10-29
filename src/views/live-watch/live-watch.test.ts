@@ -279,7 +279,8 @@ describe('LiveWatchTreeDataProvider', () => {
                 'vscode-cmsis-debugger.liveWatch.copy',
                 'vscode-cmsis-debugger.liveWatch.addToLiveWatchFromTextEditor',
                 'vscode-cmsis-debugger.liveWatch.addToLiveWatchFromWatchWindow',
-                'vscode-cmsis-debugger.liveWatch.addToLiveWatchFromVariablesView'
+                'vscode-cmsis-debugger.liveWatch.addToLiveWatchFromVariablesView',
+                'vscode-cmsis-debugger.liveWatch.showInMemoryInspector'
             ]));
         });
 
@@ -392,6 +393,42 @@ describe('LiveWatchTreeDataProvider', () => {
             const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.addToLiveWatchFromVariablesView');
             await handler({ container: { name: 'local' } });
             expect((liveWatchTreeDataProvider as any).roots.length).toBe(0);
+        });
+
+        it('showInMemoryInspector command does nothing when node is undefined', async () => {
+            liveWatchTreeDataProvider.activate(tracker);
+            const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.showInMemoryInspector');
+            expect(handler).toBeDefined();
+            await handler(undefined);
+            expect(vscode.commands.executeCommand).not.toHaveBeenCalledWith('memory-inspector.show-variable', expect.anything());
+        });
+
+        it('showInMemoryInspector shows error if extension is missing', async () => {
+            (vscode.extensions.getExtension as jest.Mock).mockReturnValue(undefined);
+            (vscode.window.showErrorMessage as jest.Mock).mockClear();
+            liveWatchTreeDataProvider.activate(tracker);
+            const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.showInMemoryInspector');
+            const node = makeNode('node', { result: '0x1234', variablesReference: 77 }, 1);
+            await handler(node);
+            expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(expect.stringContaining('Memory Inspector extension is not installed'));
+            expect(vscode.commands.executeCommand).not.toHaveBeenCalledWith('memory-inspector.show-variable', expect.anything());
+        });
+
+        it('showInMemoryInspector executes command with proper args when extension is present', async () => {
+            (vscode.extensions.getExtension as jest.Mock).mockReturnValue({ id: 'eclipse-cdt.memory-inspector' });
+            (vscode.commands.executeCommand as jest.Mock).mockResolvedValue('ok');
+            liveWatchTreeDataProvider.activate(tracker);
+            (liveWatchTreeDataProvider as any)._activeSession = { session: { id: 'session-1' } };
+            const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.showInMemoryInspector');
+            const node = makeNode('node', { result: '0x1234', variablesReference: 0 }, 1);
+            await handler(node);
+            const lastCall = (vscode.commands.executeCommand as jest.Mock).mock.calls.pop();
+            expect(lastCall[0]).toBe('memory-inspector.show-variable');
+            const args = lastCall[1];
+            expect(args.sessionId).toBe('session-1');
+            expect(args.container.name).toBe('node');
+            expect(args.variable.name).toBe('node');
+            expect(args.variable.memoryReference).toBe('&(node)');
         });
     });
 
