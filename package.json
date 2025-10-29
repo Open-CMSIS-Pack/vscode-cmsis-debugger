@@ -156,11 +156,6 @@
           "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromWatchWindow",
           "when": "inDebugMode",
           "group": "z_commands"
-        },
-        {
-          "command": "vscode-cmsis-debugger.liveWatch.showInMemoryInspector",
-          "when": "inDebugMode",
-          "group": "z_commands"
         }
       ],
       "commandPalette": [
