@@ -196,7 +196,7 @@ describe('LiveWatchTreeDataProvider', () => {
         it('copy copies node expression to clipboard', async () => {
             const node = makeNode('node-to-copy', { result: '1', variablesReference: 0 }, 1);
             (liveWatchTreeDataProvider as any).roots = [node];
-            await (liveWatchTreeDataProvider as any).registerCopyCommand(node);
+            await (liveWatchTreeDataProvider as any).handleCopyCommand(node);
             expect(vscode.env.clipboard.writeText).toHaveBeenCalledWith('node-to-copy');
         });
 
@@ -212,7 +212,7 @@ describe('LiveWatchTreeDataProvider', () => {
                 selection: { active: { line: 0, character: 5 } }
             };
             (vscode.window as any).activeTextEditor = mockEditor;
-            await (liveWatchTreeDataProvider as any).registerAddFromSelectionCommand();
+            await (liveWatchTreeDataProvider as any).handleAddFromSelectionCommand();
             const roots = (liveWatchTreeDataProvider as any).roots;
             expect(mockEditor.document.getWordRangeAtPosition).toHaveBeenCalledWith(mockEditor.selection.active);
             expect(mockEditor.document.getText).toHaveBeenCalledWith(fakeRange);
