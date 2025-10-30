@@ -134,14 +134,14 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
 
     private addVSCodeCommands() {
         const registerLiveWatchView = vscode.window.registerTreeDataProvider('cmsis-debugger.liveWatch', this);
-        const addCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.add', async () => await this.registerAddCommand());
-        const deleteAllCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.deleteAll', async () => await this.registerDeleteAllCommand());
-        const deleteCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.delete', async (node) => await this.registerDeleteCommand(node));
+        const addCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.add', async () => await this.handleAddCommand());
+        const deleteAllCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.deleteAll', async () => await this.handleDeleteAllCommand());
+        const deleteCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.delete', async (node) => await this.handleDeleteCommand(node));
         const refreshCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.refresh', async () => await this.refresh());
-        const modifyCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.modify', async (node) => await this.registerRenameCommand(node));
-        const copyCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.copy', async (node) => await this.registerCopyCommand(node));
+        const modifyCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.modify', async (node) => await this.handleRenameCommand(node));
+        const copyCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.copy', async (node) => await this.handleCopyCommand(node));
         const addToLiveWatchCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.addToLiveWatchFromTextEditor',
-            async () => { await this.registerAddFromSelectionCommand(); });
+            async () => await this.handleAddFromSelectionCommand());
         /* omarArm: I am using the same callback function for both watch window and variables view, as they have the same payload structure for now.
            However, I believe the payload structure will change for the watch window in the future as the developer who created the PR for contributing to watch window context menu
            mentioned he used variables' window payload structure for simplicity.
@@ -149,11 +149,11 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
            https://github.com/microsoft/vscode/pull/237751
         */
         const addToLiveWatchFromWatchWindowCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.addToLiveWatchFromWatchWindow',
-            async (payload: { container: DebugProtocol.Scope; variable: DebugProtocol.Variable; }) => await this.registerAddToLiveWatchFromVariablesView(payload));
+            async (payload: { container: DebugProtocol.Scope; variable: DebugProtocol.Variable; }) => await this.handleAddToLiveWatchFromVariablesView(payload));
         const addToLiveWatchFromVariablesViewCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.addToLiveWatchFromVariablesView',
-            async (payload: { container: DebugProtocol.Scope; variable: DebugProtocol.Variable; }) => await this.registerAddToLiveWatchFromVariablesView(payload));
+            async (payload: { container: DebugProtocol.Scope; variable: DebugProtocol.Variable; }) => await this.handleAddToLiveWatchFromVariablesView(payload));
         const showInMemoryInspectorCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.showInMemoryInspector',
-            async (node: LiveWatchNode) => await this.showInMemoryInspector(node));
+            async (node: LiveWatchNode) => await this.handleShowInMemoryInspector(node));
         this._context.subscriptions.push(
             registerLiveWatchView,
             addCommand,
@@ -169,7 +169,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         );
     }
 
-    private async registerAddCommand() {
+    private async handleAddCommand() {
         const expression = await vscode.window.showInputBox({ prompt: 'Expression' });
         if (!expression) {
             return;
@@ -177,18 +177,18 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         await this.addToRoots(expression);
     }
 
-    private async registerDeleteAllCommand() {
+    private async handleDeleteAllCommand() {
         await this.clear();
     }
 
-    private async registerDeleteCommand(node: LiveWatchNode) {
+    private async handleDeleteCommand(node: LiveWatchNode) {
         if (!node) {
             return;
         }
         await this.delete(node);
     }
 
-    private async registerRenameCommand(node: LiveWatchNode) {
+    private async handleRenameCommand(node: LiveWatchNode) {
         if (!node) {
             return;
         }
@@ -199,14 +199,14 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         await this.rename(node, expression);
     }
 
-    private async registerCopyCommand(node: LiveWatchNode) {
+    private async handleCopyCommand(node: LiveWatchNode) {
         if(!node) {
             return;
         }
         await vscode.env.clipboard.writeText(node.expression);
     }
 
-    private async registerAddFromSelectionCommand() {
+    private async handleAddFromSelectionCommand() {
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
             return;
@@ -221,14 +221,14 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         await this.addToRoots(selectedText);
     }
 
-    private async registerAddToLiveWatchFromVariablesView(payload: { container: DebugProtocol.Scope; variable: DebugProtocol.Variable;}) {
+    private async handleAddToLiveWatchFromVariablesView(payload: { container: DebugProtocol.Scope; variable: DebugProtocol.Variable;}) {
         if (!payload || !payload.variable) {
             return;
         }
         await this.addToRoots(payload.variable.name);
     }
 
-    private async showInMemoryInspector(node: LiveWatchNode) {
+    private async handleShowInMemoryInspector(node: LiveWatchNode) {
         if (!node) {
             return;
         }
@@ -251,8 +251,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
                 memoryReference: `&(${node.expression})`
             }
         };
-        const result = await vscode.commands.executeCommand('memory-inspector.show-variable', args);
-        console.log(result);
+        await vscode.commands.executeCommand('memory-inspector.show-variable', args);
     }
 
     private async evaluate(expression: string): Promise<LiveWatchValue> {
