@@ -29,6 +29,7 @@ interface LiveWatchNode {
 export interface LiveWatchValue {
     result: string;
     variablesReference: number;
+    type?: string;
 }
 
 export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWatchNode> {
@@ -80,7 +81,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const item = new vscode.TreeItem(element.expression + ' = ');
         item.description = element.value.result;
         item.contextValue = 'expression';
-        item.tooltip = element.expression;
+        item.tooltip = element.value.type;
         item.collapsibleState = element.value.variablesReference !== 0 ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None;
         return item;
     }
@@ -133,17 +134,42 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
 
     private addVSCodeCommands() {
         const registerLiveWatchView = vscode.window.registerTreeDataProvider('cmsis-debugger.liveWatch', this);
-        const addCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.add', async () => await this.registerAddCommand());
-        const deleteAllCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.deleteAll', async () => await this.registerDeleteAllCommand());
-        const deleteCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.delete', async (node) => await this.registerDeleteCommand(node));
+        const addCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.add', async () => await this.handleAddCommand());
+        const deleteAllCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.deleteAll', async () => await this.handleDeleteAllCommand());
+        const deleteCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.delete', async (node) => await this.handleDeleteCommand(node));
         const refreshCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.refresh', async () => await this.refresh());
-        const modifyCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.modify', async (node) => await this.registerRenameCommand(node));
-        this._context.subscriptions.push(registerLiveWatchView,
+        const modifyCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.modify', async (node) => await this.handleRenameCommand(node));
+        const copyCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.copy', async (node) => await this.handleCopyCommand(node));
+        const addToLiveWatchCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.addToLiveWatchFromTextEditor',
+            async () => await this.handleAddFromSelectionCommand());
+        /* omarArm: I am using the same callback function for both watch window and variables view, as they have the same payload structure for now.
+           However, I believe the payload structure will change for the watch window in the future as the developer who created the PR for contributing to watch window context menu
+           mentioned he used variables' window payload structure for simplicity.
+           Find the PR here:
+           https://github.com/microsoft/vscode/pull/237751
+        */
+        const addToLiveWatchFromWatchWindowCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.addToLiveWatchFromWatchWindow',
+            async (payload: { container: DebugProtocol.Scope; variable: DebugProtocol.Variable; }) => await this.handleAddToLiveWatchFromVariablesView(payload));
+        const addToLiveWatchFromVariablesViewCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.addToLiveWatchFromVariablesView',
+            async (payload: { container: DebugProtocol.Scope; variable: DebugProtocol.Variable; }) => await this.handleAddToLiveWatchFromVariablesView(payload));
+        const showInMemoryInspectorCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.showInMemoryInspector',
+            async (node: LiveWatchNode) => await this.handleShowInMemoryInspector(node));
+        this._context.subscriptions.push(
+            registerLiveWatchView,
             addCommand,
-            deleteAllCommand, deleteCommand, refreshCommand, modifyCommand);
+            deleteAllCommand,
+            deleteCommand,
+            refreshCommand,
+            modifyCommand,
+            copyCommand,
+            addToLiveWatchCommand,
+            addToLiveWatchFromWatchWindowCommand,
+            addToLiveWatchFromVariablesViewCommand,
+            showInMemoryInspectorCommand
+        );
     }
 
-    private async registerAddCommand() {
+    private async handleAddCommand() {
         const expression = await vscode.window.showInputBox({ prompt: 'Expression' });
         if (!expression) {
             return;
@@ -151,18 +177,18 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         await this.addToRoots(expression);
     }
 
-    private async registerDeleteAllCommand() {
+    private async handleDeleteAllCommand() {
         await this.clear();
     }
 
-    private async registerDeleteCommand(node: LiveWatchNode) {
+    private async handleDeleteCommand(node: LiveWatchNode) {
         if (!node) {
             return;
         }
         await this.delete(node);
     }
 
-    private async registerRenameCommand(node: LiveWatchNode) {
+    private async handleRenameCommand(node: LiveWatchNode) {
         if (!node) {
             return;
         }
@@ -171,6 +197,61 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             return;
         }
         await this.rename(node, expression);
+    }
+
+    private async handleCopyCommand(node: LiveWatchNode) {
+        if(!node) {
+            return;
+        }
+        await vscode.env.clipboard.writeText(node.expression);
+    }
+
+    private async handleAddFromSelectionCommand() {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            return;
+        }
+        const selection = editor.selection;
+        const document = editor.document;
+        const range = document.getWordRangeAtPosition(selection.active);
+        const selectedText = range ? document.getText(range).trim() : '';
+        if (!selectedText) {
+            return;
+        }
+        await this.addToRoots(selectedText);
+    }
+
+    private async handleAddToLiveWatchFromVariablesView(payload: { container: DebugProtocol.Scope; variable: DebugProtocol.Variable;}) {
+        if (!payload || !payload.variable) {
+            return;
+        }
+        await this.addToRoots(payload.variable.name);
+    }
+
+    private async handleShowInMemoryInspector(node: LiveWatchNode) {
+        if (!node) {
+            return;
+        }
+        const extensionId = 'eclipse-cdt.memory-inspector';
+        const memoryInspectorExtension = vscode.extensions.getExtension(extensionId);
+        if (!memoryInspectorExtension) {
+            vscode.window.showErrorMessage('Memory Inspector extension is not installed. Please install it to use this feature.');
+            return;
+        }
+        const args = {
+            sessionId: this._activeSession?.session.id,
+            container: {
+                name: node.expression,
+                variablesReference: node.value.variablesReference
+            },
+            variable: {
+                name: node.expression,
+                value: node.value.result,
+                variablesReference: node.value.variablesReference,
+                memoryReference: `&(${node.expression})`
+            }
+        };
+        await vscode.commands.executeCommand('memory-inspector.show-variable', args);
     }
 
     private async evaluate(expression: string): Promise<LiveWatchValue> {
@@ -186,6 +267,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         }
         response.result = result.result;
         response.variablesReference = result.variablesReference;
+        response.type = result.type ?? '';
         return response;
     }
 

@@ -73,8 +73,15 @@ module.exports = {
         })),
         registerTreeDataProvider: jest.fn(() => ({ dispose: jest.fn() })),
         showWarningMessage: jest.fn(),
+        showErrorMessage: jest.fn(),
         createStatusBarItem: jest.fn(),
         showQuickPick: jest.fn(),
+    },
+    env: {
+        clipboard: {
+            readText: jest.fn(),
+            writeText: jest.fn()
+        }
     },
     workspace: {
         getConfiguration: jest.fn(() => ({
