@@ -142,7 +142,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const copyCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.copy', async (node) => await this.registerCopyCommand(node));
         const addToLiveWatchCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.addToLiveWatchFromTextEditor',
             async () => { await this.registerAddFromSelectionCommand(); });
-        /* I (omarArm) am using the same callback function for both watch window and variables view, as they have the same payload structure for now.
+        /* omarArm: I am using the same callback function for both watch window and variables view, as they have the same payload structure for now.
            However, I believe the payload structure will change for the watch window in the future as the developer who created the PR for contributing to watch window context menu
            mentioned he used variables' window payload structure for simplicity.
            Find the PR here:
