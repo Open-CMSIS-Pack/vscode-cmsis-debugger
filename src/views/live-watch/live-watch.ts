@@ -139,26 +139,34 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const deleteCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.delete', async (node) => await this.registerDeleteCommand(node));
         const refreshCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.refresh', async () => await this.refresh());
         const modifyCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.modify', async (node) => await this.registerRenameCommand(node));
-        const copyCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.copy', async (node) => { await this.registerCopyCommand(node); });
+        const copyCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.copy', async (node) => await this.registerCopyCommand(node));
         const addToLiveWatchCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.addToLiveWatchFromTextEditor',
             async () => { await this.registerAddFromSelectionCommand(); });
-        /* I am using the same callback function for both watch window and variables view, as they have the same payload structure for now.
+        /* I (omarArm) am using the same callback function for both watch window and variables view, as they have the same payload structure for now.
            However, I believe the payload structure will change for the watch window in the future as the developer who created the PR for contributing to watch window context menu
            mentioned he used variables' window payload structure for simplicity.
            Find the PR here:
            https://github.com/microsoft/vscode/pull/237751
         */
         const addToLiveWatchFromWatchWindowCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.addToLiveWatchFromWatchWindow',
-            async (payload: { container: DebugProtocol.Scope; variable: DebugProtocol.Variable; }) => { await this.registerAddToLiveWatchFromVariablesView(payload); });
+            async (payload: { container: DebugProtocol.Scope; variable: DebugProtocol.Variable; }) => await this.registerAddToLiveWatchFromVariablesView(payload));
         const addToLiveWatchFromVariablesViewCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.addToLiveWatchFromVariablesView',
-            async (payload: { container: DebugProtocol.Scope; variable: DebugProtocol.Variable; }) => { await this.registerAddToLiveWatchFromVariablesView(payload); });
+            async (payload: { container: DebugProtocol.Scope; variable: DebugProtocol.Variable; }) => await this.registerAddToLiveWatchFromVariablesView(payload));
         const showInMemoryInspectorCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.showInMemoryInspector',
-            async (node: LiveWatchNode) => { await this.showInMemoryInspector(node); });
-        this._context.subscriptions.push(registerLiveWatchView,
+            async (node: LiveWatchNode) => await this.showInMemoryInspector(node));
+        this._context.subscriptions.push(
+            registerLiveWatchView,
             addCommand,
-            deleteAllCommand, deleteCommand, refreshCommand, modifyCommand,
-            copyCommand, addToLiveWatchCommand, addToLiveWatchFromWatchWindowCommand, addToLiveWatchFromVariablesViewCommand,
-            showInMemoryInspectorCommand);
+            deleteAllCommand,
+            deleteCommand,
+            refreshCommand,
+            modifyCommand,
+            copyCommand,
+            addToLiveWatchCommand,
+            addToLiveWatchFromWatchWindowCommand,
+            addToLiveWatchFromVariablesViewCommand,
+            showInMemoryInspectorCommand
+        );
     }
 
     private async registerAddCommand() {
