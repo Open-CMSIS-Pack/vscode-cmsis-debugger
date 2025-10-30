@@ -281,8 +281,7 @@
         {
           "command": "vscode-cmsis-debugger.liveWatch.showInMemoryInspector",
           "when": "view == cmsis-debugger.liveWatch && viewItem == expression",
-          "group": "contextMenuG3@1",
-          "extensionDependency": "eclipse-cdt.memory-inspector"
+          "group": "contextMenuG3@1"
         }
       ]
     },
