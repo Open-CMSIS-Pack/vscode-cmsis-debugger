@@ -284,7 +284,8 @@ The command **Open Disassembly View** (available from [command palette](https://
 ### RTOS Views
 
 For RTOS awareness, the [RTOS Views](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views)
-extension is used. Currently, it supports FreeRTOS, Zephyr, embOS,and various flavors of uC/OS. Keil RTX5 will be added soon.
+extension is used. It supports a wide range of real-time operating systems, such as FreeRTOS, Zephyr, embOS,and Keil
+RTX5.
 
 ![RTOS Views with FreeRTOS](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/rtos-views.png)
 
