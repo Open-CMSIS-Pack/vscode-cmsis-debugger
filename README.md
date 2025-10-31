@@ -42,7 +42,9 @@ Many features of the CMSIS Debugger extension are exposed in the **Run and Debug
 
 1. **Start debugging** selects a configuration: _launch_ to start download/debug, _attach_ to connect with a running system.
 2. **Debug Toolbar** has buttons for the most common debugging actions that control execution.
-3. **Debug Statusbar** shows the configuration along with the workspace name. A color change indicates an active debug session.
+3. The **Trace and Live View** shows the **LIVE WATCH** window.
+4. **Debug Statusbar** shows the time spent running the application.
+5. The **Debug Console** can be used to interact with the debugger on the command line.
 
 ![Run and Debug view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/RunAndDebugView.png)
 
@@ -60,10 +62,14 @@ The **Run and Debug** view provides:
 
 Other debugger specific views or features:
 
-- [**Disassembly**](#disassembly) shows assembly instructions and supports run control, for example with stepping and breakpoints.
+- [**Live Watch**](#trace-and-live-view) offers run-time viewing of user-defined expressions, for example, variable
+  values.
+- [**Disassembly**](#disassembly) shows assembly instructions and supports run control, for example with stepping and
+  breakpoints.
 - [**Debug Console**](#debug-console) lists debug output messages and allows entering expressions or GDB commands.
 - [**Peripherals**](#peripherals) show the device peripheral registers and allow changing their values.
-- [**Serial Monitor**](#serial-monitor) uses serial or TCP communication to interact with application I/O functions (`printf`, `getc`, etc.).
+- [**Serial Monitor**](#serial-monitor) uses serial or TCP communication to interact with application I/O functions
+  (`printf`, `getc`, etc.).
 - [**CPU Time**](#cpu-time) shows execution timing and statistics of the past five breakpoints.
 - [**Multi-Core Debug**](#multi-core-debug) to view and control several processors in a device.
 
@@ -241,6 +247,27 @@ Most Arm Cortex-M processors (except Cortex-M0/M0+/M23) include a `DWT->CYCCNT` 
 > - The first program stop (typically at function `main`) is the initial reference time (zero point).
 > - `DWT->CYCCNT` is a 32-bit register incremented with [`SystemCoreClock`](https://arm-software.github.io/CMSIS_6/latest/Core/group__system__init__gr.html) frequency. The time calculation copes with one overflow between program stops. Multiple overflows between program stops deliver wrong time information.
 > - Each processor in a multi-processor system has and independent `DWT->CYCCNT` register.
+
+### Trace and Live view
+
+The **Trace and Live View**
+![Trace and Live view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/TraceLiveView.png)
+(available from the VS Code Activty Bar) currently shows the **LIVE WATCH**. You can add expressions to this view that
+are updated while the application is running on your target.
+
+![Trace and Live View](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/talv-live-watch.png)
+
+You can add expressions to this view by:
+
+1. Pressing the three dots to the right.
+2. Pressing the `+` sign.
+3. Using the context menu item **Add to Live Watch** in:
+    - source code files.
+    - the **Watch** window.
+    - teh **Variables** window.
+4. From the **Trace and Live View**, you can show an expression in the Memory Inspector. Right-click on the expression
+   and select **Show in Memory Inspector**.
+
 
 ### PERIPHERALS
 
