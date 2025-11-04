@@ -18,7 +18,7 @@ import * as vscode from 'vscode';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
 
-interface LiveWatchNode {
+export interface LiveWatchNode {
   id: number;
   expression: string;
   parent: LiveWatchNode | undefined; // if undefined, it's a root node

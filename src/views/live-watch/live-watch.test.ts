@@ -17,7 +17,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as vscode from 'vscode';
 import { debugSessionFactory, extensionContextFactory } from '../../__test__/vscode.factory';
-import { LiveWatchValue, LiveWatchTreeDataProvider } from './live-watch';
+import { LiveWatchValue, LiveWatchTreeDataProvider, LiveWatchNode } from './live-watch';
 import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
 import { gdbTargetConfiguration } from '../../debug-configuration/debug-configuration.factory';
 import { GDBTargetConfiguration } from '../../debug-configuration';
@@ -31,8 +31,8 @@ describe('LiveWatchTreeDataProvider', () => {
     let debugConfig: GDBTargetConfiguration;
 
     // Helper: create a dummy node
-    function makeNode(expression = 'x', value: LiveWatchValue = { result: '1', variablesReference: 0 }, id = 1) {
-        return { id, expression, value, parent: undefined, children: [] };
+    function makeNode(expression = 'x', value: LiveWatchValue = { result: '1', variablesReference: 0 }, id = 1, parent?: LiveWatchNode) {
+        return { id, expression, value, parent: parent, children: [] };
     }
 
     beforeEach(() => {
@@ -193,11 +193,29 @@ describe('LiveWatchTreeDataProvider', () => {
             expect(node.expression).toBe('node-1-renamed');
         });
 
-        it('copy copies node expression to clipboard', async () => {
+        it('copies node expression to clipboard', async () => {
             const node = makeNode('node-to-copy', { result: '1', variablesReference: 0 }, 1);
             (liveWatchTreeDataProvider as any).roots = [node];
             await (liveWatchTreeDataProvider as any).handleCopyCommand(node);
             expect(vscode.env.clipboard.writeText).toHaveBeenCalledWith('node-to-copy');
+        });
+        
+        it('copies evaluateName of children to clipboard when present', async () => {
+            const child = makeNode('childName', { 
+                result: '42', 
+                variablesReference: 0, 
+                evaluateName: 'parent.childName' 
+            }, 2);
+            (liveWatchTreeDataProvider as any).roots = [child];
+            await (liveWatchTreeDataProvider as any).handleCopyCommand(child);
+            expect(vscode.env.clipboard.writeText).toHaveBeenCalledWith('parent.childName');
+        });
+
+        it('copies expression to clipboard when evaluateName not present', async () => {
+            const node = makeNode('myExpression', { result: '123', variablesReference: 0 }, 1);
+            (liveWatchTreeDataProvider as any).roots = [node];
+            await (liveWatchTreeDataProvider as any).handleCopyCommand(node);
+            expect(vscode.env.clipboard.writeText).toHaveBeenCalledWith('myExpression');
         });
 
         it('AddFromSelection adds selected text as new live watch expression to roots', async () => {
