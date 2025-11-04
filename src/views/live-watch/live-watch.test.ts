@@ -199,12 +199,12 @@ describe('LiveWatchTreeDataProvider', () => {
             await (liveWatchTreeDataProvider as any).handleCopyCommand(node);
             expect(vscode.env.clipboard.writeText).toHaveBeenCalledWith('node-to-copy');
         });
-        
+
         it('copies evaluateName of children to clipboard when present', async () => {
-            const child = makeNode('childName', { 
-                result: '42', 
-                variablesReference: 0, 
-                evaluateName: 'parent.childName' 
+            const child = makeNode('childName', {
+                result: '42',
+                variablesReference: 0,
+                evaluateName: 'parent.childName'
             }, 2);
             (liveWatchTreeDataProvider as any).roots = [child];
             await (liveWatchTreeDataProvider as any).handleCopyCommand(child);
