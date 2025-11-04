@@ -30,6 +30,7 @@ export interface LiveWatchValue {
     result: string;
     variablesReference: number;
     type?: string;
+    evaluateName?: string;
 }
 
 export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWatchNode> {
@@ -65,7 +66,9 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
                 parent: element,
                 value: {
                     result: child.value,
-                    variablesReference: child.variablesReference
+                    variablesReference: child.variablesReference,
+                    type: child.type,
+                    evaluateName: child.evaluateName
                 }
             })) ?? [];
 
@@ -81,7 +84,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const item = new vscode.TreeItem(element.expression + ' = ');
         item.description = element.value.result;
         item.contextValue = 'expression';
-        item.tooltip = element.value.type;
+        item.tooltip = element.value.type ?? '';
         item.collapsibleState = element.value.variablesReference !== 0 ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None;
         return item;
     }
@@ -203,7 +206,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         if(!node) {
             return;
         }
-        await vscode.env.clipboard.writeText(node.expression);
+        await vscode.env.clipboard.writeText(node.value.evaluateName ?? node.expression);
     }
 
     private async handleAddFromSelectionCommand() {
