@@ -154,12 +154,22 @@ describe('LiveWatchTreeDataProvider', () => {
             expect(parent.children.length).toBe(0);
         });
 
-        it('getTreeItem returns correct TreeItem', () => {
-            const node = makeNode('expression', { result: 'value', variablesReference: 1 }, 1);
+        it('returns correct TreeItem for parent nodes', () => {
+            const node = makeNode('expression', { result: 'value', variablesReference: 0 }, 1);
             const item = liveWatchTreeDataProvider.getTreeItem(node);
             expect(item.label).toBe('expression = ');
             expect(item.description).toBe('value');
-            expect(item.contextValue).toBe('expression');
+            expect(item.contextValue).toBe('parentExpression');
+        });
+
+        it('returns correct TreeItem for leaf nodes', () => {
+            // Create a child node within a parent node
+            const parent = makeNode('parentExpression', { result: 'parentValue', variablesReference: 1 }, 1);
+            const child = makeNode('childExpression', { result: 'childValue', variablesReference: 0 }, 2, parent);
+            const item = liveWatchTreeDataProvider.getTreeItem(child);
+            expect(item.label).toBe('childExpression = ');
+            expect(item.description).toBe('childValue');
+            expect(item.contextValue).toBe('childExpression');
         });
     });
 
