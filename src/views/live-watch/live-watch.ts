@@ -86,6 +86,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         item.contextValue = 'expression';
         item.tooltip = element.value.type ?? '';
         item.collapsibleState = element.value.variablesReference !== 0 ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None;
+        item.contextValue = element.parent ? 'childExpression' : 'parentExpression';
         return item;
     }
 
@@ -228,7 +229,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         if (!payload || !payload.variable) {
             return;
         }
-        await this.addToRoots(payload.variable.name);
+        await this.addToRoots(payload.variable.evaluateName ?? payload.variable.name);
     }
 
     private async handleShowInMemoryInspector(node: LiveWatchNode) {
