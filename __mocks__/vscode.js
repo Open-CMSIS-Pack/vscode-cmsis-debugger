@@ -30,6 +30,23 @@ const StatusBarAlignment = {
     Right: 2
 };
 
+const MockTreeItemCollapsibleState = { 
+    None: 0, 
+    Collapsed: 1, 
+    Expanded: 2 
+};
+
+class MockTreeItem {
+    label;
+    description;
+    contextValue;
+    collapsibleState;
+    constructor(label, collapsibleState) {
+        this.label = label;
+        this.collapsibleState = collapsibleState;
+    }
+}
+
 module.exports = {
     EventEmitter: jest.fn(() => {
         const callbacks = [];
@@ -43,6 +60,8 @@ module.exports = {
         };
     }),
     Uri: URI,
+    TreeItem: MockTreeItem,
+    TreeItemCollapsibleState: MockTreeItemCollapsibleState,
     window: {
         createOutputChannel: jest.fn(() => ({
             appendLine: jest.fn(),
@@ -52,9 +71,17 @@ module.exports = {
             warn: jest.fn(),
             error: jest.fn(),
         })),
+        registerTreeDataProvider: jest.fn(() => ({ dispose: jest.fn() })),
         showWarningMessage: jest.fn(),
+        showErrorMessage: jest.fn(),
         createStatusBarItem: jest.fn(),
         showQuickPick: jest.fn(),
+    },
+    env: {
+        clipboard: {
+            readText: jest.fn(),
+            writeText: jest.fn()
+        }
     },
     workspace: {
         getConfiguration: jest.fn(() => ({
