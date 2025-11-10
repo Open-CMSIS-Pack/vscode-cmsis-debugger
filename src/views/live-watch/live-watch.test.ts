@@ -237,7 +237,7 @@ describe('LiveWatchTreeDataProvider', () => {
                     getText: jest.fn().mockReturnValue('selected-expression'),
                     getWordRangeAtPosition: jest.fn().mockReturnValue(fakeRange)
                 },
-                selection: { 
+                selection: {
                     active: { line: 0, character: 5 },
                     start: { line: 0, character: 0 },
                     end: { line: 0, character: 17 }
@@ -259,7 +259,7 @@ describe('LiveWatchTreeDataProvider', () => {
                     getText: jest.fn().mockReturnValue('multi-line\nselection'),
                     getWordRangeAtPosition: jest.fn().mockReturnValue(undefined)
                 },
-                selection: { 
+                selection: {
                     active: { line: 0, character: 5 },
                     start: { line: 0, character: 0 },
                     end: { line: 1, character: 9 }
