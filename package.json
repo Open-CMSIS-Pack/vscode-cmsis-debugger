@@ -139,7 +139,7 @@
       "editor/context": [
         {
           "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromTextEditor",
-          "when": "editorTextFocus && editorHasSelection",
+          "when": "editorTextFocus",
           "group": "z_commands"
         }
       ],
@@ -239,7 +239,7 @@
       "view/item/context": [
         {
           "command": "vscode-cmsis-debugger.liveWatch.modify",
-          "when": "view == cmsis-debugger.liveWatch",
+          "when": "view == cmsis-debugger.liveWatch && viewItem == parentExpression",
           "group": "inline@1"
         },
         {
@@ -254,7 +254,7 @@
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.modify",
-          "when": "view == cmsis-debugger.liveWatch",
+          "when": "view == cmsis-debugger.liveWatch && viewItem == parentExpression",
           "group": "contextMenuG1@2"
         },
         {
@@ -279,7 +279,7 @@
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.showInMemoryInspector",
-          "when": "view == cmsis-debugger.liveWatch && viewItem == parentExpression",
+          "when": "view == cmsis-debugger.liveWatch",
           "group": "contextMenuG3@1"
         }
       ]
