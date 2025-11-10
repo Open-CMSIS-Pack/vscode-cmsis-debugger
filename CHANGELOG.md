@@ -1,23 +1,39 @@
 # Change Log
 
-## Unreleased
+## 1.2.0
 
-- Implements [#181](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/181): RTOS Viewer
-    - Includes mcu-debug [RTOS Views extension](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views)
-in extension pack, which installs the mcu-debug [debug-tracker-vscode extension](https://marketplace.visualstudio.com/items?itemName=mcu-debug.debug-tracker-vscode)
-as a dependency.
-    - Use with [CDT GDB Adapter extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode)
-v2.4.1 or later to work best.
-- Updates included pyOCD distribution to v0.40.0
-    - Implements [#160](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/160): Allow multiple GDB connections to same TCP/IP port.
-    - Fixes [#386](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/386): "Erase device" command fails on ST multi-core devices.
-    - Fixes [#520](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/520): Alif E7 HE core doesn't start after programming.
-    - Performs a hardware reset (nSRST) after flashing to ensure a clean post-load state.
-    - Removes implicit resets between loading multiple application files.
-    - Sets Reset Catch on all cores when performing primary-core reset before flashing.
-    - Refines debug sequence error handling and breakpoint management across resets.
-    - Updates ResetType API for clearer reset type selection (for example when using `monitor reset` command)
-    - Adds missing secure/non-secure core registers (`CONTROL`, `FAULTMASK`, `BASEPRI`, and `PRIMASK`).
+- Use with [CDT GDB Adapter extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode)
+v2.4.1 or later to enable latest features in the CMSIS Debugger and included/recommended extensions.
+    - `gdbtarget` setting `auxiliaryGdb` enables memory accesses and evaluation of global expressions while
+the CPU is running.
+        - Works with pyOCD (v0.40.0 or later) and Segger J-Link GDB Server.
+        - Works with periodic refresh features of the
+[`Memory Inspector`](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector) and the
+[`Peripheral Inspector`](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector) extension.
+    - Defect fixes for improved support of the mcu-debug
+[RTOS Views](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views) extension.
+- Enables [#181](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/181): RTOS Viewer
+    - Recommended solution is the mcu-debug [RTOS Views](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views) extension v0.0.12 and later which comes with support for a wide range of real-time operating systems, such as FreeRTOS, Zephyr, embOS, and Keil RTX5.
+    - Note: This also installs the mcu-debug [debug-tracker-vscode](https://marketplace.visualstudio.com/items?itemName=mcu-debug.debug-tracker-vscode) extension as dependency.
+- Implements [#519](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/519): Live watch window.
+    - Adds `Trace and Live View`. It contains the `Live Watch` window which allows to watch results of expression periodically updating at runtime.
+    - Allows to add `Live Watch` entries from context menus in the source editor, `Variables` window, and the `Watch` window.
+    - Allows to send `Live Watch` entries and their child expressions to the [`Memory Inspector`](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector).
+- Partly implements [#315](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/315): Live Debug Capablities.
+    - Periodic Refresh Timer for CPU execution time display while CPU is running.
+- Updates included pyOCD distribution from v0.39.0 to v0.41.0
+    - Changes with pyOCD v0.41.0
+        - TODO: add release notes
+    - Changes with pyOCD v0.40.0
+        - Implements [#160](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/160): Allow multiple GDB connections to same TCP/IP port.
+        - Fixes [#386](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/386): "Erase device" command fails on ST multi-core devices.
+        - Fixes [#520](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/520): Alif E7 HE core doesn't start after programming.
+        - Performs a hardware reset (nSRST) after flashing to ensure a clean post-load state.
+        - Removes implicit resets between loading multiple application files.
+        - Sets Reset Catch on all cores when performing primary-core reset before flashing.
+        - Refines debug sequence error handling and breakpoint management across resets.
+        - Updates ResetType API for clearer reset type selection (for example when using `monitor reset` command)
+        - Adds missing secure/non-secure core registers (`CONTROL`, `FAULTMASK`, `BASEPRI`, and `PRIMASK`).
 
 ## 1.1.0
 
