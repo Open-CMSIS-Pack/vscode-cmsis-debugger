@@ -154,12 +154,22 @@ describe('LiveWatchTreeDataProvider', () => {
             expect(parent.children.length).toBe(0);
         });
 
-        it('getTreeItem returns correct TreeItem', () => {
-            const node = makeNode('expression', { result: 'value', variablesReference: 1 }, 1);
+        it('returns correct TreeItem for parent nodes', () => {
+            const node = makeNode('expression', { result: 'value', variablesReference: 0 }, 1);
             const item = liveWatchTreeDataProvider.getTreeItem(node);
             expect(item.label).toBe('expression = ');
             expect(item.description).toBe('value');
-            expect(item.contextValue).toBe('expression');
+            expect(item.contextValue).toBe('parentExpression');
+        });
+
+        it('returns correct TreeItem for leaf nodes', () => {
+            // Create a child node within a parent node
+            const parent = makeNode('parentExpression', { result: 'parentValue', variablesReference: 1 }, 1);
+            const child = makeNode('childExpression', { result: 'childValue', variablesReference: 0 }, 2, parent);
+            const item = liveWatchTreeDataProvider.getTreeItem(child);
+            expect(item.label).toBe('childExpression = ');
+            expect(item.description).toBe('childValue');
+            expect(item.contextValue).toBe('childExpression');
         });
     });
 
@@ -220,14 +230,18 @@ describe('LiveWatchTreeDataProvider', () => {
 
         it('AddFromSelection adds selected text as new live watch expression to roots', async () => {
             jest.spyOn(liveWatchTreeDataProvider as any, 'evaluate').mockResolvedValue({ result: '5678', variablesReference: 0 });
-            // Mock the active text editor with a selection whose active position returns a word range
-            const fakeRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 10 } };
+            // Mock the active text editor with fake range
+            const fakeRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 17 } };
             const mockEditor: any = {
                 document: {
-                    getWordRangeAtPosition: jest.fn().mockReturnValue(fakeRange),
-                    getText: jest.fn().mockReturnValue('selected-expression')
+                    getText: jest.fn().mockReturnValue('selected-expression'),
+                    getWordRangeAtPosition: jest.fn().mockReturnValue(fakeRange)
                 },
-                selection: { active: { line: 0, character: 5 } }
+                selection: {
+                    active: { line: 0, character: 5 },
+                    start: { line: 0, character: 0 },
+                    end: { line: 0, character: 17 }
+                }
             };
             (vscode.window as any).activeTextEditor = mockEditor;
             await (liveWatchTreeDataProvider as any).handleAddFromSelectionCommand();
@@ -237,6 +251,25 @@ describe('LiveWatchTreeDataProvider', () => {
             expect(roots.length).toBe(1);
             expect(roots[0].expression).toBe('selected-expression');
             expect(roots[0].value.result).toBe('5678');
+        });
+
+        it('AddFromSelection does nothing when selection spans multiple lines', async () => {
+            const mockEditor: any = {
+                document: {
+                    getText: jest.fn().mockReturnValue('multi-line\nselection'),
+                    getWordRangeAtPosition: jest.fn().mockReturnValue(undefined)
+                },
+                selection: {
+                    active: { line: 0, character: 5 },
+                    start: { line: 0, character: 0 },
+                    end: { line: 1, character: 9 }
+                }
+            };
+            (vscode.window as any).activeTextEditor = mockEditor;
+            await (liveWatchTreeDataProvider as any).handleAddFromSelectionCommand();
+            const roots = (liveWatchTreeDataProvider as any).roots;
+            expect(mockEditor.document.getWordRangeAtPosition).toHaveBeenCalledWith(mockEditor.selection.active);
+            expect(roots.length).toBe(0);
         });
     });
 
