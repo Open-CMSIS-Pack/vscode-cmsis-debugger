@@ -139,7 +139,7 @@
       "editor/context": [
         {
           "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromTextEditor",
-          "when": "editorTextFocus && resourceScheme == file",
+          "when": "editorTextFocus && editorHasSelection",
           "group": "z_commands"
         }
       ],

@@ -217,8 +217,11 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         }
         const selection = editor.selection;
         const document = editor.document;
-        const range = document.getWordRangeAtPosition(selection.active);
-        const selectedText = range ? document.getText(range).trim() : '';
+        if (document.getWordRangeAtPosition(selection.active) === undefined) {
+            // user selected more than a single line
+            return;
+        }
+        const selectedText = document.getText(selection).trim();
         if (!selectedText) {
             return;
         }
