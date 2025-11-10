@@ -59,29 +59,29 @@ describe('GDBTargetDebugSession', () => {
 
     it('evaluates a global expression without active stack frame and returns a value', async () => {
         // Only mock relevant properties, return value is body of EvaluateResponse
-        (debugSession.customRequest as jest.Mock).mockReturnValueOnce({ result: '1234567' });
+        (debugSession.customRequest as jest.Mock).mockReturnValueOnce({ result: '1234567', variableReference: 0 });
         const result = await gdbTargetSession.evaluateGlobalExpression('myGlobalVariable');
-        expect(result).toEqual('1234567');
+        expect(result).toEqual({ result: '1234567', variableReference: 0 });
         expect(debugSession.customRequest as jest.Mock).toHaveBeenCalledWith('evaluate', { expression: 'myGlobalVariable', frameId: 0, context: 'hover' });
     });
 
     it('evaluates a global expression with active stack frame and returns a value', async () => {
         // Only mock relevant properties, return value is body of EvaluateResponse
-        (debugSession.customRequest as jest.Mock).mockReturnValueOnce({ result: '1234567' });
+        (debugSession.customRequest as jest.Mock).mockReturnValueOnce({ result: '1234567', variableReference: 0 });
         (vscode.debug.activeStackItem as unknown) = { session: debugSession, threadId: 1, frameId: 2 };
         const result = await gdbTargetSession.evaluateGlobalExpression('myGlobalVariable');
-        expect(result).toEqual('1234567');
+        expect(result).toEqual({ result: '1234567', variableReference: 0 });
         expect(debugSession.customRequest as jest.Mock).toHaveBeenCalledWith('evaluate', { expression: 'myGlobalVariable', frameId: 2, context: 'hover' });
         // restore default
         (vscode.debug.activeStackItem as unknown) = undefined;
     });
 
-    it('returns undefined if evaluating a global expression fails', async () => {
+    it('returns a string if evaluating a global expression fails', async () => {
         // Only mock relevant properties, return value is body of EvaluateResponse
         const logDebugSpy = jest.spyOn(logger, 'debug');
         (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('myError'));
         const result = await gdbTargetSession.evaluateGlobalExpression('myGlobalVariable');
-        expect(result).toBeUndefined();
+        expect(result).toBe('myError');
         expect(debugSession.customRequest as jest.Mock).toHaveBeenCalledWith('evaluate', { expression: 'myGlobalVariable', frameId: 0, context: 'hover' });
         expect(logDebugSpy).toHaveBeenCalledWith('Session \'session-name\': Failed to evaluate global expression \'myGlobalVariable\' - \'myError\'');
     });

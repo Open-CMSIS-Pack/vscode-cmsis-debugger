@@ -19,8 +19,7 @@ import {
     ContinuedEvent,
     GDBTargetDebugTracker,
     SessionStackItem,
-    StackTraceRequest,
-    StackTraceResponse,
+    SessionStackTrace,
     StoppedEvent
 } from './gdbtarget-debug-tracker';
 import { debugSessionFactory, extensionContextFactory } from '../__test__/vscode.factory';
@@ -160,13 +159,12 @@ describe('GDBTargetDebugTracker', () => {
             expect(connectedSession).toBeDefined();
         });
 
-        it('sends an onStackTraceRequest event', async () => {
+        it('sends an onStackTrace event', async () => {
             const tracker = await adapterFactory!.createDebugAdapterTracker(debugSessionFactory(debugConfigurationFactory()));
             let gdbSession: GDBTargetDebugSession|undefined = undefined;
             debugTracker.onWillStartSession(session => gdbSession = session);
-            let result: StackTraceRequest|undefined = undefined;
-            debugTracker.onStackTraceRequest(request => result = request);
-            tracker!.onWillStartSession!();
+            let result: SessionStackTrace;
+            debugTracker.onStackTrace(request => result = request);
             const stackTraceRequest: DebugProtocol.StackTraceRequest = {
                 command: 'stackTrace',
                 type: 'request',
@@ -175,20 +173,6 @@ describe('GDBTargetDebugTracker', () => {
                     threadId: 1
                 }
             };
-            tracker!.onWillReceiveMessage!(stackTraceRequest);
-            expect(gdbSession).toBeDefined();
-            expect(result).toBeDefined();
-            expect(result!.session).toEqual(gdbSession);
-            expect(result!.request).toEqual(stackTraceRequest);
-        });
-
-        it('sends an onStackTraceResponse event', async () => {
-            let gdbSession: GDBTargetDebugSession|undefined = undefined;
-            debugTracker.onWillStartSession(session => gdbSession = session);
-            let result: StackTraceResponse|undefined = undefined;
-            debugTracker.onStackTraceResponse(response => result = response);
-            const tracker = await adapterFactory!.createDebugAdapterTracker(debugSessionFactory(debugConfigurationFactory()));
-            tracker!.onWillStartSession!();
             const stackTraceResponse: DebugProtocol.StackTraceResponse = {
                 command: 'stackTrace',
                 type: 'response',
@@ -206,11 +190,15 @@ describe('GDBTargetDebugTracker', () => {
                     ]
                 }
             };
+            tracker!.onWillStartSession!();
+            tracker!.onWillReceiveMessage!(stackTraceRequest);
             tracker!.onDidSendMessage!(stackTraceResponse);
             expect(gdbSession).toBeDefined();
-            expect(result).toBeDefined();
+            expect(result!).toBeDefined();
             expect(result!.session).toEqual(gdbSession);
-            expect(result!.response).toEqual(stackTraceResponse);
+            expect(result!.threadId).toEqual(stackTraceRequest.arguments.threadId);
+            expect(result!.stackFrames).toEqual(stackTraceResponse.body!.stackFrames);
+            expect(result!.totalFrames).toEqual(stackTraceResponse.body!.totalFrames);
         });
 
         it('sends a session continued event', async () => {
@@ -257,6 +245,81 @@ describe('GDBTargetDebugTracker', () => {
             expect(result!.event).toEqual(stoppedEvent);
         });
 
+    });
+
+    describe('refresh timer management', () => {
+        let adapterFactory: vscode.DebugAdapterTrackerFactory|undefined;
+        let gdbSession: GDBTargetDebugSession|undefined = undefined;
+        let tracker: vscode.DebugAdapterTracker|undefined|null = undefined;
+
+        beforeEach(async () => {
+            adapterFactory = undefined;
+            gdbSession = undefined;
+            tracker = undefined;
+            (vscode.debug.registerDebugAdapterTrackerFactory as jest.Mock).mockImplementation((_debugType: string, factory: vscode.DebugAdapterTrackerFactory): vscode.Disposable => {
+                adapterFactory = factory;
+                return { dispose: jest.fn() };
+            });
+            debugTracker.activate(contextMock);
+
+            debugTracker.onWillStartSession(session => gdbSession = session);
+            tracker = await adapterFactory!.createDebugAdapterTracker(debugSessionFactory(debugConfigurationFactory()));
+            tracker!.onWillStartSession!();
+            // Enable refresh timer
+            gdbSession!.refreshTimer.enabled = true;
+        });
+
+        const sendContinueEvent = () => {
+            // Send continued event
+            const continuedEvent: DebugProtocol.ContinuedEvent = {
+                event: 'continued',
+                type: 'event',
+                seq: 1,
+                body: {
+                    threadId: 1
+                }
+            };
+            tracker!.onDidSendMessage!(continuedEvent);
+        };
+
+        const sendStoppedEvent = () => {
+            // Send stopped event
+            const stoppedEvent: DebugProtocol.StoppedEvent = {
+                event: 'stopped',
+                type: 'event',
+                seq: 1,
+                body: {
+                    reason: 'step'
+                }
+            };
+            tracker!.onDidSendMessage!(stoppedEvent);
+        };
+
+        it.each([
+            { eventName: 'stopped', eventData: { event: 'stopped', type: 'event', seq: 1, body: { reason: 'step' } } },
+            { eventName: 'terminated', eventData: { event: 'terminated', type: 'event', seq: 1, body: { } } }, // Doesn't pass optional 'restart' property
+            { eventName: 'exited', eventData: { event: 'exited', type: 'event', seq: 1, body: { exitCode: 0 } } },
+        ])('starts refresh timer on session continued event, and stops on $eventName event', async ({ eventData }) => {
+            expect(gdbSession).toBeDefined();
+            sendContinueEvent();
+            expect(gdbSession!.refreshTimer.isRunning).toBe(true);
+            // Send event supposed to stop the timer
+            tracker!.onDidSendMessage!(eventData);
+            expect(gdbSession!.refreshTimer.isRunning).toBe(false);
+        });
+
+        it.each([
+            { requestName: 'next', requestArguments: { command: 'next', type: 'request', seq: 1, arguments: { threadId: 1 } } },
+            { requestName: 'stepIn', requestArguments: { command: 'stepIn', type: 'request', seq: 1, arguments: { threadId: 1 } } },
+            { requestName: 'stepOut', requestArguments: { command: 'stepOut', type: 'request', seq: 1, arguments: { threadId: 1  } } },
+        ])('starts refresh timer on $requestName request, and stops on stoppedEvent', async ({ requestArguments }) => {
+            expect(gdbSession).toBeDefined();
+            tracker!.onWillReceiveMessage!(requestArguments);
+            expect(gdbSession!.refreshTimer.isRunning).toBe(true);
+            // Send event supposed to stop the timer
+            sendStoppedEvent();
+            expect(gdbSession!.refreshTimer.isRunning).toBe(false);
+        });
     });
 
 });

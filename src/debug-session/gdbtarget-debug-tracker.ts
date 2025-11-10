@@ -28,18 +28,12 @@ export interface SessionEvent<T extends DebugProtocol.Event> {
 export type ContinuedEvent = SessionEvent<DebugProtocol.ContinuedEvent>;
 export type StoppedEvent = SessionEvent<DebugProtocol.StoppedEvent>;
 
-export interface SessionRequest<T extends DebugProtocol.Request> {
+export interface SessionStackTrace {
     session: GDBTargetDebugSession;
-    request: T;
+    threadId: number;
+    stackFrames: DebugProtocol.StackFrame[];
+    totalFrames?: number|undefined;
 }
-
-export interface SessionResponse<T extends DebugProtocol.Response> {
-    session: GDBTargetDebugSession;
-    response: T;
-}
-
-export type StackTraceRequest = SessionRequest<DebugProtocol.StackTraceRequest>;
-export type StackTraceResponse = SessionResponse<DebugProtocol.StackTraceResponse>;
 
 export type StackItem = vscode.DebugThread | vscode.DebugStackFrame | undefined;
 
@@ -50,6 +44,7 @@ export interface SessionStackItem {
 
 export class GDBTargetDebugTracker {
     private sessions: Map<string, GDBTargetDebugSession> = new Map();
+    private stackTraceRequests: Map<string, Map<number, number>> = new Map();
 
     private readonly _onWillStartSession: vscode.EventEmitter<GDBTargetDebugSession> = new vscode.EventEmitter<GDBTargetDebugSession>();
     public readonly onWillStartSession: vscode.Event<GDBTargetDebugSession> = this._onWillStartSession.event;
@@ -72,28 +67,14 @@ export class GDBTargetDebugTracker {
     private readonly _onStopped: vscode.EventEmitter<StoppedEvent> = new vscode.EventEmitter<StoppedEvent>();
     public readonly onStopped: vscode.Event<StoppedEvent> = this._onStopped.event;
 
-    private readonly _onStackTraceRequest: vscode.EventEmitter<StackTraceRequest> = new vscode.EventEmitter<StackTraceRequest>();
-    public readonly onStackTraceRequest: vscode.Event<StackTraceRequest> = this._onStackTraceRequest.event;
-
-    private readonly _onStackTraceResponse: vscode.EventEmitter<StackTraceResponse> = new vscode.EventEmitter<StackTraceResponse>();
-    public readonly onStackTraceResponse: vscode.Event<StackTraceResponse> = this._onStackTraceResponse.event;
+    private readonly _onStackTrace: vscode.EventEmitter<SessionStackTrace> = new vscode.EventEmitter<SessionStackTrace>();
+    public readonly onStackTrace: vscode.Event<SessionStackTrace> = this._onStackTrace.event;
 
     public activate(context: vscode.ExtensionContext) {
         const createDebugAdapterTracker = (session: vscode.DebugSession): vscode.ProviderResult<vscode.DebugAdapterTracker> => {
             return {
-                onWillStartSession: () => {
-                    const gdbTargetSession = new GDBTargetDebugSession(session);
-                    this.sessions.set(session.id, gdbTargetSession);
-                    this.bringConsoleToFront.apply(this);
-                    this._onWillStartSession.fire(gdbTargetSession);
-                },
-                onWillStopSession: () => {
-                    const gdbTargetSession = this.sessions.get(session.id);
-                    if (gdbTargetSession) {
-                        this.sessions.delete(session.id);
-                        this._onWillStopSession.fire(gdbTargetSession);
-                    }
-                },
+                onWillStartSession: () => this.handleOnWillStartSession(session),
+                onWillStopSession: () => this.handleOnWillStopSession(session),
                 onDidSendMessage: (message) => this.handleOnDidSendMessage(session, message),
                 onWillReceiveMessage: (message) => this.handleOnWillReceiveMessage(session, message),
             };
@@ -107,39 +88,87 @@ export class GDBTargetDebugTracker {
         );
     };
 
+    private handleOnWillStartSession(session: vscode.DebugSession): void {
+        const gdbTargetSession = new GDBTargetDebugSession(session);
+        this.sessions.set(session.id, gdbTargetSession);
+        this.bringConsoleToFront();
+        this._onWillStartSession.fire(gdbTargetSession);
+    }
+
+    private handleOnWillStopSession(session: vscode.DebugSession): void {
+        const gdbTargetSession = this.sessions.get(session.id);
+        if (gdbTargetSession) {
+            this.sessions.delete(session.id);
+            this._onWillStopSession.fire(gdbTargetSession);
+        }
+        this.stackTraceRequests.delete(session.id);
+    }
+
     protected handleOnDidSendMessage(session: vscode.DebugSession, message?: DebugProtocol.ProtocolMessage): void {
         if (!message) {
             return;
         }
         if (message.type === 'event') {
-            const event = message as DebugProtocol.Event;
-            const gdbTargetSession = this.sessions.get(session.id);
-            switch (event.event) {
-                case 'continued':
-                    this._onContinued.fire({ session: gdbTargetSession, event } as ContinuedEvent);
-                    break;
-                case 'stopped':
-                    this._onStopped.fire({ session: gdbTargetSession, event } as StoppedEvent);
-                    break;
-            }
+            this.handleEvent(session, message as DebugProtocol.Event);
         } else if (message.type === 'response') {
-            const response = message as DebugProtocol.Response;
-            const gdbTargetSession = this.sessions.get(session.id);
-            switch (response.command) {
-                case 'stackTrace':
-                    if (!gdbTargetSession) {
-                        break;
-                    }
-                    this._onStackTraceResponse.fire({ session: gdbTargetSession, response } as StackTraceResponse);
-                    break;
-                case 'launch':
-                case 'attach':
-                    if (response.success && gdbTargetSession) {
-                        this._onConnected.fire(gdbTargetSession);
-                    }
-                    break;
-            }
+            this.handleResponse(session, message as DebugProtocol.Response);
         }
+    }
+
+    private handleEvent(session: vscode.DebugSession, event: DebugProtocol.Event): void {
+        const gdbTargetSession = this.sessions.get(session.id);
+        switch (event.event) {
+            case 'continued':
+                this._onContinued.fire({ session: gdbTargetSession, event } as ContinuedEvent);
+                gdbTargetSession?.refreshTimer.start();
+                break;
+            case 'stopped':
+                gdbTargetSession?.refreshTimer.stop();
+                this._onStopped.fire({ session: gdbTargetSession, event } as StoppedEvent);
+                break;
+            case 'terminated':
+            case 'exited':
+                gdbTargetSession?.refreshTimer.stop();
+                break;
+        }
+    }
+
+    private handleResponse(session: vscode.DebugSession, response: DebugProtocol.Response): void {
+        const gdbTargetSession = this.sessions.get(session.id);
+        if (!gdbTargetSession)  {
+            return;
+        }
+        switch (response.command) {
+            case 'launch':
+            case 'attach':
+                this.handleLaunchAttachResponse(gdbTargetSession, response);
+                break;
+            case 'stackTrace':
+                this.handleStackTraceResponse(gdbTargetSession, response as DebugProtocol.StackTraceResponse);
+                break;
+        }
+    }
+
+    private handleLaunchAttachResponse(gdbTargetSession: GDBTargetDebugSession, response: DebugProtocol.Response): void {
+        if (response.success) {
+            this._onConnected.fire(gdbTargetSession);
+        }
+    }
+
+    private handleStackTraceResponse(gdbTargetSession: GDBTargetDebugSession, response: DebugProtocol.StackTraceResponse): void {
+        const stackTraceRequest = this.stackTraceRequests.get(gdbTargetSession.session.id);
+        const threadId = stackTraceRequest?.get(response.request_seq);
+        stackTraceRequest?.delete(response.request_seq);
+        if (!response.success || threadId === undefined) {
+            return;
+        }
+        const stackTrace = {
+            session: gdbTargetSession,
+            threadId,
+            stackFrames: response.body.stackFrames,
+            totalFrames: response.body.totalFrames
+        };
+        this._onStackTrace.fire(stackTrace);
     }
 
     protected handleOnWillReceiveMessage(session: vscode.DebugSession, message?: DebugProtocol.ProtocolMessage): void {
@@ -149,28 +178,44 @@ export class GDBTargetDebugTracker {
         if (message.type === 'request') {
             const request = message as DebugProtocol.Request;
             const gdbTargetSession = this.sessions.get(session.id);
+            if (!gdbTargetSession)  {
+                return;
+            }
             switch (request.command) {
                 case 'launch':
                 case 'attach':
-                    {
-                        const gdbTargetConfig = request.arguments as GDBTargetConfiguration;
-                        const cbuildRunFile = gdbTargetConfig.cmsis?.cbuildRunFile;
-                        if (cbuildRunFile && gdbTargetSession) {
-                            // Do not wait for it to keep the message flowing.
-                            // Session class will do the waiting in case requests
-                            // come early.
-                            gdbTargetSession.parseCbuildRun(cbuildRunFile);
-                        }
-                    }
+                    this.handleLaunchAttachRequest(gdbTargetSession, request);
                     break;
                 case 'stackTrace':
-                    if (!gdbTargetSession) {
-                        break;
-                    }
-                    this._onStackTraceRequest.fire({ session: gdbTargetSession, request } as StackTraceRequest);
+                    this.handleStackTraceRequest(gdbTargetSession, request as DebugProtocol.StackTraceRequest);
+                    break;
+                case 'next':
+                case 'stepIn':
+                case 'stepOut':
+                    gdbTargetSession.refreshTimer.start();
                     break;
             }
         }
+    }
+
+    private handleLaunchAttachRequest(gdbTargetSession: GDBTargetDebugSession, request: DebugProtocol.Request): void {
+        const gdbTargetConfig = request.arguments as GDBTargetConfiguration;
+        const cbuildRunFile = gdbTargetConfig.cmsis?.cbuildRunFile;
+        if (cbuildRunFile) {
+            // Do not wait for it to keep the message flowing.
+            // Session class will do the waiting in case requests
+            // come early.
+            gdbTargetSession.parseCbuildRun(cbuildRunFile);
+        }
+    }
+
+    private handleStackTraceRequest(gdbTargetSession: GDBTargetDebugSession, request: DebugProtocol.StackTraceRequest): void {
+        let stackTraceRequests = this.stackTraceRequests.get(gdbTargetSession.session.id);
+        if (stackTraceRequests === undefined) {
+            stackTraceRequests = new Map();
+            this.stackTraceRequests.set(gdbTargetSession.session.id, stackTraceRequests);
+        }
+        stackTraceRequests.set(request.seq, request.arguments.threadId);
     }
 
     protected handleOnDidChangeActiveStackItem(item: StackItem): void {

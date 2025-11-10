@@ -19,15 +19,13 @@ import {
     ContinuedEvent,
     GDBTargetDebugTracker,
     SessionStackItem,
-    StackTraceRequest,
-    StackTraceResponse,
+    SessionStackTrace,
     StoppedEvent
 } from '../../debug-session';
 import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-session';
 import { CpuStatesHistory } from './cpu-states-history';
 import { calculateTime, extractPname } from '../../utils';
 import { GDBTargetConfiguration } from '../../debug-configuration';
-import { DebugProtocol } from '@vscode/debugprotocol';
 
 // Architecturally defined registers (M-profile)
 const DWT_CTRL_ADDRESS = 0xE0001000;
@@ -46,12 +44,12 @@ interface SessionCpuStates {
 }
 
 export class CpuStates {
+    // onRefresh event to notify GUI components of the cpu states updates (This is different than that of the periodic refresh timer)
     private readonly _onRefresh: vscode.EventEmitter<number> = new vscode.EventEmitter<number>();
     public readonly onRefresh: vscode.Event<number> = this._onRefresh.event;
 
     public activeSession: GDBTargetDebugSession | undefined;
     private sessionCpuStates: Map<string, SessionCpuStates> = new Map();
-    private stackTraceRequests: Map<string, Map<number, number>> = new Map();
 
     public get activeCpuStates(): SessionCpuStates|undefined {
         if (!this.activeSession) {
@@ -68,8 +66,7 @@ export class CpuStates {
         tracker.onConnected(session => this.handleConnected(session));
         tracker.onContinued(event => this.handleContinuedEvent(event));
         tracker.onStopped(event => this.handleStoppedEvent(event));
-        tracker.onStackTraceRequest(request => this.handleStackTraceRequest(request));
-        tracker.onStackTraceResponse(response => this.handleStackTraceResponse(response));
+        tracker.onStackTrace(stackTrace => this.handleStackTrace(stackTrace));
     }
 
     protected handleOnWillStartSession(session: GDBTargetDebugSession): void {
@@ -81,10 +78,10 @@ export class CpuStates {
             hasStates: undefined
         };
         this.sessionCpuStates.set(session.session.id, states);
+        session.refreshTimer.onRefresh(async (refreshSession) => this.handlePeriodicRefresh(refreshSession));
     }
 
     protected handleOnWillStopSession(session: GDBTargetDebugSession): void {
-        this.stackTraceRequests.delete(session.session.id);
         this.sessionCpuStates.delete(session.session.id);
         if (this.activeSession?.session.id && this.activeSession?.session.id === session.session.id) {
             this.activeSession = undefined;
@@ -114,49 +111,47 @@ export class CpuStates {
         cpuStates.isRunning = true;
     }
 
+    private async shouldUpdate(session: GDBTargetDebugSession, cpuStates: SessionCpuStates): Promise<boolean> {
+        if (cpuStates.hasStates === undefined) {
+            // Retry if early read after launch/attach response failed (e.g. if
+            // target was running).
+            cpuStates.hasStates = await this.supportsCpuStates(session);
+        }
+        return cpuStates.hasStates;
+    }
+
     protected async handleStoppedEvent(event: StoppedEvent): Promise<void> {
         const cpuStates = this.sessionCpuStates.get(event.session.session.id);
         if (!cpuStates) {
             return;
         }
         cpuStates.isRunning = false;
-        if (cpuStates.hasStates === undefined) {
-            // Retry if early read after launch/attach response failed (e.g. if
-            // target was running).
-            cpuStates.hasStates = await this.supportsCpuStates(event.session);
-        }
-        if (!cpuStates.hasStates) {
+        const doUpdate = await this.shouldUpdate(event.session, cpuStates);
+        if (!doUpdate) {
             return;
         }
         return this.updateCpuStates(event.session, event.event.body.threadId, event.event.body.reason);
     }
 
-    protected handleStackTraceRequest(request: StackTraceRequest): void {
-        const cpuStates = this.sessionCpuStates.get(request.session.session.id);
+    protected async handlePeriodicRefresh(session: GDBTargetDebugSession): Promise<void> {
+        const cpuStates = this.sessionCpuStates.get(session.session.id);
         if (!cpuStates) {
-            // No need to continue
             return;
         }
-        let stackTraceRequests = this.stackTraceRequests.get(request.session.session.id);
-        if (stackTraceRequests === undefined) {
-            stackTraceRequests = new Map();
-            this.stackTraceRequests.set(request.session.session.id, stackTraceRequests);
+        const doUpdate = await this.shouldUpdate(session, cpuStates);
+        if (!doUpdate) {
+            return;
         }
-        stackTraceRequests.set(request.request.seq, request.request.arguments.threadId);
+        await this.updateCpuStates(session);
+        this._onRefresh.fire(0);
     }
 
-    protected handleStackTraceResponse(response: StackTraceResponse): void {
-        // Retrieve and delete tracked request from map first
-        const stackTraceRequest = this.stackTraceRequests.get(response.session.session.id);
-        const threadId = stackTraceRequest?.get(response.response.request_seq);
-        stackTraceRequest?.delete(response.response.request_seq);
+    protected handleStackTrace(stackTrace: SessionStackTrace): void {
         const states = this.activeCpuStates;
         if (!states) {
             return;
         }
-        const responseBody: DebugProtocol.StackTraceResponse['body'] = response.response.body;
-        const hasValidFrames = response.response.success && responseBody.totalFrames;
-        const topFrame = hasValidFrames ? responseBody.stackFrames[0] : undefined;
+        const topFrame = stackTrace.stackFrames.length > 0 ? stackTrace.stackFrames[0] : undefined;
         let locationString = '';
         if (topFrame) {
             if (topFrame.instructionPointerReference) {
@@ -170,7 +165,7 @@ export class CpuStates {
                 locationString += `::${topFrame.line}`;
             }
         }
-        states.statesHistory.insertStopLocation(locationString, threadId);
+        states.statesHistory.insertStopLocation(locationString, stackTrace.threadId);
         // Workaround for VS Code not automatically selecting stack frame without source info.
         // Assuming the correct stack frame is selected within 100ms. To revisit if something
         // can be done without fixed delays and duplicate updates.
@@ -211,11 +206,19 @@ export class CpuStates {
         // Caution with types...
         states.lastCycles = newCycles;
         states.states += BigInt(cycleAdd);
-        states.statesHistory.updateHistory(states.states, threadId, reason);
+        if (reason) {
+            // Only update history when a reason is present, i.e. for stopped events.
+            // Periodic updates do not have a reason and should not create history entries.
+            states.statesHistory.updateHistory(states.states, threadId, reason);
+        }
     }
 
     protected async getFrequency(): Promise<number|undefined> {
-        const frequencyString = await this.activeSession?.evaluateGlobalExpression('SystemCoreClock');
+        const result = await this.activeSession?.evaluateGlobalExpression('SystemCoreClock');
+        if (typeof result == 'string') {
+            return undefined;
+        }
+        const frequencyString = result?.result.match(/\d+/) ? result.result : undefined;
         if (!frequencyString) {
             return undefined;
         }

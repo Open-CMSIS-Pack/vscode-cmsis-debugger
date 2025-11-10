@@ -18,15 +18,22 @@ import * as vscode from 'vscode';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { logger } from '../logger';
 import { CbuildRunReader } from '../cbuild-run';
+import { PeriodicRefreshTimer } from './periodic-refresh-timer';
 
 /**
  * GDBTargetDebugSession - Wrapper class to provide session state/details
  */
 export class GDBTargetDebugSession {
+    public readonly refreshTimer: PeriodicRefreshTimer<GDBTargetDebugSession>;
     private _cbuildRun: CbuildRunReader|undefined;
     private _cbuildRunParsePromise: Promise<void>|undefined;
 
-    constructor(public session: vscode.DebugSession) {}
+    constructor(public session: vscode.DebugSession) {
+        this.refreshTimer = new PeriodicRefreshTimer(this);
+        if (this.session.configuration.type === 'gdbtarget') {
+            this.refreshTimer.enabled = this.session.configuration['auxiliaryGdb'] === true;
+        }
+    }
 
     public async getCbuildRun(): Promise<CbuildRunReader|undefined> {
         if (!this._cbuildRun) {
@@ -47,21 +54,22 @@ export class GDBTargetDebugSession {
         this._cbuildRunParsePromise = undefined;
     }
 
-    public async evaluateGlobalExpression(expression: string): Promise<string|undefined> {
+    /** Function returns string only in case of failure */
+    public async evaluateGlobalExpression(expression: string, context = 'hover'): Promise<DebugProtocol.EvaluateResponse['body'] | string> {
         try {
             const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
             const args: DebugProtocol.EvaluateArguments = {
                 expression,
                 frameId, // Currently required by CDT GDB Adapter
-                context: 'hover'
+                context: context
             };
             const response = await this.session.customRequest('evaluate', args) as DebugProtocol.EvaluateResponse['body'];
-            return response.result.match(/\d+/) ? response.result : undefined;
+            return response;
         } catch (error: unknown) {
             const errorMessage = (error as Error)?.message;
             logger.debug(`Session '${this.session.name}': Failed to evaluate global expression '${expression}' - '${errorMessage}'`);
+            return errorMessage === 'custom request failed' ? 'No active session' : errorMessage;
         }
-        return undefined;
     }
 
     public async readMemory(address: number, length = 4): Promise<ArrayBuffer|undefined> {
@@ -89,7 +97,7 @@ export class GDBTargetDebugSession {
     }
 
     public async readMemoryU32(address: number): Promise<number|undefined> {
-        const data = await this.readMemory(address, 4);
+        const data = await this.readMemory(address, 8 /* 4 */); // Temporary workaround for GDB servers with extra caching of 4 byte reads
         if (!data) {
             return undefined;
         }
