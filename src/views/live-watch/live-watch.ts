@@ -83,9 +83,9 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
     public getTreeItem(element: LiveWatchNode): vscode.TreeItem {
         const item = new vscode.TreeItem(element.expression + ' = ');
         item.description = element.value.result;
-        item.contextValue = 'expression';
         item.tooltip = element.value.type ?? '';
         item.collapsibleState = element.value.variablesReference !== 0 ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None;
+        item.contextValue = element.parent ? 'childExpression' : 'parentExpression';
         return item;
     }
 
@@ -228,7 +228,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         if (!payload || !payload.variable) {
             return;
         }
-        await this.addToRoots(payload.variable.name);
+        await this.addToRoots(payload.variable.evaluateName ?? payload.variable.name);
     }
 
     private async handleShowInMemoryInspector(node: LiveWatchNode) {
@@ -244,14 +244,14 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const args = {
             sessionId: this._activeSession?.session.id,
             container: {
-                name: node.expression,
+                name: node.value.evaluateName ?? node.expression,
                 variablesReference: node.value.variablesReference
             },
             variable: {
-                name: node.expression,
+                name: node.value.evaluateName ?? node.expression,
                 value: node.value.result,
                 variablesReference: node.value.variablesReference,
-                memoryReference: `&(${node.expression})`
+                memoryReference: `&(${node.value.evaluateName ?? node.expression})`
             }
         };
         await vscode.commands.executeCommand('memory-inspector.show-variable', args);

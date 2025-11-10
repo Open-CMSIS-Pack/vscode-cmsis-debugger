@@ -139,7 +139,7 @@
       "editor/context": [
         {
           "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromTextEditor",
-          "when": "editorTextFocus && resourceScheme == file",
+          "when": "editorTextFocus",
           "group": "z_commands"
         }
       ],
@@ -239,12 +239,12 @@
       "view/item/context": [
         {
           "command": "vscode-cmsis-debugger.liveWatch.modify",
-          "when": "view == cmsis-debugger.liveWatch && viewItem == expression",
+          "when": "view == cmsis-debugger.liveWatch && viewItem == parentExpression",
           "group": "inline@1"
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.delete",
-          "when": "view == cmsis-debugger.liveWatch && viewItem == expression",
+          "when": "view == cmsis-debugger.liveWatch && viewItem == parentExpression",
           "group": "inline@2"
         },
         {
@@ -254,17 +254,17 @@
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.modify",
-          "when": "view == cmsis-debugger.liveWatch && viewItem == expression",
+          "when": "view == cmsis-debugger.liveWatch && viewItem == parentExpression",
           "group": "contextMenuG1@2"
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.copy",
-          "when": "view == cmsis-debugger.liveWatch && viewItem == expression",
+          "when": "view == cmsis-debugger.liveWatch",
           "group": "contextMenuG1@3"
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.delete",
-          "when": "view == cmsis-debugger.liveWatch && viewItem == expression",
+          "when": "view == cmsis-debugger.liveWatch && viewItem == parentExpression",
           "group": "contextMenuG1@4"
         },
         {
@@ -279,7 +279,7 @@
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.showInMemoryInspector",
-          "when": "view == cmsis-debugger.liveWatch && viewItem == expression",
+          "when": "view == cmsis-debugger.liveWatch",
           "group": "contextMenuG3@1"
         }
       ]
