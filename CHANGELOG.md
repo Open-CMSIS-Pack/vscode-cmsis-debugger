@@ -14,7 +14,6 @@ the CPU is running.
 [RTOS Views](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views) extension.
 - Enables [#181](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/181): RTOS Viewer
     - Recommended solution is the mcu-debug [RTOS Views](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views) extension v0.0.12 and later which comes with support for a wide range of real-time operating systems, such as FreeRTOS, Zephyr, embOS, and Keil RTX5.
-    - Note: This also installs the mcu-debug [debug-tracker-vscode](https://marketplace.visualstudio.com/items?itemName=mcu-debug.debug-tracker-vscode) extension as dependency.
 - Implements [#519](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/519): Live watch window.
     - Adds `Trace and Live View`. It contains the `Live Watch` window which allows to watch results of expression periodically updating at runtime.
     - Allows to add `Live Watch` entries from context menus in the source editor, `Variables` window, and the `Watch` window.
