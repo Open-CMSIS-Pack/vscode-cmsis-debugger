@@ -44,6 +44,7 @@ interface SessionCpuStates {
 }
 
 export class CpuStates {
+    // onRefresh event to notify GUI components of the cpu states updates (This is different than that of the periodic refresh timer)
     private readonly _onRefresh: vscode.EventEmitter<number> = new vscode.EventEmitter<number>();
     public readonly onRefresh: vscode.Event<number> = this._onRefresh.event;
 
@@ -213,7 +214,11 @@ export class CpuStates {
     }
 
     protected async getFrequency(): Promise<number|undefined> {
-        const frequencyString = await this.activeSession?.evaluateGlobalExpression('SystemCoreClock');
+        const result = await this.activeSession?.evaluateGlobalExpression('SystemCoreClock');
+        if (typeof result == 'string') {
+            return undefined;
+        }
+        const frequencyString = result?.result.match(/\d+/) ? result.result : undefined;
         if (!frequencyString) {
             return undefined;
         }
