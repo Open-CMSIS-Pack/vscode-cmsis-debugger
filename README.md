@@ -16,8 +16,10 @@ The Arm CMSIS Debugger includes [pyOCD](https://pyocd.io/) for target connection
 - [CDT™ GDB Debug Adapter Extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode) for starting applications (_launch_) or connecting to running systems (_attach_).
 - [Memory Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector) provides a powerful and configurable memory viewer.
 - [Peripheral Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector) provides a structured view to device peripheral registers during debugging.
-- [RTOS Views](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views) provides insights into resources of popular RTOS implementations at runtime.
 - [Serial Monitor](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor) to view output from and send messages to serial (UART) or TCP ports.
+
+For RTOS awareness, we recommend installing this extension manually:
+- [RTOS Views](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views) provides insights into resources of popular RTOS implementations at runtime.
 
 This extension is [free to use](https://marketplace.visualstudio.com/items/Arm.vscode-cmsis-debugger/license) and you can install it individually or as part of the [Arm Keil® Studio pack](https://marketplace.visualstudio.com/items?itemName=Arm.keil-studio-pack). For optimum debugger experience, use it with these extensions (included in the Arm Keil Studio pack):
 
@@ -142,6 +144,11 @@ For more control of breakpoints, use the **BREAKPOINTS** section that lists and 
 
 ![BREAKPOINTS section](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/breakpoints-section.png)
 
+> 📝 **Note:**
+>
+> You can set breakpoints anytime in your debug session. When setting a breakpoint while running an application, the
+> target stops for a short period of time.
+
 #### Breakpoint types
 
 ##### Conditional breakpoints
@@ -182,6 +189,7 @@ then, choose which other breakpoint enables the breakpoint.
 
 ![Creating a triggered breakpoint](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/triggered-bkpt.gif)
 
+<!-->
 ##### Inline breakpoints
 
 Inline breakpoints are only hit when the execution reaches the column associated with the inline breakpoint.
@@ -192,7 +200,7 @@ Inline breakpoints are shown inline in the editor.
 
 Inline breakpoints can also have conditions. Editing multiple breakpoints on a line is possible through the
 context menu in the editor's left margin.
-
+-->
 ##### Function breakpoints
 
 Instead of placing breakpoints directly in source code, a debugger can support creating breakpoints by specifying
@@ -203,9 +211,10 @@ name. Function breakpoints are shown with a red triangle in the **BREAKPOINTS se
 
 ##### Data breakpoints
 
-If a debugger supports data breakpoints, they can be set from the context menu of a variable in the **WATCH section**.
-The Break on Value Change/Read/Access commands add a data breakpoint that is hit when the value of the underlying
-variable changes/is read/is accessed. Data breakpoints are shown with a red hexagon in the **BREAKPOINTS section**.
+Data breakpoints can be set from the context menu of a variable in the **WATCH section**. The Break on Value
+Change/Read/Access commands add a data breakpoint that is hit when the value of the underlying variable changes/is
+read/is accessed. Data breakpoints are shown with a red hexagon in the **BREAKPOINTS section** and the type of
+breakpoint is shown (Access/Read/Write).
 
 ![Creating a data breakpoint](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/data-breakpoints.gif)
 
@@ -311,8 +320,8 @@ The command **Open Disassembly View** (available from [command palette](https://
 ### RTOS Views
 
 For RTOS awareness, the [RTOS Views](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views)
-extension is used. It supports a wide range of real-time operating systems, such as FreeRTOS, Zephyr, embOS,and Keil
-RTX5.
+extension needs to be added to CS Code. This extension supports a wide range of real-time operating systems, such as
+FreeRTOS, Zephyr, embOS,and Keil RTX5.
 
 ![RTOS Views with FreeRTOS](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/rtos-views.png)
 
