@@ -20,8 +20,8 @@ the CPU is running.
     - Allows to send `Live Watch` entries and their child expressions to the [`Memory Inspector`](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector).
 - Partly implements [#315](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/315): Live Debug Capablities.
     - Periodic Refresh Timer for CPU execution time display while CPU is running.
-- Updates included pyOCD distribution from v0.39.0 to v0.41.0
-    - Changes with pyOCD v0.41.0
+- Updates included pyOCD distribution from v0.39.0 to v0.40.1
+    - Changes with pyOCD v0.40.1
         - TODO: add release notes
     - Changes with pyOCD v0.40.0
         - Implements [#160](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/160): Allow multiple GDB connections to same TCP/IP port.
