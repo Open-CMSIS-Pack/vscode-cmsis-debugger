@@ -18,6 +18,10 @@ The Arm CMSIS Debugger includes [pyOCD](https://pyocd.io/) for target connection
 - [Peripheral Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector) provides a structured view to device peripheral registers during debugging.
 - [Serial Monitor](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor) to view output from and send messages to serial (UART) or TCP ports.
 
+For RTOS awareness, we recommend installing this extension manually:
+
+- [RTOS Views](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views) provides insights into resources of popular RTOS implementations at runtime.
+
 This extension is [free to use](https://marketplace.visualstudio.com/items/Arm.vscode-cmsis-debugger/license) and you can install it individually or as part of the [Arm Keil® Studio pack](https://marketplace.visualstudio.com/items?itemName=Arm.keil-studio-pack). For optimum debugger experience, use it with extensions from Arm (included in the Arm Keil Studio pack) and from other parties:
 
 - [Arm CMSIS Solution](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution) a user interface for _csolution projects_ that simplifies the [Run and Debug configuration](https://mdk-packs.github.io/vscode-cmsis-solution-docs/configuration.html#configure-run-and-debug).
@@ -42,7 +46,9 @@ Many features of the CMSIS Debugger extension are exposed in the **Run and Debug
 
 1. **Start debugging** selects a configuration: _launch_ to start download/debug, _attach_ to connect with a running system.
 2. **Debug Toolbar** has buttons for the most common debugging actions that control execution.
-3. **Debug Statusbar** shows the configuration along with the workspace name. A color change indicates an active debug session.
+3. The **Trace and Live View** shows the **LIVE WATCH** window.
+4. **Debug Statusbar** shows the time spent running the application.
+5. The **Debug Console** can be used to interact with the debugger on the command line.
 
 ![Run and Debug view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/RunAndDebugView.png)
 
@@ -60,10 +66,14 @@ The **Run and Debug** view provides:
 
 Other debugger specific views or features:
 
-- [**Disassembly**](#disassembly) shows assembly instructions and supports run control, for example with stepping and breakpoints.
+- [**Live Watch**](#trace-and-live-view) offers run-time viewing of user-defined expressions, for example, variable
+  values.
+- [**Disassembly**](#disassembly) shows assembly instructions and supports run control, for example with stepping and
+  breakpoints.
 - [**Debug Console**](#debug-console) lists debug output messages and allows entering expressions or GDB commands.
 - [**Peripherals**](#peripherals) show the device peripheral registers and allow changing their values.
-- [**Serial Monitor**](#serial-monitor) uses serial or TCP communication to interact with application I/O functions (`printf`, `getc`, etc.).
+- [**Serial Monitor**](#serial-monitor) uses serial or TCP communication to interact with application I/O functions
+  (`printf`, `getc`, etc.).
 - [**CPU Time**](#cpu-time) shows execution timing and statistics of the past five breakpoints.
 - [**Multi-Core Debug**](#multi-core-debug) to view and control several processors in a device.
 
@@ -136,7 +146,22 @@ For more control of breakpoints, use the **BREAKPOINTS** section that lists and 
 
 ![BREAKPOINTS section](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/breakpoints-section.png)
 
+> 📝 **Note:**
+>
+> You can set breakpoints anytime during your debug session. However, when setting a breakpoint while running an
+> application, the target stops for a short period of time.
+
 #### Breakpoint types
+
+Apart from the code breakpoint, there are other breakpoint types to satisfy specific use cases.
+
+##### Function breakpoints
+
+Instead of placing breakpoints directly in source code, a debugger can support creating breakpoints by specifying
+a function name. This is useful in situations where the source is not available but a function name is known.
+
+To create a function breakpoint, select the + button in the **BREAKPOINTS section** header and enter the function
+name. Function breakpoints are shown with a red triangle in the **BREAKPOINTS section**.
 
 ##### Conditional breakpoints
 
@@ -166,6 +191,25 @@ To add a condition to an existing breakpoint:
 
 - Edit the condition (expression, hit count, or wait for breakpoint).
 
+> 📝 **Note:**
+>
+> For checking the the breakpoint condition, the target is halted for a short period of time.
+
+##### Data breakpoints
+
+Data breakpoints can be set from the context menu of a variable in the **WATCH section**. The Break on Value
+Change/Read/Access commands add a data breakpoint that is hit when the value of the underlying variable changes/is
+read/is accessed. Data breakpoints are shown with a red hexagon in the **BREAKPOINTS section** and the type of
+breakpoint is shown (Write/Read/Access).
+
+![Creating a data breakpoint](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/data-breakpoints.gif)
+
+> 📝 **Note:**
+>
+> When hitting a data breakpoint, the program execution does not stop exactly on that line of code. Depending on the
+> underlying CPU architecture, stopping can be delayed by up to 5 cycles. Use the
+> [Call Stack](#call-stack) view to determine what caused the execution to stop.
+
 ##### Triggered breakpoints
 
 A triggered breakpoint is type of conditional breakpoint that is enabled once another breakpoint is hit. They can
@@ -176,6 +220,7 @@ then, choose which other breakpoint enables the breakpoint.
 
 ![Creating a triggered breakpoint](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/triggered-bkpt.gif)
 
+<!--
 ##### Inline breakpoints
 
 Inline breakpoints are only hit when the execution reaches the column associated with the inline breakpoint.
@@ -186,36 +231,16 @@ Inline breakpoints are shown inline in the editor.
 
 Inline breakpoints can also have conditions. Editing multiple breakpoints on a line is possible through the
 context menu in the editor's left margin.
-
-##### Function breakpoints
-
-Instead of placing breakpoints directly in source code, a debugger can support creating breakpoints by specifying
-a function name. This is useful in situations where the source is not available but a function name is known.
-
-To create a function breakpoint, select the + button in the **BREAKPOINTS section** header and enter the function
-name. Function breakpoints are shown with a red triangle in the **BREAKPOINTS section**.
-
-##### Data breakpoints
-
-If a debugger supports data breakpoints, they can be set from the context menu of a variable in the **WATCH section**.
-The Break on Value Change/Read/Access commands add a data breakpoint that is hit when the value of the underlying
-variable changes/is read/is accessed. Data breakpoints are shown with a red hexagon in the **BREAKPOINTS section**.
-
-![Creating a data breakpoint](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/data-breakpoints.gif)
-
-> 📝 **Note:**
->
-> When hitting a data breakpoint, the program execution does not stop exactly on that line of code. Depending on the
-> underlying CPU architecture, stopping can be delayed by up to 5 cycles. Use the
-> [Call Stack](#call-stack) view to determine what caused the execution to stop.
+-->
 
 ##### Logpoints
 
-A logpoint is a variant of a breakpoint that does not interrupt the debugger, but instead logs a message to the
-debug console. Logpoints can help you save time by not having to add or remove logging statements in your code.
+A logpoint pauses the program execution for a short period of time, sends a message to the debug console, and then
+continues with the application. Logpoints can help you save time by not having to add or remove logging statements in
+your code.
 
 A logpoint is represented by a diamond-shaped icon. Log messages are plain text, but can also include expressions to be
-evaluated within curly braces ('{}').
+evaluated within curly braces (`{}`).
 
 To add a logpoint, right-click in the editor left margin and select Add Logpoint, or use the
 **Debug: Add Logpoint...** command in the Command Palette (**Ctrl/Cmd + Shift + p**).
@@ -241,6 +266,26 @@ Most Arm Cortex-M processors (except Cortex-M0/M0+/M23) include a `DWT->CYCCNT` 
 > - The first program stop (typically at function `main`) is the initial reference time (zero point).
 > - `DWT->CYCCNT` is a 32-bit register incremented with [`SystemCoreClock`](https://arm-software.github.io/CMSIS_6/latest/Core/group__system__init__gr.html) frequency. The time calculation copes with one overflow between program stops. Multiple overflows between program stops deliver wrong time information.
 > - Each processor in a multi-processor system has and independent `DWT->CYCCNT` register.
+
+### Trace and Live view
+
+The **Trace and Live View**
+![Trace and Live view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/TraceLiveView.png)
+(available from the VS Code Activty Bar) currently shows the **LIVE WATCH**. You can add expressions to this view that
+are updated while the application is running on your target.
+
+![Trace and Live View](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/talv-live-watch.png)
+
+You can add expressions to this view by:
+
+1. Pressing the three dots to the right.
+2. Pressing the `+` sign.
+3. Using the context menu item **Add to Live Watch** in:
+    - source code files.
+    - the **Watch** window.
+    - the **Variables** window.
+4. From the **Trace and Live View**, you can show an expression in the Memory Inspector. Right-click on the expression
+   and select **Show in Memory Inspector**.
 
 ### PERIPHERALS
 
@@ -284,7 +329,8 @@ The command **Open Disassembly View** (available from [command palette](https://
 ### RTOS Views
 
 For RTOS awareness, the [RTOS Views](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views)
-extension is used. Currently, it supports FreeRTOS, Zephyr, embOS,and various flavors of uC/OS. Keil RTX5 will be added soon.
+extension needs to be added to CS Code. This extension supports a wide range of real-time operating systems, such as
+FreeRTOS, Zephyr, embOS,and Keil RTX5.
 
 ![RTOS Views with FreeRTOS](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/rtos-views.png)
 
