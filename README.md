@@ -19,9 +19,7 @@ The Arm CMSIS Debugger includes [pyOCD](https://pyocd.io/) for target connection
 - [Serial Monitor](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor) to view output from and send messages to serial (UART) or TCP ports.
 
 For RTOS awareness, we recommend installing this extension manually:
-- [RTOS Views](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views) provides insights into resources of popular RTOS implementations at runtime.
 
-For RTOS awareness, we recommend installing this extension manually:
 - [RTOS Views](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views) provides insights into resources of popular RTOS implementations at runtime.
 
 This extension is [free to use](https://marketplace.visualstudio.com/items/Arm.vscode-cmsis-debugger/license) and you can install it individually or as part of the [Arm Keil® Studio pack](https://marketplace.visualstudio.com/items?itemName=Arm.keil-studio-pack). For optimum debugger experience, use it with extensions from Arm (included in the Arm Keil Studio pack) and from other parties:
@@ -234,6 +232,7 @@ Inline breakpoints are shown inline in the editor.
 Inline breakpoints can also have conditions. Editing multiple breakpoints on a line is possible through the
 context menu in the editor's left margin.
 -->
+
 ##### Logpoints
 
 A logpoint pauses the program execution for a short period of time, sends a message to the debug console, and then
@@ -287,7 +286,6 @@ You can add expressions to this view by:
     - the **Variables** window.
 4. From the **Trace and Live View**, you can show an expression in the Memory Inspector. Right-click on the expression
    and select **Show in Memory Inspector**.
-
 
 ### PERIPHERALS
 
@@ -370,36 +368,6 @@ application is run with the `> continue` command.
 ### Serial Monitor
 
 The [Serial Monitor](https://learn.microsoft.com/en-us/cpp/embedded/serial-monitor?view=msvc-170&tabs=visual-studio) allows users to configure, monitor, and communicate with serial or TCP ports.
-
-## Multi-Core Debug
-
-A GDB server provides multiple connections to the processor cores (identified with `pname`) of a device. The list below shows the output of pyOCD in the DEBUG CONSOLE of VS Code.
-
-```txt
-0000680 I Target device: MCXN947VDF [cbuild_run]
-0001585 I core 0: Cortex-M33 r0p4, pname: cm33_core0 [cbuild_run]
-0001585 I core 1: Cortex-M33 r0p4, pname: cm33_core1 [cbuild_run]
-0001585 I start-pname: cm33_core0 [cbuild_run]
-0001600 I Semihost server started on port 4444 (core 0) [server]
-0001636 I GDB server started on port 3333 (core 0) [gdbserver]
-0001641 I Semihost server started on port 4445 (core 1) [server]
-0001642 I GDB server started on port 3334 (core 1) [gdbserver]
-0007560 I Client connected to port 3333! [gdbserver]
-```
-
-The `start-pname` indicates the processor that starts first and boots the system. A debug _launch_ command connects to this processor. Use a debug _attach_ command to connect to  processors that are running. The picture below highlights the parts of the user interface that interact with processors.
-
-1. Select a processor and **Start Debug**. This connects the debugger.
-2. **Select a Processor** in the debug toolbar, or
-3. Click in **CALL STACK** on a thread or function name to select a processor.
-4. The selected processor is also shown in the **CPU Time Status bar**. This processor context is used in the VARIABLES and WATCH view.
-
-![Multicore Debug](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/multicore.png)
-
-> 📝 **Notes:**
->
-> - The SEGGER JLink GDB server uses a _launch_ command to connect to a running processor whereas other GDB servers use an _attach_ command.
-> - A [Disassembly View](#disassembly) opens only for a selected processor; otherwise the command is shown as disabled.
 
 ## Multi-Core Debug
 
