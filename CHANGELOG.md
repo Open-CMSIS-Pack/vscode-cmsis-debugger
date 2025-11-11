@@ -22,7 +22,7 @@ the CPU is running.
     - Periodic Refresh Timer for CPU execution time display while CPU is running.
 - Updates included pyOCD distribution from v0.39.0 to v0.40.1
     - Changes with pyOCD v0.40.1
-        - TODO: add release notes
+        - Fixes [#598](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/598): Fixes RTOS support for Zephyr (thread detection).
     - Changes with pyOCD v0.40.0
         - Implements [#160](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/160): Allow multiple GDB connections to same TCP/IP port.
         - Fixes [#386](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/386): "Erase device" command fails on ST multi-core devices.
