@@ -2,39 +2,34 @@
 
 ## 1.2.0
 
-- Use with [CDT GDB Adapter extension](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode)
-v2.4.1 or later to enable latest features in the CMSIS Debugger and included/recommended extensions.
-    - `gdbtarget` setting `auxiliaryGdb` enables memory accesses and evaluation of global expressions while
-the CPU is running.
-        - Works with pyOCD (v0.40.0 or later) and Segger J-Link GDB Server.
-        - Works with periodic refresh features of the
-[`Memory Inspector`](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector) and the
-[`Peripheral Inspector`](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector) extension.
-    - Defect fixes for improved support of the mcu-debug
-[RTOS Views](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views) extension.
-- Enables [#181](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/181): RTOS Viewer
-    - Recommended solution is the mcu-debug [RTOS Views](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views) extension v0.0.12 and later which comes with support for a wide range of real-time operating systems, such as FreeRTOS, Zephyr, embOS, and Keil RTX5.
-- Implements [#519](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/519): Live watch window.
-    - Adds `Trace and Live View`. It contains the `Live Watch` window which allows to watch results of expression periodically updating at runtime.
-    - Allows to add `Live Watch` entries from context menus in the source editor, `Variables` window, and the `Watch` window.
-    - Allows to send `Live Watch` entries and their child expressions to the [`Memory Inspector`](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector).
-- Partly implements [#315](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/315): Live Debug Capabilities.
-    - Periodic Refresh Timer for CPU execution time display while CPU is running.
-- Updates included pyOCD distribution from v0.39.0 to v0.41.0
-    - Changes with pyOCD v0.41.0
-        - Adds support for STLINK-V3PWR debug probe.
-        - Fixes [#598](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/598): RTOS support for Zephyr not working for GDB server (thread detection).
-        - Improves robustness of HID read thread for CMSIS-DAP.
-    - Changes with pyOCD v0.40.0
-        - Implements [#160](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/160): Allow multiple GDB connections to same TCP/IP port.
-        - Fixes [#386](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/386): "Erase device" command fails on ST multi-core devices.
-        - Fixes [#520](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/520): Alif E7 HE core doesn't start after programming.
-        - Performs a hardware reset (nSRST) after flashing to ensure a clean post-load state.
-        - Removes implicit resets between loading multiple application files.
-        - Sets Reset Catch on all cores when performing primary-core reset before flashing.
-        - Refines debug sequence error handling and breakpoint management across resets.
-        - Updates ResetType API for clearer reset type selection (for example when using `monitor reset` command)
-        - Adds missing secure/non-secure core registers (`CONTROL`, `FAULTMASK`, `BASEPRI`, and `PRIMASK`).
+- Introduces the ability to access memory and calculate expression results while the target system is running.  
+This enables periodic refreshes of the [CPU execution time](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#cpu-time), the
+[`Memory Inspector`](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector), and the
+[`Peripheral Inspector`](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector).
+    - Supported for both pyOCD and J-Link GDB Server.
+    - Correct functionality requires the following minimum versions
+        - [Arm CMSIS Solution extension v1.62.0](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution)
+        - [CDT GDB Adapter extension v2.4.1](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode)
+        - [pyOCD v0.41.0](https://github.com/pyocd/pyOCD/releases/tag/v0.41.0) which is included in this extension
+    - The feature is enabled by the `auxiliaryGdb` of the `gdbtarget` debug adapter type which is automatically added to launch configurations managed by the CMSIS Solution extension.
+- Adds [Trace and Live View](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-and-live-view) to host new views that allow updates while the target system is running.
+- Adds the [Live Watch](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-and-live-view) which allows to watch results of expression at runtime.
+- Use with the mcu-debug [RTOS Views](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views) extension v0.0.12 which comes with views for a wide range of real-time operating systems, such as FreeRTOS, Zephyr, embOS, and Keil RTX5. This complements the RTOS awareness in the Call Stack window.
+- Updates included pyOCD distribution to v0.41.0
+    - Adds support for STLINK-V3PWR debug probe.
+    - Allows multiple GDB connections to same TCP/IP port ([#160](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/160)).
+    - Fixes [#598](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/598): RTOS support for Zephyr not working for GDB server.
+    - Fixes [#386](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/386): "Erase device" command fails on ST multi-core devices.
+    - Fixes [#520](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/520): Alif E7 HE core doesn't start after programming.
+    - Performs a hardware reset (nSRST) after flashing to ensure a clean post-load state.
+    - Removes implicit resets between loading multiple application files.
+    - Sets Reset Catch on all cores when performing primary-core reset before flashing.
+    - Refines debug sequence error handling and breakpoint management across resets.
+    - Updates ResetType API for clearer reset type selection (for example when using `monitor reset` command)
+    - Adds missing secure/non-secure core registers (`CONTROL`, `FAULTMASK`, `BASEPRI`, and `PRIMASK`).
+- Included in this extension release:
+    - [`arm-none-eabi-gdb` v14.3.1](https://artifacts.tools.arm.com/arm-none-eabi-gdb/14.3.1/)
+    - [pyOCD v0.41.0](https://github.com/pyocd/pyOCD/releases/tag/v0.41.0)
 
 ## 1.1.0
 
