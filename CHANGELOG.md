@@ -18,7 +18,7 @@ the CPU is running.
     - Adds `Trace and Live View`. It contains the `Live Watch` window which allows to watch results of expression periodically updating at runtime.
     - Allows to add `Live Watch` entries from context menus in the source editor, `Variables` window, and the `Watch` window.
     - Allows to send `Live Watch` entries and their child expressions to the [`Memory Inspector`](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector).
-- Partly implements [#315](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/315): Live Debug Capablities.
+- Partly implements [#315](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/315): Live Debug Capabilities.
     - Periodic Refresh Timer for CPU execution time display while CPU is running.
 - Updates included pyOCD distribution from v0.39.0 to v0.41.0
     - Changes with pyOCD v0.41.0
