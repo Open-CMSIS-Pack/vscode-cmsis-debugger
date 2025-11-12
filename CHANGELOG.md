@@ -4,8 +4,8 @@
 
 - Introduces the ability to access memory and calculate expression results while the target system is running.  
 This enables periodic refreshes of the [CPU execution time](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#cpu-time), the
-[`Memory Inspector`](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector), and the
-[`Peripheral Inspector`](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector).
+[Memory Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector), and the
+[Peripheral Inspector](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector).
     - Supported for both pyOCD and J-Link GDB Server.
     - Correct functionality requires the following minimum versions
         - [Arm CMSIS Solution extension v1.62.0](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution)
