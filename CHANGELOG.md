@@ -27,9 +27,8 @@ This enables periodic refreshes of the [CPU execution time](https://github.com/O
     - Refines debug sequence error handling and breakpoint management across resets.
     - Updates ResetType API for clearer reset type selection (for example when using `monitor reset` command)
     - Adds missing secure/non-secure core registers (`CONTROL`, `FAULTMASK`, `BASEPRI`, and `PRIMASK`).
-- Included in this extension release:
+- Also included in this extension release:
     - [arm-none-eabi-gdb v14.3.1](https://artifacts.tools.arm.com/arm-none-eabi-gdb/14.3.1/)
-    - [pyOCD v0.41.0](https://github.com/pyocd/pyOCD/releases/tag/v0.41.0)
 
 ## 1.1.0
 
