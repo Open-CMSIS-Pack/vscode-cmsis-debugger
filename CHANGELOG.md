@@ -13,9 +13,9 @@ This enables periodic refreshes of the [CPU execution time](https://github.com/O
         - [pyOCD v0.41.0](https://github.com/pyocd/pyOCD/releases/tag/v0.41.0) which is included in this extension
     - The feature is enabled by the `auxiliaryGdb` setting of the `gdbtarget` debug adapter type which is automatically added to launch configurations managed by the CMSIS Solution extension.
 - Adds [Trace and Live View](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-and-live-view) to host new views that allow updates while the target system is running.
-- Adds the [Live Watch](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-and-live-view) which allows to watch results of expression at runtime.
-- Use with the mcu-debug [RTOS Views](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views) extension v0.0.12 which comes with views for a wide range of real-time operating systems, such as FreeRTOS, Zephyr, embOS, and Keil RTX5. This complements the RTOS awareness in the Call Stack window.
-- Updates included pyOCD distribution to v0.41.0
+- Adds the [Live Watch](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-and-live-view) which allows to watch results of expressions while the target is running.
+- Use with the mcu-debug [RTOS Views](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views) extension v0.0.12 which comes with views for a wide range of real-time operating systems, such as FreeRTOS, Zephyr, embOS, and Keil RTX5. This complements the RTOS awareness in the Call Stack window. Separate extension installation required.
+- Includes updated pyOCD distribution (v0.41.0)
     - Adds support for STLINK-V3PWR debug probe.
     - Allows multiple GDB connections to same TCP/IP port ([#160](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/160)).
     - Fixes [#598](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/598): RTOS support for Zephyr not working for GDB server.
