@@ -271,21 +271,15 @@ Most Arm Cortex-M processors (except Cortex-M0/M0+/M23) include a `DWT->CYCCNT` 
 
 The **Trace and Live View**
 ![Trace and Live view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/TraceLiveView.png)
-(available from the VS Code Activty Bar) currently shows the **LIVE WATCH**. You can add expressions to this view that
+(available from the VS Code Activity Bar) currently shows the **LIVE WATCH**. You can add expressions to this view that
 are updated while the application is running on your target.
 
-![Trace and Live View](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/talv-live-watch.png)
+You can add expressions to the **LIVE WATCH** by:
 
-You can add expressions to this view by:
+1. Pressing the `+` sign and entering an expression.
+2. Using the context menu item **Add to Live Watch** in the editor or the the **Run and Debug** view.
 
-1. Pressing the three dots to the right.
-2. Pressing the `+` sign.
-3. Using the context menu item **Add to Live Watch** in:
-    - source code files.
-    - the **Watch** window.
-    - the **Variables** window.
-4. From the **Trace and Live View**, you can show an expression in the Memory Inspector. Right-click on the expression
-   and select **Show in Memory Inspector**.
+![Displaying a variable in the LIVE WATCH](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main//images/lw-counter.gif)
 
 ### PERIPHERALS
 
