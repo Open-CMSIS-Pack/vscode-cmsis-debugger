@@ -66,6 +66,10 @@
     },
     "commands": [
       {
+        "command": "debug.action.openDisassemblyView",
+        "title": "Open Disassembly View"
+      },
+      {
         "title": "CPU Time",
         "shortTitle": "CPU Time",
         "command": "vscode-cmsis-debugger.showCpuTimeHistory",
@@ -140,6 +144,13 @@
         {
           "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromTextEditor",
           "when": "editorTextFocus",
+          "group": "z_commands"
+        }
+      ],
+      "editor/lineNumber/context": [
+        {
+          "command": "debug.action.openDisassemblyView",
+          "when": "inDebugMode",
           "group": "z_commands"
         }
       ],
