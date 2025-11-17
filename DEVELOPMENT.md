@@ -123,6 +123,12 @@ This command checks Markdown files against the linting rules defined in the
 Any formatting issues or deviations from the defined standards will be reported in the console. Addressing these helps
 maintain high-quality, readable, and standardized documentation across the project.
 
+> Tip: Simple rule violations can be fixed by the linter itself. Try running the following before manually going through all warnings/errors:
+>
+> ```bash
+>     yarn lint:md --fix
+> ````
+
 Additionally, if your changes involve updating or adding links within the documentation, you can verify the validity
 of all links by running:
 
