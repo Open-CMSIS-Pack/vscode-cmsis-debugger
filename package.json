@@ -66,8 +66,10 @@
     },
     "commands": [
       {
-        "command": "debug.action.openDisassemblyView",
-        "title": "Open Disassembly View"
+        "command": "vscode-cmsis-debugger.openDisassemblyView",
+        "title": "Open Disassembly View",
+        "category": "Run and Debug",
+        "when": "inDebugMode"
       },
       {
         "title": "CPU Time",
@@ -149,7 +151,7 @@
       ],
       "editor/lineNumber/context": [
         {
-          "command": "debug.action.openDisassemblyView",
+          "command": "vscode-cmsis-debugger.openDisassemblyView",
           "when": "inDebugMode",
           "group": "z_commands"
         }
@@ -169,6 +171,10 @@
         }
       ],
       "commandPalette": [
+        {
+          "command": "vscode-cmsis-debugger.openDisassemblyView",
+          "when": "false"
+        },
         {
           "command": "vscode-cmsis-debugger.showCpuTimeHistory",
           "when": "inDebugMode"
