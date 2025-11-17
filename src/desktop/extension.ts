@@ -26,6 +26,7 @@ import { LiveWatchTreeDataProvider } from '../views/live-watch/live-watch';
 import { EXTENSION_NAME } from '../manifest';
 import { execFile, spawn } from 'child_process';
 import { promisify } from 'util';
+import { BuiltinToolPath } from './builtin-tool-path';
 
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
@@ -56,8 +57,20 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     // Live Watch view
     liveWatchTreeDataProvider.activate(gdbtargetDebugTracker);
 
-    const runExecSpawn = async (execPath: string, extHeadline: string, args: string[] = [], shell?: boolean) => {
+    const absolutePaths = BUILTIN_TOOLS_PATHS.map((path) => {
+        // get gdb path from tools folder
+        const builtinTool = new BuiltinToolPath(path);
+        const pathTool = builtinTool.getAbsolutePath()?.fsPath;
+        // check if path exists
+        if (!pathTool) {
+            logger.debug(`${path} is not available`);
+        }
+        return pathTool;
+    });
+
+    const doRunExecSpawn = async (execPath: string, extHeadline: string, args: string[] = [], shell?: boolean) => {
         const execArgs = args;
+        logger.warn(`Spawned ${extHeadline}'${execPath} ${execArgs.join(' ')}'`);
         const { stdout, stderr, exitCode } = await new Promise<{ stdout: string, stderr: string, exitCode: CodeType }>((resolve, reject) => {
             let receivedData = false;
             const childProcess = spawn(
@@ -114,7 +127,6 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
                 resolve({ stdout, stderr, exitCode });
             });
 
-            logger.warn(`Spawned ${extHeadline}'${execPath} ${execArgs.join(' ')}'`);
             logger.warn(`\t spawnfile: ${childProcess.spawnfile}`);
             logger.warn(`\t spawnargs: ${childProcess.spawnargs}`);
         });
@@ -125,22 +137,42 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
         logger.warn(`\t\t ${stderr}`);
     };
 
-    const runExecExecFile = async (execPath: string, extHeadline: string, args: string[] = [], shell?: boolean) => {
+    const doRunExecExecFile = async (execPath: string, extHeadline: string, args: string[] = [], shell?: boolean) => {
         const execArgs = args;
+        logger.warn(`ExecFiled ${extHeadline}'${execPath} ${execArgs.join(' ')}'`);
         const { stdout, stderr } = await promisify(execFile)(
             execPath,
             execArgs,
             { cwd: process.cwd(), env: process.env, shell }
         );
-        logger.warn(`ExecFiled ${extHeadline}'${execPath} ${execArgs.join(' ')}'`);
         logger.warn(`\t stdout (${stdout.length}):`);
         logger.warn(`\t\t ${stdout}`);
         logger.warn(`\t stderr (${stderr.length}):`);
         logger.warn(`\t\t ${stderr}`);
     };
 
+    const runExecSpawn = async (execPath: string, extHeadline: string, args: string[] = [], shell?: boolean) => {
+        try {
+            await doRunExecSpawn(execPath, extHeadline, args, shell);
+        } catch (err) {
+            logger.error(`Error running spawn for ${extHeadline}'${execPath} ${args.join(' ')}': ${(err as Error).message}`);
+        }
+    };
+
+    const runExecExecFile = async (execPath: string, extHeadline: string, args: string[] = [], shell?: boolean) => {
+        try {
+            await doRunExecExecFile(execPath, extHeadline, args, shell);
+        } catch (err) {
+            logger.error(`Error running execFile for ${extHeadline}'${execPath} ${args.join(' ')}': ${(err as Error).message}`);
+        }
+    };
 
     vscode.commands.registerCommand(`${EXTENSION_NAME}.getGdbVersionSpawn`, async () => {
+        for (const path of absolutePaths) {
+            if (path) {
+                await runExecSpawn(path, '', ['--version']);
+            }
+        }
         await runExecSpawn('arm-none-eabi-gdb', '', ['--version']);
         await runExecSpawn('cbuild', '', ['--version']);
         // await runExecSpawn('pyocd', '', ['--version']);
@@ -151,6 +183,11 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
 
 
     vscode.commands.registerCommand(`${EXTENSION_NAME}.getGdbVersionShellSpawn`, async () => {
+        for (const path of absolutePaths) {
+            if (path) {
+                await runExecSpawn(path, '(via shell) ', ['--version'], true);
+            }
+        }
         await runExecSpawn('arm-none-eabi-gdb', '(via shell) ', ['--version'], true);
         await runExecSpawn('cbuild', '(via shell) ', ['--version'], true);
         // await runExecSpawn('pyocd', '(via shell) ', ['--version'], true);
@@ -160,6 +197,11 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     });
 
     vscode.commands.registerCommand(`${EXTENSION_NAME}.getGdbVersionExecFile`, async () => {
+        for (const path of absolutePaths) {
+            if (path) {
+                await runExecExecFile(path, '', ['--version']);
+            }
+        }
         await runExecExecFile('arm-none-eabi-gdb', '', ['--version']);
         await runExecExecFile('cbuild', '', ['--version']);
         // await runExecExecFile('pyocd', '', ['--version']);
@@ -170,6 +212,11 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
 
 
     vscode.commands.registerCommand(`${EXTENSION_NAME}.getGdbVersionShellExecFile`, async () => {
+        for (const path of absolutePaths) {
+            if (path) {
+                await runExecExecFile(path, '(via shell) ', ['--version'], true);
+            }
+        }
         await runExecExecFile('arm-none-eabi-gdb', '(via shell) ', ['--version'], true);
         await runExecExecFile('cbuild', '(via shell) ', ['--version'], true);
         // await runExecExecFile('pyocd', '(via shell) ', ['--version'], true);
