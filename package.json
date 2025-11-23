@@ -402,7 +402,7 @@
     "tsx": "^4.20.6",
     "type-fest": "^5.2.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "8.46.3",
+    "typescript-eslint": "8.47.0",
     "vscode-uri": "^3.1.0",
     "webpack": "^5.102.1",
     "webpack-cli": "^6.0.1",
