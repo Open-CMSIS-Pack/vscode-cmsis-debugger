@@ -373,7 +373,7 @@
     "@types/vscode": "^1.63.0",
     "@types/yargs": "^17.0.35",
     "@types/yarnpkg__lockfile": "^1.1.9",
-    "@typescript-eslint/eslint-plugin": "^8.46.3",
+    "@typescript-eslint/eslint-plugin": "^8.47.0",
     "@typescript-eslint/parser": "^8.46.3",
     "@vscode/debugprotocol": "^1.68.0",
     "@vscode/vsce": "^3.7.0",
