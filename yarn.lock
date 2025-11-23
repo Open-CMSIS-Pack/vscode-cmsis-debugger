@@ -2045,7 +2045,7 @@
     natural-compare "^1.4.0"
     ts-api-utils "^2.1.0"
 
-"@typescript-eslint/parser@8.47.0", "@typescript-eslint/parser@^8.46.3":
+"@typescript-eslint/parser@8.47.0":
   version "8.47.0"
   resolved "https://registry.yarnpkg.com/@typescript-eslint/parser/-/parser-8.47.0.tgz#51b14ab2be2057ec0f57073b9ff3a9c078b0a964"
   integrity sha512-lJi3PfxVmo0AkEY93ecfN+r8SofEqZNGByvHAI3GBLrvt1Cw6H5k1IM02nSzu0RfUafr2EvFSw0wAsZgubNplQ==
@@ -2054,6 +2054,17 @@
     "@typescript-eslint/types" "8.47.0"
     "@typescript-eslint/typescript-estree" "8.47.0"
     "@typescript-eslint/visitor-keys" "8.47.0"
+    debug "^4.3.4"
+
+"@typescript-eslint/parser@^8.47.0":
+  version "8.48.0"
+  resolved "https://registry.yarnpkg.com/@typescript-eslint/parser/-/parser-8.48.0.tgz#fc39ea9b1c8b2414c1f4b625277629e12a940e6b"
+  integrity sha512-jCzKdm/QK0Kg4V4IK/oMlRZlY+QOcdjv89U2NgKHZk1CYTj82/RVSx1mV/0gqCVMJ/DA+Zf/S4NBWNF8GQ+eqQ==
+  dependencies:
+    "@typescript-eslint/scope-manager" "8.48.0"
+    "@typescript-eslint/types" "8.48.0"
+    "@typescript-eslint/typescript-estree" "8.48.0"
+    "@typescript-eslint/visitor-keys" "8.48.0"
     debug "^4.3.4"
 
 "@typescript-eslint/project-service@8.47.0":
