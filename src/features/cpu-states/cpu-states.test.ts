@@ -366,7 +366,7 @@ describe('CpuStates', () => {
             expect(cpuStates.activeCpuStates?.statesHistory.frequency).toBeUndefined();
             expect(cpuStates.activeCpuStates?.skipFrequencyUpdate).toEqual(true);
             expect(await cpuStates.getActiveTimeString()).toEqual(' 0 states');
-            // Second update, valid frequency, time string still in states
+            // Second update, valid frequency but still skipping frequency update, time string still in states
             (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: '12000000' });
             await cpuStates.updateFrequency();
             expect(cpuStates.activeCpuStates?.frequency).toBeUndefined();
