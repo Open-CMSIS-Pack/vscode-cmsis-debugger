@@ -57,7 +57,6 @@ jobs:
           QUALIFIER=$(git describe --tags | grep -Eo '[0-9]+\-g[0-9a-f]+$')
           yarn version -s --no-git-tag-version --new-version "${DESCRIBE#v}"
           yarn version --no-git-tag-version --prepatch --preid "${{ github.ref_name }}${QUALIFIER}"
-          ;;
           VERSION="$(jq -r ".version" < package.json)"
           sed -i "s/## Unreleased/## ${VERSION}/" CHANGELOG.md
           echo "Version is ${VERSION}"
