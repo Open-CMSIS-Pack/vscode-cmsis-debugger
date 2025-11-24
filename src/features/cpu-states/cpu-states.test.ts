@@ -352,6 +352,38 @@ describe('CpuStates', () => {
             expect(await cpuStates.getActiveTimeString()).toEqual(' 0ns');
         });
 
+        it('skips updating frequency after getting SystemCoreClock throws until next CPU states reset', async () => {
+            // Bring into stopped state
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (tracker as any)._onStopped.fire(createStoppedEvent(gdbtargetDebugSession, 'breakpoint', 0));
+            await waitForMs(0);
+            expect(cpuStates.activeCpuStates?.skipFrequencyUpdate).toEqual(false);
+            (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('test error'));
+            // First update causing CPU states to skip further updates, time string in states
+            await cpuStates.updateFrequency();
+            expect(cpuStates.activeCpuStates).toBeDefined();
+            expect(cpuStates.activeCpuStates?.frequency).toBeUndefined();
+            expect(cpuStates.activeCpuStates?.statesHistory.frequency).toBeUndefined();
+            expect(cpuStates.activeCpuStates?.skipFrequencyUpdate).toEqual(true);
+            expect(await cpuStates.getActiveTimeString()).toEqual(' 0 states');
+            // Second update, valid frequency, time string still in states
+            (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: '12000000' });
+            await cpuStates.updateFrequency();
+            expect(cpuStates.activeCpuStates?.frequency).toBeUndefined();
+            expect(cpuStates.activeCpuStates?.skipFrequencyUpdate).toEqual(true);
+            expect(await cpuStates.getActiveTimeString()).toEqual(' 0 states');
+            // Reset states, skipFrequencyUpdate reset to false
+            cpuStates.resetStatesHistory();
+            expect(cpuStates.activeCpuStates?.skipFrequencyUpdate).toEqual(false);
+            // Now update again
+            // Third update, valid frequency, time string now in time
+            (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: '12000000' });
+            await cpuStates.updateFrequency();
+            expect(cpuStates.activeCpuStates?.frequency).toEqual(12000000);
+            expect(cpuStates.activeCpuStates?.skipFrequencyUpdate).toEqual(false);
+            expect(await cpuStates.getActiveTimeString()).toEqual(' 0ns');
+        });
+
         it('assigns frame location to captured stop point based on threadId match', async () => {
             const debugConsoleOutput: string[] = [];
             (vscode.debug.activeDebugConsole.appendLine as jest.Mock).mockImplementation(line => debugConsoleOutput.push(line));

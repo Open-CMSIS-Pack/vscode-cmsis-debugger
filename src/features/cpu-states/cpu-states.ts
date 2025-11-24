@@ -41,6 +41,7 @@ interface SessionCpuStates {
     statesHistory: CpuStatesHistory;
     isRunning: boolean;
     hasStates: boolean|undefined;
+    skipFrequencyUpdate: boolean;
 }
 
 export class CpuStates {
@@ -75,7 +76,8 @@ export class CpuStates {
             frequency: undefined,
             statesHistory: new CpuStatesHistory(extractPname(session.session.name)),
             isRunning: true,
-            hasStates: undefined
+            hasStates: undefined,
+            skipFrequencyUpdate: false
         };
         this.sessionCpuStates.set(session.session.id, states);
         session.refreshTimer.onRefresh(async (refreshSession) => this.handlePeriodicRefresh(refreshSession));
@@ -216,6 +218,10 @@ export class CpuStates {
     protected async getFrequency(): Promise<number|undefined> {
         const result = await this.activeSession?.evaluateGlobalExpression('SystemCoreClock');
         if (typeof result == 'string') {
+            if (this.activeCpuStates) {
+                // Do not retry until reset of CPU Time information
+                this.activeCpuStates.skipFrequencyUpdate = true;
+            }
             return undefined;
         }
         const frequencyString = result?.result.match(/\d+/) ? result.result : undefined;
@@ -253,7 +259,7 @@ export class CpuStates {
         }
         const pname = await this.getActivePname();
         if (!this.activeCpuStates.isRunning) {
-            // Only update frequency while stopped. User previous otherwise
+            // Only update frequency while stopped. Use previous otherwise
             // to avoid switching between states and time display.
             await this.updateFrequency();
         }
@@ -269,7 +275,7 @@ export class CpuStates {
 
     public async updateFrequency(): Promise<void> {
         const states = this.activeCpuStates;
-        if (!states) {
+        if (!states || states.skipFrequencyUpdate) {
             return;
         }
         const frequency = await this.getFrequency();
@@ -300,6 +306,7 @@ export class CpuStates {
         }
         states.statesHistory.resetHistory();
         states.states = BigInt(0);
+        states.skipFrequencyUpdate = false;
         this._onRefresh.fire(0);
     }
 };
