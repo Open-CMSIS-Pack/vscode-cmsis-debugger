@@ -258,11 +258,7 @@ export class CpuStates {
             return undefined;
         }
         const pname = await this.getActivePname();
-        if (!this.activeCpuStates.isRunning) {
-            // Only update frequency while stopped. Use previous otherwise
-            // to avoid switching between states and time display.
-            await this.updateFrequency();
-        }
+        await this.updateFrequency();
         const cpuName = pname ? ` ${pname} ` : '';
         if (!this.activeHasStates()) {
             return `${cpuName} N/A`;
@@ -274,10 +270,19 @@ export class CpuStates {
     }
 
     public async updateFrequency(): Promise<void> {
+        // Only update frequency while stopped. Use previous otherwise
+        // to avoid switching between states and time display.
         const states = this.activeCpuStates;
         if (!states || states.skipFrequencyUpdate) {
+            // No states or frequency update disabled
             return;
         }
+        if (this.activeCpuStates.isRunning && (this.activeCpuStates.frequency !== undefined || !this.activeSession?.canAccessWhileRunning)) {
+            // Skip update while running if we already have a frequency (update after next stop to avoid jumpy time display),
+            // or if session does not support access while running.
+            return;
+        }
+        // Update frequency if stopped or if initial update while running and access while running supported.
         const frequency = await this.getFrequency();
         states.frequency = frequency;
         states.statesHistory.frequency = frequency;
