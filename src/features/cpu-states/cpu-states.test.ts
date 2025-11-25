@@ -347,7 +347,7 @@ describe('CpuStates', () => {
             (debugSession.customRequest as jest.Mock).mockReturnValueOnce({ result: 'not a number' });
             await cpuStates.updateFrequency();
             expect(cpuStates.activeCpuStates).toBeDefined();
-            // Not considered as sever error yet, so not skipping frequency updates
+            // Not considered as severe error yet, so not skipping frequency updates
             expect(cpuStates.activeCpuStates?.skipFrequencyUpdate).toEqual(false);
             expect(cpuStates.activeCpuStates?.frequency).toBeUndefined();
             expect(cpuStates.activeCpuStates?.statesHistory.frequency).toBeUndefined();
