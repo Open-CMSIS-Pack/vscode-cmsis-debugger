@@ -16,27 +16,29 @@
  * limitations under the License.
  */
 
-import { ArchiveFileAsset, Downloadable, Downloader, GitHubReleaseAsset, WebFileAsset  } from '@open-cmsis-pack/vsce-helper';
+import { ArchiveFileAsset, Downloadable, Downloader, GitHubReleaseAsset, GitHubWorkflowAsset, WebFileAsset  } from '@open-cmsis-pack/vsce-helper';
 import { PackageJson } from 'type-fest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import process from 'node:process';
 
 type CmsisPackageJson = PackageJson & {
     cmsis: {
         pyocd?: string;
+        pyocdNightly?: string;
         gdb?: string;
     };                                                                                                                                                                                                                                                                                
 };
 
-function splitGitReleaseVersion(version: string, owner: string, repo: string) {
-    if (version.includes('@')) {
-        const parts = version.split('@');
-        version = parts[1];
+function splitGitReference(reference: string, owner: string, repo: string) {
+    if (reference.includes('@')) {
+        const parts = reference.split('@');
+        reference = parts[1];
         const repoAndOwner = parts[0].split('/');
         repo = repoAndOwner[1]
         owner = repoAndOwner[0];
     }
-    return { repo, owner, version };
+    return { repo, owner, reference };
 }
 
 const pyocd : Downloadable = new Downloadable(
@@ -56,12 +58,42 @@ const pyocd : Downloadable = new Downloadable(
             console.warn('No pyOCD version specified in package.json');
             return undefined;
         }
-        const { repo, owner, version } = splitGitReleaseVersion(reqVersion, 'pyocd', 'pyOCD');
+        // Here, reference is expected to be a release asset version
+        const { repo, owner, reference } = splitGitReference(reqVersion, 'pyocd', 'pyOCD');
         const releaseAsset = new GitHubReleaseAsset(
-            owner, repo, version,
-            `pyocd-${os}${arch}-${version}.zip`, 
+            owner, repo, reference,
+            `pyocd-${os}${arch}-${reference}.zip`, 
             { token: process.env.GITHUB_TOKEN });
         const asset = new ArchiveFileAsset(releaseAsset);
+        return asset;
+    },
+)
+
+const pyocdNightly : Downloadable = new Downloadable(
+    'pyOCD', 'pyocd',
+    async (target) => {
+        const { os, arch } = {
+            'win32-x64': { os: 'windows', arch: '' },
+            'win32-arm64': { os: 'windows', arch: '' },
+            'linux-x64': { os: 'linux', arch: '' },
+            'linux-arm64': { os: 'linux', arch: '-arm64' },
+            'darwin-x64': { os: 'macos', arch: '' },
+            'darwin-arm64': { os: 'macos', arch: '' },
+        }[target];
+        const json = await downloader.getPackageJson<CmsisPackageJson>();
+        const workflow = json?.cmsis?.pyocdNightly;
+        if (workflow === undefined) {
+            console.warn('No pyOCD \'Nightly\' workflow specified in package.json (<repo>@<workflowname>)');
+            return undefined;
+        }
+        // Here, reference is expected to be the name of the workflow yaml file without file ending
+        const { repo, owner, reference } = splitGitReference(workflow, 'pyocd', 'pyOCD');
+        const assetRegexp = (`pyocd-${os}${arch}-*`);
+        const workflowAsset = new GitHubWorkflowAsset(
+            owner, repo, `${reference}.yaml`,
+            assetRegexp, 
+            { token: process.env.GITHUB_TOKEN });
+        const asset = new ArchiveFileAsset(workflowAsset);
         return asset;
     },
 )
@@ -98,7 +130,16 @@ const gdb : Downloadable = new Downloadable(
     },
 );
 
-const downloader = new Downloader({ pyocd, gdb });
+// Create Downloader depending on mode to run in
+const nightlyArg = '--nightly';
+const downloader = new Downloader(
+    process.argv.includes(nightlyArg)
+        ? { gdb, pyocdNightly }
+        : { gdb, pyocd }
+);
+// Filter out the '--nightly' switch from process arg-list,
+// The downloader implementation doesn't like unknown arguments.
+process.argv = process.argv.filter(arg => arg !== nightlyArg);
 
 downloader
     .withCacheDir(await downloader.defaultCacheDir())

@@ -154,10 +154,10 @@ jobs:
           name: dist
           path: .
 
-      - name: Download tools
+      - name: Download tools (Nightly Builds)
         run: |
           yarn --frozen-lockfile --ignore-scripts --prefer-offline
-          yarn download-tools --target ${{ matrix.target }} --no-cache
+          yarn download-tools --target ${{ matrix.target }} --no-cache --nightly
 
       - name: Create vsix package
         run: |
