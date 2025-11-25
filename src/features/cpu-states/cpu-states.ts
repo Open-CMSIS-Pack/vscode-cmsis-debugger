@@ -26,6 +26,7 @@ import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-sessi
 import { CpuStatesHistory } from './cpu-states-history';
 import { calculateTime, extractPname } from '../../utils';
 import { GDBTargetConfiguration } from '../../debug-configuration';
+import { logger } from '../../logger';
 
 // Architecturally defined registers (M-profile)
 const DWT_CTRL_ADDRESS = 0xE0001000;
@@ -284,6 +285,11 @@ export class CpuStates {
         }
         // Update frequency if stopped or if initial update while running and access while running supported.
         const frequency = await this.getFrequency();
+        if (frequency === undefined) {
+            // Keep previous frequency value to avoid toggling between states and time display if there was a frequency before.
+            logger.debug(`CPU States: Unable to read frequency from target, keeping previous value '${states.frequency}' (Session: '${this.activeSession?.session.name})'`);
+            return;
+        }
         states.frequency = frequency;
         states.statesHistory.frequency = frequency;
     }
