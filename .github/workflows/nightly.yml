@@ -156,6 +156,8 @@ jobs:
           path: .
 
       - name: Download tools (Nightly Builds)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           yarn --frozen-lockfile --ignore-scripts --prefer-offline
           yarn download-tools --target ${{ matrix.target }} --no-cache --nightly
