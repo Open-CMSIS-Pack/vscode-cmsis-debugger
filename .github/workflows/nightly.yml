@@ -1,26 +1,9 @@
-name: CI
+name: Nightly
 
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - '**/*.md'
-      - '.github/workflows/markdown.yml'
-      - '.github/markdownlint.json'
-      - '.github/markdownlint.jsonc'
-  pull_request:
-    branches:
-      - main
-    paths-ignore:
-      - '**/*.md'
-      - '.github/workflows/markdown.yml'
-      - '.github/markdownlint.json'
-      - '.github/markdownlint.jsonc'
+  schedule:
+    - cron: '0 3 * * *'  # nightly at 03:00 UTC
   workflow_dispatch:
-  merge_group:
-  release:
-    types: [published]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -70,24 +53,10 @@ jobs:
       - name: Set version
         if: runner.os == 'Linux' && github.repository_owner == 'Open-CMSIS-Pack'
         run: |
-          case ${{ github.event_name }} in
-            release)
-              TAG="${{ github.event.release.tag_name }}"
-              yarn version --no-git-tag-version --new-version "${TAG#v}"
-              ;;
-            pull_request)
-              DESCRIBE=$(git describe --tags | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+')
-              QUALIFIER=$(git describe --tags | grep -Eo '\-g[0-9a-f]+$')
-              yarn version -s --no-git-tag-version --new-version "${DESCRIBE#v}"
-              yarn version --no-git-tag-version --prepatch --preid "pr${{ github.event.number }}${QUALIFIER}"
-              ;;
-            *)
-              DESCRIBE=$(git describe --tags | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+')
-              QUALIFIER=$(git describe --tags | grep -Eo '[0-9]+\-g[0-9a-f]+$')
-              yarn version -s --no-git-tag-version --new-version "${DESCRIBE#v}"
-              yarn version --no-git-tag-version --prepatch --preid "${{ github.ref_name }}${QUALIFIER}"
-              ;;
-          esac
+          DESCRIBE=$(git describe --tags | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+')
+          QUALIFIER=$(git describe --tags | grep -Eo '[0-9]+\-g[0-9a-f]+$')
+          yarn version -s --no-git-tag-version --new-version "${DESCRIBE#v}"
+          yarn version --no-git-tag-version --prepatch --preid "${{ github.ref_name }}${QUALIFIER}"
           VERSION="$(jq -r ".version" < package.json)"
           sed -i "s/## Unreleased/## ${VERSION}/" CHANGELOG.md
           echo "Version is ${VERSION}"
@@ -128,17 +97,6 @@ jobs:
             ./package.json
             ./dist
           retention-days: 1
-
-      - name: Commit changelog
-        if: false && github.event_name == 'release' && runner.os == 'Linux'
-        run: |
-          sed -i '3i ## Unreleased\n' CHANGELOG.md
-          git checkout main
-          git config user.name github-actions
-          git config user.email git@github.com
-          git add CHANGELOG.md
-          git commit -m "Update CHANGELOG.md after release [skip ci]"
-          git push
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: runner.os == 'Linux'
@@ -211,47 +169,3 @@ jobs:
           name: vsix-package-${{ matrix.target }}
           path: ./*.vsix
           retention-days: 1
-
-  publish:
-    name: Publish release
-    runs-on: [ubuntu-latest]
-    if: github.event_name == 'release'
-    needs: package
-    permissions:
-      contents: write  # for softprops/action-gh-release to create a GitHub release
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
-        with:
-          egress-policy: audit
-
-      - name: Download packages
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          pattern: vsix-package-*
-
-      - name: Download coverage report
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          pattern: test-coverage
-
-      - name: Download test report
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          pattern: test-report-linux
-
-      - name: Zip test report
-        run: zip -r test-report.zip *
-        working-directory: test-report-linux
-
-      - name: Zip test coverage
-        run: zip -r test-coverage.zip *
-        working-directory: test-coverage
-         
-      - name: Attach packages
-        uses: softprops/action-gh-release@5be0e66d93ac7ed76da52eca8bb058f665c3a5fe # v2.4.2
-        with:
-          files: |
-            **/*.vsix
-            test-coverage/test-coverage.zip
-            test-report-linux/test-report.zip

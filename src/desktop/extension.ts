@@ -23,6 +23,7 @@ import { CpuStatesStatusBarItem } from '../features/cpu-states/cpu-states-status
 import { CpuStates } from '../features/cpu-states/cpu-states';
 import { CpuStatesCommands } from '../features/cpu-states/cpu-states-commands';
 import { LiveWatchTreeDataProvider } from '../views/live-watch/live-watch';
+import { GenericCommands } from '../features/generic-commands';
 
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
@@ -32,6 +33,7 @@ const BUILTIN_TOOLS_PATHS = [
 let liveWatchTreeDataProvider: LiveWatchTreeDataProvider;
 
 export const activate = async (context: vscode.ExtensionContext): Promise<void> => {
+    const genericCommands = new GenericCommands();
     const gdbtargetDebugTracker = new GDBTargetDebugTracker();
     const gdbtargetConfigurationProvider = new GDBTargetConfigurationProvider();
     const cpuStates = new CpuStates();
@@ -41,6 +43,8 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     liveWatchTreeDataProvider = new LiveWatchTreeDataProvider(context);
 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);
+    // Activate generic commands
+    genericCommands.activate(context);
     // Activate components
     gdbtargetDebugTracker.activate(context);
     gdbtargetConfigurationProvider.activate(context);
