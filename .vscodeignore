@@ -12,6 +12,7 @@ src
 test-data
 test-workspace
 .gitignore
+.npmrc
 .vscodeignore
 DEVELOPMENT.md
 test-report.html
