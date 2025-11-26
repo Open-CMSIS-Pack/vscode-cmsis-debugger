@@ -1587,17 +1587,17 @@
   resolved "https://registry.yarnpkg.com/@oozcitak/util/-/util-8.3.8.tgz#10f65fe1891fd8cde4957360835e78fd1936bfdd"
   integrity sha512-T8TbSnGsxo6TDBJx/Sgv/BlVJL3tshxZP7Aq5R1mSnM5OcHY2dQaxLMu2+E8u3gN0MLOzdjurqN4ZRVuzQycOQ==
 
-"@open-cmsis-pack/vsce-helper@^0.1.3":
-  version "0.1.3"
-  resolved "https://npm.pkg.github.com/download/@open-cmsis-pack/vsce-helper/0.1.3/c2a53311bf2905c71f9698e9630014486a7201db#c2a53311bf2905c71f9698e9630014486a7201db"
-  integrity sha512-nCpRwqB9MmaUwVw9KgXQyfO8CX5ZyyMhJA+pE0Nzij+GryRRW6P/MjhCr3SpMVJ7IZzctPWU8AtTcvLALgbuWQ==
+"@open-cmsis-pack/vsce-helper@^0.2.0":
+  version "0.2.0"
+  resolved "https://npm.pkg.github.com/download/@open-cmsis-pack/vsce-helper/0.2.0/0e1761e60cd861fb4f5d12c61e39dd4f3f0ae0ce#0e1761e60cd861fb4f5d12c61e39dd4f3f0ae0ce"
+  integrity sha512-04aviNE5BmICux/04gJhvGR39GYxdjINcy7Jo2gw303AvMLpR3fZlF8BJbkmucMakTYfw5/jKaT/lsaMntRoEw==
   dependencies:
     "@types/decompress" "^4.2.7"
     decompress "^4.2.1"
     node-fetch "^3.3.2"
     octokit "^5.0.3"
     tempfile "^5.0.0"
-    type-fest "^4.41.0"
+    type-fest "^5.2.0"
     yargs "^18.0.0"
 
 "@pkgjs/parseargs@^0.11.0":
