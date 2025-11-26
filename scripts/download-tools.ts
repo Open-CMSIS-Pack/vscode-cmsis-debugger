@@ -89,11 +89,10 @@ const pyocdNightly : Downloadable = new Downloadable(
         // Here, reference is expected to be the name of the workflow yaml file without file ending
         const { repo, owner, reference } = splitGitReference(workflow, 'pyocd', 'pyOCD');
         const assetRegexp = (`pyocd-${os}${arch}-*`);
-        const workflowAsset = new GitHubWorkflowAsset(
+        const asset = new GitHubWorkflowAsset(
             owner, repo, `${reference}.yaml`,
             assetRegexp, 
             { token: process.env.GITHUB_TOKEN });
-        const asset = new ArchiveFileAsset(workflowAsset);
         return asset;
     },
 )
