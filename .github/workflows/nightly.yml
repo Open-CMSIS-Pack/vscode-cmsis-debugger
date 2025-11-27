@@ -160,7 +160,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           yarn --frozen-lockfile --ignore-scripts --prefer-offline
-          yarn download-tools --target ${{ matrix.target }} --no-cache --nightly
+          yarn download-tools:nightly --target ${{ matrix.target }} --no-cache
 
       - name: Create vsix package
         run: |

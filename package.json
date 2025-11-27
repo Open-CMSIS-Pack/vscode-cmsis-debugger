@@ -341,7 +341,8 @@
   },
   "scripts": {
     "prepare": "yarn run build",
-    "download-tools": "tsx scripts/download-tools.ts",
+    "download-tools": "tsx scripts/download-tools.ts pyocd gdb",
+    "download-tools:nightly": "tsx scripts/download-tools.ts pyocdNightly gdb",
     "clean": "git clean -f -x ./node_modules ./dist ./coverage ./tools",
     "build": "webpack --mode production && yarn lint",
     "build:no-lint": "webpack --mode production",

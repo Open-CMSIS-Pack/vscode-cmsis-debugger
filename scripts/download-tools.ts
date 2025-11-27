@@ -129,16 +129,13 @@ const gdb : Downloadable = new Downloadable(
     },
 );
 
-// Create Downloader depending on mode to run in
-const nightlyArg = '--nightly';
-const downloader = new Downloader(
-    process.argv.includes(nightlyArg)
-        ? { gdb, pyocdNightly }
-        : { gdb, pyocd }
-);
-// Filter out the '--nightly' switch from process arg-list,
-// The downloader implementation doesn't like unknown arguments.
-process.argv = process.argv.filter(arg => arg !== nightlyArg);
+// If no arguments are provided to the downloader script, all assets are downloaded
+// in the order they are listed. In that case, 'pyocd' will overwrite 'pyocdNightly'.
+const downloader = new Downloader({
+    pyocdNightly,
+    pyocd,
+    gdb
+});
 
 downloader
     .withCacheDir(await downloader.defaultCacheDir())
