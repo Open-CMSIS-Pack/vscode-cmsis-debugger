@@ -36,7 +36,7 @@ jobs:
           egress-policy: audit
 
       - run: git config --global core.autocrlf false
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           fetch-depth: 0
           submodules: true
@@ -131,13 +131,14 @@ jobs:
           - darwin-arm64
     permissions:
       packages: read
+      actions: read # For fetching workflow artifacts with 'download-tools --nightly'
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
 
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         env:
@@ -154,10 +155,12 @@ jobs:
           name: dist
           path: .
 
-      - name: Download tools
+      - name: Download tools (Nightly Builds)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           yarn --frozen-lockfile --ignore-scripts --prefer-offline
-          yarn download-tools --target ${{ matrix.target }} --no-cache
+          yarn download-tools:nightly --target ${{ matrix.target }} --no-cache
 
       - name: Create vsix package
         run: |

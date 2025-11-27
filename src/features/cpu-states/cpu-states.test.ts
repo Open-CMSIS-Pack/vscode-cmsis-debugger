@@ -188,9 +188,17 @@ describe('CpuStates', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (tracker as any)._onConnected.fire(gdbtargetDebugSession);
             await waitForMs(0);
+            // Bring into stopped state
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (tracker as any)._onStopped.fire(createStoppedEvent(gdbtargetDebugSession, 'breakpoint', 0));
+            await waitForMs(0);
         });
 
         it('handles running state correctly', async () => {
+            // Set running
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (tracker as any)._onContinued.fire(createContinuedEvent(gdbtargetDebugSession, 0));
+            await waitForMs(0);
             // Considered running after connection
             expect(cpuStates.activeCpuStates?.isRunning).toEqual(true);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -329,6 +337,7 @@ describe('CpuStates', () => {
             (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('test error'));
             await cpuStates.updateFrequency();
             expect(cpuStates.activeCpuStates).toBeDefined();
+            expect(cpuStates.activeCpuStates?.skipFrequencyUpdate).toEqual(true);
             expect(cpuStates.activeCpuStates?.frequency).toBeUndefined();
             expect(cpuStates.activeCpuStates?.statesHistory.frequency).toBeUndefined();
             expect(await cpuStates.getActiveTimeString()).toEqual(' 0 states');
@@ -338,6 +347,8 @@ describe('CpuStates', () => {
             (debugSession.customRequest as jest.Mock).mockReturnValueOnce({ result: 'not a number' });
             await cpuStates.updateFrequency();
             expect(cpuStates.activeCpuStates).toBeDefined();
+            // Not considered as severe error yet, so not skipping frequency updates
+            expect(cpuStates.activeCpuStates?.skipFrequencyUpdate).toEqual(false);
             expect(cpuStates.activeCpuStates?.frequency).toBeUndefined();
             expect(cpuStates.activeCpuStates?.statesHistory.frequency).toBeUndefined();
             expect(await cpuStates.getActiveTimeString()).toEqual(' 0 states');
@@ -347,8 +358,37 @@ describe('CpuStates', () => {
             (debugSession.customRequest as jest.Mock).mockReturnValueOnce({ result: '12000000' });
             await cpuStates.updateFrequency();
             expect(cpuStates.activeCpuStates).toBeDefined();
+            expect(cpuStates.activeCpuStates?.skipFrequencyUpdate).toEqual(false);
             expect(cpuStates.activeCpuStates?.frequency).toEqual(12000000);
             expect(cpuStates.activeCpuStates?.statesHistory.frequency).toEqual(12000000);
+            expect(await cpuStates.getActiveTimeString()).toEqual(' 0ns');
+        });
+
+        it('skips updating frequency after getting SystemCoreClock throws until next CPU states reset', async () => {
+            expect(cpuStates.activeCpuStates?.skipFrequencyUpdate).toEqual(false);
+            (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('test error'));
+            // First update causing CPU states to skip further updates, time string in states
+            await cpuStates.updateFrequency();
+            expect(cpuStates.activeCpuStates).toBeDefined();
+            expect(cpuStates.activeCpuStates?.frequency).toBeUndefined();
+            expect(cpuStates.activeCpuStates?.statesHistory.frequency).toBeUndefined();
+            expect(cpuStates.activeCpuStates?.skipFrequencyUpdate).toEqual(true);
+            expect(await cpuStates.getActiveTimeString()).toEqual(' 0 states');
+            // Second update, valid frequency but still skipping frequency update, time string still in states
+            (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: '12000000' });
+            await cpuStates.updateFrequency();
+            expect(cpuStates.activeCpuStates?.frequency).toBeUndefined();
+            expect(cpuStates.activeCpuStates?.skipFrequencyUpdate).toEqual(true);
+            expect(await cpuStates.getActiveTimeString()).toEqual(' 0 states');
+            // Reset states, skipFrequencyUpdate reset to false
+            cpuStates.resetStatesHistory();
+            expect(cpuStates.activeCpuStates?.skipFrequencyUpdate).toEqual(false);
+            // Now update again
+            // Third update, valid frequency, time string now in time
+            (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: '12000000' });
+            await cpuStates.updateFrequency();
+            expect(cpuStates.activeCpuStates?.frequency).toEqual(12000000);
+            expect(cpuStates.activeCpuStates?.skipFrequencyUpdate).toEqual(false);
             expect(await cpuStates.getActiveTimeString()).toEqual(' 0ns');
         });
 

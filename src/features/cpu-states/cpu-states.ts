@@ -26,6 +26,7 @@ import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-sessi
 import { CpuStatesHistory } from './cpu-states-history';
 import { calculateTime, extractPname } from '../../utils';
 import { GDBTargetConfiguration } from '../../debug-configuration';
+import { logger } from '../../logger';
 
 // Architecturally defined registers (M-profile)
 const DWT_CTRL_ADDRESS = 0xE0001000;
@@ -41,6 +42,7 @@ interface SessionCpuStates {
     statesHistory: CpuStatesHistory;
     isRunning: boolean;
     hasStates: boolean|undefined;
+    skipFrequencyUpdate: boolean;
 }
 
 export class CpuStates {
@@ -75,7 +77,8 @@ export class CpuStates {
             frequency: undefined,
             statesHistory: new CpuStatesHistory(extractPname(session.session.name)),
             isRunning: true,
-            hasStates: undefined
+            hasStates: undefined,
+            skipFrequencyUpdate: false
         };
         this.sessionCpuStates.set(session.session.id, states);
         session.refreshTimer.onRefresh(async (refreshSession) => this.handlePeriodicRefresh(refreshSession));
@@ -216,6 +219,10 @@ export class CpuStates {
     protected async getFrequency(): Promise<number|undefined> {
         const result = await this.activeSession?.evaluateGlobalExpression('SystemCoreClock');
         if (typeof result == 'string') {
+            if (this.activeCpuStates) {
+                // Do not retry until reset of CPU Time information
+                this.activeCpuStates.skipFrequencyUpdate = true;
+            }
             return undefined;
         }
         const frequencyString = result?.result.match(/\d+/) ? result.result : undefined;
@@ -252,11 +259,7 @@ export class CpuStates {
             return undefined;
         }
         const pname = await this.getActivePname();
-        if (!this.activeCpuStates.isRunning) {
-            // Only update frequency while stopped. User previous otherwise
-            // to avoid switching between states and time display.
-            await this.updateFrequency();
-        }
+        await this.updateFrequency();
         const cpuName = pname ? ` ${pname} ` : '';
         if (!this.activeHasStates()) {
             return `${cpuName} N/A`;
@@ -268,11 +271,25 @@ export class CpuStates {
     }
 
     public async updateFrequency(): Promise<void> {
+        // Only update frequency while stopped. Use previous otherwise
+        // to avoid switching between states and time display.
         const states = this.activeCpuStates;
-        if (!states) {
+        if (!states || states.skipFrequencyUpdate) {
+            // No states or frequency update disabled
             return;
         }
+        if (this.activeCpuStates.isRunning && (this.activeCpuStates.frequency !== undefined || !this.activeSession?.canAccessWhileRunning)) {
+            // Skip update while running if we already have a frequency (update after next stop to avoid jumpy time display),
+            // or if session does not support access while running.
+            return;
+        }
+        // Update frequency if stopped or if initial update while running and access while running supported.
         const frequency = await this.getFrequency();
+        if (frequency === undefined) {
+            // Keep previous frequency value to avoid toggling between states and time display if there was a frequency before.
+            logger.debug(`CPU States: Unable to read frequency from target, keeping previous value '${states.frequency}' (Session: '${this.activeSession?.session.name})'`);
+            return;
+        }
         states.frequency = frequency;
         states.statesHistory.frequency = frequency;
     }
@@ -300,6 +317,7 @@ export class CpuStates {
         }
         states.statesHistory.resetHistory();
         states.states = BigInt(0);
+        states.skipFrequencyUpdate = false;
         this._onRefresh.fire(0);
     }
 };

@@ -25,14 +25,14 @@ import { PeriodicRefreshTimer } from './periodic-refresh-timer';
  */
 export class GDBTargetDebugSession {
     public readonly refreshTimer: PeriodicRefreshTimer<GDBTargetDebugSession>;
+    public readonly canAccessWhileRunning: boolean;
     private _cbuildRun: CbuildRunReader|undefined;
     private _cbuildRunParsePromise: Promise<void>|undefined;
 
     constructor(public session: vscode.DebugSession) {
         this.refreshTimer = new PeriodicRefreshTimer(this);
-        if (this.session.configuration.type === 'gdbtarget') {
-            this.refreshTimer.enabled = this.session.configuration['auxiliaryGdb'] === true;
-        }
+        this.canAccessWhileRunning = this.session.configuration.type === 'gdbtarget' && this.session.configuration['auxiliaryGdb'] === true;
+        this.refreshTimer.enabled = this.canAccessWhileRunning;
     }
 
     public async getCbuildRun(): Promise<CbuildRunReader|undefined> {
