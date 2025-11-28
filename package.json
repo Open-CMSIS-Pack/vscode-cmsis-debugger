@@ -1,7 +1,7 @@
 {
   "name": "vscode-cmsis-debugger",
   "displayName": "Arm CMSIS Debugger",
-  "description": "Run and debug embedded and IoT projects on Arm Cortex-M single or multi core devices. Connects via pyOCD to CMSIS-DAP or other GDB servers.",
+  "description": "Run and debug embedded and Edge AI projects on Arm Cortex-M single or multi core devices. Connects via pyOCD to CMSIS-DAP or other GDB servers.",
   "version": "1.2.0",
   "preview": false,
   "publisher": "Arm",
