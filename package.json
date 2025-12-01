@@ -377,7 +377,7 @@
     "@typescript-eslint/eslint-plugin": "^8.47.0",
     "@typescript-eslint/parser": "^8.47.0",
     "@vscode/debugprotocol": "^1.68.0",
-    "@vscode/vsce": "^3.7.0",
+    "@vscode/vsce": "^3.7.1",
     "@yarnpkg/lockfile": "^1.1.0",
     "eslint": "^9.39.1",
     "eslint-plugin-security": "^3.0.1",
