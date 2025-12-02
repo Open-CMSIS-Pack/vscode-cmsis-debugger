@@ -234,11 +234,13 @@ jobs:
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           pattern: test-coverage
+          path: test-coverage # Required for single-mathch patterns by actions/download-artifact >= v5
 
       - name: Download test report
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           pattern: test-report-linux
+          path: test-report-linux # Required for single-mathch patterns by actions/download-artifact >= v5
 
       - name: Zip test report
         run: zip -r test-report.zip *
