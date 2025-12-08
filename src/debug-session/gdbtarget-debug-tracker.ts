@@ -130,6 +130,9 @@ export class GDBTargetDebugTracker {
             case 'exited':
                 gdbTargetSession?.refreshTimer.stop();
                 break;
+            case 'output':
+                gdbTargetSession?.filterOutputEvent(event as DebugProtocol.OutputEvent);
+                break;
         }
     }
 
