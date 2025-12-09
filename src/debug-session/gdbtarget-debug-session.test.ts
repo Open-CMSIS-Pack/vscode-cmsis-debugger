@@ -129,8 +129,12 @@ describe('GDBTargetDebugSession', () => {
         const referenceEvents = makeEvents();
         // Update to expected event names
         referenceEvents.forEach(event => event.event = 'cmsis-debugger-discarded');
+        // Look out for logger output
+        const logDebugSpy = jest.spyOn(logger, 'debug');
         // Call the filter
         eventsToFilter.forEach(event => gdbTargetSession.filterOutputEvent(event));
+        // Check if logger was called (2 lines = event info + output)
+        expect(logDebugSpy).toHaveBeenCalledTimes(eventsToFilter.length*2);
         // Compare the outputs
         expect(eventsToFilter).toEqual(referenceEvents);
     });
@@ -151,8 +155,12 @@ describe('GDBTargetDebugSession', () => {
         ];
         const eventsToFilter = makeEvents();
         const referenceEvents = makeEvents();
+        // Look out for logger output
+        const logDebugSpy = jest.spyOn(logger, 'debug');
         // Call the filter
         eventsToFilter.forEach(event => gdbTargetSession.filterOutputEvent(event));
+        // Check if logger was called (should not be called if not filtered)
+        expect(logDebugSpy).not.toHaveBeenCalled();
         // Compare the outputs, should be exact matches as inputs should not cause a match
         expect(eventsToFilter).toEqual(referenceEvents);
     });

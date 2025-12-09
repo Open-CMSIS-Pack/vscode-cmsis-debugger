@@ -245,6 +245,24 @@ describe('GDBTargetDebugTracker', () => {
             expect(result!.event).toEqual(stoppedEvent);
         });
 
+        it('calls a session output event filter', async () => {
+            const tracker = await adapterFactory!.createDebugAdapterTracker(debugSessionFactory(debugConfigurationFactory()));
+            // Create GDB target session object
+            tracker!.onWillStartSession!();
+            const ouptutEvent: DebugProtocol.OutputEvent = {
+                event: 'output',
+                type: 'event',
+                seq: 1,
+                body: {
+                    category: 'log',
+                    output: 'warning: (Internal error: pc 0x12345678 in read in CU, but not in symtab.)\n'
+                }
+            };
+            tracker!.onDidSendMessage!(ouptutEvent);
+            // Expect event name was changed by filter
+            expect(ouptutEvent.event).toEqual('cmsis-debugger-discarded');
+        });
+
     });
 
     describe('refresh timer management', () => {
