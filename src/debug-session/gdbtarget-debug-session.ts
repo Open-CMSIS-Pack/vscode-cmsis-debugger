@@ -38,15 +38,17 @@ export class GDBTargetDebugSession {
     }
 
     /**
-     * Filters specific output events and redirects them to debug logging output.
-     * This is achieved by manipulating the event name before the event reaches VS Code.
+     * Filters and renames specific output events, logs those events to 'Arm CMSIS Debugger' output channel.
+     *
+     * Renaming the events to 'cmsis-debugger-discarded' makes VS Code and loaded debug view
+     * extensions ignore them.
      *
      * @param event The output event to process in the filter.
      */
     public filterOutputEvent(event: DebugProtocol.OutputEvent): void {
         if (this.outputEventFilter.filterOutputEvent(event)) {
             // Log original event properties for potential diagnostics purposes.
-            logger.debug(`[Discard output event]: category='${event.body.category}', seq='${event.seq}', session='${this.session.name}'`);
+            logger.debug(`[Filtered output event]: category='${event.body.category}', seq='${event.seq}', session='${this.session.name}'`);
             logger.debug(`\t'${event.body.output}'`);
             event.event = 'cmsis-debugger-discarded'; // Discard the event by changing the event name
             return;

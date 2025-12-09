@@ -45,8 +45,8 @@ export class OutputEventFilter {
                 // addresses are assumed to be always code addresses.
                 categories: ['log'],
                 messages: [
-                    /warning: \(Internal error: pc 0x[0-9A-Fa-f]+ in read in CU, but not in symtab.\)/,
-                    /warning: \(Error: pc 0x[0-9A-Fa-f]+ in address map, but not in symtab.\)/,
+                    /warning: \(Internal error: pc 0x[0-9A-Fa-f]+ in read in CU, but not in symtab\.\)/,
+                    /warning: \(Error: pc 0x[0-9A-Fa-f]+ in address map, but not in symtab\.\)/,
                 ]
             }
         ];
