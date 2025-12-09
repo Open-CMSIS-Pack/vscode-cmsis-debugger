@@ -18,6 +18,7 @@ import * as vscode from 'vscode';
 import { debugSessionFactory } from '../__test__/vscode.factory';
 import { GDBTargetDebugSession } from './gdbtarget-debug-session';
 import { logger } from '../logger';
+import { DebugProtocol } from '@vscode/debugprotocol';
 
 const TEST_CBUILD_RUN_FILE = 'test-data/multi-core.cbuild-run.yml'; // Relative to repo root
 
@@ -108,5 +109,51 @@ describe('GDBTargetDebugSession', () => {
         (debugSession.customRequest as jest.Mock).mockReturnValueOnce({ address: '0xABABABAB', data: readMemory });
         const result = await gdbTargetSession.readMemoryU32(0xABABABAB);
         expect(result).toEqual(0x78563412);
+    });
+
+    it('filters output events correctly', () => {
+        const makeEvent = (output: string, category: string): DebugProtocol.OutputEvent => ({
+            seq: 1,
+            type: 'event',
+            event: 'output',
+            body: {
+                output,
+                category
+            }
+        });
+        const makeEvents = (): DebugProtocol.OutputEvent[]  => [
+            makeEvent('warning: (Internal error: pc 0x12345678 in read in CU, but not in symtab.)\n', 'log'),
+            makeEvent('warning: (Error: pc 0x12345678 in address map, but not in symtab.)\n', 'log')
+        ];
+        const eventsToFilter = makeEvents();
+        const referenceEvents = makeEvents();
+        // Update to expected event names
+        referenceEvents.forEach(event => event.event = 'cmsis-debugger-discarded');
+        // Call the filter
+        eventsToFilter.forEach(event => gdbTargetSession.filterOutputEvent(event));
+        // Compare the outputs
+        expect(eventsToFilter).toEqual(referenceEvents);
+    });
+
+    it('does not filter output events if they do not match criteria', () => {
+        const makeEvent = (output: string, category: string): DebugProtocol.OutputEvent => ({
+            seq: 1,
+            type: 'event',
+            event: 'output',
+            body: {
+                output,
+                category
+            }
+        });
+        const makeEvents = (): DebugProtocol.OutputEvent[]  => [
+            makeEvent('warning: (Internal error: pc 0x12345678 in read in CU, but not in symtab.)\n', 'foo'),
+            makeEvent('Error: pc 0x12345678 in address map, but not in symtab.', 'log')
+        ];
+        const eventsToFilter = makeEvents();
+        const referenceEvents = makeEvents();
+        // Call the filter
+        eventsToFilter.forEach(event => gdbTargetSession.filterOutputEvent(event));
+        // Compare the outputs, should be exact matches as inputs should not cause a match
+        expect(eventsToFilter).toEqual(referenceEvents);
     });
 });
