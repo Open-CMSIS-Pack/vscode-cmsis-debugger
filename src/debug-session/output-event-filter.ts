@@ -25,7 +25,7 @@ import { DebugProtocol } from '@vscode/debugprotocol';
  */
 interface OutputEventFilterSet {
     categories: string[];
-    messages: (RegExp|string)[];
+    messages: RegExp[];
 }
 
 /**
@@ -63,12 +63,7 @@ export class OutputEventFilter {
             if (!set.categories.includes(event.body.category ?? '')) {
                 return false;
             }
-            return set.messages.some(message => {
-                if (typeof message === 'string') {
-                    return event.body.output.startsWith(message);
-                }
-                return message.test(event.body.output);
-            });
+            return set.messages.some(message => message.test(event.body.output));
         });
     }
 }
