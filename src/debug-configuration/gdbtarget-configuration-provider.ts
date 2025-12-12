@@ -143,7 +143,7 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         }
         const continueOption = 'Yes';
         const result = await vscode.window.showInformationMessage(
-            `'${alreadyRunning}' is already running and may conflict with new session. Do you want to start it anyway?`,
+            `'${alreadyRunning}' is already running and may conflict with new session '${configName}'. Do you want to start it anyway?`,
             { modal: true },
             continueOption
         );
@@ -159,9 +159,6 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         this.logDebugConfiguration(resolverType, debugConfiguration, 'original config');
         const gdbTargetConfig: GDBTargetConfiguration = debugConfiguration;
         const gdbServerType = gdbTargetConfig.target?.server;
-        if (await this.shouldCancel(debugConfiguration)) {
-            return undefined;
-        }
         const subprovider = this.getRelevantSubprovider(resolverType, gdbServerType);
         if (!subprovider) {
             this.logGdbServerCommandLine(resolverType, debugConfiguration);
@@ -188,11 +185,15 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         return this.resolveDebugConfigurationByResolverType('resolveDebugConfiguration', folder, debugConfiguration, token);
     }
 
-    public resolveDebugConfigurationWithSubstitutedVariables(
+    public async resolveDebugConfigurationWithSubstitutedVariables(
         folder: vscode.WorkspaceFolder | undefined,
         debugConfiguration: vscode.DebugConfiguration,
         token?: vscode.CancellationToken
     ): Promise<vscode.DebugConfiguration | null | undefined> {
+        // Check only with substituated variables in case name contains one
+        if (await this.shouldCancel(debugConfiguration)) {
+            return undefined;
+        }
         // Only resolve GDB path once, otherwise regexp check will fail
         logger.debug('resolveDebugConfigurationWithSubstitutedVariables: Resolve GDB path');
         debugConfiguration.gdb = resolveToolPath(debugConfiguration.gdb, ARM_NONE_EABI_GDB_NAME, ARM_NONE_EABI_GDB_EXECUTABLE_ONLY_REGEXP, this.builtinArmNoneEabiGdb);
