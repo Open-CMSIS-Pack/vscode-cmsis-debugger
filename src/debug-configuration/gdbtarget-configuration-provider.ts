@@ -26,6 +26,7 @@ import {
 } from './subproviders';
 import { BuiltinToolPath } from '../desktop/builtin-tool-path';
 import { resolveToolPath } from '../desktop/tool-path-utils';
+import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../debug-session';
 
 const GDB_TARGET_DEBUGGER_TYPE = 'gdbtarget';
 const ARM_NONE_EABI_GDB_NAME = 'arm-none-eabi-gdb';
@@ -49,15 +50,18 @@ const GENERIC_SUBPROVIDER: GDBTargetConfigurationSubProvider = { serverRegExp: /
 
 export class GDBTargetConfigurationProvider implements vscode.DebugConfigurationProvider {
     protected builtinArmNoneEabiGdb = new BuiltinToolPath(ARM_NONE_EABI_GDB_BUILTIN_PATH);
+    protected activeSessions = new Set<GDBTargetDebugSession>();
 
     public constructor(
         protected subProviders: GDBTargetConfigurationSubProvider[] = SUPPORTED_SUBPROVIDERS
     ) {}
 
-    public activate(context: vscode.ExtensionContext) {
+    public activate(context: vscode.ExtensionContext, debugTracker?: GDBTargetDebugTracker) {
         context.subscriptions.push(
             vscode.debug.registerDebugConfigurationProvider(GDB_TARGET_DEBUGGER_TYPE, this)
         );
+        debugTracker?.onWillStartSession(session => this.activeSessions.add(session));
+        debugTracker?.onWillStopSession(session => this.activeSessions.delete(session));
     }
 
     private logDebugConfiguration(resolverType: ResolverType, config: vscode.DebugConfiguration, message = '') {
@@ -111,6 +115,45 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         return relevantProvider;
     }
 
+    private async shouldCancel(debugConfiguration: vscode.DebugConfiguration): Promise<boolean> {
+        const requests = [ '(launch)', '(attach)' ];
+        const managedConfig = (name: string): boolean => requests.some(req => name.endsWith(req));
+        const configName = debugConfiguration.name;
+        if (!managedConfig(configName)) {
+            // Not a managed config
+            return false;
+        }
+        const managedSessions = Array.from(this.activeSessions).filter(session => managedConfig(session.session.name));
+        if (!managedSessions.length) {
+            // No other running managed sessions
+            return false;
+        }
+        const configNameTokens = configName.split(' ');
+        const configNameBase = configNameTokens.slice(0, -1).join(' '); // Drop last part
+        const alreadyRunning = managedSessions.find(session => {
+            const base = session.session.name.split(' ').slice(0, -1).join(' ');
+            return base === configNameBase ? session : undefined;
+        })?.session.name;
+        if (!alreadyRunning) {
+            return false;
+        }
+        if (alreadyRunning === configName) {
+            // Same name, let VS Code handle it
+            return false;
+        }
+        const continueOption = 'Yes';
+        const result = await vscode.window.showWarningMessage(
+            'Target already running',
+            {
+                modal: true,
+                detail: `Started '${debugConfiguration.name}' while '${alreadyRunning}' is running.\n\nContinue anyway?`,
+
+            },
+            continueOption
+        );
+        return result !== continueOption;
+    }
+
     private async resolveDebugConfigurationByResolverType(
         resolverType: ResolverType,
         folder: vscode.WorkspaceFolder | undefined,
@@ -120,6 +163,9 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         this.logDebugConfiguration(resolverType, debugConfiguration, 'original config');
         const gdbTargetConfig: GDBTargetConfiguration = debugConfiguration;
         const gdbServerType = gdbTargetConfig.target?.server;
+        if (await this.shouldCancel(debugConfiguration)) {
+            return undefined;
+        }
         const subprovider = this.getRelevantSubprovider(resolverType, gdbServerType);
         if (!subprovider) {
             this.logGdbServerCommandLine(resolverType, debugConfiguration);
