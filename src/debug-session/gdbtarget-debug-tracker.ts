@@ -174,7 +174,7 @@ export class GDBTargetDebugTracker {
         this._onStackTrace.fire(stackTrace);
     }
 
-    protected handleOnWillReceiveMessage(session: vscode.DebugSession, message?: DebugProtocol.ProtocolMessage): void {
+    protected /*async*/ handleOnWillReceiveMessage(session: vscode.DebugSession, message?: DebugProtocol.ProtocolMessage): /*Promise<void>*/ void {
         if (!message) {
             return;
         }
@@ -197,8 +197,49 @@ export class GDBTargetDebugTracker {
                 case 'stepOut':
                     gdbTargetSession.refreshTimer.start();
                     break;
+                case 'restart':
+                case 'disconnect':
+                case 'terminate':
+                    if (!/*await*/ this.canTerminateSession(gdbTargetSession)) {
+                        throw new Error('Ending session cancelled by user');
+                    }
+                    break;
             }
         }
+    }
+
+    private /*async*/ canTerminateSession(session: GDBTargetDebugSession): boolean /*Promise<boolean>*/ {
+        const requestTypes = [ '(launch)', '(attach)' ];
+        // Move to utility class, see also PR 696
+        const managedConfig = (name: string): boolean => requestTypes.some(req => name.endsWith(req));
+        const sessionCbuildRunPath = session.getCbuildRunPath();
+        if (session.session.name.endsWith('(attach)') || !managedConfig(session.session.name) || !sessionCbuildRunPath) {
+            // Not managed, no *.cbuild-run.yml, or an attach session, the latter can be safely terminated
+            return true;
+        }
+        // Look out for other managed attach sessions
+        const managedSessions = Array.from(this.sessions.values()).filter(s => s !== session && s.session.name.endsWith('(attach)') && s.getCbuildRunPath());
+        if (!managedSessions.length) {
+            return true;
+        }
+        // Configs for multiple CPUs of same device typically don't share same base name.
+        // Assumption: Sessions for the same SoC that are managed by CMSIS Solution extension
+        // are driven by the same *.cbuild-run.yml file.
+        const matchingAttachSession = managedSessions.find(s => s.getCbuildRunPath() === sessionCbuildRunPath);
+        if (!matchingAttachSession) {
+            return true;
+        }
+        return false;
+        /*
+        // Let user confirm if session can be terminated
+        const terminateOption = 'Yes';
+        const result = await vscode.window.showWarningMessage(
+            `'${session.session.name}' could be related to '${matchingAttachSession.session.name}'. Ending it may terminate the debug server for both. Do you want to continue?`,
+            { modal: true },
+            terminateOption
+        );
+        return result === terminateOption;
+        */
     }
 
     private handleLaunchAttachRequest(gdbTargetSession: GDBTargetDebugSession, request: DebugProtocol.Request): void {
