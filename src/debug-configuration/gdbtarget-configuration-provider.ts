@@ -118,6 +118,8 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
     private async shouldCancel(debugConfiguration: vscode.DebugConfiguration): Promise<boolean> {
         const requests = [ '(launch)', '(attach)' ];
         const managedConfig = (name: string): boolean => requests.some(req => name.endsWith(req));
+        // Drops request type from end of name for comparison
+        const getBase = (name: string): string => (name.split(' ').slice(0, -1).join(' '));
         const configName = debugConfiguration.name;
         if (!managedConfig(configName)) {
             // Not a managed config
@@ -128,17 +130,12 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
             // No other running managed sessions
             return false;
         }
-        const configNameTokens = configName.split(' ');
-        const configNameBase = configNameTokens.slice(0, -1).join(' '); // Drop last part
+        const configNameBase = getBase(configName);
         const alreadyRunning = managedSessions.find(session => {
-            const base = session.session.name.split(' ').slice(0, -1).join(' ');
-            return base === configNameBase ? session : undefined;
+            return getBase(session.session.name) === configNameBase ? session : undefined;
         })?.session.name;
-        if (!alreadyRunning) {
-            return false;
-        }
-        if (alreadyRunning === configName) {
-            // Same name, let VS Code handle it
+        if (!alreadyRunning || alreadyRunning === configName) {
+            // Nothing suitable running, or exact match which should be handled by VS Code built-in mechanism
             return false;
         }
         const continueOption = 'Yes';
