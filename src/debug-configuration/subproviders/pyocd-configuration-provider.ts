@@ -27,7 +27,6 @@ const PYOCD_EXECUTABLE_ONLY_REGEXP = /^\s*pyocd(|.exe)\s*$/i;
 export const PYOCD_SERVER_TYPE_REGEXP = /.*pyocd(|.exe)\s*$/i;
 
 const PYOCD_CLI_ARG_GDBSERVER = 'gdbserver';
-const PYOCD_CLI_ARG_PORT = '--port';
 const PYOCD_CLI_ARG_CBUILDRUN = '--cbuild-run';
 
 export class PyocdConfigurationProvider extends BaseConfigurationProvider {
@@ -56,11 +55,6 @@ export class PyocdConfigurationProvider extends BaseConfigurationProvider {
         if (await this.shouldAppendParameter(parameters, PYOCD_CLI_ARG_GDBSERVER)) {
             // Prepend, it must be the first argument
             parameters.unshift(PYOCD_CLI_ARG_GDBSERVER);
-        }
-        // port (use value defined in 'port' outside 'serverParamters')
-        const port = debugConfiguration.target?.port;
-        if (port && await this.shouldAppendParameter(parameters, PYOCD_CLI_ARG_PORT)) {
-            parameters.push(PYOCD_CLI_ARG_PORT, `${port}`);
         }
         // cbuild-run
         const cbuildRunFile = debugConfiguration.cmsis?.cbuildRunFile;
