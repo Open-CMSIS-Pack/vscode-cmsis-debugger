@@ -142,13 +142,9 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
             return false;
         }
         const continueOption = 'Yes';
-        const result = await vscode.window.showWarningMessage(
-            'Target already running',
-            {
-                modal: true,
-                detail: `Started '${debugConfiguration.name}' while '${alreadyRunning}' is running.\n\nContinue anyway?`,
-
-            },
+        const result = await vscode.window.showInformationMessage(
+            `'${alreadyRunning}' is already running and may conflict with new session. Do you want to start it anyway?`,
+            { modal: true },
             continueOption
         );
         return result !== continueOption;
