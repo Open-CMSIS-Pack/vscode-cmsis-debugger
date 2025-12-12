@@ -20,6 +20,9 @@ import { logger } from '../logger';
 import { CbuildRunReader } from '../cbuild-run';
 import { PeriodicRefreshTimer } from './periodic-refresh-timer';
 import { OutputEventFilter } from './output-event-filter';
+import { URI } from 'vscode-uri';
+import { GDBTargetConfiguration } from '../debug-configuration';
+import path from 'path';
 
 /**
  * GDBTargetDebugSession - Wrapper class to provide session state/details
@@ -53,6 +56,14 @@ export class GDBTargetDebugSession {
             event.event = 'cmsis-debugger-discarded'; // Discard the event by changing the event name
             return;
         }
+    }
+
+    public getCbuildRunPath(): string | undefined {
+        const cbuildRunFile = (this.session.configuration as GDBTargetConfiguration)?.cmsis?.cbuildRunFile;
+        if (!cbuildRunFile) {
+            return undefined;
+        }
+        return path.normalize(URI.file(cbuildRunFile).fsPath);
     }
 
     public async getCbuildRun(): Promise<CbuildRunReader|undefined> {
