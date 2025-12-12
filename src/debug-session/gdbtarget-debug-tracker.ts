@@ -197,8 +197,41 @@ export class GDBTargetDebugTracker {
                 case 'stepOut':
                     gdbTargetSession.refreshTimer.start();
                     break;
+                case 'restart':
+                case 'disconnect':
+                case 'terminate':
+                    this.verifySafeDisconnect(gdbTargetSession);
+                    break;
             }
         }
+    }
+
+    private verifySafeDisconnect(session: GDBTargetDebugSession): void {
+        const requestTypes = [ '(launch)', '(attach)' ];
+        // Move to utility class, see also PR 696
+        const managedConfig = (name: string): boolean => requestTypes.some(req => name.endsWith(req));
+        const sessionCbuildRunPath = session.getCbuildRunPath();
+        if (session.session.name.endsWith('(attach)') || !managedConfig(session.session.name) || !sessionCbuildRunPath) {
+            // Not managed, no *.cbuild-run.yml, or an attach session, the latter can be safely terminated
+            return;
+        }
+        // Look out for other managed attach sessions
+        const managedSessions = Array.from(this.sessions.values()).filter(s => s !== session && s.session.name.endsWith('(attach)') && s.getCbuildRunPath());
+        if (!managedSessions.length) {
+            return;
+        }
+        // Configs for multiple CPUs of same device typically don't share same base name.
+        // Assumption: Sessions for the same SoC that are managed by CMSIS Solution extension
+        // are driven by the same *.cbuild-run.yml file.
+        const matchingAttachSession = managedSessions.find(s => s.getCbuildRunPath() === sessionCbuildRunPath);
+        if (!matchingAttachSession) {
+            return;
+        }
+        // Disconnect might be unsafe, prompt user but don't wait for response to modal dialog
+        vscode.window.showInformationMessage(
+            `Stopping '${session.session.name}' may have shut down debug server of '${matchingAttachSession.session.name}'. Close and restart if session gets unstable.`,
+            { modal: true },
+        );
     }
 
     private handleLaunchAttachRequest(gdbTargetSession: GDBTargetDebugSession, request: DebugProtocol.Request): void {
