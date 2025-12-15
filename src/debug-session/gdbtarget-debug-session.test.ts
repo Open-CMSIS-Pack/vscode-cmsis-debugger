@@ -19,6 +19,7 @@ import { debugSessionFactory } from '../__test__/vscode.factory';
 import { GDBTargetDebugSession } from './gdbtarget-debug-session';
 import { logger } from '../logger';
 import { DebugProtocol } from '@vscode/debugprotocol';
+import { isWindows } from '../utils';
 
 const TEST_CBUILD_RUN_FILE = 'test-data/multi-core.cbuild-run.yml'; // Relative to repo root
 
@@ -31,7 +32,7 @@ describe('GDBTargetDebugSession', () => {
         return {
             name: 'session-name',
             type: 'gdbtarget',
-            request: 'launch'
+            request: 'launch',
         };
     };
 
@@ -43,10 +44,9 @@ describe('GDBTargetDebugSession', () => {
         };
     };
 
-    let debugSession: vscode.DebugSession;
-    let gdbTargetSession: GDBTargetDebugSession;
-
     describe('with launch configuration', () => {
+        let debugSession: vscode.DebugSession;
+        let gdbTargetSession: GDBTargetDebugSession;
 
         beforeEach(() => {
             debugSession = debugSessionFactory(launchConfig());
@@ -69,7 +69,7 @@ describe('GDBTargetDebugSession', () => {
             expect(cbuildRun).toBeUndefined();
         });
 
-        it('returns a cbuild object after parsing one', async () => {
+        it('returns a cbuild object and cbuild run path after parsing one', async () => {
             await gdbTargetSession.parseCbuildRun(TEST_CBUILD_RUN_FILE);
             const cbuildRun = await gdbTargetSession.getCbuildRun();
             expect(cbuildRun).toMatchSnapshot();
@@ -200,6 +200,8 @@ describe('GDBTargetDebugSession', () => {
     });
 
     describe('with attach configuration', () => {
+        let debugSession: vscode.DebugSession;
+        let gdbTargetSession: GDBTargetDebugSession;
 
         beforeEach(() => {
             debugSession = debugSessionFactory(attachConfig());
@@ -214,6 +216,32 @@ describe('GDBTargetDebugSession', () => {
             expect(gdbTargetSession.canTerminate()).toBe(false);
             gdbTargetSession.setCapabilities({ supportsTerminateRequest: true });
             expect(gdbTargetSession.canTerminate()).toBe(false);
+        });
+    });
+
+    describe('with tailored configs', () => {
+
+        it('does not return cbuild run file path if not configured', () => {
+            const debugSession = debugSessionFactory({
+                name: 'session-name',
+                type: 'gdbtarget',
+                request: 'launch',
+            });
+            const gdbTargetSession = new GDBTargetDebugSession(debugSession);
+            expect(gdbTargetSession.getCbuildRunPath()).toBeUndefined();
+        });
+
+        it.only('does return cbuild run file path if configured', () => {
+            const debugSession = debugSessionFactory({
+                name: 'session-name',
+                type: 'gdbtarget',
+                request: 'launch',
+                cmsis: {
+                    cbuildRunFile: TEST_CBUILD_RUN_FILE
+                }
+            });
+            const gdbTargetSession = new GDBTargetDebugSession(debugSession);
+            expect(gdbTargetSession.getCbuildRunPath()?.endsWith(isWindows ? TEST_CBUILD_RUN_FILE.replaceAll('/', '\\') : TEST_CBUILD_RUN_FILE)).toBe(true);
         });
     });
 

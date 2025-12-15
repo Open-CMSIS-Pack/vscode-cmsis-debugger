@@ -73,7 +73,7 @@ export class GDBTargetDebugSession {
         if (!cbuildRunFile) {
             return undefined;
         }
-        return path.normalize(URI.file(cbuildRunFile).fsPath);
+        return path.normalize(URI.file(path.resolve(cbuildRunFile)).fsPath);
     }
 
     public async getCbuildRun(): Promise<CbuildRunReader|undefined> {
