@@ -1,5 +1,29 @@
 # Change Log
 
+## 1.3.0
+
+- Enhanced [pyOCD](https://open-cmsis-pack.github.io/cmsis-toolbox/YML-Input-Format/#pyocd)
+and [J-Link GDB Server](https://open-cmsis-pack.github.io/cmsis-toolbox/YML-Input-Format/#j-link-server) debug configurations for multi-core
+debug, semihosting serial I/O via Telnet, and more.
+    - Requires [Arm CMSIS Solution extension v1.64.0](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution) or later.
+- Includes pyOCD with enhanced [command-line options](https://open-cmsis-pack.github.io/cmsis-toolbox/pyOCD-Debugger/#command-line-invocation)
+for CMSIS Solution and `*.cbuild-run.yml` based CI workflows.
+- Includes updated pyOCD distribution ([pyOCD v0.42.0](https://github.com/pyocd/pyOCD/releases/tag/v0.42.0))
+    - Adds support for Arm Cortex-M52 CPUs.
+    - Adds support for Arm China Star-MC3 CPUs.
+    - TODO: Details
+- Also included in this extension release:
+    - [arm-none-eabi-gdb v14.3.1](https://artifacts.tools.arm.com/arm-none-eabi-gdb/14.3.1/)
+- Full list of required minimum versions for correct functionality of the CMSIS Debugger v1.3.0 solution:
+    - [Arm CMSIS Solution extension v1.64.0](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution)
+    - [CDT GDB Adapter extension v2.6.0](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode)
+    - [Memory Inspector v1.2.0](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector)
+    - [Peripheral Inspector v1.8.1](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector)
+    - [Serial Monitor v0.13.1](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor)
+    - [RTOS Views v0.0.13](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views)
+- Refer to the [CMSIS Debugger 1.3.0 project board](https://github.com/orgs/Open-CMSIS-Pack/projects/21/views/8) for a full list
+of enhancement requests and defects addressed in this release.
+
 ## 1.2.0
 
 - Introduces the ability to access memory and calculate expression results while the target system is running.  
