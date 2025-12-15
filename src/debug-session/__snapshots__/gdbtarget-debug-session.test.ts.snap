@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`GDBTargetDebugSession returns a cbuild object after parsing one 1`] = `
+exports[`GDBTargetDebugSession with launch configuration returns a cbuild object after parsing one 1`] = `
 CbuildRunReader {
   "cbuildRun": {
     "compiler": "AC6",

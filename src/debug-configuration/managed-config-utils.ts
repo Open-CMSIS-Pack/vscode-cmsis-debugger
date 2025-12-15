@@ -30,4 +30,9 @@ export const hasManagedConfigEnding = (configName: string): boolean => DEBUG_CON
  * @param configName debug configuration name
  * @returns base name of managed configuration
  */
-export const getManagedConfigBaseName = (configName: string): string => (configName.split(' ').slice(0, -1).join(' '));
+export const getManagedConfigBaseName = (configName: string): string => {
+    if (!hasManagedConfigEnding(configName)) {
+        return configName;
+    }
+    return configName.split(' ').slice(0, -1).join(' ');
+};
