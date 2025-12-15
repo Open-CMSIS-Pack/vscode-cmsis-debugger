@@ -19,6 +19,7 @@ import { DebugProtocol } from '@vscode/debugprotocol';
 import { GDB_TARGET_DEBUGGER_TYPE } from './constants';
 import { GDBTargetDebugSession } from './gdbtarget-debug-session';
 import { GDBTargetConfiguration } from '../debug-configuration';
+import { hasManagedConfigEnding } from '../debug-configuration/managed-config-utils';
 
 export interface SessionEvent<T extends DebugProtocol.Event> {
     session: GDBTargetDebugSession;
@@ -207,11 +208,8 @@ export class GDBTargetDebugTracker {
     }
 
     private verifySafeDisconnect(session: GDBTargetDebugSession): void {
-        const requestTypes = [ '(launch)', '(attach)' ];
-        // Move to utility class, see also PR 696
-        const managedConfig = (name: string): boolean => requestTypes.some(req => name.endsWith(req));
         const sessionCbuildRunPath = session.getCbuildRunPath();
-        if (session.session.name.endsWith('(attach)') || !managedConfig(session.session.name) || !sessionCbuildRunPath) {
+        if (session.session.name.endsWith('(attach)') || !hasManagedConfigEnding(session.session.name) || !sessionCbuildRunPath) {
             // Not managed, no *.cbuild-run.yml, or an attach session, the latter can be safely terminated
             return;
         }

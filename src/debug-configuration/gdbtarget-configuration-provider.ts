@@ -27,6 +27,7 @@ import {
 import { BuiltinToolPath } from '../desktop/builtin-tool-path';
 import { resolveToolPath } from '../desktop/tool-path-utils';
 import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../debug-session';
+import { getManagedConfigBaseName, hasManagedConfigEnding } from './managed-config-utils';
 
 const GDB_TARGET_DEBUGGER_TYPE = 'gdbtarget';
 const ARM_NONE_EABI_GDB_NAME = 'arm-none-eabi-gdb';
@@ -120,31 +121,26 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
     }
 
     private async shouldCancel(debugConfiguration: vscode.DebugConfiguration): Promise<boolean> {
-        const requestTypes = [ '(launch)', '(attach)' ];
-        const managedConfig = (name: string): boolean => requestTypes.some(req => name.endsWith(req));
-        // Drops request type from end of name for comparison
-        const getBase = (name: string): string => (name.split(' ').slice(0, -1).join(' '));
-        const configName = debugConfiguration.name;
-        if (!managedConfig(configName)) {
+        if (!hasManagedConfigEnding(debugConfiguration.name)) {
             // Not a managed config
             return false;
         }
-        const managedSessions = Array.from(this.activeSessions).filter(session => managedConfig(session.session.name));
+        const managedSessions = Array.from(this.activeSessions).filter(session => hasManagedConfigEnding(session.session.name));
         if (!managedSessions.length) {
             // No other running managed sessions
             return false;
         }
-        const configNameBase = getBase(configName);
+        const configNameBase = getManagedConfigBaseName(debugConfiguration.name);
         const alreadyRunning = managedSessions.find(session => {
-            return getBase(session.session.name) === configNameBase;
+            return getManagedConfigBaseName(session.session.name) === configNameBase;
         })?.session.name;
-        if (!alreadyRunning || alreadyRunning === configName) {
+        if (!alreadyRunning || alreadyRunning === debugConfiguration.name) {
             // Nothing suitable running, or exact match which should be handled by VS Code built-in mechanism
             return false;
         }
         const continueOption = 'Yes';
         const result = await vscode.window.showInformationMessage(
-            `'${alreadyRunning}' is already running and may conflict with new session. Do you want to start '${configName}' anyway?`,
+            `'${alreadyRunning}' is already running and may conflict with new session. Do you want to start '${debugConfiguration.name}' anyway?`,
             { modal: true },
             continueOption
         );
