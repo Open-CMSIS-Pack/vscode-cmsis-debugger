@@ -231,7 +231,7 @@ describe('GDBTargetDebugSession', () => {
             expect(gdbTargetSession.getCbuildRunPath()).toBeUndefined();
         });
 
-        it.only('does return cbuild run file path if configured', () => {
+        it('does return cbuild run file path if configured', () => {
             const debugSession = debugSessionFactory({
                 name: 'session-name',
                 type: 'gdbtarget',
