@@ -229,7 +229,7 @@ export class GDBTargetDebugTracker {
         }
         // Disconnect might be unsafe, prompt user but don't wait for response to modal dialog
         vscode.window.showInformationMessage(
-            `Stopping '${session.session.name}' may have shut down debug server of '${matchingAttachSession.session.name}'. Close and restart if session gets unstable.`,
+            `Stopping '${session.session.name}' might shut down debug server for '${matchingAttachSession.session.name}'. You may need to Close and restart that session.`,
             { modal: true },
         );
     }

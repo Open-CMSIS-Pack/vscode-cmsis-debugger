@@ -120,8 +120,8 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
     }
 
     private async shouldCancel(debugConfiguration: vscode.DebugConfiguration): Promise<boolean> {
-        const requests = [ '(launch)', '(attach)' ];
-        const managedConfig = (name: string): boolean => requests.some(req => name.endsWith(req));
+        const requestTypes = [ '(launch)', '(attach)' ];
+        const managedConfig = (name: string): boolean => requestTypes.some(req => name.endsWith(req));
         // Drops request type from end of name for comparison
         const getBase = (name: string): string => (name.split(' ').slice(0, -1).join(' '));
         const configName = debugConfiguration.name;
@@ -144,7 +144,7 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         }
         const continueOption = 'Yes';
         const result = await vscode.window.showInformationMessage(
-            `'${alreadyRunning}' is already running and may conflict with new session '${configName}'. Do you want to start it anyway?`,
+            `'${alreadyRunning}' is already running and may conflict with new session. Do you want to start '${configName}' anyway?`,
             { modal: true },
             continueOption
         );
