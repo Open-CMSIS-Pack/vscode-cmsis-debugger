@@ -60,8 +60,12 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         context.subscriptions.push(
             vscode.debug.registerDebugConfigurationProvider(GDB_TARGET_DEBUGGER_TYPE, this)
         );
-        debugTracker?.onWillStartSession(session => this.activeSessions.add(session));
-        debugTracker?.onWillStopSession(session => this.activeSessions.delete(session));
+        if (debugTracker) {
+            context.subscriptions.push(
+                debugTracker.onWillStartSession(session => this.activeSessions.add(session)),
+                debugTracker.onWillStopSession(session => this.activeSessions.delete(session))
+            );
+        }
     }
 
     private logDebugConfiguration(resolverType: ResolverType, config: vscode.DebugConfiguration, message = '') {
@@ -132,7 +136,7 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         }
         const configNameBase = getBase(configName);
         const alreadyRunning = managedSessions.find(session => {
-            return getBase(session.session.name) === configNameBase ? session : undefined;
+            return getBase(session.session.name) === configNameBase;
         })?.session.name;
         if (!alreadyRunning || alreadyRunning === configName) {
             // Nothing suitable running, or exact match which should be handled by VS Code built-in mechanism
@@ -187,7 +191,7 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         debugConfiguration: vscode.DebugConfiguration,
         token?: vscode.CancellationToken
     ): Promise<vscode.DebugConfiguration | null | undefined> {
-        // Check only with substituated variables in case name contains one
+        // Check only with substituted variables in case name contains one
         if (await this.shouldCancel(debugConfiguration)) {
             return undefined;
         }
