@@ -30,6 +30,7 @@ import path from 'path';
 export class GDBTargetDebugSession {
     public readonly refreshTimer: PeriodicRefreshTimer<GDBTargetDebugSession>;
     public readonly canAccessWhileRunning: boolean;
+    private capabilities: DebugProtocol.Capabilities | undefined;
     private _cbuildRun: CbuildRunReader|undefined;
     private _cbuildRunParsePromise: Promise<void>|undefined;
     private outputEventFilter = new OutputEventFilter();
@@ -38,6 +39,15 @@ export class GDBTargetDebugSession {
         this.refreshTimer = new PeriodicRefreshTimer(this);
         this.canAccessWhileRunning = this.session.configuration.type === 'gdbtarget' && this.session.configuration['auxiliaryGdb'] === true;
         this.refreshTimer.enabled = this.canAccessWhileRunning;
+    }
+
+    /**
+     * Store capabilities for a session.
+     *
+     * @param capabilities Capabilities received from initialize response.
+     */
+    public setCapabilities(capabilities: DebugProtocol.Capabilities): void {
+        this.capabilities = capabilities;
     }
 
     /**
@@ -83,6 +93,17 @@ export class GDBTargetDebugSession {
         this._cbuildRunParsePromise = this._cbuildRun.parse(filePath);
         await this._cbuildRunParsePromise;
         this._cbuildRunParsePromise = undefined;
+    }
+
+    /**
+     * Check if first stop attempt for session is done by 'terminate' request.
+     * Notes:
+     *   'terminate' is in DAP terms softer than 'disconnect'
+     *   'attach' sessions are always stopped with 'disconnect'
+     * @returns true if first stop is by 'terminate' request, false otherwise
+     */
+    public canTerminate(): boolean {
+        return this.session.configuration.request === 'launch' && this.capabilities?.supportsTerminateRequest === true;
     }
 
     /** Function returns string only in case of failure */

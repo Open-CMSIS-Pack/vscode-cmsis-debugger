@@ -29,6 +29,11 @@ export interface SessionEvent<T extends DebugProtocol.Event> {
 export type ContinuedEvent = SessionEvent<DebugProtocol.ContinuedEvent>;
 export type StoppedEvent = SessionEvent<DebugProtocol.StoppedEvent>;
 
+export interface SessionCapabilities {
+    session: GDBTargetDebugSession;
+    capabilities: DebugProtocol.Capabilities;
+}
+
 export interface SessionStackTrace {
     session: GDBTargetDebugSession;
     threadId: number;
@@ -42,6 +47,8 @@ export interface SessionStackItem {
     session: GDBTargetDebugSession;
     item: StackItem;
 }
+
+type stopTypes = 'disconnect' | 'terminate';
 
 export class GDBTargetDebugTracker {
     private sessions: Map<string, GDBTargetDebugSession> = new Map();
@@ -143,6 +150,9 @@ export class GDBTargetDebugTracker {
             return;
         }
         switch (response.command) {
+            case 'initialize':
+                this.handleInitializeResponse(gdbTargetSession, response);
+                break;
             case 'launch':
             case 'attach':
                 this.handleLaunchAttachResponse(gdbTargetSession, response);
@@ -150,6 +160,12 @@ export class GDBTargetDebugTracker {
             case 'stackTrace':
                 this.handleStackTraceResponse(gdbTargetSession, response as DebugProtocol.StackTraceResponse);
                 break;
+        }
+    }
+
+    private handleInitializeResponse(gdbTargetSession: GDBTargetDebugSession, response: DebugProtocol.InitializeResponse): void {
+        if (response.success && response.body) {
+            gdbTargetSession.setCapabilities(response.body);
         }
     }
 
@@ -198,16 +214,22 @@ export class GDBTargetDebugTracker {
                 case 'stepOut':
                     gdbTargetSession.refreshTimer.start();
                     break;
-                case 'restart':
                 case 'disconnect':
                 case 'terminate':
-                    this.verifySafeDisconnect(gdbTargetSession);
+                    // In theory, this part also needs to handle 'restart' requests.
+                    // But in reality the CDT GDB Adapter currently does not support customized
+                    // 'restart' (which is different from the custom reset).
+                    this.verifySafeDisconnect(gdbTargetSession, request.command);
                     break;
             }
         }
     }
 
-    private verifySafeDisconnect(session: GDBTargetDebugSession): void {
+    private verifySafeDisconnect(session: GDBTargetDebugSession, type: stopTypes): void {
+        if (type === 'disconnect' && session.canTerminate()) {
+            // Only handle terminate request in this case
+            return;
+        }
         const sessionCbuildRunPath = session.getCbuildRunPath();
         if (session.session.name.endsWith('(attach)') || !hasManagedConfigEnding(session.session.name) || !sessionCbuildRunPath) {
             // Not managed, no *.cbuild-run.yml, or an attach session, the latter can be safely terminated
@@ -227,7 +249,7 @@ export class GDBTargetDebugTracker {
         }
         // Disconnect might be unsafe, prompt user but don't wait for response to modal dialog
         vscode.window.showInformationMessage(
-            `Stopping '${session.session.name}' might shut down debug server for '${matchingAttachSession.session.name}'. You may need to Close and restart that session.`,
+            `Stopping '${session.session.name}' might shut down debug server for '${matchingAttachSession.session.name}'. You may need to close and restart that session.`,
             { modal: true },
         );
     }
