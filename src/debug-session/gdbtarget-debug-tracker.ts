@@ -230,6 +230,10 @@ export class GDBTargetDebugTracker {
             // Only handle terminate request in this case
             return;
         }
+        if (type === 'terminate' && !session.canTerminate()) {
+            // Something went wrong before, notification would imply wrong root cause, hence skip
+            return;
+        }
         const sessionCbuildRunPath = session.getCbuildRunPath();
         if (session.session.name.endsWith('(attach)') || !hasManagedConfigEnding(session.session.name) || !sessionCbuildRunPath) {
             // Not managed, no *.cbuild-run.yml, or an attach session, the latter can be safely terminated
