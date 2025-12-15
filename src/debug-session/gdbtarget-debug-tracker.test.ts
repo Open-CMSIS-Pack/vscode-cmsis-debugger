@@ -265,7 +265,7 @@ describe('GDBTargetDebugTracker', () => {
 
     });
 
-    describe('stop handling', () => {
+    describe('other handling', () => {
         let adapterFactory: vscode.DebugAdapterTrackerFactory|undefined;
         let gdbSessions: GDBTargetDebugSession[];
 
@@ -278,6 +278,32 @@ describe('GDBTargetDebugTracker', () => {
             });
             debugTracker.activate(contextMock);
             debugTracker.onWillStartSession(session => gdbSessions.push(session));
+        });
+
+        it('user does update capabilities on initialize request', async () => {
+            const firstSession = debugSessionFactory(debugConfigurationFactory( { name: 'pname first@session (launch)', request: 'launch', cmsis: { cbuildRunFile: 'first.cbuild-run.yml' } } ), 'first-session-id');
+            const trackerObjects = await Promise.all([
+                adapterFactory!.createDebugAdapterTracker(firstSession),
+            ]);
+            trackerObjects.forEach(tracker => tracker!.onWillStartSession!());
+
+            // Check before initialize
+            expect(gdbSessions[0]!.canTerminate()).toBe(false);
+
+            // initialize response with terminate support
+            trackerObjects[0]!.onDidSendMessage!({
+                command: 'initialize',
+                type: 'response',
+                seq: 1,
+                success: true,
+                body: {
+                    supportsTerminateRequest: true
+                }
+            });
+            await waitForMs(0);
+
+            // Check after initialize
+            expect(gdbSessions[0]!.canTerminate()).toBe(true);
         });
 
         it('user does not get notified if unrelated sessions gets stopped', async () => {
