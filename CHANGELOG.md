@@ -5,9 +5,8 @@
 - Enhanced [pyOCD](https://open-cmsis-pack.github.io/cmsis-toolbox/YML-Input-Format/#pyocd)
 and [J-Link GDB Server](https://open-cmsis-pack.github.io/cmsis-toolbox/YML-Input-Format/#j-link-server) debug configurations for multi-core
 debug, semihosting serial I/O via Telnet, and more.
-    - Requires [Arm CMSIS Solution extension v1.64.0](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution) or later.
 - Includes updated pyOCD distribution ([pyOCD v0.42.0](https://github.com/pyocd/pyOCD/releases/tag/v0.42.0))
-    - Adds [`run`](https://open-cmsis-pack.github.io/cmsis-toolbox/pyOCD-Debugger/#command-line-invocation) sub-command capable of running targets until a time limit or EOT (suited for CI/CD workflows), and of semihosting console output/input and SWV output.
+    - Adds [`run`](https://open-cmsis-pack.github.io/cmsis-toolbox/pyOCD-Debugger/#command-line-invocation) subcommand capable of running targets until a time limit or EOT (suited for CI/CD workflows), and of semihosting console output/input and SWV output.
     - Adds support for Cortex-M52 and Star-MC3 based devices ([@Liu-Gu](https://github.com/Liu-Gu)).
     - Improves [CMSIS-Toolbox Run and Debug Management](https://open-cmsis-pack.github.io/cmsis-toolbox/YML-CBuild-Format/#run-and-debug-management) support:
         - Port assignment logic for multi-core GDB server and telnet configurations.
@@ -15,7 +14,7 @@ debug, semihosting serial I/O via Telnet, and more.
         - `connect` mode configuration.
         - `pre-reset` and `post-reset` type for load configurations.
         - Reworked priority of `*.cbuild-run.yml` settings to allow for example command line switches to override them.
-        - Checking for required files and related error messages.
+        - Check for required files and request pack installation for missing ones. Also improves related error messages.
     - Improves Zephyr thread state definitions to match modern versions ([@mathieuchopstm](https://github.com/mathieuchopstm)).
     - Relaxes flash algorithm requirement to only have RO sections.
     - Fixes support for some HID-based CMSIS-DAP debug adapters.
