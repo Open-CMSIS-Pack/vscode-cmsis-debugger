@@ -410,7 +410,7 @@
     "yargs": "^18.0.0"
   },
   "cmsis": {
-    "pyocd": "pyocd/pyOCD@0.41.0",
+    "pyocd": "pyocd/pyOCD@0.42.0",
     "pyocdNightly": "pyocd/pyOCD@release_builds",
     "gdb": "14.3.1"
   }
