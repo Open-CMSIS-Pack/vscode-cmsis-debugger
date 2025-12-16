@@ -6,12 +6,23 @@
 and [J-Link GDB Server](https://open-cmsis-pack.github.io/cmsis-toolbox/YML-Input-Format/#j-link-server) debug configurations for multi-core
 debug, semihosting serial I/O via Telnet, and more.
     - Requires [Arm CMSIS Solution extension v1.64.0](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution) or later.
-- Includes pyOCD with enhanced [command-line options](https://open-cmsis-pack.github.io/cmsis-toolbox/pyOCD-Debugger/#command-line-invocation)
-for CMSIS Solution and `*.cbuild-run.yml` based CI workflows.
 - Includes updated pyOCD distribution ([pyOCD v0.42.0](https://github.com/pyocd/pyOCD/releases/tag/v0.42.0))
-    - Adds support for Arm Cortex-M52 CPUs.
-    - Adds support for Arm China Star-MC3 CPUs.
-    - TODO: Details
+    - Adds support for Cortex-M52 and Star-MC3 devices. ([@Liu-Gu](https://github.com/Liu-Gu))
+    - Adds enhanced [command-line options](https://open-cmsis-pack.github.io/cmsis-toolbox/pyOCD-Debugger/#command-line-invocation)
+for CMSIS Solution and `*.cbuild-run.yml` based CI workflows.
+        - `run` sub-command capable of running targets until a time limit or EOT (suited for CI/CD workflows), and of semihosting console output/input and SWV output.
+    - Improves [CMSIS-Toolbox Run and Debug Management](https://open-cmsis-pack.github.io/cmsis-toolbox/YML-CBuild-Format/#run-and-debug-management) support:
+        - Port assignment logic for multi-core GDB server and telnet configurations.
+        - STDIO routing for `console`, `telnet`, `file` and `off`. (Currently only supports STDIO output)
+        - Connect mode configuration.
+        - Pre-reset and post-reset configuration.
+        - Reworked priority of `*.cbuild-run.yml` settings to allow for example command line switches to override them.
+        - Checking for required files and related error messages.
+    - Adds new session options for configuring pre-reset and post-reset type in `load` sub-command.
+    - Improves Zephyr thread state definitions to match modern versions ([@mathieuchopstm](https://github.com/mathieuchopstm)).
+    - Relaxes flash algorithm requirement to only have RO sections.
+    - Fixes support for some HID-based CMSIS-DAP debug adapters.
+    - Fixes path normalization inside CMSIS-Pack archives to support `..` in file paths ([@xoriath](https://github.com/xoriath))
 - Also included in this extension release:
     - [arm-none-eabi-gdb v14.3.1](https://artifacts.tools.arm.com/arm-none-eabi-gdb/14.3.1/)
 - Full list of required minimum versions for correct functionality of the CMSIS Debugger v1.3.0 solution:
