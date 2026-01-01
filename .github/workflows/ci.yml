@@ -121,7 +121,7 @@ jobs:
 
       - name: Upload dist
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: dist
           path: |
@@ -142,13 +142,13 @@ jobs:
           git commit -m "Update CHANGELOG.md after release [skip ci]"
           git push
 
-      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: runner.os == 'Linux'
         with:
           name: test-coverage
           path: ./coverage
 
-      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: test-report-${{ matrix.target }}
           path: ./test-report.html
@@ -208,7 +208,7 @@ jobs:
           yarn package --target ${{ matrix.target }}
 
       - name: Upload package
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: vsix-package-${{ matrix.target }}
           path: ./*.vsix
