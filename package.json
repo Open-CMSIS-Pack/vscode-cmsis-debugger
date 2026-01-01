@@ -385,7 +385,7 @@
     "eslint-plugin-security": "^3.0.1",
     "extract-zip": "^2.0.1",
     "fast-extract": "^1.7.5",
-    "file-type": "^21.1.1",
+    "file-type": "^21.2.0",
     "fs-extra": "^11.3.3",
     "glob": "^13.0.0",
     "globby": "^16.0.0",
