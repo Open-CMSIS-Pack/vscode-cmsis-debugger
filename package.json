@@ -412,7 +412,7 @@
   },
   "cmsis": {
     "pyocd": "pyocd/pyOCD@0.42.0",
-    "pyocdNightly": "pyocd/pyOCD@release_builds",
+    "pyocdNightly": "pyocd/pyOCD@0.42.0",
     "gdb": "14.3.1"
   }
 }
