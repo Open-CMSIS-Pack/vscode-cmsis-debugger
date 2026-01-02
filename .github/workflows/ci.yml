@@ -9,6 +9,7 @@ on:
       - '.github/workflows/markdown.yml'
       - '.github/markdownlint.json'
       - '.github/markdownlint.jsonc'
+      - '.github/workflows/nightly.yml'
   pull_request:
     branches:
       - main
@@ -17,6 +18,7 @@ on:
       - '.github/workflows/markdown.yml'
       - '.github/markdownlint.json'
       - '.github/markdownlint.jsonc'
+      - '.github/workflows/nightly.yml'
   workflow_dispatch:
   merge_group:
   release:
