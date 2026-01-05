@@ -206,10 +206,6 @@ jobs:
           yarn --frozen-lockfile --ignore-scripts --prefer-offline
           yarn download-tools --target ${{ matrix.target }} --no-cache
 
-      - name: Validate tools
-        run: |
-          yarn validate-tools --target ${{ matrix.target }}
-
       - name: Create vsix package
         run: |
           yarn package --target ${{ matrix.target }}
@@ -220,6 +216,13 @@ jobs:
           name: vsix-package-${{ matrix.target }}
           path: ./*.vsix
           retention-days: 1
+
+      - name: Validate VSIX contents
+        shell: bash
+        run: |
+          VSIX_FILE=$(ls *.vsix)
+          echo "Validating VSIX: $VSIX_FILE"
+          yarn validate-tools --target ${{ matrix.target }} --vsix "$VSIX_FILE"
 
   publish:
     name: Publish release

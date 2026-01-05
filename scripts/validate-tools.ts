@@ -22,6 +22,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
+import extract from 'extract-zip';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -79,17 +80,20 @@ const TOOLS: Record<string, ToolManifest> = {
 };
 
 let targetPlatform: string = process.platform;
+let validationBaseDir: string = __dirname;
 
 /**
  * Find the tool directory in the tools folder based on a pattern.
  */
 async function findToolDirectory(pattern: RegExp): Promise<string | undefined> {
-    const toolsDir = path.join(__dirname, '..', 'tools');
+    const toolsDir = path.join(validationBaseDir, 'tools');
+    console.log(`  Looking for tools in: ${toolsDir}`);
     try {
         const entries = await fs.readdir(toolsDir, { withFileTypes: true });
         const match = entries.find(entry => entry.isDirectory() && pattern.test(entry.name));
         return match ? path.join(toolsDir, match.name) : undefined;
     } catch (error) {
+        console.log(`  ⚠️ Error reading tools directory: ${error instanceof Error ? error.message : String(error)}`);
         return undefined;
     }
 }
@@ -167,7 +171,7 @@ async function runVersionCheck(
         let stdout = '';
         let stderr = '';
         let child;
-        
+
         try {
             child = spawn(execPath, args, {
                 stdio: ['ignore', 'pipe', 'pipe'],
@@ -188,7 +192,7 @@ async function runVersionCheck(
                 message: `❌ Version check timed out after ${timeout}ms`,
             });
         }, timeout);
-        
+
         child.stdout?.on('data', (data) => {
             stdout += data.toString();
         });
@@ -196,7 +200,7 @@ async function runVersionCheck(
         child.stderr?.on('data', (data) => {
             stderr += data.toString();
         });
-        
+
         child.on('error', (error) => {
             clearTimeout(timer);
             resolve({
@@ -242,17 +246,16 @@ async function validateTool(name: string, manifest: ToolManifest): Promise<boole
     const toolDir = await findToolDirectory(manifest.toolPattern);
     if (!toolDir) {
         console.log(`  ❌ Tool directory not found matching pattern: ${manifest.toolPattern}`);
-        console.log(`     Expected in tools/ folder`);
         return false;
     }
 
-    console.log(`  ✓ Found tool directory: ${path.basename(toolDir)}`);
+    console.log(`  Found tool directory: ${path.basename(toolDir)}`);
 
     let allPassed = true;
     const results: ValidationResult[] = [];
 
     // Level 1: Check executable
-    console.log('\n  Level 1: Essential files');
+    console.log('  Level 1: Essential files');
     const execPath = getExecutablePath(toolDir, manifest.executablePath);
     const execResult = await checkFileExists(execPath);
     results.push(execResult);
@@ -284,7 +287,7 @@ async function validateTool(name: string, manifest: ToolManifest): Promise<boole
     }
 
     // Level 2: Functional check (only if we can execute it)
-    console.log('\n  🧪 Level 2: Functional check');
+    console.log('\n  Level 2: Functional check');
 
     // Map target platform to process.platform values
     const targetOs = targetPlatform.split('-')[0];
@@ -328,11 +331,34 @@ async function main() {
         ? args[targetIndex + 1] 
         : `${process.platform}-${process.arch}`;
 
+    // Check if we should validate a VSIX file
+    const vsixIndex = args.indexOf('--vsix');
+    const vsixPath = vsixIndex !== -1 && args[vsixIndex + 1] ? args[vsixIndex + 1] : null;
+
+    let workDir = __dirname;
+    let cleanupDir: string | null = null;
+
+    if (vsixPath) {
+        console.log(`VSIX file: ${vsixPath}`);
+        console.log('Extracting VSIX...');
+
+        // Create temp directory for extraction
+        const tempDir = path.join(__dirname, '..', 'vsix-extracted-temp', 'extension');
+        await fs.mkdir(tempDir, { recursive: true });
+
+        // Extract VSIX (it's a ZIP file)
+        await extract(vsixPath, { dir: tempDir });
+
+        // VSIX structure: extension/ contains the actual extension files
+        workDir = path.join(tempDir, 'extension');
+        validationBaseDir = workDir;
+        cleanupDir = tempDir;
+
+        console.log(`Extraction complete in ${tempDir}`);
+    }
+
     // Set global target platform for use in other functions
     targetPlatform = target;
-
-    console.log(`Platform: ${target}`);
-
     let allToolsPassed = true;
 
     for (const [name, manifest] of Object.entries(TOOLS)) {
@@ -345,14 +371,21 @@ async function main() {
     console.log('\n' + '═'.repeat(50));
     if (allToolsPassed) {
         console.log('✅ All tools validated successfully');
+
+        // Cleanup extracted VSIX if needed
+        if (cleanupDir) {
+            await fs.rm(cleanupDir, { recursive: true, force: true });
+        }
+
         process.exit(0);
     } else {
         console.log('❌ Tool validation failed');
-        console.log('\nTroubleshooting:');
-        console.log('  1. Check that tools were downloaded: yarn download-tools');
-        console.log('  2. Verify extraction completed without errors');
-        console.log('  3. Check tar.xz extraction on Unix systems');
-        console.log('  4. Review download-tools.ts for extraction logic');
+
+        // Cleanup extracted VSIX if needed
+        if (cleanupDir) {
+            await fs.rm(cleanupDir, { recursive: true, force: true });
+        }
+
         process.exit(1);
     }
 }
