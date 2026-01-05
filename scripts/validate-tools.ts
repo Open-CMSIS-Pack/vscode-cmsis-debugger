@@ -1,7 +1,11 @@
 #!/usr/bin/env npx tsx
 
 /**
+<<<<<<< HEAD
  * Copyright 2026 Arm Limited
+=======
+ * Copyright 2025 Arm Limited
+>>>>>>> 16c42a8 (Validate downloaded dependencies)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -171,7 +175,6 @@ async function runVersionCheck(
         let stdout = '';
         let stderr = '';
         let child;
-
         try {
             child = spawn(execPath, args, {
                 stdio: ['ignore', 'pipe', 'pipe'],
@@ -192,7 +195,6 @@ async function runVersionCheck(
                 message: `❌ Version check timed out after ${timeout}ms`,
             });
         }, timeout);
-
         child.stdout?.on('data', (data) => {
             stdout += data.toString();
         });
@@ -200,7 +202,6 @@ async function runVersionCheck(
         child.stderr?.on('data', (data) => {
             stderr += data.toString();
         });
-
         child.on('error', (error) => {
             clearTimeout(timer);
             resolve({
