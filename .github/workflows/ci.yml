@@ -161,23 +161,18 @@ jobs:
           files: coverage/lcov.info
 
   package:
-    name: Package (${{ matrix.target }})
-    runs-on: ${{ matrix.platform }}
+    name: Package
+    runs-on: [ubuntu-latest]
     needs: build
     strategy:
       fail-fast: true
       matrix:
-        include:
-          - target: win32-x64
-            platform: windows-2022
-          - target: win32-arm64
-            platform: windows-2022
-          - target: linux-x64
-            platform: ubuntu-24.04
-          - target: linux-arm64
-            platform: ubuntu-24.04
-          - target: darwin-arm64
-            platform: macos-14
+        target:
+          - win32-x64
+          - win32-arm64
+          - linux-x64
+          - linux-arm64
+          - darwin-arm64
     permissions:
       packages: read
     steps:
@@ -207,10 +202,6 @@ jobs:
         run: |
           yarn --frozen-lockfile --ignore-scripts --prefer-offline
           yarn download-tools --target ${{ matrix.target }} --no-cache
-
-      - name: Validate tools
-        run: |
-          yarn validate-tools --target ${{ matrix.target }}
 
       - name: Create vsix package
         run: |

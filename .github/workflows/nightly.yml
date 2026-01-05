@@ -55,12 +55,9 @@ jobs:
         run: |
           DESCRIBE=$(git describe --tags | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+')
           QUALIFIER=$(git describe --tags | grep -Eo '[0-9]+\-g[0-9a-f]+$')
+          BRANCH=$(echo "${{ github.ref_name }}" | sed 's/[^0-9A-Za-z-]/-/g')
           yarn version -s --no-git-tag-version --new-version "${DESCRIBE#v}"
-          if [ -n "${QUALIFIER}" ]; then
-            yarn version --no-git-tag-version --prepatch --preid "${{ github.ref_name }}${QUALIFIER}"
-          else
-            yarn version --no-git-tag-version --prepatch --preid "${{ github.ref_name }}"
-          fi
+          yarn version -s --no-git-tag-version --prepatch --preid "${BRANCH}${QUALIFIER:+-${QUALIFIER}}"
           VERSION="$(jq -r ".version" < package.json)"
           sed -i "s/## Unreleased/## ${VERSION}/" CHANGELOG.md
           echo "Version is ${VERSION}"
