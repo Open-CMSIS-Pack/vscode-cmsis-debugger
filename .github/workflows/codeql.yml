@@ -9,6 +9,7 @@ on:
       - '.github/workflows/markdown.yml'
       - '.github/markdownlint.json'
       - '.github/markdownlint.jsonc'
+      - '.github/workflows/nightly.yml'
   push:
     branches:
       - main
@@ -17,6 +18,7 @@ on:
       - '.github/workflows/markdown.yml'
       - '.github/markdownlint.json'
       - '.github/markdownlint.jsonc'
+      - '.github/workflows/nightly.yml'
 
 permissions:
   contents: read
