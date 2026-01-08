@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component_viewer schemaVersion="0.1" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="Component_Viewer.xsd">
+  <component name="RTOS" version="5.0.0"/>    <!-- name and version of the component  -->
+
+  <typedefs>
+  </typedefs>
+
+  <objects>
+    <object name="RTX RTOS Object">
+      <var name="R0" type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="R1" type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="R2" type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="R3" type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="R4" type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="R5" type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="R6" type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="R7" type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="R8" type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="R9" type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="R10" type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="R11" type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="R12" type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="R13" type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="R14" type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="R15" type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="PSP" type="uint32_t" value="0xA5A5A5A5"/>
+      
+      <var name="MSP_NS"     type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="PSP_NS"     type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="MSP_S"      type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="PSP_S"      type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="MSPLIM_S"   type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="PSPLIM_S"   type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="MSPLIM_NS"  type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="PSPLIM_NS"  type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="SYSREGS_S"  type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="SYSREGS_NS" type="uint32_t" value="0xA5A5A5A5"/>
+      <var name="SECURITY"   type="uint32_t" value="0xA5A5A5A5"/>
+
+      <calc>
+        R0  = __GetRegVal ("R0");
+        R1  = __GetRegVal ("R1");
+        R2  = __GetRegVal ("R2");
+        R3  = __GetRegVal ("R3");
+        R4  = __GetRegVal ("R4");
+        R5  = __GetRegVal ("R5");
+        R6  = __GetRegVal ("R6");
+        R7  = __GetRegVal ("R7");
+        R8  = __GetRegVal ("R8");
+        R9  = __GetRegVal ("R9");
+        R10 = __GetRegVal ("R10");
+        R11 = __GetRegVal ("R11");
+        R12 = __GetRegVal ("R12");
+        R13 = __GetRegVal ("R13");
+        R14 = __GetRegVal ("R14");
+        R15 = __GetRegVal ("R15");
+        
+        PSP = __GetRegVal ("PSP");
+      </calc>
+
+      <calc>  
+        MSP_NS     = __GetRegVal("MSP_NS");
+        PSP_NS     = __GetRegVal("PSP_NS");
+        MSP_S      = __GetRegVal("MSP_S");
+        PSP_S      = __GetRegVal("PSP_S");
+        MSPLIM_S   = __GetRegVal("MSPLIM_S");
+        PSPLIM_S   = __GetRegVal("PSPLIM_S");
+        MSPLIM_NS  = __GetRegVal("MSPLIM_NS");
+        PSPLIM_NS  = __GetRegVal("PSPLIM_NS");
+        SYSREGS_S  = __GetRegVal("SYSREGS_S");
+        SYSREGS_NS = __GetRegVal("SYSREGS_NS");
+        SECURITY   = __GetRegVal("SECURITY");
+      </calc>
+
+      <out name="GetRegVal Test">
+        <item property="Registers" value="">
+          <item property="R0"     value="%x[R0]"/>
+          <item property="R1"     value="%x[R1]"/>
+          <item property="R2"     value="%x[R2]"/>
+          <item property="R3"     value="%x[R3]"/>
+          <item property="R4"     value="%x[R4]"/>
+          <item property="R5"     value="%x[R5]"/>
+          <item property="R6"     value="%x[R6]"/>
+          <item property="R7"     value="%x[R7]"/>
+          <item property="R8"     value="%x[R8]"/>
+          <item property="R9"     value="%x[R9]"/>
+          <item property="R10"    value="%x[R10]"/>
+          <item property="R11"    value="%x[R11]"/>
+          <item property="R12"    value="%x[R12]"/>
+          <item property="R13"    value="%x[R13]"/>
+          <item property="R14"    value="%x[R14]"/>
+          <item property="R15"    value="%x[R15]"/>
+          <item property="PSP"    value="%x[PSP]"/>
+          
+          <item property="MSP_NS"     value="%x[MSP_NS]"/>
+          <item property="PSP_NS"     value="%x[PSP_NS]"/>
+          <item property="MSP_S"      value="%x[MSP_S]"/>
+          <item property="PSP_S"      value="%x[PSP_S]"/>
+          <item property="MSPLIM_S"   value="%x[MSPLIM_S]"/>
+          <item property="PSPLIM_S"   value="%x[PSPLIM_S]"/>
+          <item property="MSPLIM_NS"  value="%x[MSPLIM_NS]"/>
+          <item property="PSPLIM_NS"  value="%x[PSPLIM_NS]"/>
+          <item property="SYSREGS_S"  value="%x[SYSREGS_S]"/>
+          <item property="SYSREGS_NS" value="%x[SYSREGS_NS]"/>
+          <item property="SECURITY"   value="%x[SECURITY]"/>
+        </item>
+
+      </out>
+    </object>
+  </objects>
+
+  <events>
+  </events>
+</component_viewer>

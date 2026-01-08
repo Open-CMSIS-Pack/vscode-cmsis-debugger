@@ -63,6 +63,26 @@ export class CbuildRunReader {
         return svdFilePaths;
     }
 
+    public getScvdFilePaths(cmsisPackRoot?: string, pname?: string): string[] {
+        if (!this.cbuildRun) {
+            return [];
+        }
+        // Get SCVD file descriptors
+        const systemDescriptions = this.cbuildRun['system-descriptions'];
+        const scvdFileDescriptors = systemDescriptions?.filter(descriptor => descriptor.type === 'scvd') ?? [];
+        if (scvdFileDescriptors.length === 0) {
+            return [];
+        }
+        // Replace potential ${CMSIS_PACK_ROOT} placeholder
+        const effectiveCmsisPackRoot = cmsisPackRoot ?? getCmsisPackRootPath();
+        // Map to copies, leave originals untouched
+        const filteredScvdDescriptors = pname ? scvdFileDescriptors.filter(descriptor => descriptor.pname === pname): scvdFileDescriptors;
+        const scvdFilePaths = filteredScvdDescriptors.map(descriptor => `${effectiveCmsisPackRoot
+            ? descriptor.file.replaceAll(CMSIS_PACK_ROOT_ENVVAR, effectiveCmsisPackRoot)
+            : descriptor.file}`);
+        return scvdFilePaths;
+    }
+
     public getPnames(): string[] {
         if (!this.cbuildRun) {
             return [];

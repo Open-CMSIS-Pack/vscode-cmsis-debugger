@@ -61,6 +61,11 @@
           "id": "cmsis-debugger.liveWatch",
           "name": "Live Watch",
           "icon": "media/trace-and-live-light.svg"
+        },
+        {
+          "id": "cmsis-debugger.componentViewer",
+          "name": "Component Viewer",
+          "icon": "${rocket}"
         }
       ]
     },
@@ -337,7 +342,16 @@
           }
         }
       }
-    ]
+    ],
+    "configuration": {
+      "properties": {
+        "vscode-cmsis-debugger.useMocks": {
+          "type": "boolean",
+          "default": false,
+          "description": "If enabled, CMSIS Debugger uses mock data for testing and development purposes."
+        }
+      }
+    }
   },
   "scripts": {
     "prepare": "yarn run build",
@@ -362,7 +376,8 @@
     "baseContentUrl": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/blob/main/README.md"
   },
   "dependencies": {
-    "yaml": "^2.8.1"
+    "yaml": "^2.8.1",
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
     "@open-cmsis-pack/vsce-helper": "^0.2.2",
@@ -373,6 +388,7 @@
     "@types/node": "^20.19.25",
     "@types/node-fetch": "^2.6.13",
     "@types/vscode": "^1.106.1",
+    "@types/xml2js": "^0.4.14",
     "@types/yargs": "^17.0.35",
     "@types/yarnpkg__lockfile": "^1.1.9",
     "@typescript-eslint/eslint-plugin": "^8.47.0",
