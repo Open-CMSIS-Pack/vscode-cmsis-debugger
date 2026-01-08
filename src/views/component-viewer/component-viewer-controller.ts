@@ -6,14 +6,14 @@ import path from 'path';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
 
 const scvdMockTestFiles: Map<string, boolean> = new Map<string, boolean>([
-    ['test-data/MyTest.scvd',           true],
-    ['test-data/RTX5.scvd',             false],
-    ['test-data/BaseExample.scvd',      false],
-    ['test-data/Network.scvd',          false],
-    ['test-data/USB.scvd',              false],
-    ['test-data/FileSystem.scvd',       false],
-    ['test-data/EventRecorder.scvd',    false],
-    ['test-data/GetRegVal_Test.scvd',   false],
+    ['test-data/component-viewer/MyTest.scvd',           true],
+    ['test-data/component-viewer/RTX5.scvd',             false],
+    ['test-data/component-viewer/BaseExample.scvd',      false],
+    ['test-data/component-viewer/Network.scvd',          false],
+    ['test-data/component-viewer/USB.scvd',              false],
+    ['test-data/component-viewer/FileSystem.scvd',       false],
+    ['test-data/component-viewer/EventRecorder.scvd',    false],
+    ['test-data/component-viewer/GetRegVal_Test.scvd',   false],
 ]);
 
 const scvdMockFiles: string[] = Array.from(scvdMockTestFiles.entries())
