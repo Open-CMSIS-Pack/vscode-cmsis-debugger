@@ -42,7 +42,7 @@ const COPYRIGHT_TEXT = `/**
  */`;
 
 // Regular expression to match the copyright notice
-const COPYRIGHT_REGEX = /\/\*\*\n \* Copyright 2025(?:-(?:20\d{2}))? Arm Limited[\s\S]*?\*\//;
+const COPYRIGHT_REGEX = /\/\*\*\n \* Copyright 20\d{2}(?:-(?:20\d{2}))? Arm Limited[\s\S]*?\*\//;
 
 
 function getFiles(): string[] {
