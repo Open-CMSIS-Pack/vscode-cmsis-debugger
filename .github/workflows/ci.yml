@@ -159,23 +159,18 @@ jobs:
           files: coverage/lcov.info
 
   package:
-    name: Package (${{ matrix.target }})
-    runs-on: ${{ matrix.platform }}
+    name: Package
+    runs-on: [ubuntu-latest]
     needs: build
     strategy:
       fail-fast: true
       matrix:
-        include:
-          - target: win32-x64
-            platform: windows-2022
-          - target: win32-arm64
-            platform: windows-2022
-          - target: linux-x64
-            platform: ubuntu-24.04
-          - target: linux-arm64
-            platform: ubuntu-24.04
-          - target: darwin-arm64
-            platform: macos-14
+        target:
+          - win32-x64
+          - win32-arm64
+          - linux-x64
+          - linux-arm64
+          - darwin-arm64
     permissions:
       packages: read
     steps:
@@ -217,6 +212,37 @@ jobs:
           path: ./*.vsix
           retention-days: 1
 
+  validate:
+    name: Validate package (${{ matrix.target }})
+    runs-on: ${{ matrix.platform }}
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: win32-x64
+            platform: windows-2022
+          - target: win32-arm64
+            platform: windows-2022
+          - target: linux-x64
+            platform: ubuntu-24.04
+          - target: linux-arm64
+            platform: ubuntu-24.04
+          - target: darwin-arm64
+            platform: macos-14
+    permissions:
+      packages: read
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+        with:
+          egress-policy: audit
+
+      - name: Download vsix package
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          pattern: vsix-package-${{ matrix.target }}
+
       - name: Validate VSIX contents
         shell: bash
         run: |
@@ -228,7 +254,7 @@ jobs:
     name: Publish release
     runs-on: [ubuntu-latest]
     if: github.event_name == 'release'
-    needs: package
+    needs: [ package, validate ]
     permissions:
       contents: write  # for softprops/action-gh-release to create a GitHub release
     steps:

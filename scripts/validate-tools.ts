@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -254,26 +254,15 @@ async function validateTool(name: string, manifest: ToolManifest): Promise<boole
     let allPassed = true;
     const results: ValidationResult[] = [];
 
-    // Level 1: Check executable
+    // Level 1: Check essential files
     console.log('  Level 1: Essential files');
-    const execPath = getExecutablePath(toolDir, manifest.executablePath);
-    const execResult = await checkFileExists(execPath);
-    results.push(execResult);
-    console.log(`    ${execResult.message}`);
-
-    if (!execResult.success) {
-        allPassed = false;
-        console.log(`\n  Skipping further checks due to missing executable`);
-        return false;
-    }
 
     // Check required files
     for (const file of manifest.requiredFiles) {
-        if (file === manifest.executablePath) continue; // Already checked
         const filePath = getExecutablePath(toolDir, file);
         const result = await checkFileExists(filePath);
         results.push(result);
-        console.log(`    ${result.message}`);
+        console.log(`\t${result.message}`);
         if (!result.success) allPassed = false;
     }
 
@@ -282,7 +271,7 @@ async function validateTool(name: string, manifest: ToolManifest): Promise<boole
         const dirPath = path.join(toolDir, dir);
         const result = await checkDirExists(dirPath);
         results.push(result);
-        console.log(`    ${result.message}`);
+        console.log(`\t${result.message}`);
         if (!result.success) allPassed = false;
     }
 
@@ -305,8 +294,9 @@ async function validateTool(name: string, manifest: ToolManifest): Promise<boole
     const canExecute = platformMap[targetOs] === hostOs && targetArch === hostArch;
 
     if (!canExecute) {
-        console.log(`    ⊘ Skipped (cannot execute ${targetPlatform} binaries on ${hostOs}-${hostArch})`);
+        console.log(`\t⊘ Skipped (cannot execute ${targetPlatform} binaries on ${hostOs}-${hostArch})`);
     } else {
+        const execPath = getExecutablePath(toolDir, manifest.executablePath);
         const versionResult = await runVersionCheck(
             execPath,
             manifest.versionCheck.args,
@@ -314,7 +304,7 @@ async function validateTool(name: string, manifest: ToolManifest): Promise<boole
             manifest.versionCheck.timeout
         );
         results.push(versionResult);
-        console.log(`    ${versionResult.message}`);
+        console.log(`\t${versionResult.message}`);
         if (!versionResult.success) allPassed = false;
     }
 
