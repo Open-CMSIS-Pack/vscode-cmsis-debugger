@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component_viewer schemaVersion="0.1" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="Component_Viewer.xsd">
+  <component name="RTOS" version="5.0.0"/>    <!-- name and version of the component  -->
+
+  <typedefs>
+    <typedef name="myType" size="4" >
+      <member name="data" offset="0" size="4" type="uint32_t" />
+      <var name="var1" type="uint32_t" />
+      <var name="var2" type="uint32_t" />
+      <var name="var3" type="uint32_t" />
+    </typedef>
+
+  </typedefs>
+
+  <objects>
+    <object name="Test Object">
+      <var name="cnt" type="uint32_t" value="0"/>
+
+      <!-- <var name="myVar" type="myType" value="0x00000000"/> -->
+      <read name="myVar" type="myType"  offset="0" size="4"   />
+
+      <calc>
+        myVar.var1 = cnt;
+        cnt++;
+        myVar.var2 = cnt;
+        cnt++;
+        myVar.var3 = cnt;
+      </calc>
+
+      <out name="MyTest">
+        <item property="data" value="%x[myVar.data]"/>
+        <item property="var1" value="%x[myVar.var1]"/>
+        <item property="var2" value="%x[myVar.var2]"/>
+        <item property="var3" value="%x[myVar.var3]"/>
+      </out>
+    </object>
+  </objects>
+</component_viewer>

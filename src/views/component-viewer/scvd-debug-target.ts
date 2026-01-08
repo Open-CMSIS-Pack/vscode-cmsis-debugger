@@ -93,6 +93,17 @@ export class ScvdDebugTarget {
         return undefined;
     }
 
+    public async getTargetIsRunning(): Promise<boolean> {
+        // if the session is a mock session, return mock data. if it's not a mock session, use the target access to get real data
+        if(this.activeSession.session.id.startsWith('mock-session-')) {
+            return true; // mock session is always running
+        } else {
+            // TODO For real sessions, this functionality is not implemented yet
+            const runningState = true; //await this.targetAccess.evaluateTargetRunningState();
+            return runningState;
+        }
+    }
+
     public async findSymbolAddress(symbol: string): Promise<number | undefined> {
         const symbolInfo = await this.getSymbolInfo(symbol);
         if(symbolInfo === undefined) {

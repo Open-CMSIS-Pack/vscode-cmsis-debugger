@@ -830,7 +830,10 @@ export async function evalNode(node: ASTNode, ctx: EvalContext): Promise<any> {
                 }
             }
 
-            const args = await Promise.all(c.args.map(a => evalNode(a, ctx)));
+            const args = [];
+            for (const a of c.args) {
+                args.push(await evalNode(a, ctx)); // evaluate sequentially to avoid parallel side effects
+            }
             const fnVal = await evalNode(c.callee, ctx);
             if (typeof fnVal === 'function') return await (fnVal as Function)(...args);
             throw new Error('Callee is not callable.');

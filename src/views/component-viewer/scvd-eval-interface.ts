@@ -187,8 +187,9 @@ export class ScvdEvalInterface implements DataHost {
         return undefined;
     }
 
-    __Running(): number | undefined {
-        return 1;
+    async __Running(): Promise<number | undefined> {
+        const isRunning = await this.debugTarget.getTargetIsRunning();
+        return isRunning ? 1 : 0;
     }
 
     _count(container: RefContainer): number | undefined {

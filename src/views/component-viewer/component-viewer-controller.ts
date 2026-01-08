@@ -6,7 +6,8 @@ import path from 'path';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
 
 const scvdMockTestFiles: Map<string, boolean> = new Map<string, boolean>([
-    ['test-data/component-viewer/MyTest.scvd',           true],
+    ['test-data/component-viewer/MinimalTest.scvd',      true],
+    ['test-data/component-viewer/MyTest.scvd',           false],
     ['test-data/component-viewer/RTX5.scvd',             false],
     ['test-data/component-viewer/BaseExample.scvd',      false],
     ['test-data/component-viewer/Network.scvd',          false],
