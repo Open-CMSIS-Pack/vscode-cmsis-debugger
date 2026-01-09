@@ -126,4 +126,14 @@ describe('evaluator data host hooks', () => {
         expect(host.calls.formatPrintf).toBe(1);
         expect(host.lastFormattingContainer?.current).toBe(host.fieldRef);
     });
+
+    it('does not recover containers for constant-only branches', async () => {
+        const host = new HookHost();
+        const ctx = new EvalContext({ data: host, container: host.root });
+        const pr = parseExpression('val=%x[false ? arr[1].field : 5]', true);
+
+        await evaluateParseResult(pr, ctx);
+        expect(host.calls.formatPrintf).toBe(1);
+        expect(host.lastFormattingContainer?.current).toBeUndefined();
+    });
 });

@@ -936,10 +936,13 @@ async function evaluateFormatSegmentValue(segment: FormatSegment, ctx: EvalConte
     const value = await evalNode(segment.value, ctx);
     let containerSnapshot = snapshotContainer(ctx.container);
     if (!containerSnapshot.current) {
-        const refNode = findReferenceNode(segment.value);
-        const recovered = refNode ? await captureContainerForReference(refNode, ctx) : undefined;
-        if (recovered) {
-            containerSnapshot = recovered;
+        const hasConst = (segment.value as Partial<{ constValue: unknown }>).constValue !== undefined;
+        if (!hasConst) {
+            const refNode = findReferenceNode(segment.value);
+            const recovered = refNode ? await captureContainerForReference(refNode, ctx) : undefined;
+            if (recovered) {
+                containerSnapshot = recovered;
+            }
         }
     }
     return { value, container: containerSnapshot };
