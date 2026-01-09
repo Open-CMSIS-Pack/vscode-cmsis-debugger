@@ -4,7 +4,7 @@
 //  - optional auto-declare unknown globals on write
 //  - module-level helpers to add/read globals without host reference
 
-import { DataHost, RefContainer, ScalarType } from './evaluator';
+import { DataHost, EvalValue, RefContainer, ScalarType } from './evaluator';
 import { ScvdBase } from './model/scvd-base';
 import { CachedMemoryHost } from './cache/cache';
 import { Cm81MRegisterCache } from './cache/register-cache';
@@ -112,7 +112,7 @@ export class ScvdEvalInterface implements DataHost {
     }
 
     /* ---------------- Read/Write via caches ---------------- */
-    readValue(container: RefContainer): number | string | bigint | Uint8Array | undefined {
+    readValue(container: RefContainer): EvalValue {
         try {
             const value = this.memHost.readValue(container);
             return value;
@@ -122,7 +122,7 @@ export class ScvdEvalInterface implements DataHost {
         }
     }
 
-    writeValue(container: RefContainer, value: number | string | bigint | Uint8Array): any {
+    writeValue(container: RefContainer, value: EvalValue): EvalValue {
         try {
             this.memHost.writeValue(container, value);
             return value;
@@ -213,21 +213,21 @@ export class ScvdEvalInterface implements DataHost {
         return undefined;
     }
 
-    async formatPrintf(spec: FormatSegment['spec'], value: any, container: RefContainer): Promise<string | undefined> {
+    async formatPrintf(spec: FormatSegment['spec'], value: EvalValue, container: RefContainer): Promise<string | undefined> {
         const base = container.current;
 
         switch (spec) {
             case 'd': {
-                return this.formatSpecifier.format_d(value);
+                return typeof value === 'number' ? this.formatSpecifier.format_d(value) : '';
             }
             case 'u': {
-                return this.formatSpecifier.format_u(value);
+                return typeof value === 'number' ? this.formatSpecifier.format_u(value) : '';
             }
             case 't': {
-                return this.formatSpecifier.format_t(value);
+                return typeof value === 'number' ? this.formatSpecifier.format_t(value) : '';
             }
             case 'x': {
-                return this.formatSpecifier.format_x(value);
+                return typeof value === 'number' ? this.formatSpecifier.format_x(value) : '';
             }
             case 'C': { // Address value as symbolic name with file context, if fails in hexadecimal format
                 const addr = typeof value === 'number' ? value : undefined;
@@ -247,15 +247,16 @@ export class ScvdEvalInterface implements DataHost {
             }
             case 'E': { // Symbolic enumerator value, if fails in decimal format
                 const memberItem = base?.castToDerived(ScvdMember);
-                const enumItem = await memberItem?.getEnum(value);
+                const enumItem = typeof value === 'number' ? await memberItem?.getEnum(value) : undefined;
                 const enumStr = await enumItem?.getGuiName();
-                return this.formatSpecifier.format_E(enumStr ?? value);
+                const fallback = (typeof value === 'number' || typeof value === 'string') ? value : '';
+                return this.formatSpecifier.format_E(enumStr ?? fallback);
             }
             case 'I': {
-                return this.formatSpecifier.format_I(value);
+                return typeof value === 'number' ? this.formatSpecifier.format_I(value) : '';
             }
             case 'J': {
-                return this.formatSpecifier.format_J(value);
+                return typeof value === 'number' ? this.formatSpecifier.format_J(value) : '';
             }
             case 'N': {
                 if(typeof value === 'number' && Number.isInteger(value)) {
@@ -270,10 +271,13 @@ export class ScvdEvalInterface implements DataHost {
                 return '';
             }
             case 'M': {
-                return this.formatSpecifier.format_M(value);
+                if (typeof value === 'number' || typeof value === 'string') {
+                    return this.formatSpecifier.format_M(value);
+                }
+                return '';
             }
             case 'T': {
-                return this.formatSpecifier.format_T(value);
+                return typeof value === 'number' ? this.formatSpecifier.format_T(value) : '';
             }
             case 'U': {
                 if(typeof value === 'number' && Number.isInteger(value)) {

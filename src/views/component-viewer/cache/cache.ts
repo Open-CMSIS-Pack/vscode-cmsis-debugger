@@ -1,6 +1,6 @@
 // cache.ts
 
-import { RefContainer } from '../evaluator';
+import { EvalValue, RefContainer } from '../evaluator';
 
 /** Entry stored in the symbol cache. */
 export interface SymbolEntry {
@@ -182,7 +182,7 @@ export class CachedMemoryHost {
     }
 
     /** Read a value, using byte-only offsets and widths. */
-    readValue(container: RefContainer): any {
+    readValue(container: RefContainer): EvalValue {
         const variableName = container.anchor?.name;
         const widthBytes = container.widthBytes ?? 0;
         if (!variableName || widthBytes <= 0) {
@@ -215,7 +215,7 @@ export class CachedMemoryHost {
     }
 
     /** Write a value, using byte-only offsets and widths. */
-    writeValue(container: RefContainer, value: any, actualSize?: number): void {
+    writeValue(container: RefContainer, value: EvalValue, actualSize?: number): void {
         const variableName = container.anchor?.name;
         const widthBytes = container.widthBytes ?? 0;
         if (!variableName || widthBytes <= 0) {

@@ -41,9 +41,9 @@ describe('ComponentViewerTargetAccess', () => {
 
     describe('evaluateSymbolAddress', () => {
         it('should evaluate symbol address successfully with default context', async () => {
-            (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ 
-                result: '0x20000000', 
-                variablesReference: 0 
+            (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({
+                result: '0x20000000',
+                variablesReference: 0
             });
             (vscode.debug.activeStackItem as unknown) = { session: debugSession, threadId: 1, frameId: 5 };
 
@@ -61,9 +61,9 @@ describe('ComponentViewerTargetAccess', () => {
         });
 
         it('should evaluate symbol address with custom context', async () => {
-            (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ 
-                result: '0x40001000', 
-                variablesReference: 0 
+            (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({
+                result: '0x40001000',
+                variablesReference: 0
             });
             (vscode.debug.activeStackItem as unknown) = { session: debugSession, threadId: 1, frameId: 3 };
 
@@ -81,9 +81,9 @@ describe('ComponentViewerTargetAccess', () => {
         });
 
         it('should use frameId 0 when no active stack frame exists', async () => {
-            (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ 
-                result: '0x30000000', 
-                variablesReference: 0 
+            (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({
+                result: '0x30000000',
+                variablesReference: 0
             });
             (vscode.debug.activeStackItem as unknown) = undefined;
 
@@ -105,7 +105,7 @@ describe('ComponentViewerTargetAccess', () => {
 
             expect(result).toBe('Variable not found');
             expect(logDebugSpy).toHaveBeenCalledWith(
-                "Session 'test-session': Failed to evaluate address 'unknownVar' - 'Variable not found'"
+                'Session \'test-session\': Failed to evaluate address \'unknownVar\' - \'Variable not found\''
             );
         });
 
@@ -117,7 +117,7 @@ describe('ComponentViewerTargetAccess', () => {
 
             expect(result).toBe('No active session');
             expect(logDebugSpy).toHaveBeenCalledWith(
-                "Session 'test-session': Failed to evaluate address 'myVar' - 'custom request failed'"
+                'Session \'test-session\': Failed to evaluate address \'myVar\' - \'custom request failed\''
             );
         });
     });
@@ -125,7 +125,7 @@ describe('ComponentViewerTargetAccess', () => {
     describe('evaluateMemory', () => {
         it('should read memory successfully', async () => {
             const memoryData = 'AQIDBAU='; // Base64 encoded data
-            (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ 
+            (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({
                 address: '0x20000000',
                 data: memoryData
             });
@@ -142,7 +142,7 @@ describe('ComponentViewerTargetAccess', () => {
 
         it('should read memory with offset', async () => {
             const memoryData = 'AQIDBAU=';
-            (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ 
+            (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({
                 address: '0x20000004',
                 data: memoryData
             });
@@ -165,7 +165,7 @@ describe('ComponentViewerTargetAccess', () => {
 
             expect(result).toBe('Invalid memory address');
             expect(logDebugSpy).toHaveBeenCalledWith(
-                "Session 'test-session': Failed to read memory at address '0xFFFFFFFF' - 'Invalid memory address'"
+                'Session \'test-session\': Failed to read memory at address \'0xFFFFFFFF\' - \'Invalid memory address\''
             );
         });
 
@@ -177,12 +177,12 @@ describe('ComponentViewerTargetAccess', () => {
 
             expect(result).toBe('No active session');
             expect(logDebugSpy).toHaveBeenCalledWith(
-                "Session 'test-session': Failed to read memory at address '0x20000000' - 'custom request failed'"
+                'Session \'test-session\': Failed to read memory at address \'0x20000000\' - \'custom request failed\''
             );
         });
 
         it('should handle undefined response data', async () => {
-            (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ 
+            (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({
                 address: '0x20000000'
                 // data is undefined
             });

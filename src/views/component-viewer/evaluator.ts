@@ -28,6 +28,7 @@ import type { ScvdBase } from './model/scvd-base';
  * ============================================================================= */
 
 export type EvaluateResult = number | string | undefined;
+export type EvalValue = number | string | boolean | bigint | Uint8Array | undefined;
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -42,6 +43,8 @@ export interface ScalarType {
     bits?: number;
     /** Optional human-readable typename, e.g. "uint32_t" */
     name?: string;
+    /** Alternative typename source used by some hosts. */
+    typename?: string;
 }
 
 /** Container context carried during evaluation. */
@@ -81,13 +84,13 @@ export interface DataHost {
     getMemberRef(container: RefContainer, property: string, forWrite?: boolean): MaybePromise<ScvdBase | undefined>;
 
     // Value access acts on container.{anchor,offsetBytes,widthBytes}
-    readValue(container: RefContainer): MaybePromise<any>;                  // may return undefined -> error
-    writeValue(container: RefContainer, value: any): MaybePromise<any>;     // may return undefined -> error
+    readValue(container: RefContainer): MaybePromise<EvalValue>;            // may return undefined -> error
+    writeValue(container: RefContainer, value: EvalValue): MaybePromise<EvalValue>;     // may return undefined -> error
 
     // Optional: advanced lookups / intrinsics use the whole container context
-    resolveColonPath?(container: RefContainer, parts: string[]): MaybePromise<any>; // undefined => not found
+    resolveColonPath?(container: RefContainer, parts: string[]): MaybePromise<EvalValue>; // undefined => not found
     stats?(): { symbols?: number; bytesUsed?: number };
-    evalIntrinsic?(name: string, container: RefContainer, args: any[]): MaybePromise<any>; // undefined => not handled
+    evalIntrinsic?(name: string, container: RefContainer, args: EvalValue[]): MaybePromise<EvalValue>; // undefined => not handled
 
     // Optional metadata (lets evaluator accumulate offsets itself)
     /** Bytes per element (including any padding/alignment inside the array layout). */
@@ -95,6 +98,9 @@ export interface DataHost {
 
     /** Member offset in bytes from base. */
     getMemberOffset?(base: ScvdBase, member: ScvdBase): MaybePromise<number | undefined>;     // bytes
+
+    /** Optional: explicit byte width helper for a ref. */
+    getByteWidth?(ref: ScvdBase): MaybePromise<number | undefined>;
 
     /** Optional: provide an element model (prototype/type) for array-ish refs. */
     getElementRef?(ref: ScvdBase): MaybePromise<ScvdBase | undefined>;
@@ -124,7 +130,7 @@ export interface DataHost {
     // the evaluator falls back to its built-in formatting.
     formatPrintf?(
         spec: FormatSegment['spec'],
-        value: any,
+        value: EvalValue,
         container: RefContainer
     ): MaybePromise<string | undefined>;
 
@@ -194,9 +200,9 @@ async function captureContainerForReference(node: ASTNode, ctx: EvalContext): Pr
     return captured;
 }
 
-function truthy(x: any): boolean { return !!x; }
+function truthy(x: unknown): boolean { return !!x; }
 
-function asNumber(x: any): number {
+function asNumber(x: unknown): number {
     if (typeof x === 'number') return Number.isFinite(x) ? x : 0;
     if (typeof x === 'boolean') return x ? 1 : 0;
     if (typeof x === 'bigint') return Number(x);
@@ -205,7 +211,7 @@ function asNumber(x: any): number {
     }
     return 0;
 }
-function toBigInt(x: any): bigint {
+function toBigInt(x: unknown): bigint {
     if (typeof x === 'bigint') return x;
     if (typeof x === 'number') return BigInt(Number.isFinite(x) ? Math.trunc(x) : 0);
     if (typeof x === 'boolean') return x ? BigInt(1) : BigInt(0);
@@ -215,18 +221,18 @@ function toBigInt(x: any): bigint {
     return BigInt(0);
 }
 
-function addVals(a: any, b: any): any {
+function addVals(a: EvalValue, b: EvalValue): EvalValue {
     if (typeof a === 'string' || typeof b === 'string') return String(a) + String(b);
     if (typeof a === 'bigint' || typeof b === 'bigint') return toBigInt(a) + toBigInt(b);
     return asNumber(a) + asNumber(b);
 }
-function subVals(a: any, b: any): any {
+function subVals(a: EvalValue, b: EvalValue): EvalValue {
     return (typeof a === 'bigint' || typeof b === 'bigint') ? (toBigInt(a) - toBigInt(b)) : (asNumber(a) - asNumber(b));
 }
-function mulVals(a: any, b: any): any {
+function mulVals(a: EvalValue, b: EvalValue): EvalValue {
     return (typeof a === 'bigint' || typeof b === 'bigint') ? (toBigInt(a) * toBigInt(b)) : (asNumber(a) * asNumber(b));
 }
-function divVals(a: any, b: any): any {
+function divVals(a: EvalValue, b: EvalValue): EvalValue {
     if (typeof a === 'bigint' || typeof b === 'bigint') {
         const bb = toBigInt(b); if (bb === BigInt(0)) throw new Error('Division by zero');
         return toBigInt(a) / bb;
@@ -234,60 +240,60 @@ function divVals(a: any, b: any): any {
     const nb = asNumber(b); if (nb === 0) throw new Error('Division by zero');
     return asNumber(a) / nb;
 }
-function modVals(a: any, b: any): any {
+function modVals(a: EvalValue, b: EvalValue): EvalValue {
     if (typeof a === 'bigint' || typeof b === 'bigint') {
         const bb = toBigInt(b); if (bb === BigInt(0)) throw new Error('Division by zero');
         return toBigInt(a) % bb;
     }
     return (asNumber(a) | 0) % (asNumber(b) | 0);
 }
-function andVals(a: any, b: any): any {
+function andVals(a: EvalValue, b: EvalValue): EvalValue {
     return (typeof a === 'bigint' || typeof b === 'bigint')
         ? (toBigInt(a) & toBigInt(b))
         : (((asNumber(a) | 0) & (asNumber(b) | 0)) >>> 0);
 }
-function xorVals(a: any, b: any): any {
+function xorVals(a: EvalValue, b: EvalValue): EvalValue {
     return (typeof a === 'bigint' || typeof b === 'bigint')
         ? (toBigInt(a) ^ toBigInt(b))
         : (((asNumber(a) | 0) ^ (asNumber(b) | 0)) >>> 0);
 }
-function orVals(a: any, b: any): any {
+function orVals(a: EvalValue, b: EvalValue): EvalValue {
     return (typeof a === 'bigint' || typeof b === 'bigint')
         ? (toBigInt(a) | toBigInt(b))
         : (((asNumber(a) | 0) | (asNumber(b) | 0)) >>> 0);
 }
-function shlVals(a: any, b: any): any {
+function shlVals(a: EvalValue, b: EvalValue): EvalValue {
     return (typeof a === 'bigint' || typeof b === 'bigint')
         ? (toBigInt(a) << toBigInt(b))
         : (((asNumber(a) | 0) << (asNumber(b) & 31)) >>> 0);
 }
-function sarVals(a: any, b: any): any {
+function sarVals(a: EvalValue, b: EvalValue): EvalValue {
     return (typeof a === 'bigint' || typeof b === 'bigint')
         ? (toBigInt(a) >> toBigInt(b))
         : (((asNumber(a) | 0) >> (asNumber(b) & 31)) >>> 0);
 }
-function shrVals(a: any, b: any): any {
+function shrVals(a: EvalValue, b: EvalValue): EvalValue {
     if (typeof a === 'bigint' || typeof b === 'bigint') {
         const aa = toBigInt(a) & U64_MASK; const bb = toBigInt(b);
         return (aa >> bb) & U64_MASK;
     }
     return (asNumber(a) >>> (asNumber(b) & 31)) >>> 0;
 }
-function eqVals(a: any, b: any): boolean {
+function eqVals(a: EvalValue, b: EvalValue): boolean {
     if (typeof a === 'string' || typeof b === 'string') return String(a) === String(b);
     if (typeof a === 'bigint' || typeof b === 'bigint') return toBigInt(a) === toBigInt(b);
     return asNumber(a) == asNumber(b);
 }
-function ltVals(a: any, b: any): boolean {
+function ltVals(a: EvalValue, b: EvalValue): boolean {
     return (typeof a === 'bigint' || typeof b === 'bigint') ? (toBigInt(a) < toBigInt(b)) : (asNumber(a) < asNumber(b));
 }
-function lteVals(a: any, b: any): boolean {
+function lteVals(a: EvalValue, b: EvalValue): boolean {
     return (typeof a === 'bigint' || typeof b === 'bigint') ? (toBigInt(a) <= toBigInt(b)) : (asNumber(a) <= asNumber(b));
 }
-function gtVals(a: any, b: any): boolean {
+function gtVals(a: EvalValue, b: EvalValue): boolean {
     return (typeof a === 'bigint' || typeof b === 'bigint') ? (toBigInt(a) > toBigInt(b)) : (asNumber(a) > asNumber(b));
 }
-function gteVals(a: any, b: any): boolean {
+function gteVals(a: EvalValue, b: EvalValue): boolean {
     return (typeof a === 'bigint' || typeof b === 'bigint') ? (toBigInt(a) >= toBigInt(b)) : (asNumber(a) >= asNumber(b));
 }
 
@@ -321,15 +327,14 @@ function normalizeScalarTypeFromName(name: string): ScalarType {
 function normalizeScalarType(t: string | ScalarType | undefined): ScalarType | undefined {
     if (!t) return undefined;
     if (typeof t === 'string') return normalizeScalarTypeFromName(t);
-    if (!t.name && (t as any).typename) {
-        t.name = (t as any).typename;
+    if (!t.name && t.typename) {
+        t.name = t.typename;
     }
     return t;
 }
 
 async function getScalarTypeForContainer(ctx: EvalContext, container: RefContainer): Promise<ScalarType | undefined> {
-    const hostAny = ctx.data as any;
-    const fn = hostAny.getValueType as ((c: RefContainer) => MaybePromise<string | ScalarType | undefined>) | undefined;
+    const fn = ctx.data.getValueType;
     if (typeof fn !== 'function') return undefined;
     const raw = await fn.call(ctx.data, container);
     return normalizeScalarType(raw);
@@ -379,7 +384,7 @@ function integerMod(a: number, b: number, unsigned: boolean): number {
  *   - an explicit merged kind from type info, OR
  *   - a fallback heuristic: both operands are integer-valued numbers.
  */
-function prefersInteger(kind: MergedKind | undefined, a: any, b: any): { use: boolean; unsigned: boolean } {
+function prefersInteger(kind: MergedKind | undefined, a: EvalValue, b: EvalValue): { use: boolean; unsigned: boolean } {
     if (kind === 'int') return { use: true, unsigned: false };
     if (kind === 'uint') return { use: true, unsigned: true };
 
@@ -393,7 +398,7 @@ function prefersInteger(kind: MergedKind | undefined, a: any, b: any): { use: bo
     return { use: false, unsigned: false };
 }
 
-function divValsWithKind(a: any, b: any, kind: MergedKind | undefined): any {
+function divValsWithKind(a: EvalValue, b: EvalValue, kind: MergedKind | undefined): EvalValue {
     // BigInt path unchanged
     if (typeof a === 'bigint' || typeof b === 'bigint') {
         return divVals(a, b);
@@ -407,7 +412,7 @@ function divValsWithKind(a: any, b: any, kind: MergedKind | undefined): any {
     return divVals(a, b);
 }
 
-function modValsWithKind(a: any, b: any, kind: MergedKind | undefined): any {
+function modValsWithKind(a: EvalValue, b: EvalValue, kind: MergedKind | undefined): EvalValue {
     if (typeof a === 'bigint' || typeof b === 'bigint') {
         return modVals(a, b);
     }
@@ -427,10 +432,10 @@ const NAME_ARG_INTRINSICS = new Set<string>([
     '__GetRegVal', // keeps consistency: reg names not values
 ]);
 
-async function evalArgsForIntrinsic(name: string, rawArgs: ASTNode[], ctx: EvalContext): Promise<any[]> {
+async function evalArgsForIntrinsic(name: string, rawArgs: ASTNode[], ctx: EvalContext): Promise<EvalValue[]> {
     const needsName = NAME_ARG_INTRINSICS.has(name);
 
-    const resolved: any[] = [];
+    const resolved: EvalValue[] = [];
     for (let i = 0; i < rawArgs.length; i++) {
         const arg = rawArgs[i];
         if (!needsName) {
@@ -479,8 +484,8 @@ async function withIsolatedContainer<T>(ctx: EvalContext, fn: () => MaybePromise
  * ============================================================================= */
 
 type LValue = {
-    get(): Promise<any>;
-    set(v: any): Promise<any>;
+    get(): Promise<EvalValue>;
+    set(v: EvalValue): Promise<EvalValue>;
     type: ScalarType | undefined;
 };
 
@@ -510,9 +515,9 @@ async function mustRef(node: ASTNode, ctx: EvalContext, forWrite = false): Promi
             ctx.container.current = ref;
 
             // Prefer a byte-based width helper if host provides one
-            const dataAny = ctx.data as any;
-            if (typeof dataAny.getByteWidth === 'function') {
-                const w = await dataAny.getByteWidth(ref);
+            const byteWidthFn = ctx.data.getByteWidth;
+            if (typeof byteWidthFn === 'function') {
+                const w = await byteWidthFn.call(ctx.data, ref);
                 if (typeof w === 'number' && w > 0) {
                     ctx.container.widthBytes = w;
                 }
@@ -561,9 +566,9 @@ async function mustRef(node: ASTNode, ctx: EvalContext, forWrite = false): Promi
                 }
 
                 // Width: prefer host byte-width helper if present
-                const dataAny = ctx.data as any;
-                if (typeof dataAny.getByteWidth === 'function') {
-                    const w = await dataAny.getByteWidth(child);
+                const byteWidthFn = ctx.data.getByteWidth;
+                if (typeof byteWidthFn === 'function') {
+                    const w = await byteWidthFn.call(ctx.data, child);
                     if (typeof w === 'number' && w > 0) {
                         ctx.container.widthBytes = w;
                     }
@@ -589,9 +594,9 @@ async function mustRef(node: ASTNode, ctx: EvalContext, forWrite = false): Promi
             }
 
             // Width: prefer host byte-width helper if present
-            const dataAny = ctx.data as any;
-            if (typeof dataAny.getByteWidth === 'function') {
-                const w = await dataAny.getByteWidth(child);
+            const byteWidthFn = ctx.data.getByteWidth;
+            if (typeof byteWidthFn === 'function') {
+                const w = await byteWidthFn.call(ctx.data, child);
                 if (typeof w === 'number' && w > 0) {
                     ctx.container.widthBytes = w;
                 }
@@ -629,9 +634,9 @@ async function mustRef(node: ASTNode, ctx: EvalContext, forWrite = false): Promi
             ctx.container.current = elementRef;
 
             // Update width to element width if host exposes a byte-width helper
-            const dataAny = ctx.data as any;
-            if (typeof dataAny.getByteWidth === 'function') {
-                const w = await dataAny.getByteWidth(elementRef);
+            const byteWidthFn = ctx.data.getByteWidth;
+            if (typeof byteWidthFn === 'function') {
+                const w = await byteWidthFn.call(ctx.data, elementRef);
                 if (typeof w === 'number' && w > 0) {
                     ctx.container.widthBytes = w;
                 }
@@ -649,7 +654,7 @@ async function mustRef(node: ASTNode, ctx: EvalContext, forWrite = false): Promi
     }
 }
 
-async function mustRead(ctx: EvalContext, label?: string): Promise<any> {
+async function mustRead(ctx: EvalContext, label?: string): Promise<EvalValue> {
     const v = await ctx.data.readValue(ctx.container);
     if (v === undefined) {
         throw new Error(label ? `Undefined value for ${label}` : 'Undefined value');
@@ -667,11 +672,11 @@ async function lref(node: ASTNode, ctx: EvalContext): Promise<LValue> {
     const valueType = await getScalarTypeForContainer(ctx, target);
 
     const lv: LValue = {
-        async get(): Promise<any> {
+        async get(): Promise<EvalValue> {
             await mustRef(node, ctx, false);
             return await mustRead(ctx);
         },
-        async set(v: any): Promise<any> {
+        async set(v: EvalValue): Promise<EvalValue> {
             const out = await ctx.data.writeValue(target, v); // use frozen target
             if (out === undefined) throw new Error('Write returned undefined');
             return out;
@@ -698,7 +703,7 @@ const VALUE_INTRINSICS = new Set<string>([
     '__FindSymbol',
 ]);
 
-async function evalOperandWithType(node: ASTNode, ctx: EvalContext): Promise<{ value: any; type: ScalarType | undefined }> {
+async function evalOperandWithType(node: ASTNode, ctx: EvalContext): Promise<{ value: EvalValue; type: ScalarType | undefined }> {
     let capturedType: ScalarType | undefined;
 
     const value = await withIsolatedContainer(ctx, async () => {
@@ -713,7 +718,7 @@ async function evalOperandWithType(node: ASTNode, ctx: EvalContext): Promise<{ v
     return { value, type: capturedType };
 }
 
-export async function evalNode(node: ASTNode, ctx: EvalContext): Promise<any> {
+export async function evalNode(node: ASTNode, ctx: EvalContext): Promise<EvalValue> {
     switch (node.kind) {
         case 'NumberLiteral':  return (node as NumberLiteral).value;
         case 'StringLiteral':  return (node as StringLiteral).value;
@@ -731,8 +736,7 @@ export async function evalNode(node: ASTNode, ctx: EvalContext): Promise<any> {
                 ctx.container.member = baseRef;
                 ctx.container.current = baseRef;
                 ctx.container.valueType = undefined;
-                const host = ctx.data as any;
-                const fn = host[ma.property] as ((container: RefContainer) => MaybePromise<any>) | undefined;
+                const fn = ma.property === '_count' ? ctx.data._count : ctx.data._addr;
                 if (typeof fn !== 'function') throw new Error(`Missing pseudo-member ${ma.property}`);
                 const out = await fn.call(ctx.data, ctx.container);
                 if (out === undefined) throw new Error(`Pseudo-member ${ma.property} returned undefined`);
@@ -802,7 +806,7 @@ export async function evalNode(node: ASTNode, ctx: EvalContext): Promise<any> {
             const R = await evalNode(a.right, ctx);
             const lhsKind: MergedKind = ref.type ? ref.type.kind : 'unknown';
 
-            let out: any;
+            let out: EvalValue;
             switch (a.operator) {
                 case '+=':  out = addVals(L, R); break;
                 case '-=':  out = subVals(L, R); break;
@@ -869,12 +873,14 @@ export async function evalNode(node: ASTNode, ctx: EvalContext): Promise<any> {
 
         case 'ErrorNode':      throw new Error('Cannot evaluate an ErrorNode.');
 
-        default:
-            throw new Error(`Unhandled node kind: ${(node as any).kind}`);
+        default: {
+            const kind = (node as Partial<ASTNode>).kind ?? 'unknown';
+            throw new Error(`Unhandled node kind: ${kind}`);
+        }
     }
 }
 
-async function evalBinary(node: BinaryExpression, ctx: EvalContext): Promise<any> {
+async function evalBinary(node: BinaryExpression, ctx: EvalContext): Promise<EvalValue> {
     const { operator, left, right } = node;
     if (operator === '&&') {
         const lv = await evalNode(left, ctx);
@@ -915,7 +921,7 @@ async function evalBinary(node: BinaryExpression, ctx: EvalContext): Promise<any
  * Printf helpers (callback-first, spec-agnostic with sensible fallbacks)
  * ============================================================================= */
 
-async function evaluateFormatSegmentValue(segment: FormatSegment, ctx: EvalContext): Promise<{ value: any; container: RefContainer | undefined }> {
+async function evaluateFormatSegmentValue(segment: FormatSegment, ctx: EvalContext): Promise<{ value: EvalValue; container: RefContainer | undefined }> {
     const value = await evalNode(segment.value, ctx);
     let containerSnapshot = snapshotContainer(ctx.container);
     if (!containerSnapshot.current) {
@@ -927,7 +933,7 @@ async function evaluateFormatSegmentValue(segment: FormatSegment, ctx: EvalConte
     return { value, container: containerSnapshot };
 }
 
-async function formatValue(spec: FormatSegment['spec'], v: any, ctx?: EvalContext, containerOverride?: RefContainer): Promise<string> {
+async function formatValue(spec: FormatSegment['spec'], v: EvalValue, ctx?: EvalContext, containerOverride?: RefContainer): Promise<string> {
     const formattingContainer = containerOverride ?? ctx?.container;
     // New: host-provided override
     if (ctx?.data.formatPrintf && formattingContainer) {
@@ -954,24 +960,24 @@ async function formatValue(spec: FormatSegment['spec'], v: any, ctx?: EvalContex
  * Intrinsics routing (strict, single-root)
  * ============================================================================= */
 
-async function routeIntrinsic(ctx: EvalContext, name: string, args: any[]): Promise<any> {
+async function routeIntrinsic(ctx: EvalContext, name: string, args: EvalValue[]): Promise<EvalValue> {
     // Explicit numeric intrinsics (simple parameter lists)
     if (name === '__GetRegVal') {
-        const fn = (ctx.data as any).__GetRegVal as ((reg: string) => MaybePromise<number | undefined>) | undefined;
+        const fn = ctx.data.__GetRegVal;
         if (typeof fn !== 'function') throw new Error('Missing intrinsic __GetRegVal');
         const out = await fn.call(ctx.data, String(args[0] ?? ''));
         if (out === undefined) throw new Error('Intrinsic __GetRegVal returned undefined');
         return out;
     }
     if (name === '__FindSymbol') {
-        const fn = (ctx.data as any).__FindSymbol as ((sym: string) => MaybePromise<number | undefined>) | undefined;
+        const fn = ctx.data.__FindSymbol;
         if (typeof fn !== 'function') throw new Error('Missing intrinsic __FindSymbol');
         const out = await fn.call(ctx.data, String(args[0] ?? ''));
         if (out === undefined) throw new Error('Intrinsic __FindSymbol returned undefined');
         return out | 0;
     }
     if (name === '__CalcMemUsed') {
-        const fn = (ctx.data as any).__CalcMemUsed as ((args: any[]) => MaybePromise<number | undefined>) | undefined;
+        const fn = ctx.data.__CalcMemUsed;
         if (typeof fn !== 'function') throw new Error('Missing intrinsic __CalcMemUsed');
         const a = args.map(v => Number(v) >>> 0);
         const out = await fn.call(ctx.data, a);
@@ -979,14 +985,14 @@ async function routeIntrinsic(ctx: EvalContext, name: string, args: any[]): Prom
         return out >>> 0;
     }
     if (name === '__size_of') {
-        const fn = (ctx.data as any).__size_of as ((sym: string) => MaybePromise<number | undefined>) | undefined;
+        const fn = ctx.data.__size_of;
         if (typeof fn !== 'function') throw new Error('Missing intrinsic __size_of');
         const out = await fn.call(ctx.data, String(args[0] ?? ''));
         if (out === undefined) throw new Error('Intrinsic __size_of returned undefined');
         return out | 0;
     }
     if (name === '__Symbol_exists') {
-        const fn = (ctx.data as any).__Symbol_exists as ((sym: string) => MaybePromise<number | undefined>) | undefined;
+        const fn = ctx.data.__Symbol_exists;
         if (typeof fn !== 'function') throw new Error('Missing intrinsic __Symbol_exists');
         const out = await fn.call(ctx.data, String(args[0] ?? ''));
         if (out === undefined) throw new Error('Intrinsic __Symbol_exists returned undefined');
@@ -994,14 +1000,14 @@ async function routeIntrinsic(ctx: EvalContext, name: string, args: any[]): Prom
     }
     // Explicit intrinsic that needs the container but returns a number
     if (name === '__Offset_of') {
-        const fn = (ctx.data as any).__Offset_of as ((container: RefContainer, typedefMember: string) => MaybePromise<number | undefined>) | undefined;
+        const fn = ctx.data.__Offset_of;
         if (typeof fn !== 'function') throw new Error('Missing intrinsic __Offset_of');
         const out = await fn.call(ctx.data, ctx.container, String(args[0] ?? ''));
         if (out === undefined) throw new Error('Intrinsic __Offset_of returned undefined');
         return out >>> 0;
     }
     if (name === '__Running') {
-        const fn = (ctx.data as any).__Running as (() => MaybePromise<number | undefined>) | undefined;
+        const fn = ctx.data.__Running;
         if (typeof fn !== 'function') throw new Error('Missing intrinsic __Running');
         const out = await fn.call(ctx.data);
         if (out === undefined) throw new Error('Intrinsic __Running returned undefined');
@@ -1014,9 +1020,9 @@ async function routeIntrinsic(ctx: EvalContext, name: string, args: any[]): Prom
         if (out === undefined) throw new Error(`Intrinsic ${name} returned undefined`);
         return out;
     }
-    const direct = (ctx.data as any)[name];
+    const direct = (ctx.data as unknown as Record<string, unknown>)[name];
     if (typeof direct === 'function') {
-        const out = await direct.call(ctx.data, ctx.container, args);
+        const out = await (direct as (container: RefContainer, a: EvalValue[]) => MaybePromise<EvalValue>).call(ctx.data, ctx.container, args);
         if (out === undefined) throw new Error(`Intrinsic ${name} returned undefined`);
         return out;
     }
@@ -1027,7 +1033,7 @@ async function routeIntrinsic(ctx: EvalContext, name: string, args: any[]): Prom
  * Top-level convenience
  * ============================================================================= */
 
-function normalizeEvaluateResult(v: any): EvaluateResult {
+function normalizeEvaluateResult(v: EvalValue): EvaluateResult {
     if (v === undefined || v === null) return undefined;
     if (typeof v === 'number' || typeof v === 'string') return v;
     if (typeof v === 'bigint') return v.toString(10);

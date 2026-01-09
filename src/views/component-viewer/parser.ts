@@ -15,7 +15,9 @@
 
 export type ValueType = 'number' | 'boolean' | 'string' | 'unknown';
 
-export interface BaseNode { kind: string; start: number; end: number; valueType?: ValueType; constValue?: any; }
+export type ConstValue = number | string | boolean | bigint | undefined;
+
+export interface BaseNode { kind: string; start: number; end: number; valueType?: ValueType; constValue?: ConstValue; }
 export interface NumberLiteral extends BaseNode { kind:'NumberLiteral'; value:number; raw:string; valueType:'number'; }
 export interface StringLiteral extends BaseNode { kind:'StringLiteral'; value:string; raw:string; valueType:'string'; }
 export interface BooleanLiteral extends BaseNode { kind:'BooleanLiteral'; value:boolean; valueType:'boolean'; }
@@ -69,7 +71,7 @@ export interface ParseResult {
   diagnostics: Diagnostic[];
   externalSymbols: string[];
   isPrintf: boolean;
-  constValue?: any;          // exists when the entire expression folds to a constant
+  constValue?: ConstValue;          // exists when the entire expression folds to a constant
 }
 
 /* ---------------- Tokenizer ---------------- */
@@ -168,6 +170,9 @@ const INTRINSICS: Set<string> = new Set([
 ]);
 
 function span(start:number, end:number) { return { start, end }; }
+const startOf = (n: ASTNode) => (n as BaseNode).start;
+const endOf = (n: ASTNode) => (n as BaseNode).end;
+const constOf = (n: ASTNode) => (n as BaseNode).constValue;
 
 function numFromRaw(raw: string): number {
     try {
@@ -245,6 +250,31 @@ export class Parser {
 
     /* ---------- public API ---------- */
 
+    /**
+     * Wrapper that keeps diagnostics when the underlying parse throws.
+     */
+    parseWithDiagnostics(input: string, isPrintExpression: boolean): ParseResult {
+        try {
+            return this.parse(input, isPrintExpression);
+        } catch (e) {
+            const start = 0;
+            const end = Math.max(input.length, 0);
+            const errors = (e instanceof AggregateError && Array.isArray(e.errors)) ? e.errors : [e];
+            for (const err of errors) {
+                const message = err instanceof Error ? err.message : String(err);
+                this.error(message, start, end);
+            }
+            const message = errors.length ? (errors[0] instanceof Error ? errors[0].message : String(errors[0])) : 'Unknown parser error';
+            const ast: ErrorNode = { kind: 'ErrorNode', message, start, end };
+            return {
+                ast,
+                diagnostics: this.diagnostics.slice(),
+                externalSymbols: [],
+                isPrintf: isPrintExpression,
+            };
+        }
+    }
+
     parse(input: string, isPrintExpression: boolean): ParseResult {
         this.reinit(input);
 
@@ -257,13 +287,13 @@ export class Parser {
             isPrintf = true;
 
             // Force EOF so tokenizer-based trailing checks don't run in printf mode
-            this.cur = { kind: 'EOF', value: '', start: input.length, end: input.length } as any;
+            this.cur = { kind: 'EOF', value: '', start: input.length, end: input.length };
 
         } else if (this.looksLikePrintf(input)) {
             // Auto-detect printf only when not explicitly forced
             ast = this.parsePrintfExpression();
             isPrintf = true;
-            this.cur = { kind: 'EOF', value: '', start: input.length, end: input.length } as any;
+            this.cur = { kind: 'EOF', value: '', start: input.length, end: input.length };
 
         } else {
             // Normal expression parsing
@@ -274,7 +304,7 @@ export class Parser {
 
         // Constant folding only for non-printf ASTs
         ast = this.fold(ast);
-        const constValue = isPrintf ? undefined : (ast as any).constValue;
+        const constValue = isPrintf ? undefined : ast.constValue;
 
         return {
             ast,
@@ -368,7 +398,7 @@ export class Parser {
                         if (c === inString) { inString = null; m++; continue; }
                         m++; continue;
                     }
-                    if (c === '"' || c === '\'') { inString = c as any; m++; continue; }
+                    if (c === '"' || c === '\'') { inString = c as '"'|'\''; m++; continue; }
                     if (c === '[') { depth++; m++; continue; }
                     if (c === ']') { depth--; if (depth === 0) break; m++; continue; }
                     m++;
@@ -395,12 +425,12 @@ export class Parser {
     private parseSubexpression(exprSrc: string, baseOffset: number): ASTNode {
         const savedS = this.s, savedTok = this.tok, savedCur = this.cur, savedDiag = this.diagnostics, savedExt = this.externals;
         const t = new Tokenizer(exprSrc);
-        (this as any).s = exprSrc;
-        (this as any).tok = t;
-        (this as any).cur = t.next();
+        this.s = exprSrc;
+        this.tok = t;
+        this.cur = t.next();
         const tmp: Diagnostic[] = [];
-        (this as any).diagnostics = tmp;
-        (this as any).externals = new Set<string>();
+        this.diagnostics = tmp;
+        this.externals = new Set<string>();
 
         const node = this.parseExpression();
         const folded = this.fold(node);
@@ -411,11 +441,11 @@ export class Parser {
 
         const adj = tmp.map(d => ({ ...d, start: d.start + baseOffset, end: d.end + baseOffset }));
         savedDiag.push(...adj);
-        (this as any).s = savedS;
-        (this as any).tok = savedTok;
-        (this as any).cur = savedCur;
-        (this as any).diagnostics = savedDiag;
-        (this as any).externals = savedExt;
+        this.s = savedS;
+        this.tok = savedTok;
+        this.cur = savedCur;
+        this.diagnostics = savedDiag;
+        this.externals = savedExt;
         return folded;
     }
 
@@ -430,7 +460,7 @@ export class Parser {
             const cons = this.parseExpression();
             if (!this.tryEat('PUNCT',':')) this.error('Expected ":" in conditional expression', this.cur.start, this.cur.end);
             const alt = this.parseExpression();
-            node = { kind:'ConditionalExpression', test:node, consequent:cons, alternate:alt, ...span((node as any).start, (alt as any).end) };
+            node = { kind:'ConditionalExpression', test:node, consequent:cons, alternate:alt, ...span(startOf(node), endOf(alt)) };
         }
         return node;
     }
@@ -458,10 +488,10 @@ export class Parser {
 
             if (isAssignOp) {
                 this.eat('PUNCT', op);
-                if (!this.isAssignable(left)) this.error('Invalid assignment target', (left as any).start, (left as any).end);
+                if (!this.isAssignable(left)) this.error('Invalid assignment target', startOf(left), endOf(left));
                 if (left.kind === 'Identifier') this.externals.delete((left as Identifier).name);
                 const right = this.parseAssignment(); // right-assoc
-                return { kind:'AssignmentExpression', operator: op as any, left, right, ...span((left as any).start, (right as any).end) };
+                return { kind:'AssignmentExpression', operator: op as AssignmentExpression['operator'], left, right, ...span(startOf(left), endOf(right)) };
             }
         }
         return left;
@@ -475,7 +505,7 @@ export class Parser {
             if (prec < minPrec) break;
             this.eat('PUNCT', op);
             const rhs = this.parseBinary(prec + 1);
-            node = { kind:'BinaryExpression', operator:op, left:node, right:rhs, ...span((node as any).start, (rhs as any).end) };
+            node = { kind:'BinaryExpression', operator:op, left:node, right:rhs, ...span(startOf(node), endOf(rhs)) };
         }
         return node;
     }
@@ -484,13 +514,13 @@ export class Parser {
         if (this.cur.kind === 'PUNCT' && (this.cur.value === '++' || this.cur.value === '--')) {
             const op = this.cur.value; const t = this.eat('PUNCT', op);
             const arg = this.parseUnary();
-            if (!this.isAssignable(arg)) this.error('Invalid increment/decrement target', (arg as any).start, (arg as any).end);
-            return { kind:'UpdateExpression', operator: op as any, argument: arg, prefix: true, ...span(t.start, (arg as any).end) };
+            if (!this.isAssignable(arg)) this.error('Invalid increment/decrement target', startOf(arg), endOf(arg));
+            return { kind:'UpdateExpression', operator: op as UpdateExpression['operator'], argument: arg, prefix: true, ...span(t.start, endOf(arg)) };
         }
         if (this.cur.kind === 'PUNCT' && (this.cur.value === '+' || this.cur.value === '-' || this.cur.value === '!' || this.cur.value === '~')) {
             const op = this.cur.value; const t = this.eat('PUNCT', op);
             const arg = this.parseUnary();
-            return { kind:'UnaryExpression', operator:op as any, argument:arg, ...span(t.start, (arg as any).end) };
+            return { kind:'UnaryExpression', operator:op as UnaryExpression['operator'], argument:arg, ...span(t.start, endOf(arg)) };
         }
         return this.parsePostfix();
     }
@@ -502,8 +532,8 @@ export class Parser {
             if ((node.kind === 'Identifier' || node.kind === 'ColonPath') && this.curIs('PUNCT', ':')) {
                 this.eat('PUNCT', ':');
                 let parts: string[];
-                const startPos = (node as any).start;
-                let lastEnd = (node as any).end;
+                const startPos = startOf(node);
+                let lastEnd = endOf(node);
                 if (node.kind === 'Identifier') {
                     this.externals.delete((node as Identifier).name);
                     parts = [(node as Identifier).name];
@@ -546,21 +576,34 @@ export class Parser {
                 }
                 if (!this.tryEat('PUNCT',')')) this.error('Expected ")"', this.cur.start, this.cur.end);
                 const callee = node as ASTNode;
-                const isIntrinsic = (callee as any).kind === 'Identifier' && INTRINSICS.has((callee as any).name);
-                node = {
-                    kind: isIntrinsic ? 'EvalPointCall' : 'CallExpression',
-                    callee, args,
-                    intrinsic: isIntrinsic ? ( (callee as any).name as IntrinsicName) : undefined,
-                    ...(isIntrinsic && (['__CalcMemUsed','__FindSymbol','__GetRegVal','__Offset_of','__size_of','__Symbol_exists','__Running'] as string[]).includes((callee as any).name) ? { valueType: 'number' as const } : {}),
-                    ...span((node as any).start, this.cur.end)
-                } as any;
+                const isIntrinsic = callee.kind === 'Identifier' && INTRINSICS.has((callee as Identifier).name);
+                const calleeName = callee.kind === 'Identifier' ? (callee as Identifier).name : undefined;
+                if (isIntrinsic && calleeName) {
+                    const callNode: EvalPointCall = {
+                        kind: 'EvalPointCall',
+                        callee,
+                        args,
+                        intrinsic: calleeName as IntrinsicName,
+                        ...( (['__CalcMemUsed','__FindSymbol','__GetRegVal','__Offset_of','__size_of','__Symbol_exists','__Running'] as string[]).includes(calleeName) ? { valueType: 'number' as const } : {}),
+                        ...span(startOf(node), this.cur.end)
+                    };
+                    node = callNode;
+                } else {
+                    const callNode: CallExpression = {
+                        kind: 'CallExpression',
+                        callee,
+                        args,
+                        ...span(startOf(node), this.cur.end)
+                    };
+                    node = callNode;
+                }
                 continue;
             }
             // property access
             if (this.tryEat('PUNCT','.')) {
                 if (this.cur.kind === 'IDENT') {
                     const prop = this.cur.value; const idt = this.eat('IDENT');
-                    node = { kind:'MemberAccess', object:node, property:prop, ...span((node as any).start, idt.end) };
+                    node = { kind:'MemberAccess', object:node, property:prop, ...span(startOf(node), idt.end) };
                 } else {
                     this.error('Expected identifier after "."', this.cur.start, this.cur.end);
                 }
@@ -570,13 +613,13 @@ export class Parser {
             if (this.tryEat('PUNCT', '[')) {
                 const index = this.parseExpression();
                 if (!this.tryEat('PUNCT', ']')) this.error('Expected "]"', this.cur.start, this.cur.end);
-                node = { kind:'ArrayIndex', array:node, index, ...span((node as any).start, (index as any).end) };
+                node = { kind:'ArrayIndex', array:node, index, ...span(startOf(node), endOf(index)) };
                 continue;
             }      // postfix ++ / --
             if (this.cur.kind === 'PUNCT' && (this.cur.value === '++' || this.cur.value === '--')) {
                 const op = this.cur.value; const t = this.eat('PUNCT', op);
-                if (!this.isAssignable(node)) this.error('Invalid increment/decrement target', (node as any).start, (node as any).end);
-                node = { kind:'UpdateExpression', operator: op as any, argument: node, prefix: false, ...span((node as any).start, t.end) };
+                if (!this.isAssignable(node)) this.error('Invalid increment/decrement target', startOf(node), endOf(node));
+                node = { kind:'UpdateExpression', operator: op as UpdateExpression['operator'], argument: node, prefix: false, ...span(startOf(node), t.end) };
                 break;
             }
             break;
@@ -624,7 +667,7 @@ export class Parser {
         const k = node.kind;
 
         if (k === 'NumberLiteral' || k === 'StringLiteral' || k === 'BooleanLiteral') {
-            return { ...node, constValue: (node as any).value };
+            return { ...node, constValue: node.value };
         }
         if (k === 'Identifier') return node;
         if (k === 'ColonPath') return node;
@@ -634,17 +677,20 @@ export class Parser {
         if (k === 'UnaryExpression') {
             const arg = this.fold((node as UnaryExpression).argument);
             const op = (node as UnaryExpression).operator;
-            const res: any = { ...node, argument: arg };
-            if ((arg as any).constValue !== undefined) {
-                const v = (arg as any).constValue;
+            const res: UnaryExpression & { constValue?: ConstValue } = { ...(node as UnaryExpression), argument: arg };
+            const v = constOf(arg);
+            if (v !== undefined) {
                 try {
-                    let cv: any;
-                    if (op === '+') cv = +v;
-                    else if (op === '-') cv = -v;
+                    let cv: ConstValue;
+                    if (op === '+') cv = Number(v);
+                    else if (op === '-') cv = -Number(v);
                     else if (op === '!') cv = !v;
-                    else if (op === '~') cv = (~(v|0)) >>> 0;
+                    else if (op === '~') cv = (~(Number(v) | 0)) >>> 0;
                     if (cv !== undefined) res.constValue = cv;
-                } catch {}
+                } catch (err) {
+                    const msg = err instanceof Error ? err.message : String(err);
+                    this.error(`Failed to fold unary expression ${op}: ${msg}`, startOf(node), endOf(node));
+                }
             }
             return res;
         }
@@ -658,25 +704,38 @@ export class Parser {
             const left = this.fold((node as BinaryExpression).left);
             const right = this.fold((node as BinaryExpression).right);
             const op = (node as BinaryExpression).operator;
-            const res: any = { ...node, left, right };
-            const la = (left as any).constValue; const ra = (right as any).constValue;
+            const res: BinaryExpression & { constValue?: ConstValue } = { ...(node as BinaryExpression), left, right };
+            const la = constOf(left); const ra = constOf(right);
             const hasL = la !== undefined; const hasR = ra !== undefined;
             if (hasL && hasR) {
                 try {
-                    let cv: any;
-                    const a:any = la, b:any = ra;
+                    let cv: ConstValue;
+                    const a = la as Exclude<ConstValue, undefined>;
+                    const b = ra as Exclude<ConstValue, undefined>;
+                    const an = Number(a);
+                    const bn = Number(b);
                     switch (op) {
-                        case '+': cv = a + b; break;
-                        case '-': cv = a - b; break;
-                        case '*': cv = a * b; break;
-                        case '/': if (b === 0) this.error('Division by zero', (node as any).start, (node as any).end); else cv = a / b; break;
-                        case '%': cv = a % b; break;
-                        case '<<': cv = (a << b) >>> 0; break;
-                        case '>>': cv = (a >> b) >>> 0; break;
-                        case '>>>': cv = (a >>> b); break;
-                        case '&': cv = (a & b) >>> 0; break;
-                        case '^': cv = (a ^ b) >>> 0; break;
-                        case '|': cv = (a | b) >>> 0; break;
+                        case '+':
+                            if (typeof a === 'string' || typeof b === 'string') {
+                                cv = String(a) + String(b);
+                            } else if (typeof a === 'bigint' || typeof b === 'bigint') {
+                                const bigA = typeof a === 'bigint' ? a : BigInt(a as number);
+                                const bigB = typeof b === 'bigint' ? b : BigInt(b as number);
+                                cv = bigA + bigB;
+                            } else {
+                                cv = an + bn;
+                            }
+                            break;
+                        case '-': cv = an - bn; break;
+                        case '*': cv = an * bn; break;
+                        case '/': if (bn === 0) this.error('Division by zero', startOf(node), endOf(node)); else cv = an / bn; break;
+                        case '%': cv = an % bn; break;
+                        case '<<': cv = (an << bn) >>> 0; break;
+                        case '>>': cv = (an >> bn) >>> 0; break;
+                        case '>>>': cv = (an >>> bn); break;
+                        case '&': cv = (an & bn) >>> 0; break;
+                        case '^': cv = (an ^ bn) >>> 0; break;
+                        case '|': cv = (an | bn) >>> 0; break;
                         case '==': cv = a == b; break;
                         case '!=': cv = a != b; break;
                         case '<': cv = a < b; break;
@@ -687,7 +746,10 @@ export class Parser {
                         case '||': cv = !!a || !!b; break;
                     }
                     if (cv !== undefined) res.constValue = cv;
-                } catch {}
+                } catch (err) {
+                    const msg = err instanceof Error ? err.message : String(err);
+                    this.error(`Failed to fold binary expression ${op}: ${msg}`, startOf(node), endOf(node));
+                }
             } else {
                 if (op === '&&' && hasL && !la) res.constValue = false;
                 if (op === '||' && hasL && la) res.constValue = true;
@@ -699,23 +761,24 @@ export class Parser {
             const ae = node as AssignmentExpression;
             const right = this.fold(ae.right);
             // Do not fold assignments to constants; keep side effects for evaluator
-            const res: any = { ...ae, right };
-            return res;
+            return { ...ae, right };
         }
 
         if (k === 'ConditionalExpression') {
             const test = this.fold((node as ConditionalExpression).test);
             const cons = this.fold((node as ConditionalExpression).consequent);
             const alt = this.fold((node as ConditionalExpression).alternate);
-            const res: any = { ...node, test, consequent: cons, alternate: alt };
-            if ((test as any).constValue !== undefined) {
-                res.constValue = ((test as any).constValue ? (cons as any).constValue : (alt as any).constValue);
+            const res: ConditionalExpression & { constValue?: ConstValue } = { ...(node as ConditionalExpression), test, consequent: cons, alternate: alt };
+            const testConst = constOf(test);
+            if (testConst !== undefined) {
+                res.constValue = (testConst ? constOf(cons) : constOf(alt));
             }
             return res;
         }
 
         if (k === 'CallExpression' || k === 'EvalPointCall') {
-            return { ...node, args: (node as any).args.map((a:ASTNode)=> this.fold(a)) } as any;
+            const args = (node as CallExpression | EvalPointCall).args.map((a:ASTNode)=> this.fold(a));
+            return { ...(node as CallExpression | EvalPointCall), args };
         }
 
         if (k === 'PrintfExpression') {
@@ -733,5 +796,5 @@ export class Parser {
 
 export const defaultParser = new Parser();
 export function parseExpression(expr: string, isPrintExpression: boolean): ParseResult {
-    return defaultParser.parse(expr, isPrintExpression);
+    return defaultParser.parseWithDiagnostics(expr, isPrintExpression);
 }
