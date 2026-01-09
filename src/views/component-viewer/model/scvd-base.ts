@@ -24,6 +24,8 @@ export type Json = Record<string, any>;
 
 let g_idNext: number = 1;
 
+// add linter exception for CTor operations
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyScvdCtor = abstract new (...args: any[]) => ScvdBase;
 
 export abstract class ScvdBase {

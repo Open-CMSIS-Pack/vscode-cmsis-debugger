@@ -58,7 +58,7 @@ export class ScvdEvalInterface implements DataHost {
         return base?.getMember(property);
     }
 
-    // Optional helper used by the evaluator via (ctx.data as any).getByteWidth(ref)
+    // Optional helper used by the evaluator
     // Returns the byte width of a ref (scalars, structs, arrays – host-defined).
     // getTargetSize, getTypeSize, getVirtualSize
     async getByteWidth(ref: ScvdBase): Promise<number | undefined> {
