@@ -97,9 +97,9 @@ class Tokenizer {
     constructor(s: string) { this.reset(s); }
     reset(s: string) { this.s = s; this.i = 0; this.n = s.length; }
     eof() { return this.i >= this.n; }
-    peek(k=0) { const j = this.i + k; return j < this.n ? this.s[j] : ''; }
+    peek(k=0) { const j = this.i + k; return j < this.n ? this.s.charAt(j) : ''; }
     advance(k=1) { this.i += k; }
-    skipWS() { while (!this.eof() && /\s/.test(this.s[this.i]!)) this.i++; }
+    skipWS() { while (!this.eof() && /\s/.test(this.s.charAt(this.i))) this.i++; }
     next(): Token {
         this.skipWS();
         if (this.eof()) return { kind:'EOF', value:'', start:this.i, end:this.i };
@@ -173,14 +173,31 @@ function span(start:number, end:number) { return { start, end }; }
 const startOf = (n: ASTNode) => (n as BaseNode).start;
 const endOf = (n: ASTNode) => (n as BaseNode).end;
 const constOf = (n: ASTNode) => (n as BaseNode).constValue;
+const toInt32 = (n: number) => n | 0;
+const toUint32 = (n: number) => (n >>> 0);
+const makeNumberLiteral = (value: number, start: number, end: number): NumberLiteral => ({
+    kind: 'NumberLiteral',
+    value,
+    raw: value.toString(),
+    valueType: 'number',
+    constValue: value,
+    ...span(start, end),
+});
+function literalFromConst(cv: ConstValue, start: number, end: number): ASTNode {
+    if (typeof cv === 'number') return makeNumberLiteral(cv, start, end);
+    if (typeof cv === 'string') return { kind: 'StringLiteral', value: cv, raw: JSON.stringify(cv), valueType: 'string', constValue: cv, ...span(start, end) };
+    if (typeof cv === 'boolean') return { kind: 'BooleanLiteral', value: cv, valueType: 'boolean', constValue: cv, ...span(start, end) };
+    return { kind: 'ErrorNode', message: 'Unsupported literal', ...span(start, end) };
+}
 
 function numFromRaw(raw: string): number {
     try {
-        if (/^0[xX]/.test(raw)) return parseInt(raw, 16);
-        if (/^0[bB]/.test(raw)) return parseInt(raw, 2);
-        if (/^0[oO]/.test(raw)) return parseInt(raw, 8);
-        if (raw.includes('.') || /e/i.test(raw)) return parseFloat(raw.replace(/_/g,'')); // decimal float
-        return parseInt(raw.replace(/_/g,''), 10);
+        const cleaned = raw.replace(/_/g, '');
+        if (/^0[xX]/.test(cleaned)) return parseInt(cleaned.slice(2), 16);
+        if (/^0[bB]/.test(cleaned)) return parseInt(cleaned.slice(2), 2);
+        if (/^0[oO]/.test(cleaned)) return parseInt(cleaned.slice(2), 8);
+        if (cleaned.includes('.') || /e/i.test(cleaned)) return parseFloat(cleaned); // decimal float
+        return parseInt(cleaned, 10);
     } catch { return NaN; }
 }
 
@@ -188,11 +205,11 @@ function unescapeString(rawWithQuotes: string): string {
     const s = rawWithQuotes.slice(1, -1);
     let out = '';
     for (let i = 0; i < s.length; i++) {
-        const ch = s[i]!;
+        const ch = s.charAt(i);
         if (ch !== '\\') { out += ch; continue; }
         i++;
         if (i >= s.length) { out += '\\'; break; }
-        const e = s[i]!;
+        const e = s.charAt(i);
         switch (e) {
             case 'n': out += '\n'; break;
             case 'r': out += '\r'; break;
@@ -205,7 +222,7 @@ function unescapeString(rawWithQuotes: string): string {
             case '\'': out += '\''; break;
             case '0': out += '\0'; break;
             case 'x': {
-                const h1 = s[i+1], h2 = s[i+2];
+                const h1 = s.charAt(i+1), h2 = s.charAt(i+2);
                 if (h1 && h2 && /[0-9a-fA-F]/.test(h1) && /[0-9a-fA-F]/.test(h2)) {
                     out += String.fromCharCode(parseInt(h1 + h2, 16));
                     i += 2;
@@ -213,10 +230,10 @@ function unescapeString(rawWithQuotes: string): string {
                 break;
             }
             case 'u': {
-                if (s[i+1] === '{') {
+                if (s.charAt(i+1) === '{') {
                     let j = i + 2, hex = '';
-                    while (j < s.length && s[j] !== '}') { hex += s[j]!; j++; }
-                    if (s[j] === '}' && /^[0-9a-fA-F]+$/.test(hex)) { out += String.fromCodePoint(parseInt(hex, 16)); i = j; } else out += 'u';
+                    while (j < s.length && s.charAt(j) !== '}') { hex += s.charAt(j); j++; }
+                    if (s.charAt(j) === '}' && /^[0-9a-fA-F]+$/.test(hex)) { out += String.fromCodePoint(parseInt(hex, 16)); i = j; } else out += 'u';
                 } else {
                     const h = s.substr(i+1, 4);
                     if (/^[0-9a-fA-F]{4}$/.test(h)) { out += String.fromCharCode(parseInt(h, 16)); i += 4; } else out += 'u';
@@ -367,18 +384,18 @@ export class Parser {
             if (j > i) segments.push({ kind:'TextSegment', text:s.slice(i,j), ...span(i,j) });
 
             // Handle escaped percent
-            if (j+1 < n && s[j+1] === '%') {
+            if (j+1 < n && s.charAt(j+1) === '%') {
                 segments.push({ kind:'TextSegment', text:'%', ...span(j,j+2) });
                 i = j+2; continue;
             }
 
             // Accept ANY single spec character after '%'
-            const spec = (j+1 < n) ? s[j+1] : '';
+            const spec = (j+1 < n) ? s.charAt(j+1) : '';
             if (spec && spec !== '%') {
                 // Look for a bracketed expression after optional whitespace
                 let k = j + 2;
-                while (k<n && /\s/.test(s[k]!)) k++;
-                if (k>=n || s[k] !== '[') {
+                while (k<n && /\s/.test(s.charAt(k))) k++;
+                if (k>=n || s.charAt(k) !== '[') {
                     // Not a bracket form: treat literally as "%x"
                     segments.push({ kind:'TextSegment', text:'%'+spec, ...span(j,j+2) });
                     i = j+2; continue;
@@ -391,7 +408,7 @@ export class Parser {
                 let inString: '"'|'\''|null = null;
                 let escaped = false;
                 while (m < n && depth > 0) {
-                    const c = s[m]!;
+                    const c = s.charAt(m);
                     if (inString) {
                         if (escaped) { escaped = false; m++; continue; }
                         if (c === '\\') { escaped = true; m++; continue; }
@@ -441,6 +458,7 @@ export class Parser {
 
         const adj = tmp.map(d => ({ ...d, start: d.start + baseOffset, end: d.end + baseOffset }));
         savedDiag.push(...adj);
+        for (const sym of this.externals) savedExt.add(sym);
         this.s = savedS;
         this.tok = savedTok;
         this.cur = savedCur;
@@ -637,6 +655,12 @@ export class Parser {
         if (t.kind === 'STRING') {
             this.eat('STRING');
             const text = unescapeString(t.value);
+            const isCharLiteral = t.value.startsWith('\'') && t.value.endsWith('\'');
+            if (isCharLiteral) {
+                const code = text.codePointAt(0) ?? 0;
+                const val = (code >>> 0);
+                return { kind:'NumberLiteral', value:val, raw:t.value, valueType:'number', constValue: val, ...span(t.start,t.end) };
+            }
             return { kind:'StringLiteral', value:text, raw:t.value, valueType:'string', constValue: text, ...span(t.start,t.end) };
         }
         if (t.kind === 'IDENT' && (t.value === 'true' || t.value === 'false')) {
@@ -691,6 +715,9 @@ export class Parser {
                     const msg = err instanceof Error ? err.message : String(err);
                     this.error(`Failed to fold unary expression ${op}: ${msg}`, startOf(node), endOf(node));
                 }
+                if (res.constValue !== undefined) {
+                    return literalFromConst(res.constValue, startOf(node), endOf(node));
+                }
             }
             return res;
         }
@@ -730,12 +757,12 @@ export class Parser {
                         case '*': cv = an * bn; break;
                         case '/': if (bn === 0) this.error('Division by zero', startOf(node), endOf(node)); else cv = an / bn; break;
                         case '%': cv = an % bn; break;
-                        case '<<': cv = (an << bn) >>> 0; break;
-                        case '>>': cv = (an >> bn) >>> 0; break;
-                        case '>>>': cv = (an >>> bn); break;
-                        case '&': cv = (an & bn) >>> 0; break;
-                        case '^': cv = (an ^ bn) >>> 0; break;
-                        case '|': cv = (an | bn) >>> 0; break;
+                        case '<<': cv = toUint32(toInt32(an) << (bn & 31)); break;
+                        case '>>': cv = toUint32(toInt32(an) >> (bn & 31)); break;
+                        case '>>>': cv = toUint32(an >>> (bn & 31)); break;
+                        case '&': cv = toUint32(toInt32(an) & toInt32(bn)); break;
+                        case '^': cv = toUint32(toInt32(an) ^ toInt32(bn)); break;
+                        case '|': cv = toUint32(toInt32(an) | toInt32(bn)); break;
                         case '==': cv = a == b; break;
                         case '!=': cv = a != b; break;
                         case '<': cv = a < b; break;
@@ -750,9 +777,33 @@ export class Parser {
                     const msg = err instanceof Error ? err.message : String(err);
                     this.error(`Failed to fold binary expression ${op}: ${msg}`, startOf(node), endOf(node));
                 }
+                if (res.constValue !== undefined) {
+                    return literalFromConst(res.constValue, startOf(node), endOf(node));
+                }
             } else {
                 if (op === '&&' && hasL && !la) res.constValue = false;
                 if (op === '||' && hasL && la) res.constValue = true;
+            }
+
+            // Partial folding: combine trailing numeric constants in addition chains (e.g., foo+1+2 => foo+3)
+            if (op === '+' && right.constValue !== undefined && typeof right.constValue === 'number') {
+                const rightVal = Number(right.constValue);
+                // Pattern: (X + constA) + constB
+                if (left.kind === 'BinaryExpression') {
+                    const lb = left as BinaryExpression;
+                    if (lb.operator === '+' && lb.right.constValue !== undefined && typeof lb.right.constValue === 'number') {
+                        const combined = Number(lb.right.constValue) + rightVal;
+                        const newRight = makeNumberLiteral(combined, startOf(right), endOf(right));
+                        const newLeft = lb.left;
+                        return {
+                            kind: 'BinaryExpression',
+                            operator: '+',
+                            left: newLeft,
+                            right: newRight,
+                            ...span(startOf(newLeft), endOf(newRight)),
+                        };
+                    }
+                }
             }
             return res;
         }

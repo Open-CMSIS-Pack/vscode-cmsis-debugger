@@ -1,0 +1,8 @@
+[
+  { "expr": "foo + 1", "symbols": ["foo"] },
+  { "expr": "foo + 1 + 2", "symbols": ["foo"], "foldedTo": { "left": "foo", "right": 3 } },
+  { "expr": "foo + (1 << 3)", "symbols": ["foo"], "foldedTo": { "left": "foo", "right": 8 } },
+  { "expr": "foo ? 1+2 : bar", "symbols": ["foo", "bar"] },
+  { "expr": "foo && 0", "symbols": ["foo"] },
+  { "expr": "foo || (1 + 2)", "symbols": ["foo"] }
+]
