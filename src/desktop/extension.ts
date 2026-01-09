@@ -49,7 +49,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     genericCommands.activate(context);
     // Activate components
     gdbtargetDebugTracker.activate(context);
-    gdbtargetConfigurationProvider.activate(context);
+    gdbtargetConfigurationProvider.activate(context, gdbtargetDebugTracker);
     // CPU States features
     cpuStates.activate(gdbtargetDebugTracker);
     cpuStatesCommands.activate(context, cpuStates);

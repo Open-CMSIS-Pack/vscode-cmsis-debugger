@@ -192,6 +192,55 @@ function isReferenceNode(node: ASTNode): node is Identifier | MemberAccess | Arr
     return node.kind === 'Identifier' || node.kind === 'MemberAccess' || node.kind === 'ArrayIndex';
 }
 
+function findReferenceNode(node: ASTNode | undefined): Identifier | MemberAccess | ArrayIndex | undefined {
+    if (!node) return undefined;
+    if (isReferenceNode(node)) return node;
+
+    switch (node.kind) {
+        case 'UnaryExpression': return findReferenceNode((node as UnaryExpression).argument);
+        case 'UpdateExpression': return findReferenceNode((node as UpdateExpression).argument);
+        case 'BinaryExpression': {
+            const b = node as BinaryExpression;
+            return findReferenceNode(b.right) ?? findReferenceNode(b.left);
+        }
+        case 'ConditionalExpression': {
+            const c = node as ConditionalExpression;
+            return findReferenceNode(c.test) ?? findReferenceNode(c.consequent) ?? findReferenceNode(c.alternate);
+        }
+        case 'AssignmentExpression': {
+            const a = node as AssignmentExpression;
+            return findReferenceNode(a.right) ?? findReferenceNode(a.left);
+        }
+        case 'CallExpression': {
+            const c = node as CallExpression;
+            for (let i = c.args.length - 1; i >= 0; i--) {
+                const r = findReferenceNode(c.args[i]);
+                if (r) return r;
+            }
+            return findReferenceNode(c.callee);
+        }
+        case 'EvalPointCall': {
+            const c = node as EvalPointCall;
+            for (let i = c.args.length - 1; i >= 0; i--) {
+                const r = findReferenceNode(c.args[i]);
+                if (r) return r;
+            }
+            return findReferenceNode(c.callee);
+        }
+        case 'PrintfExpression': {
+            for (const seg of (node as PrintfExpression).segments) {
+                if (seg.kind === 'FormatSegment') {
+                    const r = findReferenceNode(seg.value);
+                    if (r) return r;
+                }
+            }
+            return undefined;
+        }
+        default:
+            return undefined;
+    }
+}
+
 async function captureContainerForReference(node: ASTNode, ctx: EvalContext): Promise<RefContainer | undefined> {
     if (!isReferenceNode(node)) {
         return undefined;
@@ -887,7 +936,8 @@ async function evaluateFormatSegmentValue(segment: FormatSegment, ctx: EvalConte
     const value = await evalNode(segment.value, ctx);
     let containerSnapshot = snapshotContainer(ctx.container);
     if (!containerSnapshot.current) {
-        const recovered = await captureContainerForReference(segment.value, ctx);
+        const refNode = findReferenceNode(segment.value);
+        const recovered = refNode ? await captureContainerForReference(refNode, ctx) : undefined;
         if (recovered) {
             containerSnapshot = recovered;
         }

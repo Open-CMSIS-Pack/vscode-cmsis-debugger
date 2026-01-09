@@ -13,6 +13,7 @@ class HookHost implements DataHost {
     readonly arrRef = new BasicRef(this.root);
     readonly elemRef = new BasicRef(this.arrRef);
     readonly fieldRef = new BasicRef(this.elemRef);
+    lastFormattingContainer: RefContainer | undefined;
 
     private readonly values = new Map<number, EvalValue>([
         [10, 99], // offsetBytes for arr[2].field
@@ -75,8 +76,9 @@ class HookHost implements DataHost {
         return value;
     }
 
-    formatPrintf(spec: string, value: EvalValue): string {
+    formatPrintf(spec: string, value: EvalValue, container: RefContainer): string {
         this.tick('formatPrintf');
+        this.lastFormattingContainer = container;
         return `fmt-${spec}-${value}`;
     }
 }
@@ -113,5 +115,15 @@ describe('evaluator data host hooks', () => {
         const out = await evaluateParseResult(pr, ctx);
         expect(out).toBe('val=fmt-x-171');
         expect(host.calls.formatPrintf).toBe(1);
+    });
+
+    it('recovers reference containers for printf subexpressions', async () => {
+        const host = new HookHost();
+        const ctx = new EvalContext({ data: host, container: host.root });
+        const pr = parseExpression('val=%x[arr[1].field + 1]', true);
+
+        await evaluateParseResult(pr, ctx);
+        expect(host.calls.formatPrintf).toBe(1);
+        expect(host.lastFormattingContainer?.current).toBe(host.fieldRef);
     });
 });
