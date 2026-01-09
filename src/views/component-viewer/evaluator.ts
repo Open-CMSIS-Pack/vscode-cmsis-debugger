@@ -5,6 +5,7 @@ import type {
     ASTNode,
     NumberLiteral,
     StringLiteral,
+    BooleanLiteral,
     Identifier,
     MemberAccess,
     ArrayIndex,
@@ -391,6 +392,7 @@ const NAME_ARG_INTRINSICS = new Set<string>([
     '__FindSymbol',
     '__Symbol_exists',
     '__GetRegVal', // keeps consistency: reg names not values
+    '__Offset_of',
 ]);
 
 async function evalArgsForIntrinsic(name: string, rawArgs: ASTNode[], ctx: EvalContext): Promise<EvalValue[]> {
@@ -683,6 +685,7 @@ export async function evalNode(node: ASTNode, ctx: EvalContext): Promise<EvalVal
     switch (node.kind) {
         case 'NumberLiteral':  return (node as NumberLiteral).value;
         case 'StringLiteral':  return (node as StringLiteral).value;
+        case 'BooleanLiteral': return (node as BooleanLiteral).value;
 
         case 'Identifier': {
             await mustRef(node, ctx, false);
