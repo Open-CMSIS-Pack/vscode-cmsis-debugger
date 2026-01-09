@@ -28,7 +28,13 @@ import type { ScvdBase } from './model/scvd-base';
  * ============================================================================= */
 
 export type EvaluateResult = number | string | undefined;
-export type EvalValue = number | string | boolean | Uint8Array | undefined;
+export type EvalValue =
+    | number
+    | string
+    | boolean
+    | Uint8Array
+    | ((...args: EvalValue[]) => MaybePromise<EvalValue>)
+    | undefined;
 
 type MaybePromise<T> = T | Promise<T>;
 
