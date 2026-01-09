@@ -134,7 +134,7 @@ function leIntToBytes(v: number, size: number): Uint8Array {
     return out;
 }
 
-export type Endianness = 'little' | 'big';
+export type Endianness = 'little';
 export interface HostOptions { endianness?: Endianness; }
 
 type ElementMeta = {
@@ -161,17 +161,17 @@ export class CachedMemoryHost {
     }
 
     // normalize number → safe JS number for addresses
-    private toAddrNumber(x: number): number {
+    private toAddrNumber(x: number): number | undefined {
         if (!Number.isFinite(x) || x < 0 || !Number.isSafeInteger(x)) {
             console.error(`invalid target base address (number): ${x}`);
-            return 0;
+            return undefined;
         }
         return x;
     }
 
-    constructor(opts?: HostOptions) {
+    constructor() {
         this.cache = new SymbolCache((name) => new MemoryContainer(name));
-        this.endianness = opts?.endianness ?? 'little';
+        this.endianness = 'little';
     }
 
     private getEntry(varName: string): SymbolEntry {
@@ -184,7 +184,6 @@ export class CachedMemoryHost {
         const variableName = container.anchor?.name;
         const widthBytes = container.widthBytes ?? 0;
         if (!variableName || widthBytes <= 0) {
-            console.error('readValue: invalid target');
             return;
         }
 
@@ -212,7 +211,6 @@ export class CachedMemoryHost {
         const variableName = container.anchor?.name;
         const widthBytes = container.widthBytes ?? 0;
         if (!variableName || widthBytes <= 0) {
-            console.error('writeValue: invalid target');
             return;
         }
 
@@ -299,9 +297,8 @@ export class CachedMemoryHost {
         const meta = this.getOrInitMeta(name);
         meta.offsets.push(appendOff);
         meta.sizes.push(total);
-        meta.bases.push(
-            targetBase !== undefined ? this.toAddrNumber(targetBase) : 0
-        );
+        const normBase = targetBase !== undefined ? this.toAddrNumber(targetBase) : 0;
+        meta.bases.push(normBase !== undefined ? normBase : 0);
 
         // maintain uniform stride when consistent
         if (meta.elementSize === undefined && meta.sizes.length === 1) {
@@ -311,75 +308,6 @@ export class CachedMemoryHost {
         }
 
         entry.valid = true;
-    }
-
-    writeBytes(name: string, offset: number, bytes: Uint8Array, size = bytes.length): void {
-        // `offset` here is the same "where to write" offset:
-        //  - offset === -1 → append at end
-        //  - else          → write starting at `offset`
-        //
-        // For the recorded target base, reuse offset when it's non-negative.
-        const base = offset >= 0 ? offset : undefined;
-        this.setVariable(name, size, bytes, offset, base);
-    }
-
-    /**
-     * Write a numeric value into a symbol at a given byte offset.
-     *
-     * - `size` is the number of bytes to encode (1, 2, 4, 8, ...).
-     * - `offset === -1` appends to the end of the symbol.
-     * - Otherwise, writes at the given byte offset within the symbol.
-     */
-    writeNumber(name: string, offset: number, value: number, size: number): void {
-        if (!Number.isSafeInteger(size) || size <= 0) {
-            console.error(`writeNumber: size must be a positive safe integer, got ${size}`);
-            return;
-        }
-        if (!Number.isFinite(value)) {
-            console.error(`writeNumber: value must be finite, got ${value}`);
-            return;
-        }
-
-        // Reuse setVariable so that metadata (offsets/sizes/bases) stays consistent.
-        // For the recorded base, we treat non-negative offset as the base.
-        const base = offset >= 0 ? offset : undefined;
-        this.setVariable(name, size, value, offset, base, size);
-    }
-
-    /**
-     * Read a numeric value from a symbol at a given byte offset.
-     *
-     * - `size` is the number of bytes to decode (1, 2, 4, ...).
-     * - Returns a JS `number`.
-     * - `offset` is a byte offset within the symbol.
-     */
-    readNumber(name: string, offset: number, size: number): number | undefined {
-        if (!Number.isSafeInteger(size) || size <= 0) {
-            console.error(`readNumber: size must be a positive safe integer, got ${size}`);
-            return undefined;
-        }
-        if (!Number.isSafeInteger(offset) || offset < 0) {
-            console.error(`readNumber: offset must be a non-negative safe integer, got ${offset}`);
-            return undefined;
-        }
-
-        const entry = this.getEntry(name);
-        const totalBytes = entry.data.byteLength ?? 0;
-
-        if (offset + size > totalBytes) {
-            console.error(
-                `readNumber: range [${offset}, ${offset + size}) out of bounds for "${name}" (len=${totalBytes})`
-            );
-            return undefined;
-        }
-
-        const raw = entry.data.read(offset, size);
-
-        if (this.endianness !== 'little') {
-            // TODO: add BE support if/when needed
-        }
-
-        return leToNumber(raw);
     }
 
     /**
@@ -401,13 +329,9 @@ export class CachedMemoryHost {
 
         const off = offset ?? 0;
         if (!Number.isSafeInteger(off) || off < 0) {
-            console.error(`getVariable: offset must be a non-negative safe integer, got ${off}`);
             return undefined;
         }
         if (off >= totalBytes) {
-            console.error(
-                `getVariable: offset ${off} out of range for "${name}" (len=${totalBytes})`
-            );
             return undefined;
         }
 
@@ -416,7 +340,6 @@ export class CachedMemoryHost {
         if (size !== undefined) {
             // explicit size wins
             if (!Number.isSafeInteger(size) || size <= 0) {
-                console.error(`getVariable: size must be a positive safe integer, got ${size}`);
                 return undefined;
             }
             spanSize = size;
@@ -438,9 +361,10 @@ export class CachedMemoryHost {
         }
 
         if (off + spanSize > totalBytes) {
-            console.error(
-                `getVariable: range [${off}, ${off + spanSize}) out of bounds for "${name}" (len=${totalBytes})`
-            );
+            return undefined;
+        }
+
+        if (spanSize > 4) {
             return undefined;
         }
 
@@ -502,7 +426,10 @@ export class CachedMemoryHost {
             console.error(`setElementTargetBase: index ${index} out of range for "${name}"`);
             return;
         }
-        m.bases[index] = this.toAddrNumber(base);
+        const norm = this.toAddrNumber(base);
+        if (norm !== undefined) {
+            m.bases[index] = norm;
+        }
     }
 
     // Optional: if you sometimes need to infer a count from bytes for legacy data

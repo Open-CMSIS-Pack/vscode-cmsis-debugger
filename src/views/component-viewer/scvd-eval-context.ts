@@ -46,7 +46,7 @@ export class ScvdEvalContext {
         model: ScvdComponentViewer
     ) {
         this._model = model;
-        this._memoryHost = new CachedMemoryHost({ endianness: 'little' });
+        this._memoryHost = new CachedMemoryHost();
         this._registerHost = new Cm81MRegisterCache(createMockCm81MRegisterReader());
         this._debugTarget = new ScvdDebugTarget();
         this._formatSpecifier = new ScvdFormatSpecifier();

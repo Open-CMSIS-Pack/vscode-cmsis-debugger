@@ -98,7 +98,7 @@ export class StatementList extends StatementBase {
         let loopValue = startValue;
         let maximumCount = 100000;   // prevent infinite loops
         while (maximumCount-- > 0) {
-            executionContext.memoryHost.writeNumber(name, 0, loopValue, varTargetSize);    // update loop variable in memory
+            executionContext.memoryHost.setVariable(name, varTargetSize, loopValue, 0, undefined, varTargetSize);    // update loop variable in memory
 
             // while-loop
             if(whileExpr !== undefined) {
@@ -123,6 +123,6 @@ export class StatementList extends StatementBase {
                 await child.executeStatement(executionContext, guiTree);
             }
         }
-        executionContext.memoryHost.writeNumber(name, 0, loopValue, varTargetSize);    // update last loop variable in memory
+        executionContext.memoryHost.setVariable(name, varTargetSize, loopValue, 0, undefined, varTargetSize);    // update last loop variable in memory
     }
 }

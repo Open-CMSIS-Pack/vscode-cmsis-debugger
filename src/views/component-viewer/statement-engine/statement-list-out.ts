@@ -98,7 +98,7 @@ export class StatementListOut extends StatementBase {
         let loopValue = startValue;
         let maximumCount = 100000;   // prevent infinite loops
         while (maximumCount-- > 0) {
-            executionContext.memoryHost.writeNumber(name, 0, loopValue, varTargetSize);    // update loop variable in memory
+            executionContext.memoryHost.setVariable(name, varTargetSize, loopValue, 0, undefined, varTargetSize);    // update loop variable in memory
 
             /* while: Specifies the next value for iterations.
                 When using attribute while, iteration does not start if start==0.
@@ -132,7 +132,7 @@ export class StatementListOut extends StatementBase {
                 loopValue++;
             }
         }
-        executionContext.memoryHost.writeNumber(name, 0, loopValue, varTargetSize);    // update last loop variable in memory
+        executionContext.memoryHost.setVariable(name, varTargetSize, loopValue, 0, undefined, varTargetSize);    // update last loop variable in memory
         return;
     }
 }
