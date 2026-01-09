@@ -217,13 +217,6 @@ export class ScvdExpression extends ScvdBase {
         return super.validate(prevResult && true);
     }
 
-    public async debug(): Promise<boolean> {
-        await this.evaluate();
-        console.log(this.getLineInfoStr(), 'Expr:', this.expression, '\nResult:', this.getResultString());
-
-        return super.debug();
-    }
-
     public getResultString(): string | undefined {
         if(this._result !== undefined) {
             if (typeof this._result === 'number') {
@@ -234,5 +227,4 @@ export class ScvdExpression extends ScvdBase {
         }
         return undefined;
     }
-
 }

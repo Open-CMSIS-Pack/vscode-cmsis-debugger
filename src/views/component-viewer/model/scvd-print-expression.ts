@@ -40,10 +40,6 @@ export class ScvdPrintExpression extends ScvdExpression {
         return super.validate(prevResult && true);
     }
 
-    public async debug(): Promise<boolean> {
-        return super.debug();
-    }
-
     public async getGuiName(): Promise<string | undefined> {
         return this.getGuiName();
     }
@@ -51,5 +47,4 @@ export class ScvdPrintExpression extends ScvdExpression {
     public async getGuiValue(): Promise<string | undefined> {
         return this.getGuiValue();
     }
-
 }

@@ -16,7 +16,7 @@
 /*
 import * as vscode from 'vscode';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
-import { ScvdComponentViewer } from './model/scvd-comonent-viewer';
+import { ScvdComponentViewer } from './model/scvd-component-viewer';
 import { ScvdGuiInterface } from './model/scvd-gui-interface';
 
 // Mock ScvdGuiInterface implementations for testing

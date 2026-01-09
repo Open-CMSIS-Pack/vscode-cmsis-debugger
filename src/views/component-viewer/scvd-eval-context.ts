@@ -20,7 +20,7 @@ import { Cm81MRegisterCache } from './cache/register-cache';
 import { EvalContext } from './evaluator';
 import { createMockCm81MRegisterReader } from './mock/cm81m-registers';
 import { ScvdBase } from './model/scvd-base';
-import { ScvdComponentViewer } from './model/scvd-comonent-viewer';
+import { ScvdComponentViewer } from './model/scvd-component-viewer';
 import { ScvdFormatSpecifier } from './model/scvd-format-specifier';
 import { ScvdDebugTarget } from './scvd-debug-target';
 import { ScvdEvalInterface } from './scvd-eval-interface';

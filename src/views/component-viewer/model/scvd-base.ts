@@ -263,10 +263,6 @@ export abstract class ScvdBase {
         this.valid = prevResult;
         return prevResult;
     }
-    public async debug(): Promise<boolean> {
-        return true;
-    }
-
 
     public reset(): boolean {
         return true;

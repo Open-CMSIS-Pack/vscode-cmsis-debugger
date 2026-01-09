@@ -15,7 +15,7 @@
  */
 
 import { ScvdBase } from './model/scvd-base';
-import { ScvdComponentViewer } from './model/scvd-comonent-viewer';
+import { ScvdComponentViewer } from './model/scvd-component-viewer';
 import { ScvdTypedef } from './model/scvd-typedef';
 
 

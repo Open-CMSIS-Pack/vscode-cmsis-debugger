@@ -12,7 +12,7 @@ import { URI } from 'vscode-uri';
 import { parseStringPromise, ParserOptions } from 'xml2js';
 import { Json } from './model/scvd-base';
 import { Resolver } from './resolver';
-import { ScvdComponentViewer } from './model/scvd-comonent-viewer';
+import { ScvdComponentViewer } from './model/scvd-component-viewer';
 import { StatementEngine } from './statement-engine/statement-engine';
 import { ScvdEvalContext } from './scvd-eval-context';
 import { GDBTargetDebugSession } from '../../debug-session';

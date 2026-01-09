@@ -21,7 +21,7 @@ import { ScvdEvents } from './scvd-events';
 import { Json, ScvdBase } from './scvd-base';
 import { ScvdObjects } from './scvd-object';
 import { ScvdTypedefs } from './scvd-typedef';
-import { /*getArrayFromJson,*/ getObjectFromJson } from './scvd-utils';
+import { getObjectFromJson } from './scvd-utils';
 import { ExecutionContext } from '../scvd-eval-context';
 
 export class ScvdComponentViewer extends ScvdBase {
@@ -144,17 +144,4 @@ export class ScvdComponentViewer extends ScvdBase {
             this.setExecutionContextRecursive(child, executionContext);
         });
     }
-
-    public async debugAll(): Promise<boolean> {
-        return this.debugRecursive(this);
-    }
-    private async debugRecursive(item: ScvdBase): Promise<boolean> {
-        await item.debug();
-        for (const child of item.children) {
-            await this.debugRecursive(child);
-        }
-        return true;
-    }
-
-
 }

@@ -15,7 +15,7 @@
  */
 
 import { ScvdBase } from '../model/scvd-base';
-import { ScvdComponentViewer } from '../model/scvd-comonent-viewer';
+import { ScvdComponentViewer } from '../model/scvd-component-viewer';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
 import { StatementBase } from './statement-base';
