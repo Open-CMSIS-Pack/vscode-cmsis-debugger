@@ -32,7 +32,7 @@ class HookHost implements DataHost {
         return undefined;
     }
 
-    getMemberRef(container: RefContainer, property: string): BasicRef | undefined {
+    getMemberRef(_container: RefContainer, property: string): BasicRef | undefined {
         this.tick('getMemberRef');
         if (property === 'field') return this.fieldRef;
         // allow colon-path anchor to succeed
