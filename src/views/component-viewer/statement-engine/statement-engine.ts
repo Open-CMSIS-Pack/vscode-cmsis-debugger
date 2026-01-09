@@ -138,7 +138,7 @@ export class StatementEngine {
         this._executionContext.memoryHost.clear();
 
         if (this._statementTree) {
-            console.log('Executing statements in the statement tree...');
+            //console.log('Executing statements in the statement tree...');
             await this._statementTree.executeStatement(this.executionContext, guiTree);
         }
     }

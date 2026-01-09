@@ -116,7 +116,7 @@ export interface DataHost {
     // Note: __GetRegVal(reg) is special-cased (no container); others use the evalIntrinsic convention
     __GetRegVal?(reg: string): MaybePromise<number | undefined>;
     __FindSymbol?(symbol: string): MaybePromise<number | undefined>;
-    __CalcMemUsed?(args: number[]): MaybePromise<number | undefined>;
+    __CalcMemUsed?(stackAddress: number, stackSize: number, fillPattern: number, magicValue: number): MaybePromise<number | undefined>;
 
     /** sizeof-like intrinsic – semantics are host-defined (usually bytes). */
     __size_of?(symbol: string): MaybePromise<number | undefined>;
@@ -994,8 +994,11 @@ async function routeIntrinsic(ctx: EvalContext, name: string, args: EvalValue[])
     if (name === '__CalcMemUsed') {
         const fn = ctx.data.__CalcMemUsed;
         if (typeof fn !== 'function') throw new Error('Missing intrinsic __CalcMemUsed');
-        const a = args.map(v => Number(v) >>> 0);
-        const out = await fn.call(ctx.data, a);
+        const n0 = Number(args[0] ?? 0) >>> 0;
+        const n1 = Number(args[1] ?? 0) >>> 0;
+        const n2 = Number(args[2] ?? 0) >>> 0;
+        const n3 = Number(args[3] ?? 0) >>> 0;
+        const out = await fn.call(ctx.data, n0, n1, n2, n3);
         if (out === undefined) throw new Error('Intrinsic __CalcMemUsed returned undefined');
         return out >>> 0;
     }

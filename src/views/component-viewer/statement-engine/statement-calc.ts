@@ -33,13 +33,14 @@ export class StatementCalc extends StatementBase {
             console.error(`${this.line}: Executing "calc": could not cast to ScvdCalc`);
             return;
         }
-        console.log(`${this.line}: Executing calc: ${await this.scvdItem.getGuiName()}`);
+        //console.log(`${this.line}: Executing calc: ${await this.scvdItem.getGuiName()}`);
 
         const expressions = calcItem.expression;
         for (const expr of expressions) {
             expr.invalidate();
-            const value = await expr.getValue();
-            console.log(`${this.line} Executing "calc": ${expr.expression}, value: ${value}`);
+            await expr.evaluateOnly();
+            //const value = await expr.getValue();
+            //console.log(`${this.line} Executing "calc": ${expr.expression}, value: ${value}`);
         }
     }
 }

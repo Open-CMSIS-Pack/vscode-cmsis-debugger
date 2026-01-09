@@ -171,24 +171,24 @@ export class ScvdDebugTarget {
         const memData = this.mock.getMockMemoryData(startAddress, size);
         if(memData !== undefined) {
             let usedBytes = 0;
-            const patternBytes1 = new Uint8Array(4);
-            const patternBytes2 = new Uint8Array(4);
+            const fillPatternBytes = new Uint8Array(4);
+            const magicValueBytes = new Uint8Array(4);
             // Use FillPattern for the fill pattern bytes (little-endian)
-            patternBytes1[0] = (FillPattern & 0xFF);
-            patternBytes1[1] = (FillPattern >> 8) & 0xFF;
-            patternBytes1[2] = (FillPattern >> 16) & 0xFF;
-            patternBytes1[3] = (FillPattern >> 24) & 0xFF;
+            fillPatternBytes[0] = (FillPattern & 0xFF);
+            fillPatternBytes[1] = (FillPattern >> 8) & 0xFF;
+            fillPatternBytes[2] = (FillPattern >> 16) & 0xFF;
+            fillPatternBytes[3] = (FillPattern >> 24) & 0xFF;
             // Use MagicValue for the magic value bytes (little-endian)
-            patternBytes2[0] = (MagicValue & 0xFF);
-            patternBytes2[1] = (MagicValue >> 8) & 0xFF;
-            patternBytes2[2] = (MagicValue >> 16) & 0xFF;
-            patternBytes2[3] = (MagicValue >> 24) & 0xFF;
+            magicValueBytes[0] = (MagicValue & 0xFF);
+            magicValueBytes[1] = (MagicValue >> 8) & 0xFF;
+            magicValueBytes[2] = (MagicValue >> 16) & 0xFF;
+            magicValueBytes[3] = (MagicValue >> 24) & 0xFF;
 
             for(let i = 0; i < memData.length; i += 4) {
                 const chunk = memData.slice(i, i + 4);
                 let match = true;
                 for(let j = 0; j < chunk.length; j++) {
-                    if(chunk[j] !== patternBytes1[j]) {
+                    if(chunk[j] !== fillPatternBytes[j]) {
                         match = false;
                         break;
                     }
@@ -196,7 +196,7 @@ export class ScvdDebugTarget {
                 if(!match) {
                     match = true;
                     for(let j = 0; j < chunk.length; j++) {
-                        if(chunk[j] !== patternBytes2[j]) {
+                        if(chunk[j] !== magicValueBytes[j]) {
                             match = false;
                             break;
                         }
@@ -212,15 +212,9 @@ export class ScvdDebugTarget {
             result |= (usedPercent << 20); // bits 20..28
 
             // Check for overflow (MagicValue overwritten)
-            const magicBytes = new Uint8Array(4);
-            magicBytes[0] = (MagicValue & 0xFF);
-            magicBytes[1] = (MagicValue >> 8) & 0xFF;
-            magicBytes[2] = (MagicValue >> 16) & 0xFF;
-            magicBytes[3] = (MagicValue >> 24) & 0xFF;
-
             let overflow = true;
             for(let i = memData.length - 4; i < memData.length; i++) {
-                if(memData[i] !== magicBytes[i - (memData.length - 4)]) {
+                if(memData[i] !== magicValueBytes[i - (memData.length - 4)]) {
                     overflow = false;
                     break;
                 }

@@ -128,8 +128,8 @@ class MockHost implements DataHost {
         return undefined;
     }
 
-    __CalcMemUsed(args: number[]): number {
-        return args.reduce((acc, v) => acc + (Number(v) >>> 0), 0);
+    __CalcMemUsed(a: number, b: number, c: number, d: number): number {
+        return (a >>> 0) + (b >>> 0) + (c >>> 0) + (d >>> 0);
     }
 
     __size_of(symbol: string): number | undefined {

@@ -98,7 +98,10 @@ export class ScvdEvalInterface implements DataHost {
 
     async getMemberOffset(_base: ScvdBase, member: ScvdBase): Promise<number | undefined> {
         const offset = await member.getMemberOffset();
-        console.log(`${member.getLineNoStr()}: getMemberOffset: parent=${member.parent?.getDisplayLabel()} member=${member.getDisplayLabel()} offset=${offset}`);
+        if(offset === undefined) {
+            console.error(`ScvdEvalInterface.getMemberOffset: offset undefined for ${member.getDisplayLabel()}`);
+            return undefined;
+        }
         return offset;
     }
 
@@ -156,16 +159,12 @@ export class ScvdEvalInterface implements DataHost {
     Bit 20..28 Used memory in percent (how many percent of FillPattern are overwritten)
     Bit 31 Memory overflow (MagicValue is overwritten)
     */
-    __CalcMemUsed(_args: number[]): number | undefined {
-        const StackAddress: number = _args[0];
-        const StackSize: number = _args[1];
-        const FillPattern: number = _args[2];
-        const MagicValue: number = _args[3];
+    __CalcMemUsed(stackAddress: number, stackSize: number, fillPattern: number, magicValue: number): number | undefined {
         const memUsed = this.debugTarget.calculateMemoryUsage(
-            StackAddress,
-            StackSize,
-            FillPattern,
-            MagicValue
+            stackAddress >>> 0,
+            stackSize >>> 0,
+            fillPattern >>> 0,
+            magicValue >>> 0
         );
         return memUsed;
     }

@@ -109,6 +109,10 @@ export class ScvdExpression extends ScvdBase {
         return val;
     }
 
+    public async evaluateOnly() {
+        await this.evaluate();
+    }
+
     public async setValue(val: number): Promise<number | undefined> {
         if(typeof this._result === 'number') {
             this.resetExpression();

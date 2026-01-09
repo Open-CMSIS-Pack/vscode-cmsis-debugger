@@ -5,7 +5,7 @@
   { "expr": "__Running()", "expected": 1 },
   { "expr": "__GetRegVal(r0)", "expected": 7 },
   { "expr": "__FindSymbol(symA)", "expected": 4660 },
-  { "expr": "__CalcMemUsed(1,2,3)", "expected": 6 },
+  { "expr": "__CalcMemUsed(1,2,3,0)", "expected": 6 },
   { "expr": "__size_of(foo)", "expected": 4 },
   { "expr": "__Symbol_exists(symA)", "expected": 1 },
   { "expr": "__Symbol_exists(missing)", "expected": 0 },

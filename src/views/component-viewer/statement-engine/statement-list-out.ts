@@ -30,7 +30,7 @@ export class StatementListOut extends StatementBase {
     public async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
         const conditionResult = await this.scvdItem.getConditionResult();
         if (conditionResult === false) {
-            console.log(`${this.scvdItem.getLineNoStr()}: Skipping ${this.scvdItem.getDisplayLabel()} for condition result: ${conditionResult}`);
+            //console.log(`${this.scvdItem.getLineNoStr()}: Skipping ${this.scvdItem.getDisplayLabel()} for condition result: ${conditionResult}`);
             return;
         }
 
@@ -46,7 +46,7 @@ export class StatementListOut extends StatementBase {
             console.error(`${this.line}: Executing "out-list": could not cast to ScvdList`);
             return;
         }
-        console.log(`${this.line}: Executing out-list: ${scvdList.name}`);
+        //console.log(`${this.line}: Executing out-list: ${scvdList.name}`);
 
         const name = scvdList.name;
         if(name === undefined) {

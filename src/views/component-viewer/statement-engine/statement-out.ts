@@ -29,7 +29,7 @@ export class StatementOut extends StatementBase {
     public async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
         const conditionResult = await this.scvdItem.getConditionResult();
         if (conditionResult === false) {
-            console.log(`${this.scvdItem.getLineNoStr()}: Skipping ${this.scvdItem.getDisplayLabel()} for condition result: ${conditionResult}`);
+            //console.log(`${this.scvdItem.getLineNoStr()}: Skipping ${this.scvdItem.getDisplayLabel()} for condition result: ${conditionResult}`);
             return;
         }
 
@@ -44,7 +44,7 @@ export class StatementOut extends StatementBase {
     }
 
     protected async onExecute(_executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
-        console.log(`${this.line}: Executing out: ${await this.scvdItem.getGuiName()}`);
+        //console.log(`${this.line}: Executing out: ${await this.scvdItem.getGuiName()}`);
 
         const guiName = await this.scvdItem.getGuiName();
         //const guiValue = await this.scvdItem.getGuiValue();

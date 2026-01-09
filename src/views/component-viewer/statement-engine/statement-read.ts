@@ -28,10 +28,10 @@ export class StatementRead extends StatementBase {
     }
 
     protected async onExecute(executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        console.log(`${this.line}: Executing read: ${this.scvdItem.getDisplayLabel()}`);
+        //console.log(`${this.line}: Executing read: ${this.scvdItem.getDisplayLabel()}`);
         const mustRead = this.scvdItem.mustRead;
         if(mustRead === false) {
-            console.log(`${this.scvdItem.getLineNoStr()}: Skipping "read" as already initialized: ${this.scvdItem.name}`);
+            //console.log(`${this.scvdItem.getLineNoStr()}: Skipping "read" as already initialized: ${this.scvdItem.name}`);
             return;
         }
 
@@ -66,31 +66,32 @@ export class StatementRead extends StatementBase {
                 console.error(`${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, could not find symbol address for symbol: ${symbol?.symbol}`);
                 return;
             }
-            baseAddress = symAddr;
+            baseAddress = symAddr >>> 0;
         }
 
         const offset = scvdRead.offset ? await scvdRead.offset.getValue() : undefined;
-        if(offset !== undefined) {
-            baseAddress = baseAddress
-                ? baseAddress + offset
-                : offset;
+        if (offset !== undefined) {
+            const offs = offset | 0;
+            baseAddress = baseAddress !== undefined
+                ? ((baseAddress >>> 0) + offs) >>> 0
+                : (offs >>> 0);
         }
 
         if(baseAddress === undefined) {
             console.error(`${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, could not find symbol address for symbol: ${symbol?.symbol}`);
             return;
         }
-        console.log(`${this.line}: Executing target read: ${scvdRead.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes`);
+        //console.log(`${this.line}: Executing target read: ${scvdRead.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes`);
 
         // Read from target memory
-        const readData = await executionContext.debugTarget.readMemory(baseAddress, readBytes);
+        const readData = await executionContext.debugTarget.readMemory(baseAddress >>> 0, readBytes);
         if(readData === undefined) {
             console.error(`${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes, readMemory failed`);
             return;
         }
 
         // Write to local variable cache
-        executionContext.memoryHost.setVariable(name, readBytes, readData, 0, baseAddress, fullVirtualStrideSize);
+        executionContext.memoryHost.setVariable(name, readBytes, readData, 0, baseAddress >>> 0, fullVirtualStrideSize);
 
         if(scvdRead.const === true) {   // Mark variable as already initialized
             scvdRead.mustRead = false;

@@ -28,7 +28,7 @@ export class StatementVar extends StatementBase {
     }
 
     protected async onExecute(executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        console.log(`${this.line}: Executing var: ${await this.scvdItem.getGuiName()}`);
+        //console.log(`${this.line}: Executing var: ${await this.scvdItem.getGuiName()}`);
 
         const varItem = this.scvdItem.castToDerived(ScvdVar);
         if(varItem !== undefined) {
@@ -37,7 +37,7 @@ export class StatementVar extends StatementBase {
             const value = await varItem.getValue();
             if(name !== undefined && targetSize !== undefined && value !== undefined) {
                 executionContext.memoryHost.setVariable(name, targetSize, value, -1, 0);
-                console.log(`${this.line} Variable "${name}" created with value: ${value}`);
+                //console.log(`${this.line} Variable "${name}" created with value: ${value}`);
             }
         }
     }
