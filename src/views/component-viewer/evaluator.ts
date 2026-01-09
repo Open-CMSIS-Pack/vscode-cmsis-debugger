@@ -28,7 +28,7 @@ import type { ScvdBase } from './model/scvd-base';
  * ============================================================================= */
 
 export type EvaluateResult = number | string | undefined;
-export type EvalValue = number | string | boolean | bigint | Uint8Array | undefined;
+export type EvalValue = number | string | boolean | Uint8Array | undefined;
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -168,8 +168,6 @@ export class EvalContext {
  * Helpers
  * ============================================================================= */
 
-const U64_MASK = (BigInt(1) << BigInt(64)) - BigInt(1);
-
 function snapshotContainer(container: RefContainer): RefContainer {
     return {
         base: container.base,
@@ -205,96 +203,62 @@ function truthy(x: unknown): boolean { return !!x; }
 function asNumber(x: unknown): number {
     if (typeof x === 'number') return Number.isFinite(x) ? x : 0;
     if (typeof x === 'boolean') return x ? 1 : 0;
-    if (typeof x === 'bigint') return Number(x);
     if (typeof x === 'string' && x.trim() !== '') {
         const n = +x; return Number.isFinite(n) ? n : 0;
     }
     return 0;
 }
-function toBigInt(x: unknown): bigint {
-    if (typeof x === 'bigint') return x;
-    if (typeof x === 'number') return BigInt(Number.isFinite(x) ? Math.trunc(x) : 0);
-    if (typeof x === 'boolean') return x ? BigInt(1) : BigInt(0);
-    if (typeof x === 'string' && x.trim() !== '') {
-        try { return BigInt(x); } catch { return BigInt(Math.trunc(+x) || 0); }
-    }
-    return BigInt(0);
-}
 
 function addVals(a: EvalValue, b: EvalValue): EvalValue {
     if (typeof a === 'string' || typeof b === 'string') return String(a) + String(b);
-    if (typeof a === 'bigint' || typeof b === 'bigint') return toBigInt(a) + toBigInt(b);
     return asNumber(a) + asNumber(b);
 }
 function subVals(a: EvalValue, b: EvalValue): EvalValue {
-    return (typeof a === 'bigint' || typeof b === 'bigint') ? (toBigInt(a) - toBigInt(b)) : (asNumber(a) - asNumber(b));
+    return asNumber(a) - asNumber(b);
 }
 function mulVals(a: EvalValue, b: EvalValue): EvalValue {
-    return (typeof a === 'bigint' || typeof b === 'bigint') ? (toBigInt(a) * toBigInt(b)) : (asNumber(a) * asNumber(b));
+    return asNumber(a) * asNumber(b);
 }
 function divVals(a: EvalValue, b: EvalValue): EvalValue {
-    if (typeof a === 'bigint' || typeof b === 'bigint') {
-        const bb = toBigInt(b); if (bb === BigInt(0)) throw new Error('Division by zero');
-        return toBigInt(a) / bb;
-    }
     const nb = asNumber(b); if (nb === 0) throw new Error('Division by zero');
     return asNumber(a) / nb;
 }
 function modVals(a: EvalValue, b: EvalValue): EvalValue {
-    if (typeof a === 'bigint' || typeof b === 'bigint') {
-        const bb = toBigInt(b); if (bb === BigInt(0)) throw new Error('Division by zero');
-        return toBigInt(a) % bb;
-    }
     return (asNumber(a) | 0) % (asNumber(b) | 0);
 }
 function andVals(a: EvalValue, b: EvalValue): EvalValue {
-    return (typeof a === 'bigint' || typeof b === 'bigint')
-        ? (toBigInt(a) & toBigInt(b))
-        : (((asNumber(a) | 0) & (asNumber(b) | 0)) >>> 0);
+    return (((asNumber(a) | 0) & (asNumber(b) | 0)) >>> 0);
 }
 function xorVals(a: EvalValue, b: EvalValue): EvalValue {
-    return (typeof a === 'bigint' || typeof b === 'bigint')
-        ? (toBigInt(a) ^ toBigInt(b))
-        : (((asNumber(a) | 0) ^ (asNumber(b) | 0)) >>> 0);
+    return (((asNumber(a) | 0) ^ (asNumber(b) | 0)) >>> 0);
 }
 function orVals(a: EvalValue, b: EvalValue): EvalValue {
-    return (typeof a === 'bigint' || typeof b === 'bigint')
-        ? (toBigInt(a) | toBigInt(b))
-        : (((asNumber(a) | 0) | (asNumber(b) | 0)) >>> 0);
+    return (((asNumber(a) | 0) | (asNumber(b) | 0)) >>> 0);
 }
 function shlVals(a: EvalValue, b: EvalValue): EvalValue {
-    return (typeof a === 'bigint' || typeof b === 'bigint')
-        ? (toBigInt(a) << toBigInt(b))
-        : (((asNumber(a) | 0) << (asNumber(b) & 31)) >>> 0);
+    return (((asNumber(a) | 0) << (asNumber(b) & 31)) >>> 0);
 }
 function sarVals(a: EvalValue, b: EvalValue): EvalValue {
-    return (typeof a === 'bigint' || typeof b === 'bigint')
-        ? (toBigInt(a) >> toBigInt(b))
-        : (((asNumber(a) | 0) >> (asNumber(b) & 31)) >>> 0);
+    return (((asNumber(a) | 0) >> (asNumber(b) & 31)) >>> 0);
 }
 function shrVals(a: EvalValue, b: EvalValue): EvalValue {
-    if (typeof a === 'bigint' || typeof b === 'bigint') {
-        const aa = toBigInt(a) & U64_MASK; const bb = toBigInt(b);
-        return (aa >> bb) & U64_MASK;
-    }
     return (asNumber(a) >>> (asNumber(b) & 31)) >>> 0;
 }
 function eqVals(a: EvalValue, b: EvalValue): boolean {
     if (typeof a === 'string' || typeof b === 'string') return String(a) === String(b);
-    if (typeof a === 'bigint' || typeof b === 'bigint') return toBigInt(a) === toBigInt(b);
     return asNumber(a) == asNumber(b);
 }
 function ltVals(a: EvalValue, b: EvalValue): boolean {
-    return (typeof a === 'bigint' || typeof b === 'bigint') ? (toBigInt(a) < toBigInt(b)) : (asNumber(a) < asNumber(b));
+    return asNumber(a) < asNumber(b);
 }
 function lteVals(a: EvalValue, b: EvalValue): boolean {
-    return (typeof a === 'bigint' || typeof b === 'bigint') ? (toBigInt(a) <= toBigInt(b)) : (asNumber(a) <= asNumber(b));
+    return asNumber(a) <= asNumber(b);
 }
 function gtVals(a: EvalValue, b: EvalValue): boolean {
-    return (typeof a === 'bigint' || typeof b === 'bigint') ? (toBigInt(a) > toBigInt(b)) : (asNumber(a) > asNumber(b));
+    return asNumber(a) > asNumber(b);
 }
 function gteVals(a: EvalValue, b: EvalValue): boolean {
-    return (typeof a === 'bigint' || typeof b === 'bigint') ? (toBigInt(a) >= toBigInt(b)) : (asNumber(a) >= asNumber(b));
+    return asNumber(a) >= asNumber(b);
 }
 
 /* =============================================================================
@@ -399,11 +363,6 @@ function prefersInteger(kind: MergedKind | undefined, a: EvalValue, b: EvalValue
 }
 
 function divValsWithKind(a: EvalValue, b: EvalValue, kind: MergedKind | undefined): EvalValue {
-    // BigInt path unchanged
-    if (typeof a === 'bigint' || typeof b === 'bigint') {
-        return divVals(a, b);
-    }
-
     const pref = prefersInteger(kind, a, b);
     if (pref.use) {
         return integerDiv(asNumber(a), asNumber(b), pref.unsigned);
@@ -413,10 +372,6 @@ function divValsWithKind(a: EvalValue, b: EvalValue, kind: MergedKind | undefine
 }
 
 function modValsWithKind(a: EvalValue, b: EvalValue, kind: MergedKind | undefined): EvalValue {
-    if (typeof a === 'bigint' || typeof b === 'bigint') {
-        return modVals(a, b);
-    }
-
     const pref = prefersInteger(kind, a, b);
     if (pref.use) {
         return integerMod(asNumber(a), asNumber(b), pref.unsigned);
@@ -765,10 +720,10 @@ export async function evalNode(node: ASTNode, ctx: EvalContext): Promise<EvalVal
             const u = node as UnaryExpression;
             const v = await evalNode(u.argument, ctx);
             switch (u.operator) {
-                case '+': return (typeof v === 'bigint') ? v : +asNumber(v);
-                case '-': return (typeof v === 'bigint') ? (-toBigInt(v)) : (-asNumber(v));
+                case '+': return +asNumber(v);
+                case '-': return -asNumber(v);
                 case '!': return !truthy(v);
-                case '~': return (typeof v === 'bigint') ? (~toBigInt(v)) : ((~(asNumber(v) | 0)) >>> 0);
+                case '~': return ((~(asNumber(v) | 0)) >>> 0);
                 default:  throw new Error(`Unsupported unary operator ${u.operator}`);
             }
         }
@@ -777,9 +732,7 @@ export async function evalNode(node: ASTNode, ctx: EvalContext): Promise<EvalVal
             const u = node as UpdateExpression;
             const ref = await lref(u.argument, ctx);
             const prev = await ref.get();
-            const next = (typeof prev === 'bigint')
-                ? (u.operator === '++' ? (toBigInt(prev) + BigInt(1)) : (toBigInt(prev) - BigInt(1)))
-                : (u.operator === '++' ? asNumber(prev) + 1 : asNumber(prev) - 1);
+            const next = (u.operator === '++' ? asNumber(prev) + 1 : asNumber(prev) - 1);
             await ref.set(next);
             return u.prefix ? ref.get() : prev;
         }
@@ -946,9 +899,9 @@ async function formatValue(spec: FormatSegment['spec'], v: EvalValue, ctx?: Eval
     // Existing fallback behaviour
     switch (spec) {
         case '%':  return '%';
-        case 'd':  return (typeof v === 'bigint') ? v.toString(10) : String((asNumber(v) | 0));
-        case 'u':  return (typeof v === 'bigint') ? (v & U64_MASK).toString(10) : String((asNumber(v) >>> 0));
-        case 'x':  return (typeof v === 'bigint') ? (v & U64_MASK).toString(16) : (asNumber(v) >>> 0).toString(16);
+        case 'd':  return String((asNumber(v) | 0));
+        case 'u':  return String((asNumber(v) >>> 0));
+        case 'x':  return (asNumber(v) >>> 0).toString(16);
         case 't':  return truthy(v) ? 'true' : 'false';
         case 'S':  return typeof v === 'string' ? v : String(v);
         case 'C': case 'E': case 'I': case 'J': case 'N': case 'M': case 'T': case 'U': return String(v);
@@ -1036,7 +989,6 @@ async function routeIntrinsic(ctx: EvalContext, name: string, args: EvalValue[])
 function normalizeEvaluateResult(v: EvalValue): EvaluateResult {
     if (v === undefined || v === null) return undefined;
     if (typeof v === 'number' || typeof v === 'string') return v;
-    if (typeof v === 'bigint') return v.toString(10);
     if (typeof v === 'boolean') return v ? 1 : 0;
     return undefined;
 }

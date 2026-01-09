@@ -275,7 +275,7 @@ export abstract class ScvdBase {
         return undefined;   // TODO: change to undefined to indicate no value
     }
 
-    public async setValue(val: number | string | bigint): Promise<number | string | bigint | undefined> {
+    public async setValue(val: number | string): Promise<number | string | undefined> {
         return val;
     }
 
@@ -316,12 +316,12 @@ export abstract class ScvdBase {
         return aLine - bLine;
     }
 
-    public writeAt(byteOffset: number, widthBits: number, value: number | string | bigint): number | string | bigint | undefined {
+    public writeAt(byteOffset: number, widthBits: number, value: number | string): number | string | undefined {
         console.error(`WriteAt not implemented: item=${this.classname}: ${this.getDisplayLabel()}, offset=${byteOffset}, width=${widthBits}, value=${value}`);
         return undefined;
     }
 
-    public readAt(byteOffset: number, widthBits: number): number | bigint | string | undefined {
+    public readAt(byteOffset: number, widthBits: number): number | string | undefined {
         console.error(`ReadAt not implemented: item=${this.classname}: ${this.getDisplayLabel()}, offset=${byteOffset}, width=${widthBits}`);
         return undefined;
     }

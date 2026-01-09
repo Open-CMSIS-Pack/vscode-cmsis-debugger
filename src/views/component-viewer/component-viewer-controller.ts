@@ -6,15 +6,15 @@ import path from 'path';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
 
 const scvdMockTestFiles: Map<string, boolean> = new Map<string, boolean>([
-    ['test-data/component-viewer/MinimalTest.scvd',      true],
-    ['test-data/component-viewer/MyTest.scvd',           false],
-    ['test-data/component-viewer/RTX5.scvd',             false],
-    ['test-data/component-viewer/BaseExample.scvd',      false],
-    ['test-data/component-viewer/Network.scvd',          false],
-    ['test-data/component-viewer/USB.scvd',              false],
-    ['test-data/component-viewer/FileSystem.scvd',       false],
-    ['test-data/component-viewer/EventRecorder.scvd',    false],
-    ['test-data/component-viewer/GetRegVal_Test.scvd',   false],
+    ['src/component-viewer/test/test-files/scvd/MinimalTest.scvd',      true],
+    ['src/component-viewer/test/test-files/scvd/MyTest.scvd',           false],
+    ['src/component-viewer/test/test-files/scvd/RTX5.scvd',             false],
+    ['src/component-viewer/test/test-files/scvd/BaseExample.scvd',      false],
+    ['src/component-viewer/test/test-files/scvd/Network.scvd',          false],
+    ['src/component-viewer/test/test-files/scvd/USB.scvd',              false],
+    ['src/component-viewer/test/test-files/scvd/FileSystem.scvd',       false],
+    ['src/component-viewer/test/test-files/scvd/EventRecorder.scvd',    false],
+    ['src/component-viewer/test/test-files/scvd/GetRegVal_Test.scvd',   false],
 ]);
 
 const scvdMockFiles: string[] = Array.from(scvdMockTestFiles.entries())

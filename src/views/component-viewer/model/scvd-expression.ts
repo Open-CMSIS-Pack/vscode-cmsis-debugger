@@ -155,8 +155,6 @@ export class ScvdExpression extends ScvdBase {
             const constVal = this.expressionAst.constValue;
             if (typeof constVal === 'boolean') {
                 this._result = constVal ? 1 : 0;
-            } else if (typeof constVal === 'bigint') {
-                this._result = Number(constVal);
             } else {
                 this._result = constVal;
             }

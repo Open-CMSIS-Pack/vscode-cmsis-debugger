@@ -117,14 +117,20 @@ export class MemoryContainer {
 }
 
 // --- helpers (LE encoding) ---
-function bytesToLEBigInt(bytes: Uint8Array): bigint {
-    let acc = 0n;
-    for (let i = 0; i < bytes.length; i++) acc |= BigInt(bytes[i] & 0xff) << BigInt(8 * i);
-    return acc;
+function leToNumber(bytes: Uint8Array): number {
+    let out = 0;
+    for (let i = bytes.length - 1; i >= 0; i--) {
+        out = (out << 8) | (bytes[i]! & 0xff);
+    }
+    return out >>> 0;
 }
-function leBigIntToBytes(v: bigint, size: number): Uint8Array {
+function leIntToBytes(v: number, size: number): Uint8Array {
     const out = new Uint8Array(size);
-    for (let i = 0; i < size; i++) out[i] = Number((v >> BigInt(8 * i)) & 0xffn);
+    let tmp = v >>> 0;
+    for (let i = 0; i < size; i++) {
+        out[i] = tmp & 0xff;
+        tmp >>>= 8;
+    }
     return out;
 }
 
@@ -154,21 +160,13 @@ export class CachedMemoryHost {
         return m;
     }
 
-    // normalize number|bigint → safe JS number for addresses
-    private toAddrNumber(x: number | bigint): number {
-        if (typeof x === 'number') {
-            if (!Number.isFinite(x) || x < 0 || !Number.isSafeInteger(x)) {
-                console.error(`invalid target base address (number): ${x}`);
-                return 0;
-            }
-            return x;
-        }
-        const n = Number(x);
-        if (n < 0 || !Number.isSafeInteger(n)) {
-            console.error(`invalid target base address (bigint out of range): ${x.toString()}`);
+    // normalize number → safe JS number for addresses
+    private toAddrNumber(x: number): number {
+        if (!Number.isFinite(x) || x < 0 || !Number.isSafeInteger(x)) {
+            console.error(`invalid target base address (number): ${x}`);
             return 0;
         }
-        return n;
+        return x;
     }
 
     constructor(opts?: HostOptions) {
@@ -200,15 +198,10 @@ export class CachedMemoryHost {
         }
 
         // Interpret the bytes:
-        //  - ≤4 bytes: JS number
-        //  - ≤8 bytes: bigint
-        //  - >8 bytes: return raw bytes
+        //  - ≤4 bytes: JS number (uint32)
+        //  - >4 bytes: return a copy of the raw bytes
         if (widthBytes <= 4) {
-            const val = bytesToLEBigInt(raw);
-            return Number(val);
-        }
-        if (widthBytes <= 8) {
-            return bytesToLEBigInt(raw);
+            return leToNumber(raw);
         }
         // for larger widths, return a copy of the bytes
         return raw.slice();
@@ -237,17 +230,16 @@ export class CachedMemoryHost {
                 buf.set(value.subarray(0, widthBytes), 0);
             }
         } else {
-            // normalize value to bigint then to bytes
-            let valBig: bigint;
-            if (typeof value === 'boolean') valBig = value ? 1n : 0n;
-            else if (typeof value === 'bigint') valBig = value;
-            else if (typeof value === 'number') valBig = BigInt(Math.trunc(value));
+            // normalize value to number then to bytes
+            let valNum: number;
+            if (typeof value === 'boolean') valNum = value ? 1 : 0;
+            else if (typeof value === 'number') valNum = Math.trunc(value);
             else {
                 console.error('writeValue: unsupported value type');
                 return;
             }
 
-            buf = leBigIntToBytes(valBig, widthBytes);
+            buf = leIntToBytes(valNum, widthBytes);
         }
 
         if (actualSize !== undefined && actualSize < widthBytes) {
@@ -262,9 +254,9 @@ export class CachedMemoryHost {
     setVariable(
         name: string,
         size: number,
-        value: number | bigint | Uint8Array,
+        value: number | Uint8Array,
         offset: number,                     // NEW: controls where to place the data
-        targetBase?: number | bigint,       // target base address where it was read from
+        targetBase?: number,       // target base address where it was read from
         actualSize?: number,                // total logical bytes for this element (>= size)
     ): void {
         if (!Number.isSafeInteger(offset)) {
@@ -283,12 +275,10 @@ export class CachedMemoryHost {
             return;
         }
 
-        // normalize payload to exactly `size` bytes (numbers/bigints LE-encoded)
+        // normalize payload to exactly `size` bytes (numbers LE-encoded)
         const buf = new Uint8Array(size);
-        if (typeof value === 'bigint') {
-            buf.set(leBigIntToBytes(value, size), 0);
-        } else if (typeof value === 'number') {
-            buf.set(leBigIntToBytes(BigInt(Math.trunc(value)), size), 0);
+        if (typeof value === 'number') {
+            buf.set(leIntToBytes(Math.trunc(value), size), 0);
         } else if (value instanceof Uint8Array) {
             buf.set(value.subarray(0, size), 0); // truncate/zero-pad to `size`
         } else {
@@ -359,11 +349,11 @@ export class CachedMemoryHost {
     /**
      * Read a numeric value from a symbol at a given byte offset.
      *
-     * - `size` is the number of bytes to decode (1, 2, 4, 8, ...).
-     * - Returns a JS `number` for sizes <= 4, and a `bigint` for sizes > 4.
+     * - `size` is the number of bytes to decode (1, 2, 4, ...).
+     * - Returns a JS `number`.
      * - `offset` is a byte offset within the symbol.
      */
-    readNumber(name: string, offset: number, size: number): number | bigint | undefined {
+    readNumber(name: string, offset: number, size: number): number | undefined {
         if (!Number.isSafeInteger(size) || size <= 0) {
             console.error(`readNumber: size must be a positive safe integer, got ${size}`);
             return undefined;
@@ -389,14 +379,7 @@ export class CachedMemoryHost {
             // TODO: add BE support if/when needed
         }
 
-        const v = bytesToLEBigInt(raw);
-
-        // Match the general "small → number, larger → bigint" pattern
-        if (size <= 4) {
-            return Number(v);
-        }
-
-        return v;
+        return leToNumber(raw);
     }
 
     /**
@@ -463,13 +446,7 @@ export class CachedMemoryHost {
 
         // read() returns a view; return a copy so callers can't mutate our backing store
         const raw = entry.data.read(off, spanSize).slice();
-        const valBig = bytesToLEBigInt(raw);
-        const num = Number(valBig);
-        if (!Number.isSafeInteger(num)) {
-            console.error(`getVariable: value exceeds safe integer range for size=${spanSize}`);
-            return undefined;
-        }
-        return num;
+        return leToNumber(raw);
     }
 
     invalidate(name?: string): void {
@@ -515,7 +492,7 @@ export class CachedMemoryHost {
     }
 
     /** Optional: repair or set an address later. */
-    setElementTargetBase(name: string, index: number, base: number | bigint): void {
+    setElementTargetBase(name: string, index: number, base: number): void {
         const m = this.elementMeta.get(name);
         if (!m) {
             console.error(`setElementTargetBase: unknown symbol "${name}"`);

@@ -15,7 +15,7 @@
 
 export type ValueType = 'number' | 'boolean' | 'string' | 'unknown';
 
-export type ConstValue = number | string | boolean | bigint | undefined;
+export type ConstValue = number | string | boolean | undefined;
 
 export interface BaseNode { kind: string; start: number; end: number; valueType?: ValueType; constValue?: ConstValue; }
 export interface NumberLiteral extends BaseNode { kind:'NumberLiteral'; value:number; raw:string; valueType:'number'; }
@@ -743,15 +743,8 @@ export class Parser {
                     const bn = Number(b);
                     switch (op) {
                         case '+':
-                            if (typeof a === 'string' || typeof b === 'string') {
-                                cv = String(a) + String(b);
-                            } else if (typeof a === 'bigint' || typeof b === 'bigint') {
-                                const bigA = typeof a === 'bigint' ? a : BigInt(a as number);
-                                const bigB = typeof b === 'bigint' ? b : BigInt(b as number);
-                                cv = bigA + bigB;
-                            } else {
-                                cv = an + bn;
-                            }
+                            if (typeof a === 'string' || typeof b === 'string') cv = String(a) + String(b);
+                            else cv = an + bn;
                             break;
                         case '-': cv = an - bn; break;
                         case '*': cv = an * bn; break;
