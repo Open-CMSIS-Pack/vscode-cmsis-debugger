@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component_viewer schemaVersion="0.1" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="Component_Viewer.xsd">
+  <component name="RTOS" version="5.0.0"/>    <!-- name and version of the component  -->
+
+  <typedefs>
+
+    <typedef name="memberTest_t" info="" size="10" import="mySymbol">
+      <member name="a" type="uint8_t" offset="0"  info="Member a"/>
+      <member name="b" type="uint8_t" offset="1"  info="Member b"/>
+      <member name="c" type="uint8_t" offset="2"  info="Member c"/>
+      <member name="d" type="uint8_t" offset="3"  info="Member d"/>
+      <member name="A" type="uint8_t"  info="Member noOffset A"/>
+      <member name="B" type="uint8_t"  info="Member noOffset B"/>
+      <member name="C" type="uint8_t"  info="Member noOffset C"/>
+      <member name="D" type="uint8_t"  info="Member noOffset D"/>
+      
+      <var name="sum"     type="uint32_t"  info="Member sum"/>
+      <var name="m_var1" type="uint32_t" info="Member Variable 1"/>
+      <var name="m_var2" type="uint16_t" info="Member Variable 2"/>
+      <var name="m_var3" type="uint32_t" info="Member Variable 3"/>
+    </typedef>
+
+    <!-- OS Runtime Information structure -->
+    <typedef name="osRtxInfo_t" info="OS Runtime Information" size="164">
+      <member name="os_id"                      type="*uint8_t"             offset="0" info="OS Identification (type is *uint8_t)"/>
+      <member name="version"                    type="uint32_t"             offset="4" info="OS Version"/>
+      <member name="kernel_state"               type="uint8_t"              offset="8" info="Kernel state">
+        <enum name="osKernelInactive"  value="0"  info="Inactive"/>
+        <enum name="osKernelReady"     value="1"  info="Ready"/>
+        <enum name="osKernelRunning"   value="2"  info="Running"/>
+        <enum name="osKernelLocked"    value="3"  info="Locked"/>
+        <enum name="osKernelSuspended" value="4"  info="Suspended"/>
+        <enum name="osKernelError"     value="5"  info="Error"/>
+      </member>
+    </typedef>
+
+    <typedef name="osRtxConfig_t" const="1" info="OS Configuration Structure" size="112">
+      <member name="flags"                 type="uint32_t" offset="0" info="OS configuration flags"/>
+      <member name="tick_freq"             type="uint32_t" offset="4" info="Kernel tick frequency"/>
+    </typedef>
+
+    <typedef name="MyList" size="12" >
+        <member name="nextL"   type="*MyList"  offset="0" />
+        <member name="valueL"  type="uint32_t" offset="4" />
+        <member name="nameL"   type="*int8_t" offset="8" />
+        <var    name="nameS"   type="int8_t"   size="20"  />
+    </typedef>
+
+    <typedef name="Color"    size="4"      info="enum color">
+      <member name="val"     type="uint32_t"   offset="0">
+        <enum name="red (alert)"         value="1"     info="alert color"     />
+        <enum name="yellow (attention)"  value="2"     info="attention color" />
+        <enum name="green (working)"     value="3"     info="working color"   />
+      </member>
+    </typedef>
+
+  </typedefs>
+
+  <objects>
+    <object name="Test Object">
+      <var name="RTX_En" type="uint8_t" value="0" />
+      <calc cond="1">
+        RTX_En = 1;
+      </calc>
+
+      <read name="wstring_val" type="int16_t"  symbol="wString" size="15"   />
+
+
+      <var name="R0" type="uint32_t" value="0x1"/>
+      <var name="i" type="uint32_t" value="0"/>
+      <var name="j" type="uint32_t" value="0"/>
+      <var name="k" type="uint32_t" value="0"/>
+      <var name="l" type="uint32_t" value="0"/>
+      <var name="memberTest" type="memberTest_t" value="0x00000000"/>
+      
+      <calc>
+        R0  = __GetRegVal ("R0");
+        i = 0;
+        j = 1;
+        k = 10;
+        l = 20;
+      </calc>
+
+      <var name="listVal1" type="uint32_t" value="0"/>
+      <list name="i" start="j" limit="k" >
+        <calc>
+          listVal1++;
+        </calc>
+      </list>
+
+      <calc>
+        i = 99;
+      </calc>
+
+      <var name="listVal2" type="uint32_t" value="0"/>
+      <list cond="RTX_En" name="i" start="j" while="l">       
+        <calc>
+          listVal2++;
+          l--;
+        </calc>
+      </list>
+
+      <calc>
+        memberTest.m_var1 = 0x11111111;
+        memberTest.a = 0x12;
+        memberTest.b = 0x34;
+        memberTest.c = 0x56;
+        memberTest.d = 0x78;
+        memberTest.sum = memberTest.d + (memberTest.c &lt;&lt; 8) + (memberTest.b &lt;&lt; 16) + (memberTest.a &lt;&lt; 24);
+        memberTest.A = 0xAA;
+        memberTest.B = 0xBB;
+        memberTest.C = 0xCC;
+        memberTest.D = 0xDD;
+        memberTest.m_var2 = 0x22222222;
+      </calc>
+
+      <var name="StackStart" type="uint32_t" value="0x00000000"/>
+      <var name="StackSize" type="uint32_t" value="0x00000000"/>
+      <var name="StackUsage" type="uint32_t" value="0x00000000"/>
+      <calc>
+        StackStart = __FindSymbol ("tstack");
+        StackSize  = __size_of ("tstack") * 4;
+        StackUsage = __CalcMemUsed (StackStart, StackSize, 0x8A8A8A8A, 0xE25A2EA5);
+      </calc>
+
+      <var name="V_Major" type="uint32_t" value="0"/>
+      <var name="V_Minor" type="uint32_t" value="0"/>
+      <var name="V_Patch" type="uint32_t" value="0"/>
+      <read name="os_Info"   type="osRtxInfo_t"   symbol="osRtxInfo"/>
+      <calc cond="RTX_En != 0">
+        V_Major =  os_Info.version / 10000000;
+        V_Minor = (os_Info.version / 10000) % 1000;
+        V_Patch =  os_Info.version % 10000;
+      </calc>
+
+      <var name="light1" type="Color" value="1"/>
+      <var name="light2" type="Color" value="2"/>
+      <var name="light3" type="Color" value="3"/>
+
+      <read name="os_Config" type="osRtxConfig_t" symbol="osRtxConfig" const="1"/>
+
+      <!-- Read the linked list starting with ValueA: -->
+      <readlist name="MyListA" type="MyList" symbol="ValueA" next="nextL" />
+
+      <!-- Read the linked list starting with head pointer ListStart: -->
+      <readlist name="MyListB" type="MyList" symbol="ListStart" based="1" next="nextL" />
+
+      <!-- Clear a previous list and read ValueA, ValueB, and ValueArray. -->
+      <readlist name="MyListC" type="MyList" symbol="ValueA" init="1"                          /> 
+      <readlist name="MyListC" type="MyList" symbol="ValueB"                                   />
+      <readlist name="MyListC" type="MyList" symbol="ValueArray" count="__size_of(ValueArray)" />
+
+      <!-- Read the list based on the pointers stored in pArray: -->
+      <readlist name="MyListD" type="MyList" symbol="pArray" based="1" count="__size_of(pArray)" />
+
+      <!-- Read the pArray using read and read the list items addressed with pArray[1] and pArray[2]. -->
+      <readlist name="pArray" type="*MyList" symbol="pArray" count="__size_of(pArray)" /> 
+      <readlist name="MyListE" type="MyList" offset="pArray[1]"  />
+      <readlist name="MyListE" type="MyList" offset="pArray[2]"  />
+
+
+      <read name="string_val"  type="int8_t"   symbol="string"  size="10"   />
+      <var name="i_value"     type="uint8_t"  symbol="iValue" value="1" />
+  
+      <out name="MyTest">
+          <item property="Color" >
+            <item property="Enum format %%E"  value="light1=%E[light1.val]" />
+            <item property="Enum format %%E"  value="light2=%E[light2.val]" />
+            <item property="Enum format %%E"  value="light3=%E[light3.val]" />
+          </item>
+
+          <item property="MyList count" value="" cond="RTX_En">
+              <item property="MyListA"    value="%d[MyListA._count]" />
+              <item property="MyListB"    value="%d[MyListB._count]" />
+              <item property="MyListC"    value="%d[MyListC._count]" />
+              <item property="MyListD"    value="%d[MyListD._count]" />
+              <item property="MyListE"    value="%d[MyListE._count]" />
+          </item>
+
+          <item property="List test limit" value="" cond="RTX_En">
+            <list name="i" start="0" limit="pArray._count">
+              <item property="pArray"    value="%x[pArray[i]]" />
+            </list>
+          </item>
+
+          <item property="System" value="">
+            <item property="RTX enable"   value="%t[RTX_En ? &quot;Enabled&quot; : &quot;Disabled&quot;]" /> 
+            <item property="Kernel ID"    value="RTX V%d[V_Major].%d[V_Minor].%d[V_Patch]" cond="RTX_En != 0"/>
+          </item>
+
+          <item property="List value after execution">
+            <item property="List Val1"    value="%d[listVal1]"/>
+            <item property="List Val2"    value="%d[listVal2]"/>
+            <item property="i"            value="%x[i]"/>
+          </item>
+
+          <item property="USB Descriptors">
+            <item property="string value %%t"     value="%t[string_val]" /> 
+            <item property="status %%t"     value="Status=%t[i_value==0 ? &quot;Free&quot; : &quot;Busy&quot;]" /> 
+            <item property="wString value %%U"    value="%U[wstring_val]" />
+          </item>
+
+          <item property="Stack">
+            <item property="StackStart"    value="%x[StackStart]"/>
+            <item property="StackSize"     value="%d[StackSize] bytes"/>
+            <item alert="(StackUsage >> 31)"    
+              property="tstack @%x[StackStart] size=%d[StackSize]"
+              value="Usage %d[StackUsage &amp; 0xFFFFF] %d[(StackUsage &gt;&gt; 20) &amp; 0xFF]%%" />
+          </item>
+
+          <item property="Lists contents">
+            <item property="MyListA ValueA nextL" value="%x[MyListA[0].nextL]"/>
+            <item property="MyListA ValueA valueL" value="%x[MyListA[0].valueL]"/>
+            <item property="MyListA ValueA nameL" value="%N[MyListA[0].nameL]"/>
+            <item property="MyListA ValueA"       value="%x[MyListA[0].nextL], %x[MyListA[0].valueL], %x[MyListA[0].nameL]"/>
+            <item property="MyListB ListStart nextL"    value="%x[MyListB[0].nextL]"/>
+            <item property="MyListC valueL A/B/VA0-2"    value="%x[MyListC[0].valueL], %x[MyListC[1].valueL], %x[MyListC[2].valueL], %x[MyListC[3].valueL], %x[MyListC[4].valueL]"/>
+            <item property="MyListD pArray"       value="%x[MyListD[0]], %x[MyListD[1]], %x[MyListD[2]], %x[MyListD[3]], %x[MyListD[4]]"/>
+            <item property="MyListE pArray"       value="%x[MyListE[0].valueL], %x[MyListE[1].valueL]"/>
+            <item property="pArray"               value="%x[pArray[0]], %x[pArray[1]], %x[pArray[2]], %x[pArray[3]], %x[pArray[4]]"/>
+          </item>
+
+          <item property="Lists ._addr">
+            <item property="MyListA ValueA"       value="%x[MyListA[0]._addr]"/>
+            <item property="MyListB ListStart"    value="%x[MyListB[0]._addr]"/>
+            <item property="MyListC A/B/VA0-2y"    value="%x[MyListC[0]._addr], %x[MyListC[1]._addr], %x[MyListC[2]._addr], %x[MyListC[3]._addr], %x[MyListC[4]._addr]"/>
+            <item property="MyListD pArray"       value="%x[MyListD[0]._addr], %x[MyListD[1]._addr], %x[MyListD[2]._addr], %x[MyListD[3]._addr], %x[MyListD[4]._addr]"/>
+            <item property="MyListE pArray"       value="%x[MyListE[0]._addr]"/>
+            <item property="pArray"               value="%x[pArray[0]._addr], %x[pArray[1]._addr], %x[pArray[2]._addr], %x[pArray[3]._addr], %x[pArray[4]._addr]"/>
+          </item>
+
+          <!-- <item property="List test while" value="" cond="RTX_En">
+            <list name="i" start="MyListA[i].nextL" while="i.nextL">
+              <item property="pArray"    value="%x[i.nameL]" />
+            </list>
+          </item> -->
+
+          <item property="Empty item below (for print)">
+            <item>
+              <item property="R0"    value="%x[R0]"/>
+              <item property="i"     value="%x[i]"/>
+            </item>
+          </item>
+
+
+          <item property="Vars">
+            <item property="R0"    value="%x[R0]"/>
+            <item property="i"     value="%x[i]"/>
+            <item property="j"     value="%x[j]"/>
+            <item property="k"     value="%x[k]"/>
+            <item property="l"     value="%x[l]"/>
+          </item>
+
+          <item property="memberTest offset">
+            <item property="memberTest a"     value="%x[memberTest.a]"/>
+            <item property="memberTest b"     value="%x[memberTest.b]"/>
+            <item property="memberTest c"     value="%x[memberTest.c]"/>
+            <item property="memberTest d"     value="%x[memberTest.d]"/>
+          </item>
+          
+          <item property="memberTest no offset">
+            <item property="memberTest A"     value="%x[memberTest.A]"/>
+            <item property="memberTest B"     value="%x[memberTest.B]"/>
+            <item property="memberTest C"     value="%x[memberTest.C]"/>
+            <item property="memberTest D"     value="%x[memberTest.D]"/>
+          </item>
+
+          <item property="memberTest calculations">
+            <item property="memberTest sum"   value="%x[memberTest.sum]"/>
+          </item>
+
+          <item property="memberTest var">
+            <item property="memberTest m_var1"  value="%x[memberTest.m_var1]"/>
+            <item property="memberTest m_var2"  value="%x[memberTest.m_var2]"/>
+          </item>
+
+          <item property="String: true / false">
+            <item property="i"  value="%x[i? &quot;true&quot; : &quot;false&quot;]"/>
+            <item property="j"  value="%x[j? &quot;true&quot; : &quot;false&quot;]"/>
+            <item property="k"  value="%x[k? &quot;true&quot; : &quot;false&quot;]"/>
+            <item property="i+j"  value="%x[(i+j)? &quot;true&quot; : &quot;false&quot;]"/>
+          </item>
+
+      </out>
+    </object>
+  </objects>
+</component_viewer>

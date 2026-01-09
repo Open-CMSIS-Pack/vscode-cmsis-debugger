@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-export const PUBLISHER_NAME = 'arm';
-export const EXTENSION_NAME = 'vscode-cmsis-debugger';
-export const EXTENSION_ID = `${PUBLISHER_NAME}.${EXTENSION_NAME}`;
-export const DISPLAY_NAME = 'Arm CMSIS Debugger';
+import * as vscode from 'vscode';
+import * as manifest from '../../manifest';
 
-export const COMPONENT_VIEWER_DISPLAY_NAME = 'Arm CMSIS Component Viewer';
+export const scvdLogger = vscode.window.createOutputChannel(manifest.COMPONENT_VIEWER_DISPLAY_NAME, { log: true });

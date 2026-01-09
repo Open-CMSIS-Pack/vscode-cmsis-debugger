@@ -14,9 +14,15 @@
  * limitations under the License.
  */
 
-export const PUBLISHER_NAME = 'arm';
-export const EXTENSION_NAME = 'vscode-cmsis-debugger';
-export const EXTENSION_ID = `${PUBLISHER_NAME}.${EXTENSION_NAME}`;
-export const DISPLAY_NAME = 'Arm CMSIS Debugger';
+import { ScvdBase } from '../model/scvd-base';
+import { StatementBase } from './statement-base';
 
-export const COMPONENT_VIEWER_DISPLAY_NAME = 'Arm CMSIS Component Viewer';
+
+export class StatementObject extends StatementBase {
+
+    constructor(item: ScvdBase, parent: StatementBase | undefined) {
+        super(item, parent);
+    }
+
+
+}

@@ -14,9 +14,16 @@
  * limitations under the License.
  */
 
-export const PUBLISHER_NAME = 'arm';
-export const EXTENSION_NAME = 'vscode-cmsis-debugger';
-export const EXTENSION_ID = `${PUBLISHER_NAME}.${EXTENSION_NAME}`;
-export const DISPLAY_NAME = 'Arm CMSIS Debugger';
+// https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
-export const COMPONENT_VIEWER_DISPLAY_NAME = 'Arm CMSIS Component Viewer';
+import { ScvdBase } from './scvd-base';
+
+export class ScvdTemplate extends ScvdBase {
+
+    constructor(
+        parent: ScvdBase | undefined,
+    ) {
+        super(parent);
+    }
+
+}
