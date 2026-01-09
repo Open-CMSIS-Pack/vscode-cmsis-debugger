@@ -193,7 +193,7 @@ jobs:
           package-manager-cache: false
 
       - name: Download dist
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: dist
           path: .
@@ -256,7 +256,7 @@ jobs:
           yarn --frozen-lockfile --ignore-scripts --prefer-offline
 
       - name: Download vsix package
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: vsix-package-${{ matrix.target }}
 
@@ -281,18 +281,18 @@ jobs:
           egress-policy: audit
 
       - name: Download packages
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: vsix-package-*
 
       - name: Download coverage report
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: test-coverage
           path: test-coverage # Required for single-match patterns by actions/download-artifact >= v5
 
       - name: Download test report
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: test-report-linux
           path: test-report-linux # Required for single-match patterns by actions/download-artifact >= v5
