@@ -792,7 +792,7 @@ export async function evalNode(node: ASTNode, ctx: EvalContext): Promise<EvalVal
                 args.push(await evalNode(a, ctx)); // evaluate sequentially to avoid parallel side effects
             }
             const fnVal = await evalNode(c.callee, ctx);
-            if (typeof fnVal === 'function') return await (fnVal as Function)(...args);
+            if (typeof fnVal === 'function') return await fnVal(...args);
             throw new Error('Callee is not callable.');
         }
 
