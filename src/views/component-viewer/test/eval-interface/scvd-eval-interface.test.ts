@@ -1,6 +1,6 @@
 import { ScvdEvalInterface } from '../../scvd-eval-interface';
-import { MemoryHost } from '../../memory-host/memory-host';
-import { RegisterHost } from '../../memory-host/register-host';
+import { MemoryHost } from '../../data-host/memory-host';
+import { RegisterHost } from '../../data-host/register-host';
 import { ScvdFormatSpecifier } from '../../model/scvd-format-specifier';
 import { ScvdDebugTarget } from '../../scvd-debug-target';
 import { RefContainer } from '../../evaluator';

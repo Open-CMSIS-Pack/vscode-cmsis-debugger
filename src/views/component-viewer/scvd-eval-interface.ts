@@ -6,8 +6,8 @@
 
 import { DataHost, EvalValue, RefContainer, ScalarType } from './evaluator';
 import { ScvdBase } from './model/scvd-base';
-import { MemoryHost } from './memory-host/memory-host';
-import { RegisterHost } from './memory-host/register-host';
+import { MemoryHost } from './data-host/memory-host';
+import { RegisterHost } from './data-host/register-host';
 import { ScvdDebugTarget } from './scvd-debug-target';
 import { FormatSegment } from './parser';
 import { ScvdFormatSpecifier } from './model/scvd-format-specifier';

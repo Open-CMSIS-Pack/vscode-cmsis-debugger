@@ -1,4 +1,4 @@
-import { MemoryHost } from '../../memory-host/memory-host';
+import { MemoryHost } from '../../data-host/memory-host';
 
 describe('MemoryHost', () => {
     it('stores and retrieves numeric values with explicit offsets', () => {
