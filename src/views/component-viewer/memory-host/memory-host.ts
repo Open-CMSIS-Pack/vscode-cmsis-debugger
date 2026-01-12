@@ -1,4 +1,4 @@
-// cache.ts
+// memory-host.ts
 
 import { EvalValue, RefContainer } from '../evaluator';
 
@@ -145,7 +145,7 @@ type ElementMeta = {
 };
 
 /** The piece your DataHost delegates to for readValue/writeValue. */
-export class CachedMemoryHost {
+export class MemoryHost {
     private cache: SymbolCache;
     private endianness: Endianness;
     private elementMeta = new Map<string, ElementMeta>();

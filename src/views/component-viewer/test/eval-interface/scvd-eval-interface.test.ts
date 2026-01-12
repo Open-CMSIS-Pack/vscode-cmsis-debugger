@@ -1,5 +1,5 @@
 import { ScvdEvalInterface } from '../../scvd-eval-interface';
-import { CachedMemoryHost } from '../../cache/cache';
+import { MemoryHost } from '../../memory-host/memory-host';
 import { ScvdFormatSpecifier } from '../../model/scvd-format-specifier';
 
 const makeContainer = (name: string, widthBytes: number, offsetBytes = 0) => ({
@@ -13,7 +13,7 @@ const makeContainer = (name: string, widthBytes: number, offsetBytes = 0) => ({
 
 describe('ScvdEvalInterface', () => {
     it('routes intrinsic calls to debugTarget/registers/memHost', async () => {
-        const memHost = new CachedMemoryHost();
+        const memHost = new MemoryHost();
         const regCache = { read: jest.fn().mockReturnValue(7) } as any;
         const debugTarget = {
             findSymbolAddress: jest.fn().mockResolvedValue(0x1234),
@@ -35,7 +35,7 @@ describe('ScvdEvalInterface', () => {
     });
 
     it('formats printf values and falls back to string', async () => {
-        const memHost = new CachedMemoryHost();
+        const memHost = new MemoryHost();
         const regCache = { read: jest.fn() } as any;
         const debugTarget = {
             findSymbolAddress: jest.fn(),
@@ -55,7 +55,7 @@ describe('ScvdEvalInterface', () => {
     });
 
     it('readValue/writeValue interop with cache', () => {
-        const memHost = new CachedMemoryHost();
+        const memHost = new MemoryHost();
         const regCache = { read: jest.fn() } as any;
         const debugTarget = { getNumArrayElements: jest.fn() } as any;
         const fmt = new ScvdFormatSpecifier();

@@ -141,7 +141,7 @@ export class StatementReadList extends StatementBase {
             // Read data from target
             const readData = await executionContext.debugTarget.readMemory(itemAddress, readBytes);
             if(readData === undefined) {
-                console.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes, readMemory failed`);
+                console.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes, read target memory failed`);
                 break;
             }
 

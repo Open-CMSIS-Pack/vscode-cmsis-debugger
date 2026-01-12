@@ -16,9 +16,11 @@
 
 import { ScvdBase } from '../model/scvd-base';
 import { ScvdComponentViewer } from '../model/scvd-component-viewer';
+import { ScvdBreak } from '../model/scvd-break';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
 import { StatementBase } from './statement-base';
+import { StatementBreak } from './statement-break';
 import { StatementCalc } from './statement-calc';
 import { StatementItem } from './statement-item';
 import { StatementList } from './statement-list';
@@ -90,6 +92,9 @@ export class StatementEngine {
             case 'ScvdPrint':
                 // Print-specific logic.
                 return new StatementPrint(item, parent);
+            case 'ScvdBreak':
+                // Break-specific logic.
+                return new StatementBreak(item, parent);
             default:
                 // Generic logic for other item types.
                 return undefined;
@@ -125,6 +130,11 @@ export class StatementEngine {
         const statementTree = this.addChildrenFromScvd(object, undefined);
         if(statementTree !== undefined) {
             statementTree.sortChildren();
+            const breaks = this._model.breaks?.breaks ?? [];
+            for (const breakItem of breaks) {
+                this.insertBreakAtLine(statementTree, breakItem);
+            }
+            statementTree.sortChildren();
             this._statementTree = statementTree;
         }
 
@@ -141,5 +151,50 @@ export class StatementEngine {
             //console.log('Executing statements in the statement tree...');
             await this._statementTree.executeStatement(this.executionContext, guiTree);
         }
+    }
+
+    private insertBreakAtLine(root: StatementBase, breakItem: ScvdBreak): void {
+        const lineNo = Number(breakItem.getLineNoStr());
+        if (this.hasBreakAtLine(root, lineNo)) {
+            return;
+        }
+
+        const targetParent = this.findInsertionParentBySpan(root, lineNo);
+        this.buildStatement(breakItem, targetParent);
+    }
+
+    private hasBreakAtLine(node: StatementBase, line: number): boolean {
+        const isBreak = node.scvdItem.constructor?.name === 'ScvdBreak' && node.line === line;
+        if (isBreak) {
+            return true;
+        }
+        for (const child of node.children) {
+            if (this.hasBreakAtLine(child, line)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private findInsertionParentBySpan(node: StatementBase, targetLine: number): StatementBase {
+        for (const child of node.children) {
+            const min = child.line;
+            const max = this.getMaxLine(child);
+            if (targetLine >= min && targetLine <= max) {
+                return this.findInsertionParentBySpan(child, targetLine);
+            }
+        }
+        return node;
+    }
+
+    private getMaxLine(node: StatementBase): number {
+        let max = node.line;
+        for (const child of node.children) {
+            const childMax = this.getMaxLine(child);
+            if (childMax > max) {
+                max = childMax;
+            }
+        }
+        return max;
     }
 }

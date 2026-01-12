@@ -1,8 +1,8 @@
-import { CachedMemoryHost } from '../../cache/cache';
+import { MemoryHost } from '../../memory-host/memory-host';
 
-describe('CachedMemoryHost', () => {
+describe('MemoryHost', () => {
     it('stores and retrieves numeric values with explicit offsets', () => {
-        const host = new CachedMemoryHost();
+        const host = new MemoryHost();
 
         host.setVariable('foo', 4, 0x12345678, 0);
         expect(host.getVariable('foo')).toBe(0x12345678);
@@ -12,7 +12,7 @@ describe('CachedMemoryHost', () => {
     });
 
     it('appends when offset is -1 and tracks element count', () => {
-        const host = new CachedMemoryHost();
+        const host = new MemoryHost();
         host.setVariable('arr', 4, 1, -1);
         host.setVariable('arr', 4, 2, -1);
         host.setVariable('arr', 4, 3, -1);
@@ -24,13 +24,13 @@ describe('CachedMemoryHost', () => {
     });
 
     it('rejects spans larger than 4 bytes via getVariable', () => {
-        const host = new CachedMemoryHost();
+        const host = new MemoryHost();
         host.setVariable('big', 8, new Uint8Array(8), 0);
         expect(host.getVariable('big', 8, 0)).toBeUndefined();
     });
 
     it('tracks target bases and allows updating them', () => {
-        const host = new CachedMemoryHost();
+        const host = new MemoryHost();
         host.setVariable('sym', 4, 1, -1, 0x1000);
         host.setVariable('sym', 4, 2, -1, 0x2000);
 
@@ -42,7 +42,7 @@ describe('CachedMemoryHost', () => {
     });
 
     it('supports readValue/writeValue round-trips for numbers', () => {
-        const host = new CachedMemoryHost();
+        const host = new MemoryHost();
         const container = {
             base: {} as any,
             anchor: { name: 'num' } as any,
@@ -57,7 +57,7 @@ describe('CachedMemoryHost', () => {
     });
 
     it('supports readValue/writeValue for byte arrays', () => {
-        const host = new CachedMemoryHost();
+        const host = new MemoryHost();
         const bytes = new Uint8Array([1, 2, 3, 4, 5, 6]);
         const container = {
             base: {} as any,

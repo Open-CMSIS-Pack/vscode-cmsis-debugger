@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ReadRegFn, registerAlias, registerNorm } from '../cache/register-cache';
+import { ReadRegFn, registerAlias, registerNorm } from '../memory-host/register-cache';
 
 /** Wide mock covering typical Armv8.1-M core + FP regs. */
 export function createMockCm81MRegisterReader(): ReadRegFn {

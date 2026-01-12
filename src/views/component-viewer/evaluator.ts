@@ -737,8 +737,13 @@ export async function evalNode(node: ASTNode, ctx: EvalContext): Promise<EvalVal
         case 'BooleanLiteral': return (node as BooleanLiteral).value;
 
         case 'Identifier': {
+            const name = (node as Identifier).name;
+            // __Running can appear as a bare identifier; treat it as an intrinsic, not a symbol.
+            if (name === '__Running') {
+                return await routeIntrinsic(ctx, name, []);
+            }
             await mustRef(node, ctx, false);
-            return await mustRead(ctx, (node as Identifier).name);
+            return await mustRead(ctx, name);
         }
 
         case 'MemberAccess': {

@@ -86,7 +86,7 @@ export class StatementRead extends StatementBase {
         // Read from target memory
         const readData = await executionContext.debugTarget.readMemory(baseAddress >>> 0, readBytes);
         if(readData === undefined) {
-            console.error(`${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes, readMemory failed`);
+            console.error(`${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes, read target memory failed`);
             return;
         }
 

@@ -6,8 +6,8 @@
 
 import { DataHost, EvalValue, RefContainer, ScalarType } from './evaluator';
 import { ScvdBase } from './model/scvd-base';
-import { CachedMemoryHost } from './cache/cache';
-import { Cm81MRegisterCache } from './cache/register-cache';
+import { MemoryHost } from './memory-host/memory-host';
+import { Cm81MRegisterCache } from './memory-host/register-cache';
 import { ScvdDebugTarget } from './scvd-debug-target';
 import { FormatSegment } from './parser';
 import { ScvdFormatSpecifier } from './model/scvd-format-specifier';
@@ -15,12 +15,12 @@ import { ScvdMember } from './model/scvd-member';
 
 export class ScvdEvalInterface implements DataHost {
     private _registerCache: Cm81MRegisterCache;
-    private _memHost: CachedMemoryHost;
+    private _memHost: MemoryHost;
     private _debugTarget: ScvdDebugTarget;
     private _formatSpecifier: ScvdFormatSpecifier;
 
     constructor(
-        memHost: CachedMemoryHost,
+        memHost: MemoryHost,
         regHost: Cm81MRegisterCache,
         debugTarget: ScvdDebugTarget,
         formatterSpecifier: ScvdFormatSpecifier
@@ -35,7 +35,7 @@ export class ScvdEvalInterface implements DataHost {
         return this._registerCache;
     }
 
-    private get memHost(): CachedMemoryHost {
+    private get memHost(): MemoryHost {
         return this._memHost;
     }
 

@@ -21,14 +21,16 @@ import { ScvdEvents } from './scvd-events';
 import { Json, ScvdBase } from './scvd-base';
 import { ScvdObjects } from './scvd-object';
 import { ScvdTypedefs } from './scvd-typedef';
-import { getObjectFromJson } from './scvd-utils';
+import { getArrayFromJson, getObjectFromJson } from './scvd-utils';
 import { ExecutionContext } from '../scvd-eval-context';
+import { ScvdBreaks } from './scvd-break';
 
 export class ScvdComponentViewer extends ScvdBase {
     private _componentIdentifier: ScvdComponentIdentifier | undefined;
     private _typedefs: ScvdTypedefs | undefined;
     private _objects: ScvdObjects | undefined;
     private _events: ScvdEvents | undefined;
+    private _breaks: ScvdBreaks | undefined;
 
     constructor(
         parent: ScvdBase | undefined,
@@ -83,6 +85,12 @@ export class ScvdComponentViewer extends ScvdBase {
             this._events.readXml(events);
         }*/
 
+        const allBreaks = this.collectBreakStatements(componentViewer);
+        if(allBreaks.length > 0) {
+            this._breaks = new ScvdBreaks(this);
+            this._breaks.readXml({ break: allBreaks });
+        }
+
         return super.readXml(xml);
     }
 
@@ -101,6 +109,9 @@ export class ScvdComponentViewer extends ScvdBase {
     }
     public get events(): ScvdEvents | undefined {
         return this._events;
+    }
+    public get breaks(): ScvdBreaks | undefined {
+        return this._breaks;
     }
 
     public configureAll(): boolean {
@@ -143,5 +154,36 @@ export class ScvdComponentViewer extends ScvdBase {
         item.children.forEach( (child: ScvdBase) => {
             this.setExecutionContextRecursive(child, executionContext);
         });
+    }
+
+    private collectBreakStatements(node: Json | Json[] | undefined): Json[] {
+        if(node === undefined) {
+            return [];
+        }
+
+        if(Array.isArray(node)) {
+            const breaks: Json[] = [];
+            node.forEach(item => breaks.push(...this.collectBreakStatements(item)));
+            return breaks;
+        }
+
+        if(typeof node !== 'object' || node === null) {
+            return [];
+        }
+
+        const breaks: Json[] = [];
+        const directBreaks = getArrayFromJson(node.break);
+        if(directBreaks !== undefined) {
+            breaks.push(...directBreaks);
+        }
+
+        for (const [key, value] of Object.entries(node)) {
+            if(key === 'break') {
+                continue;   // already processed above
+            }
+            breaks.push(...this.collectBreakStatements(value as Json | Json[] | undefined));
+        }
+
+        return breaks;
     }
 }
