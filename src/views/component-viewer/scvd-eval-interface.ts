@@ -145,10 +145,10 @@ export class ScvdEvalInterface implements DataHost {
         return undefined;
     }
 
-    __GetRegVal(regName: string): number | undefined {
+    async __GetRegVal(regName: string): Promise<number | undefined> {
         const cachedRegVal = this.registerHost.read(regName);
         if (cachedRegVal === undefined) {
-            const value = this.debugTarget.readRegister(regName);
+            const value = await this.debugTarget.readRegister(regName);
             if(value === undefined) {
                 return undefined;
             }
