@@ -9,25 +9,23 @@ interface NonConstCase {
     foldedTo?: { left: string; right: number };
 }
 
-function loadCases(): Case[] {
-    const file = path.join(__dirname, '..', 'testfiles', 'parser-const-eval-cases.json');
-    const raw = fs.readFileSync(file, 'utf8');
-    const data = JSON.parse(raw) as Case[];
-    return data;
+interface ParserCasesFile {
+    constCases: Case[];
+    nonConstCases: NonConstCase[];
 }
 
-function loadNonConstCases(): NonConstCase[] {
-    const file = path.join(__dirname, '..', 'testfiles', 'parser-nonconst-eval-cases.json');
+function loadCases(): ParserCasesFile {
+    const file = path.join(__dirname, '..', 'testfiles', 'cases.json');
     const raw = fs.readFileSync(file, 'utf8');
-    const data = JSON.parse(raw) as NonConstCase[];
+    const data = JSON.parse(raw) as ParserCasesFile;
     return data;
 }
 
 describe('Parser constant folding', () => {
-    const cases = loadCases();
+    const { constCases, nonConstCases } = loadCases();
 
     it('produces constValue for folded expressions', () => {
-        for (const { expr, expected } of cases) {
+        for (const { expr, expected } of constCases) {
             const pr = parseExpression(expr, false);
             expect(pr.diagnostics).toEqual([]);
             expect(pr.constValue).toBe(expected);
@@ -35,7 +33,6 @@ describe('Parser constant folding', () => {
     });
 
     it('keeps constValue undefined for expressions with symbols', () => {
-        const nonConstCases = loadNonConstCases();
         for (const { expr, symbols } of nonConstCases) {
             const pr = parseExpression(expr, false);
             expect(pr.diagnostics).toEqual([]);

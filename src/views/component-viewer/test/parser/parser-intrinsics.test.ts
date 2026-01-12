@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { parseExpression } from '../../parser';
-import { EvalPointCall, Identifier } from '../../parser';
+import { parseExpression, EvalPointCall, Identifier } from '../../parser';
 
 type IntrinsicFixture = {
     intrinsics: string[];
@@ -9,9 +8,10 @@ type IntrinsicFixture = {
 };
 
 function loadFixture(): IntrinsicFixture {
-    const file = path.join(__dirname, '..', 'testfiles', 'parser-intrinsics.json');
+    const file = path.join(__dirname, '..', 'testfiles', 'cases.json');
     const raw = fs.readFileSync(file, 'utf8');
-    return JSON.parse(raw) as IntrinsicFixture;
+    const parsed = JSON.parse(raw) as { intrinsics: string[]; pseudoMembers: string[] };
+    return { intrinsics: parsed.intrinsics, pseudoMembers: parsed.pseudoMembers };
 }
 
 describe('Parser intrinsics', () => {

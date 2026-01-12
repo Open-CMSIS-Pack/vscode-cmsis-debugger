@@ -5,33 +5,32 @@ import { parseExpression, ParseResult } from '../../parser';
 jest.setTimeout(60000);
 
 interface ExpressionRow {
-    i: number;
     expr: string;
     isPrintf?: boolean;
 }
 
-interface MetaRow {
-    _meta: { format: string; total: number };
+interface ExpressionFile {
+    _meta: { format: string; totalOriginal: number; totalUnique: number; sourceFiles: string[] };
+    expressions: ExpressionRow[];
 }
 
-function readJsonl(file: string): { meta: MetaRow; rows: ExpressionRow[] } {
-    const lines = fs.readFileSync(file, 'utf8').trim().split(/\r?\n/);
-    if (lines.length === 0) {
-        throw new Error(`Empty JSONL file: ${file}`);
+function readExpressions(file: string): ExpressionFile {
+    const text = fs.readFileSync(file, 'utf8');
+    const parsed = JSON.parse(text) as ExpressionFile;
+    if (!Array.isArray(parsed.expressions)) {
+        throw new Error(`Expression file missing expressions array: ${file}`);
     }
-    const meta = JSON.parse(lines[0]) as MetaRow;
-    const rows = lines.slice(1).map((l) => JSON.parse(l) as ExpressionRow);
-    return { meta, rows };
+    return parsed;
 }
 
 function parseAll(rows: ExpressionRow[]): { parsed: ParseResult[]; diagnostics: number } {
     let diagnostics = 0;
-    const parsed = rows.map((row) => {
+    const parsed = rows.map((row, idx) => {
         let pr: ParseResult;
         try {
             pr = parseExpression(row.expr, !!row.isPrintf);
         } catch (err) {
-            throw new Error(`Parser threw for expression #${row.i}: ${row.expr}\n${err instanceof Error ? err.stack ?? err.message : String(err)}`);
+            throw new Error(`Parser threw for expression #${idx}: ${row.expr}\n${err instanceof Error ? err.stack ?? err.message : String(err)}`);
         }
         diagnostics += pr.diagnostics?.length ?? 0;
         expect(pr).toBeTruthy();
@@ -44,18 +43,15 @@ function parseAll(rows: ExpressionRow[]): { parsed: ParseResult[]; diagnostics: 
 
 describe('Parser over SCVD expression fixtures', () => {
     const baseDir = path.join(__dirname, '..', 'testfiles');
-    const files = ['RTX5_expressions.jsonl', 'Network_expressions.jsonl', 'USB_expressions.jsonl'];
+    const file = path.join(baseDir, 'expressions.json');
 
     it('parses every expression without throwing', () => {
-        for (const file of files) {
-            const fullPath = path.join(baseDir, file);
-            const { meta, rows } = readJsonl(fullPath);
-            expect(rows.length).toBe(meta._meta.total);
+        const { _meta, expressions } = readExpressions(file);
+        expect(expressions.length).toBe(_meta.totalUnique);
 
-            const { diagnostics } = parseAll(rows);
+        const { diagnostics } = parseAll(expressions);
 
-            // The parser should be tolerant; fail hard if diagnostics explode unexpectedly.
-            expect(diagnostics).toBeGreaterThanOrEqual(0);
-        }
+        // The parser should be tolerant; fail hard if diagnostics explode unexpectedly.
+        expect(diagnostics).toBeGreaterThanOrEqual(0);
     });
 });

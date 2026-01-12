@@ -168,7 +168,7 @@ class MockHost implements DataHost {
 }
 
 function loadCases(): EvaluatorCase[] {
-    const file = path.join(__dirname, '..', 'testfiles', 'evaluator-basic-cases.json');
+    const file = path.join(__dirname, '..', 'testfiles', 'evaluator-basic.json');
     const raw = fs.readFileSync(file, 'utf8');
     return JSON.parse(raw) as EvaluatorCase[];
 }
