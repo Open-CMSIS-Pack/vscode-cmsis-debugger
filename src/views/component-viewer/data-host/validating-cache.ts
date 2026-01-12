@@ -23,26 +23,34 @@ export class ValidatingCache<T> {
     public constructor(private normalize: (key: string) => string = (k) => k) {}
 
     public get(key: string): T | undefined {
-        if (!key) return undefined;
+        if (!key) {
+            return undefined;
+        }
         const norm = this.normalize(key);
         const entry = this.map.get(norm);
         return entry && entry.valid ? entry.value : undefined;
     }
 
     public getEntry(key: string): ValidatingEntry<T> | undefined {
-        if (!key) return undefined;
+        if (!key) {
+            return undefined;
+        }
         const norm = this.normalize(key);
         return this.map.get(norm);
     }
 
     public set(key: string, value: T, valid = true): void {
-        if (!key) return;
+        if (!key) {
+            return;
+        }
         const norm = this.normalize(key);
         this.map.set(norm, { value, valid });
     }
 
     public invalidate(key: string): void {
-        if (!key) return;
+        if (!key) {
+            return;
+        }
         const norm = this.normalize(key);
         const entry = this.map.get(norm);
         if (entry) {
@@ -63,7 +71,9 @@ export class ValidatingCache<T> {
     }
 
     public delete(key: string): boolean {
-        if (!key) return false;
+        if (!key) {
+            return false;
+        }
         const norm = this.normalize(key);
         return this.map.delete(norm);
     }
