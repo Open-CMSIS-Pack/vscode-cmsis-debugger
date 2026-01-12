@@ -262,7 +262,7 @@ export class ScvdDebugTarget {
     }
 
 
-    public readRegister(name: string): number | undefined {
+    public async readRegister(name: string): Promise<number | undefined> {
         if(name === undefined) {
             return undefined;
         }
