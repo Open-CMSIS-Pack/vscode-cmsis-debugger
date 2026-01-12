@@ -1,5 +1,5 @@
 // src/views/component-viewer/scvd-eval-interface.ts
-// DataHost using EvalSymbolCache + Cm81MRegisterCache, with:
+// DataHost using EvalSymbolCache + RegisterHost, with:
 //  - per-instance virtual vars (auto-add on first use)
 //  - optional auto-declare unknown globals on write
 //  - module-level helpers to add/read globals without host reference
@@ -7,21 +7,21 @@
 import { DataHost, EvalValue, RefContainer, ScalarType } from './evaluator';
 import { ScvdBase } from './model/scvd-base';
 import { MemoryHost } from './memory-host/memory-host';
-import { Cm81MRegisterCache } from './memory-host/register-cache';
+import { RegisterHost } from './memory-host/register-host';
 import { ScvdDebugTarget } from './scvd-debug-target';
 import { FormatSegment } from './parser';
 import { ScvdFormatSpecifier } from './model/scvd-format-specifier';
 import { ScvdMember } from './model/scvd-member';
 
 export class ScvdEvalInterface implements DataHost {
-    private _registerCache: Cm81MRegisterCache;
+    private _registerCache: RegisterHost;
     private _memHost: MemoryHost;
     private _debugTarget: ScvdDebugTarget;
     private _formatSpecifier: ScvdFormatSpecifier;
 
     constructor(
         memHost: MemoryHost,
-        regHost: Cm81MRegisterCache,
+        regHost: RegisterHost,
         debugTarget: ScvdDebugTarget,
         formatterSpecifier: ScvdFormatSpecifier
     ) {
@@ -31,7 +31,7 @@ export class ScvdEvalInterface implements DataHost {
         this._formatSpecifier = formatterSpecifier;
     }
 
-    private get registerCache(): Cm81MRegisterCache {
+    private get registerCache(): RegisterHost {
         return this._registerCache;
     }
 

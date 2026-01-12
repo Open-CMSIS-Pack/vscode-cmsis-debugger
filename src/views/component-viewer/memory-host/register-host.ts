@@ -41,7 +41,7 @@ export function registerResolveSP(store: Map<string, number>, readThrough: ReadR
 }
 
 
-export class Cm81MRegisterCache {
+export class RegisterHost {
     private store = new Map<string, number>();
     constructor(
         private readonly readReg: ReadRegFn

@@ -16,7 +16,7 @@
 
 import { GDBTargetDebugSession } from '../../debug-session';
 import { MemoryHost } from './memory-host/memory-host';
-import { Cm81MRegisterCache } from './memory-host/register-cache';
+import { RegisterHost } from './memory-host/register-host';
 import { EvalContext } from './evaluator';
 import { createMockCm81MRegisterReader } from './mock/cm81m-registers';
 import { ScvdBase } from './model/scvd-base';
@@ -27,7 +27,7 @@ import { ScvdEvalInterface } from './scvd-eval-interface';
 
 export interface ExecutionContext {
     memoryHost: MemoryHost;
-    registerHost: Cm81MRegisterCache;
+    registerHost: RegisterHost;
     evalContext: EvalContext;
     debugTarget: ScvdDebugTarget;
 }
@@ -37,7 +37,7 @@ export class ScvdEvalContext {
     private _ctx: EvalContext;
     private _evalHost: ScvdEvalInterface;
     private _memoryHost: MemoryHost;
-    private _registerHost: Cm81MRegisterCache;
+    private _registerHost: RegisterHost;
     private _debugTarget: ScvdDebugTarget;
     private _formatSpecifier: ScvdFormatSpecifier;
     private _model: ScvdComponentViewer;
@@ -47,7 +47,7 @@ export class ScvdEvalContext {
     ) {
         this._model = model;
         this._memoryHost = new MemoryHost();
-        this._registerHost = new Cm81MRegisterCache(createMockCm81MRegisterReader());
+        this._registerHost = new RegisterHost(createMockCm81MRegisterReader());
         this._debugTarget = new ScvdDebugTarget();
         this._formatSpecifier = new ScvdFormatSpecifier();
         this._evalHost = new ScvdEvalInterface(this._memoryHost, this._registerHost, this._debugTarget, this._formatSpecifier);
@@ -70,7 +70,7 @@ export class ScvdEvalContext {
         return this._memoryHost !== undefined ? this._memoryHost : (() => { throw new Error('SCVD EvalContext: MemoryHost not initialized'); })();
     }
 
-    private get registerHost(): Cm81MRegisterCache {
+    private get registerHost(): RegisterHost {
         return this._registerHost !== undefined ? this._registerHost : (() => { throw new Error('SCVD EvalContext: RegisterHost not initialized'); })();
     }
 
