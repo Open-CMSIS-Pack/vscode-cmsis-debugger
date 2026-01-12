@@ -229,7 +229,7 @@ export class ScvdEvalInterface implements DataHost {
         const base = container.current;
         const name = base?.name;
         if (name !== undefined) {
-            const count = this.memHost.getArrayElementCount(name);  // this works only for <readlist>, must add for <read>
+            const count = this.memHost.getArrayElementCount(name);  // TOIMPL: this works only for <readlist>, must add for <read>
             return count;
         }
         return undefined;

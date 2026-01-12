@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
-// created using AI
 // evaluator.ts — ScvdBase-only, single container context (base/member/index/current)
 // Strict error semantics: any unresolved ref/value causes throw; top-level returns undefined
 

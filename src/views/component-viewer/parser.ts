@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
-/** generated with AI
+/**
  * Fast, reusable, error-tolerant expression parser with:
  *  - Assignment '=' (right-associative) and C-style compound assignments: +=, -=, *=, /=, %=, <<=, >>=, &=, ^=, |=
  *  - ++ / -- (both prefix and postfix)
