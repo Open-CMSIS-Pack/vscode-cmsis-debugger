@@ -19,6 +19,38 @@ import { ComponentViewerTargetAccess } from './component-viewer-target-access';
 import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-session';
 import { createMockDebugSession } from './component-viewer-controller';
 
+const REGISTER_GDB_ENTRIES: Array<[string, string]> = [
+    // Core
+    ['R0', 'r0'], ['R1', 'r1'], ['R2', 'r2'], ['R3', 'r3'],
+    ['R4', 'r4'], ['R5', 'r5'], ['R6', 'r6'], ['R7', 'r7'],
+    ['R8', 'r8'], ['R9', 'r9'], ['R10', 'r10'], ['R11', 'r11'],
+    ['R12', 'r12'], ['R13', 'r13'], ['R14', 'r14'], ['R15', 'r15'],
+    ['PSP', 'psp'], ['MSP', 'msp'], ['XPSR', 'xpsr'], ['PRIMASK', 'primask'],
+    ['BASEPRI', 'basepri'], ['FAULTMASK', 'faultmask'], ['CONTROL', 'control'],
+
+    // Armv8-M Secure/Non-secure additions
+    ['MSP_NS', 'msp_ns'], ['PSP_NS', 'psp_ns'], ['MSP_S', 'msp_s'], ['PSP_S', 'psp_s'],
+    ['MSPLIM_S', 'msplim_s'], ['PSPLIM_S', 'psplim_s'], ['MSPLIM_NS', 'msplim_ns'], ['PSPLIM_NS', 'psplim_ns'],
+    ['SYSREGS_S', 'sysregs_s'], ['SYSREGS_NS', 'sysregs_ns'], ['SECURITY', 'security'],
+    ['PRIMASK_S', 'primask_s'], ['BASEPRI_S', 'basepri_s'], ['FAULTMASK_S', 'faultmask_s'], ['CONTROL_S', 'control_s'],
+    ['PRIMASK_NS', 'primask_ns'], ['BASEPRI_NS', 'basepri_ns'], ['FAULTMASK_NS', 'faultmask_ns'], ['CONTROL_NS', 'control_ns'],
+];
+
+/** Full mapping of register names to the GDB names used when requesting them. */
+const REGISTER_GDB_MAP = new Map<string, string>(REGISTER_GDB_ENTRIES);
+
+function normalize(name: string): string {
+    return name.trim().toUpperCase();
+}
+
+function toUint32(value: number): number {
+    return value >>> 0;
+}
+
+export function gdbNameFor(name: string): string | undefined {
+    return REGISTER_GDB_MAP.get(normalize(name));
+}
+
 export interface MemberInfo {
     name: string;
     size: number;
@@ -229,4 +261,20 @@ export class ScvdDebugTarget {
         return undefined;
     }
 
+
+    public readRegister(name: string): number | undefined {
+        if(name === undefined) {
+            return undefined;
+        }
+
+        const gdbName = gdbNameFor(name);
+        if(gdbName === undefined) {
+            console.error(`ScvdDebugTarget: readRegister: could not find GDB name for register: ${name}`);
+            return undefined;
+        }
+
+        const value = 0; // read GDB
+
+        return toUint32(value); // Mock implementation always returns 0
+    }
 }

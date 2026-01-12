@@ -15,56 +15,77 @@
  */
 
 
-export type ReadRegFn = (name: string) => number | undefined;
-
-export function registerNorm(name: string): string {
+function normalize(name: string): string {
     return name.trim().toUpperCase();
 }
 
-export function registerAlias(name: string): string {
-    const n = registerNorm(name);
-    if (n === 'R13') return 'SP';
-    if (n === 'R14') return 'LR';
-    if (n === 'R15') return 'PC';
-    if (n === 'CPSR') return 'XPSR';
-    return n;
+function toUint32(value: number): number {
+    return value >>> 0;
 }
 
-/** Decide SP alias (MSP vs PSP) using CONTROL.SPSEL if available. */
-export function registerResolveSP(store: Map<string, number>, readThrough: ReadRegFn): string {
-    const ctl = store.get('CONTROL') ?? readThrough('CONTROL');
-    if (ctl !== undefined) {
-        const SPSEL = (ctl >>> 1) & 1;
-        return SPSEL ? 'PSP' : 'MSP';
-    }
-    return 'MSP';
+interface RegisterCacheEntry {
+    value: number;
+    isValid: boolean;
 }
-
 
 export class RegisterHost {
-    private store = new Map<string, number>();
-    constructor(
-        private readonly readReg: ReadRegFn
-    ) {
+    private _cache = new Map<string, RegisterCacheEntry>();
+
+    constructor() {
     }
 
-    read(name: string): number | undefined {
-        let key = registerAlias(name);
-        if (key === 'SP') key = registerResolveSP(this.store, this.readReg);
+    private get cache(): Map<string, RegisterCacheEntry> {
+        return this._cache;
+    }
 
-        let v = this.store.get(key);
-        if (v === undefined) {
-            v = this.readReg(key);
-            if (v !== undefined) this.store.set(key, v >>> 0);
+    private setCache(name: string, value: number, isValid: boolean = true): void {
+        const key = normalize(name);
+        const entry = this.cache.get(key);
+        if (entry) {
+            entry.value = toUint32(value);
+            entry.isValid = isValid;
+            this.cache.set(key, entry);
         }
-        return v;
     }
 
-    set(name: string, value: number): void {
-        this.store.set(registerAlias(name), value >>> 0);
+    private getCache(name: string): RegisterCacheEntry | undefined {
+        const key = normalize(name);
+        return this.cache.get(key);
     }
 
-    preload(map: Record<string, number>): void {
-        for (const [k, v] of Object.entries(map)) this.set(k, v);
+
+    // -------- Public API --------
+    public read(name: string): number | undefined {
+        if (!name) {
+            console.error('RegisterHost: read: empty register name');
+            return undefined;
+        }
+        const key = normalize(name);
+        const cached = this.cache.get(key);
+        if (!cached) return undefined;
+        return cached.isValid ? cached.value : undefined;
     }
+
+    public write(name: string, value: number): number | undefined {
+        if (!name) {
+            console.error('RegisterHost: write: empty register name');
+            return undefined;
+        }
+        this.setCache(name, value, true);
+
+        return value;
+    }
+
+    public invalidate(name: string): void {
+        const entry = this.getCache(name);
+        if (entry) {
+            entry.isValid = false;
+            this.setCache(name, entry.value, false);
+        }
+    }
+
+    public clear(): void {
+        this.cache.clear();
+    }
+
 }

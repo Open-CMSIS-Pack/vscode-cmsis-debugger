@@ -18,7 +18,6 @@ import { GDBTargetDebugSession } from '../../debug-session';
 import { MemoryHost } from './memory-host/memory-host';
 import { RegisterHost } from './memory-host/register-host';
 import { EvalContext } from './evaluator';
-import { createMockCm81MRegisterReader } from './mock/cm81m-registers';
 import { ScvdBase } from './model/scvd-base';
 import { ScvdComponentViewer } from './model/scvd-component-viewer';
 import { ScvdFormatSpecifier } from './model/scvd-format-specifier';
@@ -47,7 +46,7 @@ export class ScvdEvalContext {
     ) {
         this._model = model;
         this._memoryHost = new MemoryHost();
-        this._registerHost = new RegisterHost(createMockCm81MRegisterReader());
+        this._registerHost = new RegisterHost();
         this._debugTarget = new ScvdDebugTarget();
         this._formatSpecifier = new ScvdFormatSpecifier();
         this._evalHost = new ScvdEvalInterface(this._memoryHost, this._registerHost, this._debugTarget, this._formatSpecifier);

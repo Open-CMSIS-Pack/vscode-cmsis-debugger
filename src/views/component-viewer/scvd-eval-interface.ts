@@ -31,7 +31,7 @@ export class ScvdEvalInterface implements DataHost {
         this._formatSpecifier = formatterSpecifier;
     }
 
-    private get registerCache(): RegisterHost {
+    private get registerHost(): RegisterHost {
         return this._registerCache;
     }
 
@@ -146,7 +146,16 @@ export class ScvdEvalInterface implements DataHost {
     }
 
     __GetRegVal(regName: string): number | undefined {
-        return this.registerCache.read(regName); // read from register cache
+        const cachedRegVal = this.registerHost.read(regName);
+        if (cachedRegVal === undefined) {
+            const value = this.debugTarget.readRegister(regName);
+            if(value === undefined) {
+                return undefined;
+            }
+            this.registerHost.write(regName, value);
+            return value;
+        }
+        return cachedRegVal;
     }
 
     async __Symbol_exists(symbol: string): Promise<number | undefined> {
