@@ -56,38 +56,38 @@ export class ScvdReadList extends ScvdRead {
     }
 
 
-    set count(value: string | undefined) {
+    public set count(value: string | undefined) {
         if(value !== undefined) {
             this._count = new ScvdExpression(this, value, 'count');
             this._count.setMinMax(ScvdReadList.READ_SIZE_MIN, ScvdReadList.READ_SIZE_MAX);
         }
     }
-    get count(): ScvdExpression | undefined {
+    public get count(): ScvdExpression | undefined {
         return this._count;
     }
 
-    set next(name: string | undefined) {
+    public set next(name: string | undefined) {
         this._next = name;
     }
-    get next(): string | undefined {
+    public get next(): string | undefined {
         return this._next;
     }
 
-    set init(value: NumberTypeInput | undefined) {
+    public set init(value: NumberTypeInput | undefined) {
         if(value !== undefined) {
             this._init = new NumberType(value).value;
         }
     }
-    get init(): number {
+    public get init(): number {
         return this._init;
     }
 
-    set based(value: NumberTypeInput | undefined) {
+    public set based(value: NumberTypeInput | undefined) {
         if(value !== undefined) {
             this._based = new NumberType(value).value;
         }
     }
-    get based(): number {
+    public get based(): number {
         return this._based;
     }
 

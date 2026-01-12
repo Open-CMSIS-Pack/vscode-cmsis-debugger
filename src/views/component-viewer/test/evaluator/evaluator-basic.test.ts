@@ -74,16 +74,16 @@ class MockHost implements DataHost {
         return ref;
     }
 
-    getSymbolRef(_container: RefContainer, name: string, _forWrite?: boolean): MockRef | undefined {
+    public getSymbolRef(_container: RefContainer, name: string, _forWrite?: boolean): MockRef | undefined {
         return this.symbols.get(name);
     }
 
-    getMemberRef(container: RefContainer, property: string, _forWrite?: boolean): MockRef | undefined {
+    public getMemberRef(container: RefContainer, property: string, _forWrite?: boolean): MockRef | undefined {
         const base = this.resolveElement(container.current as MockRef, container.index);
         return base?.members.get(property);
     }
 
-    readValue(container: RefContainer): EvalValue | undefined {
+    public readValue(container: RefContainer): EvalValue | undefined {
         const ref =
             (container.member as MockRef | undefined) ??
             this.resolveElement(container.current as MockRef, container.index) ??
@@ -91,7 +91,7 @@ class MockHost implements DataHost {
         return ref?.value;
     }
 
-    writeValue(container: RefContainer, value: EvalValue): EvalValue | undefined {
+    public writeValue(container: RefContainer, value: EvalValue): EvalValue | undefined {
         const ref =
             (container.member as MockRef | undefined) ??
             this.resolveElement(container.current as MockRef, container.index) ??
@@ -101,7 +101,7 @@ class MockHost implements DataHost {
         return value;
     }
 
-    _count(container: RefContainer): number | undefined {
+    public _count(container: RefContainer): number | undefined {
         const ref = this.resolveElement(container.current as MockRef, container.index);
         if (!ref) return undefined;
         if (ref.elements.size > 0) return ref.elements.size;
@@ -110,41 +110,41 @@ class MockHost implements DataHost {
         return 0;
     }
 
-    _addr(container: RefContainer): number | undefined {
+    public _addr(container: RefContainer): number | undefined {
         const ref = this.resolveElement(container.current as MockRef, container.index);
         return ref?.addr ?? 0;
     }
 
-    __Running(): number { return 1; }
+    public __Running(): number { return 1; }
 
-    __GetRegVal(reg: string): number | undefined {
+    public __GetRegVal(reg: string): number | undefined {
         return this.regValues.get(reg);
     }
 
-    __FindSymbol(symbol: string): number | undefined {
+    public __FindSymbol(symbol: string): number | undefined {
         const ref = this.symbols.get(symbol);
         if (ref?.addr !== undefined) return ref.addr;
         if (typeof ref?.value === 'number') return ref.value;
         return undefined;
     }
 
-    __CalcMemUsed(a: number, b: number, c: number, d: number): number {
+    public __CalcMemUsed(a: number, b: number, c: number, d: number): number {
         return (a >>> 0) + (b >>> 0) + (c >>> 0) + (d >>> 0);
     }
 
-    __size_of(symbol: string): number | undefined {
+    public __size_of(symbol: string): number | undefined {
         return this.symbols.has(symbol) ? 4 : undefined;
     }
 
-    __Symbol_exists(symbol: string): number {
+    public __Symbol_exists(symbol: string): number {
         return this.symbols.has(symbol) ? 1 : 0;
     }
 
-    __Offset_of(_container: RefContainer, typedefMember: string): number | undefined {
+    public __Offset_of(_container: RefContainer, typedefMember: string): number | undefined {
         return this.symbolOffsets.get(typedefMember);
     }
 
-    getSymbolValue(name: string): EvalValue | undefined {
+    public getSymbolValue(name: string): EvalValue | undefined {
         return this.symbols.get(name)?.value;
     }
 }

@@ -26,13 +26,13 @@ class HookHost implements DataHost {
         this.calls[name] = (this.calls[name] ?? 0) + 1;
     }
 
-    getSymbolRef(_container: RefContainer, name: string): BasicRef | undefined {
+    public getSymbolRef(_container: RefContainer, name: string): BasicRef | undefined {
         this.tick('getSymbolRef');
         if (name === 'arr') return this.arrRef;
         return undefined;
     }
 
-    getMemberRef(_container: RefContainer, property: string): BasicRef | undefined {
+    public getMemberRef(_container: RefContainer, property: string): BasicRef | undefined {
         this.tick('getMemberRef');
         if (property === 'field') return this.fieldRef;
         // allow colon-path anchor to succeed
@@ -40,43 +40,43 @@ class HookHost implements DataHost {
         return undefined;
     }
 
-    getElementStride(): number {
+    public getElementStride(): number {
         this.tick('getElementStride');
         return 4;
     }
 
-    getMemberOffset(): number {
+    public getMemberOffset(): number {
         this.tick('getMemberOffset');
         return 2;
     }
 
-    getElementRef(): BasicRef {
+    public getElementRef(): BasicRef {
         this.tick('getElementRef');
         return this.elemRef;
     }
 
-    getByteWidth(): number {
+    public getByteWidth(): number {
         this.tick('getByteWidth');
         return 4;
     }
 
-    resolveColonPath(_container: RefContainer, parts: string[]): EvalValue {
+    public resolveColonPath(_container: RefContainer, parts: string[]): EvalValue {
         this.tick('resolveColonPath');
         return parts.length * 100; // simple sentinel
     }
 
-    readValue(container: RefContainer): EvalValue | undefined {
+    public readValue(container: RefContainer): EvalValue | undefined {
         this.tick('readValue');
         const off = container.offsetBytes ?? 0;
         return this.values.get(off);
     }
 
-    writeValue(_container: RefContainer, value: EvalValue): EvalValue | undefined {
+    public writeValue(_container: RefContainer, value: EvalValue): EvalValue | undefined {
         this.tick('writeValue');
         return value;
     }
 
-    formatPrintf(spec: string, value: EvalValue, container: RefContainer): string {
+    public formatPrintf(spec: string, value: EvalValue, container: RefContainer): string {
         this.tick('formatPrintf');
         this.lastFormattingContainer = container;
         return `fmt-${spec}-${value}`;

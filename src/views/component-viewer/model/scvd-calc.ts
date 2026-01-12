@@ -47,11 +47,11 @@ export class ScvdCalc extends ScvdBase {
         return super.readXml(xml);
     }
 
-    get cond(): ScvdCondition | undefined {
+    public get cond(): ScvdCondition | undefined {
         return this._cond;
     }
 
-    set cond(value: string | undefined) {
+    public set cond(value: string | undefined) {
         if (value !== undefined) {
             if( this._cond === undefined) {
                 this._cond = new ScvdCondition(this, value);
@@ -68,7 +68,7 @@ export class ScvdCalc extends ScvdBase {
         return super.getConditionResult();
     }
 
-    get expression(): ScvdExpression[] {
+    public get expression(): ScvdExpression[] {
         return this._expression;
     }
 

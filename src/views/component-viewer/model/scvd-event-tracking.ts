@@ -41,11 +41,11 @@ export class ScvdEventTracking extends ScvdBase {
         this.mode = mode;
     }
 
-    get mode(): ScvdEventTrackingMode | undefined {
+    public get mode(): ScvdEventTrackingMode | undefined {
         return this._mode;
     }
 
-    set mode(value: string | undefined) {
+    public set mode(value: string | undefined) {
         if(value !== undefined) {
             this._mode = ScvdEventTrackingMode[value as keyof typeof ScvdEventTrackingMode];
         }

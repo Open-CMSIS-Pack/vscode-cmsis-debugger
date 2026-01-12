@@ -67,20 +67,20 @@ export class NumberType {
         }
     }
 
-    get numOfDigits() {
+    public get numOfDigits() {
         return this._value.numOfDigits;
     }
-    set numOfDigits(value: number) {
+    public set numOfDigits(value: number) {
         if (value < 1) {
             value = 1;
         }
         this._value.numOfDigits = value;
     }
 
-    get numOfDisplayBits() {
+    public get numOfDisplayBits() {
         return this._value.numOfDisplayBits;
     }
-    set numOfDisplayBits(value: number) {
+    public set numOfDisplayBits(value: number) {
         if (value < 1) {
             value = 1;
         }

@@ -56,11 +56,11 @@ export class ScvdVar extends ScvdBase {
         }
     }
 
-    get size(): number | undefined {
+    public get size(): number | undefined {
         return this._size;
     }
 
-    set size(value: NumberTypeInput | undefined) {
+    public set size(value: NumberTypeInput | undefined) {
         if(value !== undefined) {
             this._size = new NumberType(value).value;
         }
@@ -89,10 +89,10 @@ export class ScvdVar extends ScvdBase {
         return val;
     }
 
-    get type(): ScvdDataType | undefined {
+    public get type(): ScvdDataType | undefined {
         return this._type;
     }
-    set type(value: string | undefined) {
+    public set type(value: string | undefined) {
         if (value !== undefined) {
             if( this._type === undefined) {
                 this._type = new ScvdDataType(this, value);
@@ -124,11 +124,11 @@ export class ScvdVar extends ScvdBase {
         return this.type?.getIsPointer() ?? false;
     }
 
-    get offset(): ScvdExpression | undefined {
+    public get offset(): ScvdExpression | undefined {
         return this._offset;
     }
 
-    set offset(value: string | undefined) {
+    public set offset(value: string | undefined) {
         if(value !== undefined) {
             this._offset = new ScvdExpression(this, value, 'offset');
         }

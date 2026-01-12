@@ -95,12 +95,12 @@ class Tokenizer {
     private i = 0;
     private n = 0;
     constructor(s: string) { this.reset(s); }
-    reset(s: string) { this.s = s; this.i = 0; this.n = s.length; }
-    eof() { return this.i >= this.n; }
-    peek(k=0) { const j = this.i + k; return j < this.n ? this.s.charAt(j) : ''; }
-    advance(k=1) { this.i += k; }
-    skipWS() { while (!this.eof() && /\s/.test(this.s.charAt(this.i))) this.i++; }
-    next(): Token {
+    public reset(s: string) { this.s = s; this.i = 0; this.n = s.length; }
+    public eof() { return this.i >= this.n; }
+    public peek(k=0) { const j = this.i + k; return j < this.n ? this.s.charAt(j) : ''; }
+    public advance(k=1) { this.i += k; }
+    public skipWS() { while (!this.eof() && /\s/.test(this.s.charAt(this.i))) this.i++; }
+    public next(): Token {
         this.skipWS();
         if (this.eof()) return { kind:'EOF', value:'', start:this.i, end:this.i };
 
@@ -270,7 +270,7 @@ export class Parser {
     /**
      * Wrapper that keeps diagnostics when the underlying parse throws.
      */
-    parseWithDiagnostics(input: string, isPrintExpression: boolean): ParseResult {
+    public parseWithDiagnostics(input: string, isPrintExpression: boolean): ParseResult {
         try {
             return this.parse(input, isPrintExpression);
         } catch (e) {
@@ -292,7 +292,7 @@ export class Parser {
         }
     }
 
-    parse(input: string, isPrintExpression: boolean): ParseResult {
+    public parse(input: string, isPrintExpression: boolean): ParseResult {
         this.reinit(input);
 
         let ast: ASTNode;

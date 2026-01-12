@@ -54,7 +54,7 @@ export class ScvdEvents extends ScvdBase {
         return super.readXml(xml);
     }
 
-    get event(): ScvdEvent[] {
+    public get event(): ScvdEvent[] {
         return this._event;
     }
 
@@ -64,7 +64,7 @@ export class ScvdEvents extends ScvdBase {
         return event;
     }
 
-    get group(): ScvdGroup[] {
+    public get group(): ScvdGroup[] {
         return this._group;
     }
     public addGroup(): ScvdGroup {

@@ -48,12 +48,12 @@ export class ScvdEvalInterface implements DataHost {
     }
 
     // ---------------- DataHost Interface ----------------
-    getSymbolRef(container: RefContainer, name: string, _forWrite?: boolean): ScvdBase | undefined {
+    public getSymbolRef(container: RefContainer, name: string, _forWrite?: boolean): ScvdBase | undefined {
         const symbol = container.base.getSymbol?.(name);
         return symbol;
     }
 
-    getMemberRef(container: RefContainer, property: string, _forWrite?: boolean): ScvdBase | undefined {
+    public getMemberRef(container: RefContainer, property: string, _forWrite?: boolean): ScvdBase | undefined {
         const base = container.current;
         return base?.getMember(property);
     }
@@ -61,7 +61,7 @@ export class ScvdEvalInterface implements DataHost {
     // Optional helper used by the evaluator
     // Returns the byte width of a ref (scalars, structs, arrays – host-defined).
     // getTargetSize, getTypeSize, getVirtualSize
-    async getByteWidth(ref: ScvdBase): Promise<number | undefined> {
+    public async getByteWidth(ref: ScvdBase): Promise<number | undefined> {
         const isPointer = ref.getIsPointer();
         if(isPointer) {
             return 4;   // pointer size
@@ -79,7 +79,7 @@ export class ScvdEvalInterface implements DataHost {
     /* bytes per element (including any padding/alignment inside the array layout).
        Stride only answers: “how far do I move to get from element i to i+1?”
     */
-    getElementStride(ref: ScvdBase): number {
+    public getElementStride(ref: ScvdBase): number {
         const isPointer = ref.getIsPointer();
         if(isPointer) {
             return 4;   // pointer size
@@ -96,7 +96,7 @@ export class ScvdEvalInterface implements DataHost {
         return 0;
     }
 
-    async getMemberOffset(_base: ScvdBase, member: ScvdBase): Promise<number | undefined> {
+    public async getMemberOffset(_base: ScvdBase, member: ScvdBase): Promise<number | undefined> {
         const offset = await member.getMemberOffset();
         if(offset === undefined) {
             console.error(`ScvdEvalInterface.getMemberOffset: offset undefined for ${member.getDisplayLabel()}`);
@@ -105,7 +105,7 @@ export class ScvdEvalInterface implements DataHost {
         return offset;
     }
 
-    async getValueType(container: RefContainer): Promise<string | ScalarType | undefined> {
+    public async getValueType(container: RefContainer): Promise<string | ScalarType | undefined> {
         const base = container.current;
         const type = base?.getValueType();
         if (type !== undefined) {
@@ -115,7 +115,7 @@ export class ScvdEvalInterface implements DataHost {
     }
 
     /* ---------------- Read/Write via caches ---------------- */
-    readValue(container: RefContainer): EvalValue {
+    public readValue(container: RefContainer): EvalValue {
         try {
             const value = this.memHost.readValue(container);
             return value;
@@ -125,7 +125,7 @@ export class ScvdEvalInterface implements DataHost {
         }
     }
 
-    writeValue(container: RefContainer, value: EvalValue): EvalValue {
+    public writeValue(container: RefContainer, value: EvalValue): EvalValue {
         try {
             this.memHost.writeValue(container, value);
             return value;
@@ -137,7 +137,7 @@ export class ScvdEvalInterface implements DataHost {
 
     /* ---------------- Intrinsics ---------------- */
 
-    async __FindSymbol(symbolName: string): Promise<number | undefined> {
+    public async __FindSymbol(symbolName: string): Promise<number | undefined> {
         if (typeof symbolName === 'string') {
             const symbolAddress = await this.debugTarget.findSymbolAddress(symbolName);
             return symbolAddress;
@@ -145,7 +145,7 @@ export class ScvdEvalInterface implements DataHost {
         return undefined;
     }
 
-    async __GetRegVal(regName: string): Promise<number | undefined> {
+    public async __GetRegVal(regName: string): Promise<number | undefined> {
         const cachedRegVal = this.registerHost.read(regName);
         if (cachedRegVal === undefined) {
             const value = await this.debugTarget.readRegister(regName);
@@ -158,7 +158,7 @@ export class ScvdEvalInterface implements DataHost {
         return cachedRegVal;
     }
 
-    async __Symbol_exists(symbol: string): Promise<number | undefined> {
+    public async __Symbol_exists(symbol: string): Promise<number | undefined> {
         return await this.debugTarget.findSymbolAddress(symbol) ? 1 : 0;
     }
 
@@ -168,7 +168,7 @@ export class ScvdEvalInterface implements DataHost {
     Bit 20..28 Used memory in percent (how many percent of FillPattern are overwritten)
     Bit 31 Memory overflow (MagicValue is overwritten)
     */
-    __CalcMemUsed(stackAddress: number, stackSize: number, fillPattern: number, magicValue: number): number | undefined {
+    public __CalcMemUsed(stackAddress: number, stackSize: number, fillPattern: number, magicValue: number): number | undefined {
         const memUsed = this.debugTarget.calculateMemoryUsage(
             stackAddress >>> 0,
             stackSize >>> 0,
@@ -179,7 +179,7 @@ export class ScvdEvalInterface implements DataHost {
     }
 
     // Number of elements of an array defined by a symbol in user application.
-    __size_of(symbol: string): number | undefined {
+    public __size_of(symbol: string): number | undefined {
         const arrayElements = this.debugTarget.getNumArrayElements(symbol);
         if (arrayElements != undefined) {
             return arrayElements;
@@ -187,7 +187,7 @@ export class ScvdEvalInterface implements DataHost {
         return undefined;
     }
 
-    async __Offset_of(container: RefContainer, typedefMember: string): Promise<number | undefined> {
+    public async __Offset_of(container: RefContainer, typedefMember: string): Promise<number | undefined> {
         const memberRef = container.base.getMember(typedefMember);
         if (memberRef) {
             const offset = await memberRef.getMemberOffset();
@@ -196,12 +196,12 @@ export class ScvdEvalInterface implements DataHost {
         return undefined;
     }
 
-    async __Running(): Promise<number | undefined> {
+    public async __Running(): Promise<number | undefined> {
         const isRunning = await this.debugTarget.getTargetIsRunning();
         return isRunning ? 1 : 0;
     }
 
-    _count(container: RefContainer): number | undefined {
+    public _count(container: RefContainer): number | undefined {
         const base = container.current;
         const name = base?.name;
         if (name !== undefined) {
@@ -211,7 +211,7 @@ export class ScvdEvalInterface implements DataHost {
         return undefined;
     }
 
-    _addr(container: RefContainer): number | undefined {
+    public _addr(container: RefContainer): number | undefined {
         const base = container.current;
         const name = base?.name;
         const index = container.index ?? 0;
@@ -222,7 +222,7 @@ export class ScvdEvalInterface implements DataHost {
         return undefined;
     }
 
-    async formatPrintf(spec: FormatSegment['spec'], value: EvalValue, container: RefContainer): Promise<string | undefined> {
+    public async formatPrintf(spec: FormatSegment['spec'], value: EvalValue, container: RefContainer): Promise<string | undefined> {
         const base = container.current;
 
         switch (spec) {

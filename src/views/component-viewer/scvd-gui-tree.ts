@@ -25,11 +25,11 @@ export class ScvdGuiTree implements ScvdGuiInterface {
         return this._parent;
     }
 
-    get classname(): string {
+    public get classname(): string {
         return this.constructor.name;
     }
 
-    get nodeId(): string {
+    public get nodeId(): string {
         return this.classname + '_' + this._nodeId.toString();
     }
 
@@ -80,31 +80,31 @@ export class ScvdGuiTree implements ScvdGuiInterface {
     }
 
     // --------  ScvdGuiInterface methods --------
-    getGuiEntry(): { name: string | undefined; value: string | undefined } {
+    public getGuiEntry(): { name: string | undefined; value: string | undefined } {
         return { name: this._name, value: this._value };
     }
 
-    getGuiChildren(): ScvdGuiInterface[] {
+    public getGuiChildren(): ScvdGuiInterface[] {
         return this.children;
     }
 
-    getGuiName(): string | undefined {
+    public getGuiName(): string | undefined {
         return this.name;
     }
 
-    getGuiValue(): string | undefined {
+    public getGuiValue(): string | undefined {
         return this.value;
     }
 
-    getGuiConditionResult(): boolean {
+    public getGuiConditionResult(): boolean {
         return true;
     }
 
-    getGuiLineInfo(): string | undefined {
+    public getGuiLineInfo(): string | undefined {
         return undefined;
     }
 
-    hasGuiChildren(): boolean {
+    public hasGuiChildren(): boolean {
         return this._children.length > 0;
     }
     // --------  ScvdGuiInterface methods --------

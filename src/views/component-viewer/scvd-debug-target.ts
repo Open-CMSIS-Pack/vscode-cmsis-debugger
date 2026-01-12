@@ -128,10 +128,10 @@ export class ScvdDebugTarget {
     public async getTargetIsRunning(): Promise<boolean> {
         // if the session is a mock session, return mock data. if it's not a mock session, use the target access to get real data
         if(this.activeSession.session.id.startsWith('mock-session-')) {
-            return true; // mock session is always running
+            return false; // mock session is always running
         } else {
             // TODO For real sessions, this functionality is not implemented yet
-            const runningState = true; //await this.targetAccess.evaluateTargetRunningState();
+            const runningState = false; //await this.targetAccess.evaluateTargetRunningState();
             return runningState;
         }
     }

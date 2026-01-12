@@ -103,11 +103,11 @@ export class ScvdItem extends ScvdBase {
         }
     }
 
-    get cond(): ScvdCondition | undefined {
+    public get cond(): ScvdCondition | undefined {
         return this._cond;
     }
 
-    set cond(value: string | undefined) {
+    public set cond(value: string | undefined) {
         if (value !== undefined) {
             this._cond = new ScvdCondition(this, value);
             return;
@@ -121,22 +121,22 @@ export class ScvdItem extends ScvdBase {
         return super.getConditionResult();
     }
 
-    get bold(): ScvdCondition | undefined {
+    public get bold(): ScvdCondition | undefined {
         return this._bold;
     }
 
-    set bold(value: string | undefined) {
+    public set bold(value: string | undefined) {
         if (value !== undefined) {
             this._bold = new ScvdCondition(this, value);
             return;
         }
     }
 
-    get alert(): ScvdCondition | undefined {
+    public get alert(): ScvdCondition | undefined {
         return this._alert;
     }
 
-    set alert(value: string | undefined) {
+    public set alert(value: string | undefined) {
         if (value !== undefined) {
             this._alert = new ScvdCondition(this, value);
             return;

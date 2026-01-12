@@ -46,7 +46,7 @@ export class ScvdTypedefs extends ScvdBase {
         return super.readXml(xml);
     }
 
-    get typedef(): ScvdTypedef[] {
+    public get typedef(): ScvdTypedef[] {
         return this._typedef;
     }
 
@@ -151,23 +151,23 @@ export class ScvdTypedef extends ScvdBase {
         this._targetSize = value;
     }
 
-    get size(): ScvdExpression | undefined {
+    public get size(): ScvdExpression | undefined {
         return this._size;
     }
-    set size(value: string | undefined) {
+    public set size(value: string | undefined) {
         if(value !== undefined) {
             this._size = new ScvdExpression(this, value, 'size');
         }
     }
 
-    get virtualSize(): number | undefined {
+    public get virtualSize(): number | undefined {
         return this._virtualSize;
     }
-    set virtualSize(value: number | undefined) {
+    public set virtualSize(value: number | undefined) {
         this._virtualSize = value;
     }
 
-    set import(value: string | undefined) {
+    public set import(value: string | undefined) {
         if(value !== undefined) {
             if( this._import === undefined) {
                 this._import = new ScvdSymbol(this, value);
@@ -176,7 +176,7 @@ export class ScvdTypedef extends ScvdBase {
             this._import.name = value;
         }
     }
-    get import(): ScvdSymbol | undefined {
+    public get import(): ScvdSymbol | undefined {
         return this._import;
     }
 

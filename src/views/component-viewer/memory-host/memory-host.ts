@@ -13,7 +13,7 @@ export class SymbolCache {
     private map = new Map<string, SymbolEntry>();
     constructor(private makeContainer: (name: string) => MemoryContainer) {}
 
-    getSymbol(name: string): SymbolEntry {
+    public getSymbol(name: string): SymbolEntry {
         let entry = this.map.get(name);
         if (!entry) {
             entry = { name, valid: false, data: this.makeContainer(name) };
@@ -26,7 +26,7 @@ export class SymbolCache {
      *  Returns true if an entry existed and was removed; false otherwise.
      *  Attempts to dispose the underlying MemoryContainer if it supports it.
      */
-    removeSymbol(name: string): boolean {
+    public removeSymbol(name: string): boolean {
         const entry = this.map.get(name);
         if (!entry) return false;
 
@@ -48,9 +48,9 @@ export class SymbolCache {
         return true;
     }
 
-    invalidate(name: string) { const e = this.map.get(name); if (e) e.valid = false; }
-    invalidateAll() { this.map.forEach((e) => e.valid = false); }
-    clear() { this.map.clear(); }
+    public invalidate(name: string) { const e = this.map.get(name); if (e) e.valid = false; }
+    public invalidateAll() { this.map.forEach((e) => e.valid = false); }
+    public clear() { this.map.clear(); }
 }
 
 export class MemoryContainer {
@@ -81,11 +81,11 @@ export class MemoryContainer {
         this.winSize = size;
     }
 
-    get byteLength(): number {
+    public get byteLength(): number {
         return this.store.length;
     }
 
-    read(off: number, size: number): Uint8Array {
+    public read(off: number, size: number): Uint8Array {
         this.ensure(off, size);
         if (!this.buf) {
             console.error('window not initialized');
@@ -96,7 +96,7 @@ export class MemoryContainer {
     }
 
     // allow writing with optional zero padding to `actualSize`
-    write(off: number, data: Uint8Array, actualSize?: number): void {
+    public write(off: number, data: Uint8Array, actualSize?: number): void {
         const total = actualSize !== undefined ? Math.max(actualSize, data.length) : data.length;
         this.ensure(off, total);
         if (!this.buf) {
@@ -180,7 +180,7 @@ export class MemoryHost {
     }
 
     /** Read a value, using byte-only offsets and widths. */
-    readValue(container: RefContainer): EvalValue {
+    public readValue(container: RefContainer): EvalValue {
         const variableName = container.anchor?.name;
         const widthBytes = container.widthBytes ?? 0;
         if (!variableName || widthBytes <= 0) {
@@ -207,7 +207,7 @@ export class MemoryHost {
     }
 
     /** Write a value, using byte-only offsets and widths. */
-    writeValue(container: RefContainer, value: EvalValue, actualSize?: number): void {
+    public writeValue(container: RefContainer, value: EvalValue, actualSize?: number): void {
         const variableName = container.anchor?.name;
         const widthBytes = container.widthBytes ?? 0;
         if (!variableName || widthBytes <= 0) {
@@ -249,7 +249,7 @@ export class MemoryHost {
         entry.data.write(byteOff, buf, total);
     }
 
-    setVariable(
+    public setVariable(
         name: string,
         size: number,
         value: number | Uint8Array,
@@ -318,7 +318,7 @@ export class MemoryHost {
      *                       or `[offset .. end)` if no matching element exists.
      * - `offset` + `size` → exact range `[offset .. offset+size)`.
      */
-    getVariable(name: string, size?: number, offset?: number): number | undefined {
+    public getVariable(name: string, size?: number, offset?: number): number | undefined {
         const entry = this.getEntry(name);
         const totalBytes = entry.data.byteLength ?? 0;
 
@@ -373,36 +373,36 @@ export class MemoryHost {
         return leToNumber(raw);
     }
 
-    invalidate(name?: string): void {
+    public invalidate(name?: string): void {
         if (name === undefined) this.cache.invalidateAll();
         else this.cache.invalidate(name);
     }
 
-    clearVariable(name: string): boolean {
+    public clearVariable(name: string): boolean {
         this.elementMeta.delete(name);
         return this.cache.removeSymbol(name);
     }
 
-    clear(): void {
+    public clear(): void {
         this.elementMeta.clear();
         this.cache.clear();
     }
 
     /** Number of array elements recorded for `name`. Defaults to 1 when unknown. */
-    getArrayElementCount(name: string): number {
+    public getArrayElementCount(name: string): number {
         const m = this.elementMeta.get(name);
         const n = m?.offsets.length ?? 0;
         return n > 0 ? n : 1;
     }
 
     /** All recorded target base addresses (per append) for `name`. */
-    getArrayTargetBases(name: string): (number | undefined)[] {
+    public getArrayTargetBases(name: string): (number | undefined)[] {
         const m = this.elementMeta.get(name);
         return m ? m.bases.slice() : [];
     }
 
     /** Target base address for element `index` of `name` (number | undefined). */
-    getElementTargetBase(name: string, index: number): number | undefined {
+    public getElementTargetBase(name: string, index: number): number | undefined {
         const m = this.elementMeta.get(name);
         if (!m) {
             console.error(`getElementTargetBase: unknown symbol "${name}"`);
@@ -416,7 +416,7 @@ export class MemoryHost {
     }
 
     /** Optional: repair or set an address later. */
-    setElementTargetBase(name: string, index: number, base: number): void {
+    public setElementTargetBase(name: string, index: number, base: number): void {
         const m = this.elementMeta.get(name);
         if (!m) {
             console.error(`setElementTargetBase: unknown symbol "${name}"`);
@@ -433,7 +433,7 @@ export class MemoryHost {
     }
 
     // Optional: if you sometimes need to infer a count from bytes for legacy data
-    getArrayLengthFromBytes(name: string): number {
+    public getArrayLengthFromBytes(name: string): number {
         const m = this.elementMeta.get(name);
         if (!m) return 1;
         if (m.offsets.length > 0) return m.offsets.length;

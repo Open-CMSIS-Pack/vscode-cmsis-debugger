@@ -33,19 +33,19 @@ export class ScvdEventId extends ScvdBase {
         this._id = new ScvdExpression(this, id, 'id');
     }
 
-    get id(): ScvdExpression {
+    public get id(): ScvdExpression {
         return this._id;
     }
 
-    get messageNumber(): number | undefined {
+    public get messageNumber(): number | undefined {
         return this._messageNumber;
     }
 
-    get componentNumber(): number | undefined {
+    public get componentNumber(): number | undefined {
         return this._componentNumber;
     }
 
-    get level(): number | undefined {
+    public get level(): number | undefined {
         return this._level;
     }
 

@@ -51,7 +51,7 @@ export class Resolver {
         this._model = value;
     }
 
-    get typesCache(): ScvdTypesCache | undefined {
+    public get typesCache(): ScvdTypesCache | undefined {
         return this._typesCache;
     }
 

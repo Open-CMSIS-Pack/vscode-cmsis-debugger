@@ -97,41 +97,41 @@ export class ScvdList extends ScvdBase {
         return true;
     }
 
-    get start(): ScvdExpression | undefined {
+    public get start(): ScvdExpression | undefined {
         return this._start;
     }
 
-    set start(value: string | undefined) {
+    public set start(value: string | undefined) {
         if(value !== undefined) {
             this._start = new ScvdExpression(this, value, 'start');
         }
     }
 
-    get limit(): ScvdExpression | undefined {
+    public get limit(): ScvdExpression | undefined {
         return this._limit;
     }
 
-    set limit(value: string | undefined) {
+    public set limit(value: string | undefined) {
         if(value !== undefined) {
             this._limit = new ScvdExpression(this, value, 'limit');
         }
     }
 
-    get while(): ScvdExpression | undefined {
+    public get while(): ScvdExpression | undefined {
         return this._while;
     }
 
-    set while(value: string | undefined) {
+    public set while(value: string | undefined) {
         if(value !== undefined) {
             this._while = new ScvdExpression(this, value, 'while');
         }
     }
 
-    get cond(): ScvdCondition | undefined {
+    public get cond(): ScvdCondition | undefined {
         return this._cond;
     }
 
-    set cond(value: string | undefined) {
+    public set cond(value: string | undefined) {
         if(value !== undefined) {
             this._cond = new ScvdCondition(this, value);
         }

@@ -67,46 +67,46 @@ export class ScvdRead extends ScvdBase {
         }
     }
 
-    set symbol(name: string | undefined) {
+    public set symbol(name: string | undefined) {
         if(this._symbol === undefined && name !== undefined) {
             this._symbol = new ScvdSymbol(this, name);
             return;
         }
     }
 
-    get symbol(): ScvdSymbol | undefined {
+    public get symbol(): ScvdSymbol | undefined {
         return this._symbol;
     }
 
-    set offset(value: string | undefined) {
+    public set offset(value: string | undefined) {
         if(value !== undefined) {
             this._offset = new ScvdExpression(this, value, 'offset');
             return;
         }
     }
 
-    get offset(): ScvdExpression | undefined {
+    public get offset(): ScvdExpression | undefined {
         return this._offset;
     }
 
-    set const(value: NumberTypeInput | undefined) {
+    public set const(value: NumberTypeInput | undefined) {
         if(value !== undefined) {
             this._const = new NumberType(value).value ? true : false;
         }
     }
 
-    get const(): boolean {
+    public get const(): boolean {
         return this._const;
     }
 
-    set cond(value: string | undefined) {
+    public set cond(value: string | undefined) {
         if(value !== undefined) {
             this._cond = new ScvdCondition(this, value);
             return;
         }
     }
 
-    get cond(): ScvdCondition | undefined {
+    public get cond(): ScvdCondition | undefined {
         return this._cond;
     }
 
@@ -117,7 +117,7 @@ export class ScvdRead extends ScvdBase {
         return super.getConditionResult();
     }
 
-    get size(): ScvdExpression | undefined {
+    public get size(): ScvdExpression | undefined {
         return this._size;
     }
 
@@ -137,17 +137,17 @@ export class ScvdRead extends ScvdBase {
     }
 
 
-    set size(value: string | undefined) {
+    public set size(value: string | undefined) {
         if(value !== undefined) {
             this._size = new ScvdExpression(this, value, 'size');
             return;
         }
     }
 
-    get endian(): ScvdEndian | undefined {
+    public get endian(): ScvdEndian | undefined {
         return this._endian;
     }
-    set endian(value: string | undefined) {
+    public set endian(value: string | undefined) {
         if(value !== undefined) {
             if( this._endian === undefined) {
                 this._endian = new ScvdEndian(this, value);

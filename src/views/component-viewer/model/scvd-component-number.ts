@@ -21,11 +21,11 @@ import { ScvdBase } from './scvd-base';
 export class ScvdComponentNumber extends ScvdBase {
     private _componentNumber: number | undefined;
 
-    get componentNumber(): number | undefined {
+    public get componentNumber(): number | undefined {
         return this._componentNumber;
     }
 
-    set componentNumber(value: number | undefined) {
+    public set componentNumber(value: number | undefined) {
         this._componentNumber = value;
     }
 

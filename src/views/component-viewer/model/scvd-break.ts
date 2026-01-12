@@ -41,7 +41,7 @@ export class ScvdBreaks extends ScvdBase {
         return super.readXml(xml);
     }
 
-    get breaks(): ScvdBreak[] {
+    public get breaks(): ScvdBreak[] {
         return this._break;
     }
 

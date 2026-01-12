@@ -58,11 +58,11 @@ export abstract class ScvdBase {
         this._parent?._children.push(this);
     }
 
-    castToDerived<C extends AnyScvdCtor>(ctor: C): InstanceType<C> | undefined {
+    public castToDerived<C extends AnyScvdCtor>(ctor: C): InstanceType<C> | undefined {
         return this instanceof ctor ? (this as InstanceType<C>) : undefined;
     }
 
-    isDerived<C extends AnyScvdCtor>(ctor: C): this is InstanceType<C> {
+    public isDerived<C extends AnyScvdCtor>(ctor: C): this is InstanceType<C> {
         return this instanceof ctor;
     }
 
@@ -154,11 +154,11 @@ export abstract class ScvdBase {
         return this._children;
     }
 
-    get nodeId(): string {
+    public get nodeId(): string {
         return this.classname + '_' + this._nodeId.toString();
     }
 
-    get classname(): string {
+    public get classname(): string {
         return this.constructor.name;
     }
 

@@ -46,15 +46,15 @@ export class StatementEngine {
         this._executionContext = executionContext;
     }
 
-    get model(): ScvdComponentViewer {
+    public get model(): ScvdComponentViewer {
         return this._model;
     }
 
-    get statementTree(): StatementBase | undefined {
+    public get statementTree(): StatementBase | undefined {
         return this._statementTree;
     }
 
-    get executionContext(): ExecutionContext {
+    public get executionContext(): ExecutionContext {
         return this._executionContext;
     }
 
