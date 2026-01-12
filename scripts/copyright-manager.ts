@@ -1,7 +1,7 @@
 #!npx tsx
 
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ const COPYRIGHT_TEXT = `/**
  */`;
 
 // Regular expression to match the copyright notice
-const COPYRIGHT_REGEX = /\/\*\*\n \* Copyright 2025(?:-(?:20\d{2}))? Arm Limited[\s\S]*?\*\//;
+const COPYRIGHT_REGEX = /\/\*\*\n \* Copyright 20\d{2}(?:-(?:20\d{2}))? Arm Limited[\s\S]*?\*\//;
 
 
 function getFiles(): string[] {

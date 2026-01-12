@@ -55,12 +55,9 @@ jobs:
         run: |
           DESCRIBE=$(git describe --tags | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+')
           QUALIFIER=$(git describe --tags | grep -Eo '[0-9]+\-g[0-9a-f]+$')
+          BRANCH=$(echo "${{ github.ref_name }}" | sed 's/[^0-9A-Za-z-]/-/g')
           yarn version -s --no-git-tag-version --new-version "${DESCRIBE#v}"
-          if [ -n "${QUALIFIER}" ]; then
-            yarn version --no-git-tag-version --prepatch --preid "${{ github.ref_name }}${QUALIFIER}"
-          else
-            yarn version --no-git-tag-version --prepatch --preid "${{ github.ref_name }}"
-          fi
+          yarn version -s --no-git-tag-version --prepatch --preid "${BRANCH}${QUALIFIER:+-${QUALIFIER}}"
           VERSION="$(jq -r ".version" < package.json)"
           sed -i "s/## Unreleased/## ${VERSION}/" CHANGELOG.md
           echo "Version is ${VERSION}"
@@ -176,3 +173,56 @@ jobs:
           name: vsix-package-${{ matrix.target }}
           path: ./*.vsix
           retention-days: 1
+
+  validate:
+    name: Validate package (${{ matrix.target }})
+    runs-on: ${{ matrix.platform }}
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: win32-x64
+            platform: windows-2022
+          - target: win32-arm64
+            platform: windows-2022
+          - target: linux-x64
+            platform: ubuntu-24.04
+          - target: linux-arm64
+            platform: ubuntu-24.04
+          - target: darwin-arm64
+            platform: macos-14
+    permissions:
+      packages: read
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          node-version-file: package.json
+          registry-url: https://npm.pkg.github.com
+          always-auth: true
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: |
+          yarn --frozen-lockfile --ignore-scripts --prefer-offline
+
+      - name: Download vsix package
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          pattern: vsix-package-${{ matrix.target }}
+
+      - name: Validate VSIX contents
+        shell: bash
+        run: |
+          VSIX_FILE=$(ls *.vsix)
+          echo "Validating VSIX: $VSIX_FILE"
+          yarn validate-tools --target ${{ matrix.target }} --vsix "$VSIX_FILE"
