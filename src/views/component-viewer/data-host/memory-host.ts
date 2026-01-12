@@ -1,71 +1,7 @@
 // memory-host.ts
 
 import { EvalValue, RefContainer } from '../evaluator';
-
-/** Entry stored in the symbol cache. */
-export interface SymbolEntry {
-  name: string;
-  valid: boolean;
-  data: MemoryContainer;
-}
-
-export class SymbolCache {
-    private map = new Map<string, SymbolEntry>();
-    constructor(private makeContainer: (name: string) => MemoryContainer) {}
-
-    public getSymbol(name: string): SymbolEntry {
-        let entry = this.map.get(name);
-        if (!entry) {
-            entry = { name, valid: false, data: this.makeContainer(name) };
-            this.map.set(name, entry);
-        }
-        return entry;
-    }
-
-    /** Remove a symbol from the cache.
-     *  Returns true if an entry existed and was removed; false otherwise.
-     *  Attempts to dispose the underlying MemoryContainer if it supports it.
-     */
-    public removeSymbol(name: string): boolean {
-        const entry = this.map.get(name);
-        if (!entry) {
-            return false;
-        }
-
-        // Best-effort cleanup of the backing container (optional)
-        const maybe = entry.data as unknown as {
-            dispose?: () => void;
-            free?: () => void;
-            clear?: () => void;
-        };
-        try {
-            if (typeof maybe?.dispose === 'function') {
-                maybe.dispose();
-            } else if (typeof maybe?.free === 'function') {
-                maybe.free();
-            } else if (typeof maybe?.clear === 'function') {
-                maybe.clear();
-            }
-        } catch {
-            // ignore cleanup errors but still remove from the map
-        }
-
-        this.map.delete(name);
-        return true;
-    }
-
-    public invalidate(name: string) {
-        const e = this.map.get(name); if (e) {
-            e.valid = false;
-        }
-    }
-    public invalidateAll() {
-        this.map.forEach((e) => e.valid = false);
-    }
-    public clear() {
-        this.map.clear();
-    }
-}
+import { ValidatingCache } from './validating-cache';
 
 export class MemoryContainer {
     constructor(
@@ -111,9 +47,9 @@ export class MemoryContainer {
         return this.buf.subarray(rel, rel + size);
     }
 
-    // allow writing with optional zero padding to `actualSize`
-    public write(off: number, data: Uint8Array, actualSize?: number): void {
-        const total = actualSize !== undefined ? Math.max(actualSize, data.length) : data.length;
+    // allow writing with optional zero padding to `virtualSize`
+    public write(off: number, data: Uint8Array, virtualSize?: number): void {
+        const total = virtualSize !== undefined ? Math.max(virtualSize, data.length) : data.length;
         this.ensure(off, total);
         if (!this.buf) {
             console.error('window not initialized');
@@ -129,6 +65,13 @@ export class MemoryContainer {
         if (extra > 0) {
             this.buf.fill(0, rel + data.length, rel + total);
         }
+    }
+
+    public clear(): void {
+        this.buf = null;
+        this.winStart = 0;
+        this.winSize = 0;
+        this.store = new Uint8Array(0);
     }
 }
 
@@ -162,7 +105,7 @@ type ElementMeta = {
 
 /** The piece your DataHost delegates to for readValue/writeValue. */
 export class MemoryHost {
-    private cache: SymbolCache;
+    private cache = new ValidatingCache<MemoryContainer>();
     private endianness: Endianness;
     private elementMeta = new Map<string, ElementMeta>();
 
@@ -186,27 +129,31 @@ export class MemoryHost {
     }
 
     constructor() {
-        this.cache = new SymbolCache((name) => new MemoryContainer(name));
         this.endianness = 'little';
     }
 
-    private getEntry(varName: string): SymbolEntry {
-        const entry = this.cache.getSymbol(varName);
-        return entry;
+    private getContainer(varName: string): MemoryContainer {
+        const entry = this.cache.getEntry(varName);
+        if (entry) {
+            return entry.value;
+        }
+        const created = new MemoryContainer(varName);
+        this.cache.set(varName, created, false);
+        return created;
     }
 
     /** Read a value, using byte-only offsets and widths. */
-    public readValue(container: RefContainer): EvalValue {
-        const variableName = container.anchor?.name;
-        const widthBytes = container.widthBytes ?? 0;
+    public readValue(ref: RefContainer): EvalValue {
+        const variableName = ref.anchor?.name;
+        const widthBytes = ref.widthBytes ?? 0;
         if (!variableName || widthBytes <= 0) {
             return;
         }
 
-        const entry = this.getEntry(variableName);
-        const byteOff = container.offsetBytes ?? 0;
+        const container = this.getContainer(variableName);
+        const byteOff = ref.offsetBytes ?? 0;
 
-        const raw = entry.data.read(byteOff, widthBytes);
+        const raw = container.read(byteOff, widthBytes);
 
         if (this.endianness !== 'little') {
             // TODO: add BE support if needed
@@ -223,15 +170,15 @@ export class MemoryHost {
     }
 
     /** Write a value, using byte-only offsets and widths. */
-    public writeValue(container: RefContainer, value: EvalValue, actualSize?: number): void {
-        const variableName = container.anchor?.name;
-        const widthBytes = container.widthBytes ?? 0;
+    public writeValue(ref: RefContainer, value: EvalValue, virtualSize?: number): void {
+        const variableName = ref.anchor?.name;
+        const widthBytes = ref.widthBytes ?? 0;
         if (!variableName || widthBytes <= 0) {
             return;
         }
 
-        const entry = this.getEntry(variableName);
-        const byteOff = container.offsetBytes ?? 0;
+        const container = this.getContainer(variableName);
+        const byteOff = ref.offsetBytes ?? 0;
 
         let buf: Uint8Array;
 
@@ -258,13 +205,13 @@ export class MemoryHost {
             buf = leIntToBytes(valNum, widthBytes);
         }
 
-        if (actualSize !== undefined && actualSize < widthBytes) {
-            console.error(`writeValue: actualSize (${actualSize}) must be >= widthBytes (${widthBytes})`);
+        if (virtualSize !== undefined && virtualSize < widthBytes) {
+            console.error(`writeValue: virtualSize (${virtualSize}) must be >= widthBytes (${widthBytes})`);
             return;
         }
 
-        const total = actualSize ?? widthBytes;
-        entry.data.write(byteOff, buf, total);
+        const total = virtualSize ?? widthBytes;
+        container.write(byteOff, buf, total);
     }
 
     public setVariable(
@@ -273,43 +220,44 @@ export class MemoryHost {
         value: number | Uint8Array,
         offset: number,                     // NEW: controls where to place the data
         targetBase?: number,       // target base address where it was read from
-        actualSize?: number,                // total logical bytes for this element (>= size)
+        virtualSize?: number,                // total logical bytes for this element (>= size)
     ): void {
         if (!Number.isSafeInteger(offset)) {
             console.error(`setVariable: offset must be a safe integer, got ${offset}`);
             return;
         }
 
-        const entry = this.getEntry(name);
+        const container = this.getContainer(name);
 
         // Decide where to write:
         //  - offset === -1 → append at the end
         //  - otherwise     → write at the given offset
-        const appendOff = offset === -1 ? (entry.data.byteLength ?? 0) : offset;
+        const appendOff = offset === -1 ? (container.byteLength ?? 0) : offset;
         if (appendOff < 0) {
             console.error(`setVariable: offset must be >= 0 or -1, got ${offset}`);
             return;
         }
 
         // normalize payload to exactly `size` bytes (numbers LE-encoded)
-        const buf = new Uint8Array(size);
+        let buf: Uint8Array;
         if (typeof value === 'number') {
-            buf.set(leIntToBytes(Math.trunc(value), size), 0);
+            buf = leIntToBytes(Math.trunc(value), size);
         } else if (value instanceof Uint8Array) {
-            buf.set(value.subarray(0, size), 0); // truncate/zero-pad to `size`
+            // Avoid an extra allocation when already the right size
+            buf = value.length === size ? value : new Uint8Array(value.subarray(0, size));
         } else {
             console.error('setVariable: unsupported value type');
             return;
         }
 
-        if (actualSize !== undefined && actualSize < size) {
-            console.error(`setVariable: actualSize (${actualSize}) must be >= size (${size})`);
+        if (virtualSize !== undefined && virtualSize < size) {
+            console.error(`setVariable: virtualSize (${virtualSize}) must be >= size (${size})`);
             return;
         }
-        const total = actualSize ?? size;
+        const total = virtualSize ?? size;
 
         // write and zero-pad to `total`, extends as needed
-        entry.data.write(appendOff, buf, total);
+        container.write(appendOff, buf, total);
 
         // record per-append metadata
         const meta = this.getOrInitMeta(name);
@@ -325,7 +273,7 @@ export class MemoryHost {
             delete meta.elementSize;                 // mixed sizes → remove the optional prop
         }
 
-        entry.valid = true;
+        this.cache.set(name, container, true);
     }
 
     /**
@@ -337,8 +285,8 @@ export class MemoryHost {
      * - `offset` + `size` → exact range `[offset .. offset+size)`.
      */
     public getVariable(name: string, size?: number, offset?: number): number | undefined {
-        const entry = this.getEntry(name);
-        const totalBytes = entry.data.byteLength ?? 0;
+        const container = this.getContainer(name);
+        const totalBytes = container.byteLength ?? 0;
 
         if (totalBytes === 0) {
             // symbol exists but has no data yet
@@ -387,7 +335,7 @@ export class MemoryHost {
         }
 
         // read() returns a view; return a copy so callers can't mutate our backing store
-        const raw = entry.data.read(off, spanSize).slice();
+        const raw = container.read(off, spanSize).slice();
         return leToNumber(raw);
     }
 
@@ -401,7 +349,11 @@ export class MemoryHost {
 
     public clearVariable(name: string): boolean {
         this.elementMeta.delete(name);
-        return this.cache.removeSymbol(name);
+        const container = this.cache.get(name);
+        if (container?.clear) {
+            container.clear();
+        }
+        return this.cache.delete(name);
     }
 
     public clear(): void {
@@ -463,8 +415,8 @@ export class MemoryHost {
             return m.offsets.length;
         }
 
-        const entry = this.getEntry(name);
-        const totalBytes = entry.data.byteLength ?? 0;
+        const container = this.getContainer(name);
+        const totalBytes = container.byteLength ?? 0;
         const stride = m.elementSize;
         if (!stride || stride <= 0) {
             return 1;
