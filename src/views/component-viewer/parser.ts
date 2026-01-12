@@ -1,4 +1,20 @@
 /**
+ * Copyright 2026 Arm Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/** generated with AI
  * Fast, reusable, error-tolerant expression parser with:
  *  - Assignment '=' (right-associative) and C-style compound assignments: +=, -=, *=, /=, %=, <<=, >>=, &=, ^=, |=
  *  - ++ / -- (both prefix and postfix)
@@ -620,11 +636,9 @@ export class Parser {
         const left = this.parseConditional();
         if (this.cur.kind === 'PUNCT') {
             const op = this.cur.value;
-            const isAssignOp =
-        op === '=' || op === '+=' || op === '-=' || op === '*=' || op === '/=' ||
-        op === '%=' || op === '<<=' || op === '>>=' || op === '&=' || op === '^=' || op === '|=';
+            const assignOps = new Set(['=','+=','-=','*=','/=','%=','<<=','>>=','&=','^=','|=']);
 
-            if (isAssignOp) {
+            if (assignOps.has(op)) {
                 this.eat('PUNCT', op);
                 if (!this.isAssignable(left)) {
                     this.error('Invalid assignment target', startOf(left), endOf(left));
@@ -655,19 +669,23 @@ export class Parser {
     }
 
     private parseUnary(): ASTNode {
-        if (this.cur.kind === 'PUNCT' && (this.cur.value === '++' || this.cur.value === '--')) {
-            const op = this.cur.value; const t = this.eat('PUNCT', op);
+        const punct = this.cur.kind === 'PUNCT' ? this.cur.value : undefined;
+
+        if (punct && (punct === '++' || punct === '--')) {
+            const op = punct; const t = this.eat('PUNCT', op);
             const arg = this.parseUnary();
             if (!this.isAssignable(arg)) {
                 this.error('Invalid increment/decrement target', startOf(arg), endOf(arg));
             }
             return { kind:'UpdateExpression', operator: op as UpdateExpression['operator'], argument: arg, prefix: true, ...span(t.start, endOf(arg)) };
         }
-        if (this.cur.kind === 'PUNCT' && (this.cur.value === '+' || this.cur.value === '-' || this.cur.value === '!' || this.cur.value === '~')) {
-            const op = this.cur.value; const t = this.eat('PUNCT', op);
+
+        if (punct && ['+', '-', '!', '~'].includes(punct)) {
+            const op = punct; const t = this.eat('PUNCT', op);
             const arg = this.parseUnary();
             return { kind:'UnaryExpression', operator:op as UnaryExpression['operator'], argument:arg, ...span(t.start, endOf(arg)) };
         }
+
         return this.parsePostfix();
     }
 

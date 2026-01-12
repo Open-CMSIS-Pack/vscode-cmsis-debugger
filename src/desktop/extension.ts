@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,9 +40,9 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     const cpuStates = new CpuStates();
     const cpuStatesCommands = new CpuStatesCommands();
     const cpuStatesStatusBarItem = new CpuStatesStatusBarItem();
+    const componentViewer = new ComponentViewer(context);
     // Register the Tree View under the id from package.json
     liveWatchTreeDataProvider = new LiveWatchTreeDataProvider(context);
-    const componentViewer = new ComponentViewer(context);
 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);
     // Activate generic commands

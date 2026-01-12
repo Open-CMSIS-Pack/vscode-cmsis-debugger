@@ -17,11 +17,17 @@
 import { Json, ScvdBase } from './scvd-base';
 import { getStringFromJson } from './scvd-utils';
 
+const EVENT_COLORS = ['blue', 'red', 'green', 'black'] as const;
+type EventColor = (typeof EVENT_COLORS)[number];
+function isEventColor(v: string): v is EventColor {
+    return EVENT_COLORS.includes(v as EventColor);
+}
+
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
 export class ScvdEventState extends ScvdBase {
     private _plot: 'off' | 'line' | 'box' = 'off';
-    private _color: 'blue' | 'red' | 'green' | 'black' = 'blue';
+    private _color: EventColor = 'blue';
     private _unique: boolean = false;
     private _dormant: boolean = false;
     private _ssel: boolean = false;
@@ -56,12 +62,12 @@ export class ScvdEventState extends ScvdBase {
         }
     }
 
-    public get color(): 'blue' | 'red' | 'green' | 'black' {
+    public get color(): EventColor {
         return this._color;
     }
 
     public set color(value: string | undefined) {
-        if (value !== undefined && (value === 'blue' || value === 'red' || value === 'green' || value === 'black')) {
+        if (value !== undefined && isEventColor(value)) {
             this._color = value;
         }
     }
