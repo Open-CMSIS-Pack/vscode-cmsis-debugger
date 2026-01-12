@@ -52,6 +52,14 @@ export class ScvdEvalInterface implements DataHost {
         return trimmed && trimmed.length > 0 ? trimmed : undefined;
     }
 
+    private async findSymbolAddressNormalized(name: string | undefined): Promise<number | undefined> {
+        const normalized = this.normalizeName(name);
+        if (!normalized) {
+            return undefined;
+        }
+        return this.debugTarget.findSymbolAddress(normalized);
+    }
+
     // ---------------- DataHost Interface ----------------
     public getSymbolRef(container: RefContainer, name: string, _forWrite?: boolean): ScvdBase | undefined {
         const symbol = container.base.getSymbol?.(name);
@@ -143,12 +151,7 @@ export class ScvdEvalInterface implements DataHost {
     /* ---------------- Intrinsics ---------------- */
 
     public async __FindSymbol(symbolName: string): Promise<number | undefined> {
-        const normalized = this.normalizeName(symbolName);
-        if (!normalized) {
-            return undefined;
-        }
-        const symbolAddress = await this.debugTarget.findSymbolAddress(normalized);
-        return symbolAddress;
+        return this.findSymbolAddressNormalized(symbolName);
     }
 
     public async __GetRegVal(regName: string): Promise<number | undefined> {
@@ -169,11 +172,8 @@ export class ScvdEvalInterface implements DataHost {
     }
 
     public async __Symbol_exists(symbol: string): Promise<number | undefined> {
-        const normalized = this.normalizeName(symbol);
-        if (!normalized) {
-            return undefined;
-        }
-        return await this.debugTarget.findSymbolAddress(normalized) ? 1 : 0;
+        const found = await this.findSymbolAddressNormalized(symbol);
+        return found !== undefined ? 1 : 0;
     }
 
     /* Returns
