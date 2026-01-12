@@ -193,8 +193,12 @@ function isReferenceNode(node: ASTNode): node is Identifier | MemberAccess | Arr
 }
 
 function findReferenceNode(node: ASTNode | undefined): Identifier | MemberAccess | ArrayIndex | undefined {
-    if (!node) return undefined;
-    if (isReferenceNode(node)) return node;
+    if (!node) {
+        return undefined;
+    }
+    if (isReferenceNode(node)) {
+        return node;
+    }
 
     switch (node.kind) {
         case 'UnaryExpression': return findReferenceNode((node as UnaryExpression).argument);
@@ -215,7 +219,9 @@ function findReferenceNode(node: ASTNode | undefined): Identifier | MemberAccess
             const c = node as CallExpression;
             for (let i = c.args.length - 1; i >= 0; i--) {
                 const r = findReferenceNode(c.args[i]);
-                if (r) return r;
+                if (r) {
+                    return r;
+                }
             }
             return findReferenceNode(c.callee);
         }
@@ -223,7 +229,9 @@ function findReferenceNode(node: ASTNode | undefined): Identifier | MemberAccess
             const c = node as EvalPointCall;
             for (let i = c.args.length - 1; i >= 0; i--) {
                 const r = findReferenceNode(c.args[i]);
-                if (r) return r;
+                if (r) {
+                    return r;
+                }
             }
             return findReferenceNode(c.callee);
         }
@@ -231,7 +239,9 @@ function findReferenceNode(node: ASTNode | undefined): Identifier | MemberAccess
             for (const seg of (node as PrintfExpression).segments) {
                 if (seg.kind === 'FormatSegment') {
                     const r = findReferenceNode(seg.value);
-                    if (r) return r;
+                    if (r) {
+                        return r;
+                    }
                 }
             }
             return undefined;
@@ -254,11 +264,17 @@ async function captureContainerForReference(node: ASTNode, ctx: EvalContext): Pr
     return captured;
 }
 
-function truthy(x: unknown): boolean { return !!x; }
+function truthy(x: unknown): boolean {
+    return !!x;
+}
 
 function asNumber(x: unknown): number {
-    if (typeof x === 'number') return Number.isFinite(x) ? x : 0;
-    if (typeof x === 'boolean') return x ? 1 : 0;
+    if (typeof x === 'number') {
+        return Number.isFinite(x) ? x : 0;
+    }
+    if (typeof x === 'boolean') {
+        return x ? 1 : 0;
+    }
     if (typeof x === 'string' && x.trim() !== '') {
         const n = +x; return Number.isFinite(n) ? n : 0;
     }
@@ -266,7 +282,9 @@ function asNumber(x: unknown): number {
 }
 
 function addVals(a: EvalValue, b: EvalValue): EvalValue {
-    if (typeof a === 'string' || typeof b === 'string') return String(a) + String(b);
+    if (typeof a === 'string' || typeof b === 'string') {
+        return String(a) + String(b);
+    }
     return asNumber(a) + asNumber(b);
 }
 function subVals(a: EvalValue, b: EvalValue): EvalValue {
@@ -276,7 +294,9 @@ function mulVals(a: EvalValue, b: EvalValue): EvalValue {
     return asNumber(a) * asNumber(b);
 }
 function divVals(a: EvalValue, b: EvalValue): EvalValue {
-    const nb = asNumber(b); if (nb === 0) throw new Error('Division by zero');
+    const nb = asNumber(b); if (nb === 0) {
+        throw new Error('Division by zero');
+    }
     return asNumber(a) / nb;
 }
 function modVals(a: EvalValue, b: EvalValue): EvalValue {
@@ -301,7 +321,9 @@ function shrVals(a: EvalValue, b: EvalValue): EvalValue {
     return (asNumber(a) >>> (asNumber(b) & 31)) >>> 0;
 }
 function eqVals(a: EvalValue, b: EvalValue): boolean {
-    if (typeof a === 'string' || typeof b === 'string') return String(a) === String(b);
+    if (typeof a === 'string' || typeof b === 'string') {
+        return String(a) === String(b);
+    }
     return asNumber(a) == asNumber(b);
 }
 function ltVals(a: EvalValue, b: EvalValue): boolean {
@@ -345,8 +367,12 @@ function normalizeScalarTypeFromName(name: string): ScalarType {
 }
 
 function normalizeScalarType(t: string | ScalarType | undefined): ScalarType | undefined {
-    if (!t) return undefined;
-    if (typeof t === 'string') return normalizeScalarTypeFromName(t);
+    if (!t) {
+        return undefined;
+    }
+    if (typeof t === 'string') {
+        return normalizeScalarTypeFromName(t);
+    }
     if (!t.name && t.typename) {
         t.name = t.typename;
     }
@@ -355,7 +381,9 @@ function normalizeScalarType(t: string | ScalarType | undefined): ScalarType | u
 
 async function getScalarTypeForContainer(ctx: EvalContext, container: RefContainer): Promise<ScalarType | undefined> {
     const fn = ctx.data.getValueType;
-    if (typeof fn !== 'function') return undefined;
+    if (typeof fn !== 'function') {
+        return undefined;
+    }
     const raw = await fn.call(ctx.data, container);
     return normalizeScalarType(raw);
 }
@@ -363,38 +391,56 @@ async function getScalarTypeForContainer(ctx: EvalContext, container: RefContain
 function mergeKinds(a?: ScalarType, b?: ScalarType): MergedKind {
     const ka = a?.kind;
     const kb = b?.kind;
-    if (ka === 'float' || kb === 'float') return 'float';
-    if (ka === 'uint' || kb === 'uint') return 'uint';
-    if (ka === 'int' || kb === 'int') return 'int';
+    if (ka === 'float' || kb === 'float') {
+        return 'float';
+    }
+    if (ka === 'uint' || kb === 'uint') {
+        return 'uint';
+    }
+    if (ka === 'int' || kb === 'int') {
+        return 'int';
+    }
     return 'unknown';
 }
 
 function integerDiv(a: number, b: number, unsigned: boolean): number {
-    if (b === 0) throw new Error('Division by zero');
+    if (b === 0) {
+        throw new Error('Division by zero');
+    }
     if (unsigned) {
         const na = a >>> 0;
         const nb = b >>> 0;
-        if (nb === 0) throw new Error('Division by zero');
+        if (nb === 0) {
+            throw new Error('Division by zero');
+        }
         return Math.trunc(na / nb) >>> 0;
     } else {
         const na = a | 0;
         const nb = b | 0;
-        if (nb === 0) throw new Error('Division by zero');
+        if (nb === 0) {
+            throw new Error('Division by zero');
+        }
         return (na / nb) | 0;
     }
 }
 
 function integerMod(a: number, b: number, unsigned: boolean): number {
-    if (b === 0) throw new Error('Division by zero');
+    if (b === 0) {
+        throw new Error('Division by zero');
+    }
     if (unsigned) {
         const na = a >>> 0;
         const nb = b >>> 0;
-        if (nb === 0) throw new Error('Division by zero');
+        if (nb === 0) {
+            throw new Error('Division by zero');
+        }
         return (na % nb) >>> 0;
     } else {
         const na = a | 0;
         const nb = b | 0;
-        if (nb === 0) throw new Error('Division by zero');
+        if (nb === 0) {
+            throw new Error('Division by zero');
+        }
         return na % nb;
     }
 }
@@ -405,8 +451,12 @@ function integerMod(a: number, b: number, unsigned: boolean): number {
  *   - a fallback heuristic: both operands are integer-valued numbers.
  */
 function prefersInteger(kind: MergedKind | undefined, a: EvalValue, b: EvalValue): { use: boolean; unsigned: boolean } {
-    if (kind === 'int') return { use: true, unsigned: false };
-    if (kind === 'uint') return { use: true, unsigned: true };
+    if (kind === 'int') {
+        return { use: true, unsigned: false };
+    }
+    if (kind === 'uint') {
+        return { use: true, unsigned: true };
+    }
 
     // Fallback when host doesn't provide types:
     const na = asNumber(a);
@@ -514,7 +564,9 @@ async function mustRef(node: ASTNode, ctx: EvalContext, forWrite = false): Promi
             const id = node as Identifier;
             // Identifier lookup always starts from the root base
             const ref = await ctx.data.getSymbolRef(ctx.container, id.name, forWrite);
-            if (!ref) throw new Error(`Unknown symbol '${id.name}'`);
+            if (!ref) {
+                throw new Error(`Unknown symbol '${id.name}'`);
+            }
             // Start a new anchor chain at this identifier
             ctx.container.anchor = ref;
             ctx.container.offsetBytes = 0;
@@ -569,7 +621,9 @@ async function mustRef(node: ASTNode, ctx: EvalContext, forWrite = false): Promi
 
                 // Resolve member
                 const child = await ctx.data.getMemberRef(ctx.container, ma.property, forWrite);
-                if (!child) throw new Error(`Missing member '${ma.property}'`);
+                if (!child) {
+                    throw new Error(`Missing member '${ma.property}'`);
+                }
 
                 // Accumulate member byte offset
                 const memberOffsetBytes = ctx.data.getMemberOffset ? await ctx.data.getMemberOffset(baseForMember, child) : undefined;
@@ -598,7 +652,9 @@ async function mustRef(node: ASTNode, ctx: EvalContext, forWrite = false): Promi
 
             ctx.container.current = baseRef;
             const child = await ctx.data.getMemberRef(ctx.container, ma.property, forWrite);
-            if (!child) throw new Error(`Missing member '${ma.property}'`);
+            if (!child) {
+                throw new Error(`Missing member '${ma.property}'`);
+            }
 
             const memberOffsetBytes = ctx.data.getMemberOffset ? await ctx.data.getMemberOffset(baseRef, child) : undefined;
             if (typeof memberOffsetBytes === 'number') {
@@ -690,7 +746,9 @@ async function lref(node: ASTNode, ctx: EvalContext): Promise<LValue> {
         },
         async set(v: EvalValue): Promise<EvalValue> {
             const out = await ctx.data.writeValue(target, v); // use frozen target
-            if (out === undefined) throw new Error('Write returned undefined');
+            if (out === undefined) {
+                throw new Error('Write returned undefined');
+            }
             return out;
         },
         type: valueType,
@@ -755,9 +813,13 @@ export async function evalNode(node: ASTNode, ctx: EvalContext): Promise<EvalVal
                 ctx.container.current = baseRef;
                 ctx.container.valueType = undefined;
                 const fn = ma.property === '_count' ? ctx.data._count : ctx.data._addr;
-                if (typeof fn !== 'function') throw new Error(`Missing pseudo-member ${ma.property}`);
+                if (typeof fn !== 'function') {
+                    throw new Error(`Missing pseudo-member ${ma.property}`);
+                }
                 const out = await fn.call(ctx.data, ctx.container);
-                if (out === undefined) throw new Error(`Pseudo-member ${ma.property} returned undefined`);
+                if (out === undefined) {
+                    throw new Error(`Pseudo-member ${ma.property} returned undefined`);
+                }
                 return out;
             }
             // Default: resolve member and read its value
@@ -775,7 +837,9 @@ export async function evalNode(node: ASTNode, ctx: EvalContext): Promise<EvalVal
             const handled = ctx.data.resolveColonPath
                 ? await ctx.data.resolveColonPath(ctx.container, cp.parts.slice())
                 : undefined;
-            if (handled === undefined) throw new Error(`Unresolved colon path: ${cp.parts.join(':')}`);
+            if (handled === undefined) {
+                throw new Error(`Unresolved colon path: ${cp.parts.join(':')}`);
+            }
             return handled;
         }
 
@@ -855,7 +919,9 @@ export async function evalNode(node: ASTNode, ctx: EvalContext): Promise<EvalVal
                 args.push(await evalNode(a, ctx)); // evaluate sequentially to avoid parallel side effects
             }
             const fnVal = await evalNode(c.callee, ctx);
-            if (typeof fnVal === 'function') return await fnVal(...args);
+            if (typeof fnVal === 'function') {
+                return await fnVal(...args);
+            }
             throw new Error('Callee is not callable.');
         }
 
@@ -870,8 +936,9 @@ export async function evalNode(node: ASTNode, ctx: EvalContext): Promise<EvalVal
             const pf = node as PrintfExpression;
             let out = '';
             for (const seg of pf.segments) {
-                if (seg.kind === 'TextSegment') out += (seg as TextSegment).text;
-                else {
+                if (seg.kind === 'TextSegment') {
+                    out += (seg as TextSegment).text;
+                } else {
                     const fs = seg as FormatSegment;
                     const { value, container } = await evaluateFormatSegmentValue(fs, ctx);
                     out += await formatValue(fs.spec, value, ctx, container);
@@ -984,69 +1051,101 @@ async function routeIntrinsic(ctx: EvalContext, name: string, args: EvalValue[])
     // Explicit numeric intrinsics (simple parameter lists)
     if (name === '__GetRegVal') {
         const fn = ctx.data.__GetRegVal;
-        if (typeof fn !== 'function') throw new Error('Missing intrinsic __GetRegVal');
+        if (typeof fn !== 'function') {
+            throw new Error('Missing intrinsic __GetRegVal');
+        }
         const out = await fn.call(ctx.data, String(args[0] ?? ''));
-        if (out === undefined) throw new Error('Intrinsic __GetRegVal returned undefined');
+        if (out === undefined) {
+            throw new Error('Intrinsic __GetRegVal returned undefined');
+        }
         return out;
     }
     if (name === '__FindSymbol') {
         const fn = ctx.data.__FindSymbol;
-        if (typeof fn !== 'function') throw new Error('Missing intrinsic __FindSymbol');
+        if (typeof fn !== 'function') {
+            throw new Error('Missing intrinsic __FindSymbol');
+        }
         const out = await fn.call(ctx.data, String(args[0] ?? ''));
-        if (out === undefined) throw new Error('Intrinsic __FindSymbol returned undefined');
+        if (out === undefined) {
+            throw new Error('Intrinsic __FindSymbol returned undefined');
+        }
         return out | 0;
     }
     if (name === '__CalcMemUsed') {
         const fn = ctx.data.__CalcMemUsed;
-        if (typeof fn !== 'function') throw new Error('Missing intrinsic __CalcMemUsed');
+        if (typeof fn !== 'function') {
+            throw new Error('Missing intrinsic __CalcMemUsed');
+        }
         const n0 = Number(args[0] ?? 0) >>> 0;
         const n1 = Number(args[1] ?? 0) >>> 0;
         const n2 = Number(args[2] ?? 0) >>> 0;
         const n3 = Number(args[3] ?? 0) >>> 0;
         const out = await fn.call(ctx.data, n0, n1, n2, n3);
-        if (out === undefined) throw new Error('Intrinsic __CalcMemUsed returned undefined');
+        if (out === undefined) {
+            throw new Error('Intrinsic __CalcMemUsed returned undefined');
+        }
         return out >>> 0;
     }
     if (name === '__size_of') {
         const fn = ctx.data.__size_of;
-        if (typeof fn !== 'function') throw new Error('Missing intrinsic __size_of');
+        if (typeof fn !== 'function') {
+            throw new Error('Missing intrinsic __size_of');
+        }
         const out = await fn.call(ctx.data, String(args[0] ?? ''));
-        if (out === undefined) throw new Error('Intrinsic __size_of returned undefined');
+        if (out === undefined) {
+            throw new Error('Intrinsic __size_of returned undefined');
+        }
         return out | 0;
     }
     if (name === '__Symbol_exists') {
         const fn = ctx.data.__Symbol_exists;
-        if (typeof fn !== 'function') throw new Error('Missing intrinsic __Symbol_exists');
+        if (typeof fn !== 'function') {
+            throw new Error('Missing intrinsic __Symbol_exists');
+        }
         const out = await fn.call(ctx.data, String(args[0] ?? ''));
-        if (out === undefined) throw new Error('Intrinsic __Symbol_exists returned undefined');
+        if (out === undefined) {
+            throw new Error('Intrinsic __Symbol_exists returned undefined');
+        }
         return out | 0;
     }
     // Explicit intrinsic that needs the container but returns a number
     if (name === '__Offset_of') {
         const fn = ctx.data.__Offset_of;
-        if (typeof fn !== 'function') throw new Error('Missing intrinsic __Offset_of');
+        if (typeof fn !== 'function') {
+            throw new Error('Missing intrinsic __Offset_of');
+        }
         const out = await fn.call(ctx.data, ctx.container, String(args[0] ?? ''));
-        if (out === undefined) throw new Error('Intrinsic __Offset_of returned undefined');
+        if (out === undefined) {
+            throw new Error('Intrinsic __Offset_of returned undefined');
+        }
         return out >>> 0;
     }
     if (name === '__Running') {
         const fn = ctx.data.__Running;
-        if (typeof fn !== 'function') throw new Error('Missing intrinsic __Running');
+        if (typeof fn !== 'function') {
+            throw new Error('Missing intrinsic __Running');
+        }
         const out = await fn.call(ctx.data);
-        if (out === undefined) throw new Error('Intrinsic __Running returned undefined');
+        if (out === undefined) {
+            throw new Error('Intrinsic __Running returned undefined');
+        }
         return out | 0;
     }
 
     // Generic dispatch paths (legacy/custom)
     if (typeof ctx.data.evalIntrinsic === 'function') {
         const out = await ctx.data.evalIntrinsic(name, ctx.container, args);
-        if (out === undefined) throw new Error(`Intrinsic ${name} returned undefined`);
+        if (out === undefined) {
+            throw new Error(`Intrinsic ${name} returned undefined`);
+        }
         return out;
     }
     const direct = (ctx.data as unknown as Record<string, unknown>)[name];
     if (typeof direct === 'function') {
         const out = await (direct as (container: RefContainer, a: EvalValue[]) => MaybePromise<EvalValue>).call(ctx.data, ctx.container, args);
-        if (out === undefined) throw new Error(`Intrinsic ${name} returned undefined`);
+        if (out === undefined) {
+            throw new Error(`Intrinsic ${name} returned undefined`);
+        }
         return out;
     }
     throw new Error(`Missing intrinsic ${name}`);
@@ -1057,9 +1156,15 @@ async function routeIntrinsic(ctx: EvalContext, name: string, args: EvalValue[])
  * ============================================================================= */
 
 function normalizeEvaluateResult(v: EvalValue): EvaluateResult {
-    if (v === undefined || v === null) return undefined;
-    if (typeof v === 'number' || typeof v === 'string') return v;
-    if (typeof v === 'boolean') return v ? 1 : 0;
+    if (v === undefined || v === null) {
+        return undefined;
+    }
+    if (typeof v === 'number' || typeof v === 'string') {
+        return v;
+    }
+    if (typeof v === 'boolean') {
+        return v ? 1 : 0;
+    }
     return undefined;
 }
 
@@ -1067,7 +1172,9 @@ export async function evaluateParseResult(pr: ParseResult, ctx: EvalContext, con
     const prevBase = ctx.container.base;
     const saved = { ...ctx.container } as RefContainer;
     const override = container !== undefined;
-    if (override) ctx.container.base = container as ScvdBase;
+    if (override) {
+        ctx.container.base = container as ScvdBase;
+    }
     try {
         const v = await evalNode(pr.ast, ctx);
         return normalizeEvaluateResult(v);
@@ -1075,7 +1182,9 @@ export async function evaluateParseResult(pr: ParseResult, ctx: EvalContext, con
         console.error('Error evaluating parse result:', pr, e);
         return undefined;
     } finally {
-        if (override) ctx.container.base = prevBase;
+        if (override) {
+            ctx.container.base = prevBase;
+        }
         ctx.container.anchor = saved.anchor;
         ctx.container.offsetBytes = saved.offsetBytes;
         ctx.container.widthBytes = saved.widthBytes;

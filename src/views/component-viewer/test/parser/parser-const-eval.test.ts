@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { parseExpression } from '../../parser';
+import { BinaryExpression, Identifier, NumberLiteral, parseExpression } from '../../parser';
 
 interface Case { expr: string; expected: number | boolean | string; }
 interface NonConstCase {
@@ -48,12 +48,12 @@ describe('Parser constant folding', () => {
             const expected = (nonConstCases.find(c => c.expr === expr) as NonConstCase).foldedTo;
             if (expected) {
                 expect(pr.ast.kind).toBe('BinaryExpression');
-                const ast = pr.ast as any;
+                const ast = pr.ast as BinaryExpression;
                 expect(ast.operator).toBe('+');
                 expect(ast.left.kind).toBe('Identifier');
-                expect(ast.left.name).toBe(expected.left);
+                expect((ast.left as Identifier).name).toBe(expected.left);
                 expect(ast.right.kind).toBe('NumberLiteral');
-                expect(ast.right.value).toBe(expected.right);
+                expect((ast.right as NumberLiteral).value).toBe(expected.right);
             }
         }
     });

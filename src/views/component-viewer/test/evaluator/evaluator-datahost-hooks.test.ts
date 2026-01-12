@@ -28,15 +28,21 @@ class HookHost implements DataHost {
 
     public getSymbolRef(_container: RefContainer, name: string): BasicRef | undefined {
         this.tick('getSymbolRef');
-        if (name === 'arr') return this.arrRef;
+        if (name === 'arr') {
+            return this.arrRef;
+        }
         return undefined;
     }
 
     public getMemberRef(_container: RefContainer, property: string): BasicRef | undefined {
         this.tick('getMemberRef');
-        if (property === 'field') return this.fieldRef;
+        if (property === 'field') {
+            return this.fieldRef;
+        }
         // allow colon-path anchor to succeed
-        if (property === 'dummy') return this.fieldRef;
+        if (property === 'dummy') {
+            return this.fieldRef;
+        }
         return undefined;
     }
 

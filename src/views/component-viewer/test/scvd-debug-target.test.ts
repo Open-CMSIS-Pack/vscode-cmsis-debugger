@@ -8,7 +8,9 @@ function makeStackImage(totalBytes: number, fillPattern: number, magicValue: num
         (fillPattern >>> 16) & 0xFF,
         (fillPattern >>> 24) & 0xFF,
     ]);
-    for (let i = 0; i < totalBytes; i++) data[i] = fill[i % 4];
+    for (let i = 0; i < totalBytes; i++) {
+        data[i] = fill[i % 4];
+    }
 
     // Mark some bytes as used (overwrite with non-pattern)
     for (let i = 0; i < usedBytes; i++) {

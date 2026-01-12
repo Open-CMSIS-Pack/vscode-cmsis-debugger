@@ -201,8 +201,12 @@ export class DebugTargetMock {
 
     public getMockMemoryData(startAddress: number, size: number): Uint8Array | undefined {
         // --- RTOS fixtures -------------------------------------------------------
-        if (startAddress === ADDR.RTOS.OsRtxInfo)   return this.getMockOsRtxInfoData(size);
-        if (startAddress === ADDR.RTOS.OsRtxConfig) return this.getMockOsRtxConfigData(size);
+        if (startAddress === ADDR.RTOS.OsRtxInfo)   {
+            return this.getMockOsRtxInfoData(size);
+        }
+        if (startAddress === ADDR.RTOS.OsRtxConfig) {
+            return this.getMockOsRtxConfigData(size);
+        }
 
         // --- Stack mock: support base reads and arbitrary sub-range/element reads -
         if (startAddress >= ADDR.Stack.TStack && startAddress < ADDR.Stack.TStack + STACK_BYTES) {
@@ -211,11 +215,21 @@ export class DebugTargetMock {
         }
 
         // --- MyList fixture: nodes and arrays ------------------------------------
-        if (startAddress === ADDR.MyList.ValueC)     return this.getMockMyListNode(size, 'ValueC');
-        if (startAddress === ADDR.MyList.ValueB)     return this.getMockMyListNode(size, 'ValueB');
-        if (startAddress === ADDR.MyList.ValueA)     return this.getMockMyListNode(size, 'ValueA');
-        if (startAddress === ADDR.MyList.ListStart)  return this.getMockListStart(size);
-        if (startAddress === ADDR.MyList.ValueArray) return this.getMockValueArray(size);
+        if (startAddress === ADDR.MyList.ValueC)     {
+            return this.getMockMyListNode(size, 'ValueC');
+        }
+        if (startAddress === ADDR.MyList.ValueB)     {
+            return this.getMockMyListNode(size, 'ValueB');
+        }
+        if (startAddress === ADDR.MyList.ValueA)     {
+            return this.getMockMyListNode(size, 'ValueA');
+        }
+        if (startAddress === ADDR.MyList.ListStart)  {
+            return this.getMockListStart(size);
+        }
+        if (startAddress === ADDR.MyList.ValueArray) {
+            return this.getMockValueArray(size);
+        }
 
         // Per-element reads (e.g., when dereferencing pArray[3] or pArray[4]):
         const elemSize = MOCK.MyList.structSize;
@@ -299,9 +313,15 @@ export class DebugTargetMock {
         }
 
         // MyList nodes
-        if (symbol === 'ValueC') return this.makeMyListSymbol(symbol, ADDR.MyList.ValueC);
-        if (symbol === 'ValueB') return this.makeMyListSymbol(symbol, ADDR.MyList.ValueB);
-        if (symbol === 'ValueA') return this.makeMyListSymbol(symbol, ADDR.MyList.ValueA);
+        if (symbol === 'ValueC') {
+            return this.makeMyListSymbol(symbol, ADDR.MyList.ValueC);
+        }
+        if (symbol === 'ValueB') {
+            return this.makeMyListSymbol(symbol, ADDR.MyList.ValueB);
+        }
+        if (symbol === 'ValueA') {
+            return this.makeMyListSymbol(symbol, ADDR.MyList.ValueA);
+        }
 
         // Pointer to head of list
         if (symbol === 'ListStart') {
@@ -441,7 +461,9 @@ export class DebugTargetMock {
     /** ListStart holds a single pointer to ValueA (configured in MOCK.MyList.ListStart). */
     private getMockListStart(size: number): Uint8Array {
         const out = new Uint8Array(size);
-        if (size >= 4) this.writeU32LE(out, 0, MOCK.MyList.ListStart);
+        if (size >= 4) {
+            this.writeU32LE(out, 0, MOCK.MyList.ListStart);
+        }
         return out;
     }
 
@@ -453,9 +475,15 @@ export class DebugTargetMock {
 
         for (let i = 0; i < elems.length; i++) {
             const base = i * elemSize;
-            if (size >= base + 4)  this.writeU32LE(out, base + 0, elems[i].next);
-            if (size >= base + 8)  this.writeU32LE(out, base + 4, elems[i].value);
-            if (size >= base + 12) this.writeU32LE(out, base + 8, elems[i].name);
+            if (size >= base + 4)  {
+                this.writeU32LE(out, base + 0, elems[i].next);
+            }
+            if (size >= base + 8)  {
+                this.writeU32LE(out, base + 4, elems[i].value);
+            }
+            if (size >= base + 12) {
+                this.writeU32LE(out, base + 8, elems[i].name);
+            }
         }
         return out;
     }
@@ -510,8 +538,12 @@ export class DebugTargetMock {
     private makeCString(text: string, size: number): Uint8Array {
         const out = new Uint8Array(size);
         const n   = Math.max(0, Math.min(size - 1, text.length));
-        for (let i = 0; i < n; i++) out[i] = text.charCodeAt(i) & 0xFF;
-        if (size > 0) out[n] = 0; // NUL-terminate if there’s room
+        for (let i = 0; i < n; i++) {
+            out[i] = text.charCodeAt(i) & 0xFF;
+        }
+        if (size > 0) {
+            out[n] = 0;
+        } // NUL-terminate if there’s room
         return out;
     }
 
@@ -550,9 +582,15 @@ export class DebugTargetMock {
     private makeMyListStruct(size: number, nextPtr: number, value: number, namePtr: number): Uint8Array {
         const out = new Uint8Array(size);
         const off = MOCK.MyList.fieldOffsets;
-        if (size >= off.next  + 4) this.writeU32LE(out, off.next,  nextPtr >>> 0);
-        if (size >= off.value + 4) this.writeU32LE(out, off.value, value >>> 0);
-        if (size >= off.name  + 4) this.writeU32LE(out, off.name,  namePtr >>> 0);
+        if (size >= off.next  + 4) {
+            this.writeU32LE(out, off.next,  nextPtr >>> 0);
+        }
+        if (size >= off.value + 4) {
+            this.writeU32LE(out, off.value, value >>> 0);
+        }
+        if (size >= off.name  + 4) {
+            this.writeU32LE(out, off.name,  namePtr >>> 0);
+        }
         return out;
     }
 }

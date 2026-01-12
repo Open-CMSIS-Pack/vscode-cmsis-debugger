@@ -16,7 +16,9 @@ interface MetaRow {
 
 function readJsonl(file: string): { meta: MetaRow; rows: ExpressionRow[] } {
     const lines = fs.readFileSync(file, 'utf8').trim().split(/\r?\n/);
-    if (lines.length === 0) throw new Error(`Empty JSONL file: ${file}`);
+    if (lines.length === 0) {
+        throw new Error(`Empty JSONL file: ${file}`);
+    }
     const meta = JSON.parse(lines[0]) as MetaRow;
     const rows = lines.slice(1).map((l) => JSON.parse(l) as ExpressionRow);
     return { meta, rows };

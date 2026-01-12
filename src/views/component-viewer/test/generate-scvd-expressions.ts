@@ -29,7 +29,7 @@ export function decodeEntities(s: string): string {
         .replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>')
         .replace(/&quot;/g, '"')
-        .replace(/&apos;/g, "'");
+        .replace(/&apos;/g, '\'');
 }
 
 export function extractExpressionsFromScvd(content: string): Extracted[] {
@@ -40,7 +40,9 @@ export function extractExpressionsFromScvd(content: string): Extracted[] {
         let m: RegExpExecArray | null;
         while ((m = re.exec(content)) !== null) {
             const expr = decodeEntities(m[1]!.trim());
-            if (expr) expressions.push({ expr, forcePrintf: !!forcePrintf });
+            if (expr) {
+                expressions.push({ expr, forcePrintf: !!forcePrintf });
+            }
         }
     }
 
@@ -85,7 +87,7 @@ export function main(): void {
         const expressions = extractExpressionsFromScvd(content);
         const out = path.join(root, 'src/views/component-viewer/test/testfiles', `${base}_expressions.jsonl`);
         writeJsonl(out, expressions);
-        // eslint-disable-next-line no-console
+
         console.log(`Wrote ${expressions.length} expressions to ${out}`);
     }
 }

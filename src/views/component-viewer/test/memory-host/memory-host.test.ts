@@ -44,8 +44,8 @@ describe('MemoryHost', () => {
     it('supports readValue/writeValue round-trips for numbers', () => {
         const host = new MemoryHost();
         const container = {
-            base: {} as any,
-            anchor: { name: 'num' } as any,
+            base: { getDisplayLabel: () => 'num' },
+            anchor: { name: 'num' },
             offsetBytes: 0,
             widthBytes: 4,
             valueType: undefined,
@@ -60,8 +60,8 @@ describe('MemoryHost', () => {
         const host = new MemoryHost();
         const bytes = new Uint8Array([1, 2, 3, 4, 5, 6]);
         const container = {
-            base: {} as any,
-            anchor: { name: 'blob' } as any,
+            base: { getDisplayLabel: () => 'blob' },
+            anchor: { name: 'blob' },
             offsetBytes: 0,
             widthBytes: bytes.length,
             valueType: undefined,

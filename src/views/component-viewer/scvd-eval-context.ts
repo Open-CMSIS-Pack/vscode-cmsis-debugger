@@ -62,19 +62,27 @@ export class ScvdEvalContext {
     }
 
     private get model(): ScvdComponentViewer {
-        return this._model !== undefined ? this._model : (() => { throw new Error('SCVD EvalContext: Model not initialized'); })();
+        return this._model !== undefined ? this._model : (() => {
+            throw new Error('SCVD EvalContext: Model not initialized');
+        })();
     }
 
     private get memoryHost(): MemoryHost {
-        return this._memoryHost !== undefined ? this._memoryHost : (() => { throw new Error('SCVD EvalContext: MemoryHost not initialized'); })();
+        return this._memoryHost !== undefined ? this._memoryHost : (() => {
+            throw new Error('SCVD EvalContext: MemoryHost not initialized');
+        })();
     }
 
     private get registerHost(): RegisterHost {
-        return this._registerHost !== undefined ? this._registerHost : (() => { throw new Error('SCVD EvalContext: RegisterHost not initialized'); })();
+        return this._registerHost !== undefined ? this._registerHost : (() => {
+            throw new Error('SCVD EvalContext: RegisterHost not initialized');
+        })();
     }
 
     private get ctx(): EvalContext {
-        return this._ctx !== undefined ? this._ctx : (() => { throw new Error('SCVD EvalContext: EvalContext not initialized'); })();
+        return this._ctx !== undefined ? this._ctx : (() => {
+            throw new Error('SCVD EvalContext: EvalContext not initialized');
+        })();
     }
 
     public getExecutionContext(): ExecutionContext {
@@ -82,7 +90,9 @@ export class ScvdEvalContext {
             memoryHost: this.memoryHost,
             registerHost: this.registerHost,
             evalContext: this.ctx,
-            debugTarget: this._debugTarget !== undefined ? this._debugTarget : (() => { throw new Error('SCVD EvalContext: DebugTarget not initialized'); })(),
+            debugTarget: this._debugTarget !== undefined ? this._debugTarget : (() => {
+                throw new Error('SCVD EvalContext: DebugTarget not initialized');
+            })(),
         };
     }
 

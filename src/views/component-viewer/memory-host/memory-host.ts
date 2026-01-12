@@ -28,7 +28,9 @@ export class SymbolCache {
      */
     public removeSymbol(name: string): boolean {
         const entry = this.map.get(name);
-        if (!entry) return false;
+        if (!entry) {
+            return false;
+        }
 
         // Best-effort cleanup of the backing container (optional)
         const maybe = entry.data as unknown as {
@@ -37,9 +39,13 @@ export class SymbolCache {
             clear?: () => void;
         };
         try {
-            if (typeof maybe?.dispose === 'function') maybe.dispose();
-            else if (typeof maybe?.free === 'function') maybe.free();
-            else if (typeof maybe?.clear === 'function') maybe.clear();
+            if (typeof maybe?.dispose === 'function') {
+                maybe.dispose();
+            } else if (typeof maybe?.free === 'function') {
+                maybe.free();
+            } else if (typeof maybe?.clear === 'function') {
+                maybe.clear();
+            }
         } catch {
             // ignore cleanup errors but still remove from the map
         }
@@ -48,9 +54,17 @@ export class SymbolCache {
         return true;
     }
 
-    public invalidate(name: string) { const e = this.map.get(name); if (e) e.valid = false; }
-    public invalidateAll() { this.map.forEach((e) => e.valid = false); }
-    public clear() { this.map.clear(); }
+    public invalidate(name: string) {
+        const e = this.map.get(name); if (e) {
+            e.valid = false;
+        }
+    }
+    public invalidateAll() {
+        this.map.forEach((e) => e.valid = false);
+    }
+    public clear() {
+        this.map.clear();
+    }
 }
 
 export class MemoryContainer {
@@ -73,7 +87,9 @@ export class MemoryContainer {
         }
 
         // If our current window already covers the requested range, we're done.
-        if (this.buf && off >= this.winStart && off + size <= this.winStart + this.winSize) return;
+        if (this.buf && off >= this.winStart && off + size <= this.winStart + this.winSize) {
+            return;
+        }
 
         // Point the window at the requested range in the local store.
         this.buf = this.store.subarray(off, off + size);
@@ -230,9 +246,11 @@ export class MemoryHost {
         } else {
             // normalize value to number then to bytes
             let valNum: number;
-            if (typeof value === 'boolean') valNum = value ? 1 : 0;
-            else if (typeof value === 'number') valNum = Math.trunc(value);
-            else {
+            if (typeof value === 'boolean') {
+                valNum = value ? 1 : 0;
+            } else if (typeof value === 'number') {
+                valNum = Math.trunc(value);
+            } else {
                 console.error('writeValue: unsupported value type');
                 return;
             }
@@ -374,8 +392,11 @@ export class MemoryHost {
     }
 
     public invalidate(name?: string): void {
-        if (name === undefined) this.cache.invalidateAll();
-        else this.cache.invalidate(name);
+        if (name === undefined) {
+            this.cache.invalidateAll();
+        } else {
+            this.cache.invalidate(name);
+        }
     }
 
     public clearVariable(name: string): boolean {
@@ -435,13 +456,19 @@ export class MemoryHost {
     // Optional: if you sometimes need to infer a count from bytes for legacy data
     public getArrayLengthFromBytes(name: string): number {
         const m = this.elementMeta.get(name);
-        if (!m) return 1;
-        if (m.offsets.length > 0) return m.offsets.length;
+        if (!m) {
+            return 1;
+        }
+        if (m.offsets.length > 0) {
+            return m.offsets.length;
+        }
 
         const entry = this.getEntry(name);
         const totalBytes = entry.data.byteLength ?? 0;
         const stride = m.elementSize;
-        if (!stride || stride <= 0) return 1;
+        if (!stride || stride <= 0) {
+            return 1;
+        }
         return Math.max(1, Math.floor(totalBytes / stride));
     }
 }

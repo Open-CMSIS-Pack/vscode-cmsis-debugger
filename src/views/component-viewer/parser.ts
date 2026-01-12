@@ -94,15 +94,31 @@ class Tokenizer {
     private s: string = '';
     private i = 0;
     private n = 0;
-    constructor(s: string) { this.reset(s); }
-    public reset(s: string) { this.s = s; this.i = 0; this.n = s.length; }
-    public eof() { return this.i >= this.n; }
-    public peek(k=0) { const j = this.i + k; return j < this.n ? this.s.charAt(j) : ''; }
-    public advance(k=1) { this.i += k; }
-    public skipWS() { while (!this.eof() && /\s/.test(this.s.charAt(this.i))) this.i++; }
+    constructor(s: string) {
+        this.reset(s);
+    }
+    public reset(s: string) {
+        this.s = s; this.i = 0; this.n = s.length;
+    }
+    public eof() {
+        return this.i >= this.n;
+    }
+    public peek(k=0) {
+        const j = this.i + k; return j < this.n ? this.s.charAt(j) : '';
+    }
+    public advance(k=1) {
+        this.i += k;
+    }
+    public skipWS() {
+        while (!this.eof() && /\s/.test(this.s.charAt(this.i))) {
+            this.i++;
+        }
+    }
     public next(): Token {
         this.skipWS();
-        if (this.eof()) return { kind:'EOF', value:'', start:this.i, end:this.i };
+        if (this.eof()) {
+            return { kind:'EOF', value:'', start:this.i, end:this.i };
+        }
 
         for (const m of MULTI) {
             if (this.s.startsWith(m, this.i)) {
@@ -117,15 +133,33 @@ class Tokenizer {
         if (isDigit(ch) || (ch === '.' && isDigit(this.peek(1)))) {
             const start = this.i;
             if (ch === '0' && (this.peek(1).toLowerCase() === 'x')) {
-                this.advance(2); while (!this.eof() && /[0-9a-f]/i.test(this.peek())) this.advance();
+                this.advance(2); while (!this.eof() && /[0-9a-f]/i.test(this.peek())) {
+                    this.advance();
+                }
             } else if (ch === '0' && (this.peek(1).toLowerCase() === 'b')) {
-                this.advance(2); while (!this.eof() && /[01]/.test(this.peek())) this.advance();
+                this.advance(2); while (!this.eof() && /[01]/.test(this.peek())) {
+                    this.advance();
+                }
             } else if (ch === '0' && (this.peek(1).toLowerCase() === 'o')) {
-                this.advance(2); while (!this.eof() && /[0-7]/.test(this.peek())) this.advance();
+                this.advance(2); while (!this.eof() && /[0-7]/.test(this.peek())) {
+                    this.advance();
+                }
             } else {
-                while (!this.eof() && /[0-9_]/.test(this.peek())) this.advance();
-                if (this.peek() === '.') { this.advance(); while (!this.eof() && /[0-9_]/.test(this.peek())) this.advance(); }
-                if (this.peek().toLowerCase() === 'e') { this.advance(); if (/[+-]/.test(this.peek())) this.advance(); while (!this.eof() && /[0-9]/.test(this.peek())) this.advance(); }
+                while (!this.eof() && /[0-9_]/.test(this.peek())) {
+                    this.advance();
+                }
+                if (this.peek() === '.') {
+                    this.advance(); while (!this.eof() && /[0-9_]/.test(this.peek())) {
+                        this.advance();
+                    }
+                }
+                if (this.peek().toLowerCase() === 'e') {
+                    this.advance(); if (/[+-]/.test(this.peek())) {
+                        this.advance();
+                    } while (!this.eof() && /[0-9]/.test(this.peek())) {
+                        this.advance();
+                    }
+                }
             }
             const raw = this.s.slice(start, this.i);
             return { kind:'NUMBER', value:raw, start, end:this.i };
@@ -134,7 +168,9 @@ class Tokenizer {
         const isAlpha = (c:string)=> (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c === '_';
         if (isAlpha(ch)) {
             const start = this.i; this.advance();
-            while (!this.eof() && (isAlpha(this.peek()) || /[0-9]/.test(this.peek()))) this.advance();
+            while (!this.eof() && (isAlpha(this.peek()) || /[0-9]/.test(this.peek()))) {
+                this.advance();
+            }
             const val = this.s.slice(start, this.i);
             return { kind:'IDENT', value:val, start, end:this.i };
         }
@@ -144,9 +180,13 @@ class Tokenizer {
             let escaped = false;
             while (!this.eof()) {
                 const c = this.peek(); this.advance();
-                if (escaped) escaped = false;
-                else if (c === '\\') escaped = true;
-                else if (c === quote) break;
+                if (escaped) {
+                    escaped = false;
+                } else if (c === '\\') {
+                    escaped = true;
+                } else if (c === quote) {
+                    break;
+                }
             }
             return { kind:'STRING', value:this.s.slice(start, this.i), start, end:this.i };
         }
@@ -169,7 +209,9 @@ const INTRINSICS: Set<string> = new Set([
     '__CalcMemUsed','__FindSymbol','__GetRegVal','__Offset_of','__size_of','__Symbol_exists','__Running'
 ]);
 
-function span(start:number, end:number) { return { start, end }; }
+function span(start:number, end:number) {
+    return { start, end };
+}
 const startOf = (n: ASTNode) => (n as BaseNode).start;
 const endOf = (n: ASTNode) => (n as BaseNode).end;
 const constOf = (n: ASTNode) => (n as BaseNode).constValue;
@@ -184,21 +226,37 @@ const makeNumberLiteral = (value: number, start: number, end: number): NumberLit
     ...span(start, end),
 });
 function literalFromConst(cv: ConstValue, start: number, end: number): ASTNode {
-    if (typeof cv === 'number') return makeNumberLiteral(cv, start, end);
-    if (typeof cv === 'string') return { kind: 'StringLiteral', value: cv, raw: JSON.stringify(cv), valueType: 'string', constValue: cv, ...span(start, end) };
-    if (typeof cv === 'boolean') return { kind: 'BooleanLiteral', value: cv, valueType: 'boolean', constValue: cv, ...span(start, end) };
+    if (typeof cv === 'number') {
+        return makeNumberLiteral(cv, start, end);
+    }
+    if (typeof cv === 'string') {
+        return { kind: 'StringLiteral', value: cv, raw: JSON.stringify(cv), valueType: 'string', constValue: cv, ...span(start, end) };
+    }
+    if (typeof cv === 'boolean') {
+        return { kind: 'BooleanLiteral', value: cv, valueType: 'boolean', constValue: cv, ...span(start, end) };
+    }
     return { kind: 'ErrorNode', message: 'Unsupported literal', ...span(start, end) };
 }
 
 function numFromRaw(raw: string): number {
     try {
         const cleaned = raw.replace(/_/g, '');
-        if (/^0[xX]/.test(cleaned)) return parseInt(cleaned.slice(2), 16);
-        if (/^0[bB]/.test(cleaned)) return parseInt(cleaned.slice(2), 2);
-        if (/^0[oO]/.test(cleaned)) return parseInt(cleaned.slice(2), 8);
-        if (cleaned.includes('.') || /e/i.test(cleaned)) return parseFloat(cleaned); // decimal float
+        if (/^0[xX]/.test(cleaned)) {
+            return parseInt(cleaned.slice(2), 16);
+        }
+        if (/^0[bB]/.test(cleaned)) {
+            return parseInt(cleaned.slice(2), 2);
+        }
+        if (/^0[oO]/.test(cleaned)) {
+            return parseInt(cleaned.slice(2), 8);
+        }
+        if (cleaned.includes('.') || /e/i.test(cleaned)) {
+            return parseFloat(cleaned);
+        } // decimal float
         return parseInt(cleaned, 10);
-    } catch { return NaN; }
+    } catch {
+        return NaN;
+    }
 }
 
 function unescapeString(rawWithQuotes: string): string {
@@ -206,9 +264,13 @@ function unescapeString(rawWithQuotes: string): string {
     let out = '';
     for (let i = 0; i < s.length; i++) {
         const ch = s.charAt(i);
-        if (ch !== '\\') { out += ch; continue; }
+        if (ch !== '\\') {
+            out += ch; continue;
+        }
         i++;
-        if (i >= s.length) { out += '\\'; break; }
+        if (i >= s.length) {
+            out += '\\'; break;
+        }
         const e = s.charAt(i);
         switch (e) {
             case 'n': out += '\n'; break;
@@ -226,17 +288,29 @@ function unescapeString(rawWithQuotes: string): string {
                 if (h1 && h2 && /[0-9a-fA-F]/.test(h1) && /[0-9a-fA-F]/.test(h2)) {
                     out += String.fromCharCode(parseInt(h1 + h2, 16));
                     i += 2;
-                } else out += 'x';
+                } else {
+                    out += 'x';
+                }
                 break;
             }
             case 'u': {
                 if (s.charAt(i+1) === '{') {
                     let j = i + 2, hex = '';
-                    while (j < s.length && s.charAt(j) !== '}') { hex += s.charAt(j); j++; }
-                    if (s.charAt(j) === '}' && /^[0-9a-fA-F]+$/.test(hex)) { out += String.fromCodePoint(parseInt(hex, 16)); i = j; } else out += 'u';
+                    while (j < s.length && s.charAt(j) !== '}') {
+                        hex += s.charAt(j); j++;
+                    }
+                    if (s.charAt(j) === '}' && /^[0-9a-fA-F]+$/.test(hex)) {
+                        out += String.fromCodePoint(parseInt(hex, 16)); i = j;
+                    } else {
+                        out += 'u';
+                    }
                 } else {
                     const h = s.substr(i+1, 4);
-                    if (/^[0-9a-fA-F]{4}$/.test(h)) { out += String.fromCharCode(parseInt(h, 16)); i += 4; } else out += 'u';
+                    if (/^[0-9a-fA-F]{4}$/.test(h)) {
+                        out += String.fromCharCode(parseInt(h, 16)); i += 4;
+                    } else {
+                        out += 'u';
+                    }
                 }
                 break;
             }
@@ -263,7 +337,9 @@ export class Parser {
         this.externals.clear();
     }
     /** Public alias for consumers that want to reuse the instance */
-    public reset(s:string) { this.reinit(s); }
+    public reset(s:string) {
+        this.reinit(s);
+    }
 
     /* ---------- public API ---------- */
 
@@ -315,8 +391,12 @@ export class Parser {
         } else {
             // Normal expression parsing
             ast = this.parseExpression();
-            while (this.cur.kind === 'PUNCT' && this.cur.value === ';') this.eat('PUNCT',';');
-            if (this.cur.kind !== 'EOF') this.warn('Extra tokens after expression', this.cur.start, this.cur.end);
+            while (this.cur.kind === 'PUNCT' && this.cur.value === ';') {
+                this.eat('PUNCT',';');
+            }
+            if (this.cur.kind !== 'EOF') {
+                this.warn('Extra tokens after expression', this.cur.start, this.cur.end);
+            }
         }
 
         // Constant folding only for non-printf ASTs
@@ -334,8 +414,12 @@ export class Parser {
 
     /* ---------- diagnostics & token helpers ---------- */
 
-    private error(msg:string, start:number, end:number) { this.diagnostics.push({ type:'error', message:msg, start, end }); }
-    private warn(msg:string, start:number, end:number) { this.diagnostics.push({ type:'warning', message:msg, start, end }); }
+    private error(msg:string, start:number, end:number) {
+        this.diagnostics.push({ type:'error', message:msg, start, end });
+    }
+    private warn(msg:string, start:number, end:number) {
+        this.diagnostics.push({ type:'warning', message:msg, start, end });
+    }
 
     private eat(kind:TokenKind, value?:string): Token {
         const t = this.cur;
@@ -348,7 +432,9 @@ export class Parser {
     }
     private tryEat(kind:TokenKind, value?:string): Token|undefined {
         const t = this.cur;
-        if (t.kind === kind && (value === undefined || t.value === value)) { this.cur = this.tok.next(); return t; }
+        if (t.kind === kind && (value === undefined || t.value === value)) {
+            this.cur = this.tok.next(); return t;
+        }
         return undefined;
     }
     private curIs(kind: TokenKind, value?: string): boolean {
@@ -358,7 +444,9 @@ export class Parser {
 
     /** Generic printf detection: %% or %x[ ... ] for ANY non-space spec x */
     private looksLikePrintf(s:string): boolean {
-        if (s.includes('%%')) return true;
+        if (s.includes('%%')) {
+            return true;
+        }
         return /%[^\s%]\s*\[/.test(s);
     }
 
@@ -378,10 +466,14 @@ export class Parser {
         while (i < n) {
             const j = s.indexOf('%', i);
             if (j === -1) {
-                if (i < n) segments.push({ kind:'TextSegment', text:s.slice(i), ...span(i,n) });
+                if (i < n) {
+                    segments.push({ kind:'TextSegment', text:s.slice(i), ...span(i,n) });
+                }
                 break;
             }
-            if (j > i) segments.push({ kind:'TextSegment', text:s.slice(i,j), ...span(i,j) });
+            if (j > i) {
+                segments.push({ kind:'TextSegment', text:s.slice(i,j), ...span(i,j) });
+            }
 
             // Handle escaped percent
             if (j+1 < n && s.charAt(j+1) === '%') {
@@ -394,7 +486,9 @@ export class Parser {
             if (spec && spec !== '%') {
                 // Look for a bracketed expression after optional whitespace
                 let k = j + 2;
-                while (k<n && /\s/.test(s.charAt(k))) k++;
+                while (k<n && /\s/.test(s.charAt(k))) {
+                    k++;
+                }
                 if (k>=n || s.charAt(k) !== '[') {
                     // Not a bracket form: treat literally as "%x"
                     segments.push({ kind:'TextSegment', text:'%'+spec, ...span(j,j+2) });
@@ -410,19 +504,35 @@ export class Parser {
                 while (m < n && depth > 0) {
                     const c = s.charAt(m);
                     if (inString) {
-                        if (escaped) { escaped = false; m++; continue; }
-                        if (c === '\\') { escaped = true; m++; continue; }
-                        if (c === inString) { inString = null; m++; continue; }
+                        if (escaped) {
+                            escaped = false; m++; continue;
+                        }
+                        if (c === '\\') {
+                            escaped = true; m++; continue;
+                        }
+                        if (c === inString) {
+                            inString = null; m++; continue;
+                        }
                         m++; continue;
                     }
-                    if (c === '"' || c === '\'') { inString = c as '"'|'\''; m++; continue; }
-                    if (c === '[') { depth++; m++; continue; }
-                    if (c === ']') { depth--; if (depth === 0) break; m++; continue; }
+                    if (c === '"' || c === '\'') {
+                        inString = c as '"'|'\''; m++; continue;
+                    }
+                    if (c === '[') {
+                        depth++; m++; continue;
+                    }
+                    if (c === ']') {
+                        depth--; if (depth === 0) {
+                            break;
+                        } m++; continue;
+                    }
                     m++;
                 }
 
                 let exprEnd = m;
-                if (depth !== 0) { this.warn('Unclosed formatter bracket; treating rest as expression.', j, n); exprEnd = n; }
+                if (depth !== 0) {
+                    this.warn('Unclosed formatter bracket; treating rest as expression.', j, n); exprEnd = n;
+                }
 
                 const inner = this.parseSubexpression(s.slice(exprStart, exprEnd), exprStart);
                 const seg: FormatSegment = { kind:'FormatSegment', spec: spec as FormatSpec, value: inner, ...span(j, depth===0? exprEnd+1 : n) };
@@ -453,12 +563,18 @@ export class Parser {
         const folded = this.fold(node);
 
         // consume optional semicolons and check for trailing junk
-        while (this.cur.kind === 'PUNCT' && this.cur.value === ';') this.eat('PUNCT',';');
-        if (this.cur.kind !== 'EOF') tmp.push({ type:'warning', message:'Extra tokens after expression', start:this.cur.start + baseOffset, end:this.cur.end + baseOffset });
+        while (this.cur.kind === 'PUNCT' && this.cur.value === ';') {
+            this.eat('PUNCT',';');
+        }
+        if (this.cur.kind !== 'EOF') {
+            tmp.push({ type:'warning', message:'Extra tokens after expression', start:this.cur.start + baseOffset, end:this.cur.end + baseOffset });
+        }
 
         const adj = tmp.map(d => ({ ...d, start: d.start + baseOffset, end: d.end + baseOffset }));
         savedDiag.push(...adj);
-        for (const sym of this.externals) savedExt.add(sym);
+        for (const sym of this.externals) {
+            savedExt.add(sym);
+        }
         this.s = savedS;
         this.tok = savedTok;
         this.cur = savedCur;
@@ -469,14 +585,18 @@ export class Parser {
 
     /* ---------- expression parsing ---------- */
 
-    private parseExpression(): ASTNode { return this.parseAssignment(); }
+    private parseExpression(): ASTNode {
+        return this.parseAssignment();
+    }
 
     private parseConditional(): ASTNode {
         let node = this.parseBinary(1);
         if (this.cur.kind === 'PUNCT' && this.cur.value === '?') {
             this.eat('PUNCT','?');
             const cons = this.parseExpression();
-            if (!this.tryEat('PUNCT',':')) this.error('Expected ":" in conditional expression', this.cur.start, this.cur.end);
+            if (!this.tryEat('PUNCT',':')) {
+                this.error('Expected ":" in conditional expression', this.cur.start, this.cur.end);
+            }
             const alt = this.parseExpression();
             node = { kind:'ConditionalExpression', test:node, consequent:cons, alternate:alt, ...span(startOf(node), endOf(alt)) };
         }
@@ -506,8 +626,12 @@ export class Parser {
 
             if (isAssignOp) {
                 this.eat('PUNCT', op);
-                if (!this.isAssignable(left)) this.error('Invalid assignment target', startOf(left), endOf(left));
-                if (left.kind === 'Identifier') this.externals.delete((left as Identifier).name);
+                if (!this.isAssignable(left)) {
+                    this.error('Invalid assignment target', startOf(left), endOf(left));
+                }
+                if (left.kind === 'Identifier') {
+                    this.externals.delete((left as Identifier).name);
+                }
                 const right = this.parseAssignment(); // right-assoc
                 return { kind:'AssignmentExpression', operator: op as AssignmentExpression['operator'], left, right, ...span(startOf(left), endOf(right)) };
             }
@@ -520,7 +644,9 @@ export class Parser {
         while (this.cur.kind === 'PUNCT' && Parser.PREC[this.cur.value] !== undefined) {
             const op = this.cur.value;
             const prec = Parser.PREC[op];
-            if (prec < minPrec) break;
+            if (prec < minPrec) {
+                break;
+            }
             this.eat('PUNCT', op);
             const rhs = this.parseBinary(prec + 1);
             node = { kind:'BinaryExpression', operator:op, left:node, right:rhs, ...span(startOf(node), endOf(rhs)) };
@@ -532,7 +658,9 @@ export class Parser {
         if (this.cur.kind === 'PUNCT' && (this.cur.value === '++' || this.cur.value === '--')) {
             const op = this.cur.value; const t = this.eat('PUNCT', op);
             const arg = this.parseUnary();
-            if (!this.isAssignable(arg)) this.error('Invalid increment/decrement target', startOf(arg), endOf(arg));
+            if (!this.isAssignable(arg)) {
+                this.error('Invalid increment/decrement target', startOf(arg), endOf(arg));
+            }
             return { kind:'UpdateExpression', operator: op as UpdateExpression['operator'], argument: arg, prefix: true, ...span(t.start, endOf(arg)) };
         }
         if (this.cur.kind === 'PUNCT' && (this.cur.value === '+' || this.cur.value === '-' || this.cur.value === '!' || this.cur.value === '~')) {
@@ -580,7 +708,9 @@ export class Parser {
             }
 
             // If next token is ':' but we're not on Identifier/ColonPath, it's likely the ternary ':'; stop here.
-            if (this.curIs('PUNCT', ':')) break;
+            if (this.curIs('PUNCT', ':')) {
+                break;
+            }
 
             // function call
             if (this.tryEat('PUNCT','(')) {
@@ -588,11 +718,15 @@ export class Parser {
                 if (!(this.cur.kind === 'PUNCT' && this.cur.value === ')')) {
                     while (true) {
                         args.push(this.parseExpression());
-                        if (this.tryEat('PUNCT',',')) continue;
+                        if (this.tryEat('PUNCT',',')) {
+                            continue;
+                        }
                         break;
                     }
                 }
-                if (!this.tryEat('PUNCT',')')) this.error('Expected ")"', this.cur.start, this.cur.end);
+                if (!this.tryEat('PUNCT',')')) {
+                    this.error('Expected ")"', this.cur.start, this.cur.end);
+                }
                 const callee = node as ASTNode;
                 const isIntrinsic = callee.kind === 'Identifier' && INTRINSICS.has((callee as Identifier).name);
                 const calleeName = callee.kind === 'Identifier' ? (callee as Identifier).name : undefined;
@@ -630,13 +764,17 @@ export class Parser {
             // index access
             if (this.tryEat('PUNCT', '[')) {
                 const index = this.parseExpression();
-                if (!this.tryEat('PUNCT', ']')) this.error('Expected "]"', this.cur.start, this.cur.end);
+                if (!this.tryEat('PUNCT', ']')) {
+                    this.error('Expected "]"', this.cur.start, this.cur.end);
+                }
                 node = { kind:'ArrayIndex', array:node, index, ...span(startOf(node), endOf(index)) };
                 continue;
             }      // postfix ++ / --
             if (this.cur.kind === 'PUNCT' && (this.cur.value === '++' || this.cur.value === '--')) {
                 const op = this.cur.value; const t = this.eat('PUNCT', op);
-                if (!this.isAssignable(node)) this.error('Invalid increment/decrement target', startOf(node), endOf(node));
+                if (!this.isAssignable(node)) {
+                    this.error('Invalid increment/decrement target', startOf(node), endOf(node));
+                }
                 node = { kind:'UpdateExpression', operator: op as UpdateExpression['operator'], argument: node, prefix: false, ...span(startOf(node), t.end) };
                 break;
             }
@@ -671,13 +809,17 @@ export class Parser {
         if (t.kind === 'IDENT') {
             this.eat('IDENT');
             const node: Identifier = { kind:'Identifier', name:t.value, valueType:'unknown', ...span(t.start,t.end) };
-            if (!INTRINSICS.has(t.value)) this.externals.add(t.value);
+            if (!INTRINSICS.has(t.value)) {
+                this.externals.add(t.value);
+            }
             return node;
         }
         if (t.kind === 'PUNCT' && t.value === '(') {
             this.eat('PUNCT','(');
             const expr = this.parseExpression();
-            if (!this.tryEat('PUNCT',')')) this.error('Expected ")"', this.cur.start, this.cur.end);
+            if (!this.tryEat('PUNCT',')')) {
+                this.error('Expected ")"', this.cur.start, this.cur.end);
+            }
             return expr;
         }
         this.error(`Unexpected token ${t.kind} ${JSON.stringify(t.value)}`, t.start, t.end);
@@ -693,10 +835,18 @@ export class Parser {
         if (k === 'NumberLiteral' || k === 'StringLiteral' || k === 'BooleanLiteral') {
             return { ...node, constValue: node.value };
         }
-        if (k === 'Identifier') return node;
-        if (k === 'ColonPath') return node;
-        if (k === 'MemberAccess') return { ...node, object: this.fold((node as MemberAccess).object) };
-        if (k === 'ArrayIndex') return { ...node, array: this.fold((node as ArrayIndex).array), index: this.fold((node as ArrayIndex).index) };
+        if (k === 'Identifier') {
+            return node;
+        }
+        if (k === 'ColonPath') {
+            return node;
+        }
+        if (k === 'MemberAccess') {
+            return { ...node, object: this.fold((node as MemberAccess).object) };
+        }
+        if (k === 'ArrayIndex') {
+            return { ...node, array: this.fold((node as ArrayIndex).array), index: this.fold((node as ArrayIndex).index) };
+        }
 
         if (k === 'UnaryExpression') {
             const arg = this.fold((node as UnaryExpression).argument);
@@ -706,11 +856,18 @@ export class Parser {
             if (v !== undefined) {
                 try {
                     let cv: ConstValue;
-                    if (op === '+') cv = Number(v);
-                    else if (op === '-') cv = -Number(v);
-                    else if (op === '!') cv = !v;
-                    else if (op === '~') cv = (~(Number(v) | 0)) >>> 0;
-                    if (cv !== undefined) res.constValue = cv;
+                    if (op === '+') {
+                        cv = Number(v);
+                    } else if (op === '-') {
+                        cv = -Number(v);
+                    } else if (op === '!') {
+                        cv = !v;
+                    } else if (op === '~') {
+                        cv = (~(Number(v) | 0)) >>> 0;
+                    }
+                    if (cv !== undefined) {
+                        res.constValue = cv;
+                    }
                 } catch (err) {
                     const msg = err instanceof Error ? err.message : String(err);
                     this.error(`Failed to fold unary expression ${op}: ${msg}`, startOf(node), endOf(node));
@@ -743,12 +900,19 @@ export class Parser {
                     const bn = Number(b);
                     switch (op) {
                         case '+':
-                            if (typeof a === 'string' || typeof b === 'string') cv = String(a) + String(b);
-                            else cv = an + bn;
+                            if (typeof a === 'string' || typeof b === 'string') {
+                                cv = String(a) + String(b);
+                            } else {
+                                cv = an + bn;
+                            }
                             break;
                         case '-': cv = an - bn; break;
                         case '*': cv = an * bn; break;
-                        case '/': if (bn === 0) this.error('Division by zero', startOf(node), endOf(node)); else cv = an / bn; break;
+                        case '/': if (bn === 0) {
+                            this.error('Division by zero', startOf(node), endOf(node));
+                        } else {
+                            cv = an / bn;
+                        } break;
                         case '%': cv = an % bn; break;
                         case '<<': cv = toUint32(toInt32(an) << (bn & 31)); break;
                         case '>>': cv = toUint32(toInt32(an) >> (bn & 31)); break;
@@ -765,7 +929,9 @@ export class Parser {
                         case '&&': cv = !!a && !!b; break;
                         case '||': cv = !!a || !!b; break;
                     }
-                    if (cv !== undefined) res.constValue = cv;
+                    if (cv !== undefined) {
+                        res.constValue = cv;
+                    }
                 } catch (err) {
                     const msg = err instanceof Error ? err.message : String(err);
                     this.error(`Failed to fold binary expression ${op}: ${msg}`, startOf(node), endOf(node));
@@ -774,8 +940,12 @@ export class Parser {
                     return literalFromConst(res.constValue, startOf(node), endOf(node));
                 }
             } else {
-                if (op === '&&' && hasL && !la) res.constValue = false;
-                if (op === '||' && hasL && la) res.constValue = true;
+                if (op === '&&' && hasL && !la) {
+                    res.constValue = false;
+                }
+                if (op === '||' && hasL && la) {
+                    res.constValue = true;
+                }
             }
 
             // Partial folding: combine trailing numeric constants in addition chains (e.g., foo+1+2 => foo+3)
@@ -827,7 +997,9 @@ export class Parser {
 
         if (k === 'PrintfExpression') {
             return { ...node, segments: (node as PrintfExpression).segments.map(seg => {
-                if (seg.kind === 'FormatSegment') return { ...seg, value: this.fold(seg.value) };
+                if (seg.kind === 'FormatSegment') {
+                    return { ...seg, value: this.fold(seg.value) };
+                }
                 return seg;
             }) };
         }

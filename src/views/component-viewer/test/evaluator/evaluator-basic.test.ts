@@ -67,7 +67,9 @@ class MockHost implements DataHost {
     }
 
     private resolveElement(ref: MockRef | undefined, index?: number): MockRef | undefined {
-        if (!ref) return undefined;
+        if (!ref) {
+            return undefined;
+        }
         if (index !== undefined && ref.elements.size > 0) {
             return ref.elements.get(index);
         }
@@ -96,17 +98,27 @@ class MockHost implements DataHost {
             (container.member as MockRef | undefined) ??
             this.resolveElement(container.current as MockRef, container.index) ??
             (container.anchor as MockRef | undefined);
-        if (!ref) return undefined;
+        if (!ref) {
+            return undefined;
+        }
         ref.value = value;
         return value;
     }
 
     public _count(container: RefContainer): number | undefined {
         const ref = this.resolveElement(container.current as MockRef, container.index);
-        if (!ref) return undefined;
-        if (ref.elements.size > 0) return ref.elements.size;
-        if (ref.members.size > 0) return ref.members.size;
-        if (typeof ref.value === 'string') return ref.value.length;
+        if (!ref) {
+            return undefined;
+        }
+        if (ref.elements.size > 0) {
+            return ref.elements.size;
+        }
+        if (ref.members.size > 0) {
+            return ref.members.size;
+        }
+        if (typeof ref.value === 'string') {
+            return ref.value.length;
+        }
         return 0;
     }
 
@@ -115,7 +127,9 @@ class MockHost implements DataHost {
         return ref?.addr ?? 0;
     }
 
-    public __Running(): number { return 1; }
+    public __Running(): number {
+        return 1;
+    }
 
     public __GetRegVal(reg: string): number | undefined {
         return this.regValues.get(reg);
@@ -123,8 +137,12 @@ class MockHost implements DataHost {
 
     public __FindSymbol(symbol: string): number | undefined {
         const ref = this.symbols.get(symbol);
-        if (ref?.addr !== undefined) return ref.addr;
-        if (typeof ref?.value === 'number') return ref.value;
+        if (ref?.addr !== undefined) {
+            return ref.addr;
+        }
+        if (typeof ref?.value === 'number') {
+            return ref.value;
+        }
         return undefined;
     }
 

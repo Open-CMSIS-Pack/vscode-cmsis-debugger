@@ -62,7 +62,9 @@ export class RegisterHost {
         }
         const key = normalize(name);
         const cached = this.cache.get(key);
-        if (!cached) return undefined;
+        if (!cached) {
+            return undefined;
+        }
         return cached.isValid ? cached.value : undefined;
     }
 

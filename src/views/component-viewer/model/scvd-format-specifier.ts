@@ -34,7 +34,9 @@ export class ScvdFormatSpecifier {
 
     public format_u(value: number | string): string {
         const n = Number(value);
-        if (!Number.isFinite(n)) return `${value}`;
+        if (!Number.isFinite(n)) {
+            return `${value}`;
+        }
         return (n >>> 0).toString(10);
     }
 
@@ -77,7 +79,9 @@ export class ScvdFormatSpecifier {
 
     public format_x(value: number | string): string {
         const n = Number(value);
-        if (!Number.isFinite(n)) return `${value}`;
+        if (!Number.isFinite(n)) {
+            return `${value}`;
+        }
         return '0x' + (n >>> 0).toString(16);
     }
 
@@ -105,9 +109,13 @@ export class ScvdFormatSpecifier {
     }
 
     public format_I(value: number | string): string {
-        if (typeof value === 'string') return value;
+        if (typeof value === 'string') {
+            return value;
+        }
         const n = Number(value);
-        if (!Number.isFinite(n)) return `${value}`;
+        if (!Number.isFinite(n)) {
+            return `${value}`;
+        }
         const b0 = (n >>> 24) & 0xFF;
         const b1 = (n >>> 16) & 0xFF;
         const b2 = (n >>> 8) & 0xFF;
@@ -117,7 +125,9 @@ export class ScvdFormatSpecifier {
 
     public format_J(value: number | string): string {
         // If already a string, assume formatted IPv6
-        if (typeof value === 'string') return value;
+        if (typeof value === 'string') {
+            return value;
+        }
         // Cannot reliably format numeric IPv6 (needs 128-bit); fallback to hex
         return this.format_x(value);
     }
@@ -139,7 +149,9 @@ export class ScvdFormatSpecifier {
             return cleaned.match(/.{1,2}/g)?.join('-').toUpperCase() ?? value;
         }
         const n = Number(value);
-        if (!Number.isFinite(n)) return `${value}`;
+        if (!Number.isFinite(n)) {
+            return `${value}`;
+        }
         const parts: string[] = [];
         for (let i = 5; i >= 0; i--) {
             parts.push(((n >> (i * 8)) & 0xFF).toString(16).padStart(2, '0'));
@@ -149,12 +161,16 @@ export class ScvdFormatSpecifier {
 
     public format_T(value: number | string): string {
         if (typeof value === 'number') {
-            if (Number.isInteger(value)) return this.format_x(value);
+            if (Number.isInteger(value)) {
+                return this.format_x(value);
+            }
             return value.toString();
         }
         const n = Number(value);
         if (Number.isFinite(n)) {
-            if (Number.isInteger(n)) return this.format_x(n);
+            if (Number.isInteger(n)) {
+                return this.format_x(n);
+            }
             return n.toString();
         }
         return `${value}`;
@@ -182,7 +198,9 @@ export class ScvdFormatSpecifier {
         const chars: number[] = [];
         for (let i = 0; i < bytes.length; i++) {
             const b = bytes[i];
-            if (b === 0) break;     // if you use C-style null termination
+            if (b === 0) {
+                break;
+            }     // if you use C-style null termination
             chars.push(b & 0x7F);   // or just `chars.push(b);` if high bits never set
         }
         return String.fromCharCode(...chars);
@@ -196,7 +214,9 @@ export class ScvdFormatSpecifier {
      *   Device Qualifier(6), BOS(0x0F). Unknown types are hex-dumped.
      */
     public printUsbDescriptor(value: Uint8Array): string {
-        if (!value || value.length < 2) return '(invalid: too short)';
+        if (!value || value.length < 2) {
+            return '(invalid: too short)';
+        }
         const bLength = value[0] || value.length; // be forgiving if devices put 0
         const bType = value[1];
         const len = Math.min(bLength, value.length);
@@ -224,8 +244,12 @@ export class ScvdFormatSpecifier {
         // --- String Descriptor (Type 0x03) ---
         // bLength, bDescriptorType, then UTF-16LE code units
         if (bType === 0x03) {
-            if (len < 2) return 'USB String: (invalid)';
-            if (len === 2) return 'USB String: (empty)';
+            if (len < 2) {
+                return 'USB String: (invalid)';
+            }
+            if (len === 2) {
+                return 'USB String: (empty)';
+            }
             // indices 2..len-1 contain UTF-16LE units
             const codeUnitCount = Math.max(0, (len - 2) >> 1);
             const units = new Uint16Array(codeUnitCount);
@@ -236,7 +260,9 @@ export class ScvdFormatSpecifier {
             }
             // Convert UTF-16 units to JS string safely (surrogates pass through)
             let out = '';
-            for (let i = 0; i < units.length; i++) out += String.fromCharCode(units[i]);
+            for (let i = 0; i < units.length; i++) {
+                out += String.fromCharCode(units[i]);
+            }
             return `USB String: "${out}"`;
         }
 
