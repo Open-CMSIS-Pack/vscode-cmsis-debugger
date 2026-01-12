@@ -101,7 +101,7 @@ export class ScvdDebugTarget {
     }
 
     public async findSymbolNameAtAddress(address: number): Promise<string | undefined> {
-        // TODO For real sessions, this functionality is not implemented yet
+        // TOIMPL For real sessions, this functionality is not implemented yet
         if(this.activeSession.session.id.startsWith('mock-session-')) {
             return Promise.resolve(undefined);
         } else {
@@ -120,7 +120,7 @@ export class ScvdDebugTarget {
                 return symbolInfo?.member?.length ?? 1;
             }
         } else {
-            // TODO For real sessions, this functionality is not implemented yet
+            // TOIMPL For real sessions, this functionality is not implemented yet
         }
         return undefined;
     }
@@ -130,7 +130,7 @@ export class ScvdDebugTarget {
         if(this.activeSession.session.id.startsWith('mock-session-')) {
             return false; // mock session is always running
         } else {
-            // TODO For real sessions, this functionality is not implemented yet
+            // TOIMPL For real sessions, this functionality is not implemented yet
             const runningState = false; //await this.targetAccess.evaluateTargetRunningState();
             return runningState;
         }

@@ -26,7 +26,7 @@ export class StatementItem extends StatementBase {
         super(item, parent);
     }
 
-    // TODO: add printChildren to guiTree, and take the furst to set name/value for the item parent
+    // TOIMPL: add printChildren to guiTree, and take the furst to set name/value for the item parent
     public async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
         const conditionResult = await this.scvdItem.getConditionResult();
         if (conditionResult === false) {
@@ -70,7 +70,7 @@ export class StatementItem extends StatementBase {
                 }
             }
 
-            if(guiName === undefined && childGuiTree.children.length === 0) { // TODO: check other conditions to drop
+            if(guiName === undefined && childGuiTree.children.length === 0) { // TOIMPL: check other conditions to drop
                 childGuiTree.detach();  // drop empty items that never produced a GUI name/value
             }
         }

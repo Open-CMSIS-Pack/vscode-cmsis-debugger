@@ -145,7 +145,7 @@ export class ScvdMember extends ScvdBase {
                 return offsetValue;
             }
         }
-        return 0;   // TODO: default?
+        return 0;   // TOIMPL: default?
     }
 
     public isPointerRef(): boolean {

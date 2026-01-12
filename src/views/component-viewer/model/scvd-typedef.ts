@@ -224,7 +224,7 @@ export class ScvdTypedef extends ScvdBase {
             const memberOffset = member.offset;
             if(memberOffset !== undefined) {   // ---- offset expression is set ----
                 const offsetVal = await memberOffset.getValue();
-                if(offsetVal !== undefined) {   // TODO: on error?!
+                if(offsetVal !== undefined) {   // TOIMPL: on error?!
                     if(offsetVal > currentNextOffset) {
                         currentNextOffset = offsetVal;  // store offset
                     }
@@ -243,7 +243,7 @@ export class ScvdTypedef extends ScvdBase {
             }
 
             const memberSize = member.getTypeSize();
-            if(memberSize !== undefined) {   // TODO: on error?!
+            if(memberSize !== undefined) {   // TOIMPL: on error?!
                 currentNextOffset += memberSize;
             }
         }

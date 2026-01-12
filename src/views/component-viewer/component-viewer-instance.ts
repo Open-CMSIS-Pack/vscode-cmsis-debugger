@@ -182,7 +182,7 @@ export class ComponentViewerInstance {
     }
 
     public updateModel(activeSession: GDBTargetDebugSession): void {
-        // TODO: Update values in the model by re-evaluating necessary statements
+        // TOIMPL: Update values in the model by re-evaluating necessary statements
         console.log(activeSession);
     }
 

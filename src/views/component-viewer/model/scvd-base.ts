@@ -270,7 +270,7 @@ export abstract class ScvdBase {
 
     // expanded values
     public async getValue(): Promise<string | number | undefined> {
-        return undefined;   // TODO: change to undefined to indicate no value
+        return undefined;   // TOIMPL: change to undefined to indicate no value
     }
 
     public async setValue(val: number | string): Promise<number | string | undefined> {

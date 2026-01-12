@@ -72,7 +72,7 @@ export class ScvdEvent extends ScvdBase {
     }
 
     public resolveAndLink(_resolveFunc: ResolveSymbolCb): boolean {
-        // TODO: this._state = this.findReference(ScvdEventState, this._state?.name);
+        // TOIMPL: this._state = this.findReference(ScvdEventState, this._state?.name);
         return false;
     }
 
@@ -149,7 +149,7 @@ export class ScvdEvent extends ScvdBase {
         return this._state;
     }
 
-    // TODO, resolve and link
+    // TOIMPL, resolve and link
     public set state(value: ScvdEventState | undefined) {
         this._state = value;
     }

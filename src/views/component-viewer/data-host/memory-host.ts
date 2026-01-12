@@ -156,7 +156,7 @@ export class MemoryHost {
         const raw = container.read(byteOff, widthBytes);
 
         if (this.endianness !== 'little') {
-            // TODO: add BE support if needed
+            // TOIMPL: add BE support if needed
         }
 
         // Interpret the bytes:
