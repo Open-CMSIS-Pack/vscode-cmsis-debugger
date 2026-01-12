@@ -47,6 +47,11 @@ export class ScvdEvalInterface implements DataHost {
         return this._formatSpecifier;
     }
 
+    private normalizeName(name: string | undefined): string | undefined {
+        const trimmed = name?.trim();
+        return trimmed && trimmed.length > 0 ? trimmed : undefined;
+    }
+
     // ---------------- DataHost Interface ----------------
     public getSymbolRef(container: RefContainer, name: string, _forWrite?: boolean): ScvdBase | undefined {
         const symbol = container.base.getSymbol?.(name);
@@ -138,28 +143,37 @@ export class ScvdEvalInterface implements DataHost {
     /* ---------------- Intrinsics ---------------- */
 
     public async __FindSymbol(symbolName: string): Promise<number | undefined> {
-        if (typeof symbolName === 'string') {
-            const symbolAddress = await this.debugTarget.findSymbolAddress(symbolName);
-            return symbolAddress;
+        const normalized = this.normalizeName(symbolName);
+        if (!normalized) {
+            return undefined;
         }
-        return undefined;
+        const symbolAddress = await this.debugTarget.findSymbolAddress(normalized);
+        return symbolAddress;
     }
 
     public async __GetRegVal(regName: string): Promise<number | undefined> {
-        const cachedRegVal = this.registerHost.read(regName);
+        const normalized = this.normalizeName(regName);
+        if (!normalized) {
+            return undefined;
+        }
+        const cachedRegVal = this.registerHost.read(normalized);
         if (cachedRegVal === undefined) {
-            const value = await this.debugTarget.readRegister(regName);
+            const value = await this.debugTarget.readRegister(normalized);
             if(value === undefined) {
                 return undefined;
             }
-            this.registerHost.write(regName, value);
+            this.registerHost.write(normalized, value);
             return value;
         }
         return cachedRegVal;
     }
 
     public async __Symbol_exists(symbol: string): Promise<number | undefined> {
-        return await this.debugTarget.findSymbolAddress(symbol) ? 1 : 0;
+        const normalized = this.normalizeName(symbol);
+        if (!normalized) {
+            return undefined;
+        }
+        return await this.debugTarget.findSymbolAddress(normalized) ? 1 : 0;
     }
 
     /* Returns
