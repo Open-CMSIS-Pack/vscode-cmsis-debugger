@@ -148,13 +148,7 @@ export class MemoryHost {
     }
 
     private getContainer(varName: string): MemoryContainer {
-        const entry = this.cache.getEntry(varName);
-        if (entry) {
-            return entry.value;
-        }
-        const created = new MemoryContainer(varName);
-        this.cache.set(varName, created, false);
-        return created;
+        return this.cache.ensure(varName, () => new MemoryContainer(varName), false);
     }
 
     /** Read a value, using byte-only offsets and widths. */

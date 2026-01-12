@@ -31,20 +31,23 @@ export class ValidatingCache<T> {
         return entry && entry.valid ? entry.value : undefined;
     }
 
-    public getEntry(key: string): ValidatingEntry<T> | undefined {
-        if (!key) {
-            return undefined;
-        }
-        const norm = this.normalize(key);
-        return this.map.get(norm);
-    }
-
     public set(key: string, value: T, valid = true): void {
         if (!key) {
             return;
         }
         const norm = this.normalize(key);
         this.map.set(norm, { value, valid });
+    }
+
+    public ensure(key: string, factory: () => T, valid = true): T {
+        const norm = this.normalize(key);
+        const existing = this.map.get(norm);
+        if (existing) {
+            return existing.value;
+        }
+        const value = factory();
+        this.map.set(norm, { value, valid });
+        return value;
     }
 
     public invalidate(key: string): void {
