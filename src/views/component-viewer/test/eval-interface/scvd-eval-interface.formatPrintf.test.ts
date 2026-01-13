@@ -105,6 +105,7 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
     const memoryMap = new Map<number, Uint8Array>([
         [0x10, new Uint8Array([192, 168, 0, 1])],                                              // IPv4
         [0x20, new Uint8Array([0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x13])], // IPv6
+        [0x24, new Uint8Array([0x2a, 0x00, 0x0e, 0xe0, 0x00, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x13])], // IPv6 spec example 2a00:ee0:d::13
         [0x30, new Uint8Array([0x1E, 0x30, 0x6C, 0xA2, 0x45, 0x5F])],                           // MAC
         [0x40, new Uint8Array([0x4E, 0x61, 0x6D, 0x65, 0x00])],                                 // "Name\0"
         [0x50, new Uint8Array([0x55, 0x00, 0x53, 0x00, 0x42, 0x00, 0x00, 0x00])]                // "USB" wide
@@ -157,6 +158,11 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
     it('formats %J (IPv6) from memory bytes', async () => {
         const out = await scvd.formatPrintf('J', 0x20, makeContainer());
         expect(out).toBe('2001:db8::13');
+    });
+
+    it('formats %J (IPv6) using spec example address', async () => {
+        const out = await scvd.formatPrintf('J', 0x24, makeContainer());
+        expect(out).toBe('2a00:ee0:d::13');
     });
 
     it('formats %M (MAC) from memory bytes', async () => {
