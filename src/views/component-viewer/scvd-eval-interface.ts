@@ -92,31 +92,25 @@ export class ScvdEvalInterface implements DataHost {
 
         // Derive element width and array-ness
         const arrayCount = typeof currentRef?.getArraySize === 'function' ? await currentRef.getArraySize() : undefined;
-        const isAddrMember = currentRef?.name === '_addr';
+        if (currentRef?.name === '_addr') {
+            return { kind, bits: 32, widthBytes: 4 };
+        }
+
+        // Determine element width: prefer target size, then container hint, then byte-width helper.
         let widthBytes: number | undefined = currentRef?.getTargetSize?.();
         if ((!widthBytes || widthBytes <= 0) && container.widthBytes) {
             widthBytes = container.widthBytes;
         }
-        if (!widthBytes && typeof this.getByteWidth === 'function' && currentRef) {
+        if ((!widthBytes || widthBytes <= 0) && typeof this.getByteWidth === 'function' && currentRef) {
             const w = await this.getByteWidth(currentRef);
             if (typeof w === 'number' && w > 0) {
                 widthBytes = w;
             }
         }
 
-        // _addr is a pointer-like intrinsic; force 32-bit width
-        if (isAddrMember) {
-            widthBytes = 4;
-        }
-
-        // If getByteWidth returned total array bytes, shrink to per-element when possible.
-        if (widthBytes && arrayCount && arrayCount > 1 && widthBytes > arrayCount) {
-            widthBytes = Math.max(1, Math.floor(widthBytes / arrayCount));
-        }
-
         // Clamp padding to 32-bit for our 32-bit targets (arrays use a 32-bit default).
         if (arrayCount && arrayCount > 1) {
-            widthBytes = widthBytes ? Math.min(widthBytes, 4) : 4;
+            widthBytes = 4;
         } else if (typeof widthBytes === 'number' && widthBytes > 4) {
             widthBytes = 4;
         }
@@ -127,6 +121,9 @@ export class ScvdEvalInterface implements DataHost {
             : (scalar?.bits ?? (widthBytes ? widthBytes * 8 : undefined));
         if (bits !== undefined && bits > 32) {
             bits = 32;
+        }
+        if (bits === undefined && (kind === 'int' || kind === 'uint' || kind === 'unknown')) {
+            bits = 32; // default numeric padding like legacy formatter (0x%08X)
         }
 
         const info: FormatTypeInfo & { widthBytes?: number } = { kind };

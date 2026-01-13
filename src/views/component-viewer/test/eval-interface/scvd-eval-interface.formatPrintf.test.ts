@@ -199,6 +199,6 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
         // even with odd target size, padding should be 32-bit
         addrLike.getTargetSize = () => 1;
         const out = await scvd.formatPrintf('x', 0x1, makeContainer(undefined, addrLike));
-        expect(out).toBe('0x01');
+        expect(out).toBe('0x00000001');
     });
 });
