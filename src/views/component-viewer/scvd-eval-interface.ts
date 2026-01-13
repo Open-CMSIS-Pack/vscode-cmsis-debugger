@@ -83,19 +83,51 @@ export class ScvdEvalInterface implements DataHost {
     }
 
     private async getScalarInfo(container: RefContainer): Promise<FormatTypeInfo & { widthBytes?: number }> {
-        let widthBytes: number | undefined = container.widthBytes;
         const currentRef = container.current ?? container.base;
-        if (typeof this.getByteWidth === 'function' && currentRef) {
+
+        // Prefer explicit scalar type
+        const rawType = await this.getValueType(container);
+        const scalar = this.normalizeScalarType(rawType);
+        const kind = scalar?.kind ?? 'unknown';
+
+        // Derive element width and array-ness
+        const arrayCount = typeof currentRef?.getArraySize === 'function' ? await currentRef.getArraySize() : undefined;
+        const isAddrMember = currentRef?.name === '_addr';
+        let widthBytes: number | undefined = currentRef?.getTargetSize?.();
+        if ((!widthBytes || widthBytes <= 0) && container.widthBytes) {
+            widthBytes = container.widthBytes;
+        }
+        if (!widthBytes && typeof this.getByteWidth === 'function' && currentRef) {
             const w = await this.getByteWidth(currentRef);
             if (typeof w === 'number' && w > 0) {
                 widthBytes = w;
             }
         }
 
-        const rawType = await this.getValueType(container);
-        const scalar = this.normalizeScalarType(rawType);
-        const kind = scalar?.kind ?? 'unknown';
-        const bits = scalar?.bits ?? (widthBytes ? widthBytes * 8 : undefined);
+        // _addr is a pointer-like intrinsic; force 32-bit width
+        if (isAddrMember) {
+            widthBytes = 4;
+        }
+
+        // If getByteWidth returned total array bytes, shrink to per-element when possible.
+        if (widthBytes && arrayCount && arrayCount > 1 && widthBytes > arrayCount) {
+            widthBytes = Math.max(1, Math.floor(widthBytes / arrayCount));
+        }
+
+        // Clamp padding to 32-bit for our 32-bit targets (arrays use a 32-bit default).
+        if (arrayCount && arrayCount > 1) {
+            widthBytes = widthBytes ? Math.min(widthBytes, 4) : 4;
+        } else if (typeof widthBytes === 'number' && widthBytes > 4) {
+            widthBytes = 4;
+        }
+
+        // Only pad numbers; for arrays use a fixed 32-bit padding regardless of scalar bits.
+        let bits = (arrayCount && arrayCount > 1)
+            ? 32
+            : (scalar?.bits ?? (widthBytes ? widthBytes * 8 : undefined));
+        if (bits !== undefined && bits > 32) {
+            bits = 32;
+        }
 
         const info: FormatTypeInfo & { widthBytes?: number } = { kind };
         if (bits !== undefined) {

@@ -196,7 +196,8 @@ export class ScvdFormatSpecifier {
         if (!Number.isFinite(n)) {
             return `${value}`;
         }
-        const width = bits ? Math.ceil(bits / 4) : 0;
+        const widthRaw = bits ? Math.ceil(bits / 4) : 0;
+        const width = widthRaw > 0 ? Math.min(widthRaw, 16) : 0; // cap padding to 64-bit to avoid runaway zeros
         const hex = (n >>> 0).toString(16);
         const padded = width > 0 ? hex.padStart(width, '0') : hex;
         return '0x' + padded;

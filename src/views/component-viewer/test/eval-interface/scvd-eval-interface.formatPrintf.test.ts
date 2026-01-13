@@ -184,4 +184,21 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
         const out = await scvd.formatPrintf('Z', 123, makeContainer());
         expect(out).toBe('<unknown format specifier %Z>');
     });
+
+    it('uses default 32-bit padding for array-like containers', async () => {
+        // Simulate an array container by returning a large array size
+        const arrayLike = new FakeBase('uint8_t');
+        arrayLike.getArraySize = async () => 16;
+        const out = await scvd.formatPrintf('x', 0xAB, makeContainer(undefined, arrayLike));
+        expect(out).toBe('0x000000ab');
+    });
+
+    it('forces 32-bit padding for _addr members', async () => {
+        const addrLike = new FakeBase('uint8_t');
+        addrLike.name = '_addr';
+        // even with odd target size, padding should be 32-bit
+        addrLike.getTargetSize = () => 1;
+        const out = await scvd.formatPrintf('x', 0x1, makeContainer(undefined, addrLike));
+        expect(out).toBe('0x01');
+    });
 });
