@@ -620,18 +620,18 @@ export class Parser {
         return node;
     }
 
-    private static PREC: Record<string, number> = {
-        '||':1,
-        '&&':2,
-        '|':3,
-        '^':4,
-        '&':5,
-        '==':6,'!=':6,
-        '<':7,'>':7,'<=':7,'>=':7,
-        '>>':8,'<<':8,'>>>':8,
-        '+':9,'-':9,
-        '*':10,'/':10,'%':10
-    };
+    private static PREC: Map<string, number> = new Map<string, number>([
+        ['||', 1],
+        ['&&', 2],
+        ['|', 3],
+        ['^', 4],
+        ['&', 5],
+        ['==', 6], ['!=', 6],
+        ['<', 7], ['>', 7], ['<=', 7], ['>=', 7],
+        ['>>', 8], ['<<', 8], ['>>>', 8],
+        ['+', 9], ['-', 9],
+        ['*', 10], ['/', 10], ['%', 10],
+    ]);
 
     private parseAssignment(): ASTNode {
         const left = this.parseConditional();
@@ -656,9 +656,9 @@ export class Parser {
 
     private parseBinary(minPrec: number): ASTNode {
         let node = this.parseUnary();
-        while (this.cur.kind === 'PUNCT' && Parser.PREC[this.cur.value] !== undefined) {
+        while (this.cur.kind === 'PUNCT' && Parser.PREC.has(this.cur.value)) {
             const op = this.cur.value;
-            const prec = Parser.PREC[op];
+            const prec = Parser.PREC.get(op) ?? 0;
             if (prec < minPrec) {
                 break;
             }

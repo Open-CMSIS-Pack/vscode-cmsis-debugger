@@ -51,10 +51,10 @@ export class ComponentViewerInstance {
     private injectLineNumbers(xml: string): string {
         const lines = xml.split(/\r?\n/);
         const result: string[] = [];
-        for (let i = 0; i < lines.length; i++) {
-            result.push(lines[i].replace(
+        for (const [idx, line] of lines.entries()) {
+            result.push(line.replace(
                 /<((?!\/|!|\?)([A-Za-z_][A-Za-z0-9._:-]*))/g,
-                `<$1 __line="${i + 1}"`
+                `<$1 __line="${idx + 1}"`
             ));
         }
         return result.join('\n');

@@ -169,21 +169,21 @@ const WSTRING_LEN_CHARS  = MOCK.Strings.wString.lengthChars;
 const WSTRING_LEN_BYTES  = WSTRING_LEN_CHARS * 2;
 
 /** Map ASCII string addresses to their contents, driven entirely by ADDR + MOCK. */
-const STRING_BY_ADDR: Record<number, string> = {
+const STRING_BY_ADDR = new Map<number, string>([
     // MyList strings
-    [ADDR.MyList.Str.ListValueC]: MOCK.MyList.Strings.ListValueC,
-    [ADDR.MyList.Str.ListValueB]: MOCK.MyList.Strings.ListValueB,
-    [ADDR.MyList.Str.ListValueA]: MOCK.MyList.Strings.ListValueA,
-    [ADDR.MyList.Str.V0]:         MOCK.MyList.Strings.V0,
-    [ADDR.MyList.Str.V1]:         MOCK.MyList.Strings.V1,
-    [ADDR.MyList.Str.V2]:         MOCK.MyList.Strings.V2,
+    [ADDR.MyList.Str.ListValueC, MOCK.MyList.Strings.ListValueC],
+    [ADDR.MyList.Str.ListValueB, MOCK.MyList.Strings.ListValueB],
+    [ADDR.MyList.Str.ListValueA, MOCK.MyList.Strings.ListValueA],
+    [ADDR.MyList.Str.V0,         MOCK.MyList.Strings.V0],
+    [ADDR.MyList.Str.V1,         MOCK.MyList.Strings.V1],
+    [ADDR.MyList.Str.V2,         MOCK.MyList.Strings.V2],
 
     // RTOS kernel ID string
-    [ADDR.RTOS.Str.KernelId]:     MOCK.RTOS.OsRtxInfo.kernelId,
+    [ADDR.RTOS.Str.KernelId,     MOCK.RTOS.OsRtxInfo.kernelId],
 
     // Global char string[10] = "MyTest"
-    [ADDR.Strings.string]:        MOCK.Strings.string.text,
-};
+    [ADDR.Strings.string,        MOCK.Strings.string.text],
+]);
 
 export class DebugTargetMock {
 
@@ -255,7 +255,7 @@ export class DebugTargetMock {
         }
 
         // --- General ASCII string region (MyList + RTOS KernelId + string[10]) ---
-        const str = STRING_BY_ADDR[startAddress];
+        const str = STRING_BY_ADDR.get(startAddress);
         if (str !== undefined) {
             return this.makeCString(str, size);
         }
@@ -454,7 +454,7 @@ export class DebugTargetMock {
 
     /** MyList node (ValueA / ValueB / ValueC) by name, driven from MOCK.MyList.Nodes. */
     private getMockMyListNode(size: number, key: keyof typeof MOCK.MyList.Nodes): Uint8Array {
-        const cfg = MOCK.MyList.Nodes[key];
+        const cfg = Reflect.get(MOCK.MyList.Nodes, key) as (typeof MOCK.MyList.Nodes)[typeof key];
         return this.makeMyListStruct(size, cfg.next, cfg.value, cfg.name);
     }
 
@@ -473,16 +473,16 @@ export class DebugTargetMock {
         const elemSize = MOCK.MyList.structSize;
         const elems    = MOCK.MyList.ValueArray;
 
-        for (let i = 0; i < elems.length; i++) {
-            const base = i * elemSize;
+        for (const [idx, entry] of elems.entries()) {
+            const base = idx * elemSize;
             if (size >= base + 4)  {
-                this.writeU32LE(out, base + 0, elems[i].next);
+                this.writeU32LE(out, base + 0, entry.next);
             }
             if (size >= base + 8)  {
-                this.writeU32LE(out, base + 4, elems[i].value);
+                this.writeU32LE(out, base + 4, entry.value);
             }
             if (size >= base + 12) {
-                this.writeU32LE(out, base + 8, elems[i].name);
+                this.writeU32LE(out, base + 8, entry.name);
             }
         }
         return out;
@@ -491,7 +491,7 @@ export class DebugTargetMock {
     /** ValueArray[i] address reads for element-only loads (structSize bytes each). */
     private getMockValueArrayElem(size: number, index: number): Uint8Array {
         const entries = MOCK.MyList.ValueArray;
-        const e       = entries[index] ?? entries[0];
+        const e       = entries.at(index) ?? entries.at(0);
         return this.makeMyListStruct(size, e.next, e.value, e.name);
     }
 
@@ -499,8 +499,8 @@ export class DebugTargetMock {
     private getMockPArraySlice(size: number, offset: number): Uint8Array {
         const ptrs = MOCK.MyList.pArray;
         const full = new Uint8Array(ptrs.length * 4);
-        for (let i = 0; i < ptrs.length; i++) {
-            this.writeU32LE(full, i * 4, ptrs[i]);
+        for (const [idx, ptr] of ptrs.entries()) {
+            this.writeU32LE(full, idx * 4, ptr);
         }
         const out = new Uint8Array(size);
         out.set(full.subarray(offset, offset + size));
@@ -528,10 +528,12 @@ export class DebugTargetMock {
 
     /** Write a 32-bit unsigned value in little-endian into dst at off. */
     private writeU32LE(dst: Uint8Array, off: number, value: number): void {
-        dst[off + 0] = (value >>> 0) & 0xFF;
-        dst[off + 1] = (value >>> 8) & 0xFF;
-        dst[off + 2] = (value >>> 16) & 0xFF;
-        dst[off + 3] = (value >>> 24) & 0xFF;
+        dst.set([
+            (value >>> 0) & 0xFF,
+            (value >>> 8) & 0xFF,
+            (value >>> 16) & 0xFF,
+            (value >>> 24) & 0xFF,
+        ], off);
     }
 
     /** Make a (possibly truncated) ASCII C-string buffer of 'size' bytes. */
@@ -539,10 +541,10 @@ export class DebugTargetMock {
         const out = new Uint8Array(size);
         const n   = Math.max(0, Math.min(size - 1, text.length));
         for (let i = 0; i < n; i++) {
-            out[i] = text.charCodeAt(i) & 0xFF;
+            out.set([text.charCodeAt(i) & 0xFF], i);
         }
         if (size > 0) {
-            out[n] = 0;
+            out.set([0], n);
         } // NUL-terminate if there’s room
         return out;
     }
@@ -564,15 +566,14 @@ export class DebugTargetMock {
         for (let i = 0; i < n; i++) {
             const code = text.charCodeAt(i);  // basic BMP is fine for this mock
             const idx  = i * 2;
-            out[idx]     = code & 0xFF;
-            out[idx + 1] = (code >> 8) & 0xFF;
+            out.set([code & 0xFF], idx);
+            out.set([(code >> 8) & 0xFF], idx + 1);
         }
 
         // NUL-terminate (one UTF-16 code unit)
         const termIndex = n * 2;
         if (termIndex + 1 < size) {
-            out[termIndex]     = 0;
-            out[termIndex + 1] = 0;
+            out.set([0, 0], termIndex);
         }
 
         return out;

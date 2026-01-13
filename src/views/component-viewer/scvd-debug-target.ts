@@ -216,25 +216,11 @@ export class ScvdDebugTarget {
             magicValueBytes[2] = (MagicValue >> 16) & 0xFF;
             magicValueBytes[3] = (MagicValue >> 24) & 0xFF;
 
-            for(let i = 0; i < memData.length; i += 4) {
-                const chunk = memData.slice(i, i + 4);
-                let match = true;
-                for(let j = 0; j < chunk.length; j++) {
-                    if (chunk[j] !== fillPatternBytes[j]) {
-                        match = false;
-                        break;
-                    }
-                }
-                if (!match) {
-                    match = true;
-                    for(let j = 0; j < chunk.length; j++) {
-                        if (chunk[j] !== magicValueBytes[j]) {
-                            match = false;
-                            break;
-                        }
-                    }
-                }
-                if (!match) {
+            for (let i = 0; i < memData.length; i += 4) {
+                const chunk = memData.subarray(i, i + 4);
+                const matchesFill = chunk.every((byte, idx) => byte === fillPatternBytes.at(idx));
+                const matchesMagic = matchesFill || chunk.every((byte, idx) => byte === magicValueBytes.at(idx));
+                if (!matchesMagic) {
                     usedBytes += chunk.length;
                 }
             }
@@ -245,8 +231,10 @@ export class ScvdDebugTarget {
 
             // Check for overflow (MagicValue overwritten)
             let overflow = true;
-            for(let i = memData.length - 4; i < memData.length; i++) {
-                if (memData[i] !== magicValueBytes[i - (memData.length - 4)]) {
+            const tailStart = Math.max(0, memData.length - 4);
+            for (let i = tailStart; i < memData.length; i++) {
+                const expected = magicValueBytes.at(i - tailStart);
+                if (memData.at(i) !== expected) {
                     overflow = false;
                     break;
                 }

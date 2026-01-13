@@ -67,8 +67,8 @@ export class ScvdFormatSpecifier {
 
             // Fallback: simple byte→char (ASCII / Latin-1 style)
             let s = '';
-            for (let i = 0; i < end; i++) {
-                s += String.fromCharCode(value[i]);
+            for (const ch of value.subarray(0, end)) {
+                s += String.fromCharCode(ch);
             }
             return s;
         }
@@ -196,8 +196,7 @@ export class ScvdFormatSpecifier {
 
     private decodeAscii(bytes: Uint8Array): string {
         const chars: number[] = [];
-        for (let i = 0; i < bytes.length; i++) {
-            const b = bytes[i];
+        for (const b of bytes) {
             if (b === 0) {
                 break;
             }     // if you use C-style null termination
@@ -222,24 +221,24 @@ export class ScvdFormatSpecifier {
         const len = Math.min(bLength, value.length);
 
         const u16 = (off: number) =>
-            off + 1 < len ? (value[off] | (value[off + 1] << 8)) : 0;
+            off + 1 < len ? ((value.at(off) ?? 0) | ((value.at(off + 1) ?? 0) << 8)) : 0;
 
         const hex = (n: number, w = 2) => '0x' + n.toString(16).toUpperCase().padStart(w, '0');
         const hexdump = (arr: Uint8Array) =>
             Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join(' ');
 
-        const typeMap: Record<number, string> = Object.create(null);
-        typeMap[0x01] = 'Device';
-        typeMap[0x02] = 'Configuration';
-        typeMap[0x03] = 'String';
-        typeMap[0x04] = 'Interface';
-        typeMap[0x05] = 'Endpoint';
-        typeMap[0x06] = 'Device Qualifier';
-        typeMap[0x07] = 'Other Speed Config';
-        typeMap[0x08] = 'Interface Power';
-        typeMap[0x0F] = 'BOS';
-        const typeName = (t: number) =>
-            Object.prototype.hasOwnProperty.call(typeMap, t) ? typeMap[t] : `Type ${hex(t)}`;
+        const typeMap = new Map<number, string>([
+            [0x01, 'Device'],
+            [0x02, 'Configuration'],
+            [0x03, 'String'],
+            [0x04, 'Interface'],
+            [0x05, 'Endpoint'],
+            [0x06, 'Device Qualifier'],
+            [0x07, 'Other Speed Config'],
+            [0x08, 'Interface Power'],
+            [0x0F, 'BOS'],
+        ]);
+        const typeName = (t: number) => typeMap.get(t) ?? `Type ${hex(t)}`;
 
         // --- String Descriptor (Type 0x03) ---
         // bLength, bDescriptorType, then UTF-16LE code units
@@ -254,14 +253,14 @@ export class ScvdFormatSpecifier {
             const codeUnitCount = Math.max(0, (len - 2) >> 1);
             const units = new Uint16Array(codeUnitCount);
             for (let i = 0; i < codeUnitCount; i++) {
-                const lo = value[2 + (i << 1)] ?? 0;
-                const hi = value[3 + (i << 1)] ?? 0;
-                units[i] = lo | (hi << 8);
+                const lo = value.at(2 + (i << 1)) ?? 0;
+                const hi = value.at(3 + (i << 1)) ?? 0;
+                units.set([lo | (hi << 8)], i);
             }
             // Convert UTF-16 units to JS string safely (surrogates pass through)
             let out = '';
             for (let i = 0; i < units.length; i++) {
-                out += String.fromCharCode(units[i]);
+                out += String.fromCharCode(units.at(i) ?? 0);
             }
             return `USB String: "${out}"`;
         }

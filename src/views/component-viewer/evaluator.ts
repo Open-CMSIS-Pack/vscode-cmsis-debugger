@@ -234,8 +234,8 @@ function findReferenceNode(node: ASTNode | undefined): Identifier | MemberAccess
         }
         case 'CallExpression': {
             const c = node as CallExpression;
-            for (let i = c.args.length - 1; i >= 0; i--) {
-                const r = findReferenceNode(c.args[i]);
+            for (const arg of [...c.args].reverse()) {
+                const r = findReferenceNode(arg);
                 if (r) {
                     return r;
                 }
@@ -244,8 +244,8 @@ function findReferenceNode(node: ASTNode | undefined): Identifier | MemberAccess
         }
         case 'EvalPointCall': {
             const c = node as EvalPointCall;
-            for (let i = c.args.length - 1; i >= 0; i--) {
-                const r = findReferenceNode(c.args[i]);
+            for (const arg of [...c.args].reverse()) {
+                const r = findReferenceNode(arg);
                 if (r) {
                     return r;
                 }
@@ -515,8 +515,7 @@ async function evalArgsForIntrinsic(name: string, rawArgs: ASTNode[], ctx: EvalC
     const needsName = NAME_ARG_INTRINSICS.has(name);
 
     const resolved: EvalValue[] = [];
-    for (let i = 0; i < rawArgs.length; i++) {
-        const arg = rawArgs[i];
+    for (const [idx, arg] of rawArgs.entries()) {
         if (!needsName) {
             resolved.push(await evalNode(arg, ctx));
             continue;
@@ -532,7 +531,7 @@ async function evalArgsForIntrinsic(name: string, rawArgs: ASTNode[], ctx: EvalC
             continue;
         }
         // Make the failure explicit; this avoids silently passing evaluated values like 0.
-        throw new Error(`${name} expects an identifier or string literal for argument ${i + 1}`);
+        throw new Error(`${name} expects an identifier or string literal for argument ${idx + 1}`);
     }
 
     return resolved;
@@ -1157,13 +1156,15 @@ async function routeIntrinsic(ctx: EvalContext, name: string, args: EvalValue[])
         }
         return out;
     }
-    const direct = (ctx.data as unknown as Record<string, unknown>)[name];
-    if (typeof direct === 'function') {
-        const out = await (direct as (container: RefContainer, a: EvalValue[]) => MaybePromise<EvalValue>).call(ctx.data, ctx.container, args);
-        if (out === undefined) {
-            throw new Error(`Intrinsic ${name} returned undefined`);
+    if (typeof name === 'string' && Object.prototype.hasOwnProperty.call(ctx.data as Record<string, unknown>, name)) {
+        const direct = Reflect.get(ctx.data as Record<string, unknown>, name);
+        if (typeof direct === 'function') {
+            const out = await (direct as (container: RefContainer, a: EvalValue[]) => MaybePromise<EvalValue>).call(ctx.data, ctx.container, args);
+            if (out === undefined) {
+                throw new Error(`Intrinsic ${name} returned undefined`);
+            }
+            return out;
         }
-        return out;
     }
     throw new Error(`Missing intrinsic ${name}`);
 }
