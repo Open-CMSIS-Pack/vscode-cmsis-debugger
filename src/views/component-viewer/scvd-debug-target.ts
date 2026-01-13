@@ -109,7 +109,7 @@ export class ScvdDebugTarget {
         }
     }
 
-    public getNumArrayElements(symbol: string): number | undefined {
+    public async getNumArrayElements(symbol: string): Promise<number | undefined> {
         if (symbol === undefined) {
             return undefined;
         }
@@ -120,7 +120,12 @@ export class ScvdDebugTarget {
                 return symbolInfo?.member?.length ?? 1;
             }
         } else {
-            // TOIMPL For real sessions, this functionality is not implemented yet
+            // Try to derive element count via sizeof(symbol) / sizeof(symbol[0])
+            const totalSize = await this.targetAccess.evaluateSymbolSize(symbol);
+            const elemSize = await this.targetAccess.evaluateSymbolSize(`${symbol}[0]`);
+            if (typeof totalSize === 'number' && typeof elemSize === 'number' && elemSize > 0) {
+                return Math.floor(totalSize / elemSize);
+            }
         }
         return undefined;
     }

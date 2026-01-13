@@ -268,8 +268,13 @@ export class ScvdEvalInterface implements DataHost {
             }
         }
         // Legacy fallback: try array element count if size is unavailable
-        const arrayElements = this.debugTarget.getNumArrayElements(symbol);
-        return arrayElements ?? undefined;
+        if (typeof this.debugTarget.getNumArrayElements === 'function') {
+            const arrayElements = await this.debugTarget.getNumArrayElements(symbol);
+            if (arrayElements !== undefined) {
+                return arrayElements;
+            }
+        }
+        return undefined;
     }
 
     public async __Offset_of(container: RefContainer, typedefMember: string): Promise<number | undefined> {
