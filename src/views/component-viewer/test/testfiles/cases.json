@@ -1,6 +1,7 @@
 {
   "_meta": {
     "format": "parser-cases-v1",
+    "copyright": "2026 Arm Limited",
     "counts": {
       "const": 23,
       "nonConst": 6,

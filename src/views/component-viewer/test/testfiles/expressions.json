@@ -1,6 +1,7 @@
 {
   "_meta": {
     "format": "parser-scvd-expressions-v1",
+    "copyright": "2026 Arm Limited",
     "sourceFiles": [
       "RTX5_expressions.jsonl",
       "Network_expressions.jsonl",
