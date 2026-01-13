@@ -492,6 +492,9 @@ export class DebugTargetMock {
     private getMockValueArrayElem(size: number, index: number): Uint8Array {
         const entries = MOCK.MyList.ValueArray;
         const e       = entries.at(index) ?? entries.at(0);
+        if (!e) {
+            return new Uint8Array(size);
+        }
         return this.makeMyListStruct(size, e.next, e.value, e.name);
     }
 

@@ -1156,8 +1156,9 @@ async function routeIntrinsic(ctx: EvalContext, name: string, args: EvalValue[])
         }
         return out;
     }
-    if (typeof name === 'string' && Object.prototype.hasOwnProperty.call(ctx.data as Record<string, unknown>, name)) {
-        const direct = Reflect.get(ctx.data as Record<string, unknown>, name);
+    const dataObj = ctx.data as unknown as Record<string, unknown>;
+    if (typeof name === 'string' && Object.prototype.hasOwnProperty.call(dataObj, name)) {
+        const direct = Reflect.get(dataObj, name);
         if (typeof direct === 'function') {
             const out = await (direct as (container: RefContainer, a: EvalValue[]) => MaybePromise<EvalValue>).call(ctx.data, ctx.container, args);
             if (out === undefined) {
