@@ -18,6 +18,17 @@ import { NumberType, NumFormat } from './number-type';
 
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
+export type FormatKind = 'int' | 'uint' | 'float' | 'unknown';
+export interface FormatTypeInfo {
+    kind: FormatKind;
+    bits?: number;
+}
+
+export interface FormatOptions {
+    typeInfo?: FormatTypeInfo;
+    enumText?: string;
+    allowUnknownSpec?: boolean;
+}
 
 export class ScvdFormatSpecifier {
     private utf16leDecoder: TextDecoder;
@@ -25,6 +36,170 @@ export class ScvdFormatSpecifier {
     constructor(
     ) {
         this.utf16leDecoder = new TextDecoder('utf-16le');
+    }
+
+    public formatNumberByType(value: number, opts: { kind: 'int' | 'uint' | 'float' | 'unknown'; bits?: number }): string {
+        const { kind, bits } = opts;
+        if (!Number.isFinite(value)) {
+            return `${value}`;
+        }
+
+        if (kind === 'float') {
+            // Keep floats readable but short; mirror legacy behaviour (float ~3 decimals, double ~6+).
+            if (bits && bits <= 32) {
+                return value.toFixed(3);
+            }
+            return value.toPrecision(6);
+        }
+
+        if (kind === 'int') {
+            if (bits && bits < 32) {
+                const shift = 32 - bits;
+                const signed = (value << shift) >> shift;
+                return signed.toString(10);
+            }
+            return (value | 0).toString(10);
+        }
+
+        if (kind === 'uint') {
+            if (bits && bits < 32) {
+                const mask = bits === 32 ? 0xFFFFFFFF : (1 << bits) >>> 0;
+                return (value >>> 0 & mask).toString(10);
+            }
+            return (value >>> 0).toString(10);
+        }
+
+        return value.toString(10);
+    }
+
+    /**
+     * Central formatter that applies printf-like specifiers to the already-resolved value.
+     * All data fetching and symbol/memory lookups should happen before calling this.
+     */
+    public format(spec: string, value: unknown, options?: FormatOptions): string {
+        const typeInfo = options?.typeInfo;
+        const enumText = options?.enumText;
+
+        const toNumber = (v: unknown) => {
+            if (typeof v === 'number') {
+                return v;
+            }
+            if (typeof v === 'boolean') {
+                return v ? 1 : 0;
+            }
+            if (typeof v === 'string') {
+                const n = Number(v);
+                return Number.isFinite(n) ? n : NaN;
+            }
+            return NaN;
+        };
+
+        const numOpts = (kind: FormatKind) => {
+            const o: { kind: FormatKind; bits?: number } = { kind };
+            if (typeInfo?.bits !== undefined) {
+                o.bits = typeInfo.bits;
+            }
+            return o;
+        };
+
+        switch (spec) {
+            case 'd': {
+                const n = toNumber(value);
+                return this.formatNumberByType(n, numOpts('int'));
+            }
+            case 'u': {
+                const n = toNumber(value);
+                return this.formatNumberByType(n, numOpts('uint'));
+            }
+            case 'x': {
+                const n = toNumber(value);
+                return this.formatHex(n, typeInfo?.bits);
+            }
+            case 't': {
+                if (typeof value === 'string') {
+                    const sanitized = this.sanitizeLiteral(value);
+                    if (!sanitized) {
+                        return 'bad literal - %t: text with embedded %format specifier(s)';
+                    }
+                    return this.escapeNonPrintable(sanitized);
+                }
+                if (value instanceof Uint8Array) {
+                    return this.escapeNonPrintable(this.format_N(value));
+                }
+                return String(value);
+            }
+            case 'C': {
+                return this.format_C(value as number | string);
+            }
+            case 'S': {
+                return this.format_S(value as number | string);
+            }
+            case 'E': {
+                if (enumText) {
+                    return this.format_E(enumText);
+                }
+                const n = toNumber(value);
+                return this.format_E(Number.isFinite(n) ? this.formatNumberByType(n, numOpts('int')) : String(value));
+            }
+            case 'I': {
+                if (value instanceof Uint8Array) {
+                    return this.formatIpv4(value);
+                }
+                const n = toNumber(value);
+                return this.format_I(n);
+            }
+            case 'J': {
+                if (value instanceof Uint8Array) {
+                    return this.formatIpv6(value);
+                }
+                return this.format_J(value as number | string);
+            }
+            case 'N': {
+                if (value instanceof Uint8Array) {
+                    return this.format_N(value);
+                }
+                return String(value);
+            }
+            case 'M': {
+                if (value instanceof Uint8Array) {
+                    return this.formatMac(value);
+                }
+                return this.format_M(value as number | string);
+            }
+            case 'T': {
+                const n = toNumber(value);
+                const k: FormatKind = typeInfo?.kind && typeInfo.kind !== 'unknown'
+                    ? typeInfo.kind
+                    : (Number.isInteger(n) ? 'int' : 'float');
+                return this.formatNumberByType(n, numOpts(k));
+            }
+            case 'U': {
+                if (value instanceof Uint8Array) {
+                    return this.format_U(value);
+                }
+                return String(value);
+            }
+            case '%': {
+                return this.format_percent();
+            }
+            default: {
+                if (options?.allowUnknownSpec) {
+                    return `<unknown format specifier %${spec}>`;
+                }
+                return String(value);
+            }
+        }
+    }
+
+    public formatHex(value: number, bits?: number): string {
+        const n = Number(value);
+        if (!Number.isFinite(n)) {
+            return `${value}`;
+        }
+        const width = bits ? Math.ceil(bits / 4) : 0;
+        const hex = (n >>> 0).toString(16);
+        const padded = width > 0 ? hex.padStart(width, '0') : hex;
+        return '0x' + padded;
     }
 
     public format_d(value: number | string): string {
@@ -180,6 +355,98 @@ export class ScvdFormatSpecifier {
         return '%';
     }
 
+    public formatIpv4(bytes: Uint8Array): string {
+        if (bytes.length < 4) {
+            return '<IPV4: access out of bounds>';
+        }
+        return `${bytes[0]}.${bytes[1]}.${bytes[2]}.${bytes[3]}`;
+    }
+
+    public formatIpv6(bytes: Uint8Array): string {
+        if (bytes.length < 16) {
+            return '<IPV6: access out of bounds>';
+        }
+        const words: number[] = [];
+        for (let i = 0; i < 8; i++) {
+            words.push(((bytes[i * 2] << 8) | (bytes[i * 2 + 1])) >>> 0);
+        }
+        // Collapse the longest run of zeros for compact form
+        const hexWords = words.map(w => w.toString(16));
+        let bestStart = -1; let bestLen = 0;
+        let curStart = -1; let curLen = 0;
+        for (let i = 0; i < hexWords.length; i++) {
+            if (words[i] === 0) {
+                if (curStart === -1) {
+                    curStart = i; curLen = 1;
+                } else {
+                    curLen++;
+                }
+            } else {
+                if (curLen > bestLen) { bestLen = curLen; bestStart = curStart; }
+                curStart = -1; curLen = 0;
+            }
+        }
+        if (curLen > bestLen) { bestLen = curLen; bestStart = curStart; }
+
+        let out: string[] = [];
+        for (let i = 0; i < hexWords.length; i++) {
+            if (bestLen >= 2 && i >= bestStart && i < bestStart + bestLen) {
+                if (out[out.length - 1] !== '') {
+                    out.push('');
+                }
+                if (i === bestStart) {
+                    out.push('');
+                }
+                continue;
+            }
+            out.push(hexWords[i]);
+        }
+        return out.join(':').replace(/^:/, '::').replace(/:::/, '::');
+    }
+
+    public formatMac(bytes: Uint8Array): string {
+        if (bytes.length < 6) {
+            return '<MAC: access out of bounds>';
+        }
+        return Array.from(bytes.subarray(0, 6)).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join('-');
+    }
+
+    public sanitizeLiteral(str: string): string | undefined {
+        // Reject embedded unescaped '%' to match legacy %t semantics
+        for (let i = 0; i < str.length; i++) {
+            if (str[i] === '%') {
+                if (str[i + 1] === '%') {
+                    i++; // skip escaped %%
+                    continue;
+                }
+                return undefined;
+            }
+        }
+        return str;
+    }
+
+    public escapeNonPrintable(str: string): string {
+        let out = '';
+        for (let i = 0; i < str.length; i++) {
+            const ch = str.charCodeAt(i);
+            if (ch === 0) {
+                break;
+            }
+            if (ch === 0x0A) { out += '\\n'; continue; }
+            if (ch === 0x0D) { out += '\\r'; continue; }
+            if (ch === 0x09) { out += '\\t'; continue; }
+            if (ch === 0x0B) { out += '\\v'; continue; }
+            if (ch === 0x0C) { out += '\\f'; continue; }
+            if (ch === 0x08) { out += '\\b'; continue; }
+            if (ch === 0x07) { out += '\\a'; continue; }
+            if (ch < 0x20 || ch >= 0x7F) {
+                out += `\\${ch.toString(16).padStart(2, '0').toUpperCase()}`;
+                continue;
+            }
+            out += str[i];
+        }
+        return out;
+    }
 
     private decodeWcharFromBytes(bytes: Uint8Array): string {
         // If you have a null terminator, trim at the first 0x0000
