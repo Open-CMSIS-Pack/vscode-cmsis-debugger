@@ -203,8 +203,8 @@ export class ScvdEvalInterface implements DataHost {
     }
 
     // Number of elements of an array defined by a symbol in user application.
-    public __size_of(symbol: string): number | undefined {
-        const arrayElements = this.debugTarget.getNumArrayElements(symbol);
+    public async __size_of(symbol: string): Promise<number | undefined> {
+        const arrayElements = await this.debugTarget.getNumArrayElements(symbol);
         if (arrayElements != undefined) {
             return arrayElements;
         }

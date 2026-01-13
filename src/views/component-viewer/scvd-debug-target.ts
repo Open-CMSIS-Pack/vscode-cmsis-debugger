@@ -82,14 +82,21 @@ export class ScvdDebugTarget {
         this.activeSession = session;
         this.targetAccess.setActiveSession(session);
         this.debugTracker = tracker;
+        this.subscribeToTargetRunningState(this.debugTracker);
     }
 
     protected async subscribeToTargetRunningState(debugTracker: GDBTargetDebugTracker): Promise<void> {
-        debugTracker.onContinued(async () => {
+        debugTracker.onContinued(async (event) => {
+            if (event.session.session.id !== this.activeSession.session.id) {
+                return;
+            }
             this.isTargetRunning = true;
         });
 
-        debugTracker.onStopped(async () => {
+        debugTracker.onStopped(async (event) => {
+            if (event.session.session.id !== this.activeSession.session.id) {
+                return;
+            }
             this.isTargetRunning = false;
         });
     }

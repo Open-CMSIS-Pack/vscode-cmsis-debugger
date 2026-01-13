@@ -81,7 +81,7 @@ export class StatementReadList extends StatementBase {
             baseAddress = symAddr >>> 0;
 
             // fetch maximum existing array size
-            maxArraySize = executionContext.debugTarget.getNumArrayElements(symbol.symbol) ?? 1;
+            maxArraySize = await executionContext.debugTarget.getNumArrayElements(symbol.symbol) ?? 1;
         }
 
         // Add offset to base address. If no symbol defined, offset is used as base address
