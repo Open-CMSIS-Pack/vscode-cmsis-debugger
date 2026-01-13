@@ -50,11 +50,15 @@ class FakeMember extends ScvdMember {
 }
 
 class FakeDebugTarget implements Pick<ScvdDebugTarget,
-    'findSymbolNameAtAddress' | 'readUint8ArrayStrFromPointer' | 'readMemory'> {
+    'findSymbolNameAtAddress' | 'findSymbolContextAtAddress' | 'readUint8ArrayStrFromPointer' | 'readMemory'> {
     constructor(
         private readonly symbolMap: Map<number, string>,
         private readonly memoryMap: Map<number, Uint8Array>
     ) {}
+
+    public async findSymbolContextAtAddress(_addr: number): Promise<string | undefined> {
+        return undefined;
+    }
 
     public async findSymbolNameAtAddress(addr: number): Promise<string | undefined> {
         return this.symbolMap.get(addr);

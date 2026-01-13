@@ -48,9 +48,16 @@ describe('ScvdEvalInterface.getScalarInfo padding rules', () => {
         expect(info.bits).toBe(32); // default array padding
     });
 
-    it('clamps oversized width to 32-bit', async () => {
+    it('respects explicit 64-bit scalar widths but caps extremely large sizes', async () => {
         const ev = makeEval();
         const base = new ScalarBase('uint64_t', 16, undefined); // pretend 128-bit size
+        const info = await (ev as any).getScalarInfo({ base, current: base, valueType: undefined } as RefContainer);
+        expect(info.bits).toBe(64);
+    });
+
+    it('defaults unknown wide types to 32-bit padding', async () => {
+        const ev = makeEval();
+        const base = new ScalarBase(undefined, 8, undefined); // unknown type, 8-byte size
         const info = await (ev as any).getScalarInfo({ base, current: base, valueType: undefined } as RefContainer);
         expect(info.bits).toBe(32);
     });

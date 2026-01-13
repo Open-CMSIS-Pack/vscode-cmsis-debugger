@@ -95,6 +95,9 @@ export class ScvdEvalInterface implements DataHost {
         if (currentRef?.name === '_addr') {
             return { kind, bits: 32, widthBytes: 4 };
         }
+        if (arrayCount && arrayCount > 1) {
+            return { kind, bits: 32, widthBytes: 4 };
+        }
 
         // Determine element width: prefer target size, then container hint, then byte-width helper.
         let widthBytes: number | undefined = currentRef?.getTargetSize?.();
@@ -108,22 +111,23 @@ export class ScvdEvalInterface implements DataHost {
             }
         }
 
-        // Clamp padding to 32-bit for our 32-bit targets (arrays use a 32-bit default).
-        if (arrayCount && arrayCount > 1) {
-            widthBytes = 4;
-        } else if (typeof widthBytes === 'number' && widthBytes > 4) {
-            widthBytes = 4;
-        }
+        // Only pad numbers.
+        let bits: number | undefined;
+        const isScalar = kind === 'int' || kind === 'uint' || kind === 'float';
 
-        // Only pad numbers; for arrays use a fixed 32-bit padding regardless of scalar bits.
-        let bits = (arrayCount && arrayCount > 1)
-            ? 32
-            : (scalar?.bits ?? (widthBytes ? widthBytes * 8 : undefined));
-        if (bits !== undefined && bits > 32) {
-            bits = 32;
-        }
-        if (bits === undefined && (kind === 'int' || kind === 'uint' || kind === 'unknown')) {
-            bits = 32; // default numeric padding like legacy formatter (0x%08X)
+        if (isScalar) {
+            bits = scalar?.bits;
+            if (bits === undefined && widthBytes && widthBytes > 0) {
+                bits = widthBytes * 8;
+            }
+            if (bits === undefined) {
+                bits = 32;
+            }
+            if (bits > 64) {
+                bits = 64;
+            }
+        } else {
+            bits = 32; // default padding for unknown/non-scalar
         }
 
         const info: FormatTypeInfo & { widthBytes?: number } = { kind };
@@ -343,9 +347,14 @@ export class ScvdEvalInterface implements DataHost {
 
         switch (spec) {
             case 'C': {
+                // TOIMPL: include file/line context when targetAccess exposes it (e.g., GDB "info line *addr").
                 const addr = typeof value === 'number' ? value : undefined;
                 if (addr === undefined) {
                     return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+                }
+                const context = await this.debugTarget.findSymbolContextAtAddress(addr);
+                if (context !== undefined) {
+                    return this.formatSpecifier.format(spec, context, { typeInfo, allowUnknownSpec: true });
                 }
                 const name = await this.debugTarget.findSymbolNameAtAddress(addr);
                 return this.formatSpecifier.format(spec, name ?? addr, { typeInfo, allowUnknownSpec: true });

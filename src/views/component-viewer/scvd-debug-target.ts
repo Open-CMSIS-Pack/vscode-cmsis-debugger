@@ -105,7 +105,26 @@ export class ScvdDebugTarget {
         if (this.activeSession.session.id.startsWith('mock-session-')) {
             return Promise.resolve(undefined);
         } else {
-            return await this.targetAccess.evaluateSymbolName(address.toString());
+            try {
+                return await this.targetAccess.evaluateSymbolName(address.toString());
+            } catch (error: unknown) {
+                console.error(`findSymbolNameAtAddress failed for ${address}:`, error);
+                return undefined;
+            }
+        }
+    }
+
+    public async findSymbolContextAtAddress(address: number): Promise<string | undefined> {
+        // Return file/line context for an address when the adapter supports it.
+        if (this.activeSession.session.id.startsWith('mock-session-')) {
+            return Promise.resolve(undefined);
+        } else {
+            try {
+                return await this.targetAccess.evaluateSymbolContext(address.toString());
+            } catch (error: unknown) {
+                console.error(`findSymbolContextAtAddress failed for ${address}:`, error);
+                return undefined;
+            }
         }
     }
 

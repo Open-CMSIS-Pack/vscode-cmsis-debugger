@@ -98,6 +98,29 @@ export class ComponentViewerTargetAccess {
         }
     }
 
+    public async evaluateSymbolContext(address: string, context = 'hover'): Promise<string | undefined> {
+        try {
+            const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
+            const formattedAddress = this.formatAddress(address);
+            // Ask GDB for file/line context of the address.
+            const args: DebugProtocol.EvaluateArguments = {
+                expression: `info line *${formattedAddress}`,
+                frameId,
+                context
+            };
+            const response = await this._activeSession?.session.customRequest('evaluate', args) as DebugProtocol.EvaluateResponse['body'];
+            const resultText = response?.result;
+            if (!resultText || resultText.startsWith('No line information')) {
+                return undefined;
+            }
+            return resultText.trim();
+        } catch (error: unknown) {
+            const errorMessage = (error as Error)?.message;
+            logger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate context for '${address}' - '${errorMessage}'`);
+            return undefined;
+        }
+    }
+
     public async evaluateSymbolSize(symbol: string, context = 'hover'): Promise<number | undefined> {
         try {
             const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
