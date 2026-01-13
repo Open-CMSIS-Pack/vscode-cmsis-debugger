@@ -144,6 +144,30 @@ export class ScvdDebugTarget {
         return symbolInfo.address;
     }
 
+    public async getSymbolSize(symbol: string): Promise<number | undefined> {
+        if (!symbol) {
+            return undefined;
+        }
+        if (this.activeSession.session.id.startsWith('mock-session-')) {
+            const info = this.mock.getMockSymbolInfo(symbol);
+            if (info?.size !== undefined) {
+                return info.size;
+            }
+            // fallback: if member list exists, return total size (count only if size missing)
+            if (info?.member && info.member.length > 0) {
+                return info.member.reduce((acc, m) => acc + (m.size ?? 0), 0) || undefined;
+            }
+            return undefined;
+        }
+
+        // real session: ask debugger via target access
+        const size = await this.targetAccess.evaluateSymbolSize(symbol);
+        if (typeof size === 'number' && size >= 0) {
+            return size;
+        }
+        return undefined;
+    }
+
     /**
      * Decode a (possibly unpadded) base64 string from GDB into bytes.
      */

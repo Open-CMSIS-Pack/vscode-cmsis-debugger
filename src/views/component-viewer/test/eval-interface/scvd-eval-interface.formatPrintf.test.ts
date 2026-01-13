@@ -81,7 +81,8 @@ function makeContainer(typeName?: string, current?: ScvdBase): RefContainer {
     const base = current ?? new FakeBase(typeName);
     return {
         base,
-        current: base
+        current: base,
+        valueType: undefined
     };
 }
 
@@ -139,7 +140,7 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
 
     it('formats %E using enum text', async () => {
         const member = new FakeMember();
-        const container: RefContainer = { base: member, current: member };
+        const container: RefContainer = { base: member, current: member, valueType: undefined };
         const out = await scvd.formatPrintf('E', 2, container);
         expect(out).toBe('ENUM_READY');
     });

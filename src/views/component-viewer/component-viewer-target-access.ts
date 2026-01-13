@@ -98,6 +98,28 @@ export class ComponentViewerTargetAccess {
         }
     }
 
+    public async evaluateSymbolSize(symbol: string, context = 'hover'): Promise<number | undefined> {
+        try {
+            const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
+            const args: DebugProtocol.EvaluateArguments = {
+                expression: `sizeof(${symbol})`,
+                frameId,
+                context
+            };
+            const response = await this._activeSession?.session.customRequest('evaluate', args) as DebugProtocol.EvaluateResponse['body'];
+            const raw = response?.result;
+            const parsed = Number(raw);
+            if (Number.isFinite(parsed)) {
+                return parsed;
+            }
+            return undefined;
+        } catch (error: unknown) {
+            const errorMessage = (error as Error)?.message;
+            logger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate size of '${symbol}' - '${errorMessage}'`);
+            return undefined;
+        }
+    }
+
 
 
     public async evaluateMemory(address: string, length: number, offset: number): Promise<string | undefined> {
