@@ -22,7 +22,7 @@ import { Resolver } from './resolver';
 import { ScvdComponentViewer } from './model/scvd-component-viewer';
 import { StatementEngine } from './statement-engine/statement-engine';
 import { ScvdEvalContext } from './scvd-eval-context';
-import { GDBTargetDebugSession } from '../../debug-session';
+import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
 import { ScvdGuiTree } from './scvd-gui-tree';
 
 
@@ -87,7 +87,7 @@ export class ComponentViewerInstance {
         return `${text}, Time: ${timeUsage} ms, Mem: ${memUsage}, Mem Increase: ${memIncrease} MB, (Total: ${memCurrent} MB)`;
     }
 
-    public async readModel(filename: URI, debugSession: GDBTargetDebugSession): Promise<void> {
+    public async readModel(filename: URI, debugSession: GDBTargetDebugSession, debugTracker: GDBTargetDebugTracker): Promise<void> {
         const stats: string[] = [];
 
         stats.push(this.getStats(`  Start reading SCVD file ${filename}`));
@@ -113,7 +113,7 @@ export class ComponentViewerInstance {
         stats.push(this.getStats('  model.readXml'));
 
         const scvdEvalContext = new ScvdEvalContext(this.model);
-        scvdEvalContext.init(debugSession);
+        scvdEvalContext.init(debugSession, debugTracker);
         stats.push(this.getStats('  evalContext.init'));
 
         const executionContext = scvdEvalContext.getExecutionContext();

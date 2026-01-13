@@ -18,6 +18,7 @@ import { DebugTargetMock } from './debug-target-mock';
 import { ComponentViewerTargetAccess } from './component-viewer-target-access';
 import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-session';
 import { createMockDebugSession } from './component-viewer-controller';
+import { GDBTargetDebugTracker } from '../../debug-session';
 
 const REGISTER_GDB_ENTRIES: Array<[string, string]> = [
     // Core
@@ -68,6 +69,8 @@ export class ScvdDebugTarget {
     private mock = new DebugTargetMock();
     private activeSession: GDBTargetDebugSession = createMockDebugSession();
     private targetAccess: ComponentViewerTargetAccess;
+    private debugTracker: GDBTargetDebugTracker | undefined;
+    private isTargetRunning: boolean = false;
 
     constructor(
     ) {
@@ -75,10 +78,22 @@ export class ScvdDebugTarget {
     }
 
     // -------------  Interface to debugger  -----------------
-    public init(session: GDBTargetDebugSession): void {
+    public init(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker): void {
         this.activeSession = session;
         this.targetAccess.setActiveSession(session);
+        this.debugTracker = tracker;
     }
+
+    protected async subscribeToTargetRunningState(debugTracker: GDBTargetDebugTracker): Promise<void> {
+        debugTracker.onContinued(async () => {
+            this.isTargetRunning = true;
+        });
+
+        debugTracker.onStopped(async () => {
+            this.isTargetRunning = false;
+        });
+    }
+    
     public async getSymbolInfo(symbol: string): Promise<SymbolInfo | undefined> {
         if(symbol === undefined) {
             return undefined;
@@ -130,9 +145,7 @@ export class ScvdDebugTarget {
         if(this.activeSession.session.id.startsWith('mock-session-')) {
             return false; // mock session is always running
         } else {
-            // TOIMPL For real sessions, this functionality is not implemented yet
-            const runningState = false; //await this.targetAccess.evaluateTargetRunningState();
-            return runningState;
+            return this.isTargetRunning;
         }
     }
 
