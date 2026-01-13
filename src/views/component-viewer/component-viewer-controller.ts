@@ -106,7 +106,7 @@ export class ComponentViewerController {
             const instance = new ComponentViewerInstance();
             try {
                 // use a mocked GDBTargetDebugSession
-                await instance.readModel(URI.file(path.join(context.extensionPath, scvdFile)), createMockDebugSession());
+                await instance.readModel(URI.file(path.join(context.extensionPath, scvdFile)), createMockDebugSession(), new GDBTargetDebugTracker());
             } catch (error) {
                 console.error('Error reading mock SCVD file:', scvdFile, error);
                 continue;
@@ -116,7 +116,7 @@ export class ComponentViewerController {
         this.instances = mockedInstances;
     }
 
-    protected async readScvdFiles(session?: GDBTargetDebugSession): Promise<void> {
+    protected async readScvdFiles(tracker: GDBTargetDebugTracker,session?: GDBTargetDebugSession): Promise<void> {
         if (!session) {
             return;
         }
@@ -133,7 +133,7 @@ export class ComponentViewerController {
         for (const scvdFilePath of scvdFilesPaths) {
             const instance = new ComponentViewerInstance();
             if (this.activeSession !== undefined) {
-                await instance.readModel(URI.file(scvdFilePath), this.activeSession);
+                await instance.readModel(URI.file(scvdFilePath), this.activeSession, tracker);
                 cbuildRunInstances.push(instance);
             }
         }
@@ -150,11 +150,11 @@ export class ComponentViewerController {
     }
 
     private loadingCounter: number = 0;
-    private async loadCbuildRunInstances(session: GDBTargetDebugSession) : Promise<void> {
+    private async loadCbuildRunInstances(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker) : Promise<void> {
         this.loadingCounter++;
         console.log(`Loading SCVD files from cbuild-run, attempt #${this.loadingCounter}`);
         // Try to read SCVD files from cbuild-run file first
-        await this.readScvdFiles(session);
+        await this.readScvdFiles(tracker, session);
         // Are there any SCVD files found in cbuild-run?
         if (this.instances.length > 0) {
             // Add all models from cbuild-run to the tree view
@@ -172,7 +172,7 @@ export class ComponentViewerController {
             await this.handleOnWillStopSession(session);
         });
         const onConnectedDisposable = tracker.onConnected(async (session) => {
-            await this.handleOnConnected(session);
+            await this.handleOnConnected(session, tracker);
         });
         //const onWillStartSessionDisposable = tracker.onWillStartSession(async (session) => {
         //    await this.handleOnWillStartSession(session);
@@ -215,7 +215,7 @@ export class ComponentViewerController {
         //await this.updateInstances();
     }
 
-    private async handleOnConnected(session: GDBTargetDebugSession): Promise<void> {
+    private async handleOnConnected(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker): Promise<void> {
         // If mocks are being used, erase them and start reading SCVD files from cbuild-run
         if ( this.instances.length > 0 && this.useMocks ) {
             this.instances = [];
@@ -229,7 +229,7 @@ export class ComponentViewerController {
         // Update debug session
         this.activeSession = session;
         // Load SCVD files from cbuild-run
-        await this.loadCbuildRunInstances(session);
+        await this.loadCbuildRunInstances(session, tracker);
         // Subscribe to refresh events of the started session
         session.refreshTimer.onRefresh(async (refreshSession) => {
             if (this.activeSession?.session.id === refreshSession.session.id) {

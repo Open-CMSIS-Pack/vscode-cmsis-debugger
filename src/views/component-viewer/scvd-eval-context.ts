@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { GDBTargetDebugSession } from '../../debug-session';
+import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
 import { MemoryHost } from './data-host/memory-host';
 import { RegisterHost } from './data-host/register-host';
 import { EvalContext } from './evaluator';
@@ -108,7 +108,7 @@ export class ScvdEvalContext {
         return undefined;
     }
 
-    public init(debugSession: GDBTargetDebugSession): void {
-        this._debugTarget.init(debugSession);
+    public init(debugSession: GDBTargetDebugSession, debugTracker: GDBTargetDebugTracker): void {
+        this._debugTarget.init(debugSession, debugTracker);
     }
 }

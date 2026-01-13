@@ -18,6 +18,7 @@ import { DebugTargetMock } from './debug-target-mock';
 import { ComponentViewerTargetAccess } from './component-viewer-target-access';
 import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-session';
 import { createMockDebugSession } from './component-viewer-controller';
+import { GDBTargetDebugTracker } from '../../debug-session';
 
 const REGISTER_GDB_ENTRIES: Array<[string, string]> = [
     // Core
@@ -71,6 +72,8 @@ export class ScvdDebugTarget {
     private mock = new DebugTargetMock();
     private activeSession: GDBTargetDebugSession = createMockDebugSession();
     private targetAccess: ComponentViewerTargetAccess;
+    private debugTracker: GDBTargetDebugTracker | undefined;
+    private isTargetRunning: boolean = false;
 
     constructor(
     ) {
@@ -78,10 +81,29 @@ export class ScvdDebugTarget {
     }
 
     // -------------  Interface to debugger  -----------------
-    public init(session: GDBTargetDebugSession): void {
+    public init(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker): void {
         this.activeSession = session;
         this.targetAccess.setActiveSession(session);
+        this.debugTracker = tracker;
+        this.subscribeToTargetRunningState(this.debugTracker);
     }
+
+    protected async subscribeToTargetRunningState(debugTracker: GDBTargetDebugTracker): Promise<void> {
+        debugTracker.onContinued(async (event) => {
+            if (event.session.session.id !== this.activeSession.session.id) {
+                return;
+            }
+            this.isTargetRunning = true;
+        });
+
+        debugTracker.onStopped(async (event) => {
+            if (event.session.session.id !== this.activeSession.session.id) {
+                return;
+            }
+            this.isTargetRunning = false;
+        });
+    }
+    
     public async getSymbolInfo(symbol: string): Promise<SymbolInfo | undefined> {
         if (symbol === undefined) {
             return undefined;
@@ -103,9 +125,8 @@ export class ScvdDebugTarget {
         }
     }
 
-    public async findSymbolNameAtAddress(address: number | bigint): Promise<string | undefined> {
-        // TOIMPL For real sessions, this functionality is not implemented yet
-        if (this.activeSession.session.id.startsWith('mock-session-')) {
+    public async findSymbolNameAtAddress(address: number): Promise<string | undefined> {
+        if(this.activeSession.session.id.startsWith('mock-session-')) {
             return Promise.resolve(undefined);
         } else {
             try {
@@ -132,7 +153,7 @@ export class ScvdDebugTarget {
     }
 
     public async getNumArrayElements(symbol: string): Promise<number | undefined> {
-        if (symbol === undefined) {
+        if(symbol === undefined) {
             return undefined;
         }
         // if the session is a mock session, return mock data. if it's not a mock session, use the target access to get real data
@@ -142,12 +163,7 @@ export class ScvdDebugTarget {
                 return symbolInfo?.member?.length ?? 1;
             }
         } else {
-            // Try to derive element count via sizeof(symbol) / sizeof(symbol[0])
-            const totalSize = await this.targetAccess.evaluateSymbolSize(symbol);
-            const elemSize = await this.targetAccess.evaluateSymbolSize(`${symbol}[0]`);
-            if (typeof totalSize === 'number' && typeof elemSize === 'number' && elemSize > 0) {
-                return Math.floor(totalSize / elemSize);
-            }
+            return await this.targetAccess.evaluateNumberOfArrayElements(symbol);
         }
         return undefined;
     }
@@ -157,9 +173,7 @@ export class ScvdDebugTarget {
         if (this.activeSession.session.id.startsWith('mock-session-')) {
             return false; // mock session is always running
         } else {
-            // TOIMPL For real sessions, this functionality is not implemented yet
-            const runningState = false; //await this.targetAccess.evaluateTargetRunningState();
-            return runningState;
+            return this.isTargetRunning;
         }
     }
 
