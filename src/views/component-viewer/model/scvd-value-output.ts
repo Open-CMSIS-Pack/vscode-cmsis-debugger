@@ -38,7 +38,7 @@ export class ScvdValueOutput extends ScvdBase {
     }
 
     public set expression(value: string) {
-        if( this._expression === undefined) {
+        if ( this._expression === undefined) {
             this._expression = new ScvdPrintExpression(this, value, this._scvdVarName);
             return;
         }
@@ -47,7 +47,7 @@ export class ScvdValueOutput extends ScvdBase {
 
     public async getGuiName(): Promise<string | undefined> {
         const expression = this.expression;
-        if(expression === undefined) {
+        if (expression === undefined) {
             return undefined;
         }
         await expression.evaluate();
@@ -56,7 +56,7 @@ export class ScvdValueOutput extends ScvdBase {
 
     public async getGuiValue(): Promise<string | undefined> {
         const expression = this.expression;
-        if(expression === undefined) {
+        if (expression === undefined) {
             return undefined;
         }
         await expression.evaluate();

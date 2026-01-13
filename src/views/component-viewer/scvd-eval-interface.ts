@@ -86,7 +86,7 @@ export class ScvdEvalInterface implements DataHost {
     // getTargetSize, getTypeSize, getVirtualSize
     public async getByteWidth(ref: ScvdBase): Promise<number | undefined> {
         const isPointer = ref.getIsPointer();
-        if(isPointer) {
+        if (isPointer) {
             return 4;   // pointer size
         }
         const size = ref.getTargetSize();
@@ -104,7 +104,7 @@ export class ScvdEvalInterface implements DataHost {
     */
     public getElementStride(ref: ScvdBase): number {
         const isPointer = ref.getIsPointer();
-        if(isPointer) {
+        if (isPointer) {
             return 4;   // pointer size
         }
         const stride = ref.getVirtualSize();
@@ -121,7 +121,7 @@ export class ScvdEvalInterface implements DataHost {
 
     public async getMemberOffset(_base: ScvdBase, member: ScvdBase): Promise<number | undefined> {
         const offset = await member.getMemberOffset();
-        if(offset === undefined) {
+        if (offset === undefined) {
             console.error(`ScvdEvalInterface.getMemberOffset: offset undefined for ${member.getDisplayLabel()}`);
             return undefined;
         }
@@ -172,7 +172,7 @@ export class ScvdEvalInterface implements DataHost {
         const cachedRegVal = this.registerHost.read(normalized);
         if (cachedRegVal === undefined) {
             const value = await this.debugTarget.readRegister(normalized);
-            if(value === undefined) {
+            if (value === undefined) {
                 return undefined;
             }
             this.registerHost.write(normalized, value);
@@ -264,7 +264,7 @@ export class ScvdEvalInterface implements DataHost {
             }
             case 'C': { // Address value as symbolic name with file context, if fails in hexadecimal format
                 const addr = typeof value === 'number' ? value : undefined;
-                if(addr === undefined) {
+                if (addr === undefined) {
                     return String(value);
                 }
                 const name = await this.debugTarget.findSymbolNameAtAddress(addr);
@@ -272,7 +272,7 @@ export class ScvdEvalInterface implements DataHost {
             }
             case 'S': { // Address value as symbolic name, if fails in hexadecimal format
                 const addr = typeof value === 'number' ? value : undefined;
-                if(addr === undefined) {
+                if (addr === undefined) {
                     return String(value);
                 }
                 const name = await this.debugTarget.findSymbolNameAtAddress(addr);
@@ -292,13 +292,13 @@ export class ScvdEvalInterface implements DataHost {
                 return typeof value === 'number' ? this.formatSpecifier.format_J(value) : '';
             }
             case 'N': {
-                if(typeof value === 'number' && Number.isInteger(value)) {
+                if (typeof value === 'number' && Number.isInteger(value)) {
                     const bytesPerChar = 1;
                     const data = await this.debugTarget.readUint8ArrayStrFromPointer(value, bytesPerChar, 260-4);
-                    if(data !== undefined) {
+                    if (data !== undefined) {
                         return this.formatSpecifier.format_N(data);
                     }
-                } else if(value instanceof Uint8Array) {
+                } else if (value instanceof Uint8Array) {
                     return this.formatSpecifier.format_N(value);
                 }
                 return String(value);
@@ -313,13 +313,13 @@ export class ScvdEvalInterface implements DataHost {
                 return typeof value === 'number' ? this.formatSpecifier.format_T(value) : '';
             }
             case 'U': {
-                if(typeof value === 'number' && Number.isInteger(value)) {
+                if (typeof value === 'number' && Number.isInteger(value)) {
                     const bytesPerChar = 2;
                     const data = await this.debugTarget.readUint8ArrayStrFromPointer(value, bytesPerChar, 260-4);
-                    if(data !== undefined) {
+                    if (data !== undefined) {
                         return this.formatSpecifier.format_U(data);
                     }
-                } else if(value instanceof Uint8Array) {
+                } else if (value instanceof Uint8Array) {
                     return this.formatSpecifier.format_U(value);
                 }
                 return String(value);

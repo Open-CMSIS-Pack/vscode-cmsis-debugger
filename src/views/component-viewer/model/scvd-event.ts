@@ -80,7 +80,7 @@ export class ScvdEvent extends ScvdBase {
         return this._id;
     }
     public set id(value: string | undefined) {
-        if( value !== undefined ) {
+        if ( value !== undefined ) {
             this._id = new ScvdEventId(this, value);
         }
     }
@@ -89,8 +89,8 @@ export class ScvdEvent extends ScvdBase {
         return this._level;
     }
     public set level(value: string | undefined) {
-        if( value !== undefined ) {
-            if( this._level === undefined ) {
+        if ( value !== undefined ) {
+            if ( this._level === undefined ) {
                 this._level = new ScvdEventLevel(this, value);
                 return;
             }
@@ -102,8 +102,8 @@ export class ScvdEvent extends ScvdBase {
         return this._property;
     }
     public set property(value: string | undefined) {
-        if( value !== undefined ) {
-            if( this._property === undefined ) {
+        if ( value !== undefined ) {
+            if ( this._property === undefined ) {
                 this._property = new ScvdValueOutput(this, value, 'property');
                 return;
             }
@@ -115,7 +115,7 @@ export class ScvdEvent extends ScvdBase {
         return this._value;
     }
     public set value(value: string | undefined) {
-        if( value !== undefined ) {
+        if ( value !== undefined ) {
             this._value = new ScvdValueOutput(this, value, 'value');
         }
     }
@@ -131,7 +131,7 @@ export class ScvdEvent extends ScvdBase {
         return this._handle;
     }
     public set handle(value: NumberTypeInput | undefined) {
-        if( value !== undefined ) {
+        if ( value !== undefined ) {
             this._handle = new NumberType(value).value;
         }
     }
@@ -140,7 +140,7 @@ export class ScvdEvent extends ScvdBase {
         return this._hname;
     }
     public set hname(value: string | undefined) {
-        if( value !== undefined ) {
+        if ( value !== undefined ) {
             this._hname = new ScvdExpression(this, value, 'hname');
         }
     }
@@ -158,8 +158,8 @@ export class ScvdEvent extends ScvdBase {
         return this._tracking;
     }
     public set tracking(value: string | undefined) {
-        if( value !== undefined ) {
-            if( this._tracking === undefined ) {
+        if ( value !== undefined ) {
+            if ( this._tracking === undefined ) {
                 this._tracking = new ScvdEventTracking(this, value);
                 return;
             }

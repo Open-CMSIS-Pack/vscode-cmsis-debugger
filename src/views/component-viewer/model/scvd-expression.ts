@@ -77,7 +77,7 @@ export class ScvdExpression extends ScvdBase {
     }
 
     public async evaluateExpression(): Promise<EvaluateResult> {
-        if(this.expressionAst === undefined || this._executionContext === undefined) {
+        if (this.expressionAst === undefined || this._executionContext === undefined) {
             return undefined;
         }
         const result = await evaluateParseResult(this.expressionAst, this._executionContext.evalContext /*, this*/); // pass 'this' for local variable resolution
@@ -114,7 +114,7 @@ export class ScvdExpression extends ScvdBase {
     }
 
     public async setValue(val: number): Promise<number | undefined> {
-        if(typeof this._result === 'number') {
+        if (typeof this._result === 'number') {
             this.resetExpression();
             this._result = val;
         } else {
@@ -146,13 +146,13 @@ export class ScvdExpression extends ScvdBase {
     }
 
     public async evaluate(): Promise<void> {
-        if(this.expressionAst === undefined) {
+        if (this.expressionAst === undefined) {
             return;
         }
 
-        if(this.expressionAst.constValue === undefined) {   // not a constant expression
+        if (this.expressionAst.constValue === undefined) {   // not a constant expression
             const result = await this.evaluateExpression();
-            if(result !== undefined) {
+            if (result !== undefined) {
                 this._result = result;
             }
         } else {    // constant expression
@@ -178,9 +178,9 @@ export class ScvdExpression extends ScvdBase {
             return false;
         }
 
-        if(this.expressionAst === undefined) {  // if already parsed by dependency, skip parsing
+        if (this.expressionAst === undefined) {  // if already parsed by dependency, skip parsing
             const expressionAst = parseExpression(expression, this.isPrintExpression);
-            if(expressionAst !== undefined && expressionAst.diagnostics.length === 0) {
+            if (expressionAst !== undefined && expressionAst.diagnostics.length === 0) {
                 this.expressionAst = expressionAst;
             }
         }
@@ -205,11 +205,11 @@ export class ScvdExpression extends ScvdBase {
         }
 
         const expressionAst = this.expressionAst;
-        if(expressionAst === undefined) {
+        if (expressionAst === undefined) {
             console.error(this.getLineInfoStr(), 'Expression AST is undefined for expression: ', expression);
             return super.validate(false);
         }
-        if(expressionAst.diagnostics.length > 0) {
+        if (expressionAst.diagnostics.length > 0) {
             console.error(this.getLineInfoStr(), 'Expression AST has diagnostics for expression: ', expression, '\nDiagnostics: ', expressionAst.diagnostics);
             return super.validate(false);
         }
@@ -218,7 +218,7 @@ export class ScvdExpression extends ScvdBase {
     }
 
     public getResultString(): string | undefined {
-        if(this._result !== undefined) {
+        if (this._result !== undefined) {
             if (typeof this._result === 'number') {
                 return this._result.toString();
             } else if (typeof this._result === 'string') {

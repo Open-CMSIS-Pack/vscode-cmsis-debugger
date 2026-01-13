@@ -39,23 +39,23 @@ export class StatementItem extends StatementBase {
         //const childGuiTree = (guiName?.length) ? new ScvdGuiTree(guiTree) : guiTree;
         const childGuiTree = new ScvdGuiTree(guiTree);
 
-        //if(guiName?.length) {   // else nothing to execute
+        //if (guiName?.length) {   // else nothing to execute
         const guiValue = await this.scvdItem.getGuiValue();
         childGuiTree.setGuiName(guiName);
         childGuiTree.setGuiValue(guiValue);
         await this.onExecute(executionContext, childGuiTree);
         //}
 
-        if(this.children.length > 0) {
+        if (this.children.length > 0) {
             for (const child of this.children) {
                 await child.executeStatement(executionContext, childGuiTree);
             }
         }
 
-        if(guiName === undefined) {
+        if (guiName === undefined) {
             const guiChildren = [...childGuiTree.children];  // copy to keep iteration safe during detach
             for(const guiChild of guiChildren) {
-                if(guiChild.isPrint) {
+                if (guiChild.isPrint) {
                     const guiNamePrint = guiChild.getGuiName();
                     const guiValuePrint = guiChild.getGuiValue();
                     childGuiTree.setGuiName(guiNamePrint);
@@ -65,12 +65,12 @@ export class StatementItem extends StatementBase {
             }
 
             for(const guiChild of guiChildren) {
-                if(guiChild.isPrint) {
+                if (guiChild.isPrint) {
                     guiChild.detach();  // remove temporary print nodes
                 }
             }
 
-            if(guiName === undefined && childGuiTree.children.length === 0) { // TOIMPL: check other conditions to drop
+            if (guiName === undefined && childGuiTree.children.length === 0) { // TOIMPL: check other conditions to drop
                 childGuiTree.detach();  // drop empty items that never produced a GUI name/value
             }
         }

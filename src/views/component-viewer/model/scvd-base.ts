@@ -73,16 +73,16 @@ export abstract class ScvdBase {
         }
         this.lineNo = getLineNumberFromJson(xml);
         const tag = getStringFromJson(xml['#Name'] ?? xml['#name']);
-        if(tag === undefined) {
-            if(Array.isArray(xml)) {
+        if (tag === undefined) {
+            if (Array.isArray(xml)) {
                 const subTag = getStringFromJson(xml[0]?.['#Name'] ?? xml[0]?.['#name'] ?? xml[0]?.tag);
-                if(subTag !== undefined) {
+                if (subTag !== undefined) {
                     this.tag = subTag + '[]';
                 } else {
                     this.tag = 'Array[]';
                 }
             } else {
-                if(this.tag === undefined ) {
+                if (this.tag === undefined ) {
                     this.tag = 'unknown-tag';
                 }
             }
@@ -133,7 +133,7 @@ export abstract class ScvdBase {
         this._tag = value;
     }
     public get tag(): string | undefined {
-        if(this._tag === undefined) {
+        if (this._tag === undefined) {
             return 'Internal Object';
         }
 
@@ -144,7 +144,7 @@ export abstract class ScvdBase {
         return this._lineNo;
     }
     public set lineNo(value: string | undefined) {
-        if(value !== undefined) {
+        if (value !== undefined) {
             this._lineNo = value;
         }
     }
@@ -278,11 +278,11 @@ export abstract class ScvdBase {
     }
 
     private getLineNoInfo(item: ScvdBase | undefined): string | undefined {
-        if(item === undefined) {
+        if (item === undefined) {
             return undefined;
         }
         const lineNo = item.lineNo;
-        if(lineNo === undefined) {
+        if (lineNo === undefined) {
             return this.getLineNoInfo(item.parent);
         }
         return lineNo;
@@ -291,10 +291,10 @@ export abstract class ScvdBase {
     public getLineInfoStr(): string {
         let lineInfo = '[';
         const lineNo = this.getLineNoInfo(this);
-        if(lineNo !== undefined) {
+        if (lineNo !== undefined) {
             lineInfo += `Line: ${lineNo} `;
         }
-        if(this.tag !== undefined) {
+        if (this.tag !== undefined) {
             lineInfo += `Tag: ${this.tag} `;
         }
         lineInfo += ']';
@@ -373,9 +373,9 @@ export abstract class ScvdBase {
     public async getGuiValue(): Promise<string | undefined> {
         const val = await this.getValue();
         if (val !== undefined) {
-            if(typeof val === 'number') {
+            if (typeof val === 'number') {
                 return val.toString();
-            } else if(typeof val === 'string') {
+            } else if (typeof val === 'string') {
                 return val;
             }
         }
@@ -395,10 +395,10 @@ export abstract class ScvdBase {
 
     public getDisplayLabel(): string {
         const displayName = this.name ?? this.info;
-        if(displayName && displayName.length > 0) {
+        if (displayName && displayName.length > 0) {
             return displayName;
         }
-        if(this.tag) {
+        if (this.tag) {
             return `${this.tag} (line ${this.getLineNoStr()})`;
         }
         return `${this.classname} (line ${this.getLineNoStr()})`;

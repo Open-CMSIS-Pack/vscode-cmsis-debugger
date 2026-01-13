@@ -61,7 +61,7 @@ export class ScvdVar extends ScvdBase {
     }
 
     public set size(value: NumberTypeInput | undefined) {
-        if(value !== undefined) {
+        if (value !== undefined) {
             this._size = new NumberType(value).value;
         }
     }
@@ -82,7 +82,7 @@ export class ScvdVar extends ScvdBase {
             return undefined;
         }
         const valExpr = this._value;
-        if( valExpr === undefined) {
+        if ( valExpr === undefined) {
             return undefined;
         }
         await valExpr.setValue(val);
@@ -94,7 +94,7 @@ export class ScvdVar extends ScvdBase {
     }
     public set type(value: string | undefined) {
         if (value !== undefined) {
-            if( this._type === undefined) {
+            if ( this._type === undefined) {
                 this._type = new ScvdDataType(this, value);
                 return;
             }
@@ -114,7 +114,7 @@ export class ScvdVar extends ScvdBase {
     public getTargetSize(): number | undefined {
         const typeSize = this.getTypeSize();
         const elements = this.size ?? 1;
-        if( typeSize !== undefined) {
+        if ( typeSize !== undefined) {
             return typeSize * elements;
         }
         return elements;
@@ -129,7 +129,7 @@ export class ScvdVar extends ScvdBase {
     }
 
     public set offset(value: string | undefined) {
-        if(value !== undefined) {
+        if (value !== undefined) {
             this._offset = new ScvdExpression(this, value, 'offset');
         }
     }
@@ -150,7 +150,7 @@ export class ScvdVar extends ScvdBase {
     // search a member (member, var) in typedef
     public getMember(_property: string): ScvdBase | undefined {
         const type = this._type;
-        if(type !== undefined) {
+        if (type !== undefined) {
             const typeObj = type.getMember(_property);
             return typeObj;
         }
@@ -159,7 +159,7 @@ export class ScvdVar extends ScvdBase {
 
     public getElementRef(): ScvdBase | undefined {
         const typeObj = this._type;
-        if(typeObj !== undefined) {
+        if (typeObj !== undefined) {
             return typeObj;
         }
         return undefined;

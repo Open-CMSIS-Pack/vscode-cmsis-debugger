@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-
 import * as vscode from 'vscode';
 import { ComponentViewerController } from './component-viewer-controller';
 import { GDBTargetDebugTracker } from '../../debug-session';
+
 export class ComponentViewer {
     private componentViewerController: ComponentViewerController;
 

@@ -68,7 +68,7 @@ export class ScvdRead extends ScvdBase {
     }
 
     public set symbol(name: string | undefined) {
-        if(this._symbol === undefined && name !== undefined) {
+        if (this._symbol === undefined && name !== undefined) {
             this._symbol = new ScvdSymbol(this, name);
             return;
         }
@@ -79,7 +79,7 @@ export class ScvdRead extends ScvdBase {
     }
 
     public set offset(value: string | undefined) {
-        if(value !== undefined) {
+        if (value !== undefined) {
             this._offset = new ScvdExpression(this, value, 'offset');
             return;
         }
@@ -90,7 +90,7 @@ export class ScvdRead extends ScvdBase {
     }
 
     public set const(value: NumberTypeInput | undefined) {
-        if(value !== undefined) {
+        if (value !== undefined) {
             this._const = new NumberType(value).value ? true : false;
         }
     }
@@ -100,7 +100,7 @@ export class ScvdRead extends ScvdBase {
     }
 
     public set cond(value: string | undefined) {
-        if(value !== undefined) {
+        if (value !== undefined) {
             this._cond = new ScvdCondition(this, value);
             return;
         }
@@ -111,7 +111,7 @@ export class ScvdRead extends ScvdBase {
     }
 
     public async getConditionResult(): Promise<boolean> {
-        if(this._cond) {
+        if (this._cond) {
             return await this._cond.getResult();
         }
         return super.getConditionResult();
@@ -138,7 +138,7 @@ export class ScvdRead extends ScvdBase {
 
 
     public set size(value: string | undefined) {
-        if(value !== undefined) {
+        if (value !== undefined) {
             this._size = new ScvdExpression(this, value, 'size');
             return;
         }
@@ -148,8 +148,8 @@ export class ScvdRead extends ScvdBase {
         return this._endian;
     }
     public set endian(value: string | undefined) {
-        if(value !== undefined) {
-            if( this._endian === undefined) {
+        if (value !== undefined) {
+            if ( this._endian === undefined) {
                 this._endian = new ScvdEndian(this, value);
                 return;
             }

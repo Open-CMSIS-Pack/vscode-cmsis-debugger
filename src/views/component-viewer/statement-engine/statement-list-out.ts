@@ -49,13 +49,13 @@ export class StatementListOut extends StatementBase {
         //console.log(`${this.line}: Executing out-list: ${scvdList.name}`);
 
         const name = scvdList.name;
-        if(name === undefined) {
+        if (name === undefined) {
             console.error(`${this.line}: Executing "out-list": no name defined`);
             return;
         }
 
         const startExpr = scvdList.start;
-        if(startExpr === undefined) {
+        if (startExpr === undefined) {
             console.error(`${this.line}: Executing "out-list": ${scvdList.name}, no start expression defined`);
             return;
         }
@@ -66,31 +66,31 @@ export class StatementListOut extends StatementBase {
         }
 
         const modelBase = executionContext.evalContext.container.base;
-        if(modelBase === undefined) {
+        if (modelBase === undefined) {
             console.error(`${this.line}: Executing "out-list": ${scvdList.name}, no base container defined`);
             return;
         }
 
         const varItem = modelBase.getSymbol(name);
-        if(varItem === undefined) {
+        if (varItem === undefined) {
             console.error(`${this.line}: Executing "out-list": ${scvdList.name}, could not find variable in base container: ${modelBase.name}`);
             return;
         }
         const varTargetSize = varItem.getTargetSize();
-        if(varTargetSize === undefined) {
+        if (varTargetSize === undefined) {
             console.error(`${this.line}: Executing "out-list": ${scvdList.name}, variable: ${varItem.name}, could not determine target size`);
             return;
         }
 
         let limitValue = 0;
         const limitExpr = scvdList.limit;
-        if(limitExpr !== undefined) {
+        if (limitExpr !== undefined) {
             const limitVal = await limitExpr.getValue();
             limitValue = limitVal ?? 0; // do not enter loop if undefined
         }
 
         const whileExpr = scvdList.while;
-        if(whileExpr !== undefined && limitExpr !== undefined) {
+        if (whileExpr !== undefined && limitExpr !== undefined) {
             console.error(`${this.line}: Executing "out-list": ${scvdList.name}, cannot define both limit and while expressions`);
             return;
         }
@@ -103,17 +103,17 @@ export class StatementListOut extends StatementBase {
             /* while: Specifies the next value for iterations.
                 When using attribute while, iteration does not start if start==0.
              */
-            if(whileExpr !== undefined) {
-                if(loopValue === 0) {
+            if (whileExpr !== undefined) {
+                if (loopValue === 0) {
                     break;
                 }
                 const whileValue = await whileExpr.getValue();
-                if(whileValue === 0 || whileValue === undefined) {   // break on read error too
+                if (whileValue === 0 || whileValue === undefined) {   // break on read error too
                     break;
                 }
             }
-            if(limitExpr !== undefined) {
-                if(loopValue >= limitValue) {
+            if (limitExpr !== undefined) {
+                if (loopValue >= limitValue) {
                     break;
                 }
             }
@@ -122,13 +122,13 @@ export class StatementListOut extends StatementBase {
                 await child.executeStatement(executionContext, guiTree);
             }
 
-            if(whileExpr !== undefined) {
+            if (whileExpr !== undefined) {
                 const whileValue = await whileExpr.getValue();
-                if(whileValue !== undefined) {
+                if (whileValue !== undefined) {
                     loopValue = whileValue;
                 }
             }
-            if(limitExpr !== undefined) {
+            if (limitExpr !== undefined) {
                 loopValue++;
             }
         }

@@ -151,7 +151,7 @@ export class ScvdObject extends ScvdBase {
     }
 
     public addToSymbolContext(name: string | undefined, symbol: ScvdBase): void {
-        if(name !== undefined && this.symbolContext.has(name) === false) {
+        if (name !== undefined && this.symbolContext.has(name) === false) {
             this.symbolContext.set(name, symbol);
         }
     }
@@ -164,7 +164,7 @@ export class ScvdObject extends ScvdBase {
 
     public getVar(name: string): ScvdVar | undefined {
         for(const v of this._var) {
-            if(v.name === name) {
+            if (v.name === name) {
                 return v;
             }
         }
@@ -174,7 +174,7 @@ export class ScvdObject extends ScvdBase {
 
     public getRead(name: string): ScvdRead | undefined {
         for(const r of this._read) {
-            if(r.name === name) {
+            if (r.name === name) {
                 return r;
             }
         }

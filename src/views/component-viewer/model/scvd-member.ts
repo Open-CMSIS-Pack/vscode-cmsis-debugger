@@ -70,7 +70,7 @@ export class ScvdMember extends ScvdBase {
     }
 
     public set offset(value: string | undefined) {
-        if(value !== undefined) {
+        if (value !== undefined) {
             this._offset = new ScvdExpression(this, value, 'offset');
         }
     }
@@ -80,7 +80,7 @@ export class ScvdMember extends ScvdBase {
     }
 
     public set size(value: NumberTypeInput | undefined) {
-        if(value !== undefined) {
+        if (value !== undefined) {
             this._size = new NumberType(value).value;
         }
     }
@@ -100,7 +100,7 @@ export class ScvdMember extends ScvdBase {
     // if size is set, this is the size in byte to be read from target
     public getTargetSize(): number | undefined {
         const isPointer = this.getIsPointer();
-        if(isPointer) {
+        if (isPointer) {
             return 4;   // pointer size
         }
         return this.size ?? this.getTypeSize();
@@ -129,7 +129,7 @@ export class ScvdMember extends ScvdBase {
     // search a member (member, var) in typedef
     public getMember(_property: string): ScvdBase | undefined {
         const type = this._type;
-        if(type !== undefined) {
+        if (type !== undefined) {
             const typeObj = type.getMember(_property);
             return typeObj;
         }
@@ -150,7 +150,7 @@ export class ScvdMember extends ScvdBase {
 
     public isPointerRef(): boolean {
         const type = this._type?.type;
-        if(type !== undefined) {
+        if (type !== undefined) {
             return type.isPointer;
         }
         return false;

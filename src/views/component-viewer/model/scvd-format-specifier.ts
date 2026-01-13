@@ -86,10 +86,10 @@ export class ScvdFormatSpecifier {
     }
 
     public format_address_like(value: number | string): string {
-        if( typeof value === 'string') {
+        if ( typeof value === 'string') {
             return value;
         }
-        if(typeof value === 'number') {
+        if (typeof value === 'number') {
             const num = new NumberType(value, NumFormat.hexadecimal, 32);
             return num.getDisplayText();
         }

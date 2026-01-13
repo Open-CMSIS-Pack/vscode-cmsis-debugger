@@ -71,7 +71,7 @@ export class ScvdOut extends ScvdBase {
     }
     public set type(value: string | undefined) {
         if (value !== undefined) {
-            if( this._type === undefined) {
+            if ( this._type === undefined) {
                 this._type = new ScvdDataType(this, value);
                 return;
             }
@@ -93,7 +93,7 @@ export class ScvdOut extends ScvdBase {
     }
 
     public async getConditionResult(): Promise<boolean> {
-        if(this._cond) {
+        if (this._cond) {
             return await this._cond.getResult();
         }
         return super.getConditionResult();

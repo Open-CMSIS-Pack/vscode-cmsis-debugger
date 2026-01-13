@@ -114,7 +114,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     }
 
     public async addGuiOut(guiOut: ScvdGuiInterface[] | undefined) {
-        if(guiOut !== undefined) {
+        if (guiOut !== undefined) {
             guiOut.forEach(item => this._scvdModel.scvdGuiOut.push(item));
         }
     }
@@ -131,7 +131,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     }
 
     private async addRootObject(): Promise<void> {
-        if(this._scvdModel?.scvdGuiOut.length === 0) {
+        if (this._scvdModel?.scvdGuiOut.length === 0) {
             return;
         }
         this._scvdModel.scvdGuiOut.forEach(guiOut => {

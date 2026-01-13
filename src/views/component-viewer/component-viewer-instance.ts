@@ -69,10 +69,10 @@ export class ComponentViewerInstance {
         const memCurrent = Math.round(mem.heapUsed / 1024 / 1024);
         const timeCurrent = Date.now();
 
-        if(this._timeUsageLast === 0) {
+        if (this._timeUsageLast === 0) {
             this._timeUsageLast = timeCurrent;
         }
-        if(this._memUsageStart === 0) {
+        if (this._memUsageStart === 0) {
             this._memUsageStart = memCurrent;
             this._memUsageLast = memCurrent;
         }
@@ -98,13 +98,13 @@ export class ComponentViewerInstance {
         const xml: Json = await this.parseXml(bufLineNo);
         stats.push(this.getStats('  parse'));
 
-        if(xml === undefined) {
+        if (xml === undefined) {
             console.error('Failed to parse SCVD XML');
             return;
         }
 
         this.model = new ScvdComponentViewer(undefined);
-        if(!this.model) {
+        if (!this.model) {
             console.error('Failed to create SCVD model');
             return;
         }
@@ -143,7 +143,7 @@ export class ComponentViewerInstance {
     public async update(): Promise<void> {
         const stats: string[] = [];
         stats.push(this.getStats('  start'));
-        if(this._statementEngine === undefined || this._guiTree === undefined) {
+        if (this._statementEngine === undefined || this._guiTree === undefined) {
             return;
         }
         this._guiTree.clear();
@@ -194,7 +194,7 @@ export class ComponentViewerInstance {
     }
 
     public async executeStatements(guiTree: ScvdGuiTree): Promise<void> {
-        if(this._statementEngine !== undefined) {
+        if (this._statementEngine !== undefined) {
             await this._statementEngine.executeAll(guiTree);
         }
     }

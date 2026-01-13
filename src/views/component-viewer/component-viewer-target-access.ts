@@ -59,15 +59,15 @@ export class ComponentViewerTargetAccess {
 
     private formatAddress(address: string): string {
         const trimmed = address.trim();
-        if(trimmed.length === 0) {
+        if (trimmed.length === 0) {
             return trimmed;
         }
-        if(trimmed.startsWith('0x') || trimmed.startsWith('0X')) {
+        if (trimmed.startsWith('0x') || trimmed.startsWith('0X')) {
             return trimmed;
         }
 
         const numericAddress = Number(trimmed);
-        if(Number.isNaN(numericAddress)) {
+        if (Number.isNaN(numericAddress)) {
             return trimmed;
         }
 
@@ -85,7 +85,7 @@ export class ComponentViewerTargetAccess {
             };
             const response = await this._activeSession?.session.customRequest('evaluate', args) as DebugProtocol.EvaluateResponse['body'];
             const resultText = response?.result.split('<')[1]?.split('>')[0].trim();
-            if(!resultText || resultText.startsWith('No symbol matches')) {
+            if (!resultText || resultText.startsWith('No symbol matches')) {
                 return undefined;
             }
 

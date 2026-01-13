@@ -28,7 +28,7 @@ export class ScvdCondition extends ScvdBase {
         expression?: string
     ) {
         super(parent);
-        if(expression !== undefined) {
+        if (expression !== undefined) {
             this._expression = new ScvdExpression(this, expression, 'expression');
         }
     }
@@ -38,7 +38,7 @@ export class ScvdCondition extends ScvdBase {
     }
 
     public set expression(value: string) {
-        if( this._expression === undefined) {
+        if ( this._expression === undefined) {
             this._expression = new ScvdExpression(this, value, 'expression');
             return;
         }
@@ -46,7 +46,7 @@ export class ScvdCondition extends ScvdBase {
     }
 
     public async getResult(): Promise<boolean> {
-        if(!this._expression) {
+        if (!this._expression) {
             this._cachedResult = true;
             return true;
         }

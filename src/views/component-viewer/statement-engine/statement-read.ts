@@ -30,7 +30,7 @@ export class StatementRead extends StatementBase {
     protected async onExecute(executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
         //console.log(`${this.line}: Executing read: ${this.scvdItem.getDisplayLabel()}`);
         const mustRead = this.scvdItem.mustRead;
-        if(mustRead === false) {
+        if (mustRead === false) {
             //console.log(`${this.scvdItem.getLineNoStr()}: Skipping "read" as already initialized: ${this.scvdItem.name}`);
             return;
         }
@@ -41,13 +41,13 @@ export class StatementRead extends StatementBase {
         }
 
         const name = scvdRead.name;
-        if(name === undefined) {
+        if (name === undefined) {
             console.error(`${this.line}: Executing "read": no name defined`);
             return;
         }
 
         const targetSize = scvdRead.getTargetSize(); // use size specified in SCVD
-        if(targetSize === undefined) {
+        if (targetSize === undefined) {
             console.error(`${this.line} Executing "read": ${scvdRead.name}, type: ${scvdRead.getDisplayLabel()}, could not determine target size`);
             return;
         }
@@ -60,9 +60,9 @@ export class StatementRead extends StatementBase {
 
         // Check if symbol address is defined
         const symbol = scvdRead.symbol;
-        if(symbol?.symbol !== undefined) {
+        if (symbol?.symbol !== undefined) {
             const symAddr = await executionContext.debugTarget.findSymbolAddress(symbol.symbol);
-            if(symAddr === undefined) {
+            if (symAddr === undefined) {
                 console.error(`${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, could not find symbol address for symbol: ${symbol?.symbol}`);
                 return;
             }
@@ -77,7 +77,7 @@ export class StatementRead extends StatementBase {
                 : (offs >>> 0);
         }
 
-        if(baseAddress === undefined) {
+        if (baseAddress === undefined) {
             console.error(`${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, could not find symbol address for symbol: ${symbol?.symbol}`);
             return;
         }
@@ -85,7 +85,7 @@ export class StatementRead extends StatementBase {
 
         // Read from target memory
         const readData = await executionContext.debugTarget.readMemory(baseAddress >>> 0, readBytes);
-        if(readData === undefined) {
+        if (readData === undefined) {
             console.error(`${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes, read target memory failed`);
             return;
         }
@@ -93,7 +93,7 @@ export class StatementRead extends StatementBase {
         // Write to local variable cache
         executionContext.memoryHost.setVariable(name, readBytes, readData, 0, baseAddress >>> 0, fullVirtualStrideSize);
 
-        if(scvdRead.const === true) {   // Mark variable as already initialized
+        if (scvdRead.const === true) {   // Mark variable as already initialized
             scvdRead.mustRead = false;
         }
         return;

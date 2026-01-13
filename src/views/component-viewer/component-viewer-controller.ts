@@ -217,7 +217,7 @@ export class ComponentViewerController {
 
     private async handleOnConnected(session: GDBTargetDebugSession): Promise<void> {
         // If mocks are being used, erase them and start reading SCVD files from cbuild-run
-        if( this.instances.length > 0 && this.useMocks ) {
+        if ( this.instances.length > 0 && this.useMocks ) {
             this.instances = [];
             await this.componentViewerTreeDataProvider?.deleteModels();
         }

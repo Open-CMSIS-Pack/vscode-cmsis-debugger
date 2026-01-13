@@ -42,7 +42,7 @@ export class StatementPrint extends StatementBase {
 
         await this.onExecute(executionContext, childGuiTree);
 
-        if(this.children.length > 0) {
+        if (this.children.length > 0) {
             for (const child of this.children) {
                 await child.executeStatement(executionContext, childGuiTree);
             }

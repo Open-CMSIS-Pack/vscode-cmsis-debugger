@@ -41,17 +41,17 @@ export class ScvdTypesCache {
 
     public createCache(): void {
         const typedefs = this.getModel()?.typedefs;
-        if( typedefs === undefined ) {
+        if ( typedefs === undefined ) {
             return;
         }
 
         typedefs.forEach( item => {
-            if(!(item instanceof ScvdTypedef)) {
+            if (!(item instanceof ScvdTypedef)) {
                 return;
             }
 
             const name = item.name;
-            if(name !== undefined) {
+            if (name !== undefined) {
                 this.typesCache.set(name, item);
             }
         });

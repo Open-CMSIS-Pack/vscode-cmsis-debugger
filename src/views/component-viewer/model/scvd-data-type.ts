@@ -58,7 +58,7 @@ export class ScvdDataType extends ScvdBase {
                     this._type = new ScvdScalarDataType(this, type);
                 }
             });
-            if( this._type === undefined) { // not a scalar type, create complex type
+            if ( this._type === undefined) { // not a scalar type, create complex type
                 this._type = new ScvdComplexDataType(this, type);
             }
         }
@@ -83,12 +83,12 @@ export class ScvdDataType extends ScvdBase {
 
     public getValueType(): string | undefined {
         const isPointer = this.getIsPointer();
-        if(isPointer) {
+        if (isPointer) {
             return 'uint32_t';
         }
 
         const type = this._type;
-        if(type !== undefined) {
+        if (type !== undefined) {
             const scalarType = type.castToDerived(ScvdScalarDataType);
             const typeStr = scalarType?.type;
             if (typeStr !== undefined) {
@@ -111,7 +111,7 @@ export class ScvdScalarDataType extends ScvdBase {
         super(parent);
         if (typeof type === 'string') {
             const isPointer = type.indexOf('*') === 0;
-            if(isPointer) {
+            if (isPointer) {
                 this.isPointer = true;
             }
 
@@ -200,16 +200,16 @@ export class ScvdComplexDataType extends ScvdBase{
 
     public resolveAndLink(resolveFunc: ResolveSymbolCb): boolean {
         const typeName = this.typeName?.replace(/\*/g, '').trim();
-        if(typeName === undefined) {
+        if (typeName === undefined) {
             return false;
         }
         const isPointer = (this.typeName?.indexOf('*') === 0);
-        if(isPointer) {
+        if (isPointer) {
             this.isPointer = true;
         }
 
         const item = resolveFunc(typeName, ResolveType.localType);
-        if(item === undefined || !(item instanceof ScvdTypedef)) {
+        if (item === undefined || !(item instanceof ScvdTypedef)) {
             console.error('Failed to resolve complex data type:', typeName);
             return false;
         }

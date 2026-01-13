@@ -80,16 +80,16 @@ export class ScvdDebugTarget {
         this.targetAccess.setActiveSession(session);
     }
     public async getSymbolInfo(symbol: string): Promise<SymbolInfo | undefined> {
-        if(symbol === undefined) {
+        if (symbol === undefined) {
             return undefined;
         }
         // if the session is a mock session, return mock data. if it's not a mock session, use the target access to get real data
-        if(this.activeSession.session.id.startsWith('mock-session-')) {
+        if (this.activeSession.session.id.startsWith('mock-session-')) {
             return this.mock.getMockSymbolInfo(symbol);
         } else {
             const symbolName = symbol;
             const symbolAddressStr = await this.targetAccess.evaluateSymbolAddress(symbol);
-            if(symbolAddressStr !== undefined) {
+            if (symbolAddressStr !== undefined) {
                 const symbolInfo : SymbolInfo = {
                     name: symbolName,
                     address: parseInt(symbolAddressStr as unknown as string, 16)
@@ -102,7 +102,7 @@ export class ScvdDebugTarget {
 
     public async findSymbolNameAtAddress(address: number): Promise<string | undefined> {
         // TOIMPL For real sessions, this functionality is not implemented yet
-        if(this.activeSession.session.id.startsWith('mock-session-')) {
+        if (this.activeSession.session.id.startsWith('mock-session-')) {
             return Promise.resolve(undefined);
         } else {
             return await this.targetAccess.evaluateSymbolName(address.toString());
@@ -110,13 +110,13 @@ export class ScvdDebugTarget {
     }
 
     public getNumArrayElements(symbol: string): number | undefined {
-        if(symbol === undefined) {
+        if (symbol === undefined) {
             return undefined;
         }
         // if the session is a mock session, return mock data. if it's not a mock session, use the target access to get real data
-        if(this.activeSession.session.id.startsWith('mock-session-')) {
+        if (this.activeSession.session.id.startsWith('mock-session-')) {
             const symbolInfo = this.mock.getMockSymbolInfo(symbol);
-            if(symbolInfo !== undefined) {
+            if (symbolInfo !== undefined) {
                 return symbolInfo?.member?.length ?? 1;
             }
         } else {
@@ -127,7 +127,7 @@ export class ScvdDebugTarget {
 
     public async getTargetIsRunning(): Promise<boolean> {
         // if the session is a mock session, return mock data. if it's not a mock session, use the target access to get real data
-        if(this.activeSession.session.id.startsWith('mock-session-')) {
+        if (this.activeSession.session.id.startsWith('mock-session-')) {
             return false; // mock session is always running
         } else {
             // TOIMPL For real sessions, this functionality is not implemented yet
@@ -138,7 +138,7 @@ export class ScvdDebugTarget {
 
     public async findSymbolAddress(symbol: string): Promise<number | undefined> {
         const symbolInfo = await this.getSymbolInfo(symbol);
-        if(symbolInfo === undefined) {
+        if (symbolInfo === undefined) {
             return undefined;
         }
         return symbolInfo.address;
@@ -172,11 +172,11 @@ export class ScvdDebugTarget {
 
     public async readMemory(address: number, size: number): Promise<Uint8Array | undefined> {
         // If the session is a mock session, return mock data. If it's not a mock session, use the target access to get real data
-        if(this.activeSession.session.id.startsWith('mock-session-')) {
+        if (this.activeSession.session.id.startsWith('mock-session-')) {
             return this.mock.getMockMemoryData(address, size);
         } else {
             const dataAsString = await this.targetAccess.evaluateMemory(address.toString(), size, 0);
-            if(typeof dataAsString !== 'string') {
+            if (typeof dataAsString !== 'string') {
                 return undefined;
             }
             // Convert String data to Uint8Array
@@ -185,7 +185,7 @@ export class ScvdDebugTarget {
             /*for(let i = 0; i < size; i++) {
                 byteArray[i] = dataAsString.charCodeAt(i);
             }*/
-            if(byteArray.length !== size) {
+            if (byteArray.length !== size) {
                 return byteArray;
             }
             return byteArray;
@@ -193,7 +193,7 @@ export class ScvdDebugTarget {
     }
 
     public readUint8ArrayStrFromPointer(address: number, bytesPerChar: number, maxLength: number): Promise<Uint8Array | undefined> {
-        if(address === 0) {
+        if (address === 0) {
             return Promise.resolve(undefined);
         }
         return this.readMemory(address, maxLength * bytesPerChar);
@@ -201,7 +201,7 @@ export class ScvdDebugTarget {
 
     public calculateMemoryUsage(startAddress: number, size: number, FillPattern: number, MagicValue: number): number | undefined {
         const memData = this.mock.getMockMemoryData(startAddress, size);
-        if(memData !== undefined) {
+        if (memData !== undefined) {
             let usedBytes = 0;
             const fillPatternBytes = new Uint8Array(4);
             const magicValueBytes = new Uint8Array(4);
@@ -220,21 +220,21 @@ export class ScvdDebugTarget {
                 const chunk = memData.slice(i, i + 4);
                 let match = true;
                 for(let j = 0; j < chunk.length; j++) {
-                    if(chunk[j] !== fillPatternBytes[j]) {
+                    if (chunk[j] !== fillPatternBytes[j]) {
                         match = false;
                         break;
                     }
                 }
-                if(!match) {
+                if (!match) {
                     match = true;
                     for(let j = 0; j < chunk.length; j++) {
-                        if(chunk[j] !== magicValueBytes[j]) {
+                        if (chunk[j] !== magicValueBytes[j]) {
                             match = false;
                             break;
                         }
                     }
                 }
-                if(!match) {
+                if (!match) {
                     usedBytes += chunk.length;
                 }
             }
@@ -246,12 +246,12 @@ export class ScvdDebugTarget {
             // Check for overflow (MagicValue overwritten)
             let overflow = true;
             for(let i = memData.length - 4; i < memData.length; i++) {
-                if(memData[i] !== magicValueBytes[i - (memData.length - 4)]) {
+                if (memData[i] !== magicValueBytes[i - (memData.length - 4)]) {
                     overflow = false;
                     break;
                 }
             }
-            if(overflow) {
+            if (overflow) {
                 result |= (1 << 31); // set overflow bit
             }
 
@@ -263,12 +263,12 @@ export class ScvdDebugTarget {
 
 
     public async readRegister(name: string): Promise<number | undefined> {
-        if(name === undefined) {
+        if (name === undefined) {
             return undefined;
         }
 
         const gdbName = gdbNameFor(name);
-        if(gdbName === undefined) {
+        if (gdbName === undefined) {
             console.error(`ScvdDebugTarget: readRegister: could not find GDB name for register: ${name}`);
             return undefined;
         }

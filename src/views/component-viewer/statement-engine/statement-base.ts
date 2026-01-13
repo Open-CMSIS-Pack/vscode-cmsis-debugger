@@ -53,7 +53,7 @@ export class StatementBase {
 
     /** Append a child and return it. */
     public addChild(child: StatementBase): StatementBase | undefined {
-        if(child !== undefined) {
+        if (child !== undefined) {
             this._children.push(child);
         }
         return child;
