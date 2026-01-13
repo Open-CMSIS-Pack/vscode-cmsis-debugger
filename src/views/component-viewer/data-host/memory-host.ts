@@ -125,13 +125,14 @@ export class MemoryHost {
     private elementMeta = new Map<string, ElementMeta>();
 
     private getOrInitMeta(name: string): ElementMeta {
-        let m = this.elementMeta.get(name);
-        if (!m) {
+        const existing = this.elementMeta.get(name);
+        if (!existing) {
             // with exactOptionalPropertyTypes: do NOT assign elementSize: undefined
-            m = { offsets: [], sizes: [], bases: [] };
-            this.elementMeta.set(name, m);
+            const created: ElementMeta = { offsets: [], sizes: [], bases: [] };
+            this.elementMeta.set(name, created);
+            return created;
         }
-        return m;
+        return existing;
     }
 
     // normalize number → safe JS number for addresses
@@ -169,13 +170,43 @@ export class MemoryHost {
         }
 
         // Interpret the bytes:
+        //  - float kinds decode as float32/float64
         //  - ≤4 bytes: JS number (uint32)
-        //  - >4 bytes: return a copy of the raw bytes
+        //  - 8 bytes: BigInt for full 64-bit integer fidelity
+        //  - >8 bytes: return a copy of the raw bytes
+        if (ref.valueType?.kind === 'float') {
+            if (widthBytes === 4) {
+                const dv = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
+                return dv.getFloat32(0, true);
+            }
+            if (widthBytes === 8) {
+                const dv = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
+                return dv.getFloat64(0, true);
+            }
+        }
         if (widthBytes <= 4) {
             return leToNumber(raw);
         }
+        if (widthBytes === 8) {
+            let out = 0n;
+            for (let i = 0; i < 8; i++) {
+                out |= BigInt(raw[i]) << BigInt(8 * i);
+            }
+            return out;
+        }
         // for larger widths, return a copy of the bytes
         return raw.slice();
+    }
+
+    /** Read raw bytes without interpretation. */
+    public readRaw(ref: RefContainer, size: number): Uint8Array | undefined {
+        const variableName = ref.anchor?.name;
+        if (!variableName || size <= 0) {
+            return undefined;
+        }
+        const container = this.getContainer(variableName);
+        const byteOff = ref.offsetBytes ?? 0;
+        return container.read(byteOff, size).slice();
     }
 
     /** Write a value, using byte-only offsets and widths. */
@@ -201,17 +232,28 @@ export class MemoryHost {
             }
         } else {
             // normalize value to number then to bytes
-            let valNum: number;
+            let valNum: number | bigint;
             if (typeof value === 'boolean') {
                 valNum = value ? 1 : 0;
             } else if (typeof value === 'number') {
                 valNum = Math.trunc(value);
+            } else if (typeof value === 'bigint') {
+                valNum = value;
             } else {
                 console.error('writeValue: unsupported value type');
                 return;
             }
 
-            buf = leIntToBytes(valNum, widthBytes);
+            if (typeof valNum === 'bigint') {
+                buf = new Uint8Array(widthBytes);
+                let tmp = valNum;
+                for (let i = 0; i < widthBytes; i++) {
+                    buf[i] = Number(tmp & 0xFFn);
+                    tmp >>= 8n;
+                }
+            } else {
+                buf = leIntToBytes(valNum, widthBytes);
+            }
         }
 
         if (virtualSize !== undefined && virtualSize < widthBytes) {
@@ -226,7 +268,7 @@ export class MemoryHost {
     public setVariable(
         name: string,
         size: number,
-        value: number | Uint8Array,
+        value: number | bigint | Uint8Array,
         offset: number,                     // NEW: controls where to place the data
         targetBase?: number,       // target base address where it was read from
         virtualSize?: number,                // total logical bytes for this element (>= size)
@@ -251,6 +293,13 @@ export class MemoryHost {
         let buf: Uint8Array;
         if (typeof value === 'number') {
             buf = leIntToBytes(Math.trunc(value), size);
+        } else if (typeof value === 'bigint') {
+            buf = new Uint8Array(size);
+            let tmp = value;
+            for (let i = 0; i < size; i++) {
+                buf[i] = Number(tmp & 0xffn);
+                tmp >>= 8n;
+            }
         } else if (value instanceof Uint8Array) {
             // Avoid an extra allocation when already the right size
             buf = value.length === size ? value : new Uint8Array(value.subarray(0, size));

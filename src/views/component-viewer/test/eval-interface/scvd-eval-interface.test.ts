@@ -28,6 +28,7 @@ const makeStubBase = (name: string): ScvdBase => ({
     getSymbol: jest.fn(),
     getMember: jest.fn(),
     getDisplayLabel: jest.fn().mockReturnValue(name),
+    getValueType: jest.fn(),
 } as unknown as ScvdBase);
 
 const makeContainer = (name: string, widthBytes: number, offsetBytes = 0): RefContainer => ({
@@ -47,6 +48,7 @@ describe('ScvdEvalInterface', () => {
             findSymbolAddress: jest.fn().mockResolvedValue(0x1234),
             findSymbolNameAtAddress: jest.fn().mockResolvedValue('sym'),
             calculateMemoryUsage: jest.fn().mockReturnValue(0xabcd),
+            getSymbolSize: jest.fn().mockResolvedValue(undefined),
             getNumArrayElements: jest.fn().mockResolvedValue(3),
             getTargetIsRunning: jest.fn().mockResolvedValue(true),
             readUint8ArrayStrFromPointer: jest.fn().mockResolvedValue(new Uint8Array([65, 66])),
@@ -58,7 +60,7 @@ describe('ScvdEvalInterface', () => {
         expect(await host.__GetRegVal('r0')).toBe(7);
         expect(await host.__Symbol_exists('foo')).toBe(1);
         expect(host.__CalcMemUsed(1, 2, 3, 4)).toBe(0xabcd);
-        expect(host.__size_of('arr')).toBe(3);
+        expect(await host.__size_of('arr')).toBe(3);
         expect(await host.__Running()).toBe(1);
     });
 
@@ -68,6 +70,7 @@ describe('ScvdEvalInterface', () => {
         const debugTarget = {
             findSymbolAddress: jest.fn(),
             findSymbolNameAtAddress: jest.fn().mockResolvedValue('sym'),
+            getSymbolSize: jest.fn().mockResolvedValue(undefined),
             getNumArrayElements: jest.fn().mockResolvedValue(undefined),
             getTargetIsRunning: jest.fn(),
             readUint8ArrayStrFromPointer: jest.fn(),
@@ -79,13 +82,13 @@ describe('ScvdEvalInterface', () => {
 
         expect(await host.formatPrintf('d', 42, container)).toBe('42');
         expect(await host.formatPrintf('S', 0x1000, container)).toBe('sym');
-        expect(await host.formatPrintf('?', true as unknown as number, container)).toBe('true');
+        expect(await host.formatPrintf('?', true as unknown as number, container)).toBe('<unknown format specifier %?>');
     });
 
     it('readValue/writeValue interop with cache', () => {
         const memHost = new MemoryHost();
         const regCache = { read: jest.fn() } as unknown as RegisterHost;
-        const debugTarget = { getNumArrayElements: jest.fn() } as unknown as ScvdDebugTarget;
+        const debugTarget = { getSymbolSize: jest.fn(), getNumArrayElements: jest.fn() } as unknown as ScvdDebugTarget;
         const fmt = new ScvdFormatSpecifier();
         const host = new ScvdEvalInterface(memHost, regCache, debugTarget, fmt);
 

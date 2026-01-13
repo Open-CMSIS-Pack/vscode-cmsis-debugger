@@ -56,7 +56,7 @@ export class StatementRead extends StatementBase {
         const numOfElements = sizeValue ?? 1;
         const readBytes = numOfElements * targetSize; // Is an Expressions representing the array size or the number of values to read from target. The maximum array size is limited to 512. Default value is 1.
         const fullVirtualStrideSize = virtualSize * numOfElements;
-        let baseAddress: number | undefined = undefined;
+        let baseAddress: number | bigint | undefined = undefined;
 
         // Check if symbol address is defined
         const symbol = scvdRead.symbol;
@@ -66,15 +66,15 @@ export class StatementRead extends StatementBase {
                 console.error(`${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, could not find symbol address for symbol: ${symbol?.symbol}`);
                 return;
             }
-            baseAddress = symAddr >>> 0;
+            baseAddress = typeof symAddr === 'bigint' ? symAddr : (symAddr >>> 0);
         }
 
         const offset = scvdRead.offset ? await scvdRead.offset.getValue() : undefined;
         if (offset !== undefined) {
-            const offs = offset | 0;
+            const offs = typeof offset === 'bigint' ? offset : BigInt(offset | 0);
             baseAddress = baseAddress !== undefined
-                ? ((baseAddress >>> 0) + offs) >>> 0
-                : (offs >>> 0);
+                ? (typeof baseAddress === 'bigint' ? baseAddress + offs : (BigInt(baseAddress >>> 0) + offs))
+                : offs;
         }
 
         if (baseAddress === undefined) {
@@ -84,14 +84,14 @@ export class StatementRead extends StatementBase {
         //console.log(`${this.line}: Executing target read: ${scvdRead.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes`);
 
         // Read from target memory
-        const readData = await executionContext.debugTarget.readMemory(baseAddress >>> 0, readBytes);
+        const readData = await executionContext.debugTarget.readMemory(baseAddress, readBytes);
         if (readData === undefined) {
             console.error(`${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes, read target memory failed`);
             return;
         }
 
         // Write to local variable cache
-        executionContext.memoryHost.setVariable(name, readBytes, readData, 0, baseAddress >>> 0, fullVirtualStrideSize);
+        executionContext.memoryHost.setVariable(name, readBytes, readData, 0, typeof baseAddress === 'bigint' ? Number(baseAddress) : (baseAddress >>> 0), fullVirtualStrideSize);
 
         if (scvdRead.const === true) {   // Mark variable as already initialized
             scvdRead.mustRead = false;

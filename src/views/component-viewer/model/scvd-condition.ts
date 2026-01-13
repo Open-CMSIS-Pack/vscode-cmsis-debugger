@@ -18,6 +18,7 @@
 
 import { ScvdBase } from './scvd-base';
 import { ScvdExpression } from './scvd-expression';
+import { ExecutionContext } from '../scvd-eval-context';
 
 export class ScvdCondition extends ScvdBase {
     private _expression: ScvdExpression | undefined;
@@ -50,15 +51,31 @@ export class ScvdCondition extends ScvdBase {
             this._cachedResult = true;
             return true;
         }
-        const value = await this._expression.getValue();
-        const result = value ? true : false;
-        this._cachedResult = result;
-        return result;
+        try {
+            const value = await this._expression.getValue();
+            // Treat numeric zero as false; everything else (including bigint) as true.
+            const result = value === undefined ? false : value !== 0 && value !== 0n;
+            this._cachedResult = result;
+            return result;
+        } catch (err) {
+            console.error(this.getLineInfoStr(), 'Failed to evaluate condition expression', err);
+            this._cachedResult = false;
+            return false;
+        }
     }
 
     public getCachedResult(): boolean | undefined {
         return this._cachedResult;
     }
 
+    public override invalidate(): void {
+        this._cachedResult = undefined;
+        super.invalidate();
+    }
+
+    public override setExecutionContext(executionContext: ExecutionContext): void {
+        super.setExecutionContext(executionContext);
+        this._expression?.setExecutionContext(executionContext);
+    }
 
 }

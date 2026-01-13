@@ -37,6 +37,7 @@ describe('ComponentViewerTargetAccess', () => {
         debugSession = debugSessionFactory(defaultConfig());
         gdbTargetSession = new GDBTargetDebugSession(debugSession);
         targetAccess = new ComponentViewerTargetAccess();
+        targetAccess.setActiveSession(gdbTargetSession);
     });
 
     describe('evaluateSymbolAddress', () => {
@@ -203,6 +204,7 @@ describe('ComponentViewerTargetAccess', () => {
             const anotherDebugSession = debugSessionFactory({ ...defaultConfig(), name: 'another-session' });
             const anotherGDBSession = new GDBTargetDebugSession(anotherDebugSession);
             const anotherTargetAccess = new ComponentViewerTargetAccess();
+            anotherTargetAccess.setActiveSession(anotherGDBSession);
 
             expect(anotherTargetAccess['_activeSession']).toBe(anotherGDBSession);
         });

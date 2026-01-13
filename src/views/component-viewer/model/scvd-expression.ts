@@ -26,7 +26,7 @@ import { ExecutionContext } from '../scvd-eval-context';
 
 export class ScvdExpression extends ScvdBase {
     private _expression: string | undefined;
-    private _result: number | string | undefined;
+    private _result: EvaluateResult;
     private _scvdVarName: string | undefined;
     private _expressionAst: ParseResult | undefined;
     private _isPrintExpression: boolean = false;
@@ -84,19 +84,22 @@ export class ScvdExpression extends ScvdBase {
         return result;
     }
 
-    public get result(): number | string | undefined {
+    public get result(): EvaluateResult {
         return this._result;
     }
 
-    private async evaluateValue(): Promise<number | string | undefined> {
+    private async evaluateValue(): Promise<EvaluateResult> {
         await this.evaluate();
         return this._result;
     }
 
-    public async getValue(): Promise<number | undefined> {
+    public async getValue(): Promise<number | bigint | undefined> {
         const val = await this.evaluateValue();
-        if (val == undefined || typeof val !== 'number') {
+        if (val == undefined || (typeof val !== 'number' && typeof val !== 'bigint')) {
             return undefined;
+        }
+        if (typeof val === 'bigint') {
+            return val;
         }
         const min = this._rangeMin;
         if (min !== undefined && val < min) {
