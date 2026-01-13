@@ -47,7 +47,7 @@ describe('ScvdEvalInterface', () => {
             findSymbolAddress: jest.fn().mockResolvedValue(0x1234),
             findSymbolNameAtAddress: jest.fn().mockResolvedValue('sym'),
             calculateMemoryUsage: jest.fn().mockReturnValue(0xabcd),
-            getNumArrayElements: jest.fn().mockReturnValue(3),
+            getNumArrayElements: jest.fn().mockResolvedValue(3),
             getTargetIsRunning: jest.fn().mockResolvedValue(true),
             readUint8ArrayStrFromPointer: jest.fn().mockResolvedValue(new Uint8Array([65, 66])),
         } as unknown as ScvdDebugTarget;
@@ -68,7 +68,7 @@ describe('ScvdEvalInterface', () => {
         const debugTarget = {
             findSymbolAddress: jest.fn(),
             findSymbolNameAtAddress: jest.fn().mockResolvedValue('sym'),
-            getNumArrayElements: jest.fn(),
+            getNumArrayElements: jest.fn().mockResolvedValue(undefined),
             getTargetIsRunning: jest.fn(),
             readUint8ArrayStrFromPointer: jest.fn(),
         } as unknown as ScvdDebugTarget;

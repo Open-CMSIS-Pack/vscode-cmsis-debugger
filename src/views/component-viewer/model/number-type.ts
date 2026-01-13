@@ -57,7 +57,7 @@ export class NumberType {
                 this._value.numFormat = NumFormat.decimal;
             }
             this._value.displayFormat = this._value.numFormat;
-            if( numOfDisplayBits !== undefined) {
+            if ( numOfDisplayBits !== undefined) {
                 this._value.numOfDisplayBits = numOfDisplayBits;
             }
         } else if (val instanceof NumberType) {

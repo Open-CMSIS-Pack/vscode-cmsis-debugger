@@ -51,7 +51,7 @@ export class ScvdEvalContext {
         this._formatSpecifier = new ScvdFormatSpecifier();
         this._evalHost = new ScvdEvalInterface(this._memoryHost, this._registerHost, this._debugTarget, this._formatSpecifier);
         const outItem = this.getOutItem();
-        if(outItem === undefined) {
+        if (outItem === undefined) {
             throw new Error('SCVD EvalContext: No output item defined');
         }
 
@@ -98,10 +98,10 @@ export class ScvdEvalContext {
 
     public getOutItem(): ScvdBase | undefined {
         const objects = this.model.objects;
-        if(objects === undefined) {
+        if (objects === undefined) {
             return undefined;
         }
-        if(objects.objects.length > 0) {
+        if (objects.objects.length > 0) {
             const object = objects.objects[0];
             return object;
         }

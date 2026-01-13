@@ -56,37 +56,37 @@ export class ScvdComponentViewer extends ScvdBase {
         }
 
         const componentViewer: Json = getObjectFromJson(xml.component_viewer);
-        if( componentViewer === undefined) {
+        if ( componentViewer === undefined) {
             return false;
         }
 
         const componentIdentifier: Json = getObjectFromJson(componentViewer.component);
-        if(componentIdentifier !== undefined) {
+        if (componentIdentifier !== undefined) {
             this._componentIdentifier = new ScvdComponentIdentifier(this);
             this._componentIdentifier.readXml(componentIdentifier);
         }
 
         const objectsContainer: Json = getObjectFromJson(componentViewer.objects);
-        if(objectsContainer !== undefined) {
+        if (objectsContainer !== undefined) {
             this._objects = new ScvdObjects(this);
             this._objects.readXml(objectsContainer);
         }
 
         const typedefsContainer: Json = getObjectFromJson(componentViewer.typedefs);
-        if(typedefsContainer !== undefined) {
+        if (typedefsContainer !== undefined) {
             this._typedefs = new ScvdTypedefs(this);
             this._typedefs.readXml(typedefsContainer);
         }
 
         // disable for now
         /*const events = getArrayFromJson(componentViewer?.events);
-        if(events !== undefined) {
+        if (events !== undefined) {
             this._events = new ScvdEvents(this);
             this._events.readXml(events);
         }*/
 
         const allBreaks = this.collectBreakStatements(componentViewer);
-        if(allBreaks.length > 0) {
+        if (allBreaks.length > 0) {
             this._breaks = new ScvdBreaks(this);
             this._breaks.readXml({ break: allBreaks });
         }
@@ -127,7 +127,7 @@ export class ScvdComponentViewer extends ScvdBase {
 
     public async calculateTypedefs(): Promise<boolean> {
         const typedefs = this.typedefs;
-        if(typedefs === undefined || typedefs.typedef.length === 0) {
+        if (typedefs === undefined || typedefs.typedef.length === 0) {
             return false;
         }
         await typedefs.calculateTypedefs();
@@ -157,28 +157,28 @@ export class ScvdComponentViewer extends ScvdBase {
     }
 
     private collectBreakStatements(node: Json | Json[] | undefined): Json[] {
-        if(node === undefined) {
+        if (node === undefined) {
             return [];
         }
 
-        if(Array.isArray(node)) {
+        if (Array.isArray(node)) {
             const breaks: Json[] = [];
             node.forEach(item => breaks.push(...this.collectBreakStatements(item)));
             return breaks;
         }
 
-        if(typeof node !== 'object' || node === null) {
+        if (typeof node !== 'object' || node === null) {
             return [];
         }
 
         const breaks: Json[] = [];
         const directBreaks = getArrayFromJson(node.break);
-        if(directBreaks !== undefined) {
+        if (directBreaks !== undefined) {
             breaks.push(...directBreaks);
         }
 
         for (const [key, value] of Object.entries(node)) {
-            if(key === 'break') {
+            if (key === 'break') {
                 continue;   // already processed above
             }
             breaks.push(...this.collectBreakStatements(value as Json | Json[] | undefined));

@@ -56,7 +56,7 @@ export class ScvdEventLevel extends ScvdBase {
 
     public set level(value: string | undefined) {
         const level = EventLevelMap.get(value ?? '');
-        if( level !== undefined ) {
+        if ( level !== undefined ) {
             this._level = level;
         } else {
             this._level = EventLevel[value as keyof typeof EventLevel];

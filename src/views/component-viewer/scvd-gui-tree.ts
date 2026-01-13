@@ -29,7 +29,7 @@ export class ScvdGuiTree implements ScvdGuiInterface {
         parent: ScvdGuiTree | undefined,
     ) {
         this._parent = parent;
-        if(parent) {
+        if (parent) {
             parent.addChild(this);
         }
         this._nodeId = ScvdGuiTree.idCnt.toString();
@@ -79,7 +79,7 @@ export class ScvdGuiTree implements ScvdGuiInterface {
     }
 
     public detach(): void {
-        if(!this._parent) {
+        if (!this._parent) {
             return;
         }
         this._parent._children = this._parent._children.filter(child => child !== this);

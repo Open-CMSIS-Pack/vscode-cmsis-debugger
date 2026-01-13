@@ -78,7 +78,7 @@ export class ScvdPrint extends ScvdBase {
     }
 
     public async getConditionResult(): Promise<boolean> {
-        if(this._cond) {
+        if (this._cond) {
             return await this._cond.getResult();
         }
         return super.getConditionResult();
@@ -106,14 +106,14 @@ export class ScvdPrint extends ScvdBase {
 
     // Main Display functions
     public async getGuiName(): Promise<string | undefined> {
-        if(this.property === undefined) {
+        if (this.property === undefined) {
             return undefined;
         }
         return await this.property.getGuiName();
     }
 
     public async getGuiValue(): Promise<string | undefined> {
-        if(this.value === undefined) {
+        if (this.value === undefined) {
             return undefined;
         }
         return await this.value.getGuiValue();

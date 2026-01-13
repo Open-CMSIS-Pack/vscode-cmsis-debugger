@@ -57,7 +57,7 @@ export class ScvdReadList extends ScvdRead {
 
 
     public set count(value: string | undefined) {
-        if(value !== undefined) {
+        if (value !== undefined) {
             this._count = new ScvdExpression(this, value, 'count');
             this._count.setMinMax(ScvdReadList.READ_SIZE_MIN, ScvdReadList.READ_SIZE_MAX);
         }
@@ -74,7 +74,7 @@ export class ScvdReadList extends ScvdRead {
     }
 
     public set init(value: NumberTypeInput | undefined) {
-        if(value !== undefined) {
+        if (value !== undefined) {
             this._init = new NumberType(value).value;
         }
     }
@@ -83,7 +83,7 @@ export class ScvdReadList extends ScvdRead {
     }
 
     public set based(value: NumberTypeInput | undefined) {
-        if(value !== undefined) {
+        if (value !== undefined) {
             this._based = new NumberType(value).value;
         }
     }
@@ -119,7 +119,7 @@ export class ScvdReadList extends ScvdRead {
     }
 
     public applyInit(): boolean {
-        if(this.init === 1) {
+        if (this.init === 1) {
             // Discard previous read objects
             return true;
         }
@@ -128,7 +128,7 @@ export class ScvdReadList extends ScvdRead {
     }
 
     public async getCount(): Promise<number | undefined> {
-        if(this._count === undefined) {
+        if (this._count === undefined) {
             return undefined;
         }
         return await this._count.getValue();

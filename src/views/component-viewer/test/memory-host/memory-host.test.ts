@@ -16,6 +16,27 @@
 // generated with AI
 
 import { MemoryHost } from '../../data-host/memory-host';
+import { RefContainer } from '../../evaluator';
+import { ScvdBase } from '../../model/scvd-base';
+
+class NamedStubBase extends ScvdBase {
+    constructor(name: string) {
+        super(undefined);
+        this.name = name;
+    }
+}
+
+const makeContainer = (name: string, widthBytes: number, offsetBytes = 0): RefContainer => {
+    const ref = new NamedStubBase(name);
+    return {
+        base: ref,
+        anchor: ref,
+        current: ref,
+        offsetBytes,
+        widthBytes,
+        valueType: undefined,
+    };
+};
 
 describe('MemoryHost', () => {
     it('stores and retrieves numeric values with explicit offsets', () => {
@@ -60,13 +81,7 @@ describe('MemoryHost', () => {
 
     it('supports readValue/writeValue round-trips for numbers', () => {
         const host = new MemoryHost();
-        const container = {
-            base: { name: 'num', getDisplayLabel: () => 'num' } as unknown as any,
-            anchor: { name: 'num' } as any,
-            offsetBytes: 0,
-            widthBytes: 4,
-            valueType: undefined,
-        };
+        const container = makeContainer('num', 4);
 
         host.writeValue(container, 0xdeadbeef);
         const out = host.readValue(container);
@@ -76,13 +91,7 @@ describe('MemoryHost', () => {
     it('supports readValue/writeValue for byte arrays', () => {
         const host = new MemoryHost();
         const bytes = new Uint8Array([1, 2, 3, 4, 5, 6]);
-        const container = {
-            base: { name: 'blob', getDisplayLabel: () => 'blob' } as unknown as any,
-            anchor: { name: 'blob' } as any,
-            offsetBytes: 0,
-            widthBytes: bytes.length,
-            valueType: undefined,
-        };
+        const container = makeContainer('blob', bytes.length);
 
         host.writeValue(container, bytes);
         const out = host.readValue(container);

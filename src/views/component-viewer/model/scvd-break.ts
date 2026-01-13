@@ -53,7 +53,7 @@ export class ScvdBreaks extends ScvdBase {
 
     public async calculateBreaks(): Promise<void> {
         const breaks = this.breaks;
-        if(breaks === undefined || breaks.length === 0) {
+        if (breaks === undefined || breaks.length === 0) {
             return;
         }
 

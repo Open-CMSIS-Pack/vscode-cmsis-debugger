@@ -61,7 +61,7 @@ export class ScvdComponent extends ScvdBase {
     }
 
     public set no(value: NumberTypeInput | undefined) {
-        if( value === undefined) {
+        if ( value === undefined) {
             return;
         }
         this._no = new NumberType(value).value;

@@ -56,7 +56,7 @@ export class Resolver {
     }
 
     private createTypesCache() {
-        if(this.model === undefined) {
+        if (this.model === undefined) {
             return;
         }
         this._typesCache = new ScvdTypesCache(this.model);
@@ -65,18 +65,18 @@ export class Resolver {
 
     private resolveLocalType(name: string): ScvdBase | undefined {
         const typeItem = this.typesCache?.findTypeByName(name);
-        if(typeItem !== undefined && typeItem instanceof ScvdTypedef) {
+        if (typeItem !== undefined && typeItem instanceof ScvdTypedef) {
             return typeItem;
         }
         return undefined;
     }
 
     private resolveLocalMember(name: string, scvdObject?: ScvdBase): ScvdBase | undefined {
-        if(scvdObject === undefined) {
+        if (scvdObject === undefined) {
             return undefined;
         }
         const memberItem = scvdObject.getSymbol(name);
-        if(memberItem !== undefined) {
+        if (memberItem !== undefined) {
             return memberItem;
         }
         return undefined;
@@ -107,7 +107,7 @@ export class Resolver {
 
     private resolveRecursive(item: ScvdBase, resolveFunc: ResolveSymbolCb): boolean {
         /*const resolvedItem =*/ item.resolveAndLink(resolveFunc);
-        // if(resolvedItem) {
+        // if (resolvedItem) {
         //     console.log('Resolved item:', item.getDisplayLabel());
         // }
 
@@ -132,7 +132,7 @@ export class Resolver {
 
     public resolve(): boolean {
         const model = this.model;
-        if( model === undefined) {
+        if ( model === undefined) {
             return false;
         }
 

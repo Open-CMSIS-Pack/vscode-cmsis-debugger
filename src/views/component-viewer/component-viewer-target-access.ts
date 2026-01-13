@@ -59,15 +59,15 @@ export class ComponentViewerTargetAccess {
 
     private formatAddress(address: string): string {
         const trimmed = address.trim();
-        if(trimmed.length === 0) {
+        if (trimmed.length === 0) {
             return trimmed;
         }
-        if(trimmed.startsWith('0x') || trimmed.startsWith('0X')) {
+        if (trimmed.startsWith('0x') || trimmed.startsWith('0X')) {
             return trimmed;
         }
 
         const numericAddress = Number(trimmed);
-        if(Number.isNaN(numericAddress)) {
+        if (Number.isNaN(numericAddress)) {
             return trimmed;
         }
 
@@ -85,7 +85,7 @@ export class ComponentViewerTargetAccess {
             };
             const response = await this._activeSession?.session.customRequest('evaluate', args) as DebugProtocol.EvaluateResponse['body'];
             const resultText = response?.result.split('<')[1]?.split('>')[0].trim();
-            if(!resultText || resultText.startsWith('No symbol matches')) {
+            if (!resultText || resultText.startsWith('No symbol matches')) {
                 return undefined;
             }
 
@@ -97,6 +97,53 @@ export class ComponentViewerTargetAccess {
             return undefined;
         }
     }
+
+    public async evaluateSymbolContext(address: string, context = 'hover'): Promise<string | undefined> {
+        try {
+            const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
+            const formattedAddress = this.formatAddress(address);
+            // Ask GDB for file/line context of the address.
+            const args: DebugProtocol.EvaluateArguments = {
+                expression: `info line *${formattedAddress}`,
+                frameId,
+                context
+            };
+            const response = await this._activeSession?.session.customRequest('evaluate', args) as DebugProtocol.EvaluateResponse['body'];
+            const resultText = response?.result;
+            if (!resultText || resultText.startsWith('No line information')) {
+                return undefined;
+            }
+            return resultText.trim();
+        } catch (error: unknown) {
+            const errorMessage = (error as Error)?.message;
+            logger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate context for '${address}' - '${errorMessage}'`);
+            return undefined;
+        }
+    }
+
+    public async evaluateSymbolSize(symbol: string, context = 'hover'): Promise<number | undefined> {
+        try {
+            const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
+            const args: DebugProtocol.EvaluateArguments = {
+                expression: `sizeof(${symbol})`,
+                frameId,
+                context
+            };
+            const response = await this._activeSession?.session.customRequest('evaluate', args) as DebugProtocol.EvaluateResponse['body'];
+            const raw = response?.result;
+            const parsed = Number(raw);
+            if (Number.isFinite(parsed)) {
+                return parsed;
+            }
+            return undefined;
+        } catch (error: unknown) {
+            const errorMessage = (error as Error)?.message;
+            logger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate size of '${symbol}' - '${errorMessage}'`);
+            return undefined;
+        }
+    }
+
+
 
     public async evaluateMemory(address: string, length: number, offset: number): Promise<string | undefined> {
         try {

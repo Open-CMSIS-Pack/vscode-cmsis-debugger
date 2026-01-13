@@ -53,7 +53,7 @@ export class ScvdCalc extends ScvdBase {
 
     public set cond(value: string | undefined) {
         if (value !== undefined) {
-            if( this._cond === undefined) {
+            if ( this._cond === undefined) {
                 this._cond = new ScvdCondition(this, value);
                 return;
             }
@@ -62,7 +62,7 @@ export class ScvdCalc extends ScvdBase {
     }
 
     public async getConditionResult(): Promise<boolean> {
-        if(this._cond) {
+        if (this._cond) {
             return await this._cond.getResult();
         }
         return super.getConditionResult();

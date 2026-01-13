@@ -40,13 +40,13 @@ export class ScvdItem extends ScvdBase {
         alert?: string, // = '0',
     ) {
         super(parent);
-        if(cond !== undefined) {
+        if (cond !== undefined) {
             this._cond = new ScvdCondition(this, cond);
         }
-        if(bold !== undefined) {
+        if (bold !== undefined) {
             this._bold = new ScvdCondition(this, bold);
         }
-        if(alert !== undefined) {
+        if (alert !== undefined) {
             this._alert = new ScvdCondition(this, alert);
         }
     }
@@ -115,7 +115,7 @@ export class ScvdItem extends ScvdBase {
     }
 
     public async getConditionResult(): Promise<boolean> {
-        if(this._cond) {
+        if (this._cond) {
             return await this._cond.getResult();
         }
         return super.getConditionResult();
@@ -172,7 +172,7 @@ export class ScvdItem extends ScvdBase {
     }
 
     public async getGuiName(): Promise<string | undefined> {
-        if(this.property === undefined) {
+        if (this.property === undefined) {
             return undefined;
         }
         return await this.property.getGuiValue();
@@ -191,7 +191,7 @@ export class ScvdItem extends ScvdBase {
     }
 
     public async getGuiValue(): Promise<string | undefined> {
-        if(this.value === undefined) {
+        if (this.value === undefined) {
             return undefined;
         }
         return await this.value.getGuiValue();

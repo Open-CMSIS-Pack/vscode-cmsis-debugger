@@ -39,6 +39,8 @@ const ATTRS: Attr[] = [
 ];
 
 const PRINTF_RE = /%[^\s%]\s*\[|%%/;
+const ATTR_NAME_TO_FLAG = new Map<string, boolean>(ATTRS.map(({ name, forcePrintf }) => [name, !!forcePrintf]));
+const ATTR_SCAN_RE = /(\w+)\s*=\s*"([^"]*)"/gi;
 
 export function decodeEntities(s: string): string {
     return s
@@ -52,14 +54,16 @@ export function decodeEntities(s: string): string {
 export function extractExpressionsFromScvd(content: string): Extracted[] {
     const expressions: Extracted[] = [];
 
-    for (const { name, forcePrintf } of ATTRS) {
-        const re = new RegExp(`${name}\\s*=\\s*"([^"]*)"`, 'gi');
-        let m: RegExpExecArray | null;
-        while ((m = re.exec(content)) !== null) {
-            const expr = decodeEntities(m[1]!.trim());
-            if (expr) {
-                expressions.push({ expr, forcePrintf: !!forcePrintf });
-            }
+    let m: RegExpExecArray | null;
+    while ((m = ATTR_SCAN_RE.exec(content)) !== null) {
+        const name = m[1];
+        const forcePrintf = ATTR_NAME_TO_FLAG.get(name);
+        if (!ATTR_NAME_TO_FLAG.has(name)) {
+            continue;
+        }
+        const expr = decodeEntities(m[2]!.trim());
+        if (expr) {
+            expressions.push({ expr, forcePrintf: !!forcePrintf });
         }
     }
 
@@ -78,6 +82,8 @@ export function extractExpressionsFromScvd(content: string): Extracted[] {
 }
 
 export function writeJsonl(outPath: string, expressions: Extracted[]): void {
+    // Paths are constructed from fixed repository locations; safe to create/read here.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     fs.mkdirSync(path.dirname(outPath), { recursive: true });
     const lines = [
         JSON.stringify({ _meta: { format: 'expressions-jsonl-v1', total: expressions.length } }),
@@ -89,6 +95,7 @@ export function writeJsonl(outPath: string, expressions: Extracted[]): void {
             }),
         ),
     ];
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     fs.writeFileSync(outPath, `${lines.join('\n')}\n`, 'utf8');
 }
 
@@ -100,6 +107,7 @@ export function main(): void {
     }));
 
     for (const { base, file } of sources) {
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
         const content = fs.readFileSync(file, 'utf8');
         const expressions = extractExpressionsFromScvd(content);
         const out = path.join(root, 'src/views/component-viewer/test/testfiles', `${base}_expressions.jsonl`);

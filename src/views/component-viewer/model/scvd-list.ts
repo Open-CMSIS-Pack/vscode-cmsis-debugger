@@ -90,7 +90,7 @@ export class ScvdList extends ScvdBase {
     }
 
     public verify(): boolean {
-        if(this._limit && this._while) {
+        if (this._limit && this._while) {
             console.error('List cannot have both limit and while attributes');
             return false;
         }
@@ -102,7 +102,7 @@ export class ScvdList extends ScvdBase {
     }
 
     public set start(value: string | undefined) {
-        if(value !== undefined) {
+        if (value !== undefined) {
             this._start = new ScvdExpression(this, value, 'start');
         }
     }
@@ -112,7 +112,7 @@ export class ScvdList extends ScvdBase {
     }
 
     public set limit(value: string | undefined) {
-        if(value !== undefined) {
+        if (value !== undefined) {
             this._limit = new ScvdExpression(this, value, 'limit');
         }
     }
@@ -122,7 +122,7 @@ export class ScvdList extends ScvdBase {
     }
 
     public set while(value: string | undefined) {
-        if(value !== undefined) {
+        if (value !== undefined) {
             this._while = new ScvdExpression(this, value, 'while');
         }
     }
@@ -132,13 +132,13 @@ export class ScvdList extends ScvdBase {
     }
 
     public set cond(value: string | undefined) {
-        if(value !== undefined) {
+        if (value !== undefined) {
             this._cond = new ScvdCondition(this, value);
         }
     }
 
     public async getConditionResult(): Promise<boolean> {
-        if(this._cond) {
+        if (this._cond) {
             const cond = await this._cond.getResult();
             return cond;
         }

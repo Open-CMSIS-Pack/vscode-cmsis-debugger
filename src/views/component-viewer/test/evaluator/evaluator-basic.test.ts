@@ -15,9 +15,6 @@
  */
 // generated with AI
 
-import fs from 'fs';
-import path from 'path';
-
 import { EvalContext, evaluateParseResult, type DataHost, type EvalValue, type RefContainer } from '../../evaluator';
 import { parseExpression } from '../../parser';
 import { ScvdBase } from '../../model/scvd-base';
@@ -28,6 +25,10 @@ type SymbolDef = {
     elements?: Record<string, SymbolDef>;
     addr?: number;
 };
+
+// Loaded from static test fixture (path is fixed at build time).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const cases: EvaluatorCase[] = require('../testfiles/evaluator-basic.json');
 
 type EvaluatorCase = {
     expr: string;
@@ -184,15 +185,7 @@ class MockHost implements DataHost {
     }
 }
 
-function loadCases(): EvaluatorCase[] {
-    const file = path.join(__dirname, '..', 'testfiles', 'evaluator-basic.json');
-    const raw = fs.readFileSync(file, 'utf8');
-    return JSON.parse(raw) as EvaluatorCase[];
-}
-
 describe('evaluator basic coverage', () => {
-    const cases = loadCases();
-
     it.each(cases)('evaluates %s', async testCase => {
         const host = new MockHost(testCase.symbols);
         const ctx = new EvalContext({ data: host, container: host.root });

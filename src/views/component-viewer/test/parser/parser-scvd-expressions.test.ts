@@ -15,8 +15,6 @@
  */
 // generated with AI
 
-import * as fs from 'fs';
-import * as path from 'path';
 import { parseExpression, ParseResult } from '../../parser';
 
 jest.setTimeout(60000);
@@ -31,9 +29,11 @@ interface ExpressionFile {
     expressions: ExpressionRow[];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- static test fixture load
+const expressionFixture: ExpressionFile = require('../testfiles/expressions.json');
+
 function readExpressions(file: string): ExpressionFile {
-    const text = fs.readFileSync(file, 'utf8');
-    const parsed = JSON.parse(text) as ExpressionFile;
+    const parsed = expressionFixture;
     if (!Array.isArray(parsed.expressions)) {
         throw new Error(`Expression file missing expressions array: ${file}`);
     }
@@ -59,11 +59,8 @@ function parseAll(rows: ExpressionRow[]): { parsed: ParseResult[]; diagnostics: 
 }
 
 describe('Parser over SCVD expression fixtures', () => {
-    const baseDir = path.join(__dirname, '..', 'testfiles');
-    const file = path.join(baseDir, 'expressions.json');
-
     it('parses every expression without throwing', () => {
-        const { _meta, expressions } = readExpressions(file);
+        const { _meta, expressions } = readExpressions('expressions.json');
         expect(expressions.length).toBe(_meta.totalUnique);
 
         const { diagnostics } = parseAll(expressions);

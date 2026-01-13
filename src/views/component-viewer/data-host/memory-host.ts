@@ -93,8 +93,8 @@ export class MemoryContainer {
 // --- helpers (LE encoding) ---
 function leToNumber(bytes: Uint8Array): number {
     let out = 0;
-    for (let i = bytes.length - 1; i >= 0; i--) {
-        out = (out << 8) | (bytes[i]! & 0xff);
+    for (const b of Array.from(bytes).reverse()) {
+        out = (out << 8) | (b & 0xff);
     }
     return out >>> 0;
 }
@@ -102,7 +102,7 @@ function leIntToBytes(v: number, size: number): Uint8Array {
     const out = new Uint8Array(size);
     let tmp = v >>> 0;
     for (let i = 0; i < size; i++) {
-        out[i] = tmp & 0xff;
+        out.set([tmp & 0xff], i);
         tmp >>>= 8;
     }
     return out;
@@ -323,8 +323,8 @@ export class MemoryHost {
             const meta = this.elementMeta.get(name);
             if (meta) {
                 const idx = meta.offsets.indexOf(off);
-                if (idx >= 0) {
-                    spanSize = meta.sizes[idx];
+                if (idx >= 0 && idx < meta.sizes.length) {
+                    spanSize = meta.sizes.at(idx) as number;
                 } else {
                     // no matching element → default to [off .. end)
                     spanSize = totalBytes - off;
@@ -394,7 +394,7 @@ export class MemoryHost {
             console.error(`getElementTargetBase: index ${index} out of range for "${name}"`);
             return undefined;
         }
-        return m.bases[index];
+        return m.bases.at(index);
     }
 
     /** Optional: repair or set an address later. */
@@ -410,7 +410,7 @@ export class MemoryHost {
         }
         const norm = this.toAddrNumber(base);
         if (norm !== undefined) {
-            m.bases[index] = norm;
+            m.bases.fill(norm, index, index + 1);
         }
     }
 

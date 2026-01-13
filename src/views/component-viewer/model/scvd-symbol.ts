@@ -56,7 +56,7 @@ export class ScvdSymbol extends ScvdBase {
     }
 
     public async fetchSymbolInformation(): Promise<boolean> {
-        if(this.symbol === undefined || this._executionContext === undefined) {
+        if (this.symbol === undefined || this._executionContext === undefined) {
             return false;
         }
 
@@ -72,7 +72,7 @@ export class ScvdSymbol extends ScvdBase {
     }
 
     public getOffset(name: string | undefined): number | undefined {
-        if(name === undefined || this.memberInfo === undefined) {
+        if (name === undefined || this.memberInfo === undefined) {
             return undefined;
         }
 

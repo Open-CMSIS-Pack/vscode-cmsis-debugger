@@ -58,7 +58,7 @@ export class ScvdTypedefs extends ScvdBase {
 
     public async calculateTypedefs(): Promise<void> {
         const typedefs = this.typedef;
-        if(typedefs === undefined || typedefs.length === 0) {
+        if (typedefs === undefined || typedefs.length === 0) {
             return;
         }
 
@@ -129,7 +129,7 @@ export class ScvdTypedef extends ScvdBase {
     // 2. If not set, return the size expression value
     public getVirtualSize(): number | undefined {
         const virtualSize = this.virtualSize;    // calculated size including vars
-        if(virtualSize !== undefined) {
+        if (virtualSize !== undefined) {
             return virtualSize;
         }
         return this.getTypeSize();
@@ -155,7 +155,7 @@ export class ScvdTypedef extends ScvdBase {
         return this._size;
     }
     public set size(value: string | undefined) {
-        if(value !== undefined) {
+        if (value !== undefined) {
             this._size = new ScvdExpression(this, value, 'size');
         }
     }
@@ -168,8 +168,8 @@ export class ScvdTypedef extends ScvdBase {
     }
 
     public set import(value: string | undefined) {
-        if(value !== undefined) {
-            if( this._import === undefined) {
+        if (value !== undefined) {
+            if ( this._import === undefined) {
                 this._import = new ScvdSymbol(this, value);
                 return;
             }
@@ -207,7 +207,7 @@ export class ScvdTypedef extends ScvdBase {
     }
 
     public async calculateTypedef() {
-        if(this.import !== undefined) {
+        if (this.import !== undefined) {
             this.import.fetchSymbolInformation();
         }
 
@@ -222,17 +222,17 @@ export class ScvdTypedef extends ScvdBase {
         let currentNextOffset = 0;
         for (const member of this._member) {
             const memberOffset = member.offset;
-            if(memberOffset !== undefined) {   // ---- offset expression is set ----
+            if (memberOffset !== undefined) {   // ---- offset expression is set ----
                 const offsetVal = await memberOffset.getValue();
-                if(offsetVal !== undefined) {   // TOIMPL: on error?!
-                    if(offsetVal > currentNextOffset) {
+                if (offsetVal !== undefined) {   // TOIMPL: on error?!
+                    if (offsetVal > currentNextOffset) {
                         currentNextOffset = offsetVal;  // store offset
                     }
                 }
             } else {    // ---- offset expression is not set ----
-                if(this.import !== undefined) { // import from Debugger
+                if (this.import !== undefined) { // import from Debugger
                     const offset = this.import.getOffset(member.name);
-                    if(offset !== undefined) {
+                    if (offset !== undefined) {
                         member.offset = offset.toString();
                     }
                 } else {
@@ -243,18 +243,18 @@ export class ScvdTypedef extends ScvdBase {
             }
 
             const memberSize = member.getTypeSize();
-            if(memberSize !== undefined) {   // TOIMPL: on error?!
+            if (memberSize !== undefined) {   // TOIMPL: on error?!
                 currentNextOffset += memberSize;
             }
         }
 
         const size = this.size ? await this.size.getValue() : undefined;
-        if(size !== undefined) {    // if size is defined, use it
+        if (size !== undefined) {    // if size is defined, use it
             this.targetSize = size;
 
-            if(currentNextOffset > size) {
+            if (currentNextOffset > size) {
                 console.error(`ScvdTypedef.calculateOffsets: typedef size (${size}) smaller than members size (${currentNextOffset}) for ${this.getDisplayLabel()}`);
-            } else if(currentNextOffset < size) {   // adjust to typedef size if padding is included
+            } else if (currentNextOffset < size) {   // adjust to typedef size if padding is included
                 currentNextOffset = size;
             }
         } else {

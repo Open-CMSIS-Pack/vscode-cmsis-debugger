@@ -104,7 +104,7 @@ export class StatementEngine {
     public addChildrenFromScvd(item: ScvdBase, parent: StatementBase | undefined): StatementBase | undefined {
 
         const statement = this.buildStatement(item, parent);
-        if(statement === undefined) {
+        if (statement === undefined) {
             return undefined;
         }
 
@@ -118,17 +118,17 @@ export class StatementEngine {
 
     public initialize(): boolean {
         const objects = this._model.objects;
-        if(objects === undefined || objects.objects.length === 0) {
+        if (objects === undefined || objects.objects.length === 0) {
             return false;
         }
 
         const object = objects.objects[0];
-        if(object === undefined) {
+        if (object === undefined) {
             return false;
         }
 
         const statementTree = this.addChildrenFromScvd(object, undefined);
-        if(statementTree !== undefined) {
+        if (statementTree !== undefined) {
             statementTree.sortChildren();
             const breaks = this._model.breaks?.breaks ?? [];
             for (const breakItem of breaks) {

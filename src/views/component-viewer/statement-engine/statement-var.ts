@@ -31,11 +31,11 @@ export class StatementVar extends StatementBase {
         //console.log(`${this.line}: Executing var: ${await this.scvdItem.getGuiName()}`);
 
         const varItem = this.scvdItem.castToDerived(ScvdVar);
-        if(varItem !== undefined) {
+        if (varItem !== undefined) {
             const name = varItem.name;
             const targetSize = varItem.getTargetSize();
             const value = await varItem.getValue();
-            if(name !== undefined && targetSize !== undefined && value !== undefined) {
+            if (name !== undefined && targetSize !== undefined && value !== undefined) {
                 executionContext.memoryHost.setVariable(name, targetSize, value, -1, 0);
                 //console.log(`${this.line} Variable "${name}" created with value: ${value}`);
             }

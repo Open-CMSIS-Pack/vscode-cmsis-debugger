@@ -77,7 +77,7 @@ export class ScvdEventState extends ScvdBase {
     }
 
     public set unique(value: string | boolean | undefined) {
-        if(value !== undefined) {
+        if (value !== undefined) {
             this._unique = (value === 'true' || value === true);
         }
     }
@@ -87,7 +87,7 @@ export class ScvdEventState extends ScvdBase {
     }
 
     public set dormant(value: string | boolean | undefined) {
-        if(value !== undefined) {
+        if (value !== undefined) {
             this._dormant = (value === 'true' || value === true);
         }
     }
@@ -97,7 +97,7 @@ export class ScvdEventState extends ScvdBase {
     }
 
     public set ssel(value: string | boolean | undefined) {
-        if(value !== undefined) {
+        if (value !== undefined) {
             this._ssel = (value === 'true' || value === true);
         }
     }
