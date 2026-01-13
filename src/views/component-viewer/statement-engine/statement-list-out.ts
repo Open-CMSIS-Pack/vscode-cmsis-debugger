@@ -86,7 +86,7 @@ export class StatementListOut extends StatementBase {
         const limitExpr = scvdList.limit;
         if (limitExpr !== undefined) {
             const limitVal = await limitExpr.getValue();
-            limitValue = limitVal ?? 0; // do not enter loop if undefined
+            limitValue = limitVal !== undefined ? Number(limitVal) : 0; // do not enter loop if undefined
         }
 
         const whileExpr = scvdList.while;
@@ -95,7 +95,7 @@ export class StatementListOut extends StatementBase {
             return;
         }
 
-        let loopValue = startValue;
+        let loopValue = Number(startValue);
         let maximumCount = 100000;   // prevent infinite loops
         while (maximumCount-- > 0) {
             executionContext.memoryHost.setVariable(name, varTargetSize, loopValue, 0, undefined, varTargetSize);    // update loop variable in memory
@@ -108,7 +108,8 @@ export class StatementListOut extends StatementBase {
                     break;
                 }
                 const whileValue = await whileExpr.getValue();
-                if (whileValue === 0 || whileValue === undefined) {   // break on read error too
+                const whileNum = whileValue !== undefined ? Number(whileValue) : undefined;
+                if (whileNum === 0 || whileNum === undefined) {   // break on read error too
                     break;
                 }
             }
@@ -125,7 +126,7 @@ export class StatementListOut extends StatementBase {
             if (whileExpr !== undefined) {
                 const whileValue = await whileExpr.getValue();
                 if (whileValue !== undefined) {
-                    loopValue = whileValue;
+                    loopValue = Number(whileValue);
                 }
             }
             if (limitExpr !== undefined) {

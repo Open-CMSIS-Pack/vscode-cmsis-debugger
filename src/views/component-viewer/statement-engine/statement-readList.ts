@@ -67,7 +67,7 @@ export class StatementReadList extends StatementBase {
         const virtualBytes = (isPointer === true)? 4 : virtualSize;
 
         // ---- calculate base address from symbol and/or offset ----
-        let baseAddress: number | undefined = undefined;
+        let baseAddress: number | bigint | undefined = undefined;
         let maxArraySize: number = 1024;
 
         // Check if symbol address is defined, use as base address
@@ -88,10 +88,10 @@ export class StatementReadList extends StatementBase {
         // Add offset to base address. If no symbol defined, offset is used as base address
         const offset = scvdReadList.offset ? await scvdReadList.offset.getValue() : undefined; // Offset is attr: size plus var symbols!
         if (offset !== undefined) {
-            const offs = offset | 0;
+            const offs = typeof offset === 'bigint' ? offset : BigInt(offset | 0);
             baseAddress = baseAddress !== undefined
-                ? ((baseAddress >>> 0) + offs) >>> 0
-                : (offs >>> 0);
+                ? (typeof baseAddress === 'bigint' ? baseAddress + offs : (BigInt(baseAddress >>> 0) + offs))
+                : offs;
         }
 
         // Check that base address is valid
@@ -133,11 +133,11 @@ export class StatementReadList extends StatementBase {
         const count = await scvdReadList.getCount();  // Number of list items to read, default is 1. Limited to 1..1024 in ScvdExpression.
 
         // ---- calculate next address ----
-        let nextPtrAddr: number | undefined = baseAddress >>> 0;
+        let nextPtrAddr: number | bigint | undefined = typeof baseAddress === 'bigint' ? baseAddress : (baseAddress >>> 0);
 
         let readIdx = 0;
         while(nextPtrAddr !== undefined) {
-            const itemAddress: number | undefined = nextPtrAddr >>> 0;
+            const itemAddress: number | bigint | undefined = typeof nextPtrAddr === 'bigint' ? nextPtrAddr : (nextPtrAddr >>> 0);
 
             // Read data from target
             const readData = await executionContext.debugTarget.readMemory(itemAddress, readBytes);
@@ -147,7 +147,7 @@ export class StatementReadList extends StatementBase {
             }
 
             // Store in memory host
-            executionContext.memoryHost.setVariable(itemName, readBytes, readData, -1, itemAddress, virtualBytes);
+            executionContext.memoryHost.setVariable(itemName, readBytes, readData, -1, typeof itemAddress === 'bigint' ? Number(itemAddress) : itemAddress, virtualBytes);
             readIdx ++;
 
             // check count
@@ -180,10 +180,12 @@ export class StatementReadList extends StatementBase {
                 }
                 nextPtrAddr = (nextPtrUint8Arr[0] | (nextPtrUint8Arr[1] << 8) | (nextPtrUint8Arr[2] << 16) | (nextPtrUint8Arr[3] << 24)) >>> 0;
             } else {
-                nextPtrAddr = ((baseAddress >>> 0) + (isPointer ? (readIdx * 4) : (readIdx * targetSize))) >>> 0;
+                const baseNum = typeof baseAddress === 'bigint' ? baseAddress : BigInt(baseAddress >>> 0);
+                const stride = BigInt(isPointer ? (readIdx * 4) : (readIdx * targetSize));
+                nextPtrAddr = baseNum + stride;
             }
 
-            if (nextPtrAddr === 0) { // NULL pointer, end of linked list
+            if (nextPtrAddr === 0 || nextPtrAddr === 0n) { // NULL pointer, end of linked list
                 nextPtrAddr = undefined;
             } else if (nextPtrAddr === itemAddress) {    // loop detection
                 console.warn(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, detected loop in linked list at address: ${itemAddress.toString(16)}`);

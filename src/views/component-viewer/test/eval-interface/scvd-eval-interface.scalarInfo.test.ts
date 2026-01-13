@@ -3,6 +3,7 @@
  */
 
 import { ScvdEvalInterface } from '../../scvd-eval-interface';
+import { FormatTypeInfo } from '../../model/scvd-format-specifier';
 import { ScvdFormatSpecifier } from '../../model/scvd-format-specifier';
 import { RefContainer } from '../../evaluator';
 import { MemoryHost } from '../../data-host/memory-host';
@@ -37,28 +38,36 @@ describe('ScvdEvalInterface.getScalarInfo padding rules', () => {
     it('pads single scalars using target size when no bits provided', async () => {
         const ev = makeEval();
         const base = new ScalarBase('uint32_t', 4, undefined);
-        const info = await (ev as any).getScalarInfo({ base, current: base, valueType: undefined } as RefContainer);
-        expect(info.bits).toBe(32);
+        const info = await (ev as unknown as { getScalarInfo(c: RefContainer): Promise<FormatTypeInfo | undefined> })
+            .getScalarInfo({ base, current: base, valueType: undefined } as RefContainer);
+        expect(info).toBeDefined();
+        expect(info!.bits).toBe(32);
     });
 
     it('does not inflate bits by array length and uses 32-bit default for arrays', async () => {
         const ev = makeEval();
         const base = new ScalarBase('uint8_t', 1, 128); // array length 128, element 1 byte
-        const info = await (ev as any).getScalarInfo({ base, current: base, valueType: undefined } as RefContainer);
-        expect(info.bits).toBe(32); // default array padding
+        const info = await (ev as unknown as { getScalarInfo(c: RefContainer): Promise<FormatTypeInfo | undefined> })
+            .getScalarInfo({ base, current: base, valueType: undefined } as RefContainer);
+        expect(info).toBeDefined();
+        expect(info!.bits).toBe(32); // default array padding
     });
 
     it('respects explicit 64-bit scalar widths but caps extremely large sizes', async () => {
         const ev = makeEval();
         const base = new ScalarBase('uint64_t', 16, undefined); // pretend 128-bit size
-        const info = await (ev as any).getScalarInfo({ base, current: base, valueType: undefined } as RefContainer);
-        expect(info.bits).toBe(64);
+        const info = await (ev as unknown as { getScalarInfo(c: RefContainer): Promise<FormatTypeInfo | undefined> })
+            .getScalarInfo({ base, current: base, valueType: undefined } as RefContainer);
+        expect(info).toBeDefined();
+        expect(info!.bits).toBe(64);
     });
 
     it('defaults unknown wide types to 32-bit padding', async () => {
         const ev = makeEval();
         const base = new ScalarBase(undefined, 8, undefined); // unknown type, 8-byte size
-        const info = await (ev as any).getScalarInfo({ base, current: base, valueType: undefined } as RefContainer);
-        expect(info.bits).toBe(32);
+        const info = await (ev as unknown as { getScalarInfo(c: RefContainer): Promise<FormatTypeInfo | undefined> })
+            .getScalarInfo({ base, current: base, valueType: undefined } as RefContainer);
+        expect(info).toBeDefined();
+        expect(info!.bits).toBe(32);
     });
 });

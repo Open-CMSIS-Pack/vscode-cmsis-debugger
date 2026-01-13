@@ -254,7 +254,7 @@ export class ScvdEvalInterface implements DataHost {
         return this.findSymbolAddressNormalized(symbolName);
     }
 
-    public async __GetRegVal(regName: string): Promise<number | undefined> {
+    public async __GetRegVal(regName: string): Promise<number | bigint | undefined> {
         const normalized = this.normalizeName(regName);
         if (!normalized) {
             return undefined;
@@ -345,6 +345,20 @@ export class ScvdEvalInterface implements DataHost {
         const base = container.current;
         const typeInfo = await this.getScalarInfo(container);
 
+        const toNumeric = (v: unknown): number | bigint => {
+            if (typeof v === 'number' || typeof v === 'bigint') {
+                return v;
+            }
+            if (typeof v === 'boolean') {
+                return v ? 1 : 0;
+            }
+            if (typeof v === 'string') {
+                const n = Number(v);
+                return Number.isFinite(n) ? n : NaN;
+            }
+            return NaN;
+        };
+
         switch (spec) {
             case 'C': {
                 // TOIMPL: include file/line context when targetAccess exposes it (e.g., GDB "info line *addr").
@@ -396,6 +410,13 @@ export class ScvdEvalInterface implements DataHost {
                     return this.formatSpecifier.format(spec, buf ?? value, { typeInfo, allowUnknownSpec: true });
                 }
                 return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+            }
+            case 'x': {
+                let n = toNumeric(value);
+                if (typeof n === 'number') {
+                    n = Math.trunc(n);
+                }
+                return this.formatSpecifier.format(spec, n, { typeInfo, allowUnknownSpec: true });
             }
             case 'N': {
                 if (typeof value === 'number' && Number.isInteger(value)) {

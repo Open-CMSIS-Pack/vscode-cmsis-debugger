@@ -38,38 +38,80 @@ export class ScvdFormatSpecifier {
         this.utf16leDecoder = new TextDecoder('utf-16le');
     }
 
-    public formatNumberByType(value: number, opts: { kind: 'int' | 'uint' | 'float' | 'unknown'; bits?: number }): string {
+    public formatNumberByType(value: number | bigint, opts: { kind: 'int' | 'uint' | 'float' | 'unknown'; bits?: number }): string {
         const { kind, bits } = opts;
-        if (!Number.isFinite(value)) {
+        // normalize number inputs for integer-like kinds
+        if ((kind === 'int' || kind === 'uint') && typeof value === 'number') {
+            value = Math.trunc(value);
+        }
+        const asBig = (v: number | bigint): bigint | undefined => {
+            if (typeof v === 'bigint') {
+                return v;
+            }
+            if (!Number.isFinite(v)) {
+                return undefined;
+            }
+            return BigInt(Math.trunc(v));
+        };
+
+        const preferBig = kind !== 'float' && (typeof value === 'bigint' || (!!bits && bits > 32));
+        if (preferBig) {
+            const vb = asBig(value);
+            if (vb === undefined) {
+                return `${value}`;
+            }
+            if (kind === 'uint') {
+                if (bits && bits > 0) {
+                    const mask = (1n << BigInt(bits)) - 1n;
+                    return (vb & mask).toString(10);
+                }
+                return vb.toString(10);
+            }
+            if (kind === 'int') {
+                if (bits && bits > 0) {
+                    const mask = (1n << BigInt(bits)) - 1n;
+                    let m = vb & mask;
+                    const sign = 1n << BigInt(bits - 1);
+                    if ((m & sign) !== 0n) {
+                        m -= (1n << BigInt(bits));
+                    }
+                    return m.toString(10);
+                }
+                return vb.toString(10);
+            }
+            return vb.toString(10);
+        }
+
+        if (!Number.isFinite(value as number)) {
             return `${value}`;
         }
 
         if (kind === 'float') {
             // Keep floats readable but short; mirror legacy behaviour (float ~3 decimals, double ~6+).
             if (bits && bits <= 32) {
-                return value.toFixed(3);
+                return (value as number).toFixed(3);
             }
-            return value.toPrecision(6);
+            return (value as number).toPrecision(6);
         }
 
         if (kind === 'int') {
             if (bits && bits < 32) {
                 const shift = 32 - bits;
-                const signed = (value << shift) >> shift;
+                const signed = ((value as number) << shift) >> shift;
                 return signed.toString(10);
             }
-            return (value | 0).toString(10);
+            return ((value as number) | 0).toString(10);
         }
 
         if (kind === 'uint') {
             if (bits && bits < 32) {
                 const mask = bits === 32 ? 0xFFFFFFFF : (1 << bits) >>> 0;
-                return (value >>> 0 & mask).toString(10);
+                return (((value as number) >>> 0) & mask).toString(10);
             }
-            return (value >>> 0).toString(10);
+            return ((value as number) >>> 0).toString(10);
         }
 
-        return value.toString(10);
+        return (value as number).toString(10);
     }
 
     /**
@@ -80,8 +122,8 @@ export class ScvdFormatSpecifier {
         const typeInfo = options?.typeInfo;
         const enumText = options?.enumText;
 
-        const toNumber = (v: unknown) => {
-            if (typeof v === 'number') {
+        const toNumeric = (v: unknown): number | bigint => {
+            if (typeof v === 'number' || typeof v === 'bigint') {
                 return v;
             }
             if (typeof v === 'boolean') {
@@ -94,6 +136,8 @@ export class ScvdFormatSpecifier {
             return NaN;
         };
 
+        const toNumber = toNumeric;
+
         const numOpts = (kind: FormatKind) => {
             const o: { kind: FormatKind; bits?: number } = { kind };
             if (typeInfo?.bits !== undefined) {
@@ -104,16 +148,25 @@ export class ScvdFormatSpecifier {
 
         switch (spec) {
             case 'd': {
-                const n = toNumber(value);
+                let n = toNumber(value);
+                if (typeof n === 'number') {
+                    n = Math.trunc(n);
+                }
                 return this.formatNumberByType(n, numOpts('int'));
             }
             case 'u': {
-                const n = toNumber(value);
+                let n = toNumber(value);
+                if (typeof n === 'number') {
+                    n = Math.trunc(n);
+                }
                 return this.formatNumberByType(n, numOpts('uint'));
             }
             case 'x': {
-                const n = toNumber(value);
-                return this.formatHex(n, typeInfo?.bits);
+                let n = toNumeric(value);
+                if (typeof n === 'number' && (typeInfo?.kind ?? 'unknown') !== 'float') {
+                    n = Math.trunc(n);
+                }
+                return this.formatHex(n, typeInfo);
             }
             case 't': {
                 if (typeof value === 'string') {
@@ -146,13 +199,13 @@ export class ScvdFormatSpecifier {
                     return this.formatIpv4(value);
                 }
                 const n = toNumber(value);
-                return this.format_I(n);
+                return this.format_I(n as number | bigint);
             }
             case 'J': {
                 if (value instanceof Uint8Array) {
                     return this.formatIpv6(value);
                 }
-                return this.format_J(value as number | string);
+                return this.format_J(value as number | string | bigint);
             }
             case 'N': {
                 if (value instanceof Uint8Array) {
@@ -167,11 +220,7 @@ export class ScvdFormatSpecifier {
                 return this.format_M(value as number | string);
             }
             case 'T': {
-                const n = toNumber(value);
-                const k: FormatKind = typeInfo?.kind && typeInfo.kind !== 'unknown'
-                    ? typeInfo.kind
-                    : (Number.isInteger(n) ? 'int' : 'float');
-                return this.formatNumberByType(n, numOpts(k));
+                return this.format_T(value, typeInfo);
             }
             case 'U': {
                 if (value instanceof Uint8Array) {
@@ -191,7 +240,16 @@ export class ScvdFormatSpecifier {
         }
     }
 
-    public formatHex(value: number, bits?: number): string {
+    public formatHex(value: number | bigint, bitsOrTypeInfo?: number | FormatTypeInfo): string {
+        const bits = typeof bitsOrTypeInfo === 'number' ? bitsOrTypeInfo : bitsOrTypeInfo?.bits;
+
+        if (typeof value === 'bigint') {
+            const widthRaw = bits ? Math.ceil(bits / 4) : 0;
+            const width = widthRaw > 0 ? Math.min(widthRaw, 16) : 0;
+            const hex = value.toString(16);
+            const padded = width > 0 ? hex.padStart(width, '0') : hex;
+            return '0x' + padded;
+        }
         const n = Number(value);
         if (!Number.isFinite(n)) {
             return `${value}`;
@@ -253,7 +311,10 @@ export class ScvdFormatSpecifier {
         return String(value);
     }
 
-    public format_x(value: number | string): string {
+    public format_x(value: number | string | bigint): string {
+        if (typeof value === 'bigint') {
+            return this.formatHex(value);
+        }
         const n = Number(value);
         if (!Number.isFinite(n)) {
             return `${value}`;
@@ -284,11 +345,11 @@ export class ScvdFormatSpecifier {
         return this.format_d(value);    // either string or number
     }
 
-    public format_I(value: number | string): string {
+    public format_I(value: number | string | bigint): string {
         if (typeof value === 'string') {
             return value;
         }
-        const n = Number(value);
+        const n = typeof value === 'bigint' ? Number(value) : Number(value);
         if (!Number.isFinite(n)) {
             return `${value}`;
         }
@@ -299,7 +360,7 @@ export class ScvdFormatSpecifier {
         return `${b0}.${b1}.${b2}.${b3}`;
     }
 
-    public format_J(value: number | string): string {
+    public format_J(value: number | string | bigint): string {
         // If already a string, assume formatted IPv6
         if (typeof value === 'string') {
             return value;
@@ -335,21 +396,42 @@ export class ScvdFormatSpecifier {
         return parts.join('-').toUpperCase();
     }
 
-    public format_T(value: number | string): string {
-        if (typeof value === 'number') {
-            if (Number.isInteger(value)) {
-                return this.format_x(value);
+    public format_T(value: unknown, typeInfo?: FormatTypeInfo): string {
+        // Spec: Value in format derived from expression type (hexadecimal or floating number)
+        const asNumeric = (v: unknown): number | bigint | undefined => {
+            if (typeof v === 'number' || typeof v === 'bigint') {
+                return v;
             }
-            return value.toString();
-        }
-        const n = Number(value);
-        if (Number.isFinite(n)) {
-            if (Number.isInteger(n)) {
-                return this.format_x(n);
+            if (typeof v === 'string') {
+                const n = Number(v);
+                return Number.isFinite(n) ? n : undefined;
             }
-            return n.toString();
+            return undefined;
+        };
+
+        const n = asNumeric(value);
+        if (n === undefined) {
+            return String(value);
         }
-        return `${value}`;
+
+        const kind: FormatKind =
+            typeInfo?.kind && typeInfo.kind !== 'unknown'
+                ? typeInfo.kind
+                : (typeof n === 'number' && !Number.isInteger(n) ? 'float' : 'int');
+
+        if (kind === 'float') {
+            // Preserve fractional part for floats
+            const v = typeof n === 'bigint' ? Number(n) : n;
+            const bits = typeInfo?.bits;
+            const opts = bits !== undefined ? { kind: 'float' as const, bits } : { kind: 'float' as const };
+            return this.formatNumberByType(v, opts);
+        }
+
+        // integer-like → hex with optional padding based on bits; truncate if number is fractional
+        const bits = typeInfo?.bits;
+        const paddedBits = bits && bits > 0 ? bits : undefined;
+        const v = typeof n === 'number' ? Math.trunc(n) : n;
+        return this.formatHex(v, paddedBits);
     }
 
     public format_percent(): string {
@@ -389,7 +471,7 @@ export class ScvdFormatSpecifier {
         }
         if (curLen > bestLen) { bestLen = curLen; bestStart = curStart; }
 
-        let out: string[] = [];
+        const out: string[] = [];
         for (let i = 0; i < hexWords.length; i++) {
             if (bestLen >= 2 && i >= bestStart && i < bestStart + bestLen) {
                 if (out[out.length - 1] !== '') {

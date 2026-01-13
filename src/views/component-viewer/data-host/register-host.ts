@@ -21,14 +21,17 @@ function normalize(name: string): string {
     return name.trim().toUpperCase();
 }
 
-function toUint32(value: number): number {
+function toUint32(value: number | bigint): number | bigint {
+    if (typeof value === 'bigint') {
+        return value & 0xFFFFFFFFn;
+    }
     return value >>> 0;
 }
 
 export class RegisterHost {
-    private cache = new ValidatingCache<number>(normalize);
+    private cache = new ValidatingCache<number | bigint>(normalize);
 
-    public read(name: string): number | undefined {
+    public read(name: string): number | bigint | undefined {
         if (!name) {
             console.error('RegisterHost: read: empty register name');
             return undefined;
@@ -36,7 +39,7 @@ export class RegisterHost {
         return this.cache.get(name);
     }
 
-    public write(name: string, value: number): number | undefined {
+    public write(name: string, value: number | bigint): number | bigint | undefined {
         if (!name) {
             console.error('RegisterHost: write: empty register name');
             return undefined;

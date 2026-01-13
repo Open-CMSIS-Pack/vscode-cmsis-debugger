@@ -131,7 +131,8 @@ export class ScvdReadList extends ScvdRead {
         if (this._count === undefined) {
             return undefined;
         }
-        return await this._count.getValue();
+        const v = await this._count.getValue();
+        return v !== undefined ? Number(v) : undefined;
     }
 
     public getNext(): string | undefined {

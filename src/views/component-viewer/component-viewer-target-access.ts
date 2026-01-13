@@ -26,6 +26,11 @@ export class ComponentViewerTargetAccess {
     private useMocks = vscode.workspace.getConfiguration('vscode-cmsis-debugger').get('useMocks');
     _activeSession: GDBTargetDebugSession | undefined;
     constructor () {
+        if (this.useMocks) {
+            this._activeSession = createMockDebugSession();
+        } else if (vscode.debug.activeDebugSession) {
+            this._activeSession = new GDBTargetDebugSession(vscode.debug.activeDebugSession);
+        }
     }
 
     // Function to reset active session
@@ -52,29 +57,29 @@ export class ComponentViewerTargetAccess {
         } catch (error: unknown) {
             const errorMessage = (error as Error)?.message;
             logger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate address '${address}' - '${errorMessage}'`);
-            //return errorMessage === 'custom request failed' ? 'No active session' : errorMessage;
-            return undefined;
+            return errorMessage === 'custom request failed' ? 'No active session' : errorMessage;
         }
     }
 
-    private formatAddress(address: string): string {
-        const trimmed = address.trim();
-        if (trimmed.length === 0) {
-            return trimmed;
+    private formatAddress(address: string | number | bigint): string {
+        const raw = typeof address === 'string' ? address.trim() : address.toString();
+        if (raw.length === 0) {
+            return raw;
         }
-        if (trimmed.startsWith('0x') || trimmed.startsWith('0X')) {
-            return trimmed;
-        }
-
-        const numericAddress = Number(trimmed);
-        if (Number.isNaN(numericAddress)) {
-            return trimmed;
+        if (raw.startsWith('0x') || raw.startsWith('0X')) {
+            return raw;
         }
 
-        return `0x${numericAddress.toString(16)}`;
+        const numericAddress = typeof address === 'bigint' ? address : Number(raw);
+        if (typeof numericAddress === 'number' && Number.isNaN(numericAddress)) {
+            return raw;
+        }
+
+        const asHex = typeof numericAddress === 'bigint' ? numericAddress.toString(16) : numericAddress.toString(16);
+        return `0x${asHex}`;
     }
 
-    public async evaluateSymbolName(address: string, context = 'hover'): Promise<string | undefined> {
+    public async evaluateSymbolName(address: string | number | bigint, context = 'hover'): Promise<string | undefined> {
         try {
             const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
             const formattedAddress = this.formatAddress(address);
@@ -157,8 +162,7 @@ export class ComponentViewerTargetAccess {
         } catch (error: unknown) {
             const errorMessage = (error as Error)?.message;
             logger.debug(`Session '${this._activeSession?.session.name}': Failed to read memory at address '${address}' - '${errorMessage}'`);
-            //return errorMessage === 'custom request failed' ? 'No active session' : errorMessage;
-            return undefined;
+            return errorMessage === 'custom request failed' ? 'No active session' : errorMessage;
         }
     }
 
