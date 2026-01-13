@@ -15,8 +15,6 @@
  */
 // generated with AI
 
-import * as fs from 'fs';
-import * as path from 'path';
 import { BinaryExpression, Identifier, NumberLiteral, parseExpression } from '../../parser';
 
 interface Case { expr: string; expected: number | boolean | string; }
@@ -31,15 +29,11 @@ interface ParserCasesFile {
     nonConstCases: NonConstCase[];
 }
 
-function loadCases(): ParserCasesFile {
-    const file = path.join(__dirname, '..', 'testfiles', 'cases.json');
-    const raw = fs.readFileSync(file, 'utf8');
-    const data = JSON.parse(raw) as ParserCasesFile;
-    return data;
-}
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- static test fixture load
+const cases: ParserCasesFile = require('../testfiles/cases.json');
 
 describe('Parser constant folding', () => {
-    const { constCases, nonConstCases } = loadCases();
+    const { constCases, nonConstCases } = cases;
 
     it('produces constValue for folded expressions', () => {
         for (const { expr, expected } of constCases) {

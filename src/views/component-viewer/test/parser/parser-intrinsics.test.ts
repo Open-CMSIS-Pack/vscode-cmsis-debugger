@@ -15,8 +15,6 @@
  */
 // generated with AI
 
-import fs from 'fs';
-import path from 'path';
 import { parseExpression, EvalPointCall, Identifier } from '../../parser';
 
 type IntrinsicFixture = {
@@ -24,16 +22,11 @@ type IntrinsicFixture = {
     pseudoMembers?: string[];
 };
 
-function loadFixture(): IntrinsicFixture {
-    const file = path.join(__dirname, '..', 'testfiles', 'cases.json');
-    const raw = fs.readFileSync(file, 'utf8');
-    const parsed = JSON.parse(raw) as { intrinsics: string[]; pseudoMembers: string[] };
-    return { intrinsics: parsed.intrinsics, pseudoMembers: parsed.pseudoMembers };
-}
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- static test fixture load
+const fixture: IntrinsicFixture = require('../testfiles/cases.json');
 
 describe('Parser intrinsics', () => {
     it('parses all intrinsic calls as EvalPointCall', () => {
-        const fixture = loadFixture();
         for (const name of fixture.intrinsics) {
             const pr = parseExpression(`${name}(1, 2)`, false);
             expect(pr.diagnostics).toEqual([]);
@@ -48,7 +41,6 @@ describe('Parser intrinsics', () => {
     });
 
     it('parses pseudo-member helpers (_count/_addr) as MemberAccess', () => {
-        const fixture = loadFixture();
         const members = fixture.pseudoMembers ?? [];
         for (const expr of members) {
             const pr = parseExpression(expr, false);
