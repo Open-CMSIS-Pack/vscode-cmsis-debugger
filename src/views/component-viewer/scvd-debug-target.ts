@@ -116,7 +116,6 @@ export class ScvdDebugTarget {
     }
 
     public async findSymbolNameAtAddress(address: number): Promise<string | undefined> {
-        // TOIMPL For real sessions, this functionality is not implemented yet
         if(this.activeSession.session.id.startsWith('mock-session-')) {
             return Promise.resolve(undefined);
         } else {
@@ -124,7 +123,7 @@ export class ScvdDebugTarget {
         }
     }
 
-    public getNumArrayElements(symbol: string): number | undefined {
+    public async getNumArrayElements(symbol: string): Promise<number | undefined> {
         if(symbol === undefined) {
             return undefined;
         }
@@ -135,7 +134,7 @@ export class ScvdDebugTarget {
                 return symbolInfo?.member?.length ?? 1;
             }
         } else {
-            // TOIMPL For real sessions, this functionality is not implemented yet
+            return await this.targetAccess.evaluateNumberOfArrayElements(symbol);
         }
         return undefined;
     }
