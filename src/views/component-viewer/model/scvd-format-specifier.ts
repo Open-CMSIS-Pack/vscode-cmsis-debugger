@@ -185,6 +185,7 @@ export class ScvdFormatSpecifier {
         // If you have a null terminator, trim at the first 0x0000
         let end = bytes.length;
         for (let i = 0; i + 1 < bytes.length; i += 2) {
+            // eslint-disable-next-line security/detect-object-injection -- false positive: controlled typed-array indexing for UTF-16 scanning
             if (bytes[i] === 0 && bytes[i + 1] === 0) {
                 end = i;
                 break;

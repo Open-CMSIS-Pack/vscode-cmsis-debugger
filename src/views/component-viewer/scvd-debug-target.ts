@@ -162,6 +162,7 @@ export class ScvdDebugTarget {
             const binary = atob(padded);
             const bytes = new Uint8Array(binary.length);
             for (let i = 0; i < binary.length; i++) {
+                // eslint-disable-next-line security/detect-object-injection -- false positive: safe indexed copy from string to typed array
                 bytes[i] = binary.charCodeAt(i) & 0xff;
             }
             return bytes;

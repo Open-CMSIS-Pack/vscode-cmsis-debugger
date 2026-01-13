@@ -26,11 +26,13 @@ function makeStackImage(totalBytes: number, fillPattern: number, magicValue: num
         (fillPattern >>> 24) & 0xFF,
     ]);
     for (let i = 0; i < totalBytes; i++) {
+        // eslint-disable-next-line security/detect-object-injection -- false positive: deliberate indexed fill of test buffer
         data[i] = fill[i % 4];
     }
 
     // Mark some bytes as used (overwrite with non-pattern)
     for (let i = 0; i < usedBytes; i++) {
+        // eslint-disable-next-line security/detect-object-injection -- false positive: deliberate indexed mutation for test setup
         data[i] = 0xaa;
     }
 

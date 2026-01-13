@@ -40,6 +40,7 @@ class HookHost implements DataHost {
     calls: Record<string, number> = {};
 
     private tick(name: string) {
+        // eslint-disable-next-line security/detect-object-injection -- false positive: controlled key accumulation for test bookkeeping
         this.calls[name] = (this.calls[name] ?? 0) + 1;
     }
 
