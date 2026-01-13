@@ -225,8 +225,9 @@ export class ScvdTypedef extends ScvdBase {
             if (memberOffset !== undefined) {   // ---- offset expression is set ----
                 const offsetVal = await memberOffset.getValue();
                 if (offsetVal !== undefined) {   // TOIMPL: on error?!
-                    if (offsetVal > currentNextOffset) {
-                        currentNextOffset = offsetVal;  // store offset
+                    const numOffset = Number(offsetVal);
+                    if (numOffset > currentNextOffset) {
+                        currentNextOffset = numOffset;  // store offset
                     }
                 }
             } else {    // ---- offset expression is not set ----
@@ -248,7 +249,8 @@ export class ScvdTypedef extends ScvdBase {
             }
         }
 
-        const size = this.size ? await this.size.getValue() : undefined;
+        const sizeVal = this.size ? await this.size.getValue() : undefined;
+        const size = sizeVal !== undefined ? Number(sizeVal) : undefined;
         if (size !== undefined) {    // if size is defined, use it
             this.targetSize = size;
 

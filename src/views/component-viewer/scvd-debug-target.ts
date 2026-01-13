@@ -43,7 +43,10 @@ function normalize(name: string): string {
     return name.trim().toUpperCase();
 }
 
-function toUint32(value: number): number {
+function toUint32(value: number | bigint): number | bigint {
+    if (typeof value === 'bigint') {
+        return value & 0xFFFFFFFFn;
+    }
     return value >>> 0;
 }
 
@@ -100,7 +103,7 @@ export class ScvdDebugTarget {
         }
     }
 
-    public async findSymbolNameAtAddress(address: number): Promise<string | undefined> {
+    public async findSymbolNameAtAddress(address: number | bigint): Promise<string | undefined> {
         // TOIMPL For real sessions, this functionality is not implemented yet
         if (this.activeSession.session.id.startsWith('mock-session-')) {
             return Promise.resolve(undefined);
@@ -114,7 +117,7 @@ export class ScvdDebugTarget {
         }
     }
 
-    public async findSymbolContextAtAddress(address: number): Promise<string | undefined> {
+    public async findSymbolContextAtAddress(address: number | bigint): Promise<string | undefined> {
         // Return file/line context for an address when the adapter supports it.
         if (this.activeSession.session.id.startsWith('mock-session-')) {
             return Promise.resolve(undefined);
@@ -219,10 +222,11 @@ export class ScvdDebugTarget {
         throw new Error('No base64 decoder available in this environment');
     }
 
-    public async readMemory(address: number, size: number): Promise<Uint8Array | undefined> {
+    public async readMemory(address: number | bigint, size: number): Promise<Uint8Array | undefined> {
         // If the session is a mock session, return mock data. If it's not a mock session, use the target access to get real data
         if (this.activeSession.session.id.startsWith('mock-session-')) {
-            return this.mock.getMockMemoryData(address, size);
+            const addrNum = typeof address === 'bigint' ? Number(address) : address;
+            return this.mock.getMockMemoryData(addrNum, size);
         } else {
             const dataAsString = await this.targetAccess.evaluateMemory(address.toString(), size, 0);
             if (typeof dataAsString !== 'string') {
@@ -241,8 +245,8 @@ export class ScvdDebugTarget {
         }
     }
 
-    public readUint8ArrayStrFromPointer(address: number, bytesPerChar: number, maxLength: number): Promise<Uint8Array | undefined> {
-        if (address === 0) {
+    public readUint8ArrayStrFromPointer(address: number | bigint, bytesPerChar: number, maxLength: number): Promise<Uint8Array | undefined> {
+        if (address === 0 || address === 0n) {
             return Promise.resolve(undefined);
         }
         return this.readMemory(address, maxLength * bytesPerChar);
@@ -299,7 +303,7 @@ export class ScvdDebugTarget {
     }
 
 
-    public async readRegister(name: string): Promise<number | undefined> {
+    public async readRegister(name: string): Promise<number | bigint | undefined> {
         if (name === undefined) {
             return undefined;
         }

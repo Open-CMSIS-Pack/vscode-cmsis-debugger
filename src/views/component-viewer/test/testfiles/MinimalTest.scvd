@@ -1,39 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Copyright 2025-2026 Arm Limited -->
 <component_viewer schemaVersion="0.1" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="Component_Viewer.xsd">
-  <component name="RTOS" version="5.0.0"/>    <!-- name and version of the component  -->
-
-  <typedefs>
-    <typedef name="myType" size="4" >
-      <member name="data" offset="0" size="4" type="uint32_t" />
-      <var name="var1" type="uint32_t" />
-      <var name="var2" type="uint32_t" />
-      <var name="var3" type="uint32_t" />
-    </typedef>
-
-  </typedefs>
-
+  <component name="MyExample" version="1.0.0"/>
+ 
   <objects>
-    <object name="Test Object">
-      <var name="cnt" type="uint32_t" value="0"/>
-
-      <!-- <var name="myVar" type="myType" value="0x00000000"/> -->
-      <read name="myVar" type="myType"  offset="0" size="4"   />
-
-      <calc>
-        myVar.var1 = cnt;
-        cnt++;
-        myVar.var2 = cnt;
-        cnt++;
-        myVar.var3 = cnt;
-      </calc>
-
-      <out name="MyTest">
-        <item property="data" value="%x[myVar.data]"/>
-        <item property="var1" value="%x[myVar.var1]"/>
-        <item property="var2" value="%x[myVar.var2]"/>
-        <item property="var3" value="%x[myVar.var3]"/>
+    <object name="MyProgram">
+      <read name="c_value"     type="uint8_t"  symbol="cval"               />
+      <read name="s_value"     type="uint16_t" symbol="sval"               />
+      <read name="i_value"     type="uint32_t" symbol="ival"               />
+      <read name="ll_value"    type="uint64_t" symbol="llval"              />
+ 
+      <read name="sc_value"    type="int8_t"   symbol="scval"               />
+      <read name="ss_value"    type="int16_t"  symbol="ssval"               />
+      <read name="si_value"    type="int32_t"  symbol="sival"               />
+      <read name="sll_value"   type="int64_t"  symbol="sllval"              />
+ 
+      <read name="f_value"     type="float"    symbol="fval"                />
+      <read name="d_value"     type="double"   symbol="dval"                />
+ 
+      <out name="MyProgram">
+        <item property="Unsigned integer format %%d"
+              value="cval=%d[c_value] | sval=%d[s_value] | ival=%d[i_value] | llval=%d[ll_value]" />
+        <item property="Unsigned integer format %%x"
+              value="cval=%x[c_value] | sval=%x[s_value] | ival=%x[i_value] | llval=%x[ll_value]" />
+        <item property="Unsigned integer format  %%T"
+              value="cval=%T[c_value] | sval=%T[s_value] | ival=%T[i_value] | llval=%T[ll_value] " />
+  
+        <item property="Signed integer format %%d"
+              value="scval=%d[sc_value] | ssval=%d[ss_value] | sival=%d[si_value] | sllval=%d[sll_value]" />
+        <item property="Signed integer format %%x"
+              value="scval=%x[sc_value] | ssval=%x[ss_value] | sival=%x[si_value] | sllval=%x[sll_value]" />
+        <item property="Signed integer format %%T"
+              value="scval=%T[sc_value] | ssval=%T[ss_value] | sival=%T[si_value] | sllval=%T[sll_value] " />
+  
+        <item property="Floating point format %%d"
+              value="fval=%d[f_value] | dval=%d[d_value]" />
+        <item property="Floating point format %%x"
+              value="fval=%x[f_value] | dval=%x[d_value]" />
+        <item property="Floating point format %%T"
+              value="fval=%T[f_value] | dval=%T[d_value]" />
       </out>
     </object>
   </objects>
+ 
 </component_viewer>

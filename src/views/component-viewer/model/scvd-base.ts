@@ -269,7 +269,7 @@ export abstract class ScvdBase {
     }
 
     // expanded values
-    public async getValue(): Promise<string | number | undefined> {
+    public async getValue(): Promise<string | number | bigint | Uint8Array | undefined> {
         return undefined;   // TOIMPL: change to undefined to indicate no value
     }
 
@@ -306,7 +306,7 @@ export abstract class ScvdBase {
         return lineNo !== undefined ? lineNo : '';
     }
 
-    protected sortByLine(a: ScvdBase, b: ScvdBase): number {
+    protected sortByLine<T extends ScvdBase>(a: T, b: T): number {
         const aLineNum = Number(a.lineNo);
         const bLineNum = Number(b.lineNo);
         const aLine = Number.isNaN(aLineNum) ? -1 : aLineNum;

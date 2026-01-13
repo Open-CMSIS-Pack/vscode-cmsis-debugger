@@ -66,12 +66,12 @@ export class ScvdVar extends ScvdBase {
         }
     }
 
-    public async getValue(): Promise<number | undefined> {
+    public async getValue(): Promise<number | bigint | undefined> {
         if (this._value === undefined) {
             return undefined;
         }
         const val = await this._value.getValue();
-        if (typeof val === 'number') {
+        if (typeof val === 'number' || typeof val === 'bigint') {
             return val;
         }
         return undefined;
