@@ -23,9 +23,7 @@ import { logger } from '../../logger';
 export class ComponentViewerTargetAccess {
     _activeSession: GDBTargetDebugSession | undefined;
     constructor () {
-        if (this.useMocks) {
-            this._activeSession = createMockDebugSession();
-        } else if (vscode.debug.activeDebugSession) {
+        if (vscode.debug.activeDebugSession) {
             this._activeSession = new GDBTargetDebugSession(vscode.debug.activeDebugSession);
         }
     }
