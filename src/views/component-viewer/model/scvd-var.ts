@@ -77,18 +77,6 @@ export class ScvdVar extends ScvdBase {
         return undefined;
     }
 
-    public async setValue(val: number): Promise<number | undefined> {
-        if (this._value === undefined) {
-            return undefined;
-        }
-        const valExpr = this._value;
-        if ( valExpr === undefined) {
-            return undefined;
-        }
-        await valExpr.setValue(val);
-        return val;
-    }
-
     public get type(): ScvdDataType | undefined {
         return this._type;
     }

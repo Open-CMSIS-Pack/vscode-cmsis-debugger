@@ -130,7 +130,13 @@ export class ScvdRead extends ScvdBase {
     }
     public async getArraySize(): Promise<number | undefined> {
         const v = await this.size?.getValue();
-        return typeof v === 'bigint' ? Number(v) : v;
+        if (typeof v === 'bigint') {
+            return Number(v);
+        }
+        if (typeof v === 'number') {
+            return v;
+        }
+        return undefined;
     }
 
     public getIsPointer(): boolean {

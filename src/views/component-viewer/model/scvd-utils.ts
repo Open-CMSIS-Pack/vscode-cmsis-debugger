@@ -32,7 +32,7 @@ export function AddText(text: string, addText: string | string[]): string {
 }
 
 export function insertString(text: string, add: string, pos: number): string {
-    if (pos == 0) {
+    if (pos === 0) {
         return add + text;
     }
     if (pos >= text.length) {

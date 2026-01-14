@@ -71,10 +71,20 @@ export class StatementRead extends StatementBase {
 
         const offset = scvdRead.offset ? await scvdRead.offset.getValue() : undefined;
         if (offset !== undefined) {
-            const offs = typeof offset === 'bigint' ? offset : BigInt(offset | 0);
-            baseAddress = baseAddress !== undefined
-                ? (typeof baseAddress === 'bigint' ? baseAddress + offs : (BigInt(baseAddress >>> 0) + offs))
-                : offs;
+            let offs: bigint | undefined;
+            if (typeof offset === 'bigint') {
+                offs = offset;
+            } else if (typeof offset === 'number') {
+                offs = BigInt(Math.trunc(offset));
+            } else {
+                console.error(`${this.line}: Executing "read": ${scvdRead.name}, offset is not numeric`);
+                return;
+            }
+            if (offs !== undefined) {
+                baseAddress = baseAddress !== undefined
+                    ? (typeof baseAddress === 'bigint' ? baseAddress + offs : (BigInt(baseAddress >>> 0) + offs))
+                    : offs;
+            }
         }
 
         if (baseAddress === undefined) {

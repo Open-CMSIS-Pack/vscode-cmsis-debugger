@@ -59,7 +59,6 @@ export class ScvdReadList extends ScvdRead {
     public set count(value: string | undefined) {
         if (value !== undefined) {
             this._count = new ScvdExpression(this, value, 'count');
-            this._count.setMinMax(ScvdReadList.READ_SIZE_MIN, ScvdReadList.READ_SIZE_MAX);
         }
     }
     public get count(): ScvdExpression | undefined {
@@ -132,7 +131,17 @@ export class ScvdReadList extends ScvdRead {
             return undefined;
         }
         const v = await this._count.getValue();
-        return v !== undefined ? Number(v) : undefined;
+        const num = v !== undefined ? Number(v) : undefined;
+        if (num === undefined || Number.isNaN(num)) {
+            return undefined;
+        }
+        if (num < ScvdReadList.READ_SIZE_MIN) {
+            return ScvdReadList.READ_SIZE_MIN;
+        }
+        if (num > ScvdReadList.READ_SIZE_MAX) {
+            return ScvdReadList.READ_SIZE_MAX;
+        }
+        return num;
     }
 
     public getNext(): string | undefined {

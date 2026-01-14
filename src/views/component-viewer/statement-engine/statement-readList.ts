@@ -88,7 +88,15 @@ export class StatementReadList extends StatementBase {
         // Add offset to base address. If no symbol defined, offset is used as base address
         const offset = scvdReadList.offset ? await scvdReadList.offset.getValue() : undefined; // Offset is attr: size plus var symbols!
         if (offset !== undefined) {
-            const offs = typeof offset === 'bigint' ? offset : BigInt(offset | 0);
+            let offs: bigint | undefined;
+            if (typeof offset === 'bigint') {
+                offs = offset;
+            } else if (typeof offset === 'number') {
+                offs = BigInt(Math.trunc(offset));
+            } else {
+                console.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, offset is not numeric`);
+                return;
+            }
             baseAddress = baseAddress !== undefined
                 ? (typeof baseAddress === 'bigint' ? baseAddress + offs : (BigInt(baseAddress >>> 0) + offs))
                 : offs;

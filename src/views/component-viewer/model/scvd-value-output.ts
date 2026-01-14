@@ -50,8 +50,7 @@ export class ScvdValueOutput extends ScvdBase {
         if (expression === undefined) {
             return undefined;
         }
-        await expression.evaluate();
-        return expression.getResultString();
+        return await expression.getResultString();
     }
 
     public async getGuiValue(): Promise<string | undefined> {
@@ -59,7 +58,6 @@ export class ScvdValueOutput extends ScvdBase {
         if (expression === undefined) {
             return undefined;
         }
-        await expression.evaluate();
-        return expression.getResultString();
+        return await expression.getResultString();
     }
 }
