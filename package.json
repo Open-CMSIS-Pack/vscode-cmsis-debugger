@@ -342,16 +342,7 @@
           }
         }
       }
-    ],
-    "configuration": {
-      "properties": {
-        "vscode-cmsis-debugger.useMocks": {
-          "type": "boolean",
-          "default": false,
-          "description": "If enabled, CMSIS Debugger uses mock data for testing and development purposes."
-        }
-      }
-    }
+    ]
   },
   "scripts": {
     "prepare": "yarn run build",

@@ -17,7 +17,6 @@
 import { DebugTargetMock } from './debug-target-mock';
 import { ComponentViewerTargetAccess } from './component-viewer-target-access';
 import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-session';
-import { createMockDebugSession } from './component-viewer-controller';
 import { GDBTargetDebugTracker } from '../../debug-session';
 
 const REGISTER_GDB_ENTRIES: Array<[string, string]> = [
@@ -70,7 +69,7 @@ export interface SymbolInfo {
 
 export class ScvdDebugTarget {
     private mock = new DebugTargetMock();
-    private activeSession: GDBTargetDebugSession = createMockDebugSession();
+    private activeSession: GDBTargetDebugSession | undefined;
     private targetAccess: ComponentViewerTargetAccess;
     private debugTracker: GDBTargetDebugTracker | undefined;
     private isTargetRunning: boolean = false;
@@ -90,14 +89,14 @@ export class ScvdDebugTarget {
 
     protected async subscribeToTargetRunningState(debugTracker: GDBTargetDebugTracker): Promise<void> {
         debugTracker.onContinued(async (event) => {
-            if (event.session.session.id !== this.activeSession.session.id) {
+            if (!this.activeSession || event.session.session.id !== this.activeSession.session.id) {
                 return;
             }
             this.isTargetRunning = true;
         });
 
         debugTracker.onStopped(async (event) => {
-            if (event.session.session.id !== this.activeSession.session.id) {
+            if (!this.activeSession || event.session.session.id !== this.activeSession.session.id) {
                 return;
             }
             this.isTargetRunning = false;
@@ -108,47 +107,47 @@ export class ScvdDebugTarget {
         if (symbol === undefined) {
             return undefined;
         }
-        // if the session is a mock session, return mock data. if it's not a mock session, use the target access to get real data
-        if (this.activeSession.session.id.startsWith('mock-session-')) {
+        // No active session: fall back to mock data.
+        if (!this.activeSession) {
             return this.mock.getMockSymbolInfo(symbol);
-        } else {
-            const symbolName = symbol;
-            const symbolAddressStr = await this.targetAccess.evaluateSymbolAddress(symbol);
-            if (symbolAddressStr !== undefined) {
-                const symbolInfo : SymbolInfo = {
-                    name: symbolName,
-                    address: parseInt(symbolAddressStr as unknown as string, 16)
-                };
-                return symbolInfo;
-            }
-            return undefined;
         }
+
+        const symbolName = symbol;
+        const symbolAddressStr = await this.targetAccess.evaluateSymbolAddress(symbol);
+        if (symbolAddressStr !== undefined) {
+            const symbolInfo : SymbolInfo = {
+                name: symbolName,
+                address: parseInt(symbolAddressStr as unknown as string, 16)
+            };
+            return symbolInfo;
+        }
+        return undefined;
     }
 
     public async findSymbolNameAtAddress(address: number): Promise<string | undefined> {
-        if(this.activeSession.session.id.startsWith('mock-session-')) {
+        if (!this.activeSession) {
             return Promise.resolve(undefined);
-        } else {
-            try {
-                return await this.targetAccess.evaluateSymbolName(address.toString());
-            } catch (error: unknown) {
-                console.error(`findSymbolNameAtAddress failed for ${address}:`, error);
-                return undefined;
-            }
+        }
+
+        try {
+            return await this.targetAccess.evaluateSymbolName(address.toString());
+        } catch (error: unknown) {
+            console.error(`findSymbolNameAtAddress failed for ${address}:`, error);
+            return undefined;
         }
     }
 
     public async findSymbolContextAtAddress(address: number | bigint): Promise<string | undefined> {
         // Return file/line context for an address when the adapter supports it.
-        if (this.activeSession.session.id.startsWith('mock-session-')) {
+        if (!this.activeSession) {
             return Promise.resolve(undefined);
-        } else {
-            try {
-                return await this.targetAccess.evaluateSymbolContext(address.toString());
-            } catch (error: unknown) {
-                console.error(`findSymbolContextAtAddress failed for ${address}:`, error);
-                return undefined;
-            }
+        }
+
+        try {
+            return await this.targetAccess.evaluateSymbolContext(address.toString());
+        } catch (error: unknown) {
+            console.error(`findSymbolContextAtAddress failed for ${address}:`, error);
+            return undefined;
         }
     }
 
@@ -156,8 +155,8 @@ export class ScvdDebugTarget {
         if(symbol === undefined) {
             return undefined;
         }
-        // if the session is a mock session, return mock data. if it's not a mock session, use the target access to get real data
-        if (this.activeSession.session.id.startsWith('mock-session-')) {
+        // No active session: fall back to mock data.
+        if (!this.activeSession) {
             const symbolInfo = this.mock.getMockSymbolInfo(symbol);
             if (symbolInfo !== undefined) {
                 return symbolInfo?.member?.length ?? 1;
@@ -169,12 +168,10 @@ export class ScvdDebugTarget {
     }
 
     public async getTargetIsRunning(): Promise<boolean> {
-        // if the session is a mock session, return mock data. if it's not a mock session, use the target access to get real data
-        if (this.activeSession.session.id.startsWith('mock-session-')) {
-            return false; // mock session is always running
-        } else {
-            return this.isTargetRunning;
+        if (!this.activeSession) {
+            return false;
         }
+        return this.isTargetRunning;
     }
 
     public async findSymbolAddress(symbol: string): Promise<number | undefined> {
@@ -189,7 +186,8 @@ export class ScvdDebugTarget {
         if (!symbol) {
             return undefined;
         }
-        if (this.activeSession.session.id.startsWith('mock-session-')) {
+        // No active session: fall back to mock data.
+        if (!this.activeSession) {
             const info = this.mock.getMockSymbolInfo(symbol);
             if (info?.size !== undefined) {
                 return info.size;
@@ -237,8 +235,7 @@ export class ScvdDebugTarget {
     }
 
     public async readMemory(address: number | bigint, size: number): Promise<Uint8Array | undefined> {
-        // If the session is a mock session, return mock data. If it's not a mock session, use the target access to get real data
-        if (this.activeSession.session.id.startsWith('mock-session-')) {
+        if (!this.activeSession) {
             const addrNum = typeof address === 'bigint' ? Number(address) : address;
             return this.mock.getMockMemoryData(addrNum, size);
         } else {
