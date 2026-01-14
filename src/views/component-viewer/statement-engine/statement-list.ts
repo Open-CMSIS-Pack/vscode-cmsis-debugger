@@ -102,7 +102,6 @@ export class StatementList extends StatementBase {
 
             // while-loop
             if (whileExpr !== undefined) {
-                whileExpr.invalidate();
                 const whileValue = await whileExpr.getValue();
                 if (whileValue !== undefined) {
                     loopValue = Number(whileValue);

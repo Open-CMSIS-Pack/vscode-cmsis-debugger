@@ -116,7 +116,9 @@ export class ScvdComponentViewer extends ScvdNode {
     }
 
     public configureAll(): boolean {
-        return this.configureRecursive(this);
+        const ok = this.configureRecursive(this);
+        this.clearSymbolCachesRecursive();
+        return ok;
     }
     private configureRecursive(item: ScvdNode): boolean {
         item.configure();

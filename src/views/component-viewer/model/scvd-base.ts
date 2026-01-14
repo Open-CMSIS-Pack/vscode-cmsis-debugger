@@ -26,7 +26,7 @@ export type Json = Record<string, any>;
 type AnyScvdCtor = abstract new (...args: any[]) => ScvdBase;
 
 export abstract class ScvdBase {
-    private static _idNext = 1;
+    private static _idNext = 0;
 
     private _parent: ScvdBase | undefined;
     private _children: ScvdBase[] = [];
@@ -42,8 +42,7 @@ export abstract class ScvdBase {
     private _mustRead = true;
 
     constructor(parent: ScvdBase | undefined) {
-        ScvdBase._idNext += 1;
-        this._nodeId = ScvdBase._idNext;
+        this._nodeId = ++ScvdBase._idNext;
 
         if (parent instanceof ScvdBase) {
             this._parent = parent;
@@ -126,26 +125,16 @@ export abstract class ScvdBase {
         this._mustRead = value;
     }
 
-    public invalidate() {
-        this._valid = false;
-        this._mustRead = true;
+    public map<TChild extends ScvdBase, R>(this: { children: TChild[] }, callbackfn: (child: TChild, index: number, array: TChild[]) => R): R[] {
+        return this.children.map(callbackfn);
     }
 
-    public invalidateSubtree() {
-        this.invalidate();
-        this._children.forEach(child => child.invalidateSubtree());
+    public forEach<TChild extends ScvdBase>(this: { children: TChild[] }, callbackfn: (child: TChild, index: number, array: TChild[]) => void): void {
+        this.children.forEach(callbackfn);
     }
 
-    public map<T>(callbackfn: (child: ScvdBase, index: number, array: ScvdBase[]) => T): T[] {
-        return this._children.map(callbackfn);
-    }
-
-    public forEach(callbackfn: (child: ScvdBase, index: number, array: ScvdBase[]) => void): void {
-        this._children.forEach(callbackfn);
-    }
-
-    public filter(predicate: (child: ScvdBase, index: number, array: ScvdBase[]) => boolean): ScvdBase[] {
-        return this._children.filter(predicate);
+    public filter<TChild extends ScvdBase>(this: { children: TChild[] }, predicate: (child: TChild, index: number, array: TChild[]) => boolean): TChild[] {
+        return this.children.filter(predicate);
     }
 
     // Symbol-context helpers – default no-op so derived classes can walk parents safely.

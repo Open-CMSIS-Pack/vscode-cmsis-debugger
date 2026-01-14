@@ -34,18 +34,6 @@ export abstract class ScvdNode extends ScvdBase {
         return super.children as ScvdNode[];
     }
 
-    public override map<T>(callbackfn: (child: ScvdNode, index: number, array: ScvdNode[]) => T): T[] {
-        return this.children.map(callbackfn);
-    }
-
-    public override forEach(callbackfn: (child: ScvdNode, index: number, array: ScvdNode[]) => void): void {
-        this.children.forEach(callbackfn);
-    }
-
-    public override filter(predicate: (child: ScvdNode, index: number, array: ScvdNode[]) => boolean): ScvdNode[] {
-        return this.children.filter(predicate);
-    }
-
     constructor(parent: ScvdBase | undefined) {
         super(parent);
     }
@@ -75,14 +63,6 @@ export abstract class ScvdNode extends ScvdBase {
         this.info = getStringFromJson(xml.info);
 
         return true;
-    }
-
-    protected symbolsCache(key: string, value: ScvdNode | undefined): ScvdNode | undefined {
-        return this._symbolsCache?.get(key) ?? (value !== undefined ? ((this._symbolsCache ??= new Map()).set(key, value), value) : undefined);
-    }
-
-    protected clearSymbolsCache(): void {
-        this._symbolsCache = undefined; // let GC reclaim the Map
     }
 
     public override addToSymbolContext(name: string | undefined, symbol: ScvdNode): void {
@@ -207,4 +187,17 @@ export abstract class ScvdNode extends ScvdBase {
         return this.getLineInfoStr();
     }
     // ------------  GUI Interface End ------------
+
+    protected symbolsCache(key: string, value: ScvdNode | undefined): ScvdNode | undefined {
+        return this._symbolsCache?.get(key) ?? (value !== undefined ? ((this._symbolsCache ??= new Map()).set(key, value), value) : undefined);
+    }
+
+    protected clearSymbolsCache(): void {
+        this._symbolsCache = undefined; // let GC reclaim the Map
+    }
+
+    protected clearSymbolCachesRecursive(): void {
+        this.clearSymbolsCache();
+        this.children.forEach(child => child.clearSymbolCachesRecursive());
+    }
 }

@@ -44,10 +44,6 @@ export class ScvdExpression extends ScvdNode {
         this._isPrintExpression = isPrintExpression ?? false;
     }
 
-    public invalidate() {
-        super.invalidate();
-    }
-
     public get expressionAst(): ParseResult | undefined {
         return this._expressionAst;
     }
