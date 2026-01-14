@@ -102,7 +102,7 @@ export class ScvdDebugTarget {
             this.isTargetRunning = false;
         });
     }
-    
+
     public async getSymbolInfo(symbol: string): Promise<SymbolInfo | undefined> {
         if (symbol === undefined) {
             return undefined;

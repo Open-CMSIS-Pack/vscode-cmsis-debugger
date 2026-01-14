@@ -42,6 +42,10 @@ class FakeMember extends ScvdMember {
         super(undefined);
     }
 
+    public override getTargetSize(): number | undefined {
+        return 4;
+    }
+
     public override async getEnum(_value: number) {
         return {
             getGuiName: async () => 'ENUM_READY'

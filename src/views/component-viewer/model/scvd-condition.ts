@@ -22,7 +22,6 @@ import { ExecutionContext } from '../scvd-eval-context';
 
 export class ScvdCondition extends ScvdBase {
     private _expression: ScvdExpression | undefined;
-    private _cachedResult: boolean | undefined;
 
     constructor(
         parent: ScvdBase | undefined,
@@ -48,29 +47,16 @@ export class ScvdCondition extends ScvdBase {
 
     public async getResult(): Promise<boolean> {
         if (!this._expression) {
-            this._cachedResult = true;
             return true;
         }
         try {
             const value = await this._expression.getValue();
             // Treat numeric zero as false; everything else (including bigint) as true.
-            const result = value === undefined ? false : value !== 0 && value !== 0n;
-            this._cachedResult = result;
-            return result;
+            return value === undefined ? false : value !== 0 && value !== 0n;
         } catch (err) {
             console.error(this.getLineInfoStr(), 'Failed to evaluate condition expression', err);
-            this._cachedResult = false;
             return false;
         }
-    }
-
-    public getCachedResult(): boolean | undefined {
-        return this._cachedResult;
-    }
-
-    public override invalidate(): void {
-        this._cachedResult = undefined;
-        super.invalidate();
     }
 
     public override setExecutionContext(executionContext: ExecutionContext): void {
