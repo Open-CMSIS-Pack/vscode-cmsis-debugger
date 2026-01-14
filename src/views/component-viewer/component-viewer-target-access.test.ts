@@ -104,7 +104,7 @@ describe('ComponentViewerTargetAccess', () => {
 
             const result = await targetAccess.evaluateSymbolAddress('unknownVar');
 
-            expect(result).toBe('Variable not found');
+            expect(result).toBeUndefined();
             expect(logDebugSpy).toHaveBeenCalledWith(
                 'Session \'test-session\': Failed to evaluate address \'unknownVar\' - \'Variable not found\''
             );
@@ -116,7 +116,7 @@ describe('ComponentViewerTargetAccess', () => {
 
             const result = await targetAccess.evaluateSymbolAddress('myVar');
 
-            expect(result).toBe('No active session');
+            expect(result).toBeUndefined();
             expect(logDebugSpy).toHaveBeenCalledWith(
                 'Session \'test-session\': Failed to evaluate address \'myVar\' - \'custom request failed\''
             );
