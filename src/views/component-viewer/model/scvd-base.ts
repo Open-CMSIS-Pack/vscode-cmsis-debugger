@@ -17,11 +17,12 @@
  * Model-specific behaviour lives in ScvdNode.
  */
 
+
 export type Json = Record<string, unknown>;
 
-// add linter exception for CTor operations
+// Constructor type used for runtime instanceof checks; kept loose to cover differing ctor shapes.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyScvdCtor = abstract new (...args: any[]) => ScvdBase;
+type ScvdConstructor<T extends ScvdBase> = abstract new (...args: any[]) => T;
 
 export abstract class ScvdBase {
     private static _idNext = 0;
@@ -48,12 +49,8 @@ export abstract class ScvdBase {
         }
     }
 
-    public castToDerived<C extends AnyScvdCtor>(ctor: C): InstanceType<C> | undefined {
-        return this instanceof ctor ? (this as InstanceType<C>) : undefined;
-    }
-
-    public isDerived<C extends AnyScvdCtor>(ctor: C): this is InstanceType<C> {
-        return this instanceof ctor;
+    public castToDerived<T extends ScvdBase>(ctor: ScvdConstructor<T>): T | undefined {
+        return this instanceof ctor ? (this as T) : undefined;
     }
 
     public get parent(): ScvdBase | undefined {
