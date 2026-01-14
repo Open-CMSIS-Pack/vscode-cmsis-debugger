@@ -59,10 +59,6 @@ export class ScvdExpression extends ScvdNode {
         return this._expression;
     }
     public set expression(expression: string | undefined) {
-        if (expression === undefined || expression === this._expression) {
-            return;
-        }
-
         this._expression = expression;
         this._expressionAst = undefined;
     }
@@ -88,13 +84,8 @@ export class ScvdExpression extends ScvdNode {
 
     public async evaluate(): Promise<EvaluateResult> {
         if (this.expressionAst === undefined) {
-            // Lazily parse if not configured yet.
-            const parsed = this.parseExpression();
-            if (!parsed || this.expressionAst === undefined) {
-                return undefined;
-            }
+            return undefined;
         }
-
         if (this.expressionAst.constValue === undefined) {   // not a constant expression
             const result = await this.evaluateExpression();
             return result;
