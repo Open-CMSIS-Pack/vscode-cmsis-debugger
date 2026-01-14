@@ -37,15 +37,15 @@ export class ScvdEvents extends ScvdNode {
             return super.readXml(xml);
         }
 
-        const events = getArrayFromJson(xml);
+        const events = getArrayFromJson<Json>(xml);
         events?.forEach( (v: Json) => {
-            const event = getArrayFromJson(v.event);
+            const event = getArrayFromJson<Json>(v.event);
             event?.forEach( (v: Json) => {
                 const item = this.addEvent();
                 item.readXml(v);
             });
 
-            const groups = getArrayFromJson(v.group);
+            const groups = getArrayFromJson<Json>(v.group);
             groups?.forEach( (v: Json) => {
                 const item = this.addGroup();
                 item.readXml(v);

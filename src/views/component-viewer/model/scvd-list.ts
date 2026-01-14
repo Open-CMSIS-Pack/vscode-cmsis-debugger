@@ -54,34 +54,34 @@ export class ScvdList extends ScvdNode {
         this.while = getStringFromJson(xml.while);
         this.cond = getStringFromJson(xml.cond);
 
-        const lists = getArrayFromJson(xml.list);
+        const lists = getArrayFromJson<Json>(xml.list);
         lists?.forEach(list => {
             const listItem = this.addList();
             listItem.readXml(list);
         });
 
-        const readLists = getArrayFromJson(xml.readlist);
+        const readLists = getArrayFromJson<Json>(xml.readlist);
         readLists?.forEach(readList => {
             const readListItem = this.addReadList();
             readListItem.readXml(readList);
             this.addToSymbolContext(readListItem.name, readListItem);
         });
 
-        const reads = getArrayFromJson(xml.read);
+        const reads = getArrayFromJson<Json>(xml.read);
         reads?.forEach(read => {
             const readItem = this.addRead();
             readItem.readXml(read);
             this.addToSymbolContext(readItem.name, readItem);
         });
 
-        const vars = getArrayFromJson(xml.var);
+        const vars = getArrayFromJson<Json>(xml.var);
         vars?.forEach(v => {
             const varItem = this.addVar();
             varItem.readXml(v);
             this.addToSymbolContext(varItem.name, varItem);
         });
 
-        const calcs = getArrayFromJson(xml.calc);
+        const calcs = getArrayFromJson<Json>(xml.calc);
         calcs?.forEach(c => {
             const calcItem = this.addCalc();
             calcItem.readXml(c);

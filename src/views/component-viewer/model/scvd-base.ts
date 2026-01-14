@@ -17,9 +17,7 @@
  * Model-specific behaviour lives in ScvdNode.
  */
 
-// add linter exception for Json
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type Json = Record<string, any>;
+export type Json = Record<string, unknown>;
 
 // add linter exception for CTor operations
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

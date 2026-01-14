@@ -33,7 +33,7 @@ export class ScvdBreaks extends ScvdNode {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
-        const breaks = getArrayFromJson(xml.break);
+        const breaks = getArrayFromJson<Json>(xml.break);
         breaks?.forEach( (v: Json) => {
             const varItem = this.addBreak();
             varItem.readXml(v);

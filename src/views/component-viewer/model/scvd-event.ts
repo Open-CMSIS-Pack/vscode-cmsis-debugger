@@ -63,7 +63,7 @@ export class ScvdEvent extends ScvdNode {
         this.stateName = getStringFromJson(xml.state);
         this.tracking = getStringFromJson(xml.tracking);
 
-        const print = getArrayFromJson(xml.print);
+        const print = getArrayFromJson<Json>(xml.print);
         print?.forEach( (v: Json) => {
             const printItem = this.addPrint();
             printItem.readXml(v);

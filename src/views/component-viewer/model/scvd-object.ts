@@ -39,7 +39,7 @@ export class ScvdObjects extends ScvdNode {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
-        const objects = getArrayFromJson(xml.object);
+        const objects = getArrayFromJson<Json>(xml.object);
         objects?.forEach( (v: Json) => {
             const object = this.addObject();
             object.readXml(v);
@@ -85,40 +85,40 @@ export class ScvdObject extends ScvdNode {
             return super.readXml(xml);
         }
 
-        const vars = getArrayFromJson(xml?.var);
+        const vars = getArrayFromJson<Json>(xml?.var);
         vars?.forEach( (v: Json) => {
             const varItem = this.addVar();
             varItem.readXml(v);
             this.addToSymbolContext(varItem.name, varItem);
         });
 
-        const calcs = getArrayFromJson(xml?.calc);
+        const calcs = getArrayFromJson<Json>(xml?.calc);
         calcs?.forEach( (c: Json) => {
             const calcItem = this.addCalc();
             calcItem.readXml(c);
         });
 
-        const lists = getArrayFromJson(xml?.list);
+        const lists = getArrayFromJson<Json>(xml?.list);
         lists?.forEach( (l: Json) => {
             const listItem = this.addList();
             listItem.readXml(l);
         });
 
-        const reads = getArrayFromJson(xml?.read);
+        const reads = getArrayFromJson<Json>(xml?.read);
         reads?.forEach( (r: Json) => {
             const readItem = this.addRead();
             readItem.readXml(r);
             this.addToSymbolContext(readItem.name, readItem);
         });
 
-        const readLists = getArrayFromJson(xml?.readlist);
+        const readLists = getArrayFromJson<Json>(xml?.readlist);
         readLists?.forEach( (rl: Json) => {
             const readListItem = this.addReadList();
             readListItem.readXml(rl);
             this.addToSymbolContext(readListItem.name, readListItem);
         });
 
-        const outs = getArrayFromJson(xml?.out);
+        const outs = getArrayFromJson<Json>(xml?.out);
         outs?.forEach( (o: Json) => {
             const outItem = this.addOut();
             outItem.readXml(o);

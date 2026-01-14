@@ -40,7 +40,7 @@ export class ScvdEnum extends ScvdNode {
         }
 
         this.value = getStringFromJson(xml.value);
-        this.value.readXml(xml.value);
+        this.value.readXml(xml.value as Json);
 
         return super.readXml(xml);
     }

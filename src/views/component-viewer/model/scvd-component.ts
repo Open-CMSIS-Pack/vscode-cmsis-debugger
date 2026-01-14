@@ -44,7 +44,7 @@ export class ScvdComponent extends ScvdNode {
         this.no = getStringFromJson(xml.no);
         this.prefix = getStringFromJson(xml.prefix);
 
-        const states = getArrayFromJson(xml.state);
+        const states = getArrayFromJson<Json>(xml.state);
         states?.forEach( (v: Json) => {
             const newState = this.addState();
             newState.readXml(v);

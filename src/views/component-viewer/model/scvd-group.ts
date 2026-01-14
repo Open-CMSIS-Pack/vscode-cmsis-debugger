@@ -35,7 +35,7 @@ export class ScvdGroup extends ScvdNode {
             return super.readXml(xml);
         }
 
-        const components = getArrayFromJson(xml.component);
+        const components = getArrayFromJson<Json>(xml.component);
         components?.forEach( (component: Json) => {
             const newComponent = this.addComponent();
             newComponent.readXml(component);

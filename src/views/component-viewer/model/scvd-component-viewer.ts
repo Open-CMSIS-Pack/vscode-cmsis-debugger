@@ -56,31 +56,31 @@ export class ScvdComponentViewer extends ScvdNode {
             return super.readXml(xml);
         }
 
-        const componentViewer: Json = getObjectFromJson(xml.component_viewer);
+        const componentViewer = getObjectFromJson<Json>(xml.component_viewer);
         if ( componentViewer === undefined) {
             return false;
         }
 
-        const componentIdentifier: Json = getObjectFromJson(componentViewer.component);
+        const componentIdentifier = getObjectFromJson<Json>(componentViewer.component);
         if (componentIdentifier !== undefined) {
             this._componentIdentifier = new ScvdComponentIdentifier(this);
             this._componentIdentifier.readXml(componentIdentifier);
         }
 
-        const objectsContainer: Json = getObjectFromJson(componentViewer.objects);
+        const objectsContainer = getObjectFromJson<Json>(componentViewer.objects);
         if (objectsContainer !== undefined) {
             this._objects = new ScvdObjects(this);
             this._objects.readXml(objectsContainer);
         }
 
-        const typedefsContainer: Json = getObjectFromJson(componentViewer.typedefs);
+        const typedefsContainer = getObjectFromJson<Json>(componentViewer.typedefs);
         if (typedefsContainer !== undefined) {
             this._typedefs = new ScvdTypedefs(this);
             this._typedefs.readXml(typedefsContainer);
         }
 
         // disable for now
-        /*const events = getArrayFromJson(componentViewer?.events);
+        /*const events = getArrayFromJson<Json>(componentViewer?.events);
         if (events !== undefined) {
             this._events = new ScvdEvents(this);
             this._events.readXml(events);
@@ -169,7 +169,7 @@ export class ScvdComponentViewer extends ScvdNode {
         }
 
         const breaks: Json[] = [];
-        const directBreaks = getArrayFromJson(node.break);
+        const directBreaks = getArrayFromJson<Json>(node.break);
         if (directBreaks !== undefined) {
             breaks.push(...directBreaks);
         }

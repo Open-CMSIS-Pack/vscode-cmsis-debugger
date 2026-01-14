@@ -44,13 +44,13 @@ export class ScvdListOut extends ScvdList {
         this.cond = getStringFromJson(xml.cond);
 
 
-        const items = getArrayFromJson(xml.item);
+        const items = getArrayFromJson<Json>(xml.item);
         items?.forEach(item => {
             const itemObj = this.addItem();
             itemObj.readXml(item);
         });
 
-        const lists = getArrayFromJson(xml.list);
+        const lists = getArrayFromJson<Json>(xml.list);
         lists?.forEach(list => {
             const listItem = this.addList();
             listItem.readXml(list);

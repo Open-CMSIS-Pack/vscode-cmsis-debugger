@@ -47,7 +47,7 @@ export class ScvdMember extends ScvdNode {
         this.offset = getStringFromJson(xml.offset);
         this.size = getStringFromJson(xml.size);
 
-        const enums = getArrayFromJson(xml.enum);
+        const enums = getArrayFromJson<Json>(xml.enum);
         enums?.forEach(enumItem => {
             const newEnum = this.addEnum();
             newEnum.readXml(enumItem);

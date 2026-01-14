@@ -50,28 +50,41 @@ export function clearSignBit(num: number) {
     return num >>> 0;
 }
 
-export function getObjectFromJson<T>(xml: T | undefined): T | undefined {
-    return xml;
-}
-
-export function getStringFromJson(xml: Json): string | undefined {
-    if (typeof xml === 'string') {
-        return xml;
+export function getObjectFromJson<T = Json>(xml: unknown): T | undefined {
+    if (xml === undefined || xml === null) {
+        return undefined;
     }
-
-    return undefined;
+    if (typeof xml !== 'object') {
+        return undefined;
+    }
+    return xml as T;
 }
 
-export function getArrayFromJson<T>(value: T | T[] | undefined): T[] | undefined {
-    return value === undefined ? undefined : (Array.isArray(value) ? value : [value]);
+export function getStringFromJson(value: unknown): string | undefined {
+    return typeof value === 'string' ? value : undefined;
+}
+
+export function getStringField(obj: Json | undefined, key: string): string | undefined {
+    if (!obj) {
+        return undefined;
+    }
+    return getStringFromJson(obj[key]);
+}
+
+export function getArrayFromJson<T = Json>(value: unknown): T[] | undefined {
+    if (value === undefined) {
+        return undefined;
+    }
+    return Array.isArray(value) ? value as T[] : [value as T];
 }
 
 // Extract raw text body (multiline) from the XML JSON object.
 // Depending on the XML-to-JSON converter, text may reside in '#text', '_', or 'text'.
 export function getTextBodyFromJson(xml: Json): string[] | undefined {
-    const text: string | undefined = typeof xml === 'string'
+    const raw = typeof xml === 'string'
         ? xml
         : (xml?.['#text'] ?? xml?._ ?? xml?.text);
+    const text: string | undefined = typeof raw === 'string' ? raw : undefined;
 
     if (typeof text === 'string') {
         return text
@@ -84,8 +97,5 @@ export function getTextBodyFromJson(xml: Json): string[] | undefined {
 
 export function getLineNumberFromJson(xml: Json): string | undefined {
     const lineNo = xml?.['__line'];
-    if (typeof lineNo === 'string') {
-        return lineNo;
-    }
-    return undefined;
+    return typeof lineNo === 'string' ? lineNo : undefined;
 }

@@ -47,13 +47,13 @@ export class ScvdOut extends ScvdNode {
         this.type = getStringFromJson(xml.type);
         this.cond = getStringFromJson(xml.cond);
 
-        const item = getArrayFromJson(xml.item);
+        const item = getArrayFromJson<Json>(xml.item);
         item?.forEach((it: Json) => {
             const newItem = this.addItem();
             newItem.readXml(it);
         });
 
-        const list = getArrayFromJson(xml.list);
+        const list = getArrayFromJson<Json>(xml.list);
         list?.forEach((it: Json) => {
             const newList = this.addList();
             newList.readXml(it);

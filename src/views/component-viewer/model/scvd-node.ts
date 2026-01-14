@@ -16,7 +16,7 @@
 
 import { ResolveSymbolCb } from '../resolver';
 import { ExecutionContext } from '../scvd-eval-context';
-import { getLineNumberFromJson, getStringFromJson } from './scvd-utils';
+import { getLineNumberFromJson, getStringField } from './scvd-utils';
 import { Json, ScvdBase } from './scvd-base';
 
 /**
@@ -44,10 +44,11 @@ export abstract class ScvdNode extends ScvdBase {
             return false;
         }
         this.lineNo = getLineNumberFromJson(xml);
-        const tag = getStringFromJson(xml['#Name'] ?? xml['#name']);
+        const tag = getStringField(xml, '#Name') ?? getStringField(xml, '#name');
         if (tag === undefined) {
             if (Array.isArray(xml)) {
-                const subTag = getStringFromJson(xml[0]?.['#Name'] ?? xml[0]?.['#name'] ?? xml[0]?.tag);
+                const first = xml[0] as Json | undefined;
+                const subTag = getStringField(first, '#Name') ?? getStringField(first, '#name') ?? getStringField(first, 'tag');
                 if (subTag !== undefined) {
                     this.tag = subTag + '[]';
                 } else {
@@ -59,8 +60,8 @@ export abstract class ScvdNode extends ScvdBase {
         } else {
             this.tag = tag;
         }
-        this.name = getStringFromJson(xml.name);
-        this.info = getStringFromJson(xml.info);
+        this.name = getStringField(xml, 'name');
+        this.info = getStringField(xml, 'info');
 
         return true;
     }

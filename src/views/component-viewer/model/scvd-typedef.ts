@@ -38,7 +38,7 @@ export class ScvdTypedefs extends ScvdNode {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
-        const typedefs = getArrayFromJson(xml.typedef);
+        const typedefs = getArrayFromJson<Json>(xml.typedef);
         typedefs?.forEach( (v: Json) => {
             const varItem = this.addTypedef();
             varItem.readXml(v);
@@ -104,14 +104,14 @@ export class ScvdTypedef extends ScvdNode {
         this.size = getStringFromJson(xml.size);
         this.import = getStringFromJson(xml.import);
 
-        const members = getArrayFromJson(xml.member);
+        const members = getArrayFromJson<Json>(xml.member);
         members?.forEach( (v: Json) => {
             const memberItem = this.addMember();
             memberItem.readXml(v);
         });
         this._member.sort(this.sortByLine);
 
-        const vars = getArrayFromJson(xml.var);
+        const vars = getArrayFromJson<Json>(xml.var);
         vars?.forEach( (v: Json) => {
             const varItem = this.addVar();
             varItem.readXml(v);
