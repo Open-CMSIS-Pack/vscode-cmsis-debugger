@@ -73,10 +73,10 @@ export class ScvdExpression extends ScvdBase {
 
     private async evaluateExpression(): Promise<EvaluateResult> {
         if (this.expressionAst === undefined || this._executionContext === undefined) {
+            console.error(this.getLineInfoStr(), 'Expression evaluation missing AST or execution context');
             return undefined;
         }
-        const result = await evaluateParseResult(this.expressionAst, this._executionContext.evalContext /*, this*/); // pass 'this' for local variable resolution
-        return result;
+        return evaluateParseResult(this.expressionAst, this._executionContext.evalContext);
     }
 
     public async getValue(): Promise<EvaluateResult> {
