@@ -18,7 +18,7 @@ import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-sessio
 import { MemoryHost } from './data-host/memory-host';
 import { RegisterHost } from './data-host/register-host';
 import { EvalContext } from './evaluator';
-import { ScvdBase } from './model/scvd-base';
+import { ScvdNode } from './model/scvd-node';
 import { ScvdComponentViewer } from './model/scvd-component-viewer';
 import { ScvdFormatSpecifier } from './model/scvd-format-specifier';
 import { ScvdDebugTarget } from './scvd-debug-target';
@@ -57,7 +57,7 @@ export class ScvdEvalContext {
 
         this._ctx = new EvalContext({
             data: this._evalHost,               // DataHost
-            container: outItem,                 // ScvdBase root for symbol resolution
+            container: outItem,                 // ScvdNode root for symbol resolution
         });
     }
 
@@ -96,7 +96,7 @@ export class ScvdEvalContext {
         };
     }
 
-    public getOutItem(): ScvdBase | undefined {
+    public getOutItem(): ScvdNode | undefined {
         const objects = this.model.objects;
         if (objects === undefined) {
             return undefined;

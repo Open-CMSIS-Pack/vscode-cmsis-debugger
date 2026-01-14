@@ -17,23 +17,24 @@
 // https://arm-software.github.io/CMSIS-View/main/elem_typedefs.html
 
 import { ScvdExpression } from './scvd-expression';
-import { Json, ScvdBase } from './scvd-base';
+import { Json } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { ScvdMember } from './scvd-member';
 import { ScvdSymbol } from './scvd-symbol';
 import { ScvdVar } from './scvd-var';
 import { getArrayFromJson, getStringFromJson } from './scvd-utils';
 
 // Container
-export class ScvdTypedefs extends ScvdBase {
+export class ScvdTypedefs extends ScvdNode {
     private _typedef: ScvdTypedef[] = [];
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
     ) {
         super(parent);
     }
 
-    public readXml(xml: Json): boolean {
+    public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
@@ -81,7 +82,7 @@ import:
     __Offset_of can be used to check this value.
 */
 
-export class ScvdTypedef extends ScvdBase {
+export class ScvdTypedef extends ScvdNode {
     private _size: ScvdExpression | undefined;  // size is optional and recalculated if import is set
     private _import: ScvdSymbol | undefined;
     private _member: ScvdMember[] = [];     // target system variable
@@ -90,12 +91,12 @@ export class ScvdTypedef extends ScvdBase {
     private _targetSize: number | undefined;
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
     ) {
         super(parent);
     }
 
-    public readXml(xml: Json): boolean {
+    public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
@@ -121,13 +122,13 @@ export class ScvdTypedef extends ScvdBase {
         return super.readXml(xml);
     }
 
-    public getTypeSize(): number | undefined {
+    public override getTypeSize(): number | undefined {
         return this.getTargetSize();
     }
 
     // 1. Get the virtual size including vars
     // 2. If not set, return the size expression value
-    public getVirtualSize(): number | undefined {
+    public override getVirtualSize(): number | undefined {
         const virtualSize = this.virtualSize;    // calculated size including vars
         if (virtualSize !== undefined) {
             return virtualSize;
@@ -135,11 +136,11 @@ export class ScvdTypedef extends ScvdBase {
         return this.getTypeSize();
     }
 
-    public getIsPointer(): boolean {
+    public override getIsPointer(): boolean {
         return false;
     }
 
-    public getTargetSize(): number | undefined {
+    public override getTargetSize(): number | undefined {
         return this.targetSize;
     }
 
@@ -198,7 +199,7 @@ export class ScvdTypedef extends ScvdBase {
         return this._var;
     }
 
-    public getMember(property: string): ScvdBase | undefined {
+    public override getMember(property: string): ScvdNode | undefined {
         return this.symbolsCache(
             property,
             this.member.find(s => s.name === property) ??

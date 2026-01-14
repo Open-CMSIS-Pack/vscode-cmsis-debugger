@@ -15,7 +15,7 @@
  */
 
 import { ResolveSymbolCb, ResolveType } from '../resolver';
-import { ScvdBase } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { ScvdTypedef } from './scvd-typedef';
 
 // https://arm-software.github.io/CMSIS-View/main/data_type.html#scalar_data_type
@@ -35,11 +35,11 @@ const ScvdScalarDataTypeMap: Record<string, [number, string]> = {
     'double': [64, 'double precision floating number'],
 };
 
-export class ScvdDataType extends ScvdBase {
+export class ScvdDataType extends ScvdNode {
     private _type: ScvdScalarDataType | ScvdComplexDataType | undefined;
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
         type: string | undefined
     ) {
         super(parent);
@@ -64,24 +64,24 @@ export class ScvdDataType extends ScvdBase {
         }
     }
 
-    public getMember(property: string): ScvdBase | undefined {
+    public override getMember(property: string): ScvdNode | undefined {
         return this._type?.getMember(property);
     }
 
-    public getTypeSize(): number | undefined {
+    public override getTypeSize(): number | undefined {
         const size = this._type?.getTypeSize();
         return size;
     }
 
-    public getIsPointer(): boolean {
+    public override getIsPointer(): boolean {
         return this._type?.getIsPointer() ?? false;
     }
 
-    public getVirtualSize(): number | undefined {
+    public override getVirtualSize(): number | undefined {
         return this._type?.getVirtualSize();
     }
 
-    public getValueType(): string | undefined {
+    public override getValueType(): string | undefined {
         const isPointer = this.getIsPointer();
         if (isPointer) {
             return 'uint32_t';
@@ -100,12 +100,12 @@ export class ScvdDataType extends ScvdBase {
 }
 
 
-export class ScvdScalarDataType extends ScvdBase {
+export class ScvdScalarDataType extends ScvdNode {
     private _type: string | undefined;
     private _isPointer: boolean = false;
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
         type: string | undefined
     ) {
         super(parent);
@@ -132,17 +132,17 @@ export class ScvdScalarDataType extends ScvdBase {
     }
 
 
-    public getTypeSize(): number | undefined {
+    public override getTypeSize(): number | undefined {
         const info = this.type && ScvdScalarDataTypeMap[this.type];
         const value = info ? info[0]: undefined;
         return value ? value / 8 : undefined;
     }
 
-    public getIsPointer(): boolean {
+    public override getIsPointer(): boolean {
         return this.isPointer;
     }
 
-    public getVirtualSize(): number | undefined {
+    public override getVirtualSize(): number | undefined {
         return this.getTypeSize();
     }
 
@@ -154,13 +154,13 @@ export class ScvdScalarDataType extends ScvdBase {
 
 }
 
-export class ScvdComplexDataType extends ScvdBase{
+export class ScvdComplexDataType extends ScvdNode{
     private _typeName: string | undefined;
     private _type: ScvdTypedef | undefined;
     private _isPointer: boolean = false;
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
         typeName: string | undefined
     ) {
         super(parent);
@@ -182,7 +182,7 @@ export class ScvdComplexDataType extends ScvdBase{
         this._isPointer = value;
     }
 
-    public getTypeSize(): number | undefined {
+    public override getTypeSize(): number | undefined {
         const sizeInBytes = this._type?.getTypeSize();
         if (sizeInBytes !== undefined) {
             return sizeInBytes;
@@ -190,15 +190,15 @@ export class ScvdComplexDataType extends ScvdBase{
         return undefined;
     }
 
-    public getIsPointer(): boolean {
+    public override getIsPointer(): boolean {
         return this.isPointer;
     }
 
-    public getVirtualSize(): number | undefined {
+    public override getVirtualSize(): number | undefined {
         return this._type?.getVirtualSize();
     }
 
-    public resolveAndLink(resolveFunc: ResolveSymbolCb): boolean {
+    public override resolveAndLink(resolveFunc: ResolveSymbolCb): boolean {
         const typeName = this.typeName?.replace(/\*/g, '').trim();
         if (typeName === undefined) {
             return false;
@@ -217,7 +217,7 @@ export class ScvdComplexDataType extends ScvdBase{
         return true;
     }
 
-    public getMember(property: string): ScvdBase | undefined {
+    public override getMember(property: string): ScvdNode | undefined {
         return this._type?.getMember(property);
     }
 

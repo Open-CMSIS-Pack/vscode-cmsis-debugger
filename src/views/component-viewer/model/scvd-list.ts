@@ -18,14 +18,15 @@
 
 import { ScvdCalc } from './scvd-calc';
 import { ScvdExpression } from './scvd-expression';
-import { Json, ScvdBase } from './scvd-base';
+import { Json } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { ScvdRead } from './scvd-read';
 import { ScvdReadList } from './scvd-readlist';
 import { ScvdVar } from './scvd-var';
 import { getArrayFromJson, getStringFromJson } from './scvd-utils';
 import { ScvdCondition } from './scvd-condition';
 
-export class ScvdList extends ScvdBase {
+export class ScvdList extends ScvdNode {
     private _start: ScvdExpression | undefined = undefined;
     private _limit: ScvdExpression | undefined = undefined;
     private _while: ScvdExpression | undefined = undefined;
@@ -38,12 +39,12 @@ export class ScvdList extends ScvdBase {
     private _calc: ScvdCalc[] = [];
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
     ) {
         super(parent);
     }
 
-    public readXml(xml: Json): boolean {
+    public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
@@ -137,7 +138,7 @@ export class ScvdList extends ScvdBase {
         }
     }
 
-    public async getConditionResult(): Promise<boolean> {
+    public override async getConditionResult(): Promise<boolean> {
         if (this._cond) {
             const cond = await this._cond.getResult();
             return cond;
@@ -145,7 +146,7 @@ export class ScvdList extends ScvdBase {
         return super.getConditionResult();
     }
 
-    public applyInit(): boolean {
+    public override applyInit(): boolean {
         return true;
     }
 
@@ -195,7 +196,7 @@ export class ScvdList extends ScvdBase {
         return this._calc;
     }
 
-    public getSymbol(name: string): ScvdBase | undefined {
+    public override getSymbol(name: string): ScvdNode | undefined {
         return this.symbolsCache(
             name,
             this.var.find(s => s.name === name) ??

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ScvdBase } from '../model/scvd-base';
+import { ScvdNode } from '../model/scvd-node';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
 import { StatementBase } from './statement-base';
@@ -22,11 +22,11 @@ import { StatementBase } from './statement-base';
 
 export class StatementOut extends StatementBase {
 
-    constructor(item: ScvdBase, parent: StatementBase | undefined) {
+    constructor(item: ScvdNode, parent: StatementBase | undefined) {
         super(item, parent);
     }
 
-    public async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
+    public override async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
         const conditionResult = await this.scvdItem.getConditionResult();
         if (conditionResult === false) {
             //console.log(`${this.scvdItem.getLineNoStr()}: Skipping ${this.scvdItem.getDisplayLabel()} for condition result: ${conditionResult}`);
@@ -43,7 +43,7 @@ export class StatementOut extends StatementBase {
         }
     }
 
-    protected async onExecute(_executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
+    protected override async onExecute(_executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
         //console.log(`${this.line}: Executing out: ${await this.scvdItem.getGuiName()}`);
 
         const guiName = await this.scvdItem.getGuiName();

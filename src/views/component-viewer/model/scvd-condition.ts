@@ -16,15 +16,15 @@
 
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
-import { ScvdBase } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { ScvdExpression } from './scvd-expression';
 import { ExecutionContext } from '../scvd-eval-context';
 
-export class ScvdCondition extends ScvdBase {
+export class ScvdCondition extends ScvdNode {
     private _expression: ScvdExpression | undefined;
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
         expression?: string
     ) {
         super(parent);

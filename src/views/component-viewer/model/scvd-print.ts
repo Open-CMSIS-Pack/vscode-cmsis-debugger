@@ -18,10 +18,11 @@
 
 import { ScvdValueOutput } from './scvd-value-output';
 import { ScvdCondition } from './scvd-condition';
-import { Json, ScvdBase } from './scvd-base';
+import { Json } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { getStringFromJson } from './scvd-utils';
 
-export class ScvdPrint extends ScvdBase {
+export class ScvdPrint extends ScvdNode {
     private _cond: ScvdCondition | undefined;
     private _property: ScvdValueOutput | undefined;
     private _value: ScvdValueOutput | undefined;
@@ -29,12 +30,12 @@ export class ScvdPrint extends ScvdBase {
     private _alert: ScvdCondition | undefined;  // default 0
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
     ) {
         super(parent);
     }
 
-    public readXml(xml: Json): boolean {
+    public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
@@ -77,7 +78,7 @@ export class ScvdPrint extends ScvdBase {
         }
     }
 
-    public async getConditionResult(): Promise<boolean> {
+    public override async getConditionResult(): Promise<boolean> {
         if (this._cond) {
             return await this._cond.getResult();
         }
@@ -105,14 +106,14 @@ export class ScvdPrint extends ScvdBase {
     }
 
     // Main Display functions
-    public async getGuiName(): Promise<string | undefined> {
+    public override async getGuiName(): Promise<string | undefined> {
         if (this.property === undefined) {
             return undefined;
         }
         return await this.property.getGuiName();
     }
 
-    public async getGuiValue(): Promise<string | undefined> {
+    public override async getGuiValue(): Promise<string | undefined> {
         if (this.value === undefined) {
             return undefined;
         }

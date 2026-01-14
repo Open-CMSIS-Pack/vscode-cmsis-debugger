@@ -18,7 +18,8 @@
 
 import { ResolveSymbolCb } from '../resolver';
 import { NumberType, NumberTypeInput } from './number-type';
-import { Json, ScvdBase } from './scvd-base';
+import { Json } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { ScvdEventId } from './scvd-event-id';
 import { ScvdEventLevel } from './scvd-event-level';
 import { ScvdEventState } from './scvd-event-state';
@@ -28,7 +29,7 @@ import { ScvdPrint } from './scvd-print';
 import { getArrayFromJson, getStringFromJson } from './scvd-utils';
 import { ScvdValueOutput } from './scvd-value-output';
 
-export class ScvdEvent extends ScvdBase {
+export class ScvdEvent extends ScvdNode {
     private _id: ScvdEventId | undefined;
     private _level: ScvdEventLevel | undefined;
     private _property: ScvdValueOutput | undefined;
@@ -42,12 +43,12 @@ export class ScvdEvent extends ScvdBase {
     private _print: ScvdPrint[] = [];
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
     ) {
         super(parent);
     }
 
-    public readXml(xml: Json): boolean {
+    public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
@@ -71,7 +72,7 @@ export class ScvdEvent extends ScvdBase {
         return super.readXml(xml);
     }
 
-    public resolveAndLink(_resolveFunc: ResolveSymbolCb): boolean {
+    public override resolveAndLink(_resolveFunc: ResolveSymbolCb): boolean {
         // TOIMPL: this._state = this.findReference(ScvdEventState, this._state?.name);
         return false;
     }

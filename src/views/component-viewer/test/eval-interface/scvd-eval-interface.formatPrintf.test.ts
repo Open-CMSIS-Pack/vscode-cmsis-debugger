@@ -8,11 +8,11 @@ import { ScvdFormatSpecifier, FormatKind } from '../../model/scvd-format-specifi
 import { RefContainer } from '../../evaluator';
 import { MemoryHost } from '../../data-host/memory-host';
 import { RegisterHost } from '../../data-host/register-host';
-import { ScvdBase } from '../../model/scvd-base';
+import { ScvdNode } from '../../model/scvd-node';
 import { ScvdMember } from '../../model/scvd-member';
 import { ScvdDebugTarget } from '../../scvd-debug-target';
 
-class FakeBase extends ScvdBase {
+class FakeBase extends ScvdNode {
     constructor(typeName?: string) {
         super(undefined);
         this._typeName = typeName;
@@ -85,7 +85,7 @@ class FakeDebugTarget implements Pick<ScvdDebugTarget,
     }
 }
 
-function makeContainer(typeName?: string, current?: ScvdBase): RefContainer {
+function makeContainer(typeName?: string, current?: ScvdNode): RefContainer {
     const base = current ?? new FakeBase(typeName);
     return {
         base,

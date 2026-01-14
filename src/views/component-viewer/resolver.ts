@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ScvdBase } from './model/scvd-base';
+import { ScvdNode } from './model/scvd-node';
 import { ScvdComponentViewer } from './model/scvd-component-viewer';
 import { ScvdTypedef } from './model/scvd-typedef';
 import { ScvdTypesCache } from './scvd-types-cache';
@@ -31,8 +31,8 @@ export enum ResolveType {
 export type ResolveSymbolCb = (
   name: string,
   resolveType: ResolveType,
-  scvdObject?: ScvdBase
-) => ScvdBase | undefined;
+  scvdObject?: ScvdNode
+) => ScvdNode | undefined;
 
 export class Resolver {
     private _model: ScvdComponentViewer | undefined;
@@ -63,7 +63,7 @@ export class Resolver {
         this._typesCache.createCache();
     }
 
-    private resolveLocalType(name: string): ScvdBase | undefined {
+    private resolveLocalType(name: string): ScvdNode | undefined {
         const typeItem = this.typesCache?.findTypeByName(name);
         if (typeItem !== undefined && typeItem instanceof ScvdTypedef) {
             return typeItem;
@@ -71,7 +71,7 @@ export class Resolver {
         return undefined;
     }
 
-    private resolveLocalMember(name: string, scvdObject?: ScvdBase): ScvdBase | undefined {
+    private resolveLocalMember(name: string, scvdObject?: ScvdNode): ScvdNode | undefined {
         if (scvdObject === undefined) {
             return undefined;
         }
@@ -82,7 +82,7 @@ export class Resolver {
         return undefined;
     }
 
-    private resolveTargetType(_name: string): ScvdBase | undefined {
+    private resolveTargetType(_name: string): ScvdNode | undefined {
         // resolve using debugger interface
         console.log(`  Resolving target symbol: ${_name}`);
         return undefined;
@@ -91,8 +91,8 @@ export class Resolver {
     public resolveSymbolCb(
         name: string,
         resolveType: ResolveType,
-        scvdObject?: ScvdBase
-    ): ScvdBase | undefined {
+        scvdObject?: ScvdNode
+    ): ScvdNode | undefined {
         switch(resolveType) {
             case ResolveType.localType:
                 return this.resolveLocalType(name);
@@ -105,7 +105,7 @@ export class Resolver {
         }
     }
 
-    private resolveRecursive(item: ScvdBase, resolveFunc: ResolveSymbolCb): boolean {
+    private resolveRecursive(item: ScvdNode, resolveFunc: ResolveSymbolCb): boolean {
         /*const resolvedItem =*/ item.resolveAndLink(resolveFunc);
         // if (resolvedItem) {
         //     console.log('Resolved item:', item.getDisplayLabel());

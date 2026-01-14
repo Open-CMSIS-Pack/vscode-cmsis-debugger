@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ScvdBase } from '../model/scvd-base';
+import { ScvdNode } from '../model/scvd-node';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
 
@@ -29,10 +29,10 @@ import { ScvdGuiTree } from '../scvd-gui-tree';
 export class StatementBase {
     private _parent: StatementBase | undefined;
     private _children: StatementBase[] = [];
-    private _scvdItem: ScvdBase;
+    private _scvdItem: ScvdNode;
 
     constructor(
-        item: ScvdBase, parent: StatementBase | undefined
+        item: ScvdNode, parent: StatementBase | undefined
     ) {
         this._scvdItem = item;
         this._parent = parent;
@@ -47,7 +47,7 @@ export class StatementBase {
         return this._children;
     }
 
-    public get scvdItem(): ScvdBase {
+    public get scvdItem(): ScvdNode {
         return this._scvdItem;
     }
 

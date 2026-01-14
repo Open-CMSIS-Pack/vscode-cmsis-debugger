@@ -16,7 +16,8 @@
 
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
-import { Json, ScvdBase } from './scvd-base';
+import { Json } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { ScvdItem } from './scvd-item';
 import { ScvdList } from './scvd-list';
 import { getArrayFromJson, getStringFromJson } from './scvd-utils';
@@ -26,13 +27,13 @@ export class ScvdListOut extends ScvdList {
     private _listOut: ScvdListOut[] = []; // Array of child lists
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
     ) {
         super(parent);
     }
 
     // class is derived from ScvdList, but we do not want all properties of ScvdList to be settable from XML
-    public readXml(xml: Json): boolean {
+    public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
@@ -81,7 +82,7 @@ export class ScvdListOut extends ScvdList {
         return newItem;
     }
 
-    // public getGuiChildren(): ScvdBase[] | undefined {
+    // public getGuiChildren(): ScvdNode[] | undefined {
     //     const guiItems = [this.item, this.listOut]
     //         .flat()                                 // merge
     //         .filter(x => x.getGuiConditionResult())    // filter
@@ -93,7 +94,7 @@ export class ScvdListOut extends ScvdList {
     //     return this.item.length > 0 || this.listOut.length > 0;
     // }
 
-    public async getGuiName(): Promise<string | undefined> {
+    public override async getGuiName(): Promise<string | undefined> {
         return undefined;
     }
 

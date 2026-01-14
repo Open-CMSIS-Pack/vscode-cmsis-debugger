@@ -9,9 +9,9 @@ import { RefContainer } from '../../evaluator';
 import { MemoryHost } from '../../data-host/memory-host';
 import { RegisterHost } from '../../data-host/register-host';
 import { ScvdDebugTarget } from '../../scvd-debug-target';
-import { ScvdBase } from '../../model/scvd-base';
+import { ScvdNode } from '../../model/scvd-node';
 
-class ScalarBase extends ScvdBase {
+class ScalarBase extends ScvdNode {
     constructor(private readonly typeName?: string, private readonly size?: number, private readonly arrayCount?: number) {
         super(undefined);
     }

@@ -15,7 +15,7 @@
  */
 // generated with AI
 
-// evaluator.ts — ScvdBase-only, single container context (base/member/index/current)
+// evaluator.ts — ScvdNode-only, single container context (base/member/index/current)
 // Strict error semantics: any unresolved ref/value causes throw; top-level returns undefined
 
 import type {
@@ -39,7 +39,7 @@ import type {
     ParseResult,
     ColonPath,
 } from './parser';
-import type { ScvdBase } from './model/scvd-base';
+import type { ScvdNode } from './model/scvd-node';
 
 /* =============================================================================
  * Public API
@@ -75,10 +75,10 @@ export interface ScalarType {
 /** Container context carried during evaluation. */
 export interface RefContainer {
     /** Root model where identifier lookups begin. */
-    base: ScvdBase;
+    base: ScvdNode;
 
     /** Top-level anchor for the final read (e.g., TCB). */
-    anchor?: ScvdBase | undefined;
+    anchor?: ScvdNode | undefined;
 
     /** Accumulated byte offset from the anchor. */
     offsetBytes?: number | undefined;
@@ -87,10 +87,10 @@ export interface RefContainer {
     widthBytes?: number | undefined;
 
     /** Current ref resolved by the last resolution step (for chaining). */
-    current?: ScvdBase | undefined;
+    current?: ScvdNode | undefined;
 
     /** Most recent resolved member reference (child). */
-    member?: ScvdBase | undefined;
+    member?: ScvdNode | undefined;
 
     /** Most recent numeric index for array access (e.g., arr[3]). */
     index?: number | undefined;
@@ -105,8 +105,8 @@ export interface RefContainer {
 /** Host contract used by the evaluator (implemented by ScvdEvalInterface). */
 export interface DataHost {
     // Resolution APIs — must set container.current to the resolved ref on success
-    getSymbolRef(container: RefContainer, name: string, forWrite?: boolean): MaybePromise<ScvdBase | undefined>;
-    getMemberRef(container: RefContainer, property: string, forWrite?: boolean): MaybePromise<ScvdBase | undefined>;
+    getSymbolRef(container: RefContainer, name: string, forWrite?: boolean): MaybePromise<ScvdNode | undefined>;
+    getMemberRef(container: RefContainer, property: string, forWrite?: boolean): MaybePromise<ScvdNode | undefined>;
 
     // Value access acts on container.{anchor,offsetBytes,widthBytes}
     readValue(container: RefContainer): MaybePromise<EvalValue>;            // may return undefined -> error
@@ -119,16 +119,16 @@ export interface DataHost {
 
     // Optional metadata (lets evaluator accumulate offsets itself)
     /** Bytes per element (including any padding/alignment inside the array layout). */
-    getElementStride?(ref: ScvdBase): MaybePromise<number>;                       // bytes per element
+    getElementStride?(ref: ScvdNode): MaybePromise<number>;                       // bytes per element
 
     /** Member offset in bytes from base. */
-    getMemberOffset?(base: ScvdBase, member: ScvdBase): MaybePromise<number | undefined>;     // bytes
+    getMemberOffset?(base: ScvdNode, member: ScvdNode): MaybePromise<number | undefined>;     // bytes
 
     /** Optional: explicit byte width helper for a ref. */
-    getByteWidth?(ref: ScvdBase): MaybePromise<number | undefined>;
+    getByteWidth?(ref: ScvdNode): MaybePromise<number | undefined>;
 
     /** Optional: provide an element model (prototype/type) for array-ish refs. */
-    getElementRef?(ref: ScvdBase): MaybePromise<ScvdBase | undefined>;
+    getElementRef?(ref: ScvdNode): MaybePromise<ScvdNode | undefined>;
 
     // Optional named intrinsics
     // Note: __GetRegVal(reg) is special-cased (no container); others use the evalIntrinsic convention
@@ -172,7 +172,7 @@ export interface DataHost {
 export interface EvalContextInit {
     data: DataHost;
     /** Starting container for symbol resolution (root model). */
-    container: ScvdBase;
+    container: ScvdNode;
 }
 
 export class EvalContext {
@@ -718,7 +718,7 @@ function addByteOffset(ctx: EvalContext, bytes: number) {
     c.offsetBytes = ((c.offsetBytes ?? 0) + add);
 }
 
-async function mustRef(node: ASTNode, ctx: EvalContext, forWrite = false): Promise<ScvdBase> {
+async function mustRef(node: ASTNode, ctx: EvalContext, forWrite = false): Promise<ScvdNode> {
     switch (node.kind) {
         case 'Identifier': {
             const id = node as Identifier;
@@ -1368,12 +1368,12 @@ function normalizeEvaluateResult(v: EvalValue): EvaluateResult {
     return undefined;
 }
 
-export async function evaluateParseResult(pr: ParseResult, ctx: EvalContext, container?: ScvdBase): Promise<EvaluateResult> {
+export async function evaluateParseResult(pr: ParseResult, ctx: EvalContext, container?: ScvdNode): Promise<EvaluateResult> {
     const prevBase = ctx.container.base;
     const saved = { ...ctx.container } as RefContainer;
     const override = container !== undefined;
     if (override) {
-        ctx.container.base = container as ScvdBase;
+        ctx.container.base = container as ScvdNode;
     }
     try {
         const v = await evalNode(pr.ast, ctx);

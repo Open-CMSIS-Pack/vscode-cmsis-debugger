@@ -16,15 +16,15 @@
 
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
-import { ScvdBase } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { ScvdPrintExpression } from './scvd-print-expression';
 
-export class ScvdValueOutput extends ScvdBase {
+export class ScvdValueOutput extends ScvdNode {
     private _expression: ScvdPrintExpression | undefined;
     private _scvdVarName: string = 'valueOutput';
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
         expression: string,
         scvdVarName: string,
     ) {
@@ -45,7 +45,7 @@ export class ScvdValueOutput extends ScvdBase {
         this._expression.expression = value;
     }
 
-    public async getGuiName(): Promise<string | undefined> {
+    public override async getGuiName(): Promise<string | undefined> {
         const expression = this.expression;
         if (expression === undefined) {
             return undefined;
@@ -53,7 +53,7 @@ export class ScvdValueOutput extends ScvdBase {
         return await expression.getResultString();
     }
 
-    public async getGuiValue(): Promise<string | undefined> {
+    public override async getGuiValue(): Promise<string | undefined> {
         const expression = this.expression;
         if (expression === undefined) {
             return undefined;

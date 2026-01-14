@@ -17,20 +17,21 @@
 // /component_viewer/component
 // https://arm-software.github.io/CMSIS-View/main/elem_component.html
 
-import { Json, ScvdBase } from './scvd-base';
+import { Json } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { getStringFromJson } from './scvd-utils';
 
-export class ScvdComponentIdentifier extends ScvdBase {
+export class ScvdComponentIdentifier extends ScvdNode {
     private _version: string | undefined;
     private _shortName: string | undefined;
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
     ) {
         super(parent);
     }
 
-    public readXml(xml: Json): boolean {
+    public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }

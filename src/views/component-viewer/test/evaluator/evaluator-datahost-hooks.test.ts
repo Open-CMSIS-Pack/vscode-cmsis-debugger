@@ -17,10 +17,10 @@
 
 import { EvalContext, evaluateParseResult, type DataHost, type RefContainer, type EvalValue } from '../../evaluator';
 import { parseExpression } from '../../parser';
-import { ScvdBase } from '../../model/scvd-base';
+import { ScvdNode } from '../../model/scvd-node';
 
-class BasicRef extends ScvdBase {
-    constructor(parent?: ScvdBase) {
+class BasicRef extends ScvdNode {
+    constructor(parent?: ScvdNode) {
         super(parent);
     }
 }

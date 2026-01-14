@@ -20,11 +20,11 @@
 import { parseExpression, ParseResult } from '../parser';
 import {  evaluateParseResult, EvaluateResult } from '../evaluator';
 
-import { ScvdBase } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { ExecutionContext } from '../scvd-eval-context';
 
 
-export class ScvdExpression extends ScvdBase {
+export class ScvdExpression extends ScvdNode {
     private _expression: string | undefined;
     private _scvdVarName: string | undefined;
     private _expressionAst: ParseResult | undefined;
@@ -32,7 +32,7 @@ export class ScvdExpression extends ScvdBase {
     private _executionContext: ExecutionContext | undefined;
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
         expression: string | undefined,
         scvdVarName: string,
         isPrintExpression?: boolean,
@@ -79,7 +79,7 @@ export class ScvdExpression extends ScvdBase {
         return evaluateParseResult(this.expressionAst, this._executionContext.evalContext);
     }
 
-    public async getValue(): Promise<EvaluateResult> {
+    public override async getValue(): Promise<EvaluateResult> {
         return this.evaluate();
     }
 
@@ -128,16 +128,16 @@ export class ScvdExpression extends ScvdBase {
         return true;
     }
 
-    public configure(): boolean {
+    public override configure(): boolean {
         this.parseExpression();
         return super.configure();
     }
 
-    public setExecutionContext(_executionContext: ExecutionContext) {
+    public override setExecutionContext(_executionContext: ExecutionContext) {
         this._executionContext = _executionContext;
     }
 
-    public validate(prevResult: boolean): boolean {
+    public override validate(prevResult: boolean): boolean {
         const expression = this.expression;
         if (expression === undefined) {
             console.error(this.getLineInfoStr(), 'Expression is empty.');

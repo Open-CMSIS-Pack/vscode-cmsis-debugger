@@ -17,17 +17,17 @@
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
 import { ExecutionContext } from '../scvd-eval-context';
-import { ScvdBase } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { MemberInfo } from '../scvd-debug-target';
 
-export class ScvdSymbol extends ScvdBase {
+export class ScvdSymbol extends ScvdNode {
     private _symbol: string | undefined;
     private _executionContext: ExecutionContext | undefined;
     private _address: number | undefined;
     private _memberInfo: MemberInfo[] = [];
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
         value: string,
     ) {
         super(parent);
@@ -80,7 +80,7 @@ export class ScvdSymbol extends ScvdBase {
         return memberInfo?.offset;
     }
 
-    public setExecutionContext(executionContext: ExecutionContext) {
+    public override setExecutionContext(executionContext: ExecutionContext) {
         this._executionContext = executionContext;
     }
 

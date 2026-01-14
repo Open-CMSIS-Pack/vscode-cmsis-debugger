@@ -75,7 +75,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         treeItem.collapsibleState = element.hasGuiChildren()
             ? vscode.TreeItemCollapsibleState.Collapsed
             : vscode.TreeItemCollapsibleState.None;
-        // Needs fixing, getGuiValue() for ScvdBase returns 0 when undefined
+        // Needs fixing, getGuiValue() for ScvdNode returns 0 when undefined
         treeItem.description = element.getGuiValue() ?? '';
         treeItem.tooltip = element.getGuiLineInfo() ?? '';
         return treeItem;

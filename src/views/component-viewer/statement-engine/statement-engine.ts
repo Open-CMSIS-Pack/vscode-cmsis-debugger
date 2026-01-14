@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ScvdBase } from '../model/scvd-base';
+import { ScvdNode } from '../model/scvd-node';
 import { ScvdComponentViewer } from '../model/scvd-component-viewer';
 import { ScvdBreak } from '../model/scvd-break';
 import { ExecutionContext } from '../scvd-eval-context';
@@ -58,7 +58,7 @@ export class StatementEngine {
         return this._executionContext;
     }
 
-    private buildStatement(item: ScvdBase, parent: StatementBase | undefined) : StatementBase | undefined {
+    private buildStatement(item: ScvdNode, parent: StatementBase | undefined) : StatementBase | undefined {
         const ctorName = item.constructor?.name;
 
         switch (ctorName) {
@@ -101,7 +101,7 @@ export class StatementEngine {
         }
     }
 
-    public addChildrenFromScvd(item: ScvdBase, parent: StatementBase | undefined): StatementBase | undefined {
+    public addChildrenFromScvd(item: ScvdNode, parent: StatementBase | undefined): StatementBase | undefined {
 
         const statement = this.buildStatement(item, parent);
         if (statement === undefined) {
