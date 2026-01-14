@@ -135,12 +135,12 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
 
     it('formats %x (hex)', async () => {
         const out = await scvd.formatPrintf('x', 0x1a, makeContainer('uint32_t'));
-        expect(out).toBe('0x0000001a');
+        expect(out).toBe('0x1a');
     });
 
     it('truncates floats for %x', async () => {
         const out = await scvd.formatPrintf('x', 7.9, makeContainer('int32_t'));
-        expect(out).toBe('0x00000007');
+        expect(out).toBe('0x7');
     });
 
     it('formats %x (hex) for 64-bit values (no NaN)', async () => {
@@ -202,7 +202,7 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
 
     it('formats %T as hex for integer types', async () => {
         const out = await scvd.formatPrintf('T', 26, makeContainer('uint32_t'));
-        expect(out).toBe('0x0000001a');
+        expect(out).toBe('0x1a');
     });
 
     it('formats %U (wide string)', async () => {
@@ -225,7 +225,7 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
         const arrayLike = new FakeBase('uint8_t');
         arrayLike.getArraySize = async () => 16;
         const out = await scvd.formatPrintf('x', 0xAB, makeContainer(undefined, arrayLike));
-        expect(out).toBe('0x000000ab');
+        expect(out).toBe('0xab');
     });
 
     it('forces 32-bit padding for _addr members', async () => {
@@ -234,7 +234,7 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
         // even with odd target size, padding should be 32-bit
         addrLike.getTargetSize = () => 1;
         const out = await scvd.formatPrintf('x', 0x1, makeContainer(undefined, addrLike));
-        expect(out).toBe('0x00000001');
+        expect(out).toBe('0x1');
     });
 });
 
@@ -249,15 +249,15 @@ describe('ScvdFormatSpecifier number output sample (CMSIS spec)', () => {
         expect(f('d', 0x46, 'uint', 32)).toBe('70');
         expect(f('d', BigInt('0xFF12001612'), 'uint', 64)).toBe('1095518656018');
 
-        expect(f('x', 1, 'uint', 8)).toBe('0x01');
-        expect(f('x', 0x2, 'uint', 16)).toBe('0x0002');
-        expect(f('x', 0x46, 'uint', 32)).toBe('0x00000046');
-        expect(f('x', BigInt('0xFF12001612'), 'uint', 64)).toBe('0x000000ff12001612');
+        expect(f('x', 1, 'uint', 8)).toBe('0x1');
+        expect(f('x', 0x2, 'uint', 16)).toBe('0x2');
+        expect(f('x', 0x46, 'uint', 32)).toBe('0x46');
+        expect(f('x', BigInt('0xFF12001612'), 'uint', 64)).toBe('0xff12001612');
 
-        expect(f('T', 1, 'uint', 8)).toBe('0x01');
-        expect(f('T', 0x2, 'uint', 16)).toBe('0x0002');
-        expect(f('T', 0x46, 'uint', 32)).toBe('0x00000046');
-        expect(f('T', BigInt('0xFF12001612'), 'uint', 64)).toBe('0x000000ff12001612');
+        expect(f('T', 1, 'uint', 8)).toBe('0x1');
+        expect(f('T', 0x2, 'uint', 16)).toBe('0x2');
+        expect(f('T', 0x46, 'uint', 32)).toBe('0x46');
+        expect(f('T', BigInt('0xFF12001612'), 'uint', 64)).toBe('0xff12001612');
     });
 
     it('signed integers (%d/%x/%T)', () => {
@@ -266,23 +266,23 @@ describe('ScvdFormatSpecifier number output sample (CMSIS spec)', () => {
         expect(f('d', 46, 'int', 32)).toBe('46');
         expect(f('d', -6899123456, 'int', 64)).toBe('-6899123456');
 
-        expect(f('x', 1, 'int', 8)).toBe('0x01');
+        expect(f('x', 1, 'int', 8)).toBe('0x1');
         expect(f('x', -2, 'int', 16)).toBe('0xfffffffe');
-        expect(f('x', 46, 'int', 32)).toBe('0x0000002e');
-        expect(f('x', -6899123456, 'int', 64)).toBe('0x0000000064c7bb00');
+        expect(f('x', 46, 'int', 32)).toBe('0x2e');
+        expect(f('x', -6899123456, 'int', 64)).toBe('0x64c7bb00');
 
-        expect(f('T', 1, 'int', 8)).toBe('0x01');
+        expect(f('T', 1, 'int', 8)).toBe('0x1');
         expect(f('T', -2, 'int', 16)).toBe('0xfffffffe');
-        expect(f('T', 46, 'int', 32)).toBe('0x0000002e');
-        expect(f('T', -6899123456, 'int', 64)).toBe('0x0000000064c7bb00');
+        expect(f('T', 46, 'int', 32)).toBe('0x2e');
+        expect(f('T', -6899123456, 'int', 64)).toBe('0x64c7bb00');
     });
 
     it('floating point (%d/%x/%T)', () => {
         expect(f('d', 3.14156, 'float', 32)).toBe('3');
         expect(f('d', 15300.6711123, 'float', 64)).toBe('15300');
 
-        expect(f('x', 3.14156, 'float', 32)).toBe('0x00000003');
-        expect(f('x', 15300.6711123, 'float', 64)).toBe('0x0000000000003bc4');
+        expect(f('x', 3.14156, 'float', 32)).toBe('0x3');
+        expect(f('x', 15300.6711123, 'float', 64)).toBe('0x3bc4');
 
         expect(f('T', 3.14156, 'float', 32)).toBe('3.142');
         expect(f('T', 15300.6711123, 'float', 64)).toBe('15300.7');

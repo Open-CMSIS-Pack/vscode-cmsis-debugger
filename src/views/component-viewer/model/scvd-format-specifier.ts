@@ -18,6 +18,17 @@ import { NumberType, NumFormat } from './number-type';
 
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
+
+/*  Note:
+    Question 1 (HEX display of float):
+    What should be the expected behavior for displaying float32 and float64 values in hexadecimal format? Should they be shown as truncated unsigned integers (UINT) or in their raw IEEE representation?
+    A: show as truncated integers
+
+    Question 2 (0x000... padding):
+    What should be the maximum padding size for HEX zeros (0x000...<num>): 32 or 64?
+    A: show the value without padding zeros, i.e. 0x3, 0x3bc4
+*/
+
 export type FormatKind = 'int' | 'uint' | 'float' | 'unknown';
 export interface FormatTypeInfo {
     kind: FormatKind;
@@ -28,6 +39,7 @@ export interface FormatOptions {
     typeInfo?: FormatTypeInfo;
     enumText?: string;
     allowUnknownSpec?: boolean;
+    padHex?: boolean;
 }
 
 export class ScvdFormatSpecifier {
@@ -121,6 +133,7 @@ export class ScvdFormatSpecifier {
     public format(spec: string, value: unknown, options?: FormatOptions): string {
         const typeInfo = options?.typeInfo;
         const enumText = options?.enumText;
+        const padHex = options?.padHex ?? false;
 
         const toNumeric = (v: unknown): number | bigint => {
             if (typeof v === 'number' || typeof v === 'bigint') {
@@ -166,7 +179,7 @@ export class ScvdFormatSpecifier {
                 if (typeof n === 'number' && (typeInfo?.kind ?? 'unknown') !== 'float') {
                     n = Math.trunc(n);
                 }
-                return this.formatHex(n, typeInfo);
+                return this.format_x(n, typeInfo, padHex);
             }
             case 't': {
                 if (typeof value === 'string') {
@@ -220,7 +233,7 @@ export class ScvdFormatSpecifier {
                 return this.format_M(value as number | string);
             }
             case 'T': {
-                return this.format_T(value, typeInfo);
+                return this.format_T(value, typeInfo, padHex);
             }
             case 'U': {
                 if (value instanceof Uint8Array) {
@@ -240,12 +253,12 @@ export class ScvdFormatSpecifier {
         }
     }
 
-    public formatHex(value: number | bigint, bitsOrTypeInfo?: number | FormatTypeInfo): string {
+    public formatHex(value: number | bigint, bitsOrTypeInfo?: number | FormatTypeInfo, padZeroes: boolean = false): string {
         const bits = typeof bitsOrTypeInfo === 'number' ? bitsOrTypeInfo : bitsOrTypeInfo?.bits;
 
         if (typeof value === 'bigint') {
             const widthRaw = bits ? Math.ceil(bits / 4) : 0;
-            const width = widthRaw > 0 ? Math.min(widthRaw, 16) : 0;
+            const width = padZeroes && widthRaw > 0 ? Math.min(widthRaw, 16) : 0;
             const hex = value.toString(16);
             const padded = width > 0 ? hex.padStart(width, '0') : hex;
             return '0x' + padded;
@@ -255,7 +268,7 @@ export class ScvdFormatSpecifier {
             return `${value}`;
         }
         const widthRaw = bits ? Math.ceil(bits / 4) : 0;
-        const width = widthRaw > 0 ? Math.min(widthRaw, 16) : 0; // cap padding to 64-bit to avoid runaway zeros
+        const width = padZeroes && widthRaw > 0 ? Math.min(widthRaw, 16) : 0; // cap padding to 64-bit to avoid runaway zeros
         const hex = (n >>> 0).toString(16);
         const padded = width > 0 ? hex.padStart(width, '0') : hex;
         return '0x' + padded;
@@ -311,15 +324,15 @@ export class ScvdFormatSpecifier {
         return String(value);
     }
 
-    public format_x(value: number | string | bigint): string {
+    public format_x(value: number | string | bigint, typeInfo?: FormatTypeInfo, padZeroes: boolean = false): string {
         if (typeof value === 'bigint') {
-            return this.formatHex(value);
+            return this.formatHex(value, typeInfo, padZeroes);
         }
         const n = Number(value);
         if (!Number.isFinite(n)) {
             return `${value}`;
         }
-        return '0x' + (n >>> 0).toString(16);
+        return this.formatHex(n, typeInfo, padZeroes);
     }
 
     public format_address_like(value: number | string): string {
@@ -396,7 +409,7 @@ export class ScvdFormatSpecifier {
         return parts.join('-').toUpperCase();
     }
 
-    public format_T(value: unknown, typeInfo?: FormatTypeInfo): string {
+    public format_T(value: unknown, typeInfo?: FormatTypeInfo, padZeroes: boolean = false): string {
         // Spec: Value in format derived from expression type (hexadecimal or floating number)
         const asNumeric = (v: unknown): number | bigint | undefined => {
             if (typeof v === 'number' || typeof v === 'bigint') {
@@ -431,7 +444,7 @@ export class ScvdFormatSpecifier {
         const bits = typeInfo?.bits;
         const paddedBits = bits && bits > 0 ? bits : undefined;
         const v = typeof n === 'number' ? Math.trunc(n) : n;
-        return this.formatHex(v, paddedBits);
+        return this.formatHex(v, paddedBits, padZeroes);
     }
 
     public format_percent(): string {
