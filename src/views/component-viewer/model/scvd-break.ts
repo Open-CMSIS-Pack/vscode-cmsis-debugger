@@ -17,6 +17,7 @@
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
 import { Json } from './scvd-base';
+import { ScvdCondition } from './scvd-condition';
 import { ScvdNode } from './scvd-node';
 import { getArrayFromJson } from './scvd-utils';
 
@@ -55,6 +56,8 @@ export class ScvdBreaks extends ScvdNode {
 
 
 export class ScvdBreak extends ScvdNode {
+    private _cond: ScvdCondition | undefined;
+
 
     constructor(
         parent: ScvdNode | undefined,
@@ -70,6 +73,25 @@ export class ScvdBreak extends ScvdNode {
         this.break();
         return super.readXml(xml);
     }
+
+    public set cond(value: string | undefined) {
+        if (value !== undefined) {
+            this._cond = new ScvdCondition(this, value);
+            return;
+        }
+    }
+
+    public get cond(): ScvdCondition | undefined {
+        return this._cond;
+    }
+
+    public override async getConditionResult(): Promise<boolean> {
+        if (this._cond) {
+            return await this._cond.getResult();
+        }
+        return super.getConditionResult();
+    }
+
 
     private break(): void {
     }
