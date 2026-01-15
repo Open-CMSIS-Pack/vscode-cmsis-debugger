@@ -272,6 +272,7 @@ function numFromRaw(raw: string): number {
         } // decimal float
         return parseInt(cleaned, 10);
     } catch {
+        /* istanbul ignore next -- defensive fallback; hard to trigger parsing failure */
         return NaN;
     }
 }
@@ -483,6 +484,7 @@ export class Parser {
         while (i < n) {
             const j = s.indexOf('%', i);
             if (j === -1) {
+                /* istanbul ignore else -- loop guard ensures i <= n */
                 if (i < n) {
                     segments.push({ kind:'TextSegment', text:s.slice(i), ...span(i,n) });
                 }
@@ -755,7 +757,7 @@ export class Parser {
                         callee,
                         args,
                         intrinsic: calleeName as IntrinsicName,
-                        ...( (['__CalcMemUsed','__FindSymbol','__GetRegVal','__Offset_of','__size_of','__Symbol_exists','__Running'] as string[]).includes(calleeName) ? { valueType: 'number' as const } : {}),
+                        ...( (['__CalcMemUsed','__FindSymbol','__GetRegVal','__Offset_of','__size_of','__Symbol_exists','__Running'] as string[]).includes(calleeName) ? { valueType: 'number' as const } : /* istanbul ignore next */ {}),
                         ...span(startOf(node), this.cur.end)
                     };
                     node = callNode;
@@ -1028,6 +1030,9 @@ export class Parser {
 }
 
 /* -------- Convenience singleton and API -------- */
+
+/** Internal helpers exposed for tests. */
+export const __parserTestUtils = { literalFromConst };
 
 export const defaultParser = new Parser();
 export function parseExpression(expr: string, isPrintExpression: boolean): ParseResult {

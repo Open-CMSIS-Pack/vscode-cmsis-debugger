@@ -59,7 +59,7 @@ describe('ScvdEvalInterface', () => {
         expect(await host.__FindSymbol('foo')).toBe(0x1234);
         expect(await host.__GetRegVal('r0')).toBe(7);
         expect(await host.__Symbol_exists('foo')).toBe(1);
-        expect(host.__CalcMemUsed(1, 2, 3, 4)).toBe(0xabcd);
+        expect(await host.__CalcMemUsed(1, 2, 3, 4)).toBe(0xabcd);
         expect(await host.__size_of('arr')).toBe(3);
         expect(await host.__Running()).toBe(1);
     });

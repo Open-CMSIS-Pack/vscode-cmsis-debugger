@@ -40,6 +40,10 @@ export abstract class ScvdBase {
     private _valid = false;
     private _mustRead = true;
 
+    public static resetIds(): void {
+        ScvdBase._idNext = 0;
+    }
+
     constructor(parent: ScvdBase | undefined) {
         this._nodeId = ++ScvdBase._idNext;
 

@@ -33,9 +33,9 @@ export class StatementPrint extends StatementBase {
             return;
         }
 
-        const childGuiTree = new ScvdGuiTree(guiTree, this.scvdItem.nodeId);
         const guiName = await this.scvdItem.getGuiName();
         const guiValue = await this.scvdItem.getGuiValue();
+        const childGuiTree = this.getOrCreateGuiChild(guiTree, guiName, this.scvdItem.nodeId);
         childGuiTree.setGuiName(guiName);
         childGuiTree.setGuiValue(guiValue);
         childGuiTree.isPrint = true;

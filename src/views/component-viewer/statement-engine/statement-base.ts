@@ -30,6 +30,7 @@ export class StatementBase {
     private _parent: StatementBase | undefined;
     private _children: StatementBase[] = [];
     private _scvdItem: ScvdNode;
+    private static readonly unnamedPrefix = 'Unnamed';
 
     constructor(
         item: ScvdNode, parent: StatementBase | undefined
@@ -80,6 +81,11 @@ export class StatementBase {
         for (const child of this._children) {
             child.sortChildren();
         }
+    }
+
+    protected getOrCreateGuiChild(guiTree: ScvdGuiTree, guiName: string | undefined, nodeId?: string): ScvdGuiTree {
+        const key = guiName ?? `${StatementBase.unnamedPrefix}:${this.scvdItem.constructor?.name}:${this.line}`;
+        return guiTree.getOrCreateChild(key, nodeId);
     }
 
     public async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
