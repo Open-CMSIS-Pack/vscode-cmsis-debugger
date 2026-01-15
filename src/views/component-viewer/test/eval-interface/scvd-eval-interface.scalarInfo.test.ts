@@ -1,6 +1,21 @@
 /**
+ * Copyright 2026 Arm Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
  * Tests for scalar info derivation (padding/bit-width) in ScvdEvalInterface.
  */
+// generated with AI
 
 import { ScvdEvalInterface } from '../../scvd-eval-interface';
 import { FormatTypeInfo } from '../../model/scvd-format-specifier';
@@ -9,9 +24,9 @@ import { RefContainer } from '../../evaluator';
 import { MemoryHost } from '../../data-host/memory-host';
 import { RegisterHost } from '../../data-host/register-host';
 import { ScvdDebugTarget } from '../../scvd-debug-target';
-import { ScvdBase } from '../../model/scvd-base';
+import { ScvdNode } from '../../model/scvd-node';
 
-class ScalarBase extends ScvdBase {
+class ScalarBase extends ScvdNode {
     constructor(private readonly typeName?: string, private readonly size?: number, private readonly arrayCount?: number) {
         super(undefined);
     }

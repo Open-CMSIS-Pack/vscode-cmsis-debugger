@@ -17,7 +17,8 @@
 // https://arm-software.github.io/CMSIS-View/main/elem_objects.html
 
 import { ScvdCalc } from './scvd-calc';
-import { Json, ScvdBase } from './scvd-base';
+import { Json } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { ScvdList } from './scvd-list';
 import { ScvdOut } from './scvd-out';
 import { ScvdRead } from './scvd-read';
@@ -25,20 +26,20 @@ import { ScvdReadList } from './scvd-readlist';
 import { ScvdVar } from './scvd-var';
 import { getArrayFromJson } from './scvd-utils';
 
-export class ScvdObjects extends ScvdBase {
+export class ScvdObjects extends ScvdNode {
     private _objects: ScvdObject[] = [];
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
     ) {
         super(parent);
     }
 
-    public readXml(xml: Json): boolean {
+    public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
-        const objects = getArrayFromJson(xml.object);
+        const objects = getArrayFromJson<Json>(xml.object);
         objects?.forEach( (v: Json) => {
             const object = this.addObject();
             object.readXml(v);
@@ -58,66 +59,66 @@ export class ScvdObjects extends ScvdBase {
     }
 
     // currently no global context above object level
-    public getSymbol(_name: string): ScvdBase | undefined {
+    public override getSymbol(_name: string): ScvdNode | undefined {
         return undefined;
     }
 
 }
 
-export class ScvdObject extends ScvdBase {
+export class ScvdObject extends ScvdNode {
     private _var: ScvdVar[] = [];
     private _calc: ScvdCalc[] = [];
     private _list: ScvdList[] = [];
     private _read: ScvdRead[] = [];
     private _readList: ScvdReadList[] = [];
     private _out: ScvdOut[] = [];
-    private _symbolContext: Map<string, ScvdBase> = new Map<string, ScvdBase>();
+    private _symbolContext: Map<string, ScvdNode> = new Map<string, ScvdNode>();
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
     ) {
         super(parent);
     }
 
-    public readXml(xml: Json): boolean {
+    public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
 
-        const vars = getArrayFromJson(xml?.var);
+        const vars = getArrayFromJson<Json>(xml?.var);
         vars?.forEach( (v: Json) => {
             const varItem = this.addVar();
             varItem.readXml(v);
             this.addToSymbolContext(varItem.name, varItem);
         });
 
-        const calcs = getArrayFromJson(xml?.calc);
+        const calcs = getArrayFromJson<Json>(xml?.calc);
         calcs?.forEach( (c: Json) => {
             const calcItem = this.addCalc();
             calcItem.readXml(c);
         });
 
-        const lists = getArrayFromJson(xml?.list);
+        const lists = getArrayFromJson<Json>(xml?.list);
         lists?.forEach( (l: Json) => {
             const listItem = this.addList();
             listItem.readXml(l);
         });
 
-        const reads = getArrayFromJson(xml?.read);
+        const reads = getArrayFromJson<Json>(xml?.read);
         reads?.forEach( (r: Json) => {
             const readItem = this.addRead();
             readItem.readXml(r);
             this.addToSymbolContext(readItem.name, readItem);
         });
 
-        const readLists = getArrayFromJson(xml?.readlist);
+        const readLists = getArrayFromJson<Json>(xml?.readlist);
         readLists?.forEach( (rl: Json) => {
             const readListItem = this.addReadList();
             readListItem.readXml(rl);
             this.addToSymbolContext(readListItem.name, readListItem);
         });
 
-        const outs = getArrayFromJson(xml?.out);
+        const outs = getArrayFromJson<Json>(xml?.out);
         outs?.forEach( (o: Json) => {
             const outItem = this.addOut();
             outItem.readXml(o);
@@ -146,18 +147,18 @@ export class ScvdObject extends ScvdBase {
         return this._out;
     }
 
-    public get symbolContext(): Map<string, ScvdBase> {
+    public get symbolContext(): Map<string, ScvdNode> {
         return this._symbolContext;
     }
 
-    public addToSymbolContext(name: string | undefined, symbol: ScvdBase): void {
+    public override addToSymbolContext(name: string | undefined, symbol: ScvdNode): void {
         if (name !== undefined && this.symbolContext.has(name) === false) {
             this.symbolContext.set(name, symbol);
         }
     }
 
     // all symbols are stored in object context, except vars in typedefs
-    public getSymbol(name: string): ScvdBase | undefined {
+    public override getSymbol(name: string): ScvdNode | undefined {
         const symbol = this.symbolContext.get(name);
         return symbol;
     }

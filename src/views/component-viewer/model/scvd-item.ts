@@ -16,14 +16,15 @@
 
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
-import { Json, ScvdBase } from './scvd-base';
+import { Json } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { ScvdPrint } from './scvd-print';
 import { ScvdValueOutput } from './scvd-value-output';
 import { ScvdCondition } from './scvd-condition';
 import { getArrayFromJson, getStringFromJson } from './scvd-utils';
 import { ScvdListOut } from './scvd-list-out';
 
-export class ScvdItem extends ScvdBase {
+export class ScvdItem extends ScvdNode {
     private _property: ScvdValueOutput | undefined;
     private _value: ScvdValueOutput | undefined;
     private _cond: ScvdCondition | undefined;
@@ -34,7 +35,7 @@ export class ScvdItem extends ScvdBase {
     private _print: ScvdPrint[] = []; // Array of child prints
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
         cond?: string, // = '1',
         bold?: string, // = '0',
         alert?: string, // = '0',
@@ -51,7 +52,7 @@ export class ScvdItem extends ScvdBase {
         }
     }
 
-    public readXml(xml: Json): boolean {
+    public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
@@ -62,19 +63,19 @@ export class ScvdItem extends ScvdBase {
         this.bold = getStringFromJson(xml.bold);
         this.alert = getStringFromJson(xml.alert);
 
-        const item = getArrayFromJson(xml.item);
+        const item = getArrayFromJson<Json>(xml.item);
         item?.forEach( (v: Json) => {
             const newItem = this.addItem();
             newItem.readXml(v);
         });
 
-        const listOut = getArrayFromJson(xml.list);
+        const listOut = getArrayFromJson<Json>(xml.list);
         listOut?.forEach( (v: Json) => {
             const newListOut = this.addListOut();
             newListOut.readXml(v);
         });
 
-        const print = getArrayFromJson(xml.print);
+        const print = getArrayFromJson<Json>(xml.print);
         print?.forEach( (v: Json) => {
             const printItem = this.addPrint();
             printItem.readXml(v);
@@ -114,7 +115,7 @@ export class ScvdItem extends ScvdBase {
         }
     }
 
-    public async getConditionResult(): Promise<boolean> {
+    public override async getConditionResult(): Promise<boolean> {
         if (this._cond) {
             return await this._cond.getResult();
         }
@@ -171,7 +172,7 @@ export class ScvdItem extends ScvdBase {
         return item;
     }
 
-    public async getGuiName(): Promise<string | undefined> {
+    public override async getGuiName(): Promise<string | undefined> {
         if (this.property === undefined) {
             return undefined;
         }
@@ -190,7 +191,7 @@ export class ScvdItem extends ScvdBase {
         return this.item.length > 0 || this.listOut.length > 0 || this.print.length > 0;
     }
 
-    public async getGuiValue(): Promise<string | undefined> {
+    public override async getGuiValue(): Promise<string | undefined> {
         if (this.value === undefined) {
             return undefined;
         }

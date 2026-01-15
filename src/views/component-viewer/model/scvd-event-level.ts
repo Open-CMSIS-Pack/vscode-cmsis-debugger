@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ScvdBase } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
@@ -39,11 +39,11 @@ export const EventLevelReverseMap: Map<EventLevel, string> = new Map([
     [EventLevel.EventLevelDetail, 'Detail'],
 ]);
 
-export class ScvdEventLevel extends ScvdBase {
+export class ScvdEventLevel extends ScvdNode {
     private _level: EventLevel | undefined;
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
         level: string,
     ) {
         super(parent);

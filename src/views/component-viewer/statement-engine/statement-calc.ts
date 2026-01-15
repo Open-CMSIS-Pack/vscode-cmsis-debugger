@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ScvdBase } from '../model/scvd-base';
+import { ScvdNode } from '../model/scvd-node';
 import { ScvdCalc } from '../model/scvd-calc';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
@@ -23,11 +23,11 @@ import { StatementBase } from './statement-base';
 
 export class StatementCalc extends StatementBase {
 
-    constructor(item: ScvdBase, parent: StatementBase | undefined) {
+    constructor(item: ScvdNode, parent: StatementBase | undefined) {
         super(item, parent);
     }
 
-    protected async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
+    protected override async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
         const calcItem = this.scvdItem.castToDerived(ScvdCalc);
         if (!calcItem) {
             console.error(`${this.line}: Executing "calc": could not cast to ScvdCalc`);
@@ -37,8 +37,7 @@ export class StatementCalc extends StatementBase {
 
         const expressions = calcItem.expression;
         for (const expr of expressions) {
-            expr.invalidate();
-            await expr.evaluateOnly();
+            await expr.evaluate();
             //const value = await expr.getValue();
             //console.log(`${this.line} Executing "calc": ${expr.expression}, value: ${value}`);
         }

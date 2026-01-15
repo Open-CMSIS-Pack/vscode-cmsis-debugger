@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ScvdBase } from '../model/scvd-base';
+import { ScvdNode } from '../model/scvd-node';
 import { ScvdReadList } from '../model/scvd-readlist';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
@@ -23,11 +23,11 @@ import { StatementBase } from './statement-base';
 
 export class StatementReadList extends StatementBase {
 
-    constructor(item: ScvdBase, parent: StatementBase | undefined) {
+    constructor(item: ScvdNode, parent: StatementBase | undefined) {
         super(item, parent);
     }
 
-    protected async onExecute(executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
+    protected override async onExecute(executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
         const mustRead = this.scvdItem.mustRead;
         if (mustRead === false) {
             //console.log(`${this.scvdItem.getLineNoStr()}: Skipping "read" as already initialized: ${this.scvdItem.name}`);
@@ -88,7 +88,15 @@ export class StatementReadList extends StatementBase {
         // Add offset to base address. If no symbol defined, offset is used as base address
         const offset = scvdReadList.offset ? await scvdReadList.offset.getValue() : undefined; // Offset is attr: size plus var symbols!
         if (offset !== undefined) {
-            const offs = typeof offset === 'bigint' ? offset : BigInt(offset | 0);
+            let offs: bigint | undefined;
+            if (typeof offset === 'bigint') {
+                offs = offset;
+            } else if (typeof offset === 'number') {
+                offs = BigInt(Math.trunc(offset));
+            } else {
+                console.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, offset is not numeric`);
+                return;
+            }
             baseAddress = baseAddress !== undefined
                 ? (typeof baseAddress === 'bigint' ? baseAddress + offs : (BigInt(baseAddress >>> 0) + offs))
                 : offs;

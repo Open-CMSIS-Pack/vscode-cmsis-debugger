@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ScvdBase } from './model/scvd-base';
+import { ScvdNode } from './model/scvd-node';
 import { ScvdComponentViewer } from './model/scvd-component-viewer';
 import { ScvdTypedef } from './model/scvd-typedef';
 
@@ -24,7 +24,7 @@ import { ScvdTypedef } from './model/scvd-typedef';
 
 export class ScvdTypesCache {
     private _model: ScvdComponentViewer | undefined;
-    private typesCache: Map<string, ScvdBase> = new Map<string, ScvdBase>();
+    private typesCache: Map<string, ScvdNode> = new Map<string, ScvdNode>();
 
     constructor(
         model: ScvdComponentViewer,

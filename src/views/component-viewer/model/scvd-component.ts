@@ -18,23 +18,24 @@
 // https://arm-software.github.io/CMSIS-View/main/elem_events.html
 
 import { NumberType, NumberTypeInput } from './number-type';
-import { Json, ScvdBase } from './scvd-base';
+import { Json } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { ScvdEventState } from './scvd-event-state';
 import { getArrayFromJson, getStringFromJson } from './scvd-utils';
 
-export class ScvdComponent extends ScvdBase {
+export class ScvdComponent extends ScvdNode {
     private _brief: string | undefined;
     private _no: number | undefined;
     private _prefix: string | undefined; // hyperlink
     private _state: ScvdEventState[] = [];
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
     ) {
         super(parent);
     }
 
-    public readXml(xml: Json): boolean {
+    public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
@@ -43,7 +44,7 @@ export class ScvdComponent extends ScvdBase {
         this.no = getStringFromJson(xml.no);
         this.prefix = getStringFromJson(xml.prefix);
 
-        const states = getArrayFromJson(xml.state);
+        const states = getArrayFromJson<Json>(xml.state);
         states?.forEach( (v: Json) => {
             const newState = this.addState();
             newState.readXml(v);

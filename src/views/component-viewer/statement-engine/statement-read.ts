@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ScvdBase } from '../model/scvd-base';
+import { ScvdNode } from '../model/scvd-node';
 import { ScvdRead } from '../model/scvd-read';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
@@ -23,11 +23,11 @@ import { StatementBase } from './statement-base';
 
 export class StatementRead extends StatementBase {
 
-    constructor(item: ScvdBase, parent: StatementBase | undefined) {
+    constructor(item: ScvdNode, parent: StatementBase | undefined) {
         super(item, parent);
     }
 
-    protected async onExecute(executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
+    protected override async onExecute(executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
         //console.log(`${this.line}: Executing read: ${this.scvdItem.getDisplayLabel()}`);
         const mustRead = this.scvdItem.mustRead;
         if (mustRead === false) {
@@ -71,10 +71,20 @@ export class StatementRead extends StatementBase {
 
         const offset = scvdRead.offset ? await scvdRead.offset.getValue() : undefined;
         if (offset !== undefined) {
-            const offs = typeof offset === 'bigint' ? offset : BigInt(offset | 0);
-            baseAddress = baseAddress !== undefined
-                ? (typeof baseAddress === 'bigint' ? baseAddress + offs : (BigInt(baseAddress >>> 0) + offs))
-                : offs;
+            let offs: bigint | undefined;
+            if (typeof offset === 'bigint') {
+                offs = offset;
+            } else if (typeof offset === 'number') {
+                offs = BigInt(Math.trunc(offset));
+            } else {
+                console.error(`${this.line}: Executing "read": ${scvdRead.name}, offset is not numeric`);
+                return;
+            }
+            if (offs !== undefined) {
+                baseAddress = baseAddress !== undefined
+                    ? (typeof baseAddress === 'bigint' ? baseAddress + offs : (BigInt(baseAddress >>> 0) + offs))
+                    : offs;
+            }
         }
 
         if (baseAddress === undefined) {

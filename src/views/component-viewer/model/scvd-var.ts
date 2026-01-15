@@ -18,11 +18,12 @@
 
 import { ScvdDataType } from './scvd-data-type';
 import { ScvdExpression } from './scvd-expression';
-import { Json, ScvdBase } from './scvd-base';
+import { Json } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { getStringFromJson } from './scvd-utils';
 import { NumberType, NumberTypeInput } from './number-type';
 
-export class ScvdVar extends ScvdBase {
+export class ScvdVar extends ScvdNode {
     private _value: ScvdExpression | undefined;
     private _type: ScvdDataType | undefined;
     private _offset: ScvdExpression | undefined;
@@ -30,12 +31,12 @@ export class ScvdVar extends ScvdBase {
 
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
     ) {
         super(parent);
     }
 
-    public readXml(xml: Json): boolean {
+    public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
@@ -66,7 +67,7 @@ export class ScvdVar extends ScvdBase {
         }
     }
 
-    public async getValue(): Promise<number | bigint | undefined> {
+    public override async getValue(): Promise<number | bigint | undefined> {
         if (this._value === undefined) {
             return undefined;
         }
@@ -75,18 +76,6 @@ export class ScvdVar extends ScvdBase {
             return val;
         }
         return undefined;
-    }
-
-    public async setValue(val: number): Promise<number | undefined> {
-        if (this._value === undefined) {
-            return undefined;
-        }
-        const valExpr = this._value;
-        if ( valExpr === undefined) {
-            return undefined;
-        }
-        await valExpr.setValue(val);
-        return val;
     }
 
     public get type(): ScvdDataType | undefined {
@@ -102,16 +91,16 @@ export class ScvdVar extends ScvdBase {
         }
     }
 
-    public getTypeSize(): number | undefined {
+    public override getTypeSize(): number | undefined {
         return this.type?.getTypeSize();
     }
 
-    public getVirtualSize(): number | undefined {
+    public override getVirtualSize(): number | undefined {
         return this.getTargetSize();
     }
 
     // TOIMPL: total size in bytes or type size?
-    public getTargetSize(): number | undefined {
+    public override getTargetSize(): number | undefined {
         const typeSize = this.getTypeSize();
         const elements = this.size ?? 1;
         if ( typeSize !== undefined) {
@@ -120,7 +109,7 @@ export class ScvdVar extends ScvdBase {
         return elements;
     }
 
-    public getIsPointer(): boolean {
+    public override getIsPointer(): boolean {
         return this.type?.getIsPointer() ?? false;
     }
 
@@ -135,7 +124,7 @@ export class ScvdVar extends ScvdBase {
     }
 
     // member’s byte offset
-    public async getMemberOffset(): Promise<number | undefined> {
+    public override async getMemberOffset(): Promise<number | undefined> {
         const offsetExpr = this._offset;
         if (offsetExpr !== undefined) {
             const offsetValue = await offsetExpr.getValue();
@@ -148,7 +137,7 @@ export class ScvdVar extends ScvdBase {
 
 
     // search a member (member, var) in typedef
-    public getMember(_property: string): ScvdBase | undefined {
+    public override getMember(_property: string): ScvdNode | undefined {
         const type = this._type;
         if (type !== undefined) {
             const typeObj = type.getMember(_property);
@@ -157,7 +146,7 @@ export class ScvdVar extends ScvdBase {
         return undefined;
     }
 
-    public getElementRef(): ScvdBase | undefined {
+    public override getElementRef(): ScvdNode | undefined {
         const typeObj = this._type;
         if (typeObj !== undefined) {
             return typeObj;
@@ -165,7 +154,7 @@ export class ScvdVar extends ScvdBase {
         return undefined;
     }
 
-    public getValueType(): string | undefined {
+    public override getValueType(): string | undefined {
         return this.type?.getValueType();
     }
 

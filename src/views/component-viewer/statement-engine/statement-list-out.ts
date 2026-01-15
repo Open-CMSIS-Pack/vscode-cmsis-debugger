@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ScvdBase } from '../model/scvd-base';
+import { ScvdNode } from '../model/scvd-node';
 import { ScvdListOut } from '../model/scvd-list-out';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
@@ -23,11 +23,11 @@ import { StatementBase } from './statement-base';
 
 export class StatementListOut extends StatementBase {
 
-    constructor(item: ScvdBase, parent: StatementBase | undefined) {
+    constructor(item: ScvdNode, parent: StatementBase | undefined) {
         super(item, parent);
     }
 
-    public async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
+    public override async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
         const conditionResult = await this.scvdItem.getConditionResult();
         if (conditionResult === false) {
             //console.log(`${this.scvdItem.getLineNoStr()}: Skipping ${this.scvdItem.getDisplayLabel()} for condition result: ${conditionResult}`);
@@ -40,7 +40,7 @@ export class StatementListOut extends StatementBase {
         }*/
     }
 
-    protected async onExecute(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
+    protected override async onExecute(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
         const scvdList = this.scvdItem.castToDerived(ScvdListOut);
         if (scvdList === undefined) {
             console.error(`${this.line}: Executing "out-list": could not cast to ScvdList`);

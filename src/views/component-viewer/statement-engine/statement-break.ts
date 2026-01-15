@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ScvdBase } from '../model/scvd-base';
+import { ScvdNode } from '../model/scvd-node';
 import { ScvdBreak } from '../model/scvd-break';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
@@ -23,11 +23,11 @@ import { StatementBase } from './statement-base';
 
 export class StatementBreak extends StatementBase {
 
-    constructor(item: ScvdBase, parent: StatementBase | undefined) {
+    constructor(item: ScvdNode, parent: StatementBase | undefined) {
         super(item, parent);
     }
 
-    public async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
+    public override async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
         const conditionResult = await this.scvdItem.getConditionResult();
         if (conditionResult === false) {
             //console.log(`${this.scvdItem.getLineNoStr()}: Skipping ${this.scvdItem.getDisplayLabel()} for condition result: ${conditionResult}`);
@@ -36,7 +36,7 @@ export class StatementBreak extends StatementBase {
         await this.onExecute(executionContext, guiTree);
     }
 
-    protected async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
+    protected override async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
         const breakItem = this.scvdItem.castToDerived(ScvdBreak);
         if (!breakItem) {
             console.error(`${this.line}: Executing "break": could not cast to ScvdBreak`);

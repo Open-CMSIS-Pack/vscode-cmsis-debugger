@@ -19,5 +19,12 @@
         "spdx": "ISC",
         "url": "https://github.com/eemeli/yaml",
         "license": "https://github.com/eemeli/yaml/blob/main/LICENSE"
+    },
+    {
+        "name": "xml2js",
+        "version": "0.6.2",
+        "spdx": "MIT",
+        "url": "https://github.com/Leonidas-from-XIV/node-xml2js",
+        "license": "https://github.com/Leonidas-from-XIV/node-xml2js/blob/master/LICENSE"
     }
 ]

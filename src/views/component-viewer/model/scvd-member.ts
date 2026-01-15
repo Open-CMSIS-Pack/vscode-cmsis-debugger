@@ -20,24 +20,25 @@ import { NumberType, NumberTypeInput } from './number-type';
 import { ScvdDataType } from './scvd-data-type';
 import { ScvdEnum } from './scvd-enum';
 import { ScvdExpression } from './scvd-expression';
-import { Json, ScvdBase } from './scvd-base';
+import { Json } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { getArrayFromJson, getStringFromJson } from './scvd-utils';
 
 // Offset to base address in [Bytes]. Use the uVision debug dialog Symbols to find the offset. You can use Expressions.
 // For imported members, the offset is recalculated. Refer to the description of attribute import in typedef.
-export class ScvdMember extends ScvdBase {
+export class ScvdMember extends ScvdNode {
     private _type: ScvdDataType | undefined;
     private _offset: ScvdExpression | undefined;
     private _size: number | undefined;
     private _enum: ScvdEnum[] = [];
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
     ) {
         super(parent);
     }
 
-    public readXml(xml: Json): boolean {
+    public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
@@ -46,7 +47,7 @@ export class ScvdMember extends ScvdBase {
         this.offset = getStringFromJson(xml.offset);
         this.size = getStringFromJson(xml.size);
 
-        const enums = getArrayFromJson(xml.enum);
+        const enums = getArrayFromJson<Json>(xml.enum);
         enums?.forEach(enumItem => {
             const newEnum = this.addEnum();
             newEnum.readXml(enumItem);
@@ -85,20 +86,20 @@ export class ScvdMember extends ScvdBase {
         }
     }
 
-    public getTypeSize(): number | undefined {
+    public override getTypeSize(): number | undefined {
         return this._type?.getTypeSize();
     }
 
-    public getVirtualSize(): number | undefined {
+    public override getVirtualSize(): number | undefined {
         return this.getTargetSize();
     }
 
-    public getIsPointer(): boolean {
+    public override getIsPointer(): boolean {
         return this.type?.getIsPointer() ?? false;
     }
 
     // if size is set, this is the size in byte to be read from target
-    public getTargetSize(): number | undefined {
+    public override getTargetSize(): number | undefined {
         const isPointer = this.getIsPointer();
         if (isPointer) {
             return 4;   // pointer size
@@ -127,7 +128,7 @@ export class ScvdMember extends ScvdBase {
     }
 
     // search a member (member, var) in typedef
-    public getMember(_property: string): ScvdBase | undefined {
+    public override getMember(_property: string): ScvdNode | undefined {
         const type = this._type;
         if (type !== undefined) {
             const typeObj = type.getMember(_property);
@@ -137,7 +138,7 @@ export class ScvdMember extends ScvdBase {
     }
 
     // member’s byte offset
-    public async getMemberOffset(): Promise<number | undefined> {
+    public override async getMemberOffset(): Promise<number | undefined> {
         const offsetExpr = this._offset;
         if (offsetExpr !== undefined) {
             const offsetValue = await offsetExpr.getValue();
@@ -148,7 +149,7 @@ export class ScvdMember extends ScvdBase {
         return 0;   // TOIMPL: default?
     }
 
-    public isPointerRef(): boolean {
+    public override isPointerRef(): boolean {
         const type = this._type?.type;
         if (type !== undefined) {
             return type.isPointer;
@@ -156,7 +157,7 @@ export class ScvdMember extends ScvdBase {
         return false;
     }
 
-    public getValueType(): string | undefined {
+    public override getValueType(): string | undefined {
         return this.type?.getValueType();
     }
 }

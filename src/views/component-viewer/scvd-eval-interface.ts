@@ -15,7 +15,7 @@
  */
 
 import { DataHost, EvalValue, RefContainer, ScalarType } from './evaluator';
-import { ScvdBase } from './model/scvd-base';
+import { ScvdNode } from './model/scvd-node';
 import { MemoryHost } from './data-host/memory-host';
 import { RegisterHost } from './data-host/register-host';
 import { ScvdDebugTarget } from './scvd-debug-target';
@@ -161,12 +161,12 @@ export class ScvdEvalInterface implements DataHost {
     }
 
     // ---------------- DataHost Interface ----------------
-    public getSymbolRef(container: RefContainer, name: string, _forWrite?: boolean): ScvdBase | undefined {
+    public getSymbolRef(container: RefContainer, name: string, _forWrite?: boolean): ScvdNode | undefined {
         const symbol = container.base.getSymbol?.(name);
         return symbol;
     }
 
-    public getMemberRef(container: RefContainer, property: string, _forWrite?: boolean): ScvdBase | undefined {
+    public getMemberRef(container: RefContainer, property: string, _forWrite?: boolean): ScvdNode | undefined {
         const base = container.current;
         return base?.getMember(property);
     }
@@ -174,7 +174,7 @@ export class ScvdEvalInterface implements DataHost {
     // Optional helper used by the evaluator
     // Returns the byte width of a ref (scalars, structs, arrays – host-defined).
     // getTargetSize, getTypeSize, getVirtualSize
-    public async getByteWidth(ref: ScvdBase): Promise<number | undefined> {
+    public async getByteWidth(ref: ScvdNode): Promise<number | undefined> {
         const isPointer = ref.getIsPointer();
         if (isPointer) {
             return 4;   // pointer size
@@ -192,7 +192,7 @@ export class ScvdEvalInterface implements DataHost {
     /* bytes per element (including any padding/alignment inside the array layout).
        Stride only answers: “how far do I move to get from element i to i+1?”
     */
-    public getElementStride(ref: ScvdBase): number {
+    public getElementStride(ref: ScvdNode): number {
         const isPointer = ref.getIsPointer();
         if (isPointer) {
             return 4;   // pointer size
@@ -209,7 +209,7 @@ export class ScvdEvalInterface implements DataHost {
         return 0;
     }
 
-    public async getMemberOffset(_base: ScvdBase, member: ScvdBase): Promise<number | undefined> {
+    public async getMemberOffset(_base: ScvdNode, member: ScvdNode): Promise<number | undefined> {
         const offset = await member.getMemberOffset();
         if (offset === undefined) {
             console.error(`ScvdEvalInterface.getMemberOffset: offset undefined for ${member.getDisplayLabel()}`);
@@ -428,6 +428,9 @@ export class ScvdEvalInterface implements DataHost {
                 return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
             }
             case 'M': {
+                if (value instanceof Uint8Array) {
+                    return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+                }
                 if (typeof value === 'number') {
                     const buf = await this.readBytesFromPointer(value, 6);
                     return this.formatSpecifier.format(spec, buf ?? value, { typeInfo, allowUnknownSpec: true });

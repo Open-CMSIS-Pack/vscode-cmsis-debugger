@@ -16,35 +16,36 @@
 
 //
 
-import { Json, ScvdBase } from './scvd-base';
+import { Json } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { ScvdEvent } from './scvd-event';
 import { ScvdGroup } from './scvd-group';
 import { getArrayFromJson } from './scvd-utils';
 
-export class ScvdEvents extends ScvdBase {
+export class ScvdEvents extends ScvdNode {
     private _event: ScvdEvent[] = [];
     private _group: ScvdGroup[] = [];
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
     ) {
         super(parent);
     }
 
-    public readXml(xml: Json): boolean {
+    public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
 
-        const events = getArrayFromJson(xml);
+        const events = getArrayFromJson<Json>(xml);
         events?.forEach( (v: Json) => {
-            const event = getArrayFromJson(v.event);
+            const event = getArrayFromJson<Json>(v.event);
             event?.forEach( (v: Json) => {
                 const item = this.addEvent();
                 item.readXml(v);
             });
 
-            const groups = getArrayFromJson(v.group);
+            const groups = getArrayFromJson<Json>(v.group);
             groups?.forEach( (v: Json) => {
                 const item = this.addGroup();
                 item.readXml(v);

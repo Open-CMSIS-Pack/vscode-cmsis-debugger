@@ -16,9 +16,9 @@
 
 // https://arm-software.github.io/CMSIS-View/main/er_theory.html
 
-import { ScvdBase } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 
-export class ScvdComponentNumber extends ScvdBase {
+export class ScvdComponentNumber extends ScvdNode {
     private _componentNumber: number | undefined;
 
     public get componentNumber(): number | undefined {
@@ -30,7 +30,7 @@ export class ScvdComponentNumber extends ScvdBase {
     }
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
     ) {
         super(parent);
     }

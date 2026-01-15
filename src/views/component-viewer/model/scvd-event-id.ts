@@ -16,17 +16,17 @@
 
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
-import { ScvdBase } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { ScvdExpression } from './scvd-expression';
 
-export class ScvdEventId extends ScvdBase {
+export class ScvdEventId extends ScvdNode {
     private _id: ScvdExpression;
     private _messageNumber: number | undefined;
     private _componentNumber: number | undefined;
     private _level: number | undefined;
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
         id: string,
     ) {
         super(parent);
@@ -49,7 +49,7 @@ export class ScvdEventId extends ScvdBase {
         return this._level;
     }
 
-    public configure(): boolean {
+    public override configure(): boolean {
         const id = this._id;
         if (id !== undefined ) {
             id.configure();
@@ -64,7 +64,7 @@ export class ScvdEventId extends ScvdBase {
         return super.configure();
     }
 
-    public validate(prevResult: boolean): boolean {
+    public override validate(prevResult: boolean): boolean {
         return super.validate(prevResult && true);
     }
 

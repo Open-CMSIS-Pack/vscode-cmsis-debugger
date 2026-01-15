@@ -16,15 +16,15 @@
 
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
-import { ScvdBase } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 
-export class ScvdEndian extends ScvdBase {
+export class ScvdEndian extends ScvdNode {
     private _endian: string;
     private readonly endianValues = ['L', 'B']; // L for little-endian, B for big-endian
     private _isBigEndian: boolean = false;
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
         endian: string = 'L' // default is little-endian
     ) {
         super(parent);

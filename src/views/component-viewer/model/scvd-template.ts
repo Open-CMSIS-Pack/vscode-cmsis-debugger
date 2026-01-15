@@ -16,12 +16,12 @@
 
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
-import { ScvdBase } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 
-export class ScvdTemplate extends ScvdBase {
+export class ScvdTemplate extends ScvdNode {
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
     ) {
         super(parent);
     }

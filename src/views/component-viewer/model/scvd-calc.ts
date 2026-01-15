@@ -17,21 +17,22 @@
 // https://arm-software.github.io/CMSIS-View/main/elem_calc.html
 
 import { ScvdExpression } from './scvd-expression';
-import { Json, ScvdBase } from './scvd-base';
+import { Json } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { ScvdCondition } from './scvd-condition';
 import { getStringFromJson, getTextBodyFromJson } from './scvd-utils';
 
-export class ScvdCalc extends ScvdBase {
+export class ScvdCalc extends ScvdNode {
     private _cond: ScvdCondition | undefined;
     private _expression: ScvdExpression[] = [];
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
     ) {
         super(parent);
     }
 
-    public readXml(xml: Json): boolean {
+    public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
@@ -61,7 +62,7 @@ export class ScvdCalc extends ScvdBase {
         }
     }
 
-    public async getConditionResult(): Promise<boolean> {
+    public override async getConditionResult(): Promise<boolean> {
         if (this._cond) {
             return await this._cond.getResult();
         }

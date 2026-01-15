@@ -20,22 +20,19 @@
 import { parseExpression, ParseResult } from '../parser';
 import {  evaluateParseResult, EvaluateResult } from '../evaluator';
 
-import { ScvdBase } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { ExecutionContext } from '../scvd-eval-context';
 
 
-export class ScvdExpression extends ScvdBase {
+export class ScvdExpression extends ScvdNode {
     private _expression: string | undefined;
-    private _result: EvaluateResult;
     private _scvdVarName: string | undefined;
     private _expressionAst: ParseResult | undefined;
     private _isPrintExpression: boolean = false;
-    private _rangeMin: number | undefined;
-    private _rangeMax: number | undefined;
     private _executionContext: ExecutionContext | undefined;
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
         expression: string | undefined,
         scvdVarName: string,
         isPrintExpression?: boolean,
@@ -45,11 +42,6 @@ export class ScvdExpression extends ScvdBase {
         this.scvdVarName = scvdVarName;
         this.tag = scvdVarName;
         this._isPrintExpression = isPrintExpression ?? false;
-    }
-
-    public invalidate() {
-        this._result = undefined;
-        super.invalidate();
     }
 
     public get expressionAst(): ParseResult | undefined {
@@ -67,64 +59,20 @@ export class ScvdExpression extends ScvdBase {
         return this._expression;
     }
     public set expression(expression: string | undefined) {
-        if (expression == undefined) {
-            return;
-        }
-
         this._expression = expression;
         this._expressionAst = undefined;
-        this._result = undefined;
     }
 
-    public async evaluateExpression(): Promise<EvaluateResult> {
+    private async evaluateExpression(): Promise<EvaluateResult> {
         if (this.expressionAst === undefined || this._executionContext === undefined) {
+            console.error(this.getLineInfoStr(), 'Expression evaluation missing AST or execution context');
             return undefined;
         }
-        const result = await evaluateParseResult(this.expressionAst, this._executionContext.evalContext /*, this*/); // pass 'this' for local variable resolution
-        return result;
+        return evaluateParseResult(this.expressionAst, this._executionContext.evalContext);
     }
 
-    public get result(): EvaluateResult {
-        return this._result;
-    }
-
-    private async evaluateValue(): Promise<EvaluateResult> {
-        await this.evaluate();
-        return this._result;
-    }
-
-    public async getValue(): Promise<number | bigint | undefined> {
-        const val = await this.evaluateValue();
-        if (val == undefined || (typeof val !== 'number' && typeof val !== 'bigint')) {
-            return undefined;
-        }
-        if (typeof val === 'bigint') {
-            return val;
-        }
-        const min = this._rangeMin;
-        if (min !== undefined && val < min) {
-            return min;
-        }
-        const max = this._rangeMax;
-        if (max !== undefined && val > max) {
-            return max;
-        }
-        return val;
-    }
-
-    public async evaluateOnly() {
-        await this.evaluate();
-    }
-
-    public async setValue(val: number): Promise<number | undefined> {
-        if (typeof this._result === 'number') {
-            this.resetExpression();
-            this._result = val;
-        } else {
-            this.expression = val.toString();
-            await this.configure();
-        }
-        return val;
+    public override async getValue(): Promise<EvaluateResult> {
+        return this.evaluate();
     }
 
     public get scvdVarName(): string | undefined {
@@ -134,44 +82,20 @@ export class ScvdExpression extends ScvdBase {
         this._scvdVarName = value;
     }
 
-    public setMinMax(min: number | undefined, max: number | undefined) {
-        this._rangeMin = min;
-        this._rangeMax = max;
-    }
-
-    public getMinMax(): { min: number | undefined; max: number | undefined } | undefined {
-        return { min: this._rangeMin, max: this._rangeMax };
-    }
-
-    public async getResultBoolean(): Promise<boolean> {
-        const value = await this.evaluateValue();
-        return typeof value === 'number' && value > 0;
-    }
-
-    public async evaluate(): Promise<void> {
+    public async evaluate(): Promise<EvaluateResult> {
         if (this.expressionAst === undefined) {
-            return;
+            return undefined;
         }
-
         if (this.expressionAst.constValue === undefined) {   // not a constant expression
             const result = await this.evaluateExpression();
-            if (result !== undefined) {
-                this._result = result;
-            }
+            return result;
         } else {    // constant expression
             const constVal = this.expressionAst.constValue;
             if (typeof constVal === 'boolean') {
-                this._result = constVal ? 1 : 0;
-            } else {
-                this._result = constVal;
+                return constVal ? 1 : 0;
             }
+            return constVal;
         }
-    }
-
-    private resetExpression() {
-        this._expression = undefined;
-        this._expressionAst = undefined;
-        this._result = undefined;
     }
 
     private parseExpression(): boolean {
@@ -191,16 +115,16 @@ export class ScvdExpression extends ScvdBase {
         return true;
     }
 
-    public configure(): boolean {
+    public override configure(): boolean {
         this.parseExpression();
         return super.configure();
     }
 
-    public setExecutionContext(_executionContext: ExecutionContext) {
+    public override setExecutionContext(_executionContext: ExecutionContext) {
         this._executionContext = _executionContext;
     }
 
-    public validate(prevResult: boolean): boolean {
+    public override validate(prevResult: boolean): boolean {
         const expression = this.expression;
         if (expression === undefined) {
             console.error(this.getLineInfoStr(), 'Expression is empty.');
@@ -220,13 +144,16 @@ export class ScvdExpression extends ScvdBase {
         return super.validate(prevResult && true);
     }
 
-    public getResultString(): string | undefined {
-        if (this._result !== undefined) {
-            if (typeof this._result === 'number') {
-                return this._result.toString();
-            } else if (typeof this._result === 'string') {
-                return this._result;
-            }
+    public async getResultString(): Promise<string | undefined> {
+        const value = await this.evaluate();
+        if (typeof value === 'number') {
+            return value.toString();
+        }
+        if (typeof value === 'string') {
+            return value;
+        }
+        if (typeof value === 'bigint') {
+            return value.toString();
         }
         return undefined;
     }

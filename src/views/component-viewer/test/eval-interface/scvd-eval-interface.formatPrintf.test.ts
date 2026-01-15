@@ -1,18 +1,33 @@
 /**
+ * Copyright 2026 Arm Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
  * Unit tests for ScvdEvalInterface.formatPrintf based on the CMSIS-View
  * value_output specification: https://arm-software.github.io/CMSIS-View/main/value_output.html
  */
+// generated with AI/**
 
 import { ScvdEvalInterface } from '../../scvd-eval-interface';
 import { ScvdFormatSpecifier, FormatKind } from '../../model/scvd-format-specifier';
 import { RefContainer } from '../../evaluator';
 import { MemoryHost } from '../../data-host/memory-host';
 import { RegisterHost } from '../../data-host/register-host';
-import { ScvdBase } from '../../model/scvd-base';
+import { ScvdNode } from '../../model/scvd-node';
 import { ScvdMember } from '../../model/scvd-member';
 import { ScvdDebugTarget } from '../../scvd-debug-target';
 
-class FakeBase extends ScvdBase {
+class FakeBase extends ScvdNode {
     constructor(typeName?: string) {
         super(undefined);
         this._typeName = typeName;
@@ -40,6 +55,10 @@ class FakeBase extends ScvdBase {
 class FakeMember extends ScvdMember {
     constructor() {
         super(undefined);
+    }
+
+    public override getTargetSize(): number | undefined {
+        return 4;
     }
 
     public override async getEnum(_value: number) {
@@ -81,7 +100,7 @@ class FakeDebugTarget implements Pick<ScvdDebugTarget,
     }
 }
 
-function makeContainer(typeName?: string, current?: ScvdBase): RefContainer {
+function makeContainer(typeName?: string, current?: ScvdNode): RefContainer {
     const base = current ?? new FakeBase(typeName);
     return {
         base,

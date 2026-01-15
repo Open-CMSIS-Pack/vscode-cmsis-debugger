@@ -17,9 +17,9 @@
 
 import { MemoryHost } from '../../data-host/memory-host';
 import { RefContainer } from '../../evaluator';
-import { ScvdBase } from '../../model/scvd-base';
+import { ScvdNode } from '../../model/scvd-node';
 
-class NamedStubBase extends ScvdBase {
+class NamedStubBase extends ScvdNode {
     constructor(name: string) {
         super(undefined);
         this.name = name;

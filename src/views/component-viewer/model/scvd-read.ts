@@ -17,7 +17,8 @@
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
 import { NumberType, NumberTypeInput } from './number-type';
-import { Json, ScvdBase } from './scvd-base';
+import { Json } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { ScvdEndian } from './scvd-endian';
 import { ScvdExpression } from './scvd-expression';
 import { ScvdCondition } from './scvd-condition';
@@ -25,7 +26,7 @@ import { ScvdSymbol } from './scvd-symbol';
 import { ScvdDataType } from './scvd-data-type';
 import { getStringFromJson } from './scvd-utils';
 
-export class ScvdRead extends ScvdBase {
+export class ScvdRead extends ScvdNode {
     private _type: ScvdDataType | undefined;
     private _size: ScvdExpression | undefined;
     private _symbol: ScvdSymbol | undefined;
@@ -37,12 +38,12 @@ export class ScvdRead extends ScvdBase {
     static readonly ARRAY_SIZE_MAX = 512;
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
     ) {
         super(parent);
     }
 
-    public readXml(xml: Json): boolean {
+    public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
@@ -110,7 +111,7 @@ export class ScvdRead extends ScvdBase {
         return this._cond;
     }
 
-    public async getConditionResult(): Promise<boolean> {
+    public override async getConditionResult(): Promise<boolean> {
         if (this._cond) {
             return await this._cond.getResult();
         }
@@ -121,19 +122,25 @@ export class ScvdRead extends ScvdBase {
         return this._size;
     }
 
-    public getTargetSize(): number | undefined {
+    public override getTargetSize(): number | undefined {
         return this.type?.getTypeSize();
     }
 
-    public getVirtualSize(): number | undefined {
+    public override getVirtualSize(): number | undefined {
         return this.type?.getVirtualSize();
     }
-    public async getArraySize(): Promise<number | undefined> {
+    public override async getArraySize(): Promise<number | undefined> {
         const v = await this.size?.getValue();
-        return typeof v === 'bigint' ? Number(v) : v;
+        if (typeof v === 'bigint') {
+            return Number(v);
+        }
+        if (typeof v === 'number') {
+            return v;
+        }
+        return undefined;
     }
 
-    public getIsPointer(): boolean {
+    public override getIsPointer(): boolean {
         return this.type?.getIsPointer() ?? false;
     }
 
@@ -158,11 +165,11 @@ export class ScvdRead extends ScvdBase {
         }
     }
 
-    public getMember(property: string): ScvdBase | undefined {
+    public override getMember(property: string): ScvdNode | undefined {
         return this.type?.getMember(property);
     }
 
-    public getValueType(): string | undefined {
+    public override getValueType(): string | undefined {
         return this.type?.getValueType();
     }
 

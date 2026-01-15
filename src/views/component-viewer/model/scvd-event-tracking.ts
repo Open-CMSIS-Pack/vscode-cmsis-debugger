@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ScvdBase } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
@@ -30,11 +30,11 @@ export enum ScvdEventTrackingMode {
     Reset = 'Reset',
 }
 
-export class ScvdEventTracking extends ScvdBase {
+export class ScvdEventTracking extends ScvdNode {
     private _mode: ScvdEventTrackingMode | undefined;
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
         mode: string,
     ) {
         super(parent);

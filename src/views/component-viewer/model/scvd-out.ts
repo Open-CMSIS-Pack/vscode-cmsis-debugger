@@ -18,13 +18,14 @@
 
 import { ScvdDataType } from './scvd-data-type';
 import { ScvdExpression } from './scvd-expression';
-import { Json, ScvdBase } from './scvd-base';
+import { Json } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { ScvdCondition } from './scvd-condition';
 import { getArrayFromJson, getStringFromJson } from './scvd-utils';
 import { ScvdItem } from './scvd-item';
 import { ScvdListOut } from './scvd-list-out';
 
-export class ScvdOut extends ScvdBase {
+export class ScvdOut extends ScvdNode {
     private _value: ScvdExpression | undefined; // name._value — expression that evaluates to the value of the output.
     private _type: ScvdDataType | undefined;
     private _cond: ScvdCondition | undefined;
@@ -32,12 +33,12 @@ export class ScvdOut extends ScvdBase {
     private _listOut: ScvdListOut[] = [];
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
     ) {
         super(parent);
     }
 
-    public readXml(xml: Json): boolean {
+    public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
@@ -46,13 +47,13 @@ export class ScvdOut extends ScvdBase {
         this.type = getStringFromJson(xml.type);
         this.cond = getStringFromJson(xml.cond);
 
-        const item = getArrayFromJson(xml.item);
+        const item = getArrayFromJson<Json>(xml.item);
         item?.forEach((it: Json) => {
             const newItem = this.addItem();
             newItem.readXml(it);
         });
 
-        const list = getArrayFromJson(xml.list);
+        const list = getArrayFromJson<Json>(xml.list);
         list?.forEach((it: Json) => {
             const newList = this.addList();
             newList.readXml(it);
@@ -92,7 +93,7 @@ export class ScvdOut extends ScvdBase {
         }
     }
 
-    public async getConditionResult(): Promise<boolean> {
+    public override async getConditionResult(): Promise<boolean> {
         if (this._cond) {
             return await this._cond.getResult();
         }
@@ -117,7 +118,7 @@ export class ScvdOut extends ScvdBase {
         return list;
     }
 
-    public getValueType(): string | undefined {
+    public override getValueType(): string | undefined {
         return this.type?.getValueType();
     }
 

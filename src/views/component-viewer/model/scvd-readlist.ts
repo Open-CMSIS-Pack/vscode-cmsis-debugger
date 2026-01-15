@@ -18,7 +18,8 @@
 
 import { NumberType, NumberTypeInput } from './number-type';
 import { ScvdExpression } from './scvd-expression';
-import { Json, ScvdBase } from './scvd-base';
+import { Json } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { ScvdRead } from './scvd-read';
 import { getStringFromJson } from './scvd-utils';
 import { ResolveSymbolCb, ResolveType } from '../resolver';
@@ -37,12 +38,12 @@ export class ScvdReadList extends ScvdRead {
     static readonly READ_SIZE_MAX = 1024;
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
     ) {
         super(parent);
     }
 
-    public readXml(xml: Json): boolean {
+    public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
@@ -59,7 +60,6 @@ export class ScvdReadList extends ScvdRead {
     public set count(value: string | undefined) {
         if (value !== undefined) {
             this._count = new ScvdExpression(this, value, 'count');
-            this._count.setMinMax(ScvdReadList.READ_SIZE_MIN, ScvdReadList.READ_SIZE_MAX);
         }
     }
     public get count(): ScvdExpression | undefined {
@@ -91,22 +91,22 @@ export class ScvdReadList extends ScvdRead {
         return this._based;
     }
 
-    public getTargetSize(): number | undefined {
+    public override getTargetSize(): number | undefined {
         return this.type?.getTypeSize();
     }
 
-    public getVirtualSize(): number | undefined {
+    public override getVirtualSize(): number | undefined {
         return this.type?.getVirtualSize();
     }
 
     // A readlist is considered a pointer if based="1"
-    public getIsPointer(): boolean {
+    public override getIsPointer(): boolean {
         const based = this.based ? true : false;
         const typeIsPointer = this.type?.getIsPointer();
         return based || (typeIsPointer ?? false);
     }
 
-    public resolveAndLink(resolveFunc: ResolveSymbolCb): boolean {
+    public override resolveAndLink(resolveFunc: ResolveSymbolCb): boolean {
         if (this._next !== undefined) {
             // Ensure the referenced member exists; log if missing
             const typedef = resolveFunc(this._next, ResolveType.localType);
@@ -118,7 +118,7 @@ export class ScvdReadList extends ScvdRead {
         return super.resolveAndLink(resolveFunc);
     }
 
-    public applyInit(): boolean {
+    public override applyInit(): boolean {
         if (this.init === 1) {
             // Discard previous read objects
             return true;
@@ -132,7 +132,17 @@ export class ScvdReadList extends ScvdRead {
             return undefined;
         }
         const v = await this._count.getValue();
-        return v !== undefined ? Number(v) : undefined;
+        const num = v !== undefined ? Number(v) : undefined;
+        if (num === undefined || Number.isNaN(num)) {
+            return undefined;
+        }
+        if (num < ScvdReadList.READ_SIZE_MIN) {
+            return ScvdReadList.READ_SIZE_MIN;
+        }
+        if (num > ScvdReadList.READ_SIZE_MAX) {
+            return ScvdReadList.READ_SIZE_MAX;
+        }
+        return num;
     }
 
     public getNext(): string | undefined {

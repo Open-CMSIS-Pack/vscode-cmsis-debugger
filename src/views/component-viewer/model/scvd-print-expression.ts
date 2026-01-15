@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ScvdBase } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { ScvdExpression } from './scvd-expression';
 
 // https://arm-software.github.io/CMSIS-View/main/scvd_expression.html
@@ -24,7 +24,7 @@ import { ScvdExpression } from './scvd-expression';
 export class ScvdPrintExpression extends ScvdExpression {
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
         expression: string | undefined,
         scvdVarName: string,
     ) {
@@ -32,19 +32,19 @@ export class ScvdPrintExpression extends ScvdExpression {
         this.expression = expression;
     }
 
-    public configure(): boolean {
+    public override configure(): boolean {
         return super.configure();
     }
 
-    public validate(prevResult: boolean): boolean {
+    public override validate(prevResult: boolean): boolean {
         return super.validate(prevResult && true);
     }
 
-    public async getGuiName(): Promise<string | undefined> {
+    public override async getGuiName(): Promise<string | undefined> {
         return this.getGuiName();
     }
 
-    public async getGuiValue(): Promise<string | undefined> {
+    public override async getGuiValue(): Promise<string | undefined> {
         return this.getGuiValue();
     }
 }

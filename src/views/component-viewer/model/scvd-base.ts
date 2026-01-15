@@ -12,132 +12,68 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Minimal core for SCVD tree nodes: parent/child wiring and basic metadata.
+ * Model-specific behaviour lives in ScvdNode.
  */
 
-import { ResolveSymbolCb } from '../resolver';
-import { ExecutionContext } from '../scvd-eval-context';
-import { getLineNumberFromJson, getStringFromJson } from './scvd-utils';
 
-// add linter exception for Json
+export type Json = Record<string, unknown>;
+
+// Constructor type used for runtime instanceof checks; kept loose to cover differing ctor shapes.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type Json = Record<string, any>;
-
-let g_idNext: number = 1;
-
-// add linter exception for CTor operations
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyScvdCtor = abstract new (...args: any[]) => ScvdBase;
+type ScvdConstructor<T extends ScvdBase> = abstract new (...args: any[]) => T;
 
 export abstract class ScvdBase {
+    private static _idNext = 0;
+
     private _parent: ScvdBase | undefined;
     private _children: ScvdBase[] = [];
     private _nodeId: number = 0;
 
     private _tag: string | undefined;
     private _lineNo: string | undefined;
-
     private _name: string | undefined;
     private _info: string | undefined;
 
-    private _isModified: boolean = false;
-    private _valid: boolean = false;
-    private _mustRead: boolean = true;  // linked to const (read once)
+    private _isModified = false;
+    private _valid = false;
+    private _mustRead = true;
 
-    static _executionContext: ExecutionContext | undefined;
-    private _symbolsCache: Map<string, ScvdBase> | undefined;
-
-    constructor(
-        parent: ScvdBase | undefined,
-    ) {
-        g_idNext += 1;
-        this._nodeId = g_idNext;
+    constructor(parent: ScvdBase | undefined) {
+        this._nodeId = ++ScvdBase._idNext;
 
         if (parent instanceof ScvdBase) {
             this._parent = parent;
+            this._parent._children.push(this);
         }
-        this._parent?._children.push(this);
     }
 
-    public castToDerived<C extends AnyScvdCtor>(ctor: C): InstanceType<C> | undefined {
-        return this instanceof ctor ? (this as InstanceType<C>) : undefined;
+    public castToDerived<T extends ScvdBase>(ctor: ScvdConstructor<T>): T | undefined {
+        return this instanceof ctor ? (this as T) : undefined;
     }
 
-    public isDerived<C extends AnyScvdCtor>(ctor: C): this is InstanceType<C> {
-        return this instanceof ctor;
+    public get parent(): ScvdBase | undefined {
+        return this._parent;
     }
 
-    public readXml(xml: Json): boolean {
-        if (xml === undefined ) {
-            this.tag = 'XML undefined';
-            return false;
-        }
-        this.lineNo = getLineNumberFromJson(xml);
-        const tag = getStringFromJson(xml['#Name'] ?? xml['#name']);
-        if (tag === undefined) {
-            if (Array.isArray(xml)) {
-                const subTag = getStringFromJson(xml[0]?.['#Name'] ?? xml[0]?.['#name'] ?? xml[0]?.tag);
-                if (subTag !== undefined) {
-                    this.tag = subTag + '[]';
-                } else {
-                    this.tag = 'Array[]';
-                }
-            } else {
-                if (this.tag === undefined ) {
-                    this.tag = 'unknown-tag';
-                }
-            }
-        } else {
-            this.tag = tag;
-        }
-        this.name = getStringFromJson(xml.name);
-        this.info = getStringFromJson(xml.info);
-
-        return true;
+    public get children(): ScvdBase[] {
+        return this._children;
     }
 
-    protected symbolsCache(key: string, value: ScvdBase | undefined): ScvdBase | undefined {
-        return this._symbolsCache?.get(key) ?? (value !== undefined ? ((this._symbolsCache ??= new Map()).set(key, value), value) : undefined);
+    public get nodeId(): string {
+        return `${this.classname}_${this._nodeId.toString()}`;
     }
 
-    protected clearSymbolsCache(): void {
-        this._symbolsCache = undefined; // let GC reclaim the Map
-    }
-
-    public addToSymbolContext(name: string | undefined, symbol: ScvdBase): void {
-        this.parent?.addToSymbolContext(name, symbol);
-    }
-
-    // search for symbol in parent chain
-    public getSymbol(name: string): ScvdBase | undefined {
-        return this.parent?.getSymbol(name);
-    }
-
-    // search a member (member, var) in typedef
-    public getMember(_property: string): ScvdBase | undefined {
-        return undefined;
-    }
-
-    public getElementRef(): ScvdBase | undefined {
-        return undefined;
-    }
-
-    public setExecutionContext(_executionContext: ExecutionContext) {
-    }
-
-    // default condition always true
-    public async getConditionResult(): Promise<boolean> {
-        return true;
+    public get classname(): string {
+        return this.constructor.name;
     }
 
     public set tag(value: string | undefined) {
         this._tag = value;
     }
     public get tag(): string | undefined {
-        if (this._tag === undefined) {
-            return 'Internal Object';
-        }
-
-        return this._tag;
+        return this._tag ?? 'Internal Object';
     }
 
     public get lineNo(): string | undefined {
@@ -147,91 +83,6 @@ export abstract class ScvdBase {
         if (value !== undefined) {
             this._lineNo = value;
         }
-    }
-
-
-    public get children(): ScvdBase[] {
-        return this._children;
-    }
-
-    public get nodeId(): string {
-        return this.classname + '_' + this._nodeId.toString();
-    }
-
-    public get classname(): string {
-        return this.constructor.name;
-    }
-
-    public set valid(value: boolean) {
-        this._valid = value;
-    }
-
-    public get valid(): boolean {
-        return this._valid;
-    }
-
-    public get mustRead(): boolean {
-        return this._mustRead;
-    }
-
-    public set mustRead(value: boolean) {
-        this._mustRead = value;
-    }
-
-    public invalidate() {
-        this._valid = false;
-        this._mustRead = true;
-    }
-
-    public invalidateSubtree() {
-        this.invalidate();
-        this._children.forEach( (child: ScvdBase) => {
-            child.invalidateSubtree();
-        });
-    }
-
-    /**
-     * Applies the provided callback function to each child and returns an array of results.
-     * @param callbackfn Function that produces an element of the new array, taking a child and its index.
-     * @returns Array of mapped results.
-     */
-    public map<T>(_callbackfn: (child: ScvdBase, index: number, array: ScvdBase[]) => T): T[] {
-        return this._children.map(_callbackfn);
-    }
-
-    /**
-     * Executes a provided function once for each child.
-     * @param callbackfn Function to execute for each child.
-     */
-    public forEach(callbackfn: (child: ScvdBase, index: number, array: ScvdBase[]) => void): void {
-        this._children.forEach(callbackfn);
-    }
-
-    /**
-     * Returns a new array with all children that pass the test implemented by the provided function.
-     * @param predicate Function to test each child. Return true to keep the child, false otherwise.
-     */
-    public filter(predicate: (child: ScvdBase, index: number, array: ScvdBase[]) => boolean): ScvdBase[] {
-        return this._children.filter(predicate);
-    }
-
-    public hasChildren(): boolean {
-        return this._children.length > 0;
-    }
-
-    // Member function available to all ScvdItems and derived classes
-    public resolveAndLink(_resolveFunc: ResolveSymbolCb): boolean {
-        // Default implementation does nothing, can be overridden by subclasses
-        return false;
-    }
-
-    public applyInit(): boolean {
-        // Default implementation does nothing, can be overridden by subclasses
-        return true;
-    }
-
-    public get parent(): ScvdBase | undefined {
-        return this._parent;
     }
 
     public set name(name: string | undefined) {
@@ -255,10 +106,49 @@ export abstract class ScvdBase {
         this._isModified = value;
     }
 
-    // Workers
+    public get valid(): boolean {
+        return this._valid;
+    }
+    public set valid(value: boolean) {
+        this._valid = value;
+    }
+
+    public get mustRead(): boolean {
+        return this._mustRead;
+    }
+    public set mustRead(value: boolean) {
+        this._mustRead = value;
+    }
+
+    public map<TChild extends ScvdBase, R>(this: { children: TChild[] }, callbackfn: (child: TChild, index: number, array: TChild[]) => R): R[] {
+        return this.children.map(callbackfn);
+    }
+
+    public forEach<TChild extends ScvdBase>(this: { children: TChild[] }, callbackfn: (child: TChild, index: number, array: TChild[]) => void): void {
+        this.children.forEach(callbackfn);
+    }
+
+    public filter<TChild extends ScvdBase>(this: { children: TChild[] }, predicate: (child: TChild, index: number, array: TChild[]) => boolean): TChild[] {
+        return this.children.filter(predicate);
+    }
+
+    // Symbol-context helpers – default no-op so derived classes can walk parents safely.
+    public addToSymbolContext(_name: string | undefined, _symbol: ScvdBase): void {
+        this.parent?.addToSymbolContext(_name, _symbol);
+    }
+
+    public getSymbol(_name: string): ScvdBase | undefined {
+        return this.parent?.getSymbol(_name);
+    }
+
+    public hasChildren(): boolean {
+        return this._children.length > 0;
+    }
+
     public configure(): boolean {
         return true;
     }
+
     public validate(prevResult: boolean): boolean {
         this.valid = prevResult;
         return prevResult;
@@ -266,15 +156,6 @@ export abstract class ScvdBase {
 
     public reset(): boolean {
         return true;
-    }
-
-    // expanded values
-    public async getValue(): Promise<string | number | bigint | Uint8Array | undefined> {
-        return undefined;   // TOIMPL: change to undefined to indicate no value
-    }
-
-    public async setValue(val: number | string): Promise<number | string | undefined> {
-        return val;
     }
 
     private getLineNoInfo(item: ScvdBase | undefined): string | undefined {
@@ -314,85 +195,6 @@ export abstract class ScvdBase {
         return aLine - bLine;
     }
 
-    public writeAt(byteOffset: number, widthBits: number, value: number | string): number | string | undefined {
-        console.error(`WriteAt not implemented: item=${this.classname}: ${this.getDisplayLabel()}, offset=${byteOffset}, width=${widthBits}, value=${value}`);
-        return undefined;
-    }
-
-    public readAt(byteOffset: number, widthBits: number): number | string | undefined {
-        console.error(`ReadAt not implemented: item=${this.classname}: ${this.getDisplayLabel()}, offset=${byteOffset}, width=${widthBits}`);
-        return undefined;
-    }
-
-    public getTargetSize(): number | undefined {
-        console.error(`GetTargetSize not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
-        return undefined;
-    }
-    public getTypeSize(): number | undefined {
-        console.error(`GetTypeSize not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
-        return undefined;
-    }
-    public getVirtualSize(): number | undefined {
-        console.error(`GetVirtualSize not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
-        return undefined;
-    }
-    public getIsPointer(): boolean {
-        console.error(`GetIsPointer not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
-        return false;
-    }
-    public async getArraySize(): Promise<number | undefined> {
-        return Promise.resolve(undefined); // default
-    }
-
-    // member’s byte offset
-    public async getMemberOffset(): Promise<number | undefined> {
-        console.error(`GetMemberOffset not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
-        return undefined;
-    }
-
-    public getElementBitWidth(): number | undefined {
-        console.error(`GetElementBitWidth not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
-        return undefined;
-    }
-
-    public getValueType(): string | undefined {
-        console.error(`GetValueType not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
-        return undefined;
-    }
-
-    // base implementation assumes not a pointer ref
-    public isPointerRef(): boolean {
-        return false;
-    }
-
-    // ------------  GUI Interface Begin ------------
-    public async getGuiName(): Promise<string | undefined> {
-        return this.name;
-    }
-
-    public async getGuiValue(): Promise<string | undefined> {
-        const val = await this.getValue();
-        if (val !== undefined) {
-            if (typeof val === 'number') {
-                return val.toString();
-            } else if (typeof val === 'string') {
-                return val;
-            }
-        }
-        return undefined;
-    }
-
-    public getGuiConditionResult(): boolean {
-        return true;    // use getConditionResult() later
-    }
-
-    public getGuiLineInfo(): string {
-        return this.getLineInfoStr();
-    }
-
-    // ------------  GUI Interface End ------------
-
-
     public getDisplayLabel(): string {
         const displayName = this.name ?? this.info;
         if (displayName && displayName.length > 0) {
@@ -403,5 +205,4 @@ export abstract class ScvdBase {
         }
         return `${this.classname} (line ${this.getLineNoStr()})`;
     }
-
 }

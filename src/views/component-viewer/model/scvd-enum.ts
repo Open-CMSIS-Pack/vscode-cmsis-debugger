@@ -17,14 +17,15 @@
 // https://arm-software.github.io/CMSIS-View/main/elem_member.html#elem_enum
 
 import { ScvdExpression } from './scvd-expression';
-import { Json, ScvdBase } from './scvd-base';
+import { Json } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { getStringFromJson } from './scvd-utils';
 
-export class ScvdEnum extends ScvdBase {
+export class ScvdEnum extends ScvdNode {
     private _value: ScvdExpression;
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
         lastEnum: ScvdEnum | undefined,
     ) {
         super(parent);
@@ -33,13 +34,13 @@ export class ScvdEnum extends ScvdBase {
         this._value = new ScvdExpression(this, valStr, 'value');
     }
 
-    public readXml(xml: Json): boolean {
+    public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
 
         this.value = getStringFromJson(xml.value);
-        this.value.readXml(xml.value);
+        this.value.readXml(xml.value as Json);
 
         return super.readXml(xml);
     }

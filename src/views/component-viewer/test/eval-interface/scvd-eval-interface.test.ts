@@ -21,15 +21,15 @@ import { RegisterHost } from '../../data-host/register-host';
 import { ScvdFormatSpecifier } from '../../model/scvd-format-specifier';
 import { ScvdDebugTarget } from '../../scvd-debug-target';
 import { RefContainer } from '../../evaluator';
-import { ScvdBase } from '../../model/scvd-base';
+import { ScvdNode } from '../../model/scvd-node';
 
-const makeStubBase = (name: string): ScvdBase => ({
+const makeStubBase = (name: string): ScvdNode => ({
     name,
     getSymbol: jest.fn(),
     getMember: jest.fn(),
     getDisplayLabel: jest.fn().mockReturnValue(name),
     getValueType: jest.fn(),
-} as unknown as ScvdBase);
+} as unknown as ScvdNode);
 
 const makeContainer = (name: string, widthBytes: number, offsetBytes = 0): RefContainer => ({
     base: makeStubBase(name),

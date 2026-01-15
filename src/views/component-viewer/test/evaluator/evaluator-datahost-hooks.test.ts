@@ -17,10 +17,10 @@
 
 import { EvalContext, evaluateParseResult, type DataHost, type RefContainer, type EvalValue } from '../../evaluator';
 import { parseExpression } from '../../parser';
-import { ScvdBase } from '../../model/scvd-base';
+import { ScvdNode } from '../../model/scvd-node';
 
-class BasicRef extends ScvdBase {
-    constructor(parent?: ScvdBase) {
+class BasicRef extends ScvdNode {
+    constructor(parent?: ScvdNode) {
         super(parent);
     }
 }
@@ -36,8 +36,13 @@ class HookHost implements DataHost {
         [10, 99], // offsetBytes for arr[2].field
         [6, 0xab], // offsetBytes for arr[1].field in printf path
     ]);
+    private readonly disablePrintfOverride: boolean;
 
     calls: Record<string, number> = {};
+
+    constructor(opts?: { disablePrintfOverride?: boolean }) {
+        this.disablePrintfOverride = opts?.disablePrintfOverride ?? false;
+    }
 
     private tick(name: string) {
         // eslint-disable-next-line security/detect-object-injection -- false positive: controlled key accumulation for test bookkeeping
@@ -84,6 +89,10 @@ class HookHost implements DataHost {
         return 4;
     }
 
+    public setValueAt(offset: number, value: EvalValue): void {
+        this.values.set(offset, value);
+    }
+
     public resolveColonPath(_container: RefContainer, parts: string[]): EvalValue {
         this.tick('resolveColonPath');
         return parts.length * 100; // simple sentinel
@@ -100,9 +109,17 @@ class HookHost implements DataHost {
         return value;
     }
 
-    public formatPrintf(spec: string, value: EvalValue, container: RefContainer): string {
+    public formatPrintf(spec: string, value: EvalValue, container: RefContainer): string | undefined {
         this.tick('formatPrintf');
         this.lastFormattingContainer = container;
+        if (this.disablePrintfOverride) {
+            if (value instanceof Uint8Array && spec === 'M') {
+                return Array.from(value.subarray(0, 6))
+                    .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+                    .join('-');
+            }
+            return undefined;
+        }
         return `fmt-${spec}-${value}`;
     }
 }
@@ -159,5 +176,18 @@ describe('evaluator data host hooks', () => {
         await evaluateParseResult(pr, ctx);
         expect(host.calls.formatPrintf).toBe(1);
         expect(host.lastFormattingContainer?.current).toBeUndefined();
+    });
+
+    it('passes cached Uint8Array values to printf', async () => {
+        const host = new HookHost({ disablePrintfOverride: true });
+        // Override the value at offset 6 (arr[1].field) with a 6-byte MAC
+        host.setValueAt(6, new Uint8Array([0x1e, 0x30, 0x6c, 0xa2, 0x45, 0x5f]));
+        const ctx = new EvalContext({ data: host, container: host.root });
+        const pr = parseExpression('mac=%M[arr[1].field]', true);
+
+        const out = await evaluateParseResult(pr, ctx);
+        expect(out).toBe('mac=1E-30-6C-A2-45-5F');
+        expect(host.calls.formatPrintf).toBe(1);
+        expect(host.lastFormattingContainer?.current).toBe(host.fieldRef);
     });
 });

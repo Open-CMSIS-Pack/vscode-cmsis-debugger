@@ -17,7 +17,7 @@
 
 import { EvalContext, evaluateParseResult, type DataHost, type EvalValue, type RefContainer } from '../../evaluator';
 import { parseExpression } from '../../parser';
-import { ScvdBase } from '../../model/scvd-base';
+import { ScvdNode } from '../../model/scvd-node';
 
 type SymbolDef = {
     value?: EvalValue;
@@ -38,7 +38,7 @@ type EvaluatorCase = {
     expectedSymbol?: number | string | undefined;
 };
 
-class MockRef extends ScvdBase {
+class MockRef extends ScvdNode {
     value: EvalValue | undefined;
     members: Map<string, MockRef> = new Map();
     elements: Map<number, MockRef> = new Map();

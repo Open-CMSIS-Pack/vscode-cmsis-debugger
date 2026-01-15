@@ -18,14 +18,15 @@
 
 import { ScvdComponentIdentifier } from './scvd-component-identifier';
 import { ScvdEvents } from './scvd-events';
-import { Json, ScvdBase } from './scvd-base';
+import { Json } from './scvd-base';
+import { ScvdNode } from './scvd-node';
 import { ScvdObjects } from './scvd-object';
 import { ScvdTypedefs } from './scvd-typedef';
 import { getArrayFromJson, getObjectFromJson } from './scvd-utils';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdBreaks } from './scvd-break';
 
-export class ScvdComponentViewer extends ScvdBase {
+export class ScvdComponentViewer extends ScvdNode {
     private _componentIdentifier: ScvdComponentIdentifier | undefined;
     private _typedefs: ScvdTypedefs | undefined;
     private _objects: ScvdObjects | undefined;
@@ -33,13 +34,13 @@ export class ScvdComponentViewer extends ScvdBase {
     private _breaks: ScvdBreaks | undefined;
 
     constructor(
-        parent: ScvdBase | undefined,
+        parent: ScvdNode | undefined,
     ) {
         super(parent);
     }
 
     /* template for readXml
-    public readXml(xml: Json): boolean {
+    public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
@@ -50,36 +51,36 @@ export class ScvdComponentViewer extends ScvdBase {
     }
     */
 
-    public readXml(xml: Json): boolean {
+    public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
 
-        const componentViewer: Json = getObjectFromJson(xml.component_viewer);
+        const componentViewer = getObjectFromJson<Json>(xml.component_viewer);
         if ( componentViewer === undefined) {
             return false;
         }
 
-        const componentIdentifier: Json = getObjectFromJson(componentViewer.component);
+        const componentIdentifier = getObjectFromJson<Json>(componentViewer.component);
         if (componentIdentifier !== undefined) {
             this._componentIdentifier = new ScvdComponentIdentifier(this);
             this._componentIdentifier.readXml(componentIdentifier);
         }
 
-        const objectsContainer: Json = getObjectFromJson(componentViewer.objects);
+        const objectsContainer = getObjectFromJson<Json>(componentViewer.objects);
         if (objectsContainer !== undefined) {
             this._objects = new ScvdObjects(this);
             this._objects.readXml(objectsContainer);
         }
 
-        const typedefsContainer: Json = getObjectFromJson(componentViewer.typedefs);
+        const typedefsContainer = getObjectFromJson<Json>(componentViewer.typedefs);
         if (typedefsContainer !== undefined) {
             this._typedefs = new ScvdTypedefs(this);
             this._typedefs.readXml(typedefsContainer);
         }
 
         // disable for now
-        /*const events = getArrayFromJson(componentViewer?.events);
+        /*const events = getArrayFromJson<Json>(componentViewer?.events);
         if (events !== undefined) {
             this._events = new ScvdEvents(this);
             this._events.readXml(events);
@@ -94,7 +95,7 @@ export class ScvdComponentViewer extends ScvdBase {
         return super.readXml(xml);
     }
 
-    public getSymbol(_name: string): ScvdBase | undefined {
+    public override getSymbol(_name: string): ScvdNode | undefined {
         return undefined;
     }
 
@@ -115,13 +116,13 @@ export class ScvdComponentViewer extends ScvdBase {
     }
 
     public configureAll(): boolean {
-        return this.configureRecursive(this);
+        const ok = this.configureRecursive(this);
+        this.clearSymbolCachesRecursive();
+        return ok;
     }
-    private configureRecursive(item: ScvdBase): boolean {
+    private configureRecursive(item: ScvdNode): boolean {
         item.configure();
-        item.children.forEach( (child: ScvdBase) => {
-            this.configureRecursive(child);
-        });
+        item.children.forEach(child => this.configureRecursive(child));
         return true;
     }
 
@@ -138,22 +139,18 @@ export class ScvdComponentViewer extends ScvdBase {
         this.valid = prevResult;
         return this.validateRecursive(this, prevResult);
     }
-    private validateRecursive(item: ScvdBase, prevResult: boolean): boolean {
+    private validateRecursive(item: ScvdNode, prevResult: boolean): boolean {
         const valid = item.validate(prevResult);
-        item.children.forEach( (child: ScvdBase) => {
-            this.validateRecursive(child, valid);
-        });
+        item.children.forEach(child => this.validateRecursive(child, valid));
         return valid;
     }
 
     public setExecutionContextAll(executionContext: ExecutionContext) {
         this.setExecutionContextRecursive(this, executionContext);
     }
-    private setExecutionContextRecursive(item: ScvdBase, executionContext: ExecutionContext) {
+    private setExecutionContextRecursive(item: ScvdNode, executionContext: ExecutionContext) {
         item.setExecutionContext(executionContext);
-        item.children.forEach( (child: ScvdBase) => {
-            this.setExecutionContextRecursive(child, executionContext);
-        });
+        item.children.forEach(child => this.setExecutionContextRecursive(child, executionContext));
     }
 
     private collectBreakStatements(node: Json | Json[] | undefined): Json[] {
@@ -172,7 +169,7 @@ export class ScvdComponentViewer extends ScvdBase {
         }
 
         const breaks: Json[] = [];
-        const directBreaks = getArrayFromJson(node.break);
+        const directBreaks = getArrayFromJson<Json>(node.break);
         if (directBreaks !== undefined) {
             breaks.push(...directBreaks);
         }

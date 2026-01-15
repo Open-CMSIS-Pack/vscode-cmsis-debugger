@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ScvdBase } from '../model/scvd-base';
+import { ScvdNode } from '../model/scvd-node';
 import { ScvdList } from '../model/scvd-list';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
@@ -23,7 +23,7 @@ import { StatementBase } from './statement-base';
 
 export class StatementList extends StatementBase {
 
-    constructor(item: ScvdBase, parent: StatementBase | undefined) {
+    constructor(item: ScvdNode, parent: StatementBase | undefined) {
         super(item, parent);
     }
 
@@ -102,7 +102,6 @@ export class StatementList extends StatementBase {
 
             // while-loop
             if (whileExpr !== undefined) {
-                whileExpr.invalidate();
                 const whileValue = await whileExpr.getValue();
                 if (whileValue !== undefined) {
                     loopValue = Number(whileValue);
