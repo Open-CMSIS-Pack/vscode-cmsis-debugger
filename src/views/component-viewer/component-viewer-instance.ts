@@ -20,6 +20,7 @@ import { parseStringPromise, ParserOptions } from 'xml2js';
 import { Json } from './model/scvd-base';
 import { Resolver } from './resolver';
 import { ScvdComponentViewer } from './model/scvd-component-viewer';
+import { ScvdBase } from './model/scvd-base';
 import { StatementEngine } from './statement-engine/statement-engine';
 import { ScvdEvalContext } from './scvd-eval-context';
 import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
@@ -103,6 +104,7 @@ export class ComponentViewerInstance {
             return;
         }
 
+        ScvdBase.resetIds();
         this.model = new ScvdComponentViewer(undefined);
         if (!this.model) {
             console.error('Failed to create SCVD model');
@@ -146,8 +148,9 @@ export class ComponentViewerInstance {
         if (this._statementEngine === undefined || this._guiTree === undefined) {
             return;
         }
-        this._guiTree.clear();
+        const epoch = this._guiTree.beginUpdate();
         await this._statementEngine.executeAll(this._guiTree);
+        this._guiTree.finalizeUpdate(epoch);
         stats.push(this.getStats('end'));
         console.log('ComponentViewerInstance update stats:\n' + stats.join('\n  '));
     }
@@ -186,11 +189,6 @@ export class ComponentViewerInstance {
 
     private set statementEngine(value: StatementEngine | undefined) {
         this._statementEngine = value;
-    }
-
-    public updateModel(activeSession: GDBTargetDebugSession): void {
-        // TOIMPL: Update values in the model by re-evaluating necessary statements
-        console.log(activeSession);
     }
 
     public async executeStatements(guiTree: ScvdGuiTree): Promise<void> {

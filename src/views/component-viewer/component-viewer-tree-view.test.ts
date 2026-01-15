@@ -65,7 +65,7 @@ describe('ComponentViewerTreeDataProvider', () => {
         treeDataProvider = new ComponentViewerTreeDataProvider();
     });
 
-    const createMockScvdModel = (objectsData: any): ScvdComponentViewer => {
+    const createMockScvdModel = (objectsData: unknown): ScvdComponentViewer => {
         return {
             get objects() {
                 return objectsData;
@@ -130,7 +130,7 @@ describe('ComponentViewerTreeDataProvider', () => {
                 ]
             });
 
-            const refreshSpy = jest.spyOn(treeDataProvider as any, 'refresh');
+            const refreshSpy = jest.spyOn(treeDataProvider as unknown as { refresh: () => void }, 'refresh');
 
             treeDataProvider.addGuiOut(mockScvdModel);
             await treeDataProvider.activate();
@@ -142,7 +142,7 @@ describe('ComponentViewerTreeDataProvider', () => {
         });
 
         it('should handle activation without model set', async () => {
-            const refreshSpy = jest.spyOn(treeDataProvider as any, 'refresh');
+            const refreshSpy = jest.spyOn(treeDataProvider as unknown as { refresh: () => void }, 'refresh');
 
             await treeDataProvider.activate();
 

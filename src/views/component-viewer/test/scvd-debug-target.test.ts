@@ -59,62 +59,63 @@ describe('ScvdDebugTarget.calculateMemoryUsage', () => {
 
     const setupTargetWithImage = (image: Uint8Array): ScvdDebugTarget => {
         const target = new ScvdDebugTarget();
-        (target as unknown as { mock: { getMockMemoryData: (addr: number, size: number) => Uint8Array | undefined } }).mock = {
-            getMockMemoryData: (_addr: number, size: number) => image.slice(0, size),
-        };
+        // Bypass real target access by overriding readMemory with a stubbed buffer.
+        (target as unknown as { activeSession: boolean }).activeSession = true;
+        (target as unknown as { readMemory: (addr: number | bigint, size: number) => Promise<Uint8Array | undefined> }).readMemory =
+            async (_addr: number | bigint, size: number) => Promise.resolve(image.slice(0, size));
         return target;
     };
 
-    it('normal: magic intact with some free space', () => {
+    it('normal: magic intact with some free space', async () => {
         const usedBytes = 0x40; // 64 bytes used, rest free, magic intact
         const target = setupTargetWithImage(makeStackImage(stackSize, fillPattern, magicValue, usedBytes));
 
-        const result = target.calculateMemoryUsage(0, stackSize, fillPattern, magicValue);
+        const result = await target.calculateMemoryUsage(0, stackSize, fillPattern, magicValue);
         const expectedUsedPercent = Math.floor((usedBytes / stackSize) * 100) & 0x1ff;
         const expected = (usedBytes & 0xfffff) | (expectedUsedPercent << 20) | (1 << 31);
 
         expect(result).toBe(expected);
     });
 
-    it('empty: magic intact and nothing used', () => {
+    it('empty: magic intact and nothing used', async () => {
         const usedBytes = 0x0; // entire stack untouched, magic intact
         const target = setupTargetWithImage(makeStackImage(stackSize, fillPattern, magicValue, usedBytes));
 
-        const result = target.calculateMemoryUsage(0, stackSize, fillPattern, magicValue);
+        const result = await target.calculateMemoryUsage(0, stackSize, fillPattern, magicValue);
         const expected = (0 & 0xfffff) | (0 << 20) | (1 << 31);
 
         expect(result).toBe(expected);
     });
 
-    it('full: magic intact with no free space', () => {
+    it('full: magic intact with no free space', async () => {
         const usedBytes = stackSize - 4; // everything except the magic word
         const target = setupTargetWithImage(makeStackImage(stackSize, fillPattern, magicValue, usedBytes));
 
-        const result = target.calculateMemoryUsage(0, stackSize, fillPattern, magicValue);
+        const result = await target.calculateMemoryUsage(0, stackSize, fillPattern, magicValue);
         const expectedUsedPercent = Math.floor((usedBytes / stackSize) * 100) & 0x1ff;
         const expected = (usedBytes & 0xfffff) | (expectedUsedPercent << 20) | (1 << 31);
 
         expect(result).toBe(expected);
     });
 
-    it('overflow: magic overwritten and no free space', () => {
+    it('overflow: magic overwritten and no free space', async () => {
         const usedBytes = stackSize; // entire stack overwritten, including magic
         const target = setupTargetWithImage(makeStackImage(stackSize, fillPattern, magicValue, usedBytes, 0xDEADBEEF));
 
-        const result = target.calculateMemoryUsage(0, stackSize, fillPattern, magicValue);
+        const result = await target.calculateMemoryUsage(0, stackSize, fillPattern, magicValue);
         const expectedUsedPercent = Math.floor((usedBytes / stackSize) * 100) & 0x1ff;
         const expected = (usedBytes & 0xfffff) | (expectedUsedPercent << 20); // no overflow bit
 
         expect(result).toBe(expected);
     });
 
-    it('corrupt: magic overwritten but free space remains', () => {
+    it('corrupt: magic overwritten but free space remains', async () => {
         const usedBytes = 0x10; // small used region
         const target = setupTargetWithImage(makeStackImage(stackSize, fillPattern, magicValue, usedBytes, 0xA5A5A5A5));
 
         // Used bytes counted in 4-byte chunks; magic chunk also counts as used
         const accountedUsed = usedBytes + 4;
-        const result = target.calculateMemoryUsage(0, stackSize, fillPattern, magicValue);
+        const result = await target.calculateMemoryUsage(0, stackSize, fillPattern, magicValue);
         const expectedUsedPercent = Math.floor((accountedUsed / stackSize) * 100) & 0x1ff;
         const expected = (accountedUsed & 0xfffff) | (expectedUsedPercent << 20); // no overflow bit
 
