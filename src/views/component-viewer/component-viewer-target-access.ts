@@ -195,4 +195,21 @@ export class ComponentViewerTargetAccess {
             return undefined;
         }
     }
+
+    public async evaluateRegisterValue(register: string): Promise<string | undefined> {
+        try {
+            const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
+            const args: DebugProtocol.EvaluateArguments = {
+                expression: `$${register}`,
+                frameId, // Currently required by CDT GDB Adapter
+                context: 'hover'
+            };
+            const response = await this._activeSession?.session.customRequest('evaluate', args) as DebugProtocol.EvaluateResponse['body'];
+            return response.result;
+        } catch (error: unknown) {
+            const errorMessage = (error as Error)?.message;
+            logger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate register value for '${register}' - '${errorMessage}'`);
+            return undefined;
+        }
+    }
 }

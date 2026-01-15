@@ -282,8 +282,8 @@ export class ScvdEvalInterface implements DataHost {
     Bit 20..28 Used memory in percent (how many percent of FillPattern are overwritten)
     Bit 31 Memory overflow (MagicValue is overwritten)
     */
-    public __CalcMemUsed(stackAddress: number, stackSize: number, fillPattern: number, magicValue: number): number | undefined {
-        const memUsed = this.debugTarget.calculateMemoryUsage(
+    public async __CalcMemUsed(stackAddress: number, stackSize: number, fillPattern: number, magicValue: number): Promise<number | undefined> {
+        const memUsed = await this.debugTarget.calculateMemoryUsage(
             stackAddress >>> 0,
             stackSize >>> 0,
             fillPattern >>> 0,
