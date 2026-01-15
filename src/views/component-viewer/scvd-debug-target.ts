@@ -226,6 +226,10 @@ export class ScvdDebugTarget {
         if (typeof dataAsString !== 'string') {
             return undefined;
         }
+        // if data is returned as error message string
+        if (dataAsString.startsWith('Error')) {
+            return undefined;
+        }
         // Convert String data to Uint8Array
         const byteArray = this.decodeGdbData(dataAsString);
 

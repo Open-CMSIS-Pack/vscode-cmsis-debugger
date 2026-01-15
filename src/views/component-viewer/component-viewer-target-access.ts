@@ -149,8 +149,10 @@ export class ComponentViewerTargetAccess {
             const response = await this._activeSession?.session.customRequest('readMemory', args) as DebugProtocol.ReadMemoryResponse['body'];
             return response?.data;
         } catch (error: unknown) {
-            const errorMessage = (error as Error)?.message;
-            logger.debug(`Session '${this._activeSession?.session.name}': Failed to read memory at address '${address}' - '${errorMessage}'`);
+            // Change address to hex format for better logging
+            const hexAddress = `0x${Number(address).toString(16)}`;
+            const errorMessage = (error as Error)?.message + ` at address ${hexAddress}`;
+            logger.debug(`Session '${this._activeSession?.session.name}': Failed to read memory at address '${hexAddress}' - '${errorMessage}'`);
             return errorMessage === 'custom request failed' ? 'No active session' : errorMessage;
         }
     }
