@@ -227,7 +227,7 @@ export class ScvdDebugTarget {
             return undefined;
         }
         // if data is returned as error message string
-        if (dataAsString.startsWith('Error')) {
+        if (dataAsString.startsWith('Unable')) {
             return undefined;
         }
         // Convert String data to Uint8Array
