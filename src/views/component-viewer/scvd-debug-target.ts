@@ -324,9 +324,13 @@ export class ScvdDebugTarget {
             console.error(`ScvdDebugTarget: readRegister: could not find GDB name for register: ${name}`);
             return undefined;
         }
-
-        const value = 0; // read GDB
-
-        return toUint32(value); // Mock implementation always returns 0
+        // Read register value via target access
+        const value = await this.targetAccess.evaluateRegisterValue(gdbName);
+        if (value === undefined) {
+            return undefined;
+        }
+        // Convert to number or bigint and return as uint32
+        const numericValue = Number(value);
+        return toUint32(numericValue); // Mock implementation always returns 0
     }
 }
