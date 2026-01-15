@@ -263,8 +263,8 @@ export class ScvdDebugTarget {
         return this.readMemory(address, maxLength * bytesPerChar);
     }
 
-    public calculateMemoryUsage(startAddress: number, size: number, FillPattern: number, MagicValue: number): number | undefined {
-        const memData = this.mock.getMockMemoryData(startAddress, size);
+    public async calculateMemoryUsage(startAddress: number, size: number, FillPattern: number, MagicValue: number): Promise<number | undefined> {
+        const memData = await this.readMemory(startAddress, size);
         if (memData !== undefined) {
             let usedBytes = 0;
             const fillPatternBytes = new Uint8Array(4);
