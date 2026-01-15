@@ -44,28 +44,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         this._scvdModel = { scvdGuiOut: [] };
     }
     public async activate(): Promise<void> {
-    //public async activate(tracker: GDBTargetDebugTracker): Promise<void> {
-        /*
-        // Subscribe to the debug tracker relevant events
-        const onDidChangeActiveDebugSessionDisposable = tracker.onDidChangeActiveDebugSession(
-            async (session) => await this.handleOnDidChangeActiveDebugSession(session)
-        );
-        const onWillStartSessionDisposable = tracker.onWillStartSession(
-            async (session) => await this.handleOnWillStartSession(session)
-        );
-        const onWillStopSessionDisposable = tracker.onWillStopSession(
-            async (session) => await this.handleOnWillStopSession(session)
-        );
-        const onDidChangeActiveStackItemDisposable = tracker.onDidChangeActiveStackItem(
-            async (stackFrame) => await this.handleOnDidChangeActiveStackItem(stackFrame)
-        );
-        // Extracts out data from objects inside of the scvd model
-        if (!this._scvdModel) {
-            console.warn('No SCVD model set in ComponentViewerTreeDataProvider');
-            return;
-        }
-            */
-        this.addRootObject();
+        await this.addRootObject();
         this.refresh();
     }
 
@@ -78,6 +57,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         // Needs fixing, getGuiValue() for ScvdNode returns 0 when undefined
         treeItem.description = element.getGuiValue() ?? '';
         treeItem.tooltip = element.getGuiLineInfo() ?? '';
+        treeItem.id = (element as unknown as { nodeId: string }).nodeId;
         return treeItem;
     }
 
@@ -86,31 +66,17 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
             return Promise.resolve(this._objectOutRoots);
         }
 
-        return Promise.resolve(element.getGuiChildren() || []);
+        const children = element.getGuiChildren() || [];
+        return Promise.resolve(children);
     }
-    /*
-    private async handleOnDidChangeActiveDebugSession(session: GDBTargetDebugSession | undefined): Promise<void> {
-        // Handle changes to the active debug session if needed
-        this.refresh();
-    }
-
-    private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
-        // Handle actions before a debug session starts if needed
-        this.refresh();
-    }
-
-    private async handleOnWillStopSession(session: GDBTargetDebugSession): Promise<void> {
-        // Handle actions before a debug session stops if needed
-        this.refresh();
-    }
-
-    private async handleOnDidChangeActiveStackItem(stackFrame: SessionStackItem): Promise<void> {
-        // Handle changes to the active stack frame if needed
-        this.refresh();
-    }
-    */
+    
     private refresh(): void {
         this._onDidChangeTreeData.fire();
+    }
+
+    public resetModelCache(): void {
+        this._scvdModel.scvdGuiOut = [];
+        this._objectOutRoots = [];
     }
 
     public async addGuiOut(guiOut: ScvdGuiInterface[] | undefined) {
@@ -134,8 +100,6 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         if (this._scvdModel?.scvdGuiOut.length === 0) {
             return;
         }
-        this._scvdModel.scvdGuiOut.forEach(guiOut => {
-            this._objectOutRoots.push(guiOut);
-        });
+        this._objectOutRoots = [...this._scvdModel.scvdGuiOut];
     }
 }

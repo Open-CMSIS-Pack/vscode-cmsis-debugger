@@ -135,7 +135,7 @@ export class ComponentViewerInstance {
         this.statementEngine = new StatementEngine(this.model, executionContext);
         this.statementEngine.initialize();
         stats.push(this.getStats('  statementEngine.initialize'));
-        this._guiTree = new ScvdGuiTree(undefined);
+        this._guiTree = new ScvdGuiTree(undefined, 'component-viewer-root');
 
         console.log('ComponentViewerInstance readModel stats:\n' + stats.join('\n  '));
     }

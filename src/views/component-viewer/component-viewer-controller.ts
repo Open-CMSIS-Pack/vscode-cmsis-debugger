@@ -180,7 +180,7 @@ export class ComponentViewerController {
             this.updateSymaphorFlag = false;
             return;
         }
-        await this.componentViewerTreeDataProvider?.deleteModels();
+        this.componentViewerTreeDataProvider?.resetModelCache();
         for (const instance of this.instances) {
             this.instanceUpdateCounter++;
             console.log(`Updating Component Viewer Instance #${this.instanceUpdateCounter}`);

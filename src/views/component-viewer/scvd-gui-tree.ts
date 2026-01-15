@@ -27,13 +27,13 @@ export class ScvdGuiTree implements ScvdGuiInterface {
 
     constructor(
         parent: ScvdGuiTree | undefined,
+        nodeId?: string,
     ) {
         this._parent = parent;
         if (parent) {
             parent.addChild(this);
         }
-        this._nodeId = ScvdGuiTree.idCnt.toString();
-        ScvdGuiTree.idCnt++;
+        this._nodeId = nodeId ?? `${this.classname}_${ScvdGuiTree.idCnt++}`;
     }
 
     public get parent(): ScvdGuiTree | undefined {
@@ -45,7 +45,7 @@ export class ScvdGuiTree implements ScvdGuiInterface {
     }
 
     public get nodeId(): string {
-        return this.classname + '_' + this._nodeId.toString();
+        return this._nodeId;
     }
 
     public clear(): void {

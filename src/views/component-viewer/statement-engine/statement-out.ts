@@ -33,7 +33,7 @@ export class StatementOut extends StatementBase {
             return;
         }
 
-        const childGuiTree = new ScvdGuiTree(guiTree);
+        const childGuiTree = new ScvdGuiTree(guiTree, this.scvdItem.nodeId);
         await this.onExecute(executionContext, childGuiTree);
 
         if (this.children.length > 0) {
