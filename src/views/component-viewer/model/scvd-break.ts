@@ -51,18 +51,6 @@ export class ScvdBreaks extends ScvdNode {
         this._break.push(breakItem);
         return breakItem;
     }
-
-    public async calculateBreaks(): Promise<void> {
-        const breaks = this.breaks;
-        if (breaks === undefined || breaks.length === 0) {
-            return;
-        }
-
-        for (const breakItem of breaks) {
-            await breakItem.calculateBreak();
-        }
-    }
-
 }
 
 
@@ -84,8 +72,5 @@ export class ScvdBreak extends ScvdNode {
     }
 
     private break(): void {
-    }
-
-    public async calculateBreak() {
     }
 }
