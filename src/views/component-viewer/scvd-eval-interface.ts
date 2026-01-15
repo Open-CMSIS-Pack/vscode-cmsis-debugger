@@ -428,6 +428,9 @@ export class ScvdEvalInterface implements DataHost {
                 return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
             }
             case 'M': {
+                if (value instanceof Uint8Array) {
+                    return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+                }
                 if (typeof value === 'number') {
                     const buf = await this.readBytesFromPointer(value, 6);
                     return this.formatSpecifier.format(spec, buf ?? value, { typeInfo, allowUnknownSpec: true });
