@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { DebugTargetMock } from './debug-target-mock';
 import { ComponentViewerTargetAccess } from './component-viewer-target-access';
 import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-session';
 import { GDBTargetDebugTracker } from '../../debug-session';
@@ -68,7 +67,6 @@ export interface SymbolInfo {
 }
 
 export class ScvdDebugTarget {
-    private mock = new DebugTargetMock();
     private activeSession: GDBTargetDebugSession | undefined;
     private targetAccess: ComponentViewerTargetAccess;
     private debugTracker: GDBTargetDebugTracker | undefined;
@@ -107,9 +105,8 @@ export class ScvdDebugTarget {
         if (symbol === undefined) {
             return undefined;
         }
-        // No active session: fall back to mock data.
         if (!this.activeSession) {
-            return this.mock.getMockSymbolInfo(symbol);
+            return undefined;
         }
 
         const symbolName = symbol;
@@ -155,16 +152,11 @@ export class ScvdDebugTarget {
         if(symbol === undefined) {
             return undefined;
         }
-        // No active session: fall back to mock data.
+        // No active session: return undefined.
         if (!this.activeSession) {
-            const symbolInfo = this.mock.getMockSymbolInfo(symbol);
-            if (symbolInfo !== undefined) {
-                return symbolInfo?.member?.length ?? 1;
-            }
-        } else {
-            return await this.targetAccess.evaluateNumberOfArrayElements(symbol);
+            return undefined;
         }
-        return undefined;
+        return await this.targetAccess.evaluateNumberOfArrayElements(symbol);
     }
 
     public async getTargetIsRunning(): Promise<boolean> {
@@ -186,16 +178,7 @@ export class ScvdDebugTarget {
         if (!symbol) {
             return undefined;
         }
-        // No active session: fall back to mock data.
         if (!this.activeSession) {
-            const info = this.mock.getMockSymbolInfo(symbol);
-            if (info?.size !== undefined) {
-                return info.size;
-            }
-            // fallback: if member list exists, return total size (count only if size missing)
-            if (info?.member && info.member.length > 0) {
-                return info.member.reduce((acc, m) => acc + (m.size ?? 0), 0) || undefined;
-            }
             return undefined;
         }
 
@@ -236,24 +219,20 @@ export class ScvdDebugTarget {
 
     public async readMemory(address: number | bigint, size: number): Promise<Uint8Array | undefined> {
         if (!this.activeSession) {
-            const addrNum = typeof address === 'bigint' ? Number(address) : address;
-            return this.mock.getMockMemoryData(addrNum, size);
-        } else {
-            const dataAsString = await this.targetAccess.evaluateMemory(address.toString(), size, 0);
-            if (typeof dataAsString !== 'string') {
-                return undefined;
-            }
-            // Convert String data to Uint8Array
-            const byteArray = this.decodeGdbData(dataAsString);
+            return undefined;
+        }
 
-            /*for(let i = 0; i < size; i++) {
-                byteArray[i] = dataAsString.charCodeAt(i);
-            }*/
-            if (byteArray.length !== size) {
-                return byteArray;
-            }
+        const dataAsString = await this.targetAccess.evaluateMemory(address.toString(), size, 0);
+        if (typeof dataAsString !== 'string') {
+            return undefined;
+        }
+        // Convert String data to Uint8Array
+        const byteArray = this.decodeGdbData(dataAsString);
+
+        if (byteArray.length !== size) {
             return byteArray;
         }
+        return byteArray;
     }
 
     public readUint8ArrayStrFromPointer(address: number | bigint, bytesPerChar: number, maxLength: number): Promise<Uint8Array | undefined> {
@@ -331,6 +310,6 @@ export class ScvdDebugTarget {
         }
         // Convert to number or bigint and return as uint32
         const numericValue = Number(value);
-        return toUint32(numericValue); // Mock implementation always returns 0
+        return toUint32(numericValue);
     }
 }
