@@ -1064,3 +1064,23 @@ export async function evaluateParseResult(pr: ParseResult, ctx: EvalContext, con
         ctx.container.valueType = saved.valueType;
     }
 }
+
+// Test-only access to internal helpers.
+export const __test__ = {
+    findReferenceNode,
+    asNumber,
+    integerDiv,
+    integerMod,
+    evalArgsForIntrinsic,
+    mustRef,
+    formatValue,
+    eqVals,
+    ltVals,
+    lteVals,
+    gtVals,
+    gteVals,
+    getScalarTypeForContainer,
+    captureContainerForReference,
+    evalBinary,
+    normalizeEvaluateResult,
+};

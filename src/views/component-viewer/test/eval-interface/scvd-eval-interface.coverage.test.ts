@@ -194,6 +194,15 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         (console.error as unknown as jest.Mock).mockRestore();
     });
 
+    it('resolveColonPath and getElementRef fall back to undefined', async () => {
+        const child = new DummyNode('child');
+        const base = new DummyNode('base', { symbolMap: { child } });
+        const container: RefContainer = { base, current: base, valueType: undefined };
+        const { evalIf } = makeEval();
+        await expect(evalIf.resolveColonPath(container, ['a', 'b'])).resolves.toBeUndefined();
+        await expect(evalIf.getElementRef(base)).resolves.toBeUndefined();
+    });
+
     it('read/write value wrap host errors', async () => {
         const memHost = {
             readValue: jest.fn(() => { throw new Error('boom'); }),
@@ -238,6 +247,14 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
 
         const widen = await (evalIf as unknown as { normalizeScalarType(v: unknown): { kind: string; name?: string; bits?: number } }).normalizeScalarType({ kind: 'int', name: 'custom', bits: 128 });
         expect(widen.bits).toBe(128);
+    });
+
+    it('covers scalar info for array types', async () => {
+        const arrayNode = new DummyNode('arr', { arraySize: 4, valueType: 'uint8_t' });
+        const container: RefContainer = { base: arrayNode, current: arrayNode, valueType: undefined };
+        const { evalIf } = makeEval();
+        const formatted = await evalIf.formatPrintf('x', 1, container);
+        expect(formatted).toBeDefined();
     });
 
     it('normalizeScalarType and helpers handle undefined and invalid pointers', async () => {

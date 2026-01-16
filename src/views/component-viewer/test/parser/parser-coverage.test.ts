@@ -112,10 +112,11 @@ describe('parser coverage', () => {
         expect(unknown.diagnostics.some(d => d.type === 'error')).toBe(true);
     });
 
-    it('folds to string and boolean literals when possible', () => {
-        expect(parseExpression('"a" + "b"', false).ast.constValue).toBe('ab');
-        expect(parseExpression('1 == 1', false).ast.constValue).toBe(true);
-    });
+it('folds to string and boolean literals when possible', () => {
+    expect(parseExpression('"a" + "b"', false).ast.constValue).toBe('ab');
+    expect(parseExpression('1 == 1', false).ast.constValue).toBe(true);
+    expect(parseExpression("'\\''", false).ast.constValue).toBe(39);
+});
 
     it('handles additional invalid escape sequences', () => {
         expect(parseExpression('"\\u{ZZ}"', false).ast.constValue).toBe('u{ZZ}');
@@ -145,15 +146,20 @@ describe('parser coverage', () => {
         const trailing = trailingSegments.at(-1);
         expect(trailing && trailing.kind === 'TextSegment' ? trailing.text : undefined).toBe('%');
 
-        const noBracket = parseExpression('%x value', true);
-        const first = asPrintf(noBracket.ast).segments[0];
-        expect(first.kind === 'TextSegment' ? first.text : undefined).toBe('%x');
+    const noBracket = parseExpression('%x value', true);
+    const first = asPrintf(noBracket.ast).segments[0];
+    expect(first.kind === 'TextSegment' ? first.text : undefined).toBe('%x');
 
-        const escapedString = parseExpression('%x["unterminated', true);
-        expect(escapedString.diagnostics.some(d => d.message.includes('Unclosed formatter bracket'))).toBe(true);
+    const escapedString = parseExpression('%x["unterminated', true);
+    expect(escapedString.diagnostics.some(d => d.message.includes('Unclosed formatter bracket'))).toBe(true);
 
-        const forcedByDoublePercent = parseExpression('%% literal', false);
-        expect(forcedByDoublePercent.isPrintf).toBe(true);
+    const escapedWithin = parseExpression('%x["a\\\\\\"b"]', true);
+    expect(escapedWithin.diagnostics).toHaveLength(0);
+    const seg = asPrintf(escapedWithin.ast).segments.find(s => s.kind === 'FormatSegment') as FormatSegment | undefined;
+    expect(seg?.spec).toBe('x');
+
+    const forcedByDoublePercent = parseExpression('%% literal', false);
+    expect(forcedByDoublePercent.isPrintf).toBe(true);
 
         const semicolonInner = parseExpression('%x[1;]', true);
         expect(asPrintf(semicolonInner.ast).segments.length).toBeGreaterThan(0);
@@ -165,11 +171,16 @@ describe('parser coverage', () => {
     });
 
     it('reports malformed conditionals and invalid assignment targets', () => {
-        const missingColon = parseExpression('a ? b', false);
-        expect(missingColon.diagnostics.some(d => d.message.includes('Expected ":"'))).toBe(true);
+    const missingColon = parseExpression('a ? b', false);
+    expect(missingColon.diagnostics.some(d => d.message.includes('Expected ":"'))).toBe(true);
 
-        const badTarget = parseExpression('(a+b)=3', false);
-        expect(badTarget.diagnostics.some(d => d.message.includes('Invalid assignment target'))).toBe(true);
+    const badTarget = parseExpression('(a+b)=3', false);
+    expect(badTarget.diagnostics.some(d => d.message.includes('Invalid assignment target'))).toBe(true);
+
+    const tooFewArgs = parseExpression('__CalcMemUsed(1)', false);
+    expect(tooFewArgs.diagnostics.some(d => d.message.includes('expects at least 4 argument'))).toBe(true);
+    const tooManyArgs = parseExpression('__GetRegVal(r0, r1)', false);
+    expect(tooManyArgs.diagnostics.some(d => d.message.includes('expects at most 1 argument'))).toBe(true);
     });
 
     it('parses prefix updates and colon-path failures', () => {
