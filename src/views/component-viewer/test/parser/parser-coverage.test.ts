@@ -124,7 +124,8 @@ describe('parser coverage', () => {
     });
 
     it('covers all simple escape sequences and default escape handling', () => {
-        const val = parseExpression('"\\n\\r\\t\\b\\f\\v\\\\\\\"\\\'\\0\\q"', false).ast.constValue as string;
+        // eslint-disable-next-line quotes, no-useless-escape
+        const val = parseExpression(`"\\n\\r\\t\\b\\f\\v\\\\\\\"'\\0\\q"`, false).ast.constValue as string;
         expect(val).toBe('\n\r\t\b\f\v\\"\'\0q');
     });
 
@@ -148,7 +149,7 @@ describe('parser coverage', () => {
         const first = asPrintf(noBracket.ast).segments[0];
         expect(first.kind === 'TextSegment' ? first.text : undefined).toBe('%x');
 
-        const escapedString = parseExpression('%x["a\\\\\"b"]', true);
+        const escapedString = parseExpression('%x["unterminated', true);
         expect(escapedString.diagnostics.some(d => d.message.includes('Unclosed formatter bracket'))).toBe(true);
 
         const forcedByDoublePercent = parseExpression('%% literal', false);

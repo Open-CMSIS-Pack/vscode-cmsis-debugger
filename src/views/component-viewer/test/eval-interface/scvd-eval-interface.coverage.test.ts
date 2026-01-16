@@ -18,7 +18,7 @@
 // generated with AI
 
 import { ScvdEvalInterface } from '../../scvd-eval-interface';
-import type { RefContainer } from '../../evaluator';
+import type { RefContainer } from '../../model-host';
 import type { MemoryHost } from '../../data-host/memory-host';
 import type { RegisterHost } from '../../data-host/register-host';
 import type { ScvdDebugTarget } from '../../scvd-debug-target';
@@ -49,7 +49,10 @@ class DummyNode extends ScvdNode {
     public override getIsPointer(): boolean { return this.opts.isPointer ?? false; }
     public override getDisplayLabel(): string { return this.name ?? '<anon>'; }
     public override getMemberOffset(): Promise<number | undefined> { return Promise.resolve(this.opts.memberOffset); }
-    public override getMember(name: string): ScvdNode | undefined { return this.opts.symbolMap?.[name]; }
+    public override getMember(name: string): ScvdNode | undefined {
+        const map = this.opts.symbolMap ?? {};
+        return Object.prototype.hasOwnProperty.call(map, name) ? map[name] : undefined;
+    }
     public override getValueType(): string | undefined { return this.opts.valueType; }
 }
 
@@ -145,7 +148,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         expect(debugTarget.getTargetIsRunning).toHaveBeenCalled();
     });
 
-    it('_count and _addr defer to MemoryHost', () => {
+    it('_count and _addr defer to MemoryHost', async () => {
         const base = new DummyNode('arr');
         const container: RefContainer = { base, current: base, valueType: undefined };
         const memHost = {
@@ -153,8 +156,8 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
             getElementTargetBase: jest.fn().mockReturnValue(0xbeef)
         } as unknown as MemoryHost;
         const { evalIf } = makeEval(memHost);
-        expect(evalIf._count(container)).toBe(10);
-        expect(evalIf._addr(container)).toBe(0xbeef);
+        expect(await evalIf._count(container)).toBe(10);
+        expect(await evalIf._addr(container)).toBe(0xbeef);
     });
 
     it('getByteWidth handles pointers, arrays, and logs missing size', async () => {
@@ -169,17 +172,17 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         (console.error as unknown as jest.Mock).mockRestore();
     });
 
-    it('getElementStride handles pointer, virtual size, target size, and missing stride', () => {
+    it('getElementStride handles pointer, virtual size, target size, and missing stride', async () => {
         const ptrNode = new DummyNode('ptr', { isPointer: true });
         const virtualNode = new DummyNode('virt', { virtualSize: 5 });
         const sizedNode = new DummyNode('sized', { targetSize: 3 });
         const missing = new DummyNode('missing');
         jest.spyOn(console, 'error').mockImplementation(() => {});
         const { evalIf } = makeEval();
-        expect(evalIf.getElementStride(ptrNode)).toBe(4);
-        expect(evalIf.getElementStride(virtualNode)).toBe(5);
-        expect(evalIf.getElementStride(sizedNode)).toBe(3);
-        expect(evalIf.getElementStride(missing)).toBe(0);
+        expect(await evalIf.getElementStride(ptrNode)).toBe(4);
+        expect(await evalIf.getElementStride(virtualNode)).toBe(5);
+        expect(await evalIf.getElementStride(sizedNode)).toBe(3);
+        expect(await evalIf.getElementStride(missing)).toBe(0);
         (console.error as unknown as jest.Mock).mockRestore();
     });
 
@@ -191,7 +194,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         (console.error as unknown as jest.Mock).mockRestore();
     });
 
-    it('read/write value wrap host errors', () => {
+    it('read/write value wrap host errors', async () => {
         const memHost = {
             readValue: jest.fn(() => { throw new Error('boom'); }),
             writeValue: jest.fn(() => { throw new Error('boom'); })
@@ -199,8 +202,8 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         const { evalIf } = makeEval(memHost);
         jest.spyOn(console, 'error').mockImplementation(() => {});
         const container: RefContainer = { base: new DummyNode('b'), current: new DummyNode('b'), valueType: undefined };
-        expect(evalIf.readValue(container)).toBeUndefined();
-        expect(evalIf.writeValue(container, 1)).toBeUndefined();
+        expect(await evalIf.readValue(container)).toBeUndefined();
+        expect(await evalIf.writeValue(container, 1)).toBeUndefined();
         (console.error as unknown as jest.Mock).mockRestore();
     });
 
@@ -214,8 +217,8 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         } as unknown as ScvdNode;
         const container: RefContainer = { base, current: base, valueType: undefined };
         const { evalIf } = makeEval();
-        expect(evalIf.getSymbolRef(container, 'm')).toBe(member);
-        expect(evalIf.getMemberRef(container, 'm')).toBe(member);
+        expect(await evalIf.getSymbolRef(container, 'm')).toBe(member);
+        expect(await evalIf.getMemberRef(container, 'm')).toBe(member);
         expect(await evalIf.getValueType({ ...container, current: new DummyNode('c', { valueType: 'float64' }) })).toBe('float64');
     });
 
@@ -285,11 +288,11 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         await expect(evalIf.getMemberOffset(new DummyNode('b'), member)).resolves.toBe(8);
 
         const container: RefContainer = { base: new DummyNode('b'), current: new DummyNode('b'), valueType: undefined };
-        expect(evalIf.readValue(container)).toBe(7);
-        expect(evalIf.writeValue(container, 9)).toBe(9);
+        expect(await evalIf.readValue(container)).toBe(7);
+        expect(await evalIf.writeValue(container, 9)).toBe(9);
 
-        expect(evalIf._count({ base: new DummyNode(undefined), current: new DummyNode(undefined), valueType: undefined } as unknown as RefContainer)).toBeUndefined();
-        expect(evalIf._addr({ base: new DummyNode(undefined), current: new DummyNode(undefined), valueType: undefined } as unknown as RefContainer)).toBeUndefined();
+        expect(await evalIf._count({ base: new DummyNode(undefined), current: new DummyNode(undefined), valueType: undefined } as unknown as RefContainer)).toBeUndefined();
+        expect(await evalIf._addr({ base: new DummyNode(undefined), current: new DummyNode(undefined), valueType: undefined } as unknown as RefContainer)).toBeUndefined();
 
         const regHost = { read: jest.fn().mockReturnValueOnce(undefined).mockReturnValueOnce(undefined), write: jest.fn() } as unknown as RegisterHost;
         const debugTarget = { readRegister: jest.fn().mockResolvedValue(5) } as unknown as ScvdDebugTarget;

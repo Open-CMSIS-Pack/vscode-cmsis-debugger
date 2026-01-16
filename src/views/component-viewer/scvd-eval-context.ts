@@ -56,7 +56,7 @@ export class ScvdEvalContext {
         }
 
         this._ctx = new EvalContext({
-            data: this._evalHost,               // DataHost
+            data: this._evalHost,               // host for model lookup + data access + intrinsics
             container: outItem,                 // ScvdNode root for symbol resolution
         });
     }

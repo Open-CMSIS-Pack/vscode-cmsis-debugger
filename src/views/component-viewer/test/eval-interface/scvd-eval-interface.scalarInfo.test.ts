@@ -20,7 +20,7 @@
 import { ScvdEvalInterface } from '../../scvd-eval-interface';
 import { FormatTypeInfo } from '../../model/scvd-format-specifier';
 import { ScvdFormatSpecifier } from '../../model/scvd-format-specifier';
-import { RefContainer } from '../../evaluator';
+import { RefContainer } from '../../model-host';
 import { MemoryHost } from '../../data-host/memory-host';
 import { RegisterHost } from '../../data-host/register-host';
 import { ScvdDebugTarget } from '../../scvd-debug-target';

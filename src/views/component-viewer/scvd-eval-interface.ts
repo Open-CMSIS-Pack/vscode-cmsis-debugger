@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import { DataHost, EvalValue, RefContainer, ScalarType } from './evaluator';
+import { DataAccessHost, EvalValue, ModelHost, RefContainer, ScalarType } from './model-host';
+import type { IntrinsicProvider } from './intrinsics';
 import { ScvdNode } from './model/scvd-node';
 import { MemoryHost } from './data-host/memory-host';
 import { RegisterHost } from './data-host/register-host';
@@ -23,7 +24,7 @@ import { FormatSegment } from './parser';
 import { FormatTypeInfo, ScvdFormatSpecifier } from './model/scvd-format-specifier';
 import { ScvdMember } from './model/scvd-member';
 
-export class ScvdEvalInterface implements DataHost {
+export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicProvider {
     private _registerCache: RegisterHost;
     private _memHost: MemoryHost;
     private _debugTarget: ScvdDebugTarget;
@@ -160,15 +161,22 @@ export class ScvdEvalInterface implements DataHost {
         return this.debugTarget.findSymbolAddress(normalized);
     }
 
-    // ---------------- DataHost Interface ----------------
-    public getSymbolRef(container: RefContainer, name: string, _forWrite?: boolean): ScvdNode | undefined {
-        const symbol = container.base.getSymbol?.(name);
-        return symbol;
+    // ---------------- Host Interface: model + data access ----------------
+    public async getSymbolRef(container: RefContainer, name: string, _forWrite?: boolean): Promise<ScvdNode | undefined> {
+        return container.base.getSymbol?.(name);
     }
 
-    public getMemberRef(container: RefContainer, property: string, _forWrite?: boolean): ScvdNode | undefined {
+    public async getMemberRef(container: RefContainer, property: string, _forWrite?: boolean): Promise<ScvdNode | undefined> {
         const base = container.current;
         return base?.getMember(property);
+    }
+
+    public async resolveColonPath(_container: RefContainer, _parts: string[]): Promise<EvalValue> {
+        return undefined;
+    }
+
+    public async getElementRef(ref: ScvdNode): Promise<ScvdNode | undefined> {
+        return ref.getElementRef();
     }
 
     // Optional helper used by the evaluator
@@ -192,7 +200,7 @@ export class ScvdEvalInterface implements DataHost {
     /* bytes per element (including any padding/alignment inside the array layout).
        Stride only answers: “how far do I move to get from element i to i+1?”
     */
-    public getElementStride(ref: ScvdNode): number {
+    public async getElementStride(ref: ScvdNode): Promise<number> {
         const isPointer = ref.getIsPointer();
         if (isPointer) {
             return 4;   // pointer size
@@ -228,19 +236,19 @@ export class ScvdEvalInterface implements DataHost {
     }
 
     /* ---------------- Read/Write via caches ---------------- */
-    public readValue(container: RefContainer): EvalValue {
+    public async readValue(container: RefContainer): Promise<EvalValue> {
         try {
-            const value = this.memHost.readValue(container);
-            return value;
+            const value = await this.memHost.readValue(container);
+            return value as EvalValue;
         } catch (e) {
             console.error(`ScvdEvalInterface.readValue: exception for container with base=${container.base.getDisplayLabel()}: ${e}`);
             return undefined;
         }
     }
 
-    public writeValue(container: RefContainer, value: EvalValue): EvalValue {
+    public async writeValue(container: RefContainer, value: EvalValue): Promise<EvalValue> {
         try {
-            this.memHost.writeValue(container, value);
+            await this.memHost.writeValue(container, value);
             return value;
         } catch (e) {
             console.error(`ScvdEvalInterface.writeValue: exception for container with base=${container.base.getDisplayLabel()}: ${e}`);
@@ -320,7 +328,7 @@ export class ScvdEvalInterface implements DataHost {
         return isRunning ? 1 : 0;
     }
 
-    public _count(container: RefContainer): number | undefined {
+    public async _count(container: RefContainer): Promise<number | undefined> {
         const base = container.current;
         const name = base?.name;
         if (name !== undefined) {
@@ -330,7 +338,7 @@ export class ScvdEvalInterface implements DataHost {
         return undefined;
     }
 
-    public _addr(container: RefContainer): number | undefined {
+    public async _addr(container: RefContainer): Promise<number | undefined> {
         const base = container.current;
         const name = base?.name;
         const index = container.index ?? 0;

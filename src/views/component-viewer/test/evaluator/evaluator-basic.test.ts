@@ -15,7 +15,9 @@
  */
 // generated with AI
 
-import { EvalContext, evaluateParseResult, type DataHost, type EvalValue, type RefContainer } from '../../evaluator';
+import { EvalContext, evaluateParseResult } from '../../evaluator';
+import type { EvalValue, RefContainer } from '../../model-host';
+import type { FullDataHost } from '../helpers/full-data-host';
 import { parseExpression } from '../../parser';
 import { ScvdNode } from '../../model/scvd-node';
 
@@ -66,7 +68,7 @@ function buildRef(def?: SymbolDef, parent?: MockRef): MockRef {
     return new MockRef(def, parent);
 }
 
-class MockHost implements DataHost {
+class MockHost implements FullDataHost {
     readonly root: MockRef;
     private readonly symbols = new Map<string, MockRef>();
     private readonly regValues = new Map<string, number>([['r0', 7]]);
@@ -94,16 +96,20 @@ class MockHost implements DataHost {
         return ref;
     }
 
-    public getSymbolRef(_container: RefContainer, name: string, _forWrite?: boolean): MockRef | undefined {
+    public async resolveColonPath(): Promise<EvalValue> {
+        return undefined;
+    }
+
+    public async getSymbolRef(_container: RefContainer, name: string, _forWrite?: boolean): Promise<MockRef | undefined> {
         return this.symbols.get(name);
     }
 
-    public getMemberRef(container: RefContainer, property: string, _forWrite?: boolean): MockRef | undefined {
+    public async getMemberRef(container: RefContainer, property: string, _forWrite?: boolean): Promise<MockRef | undefined> {
         const base = this.resolveElement(container.current as MockRef, container.index);
         return base?.members.get(property);
     }
 
-    public readValue(container: RefContainer): EvalValue | undefined {
+    public async readValue(container: RefContainer): Promise<EvalValue | undefined> {
         const ref =
             (container.member as MockRef | undefined) ??
             this.resolveElement(container.current as MockRef, container.index) ??
@@ -111,7 +117,7 @@ class MockHost implements DataHost {
         return ref?.value;
     }
 
-    public writeValue(container: RefContainer, value: EvalValue): EvalValue | undefined {
+    public async writeValue(container: RefContainer, value: EvalValue): Promise<EvalValue | undefined> {
         const ref =
             (container.member as MockRef | undefined) ??
             this.resolveElement(container.current as MockRef, container.index) ??
@@ -123,7 +129,23 @@ class MockHost implements DataHost {
         return value;
     }
 
-    public _count(container: RefContainer): number | undefined {
+    public async getElementStride(_ref: MockRef): Promise<number> {
+        return 1;
+    }
+
+    public async getMemberOffset(_base: MockRef, _member: MockRef): Promise<number | undefined> {
+        return undefined;
+    }
+
+    public async getElementRef(ref: MockRef): Promise<MockRef | undefined> {
+        return this.resolveElement(ref);
+    }
+
+    public async getByteWidth(): Promise<number | undefined> {
+        return 4;
+    }
+
+    public async _count(container: RefContainer): Promise<number | undefined> {
         const ref = this.resolveElement(container.current as MockRef, container.index);
         if (!ref) {
             return undefined;
@@ -140,20 +162,20 @@ class MockHost implements DataHost {
         return 0;
     }
 
-    public _addr(container: RefContainer): number | undefined {
+    public async _addr(container: RefContainer): Promise<number | undefined> {
         const ref = this.resolveElement(container.current as MockRef, container.index);
         return ref?.addr ?? 0;
     }
 
-    public __Running(): number {
+    public async __Running(): Promise<number | undefined> {
         return 1;
     }
 
-    public __GetRegVal(reg: string): number | undefined {
+    public async __GetRegVal(reg: string): Promise<number | bigint | undefined> {
         return this.regValues.get(reg);
     }
 
-    public __FindSymbol(symbol: string): number | undefined {
+    public async __FindSymbol(symbol: string): Promise<number | undefined> {
         const ref = this.symbols.get(symbol);
         if (ref?.addr !== undefined) {
             return ref.addr;
@@ -164,20 +186,28 @@ class MockHost implements DataHost {
         return undefined;
     }
 
-    public __CalcMemUsed(a: number, b: number, c: number, d: number): number {
+    public async __CalcMemUsed(a: number, b: number, c: number, d: number): Promise<number | undefined> {
         return (a >>> 0) + (b >>> 0) + (c >>> 0) + (d >>> 0);
     }
 
-    public __size_of(symbol: string): number | undefined {
+    public async __size_of(symbol: string): Promise<number | undefined> {
         return this.symbols.has(symbol) ? 4 : undefined;
     }
 
-    public __Symbol_exists(symbol: string): number {
+    public async __Symbol_exists(symbol: string): Promise<number | undefined> {
         return this.symbols.has(symbol) ? 1 : 0;
     }
 
-    public __Offset_of(_container: RefContainer, typedefMember: string): number | undefined {
+    public async __Offset_of(_container: RefContainer, typedefMember: string): Promise<number | undefined> {
         return this.symbolOffsets.get(typedefMember);
+    }
+
+    public async formatPrintf(): Promise<string | undefined> {
+        return undefined;
+    }
+
+    public async getValueType(): Promise<string | undefined> {
+        return undefined;
     }
 
     public getSymbolValue(name: string): EvalValue | undefined {

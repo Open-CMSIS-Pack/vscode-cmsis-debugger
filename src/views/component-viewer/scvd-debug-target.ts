@@ -112,11 +112,15 @@ export class ScvdDebugTarget {
         const symbolName = symbol;
         const symbolAddressStr = await this.targetAccess.evaluateSymbolAddress(symbol);
         if (symbolAddressStr !== undefined) {
-            const symbolInfo : SymbolInfo = {
-                name: symbolName,
-                address: parseInt(symbolAddressStr as unknown as string, 16)
-            };
-            return symbolInfo;
+            const addr = parseInt(symbolAddressStr as unknown as string, 16);
+            if (Number.isFinite(addr)) {
+                const symbolInfo: SymbolInfo = {
+                    name: symbolName,
+                    address: addr
+                };
+                return symbolInfo;
+            }
+            console.error(`getSymbolInfo: could not parse address for ${symbolName}:`, symbolAddressStr);
         }
         return undefined;
     }

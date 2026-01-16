@@ -69,7 +69,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         const children = element.getGuiChildren() || [];
         return Promise.resolve(children);
     }
-    
+
     private refresh(): void {
         this._onDidChangeTreeData.fire();
     }

@@ -15,7 +15,9 @@
  */
 // generated with AI
 
-import { EvalContext, evaluateParseResult, type DataHost, type RefContainer, type EvalValue } from '../../evaluator';
+import { EvalContext, evaluateParseResult } from '../../evaluator';
+import type { RefContainer, EvalValue } from '../../model-host';
+import type { FullDataHost } from '../helpers/full-data-host';
 import { parseExpression } from '../../parser';
 import { ScvdNode } from '../../model/scvd-node';
 
@@ -25,7 +27,7 @@ class BasicRef extends ScvdNode {
     }
 }
 
-class HookHost implements DataHost {
+class HookHost implements FullDataHost {
     readonly root = new BasicRef();
     readonly arrRef = new BasicRef(this.root);
     readonly elemRef = new BasicRef(this.arrRef);
@@ -49,7 +51,7 @@ class HookHost implements DataHost {
         this.calls[name] = (this.calls[name] ?? 0) + 1;
     }
 
-    public getSymbolRef(_container: RefContainer, name: string): BasicRef | undefined {
+    public async getSymbolRef(_container: RefContainer, name: string): Promise<BasicRef | undefined> {
         this.tick('getSymbolRef');
         if (name === 'arr') {
             return this.arrRef;
@@ -57,7 +59,7 @@ class HookHost implements DataHost {
         return undefined;
     }
 
-    public getMemberRef(_container: RefContainer, property: string): BasicRef | undefined {
+    public async getMemberRef(_container: RefContainer, property: string): Promise<BasicRef | undefined> {
         this.tick('getMemberRef');
         if (property === 'field') {
             return this.fieldRef;
@@ -69,22 +71,22 @@ class HookHost implements DataHost {
         return undefined;
     }
 
-    public getElementStride(): number {
+    public async getElementStride(_ref: ScvdNode): Promise<number> {
         this.tick('getElementStride');
         return 4;
     }
 
-    public getMemberOffset(): number {
+    public async getMemberOffset(_base: ScvdNode, _member: ScvdNode): Promise<number | undefined> {
         this.tick('getMemberOffset');
         return 2;
     }
 
-    public getElementRef(): BasicRef {
+    public async getElementRef(): Promise<BasicRef | undefined> {
         this.tick('getElementRef');
         return this.elemRef;
     }
 
-    public getByteWidth(): number {
+    public async getByteWidth(): Promise<number | undefined> {
         this.tick('getByteWidth');
         return 4;
     }
@@ -93,23 +95,33 @@ class HookHost implements DataHost {
         this.values.set(offset, value);
     }
 
-    public resolveColonPath(_container: RefContainer, parts: string[]): EvalValue {
+    public async resolveColonPath(_container: RefContainer, parts: string[]): Promise<EvalValue> {
         this.tick('resolveColonPath');
         return parts.length * 100; // simple sentinel
     }
 
-    public readValue(container: RefContainer): EvalValue | undefined {
+    public async readValue(container: RefContainer): Promise<EvalValue | undefined> {
         this.tick('readValue');
         const off = container.offsetBytes ?? 0;
         return this.values.get(off);
     }
 
-    public writeValue(_container: RefContainer, value: EvalValue): EvalValue | undefined {
+    public async writeValue(_container: RefContainer, value: EvalValue): Promise<EvalValue | undefined> {
         this.tick('writeValue');
         return value;
     }
 
-    public formatPrintf(spec: string, value: EvalValue, container: RefContainer): string | undefined {
+    public async _count(): Promise<number | undefined> {
+        this.tick('_count');
+        return undefined;
+    }
+
+    public async _addr(): Promise<number | undefined> {
+        this.tick('_addr');
+        return undefined;
+    }
+
+    public async formatPrintf(spec: string, value: EvalValue, container: RefContainer): Promise<string | undefined> {
         this.tick('formatPrintf');
         this.lastFormattingContainer = container;
         if (this.disablePrintfOverride) {
@@ -121,6 +133,46 @@ class HookHost implements DataHost {
             return undefined;
         }
         return `fmt-${spec}-${value}`;
+    }
+
+    public async getValueType(): Promise<string | undefined> {
+        this.tick('getValueType');
+        return undefined;
+    }
+
+    public async __GetRegVal(): Promise<number | bigint | undefined> {
+        this.tick('__GetRegVal');
+        return undefined;
+    }
+
+    public async __FindSymbol(): Promise<number | undefined> {
+        this.tick('__FindSymbol');
+        return undefined;
+    }
+
+    public async __CalcMemUsed(): Promise<number | undefined> {
+        this.tick('__CalcMemUsed');
+        return undefined;
+    }
+
+    public async __size_of(): Promise<number | undefined> {
+        this.tick('__size_of');
+        return undefined;
+    }
+
+    public async __Symbol_exists(): Promise<number | undefined> {
+        this.tick('__Symbol_exists');
+        return undefined;
+    }
+
+    public async __Offset_of(): Promise<number | undefined> {
+        this.tick('__Offset_of');
+        return undefined;
+    }
+
+    public async __Running(): Promise<number | undefined> {
+        this.tick('__Running');
+        return undefined;
     }
 }
 

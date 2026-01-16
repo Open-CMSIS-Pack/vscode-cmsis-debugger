@@ -20,7 +20,7 @@ import { MemoryHost } from '../../data-host/memory-host';
 import { RegisterHost } from '../../data-host/register-host';
 import { ScvdFormatSpecifier } from '../../model/scvd-format-specifier';
 import { ScvdDebugTarget } from '../../scvd-debug-target';
-import { RefContainer } from '../../evaluator';
+import { RefContainer } from '../../model-host';
 import { ScvdNode } from '../../model/scvd-node';
 
 const makeStubBase = (name: string): ScvdNode => ({
@@ -85,7 +85,7 @@ describe('ScvdEvalInterface', () => {
         expect(await host.formatPrintf('?', true as unknown as number, container)).toBe('<unknown format specifier %?>');
     });
 
-    it('readValue/writeValue interop with cache', () => {
+    it('readValue/writeValue interop with cache', async () => {
         const memHost = new MemoryHost();
         const regCache = { read: jest.fn() } as unknown as RegisterHost;
         const debugTarget = { getSymbolSize: jest.fn(), getNumArrayElements: jest.fn() } as unknown as ScvdDebugTarget;
@@ -93,7 +93,7 @@ describe('ScvdEvalInterface', () => {
         const host = new ScvdEvalInterface(memHost, regCache, debugTarget, fmt);
 
         const container = makeContainer('num', 4);
-        host.writeValue(container, 0xdeadbeef);
-        expect(host.readValue(container)).toBe(0xdeadbeef >>> 0);
+        await host.writeValue(container, 0xdeadbeef);
+        expect(await host.readValue(container)).toBe(0xdeadbeef >>> 0);
     });
 });

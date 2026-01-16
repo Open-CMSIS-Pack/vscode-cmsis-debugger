@@ -68,6 +68,8 @@ export function getStringField(obj: Json | undefined, key: string): string | und
     if (!obj) {
         return undefined;
     }
+    // Controlled access into parsed JSON object.
+    // eslint-disable-next-line security/detect-object-injection
     return getStringFromJson(obj[key]);
 }
 

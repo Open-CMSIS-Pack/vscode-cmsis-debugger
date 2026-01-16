@@ -18,7 +18,9 @@
 // generated with AI
 
 import { parseExpression, type FormatSegment, type ASTNode, type EvalPointCall, type CallExpression, type AssignmentExpression, type ConditionalExpression, type BinaryExpression, type UpdateExpression, type UnaryExpression, type ArrayIndex, type MemberAccess, type Identifier, type PrintfExpression, type TextSegment } from '../../parser';
-import { evaluateParseResult, EvalContext, evalNode, type RefContainer, type DataHost, type EvalValue, type ScalarType } from '../../evaluator';
+import { evaluateParseResult, EvalContext, evalNode } from '../../evaluator';
+import type { RefContainer, EvalValue, ScalarType } from '../../model-host';
+import type { FullDataHost } from '../helpers/full-data-host';
 import { ScvdNode } from '../../model/scvd-node';
 
 class FakeNode extends ScvdNode {
@@ -37,21 +39,21 @@ class FakeNode extends ScvdNode {
     }
 }
 
-class Host implements DataHost {
-    public _count?: (container: RefContainer) => Promise<number | undefined>;
-    public _addr?: (container: RefContainer) => Promise<number | undefined>;
-    public __Running?: () => Promise<number | undefined>;
+class Host implements FullDataHost {
     constructor(private values: Map<string, FakeNode>) {}
     private setCurrent(container: RefContainer, node: FakeNode): FakeNode {
         container.current = node;
         return node;
     }
-    async getSymbolRef(container: RefContainer, name: string): Promise<FakeNode | undefined> {
-        const n = this.values.get(name);
-        if (n) {
-            return this.setCurrent(container, n);
-        }
+    async resolveColonPath(): Promise<EvalValue> {
         return undefined;
+    }
+    async getSymbolRef(container: RefContainer, name: string): Promise<FakeNode | undefined> {
+        if (!this.values.has(name)) {
+            return undefined;
+        }
+        const n = this.values.get(name);
+        return n ? this.setCurrent(container, n) : undefined;
     }
     async getMemberRef(container: RefContainer, property: string): Promise<FakeNode | undefined> {
         const cur = container.current as FakeNode | undefined;
@@ -76,6 +78,46 @@ class Host implements DataHost {
         const val = cur?.['value'] as EvalValue;
         return typeof val === 'bigint' ? 8 : 1;
     }
+    async getElementStride(_ref: ScvdNode): Promise<number> {
+        return 1;
+    }
+    async getMemberOffset(_base: ScvdNode, _member: ScvdNode): Promise<number | undefined> {
+        return undefined;
+    }
+    async getElementRef(ref: ScvdNode): Promise<ScvdNode | undefined> {
+        const node = this.values.get((ref as FakeNode).id + '[0]');
+        return node ?? this.values.get((ref as FakeNode).id);
+    }
+    async __GetRegVal(): Promise<number | bigint | undefined> {
+        return undefined;
+    }
+    async __FindSymbol(): Promise<number | undefined> {
+        return undefined;
+    }
+    async __CalcMemUsed(): Promise<number | undefined> {
+        return undefined;
+    }
+    async __size_of(): Promise<number | undefined> {
+        return undefined;
+    }
+    async __Symbol_exists(): Promise<number | undefined> {
+        return undefined;
+    }
+    async __Offset_of(): Promise<number | undefined> {
+        return undefined;
+    }
+    async __Running(): Promise<number | undefined> {
+        return undefined;
+    }
+    async _count(): Promise<number | undefined> {
+        return undefined;
+    }
+    async _addr(): Promise<number | undefined> {
+        return undefined;
+    }
+    async formatPrintf(): Promise<string | undefined> {
+        return undefined;
+    }
     async getValueType(container: RefContainer): Promise<string | ScalarType | undefined> {
         const cur = container.current as FakeNode | undefined;
         const val = cur?.['value'] as EvalValue;
@@ -86,10 +128,6 @@ class Host implements DataHost {
             return { kind: 'int', bits: 32 };
         }
         return undefined;
-    }
-    async getElementRef(ref: ScvdNode): Promise<ScvdNode | undefined> {
-        const node = this.values.get((ref as FakeNode).id + '[0]');
-        return node ?? this.values.get((ref as FakeNode).id);
     }
 }
 
@@ -219,18 +257,11 @@ class BranchNode extends ScvdNode {
     public setMember(property: string, node: BranchNode) { this.members.set(property, node); }
 }
 
-class BranchHost implements DataHost {
+class BranchHost implements FullDataHost {
     constructor(private readonly values: Map<string, BranchNode>) {}
-    public __Running?: () => Promise<number | undefined>;
-    public __CalcMemUsed?: (a: number, b: number, c: number, d: number) => Promise<number | undefined>;
-    public __GetRegVal?: (reg: string) => Promise<number | bigint | undefined>;
-    public __FindSymbol?: (symbol: string) => Promise<number | undefined>;
-    public __size_of?: (symbol: string) => Promise<number | undefined>;
-    public __Symbol_exists?: (symbol: string) => Promise<number | undefined>;
-    public __Offset_of?: (container: RefContainer, member: string) => Promise<number | undefined>;
-    public formatPrintf?: (spec: string, value: EvalValue, container: RefContainer) => Promise<string | undefined>;
-    public evalIntrinsic?: (name: string, container: RefContainer, args: EvalValue[]) => Promise<EvalValue>;
-    public resolveColonPath?: (container: RefContainer, parts: string[]) => Promise<EvalValue>;
+    async resolveColonPath(): Promise<EvalValue> {
+        return undefined;
+    }
 
     async getSymbolRef(container: RefContainer, name: string, _forWrite?: boolean): Promise<ScvdNode | undefined> {
         const n = this.values.get(name);
@@ -257,6 +288,45 @@ class BranchHost implements DataHost {
             await (container.current as BranchNode | undefined)?.setValue(value);
         }
         return value;
+    }
+    async getElementStride(_ref: ScvdNode): Promise<number> {
+        return 1;
+    }
+    async getMemberOffset(_base: ScvdNode, _member: ScvdNode): Promise<number | undefined> {
+        return undefined;
+    }
+    async getElementRef(ref: ScvdNode): Promise<ScvdNode | undefined> {
+        return ref.getElementRef();
+    }
+    async __GetRegVal(): Promise<number | bigint | undefined> {
+        return undefined;
+    }
+    async __FindSymbol(): Promise<number | undefined> {
+        return undefined;
+    }
+    async __CalcMemUsed(): Promise<number | undefined> {
+        return undefined;
+    }
+    async __size_of(): Promise<number | undefined> {
+        return undefined;
+    }
+    async __Symbol_exists(): Promise<number | undefined> {
+        return undefined;
+    }
+    async __Offset_of(): Promise<number | undefined> {
+        return undefined;
+    }
+    async __Running(): Promise<number | undefined> {
+        return undefined;
+    }
+    async _count(): Promise<number | undefined> {
+        return undefined;
+    }
+    async _addr(): Promise<number | undefined> {
+        return undefined;
+    }
+    async formatPrintf(): Promise<string | undefined> {
+        return undefined;
     }
     async getValueType(container: RefContainer): Promise<string | ScalarType | undefined> {
         const cur = container.current as BranchNode | undefined;
@@ -339,7 +409,7 @@ describe('evaluator edge coverage', () => {
         await expect(evalNode(parseExpression('__Offset_of("m")', false).ast as CallExpression, ctx)).resolves.toBe(16);
 
         const missingCtx = new EvalContext({ data: new BranchHost(new Map<string, BranchNode>()), container: base });
-        await expect(evalNode({ kind: 'EvalPointCall', intrinsic: '__CalcMemUsed', callee: { kind: 'Identifier', name: '__CalcMemUsed', start: 0, end: 0 } as Identifier, args: [], start: 0, end: 0 } as EvalPointCall, missingCtx)).rejects.toThrow('Missing intrinsic __CalcMemUsed');
+        await expect(evalNode({ kind: 'EvalPointCall', intrinsic: '__CalcMemUsed', callee: { kind: 'Identifier', name: '__CalcMemUsed', start: 0, end: 0 } as Identifier, args: [], start: 0, end: 0 } as EvalPointCall, missingCtx)).rejects.toThrow('Intrinsic __CalcMemUsed expects at least 4 argument(s)');
     });
 
     it('recovers containers via findReferenceNode across node kinds', async () => {

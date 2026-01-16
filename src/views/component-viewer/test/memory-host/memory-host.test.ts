@@ -16,7 +16,7 @@
 // generated with AI
 
 import { MemoryHost } from '../../data-host/memory-host';
-import { RefContainer } from '../../evaluator';
+import { RefContainer } from '../../model-host';
 import { ScvdNode } from '../../model/scvd-node';
 
 class NamedStubBase extends ScvdNode {
@@ -79,22 +79,22 @@ describe('MemoryHost', () => {
         expect(host.getElementTargetBase('sym', 1)).toBe(0x3000);
     });
 
-    it('supports readValue/writeValue round-trips for numbers', () => {
+    it('supports readValue/writeValue round-trips for numbers', async () => {
         const host = new MemoryHost();
         const container = makeContainer('num', 4);
 
-        host.writeValue(container, 0xdeadbeef);
-        const out = host.readValue(container);
+        await host.writeValue(container, 0xdeadbeef);
+        const out = await host.readValue(container);
         expect(out).toBe(0xdeadbeef >>> 0);
     });
 
-    it('supports readValue/writeValue for byte arrays', () => {
+    it('supports readValue/writeValue for byte arrays', async () => {
         const host = new MemoryHost();
         const bytes = new Uint8Array([1, 2, 3, 4, 5, 6]);
         const container = makeContainer('blob', bytes.length);
 
-        host.writeValue(container, bytes);
-        const out = host.readValue(container);
+        await host.writeValue(container, bytes);
+        const out = await host.readValue(container);
         expect(out).toEqual(bytes);
     });
 });

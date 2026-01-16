@@ -56,136 +56,26 @@ import {
     toNumeric,
     xorVals,
 } from './math-ops';
-import type { ScalarKind as MathScalarKind, ScalarType as MathScalarType } from './math-ops';
+import type { DataAccessHost, EvalValue, ModelHost, RefContainer, ScalarKind, ScalarType } from './model-host';
+import type { IntrinsicProvider } from './intrinsics';
+import { handleIntrinsic, handlePseudoMember, INTRINSIC_DEFINITIONS, IntrinsicName, isIntrinsicName } from './intrinsics';
 
 /* =============================================================================
  * Public API
  * ============================================================================= */
 
 export type EvaluateResult = number | string | bigint | Uint8Array | undefined;
-export type EvalValue =
-    | number
-    | bigint
-    | string
-    | boolean
-    | Uint8Array
-    | ((...args: EvalValue[]) => MaybePromise<EvalValue>)
-    | undefined;
 
-type MaybePromise<T> = T | Promise<T>;
-
-/* =============================================================================
- * Type model for host-provided scalar types
- * ============================================================================= */
-
-export type ScalarKind = MathScalarKind;
-export type ScalarType = MathScalarType;
-
-/** Container context carried during evaluation. */
-export interface RefContainer {
-    /** Root model where identifier lookups begin. */
-    base: ScvdNode;
-
-    /** Top-level anchor for the final read (e.g., TCB). */
-    anchor?: ScvdNode | undefined;
-
-    /** Accumulated byte offset from the anchor. */
-    offsetBytes?: number | undefined;
-
-    /** Final read width in bytes. */
-    widthBytes?: number | undefined;
-
-    /** Current ref resolved by the last resolution step (for chaining). */
-    current?: ScvdNode | undefined;
-
-    /** Most recent resolved member reference (child). */
-    member?: ScvdNode | undefined;
-
-    /** Most recent numeric index for array access (e.g., arr[3]). */
-    index?: number | undefined;
-
-    /**
-     * Scalar type of the current value (if known).
-     * Always present but may be undefined.
-     */
-    valueType: ScalarType | undefined;
-}
-
-/** Host contract used by the evaluator (implemented by ScvdEvalInterface). */
-export interface DataHost {
-    // Resolution APIs — must set container.current to the resolved ref on success
-    getSymbolRef(container: RefContainer, name: string, forWrite?: boolean): MaybePromise<ScvdNode | undefined>;
-    getMemberRef(container: RefContainer, property: string, forWrite?: boolean): MaybePromise<ScvdNode | undefined>;
-
-    // Value access acts on container.{anchor,offsetBytes,widthBytes}
-    readValue(container: RefContainer): MaybePromise<EvalValue>;            // may return undefined -> error
-    writeValue(container: RefContainer, value: EvalValue): MaybePromise<EvalValue>;     // may return undefined -> error
-
-    // Optional: advanced lookups / intrinsics use the whole container context
-    resolveColonPath?(container: RefContainer, parts: string[]): MaybePromise<EvalValue>; // undefined => not found
-    stats?(): { symbols?: number; bytesUsed?: number };
-    evalIntrinsic?(name: string, container: RefContainer, args: EvalValue[]): MaybePromise<EvalValue>; // undefined => not handled
-
-    // Optional metadata (lets evaluator accumulate offsets itself)
-    /** Bytes per element (including any padding/alignment inside the array layout). */
-    getElementStride?(ref: ScvdNode): MaybePromise<number>;                       // bytes per element
-
-    /** Member offset in bytes from base. */
-    getMemberOffset?(base: ScvdNode, member: ScvdNode): MaybePromise<number | undefined>;     // bytes
-
-    /** Optional: explicit byte width helper for a ref. */
-    getByteWidth?(ref: ScvdNode): MaybePromise<number | undefined>;
-
-    /** Optional: provide an element model (prototype/type) for array-ish refs. */
-    getElementRef?(ref: ScvdNode): MaybePromise<ScvdNode | undefined>;
-
-    // Optional named intrinsics
-    // Note: __GetRegVal(reg) is special-cased (no container); others use the evalIntrinsic convention
-    __GetRegVal?(reg: string): MaybePromise<number | bigint | undefined>;
-    __FindSymbol?(symbol: string): MaybePromise<number | undefined>;
-    __CalcMemUsed?(stackAddress: number, stackSize: number, fillPattern: number, magicValue: number): MaybePromise<number | undefined>;
-
-    /** sizeof-like intrinsic – semantics are host-defined (usually bytes). */
-    __size_of?(symbol: string): MaybePromise<number | undefined>;
-
-    __Symbol_exists?(symbol: string): MaybePromise<number | undefined>;
-    __Offset_of?(container: RefContainer, typedefMember: string): MaybePromise<number | undefined>;
-
-    // Additional named intrinsics
-    // __Running is special-cased (no container) and returns 1 or 0 for use in expressions
-    __Running?(): MaybePromise<number | undefined>;
-
-    // Pseudo-member evaluators used as obj._count / obj._addr; must return numbers
-    _count?(container: RefContainer): MaybePromise<number | undefined>;
-    _addr?(container: RefContainer): MaybePromise<number | undefined>;    // added as var because arrays can have different base addresses
-
-    // Optional printf formatting hook used by % specifiers in PrintfExpression.
-    // If it returns a string, the evaluator uses it. If it returns undefined,
-    // the evaluator falls back to its built-in formatting.
-    formatPrintf?(
-        spec: FormatSegment['spec'],
-        value: EvalValue,
-        container: RefContainer
-    ): MaybePromise<string | undefined>;
-
-    /**
-     * Optional: return the scalar type of the value designated by `container`.
-     *
-     * You can return either:
-     *   - a C-like typename string, e.g. "uint32_t", "int16_t", "float"
-     *   - a normalized ScalarType
-     */
-    getValueType?(container: RefContainer): MaybePromise<string | ScalarType | undefined>;
-}
+type Host = ModelHost & DataAccessHost & IntrinsicProvider;
 
 export interface EvalContextInit {
-    data: DataHost;
+    data: Host;
     /** Starting container for symbol resolution (root model). */
     container: ScvdNode;
 }
 
 export class EvalContext {
-    readonly data: DataHost;
+    readonly data: Host;
     /** Composite container context (root + last member/index/current). */
     container: RefContainer;
 
@@ -504,17 +394,10 @@ function modValsWithKind(a: EvalValue, b: EvalValue, kind: MergedKind | undefine
     return modVals(a, b);
 }
 
-// Intrinsics that expect identifier *names* instead of evaluated values.
-const NAME_ARG_INTRINSICS = new Set<string>([
-    '__size_of',
-    '__FindSymbol',
-    '__Symbol_exists',
-    '__GetRegVal', // keeps consistency: reg names not values
-    '__Offset_of',
-]);
-
-async function evalArgsForIntrinsic(name: string, rawArgs: ASTNode[], ctx: EvalContext): Promise<EvalValue[]> {
-    const needsName = NAME_ARG_INTRINSICS.has(name);
+async function evalArgsForIntrinsic(name: IntrinsicName, rawArgs: ASTNode[], ctx: EvalContext): Promise<EvalValue[]> {
+    // INTRINSIC_DEFINITIONS is a trusted static map.
+    // eslint-disable-next-line security/detect-object-injection
+    const needsName = INTRINSIC_DEFINITIONS[name]?.expectsNameArg === true;
 
     const resolved: EvalValue[] = [];
     for (const [idx, arg] of rawArgs.entries()) {
@@ -543,7 +426,7 @@ async function evalArgsForIntrinsic(name: string, rawArgs: ASTNode[], ctx: EvalC
  * Small utility to avoid container clobbering during nested evals
  * ============================================================================= */
 
-async function withIsolatedContainer<T>(ctx: EvalContext, fn: () => MaybePromise<T>): Promise<T> {
+async function withIsolatedContainer<T>(ctx: EvalContext, fn: () => Promise<T>): Promise<T> {
     const c = ctx.container;
     const saved = snapshotContainer(c);
     try {
@@ -784,18 +667,6 @@ async function lref(node: ASTNode, ctx: EvalContext): Promise<LValue> {
  * Evaluation
  * ============================================================================= */
 
-// Belt-and-braces: value-returning intrinsics that may be written as CallExpression(Identifier(...))
-// We still prefer EvalPointCall from the parser, but this keeps us robust.
-const VALUE_INTRINSICS = new Set<string>([
-    '__GetRegVal',
-    '__Running',
-    '__CalcMemUsed',
-    '__size_of',
-    '__Symbol_exists',
-    '__Offset_of',
-    '__FindSymbol',
-]);
-
 async function evalOperandWithType(node: ASTNode, ctx: EvalContext): Promise<{ value: EvalValue; type: ScalarType | undefined }> {
     let capturedType: ScalarType | undefined;
 
@@ -821,7 +692,7 @@ export async function evalNode(node: ASTNode, ctx: EvalContext): Promise<EvalVal
             const name = (node as Identifier).name;
             // __Running can appear as a bare identifier; treat it as an intrinsic, not a symbol.
             if (name === '__Running') {
-                return await routeIntrinsic(ctx, name, []);
+                return await handleIntrinsic(ctx.data, ctx.container, '__Running', []);
             }
             await mustRef(node, ctx, false);
             return await mustRead(ctx, name);
@@ -832,18 +703,7 @@ export async function evalNode(node: ASTNode, ctx: EvalContext): Promise<EvalVal
             // Support pseudo-members that evaluate to numbers: obj._count and obj._addr
             if (ma.property === '_count' || ma.property === '_addr') {
                 const baseRef = await mustRef(ma.object, ctx, false);
-                ctx.container.member = baseRef;
-                ctx.container.current = baseRef;
-                ctx.container.valueType = undefined;
-                const fn = ma.property === '_count' ? ctx.data._count : ctx.data._addr;
-                if (typeof fn !== 'function') {
-                    throw new Error(`Missing pseudo-member ${ma.property}`);
-                }
-                const out = await fn.call(ctx.data, ctx.container);
-                if (out === undefined) {
-                    throw new Error(`Pseudo-member ${ma.property} returned undefined`);
-                }
-                return out;
+                return await handlePseudoMember(ctx.data, ctx.container, ma.property, baseRef);
             }
             // Default: resolve member and read its value
             await mustRef(node, ctx, false);
@@ -857,6 +717,7 @@ export async function evalNode(node: ASTNode, ctx: EvalContext): Promise<EvalVal
 
         case 'ColonPath': {
             const cp = node as ColonPath;
+            // Colon paths (foo:bar:baz) are host-defined lookups resolved by the DataHost.
             const handled = ctx.data.resolveColonPath
                 ? await ctx.data.resolveColonPath(ctx.container, cp.parts.slice())
                 : undefined;
@@ -945,9 +806,12 @@ export async function evalNode(node: ASTNode, ctx: EvalContext): Promise<EvalVal
 
             if (c.callee.kind === 'Identifier') {
                 const name = (c.callee as Identifier).name;
-                if (VALUE_INTRINSICS.has(name)) {
+                if (isIntrinsicName(name) && (
+                    // eslint-disable-next-line security/detect-object-injection
+                    INTRINSIC_DEFINITIONS[name].allowCallExpression
+                )) {
                     const args = await evalArgsForIntrinsic(name, c.args, ctx);
-                    return await routeIntrinsic(ctx, name, args);
+                    return await handleIntrinsic(ctx.data, ctx.container, name, args);
                 }
             }
 
@@ -965,8 +829,12 @@ export async function evalNode(node: ASTNode, ctx: EvalContext): Promise<EvalVal
         case 'EvalPointCall': {
             const c = node as EvalPointCall;
             const name = c.intrinsic as string;
-            const args = await evalArgsForIntrinsic(name, c.args, ctx);
-            return await routeIntrinsic(ctx, name, args);
+            if (!isIntrinsicName(name)) {
+                throw new Error(`Missing intrinsic ${name}`);
+            }
+            const intrinsicName = name as IntrinsicName;
+            const args = await evalArgsForIntrinsic(intrinsicName, c.args, ctx);
+            return await handleIntrinsic(ctx.data, ctx.container, intrinsicName, args);
         }
 
         case 'PrintfExpression': {
@@ -1086,21 +954,33 @@ async function formatValue(spec: FormatSegment['spec'], v: EvalValue, ctx?: Eval
             if (typeof n === 'bigint') {
                 return n.toString(10);
             }
-            return String(((n as number) | 0));
+            const num = Number(n);
+            if (!Number.isFinite(num)) {
+                return 'NaN';
+            }
+            return String((num | 0));
         }
         case 'u':  {
             const n = toNumeric(v);
             if (typeof n === 'bigint') {
                 return (n >= 0 ? n : -n).toString(10);
             }
-            return String(((n as number) >>> 0));
+            const num = Number(n);
+            if (!Number.isFinite(num)) {
+                return 'NaN';
+            }
+            return String((num >>> 0));
         }
         case 'x':  {
             const n = toNumeric(v);
             if (typeof n === 'bigint') {
                 return '0x' + n.toString(16);
             }
-            return ((n as number) >>> 0).toString(16);
+            const num = Number(n);
+            if (!Number.isFinite(num)) {
+                return 'NaN';
+            }
+            return (num >>> 0).toString(16);
         }
         case 't':  return truthy(v) ? 'true' : 'false';
         case 'S':  return typeof v === 'string' ? v : String(v);
@@ -1108,121 +988,6 @@ async function formatValue(spec: FormatSegment['spec'], v: EvalValue, ctx?: Eval
         default:   return String(v);
     }
 }
-
-/* =============================================================================
- * Intrinsics routing (strict, single-root)
- * ============================================================================= */
-
-async function routeIntrinsic(ctx: EvalContext, name: string, args: EvalValue[]): Promise<EvalValue> {
-    // Explicit numeric intrinsics (simple parameter lists)
-    if (name === '__GetRegVal') {
-        const fn = ctx.data.__GetRegVal;
-        if (typeof fn !== 'function') {
-            throw new Error('Missing intrinsic __GetRegVal');
-        }
-        const out = await fn.call(ctx.data, String(args[0] ?? ''));
-        if (out === undefined) {
-            throw new Error('Intrinsic __GetRegVal returned undefined');
-        }
-        return out;
-    }
-    if (name === '__FindSymbol') {
-        const fn = ctx.data.__FindSymbol;
-        if (typeof fn !== 'function') {
-            throw new Error('Missing intrinsic __FindSymbol');
-        }
-        const out = await fn.call(ctx.data, String(args[0] ?? ''));
-        if (out === undefined) {
-            throw new Error('Intrinsic __FindSymbol returned undefined');
-        }
-        return out | 0;
-    }
-    if (name === '__CalcMemUsed') {
-        const fn = ctx.data.__CalcMemUsed;
-        if (typeof fn !== 'function') {
-            throw new Error('Missing intrinsic __CalcMemUsed');
-        }
-        const n0 = Number(args[0] ?? 0) >>> 0;
-        const n1 = Number(args[1] ?? 0) >>> 0;
-        const n2 = Number(args[2] ?? 0) >>> 0;
-        const n3 = Number(args[3] ?? 0) >>> 0;
-        const out = await fn.call(ctx.data, n0, n1, n2, n3);
-        if (out === undefined) {
-            throw new Error('Intrinsic __CalcMemUsed returned undefined');
-        }
-        return out >>> 0;
-    }
-    if (name === '__size_of') {
-        const fn = ctx.data.__size_of;
-        if (typeof fn !== 'function') {
-            throw new Error('Missing intrinsic __size_of');
-        }
-        const out = await fn.call(ctx.data, String(args[0] ?? ''));
-        if (out === undefined) {
-            throw new Error('Intrinsic __size_of returned undefined');
-        }
-        return out | 0;
-    }
-    if (name === '__Symbol_exists') {
-        const fn = ctx.data.__Symbol_exists;
-        if (typeof fn !== 'function') {
-            throw new Error('Missing intrinsic __Symbol_exists');
-        }
-        const out = await fn.call(ctx.data, String(args[0] ?? ''));
-        if (out === undefined) {
-            throw new Error('Intrinsic __Symbol_exists returned undefined');
-        }
-        return out | 0;
-    }
-    // Explicit intrinsic that needs the container but returns a number
-    if (name === '__Offset_of') {
-        const fn = ctx.data.__Offset_of;
-        if (typeof fn !== 'function') {
-            throw new Error('Missing intrinsic __Offset_of');
-        }
-        const out = await fn.call(ctx.data, ctx.container, String(args[0] ?? ''));
-        if (out === undefined) {
-            throw new Error('Intrinsic __Offset_of returned undefined');
-        }
-        return out >>> 0;
-    }
-    if (name === '__Running') {
-        const fn = ctx.data.__Running;
-        if (typeof fn !== 'function') {
-            throw new Error('Missing intrinsic __Running');
-        }
-        const out = await fn.call(ctx.data);
-        if (out === undefined) {
-            throw new Error('Intrinsic __Running returned undefined');
-        }
-        return out | 0;
-    }
-
-    // Generic dispatch paths (legacy/custom)
-    if (typeof ctx.data.evalIntrinsic === 'function') {
-        const out = await ctx.data.evalIntrinsic(name, ctx.container, args);
-        if (out === undefined) {
-            throw new Error(`Intrinsic ${name} returned undefined`);
-        }
-        return out;
-    }
-    const dataObj = ctx.data as unknown as Record<string, unknown>;
-    if (typeof name === 'string' && Object.prototype.hasOwnProperty.call(dataObj, name)) {
-        const direct = Reflect.get(dataObj, name);
-        if (typeof direct === 'function') {
-            const out = await (direct as (container: RefContainer, a: EvalValue[]) => MaybePromise<EvalValue>).call(ctx.data, ctx.container, args);
-            if (out === undefined) {
-                throw new Error(`Intrinsic ${name} returned undefined`);
-            }
-            return out;
-        }
-    }
-    throw new Error(`Missing intrinsic ${name}`);
-}
-
-/* =============================================================================
- * Top-level convenience
- * ============================================================================= */
 
 function normalizeEvaluateResult(v: EvalValue): EvaluateResult {
     if (v === undefined || v === null) {

@@ -15,7 +15,7 @@
  */
 // generated with AI
 
-import { EvalValue, RefContainer } from '../evaluator';
+import { EvalValue, RefContainer } from '../model-host';
 import { ValidatingCache } from './validating-cache';
 
 export class MemoryContainer {
@@ -118,7 +118,7 @@ type ElementMeta = {
   elementSize?: number;           // known uniform stride when consistent
 };
 
-/** The piece your DataHost delegates to for readValue/writeValue. */
+/** The piece your host delegates to for readValue/writeValue. */
 export class MemoryHost {
     private cache = new ValidatingCache<MemoryContainer>();
     private endianness: Endianness;
@@ -153,11 +153,11 @@ export class MemoryHost {
     }
 
     /** Read a value, using byte-only offsets and widths. */
-    public readValue(ref: RefContainer): EvalValue {
+    public async readValue(ref: RefContainer): Promise<EvalValue> {
         const variableName = ref.anchor?.name;
         const widthBytes = ref.widthBytes ?? 0;
         if (!variableName || widthBytes <= 0) {
-            return;
+            return undefined;
         }
 
         const container = this.getContainer(variableName);
@@ -190,6 +190,8 @@ export class MemoryHost {
         if (widthBytes === 8) {
             let out = 0n;
             for (let i = 0; i < 8; i++) {
+                // raw is a Uint8Array; indexed access is safe here.
+                // eslint-disable-next-line security/detect-object-injection
                 out |= BigInt(raw[i]) << BigInt(8 * i);
             }
             return out;
@@ -199,7 +201,7 @@ export class MemoryHost {
     }
 
     /** Read raw bytes without interpretation. */
-    public readRaw(ref: RefContainer, size: number): Uint8Array | undefined {
+    public async readRaw(ref: RefContainer, size: number): Promise<Uint8Array | undefined> {
         const variableName = ref.anchor?.name;
         if (!variableName || size <= 0) {
             return undefined;
@@ -210,7 +212,7 @@ export class MemoryHost {
     }
 
     /** Write a value, using byte-only offsets and widths. */
-    public writeValue(ref: RefContainer, value: EvalValue, virtualSize?: number): void {
+    public async writeValue(ref: RefContainer, value: EvalValue, virtualSize?: number): Promise<void> {
         const variableName = ref.anchor?.name;
         const widthBytes = ref.widthBytes ?? 0;
         if (!variableName || widthBytes <= 0) {
@@ -248,6 +250,8 @@ export class MemoryHost {
                 buf = new Uint8Array(widthBytes);
                 let tmp = valNum;
                 for (let i = 0; i < widthBytes; i++) {
+                    // Indexing into a Uint8Array is safe here.
+                    // eslint-disable-next-line security/detect-object-injection
                     buf[i] = Number(tmp & 0xFFn);
                     tmp >>= 8n;
                 }
@@ -297,6 +301,8 @@ export class MemoryHost {
             buf = new Uint8Array(size);
             let tmp = value;
             for (let i = 0; i < size; i++) {
+                // Indexing into a Uint8Array is safe here.
+                // eslint-disable-next-line security/detect-object-injection
                 buf[i] = Number(tmp & 0xffn);
                 tmp >>= 8n;
             }

@@ -459,6 +459,7 @@ export class ScvdFormatSpecifier {
     }
 
     public formatIpv6(bytes: Uint8Array): string {
+        /* eslint-disable security/detect-object-injection */
         if (bytes.length < 16) {
             return '<IPV6: access out of bounds>';
         }
@@ -498,6 +499,7 @@ export class ScvdFormatSpecifier {
             out.push(hexWords[i]);
         }
         return out.join(':').replace(/^:/, '::').replace(/:::/, '::');
+        /* eslint-enable security/detect-object-injection */
     }
 
     public formatMac(bytes: Uint8Array): string {
@@ -508,6 +510,7 @@ export class ScvdFormatSpecifier {
     }
 
     public sanitizeLiteral(str: string): string | undefined {
+        /* eslint-disable security/detect-object-injection */
         // Reject embedded unescaped '%' to match legacy %t semantics
         for (let i = 0; i < str.length; i++) {
             if (str[i] === '%') {
@@ -519,6 +522,7 @@ export class ScvdFormatSpecifier {
             }
         }
         return str;
+        /* eslint-enable security/detect-object-injection */
     }
 
     public escapeNonPrintable(str: string): string {
@@ -539,7 +543,7 @@ export class ScvdFormatSpecifier {
                 out += `\\${ch.toString(16).padStart(2, '0').toUpperCase()}`;
                 continue;
             }
-            out += str[i];
+            out += str.charAt(i);
         }
         return out;
     }

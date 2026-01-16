@@ -31,6 +31,8 @@
  */
 
 import { addVals, andVals, divVals, maskToBits, modVals, mulVals, orVals, sarVals, shlVals, subVals, toNumeric, xorVals } from './math-ops';
+import { INTRINSIC_DEFINITIONS, isIntrinsicName } from './intrinsics';
+import type { IntrinsicName as HostIntrinsicName } from './intrinsics';
 
 export type ValueType = 'number' | 'boolean' | 'string' | 'unknown';
 
@@ -67,8 +69,7 @@ export interface ColonPath extends BaseNode {
   parts: string[]; // e.g., ["MyType","field"] or ["MyType","field","EnumVal"]
 }
 
-export type IntrinsicName =
-  '__CalcMemUsed'|'__FindSymbol'|'__GetRegVal'|'__Offset_of'|'__size_of'|'__Symbol_exists'|'__Running';
+export type IntrinsicName = HostIntrinsicName;
 
 export interface CallExpression extends BaseNode { kind:'CallExpression'; callee:ASTNode; args:ASTNode[]; intrinsic?: undefined; }
 export interface EvalPointCall extends BaseNode { kind:'EvalPointCall'; callee:ASTNode; args:ASTNode[]; intrinsic:IntrinsicName; }
@@ -222,10 +223,6 @@ class Tokenizer {
 }
 
 /* ---------------- Parser ---------------- */
-
-const INTRINSICS: Set<string> = new Set([
-    '__CalcMemUsed','__FindSymbol','__GetRegVal','__Offset_of','__size_of','__Symbol_exists','__Running'
-]);
 
 function span(start:number, end:number) {
     return { start, end };
@@ -800,15 +797,25 @@ export class Parser {
                     this.error('Expected ")"', this.cur.start, this.cur.end);
                 }
                 const callee = node as ASTNode;
-                const isIntrinsic = callee.kind === 'Identifier' && INTRINSICS.has((callee as Identifier).name);
+                const isIntrinsic = callee.kind === 'Identifier' && isIntrinsicName((callee as Identifier).name);
                 const calleeName = callee.kind === 'Identifier' ? (callee as Identifier).name : undefined;
                 if (isIntrinsic && calleeName) {
+                    const intrinsicDef = INTRINSIC_DEFINITIONS[calleeName as IntrinsicName];
+                    if (intrinsicDef) {
+                        const { minArgs, maxArgs } = intrinsicDef;
+                        if (minArgs !== undefined && args.length < minArgs) {
+                            this.error(`Intrinsic ${calleeName} expects at least ${minArgs} argument(s)`, startOf(node), this.cur.end);
+                        }
+                        if (maxArgs !== undefined && args.length > maxArgs) {
+                            this.error(`Intrinsic ${calleeName} expects at most ${maxArgs} argument(s)`, startOf(node), this.cur.end);
+                        }
+                    }
                     const callNode: EvalPointCall = {
                         kind: 'EvalPointCall',
                         callee,
                         args,
                         intrinsic: calleeName as IntrinsicName,
-                        ...( (['__CalcMemUsed','__FindSymbol','__GetRegVal','__Offset_of','__size_of','__Symbol_exists','__Running'] as string[]).includes(calleeName) ? { valueType: 'number' as const } : /* istanbul ignore next */ {}),
+                        valueType: 'number' as const,
                         ...span(startOf(node), this.cur.end)
                     };
                     node = callNode;
@@ -881,7 +888,7 @@ export class Parser {
         if (t.kind === 'IDENT') {
             this.eat('IDENT');
             const node: Identifier = { kind:'Identifier', name:t.value, valueType:'unknown', ...span(t.start,t.end) };
-            if (!INTRINSICS.has(t.value)) {
+            if (!isIntrinsicName(t.value)) {
                 this.externals.add(t.value);
             }
             return node;

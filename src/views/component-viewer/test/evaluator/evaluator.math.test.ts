@@ -18,7 +18,9 @@
 // generated with AI
 
 import { parseExpression } from '../../parser';
-import { EvalContext, evalNode, evaluateParseResult, type DataHost, type EvalValue, type RefContainer, type ScalarType } from '../../evaluator';
+import { EvalContext, evalNode, evaluateParseResult } from '../../evaluator';
+import type { EvalValue, RefContainer, ScalarType } from '../../model-host';
+import type { FullDataHost } from '../helpers/full-data-host';
 import { ScvdNode } from '../../model/scvd-node';
 
 class TypedNode extends ScvdNode {
@@ -32,16 +34,19 @@ class TypedNode extends ScvdNode {
     }
 }
 
-class MathHost implements DataHost {
+class MathHost implements FullDataHost {
     constructor(private readonly values: Map<string, TypedNode>) {}
 
-    getSymbolRef(container: RefContainer, name: string): TypedNode | undefined {
+    async resolveColonPath(): Promise<EvalValue> {
+        return undefined;
+    }
+    async getSymbolRef(container: RefContainer, name: string): Promise<TypedNode | undefined> {
         const n = this.values.get(name);
         container.current = n;
         container.anchor = n;
         return n;
     }
-    getMemberRef(): TypedNode | undefined { return undefined; }
+    async getMemberRef(): Promise<TypedNode | undefined> { return undefined; }
     async readValue(container: RefContainer): Promise<EvalValue> {
         return (container.current as TypedNode | undefined)?.value;
     }
@@ -67,6 +72,19 @@ class MathHost implements DataHost {
         }
         return 1;
     }
+    async getElementStride(_ref: ScvdNode): Promise<number> { return 1; }
+    async getMemberOffset(_base: ScvdNode, _member: ScvdNode): Promise<number | undefined> { return undefined; }
+    async getElementRef(ref: ScvdNode): Promise<ScvdNode | undefined> { return ref.getElementRef(); }
+    async __GetRegVal(): Promise<number | bigint | undefined> { return undefined; }
+    async __FindSymbol(): Promise<number | undefined> { return undefined; }
+    async __CalcMemUsed(): Promise<number | undefined> { return undefined; }
+    async __size_of(): Promise<number | undefined> { return undefined; }
+    async __Symbol_exists(): Promise<number | undefined> { return undefined; }
+    async __Offset_of(): Promise<number | undefined> { return undefined; }
+    async __Running(): Promise<number | undefined> { return undefined; }
+    async _count(): Promise<number | undefined> { return undefined; }
+    async _addr(): Promise<number | undefined> { return undefined; }
+    async formatPrintf(): Promise<string | undefined> { return undefined; }
 }
 
 function makeHost(defs: Array<[string, EvalValue, string]>): { host: MathHost; base: TypedNode } {

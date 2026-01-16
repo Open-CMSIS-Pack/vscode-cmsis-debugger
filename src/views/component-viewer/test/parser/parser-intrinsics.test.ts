@@ -16,6 +16,7 @@
 // generated with AI
 
 import { parseExpression, EvalPointCall, Identifier } from '../../parser';
+import { INTRINSIC_DEFINITIONS, type IntrinsicName } from '../../intrinsics';
 
 type IntrinsicFixture = {
     intrinsics: string[];
@@ -28,7 +29,10 @@ const fixture: IntrinsicFixture = require('../testfiles/cases.json');
 describe('Parser intrinsics', () => {
     it('parses all intrinsic calls as EvalPointCall', () => {
         for (const name of fixture.intrinsics) {
-            const pr = parseExpression(`${name}(1, 2)`, false);
+            const meta = INTRINSIC_DEFINITIONS[name as IntrinsicName];
+            const argCount = meta?.minArgs ?? 0;
+            const args = Array.from({ length: argCount }, (_, i) => i + 1).join(', ');
+            const pr = parseExpression(`${name}(${args})`, false);
             expect(pr.diagnostics).toEqual([]);
             expect(pr.isPrintf).toBe(false);
             expect(pr.constValue).toBeUndefined();
