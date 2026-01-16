@@ -196,7 +196,8 @@ function asNumber(x: unknown): number {
         return x ? 1 : 0;
     }
     if (typeof x === 'string' && x.trim() !== '') {
-        const n = +x; return Number.isFinite(n) ? n : 0;
+        const n = +x;
+        return Number.isFinite(n) ? n : 0;
     }
     return 0;
 }
@@ -890,24 +891,59 @@ async function evalBinary(node: BinaryExpression, ctx: EvalContext): Promise<Eva
     let result: EvalValue;
 
     switch (operator) {
-        case '+':   result = addVals(a, b, bitWidth, isUnsigned); break;
-        case '-':   result = subVals(a, b, bitWidth, isUnsigned); break;
-        case '*':   result = mulVals(a, b, bitWidth, isUnsigned); break;
-        case '/':   result = divValsWithKind(a, b, mergedKind); break;
-        case '%':   result = modValsWithKind(a, b, mergedKind); break;
-        case '<<':  result = shlVals(a, b, bitWidth, isUnsigned); break;
-        case '>>':  result = sarVals(a, b, bitWidth, isUnsigned); break;
-        case '>>>': throw new Error('Unsupported operator >>> in C-style expressions');
-        case '&':   result = andVals(a, b, bitWidth, isUnsigned); break;
-        case '^':   result = xorVals(a, b, bitWidth, isUnsigned); break;
-        case '|':   result = orVals(a, b, bitWidth, isUnsigned); break;
-        case '==':  return eqVals(a, b);
-        case '!=':  return !eqVals(a, b);
-        case '<':   return ltVals(a, b);
-        case '<=':  return lteVals(a, b);
-        case '>':   return gtVals(a, b);
-        case '>=':  return gteVals(a, b);
-        default: throw new Error(`Unsupported binary operator ${operator}`);
+        case '+':
+            result = addVals(a, b, bitWidth, isUnsigned);
+            break;
+        case '-':
+            result = subVals(a, b, bitWidth, isUnsigned);
+            break;
+        case '*':
+            result = mulVals(a, b, bitWidth, isUnsigned);
+            break;
+        case '/':
+            result = divValsWithKind(a, b, mergedKind);
+            break;
+        case '%':
+            result = modValsWithKind(a, b, mergedKind);
+            break;
+        case '<<':
+            result = shlVals(a, b, bitWidth, isUnsigned);
+            break;
+        case '>>':
+            result = sarVals(a, b, bitWidth, isUnsigned);
+            break;
+        case '>>>':
+            throw new Error('Unsupported operator >>> in C-style expressions');
+        case '&':
+            result = andVals(a, b, bitWidth, isUnsigned);
+            break;
+        case '^':
+            result = xorVals(a, b, bitWidth, isUnsigned);
+            break;
+        case '|':
+            result = orVals(a, b, bitWidth, isUnsigned);
+            break;
+        case '==': {
+            return eqVals(a, b);
+        }
+        case '!=': {
+            return !eqVals(a, b);
+        }
+        case '<': {
+            return ltVals(a, b);
+        }
+        case '<=': {
+            return lteVals(a, b);
+        }
+        case '>': {
+            return gtVals(a, b);
+        }
+        case '>=': {
+            return gteVals(a, b);
+        }
+        default: {
+            throw new Error(`Unsupported binary operator ${operator}`);
+        }
     }
 
     if (typeof result === 'number' || typeof result === 'bigint') {

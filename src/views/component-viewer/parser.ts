@@ -117,13 +117,16 @@ class Tokenizer {
         this.reset(s);
     }
     public reset(s: string) {
-        this.s = s; this.i = 0; this.n = s.length;
+        this.s = s;
+        this.i = 0;
+        this.n = s.length;
     }
     public eof() {
         return this.i >= this.n;
     }
     public peek(k=0) {
-        const j = this.i + k; return j < this.n ? this.s.charAt(j) : '';
+        const j = this.i + k;
+        return j < this.n ? this.s.charAt(j) : '';
     }
     public advance(k=1) {
         this.i += k;
@@ -195,10 +198,13 @@ class Tokenizer {
         }
 
         if (ch === '"' || ch === '\'') {
-            const quote = ch; const start = this.i; this.advance();
+            const quote = ch;
+            const start = this.i;
+            this.advance();
             let escaped = false;
             while (!this.eof()) {
-                const c = this.peek(); this.advance();
+                const c = this.peek();
+                this.advance();
                 if (escaped) {
                     escaped = false;
                 } else if (c === '\\') {
@@ -211,7 +217,8 @@ class Tokenizer {
         }
 
         if (SINGLE.has(ch)) {
-            const start = this.i; this.advance();
+            const start = this.i;
+            this.advance();
             return { kind:'PUNCT', value:ch, start, end:this.i };
         }
 
@@ -723,7 +730,8 @@ export class Parser {
         const punct = this.cur.kind === 'PUNCT' ? this.cur.value : undefined;
 
         if (punct && (punct === '++' || punct === '--')) {
-            const op = punct; const t = this.eat('PUNCT', op);
+            const op = punct;
+            const t = this.eat('PUNCT', op);
             const arg = this.parseUnary();
             if (!this.isAssignable(arg)) {
                 this.error('Invalid increment/decrement target', startOf(arg), endOf(arg));
@@ -732,7 +740,8 @@ export class Parser {
         }
 
         if (punct && ['+', '-', '!', '~'].includes(punct)) {
-            const op = punct; const t = this.eat('PUNCT', op);
+            const op = punct;
+            const t = this.eat('PUNCT', op);
             const arg = this.parseUnary();
             return { kind:'UnaryExpression', operator:op as UnaryExpression['operator'], argument:arg, ...span(t.start, endOf(arg)) };
         }
@@ -833,7 +842,8 @@ export class Parser {
             // property access
             if (this.tryEat('PUNCT','.')) {
                 if (this.cur.kind === 'IDENT') {
-                    const prop = this.cur.value; const idt = this.eat('IDENT');
+                    const prop = this.cur.value;
+                    const idt = this.eat('IDENT');
                     node = { kind:'MemberAccess', object:node, property:prop, ...span(startOf(node), idt.end) };
                 } else {
                     this.error('Expected identifier after "."', this.cur.start, this.cur.end);
@@ -850,7 +860,8 @@ export class Parser {
                 continue;
             }      // postfix ++ / --
             if (this.cur.kind === 'PUNCT' && (this.cur.value === '++' || this.cur.value === '--')) {
-                const op = this.cur.value; const t = this.eat('PUNCT', op);
+                const op = this.cur.value;
+                const t = this.eat('PUNCT', op);
                 if (!this.isAssignable(node)) {
                     this.error('Invalid increment/decrement target', startOf(node), endOf(node));
                 }
