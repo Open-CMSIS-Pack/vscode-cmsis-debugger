@@ -150,8 +150,8 @@ export class ComponentViewerTargetAccess {
             return response?.data;
         } catch (error: unknown) {
             // Change address to hex format for better logging
-            const hexAddress = `0x${Number(address).toString(16)}`;
-            const errorMessage = (error as Error)?.message + ` at address ${hexAddress}`;
+            const hexAddress = `0x${Number(address).toString(16).toUpperCase()}`;
+            const errorMessage = (error as Error)?.message;
             logger.debug(`Session '${this._activeSession?.session.name}': Failed to read memory at address '${hexAddress}' - '${errorMessage}'`);
             return errorMessage === 'custom request failed' ? 'No active session' : errorMessage;
         }

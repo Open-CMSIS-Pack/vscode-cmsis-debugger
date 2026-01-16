@@ -15,11 +15,21 @@
  *
  * Coverage for ScvdTypesCache creation and lookup paths.
  */
+// generated with AI
 
 import { ScvdTypesCache } from '../scvd-types-cache';
 import { ScvdComponentViewer } from '../model/scvd-component-viewer';
-import { ScvdTypedefs, ScvdTypedef } from '../model/scvd-typedef';
+import { ScvdTypedefs } from '../model/scvd-typedef';
 import { ScvdNode } from '../model/scvd-node';
+
+class MinimalNode extends ScvdNode {
+    constructor(parent?: ScvdNode) {
+        super(parent);
+    }
+    public override async getValue(): Promise<string | number | bigint | Uint8Array | undefined> {
+        return undefined;
+    }
+}
 
 describe('ScvdTypesCache', () => {
     it('returns undefined when no model or typedefs are present', () => {
@@ -30,7 +40,7 @@ describe('ScvdTypesCache', () => {
         expect(cache.findTypeByName('missing')).toBeUndefined();
 
         // Simulate model cleared after construction
-        (cache as unknown as { _model?: ScvdComponentViewer })._model = undefined;
+        (cache as unknown as { _model: ScvdComponentViewer | undefined })._model = undefined;
         cache.createCache();
         expect(cache.findTypeByName('anything')).toBeUndefined();
     });
@@ -41,8 +51,8 @@ describe('ScvdTypesCache', () => {
         const good = typedefs.addTypedef();
         good.name = 'GoodType';
         // Insert a non-typedef child to ensure it is skipped
-        new ScvdNode(typedefs);
-        (viewer as unknown as { _typedefs?: ScvdTypedefs })._typedefs = typedefs;
+        new MinimalNode(typedefs);
+        (viewer as unknown as { _typedefs: ScvdTypedefs | undefined })._typedefs = typedefs;
 
         const cache = new ScvdTypesCache(viewer);
         cache.createCache();
@@ -53,13 +63,13 @@ describe('ScvdTypesCache', () => {
     it('findTypeByName ignores non-typedef values in the map', () => {
         const viewer = new ScvdComponentViewer(undefined);
         const cache = new ScvdTypesCache(viewer);
-        (cache as unknown as { typesCache: Map<string, ScvdNode> }).typesCache = new Map<string, ScvdNode>([
-            ['bad', new ScvdNode(undefined)],
+        (cache as unknown as { typesCache: Map<string, ScvdNode> | undefined }).typesCache = new Map<string, ScvdNode>([
+            ['bad', new MinimalNode(undefined)],
         ]);
         expect(cache.findTypeByName('bad')).toBeUndefined();
 
         // If the internal map is missing entirely, bail out gracefully
-        (cache as unknown as { typesCache?: Map<string, ScvdNode> }).typesCache = undefined;
+        (cache as unknown as { typesCache: Map<string, ScvdNode> | undefined }).typesCache = undefined;
         expect(cache.findTypeByName('anything')).toBeUndefined();
     });
 });

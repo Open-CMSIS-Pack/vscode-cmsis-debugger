@@ -15,14 +15,20 @@
  *
  * Stress math across mixed scalar types using parsed ASTs.
  */
+// generated with AI
 
 import { parseExpression } from '../../parser';
 import { EvalContext, evalNode, evaluateParseResult, type DataHost, type EvalValue, type RefContainer, type ScalarType } from '../../evaluator';
 import { ScvdNode } from '../../model/scvd-node';
 
 class TypedNode extends ScvdNode {
-    constructor(public readonly name: string, parent: ScvdNode | undefined, public value: EvalValue, public readonly typeName: string) {
+    public readonly typeName: string;
+    public value: EvalValue;
+    constructor(name: string, parent: ScvdNode | undefined, value: EvalValue, typeName: string) {
         super(parent);
+        this.name = name;
+        this.value = value;
+        this.typeName = typeName;
     }
 }
 
@@ -44,8 +50,8 @@ class MathHost implements DataHost {
         const cur = container.current as TypedNode | undefined;
         return cur?.typeName;
     }
-    async getByteWidth(container: RefContainer): Promise<number | undefined> {
-        const cur = container.current as TypedNode | undefined;
+    async getByteWidth(ref: ScvdNode): Promise<number | undefined> {
+        const cur = ref as TypedNode | undefined;
         if (!cur) {
             return undefined;
         }

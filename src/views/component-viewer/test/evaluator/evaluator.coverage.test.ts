@@ -15,16 +15,23 @@
  *
  * Coverage for evaluator helpers using real parser ASTs and a minimal DataHost.
  */
+// generated with AI
 
 import { parseExpression, type FormatSegment, type ASTNode, type EvalPointCall, type CallExpression, type AssignmentExpression, type ConditionalExpression, type BinaryExpression, type UpdateExpression, type UnaryExpression, type ArrayIndex, type MemberAccess, type Identifier, type PrintfExpression, type TextSegment } from '../../parser';
 import { evaluateParseResult, EvalContext, evalNode, type RefContainer, type DataHost, type EvalValue, type ScalarType } from '../../evaluator';
 import { ScvdNode } from '../../model/scvd-node';
 
 class FakeNode extends ScvdNode {
-    constructor(public readonly id: string, parent?: ScvdNode, private value: EvalValue = undefined, private members: Record<string, ScvdNode> = {}) {
+    constructor(public readonly id: string, parent?: ScvdNode, public value: string | number | bigint | Uint8Array | undefined = undefined, private members: Record<string, ScvdNode> = {}) {
         super(parent);
     }
-    public setValue(v: EvalValue) { this.value = v; }
+    public async setValue(v: string | number): Promise<string | number | undefined> {
+        this.value = v;
+        return v;
+    }
+    public async getValue(): Promise<string | number | bigint | Uint8Array | undefined> {
+        return this.value;
+    }
     public getSymbol(name: string): ScvdNode | undefined {
         return this.members[name];
     }
@@ -39,14 +46,14 @@ class Host implements DataHost {
         container.current = node;
         return node;
     }
-    getSymbolRef(container: RefContainer, name: string): FakeNode | undefined {
+    async getSymbolRef(container: RefContainer, name: string): Promise<FakeNode | undefined> {
         const n = this.values.get(name);
         if (n) {
             return this.setCurrent(container, n);
         }
         return undefined;
     }
-    getMemberRef(container: RefContainer, property: string): FakeNode | undefined {
+    async getMemberRef(container: RefContainer, property: string): Promise<FakeNode | undefined> {
         const cur = container.current as FakeNode | undefined;
         const m = cur?.getSymbol(property) as FakeNode | undefined;
         if (m) {
@@ -59,7 +66,9 @@ class Host implements DataHost {
     }
     async writeValue(container: RefContainer, value: EvalValue): Promise<EvalValue> {
         const node = container.current as FakeNode | undefined;
-        node?.setValue(value);
+        if (typeof value === 'number' || typeof value === 'string') {
+            await node?.setValue(value);
+        }
         return value;
     }
     async getByteWidth(ref?: ScvdNode): Promise<number | undefined> {
@@ -182,12 +191,30 @@ describe('evaluator coverage', () => {
 
 class BranchNode extends ScvdNode {
     private readonly members: Map<string, BranchNode>;
-    constructor(public readonly name: string, parent?: ScvdNode, public value: EvalValue = 0, members: Record<string, BranchNode> = {}) {
+    public value: EvalValue;
+    constructor(name: string, parent?: ScvdNode, value: EvalValue = 0, members: Record<string, BranchNode> = {}) {
         super(parent);
+        this.name = name;
+        this.value = value;
         this.members = new Map(Object.entries(members));
     }
-    public setValue(v: EvalValue) { this.value = v; }
-    public getValue(): EvalValue { return this.value; }
+    public async setValue(v: string | number): Promise<string | number | undefined> {
+        this.value = v;
+        return v;
+    }
+    public async getValue(): Promise<string | number | bigint | Uint8Array | undefined> {
+        const v = this.value;
+        if (typeof v === 'boolean') {
+            return v ? 1 : 0;
+        }
+        if (typeof v === 'function') {
+            return undefined;
+        }
+        if (typeof v === 'string' || typeof v === 'number' || typeof v === 'bigint' || v instanceof Uint8Array) {
+            return v;
+        }
+        return undefined;
+    }
     public getMember(property: string): BranchNode | undefined { return this.members.get(property); }
     public setMember(property: string, node: BranchNode) { this.members.set(property, node); }
 }
@@ -205,13 +232,13 @@ class BranchHost implements DataHost {
     public evalIntrinsic?: (name: string, container: RefContainer, args: EvalValue[]) => Promise<EvalValue>;
     public resolveColonPath?: (container: RefContainer, parts: string[]) => Promise<EvalValue>;
 
-    getSymbolRef(container: RefContainer, name: string): BranchNode | undefined {
+    async getSymbolRef(container: RefContainer, name: string, _forWrite?: boolean): Promise<ScvdNode | undefined> {
         const n = this.values.get(name);
         container.current = n;
         container.anchor = n;
         return n;
     }
-    getMemberRef(container: RefContainer, property: string): BranchNode | undefined {
+    async getMemberRef(container: RefContainer, property: string, _forWrite?: boolean): Promise<ScvdNode | undefined> {
         const cur = container.current as BranchNode | undefined;
         const member = cur?.getMember(property);
         if (member) {
@@ -221,12 +248,14 @@ class BranchHost implements DataHost {
     }
     async readValue(container: RefContainer): Promise<EvalValue> {
         const cur = container.current as BranchNode | undefined;
-        const v = cur?.getValue();
+        const v = await cur?.getValue();
         container.current = undefined; // force evaluateFormatSegmentValue to recover via findReferenceNode
         return v;
     }
     async writeValue(container: RefContainer, value: EvalValue): Promise<EvalValue> {
-        (container.current as BranchNode | undefined)?.setValue(value);
+        if (typeof value === 'number' || typeof value === 'string') {
+            await (container.current as BranchNode | undefined)?.setValue(value);
+        }
         return value;
     }
     async getValueType(container: RefContainer): Promise<string | ScalarType | undefined> {
@@ -234,7 +263,7 @@ class BranchHost implements DataHost {
         if (!cur) {
             return undefined;
         }
-        const name = cur.name;
+        const name = cur.name ?? '';
         if (name.startsWith('u')) {
             return 'uint32';
         }
@@ -336,7 +365,6 @@ describe('evaluator edge coverage', () => {
         const binaryAst = parseExpression('x + y', false).ast as BinaryExpression;
         const condAst = parseExpression('x ? y : z', false).ast as ConditionalExpression;
         const assignAst = parseExpression('z = 5', false).ast as AssignmentExpression;
-        const callAst = parseExpression('fn(x)', false).ast as CallExpression;
         const evalCall: EvalPointCall = { kind: 'EvalPointCall', intrinsic: '__Running', callee: { kind: 'Identifier', name: '__Running', start: 0, end: 0 } as Identifier, args: [], start: 0, end: 0 };
         const memberAst = parseExpression('obj.m', false).ast as MemberAccess;
         const arrayAst = parseExpression('arr[0]', false).ast as ArrayIndex;
@@ -351,16 +379,12 @@ describe('evaluator edge coverage', () => {
             end: 0,
         };
 
-        // function value for CallExpression
-        vals.set('fn', new BranchNode('fn', base, (...args: EvalValue[]) => (args[0] as number) + 1));
-
         const segments: FormatSegment[] = [
             segFromAst(unaryAst),
             segFromAst(updateAst),
             segFromAst(binaryAst),
             segFromAst(condAst),
             segFromAst(assignAst),
-            segFromAst(callAst),
             segFromAst(evalCall),
             segFromAst(memberAst),
             segFromAst(arrayAst),

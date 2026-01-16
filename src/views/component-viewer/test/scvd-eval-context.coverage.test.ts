@@ -15,11 +15,14 @@
  *
  * Coverage for ScvdEvalContext happy-path and failure branches.
  */
+// generated with AI
 
 import { ScvdEvalContext } from '../scvd-eval-context';
 import { ScvdComponentViewer } from '../model/scvd-component-viewer';
 import { ScvdObjects } from '../model/scvd-object';
 import type { ScvdNode } from '../model/scvd-node';
+import { MemoryHost } from '../data-host/memory-host';
+import { RegisterHost } from '../data-host/register-host';
 
 describe('ScvdEvalContext', () => {
     const buildViewerWithObject = (): { viewer: ScvdComponentViewer; firstObject: ScvdNode } => {
@@ -51,25 +54,25 @@ describe('ScvdEvalContext', () => {
         const { viewer } = buildViewerWithObject();
         const ctx = new ScvdEvalContext(viewer);
 
-        (ctx as unknown as { _model?: ScvdComponentViewer })._model = undefined;
+        (ctx as unknown as { _model: ScvdComponentViewer | undefined })._model = undefined;
         expect(() => ctx.getOutItem()).toThrow('SCVD EvalContext: Model not initialized');
 
-        (ctx as unknown as { _memoryHost?: undefined })._memoryHost = undefined;
+        (ctx as unknown as { _memoryHost: MemoryHost | undefined })._memoryHost = undefined;
         expect(() => ctx.getExecutionContext()).toThrow('SCVD EvalContext: MemoryHost not initialized');
 
         // RegisterHost guard
         (ctx as unknown as { _memoryHost: MemoryHost })._memoryHost = new ScvdEvalContext(viewer)['getExecutionContext']().memoryHost;
-        (ctx as unknown as { _registerHost?: undefined })._registerHost = undefined;
+        (ctx as unknown as { _registerHost: RegisterHost | undefined })._registerHost = undefined;
         expect(() => ctx.getExecutionContext()).toThrow('SCVD EvalContext: RegisterHost not initialized');
 
         // EvalContext guard
         (ctx as unknown as { _registerHost: RegisterHost })._registerHost = new ScvdEvalContext(viewer)['getExecutionContext']().registerHost;
-        (ctx as unknown as { _ctx?: undefined })._ctx = undefined;
+        (ctx as unknown as { _ctx: ReturnType<ScvdEvalContext['getExecutionContext']>['evalContext'] | undefined })._ctx = undefined;
         expect(() => ctx.getExecutionContext()).toThrow('SCVD EvalContext: EvalContext not initialized');
 
         // DebugTarget guard
         (ctx as unknown as { _ctx: ReturnType<ScvdEvalContext['getExecutionContext']>['evalContext'] })._ctx = new ScvdEvalContext(viewer)['getExecutionContext']().evalContext;
-        (ctx as unknown as { _debugTarget?: undefined })._debugTarget = undefined;
+        (ctx as unknown as { _debugTarget: ReturnType<ScvdEvalContext['getExecutionContext']>['debugTarget'] | undefined })._debugTarget = undefined;
         expect(() => ctx.getExecutionContext()).toThrow('SCVD EvalContext: DebugTarget not initialized');
     });
 

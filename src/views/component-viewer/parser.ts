@@ -30,6 +30,8 @@
  * Intended to be instantiated once and reused: `const parser = new Parser();`
  */
 
+import { addVals, andVals, divVals, maskToBits, modVals, mulVals, orVals, sarVals, shlVals, subVals, toNumeric, xorVals } from './math-ops';
+
 export type ValueType = 'number' | 'boolean' | 'string' | 'unknown';
 
 export type ConstValue = number | string | boolean | undefined;
@@ -231,8 +233,6 @@ function span(start:number, end:number) {
 const startOf = (n: ASTNode) => (n as BaseNode).start;
 const endOf = (n: ASTNode) => (n as BaseNode).end;
 const constOf = (n: ASTNode) => (n as BaseNode).constValue;
-const toInt32 = (n: number) => n | 0;
-const toUint32 = (n: number) => (n >>> 0);
 const makeNumberLiteral = (value: number, start: number, end: number): NumberLiteral => ({
     kind: 'NumberLiteral',
     value,
@@ -335,6 +335,58 @@ function unescapeString(rawWithQuotes: string): string {
         }
     }
     return out;
+}
+
+function normalizeConstValue(v: unknown): ConstValue {
+    /* istanbul ignore next -- parser never produces BigInt; only reachable in synthetic tests */
+    if (typeof v === 'bigint') {
+        return Number(v);
+    }
+    /* istanbul ignore else -- defensive guard, practical inputs are always numeric/string/boolean */
+    if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') {
+        return v;
+    }
+    /* istanbul ignore next -- defensive fallback for unexpected const types */
+    return undefined;
+}
+
+function foldBinaryConst(op: string, a: ConstValue, b: ConstValue): ConstValue | undefined {
+    // Probe numeric coercions early to surface any user-defined valueOf/toString errors (legacy behavior).
+    Number(a as number);
+    Number(b as number);
+
+    switch (op) {
+        case '+': return normalizeConstValue(addVals(a, b));
+        case '-': return normalizeConstValue(subVals(a, b));
+        case '*': return normalizeConstValue(mulVals(a, b));
+        case '/': {
+            const bn = toNumeric(b);
+            /* istanbul ignore else -- zero is caught above; other cases return numeric */
+            if ((typeof bn === 'number' && bn === 0) || (typeof bn === 'bigint' && bn === 0n)) {
+                return undefined;
+            }
+            return normalizeConstValue(divVals(a, b));
+        }
+        case '%': {
+            const bn = toNumeric(b);
+            /* istanbul ignore else -- zero is caught above; other cases return numeric */
+            if ((typeof bn === 'number' && bn === 0) || (typeof bn === 'bigint' && bn === 0n)) {
+                return undefined;
+            }
+            return normalizeConstValue(modVals(a, b));
+        }
+        case '<<': return normalizeConstValue(shlVals(a, b));
+        case '>>': return normalizeConstValue(sarVals(a, b));
+        case '&': return normalizeConstValue(andVals(a, b));
+        case '^': return normalizeConstValue(xorVals(a, b));
+        case '|': return normalizeConstValue(orVals(a, b));
+    }
+    return undefined;
+}
+
+function isZeroConst(v: ConstValue): boolean {
+    const n = toNumeric(v);
+    return (typeof n === 'number') ? n === 0 : n === 0n;
 }
 
 export class Parser {
@@ -629,7 +681,7 @@ export class Parser {
         ['&', 5],
         ['==', 6], ['!=', 6],
         ['<', 7], ['>', 7], ['<=', 7], ['>=', 7],
-        ['>>', 8], ['<<', 8], ['>>>', 8],
+        ['>>', 8], ['<<', 8],
         ['+', 9], ['-', 9],
         ['*', 10], ['/', 10], ['%', 10],
     ]);
@@ -883,7 +935,9 @@ export class Parser {
                     } else if (op === '!') {
                         cv = !v;
                     } else if (op === '~') {
-                        cv = (~(Number(v) | 0)) >>> 0;
+                        const toggled = maskToBits(~Number(v), 32);
+                        /* istanbul ignore next -- BigInt path only triggered by synthetic inputs */
+                        cv = typeof toggled === 'bigint' ? Number(toggled) : toggled;
                     }
                     if (cv !== undefined) {
                         res.constValue = cv;
@@ -916,30 +970,7 @@ export class Parser {
                     let cv: ConstValue;
                     const a = la as Exclude<ConstValue, undefined>;
                     const b = ra as Exclude<ConstValue, undefined>;
-                    const an = Number(a);
-                    const bn = Number(b);
                     switch (op) {
-                        case '+':
-                            if (typeof a === 'string' || typeof b === 'string') {
-                                cv = String(a) + String(b);
-                            } else {
-                                cv = an + bn;
-                            }
-                            break;
-                        case '-': cv = an - bn; break;
-                        case '*': cv = an * bn; break;
-                        case '/': if (bn === 0) {
-                            this.error('Division by zero', startOf(node), endOf(node));
-                        } else {
-                            cv = an / bn;
-                        } break;
-                        case '%': cv = an % bn; break;
-                        case '<<': cv = toUint32(toInt32(an) << (bn & 31)); break;
-                        case '>>': cv = toUint32(toInt32(an) >> (bn & 31)); break;
-                        case '>>>': cv = toUint32(an >>> (bn & 31)); break;
-                        case '&': cv = toUint32(toInt32(an) & toInt32(bn)); break;
-                        case '^': cv = toUint32(toInt32(an) ^ toInt32(bn)); break;
-                        case '|': cv = toUint32(toInt32(an) | toInt32(bn)); break;
                         case '==': cv = a == b; break;
                         case '!=': cv = a != b; break;
                         case '<': cv = a < b; break;
@@ -948,6 +979,17 @@ export class Parser {
                         case '>=': cv = a >= b; break;
                         case '&&': cv = !!a && !!b; break;
                         case '||': cv = !!a || !!b; break;
+                        default: {
+                            const folded = foldBinaryConst(op, a, b);
+                            if (folded === undefined) {
+                                if ((op === '/' || op === '%') && isZeroConst(b)) {
+                                    this.error('Division by zero', startOf(node), endOf(node));
+                                }
+                            } else {
+                                cv = folded;
+                            }
+                            break;
+                        }
                     }
                     if (cv !== undefined) {
                         res.constValue = cv;

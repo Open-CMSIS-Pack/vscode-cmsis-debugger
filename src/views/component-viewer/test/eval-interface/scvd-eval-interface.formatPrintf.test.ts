@@ -16,7 +16,7 @@
  * Unit tests for ScvdEvalInterface.formatPrintf based on the CMSIS-View
  * value_output specification: https://arm-software.github.io/CMSIS-View/main/value_output.html
  */
-// generated with AI/**
+// generated with AI
 
 import { ScvdEvalInterface } from '../../scvd-eval-interface';
 import { ScvdFormatSpecifier, FormatKind } from '../../model/scvd-format-specifier';

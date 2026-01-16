@@ -15,6 +15,7 @@
  *
  * Coverage for resolver: cache creation, dispatching, and guard branches.
  */
+// generated with AI
 
 import { Resolver, ResolveType } from '../resolver';
 import { ScvdComponentViewer } from '../model/scvd-component-viewer';
@@ -45,7 +46,7 @@ describe('Resolver coverage', () => {
         const typedefs = new ScvdTypedefs(viewer);
         const td = typedefs.addTypedef();
         td.name = 'T1';
-        (viewer as unknown as { _typedefs?: unknown })._typedefs = typedefs as unknown as ReturnType<ScvdComponentViewer['typedefs']>;
+        (viewer as unknown as { _typedefs?: ScvdTypedefs })._typedefs = typedefs;
 
         const resolver = new Resolver(viewer);
         expect(resolver.resolve()).toBe(true);
@@ -69,6 +70,8 @@ describe('Resolver coverage', () => {
 
         expect(resolver.resolveSymbolCb('Found', ResolveType.localType)).toBe(typedef);
         expect(resolver.resolveSymbolCb('mem', ResolveType.localMember, scvdObject)).toBe(member);
+        const scvdObjectMissing = { getSymbol: () => undefined } as unknown as ScvdNode;
+        expect(resolver.resolveSymbolCb('mem', ResolveType.localMember, scvdObjectMissing)).toBeUndefined();
         expect(resolver.resolveSymbolCb('any', ResolveType.targetType)).toBeUndefined();
         expect(resolver.resolveSymbolCb('x', ResolveType.localMember)).toBeUndefined(); // scvdObject undefined branch
         // Local type missing / non-typedef branch

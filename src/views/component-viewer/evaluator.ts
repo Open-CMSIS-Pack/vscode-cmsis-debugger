@@ -40,6 +40,23 @@ import type {
     ColonPath,
 } from './parser';
 import type { ScvdNode } from './model/scvd-node';
+import {
+    addVals,
+    andVals,
+    divVals,
+    mergeKinds as mergeScalarKinds,
+    modVals,
+    mulVals,
+    normalizeToWidth,
+    orVals,
+    sarVals,
+    shlVals,
+    subVals,
+    toBigInt,
+    toNumeric,
+    xorVals,
+} from './math-ops';
+import type { ScalarKind as MathScalarKind, ScalarType as MathScalarType } from './math-ops';
 
 /* =============================================================================
  * Public API
@@ -61,16 +78,8 @@ type MaybePromise<T> = T | Promise<T>;
  * Type model for host-provided scalar types
  * ============================================================================= */
 
-export type ScalarKind = 'int' | 'uint' | 'float';
-
-export interface ScalarType {
-    kind: ScalarKind;
-    bits?: number;
-    /** Optional human-readable typename, e.g. "uint32_t" */
-    name?: string;
-    /** Alternative typename source used by some hosts. */
-    typename?: string;
-}
+export type ScalarKind = MathScalarKind;
+export type ScalarType = MathScalarType;
 
 /** Container context carried during evaluation. */
 export interface RefContainer {
@@ -302,197 +311,6 @@ function asNumber(x: unknown): number {
     return 0;
 }
 
-function toNumeric(x: EvalValue): number | bigint {
-    if (typeof x === 'number' || typeof x === 'bigint') {
-        return x;
-    }
-    if (typeof x === 'boolean') {
-        return x ? 1 : 0;
-    }
-    if (typeof x === 'string' && x.trim() !== '') {
-        const n = Number(x);
-        if (Number.isFinite(n)) {
-            return n;
-        }
-        try {
-            return BigInt(x);
-        } catch {
-            return 0;
-        }
-    }
-    return 0;
-}
-
-function toBigInt(x: EvalValue): bigint {
-    if (typeof x === 'bigint') {
-        return x;
-    }
-    if (typeof x === 'number') {
-        return BigInt(Math.trunc(x));
-    }
-    if (typeof x === 'boolean') {
-        return x ? 1n : 0n;
-    }
-    if (typeof x === 'string' && x.trim() !== '') {
-        try {
-            return BigInt(x);
-        } catch {
-            const n = Number(x);
-            return BigInt(Math.trunc(Number.isFinite(n) ? n : 0));
-        }
-    }
-    return 0n;
-}
-
-function addVals(a: EvalValue, b: EvalValue, bits?: number, unsigned?: boolean): EvalValue {
-    if (typeof a === 'string' || typeof b === 'string') {
-        return String(a) + String(b);
-    }
-    const na = toNumeric(a);
-    const nb = toNumeric(b);
-    if (typeof na === 'bigint' || typeof nb === 'bigint') {
-        const out = toBigInt(na as EvalValue) + toBigInt(nb as EvalValue);
-        return unsigned ? maskToBits(out, bits) : out;
-    }
-    const out = (na as number) + (nb as number);
-    return unsigned ? maskToBits(out, bits) : out;
-}
-function subVals(a: EvalValue, b: EvalValue, bits?: number, unsigned?: boolean): EvalValue {
-    const na = toNumeric(a);
-    const nb = toNumeric(b);
-    if (typeof na === 'bigint' || typeof nb === 'bigint') {
-        const out = toBigInt(na as EvalValue) - toBigInt(nb as EvalValue);
-        return unsigned ? maskToBits(out, bits) : out;
-    }
-    const out = (na as number) - (nb as number);
-    return unsigned ? maskToBits(out, bits) : out;
-}
-function mulVals(a: EvalValue, b: EvalValue, bits?: number, unsigned?: boolean): EvalValue {
-    const na = toNumeric(a);
-    const nb = toNumeric(b);
-    if (typeof na === 'bigint' || typeof nb === 'bigint') {
-        const out = toBigInt(na as EvalValue) * toBigInt(nb as EvalValue);
-        return unsigned ? maskToBits(out, bits) : out;
-    }
-    const out = (na as number) * (nb as number);
-    return unsigned ? maskToBits(out, bits) : out;
-}
-function divVals(a: EvalValue, b: EvalValue): EvalValue {
-    const nb = toNumeric(b);
-    if ((typeof nb === 'bigint' && nb === 0n) || (typeof nb === 'number' && nb === 0)) {
-        throw new Error('Division by zero');
-    }
-    const na = toNumeric(a);
-    if (typeof na === 'bigint' || typeof nb === 'bigint') {
-        return toBigInt(na as EvalValue) / toBigInt(nb as EvalValue);
-    }
-    return (na as number) / (nb as number);
-}
-function modVals(a: EvalValue, b: EvalValue): EvalValue {
-    const na = toNumeric(a);
-    const nb = toNumeric(b);
-    if (typeof na === 'bigint' || typeof nb === 'bigint') {
-        return toBigInt(na as EvalValue) % toBigInt(nb as EvalValue);
-    }
-    return ((na as number) | 0) % ((nb as number) | 0);
-}
-function andVals(a: EvalValue, b: EvalValue, bits?: number, unsigned?: boolean): EvalValue {
-    const na = toNumeric(a);
-    const nb = toNumeric(b);
-    if (typeof na === 'bigint' || typeof nb === 'bigint') {
-        const out = (toBigInt(na as EvalValue) & toBigInt(nb as EvalValue));
-        return unsigned ? maskToBits(out, bits) : out;
-    }
-    const out = (((na as number | 0) & (nb as number | 0)) >>> 0);
-    return unsigned ? maskToBits(out, bits) : out;
-}
-function xorVals(a: EvalValue, b: EvalValue, bits?: number, unsigned?: boolean): EvalValue {
-    const na = toNumeric(a);
-    const nb = toNumeric(b);
-    if (typeof na === 'bigint' || typeof nb === 'bigint') {
-        const out = (toBigInt(na as EvalValue) ^ toBigInt(nb as EvalValue));
-        return unsigned ? maskToBits(out, bits) : out;
-    }
-    const out = (((na as number | 0) ^ (nb as number | 0)) >>> 0);
-    return unsigned ? maskToBits(out, bits) : out;
-}
-function orVals(a: EvalValue, b: EvalValue, bits?: number, unsigned?: boolean): EvalValue {
-    const na = toNumeric(a);
-    const nb = toNumeric(b);
-    if (typeof na === 'bigint' || typeof nb === 'bigint') {
-        const out = (toBigInt(na as EvalValue) | toBigInt(nb as EvalValue));
-        return unsigned ? maskToBits(out, bits) : out;
-    }
-    const out = (((na as number | 0) | (nb as number | 0)) >>> 0);
-    return unsigned ? maskToBits(out, bits) : out;
-}
-function maskToBits(v: number | bigint, bits?: number): number | bigint {
-    if (!bits || bits <= 0) {
-        return v;
-    }
-    if (typeof v === 'bigint') {
-        const mask = (1n << BigInt(bits)) - 1n;
-        return v & mask;
-    }
-    if (bits >= 32) {
-        return v >>> 0;
-    }
-    const mask = (1 << bits) - 1;
-    return (v >>> 0) & mask;
-}
-
-function normalizeToWidth(v: number | bigint, bits: number | undefined, kind: MergedKind): number | bigint {
-    if (!bits || bits <= 0 || kind === 'float') {
-        return v;
-    }
-    if (kind === 'uint') {
-        return maskToBits(v, bits);
-    }
-    // signed: mask then sign-extend
-    if (typeof v === 'bigint') {
-        const mask = (1n << BigInt(bits)) - 1n;
-        const m = v & mask;
-        const sign = 1n << BigInt(bits - 1);
-        return (m & sign) ? m - (1n << BigInt(bits)) : m;
-    }
-    const width = bits >= 32 ? 32 : bits;
-    const mask = width === 32 ? 0xFFFF_FFFF : (1 << width) - 1;
-    const m = (v >>> 0) & mask;
-    const sign = 1 << (width - 1);
-    return (m & sign) ? (m | (~mask)) : m;
-}
-
-function shlVals(a: EvalValue, b: EvalValue, bits?: number, unsigned?: boolean): EvalValue {
-    const na = toNumeric(a);
-    const nb = toNumeric(b);
-    if (typeof na === 'bigint' || typeof nb === 'bigint') {
-        const out = (toBigInt(na as EvalValue) << BigInt(toBigInt(nb as EvalValue)));
-        return unsigned ? maskToBits(out, bits) : out;
-    }
-    const out = ((na as number | 0) << ((nb as number) & 31)) >>> 0;
-    return unsigned ? maskToBits(out, bits) : out;
-}
-function sarVals(a: EvalValue, b: EvalValue, bits?: number, unsigned?: boolean): EvalValue {
-    const na = toNumeric(a);
-    const nb = toNumeric(b);
-    if (typeof na === 'bigint' || typeof nb === 'bigint') {
-        const out = (toBigInt(na as EvalValue) >> BigInt(toBigInt(nb as EvalValue)));
-        return unsigned ? maskToBits(out, bits) : out;
-    }
-    const out = ((na as number | 0) >> ((nb as number) & 31)) >>> 0;
-    return unsigned ? maskToBits(out, bits) : out;
-}
-function shrVals(a: EvalValue, b: EvalValue, bits?: number): EvalValue {
-    const na = toNumeric(a);
-    const nb = toNumeric(b);
-    if (typeof na === 'bigint' || typeof nb === 'bigint') {
-        const shifted = toBigInt(na as EvalValue) >> BigInt(toBigInt(nb as EvalValue));
-        const out = shifted >= 0 ? shifted : 0n;
-        return maskToBits(out, bits);
-    }
-    const out = ((na as number) >>> ((nb as number) & 31)) >>> 0;
-    return maskToBits(out, bits);
-}
 function eqVals(a: EvalValue, b: EvalValue): boolean {
     if (typeof a === 'string' || typeof b === 'string') {
         return String(a) === String(b);
@@ -542,6 +360,7 @@ function gteVals(a: EvalValue, b: EvalValue): boolean {
  * ============================================================================= */
 
 type MergedKind = ScalarKind | 'unknown';
+const mergeKinds = mergeScalarKinds;
 
 function normalizeScalarTypeFromName(name: string): ScalarType {
     const trimmed = name.trim();
@@ -584,21 +403,6 @@ async function getScalarTypeForContainer(ctx: EvalContext, container: RefContain
     }
     const raw = await fn.call(ctx.data, container);
     return normalizeScalarType(raw);
-}
-
-function mergeKinds(a?: ScalarType, b?: ScalarType): MergedKind {
-    const ka = a?.kind;
-    const kb = b?.kind;
-    if (ka === 'float' || kb === 'float') {
-        return 'float';
-    }
-    if (ka === 'uint' || kb === 'uint') {
-        return 'uint';
-    }
-    if (ka === 'int' || kb === 'int') {
-        return 'int';
-    }
-    return 'unknown';
 }
 
 function integerDiv(a: number | bigint, b: number | bigint, unsigned: boolean): number | bigint {
