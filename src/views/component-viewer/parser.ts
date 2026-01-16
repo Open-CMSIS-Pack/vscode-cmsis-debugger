@@ -96,10 +96,9 @@ export interface ParseResult {
 type TokenKind = 'EOF'|'IDENT'|'NUMBER'|'STRING'|'PUNCT'|'UNKNOWN';
 interface Token { kind: TokenKind; value: string; start: number; end: number; }
 
-/** include >>>, ++, --, and C compound assignment ops; keep longer tokens before shorter ones */
+/** include ++, --, and C compound assignment ops; keep longer tokens before shorter ones */
 const MULTI = [
     '>>=','<<=',
-    '>>>',
     '++','--',
     '&&','||','==','!=','<=','>=','<<','>>',
     '+=','-=','*=','/=','%=','&=','^=','|='

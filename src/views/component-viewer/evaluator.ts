@@ -344,32 +344,38 @@ function toBigInt(x: EvalValue): bigint {
     return 0n;
 }
 
-function addVals(a: EvalValue, b: EvalValue): EvalValue {
+function addVals(a: EvalValue, b: EvalValue, bits?: number, unsigned?: boolean): EvalValue {
     if (typeof a === 'string' || typeof b === 'string') {
         return String(a) + String(b);
     }
     const na = toNumeric(a);
     const nb = toNumeric(b);
     if (typeof na === 'bigint' || typeof nb === 'bigint') {
-        return toBigInt(na as EvalValue) + toBigInt(nb as EvalValue);
+        const out = toBigInt(na as EvalValue) + toBigInt(nb as EvalValue);
+        return unsigned ? maskToBits(out, bits) : out;
     }
-    return (na as number) + (nb as number);
+    const out = (na as number) + (nb as number);
+    return unsigned ? maskToBits(out, bits) : out;
 }
-function subVals(a: EvalValue, b: EvalValue): EvalValue {
+function subVals(a: EvalValue, b: EvalValue, bits?: number, unsigned?: boolean): EvalValue {
     const na = toNumeric(a);
     const nb = toNumeric(b);
     if (typeof na === 'bigint' || typeof nb === 'bigint') {
-        return toBigInt(na as EvalValue) - toBigInt(nb as EvalValue);
+        const out = toBigInt(na as EvalValue) - toBigInt(nb as EvalValue);
+        return unsigned ? maskToBits(out, bits) : out;
     }
-    return (na as number) - (nb as number);
+    const out = (na as number) - (nb as number);
+    return unsigned ? maskToBits(out, bits) : out;
 }
-function mulVals(a: EvalValue, b: EvalValue): EvalValue {
+function mulVals(a: EvalValue, b: EvalValue, bits?: number, unsigned?: boolean): EvalValue {
     const na = toNumeric(a);
     const nb = toNumeric(b);
     if (typeof na === 'bigint' || typeof nb === 'bigint') {
-        return toBigInt(na as EvalValue) * toBigInt(nb as EvalValue);
+        const out = toBigInt(na as EvalValue) * toBigInt(nb as EvalValue);
+        return unsigned ? maskToBits(out, bits) : out;
     }
-    return (na as number) * (nb as number);
+    const out = (na as number) * (nb as number);
+    return unsigned ? maskToBits(out, bits) : out;
 }
 function divVals(a: EvalValue, b: EvalValue): EvalValue {
     const nb = toNumeric(b);
@@ -390,54 +396,102 @@ function modVals(a: EvalValue, b: EvalValue): EvalValue {
     }
     return ((na as number) | 0) % ((nb as number) | 0);
 }
-function andVals(a: EvalValue, b: EvalValue): EvalValue {
+function andVals(a: EvalValue, b: EvalValue, bits?: number, unsigned?: boolean): EvalValue {
     const na = toNumeric(a);
     const nb = toNumeric(b);
     if (typeof na === 'bigint' || typeof nb === 'bigint') {
-        return (toBigInt(na as EvalValue) & toBigInt(nb as EvalValue));
+        const out = (toBigInt(na as EvalValue) & toBigInt(nb as EvalValue));
+        return unsigned ? maskToBits(out, bits) : out;
     }
-    return (((na as number | 0) & (nb as number | 0)) >>> 0);
+    const out = (((na as number | 0) & (nb as number | 0)) >>> 0);
+    return unsigned ? maskToBits(out, bits) : out;
 }
-function xorVals(a: EvalValue, b: EvalValue): EvalValue {
+function xorVals(a: EvalValue, b: EvalValue, bits?: number, unsigned?: boolean): EvalValue {
     const na = toNumeric(a);
     const nb = toNumeric(b);
     if (typeof na === 'bigint' || typeof nb === 'bigint') {
-        return (toBigInt(na as EvalValue) ^ toBigInt(nb as EvalValue));
+        const out = (toBigInt(na as EvalValue) ^ toBigInt(nb as EvalValue));
+        return unsigned ? maskToBits(out, bits) : out;
     }
-    return (((na as number | 0) ^ (nb as number | 0)) >>> 0);
+    const out = (((na as number | 0) ^ (nb as number | 0)) >>> 0);
+    return unsigned ? maskToBits(out, bits) : out;
 }
-function orVals(a: EvalValue, b: EvalValue): EvalValue {
+function orVals(a: EvalValue, b: EvalValue, bits?: number, unsigned?: boolean): EvalValue {
     const na = toNumeric(a);
     const nb = toNumeric(b);
     if (typeof na === 'bigint' || typeof nb === 'bigint') {
-        return (toBigInt(na as EvalValue) | toBigInt(nb as EvalValue));
+        const out = (toBigInt(na as EvalValue) | toBigInt(nb as EvalValue));
+        return unsigned ? maskToBits(out, bits) : out;
     }
-    return (((na as number | 0) | (nb as number | 0)) >>> 0);
+    const out = (((na as number | 0) | (nb as number | 0)) >>> 0);
+    return unsigned ? maskToBits(out, bits) : out;
 }
-function shlVals(a: EvalValue, b: EvalValue): EvalValue {
+function maskToBits(v: number | bigint, bits?: number): number | bigint {
+    if (!bits || bits <= 0) {
+        return v;
+    }
+    if (typeof v === 'bigint') {
+        const mask = (1n << BigInt(bits)) - 1n;
+        return v & mask;
+    }
+    if (bits >= 32) {
+        return v >>> 0;
+    }
+    const mask = (1 << bits) - 1;
+    return (v >>> 0) & mask;
+}
+
+function normalizeToWidth(v: number | bigint, bits: number | undefined, kind: MergedKind): number | bigint {
+    if (!bits || bits <= 0 || kind === 'float') {
+        return v;
+    }
+    if (kind === 'uint') {
+        return maskToBits(v, bits);
+    }
+    // signed: mask then sign-extend
+    if (typeof v === 'bigint') {
+        const mask = (1n << BigInt(bits)) - 1n;
+        const m = v & mask;
+        const sign = 1n << BigInt(bits - 1);
+        return (m & sign) ? m - (1n << BigInt(bits)) : m;
+    }
+    const width = bits >= 32 ? 32 : bits;
+    const mask = width === 32 ? 0xFFFF_FFFF : (1 << width) - 1;
+    const m = (v >>> 0) & mask;
+    const sign = 1 << (width - 1);
+    return (m & sign) ? (m | (~mask)) : m;
+}
+
+function shlVals(a: EvalValue, b: EvalValue, bits?: number, unsigned?: boolean): EvalValue {
     const na = toNumeric(a);
     const nb = toNumeric(b);
     if (typeof na === 'bigint' || typeof nb === 'bigint') {
-        return (toBigInt(na as EvalValue) << BigInt(toBigInt(nb as EvalValue)));
+        const out = (toBigInt(na as EvalValue) << BigInt(toBigInt(nb as EvalValue)));
+        return unsigned ? maskToBits(out, bits) : out;
     }
-    return (((na as number | 0) << ((nb as number) & 31)) >>> 0);
+    const out = ((na as number | 0) << ((nb as number) & 31)) >>> 0;
+    return unsigned ? maskToBits(out, bits) : out;
 }
-function sarVals(a: EvalValue, b: EvalValue): EvalValue {
+function sarVals(a: EvalValue, b: EvalValue, bits?: number, unsigned?: boolean): EvalValue {
     const na = toNumeric(a);
     const nb = toNumeric(b);
     if (typeof na === 'bigint' || typeof nb === 'bigint') {
-        return (toBigInt(na as EvalValue) >> BigInt(toBigInt(nb as EvalValue)));
+        const out = (toBigInt(na as EvalValue) >> BigInt(toBigInt(nb as EvalValue)));
+        return unsigned ? maskToBits(out, bits) : out;
     }
-    return (((na as number | 0) >> ((nb as number) & 31)) >>> 0);
+    const out = ((na as number | 0) >> ((nb as number) & 31)) >>> 0;
+    return unsigned ? maskToBits(out, bits) : out;
 }
-function shrVals(a: EvalValue, b: EvalValue): EvalValue {
+function shrVals(a: EvalValue, b: EvalValue, bits?: number): EvalValue {
     const na = toNumeric(a);
     const nb = toNumeric(b);
     if (typeof na === 'bigint' || typeof nb === 'bigint') {
         const shifted = toBigInt(na as EvalValue) >> BigInt(toBigInt(nb as EvalValue));
-        return shifted >= 0 ? shifted : 0n;
+        const out = shifted >= 0 ? shifted : 0n;
+        return maskToBits(out, bits);
     }
-    return ((na as number) >>> ((nb as number) & 31)) >>> 0;
+    const out = ((na as number) >>> ((nb as number) & 31)) >>> 0;
+    return maskToBits(out, bits);
 }
 function eqVals(a: EvalValue, b: EvalValue): boolean {
     if (typeof a === 'string' || typeof b === 'string') {
@@ -1156,19 +1210,25 @@ async function evalBinary(node: BinaryExpression, ctx: EvalContext): Promise<Eva
     const { value: a, type: typeA } = await evalOperandWithType(left, ctx);
     const { value: b, type: typeB } = await evalOperandWithType(right, ctx);
     const mergedKind = mergeKinds(typeA, typeB);
+    const bitWidthValue = Math.max(typeA?.bits ?? 0, typeB?.bits ?? 0);
+    const bitWidth = bitWidthValue > 0 ? bitWidthValue : undefined;
+
+    const isUnsigned = mergedKind === 'uint';
+
+    let result: EvalValue;
 
     switch (operator) {
-        case '+':   return addVals(a, b);
-        case '-':   return subVals(a, b);
-        case '*':   return mulVals(a, b);
-        case '/':   return divValsWithKind(a, b, mergedKind);
-        case '%':   return modValsWithKind(a, b, mergedKind);
-        case '<<':  return shlVals(a, b);
-        case '>>':  return sarVals(a, b);
-        case '>>>': return shrVals(a, b);
-        case '&':   return andVals(a, b);
-        case '^':   return xorVals(a, b);
-        case '|':   return orVals(a, b);
+        case '+':   result = addVals(a, b, bitWidth, isUnsigned); break;
+        case '-':   result = subVals(a, b, bitWidth, isUnsigned); break;
+        case '*':   result = mulVals(a, b, bitWidth, isUnsigned); break;
+        case '/':   result = divValsWithKind(a, b, mergedKind); break;
+        case '%':   result = modValsWithKind(a, b, mergedKind); break;
+        case '<<':  result = shlVals(a, b, bitWidth, isUnsigned); break;
+        case '>>':  result = sarVals(a, b, bitWidth, isUnsigned); break;
+        case '>>>': throw new Error('Unsupported operator >>> in C-style expressions');
+        case '&':   result = andVals(a, b, bitWidth, isUnsigned); break;
+        case '^':   result = xorVals(a, b, bitWidth, isUnsigned); break;
+        case '|':   result = orVals(a, b, bitWidth, isUnsigned); break;
         case '==':  return eqVals(a, b);
         case '!=':  return !eqVals(a, b);
         case '<':   return ltVals(a, b);
@@ -1177,6 +1237,11 @@ async function evalBinary(node: BinaryExpression, ctx: EvalContext): Promise<Eva
         case '>=':  return gteVals(a, b);
         default: throw new Error(`Unsupported binary operator ${operator}`);
     }
+
+    if (typeof result === 'number' || typeof result === 'bigint') {
+        return normalizeToWidth(result, bitWidth, mergedKind);
+    }
+    return result;
 }
 
 /* =============================================================================
