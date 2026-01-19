@@ -97,4 +97,96 @@ describe('MemoryHost', () => {
         const out = await host.readValue(container);
         expect(out).toEqual(bytes);
     });
+
+    it('writes and reads raw bytes at offsets', async () => {
+        const host = new MemoryHost();
+        const container = makeContainer('raw', 4, 2);
+
+        await host.writeValue(container, new Uint8Array([9, 8, 7, 6]));
+        const out = await host.readRaw(container, 4);
+
+        expect(out).toEqual(new Uint8Array([9, 8, 7, 6]));
+    });
+
+    it('round-trips via setVariable/getVariable for a simple read', () => {
+        const host = new MemoryHost();
+        host.setVariable('simple', 2, 0x1234, 0);
+
+        expect(host.getVariable('simple')).toBe(0x1234);
+    });
+
+    it('preserves untouched bytes on partial overwrites', async () => {
+        const host = new MemoryHost();
+        const base = makeContainer('overlap', 4, 0);
+        const tail = makeContainer('overlap', 2, 2);
+
+        await host.writeValue(base, new Uint8Array([1, 2, 3, 4]));
+        await host.writeValue(tail, new Uint8Array([9, 8]));
+
+        const out = await host.readRaw(base, 4);
+        expect(out).toEqual(new Uint8Array([1, 2, 9, 8]));
+    });
+
+    it('partial setVariable writes only affect the specified range', () => {
+        const host = new MemoryHost();
+
+        host.setVariable('window', 4, new Uint8Array([1, 2, 3, 4]), 0);
+        host.setVariable('window', 2, new Uint8Array([9, 8]), 2);
+
+        expect(host.getVariable('window', 2, 0)).toBe(0x0201);
+        expect(host.getVariable('window', 2, 2)).toBe(0x0809);
+    });
+
+    it('zero-fills virtual size and supports writes into virtual space', async () => {
+        const host = new MemoryHost();
+
+        host.setVariable('struct', 2, new Uint8Array([0xAA, 0xBB]), 0, undefined, 6);
+
+        const base = makeContainer('struct', 2, 0);
+        const mid = makeContainer('struct', 2, 2);
+        const tail = makeContainer('struct', 2, 4);
+
+        expect(await host.readRaw(base, 2)).toEqual(new Uint8Array([0xAA, 0xBB]));
+        expect(await host.readRaw(mid, 2)).toEqual(new Uint8Array([0x00, 0x00]));
+        expect(await host.readRaw(tail, 2)).toEqual(new Uint8Array([0x00, 0x00]));
+
+        await host.writeValue(mid, new Uint8Array([0x11, 0x22]));
+
+        expect(await host.readRaw(base, 2)).toEqual(new Uint8Array([0xAA, 0xBB]));
+        expect(await host.readRaw(mid, 2)).toEqual(new Uint8Array([0x11, 0x22]));
+        expect(await host.readRaw(tail, 2)).toEqual(new Uint8Array([0x00, 0x00]));
+
+        await host.writeValue(tail, new Uint8Array([0x33, 0x44]));
+
+        expect(await host.readRaw(base, 2)).toEqual(new Uint8Array([0xAA, 0xBB]));
+        expect(await host.readRaw(mid, 2)).toEqual(new Uint8Array([0x11, 0x22]));
+        expect(await host.readRaw(tail, 2)).toEqual(new Uint8Array([0x33, 0x44]));
+    });
+
+    it('expands the backing buffer when writing beyond current size', async () => {
+        const host = new MemoryHost();
+        const head = makeContainer('grow', 2, 0);
+        const tail = makeContainer('grow', 2, 6);
+
+        await host.writeValue(head, new Uint8Array([1, 2]));
+        await host.writeValue(tail, new Uint8Array([9, 8]));
+
+        expect(await host.readRaw(head, 2)).toEqual(new Uint8Array([1, 2]));
+        expect(await host.readRaw(tail, 2)).toEqual(new Uint8Array([9, 8]));
+    });
+
+    it('appends when offset is -1 and later writes can expand via the interface', async () => {
+        const host = new MemoryHost();
+
+        host.setVariable('arr', 2, new Uint8Array([1, 2]), -1);
+        host.setVariable('arr', 2, new Uint8Array([3, 4]), -1);
+
+        const appended = makeContainer('arr', 2, 4);
+        await host.writeValue(appended, new Uint8Array([5, 6]));
+
+        expect(host.getArrayElementCount('arr')).toBe(2);
+        expect(await host.readRaw(makeContainer('arr', 2, 0), 2)).toEqual(new Uint8Array([1, 2]));
+        expect(await host.readRaw(makeContainer('arr', 2, 2), 2)).toEqual(new Uint8Array([3, 4]));
+        expect(await host.readRaw(makeContainer('arr', 2, 4), 2)).toEqual(new Uint8Array([5, 6]));
+    });
 });
