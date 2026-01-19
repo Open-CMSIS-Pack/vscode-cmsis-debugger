@@ -15,22 +15,29 @@
  */
 // generated with AI
 
-import { componentViewerLogger } from '../component-viewer-logger';
 
-const mockChannel = { appendLine: jest.fn(), dispose: jest.fn() };
-const createOutputChannel = jest.fn(() => mockChannel);
-
-jest.mock('vscode', () => ({
-    window: { createOutputChannel },
-}));
+jest.mock('vscode', () => {
+    const mockChannel = { appendLine: jest.fn(), dispose: jest.fn() };
+    const createOutputChannel = jest.fn(() => mockChannel);
+    return {
+        window: { createOutputChannel },
+        __mock: { createOutputChannel, mockChannel },
+    };
+});
 
 jest.mock('../../../manifest', () => ({
     COMPONENT_VIEWER_DISPLAY_NAME: 'Component Viewer',
 }));
 
 describe('component-viewer-logger', () => {
-    it('creates a logger output channel with log option', () => {
-        expect(createOutputChannel).toHaveBeenCalledWith('Component Viewer', { log: true });
-        expect(componentViewerLogger).toBe(mockChannel);
+    beforeEach(() => {
+        jest.resetModules();
+    });
+
+    it('creates a logger output channel with log option', async () => {
+        const { __mock } = jest.requireMock('vscode') as { __mock: { createOutputChannel: jest.Mock; mockChannel: unknown } };
+        const { componentViewerLogger } = await import('../component-viewer-logger');
+        expect(__mock.createOutputChannel).toHaveBeenCalledWith('Component Viewer', { log: true });
+        expect(componentViewerLogger).toBe(__mock.mockChannel);
     });
 });

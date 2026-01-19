@@ -37,7 +37,7 @@ class DummyNode extends ScvdNode {
             isPointer: boolean;
             memberOffset: number;
             valueType: string;
-            symbolMap: Record<string, ScvdNode>;
+            symbolMap: Map<string, ScvdNode>;
         }> = {}
     ) {
         super(undefined);
@@ -50,8 +50,8 @@ class DummyNode extends ScvdNode {
     public override getDisplayLabel(): string { return this.name ?? '<anon>'; }
     public override getMemberOffset(): Promise<number | undefined> { return Promise.resolve(this.opts.memberOffset); }
     public override getMember(name: string): ScvdNode | undefined {
-        const map = this.opts.symbolMap ?? {};
-        return Object.prototype.hasOwnProperty.call(map, name) ? map[name] : undefined;
+        const map = this.opts.symbolMap;
+        return map?.get(name);
     }
     public override getValueType(): string | undefined { return this.opts.valueType; }
 }
@@ -140,7 +140,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
 
     it('__Offset_of and __Running', async () => {
         const member = new DummyNode('m', { memberOffset: 12 });
-        const container: RefContainer = { base: new DummyNode('base', { symbolMap: { member } }), current: undefined, valueType: undefined };
+        const container: RefContainer = { base: new DummyNode('base', { symbolMap: new Map([['member', member]]) }), current: undefined, valueType: undefined };
         const { evalIf, debugTarget } = makeEval({ getTargetIsRunning: jest.fn().mockResolvedValue(false) });
         await expect(evalIf.__Offset_of(container, 'member')).resolves.toBe(12);
         await expect(evalIf.__Offset_of(container, 'missing')).resolves.toBeUndefined();
@@ -196,7 +196,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
 
     it('resolveColonPath and getElementRef fall back to undefined', async () => {
         const child = new DummyNode('child');
-        const base = new DummyNode('base', { symbolMap: { child } });
+        const base = new DummyNode('base', { symbolMap: new Map([['child', child]]) });
         const container: RefContainer = { base, current: base, valueType: undefined };
         const { evalIf } = makeEval();
         await expect(evalIf.resolveColonPath(container, ['a', 'b'])).resolves.toBeUndefined();

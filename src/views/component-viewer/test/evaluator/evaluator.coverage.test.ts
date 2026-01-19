@@ -24,7 +24,12 @@ import type { FullDataHost } from '../helpers/full-data-host';
 import { ScvdNode } from '../../model/scvd-node';
 
 class FakeNode extends ScvdNode {
-    constructor(public readonly id: string, parent?: ScvdNode, public value: EvalValue = undefined, private members: Record<string, ScvdNode> = {}) {
+    constructor(
+        public readonly id: string,
+        parent?: ScvdNode,
+        public value: EvalValue = undefined,
+        private members: Map<string, ScvdNode> = new Map(),
+    ) {
         super(parent);
     }
     public async setValue(v: number | string): Promise<number | string | undefined> {
@@ -35,7 +40,7 @@ class FakeNode extends ScvdNode {
         return this.value as unknown as string | number | bigint | Uint8Array<ArrayBufferLike> | undefined;
     }
     public getSymbol(name: string): ScvdNode | undefined {
-        return this.members[name];
+        return this.members.get(name);
     }
 }
 
@@ -188,11 +193,9 @@ describe('evaluator coverage', () => {
 
     it('handles member access, array indexing, and error paths', async () => {
         const base = new FakeNode('base');
-        const obj = new FakeNode('obj', base, undefined, {
-            m: new FakeNode('m', base, 9),
-        });
+        const obj = new FakeNode('obj', base, undefined, new Map([['m', new FakeNode('m', base, 9)]]));
         const arrElem = new FakeNode('arr[0]', base, 7);
-        const arr = new FakeNode('arr', base, undefined, { '0': arrElem });
+        const arr = new FakeNode('arr', base, undefined, new Map([['0', arrElem]]));
         const values = new Map<string, FakeNode>([['obj', obj], ['arr', arr], ['arr[0]', arrElem]]);
         const host = new Host(values);
 
@@ -216,7 +219,7 @@ describe('evaluator coverage', () => {
 
         const base = new FakeNode('base');
         const child = new FakeNode('child', base, 1);
-        const obj = new FakeNode('obj', base, undefined, { child });
+        const obj = new FakeNode('obj', base, undefined, new Map([['child', child]]));
         const values = new Map<string, FakeNode>([['obj', obj], ['child', child]]);
         const host = new OffsetHost(values);
         const ctx = new EvalContext({ data: host, container: base });
@@ -237,7 +240,7 @@ describe('evaluator coverage', () => {
     it('covers intrinsics, pseudo members, and string/unary paths', async () => {
         const base = new FakeNode('base');
         const arrElem = new FakeNode('arr[0]', base, 1);
-        const arr = new FakeNode('arr', base, undefined, { '0': arrElem });
+        const arr = new FakeNode('arr', base, undefined, new Map([['0', arrElem]]));
         const str = new FakeNode('str', base, 0);
         const values = new Map<string, FakeNode>([['arr', arr], ['arr[0]', arrElem], ['str', str]]);
         const host = new Host(values);
