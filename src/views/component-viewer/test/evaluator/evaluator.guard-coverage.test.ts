@@ -178,7 +178,7 @@ describe('evaluator guard coverage', () => {
 
         const memberCtx = makeCtx(new StubHost(undefined));
         const ma: ASTNode = { kind: 'MemberAccess', object: { kind: 'Identifier', name: 'root', start: 0, end: 0 }, property: 'missing', start: 0, end: 0 } as ASTNode;
-        await expect(mustRef(ma, memberCtx, false)).rejects.toThrow("Missing member 'missing'");
+        await expect(mustRef(ma, memberCtx, false)).rejects.toThrow('Missing member \'missing\'');
 
         const arrCtx = makeCtx(new StubHost(undefined));
         const arrMember: ASTNode = {
@@ -188,7 +188,7 @@ describe('evaluator guard coverage', () => {
             start: 0,
             end: 0,
         };
-        await expect(mustRef(arrMember, arrCtx, false)).rejects.toThrow("Missing member 'missing'");
+        await expect(mustRef(arrMember, arrCtx, false)).rejects.toThrow('Missing member \'missing\'');
 
         const defaultCtx = makeCtx(new StubHost());
         await expect(mustRef({ kind: 'Unknown', start: 0, end: 0 } as unknown as ASTNode, defaultCtx, false)).rejects.toThrow('Invalid reference target.');

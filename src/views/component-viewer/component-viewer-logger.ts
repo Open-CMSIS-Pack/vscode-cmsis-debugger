@@ -17,4 +17,4 @@
 import * as vscode from 'vscode';
 import * as manifest from '../../manifest';
 
-export const scvdLogger = vscode.window.createOutputChannel(manifest.COMPONENT_VIEWER_DISPLAY_NAME, { log: true });
+export const componentViewerLogger = vscode.window.createOutputChannel(manifest.COMPONENT_VIEWER_DISPLAY_NAME, { log: true });

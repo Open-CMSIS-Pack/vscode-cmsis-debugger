@@ -321,3 +321,6 @@ export class ScvdDebugTarget {
         return toUint32(numericValue);
     }
 }
+
+// Test-only helpers
+export const __test__ = { toUint32 };
