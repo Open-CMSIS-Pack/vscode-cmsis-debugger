@@ -44,43 +44,33 @@ export class CbuildRunReader {
     }
 
     public getSvdFilePaths(cmsisPackRoot?: string, pname?: string): string[] {
-        if (!this.cbuildRun) {
-            return [];
-        }
-        // Get SVD file descriptors
-        const systemDescriptions = this.cbuildRun['system-descriptions'];
-        const svdFileDescriptors = systemDescriptions?.filter(descriptor => descriptor.type === 'svd') ?? [];
-        if (svdFileDescriptors.length === 0) {
-            return [];
-        }
-        // Replace potential ${CMSIS_PACK_ROOT} placeholder
-        const effectiveCmsisPackRoot = cmsisPackRoot ?? getCmsisPackRootPath();
-        // Map to copies, leave originals untouched
-        const filteredSvdDescriptors = pname ? svdFileDescriptors.filter(descriptor => descriptor.pname === pname): svdFileDescriptors;
-        const svdFilePaths = filteredSvdDescriptors.map(descriptor => `${effectiveCmsisPackRoot
-            ? descriptor.file.replaceAll(CMSIS_PACK_ROOT_ENVVAR, effectiveCmsisPackRoot)
-            : descriptor.file}`);
+        const svdFilePaths = this.getFilePathsByType('svd', cmsisPackRoot, pname);
         return svdFilePaths;
     }
 
     public getScvdFilePaths(cmsisPackRoot?: string, pname?: string): string[] {
+        const scvdFilePaths = this.getFilePathsByType('scvd', cmsisPackRoot, pname);
+        return scvdFilePaths;
+    }
+
+    private getFilePathsByType(type: 'svd' | 'scvd', cmsisPackRoot?: string, pname?: string): string[] {
         if (!this.cbuildRun) {
             return [];
         }
-        // Get SCVD file descriptors
+        // Get file descriptors
         const systemDescriptions = this.cbuildRun['system-descriptions'];
-        const scvdFileDescriptors = systemDescriptions?.filter(descriptor => descriptor.type === 'scvd') ?? [];
-        if (scvdFileDescriptors.length === 0) {
+        const fileDescriptors = systemDescriptions?.filter(descriptor => descriptor.type === type) ?? [];
+        if (fileDescriptors.length === 0) {
             return [];
         }
         // Replace potential ${CMSIS_PACK_ROOT} placeholder
         const effectiveCmsisPackRoot = cmsisPackRoot ?? getCmsisPackRootPath();
         // Map to copies, leave originals untouched
-        const filteredScvdDescriptors = pname ? scvdFileDescriptors.filter(descriptor => descriptor.pname === pname): scvdFileDescriptors;
-        const scvdFilePaths = filteredScvdDescriptors.map(descriptor => `${effectiveCmsisPackRoot
+        const filteredDescriptors = pname ? fileDescriptors.filter(descriptor => descriptor.pname === pname): fileDescriptors;
+        const filePaths = filteredDescriptors.map(descriptor => `${effectiveCmsisPackRoot
             ? descriptor.file.replaceAll(CMSIS_PACK_ROOT_ENVVAR, effectiveCmsisPackRoot)
             : descriptor.file}`);
-        return scvdFilePaths;
+        return filePaths;
     }
 
     public getPnames(): string[] {
