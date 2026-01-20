@@ -126,7 +126,7 @@ export class ComponentViewerController {
         // if new session is not the current active session, erase old instances and read the new ones
         if (this.activeSession?.session.id !== session.session.id) {
             this.instances = [];
-            await this.componentViewerTreeDataProvider?.deleteModels();
+            this.componentViewerTreeDataProvider?.deleteModels();
         }
         // Update debug session
         this.activeSession = session;
@@ -164,7 +164,7 @@ export class ComponentViewerController {
         this.updateSemaphoreFlag = true;
         this.instanceUpdateCounter = 0;
         if (!this.activeSession) {
-            await this.componentViewerTreeDataProvider?.deleteModels();
+            this.componentViewerTreeDataProvider?.deleteModels();
             this.updateSemaphoreFlag = false;
             return;
         }
