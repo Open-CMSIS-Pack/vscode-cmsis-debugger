@@ -112,10 +112,10 @@ describe('ComponentViewerTreeDataProvider', () => {
     it('returns root children when no element is provided', async () => {
         const provider = new ComponentViewerTreeDataProvider();
         const root = makeGui({ nodeId: 'root' });
-        await provider.addGuiOut([root]);
-        await provider.showModelData();
+        provider.addGuiOut([root]);
+        provider.showModelData();
 
-        await expect(provider.getChildren()).resolves.toEqual([root]);
+        expect(provider.getChildren()).resolves.toEqual([root]);
         expect(mockFire).toHaveBeenCalledTimes(1);
     });
 
@@ -128,7 +128,7 @@ describe('ComponentViewerTreeDataProvider', () => {
             getGuiChildren: () => [childA, childB],
         });
 
-        await expect(provider.getChildren(parent)).resolves.toEqual([childA, childB]);
+        expect(provider.getChildren(parent)).resolves.toEqual([childA, childB]);
     });
 
     it('returns empty children when element has none', async () => {
@@ -138,33 +138,33 @@ describe('ComponentViewerTreeDataProvider', () => {
             getGuiChildren: () => undefined as unknown as ScvdGuiInterface[],
         });
 
-        await expect(provider.getChildren(parent)).resolves.toEqual([]);
+        expect(provider.getChildren(parent)).resolves.toEqual([]);
     });
 
     it('handles empty caches and no gui output', async () => {
         const provider = new ComponentViewerTreeDataProvider();
 
-        await provider.activate();
+        provider.activate();
         expect(mockFire).toHaveBeenCalledTimes(1);
-        await expect(provider.getChildren()).resolves.toEqual([]);
+        expect(provider.getChildren()).resolves.toEqual([]);
 
-        await provider.addGuiOut(undefined);
-        await provider.showModelData();
-        await expect(provider.getChildren()).resolves.toEqual([]);
+        provider.addGuiOut(undefined);
+        provider.showModelData();
+        expect(provider.getChildren()).resolves.toEqual([]);
 
         provider.resetModelCache();
-        await expect(provider.getChildren()).resolves.toEqual([]);
+        expect(provider.getChildren()).resolves.toEqual([]);
     });
 
     it('deletes models and refreshes', async () => {
         const provider = new ComponentViewerTreeDataProvider();
         const root = makeGui({ nodeId: 'root' });
-        await provider.addGuiOut([root]);
-        await provider.showModelData();
+        provider.addGuiOut([root]);
+        provider.showModelData();
         expect(mockFire).toHaveBeenCalledTimes(1);
 
-        await provider.deleteModels();
+        provider.deleteModels();
         expect(mockFire).toHaveBeenCalledTimes(2);
-        await expect(provider.getChildren()).resolves.toEqual([]);
+        expect(provider.getChildren()).resolves.toEqual([]);
     });
 });

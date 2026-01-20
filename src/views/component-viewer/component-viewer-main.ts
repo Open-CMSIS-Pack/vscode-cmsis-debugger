@@ -21,7 +21,7 @@ import { URI } from 'vscode-uri';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
 
 
-export class ComponentViewerMain {
+export class ComponentViewer {
     private activeSession: GDBTargetDebugSession | undefined;
     private instances: ComponentViewerInstance[] = [];
     private componentViewerTreeDataProvider: ComponentViewerTreeDataProvider | undefined;
@@ -177,9 +177,9 @@ export class ComponentViewerMain {
             this._instanceUpdateCounter++;
             console.log(`Updating Component Viewer Instance #${this._instanceUpdateCounter}`);
             await instance.update();
-            await this.componentViewerTreeDataProvider?.addGuiOut(instance.getGuiTree());
+            this.componentViewerTreeDataProvider?.addGuiOut(instance.getGuiTree());
         }
-        await this.componentViewerTreeDataProvider?.showModelData();
+        this.componentViewerTreeDataProvider?.showModelData();
         this._updateSemaphoreFlag = false;
     }
 }

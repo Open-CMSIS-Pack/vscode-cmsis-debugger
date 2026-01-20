@@ -24,7 +24,7 @@ import { CpuStates } from '../features/cpu-states/cpu-states';
 import { CpuStatesCommands } from '../features/cpu-states/cpu-states-commands';
 import { LiveWatchTreeDataProvider } from '../views/live-watch/live-watch';
 import { GenericCommands } from '../features/generic-commands';
-import { ComponentViewerMain } from '../views/component-viewer/component-viewer-main';
+import { ComponentViewer } from '../views/component-viewer/component-viewer-main';
 
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
@@ -40,7 +40,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     const cpuStates = new CpuStates();
     const cpuStatesCommands = new CpuStatesCommands();
     const cpuStatesStatusBarItem = new CpuStatesStatusBarItem();
-    const componentViewer = new ComponentViewerMain(context);
+    const componentViewer = new ComponentViewer(context);
     // Register the Tree View under the id from package.json
     liveWatchTreeDataProvider = new LiveWatchTreeDataProvider(context);
 

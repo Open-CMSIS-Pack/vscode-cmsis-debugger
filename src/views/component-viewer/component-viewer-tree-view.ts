@@ -56,13 +56,13 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         return treeItem;
     }
 
-    public getChildren(element?: ScvdGuiInterface): ScvdGuiInterface[] {
+    public getChildren(element?: ScvdGuiInterface): Promise<ScvdGuiInterface[]> {
         if (!element) {
-            return this._objectOutRoots;
+            return Promise.resolve(this._objectOutRoots);
         }
 
         const children = element.getGuiChildren() || [];
-        return children;
+        return Promise.resolve(children);
     }
 
     private refresh(): void {
@@ -74,7 +74,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         this._objectOutRoots = [];
     }
 
-    public async addGuiOut(guiOut: ScvdGuiInterface[] | undefined) {
+    public addGuiOut(guiOut: ScvdGuiInterface[] | undefined) {
         if (guiOut !== undefined) {
             guiOut.forEach(item => this._scvdModel.push(item));
         }
