@@ -1031,7 +1031,7 @@ function normalizeEvaluateResult(v: EvalValue): EvaluateResult {
 
 export async function evaluateParseResult(pr: ParseResult, ctx: EvalContext, container?: ScvdNode): Promise<EvaluateResult> {
     const prevBase = ctx.container.base;
-    const saved = { ...ctx.container } as RefContainer;
+    const saved = snapshotContainer(ctx.container);
     const override = container !== undefined;
     if (override) {
         ctx.container.base = container as ScvdNode;
