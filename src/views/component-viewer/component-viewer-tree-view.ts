@@ -26,25 +26,20 @@
 
 import * as vscode from 'vscode';
 import { ScvdGuiInterface } from './model/scvd-gui-interface';
-//import { GDBTargetDebugSession, GDBTargetDebugTracker, SessionStackItem } from '../../debug-session';
 
-interface ISCVDFiles {
-    scvdGuiOut: ScvdGuiInterface[];
-}
 
 export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<ScvdGuiInterface> {
     private readonly _onDidChangeTreeData = new vscode.EventEmitter<ScvdGuiInterface | void>();
     readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
     //private _activeSession: GDBTargetDebugSession | undefined;
     private _objectOutRoots: ScvdGuiInterface[] = [];
-    private _scvdModel: ISCVDFiles;
+    private _scvdModel: ScvdGuiInterface[] = [];
 
     constructor () {
-        this._objectOutRoots = [];
-        this._scvdModel = { scvdGuiOut: [] };
     }
-    public async activate(): Promise<void> {
-        await this.addRootObject();
+
+    public activate(): void {
+        this.addRootObject();
         this.refresh();
     }
 
@@ -75,31 +70,31 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     }
 
     public resetModelCache(): void {
-        this._scvdModel.scvdGuiOut = [];
+        this._scvdModel = [];
         this._objectOutRoots = [];
     }
 
     public async addGuiOut(guiOut: ScvdGuiInterface[] | undefined) {
         if (guiOut !== undefined) {
-            guiOut.forEach(item => this._scvdModel.scvdGuiOut.push(item));
+            guiOut.forEach(item => this._scvdModel.push(item));
         }
     }
 
-    public async showModelData() {
-        await this.addRootObject();
+    public showModelData() {
+        this.addRootObject();
         this.refresh();
     }
 
-    public async deleteModels() {
-        this._scvdModel.scvdGuiOut = [];
+    public deleteModels() {
+        this._scvdModel = [];
         this._objectOutRoots = [];
         this.refresh();
     }
 
-    private async addRootObject(): Promise<void> {
-        if (this._scvdModel?.scvdGuiOut.length === 0) {
+    private addRootObject(): void {
+        if (this._scvdModel.length === 0) {
             return;
         }
-        this._objectOutRoots = [...this._scvdModel.scvdGuiOut];
+        this._objectOutRoots = [...this._scvdModel];
     }
 }
