@@ -31,7 +31,7 @@ export class ComponentViewerController {
         this._context = context;
     }
 
-    public async activate(tracker: GDBTargetDebugTracker): Promise<void> {
+    public activate(tracker: GDBTargetDebugTracker): void {
         /* Create Tree Viewer */
         this.componentViewerTreeDataProvider = new ComponentViewerTreeDataProvider();
         const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this.componentViewerTreeDataProvider);
@@ -85,9 +85,6 @@ export class ComponentViewerController {
         const onConnectedDisposable = tracker.onConnected(async (session) => {
             await this.handleOnConnected(session, tracker);
         });
-        //const onWillStartSessionDisposable = tracker.onWillStartSession(async (session) => {
-        //    await this.handleOnWillStartSession(session);
-        //});
         const onDidChangeActiveStackItemDisposable = tracker.onDidChangeActiveStackItem(async (stackTraceItem) => {
             await this.handleOnDidChangeActiveStackItem(stackTraceItem);
         });
@@ -100,7 +97,6 @@ export class ComponentViewerController {
         // clear all disposables on extension deactivation
         context.subscriptions.push(
             onWillStopSessionDisposable,
-            //onWillStartSessionDisposable,
             onConnectedDisposable,
             onDidChangeActiveStackItemDisposable,
             onDidChangeActiveDebugSessionDisposable,
@@ -114,7 +110,7 @@ export class ComponentViewerController {
             this.activeSession = undefined;
         }
         // Update component viewer instance(s)
-        //await this.updateInstances();
+        await this.updateInstances();
     }
 
     private async handleOnWillStopSession(session: GDBTargetDebugSession): Promise<void> {
@@ -123,7 +119,7 @@ export class ComponentViewerController {
             this.activeSession = undefined;
         }
         // Update component viewer instance(s)
-        //await this.updateInstances();
+        await this.updateInstances();
     }
 
     private async handleOnConnected(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker): Promise<void> {
@@ -140,7 +136,7 @@ export class ComponentViewerController {
         session.refreshTimer.onRefresh(async (refreshSession) => {
             if (this.activeSession?.session.id === refreshSession.session.id) {
                 // Update component viewer instance(s)
-                //await this.updateInstances();
+                await this.updateInstances();
             }
         });
     }
@@ -156,23 +152,24 @@ export class ComponentViewerController {
         // Update debug session
         this.activeSession = session;
         // Update component viewer instance(s)
-        //await this.updateInstances();
+        await this.updateInstances();
     }
     private instanceUpdateCounter: number = 0;
-    private updateSymaphorFlag: boolean = false;
+    private updateSemaphoreFlag: boolean = false;
+
     private async updateInstances(): Promise<void> {
-        if (this.updateSymaphorFlag) {
+        if (this.updateSemaphoreFlag) {
             return;
         }
-        this.updateSymaphorFlag = true;
+        this.updateSemaphoreFlag = true;
         this.instanceUpdateCounter = 0;
         if (!this.activeSession) {
             await this.componentViewerTreeDataProvider?.deleteModels();
-            this.updateSymaphorFlag = false;
+            this.updateSemaphoreFlag = false;
             return;
         }
         if (this.instances.length === 0) {
-            this.updateSymaphorFlag = false;
+            this.updateSemaphoreFlag = false;
             return;
         }
         this.componentViewerTreeDataProvider?.resetModelCache();
@@ -183,6 +180,6 @@ export class ComponentViewerController {
             await this.componentViewerTreeDataProvider?.addGuiOut(instance.getGuiTree());
         }
         await this.componentViewerTreeDataProvider?.showModelData();
-        this.updateSymaphorFlag = false;
+        this.updateSemaphoreFlag = false;
     }
 }
