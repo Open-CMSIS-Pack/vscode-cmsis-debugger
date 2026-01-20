@@ -15,13 +15,13 @@
  */
 // generated with AI
 
-import { ScvdEvalInterface } from '../../scvd-eval-interface';
-import { MemoryHost } from '../../data-host/memory-host';
-import { RegisterHost } from '../../data-host/register-host';
-import { ScvdFormatSpecifier } from '../../model/scvd-format-specifier';
-import { ScvdDebugTarget } from '../../scvd-debug-target';
-import { RefContainer } from '../../model-host';
-import { ScvdNode } from '../../model/scvd-node';
+import { ScvdEvalInterface } from '../../../scvd-eval-interface';
+import { MemoryHost } from '../../../data-host/memory-host';
+import { RegisterHost } from '../../../data-host/register-host';
+import { ScvdFormatSpecifier } from '../../../model/scvd-format-specifier';
+import { ScvdDebugTarget } from '../../../scvd-debug-target';
+import { RefContainer } from '../../../parser-evaluator/model-host';
+import { ScvdNode } from '../../../model/scvd-node';
 
 const makeStubBase = (name: string): ScvdNode => ({
     name,

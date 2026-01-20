@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { DataAccessHost, EvalValue, ModelHost, RefContainer, ScalarType } from './model-host';
-import type { IntrinsicProvider } from './intrinsics';
+import { DataAccessHost, EvalValue, ModelHost, RefContainer, ScalarType } from './parser-evaluator/model-host';
+import type { IntrinsicProvider } from './parser-evaluator/intrinsics';
 import { ScvdNode } from './model/scvd-node';
 import { MemoryHost } from './data-host/memory-host';
 import { RegisterHost } from './data-host/register-host';
 import { ScvdDebugTarget } from './scvd-debug-target';
-import { FormatSegment } from './parser';
+import { FormatSegment } from './parser-evaluator/parser';
 import { FormatTypeInfo, ScvdFormatSpecifier } from './model/scvd-format-specifier';
 import { ScvdMember } from './model/scvd-member';
 

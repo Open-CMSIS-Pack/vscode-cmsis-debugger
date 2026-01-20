@@ -17,7 +17,7 @@
 import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
 import { MemoryHost } from './data-host/memory-host';
 import { RegisterHost } from './data-host/register-host';
-import { EvalContext } from './evaluator';
+import { EvalContext } from './parser-evaluator/evaluator';
 import { ScvdNode } from './model/scvd-node';
 import { ScvdComponentViewer } from './model/scvd-component-viewer';
 import { ScvdFormatSpecifier } from './model/scvd-format-specifier';

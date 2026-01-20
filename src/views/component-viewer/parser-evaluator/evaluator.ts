@@ -39,7 +39,7 @@ import type {
     ParseResult,
     ColonPath,
 } from './parser';
-import type { ScvdNode } from './model/scvd-node';
+import type { ScvdNode } from '../model/scvd-node';
 import {
     addVals,
     andVals,

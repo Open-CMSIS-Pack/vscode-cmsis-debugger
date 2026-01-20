@@ -15,8 +15,8 @@
  */
 // generated with AI
 
-import { parseExpression, EvalPointCall, Identifier } from '../../parser';
-import { INTRINSIC_DEFINITIONS, type IntrinsicName } from '../../intrinsics';
+import { parseExpression, EvalPointCall, Identifier } from '../../../parser-evaluator/parser';
+import { INTRINSIC_DEFINITIONS, type IntrinsicName } from '../../../parser-evaluator/intrinsics';
 
 type IntrinsicFixture = {
     intrinsics: string[];
@@ -24,7 +24,7 @@ type IntrinsicFixture = {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- static test fixture load
-const fixture: IntrinsicFixture = require('../testfiles/cases.json');
+const fixture: IntrinsicFixture = require('../../testfiles/cases.json');
 
 describe('Parser intrinsics', () => {
     it('parses all intrinsic calls as EvalPointCall', () => {

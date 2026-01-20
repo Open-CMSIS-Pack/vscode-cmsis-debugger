@@ -19,7 +19,7 @@
 import { ScvdGuiTree } from '../../scvd-gui-tree';
 import { ScvdBreak } from '../../model/scvd-break';
 import { StatementBreak } from '../../statement-engine/statement-break';
-import { createExecutionContext, TestNode } from './helpers';
+import { createExecutionContext, TestNode } from '../helpers/statement-engine-helpers';
 
 describe('StatementBreak coverage', () => {
     it('skips execution when condition is false', async () => {

@@ -15,7 +15,7 @@
  */
 // generated with AI
 
-import { BinaryExpression, Identifier, NumberLiteral, parseExpression } from '../../parser';
+import { BinaryExpression, Identifier, NumberLiteral, parseExpression } from '../../../parser-evaluator/parser';
 
 interface Case { expr: string; expected: number | boolean | string; }
 interface NonConstCase {
@@ -30,7 +30,7 @@ interface ParserCasesFile {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- static test fixture load
-const cases: ParserCasesFile = require('../testfiles/cases.json');
+const cases: ParserCasesFile = require('../../testfiles/cases.json');
 
 describe('Parser constant folding', () => {
     const { constCases, nonConstCases } = cases;

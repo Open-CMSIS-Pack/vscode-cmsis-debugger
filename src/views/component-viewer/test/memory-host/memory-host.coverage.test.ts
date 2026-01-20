@@ -18,7 +18,7 @@
 // generated with AI
 
 import { MemoryContainer, MemoryHost } from '../../data-host/memory-host';
-import { RefContainer } from '../../model-host';
+import { RefContainer } from '../../parser-evaluator/model-host';
 import { ScvdNode } from '../../model/scvd-node';
 
 class NamedStubBase extends ScvdNode {

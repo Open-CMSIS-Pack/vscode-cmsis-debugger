@@ -16,20 +16,20 @@
  * Coverage for ScvdExpression.
  */
 
-import { ParseResult } from '../../parser';
-import { EvaluateResult } from '../../evaluator';
+import { ParseResult } from '../../parser-evaluator/parser';
+import { EvaluateResult } from '../../parser-evaluator/evaluator';
 import { ExecutionContext } from '../../scvd-eval-context';
 
-jest.mock('../../parser', () => ({
+jest.mock('../../parser-evaluator/parser', () => ({
     parseExpression: jest.fn()
 }));
 
-jest.mock('../../evaluator', () => ({
+jest.mock('../../parser-evaluator/evaluator', () => ({
     evaluateParseResult: jest.fn()
 }));
 
-import { parseExpression } from '../../parser';
-import { evaluateParseResult } from '../../evaluator';
+import { parseExpression } from '../../parser-evaluator/parser';
+import { evaluateParseResult } from '../../parser-evaluator/evaluator';
 import { ScvdExpression } from '../../model/scvd-expression';
 
 describe('ScvdExpression coverage', () => {

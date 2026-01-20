@@ -17,7 +17,7 @@
  */
 // generated with AI
 
-import { RegisterHost } from '../data-host/register-host';
+import { RegisterHost } from '../../data-host/register-host';
 
 describe('RegisterHost coverage', () => {
     it('normalizes register names and stores values', () => {

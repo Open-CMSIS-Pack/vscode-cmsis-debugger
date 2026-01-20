@@ -15,11 +15,11 @@
  */
 // generated with AI
 
-import { EvalContext, evaluateParseResult } from '../../evaluator';
-import type { RefContainer, EvalValue } from '../../model-host';
-import type { FullDataHost } from '../helpers/full-data-host';
-import { parseExpression } from '../../parser';
-import { ScvdNode } from '../../model/scvd-node';
+import { EvalContext, evaluateParseResult } from '../../../parser-evaluator/evaluator';
+import type { RefContainer, EvalValue } from '../../../parser-evaluator/model-host';
+import type { FullDataHost } from '../../helpers/full-data-host';
+import { parseExpression } from '../../../parser-evaluator/parser';
+import { ScvdNode } from '../../../model/scvd-node';
 
 class BasicRef extends ScvdNode {
     constructor(parent?: ScvdNode) {

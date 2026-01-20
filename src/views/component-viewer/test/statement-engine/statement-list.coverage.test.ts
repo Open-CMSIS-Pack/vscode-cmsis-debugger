@@ -22,7 +22,7 @@ import { ScvdVar } from '../../model/scvd-var';
 import { ScvdNode } from '../../model/scvd-node';
 import { StatementBase } from '../../statement-engine/statement-base';
 import { StatementList } from '../../statement-engine/statement-list';
-import { createExecutionContext, TestNode } from './helpers';
+import { createExecutionContext, TestNode } from '../helpers/statement-engine-helpers';
 
 class BaseContainer extends ScvdNode {
     private symbols = new Map<string, ScvdNode>();

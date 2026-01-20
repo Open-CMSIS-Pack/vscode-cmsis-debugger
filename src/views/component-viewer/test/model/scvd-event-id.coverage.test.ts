@@ -16,7 +16,7 @@
  * Coverage for ScvdEventId.
  */
 
-import { ParseResult } from '../../parser';
+import { ParseResult } from '../../parser-evaluator/parser';
 import { ScvdEventId } from '../../model/scvd-event-id';
 
 describe('ScvdEventId coverage', () => {

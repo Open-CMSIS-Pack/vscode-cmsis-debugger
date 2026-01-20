@@ -18,14 +18,14 @@
  */
 // generated with AI
 
-import { ScvdEvalInterface } from '../../scvd-eval-interface';
-import { ScvdFormatSpecifier, FormatKind } from '../../model/scvd-format-specifier';
-import { RefContainer } from '../../model-host';
-import { MemoryHost } from '../../data-host/memory-host';
-import { RegisterHost } from '../../data-host/register-host';
-import { ScvdNode } from '../../model/scvd-node';
-import { ScvdMember } from '../../model/scvd-member';
-import { ScvdDebugTarget } from '../../scvd-debug-target';
+import { ScvdEvalInterface } from '../../../scvd-eval-interface';
+import { ScvdFormatSpecifier, FormatKind } from '../../../model/scvd-format-specifier';
+import { RefContainer } from '../../../parser-evaluator/model-host';
+import { MemoryHost } from '../../../data-host/memory-host';
+import { RegisterHost } from '../../../data-host/register-host';
+import { ScvdNode } from '../../../model/scvd-node';
+import { ScvdMember } from '../../../model/scvd-member';
+import { ScvdDebugTarget } from '../../../scvd-debug-target';
 
 class FakeBase extends ScvdNode {
     constructor(typeName?: string) {

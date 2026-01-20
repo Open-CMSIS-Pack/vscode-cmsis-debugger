@@ -15,12 +15,12 @@
  */
 // generated with AI
 
-import * as evaluator from '../../evaluator';
-import { EvalContext } from '../../evaluator';
-import type { ASTNode, AssignmentExpression, CallExpression, UnaryExpression, BinaryExpression, ColonPath, FormatSegment } from '../../parser';
-import type { ModelHost } from '../../model-host';
-import { ScvdNode } from '../../model/scvd-node';
-import type { EvalValue, RefContainer, ScalarType } from '../../ref-container';
+import * as evaluator from '../../../parser-evaluator/evaluator';
+import { EvalContext } from '../../../parser-evaluator/evaluator';
+import type { ASTNode, AssignmentExpression, CallExpression, UnaryExpression, BinaryExpression, ColonPath, FormatSegment } from '../../../parser-evaluator/parser';
+import type { ModelHost } from '../../../parser-evaluator/model-host';
+import { ScvdNode } from '../../../model/scvd-node';
+import type { EvalValue, RefContainer, ScalarType } from '../../../parser-evaluator/ref-container';
 
 class BareNode extends ScvdNode {
     constructor() {

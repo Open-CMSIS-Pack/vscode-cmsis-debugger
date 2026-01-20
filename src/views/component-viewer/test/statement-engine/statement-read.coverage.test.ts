@@ -20,7 +20,7 @@ import { ScvdGuiTree } from '../../scvd-gui-tree';
 import { ScvdRead } from '../../model/scvd-read';
 import type { ScvdDebugTarget } from '../../scvd-debug-target';
 import { StatementRead } from '../../statement-engine/statement-read';
-import { createExecutionContext, TestNode } from './helpers';
+import { createExecutionContext, TestNode } from '../helpers/statement-engine-helpers';
 
 function createRead(_debugTarget: Partial<ScvdDebugTarget>): ScvdRead {
     const read = new ScvdRead(undefined);

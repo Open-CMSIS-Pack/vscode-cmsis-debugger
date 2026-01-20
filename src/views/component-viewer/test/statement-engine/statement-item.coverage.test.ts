@@ -20,7 +20,7 @@ import { ScvdGuiTree } from '../../scvd-gui-tree';
 import { StatementItem } from '../../statement-engine/statement-item';
 import { StatementOut } from '../../statement-engine/statement-out';
 import { StatementPrint } from '../../statement-engine/statement-print';
-import { createExecutionContext, TestNode } from './helpers';
+import { createExecutionContext, TestNode } from '../helpers/statement-engine-helpers';
 
 function getOnlyChild(tree: ScvdGuiTree): ScvdGuiTree {
     const child = tree.children[0];

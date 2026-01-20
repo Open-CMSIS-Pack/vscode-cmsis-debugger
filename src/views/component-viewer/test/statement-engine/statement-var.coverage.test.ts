@@ -19,7 +19,7 @@
 import { ScvdGuiTree } from '../../scvd-gui-tree';
 import { ScvdVar } from '../../model/scvd-var';
 import { StatementVar } from '../../statement-engine/statement-var';
-import { createExecutionContext, TestNode } from './helpers';
+import { createExecutionContext, TestNode } from '../helpers/statement-engine-helpers';
 
 describe('StatementVar coverage', () => {
     it('writes variables into memory host', async () => {

@@ -15,7 +15,7 @@
  */
 // generated with AI
 
-import { parseExpression, ParseResult } from '../../parser';
+import { parseExpression, ParseResult } from '../../../parser-evaluator/parser';
 
 jest.setTimeout(60000);
 
@@ -30,7 +30,7 @@ interface ExpressionFile {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- static test fixture load
-const expressionFixture: ExpressionFile = require('../testfiles/expressions.json');
+const expressionFixture: ExpressionFile = require('../../testfiles/expressions.json');
 
 function readExpressions(file: string): ExpressionFile {
     const parsed = expressionFixture;

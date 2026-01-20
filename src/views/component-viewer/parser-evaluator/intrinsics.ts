@@ -16,7 +16,7 @@
 // generated with AI
 
 import type { EvalValue, RefContainer } from './model-host';
-import type { ScvdNode } from './model/scvd-node';
+import type { ScvdNode } from '../model/scvd-node';
 
 export interface IntrinsicDefinition {
     /** Arguments should be identifier names (not evaluated values). */

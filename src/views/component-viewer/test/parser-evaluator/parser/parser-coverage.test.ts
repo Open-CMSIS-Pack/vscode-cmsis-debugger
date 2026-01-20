@@ -19,7 +19,7 @@ import {
     Parser,
     __parserTestUtils,
     parseExpression
-} from '../../parser';
+} from '../../../parser-evaluator/parser';
 
 type ParserPrivate = {
     diagnostics: Diagnostic[];

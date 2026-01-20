@@ -1,7 +1,7 @@
 /**
  * Test helpers for statement-engine coverage.
  */
-import { EvalContext } from '../../evaluator';
+import { EvalContext } from '../../parser-evaluator/evaluator';
 import type { ExecutionContext } from '../../scvd-eval-context';
 import { MemoryHost } from '../../data-host/memory-host';
 import { RegisterHost } from '../../data-host/register-host';

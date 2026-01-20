@@ -15,11 +15,11 @@
  */
 // generated with AI
 
-import { EvalContext, evaluateParseResult } from '../../evaluator';
-import type { EvalValue, RefContainer } from '../../model-host';
-import type { FullDataHost } from '../helpers/full-data-host';
-import { parseExpression } from '../../parser';
-import { ScvdNode } from '../../model/scvd-node';
+import { EvalContext, evaluateParseResult } from '../../../parser-evaluator/evaluator';
+import type { EvalValue, RefContainer } from '../../../parser-evaluator/model-host';
+import type { FullDataHost } from '../../helpers/full-data-host';
+import { parseExpression } from '../../../parser-evaluator/parser';
+import { ScvdNode } from '../../../model/scvd-node';
 
 type SymbolDef = {
     value?: EvalValue;
@@ -30,7 +30,7 @@ type SymbolDef = {
 
 // Loaded from static test fixture (path is fixed at build time).
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const cases: EvaluatorCase[] = require('../testfiles/evaluator-basic.json');
+const cases: EvaluatorCase[] = require('../../testfiles/evaluator-basic.json');
 
 type EvaluatorCase = {
     expr: string;

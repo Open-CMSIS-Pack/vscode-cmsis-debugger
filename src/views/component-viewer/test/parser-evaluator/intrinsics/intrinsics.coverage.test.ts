@@ -15,9 +15,9 @@
  */
 // generated with AI
 
-import { handleIntrinsic, handlePseudoMember, INTRINSIC_DEFINITIONS, isIntrinsicName, type IntrinsicName, type IntrinsicProvider } from '../../intrinsics';
-import type { RefContainer } from '../../model-host';
-import { ScvdNode } from '../../model/scvd-node';
+import { handleIntrinsic, handlePseudoMember, INTRINSIC_DEFINITIONS, isIntrinsicName, type IntrinsicName, type IntrinsicProvider } from '../../../parser-evaluator/intrinsics';
+import type { RefContainer } from '../../../parser-evaluator/model-host';
+import { ScvdNode } from '../../../model/scvd-node';
 
 class TestNode extends ScvdNode {
     constructor() {

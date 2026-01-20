@@ -17,11 +17,11 @@
  */
 // generated with AI
 
-import { parseExpression, type FormatSegment, type ASTNode, type EvalPointCall, type CallExpression, type AssignmentExpression, type ConditionalExpression, type BinaryExpression, type UpdateExpression, type UnaryExpression, type ArrayIndex, type MemberAccess, type Identifier, type PrintfExpression, type TextSegment } from '../../parser';
-import { evaluateParseResult, EvalContext, evalNode } from '../../evaluator';
-import type { RefContainer, EvalValue, ScalarType } from '../../model-host';
-import type { FullDataHost } from '../helpers/full-data-host';
-import { ScvdNode } from '../../model/scvd-node';
+import { parseExpression, type FormatSegment, type ASTNode, type EvalPointCall, type CallExpression, type AssignmentExpression, type ConditionalExpression, type BinaryExpression, type UpdateExpression, type UnaryExpression, type ArrayIndex, type MemberAccess, type Identifier, type PrintfExpression, type TextSegment } from '../../../parser-evaluator/parser';
+import { evaluateParseResult, EvalContext, evalNode } from '../../../parser-evaluator/evaluator';
+import type { RefContainer, EvalValue, ScalarType } from '../../../parser-evaluator/model-host';
+import type { FullDataHost } from '../../helpers/full-data-host';
+import { ScvdNode } from '../../../model/scvd-node';
 
 class FakeNode extends ScvdNode {
     constructor(

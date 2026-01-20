@@ -20,7 +20,7 @@ import { ScvdGuiTree } from '../../scvd-gui-tree';
 import { ScvdReadList } from '../../model/scvd-readlist';
 import type { ScvdDebugTarget } from '../../scvd-debug-target';
 import { StatementReadList } from '../../statement-engine/statement-readList';
-import { createExecutionContext, TestNode } from './helpers';
+import { createExecutionContext, TestNode } from '../helpers/statement-engine-helpers';
 import type { ScvdNode } from '../../model/scvd-node';
 
 function createReadList(): ScvdReadList {

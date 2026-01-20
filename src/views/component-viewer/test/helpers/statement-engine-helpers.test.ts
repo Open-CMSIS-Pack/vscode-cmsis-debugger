@@ -16,7 +16,7 @@
 
 import { MemoryHost } from '../../data-host/memory-host';
 import { RegisterHost } from '../../data-host/register-host';
-import { TestNode, createExecutionContext } from './helpers';
+import { TestNode, createExecutionContext } from './statement-engine-helpers';
 
 describe('statement-engine helpers', () => {
     it('exposes TestNode defaults and setters', async () => {

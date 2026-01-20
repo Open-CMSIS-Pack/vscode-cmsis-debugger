@@ -17,15 +17,15 @@
  */
 // generated with AI
 
-import { ScvdEvalInterface } from '../../scvd-eval-interface';
-import type { RefContainer } from '../../model-host';
-import type { MemoryHost } from '../../data-host/memory-host';
-import type { RegisterHost } from '../../data-host/register-host';
-import type { ScvdDebugTarget } from '../../scvd-debug-target';
-import type { FormatSegment } from '../../parser';
-import { ScvdFormatSpecifier } from '../../model/scvd-format-specifier';
-import { ScvdNode } from '../../model/scvd-node';
-import { ScvdMember } from '../../model/scvd-member';
+import { ScvdEvalInterface } from '../../../scvd-eval-interface';
+import type { RefContainer } from '../../../parser-evaluator/model-host';
+import type { MemoryHost } from '../../../data-host/memory-host';
+import type { RegisterHost } from '../../../data-host/register-host';
+import type { ScvdDebugTarget } from '../../../scvd-debug-target';
+import type { FormatSegment } from '../../../parser-evaluator/parser';
+import { ScvdFormatSpecifier } from '../../../model/scvd-format-specifier';
+import { ScvdNode } from '../../../model/scvd-node';
+import { ScvdMember } from '../../../model/scvd-member';
 
 class DummyNode extends ScvdNode {
     constructor(

@@ -15,7 +15,7 @@
  */
 // generated with AI
 
-import type { EvalValue, RefContainer } from '../ref-container';
+import type { EvalValue, RefContainer } from '../parser-evaluator/ref-container';
 
 /** Concrete data I/O (memory/register access). */
 export interface DataAccessHost {

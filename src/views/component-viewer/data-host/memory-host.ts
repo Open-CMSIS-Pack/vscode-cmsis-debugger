@@ -15,7 +15,7 @@
  */
 // generated with AI
 
-import { EvalValue, RefContainer } from '../model-host';
+import { EvalValue, RefContainer } from '../parser-evaluator/model-host';
 import { ValidatingCache } from './validating-cache';
 
 export class MemoryContainer {

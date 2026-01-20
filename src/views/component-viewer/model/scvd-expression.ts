@@ -17,8 +17,8 @@
 // https://arm-software.github.io/CMSIS-View/main/scvd_expression.html
 
 
-import { parseExpression, ParseResult } from '../parser';
-import {  evaluateParseResult, EvaluateResult } from '../evaluator';
+import { parseExpression, ParseResult } from '../parser-evaluator/parser';
+import {  evaluateParseResult, EvaluateResult } from '../parser-evaluator/evaluator';
 
 import { ScvdNode } from './scvd-node';
 import { ExecutionContext } from '../scvd-eval-context';

@@ -17,7 +17,7 @@
  */
 // generated with AI
 
-import { ValidatingCache } from '../data-host/validating-cache';
+import { ValidatingCache } from '../../data-host/validating-cache';
 
 describe('ValidatingCache coverage', () => {
     it('normalizes keys on get/set and respects valid flags', () => {

@@ -18,7 +18,7 @@
 
 import { ScvdGuiTree } from '../../scvd-gui-tree';
 import { StatementBase } from '../../statement-engine/statement-base';
-import { TestNode, createExecutionContext } from './helpers';
+import { TestNode, createExecutionContext } from '../helpers/statement-engine-helpers';
 
 class TestStatement extends StatementBase {
     public executed = false;

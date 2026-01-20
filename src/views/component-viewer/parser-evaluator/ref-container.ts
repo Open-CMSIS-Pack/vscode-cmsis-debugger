@@ -16,7 +16,7 @@
 // generated with AI
 
 import type { ScalarKind, ScalarType } from './math-ops';
-import type { ScvdNode } from './model/scvd-node';
+import type { ScvdNode } from '../model/scvd-node';
 
 export type EvalValue =
     | number

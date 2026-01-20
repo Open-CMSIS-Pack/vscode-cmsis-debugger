@@ -17,11 +17,11 @@
  */
 // generated with AI
 
-import { parseExpression } from '../../parser';
-import { EvalContext, evalNode, evaluateParseResult } from '../../evaluator';
-import type { EvalValue, RefContainer, ScalarType } from '../../model-host';
-import type { FullDataHost } from '../helpers/full-data-host';
-import { ScvdNode } from '../../model/scvd-node';
+import { parseExpression } from '../../../parser-evaluator/parser';
+import { EvalContext, evalNode, evaluateParseResult } from '../../../parser-evaluator/evaluator';
+import type { EvalValue, RefContainer, ScalarType } from '../../../parser-evaluator/model-host';
+import type { FullDataHost } from '../../helpers/full-data-host';
+import { ScvdNode } from '../../../model/scvd-node';
 
 class TypedNode extends ScvdNode {
     public readonly typeName: string;

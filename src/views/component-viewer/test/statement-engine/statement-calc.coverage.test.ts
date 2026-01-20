@@ -19,7 +19,7 @@
 import { ScvdGuiTree } from '../../scvd-gui-tree';
 import { ScvdCalc } from '../../model/scvd-calc';
 import { StatementCalc } from '../../statement-engine/statement-calc';
-import { createExecutionContext, TestNode } from './helpers';
+import { createExecutionContext, TestNode } from '../helpers/statement-engine-helpers';
 
 describe('StatementCalc coverage', () => {
     it('logs when cast to calc fails', async () => {

@@ -34,7 +34,7 @@ import {
     toBigInt,
     toNumeric,
     xorVals,
-} from '../math-ops';
+} from '../../../parser-evaluator/math-ops';
 
 describe('math-ops helpers', () => {
     it('handles numeric coercion and string concat', () => {

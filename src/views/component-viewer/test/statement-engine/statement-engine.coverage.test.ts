@@ -43,7 +43,7 @@ import { ScvdReadList } from '../../model/scvd-readlist';
 import { ScvdVar } from '../../model/scvd-var';
 import { ScvdBreak, ScvdBreaks } from '../../model/scvd-break';
 import { StatementBase } from '../../statement-engine/statement-base';
-import { createExecutionContext, TestNode } from './helpers';
+import { createExecutionContext, TestNode } from '../helpers/statement-engine-helpers';
 
 class FakeStatement extends StatementBase {
     public calls = 0;

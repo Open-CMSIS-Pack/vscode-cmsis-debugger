@@ -17,14 +17,14 @@
  */
 // generated with AI
 
-import { ScvdEvalInterface } from '../../scvd-eval-interface';
-import { FormatTypeInfo } from '../../model/scvd-format-specifier';
-import { ScvdFormatSpecifier } from '../../model/scvd-format-specifier';
-import { RefContainer } from '../../model-host';
-import { MemoryHost } from '../../data-host/memory-host';
-import { RegisterHost } from '../../data-host/register-host';
-import { ScvdDebugTarget } from '../../scvd-debug-target';
-import { ScvdNode } from '../../model/scvd-node';
+import { ScvdEvalInterface } from '../../../scvd-eval-interface';
+import { FormatTypeInfo } from '../../../model/scvd-format-specifier';
+import { ScvdFormatSpecifier } from '../../../model/scvd-format-specifier';
+import { RefContainer } from '../../../parser-evaluator/model-host';
+import { MemoryHost } from '../../../data-host/memory-host';
+import { RegisterHost } from '../../../data-host/register-host';
+import { ScvdDebugTarget } from '../../../scvd-debug-target';
+import { ScvdNode } from '../../../model/scvd-node';
 
 class ScalarBase extends ScvdNode {
     constructor(private readonly typeName?: string, private readonly size?: number, private readonly arrayCount?: number) {
