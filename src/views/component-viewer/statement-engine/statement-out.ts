@@ -48,8 +48,6 @@ export class StatementOut extends StatementBase {
         //console.log(`${this.line}: Executing out: ${await this.scvdItem.getGuiName()}`);
 
         const guiName = await this.scvdItem.getGuiName();
-        //const guiValue = await this.scvdItem.getGuiValue();
         guiTree.setGuiName(guiName);
-        //guiTree.setGuiValue(guiValue);
     }
 }

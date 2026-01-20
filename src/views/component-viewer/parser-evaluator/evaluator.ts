@@ -70,13 +70,13 @@ type Host = ModelHost & DataAccessHost & IntrinsicProvider;
 
 export interface EvalContextInit {
     data: Host;
-    /** Starting container for symbol resolution (root model). */
+    // Starting container for symbol resolution (root model).
     container: ScvdNode;
 }
 
 export class EvalContext {
     readonly data: Host;
-    /** Composite container context (root + last member/index/current). */
+    // Composite container context (root + last member/index/current).
     container: RefContainer;
 
     constructor(init: EvalContextInit) {
@@ -453,7 +453,7 @@ type LValue = {
     type: ScalarType | undefined;
 };
 
-/** Accumulate a byte offset into the container (anchor-relative). */
+// Accumulate a byte offset into the container (anchor-relative).
 function addByteOffset(ctx: EvalContext, bytes: number) {
     const c = ctx.container;
     const add = (bytes | 0);

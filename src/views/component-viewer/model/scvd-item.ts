@@ -179,14 +179,6 @@ export class ScvdItem extends ScvdNode {
         return await this.property.getGuiValue();
     }
 
-    // public getGuiChildren(): ScvdGuiInterface[] {
-    //     const guiItems = [this.item, this.listOut, this.print]
-    //         .flat()                                 // merge
-    //         .filter(x => x.getGuiConditionResult())    // filter
-    //         .sort(this.sortByLine);                 // sort in-place, returned
-    //     return guiItems && guiItems.length > 0 ? guiItems : undefined;
-    // }
-
     public hasGuiChildren(): boolean {
         return this.item.length > 0 || this.listOut.length > 0 || this.print.length > 0;
     }

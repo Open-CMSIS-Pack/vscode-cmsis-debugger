@@ -29,27 +29,27 @@ export type EvalValue =
 
 export type { ScalarKind, ScalarType };
 
-/** Container context carried during evaluation. */
+// Container context carried during evaluation.
 export interface RefContainer {
-    /** Root model where identifier lookups begin. */
+    // Root model where identifier lookups begin.
     base: ScvdNode;
 
-    /** Top-level anchor for the final read (e.g., TCB). */
+    // Top-level anchor for the final read (e.g., TCB).
     anchor?: ScvdNode | undefined;
 
-    /** Accumulated byte offset from the anchor. */
+    // Accumulated byte offset from the anchor.
     offsetBytes?: number | undefined;
 
-    /** Final read width in bytes. */
+    // Final read width in bytes.
     widthBytes?: number | undefined;
 
-    /** Current ref resolved by the last resolution step (for chaining). */
+    // Current ref resolved by the last resolution step (for chaining).
     current?: ScvdNode | undefined;
 
-    /** Most recent resolved member reference (child). */
+    // Most recent resolved member reference (child).
     member?: ScvdNode | undefined;
 
-    /** Most recent numeric index for array access (e.g., arr[3]). */
+    // Most recent numeric index for array access (e.g., arr[3]).
     index?: number | undefined;
 
     /**

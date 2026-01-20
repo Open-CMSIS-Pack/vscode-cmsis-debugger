@@ -87,7 +87,6 @@ export class ComponentViewerTargetAccess {
         } catch (error: unknown) {
             const errorMessage = (error as Error)?.message;
             logger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate name '${address}' - '${errorMessage}'`);
-            //return errorMessage === 'custom request failed' ? 'No active session' : errorMessage;
             return undefined;
         }
     }

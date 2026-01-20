@@ -106,7 +106,7 @@ export class GDBTargetDebugSession {
         return this.session.configuration.request === 'launch' && this.capabilities?.supportsTerminateRequest === true;
     }
 
-    /** Function returns string only in case of failure */
+    // Function returns string only in case of failure
     public async evaluateGlobalExpression(expression: string, context = 'hover'): Promise<DebugProtocol.EvaluateResponse['body'] | string> {
         try {
             const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
