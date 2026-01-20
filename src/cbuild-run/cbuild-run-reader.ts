@@ -44,16 +44,16 @@ export class CbuildRunReader {
     }
 
     public getSvdFilePaths(cmsisPackRoot?: string, pname?: string): string[] {
-        const svdFilePaths = this.getFilePathsByTupe('svd', cmsisPackRoot, pname);
+        const svdFilePaths = this.getFilePathsByType('svd', cmsisPackRoot, pname);
         return svdFilePaths;
     }
 
     public getScvdFilePaths(cmsisPackRoot?: string, pname?: string): string[] {
-        const scvdFilePaths = this.getFilePathsByTupe('scvd', cmsisPackRoot, pname);
+        const scvdFilePaths = this.getFilePathsByType('scvd', cmsisPackRoot, pname);
         return scvdFilePaths;
     }
 
-    private getFilePathsByTupe(type: 'svd' | 'scvd', cmsisPackRoot?: string, pname?: string): string[] {
+    private getFilePathsByType(type: 'svd' | 'scvd', cmsisPackRoot?: string, pname?: string): string[] {
         if (!this.cbuildRun) {
             return [];
         }
