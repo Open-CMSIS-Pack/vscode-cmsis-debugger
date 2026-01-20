@@ -41,10 +41,10 @@ export class ScvdPrintExpression extends ScvdExpression {
     }
 
     public override async getGuiName(): Promise<string | undefined> {
-        return this.getGuiName();
+        return super.getGuiName();
     }
 
     public override async getGuiValue(): Promise<string | undefined> {
-        return this.getGuiValue();
+        return super.getGuiValue();
     }
 }

@@ -78,7 +78,7 @@ export class StatementReadList extends StatementBase {
                 console.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, could not find symbol address for symbol: ${symbol?.symbol}`);
                 return;
             }
-            baseAddress = symAddr >>> 0;
+            baseAddress = typeof symAddr === 'bigint' ? symAddr : (symAddr >>> 0);
 
             // fetch maximum existing array size
             const resolvedCount = await executionContext.debugTarget.getNumArrayElements(symbol.symbol);

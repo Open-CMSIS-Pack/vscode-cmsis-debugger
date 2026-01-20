@@ -117,7 +117,7 @@ export class ScvdFormatSpecifier {
 
         if (kind === 'uint') {
             if (bits && bits < 32) {
-                const mask = bits === 32 ? 0xFFFFFFFF : (1 << bits) >>> 0;
+                const mask = (1 << bits) >>> 0;
                 return (((value as number) >>> 0) & mask).toString(10);
             }
             return ((value as number) >>> 0).toString(10);
@@ -685,7 +685,7 @@ export class ScvdFormatSpecifier {
             const epNum = addr & 0x0F;
             const dirIn = (addr & 0x80) !== 0;
             const attrs = value[3] ?? 0;
-            const xferType = ['Control', 'Isochronous', 'Bulk', 'Interrupt'][attrs & 0x3] || 'Unknown';
+            const xferType = ['Control', 'Isochronous', 'Bulk', 'Interrupt'][attrs & 0x3];
             return [
                 `USB Endpoint (len=${len})`,
                 `  bEndpointAddress ${hex(addr)} (EP${epNum} ${dirIn ? 'IN' : 'OUT'})`,
