@@ -93,7 +93,7 @@ export class Resolver {
         resolveType: ResolveType,
         scvdObject?: ScvdNode
     ): ScvdNode | undefined {
-        switch(resolveType) {
+        switch (resolveType) {
             case ResolveType.localType:
                 return this.resolveLocalType(name);
             case ResolveType.targetType:

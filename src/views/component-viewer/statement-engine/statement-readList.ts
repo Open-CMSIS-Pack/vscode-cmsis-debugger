@@ -144,7 +144,7 @@ export class StatementReadList extends StatementBase {
         let nextPtrAddr: number | bigint | undefined = typeof baseAddress === 'bigint' ? baseAddress : (baseAddress >>> 0);
 
         let readIdx = 0;
-        while(nextPtrAddr !== undefined) {
+        while (nextPtrAddr !== undefined) {
             const itemAddress: number | bigint | undefined = typeof nextPtrAddr === 'bigint' ? nextPtrAddr : (nextPtrAddr >>> 0);
 
             // Read data from target

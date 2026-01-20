@@ -153,7 +153,7 @@ export class ScvdDebugTarget {
     }
 
     public async getNumArrayElements(symbol: string): Promise<number | undefined> {
-        if(symbol === undefined) {
+        if (symbol === undefined) {
             return undefined;
         }
         // No active session: return undefined.

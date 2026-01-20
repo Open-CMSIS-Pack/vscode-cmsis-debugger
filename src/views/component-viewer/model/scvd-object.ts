@@ -164,7 +164,7 @@ export class ScvdObject extends ScvdNode {
     }
 
     public getVar(name: string): ScvdVar | undefined {
-        for(const v of this._var) {
+        for (const v of this._var) {
             if (v.name === name) {
                 return v;
             }
@@ -174,7 +174,7 @@ export class ScvdObject extends ScvdNode {
     }
 
     public getRead(name: string): ScvdRead | undefined {
-        for(const r of this._read) {
+        for (const r of this._read) {
             if (r.name === name) {
                 return r;
             }

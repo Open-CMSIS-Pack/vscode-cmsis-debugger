@@ -203,7 +203,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
     }
 
     private async handleCopyCommand(node: LiveWatchNode) {
-        if(!node) {
+        if (!node) {
             return;
         }
         await vscode.env.clipboard.writeText(node.value.evaluateName ?? node.expression);
@@ -327,4 +327,3 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         await this.context.workspaceState.update(this.STORAGE_KEY, this.roots);
     }
 }
-

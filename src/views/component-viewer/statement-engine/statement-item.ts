@@ -54,7 +54,7 @@ export class StatementItem extends StatementBase {
 
         if (guiName === undefined) {
             const guiChildren = [...childGuiTree.children];  // copy to keep iteration safe during detach
-            for(const guiChild of guiChildren) {
+            for (const guiChild of guiChildren) {
                 if (guiChild.isPrint) {
                     const guiNamePrint = guiChild.getGuiName();
                     const guiValuePrint = guiChild.getGuiValue();
@@ -64,7 +64,7 @@ export class StatementItem extends StatementBase {
                 }
             }
 
-            for(const guiChild of guiChildren) {
+            for (const guiChild of guiChildren) {
                 if (guiChild.isPrint) {
                     guiChild.detach();  // remove temporary print nodes
                 }

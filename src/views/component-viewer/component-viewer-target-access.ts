@@ -187,7 +187,7 @@ export class ComponentViewerTargetAccess {
             const response = await this._activeSession?.session.customRequest('evaluate', args) as DebugProtocol.EvaluateResponse['body'];
             const resultText = response?.result.trim();
             const numElements = Number(resultText);
-            if(Number.isNaN(numElements)) {
+            if (Number.isNaN(numElements)) {
                 return undefined;
             }
             return numElements;
