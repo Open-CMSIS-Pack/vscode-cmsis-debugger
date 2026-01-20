@@ -35,7 +35,7 @@ const REGISTER_GDB_ENTRIES: Array<[string, string]> = [
     ['PRIMASK_NS', 'primask_ns'], ['BASEPRI_NS', 'basepri_ns'], ['FAULTMASK_NS', 'faultmask_ns'], ['CONTROL_NS', 'control_ns'],
 ];
 
-/** Full mapping of register names to the GDB names used when requesting them. */
+// Full mapping of register names to the GDB names used when requesting them.
 const REGISTER_GDB_MAP = new Map<string, string>(REGISTER_GDB_ENTRIES);
 
 function normalize(name: string): string {

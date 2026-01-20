@@ -35,16 +35,11 @@ export class StatementItem extends StatementBase {
         }
 
         const guiName = await this.scvdItem.getGuiName();
-
-        //const childGuiTree = (guiName?.length) ? new ScvdGuiTree(guiTree) : guiTree;
         const childGuiTree = this.getOrCreateGuiChild(guiTree, guiName, this.scvdItem.nodeId);
-
-        //if (guiName?.length) {   // else nothing to execute
         const guiValue = await this.scvdItem.getGuiValue();
         childGuiTree.setGuiName(guiName);
         childGuiTree.setGuiValue(guiValue);
         await this.onExecute(executionContext, childGuiTree);
-        //}
 
         if (this.children.length > 0) {
             for (const child of this.children) {

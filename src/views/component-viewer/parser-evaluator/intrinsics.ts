@@ -19,20 +19,20 @@ import type { EvalValue, RefContainer } from './model-host';
 import type { ScvdNode } from '../model/scvd-node';
 
 export interface IntrinsicDefinition {
-    /** Arguments should be identifier names (not evaluated values). */
+    // Arguments should be identifier names (not evaluated values).
     expectsNameArg?: boolean;
-    /** Allow CallExpression(Identifier(...)) as a fallback to EvalPointCall. */
+    // Allow CallExpression(Identifier(...)) as a fallback to EvalPointCall.
     allowCallExpression?: boolean;
-    /** Minimum positional arguments expected. */
+    // Minimum positional arguments expected.
     minArgs?: number;
-    /** Maximum positional arguments expected. */
+    // Maximum positional arguments expected.
     maxArgs?: number;
 }
 
 // formatPrintf is a host hook, not an intrinsic. Exclude it from intrinsic names.
 export type IntrinsicName = Exclude<keyof IntrinsicProvider, 'formatPrintf'>;
 
-/** Intrinsic hooks exposed by the host (built-ins plus pseudo-members). */
+// Intrinsic hooks exposed by the host (built-ins plus pseudo-members).
 export interface IntrinsicProvider {
     // Named intrinsics
     // Note: __GetRegVal(reg) is special-cased (no container); others use the explicit hooks below
@@ -40,7 +40,7 @@ export interface IntrinsicProvider {
     __FindSymbol(symbol: string): Promise<number | undefined>;
     __CalcMemUsed(stackAddress: number, stackSize: number, fillPattern: number, magicValue: number): Promise<number | undefined>;
 
-    /** sizeof-like intrinsic – semantics are host-defined (usually bytes). */
+    // sizeof-like intrinsic – semantics are host-defined (usually bytes).
     __size_of(symbol: string): Promise<number | undefined>;
 
     __Symbol_exists(symbol: string): Promise<number | undefined>;
@@ -55,7 +55,7 @@ export interface IntrinsicProvider {
     _addr(container: RefContainer): Promise<number | undefined>;    // added as var because arrays can have different base addresses
 }
 
-/** Intrinsics that expect identifier *names* instead of evaluated values. */
+// Intrinsics that expect identifier *names* instead of evaluated values.
 /**
  * Metadata describing special intrinsic handling. Used both by evaluator logic
  * and as the single source of truth for intrinsic names in type definitions.

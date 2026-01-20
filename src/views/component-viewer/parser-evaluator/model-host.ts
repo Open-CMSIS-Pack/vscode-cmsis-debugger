@@ -21,7 +21,7 @@ import type { ScvdNode } from '../model/scvd-node';
 
 export type { EvalValue, ScalarKind, ScalarType, RefContainer, DataAccessHost };
 
-/** Symbol/model resolution and metadata helpers (no direct memory I/O). */
+// Symbol/model resolution and metadata helpers (no direct memory I/O).
 export interface ModelHost {
     // Resolution APIs — must set container.current to the resolved ref on success
     getSymbolRef(container: RefContainer, name: string, forWrite?: boolean): Promise<ScvdNode | undefined>;
@@ -30,16 +30,16 @@ export interface ModelHost {
     // Advanced lookups / intrinsics use the whole container context
     resolveColonPath(container: RefContainer, parts: string[]): Promise<EvalValue>; // undefined => not found
     // Metadata (lets evaluator accumulate offsets itself)
-    /** Bytes per element (including any padding/alignment inside the array layout). */
+    // Bytes per element (including any padding/alignment inside the array layout).
     getElementStride(ref: ScvdNode): Promise<number>;                       // bytes per element
 
-    /** Member offset in bytes from base. */
+    // Member offset in bytes from base.
     getMemberOffset(base: ScvdNode, member: ScvdNode): Promise<number | undefined>;     // bytes
 
-    /** Explicit byte width helper for a ref. */
+    // Explicit byte width helper for a ref.
     getByteWidth(ref: ScvdNode): Promise<number | undefined>;
 
-    /** Provide an element model (prototype/type) for array-ish refs. */
+    // Provide an element model (prototype/type) for array-ish refs.
     getElementRef(ref: ScvdNode): Promise<ScvdNode | undefined>;
 
     /**

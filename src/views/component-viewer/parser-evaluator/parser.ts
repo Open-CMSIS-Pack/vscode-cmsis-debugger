@@ -59,11 +59,11 @@ export interface UpdateExpression extends BaseNode {
   kind:'UpdateExpression';
   operator:'++'|'--';
   argument: ASTNode;
-  /** true for prefix (++x), false for postfix (x++) */
+  // true for prefix (++x), false for postfix (x++)
   prefix: boolean;
 }
 
-/** Colon selector for `typedef_name:member` and `typedef_name:member:enum` */
+// Colon selector for `typedef_name:member` and `typedef_name:member:enum`
 export interface ColonPath extends BaseNode {
   kind:'ColonPath';
   parts: string[]; // e.g., ["MyType","field"] or ["MyType","field","EnumVal"]
@@ -99,7 +99,7 @@ export interface ParseResult {
 type TokenKind = 'EOF'|'IDENT'|'NUMBER'|'STRING'|'PUNCT'|'UNKNOWN';
 interface Token { kind: TokenKind; value: string; start: number; end: number; }
 
-/** include ++, --, and C compound assignment ops; keep longer tokens before shorter ones */
+// include ++, --, and C compound assignment ops; keep longer tokens before shorter ones
 const MULTI = [
     '>>=','<<=',
     '++','--',
@@ -409,7 +409,7 @@ export class Parser {
         this.diagnostics = [];
         this.externals.clear();
     }
-    /** Public alias for consumers that want to reuse the instance */
+    // Public alias for consumers that want to reuse the instance
     public reset(s:string) {
         this.reinit(s);
     }
@@ -515,7 +515,7 @@ export class Parser {
         return t.kind === kind && (value === undefined || t.value === value);
     }
 
-    /** Generic printf detection: %% or %x[ ... ] for ANY non-space spec x */
+    // Generic printf detection: %% or %x[ ... ] for ANY non-space spec x
     private looksLikePrintf(s:string): boolean {
         if (s.includes('%%')) {
             return true;
@@ -529,7 +529,7 @@ export class Parser {
 
     /* ---------- printf parsing ---------- */
 
-    /** Parse a printf-style template from the raw input string into segments. */
+    // Parse a printf-style template from the raw input string into segments.
     private parsePrintfExpression(): PrintfExpression {
         const s = this.s;
         const n = s.length;
@@ -622,7 +622,7 @@ export class Parser {
         return { kind:'PrintfExpression', segments, resultType:'string', ...span(0,n) };
     }
 
-    /** Parse a subexpression with a fresh tokenizer, adjust diagnostics offsets. */
+    // Parse a subexpression with a fresh tokenizer, adjust diagnostics offsets.
     private parseSubexpression(exprSrc: string, baseOffset: number): ASTNode {
         const savedS = this.s, savedTok = this.tok, savedCur = this.cur, savedDiag = this.diagnostics, savedExt = this.externals;
         const t = new Tokenizer(exprSrc);
@@ -1090,7 +1090,7 @@ export class Parser {
 
 /* -------- Convenience singleton and API -------- */
 
-/** Internal helpers exposed for tests. */
+// Internal helpers exposed for tests.
 export const __parserTestUtils = { literalFromConst };
 
 export const defaultParser = new Parser();

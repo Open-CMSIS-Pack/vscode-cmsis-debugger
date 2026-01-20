@@ -118,7 +118,7 @@ type ElementMeta = {
   elementSize?: number;           // known uniform stride when consistent
 };
 
-/** The piece your host delegates to for readValue/writeValue. */
+// The piece your host delegates to for readValue/writeValue.
 export class MemoryHost {
     private cache = new ValidatingCache<MemoryContainer>();
     private endianness: Endianness;
@@ -152,7 +152,7 @@ export class MemoryHost {
         return this.cache.ensure(varName, () => new MemoryContainer(varName), false);
     }
 
-    /** Read a value, using byte-only offsets and widths. */
+    // Read a value, using byte-only offsets and widths.
     public async readValue(ref: RefContainer): Promise<EvalValue> {
         const variableName = ref.anchor?.name;
         const widthBytes = ref.widthBytes ?? 0;
@@ -200,7 +200,7 @@ export class MemoryHost {
         return raw.slice();
     }
 
-    /** Read raw bytes without interpretation. */
+    // Read raw bytes without interpretation.
     public async readRaw(ref: RefContainer, size: number): Promise<Uint8Array | undefined> {
         const variableName = ref.anchor?.name;
         if (!variableName || size <= 0) {
@@ -211,7 +211,7 @@ export class MemoryHost {
         return container.read(byteOff, size).slice();
     }
 
-    /** Write a value, using byte-only offsets and widths. */
+    // Write a value, using byte-only offsets and widths.
     public async writeValue(ref: RefContainer, value: EvalValue, virtualSize?: number): Promise<void> {
         const variableName = ref.anchor?.name;
         const widthBytes = ref.widthBytes ?? 0;
@@ -425,20 +425,20 @@ export class MemoryHost {
         this.cache.clear();
     }
 
-    /** Number of array elements recorded for `name`. Defaults to 1 when unknown. */
+    // Number of array elements recorded for `name`. Defaults to 1 when unknown.
     public getArrayElementCount(name: string): number {
         const m = this.elementMeta.get(name);
         const n = m?.offsets.length ?? 0;
         return n > 0 ? n : 1;
     }
 
-    /** All recorded target base addresses (per append) for `name`. */
+    // All recorded target base addresses (per append) for `name`.
     public getArrayTargetBases(name: string): (number | undefined)[] {
         const m = this.elementMeta.get(name);
         return m ? m.bases.slice() : [];
     }
 
-    /** Target base address for element `index` of `name` (number | undefined). */
+    // Target base address for element `index` of `name` (number | undefined).
     public getElementTargetBase(name: string, index: number): number | undefined {
         const m = this.elementMeta.get(name);
         if (!m) {
@@ -452,7 +452,7 @@ export class MemoryHost {
         return m.bases.at(index);
     }
 
-    /** Optional: repair or set an address later. */
+    // Optional: repair or set an address later.
     public setElementTargetBase(name: string, index: number, base: number): void {
         const m = this.elementMeta.get(name);
         if (!m) {

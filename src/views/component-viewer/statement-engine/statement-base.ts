@@ -52,7 +52,7 @@ export class StatementBase {
         return this._scvdItem;
     }
 
-    /** Append a child and return it. */
+    // Append a child and return it.
     public addChild(child: StatementBase): StatementBase | undefined {
         if (child !== undefined) {
             this._children.push(child);
@@ -60,7 +60,7 @@ export class StatementBase {
         return child;
     }
 
-    /** Numeric line for this node, derived from underlying item. */
+    // Numeric line for this node, derived from underlying item.
     public get line(): number {
         const lineNo = Number(this.scvdItem.lineNo);
         return isNaN(lineNo) ? 0 : lineNo;
@@ -102,7 +102,7 @@ export class StatementBase {
         }
     }
 
-    /** Override in subclasses to perform work for this node. */
+    // Override in subclasses to perform work for this node.
     protected async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
         //console.log(`${this.line}: Executing base: ${await this.scvdItem.getGuiName()}`);
     }

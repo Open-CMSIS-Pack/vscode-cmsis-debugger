@@ -17,7 +17,7 @@
 
 import type { EvalValue, RefContainer } from '../parser-evaluator/ref-container';
 
-/** Concrete data I/O (memory/register access). */
+// Concrete data I/O (memory/register access).
 export interface DataAccessHost {
     // Value access acts on container.{anchor,offsetBytes,widthBytes}
     readValue(container: RefContainer): Promise<EvalValue>;            // may return undefined -> error
