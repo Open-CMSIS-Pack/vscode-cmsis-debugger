@@ -74,7 +74,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         this._objectOutRoots = [];
     }
 
-    public async addGuiOut(guiOut: ScvdGuiInterface[] | undefined) {
+    public addGuiOut(guiOut: ScvdGuiInterface[] | undefined) {
         if (guiOut !== undefined) {
             guiOut.forEach(item => this._scvdModel.push(item));
         }

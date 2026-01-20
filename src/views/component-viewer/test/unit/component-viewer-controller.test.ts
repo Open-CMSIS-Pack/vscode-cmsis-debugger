@@ -50,7 +50,7 @@ jest.mock('../../../../debug-session', () => ({}));
 
 import type { ExtensionContext } from 'vscode';
 import type { GDBTargetDebugTracker } from '../../../../debug-session';
-import { ComponentViewerController } from '../../component-viewer-controller';
+import { ComponentViewer } from '../../component-viewer-main';
 
 type TrackerCallbacks = {
     onWillStopSession: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
@@ -122,7 +122,7 @@ describe('ComponentViewerController', () => {
     it('activates tree provider and registers tracker events', async () => {
         const context = makeContext();
         const tracker = makeTracker();
-        const controller = new ComponentViewerController(context as unknown as ExtensionContext);
+        const controller = new ComponentViewer(context as unknown as ExtensionContext);
 
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
@@ -131,7 +131,7 @@ describe('ComponentViewerController', () => {
     });
 
     it('skips reading scvd files when session or cbuild-run is missing', async () => {
-        const controller = new ComponentViewerController(makeContext() as unknown as ExtensionContext);
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
         const tracker = makeTracker();
 
         const readScvdFiles = (controller as unknown as { readScvdFiles: (t: TrackerCallbacks, s?: Session) => Promise<void> }).readScvdFiles.bind(controller);
@@ -147,7 +147,7 @@ describe('ComponentViewerController', () => {
     });
 
     it('skips reading when no scvd files are listed', async () => {
-        const controller = new ComponentViewerController(makeContext() as unknown as ExtensionContext);
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
         const tracker = makeTracker();
         const session = makeSession('s1', []);
         const readScvdFiles = (controller as unknown as { readScvdFiles: (t: TrackerCallbacks, s?: Session) => Promise<void> }).readScvdFiles.bind(controller);
@@ -159,7 +159,7 @@ describe('ComponentViewerController', () => {
 
     it('reads scvd files when active session is set', async () => {
         const context = makeContext();
-        const controller = new ComponentViewerController(context as unknown as ExtensionContext);
+        const controller = new ComponentViewer(context as unknown as ExtensionContext);
         const tracker = makeTracker();
         const session = makeSession('s1', ['a.scvd', 'b.scvd']);
         (controller as unknown as { activeSession?: Session }).activeSession = session;
@@ -172,7 +172,7 @@ describe('ComponentViewerController', () => {
     });
 
     it('skips scvd instances when active session is missing', async () => {
-        const controller = new ComponentViewerController(makeContext() as unknown as ExtensionContext);
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
         const tracker = makeTracker();
         const session = makeSession('s1', ['a.scvd']);
 
@@ -186,7 +186,7 @@ describe('ComponentViewerController', () => {
     it('handles tracker events and updates sessions', async () => {
         const context = makeContext();
         const tracker = makeTracker();
-        const controller = new ComponentViewerController(context as unknown as ExtensionContext);
+        const controller = new ComponentViewer(context as unknown as ExtensionContext);
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         const session = makeSession('s1', ['a.scvd']);
@@ -219,7 +219,7 @@ describe('ComponentViewerController', () => {
 
     it('updates instances and respects semaphore and empty states', async () => {
         const context = makeContext();
-        const controller = new ComponentViewerController(context as unknown as ExtensionContext);
+        const controller = new ComponentViewer(context as unknown as ExtensionContext);
         const provider = treeProviderFactory();
         (controller as unknown as { componentViewerTreeDataProvider?: typeof provider }).componentViewerTreeDataProvider = provider;
 

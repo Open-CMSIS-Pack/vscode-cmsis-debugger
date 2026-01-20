@@ -57,7 +57,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     // Live Watch view
     liveWatchTreeDataProvider.activate(gdbtargetDebugTracker);
     // Component Viewer
-    await componentViewer.activate(gdbtargetDebugTracker);
+    componentViewer.activate(gdbtargetDebugTracker);
 
     logger.debug('Extension Pack activated');
 };
