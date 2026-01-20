@@ -19,7 +19,9 @@
 
 import { parseExpression, ParseResult } from '../../../../parser-evaluator/parser';
 
-jest.setTimeout(60000);
+/* If tests are timing out, increase the timeout value here:
+ * jest.setTimeout(10000);
+ */
 
 interface ExpressionRow {
     expr: string;
@@ -62,12 +64,21 @@ function parseAll(rows: ExpressionRow[]): { parsed: ParseResult[]; diagnostics: 
 
 describe('Parser over SCVD expression fixtures', () => {
     it('parses every expression without throwing', () => {
+        const timeoutHint = setTimeout(() => {
+            // If this prints, the default Jest timeout is likely to be hit.
+            // eslint-disable-next-line no-console
+            console.warn('Parser SCVD expressions test is running long; consider increasing the test timeout or reducing fixture size.');
+        }, 4500);
         const { _meta, expressions } = readExpressions('expressions.json');
-        expect(expressions.length).toBe(_meta.totalUnique);
+        try {
+            expect(expressions.length).toBe(_meta.totalUnique);
 
-        const { diagnostics } = parseAll(expressions);
+            const { diagnostics } = parseAll(expressions);
 
-        // The parser should be tolerant; fail hard if diagnostics explode unexpectedly.
-        expect(diagnostics).toBeGreaterThanOrEqual(0);
+            // The parser should be tolerant; fail hard if diagnostics explode unexpectedly.
+            expect(diagnostics).toBeGreaterThanOrEqual(0);
+        } finally {
+            clearTimeout(timeoutHint);
+        }
     });
 });
