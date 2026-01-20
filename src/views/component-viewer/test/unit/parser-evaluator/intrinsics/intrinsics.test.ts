@@ -25,7 +25,7 @@ class TestNode extends ScvdNode {
     }
 }
 
-describe('intrinsics coverage', () => {
+describe('intrinsics', () => {
     const base = new TestNode();
     const container = (): RefContainer => ({ base, valueType: undefined });
 

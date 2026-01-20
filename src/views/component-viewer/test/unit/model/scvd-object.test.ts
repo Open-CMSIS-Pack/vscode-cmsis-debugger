@@ -20,7 +20,7 @@ import { Json } from '../../../model/scvd-base';
 import { ScvdObject, ScvdObjects } from '../../../model/scvd-object';
 import { ScvdVar } from '../../../model/scvd-var';
 
-describe('ScvdObject coverage', () => {
+describe('ScvdObject', () => {
     it('reads objects and returns undefined for global symbols', () => {
         const objects = new ScvdObjects(undefined);
         expect(objects.readXml(undefined as unknown as Json)).toBe(false);

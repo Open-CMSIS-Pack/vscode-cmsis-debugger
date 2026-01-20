@@ -20,7 +20,7 @@ import { ScvdBreak, ScvdBreaks } from '../../../model/scvd-break';
 import { Json } from '../../../model/scvd-base';
 import { ScvdCondition } from '../../../model/scvd-condition';
 
-describe('ScvdBreak coverage', () => {
+describe('ScvdBreak', () => {
     it('returns false when XML is undefined', () => {
         const breaks = new ScvdBreaks(undefined);
         expect(breaks.readXml(undefined as unknown as Json)).toBe(false);

@@ -18,7 +18,7 @@
 
 import { EventLevel, EventLevelMap, EventLevelReverseMap, ScvdEventLevel } from '../../../model/scvd-event-level';
 
-describe('ScvdEventLevel coverage', () => {
+describe('ScvdEventLevel', () => {
     it('maps between string and enum values', () => {
         expect(EventLevelMap.get('Error')).toBe(EventLevel.EventLevelError);
         expect(EventLevelReverseMap.get(EventLevel.EventLevelAPI)).toBe('API');

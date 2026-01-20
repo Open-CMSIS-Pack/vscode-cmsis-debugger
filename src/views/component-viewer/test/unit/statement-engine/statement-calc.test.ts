@@ -21,7 +21,7 @@ import { ScvdCalc } from '../../../model/scvd-calc';
 import { StatementCalc } from '../../../statement-engine/statement-calc';
 import { createExecutionContext, TestNode } from '../helpers/statement-engine-helpers';
 
-describe('StatementCalc coverage', () => {
+describe('StatementCalc', () => {
     it('logs when cast to calc fails', async () => {
         const node = new TestNode(undefined);
         const stmt = new StatementCalc(node, undefined);

@@ -22,7 +22,7 @@ import { ScvdRead } from '../../../model/scvd-read';
 import { ScvdSymbol } from '../../../model/scvd-symbol';
 import { Json } from '../../../model/scvd-base';
 
-describe('ScvdRead coverage', () => {
+describe('ScvdRead', () => {
     it('returns false when XML is undefined', () => {
         const read = new ScvdRead(undefined);
         expect(read.readXml(undefined as unknown as Json)).toBe(false);

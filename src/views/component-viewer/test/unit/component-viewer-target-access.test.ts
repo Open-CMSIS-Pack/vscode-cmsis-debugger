@@ -31,7 +31,7 @@ function setActiveStackItem(session: vscode.DebugSession | undefined, frameId: n
         : undefined;
 }
 
-describe('ComponentViewerTargetAccess coverage', () => {
+describe('ComponentViewerTargetAccess', () => {
     const defaultConfig = () => ({
         name: 'test-session',
         type: 'gdbtarget',

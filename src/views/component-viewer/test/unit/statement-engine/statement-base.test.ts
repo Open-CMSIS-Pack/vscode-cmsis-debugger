@@ -32,7 +32,7 @@ class TestStatement extends StatementBase {
     }
 }
 
-describe('StatementBase coverage', () => {
+describe('StatementBase', () => {
     it('sorts children by line with stable ordering', () => {
         const rootNode = new TestNode(undefined);
         const root = new TestStatement(rootNode, undefined);

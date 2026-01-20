@@ -24,7 +24,7 @@ import { ScvdObjects } from '../../../model/scvd-object';
 import { ScvdTypedefs } from '../../../model/scvd-typedef';
 import { Json } from '../../../model/scvd-base';
 
-describe('ScvdComponentViewer coverage', () => {
+describe('ScvdComponentViewer', () => {
     it('returns false when XML is undefined', () => {
         const viewer = new ScvdComponentViewer(undefined);
         expect(viewer.readXml(undefined as unknown as Json)).toBe(false);

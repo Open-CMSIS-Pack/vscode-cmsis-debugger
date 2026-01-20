@@ -20,7 +20,7 @@ import { Json } from '../../../model/scvd-base';
 import { ScvdMember } from '../../../model/scvd-member';
 import { ScvdExpression } from '../../../model/scvd-expression';
 
-describe('ScvdMember coverage', () => {
+describe('ScvdMember', () => {
     it('reads XML and populates member metadata', () => {
         const member = new ScvdMember(undefined);
         expect(member.readXml(undefined as unknown as Json)).toBe(false);

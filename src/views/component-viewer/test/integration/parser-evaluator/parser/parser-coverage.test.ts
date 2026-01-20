@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Additional parser coverage for printf parsing, intrinsics, colon paths, and diagnostics.
  * Integration test for ParserCoverage.
  */
 // generated with AI
@@ -57,7 +56,7 @@ function findFormat(segments: Array<TextSegment | FormatSegment>): FormatSegment
     return segments.find((s): s is FormatSegment => s.kind === 'FormatSegment');
 }
 
-describe('parser coverage', () => {
+describe('parser', () => {
     it('auto-detects printf expressions and parses segments', () => {
         const pr = parseExpression('val=%x[sym]', false);
         expect(pr.isPrintf).toBe(true);

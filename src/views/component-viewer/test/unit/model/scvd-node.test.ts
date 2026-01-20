@@ -47,7 +47,7 @@ class UndefinedTagNode extends TestNode {
     }
 }
 
-describe('ScvdNode coverage', () => {
+describe('ScvdNode', () => {
     it('reads XML metadata with explicit tags', () => {
         const node = new TestNode(undefined);
         const xml = { __line: '10', '#Name': 'Tag', name: 'Name', info: 'Info' };

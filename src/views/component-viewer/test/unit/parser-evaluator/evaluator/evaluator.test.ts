@@ -142,7 +142,7 @@ function evalExpr(expr: string, host: Host, base: ScvdNode): Promise<EvalValue> 
     return evaluateParseResult(pr, ctx);
 }
 
-describe('evaluator coverage', () => {
+describe('evaluator', () => {
     it('handles arithmetic, bitwise, shifts, and comparisons', async () => {
         const base = new FakeNode('base');
         const values = new Map<string, FakeNode>([
@@ -385,7 +385,7 @@ function segFromAst(ast: ASTNode, spec = 'd'): FormatSegment {
     return { kind: 'FormatSegment', spec, value: ast, start: 0, end: 0 };
 }
 
-describe('evaluator edge coverage', () => {
+describe('evaluator edge', () => {
     it('hits float/unsigned math and shift branches', async () => {
         const base = new BranchNode('base');
         const values = new Map<string, BranchNode>([

@@ -38,7 +38,7 @@ class FakeViewer extends ScvdComponentViewer {
     }
 }
 
-describe('Resolver coverage', () => {
+describe('Resolver', () => {
     it('creates type cache and resolves recursively over children', () => {
         const viewer = new FakeViewer(undefined);
         const child = new FakeNode(viewer);

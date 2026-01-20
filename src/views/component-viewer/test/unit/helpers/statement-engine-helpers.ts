@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Test helpers for statement-engine coverage.
+ * Test helpers for statement-engine.
  */
 // generated with AI
 import { EvalContext } from '../../../parser-evaluator/evaluator';

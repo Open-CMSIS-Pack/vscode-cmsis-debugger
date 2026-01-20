@@ -20,7 +20,7 @@ import { ScvdCalc } from '../../../model/scvd-calc';
 import { Json } from '../../../model/scvd-base';
 import { ScvdCondition } from '../../../model/scvd-condition';
 
-describe('ScvdCalc coverage', () => {
+describe('ScvdCalc', () => {
     it('returns false when XML is undefined', () => {
         const calc = new ScvdCalc(undefined);
         expect(calc.readXml(undefined as unknown as Json)).toBe(false);

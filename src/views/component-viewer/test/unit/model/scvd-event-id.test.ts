@@ -19,7 +19,7 @@
 import { ParseResult } from '../../../parser-evaluator/parser';
 import { ScvdEventId } from '../../../model/scvd-event-id';
 
-describe('ScvdEventId coverage', () => {
+describe('ScvdEventId', () => {
     const makeAst = (constValue: ParseResult['constValue']): ParseResult => ({
         ast: {} as ParseResult['ast'],
         diagnostics: [],

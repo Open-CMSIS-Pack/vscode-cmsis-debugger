@@ -18,7 +18,7 @@
 
 import { ScvdPrintExpression } from '../../../model/scvd-print-expression';
 
-describe('ScvdPrintExpression coverage', () => {
+describe('ScvdPrintExpression', () => {
     it('constructs and defers configure/validate to base', () => {
         const expr = new ScvdPrintExpression(undefined, '1+2', 'value');
         expect(expr.configure()).toBe(true);

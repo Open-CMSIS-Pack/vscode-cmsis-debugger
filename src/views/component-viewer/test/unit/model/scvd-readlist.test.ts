@@ -28,7 +28,7 @@ const makeType = (overrides?: Partial<{ size: number; vsize: number; isPointer: 
     getIsPointer: () => overrides?.isPointer ?? false
 });
 
-describe('ScvdReadList coverage', () => {
+describe('ScvdReadList', () => {
     it('returns false when XML is undefined', () => {
         const readlist = new ScvdReadList(undefined);
         expect(readlist.readXml(undefined as unknown as Json)).toBe(false);

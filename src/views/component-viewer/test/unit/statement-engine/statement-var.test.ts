@@ -21,7 +21,7 @@ import { ScvdVar } from '../../../model/scvd-var';
 import { StatementVar } from '../../../statement-engine/statement-var';
 import { createExecutionContext, TestNode } from '../helpers/statement-engine-helpers';
 
-describe('StatementVar coverage', () => {
+describe('StatementVar', () => {
     it('writes variables into memory host', async () => {
         const item = new ScvdVar(undefined);
         item.name = 'varA';

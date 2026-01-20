@@ -20,7 +20,7 @@ import { ScvdComponent } from '../../../model/scvd-component';
 import { ScvdGroup } from '../../../model/scvd-group';
 import { Json } from '../../../model/scvd-base';
 
-describe('ScvdGroup coverage', () => {
+describe('ScvdGroup', () => {
     it('returns false when XML is undefined', () => {
         const group = new ScvdGroup(undefined);
         expect(group.readXml(undefined as unknown as Json)).toBe(false);

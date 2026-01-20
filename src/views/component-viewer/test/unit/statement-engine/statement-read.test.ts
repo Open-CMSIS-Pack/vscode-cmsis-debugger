@@ -31,7 +31,7 @@ function createRead(_debugTarget: Partial<ScvdDebugTarget>): ScvdRead {
     return read;
 }
 
-describe('StatementRead coverage', () => {
+describe('StatementRead', () => {
     it('skips when mustRead is false', async () => {
         const read = new ScvdRead(undefined);
         read.mustRead = false;

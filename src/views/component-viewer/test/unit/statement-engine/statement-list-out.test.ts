@@ -44,7 +44,7 @@ class CountingStatement extends StatementBase {
     }
 }
 
-describe('StatementListOut coverage', () => {
+describe('StatementListOut', () => {
     it('skips when condition is false', async () => {
         const list = new ScvdListOut(undefined);
         jest.spyOn(list, 'getConditionResult').mockResolvedValue(false);

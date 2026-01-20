@@ -76,7 +76,7 @@ const makeGui = (options: TestGuiOptions): TestGui => ({
     getGuiConditionResult: options.getGuiConditionResult ?? (() => true),
 });
 
-describe('ComponentViewerTreeDataProvider coverage', () => {
+describe('ComponentViewerTreeDataProvider', () => {
     beforeEach(() => {
         mockFire.mockClear();
     });

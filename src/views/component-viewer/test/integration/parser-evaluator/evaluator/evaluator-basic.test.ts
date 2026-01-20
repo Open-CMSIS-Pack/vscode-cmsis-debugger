@@ -217,7 +217,7 @@ class MockHost implements FullDataHost {
     }
 }
 
-describe('evaluator basic coverage', () => {
+describe('evaluator', () => {
     it.each(cases)('evaluates %s', async testCase => {
         const host = new MockHost(testCase.symbols);
         const ctx = new EvalContext({ data: host, container: host.root });

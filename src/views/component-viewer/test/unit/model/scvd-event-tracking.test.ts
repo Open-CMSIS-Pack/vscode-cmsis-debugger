@@ -18,7 +18,7 @@
 
 import { ScvdEventTracking, ScvdEventTrackingMode } from '../../../model/scvd-event-tracking';
 
-describe('ScvdEventTracking coverage', () => {
+describe('ScvdEventTracking', () => {
     it('maps string modes to enum values', () => {
         const tracking = new ScvdEventTracking(undefined, 'Start');
         expect(tracking.mode).toBe(ScvdEventTrackingMode.Start);

@@ -18,7 +18,7 @@
 
 import { ScvdEndian } from '../../../model/scvd-endian';
 
-describe('ScvdEndian coverage', () => {
+describe('ScvdEndian', () => {
     it('defaults to little-endian and does no conversion', () => {
         const endian = new ScvdEndian(undefined);
         expect(endian.endian).toBe('L');

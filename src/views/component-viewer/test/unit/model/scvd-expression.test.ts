@@ -32,7 +32,7 @@ import { parseExpression } from '../../../parser-evaluator/parser';
 import { evaluateParseResult } from '../../../parser-evaluator/evaluator';
 import { ScvdExpression } from '../../../model/scvd-expression';
 
-describe('ScvdExpression coverage', () => {
+describe('ScvdExpression', () => {
     const makeAst = (overrides: Partial<ParseResult>): ParseResult => ({
         ast: {} as ParseResult['ast'],
         diagnostics: [],

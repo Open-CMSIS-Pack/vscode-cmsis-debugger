@@ -21,7 +21,7 @@ import { StatementOut } from '../../../statement-engine/statement-out';
 import { StatementPrint } from '../../../statement-engine/statement-print';
 import { createExecutionContext, TestNode } from '../helpers/statement-engine-helpers';
 
-describe('StatementOut coverage', () => {
+describe('StatementOut', () => {
     it('skips execution when condition is false', async () => {
         const node = new TestNode(undefined, { conditionResult: false, guiName: 'Out' });
         const stmt = new StatementOut(node, undefined);

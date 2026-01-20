@@ -48,7 +48,7 @@ class DummyGui implements ScvdGuiInterface {
     }
 }
 
-describe('ScvdGuiInterface coverage', () => {
+describe('ScvdGuiInterface', () => {
     it('supports the expected interface shape', () => {
         const gui = new DummyGui();
         expect(gui.getGuiEntry()).toEqual({ name: 'name', value: 'value' });

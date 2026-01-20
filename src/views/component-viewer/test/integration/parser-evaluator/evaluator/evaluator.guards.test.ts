@@ -59,7 +59,7 @@ function makeCtx(host: ModelHost): EvalContext {
     return new EvalContext({ data: host as never, container: base });
 }
 
-describe('evaluator guard coverage', () => {
+describe('evaluator guards', () => {
     const asAny = evaluator.__test__ as Record<string, unknown>;
 
     it('covers findReferenceNode guards and non-reference path', () => {

@@ -21,7 +21,7 @@ import { ScvdEvents } from '../../../model/scvd-events';
 import { ScvdGroup } from '../../../model/scvd-group';
 import { Json } from '../../../model/scvd-base';
 
-describe('ScvdEvents coverage', () => {
+describe('ScvdEvents', () => {
     it('returns false when XML is undefined', () => {
         const events = new ScvdEvents(undefined);
         expect(events.readXml(undefined as unknown as Json)).toBe(false);

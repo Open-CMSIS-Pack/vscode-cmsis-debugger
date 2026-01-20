@@ -36,7 +36,7 @@ class UndefinedTagBase extends ScvdBase {
     }
 }
 
-describe('ScvdBase coverage', () => {
+describe('ScvdBase', () => {
     beforeEach(() => {
         ScvdBase.resetIds();
     });

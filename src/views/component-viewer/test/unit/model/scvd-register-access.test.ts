@@ -25,7 +25,7 @@ class TestParent extends ScvdNode {
     }
 }
 
-describe('ScvdRegisterAccess coverage', () => {
+describe('ScvdRegisterAccess', () => {
     it('constructs with an optional parent', () => {
         const access = new ScvdRegisterAccess(undefined);
         expect(access.classname).toBe('ScvdRegisterAccess');

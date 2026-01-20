@@ -20,7 +20,7 @@ import { Json } from '../../../model/scvd-base';
 import { ScvdOut } from '../../../model/scvd-out';
 import { ScvdCondition } from '../../../model/scvd-condition';
 
-describe('ScvdOut coverage', () => {
+describe('ScvdOut', () => {
     it('reads XML and manages child collections', () => {
         const out = new ScvdOut(undefined);
         expect(out.readXml(undefined as unknown as Json)).toBe(false);

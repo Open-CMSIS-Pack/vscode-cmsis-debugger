@@ -19,7 +19,7 @@
 import { ScvdComponentIdentifier } from '../../../model/scvd-component-identifier';
 import { Json } from '../../../model/scvd-base';
 
-describe('ScvdComponentIdentifier coverage', () => {
+describe('ScvdComponentIdentifier', () => {
     it('returns false when XML is undefined', () => {
         const identifier = new ScvdComponentIdentifier(undefined);
         expect(identifier.readXml(undefined as unknown as Json)).toBe(false);

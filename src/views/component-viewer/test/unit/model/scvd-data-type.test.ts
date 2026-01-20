@@ -38,7 +38,7 @@ class DummyTypedef extends ScvdTypedef {
     }
 }
 
-describe('ScvdDataType coverage', () => {
+describe('ScvdDataType', () => {
     it('handles scalar and pointer scalar types', () => {
         const scalar = new ScvdDataType(undefined, 'uint32_t');
         expect(scalar.type).toBeInstanceOf(ScvdScalarDataType);

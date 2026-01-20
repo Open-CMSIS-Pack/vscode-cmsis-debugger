@@ -46,7 +46,7 @@ const makeRef = (
     };
 };
 
-describe('MemoryHost coverage', () => {
+describe('MemoryHost', () => {
     it('roundtrips numeric values', async () => {
         const host = new MemoryHost();
         const ref = makeRef('num', 4);

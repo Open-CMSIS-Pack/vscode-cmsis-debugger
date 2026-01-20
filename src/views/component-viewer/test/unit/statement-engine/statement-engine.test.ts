@@ -54,7 +54,7 @@ class FakeStatement extends StatementBase {
 
 type StatementCtor = new (item: ScvdNode, parent: StatementBase | undefined) => StatementBase;
 
-describe('StatementEngine coverage', () => {
+describe('StatementEngine', () => {
     it('exposes model and execution context', () => {
         const model = new ScvdComponentViewer(undefined);
         const ctx = createExecutionContext(model);

@@ -18,7 +18,7 @@
 
 import { ScvdFormatSpecifier } from '../../../model/scvd-format-specifier';
 
-describe('ScvdFormatSpecifier coverage', () => {
+describe('ScvdFormatSpecifier', () => {
     const formatter = new ScvdFormatSpecifier();
 
     it('formats numbers by type and bit width', () => {

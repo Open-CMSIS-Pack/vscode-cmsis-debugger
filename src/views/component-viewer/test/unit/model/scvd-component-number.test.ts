@@ -18,7 +18,7 @@
 
 import { ScvdComponentNumber } from '../../../model/scvd-component-number';
 
-describe('ScvdComponentNumber coverage', () => {
+describe('ScvdComponentNumber', () => {
     it('returns undefined for out-of-range values', () => {
         const component = new ScvdComponentNumber(undefined);
         expect(component.getComponentRange(-1)).toBeUndefined();

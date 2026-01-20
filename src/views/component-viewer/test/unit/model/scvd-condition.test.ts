@@ -20,7 +20,7 @@ import { ScvdCondition } from '../../../model/scvd-condition';
 import { ScvdExpression } from '../../../model/scvd-expression';
 import { ExecutionContext } from '../../../scvd-eval-context';
 
-describe('ScvdCondition coverage', () => {
+describe('ScvdCondition', () => {
     it('defaults to true when no expression is defined', async () => {
         const condition = new ScvdCondition(undefined);
         await expect(condition.getResult()).resolves.toBe(true);

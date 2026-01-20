@@ -21,7 +21,7 @@ import { ScvdPrint } from '../../../model/scvd-print';
 import { ScvdValueOutput } from '../../../model/scvd-value-output';
 import { Json } from '../../../model/scvd-base';
 
-describe('ScvdPrint coverage', () => {
+describe('ScvdPrint', () => {
     it('returns false when XML is undefined', () => {
         const print = new ScvdPrint(undefined);
         expect(print.readXml(undefined as unknown as Json)).toBe(false);

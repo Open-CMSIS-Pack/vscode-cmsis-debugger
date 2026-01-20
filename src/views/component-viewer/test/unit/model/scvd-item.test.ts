@@ -22,7 +22,7 @@ import { ScvdListOut } from '../../../model/scvd-list-out';
 import { ScvdPrint } from '../../../model/scvd-print';
 import { Json } from '../../../model/scvd-base';
 
-describe('ScvdItem coverage', () => {
+describe('ScvdItem', () => {
     it('returns false when XML is undefined', () => {
         const item = new ScvdItem(undefined);
         expect(item.readXml(undefined as unknown as Json)).toBe(false);

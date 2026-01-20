@@ -20,7 +20,7 @@ import { ScvdEnum } from '../../../model/scvd-enum';
 import { Json } from '../../../model/scvd-base';
 import { ScvdExpression } from '../../../model/scvd-expression';
 
-describe('ScvdEnum coverage', () => {
+describe('ScvdEnum', () => {
     it('initializes value from previous enum', () => {
         const parent = new ScvdEnum(undefined, undefined);
         const next = new ScvdEnum(undefined, parent);

@@ -31,7 +31,7 @@ import type { GDBTargetDebugTracker } from '../../../../debug-session';
 import { ComponentViewer } from '../../component-viewer-main';
 import { ComponentViewerController } from '../../component-viewer-controller';
 
-describe('ComponentViewer coverage', () => {
+describe('ComponentViewer', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         activateSpy.mockReset();

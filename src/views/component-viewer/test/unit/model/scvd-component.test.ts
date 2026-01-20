@@ -20,7 +20,7 @@ import { ScvdComponent } from '../../../model/scvd-component';
 import { Json } from '../../../model/scvd-base';
 import { ScvdEventState } from '../../../model/scvd-event-state';
 
-describe('ScvdComponent coverage', () => {
+describe('ScvdComponent', () => {
     it('returns false when XML is undefined', () => {
         const component = new ScvdComponent(undefined);
         expect(component.readXml(undefined as unknown as Json)).toBe(false);

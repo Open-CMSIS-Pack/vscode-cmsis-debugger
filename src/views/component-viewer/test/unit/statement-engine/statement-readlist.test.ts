@@ -48,7 +48,7 @@ function createMemberNode(targetSize: number | undefined, memberOffset: number |
     return node;
 }
 
-describe('StatementReadList coverage', () => {
+describe('StatementReadList', () => {
     it('skips when mustRead is false', async () => {
         const readList = createReadList();
         readList.mustRead = false;

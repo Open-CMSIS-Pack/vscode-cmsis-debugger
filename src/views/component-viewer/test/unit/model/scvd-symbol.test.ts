@@ -19,7 +19,7 @@
 import { ScvdSymbol } from '../../../model/scvd-symbol';
 import { ExecutionContext } from '../../../scvd-eval-context';
 
-describe('ScvdSymbol coverage', () => {
+describe('ScvdSymbol', () => {
     it('tracks symbol and address values', () => {
         const symbol = new ScvdSymbol(undefined, 'SYMBOL');
         expect(symbol.symbol).toBe('SYMBOL');

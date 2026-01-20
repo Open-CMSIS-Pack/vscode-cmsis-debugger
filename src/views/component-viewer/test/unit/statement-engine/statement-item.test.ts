@@ -30,7 +30,7 @@ function getOnlyChild(tree: ScvdGuiTree): ScvdGuiTree {
     return child;
 }
 
-describe('StatementItem coverage', () => {
+describe('StatementItem', () => {
     it('skips execution when condition is false', async () => {
         const node = new TestNode(undefined, { conditionResult: false });
         const stmt = new StatementItem(node, undefined);

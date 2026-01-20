@@ -19,7 +19,7 @@
 
 import { RegisterHost } from '../../../data-host/register-host';
 
-describe('RegisterHost coverage', () => {
+describe('RegisterHost', () => {
     it('normalizes register names and stores values', () => {
         const host = new RegisterHost();
         host.write(' r0 ', 0x1234);

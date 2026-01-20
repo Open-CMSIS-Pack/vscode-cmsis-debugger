@@ -33,7 +33,7 @@ class TestParent extends ScvdNode {
     }
 }
 
-describe('ScvdList coverage', () => {
+describe('ScvdList', () => {
     it('reads XML and populates child collections', () => {
         const list = new ScvdList(undefined);
         const xml: Json = {

@@ -21,7 +21,7 @@ import { ScvdBreak } from '../../../model/scvd-break';
 import { StatementBreak } from '../../../statement-engine/statement-break';
 import { createExecutionContext, TestNode } from '../helpers/statement-engine-helpers';
 
-describe('StatementBreak coverage', () => {
+describe('StatementBreak', () => {
     it('skips execution when condition is false', async () => {
         const node = new TestNode(undefined, { conditionResult: false });
         const stmt = new StatementBreak(node, undefined);

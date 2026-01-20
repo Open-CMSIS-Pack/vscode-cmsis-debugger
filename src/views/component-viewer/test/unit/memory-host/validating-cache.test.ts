@@ -19,7 +19,7 @@
 
 import { ValidatingCache } from '../../../data-host/validating-cache';
 
-describe('ValidatingCache coverage', () => {
+describe('ValidatingCache', () => {
     it('normalizes keys on get/set and respects valid flags', () => {
         const normalize = jest.fn((key: string) => key.trim().toLowerCase());
         const cache = new ValidatingCache<number>(normalize);

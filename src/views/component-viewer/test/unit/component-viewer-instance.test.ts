@@ -67,7 +67,7 @@ jest.mock('../../scvd-gui-tree', () => ({
     ScvdGuiTree: jest.fn(),
 }));
 
-describe('ComponentViewerInstance coverage', () => {
+describe('ComponentViewerInstance', () => {
     beforeEach(() => {
         jest.clearAllMocks();
     });

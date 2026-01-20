@@ -19,7 +19,7 @@
 import { Json } from '../../../model/scvd-base';
 import { ScvdListOut } from '../../../model/scvd-list-out';
 
-describe('ScvdListOut coverage', () => {
+describe('ScvdListOut', () => {
     it('reads XML and manages child items/lists', async () => {
         const listOut = new ScvdListOut(undefined);
 

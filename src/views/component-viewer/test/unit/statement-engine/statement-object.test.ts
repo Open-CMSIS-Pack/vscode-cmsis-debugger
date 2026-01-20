@@ -19,7 +19,7 @@
 import { StatementObject } from '../../../statement-engine/statement-object';
 import { ScvdObject } from '../../../model/scvd-object';
 
-describe('StatementObject coverage', () => {
+describe('StatementObject', () => {
     it('constructs with an ScvdObject item', () => {
         const item = new ScvdObject(undefined);
         const stmt = new StatementObject(item, undefined);

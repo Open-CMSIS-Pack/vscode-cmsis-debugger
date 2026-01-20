@@ -19,7 +19,7 @@
 
 import { NumFormat, NumberType } from '../../../model/number-type';
 
-describe('NumberType coverage', () => {
+describe('NumberType', () => {
     it('constructs from numbers and respects formats', () => {
         const num = new NumberType(42);
         expect(num.format).toBe(NumFormat.decimal);

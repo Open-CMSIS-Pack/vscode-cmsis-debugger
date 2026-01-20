@@ -19,7 +19,7 @@
 import { ScvdPrintExpression } from '../../../model/scvd-print-expression';
 import { ScvdValueOutput } from '../../../model/scvd-value-output';
 
-describe('ScvdValueOutput coverage', () => {
+describe('ScvdValueOutput', () => {
     it('creates expressions and updates them', () => {
         const output = new ScvdValueOutput(undefined, 'A', 'value');
         expect(output.expression).toBeInstanceOf(ScvdPrintExpression);

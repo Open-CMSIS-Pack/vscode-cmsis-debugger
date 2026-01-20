@@ -31,7 +31,7 @@ import {
 
 import { Json } from '../../../model/scvd-base';
 
-describe('scvd-utils coverage', () => {
+describe('scvd-utils', () => {
     it('adds text with string and array inputs', () => {
         expect(AddText('', 'a')).toBe('a');
         expect(AddText('a', 'b')).toBe('a b');

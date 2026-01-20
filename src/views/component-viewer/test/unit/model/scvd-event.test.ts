@@ -21,7 +21,7 @@ import { ScvdEvent } from '../../../model/scvd-event';
 import { ScvdEventTrackingMode } from '../../../model/scvd-event-tracking';
 import { ScvdEventState } from '../../../model/scvd-event-state';
 
-describe('ScvdEvent coverage', () => {
+describe('ScvdEvent', () => {
     it('reads XML and populates event fields', () => {
         const event = new ScvdEvent(undefined);
         expect(event.readXml(undefined as unknown as Json)).toBe(false);

@@ -77,7 +77,7 @@ type StackItem = { item: { frameId?: number } };
 
 type Context = { subscriptions: Array<{ dispose: jest.Mock }> };
 
-describe('ComponentViewerController coverage', () => {
+describe('ComponentViewerController', () => {
     beforeEach(() => {
         jest.clearAllMocks();
     });

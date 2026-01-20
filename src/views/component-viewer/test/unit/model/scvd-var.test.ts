@@ -19,7 +19,7 @@
 import { ScvdVar } from '../../../model/scvd-var';
 import { Json } from '../../../model/scvd-base';
 
-describe('ScvdVar coverage', () => {
+describe('ScvdVar', () => {
     it('returns false when XML is undefined', () => {
         const item = new ScvdVar(undefined);
         expect(item.readXml(undefined as unknown as Json)).toBe(false);

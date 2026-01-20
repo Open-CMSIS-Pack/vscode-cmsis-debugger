@@ -18,7 +18,7 @@
 
 import { ScvdTemplate } from '../../../model/scvd-template';
 
-describe('ScvdTemplate coverage', () => {
+describe('ScvdTemplate', () => {
     it('constructs with an optional parent', () => {
         const template = new ScvdTemplate(undefined);
         expect(template.parent).toBeUndefined();

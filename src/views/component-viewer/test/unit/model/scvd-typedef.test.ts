@@ -23,7 +23,7 @@ import { ScvdTypedef, ScvdTypedefs } from '../../../model/scvd-typedef';
 import { ScvdVar } from '../../../model/scvd-var';
 import { Json } from '../../../model/scvd-base';
 
-describe('ScvdTypedefs coverage', () => {
+describe('ScvdTypedefs', () => {
     it('returns false when XML is undefined', () => {
         const typedefs = new ScvdTypedefs(undefined);
         expect(typedefs.readXml(undefined as unknown as Json)).toBe(false);
@@ -58,7 +58,7 @@ describe('ScvdTypedefs coverage', () => {
     });
 });
 
-describe('ScvdTypedef coverage', () => {
+describe('ScvdTypedef', () => {
     it('returns false when XML is undefined', () => {
         const typedef = new ScvdTypedef(undefined);
         expect(typedef.readXml(undefined as unknown as Json)).toBe(false);
