@@ -50,7 +50,7 @@ jest.mock('../../../../debug-session', () => ({}));
 
 import type { ExtensionContext } from 'vscode';
 import type { GDBTargetDebugTracker } from '../../../../debug-session';
-import { ComponentViewerController } from '../../component-viewer-controller';
+import { ComponentViewerMain as ComponentViewerController } from '../../component-viewer-main';
 
 type TrackerCallbacks = {
     onWillStopSession: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
