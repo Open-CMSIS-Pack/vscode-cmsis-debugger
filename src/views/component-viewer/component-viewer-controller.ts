@@ -73,12 +73,7 @@ export class ComponentViewerController {
         await this.readScvdFiles(tracker, session);
         // Are there any SCVD files found in cbuild-run?
         if (this.instances.length > 0) {
-            // Add all models from cbuild-run to the tree view
-            /*for (const instance of this.instances) {
-                await instance.update();
-                await this.componentViewerTreeDataProvider?.addGuiOut(instance.getGuiTree());
-            }
-            await this.componentViewerTreeDataProvider?.showModelData();*/
+            await this.updateInstances();
             return;
         }
     }
