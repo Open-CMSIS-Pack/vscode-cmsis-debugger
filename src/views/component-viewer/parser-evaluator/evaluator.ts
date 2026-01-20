@@ -93,16 +93,7 @@ export class EvalContext {
  * ============================================================================= */
 
 function snapshotContainer(container: RefContainer): RefContainer {
-    return {
-        base: container.base,
-        anchor: container.anchor,
-        offsetBytes: container.offsetBytes,
-        widthBytes: container.widthBytes,
-        current: container.current,
-        member: container.member,
-        index: container.index,
-        valueType: container.valueType,
-    };
+    return { ...container };
 }
 
 function isReferenceNode(node: ASTNode): node is Identifier | MemberAccess | ArrayIndex {
