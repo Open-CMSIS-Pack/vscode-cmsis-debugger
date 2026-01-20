@@ -14,6 +14,7 @@
  * limitations under the License.
  *
  * Test-only helper for evaluator host typing.
+ * Integration test for FullDataHost.
  */
 // generated with AI
 import type { DataAccessHost, ModelHost } from '../../../parser-evaluator/model-host';

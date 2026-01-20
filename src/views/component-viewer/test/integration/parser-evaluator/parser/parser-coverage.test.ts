@@ -14,6 +14,7 @@
  * limitations under the License.
  *
  * Additional parser coverage for printf parsing, intrinsics, colon paths, and diagnostics.
+ * Integration test for ParserCoverage.
  */
 // generated with AI
 

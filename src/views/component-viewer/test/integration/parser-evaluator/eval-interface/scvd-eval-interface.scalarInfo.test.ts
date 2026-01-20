@@ -14,6 +14,7 @@
  * limitations under the License.
  *
  * Tests for scalar info derivation (padding/bit-width) in ScvdEvalInterface.
+ * Integration test for ScvdEvalInterface.scalarInfo.
  */
 // generated with AI
 
