@@ -56,13 +56,13 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         return treeItem;
     }
 
-    public getChildren(element?: ScvdGuiInterface): Promise<ScvdGuiInterface[]> {
+    public getChildren(element?: ScvdGuiInterface): ScvdGuiInterface[] {
         if (!element) {
-            return Promise.resolve(this._objectOutRoots);
+            return this._objectOutRoots;
         }
 
         const children = element.getGuiChildren() || [];
-        return Promise.resolve(children);
+        return children;
     }
 
     private refresh(): void {

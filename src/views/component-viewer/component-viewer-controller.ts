@@ -26,6 +26,8 @@ export class ComponentViewerController {
     private instances: ComponentViewerInstance[] = [];
     private componentViewerTreeDataProvider: ComponentViewerTreeDataProvider | undefined;
     private _context: vscode.ExtensionContext;
+    private _instanceUpdateCounter: number = 0;
+    private _updateSemaphoreFlag: boolean = false;
 
     public constructor(context: vscode.ExtensionContext) {
         this._context = context;
@@ -154,32 +156,30 @@ export class ComponentViewerController {
         // Update component viewer instance(s)
         await this.updateInstances();
     }
-    private instanceUpdateCounter: number = 0;
-    private updateSemaphoreFlag: boolean = false;
 
     private async updateInstances(): Promise<void> {
-        if (this.updateSemaphoreFlag) {
+        if (this._updateSemaphoreFlag) {
             return;
         }
-        this.updateSemaphoreFlag = true;
-        this.instanceUpdateCounter = 0;
+        this._updateSemaphoreFlag = true;
+        this._instanceUpdateCounter = 0;
         if (!this.activeSession) {
             this.componentViewerTreeDataProvider?.deleteModels();
-            this.updateSemaphoreFlag = false;
+            this._updateSemaphoreFlag = false;
             return;
         }
         if (this.instances.length === 0) {
-            this.updateSemaphoreFlag = false;
+            this._updateSemaphoreFlag = false;
             return;
         }
         this.componentViewerTreeDataProvider?.resetModelCache();
         for (const instance of this.instances) {
-            this.instanceUpdateCounter++;
-            console.log(`Updating Component Viewer Instance #${this.instanceUpdateCounter}`);
+            this._instanceUpdateCounter++;
+            console.log(`Updating Component Viewer Instance #${this._instanceUpdateCounter}`);
             await instance.update();
             await this.componentViewerTreeDataProvider?.addGuiOut(instance.getGuiTree());
         }
         await this.componentViewerTreeDataProvider?.showModelData();
-        this.updateSemaphoreFlag = false;
+        this._updateSemaphoreFlag = false;
     }
 }
