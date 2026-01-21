@@ -257,7 +257,6 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     }
 
     /* ---------------- Intrinsics ---------------- */
-
     public async __FindSymbol(symbolName: string): Promise<number | undefined> {
         return this.findSymbolAddressNormalized(symbolName);
     }
