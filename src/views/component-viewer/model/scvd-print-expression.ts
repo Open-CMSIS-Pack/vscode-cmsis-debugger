@@ -32,6 +32,10 @@ export class ScvdPrintExpression extends ScvdExpression {
         this.expression = expression;
     }
 
+    public override get classname(): string {
+        return 'ScvdPrintExpression';
+    }
+
     public override configure(): boolean {
         return super.configure();
     }

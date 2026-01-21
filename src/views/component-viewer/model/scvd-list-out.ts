@@ -32,6 +32,10 @@ export class ScvdListOut extends ScvdList {
         super(parent);
     }
 
+    public override get classname(): string {
+        return 'ScvdListOut';
+    }
+
     // class is derived from ScvdList, but we do not want all properties of ScvdList to be settable from XML
     public override readXml(xml: Json): boolean {
         if (xml === undefined ) {

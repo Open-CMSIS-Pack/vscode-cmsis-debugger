@@ -19,18 +19,30 @@
 import { ScvdBase } from '../../../model/scvd-base';
 
 class TestBase extends ScvdBase {
+    public override get classname(): string {
+        return 'TestBase';
+    }
+
     public addToSymbolContext(name: string | undefined, symbol: ScvdBase): void {
         super.addToSymbolContext(name, symbol);
     }
 }
 
 class SymbolBase extends ScvdBase {
+    public override get classname(): string {
+        return 'SymbolBase';
+    }
+
     public override getSymbol(_name: string): ScvdBase | undefined {
         return this;
     }
 }
 
 class UndefinedTagBase extends ScvdBase {
+    public override get classname(): string {
+        return 'UndefinedTagBase';
+    }
+
     public override get tag(): string | undefined {
         return undefined;
     }

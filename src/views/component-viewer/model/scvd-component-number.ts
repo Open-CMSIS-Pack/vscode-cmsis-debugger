@@ -35,6 +35,10 @@ export class ScvdComponentNumber extends ScvdNode {
         super(parent);
     }
 
+    public override get classname(): string {
+        return 'ScvdComponentNumber';
+    }
+
     public getComponentRange(value: number): string | undefined {
         if (value < 0 || value > 0xFF) {
             return undefined;

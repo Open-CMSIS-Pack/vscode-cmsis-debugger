@@ -26,4 +26,8 @@ export class ScvdTemplate extends ScvdNode {
         super(parent);
     }
 
+    public override get classname(): string {
+        return 'ScvdTemplate';
+    }
+
 }

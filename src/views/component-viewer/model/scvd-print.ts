@@ -35,6 +35,10 @@ export class ScvdPrint extends ScvdNode {
         super(parent);
     }
 
+    public override get classname(): string {
+        return 'ScvdPrint';
+    }
+
     public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);

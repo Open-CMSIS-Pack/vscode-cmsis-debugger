@@ -52,6 +52,10 @@ export class ScvdItem extends ScvdNode {
         }
     }
 
+    public override get classname(): string {
+        return 'ScvdItem';
+    }
+
     public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);

@@ -50,6 +50,10 @@ export class ScvdEventLevel extends ScvdNode {
         this.level = level;
     }
 
+    public override get classname(): string {
+        return 'ScvdEventLevel';
+    }
+
     public get level(): EventLevel | undefined {
         return this._level;
     }

@@ -46,6 +46,10 @@ export class ScvdDataType extends ScvdNode {
         this.type = type;
     }
 
+    public override get classname(): string {
+        return 'ScvdDataType';
+    }
+
     public get type(): ScvdScalarDataType | ScvdComplexDataType | undefined {
         return this._type;
     }
@@ -124,6 +128,10 @@ export class ScvdScalarDataType extends ScvdNode {
         }
     }
 
+    public override get classname(): string {
+        return 'ScvdScalarDataType';
+    }
+
     public get isPointer(): boolean {
         return this._isPointer;
     }
@@ -165,6 +173,10 @@ export class ScvdComplexDataType extends ScvdNode{
     ) {
         super(parent);
         this.typeName = typeName;
+    }
+
+    public override get classname(): string {
+        return 'ScvdComplexDataType';
     }
 
     private set typeName(value: string | undefined) {

@@ -48,6 +48,10 @@ export class ScvdEvent extends ScvdNode {
         super(parent);
     }
 
+    public override get classname(): string {
+        return 'ScvdEvent';
+    }
+
     public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);

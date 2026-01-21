@@ -30,6 +30,10 @@ export class ScvdBreaks extends ScvdNode {
         super(parent);
     }
 
+    public override get classname(): string {
+        return 'ScvdBreaks';
+    }
+
     public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
@@ -63,6 +67,10 @@ export class ScvdBreak extends ScvdNode {
         parent: ScvdNode | undefined,
     ) {
         super(parent);
+    }
+
+    public override get classname(): string {
+        return 'ScvdBreak';
     }
 
     public override readXml(xml: Json): boolean {

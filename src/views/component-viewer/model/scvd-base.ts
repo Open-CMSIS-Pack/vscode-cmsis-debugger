@@ -70,7 +70,7 @@ export abstract class ScvdBase {
     }
 
     public get classname(): string {
-        return this.constructor.name;
+        return 'ScvdBase';
     }
 
     public set tag(value: string | undefined) {

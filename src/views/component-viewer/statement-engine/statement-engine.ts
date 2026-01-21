@@ -17,6 +17,16 @@
 import { ScvdNode } from '../model/scvd-node';
 import { ScvdComponentViewer } from '../model/scvd-component-viewer';
 import { ScvdBreak } from '../model/scvd-break';
+import { ScvdCalc } from '../model/scvd-calc';
+import { ScvdItem } from '../model/scvd-item';
+import { ScvdList } from '../model/scvd-list';
+import { ScvdListOut } from '../model/scvd-list-out';
+import { ScvdObject } from '../model/scvd-object';
+import { ScvdOut } from '../model/scvd-out';
+import { ScvdPrint } from '../model/scvd-print';
+import { ScvdRead } from '../model/scvd-read';
+import { ScvdReadList } from '../model/scvd-readlist';
+import { ScvdVar } from '../model/scvd-var';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
 import { StatementBase } from './statement-base';
@@ -59,46 +69,52 @@ export class StatementEngine {
     }
 
     private buildStatement(item: ScvdNode, parent: StatementBase | undefined) : StatementBase | undefined {
-        const ctorName = item.constructor?.name;
-
-        switch (ctorName) {
-            case 'ScvdObject':
-                // Object-specific logic
-                return new StatementObject(item, parent);
-            case 'ScvdVar':
-                // Variable-specific logic.
-                return new StatementVar(item, parent);
-            case 'ScvdCalc':
-                // Calculation-specific logic.
-                return new StatementCalc(item, parent);
-            case 'ScvdReadList':
-                // ReadList-specific logic.
-                return new StatementReadList(item, parent);
-            case 'ScvdRead':
-                // Read-specific logic.
-                return new StatementRead(item, parent);
-            case 'ScvdList':
-                // List-specific logic.
-                return new StatementList(item, parent);
-            case 'ScvdListOut':
-                // List-specific logic.
-                return new StatementListOut(item, parent);
-            case 'ScvdOut':
-                // Output-specific logic.
-                return new StatementOut(item, parent);
-            case 'ScvdItem':
-                // Item-specific logic.
-                return new StatementItem(item, parent);
-            case 'ScvdPrint':
-                // Print-specific logic.
-                return new StatementPrint(item, parent);
-            case 'ScvdBreak':
-                // Break-specific logic.
-                return new StatementBreak(item, parent);
-            default:
-                // Generic logic for other item types.
-                return undefined;
+        if (item instanceof ScvdObject) {
+            // Object-specific logic
+            return new StatementObject(item, parent);
         }
+        if (item instanceof ScvdVar) {
+            // Variable-specific logic.
+            return new StatementVar(item, parent);
+        }
+        if (item instanceof ScvdCalc) {
+            // Calculation-specific logic.
+            return new StatementCalc(item, parent);
+        }
+        if (item instanceof ScvdReadList) {
+            // ReadList-specific logic.
+            return new StatementReadList(item, parent);
+        }
+        if (item instanceof ScvdRead) {
+            // Read-specific logic.
+            return new StatementRead(item, parent);
+        }
+        if (item instanceof ScvdListOut) {
+            // ListOut-specific logic.
+            return new StatementListOut(item, parent);
+        }
+        if (item instanceof ScvdList) {
+            // List-specific logic.
+            return new StatementList(item, parent);
+        }
+        if (item instanceof ScvdOut) {
+            // Output-specific logic.
+            return new StatementOut(item, parent);
+        }
+        if (item instanceof ScvdItem) {
+            // Item-specific logic.
+            return new StatementItem(item, parent);
+        }
+        if (item instanceof ScvdPrint) {
+            // Print-specific logic.
+            return new StatementPrint(item, parent);
+        }
+        if (item instanceof ScvdBreak) {
+            // Break-specific logic.
+            return new StatementBreak(item, parent);
+        }
+        // Generic logic for other item types.
+        return undefined;
     }
 
     public addChildrenFromScvd(item: ScvdNode, parent: StatementBase | undefined): StatementBase | undefined {

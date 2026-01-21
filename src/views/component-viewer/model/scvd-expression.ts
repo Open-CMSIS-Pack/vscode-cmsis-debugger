@@ -44,6 +44,10 @@ export class ScvdExpression extends ScvdNode {
         this._isPrintExpression = isPrintExpression ?? false;
     }
 
+    public override get classname(): string {
+        return 'ScvdExpression';
+    }
+
     public get expressionAst(): ParseResult | undefined {
         return this._expressionAst;
     }

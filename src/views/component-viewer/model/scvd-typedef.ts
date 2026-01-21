@@ -34,6 +34,10 @@ export class ScvdTypedefs extends ScvdNode {
         super(parent);
     }
 
+    public override get classname(): string {
+        return 'ScvdTypedefs';
+    }
+
     public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
@@ -94,6 +98,10 @@ export class ScvdTypedef extends ScvdNode {
         parent: ScvdNode | undefined,
     ) {
         super(parent);
+    }
+
+    public override get classname(): string {
+        return 'ScvdTypedef';
     }
 
     public override readXml(xml: Json): boolean {
@@ -209,7 +217,7 @@ export class ScvdTypedef extends ScvdNode {
 
     public async calculateTypedef() {
         if (this.import !== undefined) {
-            this.import.fetchSymbolInformation();
+            await this.import.fetchSymbolInformation();
         }
 
         await this.calculateOffsets();

@@ -39,6 +39,10 @@ export class ScvdComponentViewer extends ScvdNode {
         super(parent);
     }
 
+    public override get classname(): string {
+        return 'ScvdComponentViewer';
+    }
+
     /* template for readXml
     public override readXml(xml: Json): boolean {
         if (xml === undefined ) {

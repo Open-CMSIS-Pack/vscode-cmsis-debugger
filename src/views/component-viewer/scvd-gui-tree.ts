@@ -30,6 +30,7 @@ export class ScvdGuiTree implements ScvdGuiInterface {
     // If the node is not seen in the current epoch it is pruned in finalizeUpdate().
     private _seenEpoch = 0;
     private _isPrint: boolean = false;
+    private static readonly baseNodeId = 'ScvdGuiTree';
     private static idCnt: number = 0;
     // Monotonic counter for reconciliation passes. Increments at beginUpdate() and is compared against _seenEpoch.
     private static _epoch: number = 0;
@@ -42,7 +43,7 @@ export class ScvdGuiTree implements ScvdGuiInterface {
         if (parent) {
             parent.addChild(this);
         }
-        const baseId = nodeId ?? this.classname;
+        const baseId = nodeId ?? ScvdGuiTree.baseNodeId;
         this._nodeId = `${baseId}_${ScvdGuiTree.idCnt++}`;
     }
 
@@ -156,10 +157,6 @@ export class ScvdGuiTree implements ScvdGuiInterface {
             parts.push(node.key ?? node.name ?? node.nodeId);
         }
         return parts.reverse().join(' > ');
-    }
-
-    public get classname(): string {
-        return this.constructor.name;
     }
 
     public get nodeId(): string {

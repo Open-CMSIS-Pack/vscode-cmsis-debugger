@@ -35,6 +35,10 @@ export class ScvdObjects extends ScvdNode {
         super(parent);
     }
 
+    public override get classname(): string {
+        return 'ScvdObjects';
+    }
+
     public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
@@ -78,6 +82,10 @@ export class ScvdObject extends ScvdNode {
         parent: ScvdNode | undefined,
     ) {
         super(parent);
+    }
+
+    public override get classname(): string {
+        return 'ScvdObject';
     }
 
     public override readXml(xml: Json): boolean {

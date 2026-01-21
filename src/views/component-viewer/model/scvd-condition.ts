@@ -33,6 +33,10 @@ export class ScvdCondition extends ScvdNode {
         }
     }
 
+    public override get classname(): string {
+        return 'ScvdCondition';
+    }
+
     public get expression(): ScvdExpression | undefined {
         return this._expression;
     }

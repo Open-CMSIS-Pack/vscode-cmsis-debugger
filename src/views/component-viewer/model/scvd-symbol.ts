@@ -34,6 +34,10 @@ export class ScvdSymbol extends ScvdNode {
         this.symbol = value;
     }
 
+    public override get classname(): string {
+        return 'ScvdSymbol';
+    }
+
     public get symbol(): string | undefined {
         return this._symbol;
     }

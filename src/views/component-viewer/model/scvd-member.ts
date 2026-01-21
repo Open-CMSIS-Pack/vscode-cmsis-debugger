@@ -38,6 +38,10 @@ export class ScvdMember extends ScvdNode {
         super(parent);
     }
 
+    public override get classname(): string {
+        return 'ScvdMember';
+    }
+
     public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);

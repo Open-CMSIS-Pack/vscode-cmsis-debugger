@@ -32,6 +32,10 @@ export class ScvdEndian extends ScvdNode {
         this._isBigEndian = this.endianValues.includes(endian) && endian === 'B';
     }
 
+    public override get classname(): string {
+        return 'ScvdEndian';
+    }
+
     public set endian(value: string) {
         this._endian = value;
         this._isBigEndian = this.endianValues.includes(value) && value === 'B';

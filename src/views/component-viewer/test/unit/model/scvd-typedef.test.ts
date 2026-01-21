@@ -259,8 +259,15 @@ describe('ScvdTypedef', () => {
         const typedef = new ScvdTypedef(undefined);
         typedef.import = 'SYM';
 
-        const fetchSpy = jest.spyOn(typedef.import as ScvdSymbol, 'fetchSymbolInformation').mockResolvedValue(true);
-        const offsetsSpy = jest.spyOn(typedef, 'calculateOffsets').mockResolvedValue();
+        let fetchComplete = false;
+        const fetchSpy = jest.spyOn(typedef.import as ScvdSymbol, 'fetchSymbolInformation').mockImplementation(async () => {
+            await Promise.resolve();
+            fetchComplete = true;
+            return true;
+        });
+        const offsetsSpy = jest.spyOn(typedef, 'calculateOffsets').mockImplementation(async () => {
+            expect(fetchComplete).toBe(true);
+        });
 
         await typedef.calculateTypedef();
 

@@ -41,6 +41,10 @@ export class ScvdEventTracking extends ScvdNode {
         this.mode = mode;
     }
 
+    public override get classname(): string {
+        return 'ScvdEventTracking';
+    }
+
     public get mode(): ScvdEventTrackingMode | undefined {
         return this._mode;
     }

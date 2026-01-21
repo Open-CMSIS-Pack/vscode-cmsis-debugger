@@ -19,10 +19,6 @@
 
 import { parseExpression, ParseResult } from '../../../../parser-evaluator/parser';
 
-/* If tests are timing out, increase the timeout value here:
- * jest.setTimeout(10000);
- */
-
 interface ExpressionRow {
     expr: string;
     isPrintf?: boolean;

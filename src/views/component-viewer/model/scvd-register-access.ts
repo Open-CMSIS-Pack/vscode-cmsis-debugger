@@ -26,4 +26,8 @@ export class ScvdRegisterAccess extends ScvdNode {
         super(parent);
     }
 
+    public override get classname(): string {
+        return 'ScvdRegisterAccess';
+    }
+
 }

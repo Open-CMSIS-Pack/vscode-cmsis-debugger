@@ -43,6 +43,10 @@ export class ScvdReadList extends ScvdRead {
         super(parent);
     }
 
+    public override get classname(): string {
+        return 'ScvdReadList';
+    }
+
     public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);

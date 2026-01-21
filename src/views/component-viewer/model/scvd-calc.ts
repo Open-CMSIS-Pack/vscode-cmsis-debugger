@@ -32,6 +32,10 @@ export class ScvdCalc extends ScvdNode {
         super(parent);
     }
 
+    public override get classname(): string {
+        return 'ScvdCalc';
+    }
+
     public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);

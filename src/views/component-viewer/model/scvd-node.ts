@@ -38,6 +38,10 @@ export abstract class ScvdNode extends ScvdBase {
         super(parent);
     }
 
+    public override get classname(): string {
+        return 'ScvdNode';
+    }
+
     public readXml(xml: Json): boolean {
         if (xml === undefined ) {
             this.tag = 'XML undefined';

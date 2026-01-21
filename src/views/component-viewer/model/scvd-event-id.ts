@@ -33,6 +33,10 @@ export class ScvdEventId extends ScvdNode {
         this._id = new ScvdExpression(this, id, 'id');
     }
 
+    public override get classname(): string {
+        return 'ScvdEventId';
+    }
+
     public get id(): ScvdExpression {
         return this._id;
     }

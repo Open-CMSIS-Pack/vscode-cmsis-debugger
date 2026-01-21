@@ -34,6 +34,10 @@ export class ScvdEnum extends ScvdNode {
         this._value = new ScvdExpression(this, valStr, 'value');
     }
 
+    public override get classname(): string {
+        return 'ScvdEnum';
+    }
+
     public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);

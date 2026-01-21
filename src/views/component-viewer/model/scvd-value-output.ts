@@ -33,6 +33,10 @@ export class ScvdValueOutput extends ScvdNode {
         this._scvdVarName = scvdVarName;
     }
 
+    public override get classname(): string {
+        return 'ScvdValueOutput';
+    }
+
     public get expression(): ScvdPrintExpression | undefined {
         return this._expression;
     }
