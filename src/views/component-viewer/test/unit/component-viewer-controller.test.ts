@@ -156,7 +156,7 @@ describe('ComponentViewerController', () => {
         const readScvdFiles = (controller as unknown as { readScvdFiles: (t: TrackerCallbacks, s?: Session) => Promise<void> }).readScvdFiles.bind(controller);
 
         await readScvdFiles(tracker, session);
-        const instances = (controller as unknown as { instances: unknown[] }).instances;
+        const instances = (controller as unknown as { _instances: unknown[] })._instances;
         expect(instances).toEqual([]);
     });
 
@@ -165,12 +165,12 @@ describe('ComponentViewerController', () => {
         const controller = new ComponentViewer(context as unknown as ExtensionContext);
         const tracker = makeTracker();
         const session = makeSession('s1', ['a.scvd', 'b.scvd']);
-        (controller as unknown as { activeSession?: Session }).activeSession = session;
+        (controller as unknown as { _activeSession?: Session })._activeSession = session;
 
         const readScvdFiles = (controller as unknown as { readScvdFiles: (t: TrackerCallbacks, s?: Session) => Promise<void> }).readScvdFiles.bind(controller);
         await readScvdFiles(tracker, session);
 
-        const instances = (controller as unknown as { instances: unknown[] }).instances;
+        const instances = (controller as unknown as { _instances: unknown[] })._instances;
         expect(instances.length).toBe(2);
     });
 
@@ -182,7 +182,7 @@ describe('ComponentViewerController', () => {
         const readScvdFiles = (controller as unknown as { readScvdFiles: (t: TrackerCallbacks, s?: Session) => Promise<void> }).readScvdFiles.bind(controller);
         await readScvdFiles(tracker, session);
 
-        const instances = (controller as unknown as { instances: unknown[] }).instances;
+        const instances = (controller as unknown as { _instances: unknown[] })._instances;
         expect(instances.length).toBe(0);
     });
 
@@ -211,12 +211,12 @@ describe('ComponentViewerController', () => {
         await tracker.callbacks.stackItem?.({ item: { frameId: 1 } });
         await tracker.callbacks.stackItem?.({ item: {} });
 
-        (controller as unknown as { activeSession?: Session }).activeSession = session;
+        (controller as unknown as { _activeSession?: Session })._activeSession = session;
         await tracker.callbacks.stopped?.({ session });
         await tracker.callbacks.stopped?.({ session: otherSession });
-        (controller as unknown as { activeSession?: Session }).activeSession = session;
+        (controller as unknown as { _activeSession?: Session })._activeSession = session;
         await tracker.callbacks.willStop?.(session);
-        (controller as unknown as { activeSession?: Session }).activeSession = otherSession;
+        (controller as unknown as { _activeSession?: Session })._activeSession = otherSession;
         await tracker.callbacks.willStop?.(session);
     });
 
@@ -224,25 +224,25 @@ describe('ComponentViewerController', () => {
         const context = makeContext();
         const controller = new ComponentViewer(context as unknown as ExtensionContext);
         const provider = treeProviderFactory();
-        (controller as unknown as { componentViewerTreeDataProvider?: typeof provider }).componentViewerTreeDataProvider = provider;
+        (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
 
         const updateInstances = (controller as unknown as { updateInstances: () => Promise<void> }).updateInstances.bind(controller);
 
-        (controller as unknown as { updateSymaphorFlag: boolean }).updateSymaphorFlag = true;
+        (controller as unknown as { _updateSemaphoreFlag: boolean })._updateSemaphoreFlag = true;
         await updateInstances();
 
-        (controller as unknown as { updateSymaphorFlag: boolean }).updateSymaphorFlag = false;
-        (controller as unknown as { activeSession?: Session | undefined }).activeSession = undefined;
+        (controller as unknown as { _updateSemaphoreFlag: boolean })._updateSemaphoreFlag = false;
+        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = undefined;
         await updateInstances();
         expect(provider.deleteModels).toHaveBeenCalled();
 
-        (controller as unknown as { activeSession?: Session | undefined }).activeSession = makeSession('s1');
-        (controller as unknown as { instances: unknown[] }).instances = [];
+        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1');
+        (controller as unknown as { _instances: unknown[] })._instances = [];
         await updateInstances();
 
         const instanceA = instanceFactory();
         const instanceB = instanceFactory();
-        (controller as unknown as { instances: unknown[] }).instances = [instanceA, instanceB];
+        (controller as unknown as { _instances: unknown[] })._instances = [instanceA, instanceB];
         await updateInstances();
         expect(provider.resetModelCache).toHaveBeenCalled();
         expect(provider.addGuiOut).toHaveBeenCalledTimes(2);
