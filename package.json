@@ -24,8 +24,7 @@
     "vscode": "^1.106.1"
   },
   "categories": [
-    "Debuggers",
-    "Extension Packs"
+    "Debuggers"
   ],
   "keywords": [
     "arm",
