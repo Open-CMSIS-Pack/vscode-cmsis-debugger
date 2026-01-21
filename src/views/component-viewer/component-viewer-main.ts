@@ -75,7 +75,7 @@ export class ComponentViewer {
         await this.readScvdFiles(tracker, session);
         // Are there any SCVD files found in cbuild-run?
         if (this.instances.length > 0) {
-            await this.updateInstances();
+            //await this.updateInstances();
             return;
         }
     }
@@ -93,8 +93,8 @@ export class ComponentViewer {
         const onDidChangeActiveDebugSessionDisposable = tracker.onDidChangeActiveDebugSession(async (session) => {
             await this.handleOnDidChangeActiveDebugSession(session);
         });
-        const onStopped = tracker.onStopped(async (session) => {
-            await this.handleOnStopped(session.session);
+        const onStackTrace = tracker.onStackTrace(async (session) => {
+            await this.handleOnStackTrace(session.session);
         });
         // clear all disposables on extension deactivation
         context.subscriptions.push(
@@ -102,11 +102,11 @@ export class ComponentViewer {
             onConnectedDisposable,
             onDidChangeActiveStackItemDisposable,
             onDidChangeActiveDebugSessionDisposable,
-            onStopped
+            onStackTrace
         );
     }
 
-    private async handleOnStopped(session: GDBTargetDebugSession): Promise<void> {
+    private async handleOnStackTrace(session: GDBTargetDebugSession): Promise<void> {
         // Clear active session if it is NOT the one being stopped
         if (this.activeSession?.session.id !== session.session.id) {
             this.activeSession = undefined;
@@ -121,7 +121,7 @@ export class ComponentViewer {
             this.activeSession = undefined;
         }
         // Update component viewer instance(s)
-        await this.updateInstances();
+        //await this.updateInstances();
     }
 
     private async handleOnConnected(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker): Promise<void> {
@@ -146,7 +146,7 @@ export class ComponentViewer {
     private async handleOnDidChangeActiveStackItem(stackTraceItem: SessionStackItem): Promise<void> {
         if ((stackTraceItem.item as vscode.DebugStackFrame).frameId !== undefined) {
             // Update instance(s) with new stack frame info
-            await this.updateInstances();
+            //await this.updateInstances();
         }
     }
 
