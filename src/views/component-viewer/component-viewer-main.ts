@@ -1,5 +1,5 @@
 /**
- * Copyright 2026 Arm Limited
+ * Copyright 2025 - 2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,9 +22,9 @@ import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
 
 
 export class ComponentViewer {
-    private activeSession: GDBTargetDebugSession | undefined;
-    private instances: ComponentViewerInstance[] = [];
-    private componentViewerTreeDataProvider: ComponentViewerTreeDataProvider | undefined;
+    private _activeSession: GDBTargetDebugSession | undefined;
+    private _instances: ComponentViewerInstance[] = [];
+    private _componentViewerTreeDataProvider: ComponentViewerTreeDataProvider | undefined;
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
     private _updateSemaphoreFlag: boolean = false;
@@ -36,8 +36,8 @@ export class ComponentViewer {
 
     public activate(tracker: GDBTargetDebugTracker): void {
         /* Create Tree Viewer */
-        this.componentViewerTreeDataProvider = new ComponentViewerTreeDataProvider();
-        const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this.componentViewerTreeDataProvider);
+        this._componentViewerTreeDataProvider = new ComponentViewerTreeDataProvider();
+        const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
         this._context.subscriptions.push(
             treeProviderDisposable);
         // Subscribe to debug tracker events to update active session
@@ -60,12 +60,12 @@ export class ComponentViewer {
         const cbuildRunInstances: ComponentViewerInstance[] = [];
         for (const scvdFilePath of scvdFilesPaths) {
             const instance = new ComponentViewerInstance();
-            if (this.activeSession !== undefined) {
-                await instance.readModel(URI.file(scvdFilePath), this.activeSession, tracker);
+            if (this._activeSession !== undefined) {
+                await instance.readModel(URI.file(scvdFilePath), this._activeSession, tracker);
                 cbuildRunInstances.push(instance);
             }
         }
-        this.instances = cbuildRunInstances;
+        this._instances = cbuildRunInstances;
     }
 
     private async loadCbuildRunInstances(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker) : Promise<void> {
@@ -74,7 +74,7 @@ export class ComponentViewer {
         // Try to read SCVD files from cbuild-run file first
         await this.readScvdFiles(tracker, session);
         // Are there any SCVD files found in cbuild-run?
-        if (this.instances.length > 0) {
+        if (this._instances.length > 0) {
             await this.updateInstances();
             return;
         }
@@ -108,8 +108,8 @@ export class ComponentViewer {
 
     private async handleOnStopped(session: GDBTargetDebugSession): Promise<void> {
         // Clear active session if it is NOT the one being stopped
-        if (this.activeSession?.session.id !== session.session.id) {
-            this.activeSession = undefined;
+        if (this._activeSession?.session.id !== session.session.id) {
+            this._activeSession = undefined;
         }
         // Update component viewer instance(s)
         await this.updateInstances();
@@ -117,8 +117,8 @@ export class ComponentViewer {
 
     private async handleOnWillStopSession(session: GDBTargetDebugSession): Promise<void> {
         // Clear active session if it is the one being stopped
-        if (this.activeSession?.session.id === session.session.id) {
-            this.activeSession = undefined;
+        if (this._activeSession?.session.id === session.session.id) {
+            this._activeSession = undefined;
         }
         // Update component viewer instance(s)
         await this.updateInstances();
@@ -126,17 +126,17 @@ export class ComponentViewer {
 
     private async handleOnConnected(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker): Promise<void> {
         // if new session is not the current active session, erase old instances and read the new ones
-        if (this.activeSession?.session.id !== session.session.id) {
-            this.instances = [];
-            this.componentViewerTreeDataProvider?.deleteModels();
+        if (this._activeSession?.session.id !== session.session.id) {
+            this._instances = [];
+            this._componentViewerTreeDataProvider?.deleteModels();
         }
         // Update debug session
-        this.activeSession = session;
+        this._activeSession = session;
         // Load SCVD files from cbuild-run
         await this.loadCbuildRunInstances(session, tracker);
         // Subscribe to refresh events of the started session
         session.refreshTimer.onRefresh(async (refreshSession) => {
-            if (this.activeSession?.session.id === refreshSession.session.id) {
+            if (this._activeSession?.session.id === refreshSession.session.id) {
                 // Update component viewer instance(s)
                 await this.updateInstances();
             }
@@ -152,7 +152,7 @@ export class ComponentViewer {
 
     private async handleOnDidChangeActiveDebugSession(session: GDBTargetDebugSession | undefined): Promise<void> {
         // Update debug session
-        this.activeSession = session;
+        this._activeSession = session;
         // Update component viewer instance(s)
         await this.updateInstances();
     }
@@ -163,23 +163,23 @@ export class ComponentViewer {
         }
         this._updateSemaphoreFlag = true;
         this._instanceUpdateCounter = 0;
-        if (!this.activeSession) {
-            this.componentViewerTreeDataProvider?.deleteModels();
+        if (!this._activeSession) {
+            this._componentViewerTreeDataProvider?.deleteModels();
             this._updateSemaphoreFlag = false;
             return;
         }
-        if (this.instances.length === 0) {
+        if (this._instances.length === 0) {
             this._updateSemaphoreFlag = false;
             return;
         }
-        this.componentViewerTreeDataProvider?.resetModelCache();
-        for (const instance of this.instances) {
+        this._componentViewerTreeDataProvider?.resetModelCache();
+        for (const instance of this._instances) {
             this._instanceUpdateCounter++;
             console.log(`Updating Component Viewer Instance #${this._instanceUpdateCounter}`);
             await instance.update();
-            this.componentViewerTreeDataProvider?.addGuiOut(instance.getGuiTree());
+            this._componentViewerTreeDataProvider?.addGuiOut(instance.getGuiTree());
         }
-        this.componentViewerTreeDataProvider?.showModelData();
+        this._componentViewerTreeDataProvider?.showModelData();
         this._updateSemaphoreFlag = false;
     }
 }
