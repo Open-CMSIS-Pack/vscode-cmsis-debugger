@@ -66,7 +66,7 @@ describe('Parser over SCVD expression fixtures', () => {
     it('parses every expression without throwing', () => {
         const timeoutHint = setTimeout(() => {
             // If this prints, the default Jest timeout is likely to be hit.
-            // eslint-disable-next-line no-console
+
             console.warn('Parser SCVD expressions test is running long; consider increasing the test timeout or reducing fixture size.');
         }, 4500);
         const { _meta, expressions } = readExpressions('expressions.json');
