@@ -15,9 +15,6 @@
  */
 // generated with AI
 
-// evaluator.ts — ScvdNode-only, single container context (base/member/index/current)
-// Strict error semantics: any unresolved ref/value causes throw; top-level returns undefined
-
 import type {
     ASTNode,
     NumberLiteral,

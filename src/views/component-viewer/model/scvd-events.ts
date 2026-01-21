@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-//
+// https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
 import { Json } from './scvd-base';
 import { ScvdNode } from './scvd-node';

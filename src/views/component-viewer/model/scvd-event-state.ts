@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+// https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
+
+
 import { Json } from './scvd-base';
 import { ScvdNode } from './scvd-node';
 import { getStringFromJson } from './scvd-utils';
@@ -23,8 +26,6 @@ type EventColor = (typeof EVENT_COLORS)[number];
 function isEventColor(v: string): v is EventColor {
     return EVENT_COLORS.includes(v as EventColor);
 }
-
-// https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
 export class ScvdEventState extends ScvdNode {
     private _plot: 'off' | 'line' | 'box' = 'off';

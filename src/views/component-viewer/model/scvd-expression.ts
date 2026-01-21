@@ -19,10 +19,8 @@
 
 import { parseExpression, ParseResult } from '../parser-evaluator/parser';
 import {  evaluateParseResult, EvaluateResult } from '../parser-evaluator/evaluator';
-
 import { ScvdNode } from './scvd-node';
 import { ExecutionContext } from '../scvd-eval-context';
-
 
 export class ScvdExpression extends ScvdNode {
     private _expression: string | undefined;

@@ -43,18 +43,6 @@ export class ScvdComponentViewer extends ScvdNode {
         return 'ScvdComponentViewer';
     }
 
-    /* template for readXml
-    public override readXml(xml: Json): boolean {
-        if (xml === undefined ) {
-            return super.readXml(xml);
-        }
-
-        //this.tag = xml.tag;
-
-        return super.readXml(xml);
-    }
-    */
-
     public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);

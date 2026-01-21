@@ -16,6 +16,7 @@
 
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
+import { Json } from './scvd-base';
 import { ScvdNode } from './scvd-node';
 
 export class ScvdTemplate extends ScvdNode {
@@ -24,6 +25,16 @@ export class ScvdTemplate extends ScvdNode {
         parent: ScvdNode | undefined,
     ) {
         super(parent);
+    }
+
+    public override readXml(xml: Json): boolean {
+        if (xml === undefined ) {
+            return super.readXml(xml);
+        }
+
+        //this.tag = xml.tag;
+
+        return super.readXml(xml);
     }
 
     public override get classname(): string {

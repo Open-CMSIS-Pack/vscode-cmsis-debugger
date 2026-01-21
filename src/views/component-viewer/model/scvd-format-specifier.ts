@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { NumberType, NumFormat } from './number-type';
-
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
+
+import { NumberType, NumFormat } from './number-type';
 
 export type FormatKind = 'int' | 'uint' | 'float' | 'unknown';
 export interface FormatTypeInfo {

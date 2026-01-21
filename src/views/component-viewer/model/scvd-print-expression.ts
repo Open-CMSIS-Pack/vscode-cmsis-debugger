@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-import { ScvdNode } from './scvd-node';
-import { ScvdExpression } from './scvd-expression';
-
 // https://arm-software.github.io/CMSIS-View/main/scvd_expression.html
 
 
+import { ScvdNode } from './scvd-node';
+import { ScvdExpression } from './scvd-expression';
 
 export class ScvdPrintExpression extends ScvdExpression {
 

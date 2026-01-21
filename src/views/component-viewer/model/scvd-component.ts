@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-// /component_viewer/events
 // https://arm-software.github.io/CMSIS-View/main/elem_events.html
 
 import { NumberType, NumberTypeInput } from './number-type';

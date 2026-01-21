@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-
 import * as utils from './scvd-utils';
 
 export enum NumFormat {

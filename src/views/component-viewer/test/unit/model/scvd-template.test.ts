@@ -27,4 +27,30 @@ describe('ScvdTemplate', () => {
         const template = new ScvdTemplate(undefined);
         expect(template.parent).toBeUndefined();
     });
+
+    it('reports classname', () => {
+        const template = new ScvdTemplate(undefined);
+        expect(template.classname).toBe('ScvdTemplate');
+    });
+
+    it('delegates readXml when xml is undefined', () => {
+        const template = new ScvdTemplate(undefined);
+        expect(template.readXml(undefined as unknown as Record<string, unknown>)).toBe(false);
+        expect(template.tag).toBe('XML undefined');
+    });
+
+    it('reads tag, name, info, and line from xml', () => {
+        const template = new ScvdTemplate(undefined);
+        const xml = {
+            '#Name': 'template',
+            name: 'MyTemplate',
+            info: 'Template info',
+            __line: '42',
+        };
+        expect(template.readXml(xml)).toBe(true);
+        expect(template.tag).toBe('template');
+        expect(template.name).toBe('MyTemplate');
+        expect(template.info).toBe('Template info');
+        expect(template.lineNo).toBe('42');
+    });
 });

@@ -19,9 +19,6 @@ import { ScvdComponentViewer } from './model/scvd-component-viewer';
 import { ScvdTypedef } from './model/scvd-typedef';
 import { ScvdTypesCache } from './scvd-types-cache';
 
-// https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
-
-
 export enum ResolveType {
     localType = 'localType',
     localMember = 'localMember',

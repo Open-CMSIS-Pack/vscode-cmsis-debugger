@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-
 export interface ScvdGuiInterface {
     getGuiEntry(): { name: string | undefined, value: string | undefined };
     getGuiChildren(): ScvdGuiInterface[];

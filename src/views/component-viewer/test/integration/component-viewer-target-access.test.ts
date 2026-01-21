@@ -21,10 +21,10 @@
  */
 
 import * as vscode from 'vscode';
-import { ComponentViewerTargetAccess } from './component-viewer-target-access';
-import { debugSessionFactory } from '../../__test__/vscode.factory';
-import { GDBTargetDebugSession } from '../../debug-session';
-import { logger } from '../../logger';
+import { ComponentViewerTargetAccess } from '../../component-viewer-target-access';
+import { debugSessionFactory } from '../../../../__test__/vscode.factory';
+import { GDBTargetDebugSession } from '../../../../debug-session';
+import { logger } from '../../../../logger';
 
 describe('ComponentViewerTargetAccess', () => {
     const defaultConfig = () => {

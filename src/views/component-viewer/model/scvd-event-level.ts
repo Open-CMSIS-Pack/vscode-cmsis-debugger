@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { ScvdNode } from './scvd-node';
-
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
+
+import { ScvdNode } from './scvd-node';
 
 export enum EventLevel {
     EventLevelError = 0,   // Run-time error
