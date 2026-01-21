@@ -42,6 +42,9 @@ export class ComponentViewerTargetAccess {
                 context: context
             };
             const response = await this._activeSession?.session.customRequest('evaluate', args) as DebugProtocol.EvaluateResponse['body'];
+            if (response.result.startsWith('Error')) { //cdt-adapter returns 'Error' string without throwing error response
+                return undefined;
+            }
             return response.result.split(' ')[0]; // Return only the address part
         } catch (error: unknown) {
             const errorMessage = (error as Error)?.message;
