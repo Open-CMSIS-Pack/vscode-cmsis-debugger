@@ -13,22 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// generated with AI
 
-/**
- * Fast, reusable, error-tolerant expression parser with:
- *  - Assignment '=' (right-associative) and C-style compound assignments: +=, -=, *=, /=, %=, <<=, >>=, &=, ^=, |=
- *  - ++ / -- (both prefix and postfix)
- *  - Printf-like formatting segments: `%x[ expr ]` (x = ANY single non-space char) and `%%` (escaped percent)
- *  - Intrinsic evaluation-point calls:
- *      __CalcMemUsed, __FindSymbol, __GetRegVal, __Offset_of, __size_of, __Symbol_exists, __Running
- *  - Constant folding (never folds assignments; side-effecting nodes are kept as AST)
- *  - External symbol collection
- *  - Colon selector operators `typedef_name:member` and `typedef_name:member:enum`
- *  - Ternary conditional `?:` (right-associative)
- *
- * Intended to be instantiated once and reused: `const parser = new Parser();`
- */
+// generated with AI
 
 import { addVals, andVals, divVals, maskToBits, modVals, mulVals, orVals, sarVals, shlVals, subVals, toNumeric, xorVals } from './math-ops';
 import { INTRINSIC_DEFINITIONS, isIntrinsicName } from './intrinsics';

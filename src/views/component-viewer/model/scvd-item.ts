@@ -36,9 +36,9 @@ export class ScvdItem extends ScvdNode {
 
     constructor(
         parent: ScvdNode | undefined,
-        cond?: string, // = '1',
-        bold?: string, // = '0',
-        alert?: string, // = '0',
+        cond?: string,
+        bold?: string,
+        alert?: string,
     ) {
         super(parent);
         if (cond !== undefined) {

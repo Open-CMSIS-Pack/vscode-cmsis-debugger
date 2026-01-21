@@ -19,16 +19,6 @@ import { NumberType, NumFormat } from './number-type';
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
 
-/*  Note:
-    Question 1 (HEX display of float):
-    What should be the expected behavior for displaying float32 and float64 values in hexadecimal format? Should they be shown as truncated unsigned integers (UINT) or in their raw IEEE representation?
-    A: show as truncated integers
-
-    Question 2 (0x000... padding):
-    What should be the maximum padding size for HEX zeros (0x000...<num>): 32 or 64?
-    A: show the value without padding zeros, i.e. 0x3, 0x3bc4
-*/
-
 export type FormatKind = 'int' | 'uint' | 'float' | 'unknown';
 export interface FormatTypeInfo {
     kind: FormatKind;

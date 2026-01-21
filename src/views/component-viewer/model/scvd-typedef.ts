@@ -75,15 +75,16 @@ export class ScvdTypedefs extends ScvdNode {
 }
 
 /*
-import:
+    Member-import (Attribute import="symbol-name" from SCVD xml):
     Name of a symbol in the user application which is loaded into the debugger.
-    The underlaying data type of this symbol is used to:
-
+    The underlaying data type of this symbol is used to
     recalculate the value of the attribute size of this typedef element.
-    for member elements with no explicit attribute offset, the offset value of
+    For member elements with no explicit attribute offset, the offset value of
     matching member is set. If the member is not part of the symbol in the user
     application the attribute offset value is set to -1.
     __Offset_of can be used to check this value.
+
+    Currently this is not supported due to MS-DAP restrictions.
 */
 
 export class ScvdTypedef extends ScvdNode {

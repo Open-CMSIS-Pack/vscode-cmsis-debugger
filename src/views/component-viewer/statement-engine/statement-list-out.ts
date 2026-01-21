@@ -35,7 +35,11 @@ export class StatementListOut extends StatementBase {
         }
 
         await this.onExecute(executionContext, guiTree);
-        /*for (const child of this.children) {  // executed in list
+        /* Example code for evaluating children.
+           Normally this happens here, but in this case it’s done in onExecute
+           to account for the loop and its variables.
+
+        for (const child of this.children) {  // executed in list
             await child.executeStatement(executionContext, guiTree);
         }*/
     }
