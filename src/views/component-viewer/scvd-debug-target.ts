@@ -49,6 +49,17 @@ function toUint32(value: number | bigint): number | bigint {
     return value >>> 0;
 }
 
+function isLikelyBase64(data: string): boolean {
+    const trimmed = data.trim();
+    if (trimmed.length === 0 || trimmed.length % 4 === 1) {
+        return false;
+    }
+    if (/[^A-Za-z0-9+/=]/.test(trimmed)) {
+        return false;
+    }
+    return true;
+}
+
 export function gdbNameFor(name: string): string | undefined {
     return REGISTER_GDB_MAP.get(normalize(name));
 }
@@ -232,6 +243,10 @@ export class ScvdDebugTarget {
         }
         // if data is returned as error message string
         if (dataAsString.startsWith('Unable')) {
+            return undefined;
+        }
+        if (!isLikelyBase64(dataAsString)) {
+            console.error(`ScvdDebugTarget.readMemory: invalid base64 data for address ${address.toString()}`);
             return undefined;
         }
         // Convert String data to Uint8Array

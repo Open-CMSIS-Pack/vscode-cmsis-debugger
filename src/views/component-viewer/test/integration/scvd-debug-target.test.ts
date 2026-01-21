@@ -180,6 +180,12 @@ describe('scvd-debug-target', () => {
         accessMock.evaluateMemory.mockResolvedValue(undefined);
         await expect(target.readMemory(0x0, 3)).resolves.toBeUndefined();
 
+        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        accessMock.evaluateMemory.mockResolvedValue('No active session');
+        await expect(target.readMemory(0x0, 3)).resolves.toBeUndefined();
+        expect(errorSpy).toHaveBeenCalled();
+        errorSpy.mockRestore();
+
         accessMock.evaluateMemory.mockResolvedValue('AQID'); // len 3 vs requested 4
         await expect(target.readMemory(0x0, 4)).resolves.toEqual(new Uint8Array([1, 2, 3]));
     });

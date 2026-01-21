@@ -136,8 +136,6 @@ export class ComponentViewerTargetAccess {
         }
     }
 
-
-
     public async evaluateMemory(address: string, length: number, offset: number): Promise<string | undefined> {
         try {
             const args: DebugProtocol.ReadMemoryArguments = {
