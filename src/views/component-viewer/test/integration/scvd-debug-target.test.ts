@@ -247,7 +247,10 @@ describe('scvd-debug-target', () => {
         // Remove decoders
         globalWithBuffer.Buffer = undefined;
         globalWithBuffer.atob = undefined;
-        expect(() => target.decodeGdbData('AQID')).toThrow('No base64 decoder available');
+        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        expect(target.decodeGdbData('AQID')).toBeUndefined();
+        expect(errorSpy).toHaveBeenCalledWith('ScvdDebugTarget.decodeGdbData: no base64 decoder available in this environment');
+        errorSpy.mockRestore();
         // restore
         globalWithBuffer.Buffer = origBuffer;
         globalWithBuffer.atob = origAtob;
