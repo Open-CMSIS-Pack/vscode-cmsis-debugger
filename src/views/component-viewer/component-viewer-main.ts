@@ -28,6 +28,7 @@ export class ComponentViewer {
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
     private _updateSemaphoreFlag: boolean = false;
+    private _loadingCounter: number = 0;
 
     public constructor(context: vscode.ExtensionContext) {
         this._context = context;
@@ -67,10 +68,9 @@ export class ComponentViewer {
         this.instances = cbuildRunInstances;
     }
 
-    private loadingCounter: number = 0;
     private async loadCbuildRunInstances(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker) : Promise<void> {
-        this.loadingCounter++;
-        console.log(`Loading SCVD files from cbuild-run, attempt #${this.loadingCounter}`);
+        this._loadingCounter++;
+        console.log(`Loading SCVD files from cbuild-run, attempt #${this._loadingCounter}`);
         // Try to read SCVD files from cbuild-run file first
         await this.readScvdFiles(tracker, session);
         // Are there any SCVD files found in cbuild-run?
