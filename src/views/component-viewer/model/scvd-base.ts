@@ -12,11 +12,12 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
+ */
+
+/**
  * Minimal core for SCVD tree nodes: parent/child wiring and basic metadata.
  * Model-specific behaviour lives in ScvdNode.
  */
-
 
 export type Json = Record<string, unknown>;
 

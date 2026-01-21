@@ -12,10 +12,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
+ */
+
+// generated with AI
+
+/**
  * Test helpers for statement-engine.
  */
-// generated with AI
+
 import { EvalContext } from '../../../parser-evaluator/evaluator';
 import type { ExecutionContext } from '../../../scvd-eval-context';
 import { MemoryHost } from '../../../data-host/memory-host';

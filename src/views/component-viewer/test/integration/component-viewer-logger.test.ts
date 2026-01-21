@@ -12,11 +12,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * Integration test for ComponentViewerLogger.
  */
+
 // generated with AI
 
+/**
+ * Integration test for ComponentViewerLogger.
+ */
 
 jest.mock('vscode', () => {
     const mockChannel = { appendLine: jest.fn(), dispose: jest.fn() };

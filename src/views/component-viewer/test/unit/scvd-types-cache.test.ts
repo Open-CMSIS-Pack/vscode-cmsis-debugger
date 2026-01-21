@@ -12,10 +12,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
+ */
+
+// generated with AI
+
+/**
  * Unit test for ScvdTypesCache creation and lookup paths.
  */
-// generated with AI
 
 import { ScvdTypesCache } from '../../scvd-types-cache';
 import { ScvdComponentViewer } from '../../model/scvd-component-viewer';

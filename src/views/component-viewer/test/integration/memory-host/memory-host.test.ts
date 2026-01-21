@@ -12,10 +12,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
+ */
+
+// generated with AI
+
+/**
  * Integration test for MemoryHost.
  */
-// generated with AI
 
 import { MemoryHost } from '../../../data-host/memory-host';
 import { RefContainer } from '../../../parser-evaluator/model-host';

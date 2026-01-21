@@ -12,10 +12,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
+ */
+
+// generated with AI
+
+/**
  * Integration test for EvaluatorBasic.
  */
-// generated with AI
 
 import { EvalContext, evaluateParseResult } from '../../../../parser-evaluator/evaluator';
 import type { EvalValue, RefContainer } from '../../../../parser-evaluator/model-host';
@@ -31,9 +34,6 @@ type SymbolDef = {
 };
 
 // Loaded from static test fixture (path is fixed at build time).
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const cases: EvaluatorCase[] = require('../../testfiles/evaluator-basic.json');
-
 type EvaluatorCase = {
     expr: string;
     expected: number | string | undefined;
@@ -41,6 +41,15 @@ type EvaluatorCase = {
     checkSymbol?: string;
     expectedSymbol?: number | string | undefined;
 };
+
+type EvaluatorCasesFile = {
+    _meta: { format: string; copyright: string; generatedWith?: string };
+    cases: EvaluatorCase[];
+};
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const fixture: EvaluatorCasesFile | EvaluatorCase[] = require('../../testfiles/evaluator-basic.json');
+const cases: EvaluatorCase[] = Array.isArray(fixture) ? fixture : fixture.cases;
 
 class MockRef extends ScvdNode {
     value: EvalValue | undefined;

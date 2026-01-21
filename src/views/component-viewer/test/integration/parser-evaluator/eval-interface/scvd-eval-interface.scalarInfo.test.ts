@@ -12,11 +12,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
+ */
+
+// generated with AI
+
+/**
  * Tests for scalar info derivation (padding/bit-width) in ScvdEvalInterface.
  * Integration test for ScvdEvalInterface.scalarInfo.
  */
-// generated with AI
 
 import { ScvdEvalInterface } from '../../../../scvd-eval-interface';
 import { FormatTypeInfo } from '../../../../model/scvd-format-specifier';

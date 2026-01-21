@@ -13,7 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 // generated with AI
+
+/**
+ * Unit test for Intrinsics.
+ */
 
 import { handleIntrinsic, handlePseudoMember, INTRINSIC_DEFINITIONS, isIntrinsicName, type IntrinsicName, type IntrinsicProvider } from '../../../../parser-evaluator/intrinsics';
 import type { RefContainer } from '../../../../parser-evaluator/model-host';

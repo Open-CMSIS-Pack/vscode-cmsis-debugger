@@ -12,10 +12,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
+ */
+
+// generated with AI
+
+/**
  * Unit test for resolver: cache creation, dispatching, and guard branches.
  */
-// generated with AI
 
 import { Resolver, ResolveType } from '../../resolver';
 import { ScvdComponentViewer } from '../../model/scvd-component-viewer';

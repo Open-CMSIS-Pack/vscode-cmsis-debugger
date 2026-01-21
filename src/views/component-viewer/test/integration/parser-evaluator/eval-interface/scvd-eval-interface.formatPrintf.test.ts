@@ -12,12 +12,15 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
+ */
+
+// generated with AI
+
+/**
  * Unit tests for ScvdEvalInterface.formatPrintf based on the CMSIS-View
  * value_output specification: https://arm-software.github.io/CMSIS-View/main/value_output.html
  * Integration test for ScvdEvalInterface.formatPrintf.
  */
-// generated with AI
 
 import { ScvdEvalInterface } from '../../../../scvd-eval-interface';
 import { ScvdFormatSpecifier, FormatKind } from '../../../../model/scvd-format-specifier';

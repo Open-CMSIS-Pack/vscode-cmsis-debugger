@@ -12,10 +12,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
+ */
+
+// generated with AI
+
+/**
  * Unit test for ScvdEvalInterface helpers and intrinsics.
  */
-// generated with AI
 
 import { ScvdEvalInterface } from '../../../../scvd-eval-interface';
 import type { RefContainer } from '../../../../parser-evaluator/model-host';

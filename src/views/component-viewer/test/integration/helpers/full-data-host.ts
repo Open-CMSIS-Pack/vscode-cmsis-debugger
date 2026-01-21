@@ -12,11 +12,15 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
+ */
+
+// generated with AI
+
+/**
  * Test-only helper for evaluator host typing.
  * Integration test for FullDataHost.
  */
-// generated with AI
+
 import type { DataAccessHost, ModelHost } from '../../../parser-evaluator/model-host';
 import type { IntrinsicProvider } from '../../../parser-evaluator/intrinsics';
 

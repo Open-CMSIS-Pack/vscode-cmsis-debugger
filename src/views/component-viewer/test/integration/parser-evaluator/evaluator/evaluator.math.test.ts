@@ -12,11 +12,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
+ */
+
+// generated with AI
+
+/**
  * Stress math across mixed scalar types using parsed ASTs.
  * Integration test for Evaluator.math.
  */
-// generated with AI
 
 import { parseExpression } from '../../../../parser-evaluator/parser';
 import { EvalContext, evalNode, evaluateParseResult } from '../../../../parser-evaluator/evaluator';

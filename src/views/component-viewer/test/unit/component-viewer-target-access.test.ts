@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+// generated with AI
+
+/**
+ * Unit test for ComponentViewerTargetAccess.
+ */
+
 import * as vscode from 'vscode';
 import { ComponentViewerTargetAccess } from '../../component-viewer-target-access';
 import { debugSessionFactory } from '../../../../__test__/vscode.factory';
