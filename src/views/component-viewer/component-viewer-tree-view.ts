@@ -1,5 +1,5 @@
 /**
- * Copyright 2026 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,6 @@
  * limitations under the License.
  */
 
-/*
- * Component Viewer Tree (ordered exactly as provided by getGuiChildren())
- * - Root = model.objects?.objects?.[0]?.out?.[0]
- * - Label/description from node.getGuiEntry() -> { name, value }
- * - Children from node.getGuiChildren() (returned AS-IS, in order)
- * - Each item id = node.nodeId (no fallbacks)
- * - Activation via `await provider.activate()`; no constructor args
- * - View ID defaults to 'cmsis-debugger.componentViewer'
- */
 
 import * as vscode from 'vscode';
 import { ScvdGuiInterface } from './model/scvd-gui-interface';
@@ -30,8 +21,7 @@ import { ScvdGuiInterface } from './model/scvd-gui-interface';
 
 export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<ScvdGuiInterface> {
     private readonly _onDidChangeTreeData = new vscode.EventEmitter<ScvdGuiInterface | void>();
-    readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
-    //private _activeSession: GDBTargetDebugSession | undefined;
+    public readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
     private _objectOutRoots: ScvdGuiInterface[] = [];
     private _scvdModel: ScvdGuiInterface[] = [];
 
