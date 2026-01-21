@@ -187,7 +187,7 @@ describe('scvd-debug-target', () => {
         errorSpy.mockRestore();
 
         accessMock.evaluateMemory.mockResolvedValue('AQID'); // len 3 vs requested 4
-        await expect(target.readMemory(0x0, 4)).resolves.toEqual(new Uint8Array([1, 2, 3]));
+        await expect(target.readMemory(0x0, 4)).resolves.toBeUndefined();
     });
 
     it('calculates memory usage and overflow bit', async () => {

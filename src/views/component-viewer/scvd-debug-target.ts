@@ -208,7 +208,7 @@ export class ScvdDebugTarget {
     /**
      * Decode a (possibly unpadded) base64 string from GDB into bytes.
      */
-    public decodeGdbData(data: string): Uint8Array {
+    public decodeGdbData(data: string): Uint8Array | undefined {
         // Fix missing padding: base64 length must be a multiple of 4
         const padLength = (4 - (data.length % 4)) % 4;
         const padded = data + '='.repeat(padLength);
@@ -229,7 +229,8 @@ export class ScvdDebugTarget {
             return bytes;
         }
 
-        throw new Error('No base64 decoder available in this environment');
+        console.error('ScvdDebugTarget.decodeGdbData: no base64 decoder available in this environment');
+        return undefined;
     }
 
     public async readMemory(address: number | bigint, size: number): Promise<Uint8Array | undefined> {
@@ -251,11 +252,11 @@ export class ScvdDebugTarget {
         }
         // Convert String data to Uint8Array
         const byteArray = this.decodeGdbData(dataAsString);
-
-        if (byteArray.length !== size) {
-            return byteArray;
+        if (byteArray === undefined) {
+            return undefined;
         }
-        return byteArray;
+
+        return byteArray.length === size ? byteArray : undefined;
     }
 
     public readUint8ArrayStrFromPointer(address: number | bigint, bytesPerChar: number, maxLength: number): Promise<Uint8Array | undefined> {
