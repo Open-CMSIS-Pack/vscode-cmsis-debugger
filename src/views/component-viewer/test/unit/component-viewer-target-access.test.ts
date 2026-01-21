@@ -154,30 +154,15 @@ describe('ComponentViewerTargetAccess', () => {
 
         const debugSpy = jest.spyOn(logger, 'debug');
         (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('custom request failed'));
-        await expect(targetAccess.evaluateMemory('16', 4, 0)).resolves.toBe('No active session');
+        await expect(targetAccess.evaluateMemory('16', 4, 0)).resolves.toBeUndefined();
         expect(debugSpy).toHaveBeenCalledWith(
             'Session \'test-session\': Failed to read memory at address \'0x10\' - \'custom request failed\''
         );
 
         (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('bad read'));
-        await expect(targetAccess.evaluateMemory('16', 4, 0)).resolves.toBe('bad read');
+        await expect(targetAccess.evaluateMemory('16', 4, 0)).resolves.toBeUndefined();
         expect(debugSpy).toHaveBeenCalledWith(
             'Session \'test-session\': Failed to read memory at address \'0x10\' - \'bad read\''
-        );
-    });
-
-    it('checks symbol existence', async () => {
-        (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: '0x2000 mySymbol' });
-        await expect(targetAccess.doesSymbolExist('mySymbol')).resolves.toBe(true);
-
-        (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: '0x2000 other' });
-        await expect(targetAccess.doesSymbolExist('mySymbol')).resolves.toBe(false);
-
-        const debugSpy = jest.spyOn(logger, 'debug');
-        (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('exist fail'));
-        await expect(targetAccess.doesSymbolExist('mySymbol')).resolves.toBe(false);
-        expect(debugSpy).toHaveBeenCalledWith(
-            'Session \'test-session\': Failed to know if symbol mySymbol exists - \'exist fail\''
         );
     });
 

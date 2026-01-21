@@ -158,25 +158,25 @@ describe('ComponentViewerTargetAccess', () => {
             });
         });
 
-        it('should return error message when memory read fails', async () => {
+        it('should return undefined when memory read fails', async () => {
             const logDebugSpy = jest.spyOn(logger, 'debug');
             (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('Invalid memory address'));
 
             const result = await targetAccess.evaluateMemory('0xFFFFFFFF', 4, 0);
 
-            expect(result).toBe('Invalid memory address');
+            expect(result).toBeUndefined();
             expect(logDebugSpy).toHaveBeenCalledWith(
                 'Session \'test-session\': Failed to read memory at address \'0xFFFFFFFF\' - \'Invalid memory address\''
             );
         });
 
-        it('should return "No active session" when custom request fails for memory read', async () => {
+        it('should return undefined when custom request fails for memory read', async () => {
             const logDebugSpy = jest.spyOn(logger, 'debug');
             (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('custom request failed'));
 
             const result = await targetAccess.evaluateMemory('0x20000000', 4, 0);
 
-            expect(result).toBe('No active session');
+            expect(result).toBeUndefined();
             expect(logDebugSpy).toHaveBeenCalledWith(
                 'Session \'test-session\': Failed to read memory at address \'0x20000000\' - \'custom request failed\''
             );

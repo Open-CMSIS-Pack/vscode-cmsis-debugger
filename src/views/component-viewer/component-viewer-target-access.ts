@@ -152,26 +152,7 @@ export class ComponentViewerTargetAccess {
             const hexAddress = `0x${Number(address).toString(16).toUpperCase()}`;
             const errorMessage = (error as Error)?.message;
             logger.debug(`Session '${this._activeSession?.session.name}': Failed to read memory at address '${hexAddress}' - '${errorMessage}'`);
-            return errorMessage === 'custom request failed' ? 'No active session' : errorMessage;
-        }
-    }
-
-    public async doesSymbolExist(symbol: string): Promise<boolean> {
-        try {
-            const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
-            const args: DebugProtocol.EvaluateArguments = {
-                expression: `&${symbol}`,
-                frameId, // Currently required by CDT GDB Adapter
-                context: 'hover'
-            };
-            const response = await this._activeSession?.session.customRequest('evaluate', args) as DebugProtocol.EvaluateResponse['body'];
-            const symbolInfo = response.result;
-            const doesExist = symbolInfo.includes(symbol);
-            return doesExist;
-        } catch (error: unknown) {
-            const errorMessage = (error as Error)?.message;
-            logger.debug(`Session '${this._activeSession?.session.name}': Failed to know if symbol ${symbol} exists - '${errorMessage}'`);
-            return false;
+            return undefined;
         }
     }
 
