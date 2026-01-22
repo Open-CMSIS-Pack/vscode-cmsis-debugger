@@ -19,12 +19,14 @@ import { GDBTargetDebugTracker, GDBTargetDebugSession, SessionStackItem } from '
 import { ComponentViewerInstance } from './component-viewer-instance';
 import { URI } from 'vscode-uri';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
+import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 
 
 export class ComponentViewer {
     private _activeSession: GDBTargetDebugSession | undefined;
     private _instances: ComponentViewerInstance[] = [];
     private _componentViewerTreeDataProvider: ComponentViewerTreeDataProvider | undefined;
+    private _componentViewerTreeView: vscode.TreeView<ScvdGuiInterface> | undefined;
     private _filterInput: vscode.InputBox | undefined;
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
@@ -38,11 +40,23 @@ export class ComponentViewer {
     public activate(tracker: GDBTargetDebugTracker): void {
         /* Create Tree Viewer */
         this._componentViewerTreeDataProvider = new ComponentViewerTreeDataProvider();
-        const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
+        this._componentViewerTreeView = vscode.window.createTreeView('cmsis-debugger.componentViewer', {
+            treeDataProvider: this._componentViewerTreeDataProvider,
+            showCollapseAll: false,
+        });
+        this._componentViewerTreeView.message = 'No Component Viewer data';
         const filterCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.filter', () => this.showFilterInput());
+        const expandAllCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.expandAll', async () => {
+            await this.expandAllVisibleNodes();
+        });
+        const collapseAllCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.collapseAll', async () => {
+            this._componentViewerTreeDataProvider?.collapseAll();
+        });
         this._context.subscriptions.push(
-            treeProviderDisposable,
-            filterCommandDisposable);
+            this._componentViewerTreeView,
+            filterCommandDisposable,
+            expandAllCommandDisposable,
+            collapseAllCommandDisposable);
         // Subscribe to debug tracker events to update active session
         this.subscribetoDebugTrackerEvents(this._context, tracker);
     }
@@ -168,13 +182,16 @@ export class ComponentViewer {
         this._instanceUpdateCounter = 0;
         if (!this._activeSession) {
             this._componentViewerTreeDataProvider?.deleteModels();
+            this.setTreeViewMessage('No active debug session');
             this._updateSemaphoreFlag = false;
             return;
         }
         if (this._instances.length === 0) {
+            this.setTreeViewMessage('No Component Viewer data');
             this._updateSemaphoreFlag = false;
             return;
         }
+        this.setTreeViewMessage(undefined);
         this._componentViewerTreeDataProvider?.resetModelCache();
         for (const instance of this._instances) {
             this._instanceUpdateCounter++;
@@ -209,5 +226,30 @@ export class ComponentViewer {
         });
         this._filterInput = input;
         input.show();
+    }
+
+    private setTreeViewMessage(message: string | undefined): void {
+        if (this._componentViewerTreeView) {
+            this._componentViewerTreeView.message = message ?? '';
+        }
+    }
+
+    private async expandAllVisibleNodes(): Promise<void> {
+        if (!this._componentViewerTreeView || !this._componentViewerTreeDataProvider) {
+            return;
+        }
+
+        const stack = [...this._componentViewerTreeDataProvider.getVisibleRoots()];
+        while (stack.length > 0) {
+            const node = stack.pop();
+            if (!node) {
+                continue;
+            }
+            await this._componentViewerTreeView.reveal(node, { expand: true });
+            const children = this._componentViewerTreeDataProvider.getVisibleChildrenFor(node);
+            for (const child of children) {
+                stack.push(child);
+            }
+        }
     }
 }

@@ -149,6 +149,18 @@
         "title": "Filter Component Viewer",
         "icon": "$(filter)",
         "category": "Component Viewer"
+      },
+      {
+        "command": "vscode-cmsis-debugger.componentViewer.expandAll",
+        "title": "Expand All",
+        "icon": "$(expand-all)",
+        "category": "Component Viewer"
+      },
+      {
+        "command": "vscode-cmsis-debugger.componentViewer.collapseAll",
+        "title": "Collapse All",
+        "icon": "$(collapse-all)",
+        "category": "Component Viewer"
       }
     ],
     "menus": {
@@ -266,6 +278,16 @@
           "command": "vscode-cmsis-debugger.componentViewer.filter",
           "when": "view == cmsis-debugger.componentViewer",
           "group": "navigation@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.expandAll",
+          "when": "view == cmsis-debugger.componentViewer",
+          "group": "navigation@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.collapseAll",
+          "when": "view == cmsis-debugger.componentViewer",
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [

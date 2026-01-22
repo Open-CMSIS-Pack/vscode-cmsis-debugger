@@ -102,14 +102,14 @@ describe('ComponentViewerTreeDataProvider', () => {
         expect(treeItemWithChildren.collapsibleState).toBe(1);
         expect(treeItemWithChildren.description).toBe('Value');
         expect(treeItemWithChildren.tooltip).toBe('Line 1');
-        expect(treeItemWithChildren.id).toBe('node-a');
+        expect(treeItemWithChildren.id).toBe('node-a|0');
 
         const treeItemWithout = provider.getTreeItem(withoutChildren);
         expect(treeItemWithout.label).toBe('UNKNOWN');
         expect(treeItemWithout.collapsibleState).toBe(0);
         expect(treeItemWithout.description).toBe('');
         expect(treeItemWithout.tooltip).toBe('');
-        expect(treeItemWithout.id).toBe('node-b');
+        expect(treeItemWithout.id).toBe('node-b|0');
     });
 
     it('returns root children when no element is provided', async () => {
@@ -212,5 +212,26 @@ describe('ComponentViewerTreeDataProvider', () => {
 
         await expect(provider.getChildren()).resolves.toEqual([parent]);
         await expect(provider.getChildren(parent)).resolves.toEqual([]);
+    });
+
+    it('updates parent lookup and collapses by bumping ids', async () => {
+        const provider = new ComponentViewerTreeDataProvider();
+        const child = makeGui({ nodeId: 'child' });
+        const parent = makeGui({
+            nodeId: 'parent',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [child],
+        });
+
+        provider.addGuiOut([parent]);
+        provider.showModelData();
+
+        expect(provider.getParent(child)).toBe(parent);
+        expect(provider.getVisibleRoots()).toEqual([parent]);
+        expect(provider.getVisibleChildrenFor(parent)).toEqual([child]);
+
+        provider.collapseAll();
+        const treeItem = provider.getTreeItem(parent);
+        expect(treeItem.id).toBe('parent|1');
     });
 });

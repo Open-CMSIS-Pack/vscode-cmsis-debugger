@@ -27,6 +27,8 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     private _filterText = '';
     private _filteredRoots: ScvdGuiInterface[] = [];
     private _filteredChildren = new Map<ScvdGuiInterface, ScvdGuiInterface[]>();
+    private _parentByChild = new Map<ScvdGuiInterface, ScvdGuiInterface>();
+    private _collapseRevision = 0;
 
     constructor () {
     }
@@ -45,7 +47,8 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         // Needs fixing, getGuiValue() for ScvdNode returns 0 when undefined
         treeItem.description = element.getGuiValue() ?? '';
         treeItem.tooltip = element.getGuiLineInfo() ?? '';
-        treeItem.id = (element as unknown as { nodeId: string }).nodeId;
+        const baseId = (element as unknown as { nodeId?: string }).nodeId ?? treeItemLabel;
+        treeItem.id = `${baseId}|${this._collapseRevision}`;
         return treeItem;
     }
 
@@ -66,6 +69,10 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         return Promise.resolve(children);
     }
 
+    public getParent(element: ScvdGuiInterface): ScvdGuiInterface | undefined {
+        return this._parentByChild.get(element);
+    }
+
     private refresh(): void {
         this._onDidChangeTreeData.fire();
     }
@@ -75,6 +82,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         this._objectOutRoots = [];
         this._filteredRoots = [];
         this._filteredChildren.clear();
+        this._parentByChild.clear();
     }
 
     public addGuiOut(guiOut: ScvdGuiInterface[] | undefined) {
@@ -94,6 +102,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         this._objectOutRoots = [];
         this._filteredRoots = [];
         this._filteredChildren.clear();
+        this._parentByChild.clear();
         this.refresh();
     }
 
@@ -114,12 +123,31 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         this.refresh();
     }
 
+    public collapseAll(): void {
+        this._collapseRevision += 1;
+        this.refresh();
+    }
+
+    public getVisibleRoots(): ScvdGuiInterface[] {
+        return this.isFilterActive() ? this._filteredRoots : this._objectOutRoots;
+    }
+
+    public getVisibleChildrenFor(element: ScvdGuiInterface): ScvdGuiInterface[] {
+        if (this.isFilterActive()) {
+            return this._filteredChildren.get(element) ?? [];
+        }
+
+        return element.getGuiChildren() || [];
+    }
+
     private rebuildFilterCache(): void {
         const normalizedFilter = this._filterText.trim().toLowerCase();
         this._filteredRoots = [];
         this._filteredChildren.clear();
+        this._parentByChild.clear();
 
         if (normalizedFilter === '') {
+            this.buildParentCache(this._objectOutRoots);
             return;
         }
 
@@ -128,6 +156,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
                 this._filteredRoots.push(root);
             }
         }
+        this.buildParentCache(this._filteredRoots);
     }
 
     private filterNode(node: ScvdGuiInterface, normalizedFilter: string): boolean {
@@ -153,5 +182,30 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         const candidateName = entry.name ?? node.getGuiName() ?? '';
         const candidateValue = entry.value ?? node.getGuiValue() ?? '';
         return `${candidateName} ${candidateValue}`.toLowerCase().includes(normalizedFilter);
+    }
+
+    private buildParentCache(roots: ScvdGuiInterface[]): void {
+        const stack: Array<{ node: ScvdGuiInterface; parent?: ScvdGuiInterface }> = [];
+        for (const root of roots) {
+            stack.push({ node: root });
+        }
+
+        while (stack.length > 0) {
+            const current = stack.pop();
+            if (!current) {
+                continue;
+            }
+            if (current.parent) {
+                this._parentByChild.set(current.node, current.parent);
+            }
+            const children = this.getVisibleChildrenFor(current.node);
+            for (const child of children) {
+                stack.push({ node: child, parent: current.node });
+            }
+        }
+    }
+
+    private isFilterActive(): boolean {
+        return this._filterText.trim() !== '';
     }
 }
