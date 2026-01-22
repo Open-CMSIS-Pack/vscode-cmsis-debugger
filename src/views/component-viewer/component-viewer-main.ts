@@ -150,7 +150,7 @@ export class ComponentViewer {
     private async handleOnDidChangeActiveStackItem(stackTraceItem: SessionStackItem): Promise<void> {
         if ((stackTraceItem.item as vscode.DebugStackFrame).frameId !== undefined) {
             // Update instance(s) with new stack frame info
-            await this.updateInstances();
+            // await this.updateInstances();
         }
     }
 
