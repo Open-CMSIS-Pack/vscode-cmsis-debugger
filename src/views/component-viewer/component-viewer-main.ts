@@ -136,7 +136,7 @@ export class ComponentViewer {
         // Subscribe to refresh events of the started session
         session.refreshTimer.onRefresh(async (refreshSession) => {
             await this.handleRefreshTimerEvent(refreshSession);
-            }
+        }
         );
     }
 
@@ -146,7 +146,7 @@ export class ComponentViewer {
             await this.updateInstances();
         }
     }
- 
+
     private async handleOnDidChangeActiveStackItem(stackTraceItem: SessionStackItem): Promise<void> {
         if ((stackTraceItem.item as vscode.DebugStackFrame).frameId !== undefined) {
             // Update instance(s) with new stack frame info
