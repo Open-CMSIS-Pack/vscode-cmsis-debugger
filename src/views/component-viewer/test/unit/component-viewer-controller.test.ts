@@ -107,7 +107,7 @@ describe('ComponentViewerController', () => {
                 callbacks.activeSession = cb;
                 return { dispose: jest.fn() };
             },
-            onStopped: (cb) => {
+            onStackTrace: (cb) => {
                 callbacks.stopped = cb;
                 return { dispose: jest.fn() };
             },
@@ -130,7 +130,7 @@ describe('ComponentViewerController', () => {
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         expect(registerTreeDataProvider).toHaveBeenCalledWith('cmsis-debugger.componentViewer', expect.any(Object));
-        expect(context.subscriptions.length).toBe(6);
+        expect(context.subscriptions.length).toBe(5);
     });
 
     it('skips reading scvd files when session or cbuild-run is missing', async () => {
