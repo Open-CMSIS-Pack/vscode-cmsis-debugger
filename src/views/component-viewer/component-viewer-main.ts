@@ -15,7 +15,7 @@
  */
 
 import * as vscode from 'vscode';
-import { GDBTargetDebugTracker, GDBTargetDebugSession, SessionStackItem } from '../../debug-session';
+import { GDBTargetDebugTracker, GDBTargetDebugSession } from '../../debug-session';
 import { ComponentViewerInstance } from './component-viewer-instance';
 import { URI } from 'vscode-uri';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';

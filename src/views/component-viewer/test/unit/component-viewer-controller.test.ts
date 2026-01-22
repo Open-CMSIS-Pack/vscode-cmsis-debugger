@@ -60,13 +60,13 @@ type TrackerCallbacks = {
     onConnected: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
     onDidChangeActiveStackItem: (cb: (item: StackItem) => Promise<void>) => { dispose: jest.Mock };
     onDidChangeActiveDebugSession: (cb: (session: Session | undefined) => Promise<void>) => { dispose: jest.Mock };
-    onStopped: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
+    onStackTrace: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
     callbacks: Partial<{
         willStop: (session: Session) => Promise<void>;
         connected: (session: Session) => Promise<void>;
         stackItem: (item: StackItem) => Promise<void>;
         activeSession: (session: Session | undefined) => Promise<void>;
-        stopped: (session: { session: Session }) => Promise<void>;
+        stackTrace: (session: { session: Session }) => Promise<void>;
     }>;
 };
 
@@ -108,7 +108,7 @@ describe('ComponentViewerController', () => {
                 return { dispose: jest.fn() };
             },
             onStackTrace: (cb) => {
-                callbacks.stopped = cb;
+                callbacks.stackTrace = cb;
                 return { dispose: jest.fn() };
             },
         };
@@ -212,8 +212,8 @@ describe('ComponentViewerController', () => {
         await tracker.callbacks.stackItem?.({ item: {} });
 
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
-        await tracker.callbacks.stopped?.({ session });
-        await tracker.callbacks.stopped?.({ session: otherSession });
+        await tracker.callbacks.stackTrace?.({ session });
+        await tracker.callbacks.stackTrace?.({ session: otherSession });
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
         await tracker.callbacks.willStop?.(session);
         (controller as unknown as { _activeSession?: Session })._activeSession = otherSession;
