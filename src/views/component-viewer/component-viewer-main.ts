@@ -86,9 +86,6 @@ export class ComponentViewer {
         const onConnectedDisposable = tracker.onConnected(async (session) => {
             await this.handleOnConnected(session, tracker);
         });
-        const onDidChangeActiveStackItemDisposable = tracker.onDidChangeActiveStackItem(async (stackTraceItem) => {
-            await this.handleOnDidChangeActiveStackItem(stackTraceItem);
-        });
         const onDidChangeActiveDebugSessionDisposable = tracker.onDidChangeActiveDebugSession(async (session) => {
             await this.handleOnDidChangeActiveDebugSession(session);
         });
@@ -99,7 +96,6 @@ export class ComponentViewer {
         context.subscriptions.push(
             onWillStopSessionDisposable,
             onConnectedDisposable,
-            onDidChangeActiveStackItemDisposable,
             onDidChangeActiveDebugSessionDisposable,
             onStackTraceDisposable
         );
@@ -144,13 +140,6 @@ export class ComponentViewer {
         if (this._activeSession?.session.id === session.session.id) {
             // Update component viewer instance(s)
             await this.updateInstances();
-        }
-    }
-
-    private async handleOnDidChangeActiveStackItem(stackTraceItem: SessionStackItem): Promise<void> {
-        if ((stackTraceItem.item as vscode.DebugStackFrame).frameId !== undefined) {
-            // Update instance(s) with new stack frame info
-            // await this.updateInstances();
         }
     }
 
