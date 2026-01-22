@@ -68,15 +68,14 @@ export class ComponentViewer {
         this._instances = cbuildRunInstances;
     }
 
-    private async loadCbuildRunInstances(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker) : Promise<void> {
+    private async loadCbuildRunInstances(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker) : Promise<void | undefined> {
         this._loadingCounter++;
         console.log(`Loading SCVD files from cbuild-run, attempt #${this._loadingCounter}`);
         // Try to read SCVD files from cbuild-run file first
         await this.readScvdFiles(tracker, session);
         // Are there any SCVD files found in cbuild-run?
-        if (this._instances.length > 0) {
-            await this.updateInstances();
-            return;
+        if (this._instances.length === 0) {
+            return undefined;
         }
     }
 
@@ -93,8 +92,8 @@ export class ComponentViewer {
         const onDidChangeActiveDebugSessionDisposable = tracker.onDidChangeActiveDebugSession(async (session) => {
             await this.handleOnDidChangeActiveDebugSession(session);
         });
-        const onStopped = tracker.onStopped(async (session) => {
-            await this.handleOnStopped(session.session);
+        const onStackTraceDisposable = tracker.onStackTrace(async (session) => {
+            await this.handleOnStackTrace(session.session);
         });
         // clear all disposables on extension deactivation
         context.subscriptions.push(
@@ -102,11 +101,11 @@ export class ComponentViewer {
             onConnectedDisposable,
             onDidChangeActiveStackItemDisposable,
             onDidChangeActiveDebugSessionDisposable,
-            onStopped
+            onStackTraceDisposable
         );
     }
 
-    private async handleOnStopped(session: GDBTargetDebugSession): Promise<void> {
+    private async handleOnStackTrace(session: GDBTargetDebugSession): Promise<void> {
         // Clear active session if it is NOT the one being stopped
         if (this._activeSession?.session.id !== session.session.id) {
             this._activeSession = undefined;
@@ -121,7 +120,7 @@ export class ComponentViewer {
             this._activeSession = undefined;
         }
         // Update component viewer instance(s)
-        await this.updateInstances();
+        //await this.updateInstances();
     }
 
     private async handleOnConnected(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker): Promise<void> {
@@ -136,13 +135,18 @@ export class ComponentViewer {
         await this.loadCbuildRunInstances(session, tracker);
         // Subscribe to refresh events of the started session
         session.refreshTimer.onRefresh(async (refreshSession) => {
-            if (this._activeSession?.session.id === refreshSession.session.id) {
-                // Update component viewer instance(s)
-                await this.updateInstances();
+            await this.handleRefreshTimerEvent(refreshSession);
             }
-        });
+        );
     }
 
+    private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
+        if (this._activeSession?.session.id === session.session.id) {
+            // Update component viewer instance(s)
+            await this.updateInstances();
+        }
+    }
+ 
     private async handleOnDidChangeActiveStackItem(stackTraceItem: SessionStackItem): Promise<void> {
         if ((stackTraceItem.item as vscode.DebugStackFrame).frameId !== undefined) {
             // Update instance(s) with new stack frame info
