@@ -25,6 +25,7 @@ export class ComponentViewer {
     private _activeSession: GDBTargetDebugSession | undefined;
     private _instances: ComponentViewerInstance[] = [];
     private _componentViewerTreeDataProvider: ComponentViewerTreeDataProvider | undefined;
+    private _filterInput: vscode.InputBox | undefined;
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
     private _updateSemaphoreFlag: boolean = false;
@@ -38,8 +39,10 @@ export class ComponentViewer {
         /* Create Tree Viewer */
         this._componentViewerTreeDataProvider = new ComponentViewerTreeDataProvider();
         const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
+        const filterCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.filter', () => this.showFilterInput());
         this._context.subscriptions.push(
-            treeProviderDisposable);
+            treeProviderDisposable,
+            filterCommandDisposable);
         // Subscribe to debug tracker events to update active session
         this.subscribetoDebugTrackerEvents(this._context, tracker);
     }
@@ -181,5 +184,30 @@ export class ComponentViewer {
         }
         this._componentViewerTreeDataProvider?.showModelData();
         this._updateSemaphoreFlag = false;
+    }
+
+    private showFilterInput(): void {
+        if (!this._componentViewerTreeDataProvider) {
+            return;
+        }
+
+        if (this._filterInput) {
+            this._filterInput.show();
+            return;
+        }
+
+        const input = vscode.window.createInputBox();
+        input.placeholder = 'Filter components';
+        input.prompt = 'Type to filter the Component Viewer tree';
+        input.value = this._componentViewerTreeDataProvider.getFilterText();
+        input.onDidChangeValue(value => {
+            this._componentViewerTreeDataProvider?.setFilterText(value);
+        });
+        input.onDidHide(() => {
+            input.dispose();
+            this._filterInput = undefined;
+        });
+        this._filterInput = input;
+        input.show();
     }
 }

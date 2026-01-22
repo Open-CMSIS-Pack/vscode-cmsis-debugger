@@ -143,6 +143,12 @@
         "command": "vscode-cmsis-debugger.liveWatch.showInMemoryInspector",
         "title": "Show in Memory Inspector",
         "category": "Live Watch"
+      },
+      {
+        "command": "vscode-cmsis-debugger.componentViewer.filter",
+        "title": "Filter Component Viewer",
+        "icon": "$(filter)",
+        "category": "Component Viewer"
       }
     ],
     "menus": {
@@ -255,6 +261,11 @@
           "command": "vscode-cmsis-debugger.liveWatch.refresh",
           "when": "view == cmsis-debugger.liveWatch",
           "group": "navigation@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.filter",
+          "when": "view == cmsis-debugger.componentViewer",
+          "group": "navigation@1"
         }
       ],
       "view/item/context": [

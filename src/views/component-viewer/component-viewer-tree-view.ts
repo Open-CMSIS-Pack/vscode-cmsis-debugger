@@ -24,6 +24,9 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     public readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
     private _objectOutRoots: ScvdGuiInterface[] = [];
     private _scvdModel: ScvdGuiInterface[] = [];
+    private _filterText = '';
+    private _filteredRoots: ScvdGuiInterface[] = [];
+    private _filteredChildren = new Map<ScvdGuiInterface, ScvdGuiInterface[]>();
 
     constructor () {
     }
@@ -47,6 +50,14 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     }
 
     public getChildren(element?: ScvdGuiInterface): Promise<ScvdGuiInterface[]> {
+        if (this._filterText.trim() !== '') {
+            if (!element) {
+                return Promise.resolve(this._filteredRoots);
+            }
+
+            return Promise.resolve(this._filteredChildren.get(element) ?? []);
+        }
+
         if (!element) {
             return Promise.resolve(this._objectOutRoots);
         }
@@ -62,6 +73,8 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     public resetModelCache(): void {
         this._scvdModel = [];
         this._objectOutRoots = [];
+        this._filteredRoots = [];
+        this._filteredChildren.clear();
     }
 
     public addGuiOut(guiOut: ScvdGuiInterface[] | undefined) {
@@ -72,12 +85,15 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
 
     public showModelData() {
         this.addRootObject();
+        this.rebuildFilterCache();
         this.refresh();
     }
 
     public deleteModels() {
         this._scvdModel = [];
         this._objectOutRoots = [];
+        this._filteredRoots = [];
+        this._filteredChildren.clear();
         this.refresh();
     }
 
@@ -86,5 +102,56 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
             return;
         }
         this._objectOutRoots = [...this._scvdModel];
+    }
+
+    public getFilterText(): string {
+        return this._filterText;
+    }
+
+    public setFilterText(filterText: string): void {
+        this._filterText = filterText;
+        this.rebuildFilterCache();
+        this.refresh();
+    }
+
+    private rebuildFilterCache(): void {
+        const normalizedFilter = this._filterText.trim().toLowerCase();
+        this._filteredRoots = [];
+        this._filteredChildren.clear();
+
+        if (normalizedFilter === '') {
+            return;
+        }
+
+        for (const root of this._objectOutRoots) {
+            if (this.filterNode(root, normalizedFilter)) {
+                this._filteredRoots.push(root);
+            }
+        }
+    }
+
+    private filterNode(node: ScvdGuiInterface, normalizedFilter: string): boolean {
+        const children = node.getGuiChildren() || [];
+        const matchingChildren: ScvdGuiInterface[] = [];
+        for (const child of children) {
+            if (this.filterNode(child, normalizedFilter)) {
+                matchingChildren.push(child);
+            }
+        }
+
+        const nodeMatches = this.nodeMatchesFilter(node, normalizedFilter);
+        if (nodeMatches || matchingChildren.length > 0) {
+            this._filteredChildren.set(node, matchingChildren);
+            return true;
+        }
+
+        return false;
+    }
+
+    private nodeMatchesFilter(node: ScvdGuiInterface, normalizedFilter: string): boolean {
+        const entry = node.getGuiEntry();
+        const candidateName = entry.name ?? node.getGuiName() ?? '';
+        const candidateValue = entry.value ?? node.getGuiValue() ?? '';
+        return `${candidateName} ${candidateValue}`.toLowerCase().includes(normalizedFilter);
     }
 }

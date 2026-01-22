@@ -170,4 +170,47 @@ describe('ComponentViewerTreeDataProvider', () => {
         expect(mockFire).toHaveBeenCalledTimes(2);
         expect(provider.getChildren()).resolves.toEqual([]);
     });
+
+    it('filters by name/value and keeps ancestor chain', async () => {
+        const provider = new ComponentViewerTreeDataProvider();
+        const grandchild = makeGui({ nodeId: 'grand', getGuiName: () => 'Gamma' });
+        const childA = makeGui({ nodeId: 'child-a', getGuiName: () => 'Alpha' });
+        const childB = makeGui({
+            nodeId: 'child-b',
+            getGuiName: () => 'Beta',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [grandchild],
+        });
+        const root = makeGui({
+            nodeId: 'root',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [childA, childB],
+        });
+
+        provider.addGuiOut([root]);
+        provider.showModelData();
+        provider.setFilterText('gAm');
+
+        await expect(provider.getChildren()).resolves.toEqual([root]);
+        await expect(provider.getChildren(root)).resolves.toEqual([childB]);
+        await expect(provider.getChildren(childB)).resolves.toEqual([grandchild]);
+    });
+
+    it('filters matching parents without showing non-matching children', async () => {
+        const provider = new ComponentViewerTreeDataProvider();
+        const child = makeGui({ nodeId: 'child', getGuiName: () => 'Child' });
+        const parent = makeGui({
+            nodeId: 'parent',
+            getGuiEntry: () => ({ name: 'Match', value: '' }),
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [child],
+        });
+
+        provider.addGuiOut([parent]);
+        provider.showModelData();
+        provider.setFilterText('match');
+
+        await expect(provider.getChildren()).resolves.toEqual([parent]);
+        await expect(provider.getChildren(parent)).resolves.toEqual([]);
+    });
 });
