@@ -55,7 +55,7 @@ import type { ExtensionContext } from 'vscode';
 import type { GDBTargetDebugTracker } from '../../../../debug-session';
 import { ComponentViewer } from '../../component-viewer-main';
 
-// Local test doubles
+// Local test mocks
 
 type Session = {
     session: { id: string };
@@ -127,7 +127,7 @@ describe('ComponentViewer', () => {
         const tracker = makeTracker();
         const controller = new ComponentViewer(context as unknown as ExtensionContext);
 
-        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         expect(registerTreeDataProvider).toHaveBeenCalledWith('cmsis-debugger.componentViewer', expect.any(Object));
         expect(context.subscriptions.length).toBe(6);
@@ -182,7 +182,7 @@ describe('ComponentViewer', () => {
         const context = makeContext();
         const tracker = makeTracker();
         const controller = new ComponentViewer(context as unknown as ExtensionContext);
-        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         const provider = (controller as unknown as { _componentViewerTreeDataProvider?: ReturnType<typeof treeProviderFactory> })._componentViewerTreeDataProvider;
 
