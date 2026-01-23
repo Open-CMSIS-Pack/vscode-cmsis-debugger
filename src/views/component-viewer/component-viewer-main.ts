@@ -27,7 +27,6 @@ export class ComponentViewer {
     private _componentViewerTreeDataProvider: ComponentViewerTreeDataProvider | undefined;
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
-    private _updateSemaphoreFlag: boolean = false;
     private _loadingCounter: number = 0;
 
     public constructor(context: vscode.ExtensionContext) {
@@ -92,12 +91,16 @@ export class ComponentViewer {
         const onStackTraceDisposable = tracker.onStackTrace(async (session) => {
             await this.handleOnStackTrace(session.session);
         });
+        const onWillStartSessionDisposable = tracker.onWillStartSession(async (session) => {
+            await this.handleOnWillStartSession(session);
+        });
         // clear all disposables on extension deactivation
         context.subscriptions.push(
             onWillStopSessionDisposable,
             onConnectedDisposable,
             onDidChangeActiveDebugSessionDisposable,
-            onStackTraceDisposable
+            onStackTraceDisposable,
+            onWillStartSessionDisposable
         );
     }
 
@@ -119,6 +122,14 @@ export class ComponentViewer {
         //await this.updateInstances();
     }
 
+    private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
+        // Subscribe to refresh events of the started session
+        session.refreshTimer.onRefresh(async (refreshSession) => {
+            await this.handleRefreshTimerEvent(refreshSession);
+        }
+        );
+    }
+
     private async handleOnConnected(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker): Promise<void> {
         // if new session is not the current active session, erase old instances and read the new ones
         if (this._activeSession?.session.id !== session.session.id) {
@@ -129,11 +140,6 @@ export class ComponentViewer {
         this._activeSession = session;
         // Load SCVD files from cbuild-run
         await this.loadCbuildRunInstances(session, tracker);
-        // Subscribe to refresh events of the started session
-        session.refreshTimer.onRefresh(async (refreshSession) => {
-            await this.handleRefreshTimerEvent(refreshSession);
-        }
-        );
     }
 
     private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
@@ -151,18 +157,12 @@ export class ComponentViewer {
     }
 
     private async updateInstances(): Promise<void> {
-        if (this._updateSemaphoreFlag) {
-            return;
-        }
-        this._updateSemaphoreFlag = true;
         this._instanceUpdateCounter = 0;
         if (!this._activeSession) {
             this._componentViewerTreeDataProvider?.deleteModels();
-            this._updateSemaphoreFlag = false;
             return;
         }
         if (this._instances.length === 0) {
-            this._updateSemaphoreFlag = false;
             return;
         }
         this._componentViewerTreeDataProvider?.resetModelCache();
@@ -173,6 +173,5 @@ export class ComponentViewer {
             this._componentViewerTreeDataProvider?.addGuiOut(instance.getGuiTree());
         }
         this._componentViewerTreeDataProvider?.showModelData();
-        this._updateSemaphoreFlag = false;
     }
 }
