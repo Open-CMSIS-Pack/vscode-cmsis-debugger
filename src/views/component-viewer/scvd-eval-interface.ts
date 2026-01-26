@@ -132,10 +132,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
             bits = 32; // default padding for unknown/non-scalar
         }
 
-        const info: FormatTypeInfo & { widthBytes?: number } = { kind };
-        if (bits !== undefined) {
-            info.bits = bits;
-        }
+        const info: FormatTypeInfo & { widthBytes?: number } = { kind, bits };
         if (widthBytes !== undefined) {
             info.widthBytes = widthBytes;
         }
@@ -462,6 +459,25 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
             case 'M': {
                 if (value instanceof Uint8Array) {
                     return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+                }
+                const anchor = container.anchor ?? base;
+                let width = container.widthBytes;
+                if (width === undefined) {
+                    width = formatRef ? await this.getByteWidth(formatRef) : undefined;
+                }
+                if (width === undefined) {
+                    width = 6;
+                }
+                if (anchor?.name !== undefined && width > 0) {
+                    const cacheRef: RefContainer = {
+                        ...container,
+                        anchor,
+                        widthBytes: width
+                    };
+                    const raw = await this.memHost.readRaw(cacheRef, width);
+                    if (raw !== undefined) {
+                        return this.formatSpecifier.format(spec, raw, { typeInfo, allowUnknownSpec: true });
+                    }
                 }
                 if (typeof value === 'number') {
                     const buf = await this.readBytesFromPointer(value, 6);

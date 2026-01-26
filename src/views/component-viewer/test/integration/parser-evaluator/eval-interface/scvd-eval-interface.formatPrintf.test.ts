@@ -29,6 +29,7 @@ import { MemoryHost } from '../../../../data-host/memory-host';
 import { RegisterHost } from '../../../../data-host/register-host';
 import { ScvdNode } from '../../../../model/scvd-node';
 import { ScvdMember } from '../../../../model/scvd-member';
+import { ScvdVar } from '../../../../model/scvd-var';
 import { ScvdDebugTarget } from '../../../../scvd-debug-target';
 
 class FakeBase extends ScvdNode {
@@ -69,6 +70,22 @@ class FakeMember extends ScvdMember {
         return {
             getGuiName: async () => 'ENUM_READY'
         } as unknown as Awaited<ReturnType<ScvdMember['getEnum']>>;
+    }
+}
+
+class FakeVar extends ScvdVar {
+    constructor() {
+        super(undefined);
+    }
+
+    public override async getTargetSize(): Promise<number | undefined> {
+        return 4;
+    }
+
+    public override async getEnum(_value: number) {
+        return {
+            getGuiName: async () => 'ENUM_VAR'
+        } as unknown as Awaited<ReturnType<ScvdVar['getEnum']>>;
     }
 }
 
@@ -161,6 +178,15 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
         expect(out).toBe('0x1a');
     });
 
+    it('formats %x from boolean and non-numeric strings', async () => {
+        await expect(scvd.formatPrintf('x', true, makeContainer('uint32_t'))).resolves.toBe('0x1');
+        await expect(scvd.formatPrintf('x', 'NaN', makeContainer('uint32_t'))).resolves.toBe('NaN');
+    });
+
+    it('formats %x from false booleans', async () => {
+        await expect(scvd.formatPrintf('x', false, makeContainer('uint32_t'))).resolves.toBe('0x0');
+    });
+
     it('truncates floats for %x', async () => {
         const out = await scvd.formatPrintf('x', 7.9, makeContainer('int32_t'));
         expect(out).toBe('0x7');
@@ -192,11 +218,62 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
             base: node,
             current: node,
             anchor: node,
-            widthBytes: 5,
             valueType: undefined
         };
         const out = await scvdWithMem.formatPrintf('t', 0, container);
         expect(out).toBe('Name');
+    });
+
+    it('formats %t with fallback when cached data is missing', async () => {
+        const memHost = new MemoryHost();
+        const debugTarget = new FakeDebugTarget(new Map(), new Map()) as unknown as ScvdDebugTarget;
+        const scvdWithMem = new ScvdEvalInterface(
+            memHost,
+            {} as RegisterHost,
+            debugTarget,
+            new ScvdFormatSpecifier()
+        );
+        const node = new FakeBase();
+        node.name = 'buf';
+        const container: RefContainer = {
+            base: node,
+            current: node,
+            valueType: undefined,
+            widthBytes: 0
+        };
+        const out = await scvdWithMem.formatPrintf('t', 5, container);
+        expect(out).toBe('5');
+    });
+
+    it('formats %t when no base is available', async () => {
+        const out = await scvd.formatPrintf(
+            't',
+            7,
+            { base: undefined, current: undefined, valueType: undefined } as unknown as RefContainer
+        );
+        expect(out).toBe('7');
+    });
+
+    it('formats %t when cached bytes are unavailable', async () => {
+        const memHost = { readRaw: jest.fn().mockResolvedValue(undefined) } as unknown as MemoryHost;
+        const debugTarget = new FakeDebugTarget(new Map(), new Map()) as unknown as ScvdDebugTarget;
+        const scvdWithMock = new ScvdEvalInterface(
+            memHost,
+            {} as RegisterHost,
+            debugTarget,
+            new ScvdFormatSpecifier()
+        );
+        const node = new FakeBase();
+        node.name = 'buf';
+        const container: RefContainer = {
+            base: node,
+            current: node,
+            anchor: node,
+            widthBytes: 4,
+            valueType: undefined
+        };
+        const out = await scvdWithMock.formatPrintf('t', 0, container);
+        expect(out).toBe('0');
     });
 
     it('formats %C as symbol name when available', async () => {
@@ -209,11 +286,31 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
         expect(out).toBe('MySym');
     });
 
+    it('formats %S with numeric fallback when symbol is missing', async () => {
+        const noSymbols = makeEvalInterface(new Map(), new Map());
+        const out = await noSymbols.formatPrintf('S', 0x2000, makeContainer());
+        expect(out).toBe('0x00002000');
+    });
+
     it('formats %E using enum text', async () => {
         const member = new FakeMember();
         const container: RefContainer = { base: member, current: member, valueType: undefined };
         const out = await scvd.formatPrintf('E', 2, container);
         expect(out).toBe('ENUM_READY');
+    });
+
+    it('formats %E using enum text from vars', async () => {
+        const variable = new FakeVar();
+        const container: RefContainer = { base: variable, current: variable, valueType: undefined };
+        const out = await scvd.formatPrintf('E', 3, container);
+        expect(out).toBe('ENUM_VAR');
+    });
+
+    it('formats %E without enum text when value is not numeric', async () => {
+        const base = new FakeBase();
+        const container: RefContainer = { base, current: base, valueType: undefined };
+        const out = await scvd.formatPrintf('E', 'x', container);
+        expect(out).toBe('x');
     });
 
     it('formats %I (IPv4) from memory bytes', async () => {
@@ -236,9 +333,66 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
         expect(out).toBe('1E-30-6C-A2-45-5F');
     });
 
+    it('formats %M (MAC) from cached bytes', async () => {
+        const memHost = new MemoryHost();
+        memHost.setVariable('mac', 6, new Uint8Array([0x1E, 0x30, 0x6C, 0xA2, 0x45, 0x5F]), 0);
+        const debugTarget = new FakeDebugTarget(new Map(), new Map()) as unknown as ScvdDebugTarget;
+        const scvdWithMem = new ScvdEvalInterface(
+            memHost,
+            {} as RegisterHost,
+            debugTarget,
+            new ScvdFormatSpecifier()
+        );
+        const node = new FakeBase();
+        node.name = 'mac';
+        const container: RefContainer = {
+            base: node,
+            current: node,
+            anchor: node,
+            widthBytes: 6,
+            valueType: undefined
+        };
+        const out = await scvdWithMem.formatPrintf('M', 0, container);
+        expect(out).toBe('1E-30-6C-A2-45-5F');
+    });
+
+    it('formats %M using inferred width from the ref', async () => {
+        const memHost = new MemoryHost();
+        memHost.setVariable('mac2', 6, new Uint8Array([0x1E, 0x30, 0x6C, 0xA2, 0x45, 0x5F]), 0);
+        const debugTarget = new FakeDebugTarget(new Map(), new Map()) as unknown as ScvdDebugTarget;
+        const scvdWithMem = new ScvdEvalInterface(
+            memHost,
+            {} as RegisterHost,
+            debugTarget,
+            new ScvdFormatSpecifier()
+        );
+        const node = new FakeBase();
+        node.name = 'mac2';
+        node.getTargetSize = async () => 6;
+        const container: RefContainer = {
+            base: node,
+            current: node,
+            anchor: node,
+            valueType: undefined
+        };
+        const out = await scvdWithMem.formatPrintf('M', 0, container);
+        expect(out).toBe('1E-30-6C-A2-45-5F');
+    });
+
+    it('formats %M with numeric fallback when pointer read fails', async () => {
+        const noMem = makeEvalInterface(new Map(), new Map());
+        const out = await noMem.formatPrintf('M', 0x30, makeContainer());
+        expect(out).toBe('00-30-00-00-00-30');
+    });
+
     it('formats %N (string address)', async () => {
         const out = await scvd.formatPrintf('N', 0x40, makeContainer());
         expect(out).toBe('Name');
+    });
+
+    it('formats %N with fallback when value is not an integer', async () => {
+        const out = await scvd.formatPrintf('N', 1.5, makeContainer());
+        expect(out).toBe('1.5');
     });
 
     it('formats %T as float for floating types', async () => {
@@ -254,6 +408,12 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
     it('formats %U (wide string)', async () => {
         const out = await scvd.formatPrintf('U', 0x50, makeContainer());
         expect(out).toBe('USB');
+    });
+
+    it('formats %U with fallback when pointer read fails', async () => {
+        const noMem = makeEvalInterface(new Map(), new Map());
+        const out = await noMem.formatPrintf('U', 0x50, makeContainer());
+        expect(out).toBe('80');
     });
 
     it('formats %% literal percent', async () => {

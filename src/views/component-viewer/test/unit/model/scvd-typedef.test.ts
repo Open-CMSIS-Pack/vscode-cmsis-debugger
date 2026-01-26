@@ -245,6 +245,25 @@ describe('ScvdTypedef', () => {
         await expect(typedef.getVirtualSize()).resolves.toBe(4);
     });
 
+    it('uses default array counts when member or var counts are undefined', async () => {
+        const typedef = new ScvdTypedef(undefined);
+        const member = typedef.addMember();
+        const variable = typedef.addVar();
+
+        member.name = 'm1';
+        variable.name = 'v1';
+        jest.spyOn(member, 'getTargetSize').mockResolvedValue(1);
+        jest.spyOn(member, 'getArraySize').mockResolvedValue(undefined);
+        jest.spyOn(variable, 'getTargetSize').mockResolvedValue(2);
+        jest.spyOn(variable, 'getArraySize').mockResolvedValue(undefined);
+
+        await typedef.calculateOffsets();
+
+        expect(variable.offset?.expression).toBe('1');
+        await expect(typedef.getTargetSize()).resolves.toBe(1);
+        await expect(typedef.getVirtualSize()).resolves.toBe(3);
+    });
+
     it('skips offset updates when offset values are undefined', async () => {
         const typedef = new ScvdTypedef(undefined);
         const member = typedef.addMember();

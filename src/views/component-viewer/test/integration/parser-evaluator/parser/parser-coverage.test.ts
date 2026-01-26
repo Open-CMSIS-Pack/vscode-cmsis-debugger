@@ -38,6 +38,7 @@ import {
     __parserTestUtils,
     parseExpression
 } from '../../../../parser-evaluator/parser';
+import { INTRINSIC_DEFINITIONS } from '../../../../parser-evaluator/intrinsics';
 
 type ParserPrivate = {
     diagnostics: Diagnostic[];
@@ -181,6 +182,28 @@ describe('parser', () => {
 
         const semicolonInner = parseExpression('%x[1;]', true);
         expect(asPrintf(semicolonInner.ast).segments.length).toBeGreaterThan(0);
+    });
+
+    it('reports division/modulo by zero during folding', () => {
+        const div = parseExpression('1/0', false);
+        expect(div.diagnostics.some(d => d.message.includes('Division by zero'))).toBe(true);
+        const mod = parseExpression('1%0', false);
+        expect(mod.diagnostics.some(d => d.message.includes('Division by zero'))).toBe(true);
+    });
+
+    it('handles missing intrinsic definitions during parsing', () => {
+        const original = INTRINSIC_DEFINITIONS.__GetRegVal;
+        (INTRINSIC_DEFINITIONS as unknown as Record<string, unknown>).__GetRegVal = undefined;
+        const pr = parseExpression('__GetRegVal(1)', false);
+        expect(pr.ast.kind).toBe('EvalPointCall');
+        (INTRINSIC_DEFINITIONS as unknown as Record<string, unknown>).__GetRegVal = original;
+    });
+
+    it('exposes parser test utilities for const normalization', () => {
+        expect(__parserTestUtils.normalizeConstValue(true)).toBe(true);
+        expect(__parserTestUtils.normalizeConstValue({} as unknown as ConstValue)).toBeUndefined();
+        expect(__parserTestUtils.isZeroConst(0)).toBe(true);
+        expect(__parserTestUtils.isZeroConst(1)).toBe(false);
     });
 
     it('parses plain printf text without specifiers', () => {

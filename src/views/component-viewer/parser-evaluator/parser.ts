@@ -1077,7 +1077,7 @@ export class Parser {
 /* -------- Convenience singleton and API -------- */
 
 // Internal helpers exposed for tests.
-export const __parserTestUtils = { literalFromConst };
+export const __parserTestUtils = { literalFromConst, normalizeConstValue, isZeroConst };
 
 export const defaultParser = new Parser();
 export function parseExpression(expr: string, isPrintExpression: boolean): ParseResult {

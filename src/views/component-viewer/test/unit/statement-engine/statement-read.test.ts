@@ -141,6 +141,25 @@ describe('StatementRead', () => {
         expect(ctx.debugTarget.readMemory).toHaveBeenCalledWith(0x1004n, 4);
     });
 
+    it('defaults array size when undefined', async () => {
+        const read = createRead({
+            findSymbolAddress: jest.fn().mockResolvedValue(0x5000),
+            readMemory: jest.fn().mockResolvedValue(new Uint8Array([1, 2, 3, 4])),
+        });
+        jest.spyOn(read, 'getArraySize').mockResolvedValue(undefined);
+
+        const stmt = new StatementRead(read, undefined);
+        const ctx = createExecutionContext(read, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x5000),
+            readMemory: jest.fn().mockResolvedValue(new Uint8Array([1, 2, 3, 4])),
+        });
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        expect(ctx.debugTarget.readMemory).toHaveBeenCalledWith(0x5000, 4);
+    });
+
     it('handles bigint symbol addresses', async () => {
         const read = createRead({
             findSymbolAddress: jest.fn().mockResolvedValue(0x2000n),

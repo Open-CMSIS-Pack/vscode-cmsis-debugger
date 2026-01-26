@@ -153,6 +153,9 @@ describe('ScvdVar', () => {
         sizeSpy.mockResolvedValueOnce('bad');
         await expect(item.getArraySize()).resolves.toBe(1);
 
+        sizeSpy.mockResolvedValueOnce(2n);
+        await expect(item.getArraySize()).resolves.toBe(2);
+
         sizeSpy.mockResolvedValueOnce(2048);
         await expect(item.getArraySize()).resolves.toBe(1024);
 

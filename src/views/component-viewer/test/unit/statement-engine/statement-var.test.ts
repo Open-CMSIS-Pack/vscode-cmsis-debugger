@@ -42,6 +42,23 @@ describe('StatementVar', () => {
         expect(spy).toHaveBeenCalledWith('varA', 4, 123, -1, 0);
     });
 
+    it('defaults array count to 1 when undefined', async () => {
+        const item = new ScvdVar(undefined);
+        item.name = 'varB';
+        jest.spyOn(item, 'getTargetSize').mockResolvedValue(4);
+        jest.spyOn(item, 'getArraySize').mockResolvedValue(undefined);
+        jest.spyOn(item, 'getValue').mockResolvedValue(456);
+
+        const stmt = new StatementVar(item, undefined);
+        const ctx = createExecutionContext(item);
+        const spy = jest.spyOn(ctx.memoryHost, 'setVariable');
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        expect(spy).toHaveBeenCalledWith('varB', 4, 456, -1, 0);
+    });
+
     it('skips when required values are missing', async () => {
         const item = new ScvdVar(undefined);
         jest.spyOn(item, 'getTargetSize').mockResolvedValue(4);

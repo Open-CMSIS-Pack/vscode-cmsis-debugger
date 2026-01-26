@@ -89,4 +89,23 @@ describe('generate-scvd-expressions', () => {
         expect(readFileSync).toHaveBeenCalledTimes(3);
         expect(writeFileSync).toHaveBeenCalledTimes(3);
     });
+
+    it('runs the entrypoint helper when flagged', async () => {
+        const readFileSync = jest.fn(() => 'offset="1"');
+        const writeFileSync = jest.fn();
+        const mkdirSync = jest.fn();
+
+        await jest.isolateModulesAsync(async () => {
+            jest.doMock('fs', () => ({
+                readFileSync,
+                writeFileSync,
+                mkdirSync,
+            }));
+            const mod = await import('./generate-scvd-expressions');
+            mod.runMainIfEntrypoint(true);
+        });
+
+        expect(readFileSync).toHaveBeenCalledTimes(3);
+        expect(writeFileSync).toHaveBeenCalledTimes(3);
+    });
 });

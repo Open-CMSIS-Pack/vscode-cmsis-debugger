@@ -188,6 +188,26 @@ describe('StatementReadList', () => {
         expect(ctx.debugTarget.readMemory).toHaveBeenCalledWith(0x2008n, 4);
     });
 
+    it('iterates pointer arrays and advances by stride', async () => {
+        const readList = createReadList();
+        readList.based = 1;
+        jest.spyOn(readList, 'getCount').mockResolvedValue(2);
+        const stmt = new StatementReadList(readList, undefined);
+        const ctx = createContext(readList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
+            getNumArrayElements: jest.fn().mockResolvedValue(2),
+            readMemory: jest.fn()
+                .mockResolvedValueOnce(new Uint8Array([1, 2, 3, 4]))
+                .mockResolvedValueOnce(new Uint8Array([5, 6, 7, 8])),
+        });
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        expect(ctx.debugTarget.readMemory).toHaveBeenNthCalledWith(1, 0x1000, 4);
+        expect(ctx.debugTarget.readMemory).toHaveBeenNthCalledWith(2, 0x1004n, 4);
+    });
+
     it('supports bigint offsets without symbols', async () => {
         const readList = new ScvdReadList(undefined);
         readList.name = 'list';

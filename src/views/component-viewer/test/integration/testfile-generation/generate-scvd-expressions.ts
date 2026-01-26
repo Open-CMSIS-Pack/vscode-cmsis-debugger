@@ -122,6 +122,10 @@ export function main(): void {
     }
 }
 
-if (require.main === module) {
-    main();
+export function runMainIfEntrypoint(isMain: boolean = require.main === module): void {
+    if (isMain) {
+        main();
+    }
 }
+
+runMainIfEntrypoint();

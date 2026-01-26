@@ -43,7 +43,7 @@ describe('intrinsics', () => {
 
     it('runs numeric intrinsics and coercions', async () => {
         const host = {
-            __GetRegVal: jest.fn(async (r: string) => r === 'r0' ? 1 : undefined),
+            __GetRegVal: jest.fn(async (r: string) => r === 'r0' ? 1 : (r === '' ? 2 : undefined)),
             __FindSymbol: jest.fn(async () => 0x10),
             __CalcMemUsed: jest.fn(async (a: number, b: number, c: number, d: number) => a + b + c + d),
             __size_of: jest.fn(async () => 4),
@@ -53,8 +53,10 @@ describe('intrinsics', () => {
         } as unknown as IntrinsicProvider;
 
         await expect(handleIntrinsic(host, container(), '__GetRegVal', ['r0'])).resolves.toBe(1);
+        await expect(handleIntrinsic(host, container(), '__GetRegVal', [undefined])).resolves.toBe(2);
         await expect(handleIntrinsic(host, container(), '__FindSymbol', ['main'])).resolves.toBe(0x10);
         await expect(handleIntrinsic(host, container(), '__CalcMemUsed', [1, 2, 3, 4])).resolves.toBe(10);
+        await expect(handleIntrinsic(host, container(), '__CalcMemUsed', [undefined, undefined, undefined, undefined])).resolves.toBe(0);
         await expect(handleIntrinsic(host, container(), '__size_of', ['T'])).resolves.toBe(4);
         await expect(handleIntrinsic(host, container(), '__Symbol_exists', ['foo'])).resolves.toBe(1);
         await expect(handleIntrinsic(host, container(), '__Offset_of', ['member'])).resolves.toBe('member'.length >>> 0);

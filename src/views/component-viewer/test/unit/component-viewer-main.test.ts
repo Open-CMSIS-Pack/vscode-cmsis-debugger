@@ -178,6 +178,18 @@ describe('ComponentViewer', () => {
         expect(instanceFactory).toHaveBeenCalledTimes(2);
     });
 
+    it('skips reading scvd files when no active session is set', async () => {
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const tracker = makeTracker();
+        const session = makeSession('s1', ['a.scvd']);
+        const readScvdFiles = (controller as unknown as { readScvdFiles: (t: TrackerCallbacks, s?: Session) => Promise<void> }).readScvdFiles.bind(controller);
+
+        await readScvdFiles(tracker, session);
+
+        const instances = (controller as unknown as { _instances: unknown[] })._instances;
+        expect(instances).toEqual([]);
+    });
+
     it('handles tracker events and updates sessions', async () => {
         const context = makeContext();
         const tracker = makeTracker();
@@ -215,6 +227,23 @@ describe('ComponentViewer', () => {
         await tracker.callbacks.willStop?.(session);
     });
 
+    it('does not reset instances when the same session reconnects', async () => {
+        const context = makeContext();
+        const tracker = makeTracker();
+        const controller = new ComponentViewer(context as unknown as ExtensionContext);
+        controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const provider = (controller as unknown as { _componentViewerTreeDataProvider?: ReturnType<typeof treeProviderFactory> })._componentViewerTreeDataProvider;
+        const session = makeSession('s1', ['a.scvd']);
+        (controller as unknown as { _activeSession?: Session })._activeSession = session;
+        (controller as unknown as { _instances: unknown[] })._instances = [instanceFactory()];
+
+        await tracker.callbacks.connected?.(session);
+
+        expect(provider?.deleteModels).not.toHaveBeenCalled();
+        expect((controller as unknown as { _instances: unknown[] })._instances).toHaveLength(1);
+    });
+
     it('updates instances when active session and instances are present', async () => {
         const context = makeContext();
         const controller = new ComponentViewer(context as unknown as ExtensionContext);
@@ -242,5 +271,20 @@ describe('ComponentViewer', () => {
         expect(provider.showModelData).toHaveBeenCalled();
         expect(instanceA.update).toHaveBeenCalled();
         expect(instanceB.update).toHaveBeenCalled();
+    });
+
+    it('skips updates while already updating', async () => {
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const provider = treeProviderFactory();
+        (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
+        (controller as unknown as { _activeSession?: Session })._activeSession = makeSession('s1');
+        (controller as unknown as { _instances: unknown[] })._instances = [instanceFactory()];
+        (controller as unknown as { _updating: boolean })._updating = true;
+
+        const updateInstances = (controller as unknown as { updateInstances: () => Promise<void> }).updateInstances.bind(controller);
+        await updateInstances();
+
+        expect(provider.resetModelCache).not.toHaveBeenCalled();
+        expect(provider.addGuiOut).not.toHaveBeenCalled();
     });
 });

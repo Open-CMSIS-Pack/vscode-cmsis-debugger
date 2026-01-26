@@ -53,6 +53,7 @@ describe('ScvdTypesCache', () => {
         const typedefs = new ScvdTypedefs(viewer);
         const good = typedefs.addTypedef();
         good.name = 'GoodType';
+        const unnamed = typedefs.addTypedef();
         // Insert a non-typedef child to ensure it is skipped
         new MinimalNode(typedefs);
         (viewer as unknown as { _typedefs: ScvdTypedefs | undefined })._typedefs = typedefs;
@@ -60,6 +61,7 @@ describe('ScvdTypesCache', () => {
         const cache = new ScvdTypesCache(viewer);
         cache.createCache();
         expect(cache.findTypeByName('GoodType')).toBe(good);
+        expect(cache.findTypeByName(unnamed.name ?? '')).toBeUndefined();
         expect(cache.findTypeByName('Missing')).toBeUndefined();
     });
 
