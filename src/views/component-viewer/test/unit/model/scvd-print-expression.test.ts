@@ -23,6 +23,11 @@
 import { ScvdPrintExpression } from '../../../model/scvd-print-expression';
 
 describe('ScvdPrintExpression', () => {
+    it('exposes classname', () => {
+        const expr = new ScvdPrintExpression(undefined, '1+2', 'value');
+        expect(expr.classname).toBe('ScvdPrintExpression');
+    });
+
     it('constructs and defers configure/validate to base', () => {
         const expr = new ScvdPrintExpression(undefined, '1+2', 'value');
         expect(expr.configure()).toBe(true);

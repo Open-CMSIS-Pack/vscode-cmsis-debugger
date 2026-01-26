@@ -113,4 +113,16 @@ describe('ScvdDataType', () => {
         inner.resolveAndLink((name) => (name === 'MyType' ? typedef : undefined));
         expect(dataType.getValueType()).toBe('uint32_t');
     });
+
+    it('exposes classnames and target sizes', async () => {
+        const dataType = new ScvdDataType(undefined, 'uint16_t');
+        expect(dataType.classname).toBe('ScvdDataType');
+        await expect(dataType.getTargetSize()).resolves.toBe(2);
+
+        const scalar = new ScvdScalarDataType(undefined, 'uint8_t');
+        expect(scalar.classname).toBe('ScvdScalarDataType');
+
+        const complex = new ScvdComplexDataType(undefined, 'MyType');
+        expect(complex.classname).toBe('ScvdComplexDataType');
+    });
 });

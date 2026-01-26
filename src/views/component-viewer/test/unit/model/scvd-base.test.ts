@@ -52,6 +52,8 @@ class UndefinedTagBase extends ScvdBase {
     }
 }
 
+class PlainBase extends ScvdBase {}
+
 describe('ScvdBase', () => {
     beforeEach(() => {
         ScvdBase.resetIds();
@@ -89,6 +91,11 @@ describe('ScvdBase', () => {
         expect(base.valid).toBe(true);
         expect(base.mustRead).toBe(false);
         expect(base.lineNo).toBe('10');
+    });
+
+    it('defaults classname when not overridden', () => {
+        const base = new PlainBase(undefined);
+        expect(base.classname).toBe('ScvdBase');
     });
 
     it('supports traversal helpers', () => {

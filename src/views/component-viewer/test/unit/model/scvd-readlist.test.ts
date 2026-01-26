@@ -78,6 +78,11 @@ describe('ScvdReadList', () => {
         await expect(readlist.getArraySize()).resolves.toBe(3);
     });
 
+    it('falls back to base target size when no type is defined', async () => {
+        const readlist = new ScvdReadList(undefined);
+        await expect(readlist.getTargetSize()).resolves.toBeUndefined();
+    });
+
     it('treats pointers only when based is true', () => {
         const readlist = new ScvdReadList(undefined);
         (readlist as unknown as { _type?: unknown })._type = makeType({ isPointer: true });

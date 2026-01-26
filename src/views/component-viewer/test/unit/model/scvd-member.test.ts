@@ -25,6 +25,11 @@ import { ScvdMember } from '../../../model/scvd-member';
 import { ScvdExpression } from '../../../model/scvd-expression';
 
 describe('ScvdMember', () => {
+    it('exposes classname', () => {
+        const member = new ScvdMember(undefined);
+        expect(member.classname).toBe('ScvdMember');
+    });
+
     it('reads XML and populates member metadata', () => {
         const member = new ScvdMember(undefined);
         expect(member.readXml(undefined as unknown as Json)).toBe(false);
@@ -70,6 +75,26 @@ describe('ScvdMember', () => {
         await expect(oversized.getTargetSize()).resolves.toBe(1);
     });
 
+    it('clamps invalid array sizes', async () => {
+        const member = new ScvdMember(undefined);
+        member.size = 'size';
+        const sizeExpr = member.size as ScvdExpression;
+        const sizeSpy = jest.spyOn(sizeExpr, 'getValue');
+
+        sizeSpy.mockResolvedValueOnce(0);
+        await expect(member.getArraySize()).resolves.toBe(1);
+
+        sizeSpy.mockResolvedValueOnce(BigInt(2));
+        await expect(member.getArraySize()).resolves.toBe(2);
+
+        sizeSpy.mockResolvedValueOnce(Number.POSITIVE_INFINITY);
+        await expect(member.getArraySize()).resolves.toBe(1);
+
+        sizeSpy.mockResolvedValueOnce('bad');
+        await expect(member.getArraySize()).resolves.toBe(1);
+
+        sizeSpy.mockRestore();
+    });
 
     it('finds enums and members via helper APIs', async () => {
         const member = new ScvdMember(undefined);
@@ -115,5 +140,10 @@ describe('ScvdMember', () => {
 
         member.type = 'uint16_t';
         await expect(member.getTargetSize()).resolves.toBe(2);
+    });
+
+    it('returns undefined target size when type size is missing', async () => {
+        const member = new ScvdMember(undefined);
+        await expect(member.getTargetSize()).resolves.toBeUndefined();
     });
 });
