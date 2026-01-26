@@ -140,7 +140,7 @@ export class ComponentViewer {
     private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
         if (this._activeSession?.session.id === session.session.id) {
             // Update component viewer instance(s)
-            //await this.updateInstances();
+            await this.updateInstances();
         }
     }
 
@@ -148,23 +148,16 @@ export class ComponentViewer {
         // Update debug session
         this._activeSession = session;
         // Update component viewer instance(s)
-        //await this.updateInstances();
+        await this.updateInstances();
     }
 
-    private _updating = false;
     private async updateInstances(): Promise<void> {
-        if( this._updating ) {
-            return;
-        }
-        this._updating = true;
         this._instanceUpdateCounter = 0;
         if (!this._activeSession) {
             this._componentViewerTreeDataProvider?.deleteModels();
-            this._updating = false;
             return;
         }
         if (this._instances.length === 0) {
-            this._updating = false;
             return;
         }
         this._componentViewerTreeDataProvider?.resetModelCache();
@@ -175,6 +168,5 @@ export class ComponentViewer {
             this._componentViewerTreeDataProvider?.addGuiOut(instance.getGuiTree());
         }
         this._componentViewerTreeDataProvider?.showModelData();
-        this._updating = false;
     }
 }
