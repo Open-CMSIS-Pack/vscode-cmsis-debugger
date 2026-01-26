@@ -57,6 +57,12 @@ class FakeBase extends ScvdNode {
     }
 }
 
+class FakePointer extends FakeBase {
+    public override getIsPointer(): boolean {
+        return true;
+    }
+}
+
 class FakeMember extends ScvdMember {
     constructor() {
         super(undefined);
@@ -329,7 +335,7 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
     });
 
     it('formats %M (MAC) from memory bytes', async () => {
-        const out = await scvd.formatPrintf('M', 0x30, makeContainer());
+        const out = await scvd.formatPrintf('M', 0x30, makeContainer(undefined, new FakePointer()));
         expect(out).toBe('1E-30-6C-A2-45-5F');
     });
 
@@ -381,7 +387,7 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
 
     it('formats %M with numeric fallback when pointer read fails', async () => {
         const noMem = makeEvalInterface(new Map(), new Map());
-        const out = await noMem.formatPrintf('M', 0x30, makeContainer());
+        const out = await noMem.formatPrintf('M', 0x30, makeContainer(undefined, new FakePointer()));
         expect(out).toBe('00-30-00-00-00-30');
     });
 

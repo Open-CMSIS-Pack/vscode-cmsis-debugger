@@ -479,7 +479,8 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                         return this.formatSpecifier.format(spec, raw, { typeInfo, allowUnknownSpec: true });
                     }
                 }
-                if (typeof value === 'number') {
+                const isPointer = formatRef?.getIsPointer?.() ?? false;
+                if (isPointer && typeof value === 'number') {
                     const buf = await this.readBytesFromPointer(value, 6);
                     return this.formatSpecifier.format(spec, buf ?? value, { typeInfo, allowUnknownSpec: true });
                 }
