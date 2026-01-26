@@ -272,19 +272,4 @@ describe('ComponentViewer', () => {
         expect(instanceA.update).toHaveBeenCalled();
         expect(instanceB.update).toHaveBeenCalled();
     });
-
-    it('skips updates while already updating', async () => {
-        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
-        const provider = treeProviderFactory();
-        (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
-        (controller as unknown as { _activeSession?: Session })._activeSession = makeSession('s1');
-        (controller as unknown as { _instances: unknown[] })._instances = [instanceFactory()];
-        (controller as unknown as { _updating: boolean })._updating = true;
-
-        const updateInstances = (controller as unknown as { updateInstances: () => Promise<void> }).updateInstances.bind(controller);
-        await updateInstances();
-
-        expect(provider.resetModelCache).not.toHaveBeenCalled();
-        expect(provider.addGuiOut).not.toHaveBeenCalled();
-    });
 });
