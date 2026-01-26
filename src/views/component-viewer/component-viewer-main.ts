@@ -15,7 +15,7 @@
  */
 
 import * as vscode from 'vscode';
-import { GDBTargetDebugTracker, GDBTargetDebugSession, SessionStackItem } from '../../debug-session';
+import { GDBTargetDebugTracker, GDBTargetDebugSession } from '../../debug-session';
 import { ComponentViewerInstance } from './component-viewer-instance';
 import { URI } from 'vscode-uri';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
@@ -27,7 +27,6 @@ export class ComponentViewer {
     private _componentViewerTreeDataProvider: ComponentViewerTreeDataProvider | undefined;
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
-    private _updateSemaphoreFlag: boolean = false;
     private _loadingCounter: number = 0;
 
     public constructor(context: vscode.ExtensionContext) {
@@ -68,15 +67,14 @@ export class ComponentViewer {
         this._instances = cbuildRunInstances;
     }
 
-    private async loadCbuildRunInstances(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker) : Promise<void> {
+    private async loadCbuildRunInstances(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker) : Promise<void | undefined> {
         this._loadingCounter++;
         console.log(`Loading SCVD files from cbuild-run, attempt #${this._loadingCounter}`);
         // Try to read SCVD files from cbuild-run file first
         await this.readScvdFiles(tracker, session);
         // Are there any SCVD files found in cbuild-run?
-        if (this._instances.length > 0) {
-            await this.updateInstances();
-            return;
+        if (this._instances.length === 0) {
+            return undefined;
         }
     }
 
@@ -87,26 +85,26 @@ export class ComponentViewer {
         const onConnectedDisposable = tracker.onConnected(async (session) => {
             await this.handleOnConnected(session, tracker);
         });
-        const onDidChangeActiveStackItemDisposable = tracker.onDidChangeActiveStackItem(async (stackTraceItem) => {
-            await this.handleOnDidChangeActiveStackItem(stackTraceItem);
-        });
         const onDidChangeActiveDebugSessionDisposable = tracker.onDidChangeActiveDebugSession(async (session) => {
             await this.handleOnDidChangeActiveDebugSession(session);
         });
-        const onStopped = tracker.onStopped(async (session) => {
-            await this.handleOnStopped(session.session);
+        const onStackTraceDisposable = tracker.onStackTrace(async (session) => {
+            await this.handleOnStackTrace(session.session);
+        });
+        const onWillStartSessionDisposable = tracker.onWillStartSession(async (session) => {
+            await this.handleOnWillStartSession(session);
         });
         // clear all disposables on extension deactivation
         context.subscriptions.push(
             onWillStopSessionDisposable,
             onConnectedDisposable,
-            onDidChangeActiveStackItemDisposable,
             onDidChangeActiveDebugSessionDisposable,
-            onStopped
+            onStackTraceDisposable,
+            onWillStartSessionDisposable
         );
     }
 
-    private async handleOnStopped(session: GDBTargetDebugSession): Promise<void> {
+    private async handleOnStackTrace(session: GDBTargetDebugSession): Promise<void> {
         // Clear active session if it is NOT the one being stopped
         if (this._activeSession?.session.id !== session.session.id) {
             this._activeSession = undefined;
@@ -120,8 +118,11 @@ export class ComponentViewer {
         if (this._activeSession?.session.id === session.session.id) {
             this._activeSession = undefined;
         }
-        // Update component viewer instance(s)
-        await this.updateInstances();
+    }
+
+    private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
+        // Subscribe to refresh events of the started session
+        session.refreshTimer.onRefresh(async (refreshSession) => await this.handleRefreshTimerEvent(refreshSession));
     }
 
     private async handleOnConnected(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker): Promise<void> {
@@ -134,18 +135,11 @@ export class ComponentViewer {
         this._activeSession = session;
         // Load SCVD files from cbuild-run
         await this.loadCbuildRunInstances(session, tracker);
-        // Subscribe to refresh events of the started session
-        session.refreshTimer.onRefresh(async (refreshSession) => {
-            if (this._activeSession?.session.id === refreshSession.session.id) {
-                // Update component viewer instance(s)
-                await this.updateInstances();
-            }
-        });
     }
 
-    private async handleOnDidChangeActiveStackItem(stackTraceItem: SessionStackItem): Promise<void> {
-        if ((stackTraceItem.item as vscode.DebugStackFrame).frameId !== undefined) {
-            // Update instance(s) with new stack frame info
+    private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
+        if (this._activeSession?.session.id === session.session.id) {
+            // Update component viewer instance(s)
             await this.updateInstances();
         }
     }
@@ -158,18 +152,12 @@ export class ComponentViewer {
     }
 
     private async updateInstances(): Promise<void> {
-        if (this._updateSemaphoreFlag) {
-            return;
-        }
-        this._updateSemaphoreFlag = true;
         this._instanceUpdateCounter = 0;
         if (!this._activeSession) {
             this._componentViewerTreeDataProvider?.deleteModels();
-            this._updateSemaphoreFlag = false;
             return;
         }
         if (this._instances.length === 0) {
-            this._updateSemaphoreFlag = false;
             return;
         }
         this._componentViewerTreeDataProvider?.resetModelCache();
@@ -180,6 +168,5 @@ export class ComponentViewer {
             this._componentViewerTreeDataProvider?.addGuiOut(instance.getGuiTree());
         }
         this._componentViewerTreeDataProvider?.showModelData();
-        this._updateSemaphoreFlag = false;
     }
 }

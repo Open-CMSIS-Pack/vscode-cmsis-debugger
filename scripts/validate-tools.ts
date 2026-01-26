@@ -80,7 +80,7 @@ const TOOLS: Record<string, ToolManifest> = {
 };
 
 let targetPlatform: string = process.platform;
-let validationBaseDir: string = __dirname;
+let validationBaseDir: string = path.join(__dirname, '..');
 
 /**
  * Find the tool directory in the tools folder based on a pattern.
@@ -311,6 +311,16 @@ async function validateTool(name: string, manifest: ToolManifest): Promise<boole
     return allPassed;
 }
 
+async function cleanupTempDir(dir: string | null) {
+    if (dir) {
+        try {
+            await fs.rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+        } catch (err) {
+            console.warn(`Warning: Could not clean up temp dir: ${err instanceof Error ? err.message : String(err)}`);
+        }
+    }
+}
+
 async function main() {
     console.log('Tool Dependency Validation');
     console.log('═'.repeat(50));
@@ -334,6 +344,10 @@ async function main() {
 
         // Create temp directory for extraction
         const tempDir = path.join(__dirname, '..', 'vsix-extracted-temp', 'extension');
+
+        // Pre-cleanup: remove tempDir if it exists
+        await cleanupTempDir(tempDir);
+
         await fs.mkdir(tempDir, { recursive: true });
 
         // Extract VSIX (it's a ZIP file)
@@ -359,23 +373,14 @@ async function main() {
     }
 
     console.log('\n' + '═'.repeat(50));
+
     if (allToolsPassed) {
         console.log('✅ All tools validated successfully');
-
-        // Cleanup extracted VSIX if needed
-        if (cleanupDir) {
-            await fs.rm(cleanupDir, { recursive: true, force: true });
-        }
-
+        await cleanupTempDir(cleanupDir);
         process.exit(0);
     } else {
         console.log('❌ Tool validation failed');
-
-        // Cleanup extracted VSIX if needed
-        if (cleanupDir) {
-            await fs.rm(cleanupDir, { recursive: true, force: true });
-        }
-
+        await cleanupTempDir(cleanupDir);
         process.exit(1);
     }
 }

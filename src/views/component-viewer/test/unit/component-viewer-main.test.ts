@@ -55,20 +55,7 @@ import type { ExtensionContext } from 'vscode';
 import type { GDBTargetDebugTracker } from '../../../../debug-session';
 import { ComponentViewer } from '../../component-viewer-main';
 
-type TrackerCallbacks = {
-    onWillStopSession: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
-    onConnected: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
-    onDidChangeActiveStackItem: (cb: (item: StackItem) => Promise<void>) => { dispose: jest.Mock };
-    onDidChangeActiveDebugSession: (cb: (session: Session | undefined) => Promise<void>) => { dispose: jest.Mock };
-    onStopped: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
-    callbacks: Partial<{
-        willStop: (session: Session) => Promise<void>;
-        connected: (session: Session) => Promise<void>;
-        stackItem: (item: StackItem) => Promise<void>;
-        activeSession: (session: Session | undefined) => Promise<void>;
-        stopped: (session: { session: Session }) => Promise<void>;
-    }>;
-};
+// Local test mocks
 
 type Session = {
     session: { id: string };
@@ -76,11 +63,24 @@ type Session = {
     refreshTimer: { onRefresh: (cb: (session: Session) => void) => void };
 };
 
-type StackItem = { item: { frameId?: number } };
+type TrackerCallbacks = {
+    onWillStopSession: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
+    onConnected: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
+    onDidChangeActiveDebugSession: (cb: (session: Session | undefined) => Promise<void>) => { dispose: jest.Mock };
+    onStackTrace: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
+    onWillStartSession: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
+    callbacks: Partial<{
+        willStop: (session: Session) => Promise<void>;
+        connected: (session: Session) => Promise<void>;
+        activeSession: (session: Session | undefined) => Promise<void>;
+        stackTrace: (session: { session: Session }) => Promise<void>;
+        willStart: (session: Session) => Promise<void>;
+    }>;
+};
 
 type Context = { subscriptions: Array<{ dispose: jest.Mock }> };
 
-describe('ComponentViewerController', () => {
+describe('ComponentViewer', () => {
     beforeEach(() => {
         jest.clearAllMocks();
     });
@@ -99,16 +99,16 @@ describe('ComponentViewerController', () => {
                 callbacks.connected = cb;
                 return { dispose: jest.fn() };
             },
-            onDidChangeActiveStackItem: (cb) => {
-                callbacks.stackItem = cb;
-                return { dispose: jest.fn() };
-            },
             onDidChangeActiveDebugSession: (cb) => {
                 callbacks.activeSession = cb;
                 return { dispose: jest.fn() };
             },
-            onStopped: (cb) => {
-                callbacks.stopped = cb;
+            onStackTrace: (cb) => {
+                callbacks.stackTrace = cb;
+                return { dispose: jest.fn() };
+            },
+            onWillStartSession: (cb) => {
+                callbacks.willStart = cb;
                 return { dispose: jest.fn() };
             },
         };
@@ -127,7 +127,7 @@ describe('ComponentViewerController', () => {
         const tracker = makeTracker();
         const controller = new ComponentViewer(context as unknown as ExtensionContext);
 
-        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         expect(registerTreeDataProvider).toHaveBeenCalledWith('cmsis-debugger.componentViewer', expect.any(Object));
         expect(context.subscriptions.length).toBe(6);
@@ -147,6 +147,9 @@ describe('ComponentViewerController', () => {
             refreshTimer: { onRefresh: jest.fn() },
         };
         await readScvdFiles(tracker, sessionNoReader);
+
+        const instances = (controller as unknown as { _instances: unknown[] })._instances;
+        expect(instances).toEqual([]);
     });
 
     it('skips reading when no scvd files are listed', async () => {
@@ -172,55 +175,47 @@ describe('ComponentViewerController', () => {
 
         const instances = (controller as unknown as { _instances: unknown[] })._instances;
         expect(instances.length).toBe(2);
-    });
-
-    it('skips scvd instances when active session is missing', async () => {
-        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
-        const tracker = makeTracker();
-        const session = makeSession('s1', ['a.scvd']);
-
-        const readScvdFiles = (controller as unknown as { readScvdFiles: (t: TrackerCallbacks, s?: Session) => Promise<void> }).readScvdFiles.bind(controller);
-        await readScvdFiles(tracker, session);
-
-        const instances = (controller as unknown as { _instances: unknown[] })._instances;
-        expect(instances.length).toBe(0);
+        expect(instanceFactory).toHaveBeenCalledTimes(2);
     });
 
     it('handles tracker events and updates sessions', async () => {
         const context = makeContext();
         const tracker = makeTracker();
         const controller = new ComponentViewer(context as unknown as ExtensionContext);
-        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const provider = (controller as unknown as { _componentViewerTreeDataProvider?: ReturnType<typeof treeProviderFactory> })._componentViewerTreeDataProvider;
 
         const session = makeSession('s1', ['a.scvd']);
         const otherSession = makeSession('s2', []);
 
-        await tracker.callbacks.connected?.(session);
+        await tracker.callbacks.willStart?.(session);
         await tracker.callbacks.connected?.(session);
 
         const refreshCallback = (session.refreshTimer.onRefresh as jest.Mock).mock.calls[0]?.[0];
+        expect(refreshCallback).toBeDefined();
         if (refreshCallback) {
             await refreshCallback(session);
             await refreshCallback(otherSession);
         }
 
         await tracker.callbacks.connected?.(otherSession);
+        expect(provider?.deleteModels).toHaveBeenCalled();
+
         await tracker.callbacks.activeSession?.(session);
         await tracker.callbacks.activeSession?.(undefined);
 
-        await tracker.callbacks.stackItem?.({ item: { frameId: 1 } });
-        await tracker.callbacks.stackItem?.({ item: {} });
-
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
-        await tracker.callbacks.stopped?.({ session });
-        await tracker.callbacks.stopped?.({ session: otherSession });
+        await tracker.callbacks.stackTrace?.({ session });
+        await tracker.callbacks.stackTrace?.({ session: otherSession });
+
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
         await tracker.callbacks.willStop?.(session);
         (controller as unknown as { _activeSession?: Session })._activeSession = otherSession;
         await tracker.callbacks.willStop?.(session);
     });
 
-    it('updates instances and respects semaphore and empty states', async () => {
+    it('updates instances when active session and instances are present', async () => {
         const context = makeContext();
         const controller = new ComponentViewer(context as unknown as ExtensionContext);
         const provider = treeProviderFactory();
@@ -228,17 +223,15 @@ describe('ComponentViewerController', () => {
 
         const updateInstances = (controller as unknown as { updateInstances: () => Promise<void> }).updateInstances.bind(controller);
 
-        (controller as unknown as { _updateSemaphoreFlag: boolean })._updateSemaphoreFlag = true;
-        await updateInstances();
-
-        (controller as unknown as { _updateSemaphoreFlag: boolean })._updateSemaphoreFlag = false;
         (controller as unknown as { _activeSession?: Session | undefined })._activeSession = undefined;
         await updateInstances();
-        expect(provider.deleteModels).toHaveBeenCalled();
+        expect(provider.deleteModels).toHaveBeenCalledTimes(1);
+        provider.deleteModels.mockClear();
 
         (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1');
         (controller as unknown as { _instances: unknown[] })._instances = [];
         await updateInstances();
+        expect(provider.deleteModels).not.toHaveBeenCalled();
 
         const instanceA = instanceFactory();
         const instanceB = instanceFactory();
@@ -247,5 +240,7 @@ describe('ComponentViewerController', () => {
         expect(provider.resetModelCache).toHaveBeenCalled();
         expect(provider.addGuiOut).toHaveBeenCalledTimes(2);
         expect(provider.showModelData).toHaveBeenCalled();
+        expect(instanceA.update).toHaveBeenCalled();
+        expect(instanceB.update).toHaveBeenCalled();
     });
 });
