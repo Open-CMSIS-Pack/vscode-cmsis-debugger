@@ -137,7 +137,7 @@ export class ScvdVar extends ScvdNode {
             return 1;
         }
         const sizeValue = await sizeExpr.getValue();
-        let count = typeof sizeValue === 'bigint' ? Number(sizeValue)
+        const count = typeof sizeValue === 'bigint' ? Number(sizeValue)
             : (typeof sizeValue === 'number' ? sizeValue : undefined);
         if (count === undefined || !Number.isFinite(count) || count < 1 || count > 1024) {
             console.error(this.getLineInfoStr(), `'${this.name ?? 'var'}': invalid size specified (1...1024)`);

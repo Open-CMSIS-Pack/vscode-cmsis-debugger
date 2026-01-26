@@ -70,6 +70,7 @@ describe('ScvdReadList', () => {
     it('keeps target size as element size', async () => {
         const readlist = new ScvdReadList(undefined);
         readlist.size = '3';
+        readlist.size?.configure();
         (readlist as unknown as { _type?: { getTypeSize: () => number } })._type = {
             getTypeSize: () => 2
         };

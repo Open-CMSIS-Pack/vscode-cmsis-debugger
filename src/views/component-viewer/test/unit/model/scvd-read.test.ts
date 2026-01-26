@@ -125,9 +125,10 @@ describe('ScvdRead', () => {
     it('delegates size and member lookups to the type', async () => {
         const read = new ScvdRead(undefined);
         const member = new ScvdRead(read);
-        (read as unknown as { _type?: { getTypeSize: () => number; getVirtualSize: () => number; getMember: (n: string) => ScvdRead; getValueType: () => string } })._type = {
+        (read as unknown as { _type?: { getTypeSize: () => number; getVirtualSize: () => number; getIsPointer: () => boolean; getMember: (n: string) => ScvdRead; getValueType: () => string } })._type = {
             getTypeSize: () => 4,
             getVirtualSize: () => 8,
+            getIsPointer: () => false,
             getMember: () => member,
             getValueType: () => 'uint32'
         };
@@ -141,8 +142,9 @@ describe('ScvdRead', () => {
     it('keeps target size as element size', async () => {
         const read = new ScvdRead(undefined);
         read.size = '3';
-        (read as unknown as { _type?: { getTypeSize: () => number } })._type = {
-            getTypeSize: () => 2
+        (read as unknown as { _type?: { getTypeSize: () => number; getIsPointer: () => boolean } })._type = {
+            getTypeSize: () => 2,
+            getIsPointer: () => false
         };
         await expect(read.getTargetSize()).resolves.toBe(2);
     });
