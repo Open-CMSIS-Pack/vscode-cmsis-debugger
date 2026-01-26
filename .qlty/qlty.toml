@@ -16,7 +16,7 @@ test_patterns = [
 # === Smells Configuration ===
 # Controls how detected code smells are reported
 [smells]
-mode = "comment"          # Adds comments in code or PRs to report smells
+mode = "review"           # Adds review comments once without duplicating on subsequent commits
 
 # === Source Configuration ===
 # Defines a code source for analysis
