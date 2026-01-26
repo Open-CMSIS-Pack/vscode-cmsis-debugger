@@ -22,13 +22,12 @@ import { ScvdExpression } from './scvd-expression';
 import { Json } from './scvd-base';
 import { ScvdNode } from './scvd-node';
 import { getArrayFromJson, getStringFromJson } from './scvd-utils';
-import { NumberType, NumberTypeInput } from './number-type';
 
 export class ScvdVar extends ScvdNode {
     private _value: ScvdExpression | undefined;
     private _type: ScvdDataType | undefined;
     private _offset: ScvdExpression | undefined;
-    private _size: number | undefined;
+    private _size: ScvdExpression | undefined;
     private _enum: ScvdEnum[] = [];
 
 
@@ -40,6 +39,11 @@ export class ScvdVar extends ScvdNode {
 
     public override get classname(): string {
         return 'ScvdVar';
+    }
+
+    public override configure(): boolean {
+        this._size?.configure();
+        return super.configure();
     }
 
     public override readXml(xml: Json): boolean {
@@ -69,13 +73,17 @@ export class ScvdVar extends ScvdNode {
         }
     }
 
-    public get size(): number | undefined {
+    public get size(): ScvdExpression | undefined {
         return this._size;
     }
 
-    public set size(value: NumberTypeInput | undefined) {
+    public set size(value: ScvdExpression | string | undefined) {
         if (value !== undefined) {
-            this._size = new NumberType(value).value;
+            if (value instanceof ScvdExpression) {
+                this._size = value;
+            } else {
+                this._size = new ScvdExpression(this, value, 'size');
+            }
         }
     }
 
@@ -124,16 +132,19 @@ export class ScvdVar extends ScvdNode {
     }
 
     public override async getArraySize(): Promise<number | undefined> {
-        let count = this.size ?? 1;
-        if (!Number.isFinite(count) || count < 1 || count > 1024) {
+        const sizeExpr = this.size;
+        if (sizeExpr === undefined) {
+            return 1;
+        }
+        const sizeValue = await sizeExpr.getValue();
+        let count = typeof sizeValue === 'bigint' ? Number(sizeValue)
+            : (typeof sizeValue === 'number' ? sizeValue : undefined);
+        if (count === undefined || !Number.isFinite(count) || count < 1 || count > 1024) {
             console.error(this.getLineInfoStr(), `'${this.name ?? 'var'}': invalid size specified (1...1024)`);
-            if (count < 1) {
-                count = 1;
-            } else if (count > 1024) {
-                count = 1024;
-            } else {
-                count = 1;
+            if (count !== undefined && count > 1024) {
+                return 1024;
             }
+            return 1;
         }
         return count;
     }

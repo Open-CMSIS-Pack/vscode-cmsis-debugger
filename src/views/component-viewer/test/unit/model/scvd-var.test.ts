@@ -22,6 +22,7 @@
 
 import { ScvdVar } from '../../../model/scvd-var';
 import { Json } from '../../../model/scvd-base';
+import { ScvdExpression } from '../../../model/scvd-expression';
 
 describe('ScvdVar', () => {
     it('returns false when XML is undefined', () => {
@@ -35,11 +36,17 @@ describe('ScvdVar', () => {
         expect(item.readXml({ value: '1', type: 'uint32_t', size: '2', enum: { value: '1' } })).toBe(true);
         expect(item.value).toBeDefined();
         expect(item.type).toBeDefined();
-        expect(item.size).toBe(2);
+        const sizeExpr = item.size;
+        expect(sizeExpr).toBeInstanceOf(ScvdExpression);
+        if (!sizeExpr) {
+            throw new Error('Expected size expression to be defined');
+        }
+        expect(sizeExpr.expression).toBe('2');
         expect(item.enum).toHaveLength(1);
 
         item.size = undefined;
-        expect(item.size).toBe(2);
+        expect(item.size).toBe(sizeExpr);
+        expect(sizeExpr.expression).toBe('2');
 
         const prevValue = item.value;
         item.value = undefined;
@@ -65,9 +72,11 @@ describe('ScvdVar', () => {
         const item = new ScvdVar(undefined);
         const member = new ScvdVar(item);
         item.size = '2';
+        item.configure();
         await expect(item.getTargetSize()).resolves.toBe(1);
         await expect(item.getArraySize()).resolves.toBe(2);
         item.size = undefined;
+        item.configure();
         await expect(item.getTargetSize()).resolves.toBe(1);
         expect(item.getIsPointer()).toBe(false);
         expect(item.getMember('m')).toBeUndefined();
@@ -81,6 +90,7 @@ describe('ScvdVar', () => {
         };
         (item as unknown as { _type?: { getTypeSize: () => number; getIsPointer: () => boolean; getMember: (p: string) => ScvdVar; getValueType: () => string } })._type = typeStub;
         item.size = '3';
+        item.configure();
 
         expect(item.getTypeSize()).toBe(4);
         await expect(item.getTargetSize()).resolves.toBe(4);
