@@ -37,7 +37,7 @@ class ScalarBase extends ScvdNode {
     public override getValueType(): string | undefined {
         return this.typeName;
     }
-    public override getTargetSize(): number | undefined {
+    public override async getTargetSize(): Promise<number | undefined> {
         return this.size;
     }
     public override async getArraySize(): Promise<number | undefined> {

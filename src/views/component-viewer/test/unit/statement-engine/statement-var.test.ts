@@ -29,7 +29,7 @@ describe('StatementVar', () => {
     it('writes variables into memory host', async () => {
         const item = new ScvdVar(undefined);
         item.name = 'varA';
-        jest.spyOn(item, 'getTargetSize').mockReturnValue(4);
+        jest.spyOn(item, 'getTargetSize').mockResolvedValue(4);
         jest.spyOn(item, 'getValue').mockResolvedValue(123);
 
         const stmt = new StatementVar(item, undefined);
@@ -44,7 +44,7 @@ describe('StatementVar', () => {
 
     it('skips when required values are missing', async () => {
         const item = new ScvdVar(undefined);
-        jest.spyOn(item, 'getTargetSize').mockReturnValue(4);
+        jest.spyOn(item, 'getTargetSize').mockResolvedValue(4);
         jest.spyOn(item, 'getValue').mockResolvedValue(123);
 
         const stmt = new StatementVar(item, undefined);

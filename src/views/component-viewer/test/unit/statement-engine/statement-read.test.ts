@@ -30,7 +30,7 @@ function createRead(_debugTarget: Partial<ScvdDebugTarget>): ScvdRead {
     const read = new ScvdRead(undefined);
     read.name = 'value';
     read.symbol = 'sym';
-    jest.spyOn(read, 'getTargetSize').mockReturnValue(4);
+    jest.spyOn(read, 'getTargetSize').mockResolvedValue(4);
     jest.spyOn(read, 'getArraySize').mockResolvedValue(1);
     return read;
 }
@@ -76,7 +76,7 @@ describe('StatementRead', () => {
     it('handles missing target size', async () => {
         const read = new ScvdRead(undefined);
         read.name = 'value';
-        jest.spyOn(read, 'getTargetSize').mockReturnValue(undefined);
+        jest.spyOn(read, 'getTargetSize').mockResolvedValue(undefined);
         const stmt = new StatementRead(read, undefined);
         const ctx = createExecutionContext(read, {});
         const guiTree = new ScvdGuiTree(undefined);
@@ -207,7 +207,7 @@ describe('StatementRead', () => {
     it('handles bigint offsets without symbols', async () => {
         const read = new ScvdRead(undefined);
         read.name = 'value';
-        jest.spyOn(read, 'getTargetSize').mockReturnValue(4);
+        jest.spyOn(read, 'getTargetSize').mockResolvedValue(4);
         read.offset = 'offset';
         jest.spyOn(read.offset!, 'getValue').mockResolvedValue(8n);
 
@@ -225,7 +225,7 @@ describe('StatementRead', () => {
     it('fails when base address is undefined', async () => {
         const read = new ScvdRead(undefined);
         read.name = 'value';
-        jest.spyOn(read, 'getTargetSize').mockReturnValue(4);
+        jest.spyOn(read, 'getTargetSize').mockResolvedValue(4);
         const stmt = new StatementRead(read, undefined);
         const ctx = createExecutionContext(read, {});
         const guiTree = new ScvdGuiTree(undefined);

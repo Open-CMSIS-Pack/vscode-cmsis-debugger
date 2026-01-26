@@ -46,6 +46,9 @@ export interface RefContainer {
     // Current ref resolved by the last resolution step (for chaining).
     current?: ScvdNode | undefined;
 
+    // Owning ref for the current action (e.g., array owner vs element type).
+    origin?: ScvdNode | undefined;
+
     // Most recent resolved member reference (child).
     member?: ScvdNode | undefined;
 

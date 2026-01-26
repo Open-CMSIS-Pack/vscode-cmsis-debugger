@@ -46,8 +46,8 @@ class DummyNode extends ScvdNode {
         super(undefined);
         this.name = name;
     }
-    public override getTargetSize(): number | undefined { return this.opts.targetSize; }
-    public override getVirtualSize(): number | undefined { return this.opts.virtualSize; }
+    public override async getTargetSize(): Promise<number | undefined> { return this.opts.targetSize; }
+    public override async getVirtualSize(): Promise<number | undefined> { return this.opts.virtualSize; }
     public override async getArraySize(): Promise<number | undefined> { return this.opts.arraySize; }
     public override getIsPointer(): boolean { return this.opts.isPointer ?? false; }
     public override getDisplayLabel(): string { return this.name ?? '<anon>'; }
@@ -63,7 +63,7 @@ class LocalFakeMember extends ScvdMember {
     constructor() {
         super(undefined);
     }
-    public override getTargetSize(): number | undefined { return 4; }
+    public override async getTargetSize(): Promise<number | undefined> { return 4; }
     public override async getEnum(_value: number) {
         return { getGuiName: async () => 'ENUM_READY' } as unknown as Awaited<ReturnType<ScvdMember['getEnum']>>;
     }

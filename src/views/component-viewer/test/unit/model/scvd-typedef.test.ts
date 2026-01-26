@@ -90,12 +90,12 @@ describe('ScvdTypedef', () => {
         varSpy.mockRestore();
     });
 
-    it('returns type sizing and pointer defaults', () => {
+    it('returns type sizing and pointer defaults', async () => {
         const typedef = new ScvdTypedef(undefined);
         (typedef as unknown as { _targetSize?: number })._targetSize = 12;
 
         expect(typedef.getTypeSize()).toBe(12);
-        expect(typedef.getVirtualSize()).toBe(12);
+        await expect(typedef.getVirtualSize()).resolves.toBe(12);
         expect(typedef.getIsPointer()).toBe(false);
     });
 
@@ -127,7 +127,7 @@ describe('ScvdTypedef', () => {
         member.name = 'm1';
         member.offset = '8';
         jest.spyOn(member.offset as ScvdExpression, 'getValue').mockResolvedValue(8);
-        jest.spyOn(member, 'getTypeSize').mockReturnValue(4);
+        jest.spyOn(member, 'getTargetSize').mockResolvedValue(4);
 
         typedef.size = '8';
         jest.spyOn(typedef.size as ScvdExpression, 'getValue').mockResolvedValue(8);
@@ -136,8 +136,8 @@ describe('ScvdTypedef', () => {
         await typedef.calculateOffsets();
         errorSpy.mockRestore();
 
-        expect(typedef.getTargetSize()).toBe(8);
-        expect(typedef.getVirtualSize()).toBe(16);
+        await expect(typedef.getTargetSize()).resolves.toBe(8);
+        await expect(typedef.getVirtualSize()).resolves.toBe(12);
     });
 
     it('pads typedef size when offsets are smaller than size', async () => {
@@ -147,15 +147,15 @@ describe('ScvdTypedef', () => {
         member.name = 'm1';
         member.offset = '0';
         jest.spyOn(member.offset as ScvdExpression, 'getValue').mockResolvedValue(0);
-        jest.spyOn(member, 'getTypeSize').mockReturnValue(1);
+        jest.spyOn(member, 'getTargetSize').mockResolvedValue(1);
 
         typedef.size = '4';
         jest.spyOn(typedef.size as ScvdExpression, 'getValue').mockResolvedValue(4);
 
         await typedef.calculateOffsets();
 
-        expect(typedef.getTargetSize()).toBe(4);
-        expect(typedef.getVirtualSize()).toBe(8);
+        await expect(typedef.getTargetSize()).resolves.toBe(4);
+        await expect(typedef.getVirtualSize()).resolves.toBe(4);
     });
 
     it('pads typedef size when no members are present', async () => {
@@ -165,8 +165,8 @@ describe('ScvdTypedef', () => {
 
         await typedef.calculateOffsets();
 
-        expect(typedef.getTargetSize()).toBe(4);
-        expect(typedef.getVirtualSize()).toBe(8);
+        await expect(typedef.getTargetSize()).resolves.toBe(4);
+        await expect(typedef.getVirtualSize()).resolves.toBe(4);
     });
 
     it('keeps size when offsets match the declared size', async () => {
@@ -176,15 +176,15 @@ describe('ScvdTypedef', () => {
         member.name = 'm1';
         member.offset = '0';
         jest.spyOn(member.offset as ScvdExpression, 'getValue').mockResolvedValue(0);
-        jest.spyOn(member, 'getTypeSize').mockReturnValue(4);
+        jest.spyOn(member, 'getTargetSize').mockResolvedValue(4);
 
         typedef.size = '4';
         jest.spyOn(typedef.size as ScvdExpression, 'getValue').mockResolvedValue(4);
 
         await typedef.calculateOffsets();
 
-        expect(typedef.getTargetSize()).toBe(4);
-        expect(typedef.getVirtualSize()).toBe(8);
+        await expect(typedef.getTargetSize()).resolves.toBe(4);
+        await expect(typedef.getVirtualSize()).resolves.toBe(4);
     });
 
     it('calculates offsets without import and assigns defaults', async () => {
@@ -192,15 +192,15 @@ describe('ScvdTypedef', () => {
         const member = typedef.addMember();
 
         member.name = 'm1';
-        jest.spyOn(member, 'getTypeSize').mockReturnValue(2);
+        jest.spyOn(member, 'getTargetSize').mockResolvedValue(2);
 
         const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
         await typedef.calculateOffsets();
         errorSpy.mockRestore();
 
         expect(member.offset?.expression).toBe('0');
-        expect(typedef.getTargetSize()).toBe(2);
-        expect(typedef.getVirtualSize()).toBe(8);
+        await expect(typedef.getTargetSize()).resolves.toBe(2);
+        await expect(typedef.getVirtualSize()).resolves.toBe(2);
     });
 
     it('calculates offsets with import and virtual size expansion', async () => {
@@ -213,8 +213,8 @@ describe('ScvdTypedef', () => {
         const symbol = typedef.import as ScvdSymbol;
         symbol.memberInfo.push({ name: 'm1', size: 1, offset: 4 });
 
-        jest.spyOn(member, 'getTypeSize').mockReturnValue(1);
-        jest.spyOn(variable, 'getTargetSize').mockReturnValue(2);
+        jest.spyOn(member, 'getTargetSize').mockResolvedValue(1);
+        jest.spyOn(variable, 'getTargetSize').mockResolvedValue(2);
 
         typedef.size = '8';
         jest.spyOn(typedef.size as ScvdExpression, 'getValue').mockResolvedValue(8);
@@ -222,9 +222,9 @@ describe('ScvdTypedef', () => {
         await typedef.calculateOffsets();
 
         expect(member.offset?.expression).toBe('4');
-        expect(variable.offset?.expression).toBe('12');
-        expect(typedef.getTargetSize()).toBe(8);
-        expect(typedef.getVirtualSize()).toBe(14);
+        expect(variable.offset?.expression).toBe('8');
+        await expect(typedef.getTargetSize()).resolves.toBe(8);
+        await expect(typedef.getVirtualSize()).resolves.toBe(10);
     });
 
     it('handles missing import offsets and undefined member sizes', async () => {
@@ -234,15 +234,15 @@ describe('ScvdTypedef', () => {
 
         member.name = 'm1';
         typedef.import = 'SYM';
-        jest.spyOn(member, 'getTypeSize').mockReturnValue(undefined);
-        jest.spyOn(variable, 'getTargetSize').mockReturnValue(undefined);
+        jest.spyOn(member, 'getTargetSize').mockResolvedValue(undefined);
+        jest.spyOn(variable, 'getTargetSize').mockResolvedValue(undefined);
 
         await typedef.calculateOffsets();
 
         expect(member.offset).toBeUndefined();
-        expect(variable.offset?.expression).toBe('4');
-        expect(typedef.getTargetSize()).toBe(0);
-        expect(typedef.getVirtualSize()).toBe(8);
+        expect(variable.offset?.expression).toBe('0');
+        await expect(typedef.getTargetSize()).resolves.toBe(0);
+        await expect(typedef.getVirtualSize()).resolves.toBe(4);
     });
 
     it('skips offset updates when offset values are undefined', async () => {
@@ -252,11 +252,11 @@ describe('ScvdTypedef', () => {
         member.name = 'm1';
         member.offset = '1';
         jest.spyOn(member.offset as ScvdExpression, 'getValue').mockResolvedValue(undefined);
-        jest.spyOn(member, 'getTypeSize').mockReturnValue(1);
+        jest.spyOn(member, 'getTargetSize').mockResolvedValue(1);
 
         await typedef.calculateOffsets();
 
-        expect(typedef.getTargetSize()).toBe(1);
+        await expect(typedef.getTargetSize()).resolves.toBe(1);
     });
 
     it('invokes symbol fetch when calculating typedefs', async () => {

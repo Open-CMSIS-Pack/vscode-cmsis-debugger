@@ -126,7 +126,7 @@ export abstract class ScvdNode extends ScvdBase {
         return undefined;
     }
 
-    public getTargetSize(): number | undefined {
+    public async getTargetSize(): Promise<number | undefined> {
         console.error(`GetTargetSize not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
         return undefined;
     }
@@ -134,7 +134,7 @@ export abstract class ScvdNode extends ScvdBase {
         console.error(`GetTypeSize not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
         return undefined;
     }
-    public getVirtualSize(): number | undefined {
+    public async getVirtualSize(): Promise<number | undefined> {
         console.error(`GetVirtualSize not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
         return undefined;
     }

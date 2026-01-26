@@ -54,17 +54,17 @@ export class StatementReadList extends StatementBase {
         }
 
         // ---- fetch type size ----
-        const targetSize = scvdReadList.getTargetSize();
+        const targetSize = await scvdReadList.getTargetSize();
         if (targetSize === undefined) {
             console.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, type: ${scvdReadList.getDisplayLabel()}, could not determine target size`);
             return;
         }
-        const virtualSize = scvdReadList.getVirtualSize() ?? targetSize;    // if type has <var> members, include their size in the variable allocation
+        const virtualSize = (await scvdReadList.getVirtualSize()) ?? targetSize;    // if type has <var> members, include their size in the variable allocation
 
         // ---- calculate read size ----
-        const isPointer = scvdReadList.getIsPointer();  // When based="1" the attribute symbol and attribute offset specifies a pointer (or pointer array). Default value is 0.
-        const readBytes = (isPointer === true)? 4 : targetSize;
-        const virtualBytes = (isPointer === true)? 4 : virtualSize;
+        const isPointerArray = scvdReadList.based === 1;  // based="1" means symbol/offset points to an array of pointers
+        const readBytes = isPointerArray ? 4 : targetSize;
+        const virtualBytes = isPointerArray ? 4 : virtualSize;
 
         // ---- calculate base address from symbol and/or offset ----
         let baseAddress: number | bigint | undefined = undefined;
@@ -123,7 +123,7 @@ export class StatementReadList extends StatementBase {
 
             const nextMember = typeItem.getMember(next);
             if (nextMember !== undefined) {
-                nextTargetSize = nextMember.getTargetSize();
+                nextTargetSize = await nextMember.getTargetSize();
                 nextOffset = await nextMember.getMemberOffset();
                 if (nextTargetSize === undefined || nextOffset === undefined) {
                     console.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, could not determine size/offset of next member: ${next} in type: ${typeItem.getDisplayLabel()}`);
@@ -189,7 +189,7 @@ export class StatementReadList extends StatementBase {
                 nextPtrAddr = (nextPtrUint8Arr[0] | (nextPtrUint8Arr[1] << 8) | (nextPtrUint8Arr[2] << 16) | (nextPtrUint8Arr[3] << 24)) >>> 0;
             } else {
                 const baseNum = typeof baseAddress === 'bigint' ? baseAddress : BigInt(baseAddress >>> 0);
-                const stride = BigInt(isPointer ? (readIdx * 4) : (readIdx * targetSize));
+                const stride = BigInt(isPointerArray ? (readIdx * 4) : (readIdx * targetSize));
                 nextPtrAddr = baseNum + stride;
             }
 

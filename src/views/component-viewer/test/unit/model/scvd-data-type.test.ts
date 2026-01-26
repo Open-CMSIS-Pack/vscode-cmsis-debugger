@@ -33,7 +33,7 @@ class DummyTypedef extends ScvdTypedef {
         return 8;
     }
 
-    public override getVirtualSize(): number | undefined {
+    public override async getVirtualSize(): Promise<number | undefined> {
         return 12;
     }
 
@@ -43,11 +43,11 @@ class DummyTypedef extends ScvdTypedef {
 }
 
 describe('ScvdDataType', () => {
-    it('handles scalar and pointer scalar types', () => {
+    it('handles scalar and pointer scalar types', async () => {
         const scalar = new ScvdDataType(undefined, 'uint32_t');
         expect(scalar.type).toBeInstanceOf(ScvdScalarDataType);
         expect(scalar.getTypeSize()).toBe(4);
-        expect(scalar.getVirtualSize()).toBe(4);
+        await expect(scalar.getVirtualSize()).resolves.toBe(4);
         expect(scalar.getIsPointer()).toBe(false);
         expect(scalar.getValueType()).toBe('uint32_t');
         expect(scalar.getMember('anything')).toBeUndefined();
@@ -64,11 +64,11 @@ describe('ScvdDataType', () => {
         expect(complex.getValueType()).toBeUndefined();
     });
 
-    it('handles unknown scalar types without size info', () => {
+    it('handles unknown scalar types without size info', async () => {
         const scalar = new ScvdScalarDataType(undefined, 'unknown_t');
         expect(scalar.type).toBeUndefined();
         expect(scalar.getTypeSize()).toBeUndefined();
-        expect(scalar.getVirtualSize()).toBeUndefined();
+        await expect(scalar.getVirtualSize()).resolves.toBeUndefined();
     });
 
     it('returns defaults when no type is provided', () => {
@@ -82,18 +82,18 @@ describe('ScvdDataType', () => {
         expect(scalar.getIsPointer()).toBe(false);
     });
 
-    it('fails to resolve complex types when no symbol is found', () => {
+    it('fails to resolve complex types when no symbol is found', async () => {
         const missing = new ScvdComplexDataType(undefined, 'MissingType');
         const resolved = missing.resolveAndLink(() => undefined);
         expect(resolved).toBe(false);
         expect(missing.getTypeSize()).toBeUndefined();
-        expect(missing.getVirtualSize()).toBeUndefined();
+        await expect(missing.getVirtualSize()).resolves.toBeUndefined();
 
         const noName = new ScvdComplexDataType(undefined, undefined);
         expect(noName.resolveAndLink(() => undefined)).toBe(false);
     });
 
-    it('resolves complex types and reflects pointer semantics', () => {
+    it('resolves complex types and reflects pointer semantics', async () => {
         const typedef = new DummyTypedef();
         const complex = new ScvdComplexDataType(undefined, '*MyType');
         const ok = complex.resolveAndLink((name) => {
@@ -105,7 +105,7 @@ describe('ScvdDataType', () => {
         expect(ok).toBe(true);
         expect(complex.getIsPointer()).toBe(true);
         expect(complex.getTypeSize()).toBe(8);
-        expect(complex.getVirtualSize()).toBe(12);
+        await expect(complex.getVirtualSize()).resolves.toBe(12);
         expect(complex.getMember('member')).toBe(typedef);
 
         const dataType = new ScvdDataType(undefined, '*MyType');

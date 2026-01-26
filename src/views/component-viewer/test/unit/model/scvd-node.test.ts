@@ -151,9 +151,9 @@ describe('ScvdNode', () => {
 
         expect(node.writeAt(0, 8, 1)).toBeUndefined();
         expect(node.readAt(0, 8)).toBeUndefined();
-        expect(node.getTargetSize()).toBeUndefined();
+        await expect(node.getTargetSize()).resolves.toBeUndefined();
         expect(node.getTypeSize()).toBeUndefined();
-        expect(node.getVirtualSize()).toBeUndefined();
+        await expect(node.getVirtualSize()).resolves.toBeUndefined();
         expect(node.getIsPointer()).toBe(false);
         await expect(node.getArraySize()).resolves.toBeUndefined();
         await expect(node.getMemberOffset()).resolves.toBeUndefined();

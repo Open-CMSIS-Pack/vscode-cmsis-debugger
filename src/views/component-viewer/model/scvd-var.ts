@@ -17,10 +17,11 @@
 // https://arm-software.github.io/CMSIS-View/main/elem_var.html
 
 import { ScvdDataType } from './scvd-data-type';
+import { ScvdEnum } from './scvd-enum';
 import { ScvdExpression } from './scvd-expression';
 import { Json } from './scvd-base';
 import { ScvdNode } from './scvd-node';
-import { getStringFromJson } from './scvd-utils';
+import { getArrayFromJson, getStringFromJson } from './scvd-utils';
 import { NumberType, NumberTypeInput } from './number-type';
 
 export class ScvdVar extends ScvdNode {
@@ -28,6 +29,7 @@ export class ScvdVar extends ScvdNode {
     private _type: ScvdDataType | undefined;
     private _offset: ScvdExpression | undefined;
     private _size: number | undefined;
+    private _enum: ScvdEnum[] = [];
 
 
     constructor(
@@ -48,6 +50,12 @@ export class ScvdVar extends ScvdNode {
         this.value = getStringFromJson(xml.value);
         this.type = getStringFromJson(xml.type);
         this.size = getStringFromJson(xml.size);
+
+        const enums = getArrayFromJson<Json>(xml.enum);
+        enums?.forEach(enumItem => {
+            const newEnum = this.addEnum();
+            newEnum.readXml(enumItem);
+        });
 
         return super.readXml(xml);
     }
@@ -99,18 +107,35 @@ export class ScvdVar extends ScvdNode {
         return this.type?.getTypeSize();
     }
 
-    public override getVirtualSize(): number | undefined {
+    public override async getVirtualSize(): Promise<number | undefined> {
         return this.getTargetSize();
     }
 
-    // TOIMPL: total size in bytes or type size?
-    public override getTargetSize(): number | undefined {
-        const typeSize = this.getTypeSize();
-        const elements = this.size ?? 1;
-        if ( typeSize !== undefined) {
-            return typeSize * elements;
+    // element size in bytes; array length is provided by getArraySize()
+    public override async getTargetSize(): Promise<number | undefined> {
+        if (this.getIsPointer()) {
+            return 4;
         }
-        return elements;
+        const typeSize = this.getTypeSize();
+        if (typeSize !== undefined) {
+            return typeSize;
+        }
+        return 1;
+    }
+
+    public override async getArraySize(): Promise<number | undefined> {
+        let count = this.size ?? 1;
+        if (!Number.isFinite(count) || count < 1 || count > 1024) {
+            console.error(this.getLineInfoStr(), `'${this.name ?? 'var'}': invalid size specified (1...1024)`);
+            if (count < 1) {
+                count = 1;
+            } else if (count > 1024) {
+                count = 1024;
+            } else {
+                count = 1;
+            }
+        }
+        return count;
     }
 
     public override getIsPointer(): boolean {
@@ -160,6 +185,26 @@ export class ScvdVar extends ScvdNode {
 
     public override getValueType(): string | undefined {
         return this.type?.getValueType();
+    }
+
+    public addEnum(): ScvdEnum {
+        const lastEnum = this._enum[this._enum.length - 1];
+        const enumItem = new ScvdEnum(this, lastEnum);
+        this._enum.push(enumItem);
+        return enumItem;
+    }
+    public get enum(): ScvdEnum[] {
+        return this._enum;
+    }
+
+    public async getEnum(value: number): Promise<ScvdEnum | undefined> {
+        for (const item of this._enum) {
+            const enumVal = await item.value?.getValue();
+            if (typeof enumVal === 'number' && enumVal === value) {
+                return item;
+            }
+        }
+        return undefined;
     }
 
 }

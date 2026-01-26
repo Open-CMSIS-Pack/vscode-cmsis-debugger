@@ -77,11 +77,17 @@ export class ScvdDataType extends ScvdNode {
         return size;
     }
 
+    // should not be used for data types, kept for interface consistency
+    public override async getTargetSize(): Promise<number | undefined> {
+        console.error(this.getLineInfoStr(), 'ScvdDataType.getTargetSize() called, check Scvd object usage.');
+        return this.getTypeSize();
+    }
+
     public override getIsPointer(): boolean {
         return this._type?.getIsPointer() ?? false;
     }
 
-    public override getVirtualSize(): number | undefined {
+    public override async getVirtualSize(): Promise<number | undefined> {
         return this._type?.getVirtualSize();
     }
 
@@ -105,7 +111,7 @@ export class ScvdDataType extends ScvdNode {
 
 
 export class ScvdScalarDataType extends ScvdNode {
-    private _type: string | undefined;
+    private _typeScalar: string | undefined;
     private _isPointer: boolean = false;
 
     constructor(
@@ -122,7 +128,7 @@ export class ScvdScalarDataType extends ScvdNode {
             const typeStr = type.replace(/\*/g, '').trim();
             Object.keys(ScvdScalarDataTypeMap).forEach(element => {
                 if (element === typeStr) {
-                    this._type = element;
+                    this._typeScalar = element;
                 }
             });
         }
@@ -150,12 +156,12 @@ export class ScvdScalarDataType extends ScvdNode {
         return this.isPointer;
     }
 
-    public override getVirtualSize(): number | undefined {
+    public override async getVirtualSize(): Promise<number | undefined> {
         return this.getTypeSize();
     }
 
     public get type(): string | undefined {
-        return this._type;
+        return this._typeScalar;
     }
 
 
@@ -164,7 +170,7 @@ export class ScvdScalarDataType extends ScvdNode {
 
 export class ScvdComplexDataType extends ScvdNode{
     private _typeName: string | undefined;
-    private _type: ScvdTypedef | undefined;
+    private _typeDef: ScvdTypedef | undefined;
     private _isPointer: boolean = false;
 
     constructor(
@@ -195,19 +201,15 @@ export class ScvdComplexDataType extends ScvdNode{
     }
 
     public override getTypeSize(): number | undefined {
-        const sizeInBytes = this._type?.getTypeSize();
-        if (sizeInBytes !== undefined) {
-            return sizeInBytes;
-        }
-        return undefined;
+        return this._typeDef?.getTypeSize();
     }
 
     public override getIsPointer(): boolean {
         return this.isPointer;
     }
 
-    public override getVirtualSize(): number | undefined {
-        return this._type?.getVirtualSize();
+    public override async getVirtualSize(): Promise<number | undefined> {
+        return this._typeDef?.getVirtualSize();
     }
 
     public override resolveAndLink(resolveFunc: ResolveSymbolCb): boolean {
@@ -225,12 +227,12 @@ export class ScvdComplexDataType extends ScvdNode{
             console.error('Failed to resolve complex data type:', typeName);
             return false;
         }
-        this._type = item;
+        this._typeDef = item;
         return true;
     }
 
     public override getMember(property: string): ScvdNode | undefined {
-        return this._type?.getMember(property);
+        return this._typeDef?.getMember(property);
     }
 
 

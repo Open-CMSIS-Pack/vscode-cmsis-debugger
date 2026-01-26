@@ -38,25 +38,38 @@ describe('ScvdMember', () => {
         expect(member.readXml(xml)).toBe(true);
         expect(member.type).toBeDefined();
         expect(member.offset).toBeDefined();
-        expect(member.size).toBe(2);
+        expect(member.size).toBeInstanceOf(ScvdExpression);
+        expect(member.size?.expression).toBe('2');
         expect(member.enum).toHaveLength(1);
     });
 
-    it('computes target size and pointer behavior', () => {
+    it('computes target size and pointer behavior', async () => {
         const member = new ScvdMember(undefined);
         member.type = 'uint32_t';
         member.size = '8';
+        member.configure();
         expect(member.getTypeSize()).toBe(4);
-        expect(member.getVirtualSize()).toBe(8);
-        expect(member.getTargetSize()).toBe(8);
+        await expect(member.getArraySize()).resolves.toBe(8);
+        await expect(member.getVirtualSize()).resolves.toBe(4);
+        await expect(member.getTargetSize()).resolves.toBe(4);
         expect(member.getIsPointer()).toBe(false);
 
         const pointer = new ScvdMember(undefined);
         pointer.type = '*uint8_t';
+        pointer.size = '8';
+        pointer.configure();
         expect(pointer.getIsPointer()).toBe(true);
-        expect(pointer.getTargetSize()).toBe(4);
+        await expect(pointer.getArraySize()).resolves.toBe(8);
+        await expect(pointer.getTargetSize()).resolves.toBe(4);
         expect(pointer.isPointerRef()).toBe(true);
+
+        const oversized = new ScvdMember(undefined);
+        oversized.type = 'uint8_t';
+        oversized.size = '70000';
+        oversized.configure();
+        await expect(oversized.getTargetSize()).resolves.toBe(1);
     });
+
 
     it('finds enums and members via helper APIs', async () => {
         const member = new ScvdMember(undefined);
@@ -94,13 +107,13 @@ describe('ScvdMember', () => {
         return expect(member.getMemberOffset()).resolves.toBe(0);
     });
 
-    it('covers undefined setters and size fallback', () => {
+    it('covers undefined setters and size fallback', async () => {
         const member = new ScvdMember(undefined);
         member.type = undefined;
         member.offset = undefined;
         member.size = undefined;
 
         member.type = 'uint16_t';
-        expect(member.getTargetSize()).toBe(2);
+        await expect(member.getTargetSize()).resolves.toBe(2);
     });
 });

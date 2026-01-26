@@ -84,7 +84,7 @@ describe('ScvdRead', () => {
         (read as unknown as { _size?: { getValue: () => Promise<unknown> } })._size = {
             getValue: async () => 'bad'
         };
-        await expect(read.getArraySize()).resolves.toBeUndefined();
+        await expect(read.getArraySize()).resolves.toBe(1);
 
         (read as unknown as { _type?: { getIsPointer: () => boolean } })._type = {
             getIsPointer: () => true
@@ -122,7 +122,7 @@ describe('ScvdRead', () => {
         await expect(read.getConditionResult()).resolves.toBe(true);
     });
 
-    it('delegates size and member lookups to the type', () => {
+    it('delegates size and member lookups to the type', async () => {
         const read = new ScvdRead(undefined);
         const member = new ScvdRead(read);
         (read as unknown as { _type?: { getTypeSize: () => number; getVirtualSize: () => number; getMember: (n: string) => ScvdRead; getValueType: () => string } })._type = {
@@ -132,9 +132,18 @@ describe('ScvdRead', () => {
             getValueType: () => 'uint32'
         };
 
-        expect(read.getTargetSize()).toBe(4);
-        expect(read.getVirtualSize()).toBe(8);
+        await expect(read.getTargetSize()).resolves.toBe(4);
+        await expect(read.getVirtualSize()).resolves.toBe(8);
         expect(read.getMember('m')).toBe(member);
         expect(read.getValueType()).toBe('uint32');
+    });
+
+    it('keeps target size as element size', async () => {
+        const read = new ScvdRead(undefined);
+        read.size = '3';
+        (read as unknown as { _type?: { getTypeSize: () => number } })._type = {
+            getTypeSize: () => 2
+        };
+        await expect(read.getTargetSize()).resolves.toBe(2);
     });
 });

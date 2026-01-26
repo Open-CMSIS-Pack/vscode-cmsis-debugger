@@ -47,7 +47,7 @@ class FakeBase extends ScvdNode {
         return false;
     }
 
-    public override getTargetSize(): number | undefined {
+    public override async getTargetSize(): Promise<number | undefined> {
         return 4;
     }
 
@@ -61,7 +61,7 @@ class FakeMember extends ScvdMember {
         super(undefined);
     }
 
-    public override getTargetSize(): number | undefined {
+    public override async getTargetSize(): Promise<number | undefined> {
         return 4;
     }
 
@@ -176,6 +176,29 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
         expect(out).toBe('Status OK');
     });
 
+    it('formats %t (text from cached bytes)', async () => {
+        const memHost = new MemoryHost();
+        memHost.setVariable('buf', 5, new Uint8Array([0x4E, 0x61, 0x6D, 0x65, 0x00]), 0);
+        const debugTarget = new FakeDebugTarget(new Map(), new Map()) as unknown as ScvdDebugTarget;
+        const scvdWithMem = new ScvdEvalInterface(
+            memHost,
+            {} as RegisterHost,
+            debugTarget,
+            new ScvdFormatSpecifier()
+        );
+        const node = new FakeBase();
+        node.name = 'buf';
+        const container: RefContainer = {
+            base: node,
+            current: node,
+            anchor: node,
+            widthBytes: 5,
+            valueType: undefined
+        };
+        const out = await scvdWithMem.formatPrintf('t', 0, container);
+        expect(out).toBe('Name');
+    });
+
     it('formats %C as symbol name when available', async () => {
         const out = await scvd.formatPrintf('C', 0x1000, makeContainer());
         expect(out).toBe('MySym');
@@ -255,7 +278,7 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
         const addrLike = new FakeBase('uint8_t');
         addrLike.name = '_addr';
         // even with odd target size, padding should be 32-bit
-        addrLike.getTargetSize = () => 1;
+        addrLike.getTargetSize = async () => 1;
         const out = await scvd.formatPrintf('x', 0x1, makeContainer(undefined, addrLike));
         expect(out).toBe('0x1');
     });

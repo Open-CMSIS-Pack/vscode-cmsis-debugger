@@ -23,6 +23,7 @@ import { ScvdDebugTarget } from './scvd-debug-target';
 import { FormatSegment } from './parser-evaluator/parser';
 import { FormatTypeInfo, ScvdFormatSpecifier } from './model/scvd-format-specifier';
 import { ScvdMember } from './model/scvd-member';
+import { ScvdVar } from './model/scvd-var';
 
 export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicProvider {
     private _registerCache: RegisterHost;
@@ -101,7 +102,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         }
 
         // Determine element width: prefer target size, then container hint, then byte-width helper.
-        let widthBytes: number | undefined = currentRef?.getTargetSize?.();
+        let widthBytes: number | undefined = currentRef?.getTargetSize ? await currentRef.getTargetSize() : undefined;
         if ((!widthBytes || widthBytes <= 0) && container.widthBytes) {
             widthBytes = container.widthBytes;
         }
@@ -187,7 +188,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         if (isPointer) {
             return 4;   // pointer size
         }
-        const size = ref.getTargetSize();
+        const size = await ref.getTargetSize();
         const numOfElements = await ref.getArraySize();
 
         if (size !== undefined) {
@@ -205,11 +206,11 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         if (isPointer) {
             return 4;   // pointer size
         }
-        const stride = ref.getVirtualSize();
+        const stride = await ref.getVirtualSize();
         if (stride !== undefined) {
             return stride;
         }
-        const size = ref.getTargetSize();
+        const size = await ref.getTargetSize();
         if (size !== undefined) {
             return size;
         }
@@ -390,8 +391,12 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                 return this.formatSpecifier.format(spec, name ?? addr, { typeInfo, allowUnknownSpec: true });
             }
             case 'E': {
-                const memberItem = base?.castToDerived(ScvdMember);
-                const enumItem = typeof value === 'number' ? await memberItem?.getEnum(value) : undefined;
+                const origin = container.origin ?? base;
+                const memberItem = origin?.castToDerived(ScvdMember);
+                const varItem = origin?.castToDerived(ScvdVar);
+                const enumItem = typeof value === 'number'
+                    ? await (memberItem?.getEnum(value) ?? varItem?.getEnum(value))
+                    : undefined;
                 const enumStr = await enumItem?.getGuiName();
                 const opts: { typeInfo: FormatTypeInfo; allowUnknownSpec: true; enumText?: string } = { typeInfo, allowUnknownSpec: true };
                 if (enumStr !== undefined) {
@@ -431,6 +436,25 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                     const data = await this.debugTarget.readUint8ArrayStrFromPointer(value, 1, 260 - 4);
                     if (data !== undefined) {
                         return this.formatSpecifier.format(spec, data, { typeInfo, allowUnknownSpec: true });
+                    }
+                }
+                return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+            }
+            case 't': {
+                if (typeof value === 'string' || value instanceof Uint8Array) {
+                    return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+                }
+                const anchor = container.anchor ?? base;
+                const width = container.widthBytes ?? (base ? await this.getByteWidth(base) : undefined);
+                if (anchor?.name !== undefined && width !== undefined && width > 0) {
+                    const cacheRef: RefContainer = {
+                        ...container,
+                        anchor,
+                        widthBytes: width
+                    };
+                    const raw = await this.memHost.readRaw(cacheRef, width);
+                    if (raw !== undefined) {
+                        return this.formatSpecifier.format(spec, raw, { typeInfo, allowUnknownSpec: true });
                     }
                 }
                 return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });

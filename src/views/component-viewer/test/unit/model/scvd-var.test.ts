@@ -32,10 +32,11 @@ describe('ScvdVar', () => {
 
     it('reads XML and exposes type/size fields', () => {
         const item = new ScvdVar(undefined);
-        expect(item.readXml({ value: '1', type: 'uint32_t', size: '2' })).toBe(true);
+        expect(item.readXml({ value: '1', type: 'uint32_t', size: '2', enum: { value: '1' } })).toBe(true);
         expect(item.value).toBeDefined();
         expect(item.type).toBeDefined();
         expect(item.size).toBe(2);
+        expect(item.enum).toHaveLength(1);
 
         item.size = undefined;
         expect(item.size).toBe(2);
@@ -64,9 +65,10 @@ describe('ScvdVar', () => {
         const item = new ScvdVar(undefined);
         const member = new ScvdVar(item);
         item.size = '2';
-        expect(item.getTargetSize()).toBe(2);
+        await expect(item.getTargetSize()).resolves.toBe(1);
+        await expect(item.getArraySize()).resolves.toBe(2);
         item.size = undefined;
-        expect(item.getTargetSize()).toBe(2);
+        await expect(item.getTargetSize()).resolves.toBe(1);
         expect(item.getIsPointer()).toBe(false);
         expect(item.getMember('m')).toBeUndefined();
         expect(item.getElementRef()).toBeUndefined();
@@ -81,8 +83,9 @@ describe('ScvdVar', () => {
         item.size = '3';
 
         expect(item.getTypeSize()).toBe(4);
-        expect(item.getTargetSize()).toBe(12);
-        expect(item.getVirtualSize()).toBe(12);
+        await expect(item.getTargetSize()).resolves.toBe(4);
+        await expect(item.getArraySize()).resolves.toBe(3);
+        await expect(item.getVirtualSize()).resolves.toBe(4);
         expect(item.getIsPointer()).toBe(true);
         expect(item.getMember('m')).toBe(member);
         expect(item.getElementRef()).toBe(typeStub);
@@ -107,9 +110,18 @@ describe('ScvdVar', () => {
         await expect(item.getMemberOffset()).resolves.toBe(0);
     });
 
-    it('defaults target size to 1 when no size or type is set', () => {
+    it('defaults target size to 1 when no size or type is set', async () => {
         const item = new ScvdVar(undefined);
-        expect(item.getTargetSize()).toBe(1);
+        await expect(item.getTargetSize()).resolves.toBe(1);
+        await expect(item.getArraySize()).resolves.toBe(1);
+    });
+
+    it('finds enums via helper APIs', async () => {
+        const item = new ScvdVar(undefined);
+        const enumItem = item.addEnum();
+        jest.spyOn(enumItem.value, 'getValue').mockResolvedValue(3);
+        await expect(item.getEnum(3)).resolves.toBe(enumItem);
+        await expect(item.getEnum(2)).resolves.toBeUndefined();
     });
 
     it('updates the data type when set repeatedly', () => {
