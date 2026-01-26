@@ -465,9 +465,9 @@ async function mustRef(node: ASTNode, ctx: EvalContext, forWrite = false): Promi
             ctx.container.member = undefined;
             ctx.container.index = undefined;
             ctx.container.valueType = undefined;
+            ctx.container.origin = undefined;
             // Set the current target for subsequent resolution
             ctx.container.current = ref;
-            ctx.container.origin = ref;
 
             // Prefer a byte-based width helper if host provides one
             const byteWidthFn = ctx.data.getByteWidth;
@@ -534,7 +534,7 @@ async function mustRef(node: ASTNode, ctx: EvalContext, forWrite = false): Promi
                 // Finalize hints
                 ctx.container.member = child;
                 ctx.container.current = child;
-                ctx.container.origin = child;
+                ctx.container.origin = arrayRef;
                 ctx.container.valueType = undefined; // will be resolved on read/write via getValueType
                 return child;
             }
@@ -564,7 +564,7 @@ async function mustRef(node: ASTNode, ctx: EvalContext, forWrite = false): Promi
 
             ctx.container.member = child;
             ctx.container.current = child;
-            ctx.container.origin = child;
+            ctx.container.origin = undefined;
             ctx.container.valueType = undefined;
             return child;
         }

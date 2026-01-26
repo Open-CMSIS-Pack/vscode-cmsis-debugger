@@ -352,6 +352,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
 
     public async formatPrintf(spec: FormatSegment['spec'], value: EvalValue, container: RefContainer): Promise<string | undefined> {
         const base = container.current;
+        const formatRef = container.origin ?? base;
         const typeInfo = await this.getScalarInfo(container);
 
         const toNumeric = (v: unknown): number | bigint => {
@@ -391,9 +392,8 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                 return this.formatSpecifier.format(spec, name ?? addr, { typeInfo, allowUnknownSpec: true });
             }
             case 'E': {
-                const origin = container.origin ?? base;
-                const memberItem = origin?.castToDerived(ScvdMember);
-                const varItem = origin?.castToDerived(ScvdVar);
+                const memberItem = formatRef?.castToDerived(ScvdMember);
+                const varItem = formatRef?.castToDerived(ScvdVar);
                 const enumItem = typeof value === 'number'
                     ? await (memberItem?.getEnum(value) ?? varItem?.getEnum(value))
                     : undefined;
@@ -445,7 +445,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                     return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
                 }
                 const anchor = container.anchor ?? base;
-                const width = container.widthBytes ?? (base ? await this.getByteWidth(base) : undefined);
+                const width = container.widthBytes ?? (formatRef ? await this.getByteWidth(formatRef) : undefined);
                 if (anchor?.name !== undefined && width !== undefined && width > 0) {
                     const cacheRef: RefContainer = {
                         ...container,
