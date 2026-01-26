@@ -77,9 +77,7 @@ export class ScvdDataType extends ScvdNode {
         return size;
     }
 
-    // should not be used for data types, kept for interface consistency
     public override async getTargetSize(): Promise<number | undefined> {
-        console.error(this.getLineInfoStr(), 'ScvdDataType.getTargetSize() called, check Scvd object usage.');
         return this.getTypeSize();
     }
 
