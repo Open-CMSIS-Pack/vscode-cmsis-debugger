@@ -34,20 +34,4 @@ export class ScvdPrintExpression extends ScvdExpression {
     public override get classname(): string {
         return 'ScvdPrintExpression';
     }
-
-    public override configure(): boolean {
-        return super.configure();
-    }
-
-    public override validate(prevResult: boolean): boolean {
-        return super.validate(prevResult && true);
-    }
-
-    public override async getGuiName(): Promise<string | undefined> {
-        return super.getGuiName();
-    }
-
-    public override async getGuiValue(): Promise<string | undefined> {
-        return super.getGuiValue();
-    }
 }

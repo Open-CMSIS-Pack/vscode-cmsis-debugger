@@ -67,11 +67,4 @@ export class ScvdEventId extends ScvdNode {
 
         return super.configure();
     }
-
-    public override validate(prevResult: boolean): boolean {
-        return super.validate(prevResult && true);
-    }
-
-
-
 }
