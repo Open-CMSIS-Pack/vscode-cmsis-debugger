@@ -37,6 +37,10 @@ class DummyTypedef extends ScvdTypedef {
         return 12;
     }
 
+    public override async getTargetSize(): Promise<number | undefined> {
+        return 16;
+    }
+
     public override getMember(_property: string): ScvdNode | undefined {
         return this;
     }
@@ -105,6 +109,7 @@ describe('ScvdDataType', () => {
         expect(ok).toBe(true);
         expect(complex.getIsPointer()).toBe(true);
         expect(complex.getTypeSize()).toBe(8);
+        await expect(complex.getTargetSize()).resolves.toBe(16);
         await expect(complex.getVirtualSize()).resolves.toBe(12);
         expect(complex.getMember('member')).toBe(typedef);
 

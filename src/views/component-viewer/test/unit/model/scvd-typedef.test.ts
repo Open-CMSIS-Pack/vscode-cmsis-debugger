@@ -99,6 +99,22 @@ describe('ScvdTypedef', () => {
         expect(typedef.getIsPointer()).toBe(false);
     });
 
+    it('returns size expression when target size is unset', async () => {
+        const typedef = new ScvdTypedef(undefined);
+        typedef.size = '7';
+        jest.spyOn(typedef.size as ScvdExpression, 'getValue').mockResolvedValue(7);
+
+        await expect(typedef.getTargetSize()).resolves.toBe(7);
+    });
+
+    it('returns undefined for non-numeric size expressions', async () => {
+        const typedef = new ScvdTypedef(undefined);
+        typedef.size = 'bad';
+        jest.spyOn(typedef.size as ScvdExpression, 'getValue').mockResolvedValue(Number.NaN);
+
+        await expect(typedef.getTargetSize()).resolves.toBeUndefined();
+    });
+
     it('ignores undefined setter inputs', () => {
         const typedef = new ScvdTypedef(undefined);
         typedef.size = undefined;
