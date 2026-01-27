@@ -142,6 +142,14 @@ describe('ScvdMember', () => {
         await expect(member.getTargetSize()).resolves.toBe(2);
     });
 
+    it('returns element reference for array access', () => {
+        const member = new ScvdMember(undefined);
+        expect(member.getElementRef()).toBeUndefined();
+
+        member.type = 'uint32_t';
+        expect(member.getElementRef()).toBe(member.type);
+    });
+
     it('returns undefined target size when type size is missing', async () => {
         const member = new ScvdMember(undefined);
         await expect(member.getTargetSize()).resolves.toBeUndefined();

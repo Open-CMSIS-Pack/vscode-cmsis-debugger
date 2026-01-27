@@ -181,6 +181,164 @@ class HookHost implements FullDataHost {
     }
 }
 
+class NestedArrayHost implements FullDataHost {
+    readonly root = new BasicRef();
+    readonly objArrayRef = new BasicRef(this.root);
+    readonly objElementRef = new BasicRef(this.objArrayRef);
+    readonly memberArrayRef = new BasicRef(this.objElementRef);
+    readonly varArrayRef = new BasicRef(this.objElementRef);
+    readonly memberElementRef = new BasicRef(this.memberArrayRef);
+    readonly varElementRef = new BasicRef(this.varArrayRef);
+
+    private readonly values = new Map<number, EvalValue>([
+        [28, 111], // obj[1].member[2] => 1*16 + 8 + 2*2
+        [36, 222], // obj[1].var[2] => 1*16 + 12 + 2*4
+    ]);
+
+    calls: Record<string, number> = {};
+
+    private tick(name: string) {
+        // eslint-disable-next-line security/detect-object-injection -- false positive: controlled key accumulation for test bookkeeping
+        this.calls[name] = (this.calls[name] ?? 0) + 1;
+    }
+
+    public async getSymbolRef(_container: RefContainer, name: string): Promise<BasicRef | undefined> {
+        this.tick('getSymbolRef');
+        if (name === 'obj') {
+            return this.objArrayRef;
+        }
+        return undefined;
+    }
+
+    public async getMemberRef(container: RefContainer, property: string): Promise<BasicRef | undefined> {
+        this.tick('getMemberRef');
+        if (container.current === this.objElementRef) {
+            if (property === 'member') {
+                return this.memberArrayRef;
+            }
+            if (property === 'var') {
+                return this.varArrayRef;
+            }
+        }
+        return undefined;
+    }
+
+    public async getElementStride(ref: ScvdNode): Promise<number> {
+        this.tick('getElementStride');
+        if (ref === this.objArrayRef) {
+            return 16;
+        }
+        if (ref === this.memberArrayRef) {
+            return 2;
+        }
+        if (ref === this.varArrayRef) {
+            return 4;
+        }
+        return 1;
+    }
+
+    public async getMemberOffset(_base: ScvdNode, member: ScvdNode): Promise<number | undefined> {
+        this.tick('getMemberOffset');
+        if (member === this.memberArrayRef) {
+            return 8;
+        }
+        if (member === this.varArrayRef) {
+            return 12;
+        }
+        return 0;
+    }
+
+    public async getElementRef(ref: ScvdNode): Promise<BasicRef | undefined> {
+        this.tick('getElementRef');
+        if (ref === this.objArrayRef) {
+            return this.objElementRef;
+        }
+        if (ref === this.memberArrayRef) {
+            return this.memberElementRef;
+        }
+        if (ref === this.varArrayRef) {
+            return this.varElementRef;
+        }
+        return undefined;
+    }
+
+    public async getByteWidth(): Promise<number | undefined> {
+        this.tick('getByteWidth');
+        return 4;
+    }
+
+    public async resolveColonPath(): Promise<EvalValue> {
+        this.tick('resolveColonPath');
+        return undefined;
+    }
+
+    public async readValue(container: RefContainer): Promise<EvalValue | undefined> {
+        this.tick('readValue');
+        const off = container.offsetBytes ?? 0;
+        return this.values.get(off);
+    }
+
+    public async writeValue(_container: RefContainer, value: EvalValue): Promise<EvalValue | undefined> {
+        this.tick('writeValue');
+        return value;
+    }
+
+    public async _count(): Promise<number | undefined> {
+        this.tick('_count');
+        return undefined;
+    }
+
+    public async _addr(): Promise<number | undefined> {
+        this.tick('_addr');
+        return undefined;
+    }
+
+    public async formatPrintf(): Promise<string | undefined> {
+        this.tick('formatPrintf');
+        return undefined;
+    }
+
+    public async getValueType(): Promise<string | undefined> {
+        this.tick('getValueType');
+        return undefined;
+    }
+
+    public async __GetRegVal(): Promise<number | bigint | undefined> {
+        this.tick('__GetRegVal');
+        return undefined;
+    }
+
+    public async __FindSymbol(): Promise<number | undefined> {
+        this.tick('__FindSymbol');
+        return undefined;
+    }
+
+    public async __CalcMemUsed(): Promise<number | undefined> {
+        this.tick('__CalcMemUsed');
+        return undefined;
+    }
+
+    public async __size_of(): Promise<number | undefined> {
+        this.tick('__size_of');
+        return undefined;
+    }
+
+    public async __Symbol_exists(): Promise<number | undefined> {
+        this.tick('__Symbol_exists');
+        return undefined;
+    }
+
+    public async __Offset_of(): Promise<number | undefined> {
+        this.tick('__Offset_of');
+        return undefined;
+    }
+
+    public async __Running(): Promise<number | undefined> {
+        this.tick('__Running');
+        return undefined;
+    }
+}
+
 describe('evaluator data host hooks', () => {
     it('uses stride/offset/element helpers for array member reads', async () => {
         const host = new HookHost();
@@ -246,5 +404,18 @@ describe('evaluator data host hooks', () => {
         expect(out).toBe('mac=1E-30-6C-A2-45-5F');
         expect(host.calls.formatPrintf).toBe(1);
         expect(host.lastFormattingContainer?.current).toBe(host.fieldRef);
+    });
+
+    it('computes nested array offsets for member and var arrays', async () => {
+        const host = new NestedArrayHost();
+        const ctx = new EvalContext({ data: host, container: host.root });
+
+        const memberExpr = parseExpression('obj[1].member[2]', false);
+        const memberOut = await evaluateParseResult(memberExpr, ctx);
+        expect(memberOut).toBe(111);
+
+        const varExpr = parseExpression('obj[1].var[2]', false);
+        const varOut = await evaluateParseResult(varExpr, ctx);
+        expect(varOut).toBe(222);
     });
 });
