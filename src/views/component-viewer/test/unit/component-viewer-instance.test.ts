@@ -232,4 +232,18 @@ describe('ComponentViewerInstance', () => {
         expect(first).toContain('Time:');
         expect(second).toContain('Mem Increase:');
     });
+
+    it('stores scvd eval context and forwards active session updates', () => {
+        const instance = new ComponentViewerInstance();
+        const updateActiveSession = jest.fn();
+        const evalContext = { updateActiveSession } as unknown as ScvdEvalContext;
+        const debugSession = {} as unknown as GDBTargetDebugSession;
+
+        expect(instance.scvdEvalContext).toBeUndefined();
+        instance.scvdEvalContext = evalContext;
+        expect(instance.scvdEvalContext).toBe(evalContext);
+
+        instance.updateActiveSession(debugSession);
+        expect(updateActiveSession).toHaveBeenCalledWith(debugSession);
+    });
 });
