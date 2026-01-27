@@ -190,24 +190,23 @@ describe('parser', () => {
         expect(mod.diagnostics.some(d => d.message.includes('Division by zero'))).toBe(true);
     });
 
-    it('handles missing intrinsic definitions during parsing', () => {
-        jest.isolateModules(() => {
-            jest.doMock('../../../../parser-evaluator/intrinsics', () => {
-                const actual = jest.requireActual('../../../../parser-evaluator/intrinsics');
-                return {
-                    ...actual,
-                    INTRINSIC_DEFINITIONS: {
-                        ...actual.INTRINSIC_DEFINITIONS,
-                        __GetRegVal: undefined
-                    }
-                };
-            });
-            // Use the isolated, mocked module instance.
-            // eslint-disable-next-line @typescript-eslint/no-var-requires -- jest.isolateModules uses require.
-            const parser = require('../../../../parser-evaluator/parser') as typeof import('../../../../parser-evaluator/parser');
-            const pr = parser.parseExpression('__GetRegVal(1)', false);
-            expect(pr.ast.kind).toBe('EvalPointCall');
+    it('handles missing intrinsic definitions during parsing', async () => {
+        jest.resetModules();
+        jest.doMock('../../../../parser-evaluator/intrinsics', () => {
+            const actual = jest.requireActual('../../../../parser-evaluator/intrinsics');
+            return {
+                ...actual,
+                INTRINSIC_DEFINITIONS: {
+                    ...actual.INTRINSIC_DEFINITIONS,
+                    __GetRegVal: undefined
+                }
+            };
         });
+        const parser = await import('../../../../parser-evaluator/parser');
+        const pr = parser.parseExpression('__GetRegVal(1)', false);
+        expect(pr.ast.kind).toBe('EvalPointCall');
+        jest.dontMock('../../../../parser-evaluator/intrinsics');
+        jest.resetModules();
     });
 
     it('exposes parser test utilities for const normalization', () => {
