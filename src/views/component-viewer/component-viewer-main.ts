@@ -231,32 +231,32 @@ export class ComponentViewer {
         this._updateInProgress = true;
         do {
             this._updateQueued = false;
-        this._instanceUpdateCounter = 0;
-        if (!this._activeSession) {
-            this._componentViewerTreeDataProvider?.deleteModels();
-            continue;
-        }
-        if (this._instances.length === 0) {
-            continue;
-        }
-        this._componentViewerTreeDataProvider?.beginUpdate();
-        for (const instance of this._instances) {
-            this._instanceUpdateCounter++;
-            console.log(`Updating Component Viewer Instance #${this._instanceUpdateCounter}`);
-            const instanceKey = instance.getInstanceKey();
-            if (instanceKey) {
-                ScvdGuiTree.pushKeySuffix(instanceKey);
+            this._instanceUpdateCounter = 0;
+            if (!this._activeSession) {
+                this._componentViewerTreeDataProvider?.deleteModels();
+                continue;
             }
-            try {
-                await instance.update();
-            } finally {
+            if (this._instances.length === 0) {
+                continue;
+            }
+            this._componentViewerTreeDataProvider?.beginUpdate();
+            for (const instance of this._instances) {
+                this._instanceUpdateCounter++;
+                console.log(`Updating Component Viewer Instance #${this._instanceUpdateCounter}`);
+                const instanceKey = instance.getInstanceKey();
                 if (instanceKey) {
-                    ScvdGuiTree.popKeySuffix();
+                    ScvdGuiTree.pushKeySuffix(instanceKey);
                 }
+                try {
+                    await instance.update();
+                } finally {
+                    if (instanceKey) {
+                        ScvdGuiTree.popKeySuffix();
+                    }
+                }
+                this._componentViewerTreeDataProvider?.addGuiOut(instance.getGuiTree());
             }
-            this._componentViewerTreeDataProvider?.addGuiOut(instance.getGuiTree());
-        }
-        this._componentViewerTreeDataProvider?.showModelData();
+            this._componentViewerTreeDataProvider?.showModelData();
         } while (this._updateQueued);
         this._updateInProgress = false;
     }

@@ -38,7 +38,6 @@ import {
     __parserTestUtils,
     parseExpression
 } from '../../../../parser-evaluator/parser';
-import { INTRINSIC_DEFINITIONS } from '../../../../parser-evaluator/intrinsics';
 
 type ParserPrivate = {
     diagnostics: Diagnostic[];
