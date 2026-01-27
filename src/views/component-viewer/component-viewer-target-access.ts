@@ -23,9 +23,6 @@ import { logger } from '../../logger';
 export class ComponentViewerTargetAccess {
     _activeSession: GDBTargetDebugSession | undefined;
     constructor () {
-        if (vscode.debug.activeDebugSession) {
-            this._activeSession = new GDBTargetDebugSession(vscode.debug.activeDebugSession);
-        }
     }
 
     // Function to reset active session

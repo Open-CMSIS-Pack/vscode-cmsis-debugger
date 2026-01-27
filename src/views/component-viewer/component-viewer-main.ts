@@ -147,6 +147,10 @@ export class ComponentViewer {
     private async handleOnDidChangeActiveDebugSession(session: GDBTargetDebugSession | undefined): Promise<void> {
         // Update debug session
         this._activeSession = session;
+        // Update Active Session in all instances
+        for (const instance of this._instances) {
+            instance.updateActiveSession(session!);
+        }
         // Update component viewer instance(s)
         await this.updateInstances();
     }

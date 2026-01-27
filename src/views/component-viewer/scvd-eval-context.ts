@@ -61,10 +61,14 @@ export class ScvdEvalContext {
         });
     }
 
-    private get model(): ScvdComponentViewer {
+    public get model(): ScvdComponentViewer {
         return this._model !== undefined ? this._model : (() => {
             throw new Error('SCVD EvalContext: Model not initialized');
         })();
+    }
+
+    public set model(model: ScvdComponentViewer) {
+        this._model = model;
     }
 
     private get memoryHost(): MemoryHost {
@@ -83,6 +87,10 @@ export class ScvdEvalContext {
         return this._ctx !== undefined ? this._ctx : (() => {
             throw new Error('SCVD EvalContext: EvalContext not initialized');
         })();
+    }
+
+    public updateActiveSession(debugSession: GDBTargetDebugSession): void {
+        this._debugTarget.setActiveSession(debugSession);
     }
 
     public getExecutionContext(): ExecutionContext {

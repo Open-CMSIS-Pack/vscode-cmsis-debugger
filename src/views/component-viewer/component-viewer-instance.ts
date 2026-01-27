@@ -44,6 +44,7 @@ export class ComponentViewerInstance {
     private _timeUsageLast: number = 0;
     private _statementEngine: StatementEngine | undefined;
     private _guiTree: ScvdGuiTree | undefined;
+    private _scvdEvalContext: ScvdEvalContext | undefined;
 
     public constructor(
     ) {
@@ -59,6 +60,14 @@ export class ComponentViewerInstance {
             ));
         }
         return result.join('\n');
+    }
+
+    public get scvdEvalContext(): ScvdEvalContext | undefined {
+        return this._scvdEvalContext;
+    }
+
+    public set scvdEvalContext(scvdEvalContext: ScvdEvalContext | undefined) {
+        this._scvdEvalContext = scvdEvalContext;
     }
 
     public getGuiTree(): ScvdGuiTree[] | undefined {
@@ -88,6 +97,10 @@ export class ComponentViewerInstance {
         return `${text}, Time: ${timeUsage} ms, Mem: ${memUsage}, Mem Increase: ${memIncrease} MB, (Total: ${memCurrent} MB)`;
     }
 
+    public updateActiveSession(debugSession: GDBTargetDebugSession): void {
+        this._scvdEvalContext?.updateActiveSession(debugSession);
+    }
+
     public async readModel(filename: URI, debugSession: GDBTargetDebugSession, debugTracker: GDBTargetDebugTracker): Promise<void> {
         const stats: string[] = [];
 
@@ -114,11 +127,11 @@ export class ComponentViewerInstance {
         this.model.readXml(xml);
         stats.push(this.getStats('  model.readXml'));
 
-        const scvdEvalContext = new ScvdEvalContext(this.model);
-        scvdEvalContext.init(debugSession, debugTracker);
+        this._scvdEvalContext = new ScvdEvalContext(this.model);
+        this._scvdEvalContext.init(debugSession, debugTracker);
         stats.push(this.getStats('  evalContext.init'));
 
-        const executionContext = scvdEvalContext.getExecutionContext();
+        const executionContext = this._scvdEvalContext.getExecutionContext();
         this.model.setExecutionContextAll(executionContext);
         stats.push(this.getStats('  model.setExecutionContextAll'));
 
