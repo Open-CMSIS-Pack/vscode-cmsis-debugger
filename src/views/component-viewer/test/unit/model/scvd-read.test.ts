@@ -131,7 +131,15 @@ describe('ScvdRead', () => {
     it('delegates size and member lookups to the type', async () => {
         const read = new ScvdRead(undefined);
         const member = new ScvdRead(read);
-        (read as unknown as { _type?: { getTypeSize: () => number; getVirtualSize: () => number; getIsPointer: () => boolean; getMember: (n: string) => ScvdRead; getValueType: () => string } })._type = {
+        (read as unknown as {
+            _type?: {
+                getTypeSize: () => number;
+                getVirtualSize: () => number;
+                getIsPointer: () => boolean;
+                getMember: (n: string) => ScvdRead;
+                getValueType: () => string;
+            };
+        })._type = {
             getTypeSize: () => 4,
             getVirtualSize: () => 8,
             getIsPointer: () => false,
@@ -148,7 +156,12 @@ describe('ScvdRead', () => {
     it('keeps target size as element size', async () => {
         const read = new ScvdRead(undefined);
         read.size = '3';
-        (read as unknown as { _type?: { getTypeSize: () => number; getIsPointer: () => boolean } })._type = {
+        (read as unknown as {
+            _type?: {
+                getTypeSize: () => number;
+                getIsPointer: () => boolean;
+            };
+        })._type = {
             getTypeSize: () => 2,
             getIsPointer: () => false
         };
@@ -157,7 +170,12 @@ describe('ScvdRead', () => {
 
     it('returns pointer size for pointer types', async () => {
         const read = new ScvdRead(undefined);
-        (read as unknown as { _type?: { getTypeSize: () => number; getIsPointer: () => boolean } })._type = {
+        (read as unknown as {
+            _type?: {
+                getTypeSize: () => number;
+                getIsPointer: () => boolean;
+            };
+        })._type = {
             getTypeSize: () => 1,
             getIsPointer: () => true
         };
@@ -166,7 +184,12 @@ describe('ScvdRead', () => {
 
     it('returns undefined when type size is missing', async () => {
         const read = new ScvdRead(undefined);
-        (read as unknown as { _type?: { getTypeSize: () => number | undefined; getIsPointer: () => boolean } })._type = {
+        (read as unknown as {
+            _type?: {
+                getTypeSize: () => number | undefined;
+                getIsPointer: () => boolean;
+            };
+        })._type = {
             getTypeSize: () => undefined,
             getIsPointer: () => false
         };

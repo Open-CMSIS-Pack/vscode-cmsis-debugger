@@ -38,7 +38,6 @@ import {
     __parserTestUtils,
     parseExpression
 } from '../../../../parser-evaluator/parser';
-import { INTRINSIC_DEFINITIONS } from '../../../../parser-evaluator/intrinsics';
 
 type ParserPrivate = {
     diagnostics: Diagnostic[];
@@ -192,11 +191,23 @@ describe('parser', () => {
     });
 
     it('handles missing intrinsic definitions during parsing', () => {
-        const original = INTRINSIC_DEFINITIONS.__GetRegVal;
-        (INTRINSIC_DEFINITIONS as unknown as Record<string, unknown>).__GetRegVal = undefined;
-        const pr = parseExpression('__GetRegVal(1)', false);
-        expect(pr.ast.kind).toBe('EvalPointCall');
-        (INTRINSIC_DEFINITIONS as unknown as Record<string, unknown>).__GetRegVal = original;
+        jest.isolateModules(() => {
+            jest.doMock('../../../../parser-evaluator/intrinsics', () => {
+                const actual = jest.requireActual('../../../../parser-evaluator/intrinsics');
+                return {
+                    ...actual,
+                    INTRINSIC_DEFINITIONS: {
+                        ...actual.INTRINSIC_DEFINITIONS,
+                        __GetRegVal: undefined
+                    }
+                };
+            });
+            // Use the isolated, mocked module instance.
+            // eslint-disable-next-line @typescript-eslint/no-var-requires -- jest.isolateModules uses require.
+            const parser = require('../../../../parser-evaluator/parser') as typeof import('../../../../parser-evaluator/parser');
+            const pr = parser.parseExpression('__GetRegVal(1)', false);
+            expect(pr.ast.kind).toBe('EvalPointCall');
+        });
     });
 
     it('exposes parser test utilities for const normalization', () => {

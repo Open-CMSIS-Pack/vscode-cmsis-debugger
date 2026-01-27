@@ -52,7 +52,7 @@ class UndefinedTagBase extends ScvdBase {
     }
 }
 
-class PlainBase extends ScvdBase {}
+class PlainBase extends ScvdBase {};
 
 describe('ScvdBase', () => {
     beforeEach(() => {
