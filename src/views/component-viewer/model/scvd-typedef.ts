@@ -150,7 +150,16 @@ export class ScvdTypedef extends ScvdNode {
     }
 
     public override async getTargetSize(): Promise<number | undefined> {
-        return this.targetSize;
+        if (this.targetSize !== undefined) {
+            return this.targetSize;
+        }
+        const sizeValue = await this.size?.getValue();
+        const numericSize = typeof sizeValue === 'bigint' ? Number(sizeValue)
+            : (typeof sizeValue === 'number' ? sizeValue : undefined);
+        if (numericSize === undefined || Number.isNaN(numericSize)) {
+            return undefined;
+        }
+        return numericSize;
     }
 
 

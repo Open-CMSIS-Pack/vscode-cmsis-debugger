@@ -78,7 +78,7 @@ export class ScvdDataType extends ScvdNode {
     }
 
     public override async getTargetSize(): Promise<number | undefined> {
-        return this.getTypeSize();
+        return this._type?.getTargetSize();
     }
 
     public override getIsPointer(): boolean {
@@ -150,6 +150,10 @@ export class ScvdScalarDataType extends ScvdNode {
         return value ? value / 8 : undefined;
     }
 
+    public override async getTargetSize(): Promise<number | undefined> {
+        return this.getTypeSize();
+    }
+
     public override getIsPointer(): boolean {
         return this.isPointer;
     }
@@ -200,6 +204,10 @@ export class ScvdComplexDataType extends ScvdNode{
 
     public override getTypeSize(): number | undefined {
         return this._typeDef?.getTypeSize();
+    }
+
+    public override async getTargetSize(): Promise<number | undefined> {
+        return this._typeDef?.getTargetSize();
     }
 
     public override getIsPointer(): boolean {
