@@ -17,17 +17,18 @@
 // https://arm-software.github.io/CMSIS-View/main/elem_var.html
 
 import { ScvdDataType } from './scvd-data-type';
+import { ScvdEnum } from './scvd-enum';
 import { ScvdExpression } from './scvd-expression';
 import { Json } from './scvd-base';
 import { ScvdNode } from './scvd-node';
-import { getStringFromJson } from './scvd-utils';
-import { NumberType, NumberTypeInput } from './number-type';
+import { getArrayFromJson, getStringFromJson } from './scvd-utils';
 
 export class ScvdVar extends ScvdNode {
     private _value: ScvdExpression | undefined;
     private _type: ScvdDataType | undefined;
     private _offset: ScvdExpression | undefined;
-    private _size: number | undefined;
+    private _size: ScvdExpression | undefined;
+    private _enum: ScvdEnum[] = [];
 
 
     constructor(
@@ -40,6 +41,11 @@ export class ScvdVar extends ScvdNode {
         return 'ScvdVar';
     }
 
+    public override configure(): boolean {
+        this._size?.configure();
+        return super.configure();
+    }
+
     public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
@@ -48,6 +54,12 @@ export class ScvdVar extends ScvdNode {
         this.value = getStringFromJson(xml.value);
         this.type = getStringFromJson(xml.type);
         this.size = getStringFromJson(xml.size);
+
+        const enums = getArrayFromJson<Json>(xml.enum);
+        enums?.forEach(enumItem => {
+            const newEnum = this.addEnum();
+            newEnum.readXml(enumItem);
+        });
 
         return super.readXml(xml);
     }
@@ -61,13 +73,17 @@ export class ScvdVar extends ScvdNode {
         }
     }
 
-    public get size(): number | undefined {
+    public get size(): ScvdExpression | undefined {
         return this._size;
     }
 
-    public set size(value: NumberTypeInput | undefined) {
+    public set size(value: ScvdExpression | string | undefined) {
         if (value !== undefined) {
-            this._size = new NumberType(value).value;
+            if (value instanceof ScvdExpression) {
+                this._size = value;
+            } else {
+                this._size = new ScvdExpression(this, value, 'size');
+            }
         }
     }
 
@@ -99,18 +115,38 @@ export class ScvdVar extends ScvdNode {
         return this.type?.getTypeSize();
     }
 
-    public override getVirtualSize(): number | undefined {
+    public override async getVirtualSize(): Promise<number | undefined> {
         return this.getTargetSize();
     }
 
-    // TOIMPL: total size in bytes or type size?
-    public override getTargetSize(): number | undefined {
-        const typeSize = this.getTypeSize();
-        const elements = this.size ?? 1;
-        if ( typeSize !== undefined) {
-            return typeSize * elements;
+    // element size in bytes; array length is provided by getArraySize()
+    public override async getTargetSize(): Promise<number | undefined> {
+        if (this.getIsPointer()) {
+            return 4;
         }
-        return elements;
+        const typeSize = this.getTypeSize();
+        if (typeSize !== undefined) {
+            return typeSize;
+        }
+        return 1;
+    }
+
+    public override async getArraySize(): Promise<number | undefined> {
+        const sizeExpr = this.size;
+        if (sizeExpr === undefined) {
+            return 1;
+        }
+        const sizeValue = await sizeExpr.getValue();
+        const count = typeof sizeValue === 'bigint' ? Number(sizeValue)
+            : (typeof sizeValue === 'number' ? sizeValue : undefined);
+        if (count === undefined || !Number.isFinite(count) || count < 1 || count > 1024) {
+            console.error(this.getLineInfoStr(), `'${this.name ?? 'var'}': invalid size specified (1...1024)`);
+            if (count !== undefined && count > 1024) {
+                return 1024;
+            }
+            return 1;
+        }
+        return count;
     }
 
     public override getIsPointer(): boolean {
@@ -160,6 +196,26 @@ export class ScvdVar extends ScvdNode {
 
     public override getValueType(): string | undefined {
         return this.type?.getValueType();
+    }
+
+    public addEnum(): ScvdEnum {
+        const lastEnum = this._enum[this._enum.length - 1];
+        const enumItem = new ScvdEnum(this, lastEnum);
+        this._enum.push(enumItem);
+        return enumItem;
+    }
+    public get enum(): ScvdEnum[] {
+        return this._enum;
+    }
+
+    public async getEnum(value: number): Promise<ScvdEnum | undefined> {
+        for (const item of this._enum) {
+            const enumVal = await item.value?.getValue();
+            if (typeof enumVal === 'number' && enumVal === value) {
+                return item;
+            }
+        }
+        return undefined;
     }
 
 }

@@ -126,22 +126,42 @@ export class ScvdRead extends ScvdNode {
         return this._size;
     }
 
-    public override getTargetSize(): number | undefined {
+    public override getTypeSize(): number | undefined {
         return this.type?.getTypeSize();
     }
 
-    public override getVirtualSize(): number | undefined {
+    public override async getTargetSize(): Promise<number | undefined> {
+        if (this.getIsPointer()) {
+            return 4;
+        }
+        const typeSize = this.getTypeSize();
+        if (typeSize === undefined) {
+            return undefined;
+        }
+        return typeSize;
+    }
+
+    public override async getVirtualSize(): Promise<number | undefined> {
         return this.type?.getVirtualSize();
     }
     public override async getArraySize(): Promise<number | undefined> {
         const v = await this.size?.getValue();
-        if (typeof v === 'bigint') {
-            return Number(v);
+        const numericValue = typeof v === 'bigint' ? Number(v)
+            : (typeof v === 'number' ? v : undefined);
+        if (numericValue === undefined) {
+            return 1;
         }
-        if (typeof v === 'number') {
-            return v;
+        if (!Number.isFinite(numericValue) || numericValue < 1 || numericValue > 65536) {
+            console.error(this.getLineInfoStr(), `'${this.name ?? 'read'}': invalid size specified (1...65536)`);
+            if (numericValue < 1) {
+                return 1;
+            }
+            if (numericValue > 65536) {
+                return 65536;
+            }
+            return 1;
         }
-        return undefined;
+        return numericValue;
     }
 
     public override getIsPointer(): boolean {

@@ -132,12 +132,12 @@ export class ScvdTypedef extends ScvdNode {
     }
 
     public override getTypeSize(): number | undefined {
-        return this.getTargetSize();
+        return this.targetSize;
     }
 
     // 1. Get the virtual size including vars
     // 2. If not set, return the size expression value
-    public override getVirtualSize(): number | undefined {
+    public override async getVirtualSize(): Promise<number | undefined> {
         const virtualSize = this.virtualSize;    // calculated size including vars
         if (virtualSize !== undefined) {
             return virtualSize;
@@ -149,8 +149,17 @@ export class ScvdTypedef extends ScvdNode {
         return false;
     }
 
-    public override getTargetSize(): number | undefined {
-        return this.targetSize;
+    public override async getTargetSize(): Promise<number | undefined> {
+        if (this.targetSize !== undefined) {
+            return this.targetSize;
+        }
+        const sizeValue = await this.size?.getValue();
+        const numericSize = typeof sizeValue === 'bigint' ? Number(sizeValue)
+            : (typeof sizeValue === 'number' ? sizeValue : undefined);
+        if (numericSize === undefined || Number.isNaN(numericSize)) {
+            return undefined;
+        }
+        return numericSize;
     }
 
 
@@ -224,10 +233,6 @@ export class ScvdTypedef extends ScvdNode {
         await this.calculateOffsets();
     }
 
-    private alignToDword(addr: number): number {
-        return (addr + 3) & ~3;
-    }
-
     public async calculateOffsets() { // move to after starting debug session
         let currentNextOffset = 0;
         for (const member of this._member) {
@@ -253,9 +258,10 @@ export class ScvdTypedef extends ScvdNode {
                 member.offset?.configure();
             }
 
-            const memberSize = member.getTypeSize();
+            const memberSize = await member.getTargetSize();
+            const memberCount = await member.getArraySize();
             if (memberSize !== undefined) {   // TOIMPL: on error?!
-                currentNextOffset += memberSize;
+                currentNextOffset += memberSize * (memberCount ?? 1);
             }
         }
 
@@ -273,16 +279,14 @@ export class ScvdTypedef extends ScvdNode {
             this.targetSize = currentNextOffset;
         }
 
-        currentNextOffset = this.alignToDword(currentNextOffset + 4);   // make sure no overlaps happen when reading target memory
-
         for (const varItem of this.var) {
-            const varSize = varItem.getTargetSize() ?? 4; // default size 4 bytes
+            const elementSize = (await varItem.getTargetSize()) ?? 4; // default size 4 bytes
+            const arraySize = await varItem.getArraySize();
+            const varSize = elementSize * (arraySize ?? 1);
             varItem.offset = currentNextOffset.toString();  // set current offset
             varItem.offset?.configure();
             currentNextOffset += varSize;
         }
         this.virtualSize = currentNextOffset;
     }
-
-
 }

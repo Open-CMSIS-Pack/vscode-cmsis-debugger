@@ -1,5 +1,5 @@
 /**
- * Copyright 2025-2026 Arm Limited
+ * Copyright 2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,11 @@
 import { ScvdEventTracking, ScvdEventTrackingMode } from '../../../model/scvd-event-tracking';
 
 describe('ScvdEventTracking', () => {
+    it('exposes classname', () => {
+        const tracking = new ScvdEventTracking(undefined, 'Start');
+        expect(tracking.classname).toBe('ScvdEventTracking');
+    });
+
     it('maps string modes to enum values', () => {
         const tracking = new ScvdEventTracking(undefined, 'Start');
         expect(tracking.mode).toBe(ScvdEventTrackingMode.Start);

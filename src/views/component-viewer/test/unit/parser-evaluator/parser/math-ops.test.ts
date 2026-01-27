@@ -72,6 +72,7 @@ describe('math-ops helpers', () => {
         expect(addVals(255, 2, 8, true)).toBe(1); // wraps to 8 bits
         expect(addVals(0x1FFn, 2n, 8, true)).toBe(1n); // bigint mask path
         expect(subVals(1n, 3n)).toBe(-2n);
+        expect(subVals(1n, 3n, 8, true)).toBe(254n);
         expect(mulVals(2n, 3n, 4, true)).toBe(6n);
         expect(modVals(10n, 3n)).toBe(1n);
         expect(() => divVals(1, 0)).toThrow('Division by zero');
@@ -89,9 +90,14 @@ describe('math-ops helpers', () => {
         expect(andVals(0xF0n, 0x0Fn)).toBe(0n);
         expect(orVals(0xF0n, 0x0Fn)).toBe(0xFFn);
         expect(xorVals(0xAAAn, 0xFFn)).toBe(0xA55n);
+        expect(andVals(0xFFn, 0xF0n, 4, true)).toBe(0n);
+        expect(orVals(0x10n, 0x01n, 4, true)).toBe(0x1n);
+        expect(xorVals(0xFn, 0x1n, 4, true)).toBe(0xEn);
         expect(shlVals(1n, 65n, 8, true)).toBe(0n); // bigint shift with mask
         expect(sarVals(8n, 1n)).toBe(4n);
+        expect(sarVals(-1n, 1n, 8, true)).toBe(0xFFn);
         expect(shrVals(-1n, 1n, 8)).toBe(0n);
+        expect(shrVals(8n, 1n, 8)).toBe(4n);
     });
 
     it('merges scalar kinds with float > uint > int precedence', () => {

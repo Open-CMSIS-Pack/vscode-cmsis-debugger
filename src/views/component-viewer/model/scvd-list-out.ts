@@ -63,10 +63,6 @@ export class ScvdListOut extends ScvdList {
         return super.readXml(xml);
     }
 
-    public verify(): boolean {
-        return super.verify();
-    }
-
     public get item(): ScvdItem[] {
         return this._item;
     }

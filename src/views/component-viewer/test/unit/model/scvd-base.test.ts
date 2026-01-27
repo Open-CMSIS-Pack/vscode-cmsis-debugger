@@ -1,5 +1,5 @@
 /**
- * Copyright 2025-2026 Arm Limited
+ * Copyright 2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,6 +52,8 @@ class UndefinedTagBase extends ScvdBase {
     }
 }
 
+class PlainBase extends ScvdBase {};
+
 describe('ScvdBase', () => {
     beforeEach(() => {
         ScvdBase.resetIds();
@@ -89,6 +91,11 @@ describe('ScvdBase', () => {
         expect(base.valid).toBe(true);
         expect(base.mustRead).toBe(false);
         expect(base.lineNo).toBe('10');
+    });
+
+    it('defaults classname when not overridden', () => {
+        const base = new PlainBase(undefined);
+        expect(base.classname).toBe('ScvdBase');
     });
 
     it('supports traversal helpers', () => {

@@ -1,5 +1,5 @@
 /**
- * Copyright 2025-2026 Arm Limited
+ * Copyright 2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,14 @@
 
 import { ScvdVar } from '../../../model/scvd-var';
 import { Json } from '../../../model/scvd-base';
+import { ScvdExpression } from '../../../model/scvd-expression';
 
 describe('ScvdVar', () => {
+    it('exposes classname', () => {
+        const item = new ScvdVar(undefined);
+        expect(item.classname).toBe('ScvdVar');
+    });
+
     it('returns false when XML is undefined', () => {
         const item = new ScvdVar(undefined);
         expect(item.readXml(undefined as unknown as Json)).toBe(false);
@@ -32,17 +38,28 @@ describe('ScvdVar', () => {
 
     it('reads XML and exposes type/size fields', () => {
         const item = new ScvdVar(undefined);
-        expect(item.readXml({ value: '1', type: 'uint32_t', size: '2' })).toBe(true);
+        expect(item.readXml({ value: '1', type: 'uint32_t', size: '2', enum: { value: '1' } })).toBe(true);
         expect(item.value).toBeDefined();
         expect(item.type).toBeDefined();
-        expect(item.size).toBe(2);
+        const sizeExpr = item.size;
+        expect(sizeExpr).toBeInstanceOf(ScvdExpression);
+        if (!sizeExpr) {
+            throw new Error('Expected size expression to be defined');
+        }
+        expect(sizeExpr.expression).toBe('2');
+        expect(item.enum).toHaveLength(1);
 
         item.size = undefined;
-        expect(item.size).toBe(2);
+        expect(item.size).toBe(sizeExpr);
+        expect(sizeExpr.expression).toBe('2');
 
         const prevValue = item.value;
         item.value = undefined;
         expect(item.value).toBe(prevValue);
+
+        const expression = new ScvdExpression(item, '4', 'size');
+        item.size = expression;
+        expect(item.size).toBe(expression);
     });
 
     it('reads value and size from injected expression', async () => {
@@ -64,9 +81,12 @@ describe('ScvdVar', () => {
         const item = new ScvdVar(undefined);
         const member = new ScvdVar(item);
         item.size = '2';
-        expect(item.getTargetSize()).toBe(2);
+        item.configure();
+        await expect(item.getTargetSize()).resolves.toBe(1);
+        await expect(item.getArraySize()).resolves.toBe(2);
         item.size = undefined;
-        expect(item.getTargetSize()).toBe(2);
+        item.configure();
+        await expect(item.getTargetSize()).resolves.toBe(1);
         expect(item.getIsPointer()).toBe(false);
         expect(item.getMember('m')).toBeUndefined();
         expect(item.getElementRef()).toBeUndefined();
@@ -79,10 +99,12 @@ describe('ScvdVar', () => {
         };
         (item as unknown as { _type?: { getTypeSize: () => number; getIsPointer: () => boolean; getMember: (p: string) => ScvdVar; getValueType: () => string } })._type = typeStub;
         item.size = '3';
+        item.configure();
 
         expect(item.getTypeSize()).toBe(4);
-        expect(item.getTargetSize()).toBe(12);
-        expect(item.getVirtualSize()).toBe(12);
+        await expect(item.getTargetSize()).resolves.toBe(4);
+        await expect(item.getArraySize()).resolves.toBe(3);
+        await expect(item.getVirtualSize()).resolves.toBe(4);
         expect(item.getIsPointer()).toBe(true);
         expect(item.getMember('m')).toBe(member);
         expect(item.getElementRef()).toBe(typeStub);
@@ -107,9 +129,45 @@ describe('ScvdVar', () => {
         await expect(item.getMemberOffset()).resolves.toBe(0);
     });
 
-    it('defaults target size to 1 when no size or type is set', () => {
+    it('returns type size for non-pointer types', async () => {
         const item = new ScvdVar(undefined);
-        expect(item.getTargetSize()).toBe(1);
+        (item as unknown as { _type?: { getTypeSize: () => number; getIsPointer: () => boolean } })._type = {
+            getTypeSize: () => 2,
+            getIsPointer: () => false
+        };
+        await expect(item.getTargetSize()).resolves.toBe(2);
+    });
+
+    it('defaults target size to 1 when no size or type is set', async () => {
+        const item = new ScvdVar(undefined);
+        await expect(item.getTargetSize()).resolves.toBe(1);
+        await expect(item.getArraySize()).resolves.toBe(1);
+    });
+
+    it('clamps invalid array sizes', async () => {
+        const item = new ScvdVar(undefined);
+        item.size = 'size';
+        const sizeExpr = item.size as ScvdExpression;
+        const sizeSpy = jest.spyOn(sizeExpr, 'getValue');
+
+        sizeSpy.mockResolvedValueOnce('bad');
+        await expect(item.getArraySize()).resolves.toBe(1);
+
+        sizeSpy.mockResolvedValueOnce(2n);
+        await expect(item.getArraySize()).resolves.toBe(2);
+
+        sizeSpy.mockResolvedValueOnce(2048);
+        await expect(item.getArraySize()).resolves.toBe(1024);
+
+        sizeSpy.mockRestore();
+    });
+
+    it('finds enums via helper APIs', async () => {
+        const item = new ScvdVar(undefined);
+        const enumItem = item.addEnum();
+        jest.spyOn(enumItem.value, 'getValue').mockResolvedValue(3);
+        await expect(item.getEnum(3)).resolves.toBe(enumItem);
+        await expect(item.getEnum(2)).resolves.toBeUndefined();
     });
 
     it('updates the data type when set repeatedly', () => {

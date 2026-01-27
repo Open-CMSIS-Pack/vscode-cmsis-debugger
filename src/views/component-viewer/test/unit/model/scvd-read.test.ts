@@ -1,5 +1,5 @@
 /**
- * Copyright 2025-2026 Arm Limited
+ * Copyright 2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,11 +22,17 @@
 
 import { ScvdCondition } from '../../../model/scvd-condition';
 import { ScvdEndian } from '../../../model/scvd-endian';
+import { ScvdExpression } from '../../../model/scvd-expression';
 import { ScvdRead } from '../../../model/scvd-read';
 import { ScvdSymbol } from '../../../model/scvd-symbol';
 import { Json } from '../../../model/scvd-base';
 
 describe('ScvdRead', () => {
+    it('exposes classname', () => {
+        const read = new ScvdRead(undefined);
+        expect(read.classname).toBe('ScvdRead');
+    });
+
     it('returns false when XML is undefined', () => {
         const read = new ScvdRead(undefined);
         expect(read.readXml(undefined as unknown as Json)).toBe(false);
@@ -84,7 +90,7 @@ describe('ScvdRead', () => {
         (read as unknown as { _size?: { getValue: () => Promise<unknown> } })._size = {
             getValue: async () => 'bad'
         };
-        await expect(read.getArraySize()).resolves.toBeUndefined();
+        await expect(read.getArraySize()).resolves.toBe(1);
 
         (read as unknown as { _type?: { getIsPointer: () => boolean } })._type = {
             getIsPointer: () => true
@@ -122,19 +128,92 @@ describe('ScvdRead', () => {
         await expect(read.getConditionResult()).resolves.toBe(true);
     });
 
-    it('delegates size and member lookups to the type', () => {
+    it('delegates size and member lookups to the type', async () => {
         const read = new ScvdRead(undefined);
         const member = new ScvdRead(read);
-        (read as unknown as { _type?: { getTypeSize: () => number; getVirtualSize: () => number; getMember: (n: string) => ScvdRead; getValueType: () => string } })._type = {
+        (read as unknown as {
+            _type?: {
+                getTypeSize: () => number;
+                getVirtualSize: () => number;
+                getIsPointer: () => boolean;
+                getMember: (n: string) => ScvdRead;
+                getValueType: () => string;
+            };
+        })._type = {
             getTypeSize: () => 4,
             getVirtualSize: () => 8,
+            getIsPointer: () => false,
             getMember: () => member,
             getValueType: () => 'uint32'
         };
 
-        expect(read.getTargetSize()).toBe(4);
-        expect(read.getVirtualSize()).toBe(8);
+        await expect(read.getTargetSize()).resolves.toBe(4);
+        await expect(read.getVirtualSize()).resolves.toBe(8);
         expect(read.getMember('m')).toBe(member);
         expect(read.getValueType()).toBe('uint32');
+    });
+
+    it('keeps target size as element size', async () => {
+        const read = new ScvdRead(undefined);
+        read.size = '3';
+        (read as unknown as {
+            _type?: {
+                getTypeSize: () => number;
+                getIsPointer: () => boolean;
+            };
+        })._type = {
+            getTypeSize: () => 2,
+            getIsPointer: () => false
+        };
+        await expect(read.getTargetSize()).resolves.toBe(2);
+    });
+
+    it('returns pointer size for pointer types', async () => {
+        const read = new ScvdRead(undefined);
+        (read as unknown as {
+            _type?: {
+                getTypeSize: () => number;
+                getIsPointer: () => boolean;
+            };
+        })._type = {
+            getTypeSize: () => 1,
+            getIsPointer: () => true
+        };
+        await expect(read.getTargetSize()).resolves.toBe(4);
+    });
+
+    it('returns undefined when type size is missing', async () => {
+        const read = new ScvdRead(undefined);
+        (read as unknown as {
+            _type?: {
+                getTypeSize: () => number | undefined;
+                getIsPointer: () => boolean;
+            };
+        })._type = {
+            getTypeSize: () => undefined,
+            getIsPointer: () => false
+        };
+        await expect(read.getTargetSize()).resolves.toBeUndefined();
+    });
+
+    it('clamps invalid array sizes and logs an error', async () => {
+        const read = new ScvdRead(undefined);
+        read.size = 'size';
+        const expr = read.size as ScvdExpression;
+        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const valueSpy = jest.spyOn(expr, 'getValue');
+
+        valueSpy.mockResolvedValueOnce(0);
+        await expect(read.getArraySize()).resolves.toBe(1);
+
+        valueSpy.mockResolvedValueOnce(70000);
+        await expect(read.getArraySize()).resolves.toBe(65536);
+
+        valueSpy.mockResolvedValueOnce(NaN);
+        await expect(read.getArraySize()).resolves.toBe(1);
+
+        expect(errorSpy).toHaveBeenCalled();
+        valueSpy.mockRestore();
+        errorSpy.mockRestore();
     });
 });

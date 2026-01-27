@@ -1,5 +1,5 @@
 /**
- * Copyright 2025-2026 Arm Limited
+ * Copyright 2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ describe('StatementVar', () => {
     it('writes variables into memory host', async () => {
         const item = new ScvdVar(undefined);
         item.name = 'varA';
-        jest.spyOn(item, 'getTargetSize').mockReturnValue(4);
+        jest.spyOn(item, 'getTargetSize').mockResolvedValue(4);
         jest.spyOn(item, 'getValue').mockResolvedValue(123);
 
         const stmt = new StatementVar(item, undefined);
@@ -42,9 +42,26 @@ describe('StatementVar', () => {
         expect(spy).toHaveBeenCalledWith('varA', 4, 123, -1, 0);
     });
 
+    it('defaults array count to 1 when undefined', async () => {
+        const item = new ScvdVar(undefined);
+        item.name = 'varB';
+        jest.spyOn(item, 'getTargetSize').mockResolvedValue(4);
+        jest.spyOn(item, 'getArraySize').mockResolvedValue(undefined);
+        jest.spyOn(item, 'getValue').mockResolvedValue(456);
+
+        const stmt = new StatementVar(item, undefined);
+        const ctx = createExecutionContext(item);
+        const spy = jest.spyOn(ctx.memoryHost, 'setVariable');
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        expect(spy).toHaveBeenCalledWith('varB', 4, 456, -1, 0);
+    });
+
     it('skips when required values are missing', async () => {
         const item = new ScvdVar(undefined);
-        jest.spyOn(item, 'getTargetSize').mockReturnValue(4);
+        jest.spyOn(item, 'getTargetSize').mockResolvedValue(4);
         jest.spyOn(item, 'getValue').mockResolvedValue(123);
 
         const stmt = new StatementVar(item, undefined);

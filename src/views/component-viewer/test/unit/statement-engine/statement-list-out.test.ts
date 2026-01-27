@@ -1,5 +1,5 @@
 /**
- * Copyright 2025-2026 Arm Limited
+ * Copyright 2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -156,7 +156,7 @@ describe('StatementListOut', () => {
         const base = new BaseContainer(undefined);
         const variable = new ScvdVar(base);
         variable.name = 'loop';
-        jest.spyOn(variable, 'getTargetSize').mockReturnValue(undefined);
+        jest.spyOn(variable, 'getTargetSize').mockResolvedValue(undefined);
         base.addSymbol('loop', variable);
 
         const list = new ScvdListOut(undefined);
@@ -178,7 +178,7 @@ describe('StatementListOut', () => {
         const base = new BaseContainer(undefined);
         const variable = new ScvdVar(base);
         variable.name = 'loop';
-        jest.spyOn(variable, 'getTargetSize').mockReturnValue(4);
+        jest.spyOn(variable, 'getTargetSize').mockResolvedValue(4);
         base.addSymbol('loop', variable);
 
         const list = new ScvdListOut(undefined);
@@ -205,7 +205,7 @@ describe('StatementListOut', () => {
         const base = new BaseContainer(undefined);
         const variable = new ScvdVar(base);
         variable.name = 'loop';
-        jest.spyOn(variable, 'getTargetSize').mockReturnValue(4);
+        jest.spyOn(variable, 'getTargetSize').mockResolvedValue(4);
         base.addSymbol('loop', variable);
 
         const list = new ScvdListOut(undefined);
@@ -228,7 +228,7 @@ describe('StatementListOut', () => {
         const base = new BaseContainer(undefined);
         const variable = new ScvdVar(base);
         variable.name = 'loop';
-        jest.spyOn(variable, 'getTargetSize').mockReturnValue(4);
+        jest.spyOn(variable, 'getTargetSize').mockResolvedValue(4);
         base.addSymbol('loop', variable);
 
         const list = new ScvdListOut(undefined);
@@ -252,7 +252,7 @@ describe('StatementListOut', () => {
         const base = new BaseContainer(undefined);
         const variable = new ScvdVar(base);
         variable.name = 'loop';
-        jest.spyOn(variable, 'getTargetSize').mockReturnValue(4);
+        jest.spyOn(variable, 'getTargetSize').mockResolvedValue(4);
         base.addSymbol('loop', variable);
 
         const list = new ScvdListOut(undefined);
@@ -276,7 +276,7 @@ describe('StatementListOut', () => {
         const base = new BaseContainer(undefined);
         const variable = new ScvdVar(base);
         variable.name = 'loop';
-        jest.spyOn(variable, 'getTargetSize').mockReturnValue(4);
+        jest.spyOn(variable, 'getTargetSize').mockResolvedValue(4);
         base.addSymbol('loop', variable);
 
         const list = new ScvdListOut(undefined);
@@ -300,7 +300,7 @@ describe('StatementListOut', () => {
         const base = new BaseContainer(undefined);
         const variable = new ScvdVar(base);
         variable.name = 'loop';
-        jest.spyOn(variable, 'getTargetSize').mockReturnValue(4);
+        jest.spyOn(variable, 'getTargetSize').mockResolvedValue(4);
         base.addSymbol('loop', variable);
 
         const list = new ScvdListOut(undefined);
@@ -324,7 +324,7 @@ describe('StatementListOut', () => {
         const base = new BaseContainer(undefined);
         const variable = new ScvdVar(base);
         variable.name = 'loop';
-        jest.spyOn(variable, 'getTargetSize').mockReturnValue(4);
+        jest.spyOn(variable, 'getTargetSize').mockResolvedValue(4);
         base.addSymbol('loop', variable);
 
         const list = new ScvdListOut(undefined);
@@ -348,7 +348,7 @@ describe('StatementListOut', () => {
         const base = new BaseContainer(undefined);
         const variable = new ScvdVar(base);
         variable.name = 'loop';
-        jest.spyOn(variable, 'getTargetSize').mockReturnValue(4);
+        jest.spyOn(variable, 'getTargetSize').mockResolvedValue(4);
         base.addSymbol('loop', variable);
 
         const list = new ScvdListOut(undefined);

@@ -21,7 +21,7 @@
  */
 
 import { parseExpression, type FormatSegment, type ASTNode, type EvalPointCall, type CallExpression, type AssignmentExpression, type ConditionalExpression, type BinaryExpression, type UpdateExpression, type UnaryExpression, type ArrayIndex, type MemberAccess, type Identifier, type PrintfExpression, type TextSegment } from '../../../../parser-evaluator/parser';
-import { evaluateParseResult, EvalContext, evalNode } from '../../../../parser-evaluator/evaluator';
+import { evaluateParseResult, EvalContext, evalNode, __test__ } from '../../../../parser-evaluator/evaluator';
 import type { RefContainer, EvalValue, ScalarType } from '../../../../parser-evaluator/model-host';
 import type { FullDataHost } from '../../../integration/helpers/full-data-host';
 import { ScvdNode } from '../../../../model/scvd-node';
@@ -76,8 +76,8 @@ class Host implements FullDataHost {
     }
     async writeValue(container: RefContainer, value: EvalValue): Promise<EvalValue> {
         const node = container.current as FakeNode | undefined;
-        if (typeof value === 'number' || typeof value === 'string') {
-            await node?.setValue(value);
+        if (typeof value === 'number' || typeof value === 'string' || typeof value === 'bigint') {
+            await node?.setValue(value as number | string);
         }
         return value;
     }
@@ -194,6 +194,35 @@ describe('evaluator', () => {
         await expect(evalExpr('x || y', host, base)).resolves.toBe(3);
     });
 
+    it('covers reference discovery and numeric coercion helpers', () => {
+        const cond = parseExpression('x ? a : b', false).ast as ConditionalExpression;
+        expect((__test__.findReferenceNode(cond) as Identifier).name).toBe('x');
+
+        const alt = {
+            kind: 'ConditionalExpression',
+            test: parseExpression('0', false).ast as ASTNode,
+            consequent: parseExpression('a', false).ast,
+            alternate: parseExpression('c', false).ast
+        } as unknown as ConditionalExpression;
+        expect((__test__.findReferenceNode(alt) as Identifier).name).toBe('a');
+
+        const assignRight = parseExpression('a = b', false).ast as AssignmentExpression;
+        expect((__test__.findReferenceNode(assignRight) as Identifier).name).toBe('b');
+
+        const assignLeft = parseExpression('a = 1', false).ast as AssignmentExpression;
+        expect((__test__.findReferenceNode(assignLeft) as Identifier).name).toBe('a');
+
+        const evalCall = parseExpression('__GetRegVal(1, foo)', false).ast as EvalPointCall;
+        expect((__test__.findReferenceNode(evalCall) as Identifier).name).toBe('foo');
+
+        const printf = parseExpression('%x[a]', true).ast as PrintfExpression;
+        expect((__test__.findReferenceNode(printf) as Identifier).name).toBe('a');
+
+        expect(__test__.asNumber(Number.POSITIVE_INFINITY)).toBe(0);
+        expect(__test__.asNumber('bad')).toBe(0);
+        expect(__test__.asNumber('2')).toBe(2);
+    });
+
     it('handles member access, array indexing, and error paths', async () => {
         const base = new FakeNode('base');
         const obj = new FakeNode('obj', base, undefined, new Map([['m', new FakeNode('m', base, 9)]]));
@@ -229,6 +258,159 @@ describe('evaluator', () => {
 
         await expect(evalNode(parseExpression('obj.child', false).ast, ctx)).resolves.toBe(child['value']);
         expect(ctx.container.offsetBytes).toBe(8);
+    });
+
+    it('covers mustRef array/member branches and host fallbacks', async () => {
+        const base = new FakeNode('base');
+        const arr = new FakeNode('arr', base);
+        const field = new FakeNode('field', base);
+        const elem = new FakeNode('arr[0]', base, undefined, new Map([['field', field]]));
+        const obj = new FakeNode('obj', base, undefined, new Map([['field', field]]));
+
+        const host = {
+            getSymbolRef: async (container: RefContainer, name: string) => {
+                if (name === 'arr') {
+                    container.current = arr;
+                    return arr;
+                }
+                if (name === 'obj') {
+                    container.current = obj;
+                    return obj;
+                }
+                return undefined;
+            },
+            getElementStride: async () => 2,
+            getElementRef: async () => elem,
+            getMemberRef: async (container: RefContainer, property: string) => {
+                const cur = container.current as FakeNode | undefined;
+                const member = cur?.getSymbol(property) as FakeNode | undefined;
+                if (member) {
+                    container.current = member;
+                }
+                return member;
+            },
+            getMemberOffset: async () => 4,
+            getByteWidth: async () => 2,
+            readValue: async () => 0,
+            writeValue: async (_c: RefContainer, v: EvalValue) => v,
+        } as unknown as FullDataHost;
+
+        const ctx = new EvalContext({ data: host, container: base });
+        const memberAccess = parseExpression('arr[1].field', false).ast as MemberAccess;
+        await expect(__test__.mustRef(memberAccess, ctx, false)).resolves.toBe(field);
+        expect(ctx.container.current).toBe(field);
+    });
+
+    it('handles array indexing when stride helpers are missing', async () => {
+        const base = new FakeNode('base');
+        const arr = new FakeNode('arr', base);
+        const host = {
+            getSymbolRef: async (container: RefContainer, name: string) => {
+                if (name === 'arr') {
+                    container.current = arr;
+                    return arr;
+                }
+                return undefined;
+            },
+            readValue: async () => 0,
+            writeValue: async (_c: RefContainer, v: EvalValue) => v,
+        } as unknown as FullDataHost;
+
+        const ctx = new EvalContext({ data: host, container: base });
+        const arrayIndex = parseExpression('arr[2]', false).ast as ArrayIndex;
+        await expect(__test__.mustRef(arrayIndex, ctx, false)).resolves.toBe(arr);
+    });
+
+    it('handles array indexing with stride and byte width helpers', async () => {
+        const base = new FakeNode('base');
+        const arr = new FakeNode('arr', base);
+        const elem = new FakeNode('arr[0]', base);
+        const host = {
+            getSymbolRef: async (container: RefContainer, name: string) => {
+                if (name === 'arr') {
+                    container.current = arr;
+                    return arr;
+                }
+                return undefined;
+            },
+            getElementStride: async () => 2,
+            getElementRef: async () => elem,
+            getByteWidth: async () => 1,
+            readValue: async () => 0,
+            writeValue: async (_c: RefContainer, v: EvalValue) => v,
+        } as unknown as FullDataHost;
+
+        const ctx = new EvalContext({ data: host, container: base });
+        const arrayIndex = parseExpression('arr[1]', false).ast as ArrayIndex;
+        await expect(__test__.mustRef(arrayIndex, ctx, false)).resolves.toBe(arr);
+        expect(ctx.container.widthBytes).toBe(1);
+    });
+
+    it('covers member access without offset helpers', async () => {
+        const base = new FakeNode('base');
+        const child = new FakeNode('child', base, 5);
+        const obj = new FakeNode('obj', base, undefined, new Map([['child', child]]));
+        const host = {
+            getSymbolRef: async (container: RefContainer, name: string) => {
+                if (name === 'obj') {
+                    container.current = obj;
+                    return obj;
+                }
+                return undefined;
+            },
+            getMemberRef: async (container: RefContainer, property: string) => {
+                const cur = container.current as FakeNode | undefined;
+                const member = cur?.getSymbol(property) as FakeNode | undefined;
+                if (member) {
+                    container.current = member;
+                }
+                return member;
+            },
+            readValue: async (container: RefContainer) => (container.current as FakeNode | undefined)?.value,
+            writeValue: async (_c: RefContainer, v: EvalValue) => v,
+        } as unknown as FullDataHost;
+
+        const ctx = new EvalContext({ data: host, container: base });
+        await expect(__test__.mustRef(parseExpression('obj.child', false).ast, ctx, false)).resolves.toBe(child);
+    });
+
+    it('evaluates non-intrinsic call expressions and unknown node kinds', async () => {
+        const base = new FakeNode('base');
+        const fnNode = new FakeNode('fn', base, ((x: number) => x + 1) as unknown as EvalValue);
+        const obj = new FakeNode('obj', base, undefined, new Map([['fn', fnNode]]));
+        const host = new Host(new Map<string, FakeNode>([['obj', obj], ['fn', fnNode]]));
+        const ctx = new EvalContext({ data: host, container: base });
+
+        await expect(evalNode(parseExpression('obj.fn(1)', false).ast, ctx)).resolves.toBe(2);
+
+        const badNode = { kind: 'Mystery', start: 0, end: 0 } as unknown as ASTNode;
+        await expect(evalNode(badNode, ctx)).rejects.toThrow('Unhandled node kind');
+    });
+
+    it('resolves colon paths via host hook', async () => {
+        const base = new FakeNode('base');
+        const host = new Host(new Map());
+        (host as unknown as { resolveColonPath?: (c: RefContainer, parts: string[]) => Promise<number> }).resolveColonPath =
+            jest.fn(async (_c, parts) => parts.length);
+        const ctx = new EvalContext({ data: host, container: base });
+
+        await expect(evalNode(parseExpression('Type:Field', false).ast, ctx)).resolves.toBe(2);
+    });
+
+    it('supports unary plus and bigint update expressions', async () => {
+        const base = new FakeNode('base');
+        const big = new FakeNode('big', base, 2n);
+        const host = new Host(new Map<string, FakeNode>([['big', big]]));
+
+        const ctx = new EvalContext({ data: host, container: base });
+        await expect(evalNode(parseExpression('+big', false).ast, ctx)).resolves.toBe(2n);
+        await expect(evalNode(parseExpression('++big', false).ast, ctx)).resolves.toBe(3n);
+    });
+
+    it('formats bigint and non-string values in formatValue', async () => {
+        await expect(__test__.formatValue('u', -1n)).resolves.toBe('1');
+        await expect(__test__.formatValue('S', 12)).resolves.toBe('12');
+        await expect(__test__.formatValue('t', 0)).resolves.toBe('false');
     });
 
     it('evaluates a complex conditional expression', async () => {

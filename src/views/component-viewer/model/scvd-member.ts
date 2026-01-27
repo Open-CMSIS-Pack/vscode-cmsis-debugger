@@ -16,7 +16,6 @@
 
 // https://arm-software.github.io/CMSIS-View/main/elem_member.html
 
-import { NumberType, NumberTypeInput } from './number-type';
 import { ScvdDataType } from './scvd-data-type';
 import { ScvdEnum } from './scvd-enum';
 import { ScvdExpression } from './scvd-expression';
@@ -29,7 +28,7 @@ import { getArrayFromJson, getStringFromJson } from './scvd-utils';
 export class ScvdMember extends ScvdNode {
     private _type: ScvdDataType | undefined;
     private _offset: ScvdExpression | undefined;
-    private _size: number | undefined;
+    private _size: ScvdExpression | undefined;
     private _enum: ScvdEnum[] = [];
 
     constructor(
@@ -40,6 +39,11 @@ export class ScvdMember extends ScvdNode {
 
     public override get classname(): string {
         return 'ScvdMember';
+    }
+
+    public override configure(): boolean {
+        this._size?.configure();
+        return super.configure();
     }
 
     public override readXml(xml: Json): boolean {
@@ -80,35 +84,56 @@ export class ScvdMember extends ScvdNode {
         }
     }
 
-    public get size(): number | undefined {
+    public get size(): ScvdExpression | undefined {
         return this._size;
     }
 
-    public set size(value: NumberTypeInput | undefined) {
+    public set size(value: string | undefined) {
         if (value !== undefined) {
-            this._size = new NumberType(value).value;
+            this._size = new ScvdExpression(this, value, 'size');
         }
-    }
-
-    public override getTypeSize(): number | undefined {
-        return this._type?.getTypeSize();
-    }
-
-    public override getVirtualSize(): number | undefined {
-        return this.getTargetSize();
     }
 
     public override getIsPointer(): boolean {
         return this.type?.getIsPointer() ?? false;
     }
 
-    // if size is set, this is the size in byte to be read from target
-    public override getTargetSize(): number | undefined {
-        const isPointer = this.getIsPointer();
-        if (isPointer) {
-            return 4;   // pointer size
+    public override getTypeSize(): number | undefined {
+        return this._type?.getTypeSize();
+    }
+
+    public override async getVirtualSize(): Promise<number | undefined> {
+        return this.getTargetSize();
+    }
+
+    public override async getArraySize(): Promise<number | undefined> {
+        const sizeExpr = this.size;
+        if (sizeExpr === undefined) {
+            return 1;
         }
-        return this.size ?? this.getTypeSize();
+        const sizeValue = await sizeExpr.getValue();
+        const numericValue = typeof sizeValue === 'bigint' ? Number(sizeValue)
+            : (typeof sizeValue === 'number' ? sizeValue : undefined);
+        if (numericValue !== undefined && !Number.isNaN(numericValue)) {
+            if (!Number.isFinite(numericValue) || numericValue < 1 || numericValue > 65536) {
+                console.error(this.getLineInfoStr(), `'${this.name ?? 'member'}': invalid size specified`);
+                return 1;
+            }
+            return numericValue;
+        }
+        console.error(this.getLineInfoStr(), `'${this.name ?? 'member'}': invalid size specified`);
+        return 1;
+    }
+
+    public override async getTargetSize(): Promise<number | undefined> {
+        if (this.getIsPointer()) {
+            return 4;
+        }
+        const typeSize = this.getTypeSize();
+        if (typeSize === undefined) {
+            return undefined;
+        }
+        return typeSize;
     }
 
     public addEnum(): ScvdEnum {
@@ -136,6 +161,14 @@ export class ScvdMember extends ScvdNode {
         const type = this._type;
         if (type !== undefined) {
             const typeObj = type.getMember(_property);
+            return typeObj;
+        }
+        return undefined;
+    }
+
+    public override getElementRef(): ScvdNode | undefined {
+        const typeObj = this._type;
+        if (typeObj !== undefined) {
             return typeObj;
         }
         return undefined;

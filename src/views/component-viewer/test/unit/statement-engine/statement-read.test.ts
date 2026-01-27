@@ -1,5 +1,5 @@
 /**
- * Copyright 2025-2026 Arm Limited
+ * Copyright 2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ function createRead(_debugTarget: Partial<ScvdDebugTarget>): ScvdRead {
     const read = new ScvdRead(undefined);
     read.name = 'value';
     read.symbol = 'sym';
-    jest.spyOn(read, 'getTargetSize').mockReturnValue(4);
+    jest.spyOn(read, 'getTargetSize').mockResolvedValue(4);
     jest.spyOn(read, 'getArraySize').mockResolvedValue(1);
     return read;
 }
@@ -76,7 +76,7 @@ describe('StatementRead', () => {
     it('handles missing target size', async () => {
         const read = new ScvdRead(undefined);
         read.name = 'value';
-        jest.spyOn(read, 'getTargetSize').mockReturnValue(undefined);
+        jest.spyOn(read, 'getTargetSize').mockResolvedValue(undefined);
         const stmt = new StatementRead(read, undefined);
         const ctx = createExecutionContext(read, {});
         const guiTree = new ScvdGuiTree(undefined);
@@ -139,6 +139,25 @@ describe('StatementRead', () => {
         await stmt.executeStatement(ctx, guiTree);
 
         expect(ctx.debugTarget.readMemory).toHaveBeenCalledWith(0x1004n, 4);
+    });
+
+    it('defaults array size when undefined', async () => {
+        const read = createRead({
+            findSymbolAddress: jest.fn().mockResolvedValue(0x5000),
+            readMemory: jest.fn().mockResolvedValue(new Uint8Array([1, 2, 3, 4])),
+        });
+        jest.spyOn(read, 'getArraySize').mockResolvedValue(undefined);
+
+        const stmt = new StatementRead(read, undefined);
+        const ctx = createExecutionContext(read, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x5000),
+            readMemory: jest.fn().mockResolvedValue(new Uint8Array([1, 2, 3, 4])),
+        });
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        expect(ctx.debugTarget.readMemory).toHaveBeenCalledWith(0x5000, 4);
     });
 
     it('handles bigint symbol addresses', async () => {
@@ -207,7 +226,7 @@ describe('StatementRead', () => {
     it('handles bigint offsets without symbols', async () => {
         const read = new ScvdRead(undefined);
         read.name = 'value';
-        jest.spyOn(read, 'getTargetSize').mockReturnValue(4);
+        jest.spyOn(read, 'getTargetSize').mockResolvedValue(4);
         read.offset = 'offset';
         jest.spyOn(read.offset!, 'getValue').mockResolvedValue(8n);
 
@@ -225,7 +244,7 @@ describe('StatementRead', () => {
     it('fails when base address is undefined', async () => {
         const read = new ScvdRead(undefined);
         read.name = 'value';
-        jest.spyOn(read, 'getTargetSize').mockReturnValue(4);
+        jest.spyOn(read, 'getTargetSize').mockResolvedValue(4);
         const stmt = new StatementRead(read, undefined);
         const ctx = createExecutionContext(read, {});
         const guiTree = new ScvdGuiTree(undefined);

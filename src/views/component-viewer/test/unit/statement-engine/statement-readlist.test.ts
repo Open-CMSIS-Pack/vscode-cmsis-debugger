@@ -1,5 +1,5 @@
 /**
- * Copyright 2025-2026 Arm Limited
+ * Copyright 2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,8 +34,8 @@ function createReadList(): ScvdReadList {
     if (readList.symbol) {
         readList.symbol.name = 'sym';
     }
-    jest.spyOn(readList, 'getTargetSize').mockReturnValue(4);
-    jest.spyOn(readList, 'getVirtualSize').mockReturnValue(4);
+    jest.spyOn(readList, 'getTargetSize').mockResolvedValue(4);
+    jest.spyOn(readList, 'getVirtualSize').mockResolvedValue(4);
     jest.spyOn(readList, 'getIsPointer').mockReturnValue(false);
     jest.spyOn(readList, 'getCount').mockResolvedValue(1);
     return readList;
@@ -47,7 +47,7 @@ function createContext(readList: ScvdReadList, debugTarget: Partial<ScvdDebugTar
 
 function createMemberNode(targetSize: number | undefined, memberOffset: number | undefined): ScvdNode {
     const node = new TestNode(undefined);
-    jest.spyOn(node, 'getTargetSize').mockReturnValue(targetSize);
+    jest.spyOn(node, 'getTargetSize').mockResolvedValue(targetSize);
     jest.spyOn(node, 'getMemberOffset').mockResolvedValue(memberOffset);
     return node;
 }
@@ -110,7 +110,7 @@ describe('StatementReadList', () => {
 
     it('requires target size', async () => {
         const readList = createReadList();
-        jest.spyOn(readList, 'getTargetSize').mockReturnValue(undefined);
+        jest.spyOn(readList, 'getTargetSize').mockResolvedValue(undefined);
         const stmt = new StatementReadList(readList, undefined);
         const ctx = createContext(readList, {});
         const guiTree = new ScvdGuiTree(undefined);
@@ -188,13 +188,33 @@ describe('StatementReadList', () => {
         expect(ctx.debugTarget.readMemory).toHaveBeenCalledWith(0x2008n, 4);
     });
 
+    it('iterates pointer arrays and advances by stride', async () => {
+        const readList = createReadList();
+        readList.based = 1;
+        jest.spyOn(readList, 'getCount').mockResolvedValue(2);
+        const stmt = new StatementReadList(readList, undefined);
+        const ctx = createContext(readList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
+            getNumArrayElements: jest.fn().mockResolvedValue(2),
+            readMemory: jest.fn()
+                .mockResolvedValueOnce(new Uint8Array([1, 2, 3, 4]))
+                .mockResolvedValueOnce(new Uint8Array([5, 6, 7, 8])),
+        });
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        expect(ctx.debugTarget.readMemory).toHaveBeenNthCalledWith(1, 0x1000, 4);
+        expect(ctx.debugTarget.readMemory).toHaveBeenNthCalledWith(2, 0x1004n, 4);
+    });
+
     it('supports bigint offsets without symbols', async () => {
         const readList = new ScvdReadList(undefined);
         readList.name = 'list';
         readList.offset = 'offset';
         jest.spyOn(readList.offset!, 'getValue').mockResolvedValue(12n);
-        jest.spyOn(readList, 'getTargetSize').mockReturnValue(4);
-        jest.spyOn(readList, 'getVirtualSize').mockReturnValue(4);
+        jest.spyOn(readList, 'getTargetSize').mockResolvedValue(4);
+        jest.spyOn(readList, 'getVirtualSize').mockResolvedValue(4);
         jest.spyOn(readList, 'getCount').mockResolvedValue(undefined);
         const stmt = new StatementReadList(readList, undefined);
         const ctx = createContext(readList, {
@@ -210,7 +230,7 @@ describe('StatementReadList', () => {
     it('fails when base address is undefined', async () => {
         const readList = new ScvdReadList(undefined);
         readList.name = 'list';
-        jest.spyOn(readList, 'getTargetSize').mockReturnValue(4);
+        jest.spyOn(readList, 'getTargetSize').mockResolvedValue(4);
         const stmt = new StatementReadList(readList, undefined);
         const ctx = createContext(readList, {});
         const guiTree = new ScvdGuiTree(undefined);
@@ -337,8 +357,8 @@ describe('StatementReadList', () => {
         if (readList.symbol) {
             readList.symbol.name = 'sym';
         }
-        jest.spyOn(readList, 'getTargetSize').mockReturnValue(4);
-        jest.spyOn(readList, 'getVirtualSize').mockReturnValue(4);
+        jest.spyOn(readList, 'getTargetSize').mockResolvedValue(4);
+        jest.spyOn(readList, 'getVirtualSize').mockResolvedValue(4);
         jest.spyOn(readList, 'getIsPointer').mockReturnValue(true);
         jest.spyOn(readList, 'getCount').mockResolvedValue(2);
         const stmt = new StatementReadList(readList, undefined);
@@ -362,8 +382,8 @@ describe('StatementReadList', () => {
         if (readList.symbol) {
             readList.symbol.name = 'sym';
         }
-        jest.spyOn(readList, 'getTargetSize').mockReturnValue(4);
-        jest.spyOn(readList, 'getVirtualSize').mockReturnValue(4);
+        jest.spyOn(readList, 'getTargetSize').mockResolvedValue(4);
+        jest.spyOn(readList, 'getVirtualSize').mockResolvedValue(4);
         jest.spyOn(readList, 'getIsPointer').mockReturnValue(false);
         jest.spyOn(readList, 'getCount').mockResolvedValue(2);
         const stmt = new StatementReadList(readList, undefined);
@@ -387,8 +407,8 @@ describe('StatementReadList', () => {
         if (readList.symbol) {
             readList.symbol.name = 'sym';
         }
-        jest.spyOn(readList, 'getTargetSize').mockReturnValue(4);
-        jest.spyOn(readList, 'getVirtualSize').mockReturnValue(4);
+        jest.spyOn(readList, 'getTargetSize').mockResolvedValue(4);
+        jest.spyOn(readList, 'getVirtualSize').mockResolvedValue(4);
         jest.spyOn(readList, 'getIsPointer').mockReturnValue(false);
         jest.spyOn(readList, 'getCount').mockResolvedValue(2);
         const stmt = new StatementReadList(readList, undefined);
@@ -447,8 +467,8 @@ describe('StatementReadList', () => {
     it('fails when next pointer data is incomplete', async () => {
         const readList = createReadList();
         readList.next = 'next';
-        jest.spyOn(readList, 'getTargetSize').mockReturnValue(2);
-        jest.spyOn(readList, 'getVirtualSize').mockReturnValue(2);
+        jest.spyOn(readList, 'getTargetSize').mockResolvedValue(2);
+        jest.spyOn(readList, 'getVirtualSize').mockResolvedValue(2);
         jest.spyOn(readList, 'getCount').mockResolvedValue(2);
         const member = createMemberNode(4, 0);
         (readList as unknown as { _type?: { getMember: () => ScvdNode | undefined } })._type = {

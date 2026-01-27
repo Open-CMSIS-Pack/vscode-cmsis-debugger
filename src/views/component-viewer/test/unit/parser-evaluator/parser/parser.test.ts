@@ -183,6 +183,39 @@ describe('parser', () => {
         expect(asPrintf(semicolonInner.ast).segments.length).toBeGreaterThan(0);
     });
 
+    it('reports division/modulo by zero during folding', () => {
+        const div = parseExpression('1/0', false);
+        expect(div.diagnostics.some(d => d.message.includes('Division by zero'))).toBe(true);
+        const mod = parseExpression('1%0', false);
+        expect(mod.diagnostics.some(d => d.message.includes('Division by zero'))).toBe(true);
+    });
+
+    it('handles missing intrinsic definitions during parsing', async () => {
+        jest.resetModules();
+        jest.doMock('../../../../parser-evaluator/intrinsics', () => {
+            const actual = jest.requireActual('../../../../parser-evaluator/intrinsics');
+            return {
+                ...actual,
+                INTRINSIC_DEFINITIONS: {
+                    ...actual.INTRINSIC_DEFINITIONS,
+                    __GetRegVal: undefined
+                }
+            };
+        });
+        const parser = await import('../../../../parser-evaluator/parser');
+        const pr = parser.parseExpression('__GetRegVal(1)', false);
+        expect(pr.ast.kind).toBe('EvalPointCall');
+        jest.dontMock('../../../../parser-evaluator/intrinsics');
+        jest.resetModules();
+    });
+
+    it('exposes parser test utilities for const normalization', () => {
+        expect(__parserTestUtils.normalizeConstValue(true)).toBe(true);
+        expect(__parserTestUtils.normalizeConstValue({} as unknown as ConstValue)).toBeUndefined();
+        expect(__parserTestUtils.isZeroConst(0)).toBe(true);
+        expect(__parserTestUtils.isZeroConst(1)).toBe(false);
+    });
+
     it('parses plain printf text without specifiers', () => {
         const pr = parseExpression('plain text', true);
         expect(asPrintf(pr.ast).segments).toHaveLength(1);

@@ -33,7 +33,9 @@ export class StatementVar extends StatementBase {
         const varItem = this.scvdItem.castToDerived(ScvdVar);
         if (varItem !== undefined) {
             const name = varItem.name;
-            const targetSize = varItem.getTargetSize();
+            const elementSize = await varItem.getTargetSize();
+            const count = await varItem.getArraySize();
+            const targetSize = elementSize !== undefined ? elementSize * (count ?? 1) : undefined;
             const value = await varItem.getValue();
             if (name !== undefined && targetSize !== undefined && value !== undefined) {
                 executionContext.memoryHost.setVariable(name, targetSize, value, -1, 0);

@@ -95,19 +95,20 @@ export class ScvdReadList extends ScvdRead {
         return this._based;
     }
 
-    public override getTargetSize(): number | undefined {
-        return this.type?.getTypeSize();
-    }
-
-    public override getVirtualSize(): number | undefined {
-        return this.type?.getVirtualSize();
+    public override async getTargetSize(): Promise<number | undefined> {
+        if (this.based === 1) {
+            return 4;
+        }
+        const typeSize = this.type?.getTypeSize();
+        if (typeSize !== undefined) {
+            return typeSize;
+        }
+        return super.getTargetSize();
     }
 
     // A readlist is considered a pointer if based="1"
     public override getIsPointer(): boolean {
-        const based = this.based ? true : false;
-        const typeIsPointer = this.type?.getIsPointer();
-        return based || (typeIsPointer ?? false);
+        return this.based === 1;
     }
 
     public override resolveAndLink(resolveFunc: ResolveSymbolCb): boolean {

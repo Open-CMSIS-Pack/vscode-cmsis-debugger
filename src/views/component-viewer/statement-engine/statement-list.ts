@@ -80,7 +80,7 @@ export class StatementList extends StatementBase {
             console.error(`${this.line}: Executing "list": ${scvdList.name}, could not find variable in base container: ${modelBase.name}`);
             return;
         }
-        const varTargetSize = varItem.getTargetSize();
+        const varTargetSize = await varItem.getTargetSize();
         if (varTargetSize === undefined) {
             console.error(`${this.line}: Executing "list": ${scvdList.name}, variable: ${varItem.name}, could not determine target size`);
             return;

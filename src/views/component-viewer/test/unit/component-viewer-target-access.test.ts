@@ -80,6 +80,9 @@ describe('ComponentViewerTargetAccess', () => {
 
         await expect(targetAccess.evaluateSymbolAddress('myVar')).resolves.toBe('0x20000000');
 
+        (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: 'Error: failed' });
+        await expect(targetAccess.evaluateSymbolAddress('bad')).resolves.toBeUndefined();
+
         const debugSpy = jest.spyOn(logger, 'debug');
         (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('bad'));
 

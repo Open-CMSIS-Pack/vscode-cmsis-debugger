@@ -1,5 +1,5 @@
 /**
- * Copyright 2025-2026 Arm Limited
+ * Copyright 2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -151,9 +151,9 @@ describe('ScvdNode', () => {
 
         expect(node.writeAt(0, 8, 1)).toBeUndefined();
         expect(node.readAt(0, 8)).toBeUndefined();
-        expect(node.getTargetSize()).toBeUndefined();
+        await expect(node.getTargetSize()).resolves.toBeUndefined();
         expect(node.getTypeSize()).toBeUndefined();
-        expect(node.getVirtualSize()).toBeUndefined();
+        await expect(node.getVirtualSize()).resolves.toBeUndefined();
         expect(node.getIsPointer()).toBe(false);
         await expect(node.getArraySize()).resolves.toBeUndefined();
         await expect(node.getMemberOffset()).resolves.toBeUndefined();

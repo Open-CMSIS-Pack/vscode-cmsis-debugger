@@ -46,12 +46,12 @@ export class StatementRead extends StatementBase {
             return;
         }
 
-        const targetSize = scvdRead.getTargetSize(); // use size specified in SCVD
+        const targetSize = await scvdRead.getTargetSize(); // use size specified in SCVD
         if (targetSize === undefined) {
             console.error(`${this.line} Executing "read": ${scvdRead.name}, type: ${scvdRead.getDisplayLabel()}, could not determine target size`);
             return;
         }
-        const virtualSize = scvdRead.getVirtualSize() ?? targetSize;
+        const virtualSize = (await scvdRead.getVirtualSize()) ?? targetSize;
         const sizeValue = await scvdRead.getArraySize();
         const numOfElements = sizeValue ?? 1;
         const readBytes = numOfElements * targetSize; // Is an Expressions representing the array size or the number of values to read from target. The maximum array size is limited to 512. Default value is 1.
@@ -103,6 +103,7 @@ export class StatementRead extends StatementBase {
         // Write to local variable cache
         executionContext.memoryHost.setVariable(name, readBytes, readData, 0, typeof baseAddress === 'bigint' ? Number(baseAddress) : (baseAddress >>> 0), fullVirtualStrideSize);
 
+        // TOIMPL: do not set if read failed, investigate
         if (scvdRead.const === true) {   // Mark variable as already initialized
             scvdRead.mustRead = false;
         }

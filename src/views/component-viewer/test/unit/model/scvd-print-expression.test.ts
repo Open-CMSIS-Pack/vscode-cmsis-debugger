@@ -1,5 +1,5 @@
 /**
- * Copyright 2025-2026 Arm Limited
+ * Copyright 2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,11 @@
 import { ScvdPrintExpression } from '../../../model/scvd-print-expression';
 
 describe('ScvdPrintExpression', () => {
+    it('exposes classname', () => {
+        const expr = new ScvdPrintExpression(undefined, '1+2', 'value');
+        expect(expr.classname).toBe('ScvdPrintExpression');
+    });
+
     it('constructs and defers configure/validate to base', () => {
         const expr = new ScvdPrintExpression(undefined, '1+2', 'value');
         expect(expr.configure()).toBe(true);

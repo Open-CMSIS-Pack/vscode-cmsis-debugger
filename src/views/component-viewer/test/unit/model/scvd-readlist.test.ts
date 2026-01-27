@@ -1,5 +1,5 @@
 /**
- * Copyright 2025-2026 Arm Limited
+ * Copyright 2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,22 +54,41 @@ describe('ScvdReadList', () => {
         expect(readlist.based).toBe(1);
     });
 
-    it('computes target, virtual sizes, and pointer behavior', () => {
+    it('computes target, virtual sizes, and pointer behavior', async () => {
         const readlist = new ScvdReadList(undefined);
         (readlist as unknown as { _type?: unknown })._type = makeType({ size: 6, vsize: 10, isPointer: false });
 
-        expect(readlist.getTargetSize()).toBe(6);
-        expect(readlist.getVirtualSize()).toBe(10);
+        await expect(readlist.getTargetSize()).resolves.toBe(6);
+        await expect(readlist.getVirtualSize()).resolves.toBe(10);
         expect(readlist.getIsPointer()).toBe(false);
 
         readlist.based = 1;
+        await expect(readlist.getTargetSize()).resolves.toBe(4);
         expect(readlist.getIsPointer()).toBe(true);
     });
 
-    it('treats type pointers as pointers when based is false', () => {
+    it('keeps target size as element size', async () => {
+        const readlist = new ScvdReadList(undefined);
+        readlist.size = '3';
+        readlist.size?.configure();
+        (readlist as unknown as { _type?: { getTypeSize: () => number } })._type = {
+            getTypeSize: () => 2
+        };
+        await expect(readlist.getTargetSize()).resolves.toBe(2);
+        await expect(readlist.getArraySize()).resolves.toBe(3);
+    });
+
+    it('falls back to base target size when no type is defined', async () => {
+        const readlist = new ScvdReadList(undefined);
+        await expect(readlist.getTargetSize()).resolves.toBeUndefined();
+    });
+
+    it('treats pointers only when based is true', () => {
         const readlist = new ScvdReadList(undefined);
         (readlist as unknown as { _type?: unknown })._type = makeType({ isPointer: true });
 
+        expect(readlist.getIsPointer()).toBe(false);
+        readlist.based = 1;
         expect(readlist.getIsPointer()).toBe(true);
     });
 

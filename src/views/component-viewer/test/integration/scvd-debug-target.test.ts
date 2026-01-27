@@ -189,6 +189,17 @@ describe('scvd-debug-target', () => {
         expect(errorSpy).toHaveBeenCalled();
         errorSpy.mockRestore();
 
+        const invalidSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        accessMock.evaluateMemory.mockResolvedValue('bad@');
+        await expect(target.readMemory(0x0, 3)).resolves.toBeUndefined();
+        expect(invalidSpy).toHaveBeenCalled();
+        invalidSpy.mockRestore();
+
+        accessMock.evaluateMemory.mockResolvedValue('AQID');
+        const decodeSpy = jest.spyOn(target, 'decodeGdbData').mockReturnValue(undefined);
+        await expect(target.readMemory(0x0, 3)).resolves.toBeUndefined();
+        decodeSpy.mockRestore();
+
         accessMock.evaluateMemory.mockResolvedValue('AQID'); // len 3 vs requested 4
         await expect(target.readMemory(0x0, 4)).resolves.toBeUndefined();
     });
