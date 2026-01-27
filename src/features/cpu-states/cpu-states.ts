@@ -258,7 +258,7 @@ export class CpuStates {
         if (!this.activeCpuStates || this.activeHasStates() === undefined ) {
             return undefined;
         }
-        const pname = await this.getActivePname();
+        const pname = await this.activeSession?.getActivePname();
         await this.updateFrequency();
         const cpuName = pname ? ` ${pname} ` : '';
         if (!this.activeHasStates()) {

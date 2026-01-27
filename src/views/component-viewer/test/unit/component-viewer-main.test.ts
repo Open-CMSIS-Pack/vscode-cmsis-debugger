@@ -60,6 +60,7 @@ import { ComponentViewer } from '../../component-viewer-main';
 type Session = {
     session: { id: string };
     getCbuildRun: () => Promise<{ getScvdFilePaths: () => string[] } | undefined>;
+    getActivePname: () => Promise<string | undefined>;
     refreshTimer: { onRefresh: (cb: (session: Session) => void) => void };
 };
 
@@ -117,6 +118,7 @@ describe('ComponentViewer', () => {
     const makeSession = (id: string, paths: string[] = []): Session => ({
         session: { id },
         getCbuildRun: async () => ({ getScvdFilePaths: () => paths }),
+        getActivePname: async () => undefined,
         refreshTimer: {
             onRefresh: jest.fn(),
         },
@@ -144,6 +146,7 @@ describe('ComponentViewer', () => {
         const sessionNoReader: Session = {
             session: { id: 's1' },
             getCbuildRun: async () => undefined,
+            getActivePname: async () => undefined,
             refreshTimer: { onRefresh: jest.fn() },
         };
         await readScvdFiles(tracker, sessionNoReader);

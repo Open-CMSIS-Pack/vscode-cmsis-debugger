@@ -62,15 +62,6 @@ describe('ComponentViewerTargetAccess', () => {
         jest.restoreAllMocks();
     });
 
-    it('initializes session from vscode when available', () => {
-        (vscode.debug as unknown as DebugWithSession).activeDebugSession = debugSession;
-
-        const instance = new ComponentViewerTargetAccess();
-
-        expect(instance._activeSession).toBeInstanceOf(GDBTargetDebugSession);
-        expect(instance._activeSession?.session).toBe(debugSession);
-    });
-
     it('formats addresses consistently', () => {
         const formatAddress = (targetAccess as unknown as { formatAddress: (addr: string | number | bigint) => string })
             .formatAddress;

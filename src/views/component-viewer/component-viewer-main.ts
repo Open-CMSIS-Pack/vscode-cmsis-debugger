@@ -48,11 +48,12 @@ export class ComponentViewer {
             return;
         }
         const cbuildRunReader = await session.getCbuildRun();
+        const pname = await session.getActivePname();
         if (!cbuildRunReader) {
             return;
         }
         // Get SCVD file paths from cbuild-run reader
-        const scvdFilesPaths: string [] = cbuildRunReader.getScvdFilePaths();
+        const scvdFilesPaths: string [] = cbuildRunReader.getScvdFilePaths(undefined, pname);
         if (scvdFilesPaths.length === 0) {
             return undefined;
         }
