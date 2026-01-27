@@ -100,6 +100,7 @@ export class StatementList extends StatementBase {
         }
 
         let loopValue = Number(startValue);
+        let listIndex = 0;
         let maximumCount = 100000;   // prevent infinite loops
         while (maximumCount-- > 0) {
             executionContext.memoryHost.setVariable(name, varTargetSize, loopValue, 0, undefined, varTargetSize);    // update loop variable in memory
@@ -122,9 +123,15 @@ export class StatementList extends StatementBase {
                 loopValue++;
             }
 
-            for (const child of this.children) {  // executed in list
-                await child.executeStatement(executionContext, guiTree);
+            ScvdGuiTree.pushKeySuffix(listIndex.toString());
+            try {
+                for (const child of this.children) {  // executed in list
+                    await child.executeStatement(executionContext, guiTree);
+                }
+            } finally {
+                ScvdGuiTree.popKeySuffix();
             }
+            listIndex += 1;
         }
         executionContext.memoryHost.setVariable(name, varTargetSize, loopValue, 0, undefined, varTargetSize);    // update last loop variable in memory
     }

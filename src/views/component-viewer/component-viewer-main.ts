@@ -15,10 +15,11 @@
  */
 
 import * as vscode from 'vscode';
-import { GDBTargetDebugTracker, GDBTargetDebugSession } from '../../debug-session';
+import { ContinuedEvent, GDBTargetDebugSession, GDBTargetDebugTracker, SessionStackItem, StoppedEvent } from '../../debug-session';
 import { ComponentViewerInstance } from './component-viewer-instance';
 import { URI } from 'vscode-uri';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
+import { ScvdGuiTree } from './scvd-gui-tree';
 
 
 export class ComponentViewer {
@@ -28,6 +29,10 @@ export class ComponentViewer {
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
     private _loadingCounter: number = 0;
+    private _pendingUpdateSessionId: string | undefined;
+    private _targetRunningBySessionId: Map<string, boolean> = new Map();
+    private _updateInProgress: boolean = false;
+    private _updateQueued: boolean = false;
 
     public constructor(context: vscode.ExtensionContext) {
         this._context = context;
@@ -88,35 +93,37 @@ export class ComponentViewer {
         const onDidChangeActiveDebugSessionDisposable = tracker.onDidChangeActiveDebugSession(async (session) => {
             await this.handleOnDidChangeActiveDebugSession(session);
         });
-        const onStackTraceDisposable = tracker.onStackTrace(async (session) => {
-            await this.handleOnStackTrace(session.session);
+        const onDidChangeActiveStackItemDisposable = tracker.onDidChangeActiveStackItem(async (item) => {
+            await this.handleOnDidChangeActiveStackItem(item);
         });
         const onWillStartSessionDisposable = tracker.onWillStartSession(async (session) => {
             await this.handleOnWillStartSession(session);
+        });
+        const onStoppedDisposable = tracker.onStopped(async (event) => {
+            await this.handleOnStopped(event);
+        });
+        const onContinuedDisposable = tracker.onContinued(async (event) => {
+            this.handleOnContinued(event);
         });
         // clear all disposables on extension deactivation
         context.subscriptions.push(
             onWillStopSessionDisposable,
             onConnectedDisposable,
             onDidChangeActiveDebugSessionDisposable,
-            onStackTraceDisposable,
-            onWillStartSessionDisposable
+            onDidChangeActiveStackItemDisposable,
+            onWillStartSessionDisposable,
+            onStoppedDisposable,
+            onContinuedDisposable
         );
-    }
-
-    private async handleOnStackTrace(session: GDBTargetDebugSession): Promise<void> {
-        // Clear active session if it is NOT the one being stopped
-        if (this._activeSession?.session.id !== session.session.id) {
-            this._activeSession = undefined;
-        }
-        // Update component viewer instance(s)
-        await this.updateInstances();
     }
 
     private async handleOnWillStopSession(session: GDBTargetDebugSession): Promise<void> {
         // Clear active session if it is the one being stopped
         if (this._activeSession?.session.id === session.session.id) {
             this._activeSession = undefined;
+        }
+        if (this._pendingUpdateSessionId === session.session.id) {
+            this._pendingUpdateSessionId = undefined;
         }
     }
 
@@ -139,34 +146,118 @@ export class ComponentViewer {
 
     private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
         if (this._activeSession?.session.id === session.session.id) {
-            // Update component viewer instance(s)
-            await this.updateInstances();
+            this.requestUpdate(session, { allowImmediate: true, allowPending: false });
         }
     }
 
     private async handleOnDidChangeActiveDebugSession(session: GDBTargetDebugSession | undefined): Promise<void> {
         // Update debug session
         this._activeSession = session;
-        // Update component viewer instance(s)
-        await this.updateInstances();
-    }
-
-    private async updateInstances(): Promise<void> {
-        this._instanceUpdateCounter = 0;
-        if (!this._activeSession) {
+        if (this._pendingUpdateSessionId && this._pendingUpdateSessionId !== session?.session.id) {
+            this._pendingUpdateSessionId = undefined;
+        }
+        if (!session) {
             this._componentViewerTreeDataProvider?.deleteModels();
             return;
         }
-        if (this._instances.length === 0) {
+        this.requestUpdate(session, { allowImmediate: true, allowPending: true });
+    }
+
+    private async handleOnDidChangeActiveStackItem(item: SessionStackItem): Promise<void> {
+        const frameId = (item.item as vscode.DebugStackFrame | undefined)?.frameId;
+        if (frameId === undefined) {
             return;
         }
-        this._componentViewerTreeDataProvider?.resetModelCache();
+        if (this._pendingUpdateSessionId !== item.session.session.id) {
+            return;
+        }
+        if (!this.canUpdateNow(item.session)) {
+            return;
+        }
+        this._pendingUpdateSessionId = undefined;
+        await this.updateInstances();
+    }
+
+    private async handleOnStopped(event: StoppedEvent): Promise<void> {
+        if (!event.session) {
+            return;
+        }
+        this._targetRunningBySessionId.set(event.session.session.id, false);
+        if (this._activeSession?.session.id !== event.session.session.id) {
+            return;
+        }
+        this.requestUpdate(event.session, { allowImmediate: false, allowPending: true });
+    }
+
+    private handleOnContinued(event: ContinuedEvent): void {
+        if (!event.session) {
+            return;
+        }
+        this._targetRunningBySessionId.set(event.session.session.id, true);
+        if (this._pendingUpdateSessionId === event.session.session.id) {
+            this._pendingUpdateSessionId = undefined;
+        }
+    }
+
+    private canUpdateNow(session: GDBTargetDebugSession): boolean {
+        if (this._activeSession?.session.id !== session.session.id) {
+            return false;
+        }
+        if (this._targetRunningBySessionId.get(session.session.id) !== false) {
+            return false;
+        }
+        const activeItem = vscode.debug.activeStackItem as vscode.DebugStackFrame | undefined;
+        if (!activeItem || activeItem.session.id !== session.session.id) {
+            return false;
+        }
+        return activeItem.frameId !== undefined;
+    }
+
+    private requestUpdate(session: GDBTargetDebugSession, options: { allowImmediate: boolean; allowPending: boolean }): void {
+        if (options.allowImmediate && this.canUpdateNow(session)) {
+            void this.updateInstances();
+            return;
+        }
+        if (options.allowPending) {
+            this._pendingUpdateSessionId = session.session.id;
+        }
+    }
+
+    private async updateInstances(): Promise<void> {
+        if (this._updateInProgress) {
+            this._updateQueued = true;
+            return;
+        }
+        this._updateInProgress = true;
+        do {
+            this._updateQueued = false;
+        this._instanceUpdateCounter = 0;
+        if (!this._activeSession) {
+            this._componentViewerTreeDataProvider?.deleteModels();
+            continue;
+        }
+        if (this._instances.length === 0) {
+            continue;
+        }
+        this._componentViewerTreeDataProvider?.beginUpdate();
         for (const instance of this._instances) {
             this._instanceUpdateCounter++;
             console.log(`Updating Component Viewer Instance #${this._instanceUpdateCounter}`);
-            await instance.update();
+            const instanceKey = instance.getInstanceKey();
+            if (instanceKey) {
+                ScvdGuiTree.pushKeySuffix(instanceKey);
+            }
+            try {
+                await instance.update();
+            } finally {
+                if (instanceKey) {
+                    ScvdGuiTree.popKeySuffix();
+                }
+            }
             this._componentViewerTreeDataProvider?.addGuiOut(instance.getGuiTree());
         }
         this._componentViewerTreeDataProvider?.showModelData();
+        } while (this._updateQueued);
+        this._updateInProgress = false;
     }
 }

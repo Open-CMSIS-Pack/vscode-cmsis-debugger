@@ -44,6 +44,7 @@ export class ComponentViewerInstance {
     private _timeUsageLast: number = 0;
     private _statementEngine: StatementEngine | undefined;
     private _guiTree: ScvdGuiTree | undefined;
+    private _instanceKey: string | undefined;
 
     public constructor(
     ) {
@@ -90,6 +91,7 @@ export class ComponentViewerInstance {
 
     public async readModel(filename: URI, debugSession: GDBTargetDebugSession, debugTracker: GDBTargetDebugTracker): Promise<void> {
         const stats: string[] = [];
+        this._instanceKey = ComponentViewerInstance.hashId(filename.fsPath);
 
         stats.push(this.getStats(`  Start reading SCVD file ${filename}`));
         const buf = (await this.readFileToBuffer(filename)).toString('utf-8');
@@ -140,6 +142,10 @@ export class ComponentViewerInstance {
         this._guiTree = new ScvdGuiTree(undefined, 'component-viewer-root');
 
         console.log('ComponentViewerInstance readModel stats:\n' + stats.join('\n  '));
+    }
+
+    public getInstanceKey(): string | undefined {
+        return this._instanceKey;
     }
 
     public async update(): Promise<void> {
@@ -195,5 +201,13 @@ export class ComponentViewerInstance {
         if (this._statementEngine !== undefined) {
             await this._statementEngine.executeAll(guiTree);
         }
+    }
+
+    private static hashId(input: string): string {
+        let hash = 5381;
+        for (let i = 0; i < input.length; i++) {
+            hash = ((hash << 5) + hash) ^ input.charCodeAt(i);
+        }
+        return (hash >>> 0).toString(36);
     }
 }
