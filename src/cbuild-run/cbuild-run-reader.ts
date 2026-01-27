@@ -70,8 +70,8 @@ export class CbuildRunReader {
             if (!descriptor.pname) {
                 return true;
             }
-            return descriptor.pname === pname; 
-            }): fileDescriptors;
+            return descriptor.pname === pname;
+        }): fileDescriptors;
         const filePaths = filteredDescriptors.map(descriptor => `${effectiveCmsisPackRoot
             ? descriptor.file.replaceAll(CMSIS_PACK_ROOT_ENVVAR, effectiveCmsisPackRoot)
             : descriptor.file}`);
