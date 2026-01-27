@@ -30,7 +30,6 @@ export class StatementBase {
     private _parent: StatementBase | undefined;
     private _children: StatementBase[] = [];
     private _scvdItem: ScvdNode;
-    private static readonly unnamedPrefix = 'Unnamed';
 
     constructor(
         item: ScvdNode, parent: StatementBase | undefined
@@ -83,8 +82,10 @@ export class StatementBase {
         }
     }
 
-    protected getOrCreateGuiChild(guiTree: ScvdGuiTree, guiName: string | undefined, nodeId?: string): ScvdGuiTree {
-        const key = guiName ?? `${StatementBase.unnamedPrefix}:${this.scvdItem.constructor?.name}:${this.line}`;
+    protected getOrCreateGuiChild(guiTree: ScvdGuiTree, _guiName: string | undefined, nodeId?: string): ScvdGuiTree {
+        const suffix = ScvdGuiTree.keySuffix;
+        const baseKey = `${this.line}:${this.scvdItem.nodeId}`;
+        const key = suffix ? `${baseKey}:${suffix}` : baseKey;
         return guiTree.getOrCreateChild(key, nodeId);
     }
 

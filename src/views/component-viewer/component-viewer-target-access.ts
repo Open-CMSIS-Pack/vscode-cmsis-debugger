@@ -33,9 +33,17 @@ export class ComponentViewerTargetAccess {
         this._activeSession = session;
     }
 
+    private getActiveFrameId(): number {
+        const activeItem = vscode.debug.activeStackItem as vscode.DebugStackFrame | undefined;
+        if (!activeItem || !this._activeSession || activeItem.session.id !== this._activeSession.session.id) {
+            return 0;
+        }
+        return activeItem.frameId ?? 0;
+    }
+
     public async evaluateSymbolAddress(address: string, context = 'hover'): Promise<string | undefined> {
         try {
-            const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
+            const frameId = this.getActiveFrameId();
             const args: DebugProtocol.EvaluateArguments = {
                 expression: `&${address}`,
                 frameId, // Currently required by CDT GDB Adapter
@@ -74,7 +82,7 @@ export class ComponentViewerTargetAccess {
 
     public async evaluateSymbolName(address: string | number | bigint, context = 'hover'): Promise<string | undefined> {
         try {
-            const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
+            const frameId = this.getActiveFrameId();
             const formattedAddress = this.formatAddress(address);
             const args: DebugProtocol.EvaluateArguments = {
                 expression: `(unsigned int*)${formattedAddress}`,
@@ -97,7 +105,7 @@ export class ComponentViewerTargetAccess {
 
     public async evaluateSymbolContext(address: string, context = 'hover'): Promise<string | undefined> {
         try {
-            const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
+            const frameId = this.getActiveFrameId();
             const formattedAddress = this.formatAddress(address);
             // Ask GDB for file/line context of the address.
             const args: DebugProtocol.EvaluateArguments = {
@@ -120,7 +128,7 @@ export class ComponentViewerTargetAccess {
 
     public async evaluateSymbolSize(symbol: string, context = 'hover'): Promise<number | undefined> {
         try {
-            const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
+            const frameId = this.getActiveFrameId();
             const args: DebugProtocol.EvaluateArguments = {
                 expression: `sizeof(${symbol})`,
                 frameId,
@@ -160,7 +168,7 @@ export class ComponentViewerTargetAccess {
 
     public async evaluateNumberOfArrayElements(symbol: string): Promise<number | undefined> {
         try {
-            const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
+            const frameId = this.getActiveFrameId();
             const args: DebugProtocol.EvaluateArguments = {
                 expression: `sizeof(${symbol})/sizeof(${symbol}[0])`,
                 frameId, // Currently required by CDT GDB Adapter
@@ -182,7 +190,7 @@ export class ComponentViewerTargetAccess {
 
     public async evaluateRegisterValue(register: string): Promise<string | undefined> {
         try {
-            const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
+            const frameId = this.getActiveFrameId();
             const args: DebugProtocol.EvaluateArguments = {
                 expression: `$${register}`,
                 frameId, // Currently required by CDT GDB Adapter

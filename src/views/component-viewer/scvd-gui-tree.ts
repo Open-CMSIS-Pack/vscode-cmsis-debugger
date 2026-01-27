@@ -18,7 +18,7 @@ import { ScvdGuiInterface } from './model/scvd-gui-interface';
 
 export class ScvdGuiTree implements ScvdGuiInterface {
     private _parent: ScvdGuiTree | undefined;
-    private _nodeId: string;
+    private _baseId: string;
     private _name: string | undefined;
     private _value: string | undefined;
     private _children: ScvdGuiTree[] = [];
@@ -31,9 +31,9 @@ export class ScvdGuiTree implements ScvdGuiInterface {
     private _seenEpoch = 0;
     private _isPrint: boolean = false;
     private static readonly baseNodeId = 'ScvdGuiTree';
-    private static idCnt: number = 0;
     // Monotonic counter for reconciliation passes. Increments at beginUpdate() and is compared against _seenEpoch.
     private static _epoch: number = 0;
+    private static _keySuffixStack: string[] = [];
 
     constructor(
         parent: ScvdGuiTree | undefined,
@@ -43,8 +43,7 @@ export class ScvdGuiTree implements ScvdGuiInterface {
         if (parent) {
             parent.addChild(this);
         }
-        const baseId = nodeId ?? ScvdGuiTree.baseNodeId;
-        this._nodeId = `${baseId}_${ScvdGuiTree.idCnt++}`;
+        this._baseId = nodeId ?? ScvdGuiTree.baseNodeId;
     }
 
     public beginUpdate(): number {
@@ -87,7 +86,7 @@ export class ScvdGuiTree implements ScvdGuiInterface {
         try {
             const index = this._keyCursor.get(key) ?? 0;
             this._keyCursor.set(key, index + 1);
-            const effectiveKey = index === 0 ? key : `${key}#${index}`;
+            const effectiveKey = index === 0 ? key : `${key}~${ScvdGuiTree.indexToLetters(index)}`;
 
             const existing = this._childIndex.get(effectiveKey);
             if (existing) {
@@ -159,8 +158,43 @@ export class ScvdGuiTree implements ScvdGuiInterface {
         return parts.reverse().join(' > ');
     }
 
+    private get stableIdPath(): string {
+        const parts: string[] = [];
+        for (const node of this.ancestors()) {
+            parts.push(node.key ?? node.baseId);
+        }
+        return parts.reverse().join('|');
+    }
+
+    private get baseId(): string {
+        return this._baseId;
+    }
+
     public get nodeId(): string {
-        return this._nodeId;
+        return this.stableIdPath;
+    }
+
+    public static pushKeySuffix(suffix: string): void {
+        this._keySuffixStack.push(suffix);
+    }
+
+    public static popKeySuffix(): void {
+        this._keySuffixStack.pop();
+    }
+
+    public static get keySuffix(): string | undefined {
+        return this._keySuffixStack.length ? this._keySuffixStack.join(':') : undefined;
+    }
+
+    private static indexToLetters(index: number): string {
+        let n = index;
+        let result = '';
+        while (n > 0) {
+            n -= 1;
+            result = String.fromCharCode(97 + (n % 26)) + result;
+            n = Math.floor(n / 26);
+        }
+        return result;
     }
 
     public clear(): void {
