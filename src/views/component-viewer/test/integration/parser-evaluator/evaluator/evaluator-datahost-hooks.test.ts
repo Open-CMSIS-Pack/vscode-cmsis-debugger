@@ -45,27 +45,18 @@ class HookHost implements FullDataHost {
     ]);
     private readonly disablePrintfOverride: boolean;
 
-    calls: Record<string, number> = {};
-
     constructor(opts?: { disablePrintfOverride?: boolean }) {
         this.disablePrintfOverride = opts?.disablePrintfOverride ?? false;
     }
 
-    private tick(name: string) {
-        // eslint-disable-next-line security/detect-object-injection -- false positive: controlled key accumulation for test bookkeeping
-        this.calls[name] = (this.calls[name] ?? 0) + 1;
-    }
-
-    public async getSymbolRef(_container: RefContainer, name: string): Promise<BasicRef | undefined> {
-        this.tick('getSymbolRef');
+    public getSymbolRef = jest.fn(async (_container: RefContainer, name: string): Promise<BasicRef | undefined> => {
         if (name === 'arr') {
             return this.arrRef;
         }
         return undefined;
-    }
+    });
 
-    public async getMemberRef(_container: RefContainer, property: string): Promise<BasicRef | undefined> {
-        this.tick('getMemberRef');
+    public getMemberRef = jest.fn(async (_container: RefContainer, property: string): Promise<BasicRef | undefined> => {
         if (property === 'field') {
             return this.fieldRef;
         }
@@ -74,60 +65,36 @@ class HookHost implements FullDataHost {
             return this.fieldRef;
         }
         return undefined;
-    }
+    });
 
-    public async getElementStride(_ref: ScvdNode): Promise<number> {
-        this.tick('getElementStride');
-        return 4;
-    }
+    public getElementStride = jest.fn(async (_ref: ScvdNode): Promise<number> => 4);
 
-    public async getMemberOffset(_base: ScvdNode, _member: ScvdNode): Promise<number | undefined> {
-        this.tick('getMemberOffset');
-        return 2;
-    }
+    public getMemberOffset = jest.fn(async (_base: ScvdNode, _member: ScvdNode): Promise<number | undefined> => 2);
 
-    public async getElementRef(): Promise<BasicRef | undefined> {
-        this.tick('getElementRef');
-        return this.elemRef;
-    }
+    public getElementRef = jest.fn(async (): Promise<BasicRef | undefined> => this.elemRef);
 
-    public async getByteWidth(): Promise<number | undefined> {
-        this.tick('getByteWidth');
-        return 4;
-    }
+    public getByteWidth = jest.fn(async (): Promise<number | undefined> => 4);
 
     public setValueAt(offset: number, value: EvalValue): void {
         this.values.set(offset, value);
     }
 
-    public async resolveColonPath(_container: RefContainer, parts: string[]): Promise<EvalValue> {
-        this.tick('resolveColonPath');
+    public resolveColonPath = jest.fn(async (_container: RefContainer, parts: string[]): Promise<EvalValue> => {
         return parts.length * 100; // simple sentinel
-    }
+    });
 
-    public async readValue(container: RefContainer): Promise<EvalValue | undefined> {
-        this.tick('readValue');
+    public readValue = jest.fn(async (container: RefContainer): Promise<EvalValue | undefined> => {
         const off = container.offsetBytes ?? 0;
         return this.values.get(off);
-    }
+    });
 
-    public async writeValue(_container: RefContainer, value: EvalValue): Promise<EvalValue | undefined> {
-        this.tick('writeValue');
-        return value;
-    }
+    public writeValue = jest.fn(async (_container: RefContainer, value: EvalValue): Promise<EvalValue | undefined> => value);
 
-    public async _count(): Promise<number | undefined> {
-        this.tick('_count');
-        return undefined;
-    }
+    public _count = jest.fn(async (): Promise<number | undefined> => undefined);
 
-    public async _addr(): Promise<number | undefined> {
-        this.tick('_addr');
-        return undefined;
-    }
+    public _addr = jest.fn(async (): Promise<number | undefined> => undefined);
 
-    public async formatPrintf(spec: string, value: EvalValue, container: RefContainer): Promise<string | undefined> {
-        this.tick('formatPrintf');
+    public formatPrintf = jest.fn(async (spec: string, value: EvalValue, container: RefContainer): Promise<string | undefined> => {
         this.lastFormattingContainer = container;
         if (this.disablePrintfOverride) {
             if (value instanceof Uint8Array && spec === 'M') {
@@ -138,47 +105,23 @@ class HookHost implements FullDataHost {
             return undefined;
         }
         return `fmt-${spec}-${value}`;
-    }
+    });
 
-    public async getValueType(): Promise<string | undefined> {
-        this.tick('getValueType');
-        return undefined;
-    }
+    public getValueType = jest.fn(async (): Promise<string | undefined> => undefined);
 
-    public async __GetRegVal(): Promise<number | bigint | undefined> {
-        this.tick('__GetRegVal');
-        return undefined;
-    }
+    public __GetRegVal = jest.fn(async (): Promise<number | bigint | undefined> => undefined);
 
-    public async __FindSymbol(): Promise<number | undefined> {
-        this.tick('__FindSymbol');
-        return undefined;
-    }
+    public __FindSymbol = jest.fn(async (): Promise<number | undefined> => undefined);
 
-    public async __CalcMemUsed(): Promise<number | undefined> {
-        this.tick('__CalcMemUsed');
-        return undefined;
-    }
+    public __CalcMemUsed = jest.fn(async (): Promise<number | undefined> => undefined);
 
-    public async __size_of(): Promise<number | undefined> {
-        this.tick('__size_of');
-        return undefined;
-    }
+    public __size_of = jest.fn(async (): Promise<number | undefined> => undefined);
 
-    public async __Symbol_exists(): Promise<number | undefined> {
-        this.tick('__Symbol_exists');
-        return undefined;
-    }
+    public __Symbol_exists = jest.fn(async (): Promise<number | undefined> => undefined);
 
-    public async __Offset_of(): Promise<number | undefined> {
-        this.tick('__Offset_of');
-        return undefined;
-    }
+    public __Offset_of = jest.fn(async (): Promise<number | undefined> => undefined);
 
-    public async __Running(): Promise<number | undefined> {
-        this.tick('__Running');
-        return undefined;
-    }
+    public __Running = jest.fn(async (): Promise<number | undefined> => undefined);
 }
 
 class NestedArrayHost implements FullDataHost {
@@ -195,23 +138,14 @@ class NestedArrayHost implements FullDataHost {
         [36, 222], // obj[1].var[2] => 1*16 + 12 + 2*4
     ]);
 
-    calls: Record<string, number> = {};
-
-    private tick(name: string) {
-        // eslint-disable-next-line security/detect-object-injection -- false positive: controlled key accumulation for test bookkeeping
-        this.calls[name] = (this.calls[name] ?? 0) + 1;
-    }
-
-    public async getSymbolRef(_container: RefContainer, name: string): Promise<BasicRef | undefined> {
-        this.tick('getSymbolRef');
+    public getSymbolRef = jest.fn(async (_container: RefContainer, name: string): Promise<BasicRef | undefined> => {
         if (name === 'obj') {
             return this.objArrayRef;
         }
         return undefined;
-    }
+    });
 
-    public async getMemberRef(container: RefContainer, property: string): Promise<BasicRef | undefined> {
-        this.tick('getMemberRef');
+    public getMemberRef = jest.fn(async (container: RefContainer, property: string): Promise<BasicRef | undefined> => {
         if (container.current === this.objElementRef) {
             if (property === 'member') {
                 return this.memberArrayRef;
@@ -221,10 +155,9 @@ class NestedArrayHost implements FullDataHost {
             }
         }
         return undefined;
-    }
+    });
 
-    public async getElementStride(ref: ScvdNode): Promise<number> {
-        this.tick('getElementStride');
+    public getElementStride = jest.fn(async (ref: ScvdNode): Promise<number> => {
         if (ref === this.objArrayRef) {
             return 16;
         }
@@ -235,10 +168,9 @@ class NestedArrayHost implements FullDataHost {
             return 4;
         }
         return 1;
-    }
+    });
 
-    public async getMemberOffset(_base: ScvdNode, member: ScvdNode): Promise<number | undefined> {
-        this.tick('getMemberOffset');
+    public getMemberOffset = jest.fn(async (_base: ScvdNode, member: ScvdNode): Promise<number | undefined> => {
         if (member === this.memberArrayRef) {
             return 8;
         }
@@ -246,10 +178,9 @@ class NestedArrayHost implements FullDataHost {
             return 12;
         }
         return 0;
-    }
+    });
 
-    public async getElementRef(ref: ScvdNode): Promise<BasicRef | undefined> {
-        this.tick('getElementRef');
+    public getElementRef = jest.fn(async (ref: ScvdNode): Promise<BasicRef | undefined> => {
         if (ref === this.objArrayRef) {
             return this.objElementRef;
         }
@@ -260,83 +191,40 @@ class NestedArrayHost implements FullDataHost {
             return this.varElementRef;
         }
         return undefined;
-    }
+    });
 
-    public async getByteWidth(): Promise<number | undefined> {
-        this.tick('getByteWidth');
-        return 4;
-    }
+    public getByteWidth = jest.fn(async (): Promise<number | undefined> => 4);
 
-    public async resolveColonPath(): Promise<EvalValue> {
-        this.tick('resolveColonPath');
-        return undefined;
-    }
+    public resolveColonPath = jest.fn(async (): Promise<EvalValue> => undefined);
 
-    public async readValue(container: RefContainer): Promise<EvalValue | undefined> {
-        this.tick('readValue');
+    public readValue = jest.fn(async (container: RefContainer): Promise<EvalValue | undefined> => {
         const off = container.offsetBytes ?? 0;
         return this.values.get(off);
-    }
+    });
 
-    public async writeValue(_container: RefContainer, value: EvalValue): Promise<EvalValue | undefined> {
-        this.tick('writeValue');
-        return value;
-    }
+    public writeValue = jest.fn(async (_container: RefContainer, value: EvalValue): Promise<EvalValue | undefined> => value);
 
-    public async _count(): Promise<number | undefined> {
-        this.tick('_count');
-        return undefined;
-    }
+    public _count = jest.fn(async (): Promise<number | undefined> => undefined);
 
-    public async _addr(): Promise<number | undefined> {
-        this.tick('_addr');
-        return undefined;
-    }
+    public _addr = jest.fn(async (): Promise<number | undefined> => undefined);
 
-    public async formatPrintf(): Promise<string | undefined> {
-        this.tick('formatPrintf');
-        return undefined;
-    }
+    public formatPrintf = jest.fn(async (): Promise<string | undefined> => undefined);
 
-    public async getValueType(): Promise<string | undefined> {
-        this.tick('getValueType');
-        return undefined;
-    }
+    public getValueType = jest.fn(async (): Promise<string | undefined> => undefined);
 
-    public async __GetRegVal(): Promise<number | bigint | undefined> {
-        this.tick('__GetRegVal');
-        return undefined;
-    }
+    public __GetRegVal = jest.fn(async (): Promise<number | bigint | undefined> => undefined);
 
-    public async __FindSymbol(): Promise<number | undefined> {
-        this.tick('__FindSymbol');
-        return undefined;
-    }
+    public __FindSymbol = jest.fn(async (): Promise<number | undefined> => undefined);
 
-    public async __CalcMemUsed(): Promise<number | undefined> {
-        this.tick('__CalcMemUsed');
-        return undefined;
-    }
+    public __CalcMemUsed = jest.fn(async (): Promise<number | undefined> => undefined);
 
-    public async __size_of(): Promise<number | undefined> {
-        this.tick('__size_of');
-        return undefined;
-    }
+    public __size_of = jest.fn(async (): Promise<number | undefined> => undefined);
 
-    public async __Symbol_exists(): Promise<number | undefined> {
-        this.tick('__Symbol_exists');
-        return undefined;
-    }
+    public __Symbol_exists = jest.fn(async (): Promise<number | undefined> => undefined);
 
-    public async __Offset_of(): Promise<number | undefined> {
-        this.tick('__Offset_of');
-        return undefined;
-    }
+    public __Offset_of = jest.fn(async (): Promise<number | undefined> => undefined);
 
-    public async __Running(): Promise<number | undefined> {
-        this.tick('__Running');
-        return undefined;
-    }
+    public __Running = jest.fn(async (): Promise<number | undefined> => undefined);
 }
 
 describe('evaluator data host hooks', () => {
@@ -347,10 +235,10 @@ describe('evaluator data host hooks', () => {
 
         const out = await evaluateParseResult(pr, ctx);
         expect(out).toBe(99);
-        expect(host.calls.getElementStride).toBe(1);
-        expect(host.calls.getElementRef).toBe(1);
-        expect(host.calls.getMemberOffset).toBe(1);
-        expect(host.calls.getByteWidth).toBeGreaterThanOrEqual(1);
+        expect(host.getElementStride).toHaveBeenCalledTimes(1);
+        expect(host.getElementRef).toHaveBeenCalledTimes(1);
+        expect(host.getMemberOffset).toHaveBeenCalledTimes(1);
+        expect(host.getByteWidth).toHaveBeenCalled();
     });
 
     it('calls resolveColonPath for colon expressions', async () => {
@@ -360,7 +248,7 @@ describe('evaluator data host hooks', () => {
 
         const out = await evaluateParseResult(pr, ctx);
         expect(out).toBe(300); // 3 parts * 100
-        expect(host.calls.resolveColonPath).toBe(1);
+        expect(host.resolveColonPath).toHaveBeenCalledTimes(1);
     });
 
     it('honors printf formatting override', async () => {
@@ -370,7 +258,7 @@ describe('evaluator data host hooks', () => {
 
         const out = await evaluateParseResult(pr, ctx);
         expect(out).toBe('val=fmt-x-171');
-        expect(host.calls.formatPrintf).toBe(1);
+        expect(host.formatPrintf).toHaveBeenCalledTimes(1);
     });
 
     it('recovers reference containers for printf subexpressions', async () => {
@@ -379,7 +267,7 @@ describe('evaluator data host hooks', () => {
         const pr = parseExpression('val=%x[arr[1].field + 1]', true);
 
         await evaluateParseResult(pr, ctx);
-        expect(host.calls.formatPrintf).toBe(1);
+        expect(host.formatPrintf).toHaveBeenCalledTimes(1);
         expect(host.lastFormattingContainer?.current).toBe(host.fieldRef);
     });
 
@@ -389,7 +277,7 @@ describe('evaluator data host hooks', () => {
         const pr = parseExpression('val=%x[false ? arr[1].field : 5]', true);
 
         await evaluateParseResult(pr, ctx);
-        expect(host.calls.formatPrintf).toBe(1);
+        expect(host.formatPrintf).toHaveBeenCalledTimes(1);
         expect(host.lastFormattingContainer?.current).toBeUndefined();
     });
 
@@ -402,7 +290,7 @@ describe('evaluator data host hooks', () => {
 
         const out = await evaluateParseResult(pr, ctx);
         expect(out).toBe('mac=1E-30-6C-A2-45-5F');
-        expect(host.calls.formatPrintf).toBe(1);
+        expect(host.formatPrintf).toHaveBeenCalledTimes(1);
         expect(host.lastFormattingContainer?.current).toBe(host.fieldRef);
     });
 
