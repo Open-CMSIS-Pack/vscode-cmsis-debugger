@@ -47,13 +47,16 @@ const PRINTF_RE = /%[^\s%]\s*\[|%%/;
 const ATTR_NAME_TO_FLAG = new Map<string, boolean>(ATTRS.map(({ name, forcePrintf }) => [name, !!forcePrintf]));
 const ATTR_SCAN_RE = /(\w+)\s*=\s*"([^"]*)"/gi;
 
+const ENTITY_DECODE_MAP = new Map<string, string>([
+    ['&amp;', '&'],
+    ['&lt;', '<'],
+    ['&gt;', '>'],
+    ['&quot;', '"'],
+    ['&apos;', '\''],
+]);
+
 export function decodeEntities(s: string): string {
-    return s
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&apos;/g, '\'');
+    return s.replace(/&(amp|lt|gt|quot|apos);/g, (match) => ENTITY_DECODE_MAP.get(match) ?? match);
 }
 
 export function extractExpressionsFromScvd(content: string): Extracted[] {

@@ -166,6 +166,14 @@ export class ScvdMember extends ScvdNode {
         return undefined;
     }
 
+    public override getElementRef(): ScvdNode | undefined {
+        const typeObj = this._type;
+        if (typeObj !== undefined) {
+            return typeObj;
+        }
+        return undefined;
+    }
+
     // member’s byte offset
     public override async getMemberOffset(): Promise<number | undefined> {
         const offsetExpr = this._offset;

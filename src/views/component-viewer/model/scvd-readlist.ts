@@ -106,10 +106,6 @@ export class ScvdReadList extends ScvdRead {
         return super.getTargetSize();
     }
 
-    public override async getVirtualSize(): Promise<number | undefined> {
-        return super.getVirtualSize();
-    }
-
     // A readlist is considered a pointer if based="1"
     public override getIsPointer(): boolean {
         return this.based === 1;

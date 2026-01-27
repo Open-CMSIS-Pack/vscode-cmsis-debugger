@@ -191,12 +191,23 @@ describe('parser', () => {
         expect(mod.diagnostics.some(d => d.message.includes('Division by zero'))).toBe(true);
     });
 
-    it('handles missing intrinsic definitions during parsing', () => {
-        const original = INTRINSIC_DEFINITIONS.__GetRegVal;
-        (INTRINSIC_DEFINITIONS as unknown as Record<string, unknown>).__GetRegVal = undefined;
-        const pr = parseExpression('__GetRegVal(1)', false);
+    it('handles missing intrinsic definitions during parsing', async () => {
+        jest.resetModules();
+        jest.doMock('../../../../parser-evaluator/intrinsics', () => {
+            const actual = jest.requireActual('../../../../parser-evaluator/intrinsics');
+            return {
+                ...actual,
+                INTRINSIC_DEFINITIONS: {
+                    ...actual.INTRINSIC_DEFINITIONS,
+                    __GetRegVal: undefined
+                }
+            };
+        });
+        const parser = await import('../../../../parser-evaluator/parser');
+        const pr = parser.parseExpression('__GetRegVal(1)', false);
         expect(pr.ast.kind).toBe('EvalPointCall');
-        (INTRINSIC_DEFINITIONS as unknown as Record<string, unknown>).__GetRegVal = original;
+        jest.dontMock('../../../../parser-evaluator/intrinsics');
+        jest.resetModules();
     });
 
     it('exposes parser test utilities for const normalization', () => {

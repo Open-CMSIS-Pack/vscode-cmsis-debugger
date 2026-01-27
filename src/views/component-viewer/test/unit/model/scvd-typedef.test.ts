@@ -1,5 +1,5 @@
 /**
- * Copyright 2025-2026 Arm Limited
+ * Copyright 2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -97,6 +97,22 @@ describe('ScvdTypedef', () => {
         expect(typedef.getTypeSize()).toBe(12);
         await expect(typedef.getVirtualSize()).resolves.toBe(12);
         expect(typedef.getIsPointer()).toBe(false);
+    });
+
+    it('returns size expression when target size is unset', async () => {
+        const typedef = new ScvdTypedef(undefined);
+        typedef.size = '7';
+        jest.spyOn(typedef.size as ScvdExpression, 'getValue').mockResolvedValue(7);
+
+        await expect(typedef.getTargetSize()).resolves.toBe(7);
+    });
+
+    it('returns undefined for non-numeric size expressions', async () => {
+        const typedef = new ScvdTypedef(undefined);
+        typedef.size = 'bad';
+        jest.spyOn(typedef.size as ScvdExpression, 'getValue').mockResolvedValue(Number.NaN);
+
+        await expect(typedef.getTargetSize()).resolves.toBeUndefined();
     });
 
     it('ignores undefined setter inputs', () => {

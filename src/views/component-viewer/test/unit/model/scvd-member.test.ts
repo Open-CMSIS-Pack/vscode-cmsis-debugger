@@ -1,5 +1,5 @@
 /**
- * Copyright 2025-2026 Arm Limited
+ * Copyright 2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -140,6 +140,14 @@ describe('ScvdMember', () => {
 
         member.type = 'uint16_t';
         await expect(member.getTargetSize()).resolves.toBe(2);
+    });
+
+    it('returns element reference for array access', () => {
+        const member = new ScvdMember(undefined);
+        expect(member.getElementRef()).toBeUndefined();
+
+        member.type = 'uint32_t';
+        expect(member.getElementRef()).toBe(member.type);
     });
 
     it('returns undefined target size when type size is missing', async () => {
