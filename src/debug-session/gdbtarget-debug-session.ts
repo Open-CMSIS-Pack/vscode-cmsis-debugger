@@ -96,7 +96,7 @@ export class GDBTargetDebugSession {
         this._cbuildRunParsePromise = undefined;
     }
 
-    public async getActivePname(): Promise<string|undefined> {
+    public async getPname(): Promise<string|undefined> {
         const sessionName = this.session?.name;
         if (!sessionName) {
             return undefined;

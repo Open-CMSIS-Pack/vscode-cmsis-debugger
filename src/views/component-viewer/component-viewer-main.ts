@@ -48,7 +48,7 @@ export class ComponentViewer {
             return;
         }
         const cbuildRunReader = await session.getCbuildRun();
-        const pname = await session.getActivePname();
+        const pname = await session.getPname();
         if (!cbuildRunReader) {
             return;
         }

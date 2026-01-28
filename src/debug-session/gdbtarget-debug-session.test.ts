@@ -136,7 +136,7 @@ describe('GDBTargetDebugSession', () => {
             });
             const multiCoreTargetSession = new GDBTargetDebugSession(multiCoreSession);
             await multiCoreTargetSession.parseCbuildRun(TEST_CBUILD_RUN_FILE);
-            const pname = await multiCoreTargetSession.getActivePname();
+            const pname = await multiCoreTargetSession.getPname();
             expect(pname).toBe('Core1');
         });
 

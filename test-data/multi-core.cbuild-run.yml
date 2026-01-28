@@ -38,6 +38,13 @@ cbuild-run:
     - file: ${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core1.svd
       type: svd
       pname: Core1
+    - file: ${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_generic.svd
+      type: svd
+    - file: ${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SCVD/MySoftware_component.scvd
+      type: scvd
+    - file: ${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SCVD/Core1.scvd
+      type: scvd
+      pname: Core1
   output:
     - file: out/MyApp.bin
       info: generate by MyApp
