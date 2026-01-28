@@ -38,7 +38,9 @@ const xmlOpts: ParserOptions = {
 };
 
 export class ComponentViewerInstance {
+    // Cache final file key per path to keep IDs stable across updates.
     private static _fileKeysByPath: Map<string, string> = new Map<string, string>();
+    // Track how many times a base hash was used to disambiguate collisions.
     private static _fileKeyCounts: Map<string, number> = new Map<string, number>();
 
     private _model: ScvdComponentViewer | undefined;
