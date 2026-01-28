@@ -56,6 +56,7 @@ jest.mock('vscode', () => {
 type TestGui = ScvdGuiInterface & {
     getGuiName: () => string | undefined;
     getGuiValue: () => string | undefined;
+    getGuiId: () => string | undefined;
     getGuiLineInfo: () => string | undefined;
     hasGuiChildren: () => boolean;
     getGuiChildren: () => ScvdGuiInterface[];
@@ -70,6 +71,7 @@ type TestGuiOptions = Partial<Omit<TestGui, 'getGuiChildren'>> & {
 const makeGui = (options: TestGuiOptions): TestGui => ({
     getGuiName: options.getGuiName ?? (() => 'Node'),
     getGuiValue: options.getGuiValue ?? (() => 'Value'),
+    getGuiId: options.getGuiId ?? (() => 'id-1'),
     getGuiLineInfo: options.getGuiLineInfo ?? (() => 'Line 1'),
     hasGuiChildren: options.hasGuiChildren ?? (() => false),
     getGuiChildren: options.getGuiChildren ?? (() => [] as ScvdGuiInterface[]),
@@ -91,6 +93,7 @@ describe('ComponentViewerTreeDataProvider', () => {
             getGuiName: () => undefined,
             getGuiValue: () => undefined,
             getGuiLineInfo: () => undefined,
+            getGuiId: () => undefined,
         });
 
         const treeItemWithChildren = provider.getTreeItem(withChildren);
@@ -98,7 +101,7 @@ describe('ComponentViewerTreeDataProvider', () => {
         expect(treeItemWithChildren.collapsibleState).toBe(1);
         expect(treeItemWithChildren.description).toBe('Value');
         expect(treeItemWithChildren.tooltip).toBe('Line 1');
-        expect(treeItemWithChildren.id).toBeUndefined();
+        expect(treeItemWithChildren.id).toBe('id-1');
 
         const treeItemWithout = provider.getTreeItem(withoutChildren);
         expect(treeItemWithout.label).toBe('UNKNOWN');

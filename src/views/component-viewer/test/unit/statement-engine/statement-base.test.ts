@@ -93,6 +93,7 @@ describe('StatementBase', () => {
         const child = stmt.createGuiChild(guiTree, undefined);
 
         expect(guiTree.children).toContain(child);
+        expect(child.getGuiId()).toBe('L3:TestStatement');
     });
 
     it('executes statements when condition passes', async () => {

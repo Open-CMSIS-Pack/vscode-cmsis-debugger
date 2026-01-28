@@ -18,10 +18,12 @@ import { ScvdGuiInterface } from './model/scvd-gui-interface';
 
 export class ScvdGuiTree implements ScvdGuiInterface {
     private _parent: ScvdGuiTree | undefined;
+    private _id: string | undefined;
     private _name: string | undefined;
     private _value: string | undefined;
     private _children: ScvdGuiTree[] = [];
     private _isPrint = false;
+    private _idCursor: Map<string, number> = new Map<string, number>();
 
     constructor(parent: ScvdGuiTree | undefined) {
         this._parent = parent;
@@ -30,12 +32,34 @@ export class ScvdGuiTree implements ScvdGuiInterface {
         }
     }
 
-    public getOrCreateChild(_key: string): ScvdGuiTree {
-        return new ScvdGuiTree(this);
+    public getOrCreateChild(key: string, idSegmentBase?: string): ScvdGuiTree {
+        const child = new ScvdGuiTree(this);
+        const segmentBase = idSegmentBase ?? key;
+        const segment = this.nextIdSegment(segmentBase);
+        child.setId(this.buildChildId(segment));
+        return child;
+    }
+
+    private nextIdSegment(segmentBase: string): string {
+        const nextIndex = this._idCursor.get(segmentBase) ?? 0;
+        this._idCursor.set(segmentBase, nextIndex + 1);
+        return nextIndex === 0 ? segmentBase : `${segmentBase}-${nextIndex}`;
+    }
+
+    private buildChildId(segment: string): string {
+        return this._id ? `${this._id}/${segment}` : segment;
     }
 
     public get parent(): ScvdGuiTree | undefined {
         return this._parent;
+    }
+
+    public getGuiId(): string | undefined {
+        return this._id;
+    }
+
+    public setId(value: string | undefined): void {
+        this._id = value;
     }
 
     public get isPrint(): boolean {
@@ -66,6 +90,7 @@ export class ScvdGuiTree implements ScvdGuiInterface {
 
     public clear(): void {
         this._children = [];
+        this._idCursor.clear();
     }
 
     public detach(): void {

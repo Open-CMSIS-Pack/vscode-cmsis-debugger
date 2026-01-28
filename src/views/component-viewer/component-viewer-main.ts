@@ -29,6 +29,7 @@ export class ComponentViewer {
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
     private _loadingCounter: number = 0;
+    private _updateInFlight = false;
 
     public constructor(context: vscode.ExtensionContext) {
         this._context = context;
@@ -137,7 +138,15 @@ export class ComponentViewer {
         if (!this.shouldUpdateOnStackTrace(session)) {
             return;
         }
-        await this.updateInstances();
+        if (this._updateInFlight) {
+            return;
+        }
+        this._updateInFlight = true;
+        try {
+            await this.updateInstances();
+        } finally {
+            this._updateInFlight = false;
+        }
     }
 
     private async handleOnWillStopSession(session: GDBTargetDebugSession): Promise<void> {

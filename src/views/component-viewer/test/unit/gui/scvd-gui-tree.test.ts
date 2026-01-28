@@ -25,36 +25,45 @@ import { ScvdGuiTree } from '../../../scvd-gui-tree';
 describe('ScvdGuiTree', () => {
     it('adds children and links parents', () => {
         const root = new ScvdGuiTree(undefined);
-        const child = root.getOrCreateChild('child');
-        const grand = child.getOrCreateChild('grand');
+        root.setId('file');
+        const child = root.getOrCreateChild('child', 'L1:Test');
+        const grand = child.getOrCreateChild('grand', 'L2:Test');
 
         expect(root.children).toEqual([child]);
         expect(child.parent).toBe(root);
         expect(child.children).toEqual([grand]);
         expect(grand.parent).toBe(child);
+        expect(child.getGuiId()).toBe('file/L1:Test');
+        expect(grand.getGuiId()).toBe('file/L1:Test/L2:Test');
     });
 
     it('detaches and clears children', () => {
         const root = new ScvdGuiTree(undefined);
-        const child = root.getOrCreateChild('child');
-        const sibling = root.getOrCreateChild('sibling');
+        root.setId('file');
+        const child = root.getOrCreateChild('child', 'L1:Test');
+        const sibling = root.getOrCreateChild('sibling', 'L1:Test');
 
         child.detach();
         expect(root.children).toEqual([sibling]);
         expect(child.parent).toBeUndefined();
+        expect(sibling.getGuiId()).toBe('file/L1:Test-1');
 
         root.clear();
         expect(root.children).toEqual([]);
+        const reset = root.getOrCreateChild('child', 'L1:Test');
+        expect(reset.getGuiId()).toBe('file/L1:Test');
     });
 
     it('exposes GUI getters and setters', () => {
         const node = new ScvdGuiTree(undefined);
+        node.setId('file');
         node.setGuiName('Name');
         node.setGuiValue('Value');
         node.isPrint = true;
 
         expect(node.getGuiName()).toBe('Name');
         expect(node.getGuiValue()).toBe('Value');
+        expect(node.getGuiId()).toBe('file');
         expect(node.getGuiEntry()).toEqual({ name: 'Name', value: 'Value' });
         expect(node.getGuiChildren()).toEqual([]);
         expect(node.getGuiConditionResult()).toBe(true);

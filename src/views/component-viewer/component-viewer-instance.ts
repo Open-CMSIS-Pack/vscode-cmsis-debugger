@@ -16,6 +16,7 @@
 
 import * as vscode from 'vscode';
 import { URI } from 'vscode-uri';
+import { createHash } from 'crypto';
 import { parseStringPromise, ParserOptions } from 'xml2js';
 import { Json } from './model/scvd-base';
 import { Resolver } from './resolver';
@@ -37,12 +38,16 @@ const xmlOpts: ParserOptions = {
 };
 
 export class ComponentViewerInstance {
+    private static _fileKeysByPath: Map<string, string> = new Map<string, string>();
+    private static _fileKeyCounts: Map<string, number> = new Map<string, number>();
+
     private _model: ScvdComponentViewer | undefined;
     private _memUsageStart: number = 0;
     private _memUsageLast: number = 0;
     private _timeUsageLast: number = 0;
     private _statementEngine: StatementEngine | undefined;
     private _guiTree: ScvdGuiTree | undefined;
+    private _fileKey: string | undefined;
 
     public constructor(
     ) {
@@ -89,6 +94,7 @@ export class ComponentViewerInstance {
 
     public async readModel(filename: URI, debugSession: GDBTargetDebugSession, debugTracker: GDBTargetDebugTracker): Promise<void> {
         const stats: string[] = [];
+        this._fileKey = ComponentViewerInstance.getFileKey(filename);
 
         stats.push(this.getStats(`  Start reading SCVD file ${filename}`));
         const buf = (await this.readFileToBuffer(filename)).toString('utf-8');
@@ -136,6 +142,7 @@ export class ComponentViewerInstance {
         this.statementEngine.initialize();
         stats.push(this.getStats('  statementEngine.initialize'));
         this._guiTree = new ScvdGuiTree(undefined);
+        this._guiTree.setId(this._fileKey);
         this._guiTree.setGuiName('component-viewer-root');
 
         console.log('ComponentViewerInstance readModel stats:\n' + stats.join('\n  '));
@@ -171,6 +178,21 @@ export class ComponentViewerInstance {
         } catch (err) {
             console.error('Error parsing XML:', err);
         }
+    }
+
+    private static getFileKey(filename: URI): string {
+        const filePath = filename.fsPath ?? filename.toString();
+        const existing = ComponentViewerInstance._fileKeysByPath.get(filePath);
+        if (existing !== undefined) {
+            return existing;
+        }
+        const baseHash = createHash('sha1').update(filePath).digest('hex').slice(0, 8);
+        const nextCount = ComponentViewerInstance._fileKeyCounts.get(baseHash) ?? 0;
+        const suffix = nextCount === 0 ? '' : `-f${nextCount}`;
+        const key = `${baseHash}${suffix}`;
+        ComponentViewerInstance._fileKeyCounts.set(baseHash, nextCount + 1);
+        ComponentViewerInstance._fileKeysByPath.set(filePath, key);
+        return key;
     }
 
     public get model(): ScvdComponentViewer | undefined {
