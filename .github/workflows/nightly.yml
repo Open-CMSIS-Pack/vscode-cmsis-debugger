@@ -14,6 +14,7 @@ permissions:
 
 jobs:
   build:
+    if: github.repository == 'Open-CMSIS-Pack/vscode-cmsis-debugger'
     strategy:
       matrix:
         platform: [ubuntu-24.04, windows-2022, macos-14]
