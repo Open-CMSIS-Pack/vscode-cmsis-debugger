@@ -26,8 +26,8 @@ describe('ScvdGuiTree', () => {
     it('adds children and links parents', () => {
         const root = new ScvdGuiTree(undefined);
         root.setId('file');
-        const child = root.getOrCreateChild('child', 'L1:Test');
-        const grand = child.getOrCreateChild('grand', 'L2:Test');
+        const child = root.createChild('child', 'L1:Test');
+        const grand = child.createChild('grand', 'L2:Test');
 
         expect(root.children).toEqual([child]);
         expect(child.parent).toBe(root);
@@ -40,8 +40,8 @@ describe('ScvdGuiTree', () => {
     it('detaches and clears children', () => {
         const root = new ScvdGuiTree(undefined);
         root.setId('file');
-        const child = root.getOrCreateChild('child', 'L1:Test');
-        const sibling = root.getOrCreateChild('sibling', 'L1:Test');
+        const child = root.createChild('child', 'L1:Test');
+        const sibling = root.createChild('sibling', 'L1:Test');
 
         child.detach();
         expect(root.children).toEqual([sibling]);
@@ -50,19 +50,8 @@ describe('ScvdGuiTree', () => {
 
         root.clear();
         expect(root.children).toEqual([]);
-        const reset = root.getOrCreateChild('child', 'L1:Test');
+        const reset = root.createChild('child', 'L1:Test');
         expect(reset.getGuiId()).toBe('file/L1:Test');
-    });
-
-    it('reuses a child with the same key and segment base', () => {
-        const root = new ScvdGuiTree(undefined);
-        root.setId('file');
-        const first = root.getOrCreateChild('child', 'L1:Test');
-        const second = root.getOrCreateChild('child', 'L1:Test');
-
-        expect(second).toBe(first);
-        expect(root.children).toEqual([first]);
-        expect(first.getGuiId()).toBe('file/L1:Test');
     });
 
     it('exposes GUI getters and setters', () => {

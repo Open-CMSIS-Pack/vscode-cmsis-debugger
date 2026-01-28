@@ -188,7 +188,7 @@ export class ComponentViewerInstance {
         if (existing !== undefined) {
             return existing;
         }
-        const baseHash = createHash('sha1').update(filePath).digest('hex').slice(0, 12);
+        const baseHash = createHash('sha1').update(filePath).digest('hex').slice(0, 16);
         const nextCount = ComponentViewerInstance._fileKeyCounts.get(baseHash) ?? 0;
         const suffix = nextCount === 0 ? '' : `-f${nextCount}`;
         const key = `${baseHash}${suffix}`;

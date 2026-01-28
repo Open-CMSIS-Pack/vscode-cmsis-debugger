@@ -33,7 +33,7 @@ export class ScvdGuiTree implements ScvdGuiInterface {
         }
     }
 
-    public getOrCreateChild(key: string, idSegmentBase?: string): ScvdGuiTree {
+    public createChild(key: string, idSegmentBase?: string): ScvdGuiTree {
         const segmentBase = idSegmentBase ?? key;
         const child = new ScvdGuiTree(this);
         const segment = this.nextIdSegment(segmentBase);
