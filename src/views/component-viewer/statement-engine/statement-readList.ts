@@ -143,61 +143,102 @@ export class StatementReadList extends StatementBase {
         // ---- calculate next address ----
         let nextPtrAddr: number | bigint | undefined = typeof baseAddress === 'bigint' ? baseAddress : (baseAddress >>> 0);
 
-        let readIdx = 0;
-        while (nextPtrAddr !== undefined) {
-            const itemAddress: number | bigint | undefined = typeof nextPtrAddr === 'bigint' ? nextPtrAddr : (nextPtrAddr >>> 0);
+        const shouldBatchRead = next === undefined
+            && count !== undefined
+            && count <= maxArraySize
+            && count <= ScvdReadList.READ_SIZE_MAX;
+        let didBatchRead = false;
 
-            // Read data from target
-            const readData = await executionContext.debugTarget.readMemory(itemAddress, readBytes);
+        if (shouldBatchRead) {
+            const baseNum = typeof baseAddress === 'bigint' ? baseAddress : BigInt(baseAddress >>> 0);
+            const totalBytes = count * readBytes;
+            const readData = await executionContext.debugTarget.readMemory(baseNum, totalBytes);
             if (readData === undefined) {
-                console.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes, read target memory failed`);
-                break;
-            }
-
-            // Store in memory host
-            executionContext.memoryHost.setVariable(itemName, readBytes, readData, -1, typeof itemAddress === 'bigint' ? Number(itemAddress) : itemAddress, virtualBytes);
-            readIdx ++;
-
-            // check count
-            if (count !== undefined) {
-                if (readIdx >= count) {
-                    break;
-                } else if (readIdx > maxArraySize) {
-                    console.warn(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, reached maximum array size: ${maxArraySize} for variable: ${itemName}`);
-                    break;
-                }
-            }
-            // Check overall maximum read size
-            if (readIdx >= ScvdReadList.READ_SIZE_MAX) {
-                break;
-            }
-            // If neither count or next is defined, read only one item
-            if (count === undefined && next === undefined) {
-                break;
-            }
-
-            // calculate next address
-            if (next) {
-                if (nextTargetSize === undefined || nextOffset === undefined) {
-                    break;
-                }
-                const nextPtrUint8Arr = readData.subarray(nextOffset, nextOffset + nextTargetSize);
-                if (nextPtrUint8Arr.length !== nextTargetSize) {
-                    console.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, could not extract next pointer data from read data`);
-                    break;
-                }
-                nextPtrAddr = (nextPtrUint8Arr[0] | (nextPtrUint8Arr[1] << 8) | (nextPtrUint8Arr[2] << 16) | (nextPtrUint8Arr[3] << 24)) >>> 0;
+                console.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${totalBytes} bytes, read target memory failed`);
             } else {
-                const baseNum = typeof baseAddress === 'bigint' ? baseAddress : BigInt(baseAddress >>> 0);
-                const stride = BigInt(isPointerArray ? (readIdx * 4) : (readIdx * targetSize));
-                nextPtrAddr = baseNum + stride;
+                for (let readIdx = 0; readIdx < count; readIdx++) {
+                    const itemOffset = readIdx * readBytes;
+                    const itemData = readData.subarray(itemOffset, itemOffset + readBytes);
+                    const itemAddress = baseNum + BigInt(isPointerArray ? (readIdx * 4) : (readIdx * targetSize));
+                    executionContext.memoryHost.setVariable(
+                        itemName,
+                        readBytes,
+                        itemData,
+                        -1,
+                        typeof itemAddress === 'bigint' ? Number(itemAddress) : itemAddress,
+                        virtualBytes,
+                        scvdReadList.const === true ? true : undefined
+                    );
+                }
+                didBatchRead = true;
             }
+        }
 
-            if (nextPtrAddr === 0 || nextPtrAddr === 0n) { // NULL pointer, end of linked list
-                nextPtrAddr = undefined;
-            } else if (nextPtrAddr === itemAddress) {    // loop detection
-                console.warn(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, detected loop in linked list at address: ${itemAddress.toString(16)}`);
-                break;
+        if (!didBatchRead) {
+            let readIdx = 0;
+            while (nextPtrAddr !== undefined) {
+                const itemAddress: number | bigint | undefined = typeof nextPtrAddr === 'bigint' ? nextPtrAddr : (nextPtrAddr >>> 0);
+
+                // Read data from target
+                const readData = await executionContext.debugTarget.readMemory(itemAddress, readBytes);
+                if (readData === undefined) {
+                    console.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes, read target memory failed`);
+                    break;
+                }
+
+                // Store in memory host
+                executionContext.memoryHost.setVariable(
+                    itemName,
+                    readBytes,
+                    readData,
+                    -1,
+                    typeof itemAddress === 'bigint' ? Number(itemAddress) : itemAddress,
+                    virtualBytes,
+                    scvdReadList.const === true ? true : undefined
+                );
+                readIdx ++;
+
+                // check count
+                if (count !== undefined) {
+                    if (readIdx >= count) {
+                        break;
+                    } else if (readIdx > maxArraySize) {
+                        console.warn(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, reached maximum array size: ${maxArraySize} for variable: ${itemName}`);
+                        break;
+                    }
+                }
+                // Check overall maximum read size
+                if (readIdx >= ScvdReadList.READ_SIZE_MAX) {
+                    break;
+                }
+                // If neither count or next is defined, read only one item
+                if (count === undefined && next === undefined) {
+                    break;
+                }
+
+                // calculate next address
+                if (next) {
+                    if (nextTargetSize === undefined || nextOffset === undefined) {
+                        break;
+                    }
+                    const nextPtrUint8Arr = readData.subarray(nextOffset, nextOffset + nextTargetSize);
+                    if (nextPtrUint8Arr.length !== nextTargetSize) {
+                        console.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, could not extract next pointer data from read data`);
+                        break;
+                    }
+                    nextPtrAddr = (nextPtrUint8Arr[0] | (nextPtrUint8Arr[1] << 8) | (nextPtrUint8Arr[2] << 16) | (nextPtrUint8Arr[3] << 24)) >>> 0;
+                } else {
+                    const baseNum = typeof baseAddress === 'bigint' ? baseAddress : BigInt(baseAddress >>> 0);
+                    const stride = BigInt(isPointerArray ? (readIdx * 4) : (readIdx * targetSize));
+                    nextPtrAddr = baseNum + stride;
+                }
+
+                if (nextPtrAddr === 0 || nextPtrAddr === 0n) { // NULL pointer, end of linked list
+                    nextPtrAddr = undefined;
+                } else if (nextPtrAddr === itemAddress) {    // loop detection
+                    console.warn(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, detected loop in linked list at address: ${itemAddress.toString(16)}`);
+                    break;
+                }
             }
         }
 

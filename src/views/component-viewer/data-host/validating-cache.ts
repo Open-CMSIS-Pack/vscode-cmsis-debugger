@@ -15,7 +15,7 @@
  */
 // generated with AI
 
-export interface ValidatingEntry<T> { value: T; valid: boolean; }
+export interface ValidatingEntry<T> { value: T; valid: boolean; isConst?: boolean; }
 
 export class ValidatingCache<T> {
     private map = new Map<string, ValidatingEntry<T>>();
@@ -31,12 +31,14 @@ export class ValidatingCache<T> {
         return entry && entry.valid ? entry.value : undefined;
     }
 
-    public set(key: string, value: T, valid = true): void {
+    public set(key: string, value: T, valid = true, isConst?: boolean): void {
         if (!key) {
             return;
         }
         const norm = this.normalize(key);
-        this.map.set(norm, { value, valid });
+        const existing = this.map.get(norm);
+        const constFlag = isConst ?? existing?.isConst ?? false;
+        this.map.set(norm, { value, valid, isConst: constFlag });
     }
 
     public ensure(key: string, factory: () => T, valid = true): T {
@@ -62,15 +64,16 @@ export class ValidatingCache<T> {
         }
     }
 
-    public invalidateAll(): void {
-        this.map.forEach((entry, key) => {
-            entry.valid = false;
-            this.map.set(key, entry);
-        });
-    }
-
     public clear(): void {
         this.map.clear();
+    }
+
+    public keys(): IterableIterator<string> {
+        return this.map.keys();
+    }
+
+    public entries(): IterableIterator<[string, ValidatingEntry<T>]> {
+        return this.map.entries();
     }
 
     public delete(key: string): boolean {

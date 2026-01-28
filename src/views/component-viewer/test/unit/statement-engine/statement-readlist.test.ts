@@ -204,8 +204,7 @@ describe('StatementReadList', () => {
 
         await stmt.executeStatement(ctx, guiTree);
 
-        expect(ctx.debugTarget.readMemory).toHaveBeenNthCalledWith(1, 0x1000, 4);
-        expect(ctx.debugTarget.readMemory).toHaveBeenNthCalledWith(2, 0x1004n, 4);
+        expect(ctx.debugTarget.readMemory).toHaveBeenCalledWith(0x1000n, 8);
     });
 
     it('supports bigint offsets without symbols', async () => {

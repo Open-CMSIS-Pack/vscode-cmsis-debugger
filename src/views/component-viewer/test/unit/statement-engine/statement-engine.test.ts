@@ -235,7 +235,7 @@ describe('StatementEngine', () => {
         const stmt = new FakeStatement(rootNode, undefined);
         (engine as unknown as { _statementTree: StatementBase })._statementTree = stmt;
 
-        const clearSpy = jest.spyOn(ctx.memoryHost, 'clear');
+        const clearSpy = jest.spyOn(ctx.memoryHost, 'clearNonConst');
         const guiTree = new ScvdGuiTree(undefined);
 
         await engine.executeAll(guiTree);
@@ -248,7 +248,7 @@ describe('StatementEngine', () => {
         const model = new ScvdComponentViewer(undefined);
         const ctx = createExecutionContext(model);
         const engine = new StatementEngine(model, ctx);
-        const clearSpy = jest.spyOn(ctx.memoryHost, 'clear');
+        const clearSpy = jest.spyOn(ctx.memoryHost, 'clearNonConst');
         const guiTree = new ScvdGuiTree(undefined);
 
         await engine.executeAll(guiTree);

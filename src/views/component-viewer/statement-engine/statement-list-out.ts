@@ -111,11 +111,6 @@ export class StatementListOut extends StatementBase {
                 if (loopValue === 0) {
                     break;
                 }
-                const whileValue = await whileExpr.getValue();
-                const whileNum = whileValue !== undefined ? Number(whileValue) : undefined;
-                if (whileNum === 0 || whileNum === undefined) {   // break on read error too
-                    break;
-                }
             }
             if (limitExpr !== undefined) {
                 if (loopValue >= limitValue) {
@@ -129,9 +124,11 @@ export class StatementListOut extends StatementBase {
 
             if (whileExpr !== undefined) {
                 const whileValue = await whileExpr.getValue();
-                if (whileValue !== undefined) {
-                    loopValue = Number(whileValue);
+                const whileNum = whileValue !== undefined ? Number(whileValue) : undefined;
+                if (whileNum === 0 || whileNum === undefined) {   // break on read error too
+                    break;
                 }
+                loopValue = whileNum;
             }
             if (limitExpr !== undefined) {
                 loopValue++;

@@ -276,6 +276,7 @@ export class MemoryHost {
         offset: number,                     // NEW: controls where to place the data
         targetBase?: number,       // target base address where it was read from
         virtualSize?: number,                // total logical bytes for this element (>= size)
+        isConst?: boolean,
     ): void {
         if (!Number.isSafeInteger(offset)) {
             console.error(`setVariable: offset must be a safe integer, got ${offset}`);
@@ -337,7 +338,7 @@ export class MemoryHost {
             delete meta.elementSize;                 // mixed sizes → remove the optional prop
         }
 
-        this.cache.set(name, container, true);
+        this.cache.set(name, container, true, isConst);
     }
 
     /**
@@ -403,14 +404,6 @@ export class MemoryHost {
         return leToNumber(raw);
     }
 
-    public invalidate(name?: string): void {
-        if (name === undefined) {
-            this.cache.invalidateAll();
-        } else {
-            this.cache.invalidate(name);
-        }
-    }
-
     public clearVariable(name: string): boolean {
         this.elementMeta.delete(name);
         const container = this.cache.get(name);
@@ -418,6 +411,20 @@ export class MemoryHost {
             container.clear();
         }
         return this.cache.delete(name);
+    }
+
+    public clearNonConst(): void {
+        // Iterate a snapshot since we delete entries during the pass.
+        for (const [name, entry] of Array.from(this.cache.entries())) {
+            if (entry.isConst === true) {
+                continue;
+            }
+            this.elementMeta.delete(name);
+            if (entry.value?.clear) {
+                entry.value.clear();
+            }
+            this.cache.delete(name);
+        }
     }
 
     public clear(): void {

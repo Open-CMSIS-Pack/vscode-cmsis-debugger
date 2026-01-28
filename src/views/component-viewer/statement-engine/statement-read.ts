@@ -101,7 +101,15 @@ export class StatementRead extends StatementBase {
         }
 
         // Write to local variable cache
-        executionContext.memoryHost.setVariable(name, readBytes, readData, 0, typeof baseAddress === 'bigint' ? Number(baseAddress) : (baseAddress >>> 0), fullVirtualStrideSize);
+        executionContext.memoryHost.setVariable(
+            name,
+            readBytes,
+            readData,
+            0,
+            typeof baseAddress === 'bigint' ? Number(baseAddress) : (baseAddress >>> 0),
+            fullVirtualStrideSize,
+            scvdRead.const === true ? true : undefined
+        );
 
         // TOIMPL: do not set if read failed, investigate
         if (scvdRead.const === true) {   // Mark variable as already initialized

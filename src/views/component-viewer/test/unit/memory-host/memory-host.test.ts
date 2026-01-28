@@ -219,13 +219,22 @@ describe('MemoryHost', () => {
         const host = new MemoryHost();
         host.setVariable('clearme', 2, 0x1111, 0);
         expect(host.clearVariable('clearme')).toBe(true);
-        host.invalidate('clearme');
-        host.invalidate();
         expect(host.clearVariable('missing')).toBe(false);
 
         host.setVariable('temp', 2, 0x2222, 0);
         host.clear();
         expect(host.getArrayElementCount('temp')).toBe(1);
+    });
+
+    it('preserves const variables when clearing non-const data', () => {
+        const host = new MemoryHost();
+        host.setVariable('const', 2, 0x1111, 0, undefined, 2, true);
+        host.setVariable('temp', 2, 0x2222, 0);
+
+        host.clearNonConst();
+
+        expect(host.getVariable('const', undefined, 0)).toBe(0x1111);
+        expect(host.getVariable('temp', undefined, 0)).toBeUndefined();
     });
 
     it('validates element base accessors', () => {

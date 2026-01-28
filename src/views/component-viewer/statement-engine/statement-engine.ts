@@ -161,7 +161,7 @@ export class StatementEngine {
         // Execute all statements in the statement tree.
         // This is a placeholder implementation.
 
-        this._executionContext.memoryHost.clear();
+        this._executionContext.memoryHost.clearNonConst();
 
         if (this._statementTree) {
             //console.log('Executing statements in the statement tree...');
