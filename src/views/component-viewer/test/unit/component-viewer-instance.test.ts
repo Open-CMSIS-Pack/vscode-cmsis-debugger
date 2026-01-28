@@ -25,7 +25,6 @@ import { URI } from 'vscode-uri';
 import { parseStringPromise } from 'xml2js';
 import { ComponentViewerInstance } from '../../component-viewer-instance';
 import { ScvdComponentViewer } from '../../model/scvd-component-viewer';
-import { ScvdBase } from '../../model/scvd-base';
 import { Resolver } from '../../resolver';
 import { ScvdEvalContext } from '../../scvd-eval-context';
 import { StatementEngine } from '../../statement-engine/statement-engine';
@@ -42,12 +41,6 @@ jest.mock('vscode', () => ({
 
 jest.mock('xml2js', () => ({
     parseStringPromise: jest.fn(),
-}));
-
-jest.mock('../../model/scvd-base', () => ({
-    ScvdBase: {
-        resetIds: jest.fn(),
-    },
 }));
 
 jest.mock('../../model/scvd-component-viewer', () => ({
@@ -129,7 +122,6 @@ describe('ComponentViewerInstance', () => {
         const debugTracker = {} as unknown as GDBTargetDebugTracker;
         await instance.readModel(URI.file('/tmp/example.scvd'), debugSession, debugTracker);
 
-        expect(ScvdBase.resetIds).toHaveBeenCalled();
         expect(readXml).toHaveBeenCalled();
         expect(setExecutionContextAll).toHaveBeenCalledWith({ exec: true });
         expect(configureAll).toHaveBeenCalled();

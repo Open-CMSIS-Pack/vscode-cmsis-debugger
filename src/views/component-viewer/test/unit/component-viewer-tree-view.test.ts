@@ -54,7 +54,6 @@ jest.mock('vscode', () => {
 });
 
 type TestGui = ScvdGuiInterface & {
-    nodeId: string;
     getGuiName: () => string | undefined;
     getGuiValue: () => string | undefined;
     getGuiLineInfo: () => string | undefined;
@@ -69,7 +68,6 @@ type TestGuiOptions = Partial<Omit<TestGui, 'getGuiChildren'>> & {
 };
 
 const makeGui = (options: TestGuiOptions): TestGui => ({
-    nodeId: options.nodeId ?? 'node-1',
     getGuiName: options.getGuiName ?? (() => 'Node'),
     getGuiValue: options.getGuiValue ?? (() => 'Value'),
     getGuiLineInfo: options.getGuiLineInfo ?? (() => 'Line 1'),
@@ -87,11 +85,9 @@ describe('ComponentViewerTreeDataProvider', () => {
     it('builds tree items with fallbacks and collapsible state', () => {
         const provider = new ComponentViewerTreeDataProvider();
         const withChildren = makeGui({
-            nodeId: 'node-a',
             hasGuiChildren: () => true,
         });
         const withoutChildren = makeGui({
-            nodeId: 'node-b',
             getGuiName: () => undefined,
             getGuiValue: () => undefined,
             getGuiLineInfo: () => undefined,
@@ -102,19 +98,19 @@ describe('ComponentViewerTreeDataProvider', () => {
         expect(treeItemWithChildren.collapsibleState).toBe(1);
         expect(treeItemWithChildren.description).toBe('Value');
         expect(treeItemWithChildren.tooltip).toBe('Line 1');
-        expect(treeItemWithChildren.id).toBe('node-a');
+        expect(treeItemWithChildren.id).toBeUndefined();
 
         const treeItemWithout = provider.getTreeItem(withoutChildren);
         expect(treeItemWithout.label).toBe('UNKNOWN');
         expect(treeItemWithout.collapsibleState).toBe(0);
         expect(treeItemWithout.description).toBe('');
         expect(treeItemWithout.tooltip).toBe('');
-        expect(treeItemWithout.id).toBe('node-b');
+        expect(treeItemWithout.id).toBeUndefined();
     });
 
     it('returns root children when no element is provided', async () => {
         const provider = new ComponentViewerTreeDataProvider();
-        const root = makeGui({ nodeId: 'root' });
+        const root = makeGui({});
         provider.addGuiOut([root]);
         provider.showModelData();
 
@@ -124,10 +120,9 @@ describe('ComponentViewerTreeDataProvider', () => {
 
     it('returns element children in order', async () => {
         const provider = new ComponentViewerTreeDataProvider();
-        const childA = makeGui({ nodeId: 'child-a' });
-        const childB = makeGui({ nodeId: 'child-b' });
+        const childA = makeGui({});
+        const childB = makeGui({});
         const parent = makeGui({
-            nodeId: 'parent',
             getGuiChildren: () => [childA, childB],
         });
 
@@ -137,7 +132,6 @@ describe('ComponentViewerTreeDataProvider', () => {
     it('returns empty children when element has none', async () => {
         const provider = new ComponentViewerTreeDataProvider();
         const parent = makeGui({
-            nodeId: 'parent-empty',
             getGuiChildren: () => undefined as unknown as ScvdGuiInterface[],
         });
 
@@ -161,7 +155,7 @@ describe('ComponentViewerTreeDataProvider', () => {
 
     it('deletes models and refreshes', async () => {
         const provider = new ComponentViewerTreeDataProvider();
-        const root = makeGui({ nodeId: 'root' });
+        const root = makeGui({});
         provider.addGuiOut([root]);
         provider.showModelData();
         expect(mockFire).toHaveBeenCalledTimes(1);

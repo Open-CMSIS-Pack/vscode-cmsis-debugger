@@ -24,23 +24,23 @@ import { ScvdGuiTree } from '../../../scvd-gui-tree';
 
 describe('ScvdGuiTree', () => {
     it('reconciles children with epochs, pruning unseen nodes', () => {
-        const root = new ScvdGuiTree(undefined, 'root');
+        const root = new ScvdGuiTree(undefined);
         const epoch1 = root.beginUpdate();
-        const a = root.getOrCreateChild('a', 'a');
-        const b = root.getOrCreateChild('b', 'b');
+        const a = root.getOrCreateChild('a');
+        const b = root.getOrCreateChild('b');
         expect(root.children).toHaveLength(2);
         root.finalizeUpdate(epoch1);
         expect(root.children).toEqual([a, b]);
 
         const epoch2 = root.beginUpdate();
-        root.getOrCreateChild('a', 'a'); // reuse only 'a'
+        root.getOrCreateChild('a'); // reuse only 'a'
         root.finalizeUpdate(epoch2);
         expect(root.children).toEqual([a]);
         expect(a.parent).toBe(root);
     });
 
     it('suffixes duplicate keys', () => {
-        const root = new ScvdGuiTree(undefined, 'root');
+        const root = new ScvdGuiTree(undefined);
         const epoch = root.beginUpdate();
         root.getOrCreateChild('dup');
         root.getOrCreateChild('dup');
@@ -51,7 +51,7 @@ describe('ScvdGuiTree', () => {
     });
 
     it('bumps reused children to the end of the list', () => {
-        const root = new ScvdGuiTree(undefined, 'root');
+        const root = new ScvdGuiTree(undefined);
         const epoch1 = root.beginUpdate();
         const first = root.getOrCreateChild('first');
         const second = root.getOrCreateChild('second');
@@ -67,18 +67,16 @@ describe('ScvdGuiTree', () => {
     });
 
     it('builds path using ancestors iterator', () => {
-        const root = new ScvdGuiTree(undefined, 'root');
+        const root = new ScvdGuiTree(undefined);
+        root.setGuiName('root');
         const child = root.getOrCreateChild('child');
         const grand = child.getOrCreateChild('grand');
         const path = (grand as unknown as { path: string }).path;
-        const parts = path.split(' > ');
-        expect(parts).toHaveLength(3);
-        expect(parts[0].startsWith('root_')).toBe(true);
-        expect(parts[2].includes('grand')).toBe(true);
+        expect(path).toBe('root > child > grand');
     });
 
     it('recovers with fallback when child creation throws', () => {
-        const root = new ScvdGuiTree(undefined, 'root');
+        const root = new ScvdGuiTree(undefined);
         let first = true;
         const originalAdd = (root as unknown as { addChild?: (c: ScvdGuiTree) => void }).addChild?.bind(root);
         // Throw on the first addChild to trigger fallback path
@@ -99,7 +97,7 @@ describe('ScvdGuiTree', () => {
     });
 
     it('clears and detaches children and indexes correctly', () => {
-        const root = new ScvdGuiTree(undefined, 'root');
+        const root = new ScvdGuiTree(undefined);
         root.beginUpdate();
         const child = root.getOrCreateChild('child');
         expect(root.hasGuiChildren()).toBe(true);
@@ -109,7 +107,7 @@ describe('ScvdGuiTree', () => {
         expect(root.childIndex.has('child')).toBe(false);
 
         const epoch = root.beginUpdate();
-        const keyless = new ScvdGuiTree(root, 'keyless');
+        const keyless = new ScvdGuiTree(root);
         root.finalizeUpdate(epoch);
         expect(root.children).not.toContain(keyless);
 
@@ -123,14 +121,14 @@ describe('ScvdGuiTree', () => {
         root.detach(); // no parent: should be a no-op branch
         expect(root.parent).toBeUndefined();
 
-        const keylessDetached = new ScvdGuiTree(root, 'keyless-detach');
+        const keylessDetached = new ScvdGuiTree(root);
         expect(keylessDetached.key).toBeUndefined();
         keylessDetached.detach();
         expect(root.children).not.toContain(keylessDetached);
     });
 
     it('exposes gui getters and setters', () => {
-        const node = new ScvdGuiTree(undefined, 'node');
+        const node = new ScvdGuiTree(undefined);
         node.setGuiValue('Value');
         node.isPrint = true;
         (node as unknown as { name?: string }).name = 'Internal';
@@ -147,7 +145,7 @@ describe('ScvdGuiTree', () => {
 
     it('resets duplicate counters per epoch and allows external epoch set', () => {
         ScvdGuiTree.epoch = 10;
-        const root = new ScvdGuiTree(undefined, 'root');
+        const root = new ScvdGuiTree(undefined);
 
         const epoch1 = root.beginUpdate();
         expect(epoch1).toBe(11);

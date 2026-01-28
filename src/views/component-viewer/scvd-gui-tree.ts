@@ -18,7 +18,6 @@ import { ScvdGuiInterface } from './model/scvd-gui-interface';
 
 export class ScvdGuiTree implements ScvdGuiInterface {
     private _parent: ScvdGuiTree | undefined;
-    private _nodeId: string;
     private _name: string | undefined;
     private _value: string | undefined;
     private _children: ScvdGuiTree[] = [];
@@ -30,21 +29,16 @@ export class ScvdGuiTree implements ScvdGuiInterface {
     // If the node is not seen in the current epoch it is pruned in finalizeUpdate().
     private _seenEpoch = 0;
     private _isPrint: boolean = false;
-    private static readonly baseNodeId = 'ScvdGuiTree';
-    private static idCnt: number = 0;
     // Monotonic counter for reconciliation passes. Increments at beginUpdate() and is compared against _seenEpoch.
     private static _epoch: number = 0;
 
     constructor(
         parent: ScvdGuiTree | undefined,
-        nodeId?: string,
     ) {
         this._parent = parent;
         if (parent) {
             parent.addChild(this);
         }
-        const baseId = nodeId ?? ScvdGuiTree.baseNodeId;
-        this._nodeId = `${baseId}_${ScvdGuiTree.idCnt++}`;
     }
 
     public beginUpdate(): number {
@@ -82,7 +76,7 @@ export class ScvdGuiTree implements ScvdGuiInterface {
         }
     }
 
-    public getOrCreateChild(key: string, nodeId?: string): ScvdGuiTree {
+    public getOrCreateChild(key: string): ScvdGuiTree {
         const updateEpoch = ScvdGuiTree.epoch;
         try {
             const index = this._keyCursor.get(key) ?? 0;
@@ -96,14 +90,14 @@ export class ScvdGuiTree implements ScvdGuiInterface {
                 return existing;
             }
 
-            const child = new ScvdGuiTree(this, nodeId);
+            const child = new ScvdGuiTree(this);
             child.key = effectiveKey;
             child.markSeen(updateEpoch);
             this._childIndex.set(effectiveKey, child);
             return child;
         } catch (err) {
             console.error(`Failed to create GUI child "${key}" under "${this.path}":`, err);
-            const fallback = new ScvdGuiTree(this, nodeId);
+            const fallback = new ScvdGuiTree(this);
             fallback.key = `${key}#fallback`;
             fallback.markSeen(updateEpoch);
             return fallback;
@@ -154,13 +148,9 @@ export class ScvdGuiTree implements ScvdGuiInterface {
     private get path(): string {
         const parts: string[] = [];
         for (const node of this.ancestors()) {
-            parts.push(node.key ?? node.name ?? node.nodeId);
+            parts.push(node.key ?? node.name ?? 'unknown');
         }
         return parts.reverse().join(' > ');
-    }
-
-    public get nodeId(): string {
-        return this._nodeId;
     }
 
     public clear(): void {

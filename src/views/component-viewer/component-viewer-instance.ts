@@ -20,7 +20,6 @@ import { parseStringPromise, ParserOptions } from 'xml2js';
 import { Json } from './model/scvd-base';
 import { Resolver } from './resolver';
 import { ScvdComponentViewer } from './model/scvd-component-viewer';
-import { ScvdBase } from './model/scvd-base';
 import { StatementEngine } from './statement-engine/statement-engine';
 import { ScvdEvalContext } from './scvd-eval-context';
 import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
@@ -104,7 +103,6 @@ export class ComponentViewerInstance {
             return;
         }
 
-        ScvdBase.resetIds();
         this.model = new ScvdComponentViewer(undefined);
         if (!this.model) {
             console.error('Failed to create SCVD model');
@@ -137,7 +135,8 @@ export class ComponentViewerInstance {
         this.statementEngine = new StatementEngine(this.model, executionContext);
         this.statementEngine.initialize();
         stats.push(this.getStats('  statementEngine.initialize'));
-        this._guiTree = new ScvdGuiTree(undefined, 'component-viewer-root');
+        this._guiTree = new ScvdGuiTree(undefined);
+        this._guiTree.setGuiName('component-viewer-root');
 
         console.log('ComponentViewerInstance readModel stats:\n' + stats.join('\n  '));
     }
