@@ -25,7 +25,6 @@ import { URI } from 'vscode-uri';
 import { parseStringPromise } from 'xml2js';
 import { ComponentViewerInstance } from '../../component-viewer-instance';
 import { ScvdComponentViewer } from '../../model/scvd-component-viewer';
-import { ScvdBase } from '../../model/scvd-base';
 import { Resolver } from '../../resolver';
 import { ScvdEvalContext } from '../../scvd-eval-context';
 import { StatementEngine } from '../../statement-engine/statement-engine';
@@ -42,12 +41,6 @@ jest.mock('vscode', () => ({
 
 jest.mock('xml2js', () => ({
     parseStringPromise: jest.fn(),
-}));
-
-jest.mock('../../model/scvd-base', () => ({
-    ScvdBase: {
-        resetIds: jest.fn(),
-    },
 }));
 
 jest.mock('../../model/scvd-component-viewer', () => ({
@@ -116,12 +109,14 @@ describe('ComponentViewerInstance', () => {
             executeAll,
         }));
 
-        const beginUpdate = jest.fn().mockReturnValue(7);
-        const finalizeUpdate = jest.fn();
+        const clear = jest.fn();
+        const setId = jest.fn();
+        const setGuiName = jest.fn();
         (ScvdGuiTree as unknown as jest.Mock).mockImplementation(() => ({
             children: ['child'],
-            beginUpdate,
-            finalizeUpdate,
+            clear,
+            setId,
+            setGuiName,
         }));
 
         const instance = new ComponentViewerInstance();
@@ -129,7 +124,6 @@ describe('ComponentViewerInstance', () => {
         const debugTracker = {} as unknown as GDBTargetDebugTracker;
         await instance.readModel(URI.file('/tmp/example.scvd'), debugSession, debugTracker);
 
-        expect(ScvdBase.resetIds).toHaveBeenCalled();
         expect(readXml).toHaveBeenCalled();
         expect(setExecutionContextAll).toHaveBeenCalledWith({ exec: true });
         expect(configureAll).toHaveBeenCalled();
@@ -137,12 +131,13 @@ describe('ComponentViewerInstance', () => {
         expect(resolve).toHaveBeenCalled();
         expect(calculateTypedefs).toHaveBeenCalled();
         expect(initialize).toHaveBeenCalled();
+        expect(setId).toHaveBeenCalled();
+        expect(setGuiName).toHaveBeenCalledWith('component-viewer-root');
         expect(instance.getGuiTree()).toEqual(['child']);
 
         await instance.update();
-        expect(beginUpdate).toHaveBeenCalled();
+        expect(clear).toHaveBeenCalled();
         expect(executeAll).toHaveBeenCalledWith(expect.any(Object));
-        expect(finalizeUpdate).toHaveBeenCalledWith(7);
 
         const guiTree = {} as ScvdGuiTree;
         await instance.executeStatements(guiTree);

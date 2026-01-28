@@ -26,11 +26,8 @@ export type Json = Record<string, unknown>;
 type ScvdConstructor<T extends ScvdBase> = abstract new (...args: any[]) => T;
 
 export abstract class ScvdBase {
-    private static _idNext = 0;
-
     private _parent: ScvdBase | undefined;
     private _children: ScvdBase[] = [];
-    private _nodeId: number = 0;
 
     private _tag: string | undefined;
     private _lineNo: string | undefined;
@@ -41,13 +38,7 @@ export abstract class ScvdBase {
     private _valid = false;
     private _mustRead = true;
 
-    public static resetIds(): void {
-        ScvdBase._idNext = 0;
-    }
-
     constructor(parent: ScvdBase | undefined) {
-        this._nodeId = ++ScvdBase._idNext;
-
         if (parent instanceof ScvdBase) {
             this._parent = parent;
             this._parent._children.push(this);
@@ -64,10 +55,6 @@ export abstract class ScvdBase {
 
     public get children(): ScvdBase[] {
         return this._children;
-    }
-
-    public get nodeId(): string {
-        return `${this.classname}_${this._nodeId.toString()}`;
     }
 
     public get classname(): string {

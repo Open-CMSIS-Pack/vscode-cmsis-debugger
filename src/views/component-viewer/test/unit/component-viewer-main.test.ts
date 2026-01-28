@@ -21,18 +21,22 @@
  */
 
 const registerTreeDataProvider = jest.fn(() => ({ dispose: jest.fn() }));
+const onDidChangeActiveStackItem = jest.fn(() => ({ dispose: jest.fn() }));
 
 jest.mock('vscode', () => ({
     window: {
         registerTreeDataProvider,
     },
+    debug: {
+        onDidChangeActiveStackItem,
+        activeDebugSession: undefined,
+        activeStackItem: undefined,
+    },
 }));
 
 const treeProviderFactory = jest.fn(() => ({
-    addGuiOut: jest.fn(),
-    showModelData: jest.fn(),
-    deleteModels: jest.fn(),
-    resetModelCache: jest.fn(),
+    setRoots: jest.fn(),
+    clear: jest.fn(),
 }));
 
 jest.mock('../../component-viewer-tree-view', () => ({
@@ -130,7 +134,7 @@ describe('ComponentViewer', () => {
         controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         expect(registerTreeDataProvider).toHaveBeenCalledWith('cmsis-debugger.componentViewer', expect.any(Object));
-        expect(context.subscriptions.length).toBe(6);
+        expect(context.subscriptions.length).toBe(7);
     });
 
     it('skips reading scvd files when session or cbuild-run is missing', async () => {
@@ -212,7 +216,7 @@ describe('ComponentViewer', () => {
         }
 
         await tracker.callbacks.connected?.(otherSession);
-        expect(provider?.deleteModels).toHaveBeenCalled();
+        expect(provider?.clear).toHaveBeenCalled();
 
         await tracker.callbacks.activeSession?.(session);
         await tracker.callbacks.activeSession?.(undefined);
@@ -240,7 +244,7 @@ describe('ComponentViewer', () => {
 
         await tracker.callbacks.connected?.(session);
 
-        expect(provider?.deleteModels).not.toHaveBeenCalled();
+        expect(provider?.clear).not.toHaveBeenCalled();
         expect((controller as unknown as { _instances: unknown[] })._instances).toHaveLength(1);
     });
 
@@ -254,21 +258,20 @@ describe('ComponentViewer', () => {
 
         (controller as unknown as { _activeSession?: Session | undefined })._activeSession = undefined;
         await updateInstances();
-        expect(provider.deleteModels).toHaveBeenCalledTimes(1);
-        provider.deleteModels.mockClear();
+        expect(provider.clear).toHaveBeenCalledTimes(1);
+        provider.clear.mockClear();
 
         (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1');
         (controller as unknown as { _instances: unknown[] })._instances = [];
         await updateInstances();
-        expect(provider.deleteModels).not.toHaveBeenCalled();
+        expect(provider.clear).not.toHaveBeenCalled();
+        expect(provider.setRoots).not.toHaveBeenCalled();
 
         const instanceA = instanceFactory();
         const instanceB = instanceFactory();
         (controller as unknown as { _instances: unknown[] })._instances = [instanceA, instanceB];
         await updateInstances();
-        expect(provider.resetModelCache).toHaveBeenCalled();
-        expect(provider.addGuiOut).toHaveBeenCalledTimes(2);
-        expect(provider.showModelData).toHaveBeenCalled();
+        expect(provider.setRoots).toHaveBeenCalledWith(['node', 'node']);
         expect(instanceA.update).toHaveBeenCalled();
         expect(instanceB.update).toHaveBeenCalled();
     });

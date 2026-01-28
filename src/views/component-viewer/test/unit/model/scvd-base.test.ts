@@ -55,17 +55,12 @@ class UndefinedTagBase extends ScvdBase {
 class PlainBase extends ScvdBase {};
 
 describe('ScvdBase', () => {
-    beforeEach(() => {
-        ScvdBase.resetIds();
-    });
-
-    it('tracks parent/child relationships and ids', () => {
+    it('tracks parent/child relationships', () => {
         const parent = new TestBase(undefined);
         const child = new TestBase(parent);
 
         expect(parent.children).toEqual([child]);
         expect(child.parent).toBe(parent);
-        expect(child.nodeId).toMatch(/^TestBase_\d+$/);
         expect(child.classname).toBe('TestBase');
 
         expect(parent.castToDerived(TestBase)).toBe(parent);

@@ -22,15 +22,9 @@ import { ScvdGuiInterface } from './model/scvd-gui-interface';
 export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<ScvdGuiInterface> {
     private readonly _onDidChangeTreeData = new vscode.EventEmitter<ScvdGuiInterface | void>();
     public readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
-    private _objectOutRoots: ScvdGuiInterface[] = [];
-    private _scvdModel: ScvdGuiInterface[] = [];
+    private _roots: ScvdGuiInterface[] = [];
 
     constructor () {
-    }
-
-    public activate(): void {
-        this.addRootObject();
-        this.refresh();
     }
 
     public getTreeItem(element: ScvdGuiInterface): vscode.TreeItem {
@@ -41,50 +35,40 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
             : vscode.TreeItemCollapsibleState.None;
         // Needs fixing, getGuiValue() for ScvdNode returns 0 when undefined
         treeItem.description = element.getGuiValue() ?? '';
-        treeItem.tooltip = element.getGuiLineInfo() ?? '';
-        treeItem.id = (element as unknown as { nodeId: string }).nodeId;
+        const guiId = element.getGuiId();
+        if (guiId !== undefined) {
+            treeItem.id = guiId;
+        }
         return treeItem;
     }
 
-    public getChildren(element?: ScvdGuiInterface): Promise<ScvdGuiInterface[]> {
+    /**
+     * Called by VS Code to lazily populate tooltip details for tree items.
+     */
+    public resolveTreeItem(treeItem: vscode.TreeItem, element: ScvdGuiInterface): vscode.TreeItem {
+        treeItem.tooltip = element.getGuiLineInfo() ?? '';
+        return treeItem;
+    }
+
+    public getChildren(element?: ScvdGuiInterface): ScvdGuiInterface[] {
         if (!element) {
-            return Promise.resolve(this._objectOutRoots);
+            return this._roots;
         }
 
-        const children = element.getGuiChildren() || [];
-        return Promise.resolve(children);
+        return element.getGuiChildren() || [];
+    }
+
+    public setRoots(roots: ScvdGuiInterface[] = []): void {
+        this._roots = roots;
+        this.refresh();
+    }
+
+    public clear(): void {
+        this._roots = [];
+        this.refresh();
     }
 
     private refresh(): void {
         this._onDidChangeTreeData.fire();
-    }
-
-    public resetModelCache(): void {
-        this._scvdModel = [];
-        this._objectOutRoots = [];
-    }
-
-    public addGuiOut(guiOut: ScvdGuiInterface[] | undefined) {
-        if (guiOut !== undefined) {
-            guiOut.forEach(item => this._scvdModel.push(item));
-        }
-    }
-
-    public showModelData() {
-        this.addRootObject();
-        this.refresh();
-    }
-
-    public deleteModels() {
-        this._scvdModel = [];
-        this._objectOutRoots = [];
-        this.refresh();
-    }
-
-    private addRootObject(): void {
-        if (this._scvdModel.length === 0) {
-            return;
-        }
-        this._objectOutRoots = [...this._scvdModel];
     }
 }

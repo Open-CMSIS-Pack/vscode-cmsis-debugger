@@ -19,6 +19,7 @@ export interface ScvdGuiInterface {
     getGuiChildren(): ScvdGuiInterface[];
     getGuiName(): string | undefined ;
     getGuiValue(): string | undefined;
+    getGuiId(): string | undefined;
     getGuiConditionResult(): boolean;
     getGuiLineInfo(): string | undefined;
     hasGuiChildren(): boolean;
