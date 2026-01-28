@@ -130,6 +130,19 @@ CbuildRunReader {
         "pname": "Core1",
         "type": "svd",
       },
+      {
+        "file": "\${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_generic.svd",
+        "type": "svd",
+      },
+      {
+        "file": "\${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SCVD/MySoftware_component.scvd",
+        "type": "scvd",
+      },
+      {
+        "file": "\${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SCVD/Core1.scvd",
+        "pname": "Core1",
+        "type": "scvd",
+      },
     ],
     "system-resources": {
       "memory": [
