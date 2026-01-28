@@ -84,7 +84,8 @@ export class StatementBase {
     }
 
     protected getOrCreateGuiChild(guiTree: ScvdGuiTree, guiName: string | undefined): ScvdGuiTree {
-        const key = guiName ?? `${StatementBase.unnamedPrefix}:${this.scvdItem.constructor?.name}:${this.line}`;
+        const itemName = this.scvdItem.constructor?.name ?? 'UnknownItem';
+        const key = guiName ?? `${StatementBase.unnamedPrefix}:${itemName}:${this.line}`;
         const idSegmentBase = `L${this.line}:${this.constructor.name}`;
         const child = guiTree.getOrCreateChild(key, idSegmentBase);
         child.setGuiLineInfo(this.scvdItem.getLineInfoStr());

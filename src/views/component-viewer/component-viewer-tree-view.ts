@@ -42,6 +42,9 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         return treeItem;
     }
 
+    /**
+     * Called by VS Code to lazily populate tooltip details for tree items.
+     */
     public resolveTreeItem(treeItem: vscode.TreeItem, element: ScvdGuiInterface): vscode.TreeItem {
         treeItem.tooltip = element.getGuiLineInfo() ?? '';
         return treeItem;

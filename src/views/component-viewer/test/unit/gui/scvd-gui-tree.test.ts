@@ -54,6 +54,17 @@ describe('ScvdGuiTree', () => {
         expect(reset.getGuiId()).toBe('file/L1:Test');
     });
 
+    it('reuses a child with the same key and segment base', () => {
+        const root = new ScvdGuiTree(undefined);
+        root.setId('file');
+        const first = root.getOrCreateChild('child', 'L1:Test');
+        const second = root.getOrCreateChild('child', 'L1:Test');
+
+        expect(second).toBe(first);
+        expect(root.children).toEqual([first]);
+        expect(first.getGuiId()).toBe('file/L1:Test');
+    });
+
     it('exposes GUI getters and setters', () => {
         const node = new ScvdGuiTree(undefined);
         node.setId('file');

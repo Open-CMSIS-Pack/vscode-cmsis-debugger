@@ -111,10 +111,12 @@ describe('ComponentViewerInstance', () => {
 
         const clear = jest.fn();
         const setId = jest.fn();
+        const setGuiName = jest.fn();
         (ScvdGuiTree as unknown as jest.Mock).mockImplementation(() => ({
             children: ['child'],
             clear,
             setId,
+            setGuiName,
         }));
 
         const instance = new ComponentViewerInstance();
@@ -130,6 +132,7 @@ describe('ComponentViewerInstance', () => {
         expect(calculateTypedefs).toHaveBeenCalled();
         expect(initialize).toHaveBeenCalled();
         expect(setId).toHaveBeenCalled();
+        expect(setGuiName).toHaveBeenCalledWith('component-viewer-root');
         expect(instance.getGuiTree()).toEqual(['child']);
 
         await instance.update();

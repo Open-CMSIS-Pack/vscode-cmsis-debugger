@@ -25,6 +25,7 @@ export class ScvdGuiTree implements ScvdGuiInterface {
     private _children: ScvdGuiTree[] = [];
     private _isPrint = false;
     private _idCursor: Map<string, number> = new Map<string, number>();
+    private _childrenByKey: Map<string, ScvdGuiTree> = new Map<string, ScvdGuiTree>();
 
     constructor(parent: ScvdGuiTree | undefined) {
         this._parent = parent;
@@ -34,10 +35,16 @@ export class ScvdGuiTree implements ScvdGuiInterface {
     }
 
     public getOrCreateChild(key: string, idSegmentBase?: string): ScvdGuiTree {
-        const child = new ScvdGuiTree(this);
         const segmentBase = idSegmentBase ?? key;
+        const childKey = `${segmentBase}::${key}`;
+        const existing = this._childrenByKey.get(childKey);
+        if (existing) {
+            return existing;
+        }
+        const child = new ScvdGuiTree(this);
         const segment = this.nextIdSegment(segmentBase);
         child.setId(this.buildChildId(segment));
+        this._childrenByKey.set(childKey, child);
         return child;
     }
 
@@ -92,6 +99,7 @@ export class ScvdGuiTree implements ScvdGuiInterface {
     public clear(): void {
         this._children = [];
         this._idCursor.clear();
+        this._childrenByKey.clear();
     }
 
     public detach(): void {
@@ -99,6 +107,11 @@ export class ScvdGuiTree implements ScvdGuiInterface {
             return;
         }
         this._parent._children = this._parent._children.filter(child => child !== this);
+        for (const [key, child] of this._parent._childrenByKey.entries()) {
+            if (child === this) {
+                this._parent._childrenByKey.delete(key);
+            }
+        }
         this._parent = undefined;
     }
 
