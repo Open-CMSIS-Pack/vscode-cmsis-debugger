@@ -111,8 +111,7 @@ describe('ComponentViewerTreeDataProvider', () => {
     it('returns root children when no element is provided', async () => {
         const provider = new ComponentViewerTreeDataProvider();
         const root = makeGui({});
-        provider.addGuiOut([root]);
-        provider.showModelData();
+        provider.setRoots([root]);
 
         expect(provider.getChildren()).resolves.toEqual([root]);
         expect(mockFire).toHaveBeenCalledTimes(1);
@@ -141,26 +140,21 @@ describe('ComponentViewerTreeDataProvider', () => {
     it('handles empty caches and no gui output', async () => {
         const provider = new ComponentViewerTreeDataProvider();
 
-        provider.activate();
+        provider.setRoots([]);
         expect(mockFire).toHaveBeenCalledTimes(1);
         expect(provider.getChildren()).resolves.toEqual([]);
 
-        provider.addGuiOut(undefined);
-        provider.showModelData();
-        expect(provider.getChildren()).resolves.toEqual([]);
-
-        provider.resetModelCache();
+        provider.clear();
         expect(provider.getChildren()).resolves.toEqual([]);
     });
 
-    it('deletes models and refreshes', async () => {
+    it('clears models and refreshes', async () => {
         const provider = new ComponentViewerTreeDataProvider();
         const root = makeGui({});
-        provider.addGuiOut([root]);
-        provider.showModelData();
+        provider.setRoots([root]);
         expect(mockFire).toHaveBeenCalledTimes(1);
 
-        provider.deleteModels();
+        provider.clear();
         expect(mockFire).toHaveBeenCalledTimes(2);
         expect(provider.getChildren()).resolves.toEqual([]);
     });

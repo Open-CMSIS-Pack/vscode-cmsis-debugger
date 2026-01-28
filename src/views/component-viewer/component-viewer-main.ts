@@ -19,6 +19,7 @@ import { GDBTargetDebugTracker, GDBTargetDebugSession } from '../../debug-sessio
 import { ComponentViewerInstance } from './component-viewer-instance';
 import { URI } from 'vscode-uri';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
+import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 
 
 export class ComponentViewer {
@@ -129,7 +130,7 @@ export class ComponentViewer {
         // if new session is not the current active session, erase old instances and read the new ones
         if (this._activeSession?.session.id !== session.session.id) {
             this._instances = [];
-            this._componentViewerTreeDataProvider?.deleteModels();
+            this._componentViewerTreeDataProvider?.clear();
         }
         // Update debug session
         this._activeSession = session;
@@ -140,7 +141,7 @@ export class ComponentViewer {
     private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
         if (this._activeSession?.session.id === session.session.id) {
             // Update component viewer instance(s)
-            await this.updateInstances();
+            //await this.updateInstances();
         }
     }
 
@@ -148,25 +149,28 @@ export class ComponentViewer {
         // Update debug session
         this._activeSession = session;
         // Update component viewer instance(s)
-        await this.updateInstances();
+        //await this.updateInstances();
     }
 
     private async updateInstances(): Promise<void> {
         this._instanceUpdateCounter = 0;
         if (!this._activeSession) {
-            this._componentViewerTreeDataProvider?.deleteModels();
+            this._componentViewerTreeDataProvider?.clear();
             return;
         }
         if (this._instances.length === 0) {
             return;
         }
-        this._componentViewerTreeDataProvider?.resetModelCache();
+        const roots: ScvdGuiInterface[] = [];
         for (const instance of this._instances) {
             this._instanceUpdateCounter++;
             console.log(`Updating Component Viewer Instance #${this._instanceUpdateCounter}`);
             await instance.update();
-            this._componentViewerTreeDataProvider?.addGuiOut(instance.getGuiTree());
+            const guiTree = instance.getGuiTree();
+            if (guiTree) {
+                roots.push(...guiTree);
+            }
         }
-        this._componentViewerTreeDataProvider?.showModelData();
+        this._componentViewerTreeDataProvider?.setRoots(roots);
     }
 }

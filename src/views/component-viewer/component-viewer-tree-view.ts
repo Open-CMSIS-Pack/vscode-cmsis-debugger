@@ -22,15 +22,9 @@ import { ScvdGuiInterface } from './model/scvd-gui-interface';
 export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<ScvdGuiInterface> {
     private readonly _onDidChangeTreeData = new vscode.EventEmitter<ScvdGuiInterface | void>();
     public readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
-    private _objectOutRoots: ScvdGuiInterface[] = [];
-    private _scvdModel: ScvdGuiInterface[] = [];
+    private _roots: ScvdGuiInterface[] = [];
 
     constructor () {
-    }
-
-    public activate(): void {
-        this.addRootObject();
-        this.refresh();
     }
 
     public getTreeItem(element: ScvdGuiInterface): vscode.TreeItem {
@@ -42,49 +36,29 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         // Needs fixing, getGuiValue() for ScvdNode returns 0 when undefined
         treeItem.description = element.getGuiValue() ?? '';
         treeItem.tooltip = element.getGuiLineInfo() ?? '';
-        treeItem.id = element.getGuiLineInfo() ?? '';
         return treeItem;
     }
 
     public getChildren(element?: ScvdGuiInterface): Promise<ScvdGuiInterface[]> {
         if (!element) {
-            return Promise.resolve(this._objectOutRoots);
+            return Promise.resolve(this._roots);
         }
 
         const children = element.getGuiChildren() || [];
         return Promise.resolve(children);
     }
 
+    public setRoots(roots: ScvdGuiInterface[] = []): void {
+        this._roots = [...roots];
+        this.refresh();
+    }
+
+    public clear(): void {
+        this._roots = [];
+        this.refresh();
+    }
+
     private refresh(): void {
         this._onDidChangeTreeData.fire();
-    }
-
-    public resetModelCache(): void {
-        this._scvdModel = [];
-        this._objectOutRoots = [];
-    }
-
-    public addGuiOut(guiOut: ScvdGuiInterface[] | undefined) {
-        if (guiOut !== undefined) {
-            guiOut.forEach(item => this._scvdModel.push(item));
-        }
-    }
-
-    public showModelData() {
-        this.addRootObject();
-        this.refresh();
-    }
-
-    public deleteModels() {
-        this._scvdModel = [];
-        this._objectOutRoots = [];
-        this.refresh();
-    }
-
-    private addRootObject(): void {
-        if (this._scvdModel.length === 0) {
-            return;
-        }
-        this._objectOutRoots = [...this._scvdModel];
     }
 }
