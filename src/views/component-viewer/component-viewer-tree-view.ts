@@ -38,12 +38,16 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
             : vscode.TreeItemCollapsibleState.None;
         // Needs fixing, getGuiValue() for ScvdNode returns 0 when undefined
         treeItem.description = element.getGuiValue() ?? '';
-        treeItem.tooltip = element.getGuiLineInfo() ?? '';
         const guiId = element.getGuiId();
         if (guiId !== undefined) {
             treeItem.id = guiId;
         }
         this.trackRenderItem();
+        return treeItem;
+    }
+
+    public resolveTreeItem(treeItem: vscode.TreeItem, element: ScvdGuiInterface): vscode.TreeItem {
+        treeItem.tooltip = element.getGuiLineInfo() ?? '';
         return treeItem;
     }
 

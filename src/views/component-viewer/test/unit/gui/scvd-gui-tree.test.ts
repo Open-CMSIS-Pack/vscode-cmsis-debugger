@@ -59,6 +59,7 @@ describe('ScvdGuiTree', () => {
         node.setId('file');
         node.setGuiName('Name');
         node.setGuiValue('Value');
+        node.setGuiLineInfo('Line');
         node.isPrint = true;
 
         expect(node.getGuiName()).toBe('Name');
@@ -67,7 +68,7 @@ describe('ScvdGuiTree', () => {
         expect(node.getGuiEntry()).toEqual({ name: 'Name', value: 'Value' });
         expect(node.getGuiChildren()).toEqual([]);
         expect(node.getGuiConditionResult()).toBe(true);
-        expect(node.getGuiLineInfo()).toBeUndefined();
+        expect(node.getGuiLineInfo()).toBe('Line');
         expect(node.isPrint).toBe(true);
         expect(node.hasGuiChildren()).toBe(false);
     });

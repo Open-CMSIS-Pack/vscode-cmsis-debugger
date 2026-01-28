@@ -21,6 +21,7 @@ export class ScvdGuiTree implements ScvdGuiInterface {
     private _id: string | undefined;
     private _name: string | undefined;
     private _value: string | undefined;
+    private _lineInfo: string | undefined;
     private _children: ScvdGuiTree[] = [];
     private _isPrint = false;
     private _idCursor: Map<string, number> = new Map<string, number>();
@@ -109,6 +110,10 @@ export class ScvdGuiTree implements ScvdGuiInterface {
         this._value = value;
     }
 
+    public setGuiLineInfo(value: string | undefined) {
+        this._lineInfo = value;
+    }
+
     // --------  ScvdGuiInterface methods --------
     public getGuiEntry(): { name: string | undefined; value: string | undefined } {
         return { name: this._name, value: this._value };
@@ -131,7 +136,7 @@ export class ScvdGuiTree implements ScvdGuiInterface {
     }
 
     public getGuiLineInfo(): string | undefined {
-        return undefined;
+        return this._lineInfo;
     }
 
     public hasGuiChildren(): boolean {
