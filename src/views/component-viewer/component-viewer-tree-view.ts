@@ -23,6 +23,9 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     private readonly _onDidChangeTreeData = new vscode.EventEmitter<ScvdGuiInterface | void>();
     public readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
     private _roots: ScvdGuiInterface[] = [];
+    private _renderStartTime: number | undefined;
+    private _renderedItems = 0;
+    private _renderLogTimer: NodeJS.Timeout | undefined;
 
     constructor () {
     }
@@ -40,6 +43,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         if (guiId !== undefined) {
             treeItem.id = guiId;
         }
+        this.trackRenderItem();
         return treeItem;
     }
 
@@ -54,6 +58,8 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
 
     public setRoots(roots: ScvdGuiInterface[] = []): void {
         this._roots = [...roots];
+        this._renderStartTime = Date.now();
+        this._renderedItems = 0;
         this.refresh();
     }
 
@@ -64,5 +70,23 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
 
     private refresh(): void {
         this._onDidChangeTreeData.fire();
+    }
+
+    private trackRenderItem(): void {
+        if (this._renderStartTime === undefined) {
+            return;
+        }
+        this._renderedItems += 1;
+        if (this._renderLogTimer) {
+            clearTimeout(this._renderLogTimer);
+        }
+        this._renderLogTimer = setTimeout(() => {
+            if (this._renderStartTime === undefined) {
+                return;
+            }
+            const elapsed = Date.now() - this._renderStartTime;
+            console.log(`ComponentViewerTree render: ${this._renderedItems} items in ${elapsed} ms`);
+            this._renderStartTime = undefined;
+        }, 100);
     }
 }

@@ -30,6 +30,8 @@ export class ComponentViewer {
     private _instanceUpdateCounter: number = 0;
     private _loadingCounter: number = 0;
     private _updateInFlight = false;
+    private _pendingUpdateTimer: NodeJS.Timeout | undefined;
+    private static readonly pendingUpdateDelayMs = 500;
 
     public constructor(context: vscode.ExtensionContext) {
         this._context = context;
@@ -138,9 +140,28 @@ export class ComponentViewer {
         if (!this.shouldUpdateOnStackTrace(session)) {
             return;
         }
+        this.schedulePendingUpdate();
+    }
+
+    private schedulePendingUpdate(): void {
+        if (this._pendingUpdateTimer) {
+            clearTimeout(this._pendingUpdateTimer);
+        }
+        this._pendingUpdateTimer = setTimeout(() => {
+            this._pendingUpdateTimer = undefined;
+            void this.runUpdateIfIdle();
+        }, ComponentViewer.pendingUpdateDelayMs);
+    }
+
+    private async runUpdateIfIdle(): Promise<void> {
         if (this._updateInFlight) {
+            this.schedulePendingUpdate();
             return;
         }
+        await this.runUpdateOnce();
+    }
+
+    private async runUpdateOnce(): Promise<void> {
         this._updateInFlight = true;
         try {
             await this.updateInstances();
