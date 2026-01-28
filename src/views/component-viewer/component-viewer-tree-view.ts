@@ -42,7 +42,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         // Needs fixing, getGuiValue() for ScvdNode returns 0 when undefined
         treeItem.description = element.getGuiValue() ?? '';
         treeItem.tooltip = element.getGuiLineInfo() ?? '';
-        treeItem.id = '1';
+        treeItem.id = element.getGuiLineInfo() ?? '';
         return treeItem;
     }
 

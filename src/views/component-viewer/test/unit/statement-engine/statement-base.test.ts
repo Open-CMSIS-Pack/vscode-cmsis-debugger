@@ -89,11 +89,10 @@ describe('StatementBase', () => {
         node.lineNo = '3';
         const stmt = new TestStatement(node, undefined);
         const guiTree = new ScvdGuiTree(undefined);
-        guiTree.beginUpdate();
 
         const child = stmt.createGuiChild(guiTree, undefined);
 
-        expect(child.key).toContain('Unnamed:TestNode:3');
+        expect(guiTree.children).toContain(child);
     });
 
     it('executes statements when condition passes', async () => {

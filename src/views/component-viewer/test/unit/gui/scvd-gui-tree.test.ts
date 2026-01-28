@@ -17,123 +17,43 @@
 // generated with AI
 
 /**
- * Unit test for ScvdGuiTree reconciliation and child management.
+ * Unit test for ScvdGuiTree basic storage behavior.
  */
 
 import { ScvdGuiTree } from '../../../scvd-gui-tree';
 
 describe('ScvdGuiTree', () => {
-    it('reconciles children with epochs, pruning unseen nodes', () => {
+    it('adds children and links parents', () => {
         const root = new ScvdGuiTree(undefined);
-        const epoch1 = root.beginUpdate();
-        const a = root.getOrCreateChild('a');
-        const b = root.getOrCreateChild('b');
-        expect(root.children).toHaveLength(2);
-        root.finalizeUpdate(epoch1);
-        expect(root.children).toEqual([a, b]);
-
-        const epoch2 = root.beginUpdate();
-        root.getOrCreateChild('a'); // reuse only 'a'
-        root.finalizeUpdate(epoch2);
-        expect(root.children).toEqual([a]);
-        expect(a.parent).toBe(root);
-    });
-
-    it('suffixes duplicate keys', () => {
-        const root = new ScvdGuiTree(undefined);
-        const epoch = root.beginUpdate();
-        root.getOrCreateChild('dup');
-        root.getOrCreateChild('dup');
-        root.getOrCreateChild('dup');
-        root.finalizeUpdate(epoch);
-        const keys = root.children.map(c => c.key);
-        expect(keys).toEqual(['dup', 'dup#1', 'dup#2']);
-    });
-
-    it('bumps reused children to the end of the list', () => {
-        const root = new ScvdGuiTree(undefined);
-        const epoch1 = root.beginUpdate();
-        const first = root.getOrCreateChild('first');
-        const second = root.getOrCreateChild('second');
-        root.finalizeUpdate(epoch1);
-
-        const epoch2 = root.beginUpdate();
-        root.getOrCreateChild('second');
-        const reused = root.getOrCreateChild('first');
-        root.finalizeUpdate(epoch2);
-
-        expect(reused).toBe(first);
-        expect(root.children).toEqual([second, first]);
-    });
-
-    it('builds path using ancestors iterator', () => {
-        const root = new ScvdGuiTree(undefined);
-        root.setGuiName('root');
         const child = root.getOrCreateChild('child');
         const grand = child.getOrCreateChild('grand');
-        const path = (grand as unknown as { path: string }).path;
-        expect(path).toBe('root > child > grand');
+
+        expect(root.children).toEqual([child]);
+        expect(child.parent).toBe(root);
+        expect(child.children).toEqual([grand]);
+        expect(grand.parent).toBe(child);
     });
 
-    it('recovers with fallback when child creation throws', () => {
+    it('detaches and clears children', () => {
         const root = new ScvdGuiTree(undefined);
-        let first = true;
-        const originalAdd = (root as unknown as { addChild?: (c: ScvdGuiTree) => void }).addChild?.bind(root);
-        // Throw on the first addChild to trigger fallback path
-        (root as unknown as { addChild: (c: ScvdGuiTree) => void }).addChild = (c: ScvdGuiTree) => {
-            if (first) {
-                first = false;
-                throw new Error('fail');
-            }
-            originalAdd?.(c);
-        };
-        const epoch = root.beginUpdate();
-        jest.spyOn(console, 'error').mockImplementation(() => {});
-        const fallback = root.getOrCreateChild('boom');
-        root.finalizeUpdate(epoch);
-        expect(fallback.key).toBe('boom#fallback');
-        expect(root.children).toContain(fallback);
-        (console.error as unknown as jest.Mock).mockRestore();
-    });
-
-    it('clears and detaches children and indexes correctly', () => {
-        const root = new ScvdGuiTree(undefined);
-        root.beginUpdate();
         const child = root.getOrCreateChild('child');
-        expect(root.hasGuiChildren()).toBe(true);
-        expect(root.childIndex.has('child')).toBe(true);
+        const sibling = root.getOrCreateChild('sibling');
+
         child.detach();
-        expect(root.children).toHaveLength(0);
-        expect(root.childIndex.has('child')).toBe(false);
+        expect(root.children).toEqual([sibling]);
+        expect(child.parent).toBeUndefined();
 
-        const epoch = root.beginUpdate();
-        const keyless = new ScvdGuiTree(root);
-        root.finalizeUpdate(epoch);
-        expect(root.children).not.toContain(keyless);
-
-        root.beginUpdate();
-        root.getOrCreateChild('orphan');
-        expect(root.childIndex.size).toBe(1);
         root.clear();
-        expect(root.hasGuiChildren()).toBe(false);
-        expect(root.childIndex.size).toBe(0);
-
-        root.detach(); // no parent: should be a no-op branch
-        expect(root.parent).toBeUndefined();
-
-        const keylessDetached = new ScvdGuiTree(root);
-        expect(keylessDetached.key).toBeUndefined();
-        keylessDetached.detach();
-        expect(root.children).not.toContain(keylessDetached);
+        expect(root.children).toEqual([]);
     });
 
-    it('exposes gui getters and setters', () => {
+    it('exposes GUI getters and setters', () => {
         const node = new ScvdGuiTree(undefined);
+        node.setGuiName('Name');
         node.setGuiValue('Value');
         node.isPrint = true;
-        (node as unknown as { name?: string }).name = 'Internal';
-        expect(node.getGuiName()).toBe('Internal');
-        node.setGuiName('Name');
+
+        expect(node.getGuiName()).toBe('Name');
         expect(node.getGuiValue()).toBe('Value');
         expect(node.getGuiEntry()).toEqual({ name: 'Name', value: 'Value' });
         expect(node.getGuiChildren()).toEqual([]);
@@ -141,28 +61,5 @@ describe('ScvdGuiTree', () => {
         expect(node.getGuiLineInfo()).toBeUndefined();
         expect(node.isPrint).toBe(true);
         expect(node.hasGuiChildren()).toBe(false);
-    });
-
-    it('resets duplicate counters per epoch and allows external epoch set', () => {
-        ScvdGuiTree.epoch = 10;
-        const root = new ScvdGuiTree(undefined);
-
-        const epoch1 = root.beginUpdate();
-        expect(epoch1).toBe(11);
-        const firstA = root.getOrCreateChild('a');
-        const secondA = root.getOrCreateChild('a');
-        root.finalizeUpdate(epoch1);
-        expect(firstA.key).toBe('a');
-        expect(secondA.key).toBe('a#1');
-
-        const epoch2 = root.beginUpdate();
-        expect(epoch2).toBe(12);
-        const reused = root.getOrCreateChild('a');
-        expect(reused).toBe(firstA);
-        root.getOrCreateChild('b');
-        root.finalizeUpdate(epoch2);
-        const keys = root.children.map(c => c.key);
-        expect(keys).toEqual(['a', 'b']);
-        expect(root.keyCursor.size).toBeGreaterThanOrEqual(0);
     });
 });

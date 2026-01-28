@@ -109,12 +109,8 @@ describe('ComponentViewerInstance', () => {
             executeAll,
         }));
 
-        const beginUpdate = jest.fn().mockReturnValue(7);
-        const finalizeUpdate = jest.fn();
         (ScvdGuiTree as unknown as jest.Mock).mockImplementation(() => ({
             children: ['child'],
-            beginUpdate,
-            finalizeUpdate,
         }));
 
         const instance = new ComponentViewerInstance();
@@ -132,9 +128,7 @@ describe('ComponentViewerInstance', () => {
         expect(instance.getGuiTree()).toEqual(['child']);
 
         await instance.update();
-        expect(beginUpdate).toHaveBeenCalled();
         expect(executeAll).toHaveBeenCalledWith(expect.any(Object));
-        expect(finalizeUpdate).toHaveBeenCalledWith(7);
 
         const guiTree = {} as ScvdGuiTree;
         await instance.executeStatements(guiTree);
