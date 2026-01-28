@@ -109,8 +109,10 @@ describe('ComponentViewerInstance', () => {
             executeAll,
         }));
 
+        const clear = jest.fn();
         (ScvdGuiTree as unknown as jest.Mock).mockImplementation(() => ({
             children: ['child'],
+            clear,
         }));
 
         const instance = new ComponentViewerInstance();
@@ -128,6 +130,7 @@ describe('ComponentViewerInstance', () => {
         expect(instance.getGuiTree()).toEqual(['child']);
 
         await instance.update();
+        expect(clear).toHaveBeenCalled();
         expect(executeAll).toHaveBeenCalledWith(expect.any(Object));
 
         const guiTree = {} as ScvdGuiTree;

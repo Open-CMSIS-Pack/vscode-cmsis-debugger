@@ -147,6 +147,7 @@ export class ComponentViewerInstance {
         if (this._statementEngine === undefined || this._guiTree === undefined) {
             return;
         }
+        this._guiTree.clear();
         await this._statementEngine.executeAll(this._guiTree);
         stats.push(this.getStats('end'));
         console.log('ComponentViewerInstance update stats:\n' + stats.join('\n  '));

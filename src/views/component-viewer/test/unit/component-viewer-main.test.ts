@@ -21,10 +21,16 @@
  */
 
 const registerTreeDataProvider = jest.fn(() => ({ dispose: jest.fn() }));
+const onDidChangeActiveStackItem = jest.fn(() => ({ dispose: jest.fn() }));
 
 jest.mock('vscode', () => ({
     window: {
         registerTreeDataProvider,
+    },
+    debug: {
+        onDidChangeActiveStackItem,
+        activeDebugSession: undefined,
+        activeStackItem: undefined,
     },
 }));
 
@@ -128,7 +134,7 @@ describe('ComponentViewer', () => {
         controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         expect(registerTreeDataProvider).toHaveBeenCalledWith('cmsis-debugger.componentViewer', expect.any(Object));
-        expect(context.subscriptions.length).toBe(6);
+        expect(context.subscriptions.length).toBe(7);
     });
 
     it('skips reading scvd files when session or cbuild-run is missing', async () => {

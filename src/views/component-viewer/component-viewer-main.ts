@@ -38,8 +38,12 @@ export class ComponentViewer {
         /* Create Tree Viewer */
         this._componentViewerTreeDataProvider = new ComponentViewerTreeDataProvider();
         const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
+        const activeStackItemDisposable = vscode.debug.onDidChangeActiveStackItem(async (stackItem) => {
+            await this.handleOnDidChangeActiveStackItem(stackItem);
+        });
         this._context.subscriptions.push(
-            treeProviderDisposable);
+            treeProviderDisposable,
+            activeStackItemDisposable);
         // Subscribe to debug tracker events to update active session
         this.subscribetoDebugTrackerEvents(this._context, tracker);
     }
@@ -110,7 +114,29 @@ export class ComponentViewer {
         if (this._activeSession?.session.id !== session.session.id) {
             this._activeSession = undefined;
         }
-        // Update component viewer instance(s)
+        await this.updateOnStackTrace(session);
+    }
+
+    private shouldUpdateOnStackTrace(session: GDBTargetDebugSession): boolean {
+        if (!this._activeSession || this._activeSession.session.id !== session.session.id) {
+            return false;
+        }
+        const activeFrame = vscode.debug.activeStackItem as { frameId?: number | string } | undefined;
+        if (!activeFrame) {
+            return false;
+        }
+        const frameIdRaw = activeFrame.frameId;
+        if (frameIdRaw === undefined) {
+            return false;
+        }
+        const frameId = Number(frameIdRaw);
+        return Number.isFinite(frameId) && frameId >= 0;
+    }
+
+    private async updateOnStackTrace(session: GDBTargetDebugSession): Promise<void> {
+        if (!this.shouldUpdateOnStackTrace(session)) {
+            return;
+        }
         await this.updateInstances();
     }
 
@@ -124,6 +150,17 @@ export class ComponentViewer {
     private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
         // Subscribe to refresh events of the started session
         session.refreshTimer.onRefresh(async (refreshSession) => await this.handleRefreshTimerEvent(refreshSession));
+    }
+
+    private async handleOnDidChangeActiveStackItem(stackItem: unknown): Promise<void> {
+        if (!stackItem || !this._activeSession) {
+            return;
+        }
+        const activeSession = vscode.debug.activeDebugSession;
+        if (activeSession && this._activeSession.session.id !== activeSession.id) {
+            return;
+        }
+        await this.updateOnStackTrace(this._activeSession);
     }
 
     private async handleOnConnected(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker): Promise<void> {
