@@ -118,7 +118,7 @@ describe('ComponentViewerTreeDataProvider', () => {
         const root = makeGui({});
         provider.setRoots([root]);
 
-        expect(provider.getChildren()).resolves.toEqual([root]);
+        expect(provider.getChildren()).toEqual([root]);
         expect(mockFire).toHaveBeenCalledTimes(1);
     });
 
@@ -130,7 +130,7 @@ describe('ComponentViewerTreeDataProvider', () => {
             getGuiChildren: () => [childA, childB],
         });
 
-        expect(provider.getChildren(parent)).resolves.toEqual([childA, childB]);
+        expect(provider.getChildren(parent)).toEqual([childA, childB]);
     });
 
     it('returns empty children when element has none', async () => {
@@ -139,7 +139,7 @@ describe('ComponentViewerTreeDataProvider', () => {
             getGuiChildren: () => undefined as unknown as ScvdGuiInterface[],
         });
 
-        expect(provider.getChildren(parent)).resolves.toEqual([]);
+        expect(provider.getChildren(parent)).toEqual([]);
     });
 
     it('handles empty caches and no gui output', async () => {
@@ -147,10 +147,10 @@ describe('ComponentViewerTreeDataProvider', () => {
 
         provider.setRoots([]);
         expect(mockFire).toHaveBeenCalledTimes(1);
-        expect(provider.getChildren()).resolves.toEqual([]);
+        expect(provider.getChildren()).toEqual([]);
 
         provider.clear();
-        expect(provider.getChildren()).resolves.toEqual([]);
+        expect(provider.getChildren()).toEqual([]);
     });
 
     it('clears models and refreshes', async () => {
@@ -161,6 +161,6 @@ describe('ComponentViewerTreeDataProvider', () => {
 
         provider.clear();
         expect(mockFire).toHaveBeenCalledTimes(2);
-        expect(provider.getChildren()).resolves.toEqual([]);
+        expect(provider.getChildren()).toEqual([]);
     });
 });
