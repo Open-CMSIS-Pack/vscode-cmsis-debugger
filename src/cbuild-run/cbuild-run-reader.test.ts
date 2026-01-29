@@ -59,7 +59,8 @@ describe('CbuildRunReader', () => {
                 pname: undefined,
                 expectedSvdPaths: [
                     '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core0.svd',
-                    '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core1.svd'
+                    '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core1.svd',
+                    '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_generic.svd',
                 ]
             },
             {
@@ -67,13 +68,15 @@ describe('CbuildRunReader', () => {
                 pname: 'Core0',
                 expectedSvdPaths: [
                     '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core0.svd',
+                    '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_generic.svd',
                 ]
             },
             {
                 info: 'Core1',
                 pname: 'Core1',
                 expectedSvdPaths: [
-                    '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core1.svd'
+                    '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core1.svd',
+                    '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_generic.svd',
                 ]
             },
         ])('returns SVD file path ($info)', async ({ pname, expectedSvdPaths }) => {
@@ -89,6 +92,44 @@ describe('CbuildRunReader', () => {
         it('returns empty SVD file path list if nothing is parsed', () => {
             const svdFilePaths = cbuildRunReader.getSvdFilePaths('/my/pack/root');
             expect(svdFilePaths.length).toEqual(0);
+        });
+
+        it('returns empty SCVD file path list when nothing is parsed', async () => {
+            const scvdFilePaths = cbuildRunReader.getScvdFilePaths('/my/pack/root');
+            expect(scvdFilePaths.length).toEqual(0);
+        });
+
+        it('returns processor names from debug topology', async () => {
+            await cbuildRunReader.parse(TEST_CBUILD_RUN_FILE);
+            const pnames = cbuildRunReader.getPnames();
+            expect(pnames).toEqual(['Core0', 'Core1']);
+        });
+
+        it('includes descriptors without pname when filtering by pname (SVD)', async () => {
+            await cbuildRunReader.parse(TEST_CBUILD_RUN_FILE);
+            const cbuildRun = (cbuildRunReader as unknown as { cbuildRun?: { ['system-descriptions']?: Array<{ file: string; type: string; pname?: string }> } }).cbuildRun;
+            const systemDescriptions = cbuildRun?.['system-descriptions'];
+            expect(systemDescriptions).toBeDefined();
+            const svdPaths = cbuildRunReader.getSvdFilePaths('', 'Core1');
+
+            expect(svdPaths).toEqual([
+                '${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core1.svd',
+                '${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_generic.svd'
+
+            ]);
+        });
+
+        it('includes descriptors without pname when filtering by pname (SCVD)', async () => {
+            await cbuildRunReader.parse(TEST_CBUILD_RUN_FILE);
+            const cbuildRun = (cbuildRunReader as unknown as { cbuildRun?: { ['system-descriptions']?: Array<{ file: string; type: string; pname?: string }> } }).cbuildRun;
+            const systemDescriptions = cbuildRun?.['system-descriptions'] ?? [];
+            expect(systemDescriptions).toBeDefined();
+            const scvdPaths = cbuildRunReader.getScvdFilePaths('', 'Core1');
+
+            expect(scvdPaths).toEqual([
+                '${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SCVD/MySoftware_component.scvd',
+                '${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SCVD/Core1.scvd',
+            ]);
         });
     });
 });

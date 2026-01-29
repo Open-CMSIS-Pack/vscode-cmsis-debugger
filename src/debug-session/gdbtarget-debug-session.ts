@@ -22,6 +22,7 @@ import { PeriodicRefreshTimer } from './periodic-refresh-timer';
 import { OutputEventFilter } from './output-event-filter';
 import { URI } from 'vscode-uri';
 import { GDBTargetConfiguration } from '../debug-configuration';
+import { extractPname } from '../utils';
 import path from 'path';
 
 /**
@@ -93,6 +94,17 @@ export class GDBTargetDebugSession {
         this._cbuildRunParsePromise = this._cbuildRun.parse(filePath);
         await this._cbuildRunParsePromise;
         this._cbuildRunParsePromise = undefined;
+    }
+
+    public async getPname(): Promise<string|undefined> {
+        const sessionName = this.session?.name;
+        if (!sessionName) {
+            return undefined;
+        }
+        const cbuildRunReader = await this.getCbuildRun();
+        const pnames = cbuildRunReader?.getPnames();
+        const pname = pnames && pnames.length > 1 ? extractPname(sessionName) : undefined;
+        return pname;
     }
 
     /**

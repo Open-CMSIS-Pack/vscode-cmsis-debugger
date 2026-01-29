@@ -96,6 +96,11 @@ export class ScvdDebugTarget {
         this.subscribeToTargetRunningState(this.debugTracker);
     }
 
+    public setActiveSession(session: GDBTargetDebugSession): void {
+        this.activeSession = session;
+        this.targetAccess.setActiveSession(session);
+    }
+
     protected async subscribeToTargetRunningState(debugTracker: GDBTargetDebugTracker): Promise<void> {
         debugTracker.onContinued(async (event) => {
             if (!this.activeSession || event.session.session.id !== this.activeSession.session.id) {

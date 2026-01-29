@@ -65,8 +65,13 @@ export class CbuildRunReader {
         }
         // Replace potential ${CMSIS_PACK_ROOT} placeholder
         const effectiveCmsisPackRoot = cmsisPackRoot ?? getCmsisPackRootPath();
-        // Map to copies, leave originals untouched
-        const filteredDescriptors = pname ? fileDescriptors.filter(descriptor => descriptor.pname === pname): fileDescriptors;
+        // Map to copies, leave originals untouched, if file descriptors do not have a pname, always include it
+        const filteredDescriptors = pname ? fileDescriptors.filter(descriptor => {
+            if (!descriptor.pname) {
+                return true;
+            }
+            return descriptor.pname === pname;
+        }): fileDescriptors;
         const filePaths = filteredDescriptors.map(descriptor => `${effectiveCmsisPackRoot
             ? descriptor.file.replaceAll(CMSIS_PACK_ROOT_ENVVAR, effectiveCmsisPackRoot)
             : descriptor.file}`);

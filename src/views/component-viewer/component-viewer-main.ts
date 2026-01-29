@@ -56,11 +56,12 @@ export class ComponentViewer {
             return;
         }
         const cbuildRunReader = await session.getCbuildRun();
+        const pname = await session.getPname();
         if (!cbuildRunReader) {
             return;
         }
         // Get SCVD file paths from cbuild-run reader
-        const scvdFilesPaths: string [] = cbuildRunReader.getScvdFilePaths();
+        const scvdFilesPaths: string [] = cbuildRunReader.getScvdFilePaths(undefined, pname);
         if (scvdFilesPaths.length === 0) {
             return undefined;
         }
@@ -216,6 +217,15 @@ export class ComponentViewer {
     private async handleOnDidChangeActiveDebugSession(session: GDBTargetDebugSession | undefined): Promise<void> {
         // Update debug session
         this._activeSession = session;
+        if (!session) {
+            this._instances = [];
+            this._componentViewerTreeDataProvider?.deleteModels();
+            return;
+        }
+        // Update Active Session in all instances
+        for (const instance of this._instances) {
+            instance.updateActiveSession(session);
+        }
         // Update component viewer instance(s)
         //await this.updateInstances();
     }

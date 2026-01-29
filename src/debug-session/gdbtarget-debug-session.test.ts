@@ -128,6 +128,18 @@ describe('GDBTargetDebugSession', () => {
             expect(result).toEqual(0x78563412);
         });
 
+        it('returns the active pname for a multi-core session name', async () => {
+            const multiCoreSession = debugSessionFactory({
+                name: 'Core1 session-name',
+                type: 'gdbtarget',
+                request: 'launch',
+            });
+            const multiCoreTargetSession = new GDBTargetDebugSession(multiCoreSession);
+            await multiCoreTargetSession.parseCbuildRun(TEST_CBUILD_RUN_FILE);
+            const pname = await multiCoreTargetSession.getPname();
+            expect(pname).toBe('Core1');
+        });
+
         it('filters output events correctly', () => {
             const makeEvent = (output: string, category: string): DebugProtocol.OutputEvent => ({
                 seq: 1,
