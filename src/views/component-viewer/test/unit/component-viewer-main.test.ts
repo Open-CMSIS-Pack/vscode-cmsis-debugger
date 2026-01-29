@@ -76,12 +76,14 @@ type TrackerCallbacks = {
     onDidChangeActiveDebugSession: (cb: (session: Session | undefined) => Promise<void>) => { dispose: jest.Mock };
     onStackTrace: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
     onWillStartSession: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
+    onDidChangeActiveStackItem: (cb: (stackItem: unknown) => Promise<void>) => { dispose: jest.Mock };
     callbacks: Partial<{
         willStop: (session: Session) => Promise<void>;
         connected: (session: Session) => Promise<void>;
         activeSession: (session: Session | undefined) => Promise<void>;
         stackTrace: (session: { session: Session }) => Promise<void>;
         willStart: (session: Session) => Promise<void>;
+        activeStackItem: (stackItem: unknown) => Promise<void>;
     }>;
 };
 
@@ -120,6 +122,10 @@ describe('ComponentViewer', () => {
                 callbacks.willStart = cb;
                 return { dispose: jest.fn() };
             },
+            onDidChangeActiveStackItem: (cb) => {
+                callbacks.activeStackItem = cb;
+                return { dispose: jest.fn() };
+            },
         };
     };
 
@@ -152,11 +158,7 @@ describe('ComponentViewer', () => {
             .mockResolvedValue(undefined);
 
         controller.activate(tracker as unknown as GDBTargetDebugTracker);
-        const callback = (onDidChangeActiveStackItem as jest.Mock).mock.calls[0]?.[0];
-        expect(callback).toBeDefined();
-        if (callback) {
-            await callback({ frameId: 1 });
-        }
+        await tracker.callbacks.activeStackItem?.({ frameId: 1 });
 
         expect(handleOnDidChangeActiveStackItem).toHaveBeenCalledWith({ frameId: 1 });
     });
