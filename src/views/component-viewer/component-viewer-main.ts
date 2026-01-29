@@ -219,7 +219,7 @@ export class ComponentViewer {
         this._activeSession = session;
         if (!session) {
             this._instances = [];
-            this._componentViewerTreeDataProvider?.deleteModels();
+            this._componentViewerTreeDataProvider?.clear();
             return;
         }
         // Update Active Session in all instances
