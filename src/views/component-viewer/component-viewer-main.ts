@@ -41,12 +41,7 @@ export class ComponentViewer {
         /* Create Tree Viewer */
         this._componentViewerTreeDataProvider = new ComponentViewerTreeDataProvider();
         const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
-        const activeStackItemDisposable = vscode.debug.onDidChangeActiveStackItem(async (stackItem) => {
-            await this.handleOnDidChangeActiveStackItem(stackItem);
-        });
-        this._context.subscriptions.push(
-            treeProviderDisposable,
-            activeStackItemDisposable);
+        this._context.subscriptions.push(treeProviderDisposable);
         // Subscribe to debug tracker events to update active session
         this.subscribetoDebugTrackerEvents(this._context, tracker);
     }
@@ -103,13 +98,17 @@ export class ComponentViewer {
         const onWillStartSessionDisposable = tracker.onWillStartSession(async (session) => {
             await this.handleOnWillStartSession(session);
         });
+        const onChangeActiveStackItem = tracker.onDidChangeActiveStackItem(async (stackItem) => {
+            await this.handleOnDidChangeActiveStackItem(stackItem);
+        });
         // clear all disposables on extension deactivation
         context.subscriptions.push(
             onWillStopSessionDisposable,
             onConnectedDisposable,
             onDidChangeActiveDebugSessionDisposable,
             onStackTraceDisposable,
-            onWillStartSessionDisposable
+            onWillStartSessionDisposable,
+            onChangeActiveStackItem
         );
     }
 
