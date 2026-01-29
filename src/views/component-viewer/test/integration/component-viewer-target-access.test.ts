@@ -24,7 +24,6 @@ import * as vscode from 'vscode';
 import { ComponentViewerTargetAccess } from '../../component-viewer-target-access';
 import { debugSessionFactory } from '../../../../__test__/vscode.factory';
 import { GDBTargetDebugSession } from '../../../../debug-session';
-import { logger } from '../../../../logger';
 
 describe('ComponentViewerTargetAccess', () => {
     const defaultConfig = () => {
@@ -96,34 +95,32 @@ describe('ComponentViewerTargetAccess', () => {
 
             const result = await targetAccess.evaluateSymbolAddress('globalVar');
 
-            expect(result).toBe('0x30000000');
-            expect(debugSession.customRequest).toHaveBeenCalledWith('evaluate', {
-                expression: '&globalVar',
-                frameId: 0,
-                context: 'hover'
-            });
+            expect(result).toBeUndefined();
+            expect(debugSession.customRequest).not.toHaveBeenCalled();
         });
 
         it('should return error message when evaluation fails', async () => {
-            const logDebugSpy = jest.spyOn(logger, 'debug');
+            const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+            (vscode.debug.activeStackItem as unknown) = { session: debugSession, threadId: 1, frameId: 1 };
             (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('Variable not found'));
 
             const result = await targetAccess.evaluateSymbolAddress('unknownVar');
 
             expect(result).toBeUndefined();
-            expect(logDebugSpy).toHaveBeenCalledWith(
+            expect(logSpy).toHaveBeenCalledWith(
                 'Session \'test-session\': Failed to evaluate address \'unknownVar\' - \'Variable not found\''
             );
         });
 
         it('should return "No active session" when custom request fails', async () => {
-            const logDebugSpy = jest.spyOn(logger, 'debug');
+            const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+            (vscode.debug.activeStackItem as unknown) = { session: debugSession, threadId: 1, frameId: 1 };
             (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('custom request failed'));
 
             const result = await targetAccess.evaluateSymbolAddress('myVar');
 
             expect(result).toBeUndefined();
-            expect(logDebugSpy).toHaveBeenCalledWith(
+            expect(logSpy).toHaveBeenCalledWith(
                 'Session \'test-session\': Failed to evaluate address \'myVar\' - \'custom request failed\''
             );
         });
@@ -165,25 +162,25 @@ describe('ComponentViewerTargetAccess', () => {
         });
 
         it('should return undefined when memory read fails', async () => {
-            const logDebugSpy = jest.spyOn(logger, 'debug');
+            const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
             (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('Invalid memory address'));
 
             const result = await targetAccess.evaluateMemory('0xFFFFFFFF', 4, 0);
 
             expect(result).toBeUndefined();
-            expect(logDebugSpy).toHaveBeenCalledWith(
+            expect(logSpy).toHaveBeenCalledWith(
                 'Session \'test-session\': Failed to read memory at address \'0xFFFFFFFF\' - \'Invalid memory address\''
             );
         });
 
         it('should return undefined when custom request fails for memory read', async () => {
-            const logDebugSpy = jest.spyOn(logger, 'debug');
+            const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
             (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('custom request failed'));
 
             const result = await targetAccess.evaluateMemory('0x20000000', 4, 0);
 
             expect(result).toBeUndefined();
-            expect(logDebugSpy).toHaveBeenCalledWith(
+            expect(logSpy).toHaveBeenCalledWith(
                 'Session \'test-session\': Failed to read memory at address \'0x20000000\' - \'custom request failed\''
             );
         });

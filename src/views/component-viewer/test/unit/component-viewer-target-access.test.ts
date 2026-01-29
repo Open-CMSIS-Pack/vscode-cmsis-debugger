@@ -53,7 +53,7 @@ describe('ComponentViewerTargetAccess', () => {
         gdbTargetSession = new GDBTargetDebugSession(debugSession);
         targetAccess = new ComponentViewerTargetAccess();
         targetAccess.setActiveSession(gdbTargetSession);
-        setActiveStackItem(undefined, undefined);
+        setActiveStackItem(debugSession, 1);
     });
 
     afterEach(() => {
@@ -83,11 +83,11 @@ describe('ComponentViewerTargetAccess', () => {
         (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: 'Error: failed' });
         await expect(targetAccess.evaluateSymbolAddress('bad')).resolves.toBeUndefined();
 
-        const debugSpy = jest.spyOn(logger, 'debug');
+        const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
         (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('bad'));
 
         await expect(targetAccess.evaluateSymbolAddress('missing')).resolves.toBeUndefined();
-        expect(debugSpy).toHaveBeenCalledWith(
+        expect(logSpy).toHaveBeenCalledWith(
             'Session \'test-session\': Failed to evaluate address \'missing\' - \'bad\''
         );
     });
@@ -99,11 +99,11 @@ describe('ComponentViewerTargetAccess', () => {
         await expect(targetAccess.evaluateSymbolName(0x20000000)).resolves.toBe('MySymbol');
 
         (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: '0x20000000 <Other>' });
-        setActiveStackItem(undefined, undefined);
+        setActiveStackItem(debugSession, 2);
         await expect(targetAccess.evaluateSymbolName('0x20000000')).resolves.toBe('Other');
         expect(debugSession.customRequest).toHaveBeenLastCalledWith('evaluate', {
             expression: '(unsigned int*)0x20000000',
-            frameId: 0,
+            frameId: 2,
             context: 'hover',
         });
 
@@ -152,16 +152,16 @@ describe('ComponentViewerTargetAccess', () => {
         (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ data: 'AAAA' });
         await expect(targetAccess.evaluateMemory('16', 4, 0)).resolves.toBe('AAAA');
 
-        const debugSpy = jest.spyOn(logger, 'debug');
+        const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
         (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('custom request failed'));
         await expect(targetAccess.evaluateMemory('16', 4, 0)).resolves.toBeUndefined();
-        expect(debugSpy).toHaveBeenCalledWith(
+        expect(logSpy).toHaveBeenCalledWith(
             'Session \'test-session\': Failed to read memory at address \'0x10\' - \'custom request failed\''
         );
 
         (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('bad read'));
         await expect(targetAccess.evaluateMemory('16', 4, 0)).resolves.toBeUndefined();
-        expect(debugSpy).toHaveBeenCalledWith(
+        expect(logSpy).toHaveBeenCalledWith(
             'Session \'test-session\': Failed to read memory at address \'0x10\' - \'bad read\''
         );
     });
