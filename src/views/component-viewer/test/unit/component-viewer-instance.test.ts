@@ -246,12 +246,13 @@ describe('ComponentViewerInstance', () => {
         const keyMap = (ComponentViewerInstance as unknown as { _fileKeysByPath: Map<string, string> })._fileKeysByPath;
         const countMap = (ComponentViewerInstance as unknown as { _fileKeyCounts: Map<string, number> })._fileKeyCounts;
         const filePath = '/tmp/reuse.scvd';
+        const uri = URI.file(filePath);
         const expectedKey = 'existing-key';
-        keyMap.set(filePath, expectedKey);
+        keyMap.set(uri.fsPath, expectedKey);
         countMap.set('ignore', 5);
 
         const getFileKey = (ComponentViewerInstance as unknown as { getFileKey: (f: URI) => string }).getFileKey;
-        const key = getFileKey(URI.file(filePath));
+        const key = getFileKey(uri);
 
         expect(key).toBe(expectedKey);
     });
