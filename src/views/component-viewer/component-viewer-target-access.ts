@@ -33,6 +33,10 @@ export class ComponentViewerTargetAccess {
     public async evaluateSymbolAddress(address: string, context = 'hover'): Promise<string | undefined> {
         try {
             const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
+            // if FrameId is 0, evaluation is not possible
+            if (frameId === 0) {
+                return undefined;
+            }
             const args: DebugProtocol.EvaluateArguments = {
                 expression: `&${address}`,
                 frameId, // Currently required by CDT GDB Adapter
@@ -46,7 +50,8 @@ export class ComponentViewerTargetAccess {
             return response.result.split(' ')[0]; // Return only the address part
         } catch (error: unknown) {
             const errorMessage = (error as Error)?.message;
-            logger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate address '${address}' - '${errorMessage}'`);
+            //logger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate address '${address}' - '${errorMessage}'`);
+            console.log(`Session '${this._activeSession?.session.name}': Failed to evaluate address '${address}' - '${errorMessage}'`);
             return undefined;
         }
     }
@@ -72,6 +77,10 @@ export class ComponentViewerTargetAccess {
     public async evaluateSymbolName(address: string | number | bigint, context = 'hover'): Promise<string | undefined> {
         try {
             const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
+            // if FrameId is 0, evaluation is not possible
+            if (frameId === 0) {
+                return undefined;
+            }
             const formattedAddress = this.formatAddress(address);
             const args: DebugProtocol.EvaluateArguments = {
                 expression: `(unsigned int*)${formattedAddress}`,
@@ -95,6 +104,10 @@ export class ComponentViewerTargetAccess {
     public async evaluateSymbolContext(address: string, context = 'hover'): Promise<string | undefined> {
         try {
             const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
+            // if FrameId is 0, evaluation is not possible
+            if (frameId === 0) {
+                return undefined;
+            }
             const formattedAddress = this.formatAddress(address);
             // Ask GDB for file/line context of the address.
             const args: DebugProtocol.EvaluateArguments = {
@@ -118,6 +131,10 @@ export class ComponentViewerTargetAccess {
     public async evaluateSymbolSize(symbol: string, context = 'hover'): Promise<number | undefined> {
         try {
             const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
+            // if FrameId is 0, evaluation is not possible
+            if (frameId === 0) {
+                return undefined;
+            }
             const args: DebugProtocol.EvaluateArguments = {
                 expression: `sizeof(${symbol})`,
                 frameId,
@@ -150,7 +167,8 @@ export class ComponentViewerTargetAccess {
             // Change address to hex format for better logging
             const hexAddress = `0x${Number(address).toString(16).toUpperCase()}`;
             const errorMessage = (error as Error)?.message;
-            logger.debug(`Session '${this._activeSession?.session.name}': Failed to read memory at address '${hexAddress}' - '${errorMessage}'`);
+            //logger.debug(`Session '${this._activeSession?.session.name}': Failed to read memory at address '${hexAddress}' - '${errorMessage}'`);
+            console.log(`Session '${this._activeSession?.session.name}': Failed to read memory at address '${hexAddress}' - '${errorMessage}'`);
             return undefined;
         }
     }
@@ -158,6 +176,10 @@ export class ComponentViewerTargetAccess {
     public async evaluateNumberOfArrayElements(symbol: string): Promise<number | undefined> {
         try {
             const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
+            // if FrameId is 0, evaluation is not possible
+            if (frameId === 0) {
+                return undefined;
+            }
             const args: DebugProtocol.EvaluateArguments = {
                 expression: `sizeof(${symbol})/sizeof(${symbol}[0])`,
                 frameId, // Currently required by CDT GDB Adapter
@@ -180,6 +202,10 @@ export class ComponentViewerTargetAccess {
     public async evaluateRegisterValue(register: string): Promise<string | undefined> {
         try {
             const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
+            // if FrameId is 0, evaluation is not possible
+            if (frameId === 0) {
+                return undefined;
+            }
             const args: DebugProtocol.EvaluateArguments = {
                 expression: `$${register}`,
                 frameId, // Currently required by CDT GDB Adapter
