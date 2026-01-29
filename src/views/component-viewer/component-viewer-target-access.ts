@@ -33,7 +33,7 @@ export class ComponentViewerTargetAccess {
     public async evaluateSymbolAddress(address: string, context = 'hover'): Promise<string | undefined> {
         try {
             const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
-            // if FrameId is 0, evaluation is not possible
+            // if FrameId is 0, evaluation is not possible as cdt-adapter doesn't accept it
             if (frameId === 0) {
                 return undefined;
             }
@@ -76,7 +76,7 @@ export class ComponentViewerTargetAccess {
     public async evaluateSymbolName(address: string | number | bigint, context = 'hover'): Promise<string | undefined> {
         try {
             const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
-            // if FrameId is 0, evaluation is not possible
+            // if FrameId is 0, evaluation is not possible as cdt-adapter doesn't accept it
             if (frameId === 0) {
                 return undefined;
             }
@@ -103,7 +103,7 @@ export class ComponentViewerTargetAccess {
     public async evaluateSymbolContext(address: string, context = 'hover'): Promise<string | undefined> {
         try {
             const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
-            // if FrameId is 0, evaluation is not possible
+            // if FrameId is 0, evaluation is not possible as cdt-adapter doesn't accept it
             if (frameId === 0) {
                 return undefined;
             }
@@ -130,7 +130,7 @@ export class ComponentViewerTargetAccess {
     public async evaluateSymbolSize(symbol: string, context = 'hover'): Promise<number | undefined> {
         try {
             const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
-            // if FrameId is 0, evaluation is not possible
+            // if FrameId is 0, evaluation is not possible as cdt-adapter doesn't accept it
             if (frameId === 0) {
                 return undefined;
             }
@@ -174,7 +174,7 @@ export class ComponentViewerTargetAccess {
     public async evaluateNumberOfArrayElements(symbol: string): Promise<number | undefined> {
         try {
             const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
-            // if FrameId is 0, evaluation is not possible
+            // if FrameId is 0, evaluation is not possible as cdt-adapter doesn't accept it
             if (frameId === 0) {
                 return undefined;
             }
@@ -200,7 +200,7 @@ export class ComponentViewerTargetAccess {
     public async evaluateRegisterValue(register: string): Promise<string | undefined> {
         try {
             const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
-            // if FrameId is 0, evaluation is not possible
+            // if FrameId is 0, evaluation is not possible as cdt-adapter doesn't accept it
             if (frameId === 0) {
                 return undefined;
             }
