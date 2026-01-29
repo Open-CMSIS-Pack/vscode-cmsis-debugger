@@ -174,9 +174,10 @@ export class ComponentViewer {
         // Clear active session if it is the one being stopped
         if (this._activeSession?.session.id === session.session.id) {
             this._activeSession = undefined;
+            this._instances = [];
+            this._componentViewerTreeDataProvider?.clear();
         }
     }
-
     private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
         // Subscribe to refresh events of the started session
         session.refreshTimer.onRefresh(async (refreshSession) => await this.handleRefreshTimerEvent(refreshSession));
