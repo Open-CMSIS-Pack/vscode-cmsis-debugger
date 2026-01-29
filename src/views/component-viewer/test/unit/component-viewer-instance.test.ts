@@ -241,4 +241,18 @@ describe('ComponentViewerInstance', () => {
         instance.updateActiveSession(debugSession);
         expect(updateActiveSession).toHaveBeenCalledWith(debugSession);
     });
+
+    it('reuses existing file key for the same path', () => {
+        const keyMap = (ComponentViewerInstance as unknown as { _fileKeysByPath: Map<string, string> })._fileKeysByPath;
+        const countMap = (ComponentViewerInstance as unknown as { _fileKeyCounts: Map<string, number> })._fileKeyCounts;
+        const filePath = '/tmp/reuse.scvd';
+        const expectedKey = 'existing-key';
+        keyMap.set(filePath, expectedKey);
+        countMap.set('ignore', 5);
+
+        const getFileKey = (ComponentViewerInstance as unknown as { getFileKey: (f: URI) => string }).getFileKey;
+        const key = getFileKey(URI.file(filePath));
+
+        expect(key).toBe(expectedKey);
+    });
 });

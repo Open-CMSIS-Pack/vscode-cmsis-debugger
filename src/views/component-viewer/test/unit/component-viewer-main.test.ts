@@ -47,6 +47,7 @@ const instanceFactory = jest.fn(() => ({
     readModel: jest.fn().mockResolvedValue(undefined),
     update: jest.fn().mockResolvedValue(undefined),
     getGuiTree: jest.fn(() => ['node']),
+    updateActiveSession: jest.fn(),
 }));
 
 jest.mock('../../component-viewer-instance', () => ({
@@ -56,6 +57,7 @@ jest.mock('../../component-viewer-instance', () => ({
 jest.mock('../../../../debug-session', () => ({}));
 
 import type { ExtensionContext } from 'vscode';
+import * as vscode from 'vscode';
 import type { GDBTargetDebugTracker } from '../../../../debug-session';
 import { ComponentViewer } from '../../component-viewer-main';
 
@@ -88,6 +90,8 @@ type Context = { subscriptions: Array<{ dispose: jest.Mock }> };
 describe('ComponentViewer', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        (vscode.debug as unknown as { activeDebugSession?: unknown }).activeDebugSession = undefined;
+        (vscode.debug as unknown as { activeStackItem?: unknown }).activeStackItem = undefined;
     });
 
     const makeContext = (): Context => ({ subscriptions: [] });
@@ -137,6 +141,24 @@ describe('ComponentViewer', () => {
 
         expect(registerTreeDataProvider).toHaveBeenCalledWith('cmsis-debugger.componentViewer', expect.any(Object));
         expect(context.subscriptions.length).toBe(7);
+    });
+
+    it('forwards active stack item changes on activate', async () => {
+        const context = makeContext();
+        const tracker = makeTracker();
+        const controller = new ComponentViewer(context as unknown as ExtensionContext);
+        const handleOnDidChangeActiveStackItem = jest
+            .spyOn(controller as unknown as { handleOnDidChangeActiveStackItem: (stackItem: unknown) => Promise<void> }, 'handleOnDidChangeActiveStackItem')
+            .mockResolvedValue(undefined);
+
+        controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        const callback = (onDidChangeActiveStackItem as jest.Mock).mock.calls[0]?.[0];
+        expect(callback).toBeDefined();
+        if (callback) {
+            await callback({ frameId: 1 });
+        }
+
+        expect(handleOnDidChangeActiveStackItem).toHaveBeenCalledWith({ frameId: 1 });
     });
 
     it('skips reading scvd files when session or cbuild-run is missing', async () => {
@@ -277,5 +299,141 @@ describe('ComponentViewer', () => {
         expect(provider.setRoots).toHaveBeenCalledWith(['node', 'node']);
         expect(instanceA.update).toHaveBeenCalled();
         expect(instanceB.update).toHaveBeenCalled();
+    });
+
+    it('returns false for stack trace update when frame data is not usable', () => {
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const shouldUpdateOnStackTrace = (controller as unknown as { shouldUpdateOnStackTrace: (s: Session) => boolean }).shouldUpdateOnStackTrace.bind(controller);
+        const session = makeSession('s1');
+
+        expect(shouldUpdateOnStackTrace(session)).toBe(false);
+
+        (controller as unknown as { _activeSession?: Session })._activeSession = session;
+        (vscode.debug as unknown as { activeStackItem?: unknown }).activeStackItem = undefined;
+        expect(shouldUpdateOnStackTrace(session)).toBe(false);
+
+        (vscode.debug as unknown as { activeStackItem?: unknown }).activeStackItem = {};
+        expect(shouldUpdateOnStackTrace(session)).toBe(false);
+
+        (vscode.debug as unknown as { activeStackItem?: unknown }).activeStackItem = { frameId: 'nope' };
+        expect(shouldUpdateOnStackTrace(session)).toBe(false);
+    });
+
+    it('runs a debounced update after stack trace when idle', async () => {
+        jest.useFakeTimers();
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const session = makeSession('s1');
+        (controller as unknown as { _activeSession?: Session })._activeSession = session;
+        (vscode.debug as unknown as { activeStackItem?: unknown }).activeStackItem = { frameId: 0 };
+        const updateOnStackTrace = (controller as unknown as { updateOnStackTrace: (s: Session) => Promise<void> }).updateOnStackTrace.bind(controller);
+        const runUpdateIfIdle = jest
+            .spyOn(controller as unknown as { runUpdateIfIdle: () => Promise<void> }, 'runUpdateIfIdle')
+            .mockResolvedValue(undefined);
+
+        await updateOnStackTrace(session);
+        await updateOnStackTrace(session);
+        expect(runUpdateIfIdle).not.toHaveBeenCalled();
+
+        jest.advanceTimersByTime(500);
+        expect(runUpdateIfIdle).toHaveBeenCalledTimes(1);
+        jest.useRealTimers();
+    });
+
+    it('re-queues updates when one is already in flight', async () => {
+        jest.useFakeTimers();
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const schedulePendingUpdate = jest.spyOn(controller as unknown as { schedulePendingUpdate: () => void }, 'schedulePendingUpdate');
+
+        (controller as unknown as { _updateInFlight: boolean })._updateInFlight = true;
+        const runUpdateIfIdle = (controller as unknown as { runUpdateIfIdle: () => Promise<void> }).runUpdateIfIdle.bind(controller);
+
+        await runUpdateIfIdle();
+        expect(schedulePendingUpdate).toHaveBeenCalled();
+        jest.useRealTimers();
+    });
+
+    it('runs update immediately when idle', async () => {
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const runUpdateOnce = jest
+            .spyOn(controller as unknown as { runUpdateOnce: () => Promise<void> }, 'runUpdateOnce')
+            .mockResolvedValue(undefined);
+        const runUpdateIfIdle = (controller as unknown as { runUpdateIfIdle: () => Promise<void> }).runUpdateIfIdle.bind(controller);
+
+        await runUpdateIfIdle();
+        expect(runUpdateOnce).toHaveBeenCalled();
+    });
+
+    it('clears in-flight flag even when updateInstances throws', async () => {
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        (controller as unknown as { updateInstances: () => Promise<void> }).updateInstances = jest.fn().mockRejectedValue(new Error('fail'));
+        const runUpdateOnce = (controller as unknown as { runUpdateOnce: () => Promise<void> }).runUpdateOnce.bind(controller);
+
+        await expect(runUpdateOnce()).rejects.toThrow('fail');
+        expect((controller as unknown as { _updateInFlight: boolean })._updateInFlight).toBe(false);
+    });
+
+    it('loads instances and skips update on stack item mismatch', async () => {
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const tracker = makeTracker();
+        const session = makeSession('s1', []);
+        const otherSession = makeSession('s2', []);
+        (controller as unknown as { _activeSession?: Session })._activeSession = session;
+
+        const loadCbuildRunInstances = (controller as unknown as { loadCbuildRunInstances: (s: Session, t: TrackerCallbacks) => Promise<void | undefined> }).loadCbuildRunInstances.bind(controller);
+        await expect(loadCbuildRunInstances(session, tracker)).resolves.toBeUndefined();
+
+        (vscode.debug as unknown as { activeDebugSession?: unknown }).activeDebugSession = { id: otherSession.session.id };
+        const updateOnStackTrace = jest.spyOn(controller as unknown as { updateOnStackTrace: (s: Session) => Promise<void> }, 'updateOnStackTrace');
+        const handleOnDidChangeActiveStackItem = (controller as unknown as { handleOnDidChangeActiveStackItem: (stackItem: unknown) => Promise<void> }).handleOnDidChangeActiveStackItem.bind(controller);
+
+        await handleOnDidChangeActiveStackItem({});
+        expect(updateOnStackTrace).not.toHaveBeenCalled();
+    });
+
+    it('updates on active stack item when session matches', async () => {
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const session = makeSession('s1', []);
+        (controller as unknown as { _activeSession?: Session })._activeSession = session;
+        (vscode.debug as unknown as { activeDebugSession?: unknown }).activeDebugSession = { id: session.session.id };
+        const updateOnStackTrace = jest.spyOn(controller as unknown as { updateOnStackTrace: (s: Session) => Promise<void> }, 'updateOnStackTrace').mockResolvedValue(undefined);
+        const handleOnDidChangeActiveStackItem = (controller as unknown as { handleOnDidChangeActiveStackItem: (stackItem: unknown) => Promise<void> }).handleOnDidChangeActiveStackItem.bind(controller);
+
+        await handleOnDidChangeActiveStackItem({ frameId: 1 });
+        expect(updateOnStackTrace).toHaveBeenCalledWith(session);
+    });
+
+    it('updates active session on debug session change', async () => {
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const handleOnDidChangeActiveDebugSession = (controller as unknown as { handleOnDidChangeActiveDebugSession: (s: Session | undefined) => Promise<void> }).handleOnDidChangeActiveDebugSession.bind(controller);
+        const session = makeSession('s1', []);
+        const instance = instanceFactory();
+        (controller as unknown as { _instances: unknown[] })._instances = [instance];
+
+        await handleOnDidChangeActiveDebugSession(session);
+        expect(instance.updateActiveSession).toHaveBeenCalledWith(session);
+    });
+
+    it('clears state when stopping the active session', async () => {
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const provider = treeProviderFactory();
+        (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
+        const session = makeSession('s1', []);
+        (controller as unknown as { _activeSession?: Session })._activeSession = session;
+        (controller as unknown as { _instances: unknown[] })._instances = [instanceFactory()];
+
+        const handleOnWillStopSession = (controller as unknown as { handleOnWillStopSession: (s: Session) => Promise<void> }).handleOnWillStopSession.bind(controller);
+        await handleOnWillStopSession(session);
+
+        expect(provider.clear).toHaveBeenCalled();
+        expect((controller as unknown as { _instances: unknown[] })._instances).toHaveLength(0);
+    });
+
+    it('skips stack-item updates when no active session', async () => {
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const handleOnDidChangeActiveStackItem = (controller as unknown as { handleOnDidChangeActiveStackItem: (stackItem: unknown) => Promise<void> }).handleOnDidChangeActiveStackItem.bind(controller);
+        const updateOnStackTrace = jest.spyOn(controller as unknown as { updateOnStackTrace: (s: Session) => Promise<void> }, 'updateOnStackTrace');
+
+        await handleOnDidChangeActiveStackItem({});
+        expect(updateOnStackTrace).not.toHaveBeenCalled();
     });
 });

@@ -106,7 +106,7 @@ export class StatementRead extends StatementBase {
         // TOIMPL: do not set if read failed, investigate
         if (scvdRead.const === true) {   // Mark variable as initialized if some data has been read
             if (readData.some((byte) => byte !== 0x00)) {
-                ; //scvdRead.mustRead = false;
+                ; //scvdRead.mustRead = false; // TOIMPL: Re-enable once target updates are consistent
             }
         }
         return;

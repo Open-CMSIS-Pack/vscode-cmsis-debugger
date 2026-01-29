@@ -202,7 +202,7 @@ export class StatementReadList extends StatementBase {
         }
 
         if (scvdReadList.const === true) {   // Mark variable as already initialized
-            ; //scvdReadList.mustRead = false;
+            ; //scvdReadList.mustRead = false;  // TOIMPL: Re-enable once target updates are consistent
         }
     }
 }
