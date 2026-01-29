@@ -346,7 +346,7 @@ describe('ComponentViewer', () => {
         const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
         const session = makeSession('s1', []);
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
-        (controller as unknown as { _updateFifo: unknown[] })._updateFifo = [{ update_id: 1 }];
+        (controller as unknown as { _updateFifo: unknown[] })._updateFifo = [{ updateId: 1 }];
         (controller as unknown as { _isFirstUpdate: boolean })._isFirstUpdate = false;
 
         const handleOnWillStopSession = (controller as unknown as { handleOnWillStopSession: (s: Session) => Promise<void> }).handleOnWillStopSession.bind(controller);

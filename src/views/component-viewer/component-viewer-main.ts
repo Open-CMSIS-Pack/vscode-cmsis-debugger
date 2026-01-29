@@ -24,7 +24,7 @@ import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 
 type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace';
 interface UpdateFifoItem {
-    update_id: number;
+    updateId: number;
     debugSession: GDBTargetDebugSession;
     updateReason: fifoUpdateReason;
 }
@@ -48,8 +48,7 @@ export class ComponentViewer {
     public activate(tracker: GDBTargetDebugTracker): void {
         this._componentViewerTreeDataProvider = new ComponentViewerTreeDataProvider();
         const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
-        this._context.subscriptions.push(
-            treeProviderDisposable);
+        this._context.subscriptions.push(treeProviderDisposable);
         // Subscribe to debug tracker events to update active session
         this.subscribetoDebugTrackerEvents(this._context, tracker);
     }
@@ -121,7 +120,6 @@ export class ComponentViewer {
             this._activeSession = undefined;
         }
         // Update component viewer instance(s)
-        //await this.updateInstances('stackTrace');
         this.schedulePendingUpdate('stackTrace');
     }
 
@@ -207,7 +205,7 @@ export class ComponentViewer {
         }
         logger.debug(`Component Viewer: Queuing update due to '${updateReason}', that is update #${this._updateFifo.length + 1} in the FIFO`);
         this._updateFifo.push({
-            update_id: this._updateFifo.length + 1,
+            updateId: this._updateFifo.length + 1,
             debugSession: this._activeSession,
             updateReason: updateReason
         });
