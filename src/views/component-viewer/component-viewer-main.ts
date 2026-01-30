@@ -23,7 +23,7 @@ import { logger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 
 type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace';
-interface UpdateFifoItem {
+interface UpdateQueueItem {
     updateId: number;
     debugSession: GDBTargetDebugSession;
     updateReason: fifoUpdateReason;
@@ -35,7 +35,8 @@ export class ComponentViewer {
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
     private _loadingCounter: number = 0;
-    private _updateFifo: UpdateFifoItem[] = [];
+    // Update queue is currently used for logging purposes only
+    private _updateQueue: UpdateQueueItem[] = [];
     private _isFirstUpdate: boolean = true;
     private _updateInFlight = false;
     private _pendingUpdateTimer: NodeJS.Timeout | undefined;
@@ -129,8 +130,8 @@ export class ComponentViewer {
         if (this._activeSession?.session.id === session.session.id) {
             this._activeSession = undefined;
         }
-        // Clearing update FIFO
-        this._updateFifo = [];
+        // Clearing update queue
+        this._updateQueue = [];
         this._isFirstUpdate = true;
     }
 
@@ -202,9 +203,9 @@ export class ComponentViewer {
             this._componentViewerTreeDataProvider?.clear();
             return;
         }
-        logger.debug(`Component Viewer: Queuing update due to '${updateReason}', that is update #${this._updateFifo.length + 1} in the FIFO`);
-        this._updateFifo.push({
-            updateId: this._updateFifo.length + 1,
+        logger.debug(`Component Viewer: Queuing update due to '${updateReason}', that is update #${this._updateQueue.length + 1} in the queue`);
+        this._updateQueue.push({
+            updateId: this._updateQueue.length + 1,
             debugSession: this._activeSession,
             updateReason: updateReason
         });
@@ -215,7 +216,7 @@ export class ComponentViewer {
         const roots: ScvdGuiInterface[] = [];
         for (const instance of this._instances) {
             this._instanceUpdateCounter++;
-            logger.debug(`Updating Component Viewer Instance #${this._instanceUpdateCounter} due to '${updateReason}' (FIFO position #${this._updateFifo.length})`);
+            logger.debug(`Updating Component Viewer Instance #${this._instanceUpdateCounter} due to '${updateReason}' (queue position #${this._updateQueue.length})`);
             console.log(`Updating Component Viewer Instance #${this._instanceUpdateCounter}`);
             await instance.update();
             const guiTree = instance.getGuiTree();

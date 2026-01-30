@@ -338,10 +338,13 @@ describe('ComponentViewer', () => {
 
     it('clears in-flight flag even when updateInstances throws', async () => {
         const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
-        (controller as unknown as { updateInstances: (reason: 'sessionChanged' | 'refreshTimer' | 'stackTrace') => Promise<void> }).updateInstances = jest.fn().mockRejectedValue(new Error('fail'));
-        const runUpdateOnce = (controller as unknown as { runUpdateOnce: (reason: 'sessionChanged' | 'refreshTimer' | 'stackTrace') => Promise<void> }).runUpdateOnce.bind(controller);
+        type UpdateReason = Parameters<
+            (typeof controller) extends { updateInstances: (reason: infer R) => Promise<void> } ? (reason: R) => Promise<void> : never
+        >[0];
+        (controller as unknown as { updateInstances: (reason: UpdateReason) => Promise<void> }).updateInstances = jest.fn().mockRejectedValue(new Error('fail'));
+        const runUpdateOnce = (controller as unknown as { runUpdateOnce: (reason: UpdateReason) => Promise<void> }).runUpdateOnce.bind(controller);
 
-        await expect(runUpdateOnce('stackTrace')).rejects.toThrow('fail');
+        await expect(runUpdateOnce('stackTrace' as UpdateReason)).rejects.toThrow('fail');
         expect((controller as unknown as { _updateInFlight: boolean })._updateInFlight).toBe(false);
     });
 
@@ -356,7 +359,7 @@ describe('ComponentViewer', () => {
         await handleOnWillStopSession(session);
 
         expect((controller as unknown as { _activeSession?: Session })._activeSession).toBeUndefined();
-        expect((controller as unknown as { _updateFifo: unknown[] })._updateFifo).toHaveLength(0);
+        expect((controller as unknown as { _updateQueue: unknown[] })._updateQueue).toHaveLength(0);
         expect((controller as unknown as { _isFirstUpdate: boolean })._isFirstUpdate).toBe(true);
     });
 });
