@@ -16,10 +16,31 @@
 
 import { CbuildRunReader } from './cbuild-run-reader';
 
+jest.mock('vscode');
+
+import * as vscode from 'vscode';
+import * as path from 'path';
+
+jest.mock('../utils', () => ({
+    getCmsisPackRootPath: () => '',
+}));
+
 const TEST_CBUILD_RUN_FILE = 'test-data/multi-core.cbuild-run.yml'; // Relative to repo root
 const TEST_FILE_PATH = 'test-data/fileReaderTest.txt'; // Relative to repo root
+const PACK_ROOT = path.resolve(__dirname, '..', '..', 'packs');
+const toPosixPath = (value: string): string => value.replace(/\\/g, '/');
 
 describe('CbuildRunReader', () => {
+
+    beforeEach(() => {
+        const workspaceRoot = path.resolve(__dirname, '..', '..');
+        Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+            value: [
+                { uri: vscode.Uri.file(workspaceRoot), name: 'root', index: 0 },
+            ],
+            configurable: true,
+        });
+    });
 
     describe('Parser', () => {
         it('successfully parses a *.cbuild-run.yml file', async () => {
@@ -110,12 +131,11 @@ describe('CbuildRunReader', () => {
             const cbuildRun = (cbuildRunReader as unknown as { cbuildRun?: { ['system-descriptions']?: Array<{ file: string; type: string; pname?: string }> } }).cbuildRun;
             const systemDescriptions = cbuildRun?.['system-descriptions'];
             expect(systemDescriptions).toBeDefined();
-            const svdPaths = cbuildRunReader.getSvdFilePaths('', 'Core1');
+            const svdPaths = cbuildRunReader.getSvdFilePaths(PACK_ROOT, 'Core1').map(toPosixPath);
 
             expect(svdPaths).toEqual([
-                '${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core1.svd',
-                '${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_generic.svd'
-
+                toPosixPath(path.join(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_Core1.svd')),
+                toPosixPath(path.join(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_generic.svd')),
             ]);
         });
 
@@ -124,11 +144,11 @@ describe('CbuildRunReader', () => {
             const cbuildRun = (cbuildRunReader as unknown as { cbuildRun?: { ['system-descriptions']?: Array<{ file: string; type: string; pname?: string }> } }).cbuildRun;
             const systemDescriptions = cbuildRun?.['system-descriptions'] ?? [];
             expect(systemDescriptions).toBeDefined();
-            const scvdPaths = cbuildRunReader.getScvdFilePaths('', 'Core1');
+            const scvdPaths = cbuildRunReader.getScvdFilePaths(PACK_ROOT, 'Core1').map(toPosixPath);
 
             expect(scvdPaths).toEqual([
-                '${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SCVD/MySoftware_component.scvd',
-                '${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SCVD/Core1.scvd',
+                toPosixPath(path.join(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SCVD', 'MySoftware_component.scvd')),
+                toPosixPath(path.join(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SCVD', 'Core1.scvd')),
             ]);
         });
     });

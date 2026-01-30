@@ -15,6 +15,8 @@
  */
 
 import * as yaml from 'yaml';
+import * as vscode from 'vscode';
+import * as path from 'path';
 import { CbuildRunRootType, CbuildRunType } from './cbuild-run-types';
 import { FileReader, VscodeFileReader } from '../desktop/file-reader';
 import { getCmsisPackRootPath } from '../utils';
@@ -72,10 +74,20 @@ export class CbuildRunReader {
             }
             return descriptor.pname === pname;
         }): fileDescriptors;
-        const filePaths = filteredDescriptors.map(descriptor => `${effectiveCmsisPackRoot
+        // Get relative file paths
+        const relativeFilePaths = filteredDescriptors.map(descriptor => `${effectiveCmsisPackRoot
             ? descriptor.file.replaceAll(CMSIS_PACK_ROOT_ENVVAR, effectiveCmsisPackRoot)
             : descriptor.file}`);
-        return filePaths;
+        // Get workspace root path
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+        // resolve relative paths to workspace root
+        const resolvedFilePaths = relativeFilePaths.map(filePath => {
+            if (path.isAbsolute(filePath) || !workspaceRoot) {
+                return filePath;
+            }
+            return path.resolve(workspaceRoot, filePath);
+        });
+        return resolvedFilePaths;
     }
 
     public getPnames(): string[] {
