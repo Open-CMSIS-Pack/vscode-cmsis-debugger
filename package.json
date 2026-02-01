@@ -405,7 +405,7 @@
     "octokit": "^5.0.5",
     "tempfile": "^5.0.0",
     "ts-command-line-args": "^2.5.1",
-    "ts-jest": "29.4.5",
+    "ts-jest": "29.4.6",
     "ts-loader": "^9.5.4",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
