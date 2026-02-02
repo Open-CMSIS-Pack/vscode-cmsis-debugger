@@ -19,8 +19,6 @@ import { ScvdList } from '../model/scvd-list';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
 import { StatementBase } from './statement-base';
-
-
 export class StatementList extends StatementBase {
 
     constructor(item: ScvdNode, parent: StatementBase | undefined) {

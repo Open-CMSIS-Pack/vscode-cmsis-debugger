@@ -31,10 +31,42 @@ export type PerfStats = {
     guiTreeCalls: number;
     guiTreeDetachMs: number;
     guiTreeDetachCalls: number;
+    treeViewGetTreeItemMs: number;
+    treeViewGetTreeItemCalls: number;
+    treeViewResolveItemMs: number;
+    treeViewResolveItemCalls: number;
+    treeViewGetChildrenMs: number;
+    treeViewGetChildrenCalls: number;
+    printfMs: number;
+    printfCalls: number;
 };
 
-type PerfMsKey = 'evalMs' | 'evalReadMs' | 'evalWriteMs' | 'formatMs' | 'guiNameMs' | 'guiValueMs' | 'guiTreeMs' | 'guiTreeDetachMs';
-type PerfCallsKey = 'evalCalls' | 'evalReadCalls' | 'evalWriteCalls' | 'formatCalls' | 'guiNameCalls' | 'guiValueCalls' | 'guiTreeCalls' | 'guiTreeDetachCalls';
+type PerfMsKey =
+    | 'evalMs'
+    | 'evalReadMs'
+    | 'evalWriteMs'
+    | 'formatMs'
+    | 'guiNameMs'
+    | 'guiValueMs'
+    | 'guiTreeMs'
+    | 'guiTreeDetachMs'
+    | 'treeViewGetTreeItemMs'
+    | 'treeViewResolveItemMs'
+    | 'treeViewGetChildrenMs'
+    | 'printfMs';
+type PerfCallsKey =
+    | 'evalCalls'
+    | 'evalReadCalls'
+    | 'evalWriteCalls'
+    | 'formatCalls'
+    | 'guiNameCalls'
+    | 'guiValueCalls'
+    | 'guiTreeCalls'
+    | 'guiTreeDetachCalls'
+    | 'treeViewGetTreeItemCalls'
+    | 'treeViewResolveItemCalls'
+    | 'treeViewGetChildrenCalls'
+    | 'printfCalls';
 
 let enabled = false;
 const stats: PerfStats = {
@@ -54,6 +86,14 @@ const stats: PerfStats = {
     guiTreeCalls: 0,
     guiTreeDetachMs: 0,
     guiTreeDetachCalls: 0,
+    treeViewGetTreeItemMs: 0,
+    treeViewGetTreeItemCalls: 0,
+    treeViewResolveItemMs: 0,
+    treeViewResolveItemCalls: 0,
+    treeViewGetChildrenMs: 0,
+    treeViewGetChildrenCalls: 0,
+    printfMs: 0,
+    printfCalls: 0,
 };
 
 export function setPerfEnabled(value: boolean): void {
@@ -77,10 +117,22 @@ export function resetPerfStats(): void {
     stats.guiTreeCalls = 0;
     stats.guiTreeDetachMs = 0;
     stats.guiTreeDetachCalls = 0;
+    stats.treeViewGetTreeItemMs = 0;
+    stats.treeViewGetTreeItemCalls = 0;
+    stats.treeViewResolveItemMs = 0;
+    stats.treeViewResolveItemCalls = 0;
+    stats.treeViewGetChildrenMs = 0;
+    stats.treeViewGetChildrenCalls = 0;
+    stats.printfMs = 0;
+    stats.printfCalls = 0;
 }
 
 export function getPerfStats(): PerfStats {
     return { ...stats };
+}
+
+export function formatPerfSummary(): string {
+    return `[SCVD][perf] evalMs=${stats.evalMs} evalCalls=${stats.evalCalls} evalReadMs=${stats.evalReadMs} evalReadCalls=${stats.evalReadCalls} evalWriteMs=${stats.evalWriteMs} evalWriteCalls=${stats.evalWriteCalls} formatMs=${stats.formatMs} formatCalls=${stats.formatCalls} guiNameMs=${stats.guiNameMs} guiNameCalls=${stats.guiNameCalls} guiValueMs=${stats.guiValueMs} guiValueCalls=${stats.guiValueCalls} guiTreeMs=${stats.guiTreeMs} guiTreeCalls=${stats.guiTreeCalls} guiTreeDetachMs=${stats.guiTreeDetachMs} guiTreeDetachCalls=${stats.guiTreeDetachCalls} treeViewGetTreeItemMs=${stats.treeViewGetTreeItemMs} treeViewGetTreeItemCalls=${stats.treeViewGetTreeItemCalls} treeViewResolveItemMs=${stats.treeViewResolveItemMs} treeViewResolveItemCalls=${stats.treeViewResolveItemCalls} treeViewGetChildrenMs=${stats.treeViewGetChildrenMs} treeViewGetChildrenCalls=${stats.treeViewGetChildrenCalls} printfMs=${stats.printfMs} printfCalls=${stats.printfCalls}`;
 }
 
 export function perfStart(): number {
@@ -93,4 +145,15 @@ export function perfEnd(start: number, msKey: PerfMsKey, callsKey: PerfCallsKey)
     }
     stats[msKey] += Date.now() - start;
     stats[callsKey] += 1;
+}
+
+export function perfEndMulti(start: number, entries: Array<[PerfMsKey, PerfCallsKey]>): void {
+    if (!enabled || start === 0) {
+        return;
+    }
+    const elapsed = Date.now() - start;
+    for (const [msKey, callsKey] of entries) {
+        stats[msKey] += elapsed;
+        stats[callsKey] += 1;
+    }
 }

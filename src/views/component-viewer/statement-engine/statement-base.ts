@@ -17,6 +17,10 @@
 import { ScvdNode } from '../model/scvd-node';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
+import {
+    perfEnd,
+    perfStart,
+} from '../perf-stats';
 
 /**
  * Base statement node using an **array** for children.
@@ -89,6 +93,20 @@ export class StatementBase {
         const child = guiTree.createChild(key, idSegmentBase);
         child.setGuiLineInfo(this.scvdItem.getLineInfoStr());
         return child;
+    }
+
+    protected async getGuiNamePerf(): Promise<string | undefined> {
+        const start = perfStart();
+        const name = await this.scvdItem.getGuiName();
+        perfEnd(start, 'guiNameMs', 'guiNameCalls');
+        return name;
+    }
+
+    protected async getGuiValuePerf(): Promise<string | undefined> {
+        const start = perfStart();
+        const value = await this.scvdItem.getGuiValue();
+        perfEnd(start, 'guiValueMs', 'guiValueCalls');
+        return value;
     }
 
     public async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {

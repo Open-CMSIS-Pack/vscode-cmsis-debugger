@@ -18,7 +18,6 @@ import { ScvdNode } from '../model/scvd-node';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
 import { StatementBase } from './statement-base';
-import { perfEnd, perfStart } from '../perf-stats';
 
 
 export class StatementOut extends StatementBase {
@@ -33,25 +32,14 @@ export class StatementOut extends StatementBase {
             return;
         }
 
-        const guiNameStart = perfStart();
-        const guiName = await this.scvdItem.getGuiName();
-        perfEnd(guiNameStart, 'guiNameMs', 'guiNameCalls');
+        const guiName = await this.getGuiNamePerf();
         const childGuiTree = this.getOrCreateGuiChild(guiTree, guiName);
-        await this.onExecute(executionContext, childGuiTree);
+        childGuiTree.setGuiName(guiName);
 
         if (this.children.length > 0) {
             for (const child of this.children) {
                 await child.executeStatement(executionContext, childGuiTree);
             }
         }
-    }
-
-    protected override async onExecute(_executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
-        //console.log(`${this.line}: Executing out: ${await this.scvdItem.getGuiName()}`);
-
-        const guiNameStart = perfStart();
-        const guiName = await this.scvdItem.getGuiName();
-        perfEnd(guiNameStart, 'guiNameMs', 'guiNameCalls');
-        guiTree.setGuiName(guiName);
     }
 }

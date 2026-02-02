@@ -29,7 +29,7 @@ import { ScvdReadList } from '../model/scvd-readlist';
 import { ScvdVar } from '../model/scvd-var';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
-import { getPerfStats, resetPerfStats, setPerfEnabled } from '../perf-stats';
+import { formatPerfSummary, resetPerfStats, setPerfEnabled } from '../perf-stats';
 import { StatementBase } from './statement-base';
 import { StatementBreak } from './statement-break';
 import { StatementCalc } from './statement-calc';
@@ -184,8 +184,7 @@ export class StatementEngine {
             const summary = `[SCVD][executeAll] total=${elapsed}ms reads=${stats.count} readMs=${stats.totalMs} readBytes=${stats.totalBytes} maxReadMs=${stats.maxMs} cacheMaxReads=${cacheStats.requestedReads} cacheActualReads=${cacheStats.totalReads} cacheRefreshReads=${cacheStats.refreshReads} cacheMissReads=${cacheStats.missReads} prefetchMs=${cacheStats.prefetchMs}`;
             logger.appendLine(summary);
             console.log(summary);
-            const perf = getPerfStats();
-            const perfSummary = `[SCVD][perf] evalMs=${perf.evalMs} evalCalls=${perf.evalCalls} evalReadMs=${perf.evalReadMs} evalReadCalls=${perf.evalReadCalls} evalWriteMs=${perf.evalWriteMs} evalWriteCalls=${perf.evalWriteCalls} formatMs=${perf.formatMs} formatCalls=${perf.formatCalls} guiNameMs=${perf.guiNameMs} guiNameCalls=${perf.guiNameCalls} guiValueMs=${perf.guiValueMs} guiValueCalls=${perf.guiValueCalls} guiTreeMs=${perf.guiTreeMs} guiTreeCalls=${perf.guiTreeCalls} guiTreeDetachMs=${perf.guiTreeDetachMs} guiTreeDetachCalls=${perf.guiTreeDetachCalls}`;
+            const perfSummary = formatPerfSummary();
             logger.appendLine(perfSummary);
             console.log(perfSummary);
             setPerfEnabled(false);

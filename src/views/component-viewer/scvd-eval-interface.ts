@@ -24,7 +24,7 @@ import { FormatSegment } from './parser-evaluator/parser';
 import { FormatTypeInfo, ScvdFormatSpecifier } from './model/scvd-format-specifier';
 import { ScvdMember } from './model/scvd-member';
 import { ScvdVar } from './model/scvd-var';
-import { perfEnd, perfStart } from './perf-stats';
+import { perfEnd, perfEndMulti, perfStart } from './perf-stats';
 
 export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicProvider {
     private static readonly INVALID_ADDR_MIN = 0xFFFFFFF0;
@@ -526,7 +526,10 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
             }
         }
         } finally {
-            perfEnd(perfStartTime, 'formatMs', 'formatCalls');
+            perfEndMulti(perfStartTime, [
+                ['formatMs', 'formatCalls'],
+                ['printfMs', 'printfCalls'],
+            ]);
         }
     }
 }
