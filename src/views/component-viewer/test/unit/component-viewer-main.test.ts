@@ -60,6 +60,7 @@ jest.mock('../../component-viewer-instance', () => ({
 jest.mock('../../../../logger', () => ({
     logger: {
         error: jest.fn(),
+        debug: jest.fn(),
     },
 }));
 
