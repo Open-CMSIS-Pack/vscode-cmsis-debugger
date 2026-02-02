@@ -24,7 +24,7 @@ import { FormatSegment } from './parser-evaluator/parser';
 import { FormatTypeInfo, ScvdFormatSpecifier } from './model/scvd-format-specifier';
 import { ScvdMember } from './model/scvd-member';
 import { ScvdVar } from './model/scvd-var';
-import { perfEnd, perfStart } from './perf-stats';
+import { perfEnd, perfStart, recordPrintfCacheHit, recordPrintfCacheMiss, recordPrintfSpec, recordPrintfValueType } from './perf-stats';
 
 export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicProvider {
     private static readonly INVALID_ADDR_MIN = 0xFFFFFFF0;
@@ -32,6 +32,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     private _memHost: MemoryHost;
     private _debugTarget: ScvdDebugTarget;
     private _formatSpecifier: ScvdFormatSpecifier;
+    private _printfCache: Map<string, string> = new Map();
 
     constructor(
         memHost: MemoryHost,
@@ -59,6 +60,10 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
 
     private get formatSpecifier(): ScvdFormatSpecifier {
         return this._formatSpecifier;
+    }
+
+    public resetPrintfCache(): void {
+        this._printfCache.clear();
     }
 
     private normalizeScalarType(raw: string | ScalarType | undefined): ScalarType | undefined {
@@ -269,7 +274,12 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     /* ---------------- Intrinsics ---------------- */
 
     public async __FindSymbol(symbolName: string): Promise<number | undefined> {
-        return this.findSymbolAddressNormalized(symbolName);
+        const perfStartTime = perfStart();
+        try {
+            return this.findSymbolAddressNormalized(symbolName);
+        } finally {
+            perfEnd(perfStartTime, 'symbolFindMs', 'symbolFindCalls');
+        }
     }
 
     public async __GetRegVal(regName: string): Promise<number | bigint | undefined> {
@@ -312,25 +322,35 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
 
     // Number of elements of an array defined by a symbol in user application.
     public async __size_of(symbol: string): Promise<number | undefined> {
-        const sizeBytes = await this.debugTarget.getSymbolSize(symbol);
-        if (sizeBytes !== undefined) {
-            return sizeBytes;
+        const perfStartTime = perfStart();
+        try {
+            const sizeBytes = await this.debugTarget.getSymbolSize(symbol);
+            if (sizeBytes !== undefined) {
+                return sizeBytes;
+            }
+            // Legacy fallback: try array element count if size is unavailable
+            const arrayElements = await this.debugTarget.getNumArrayElements(symbol);
+            if (arrayElements !== undefined) {
+                return arrayElements;
+            }
+            return undefined;
+        } finally {
+            perfEnd(perfStartTime, 'symbolSizeMs', 'symbolSizeCalls');
         }
-        // Legacy fallback: try array element count if size is unavailable
-        const arrayElements = await this.debugTarget.getNumArrayElements(symbol);
-        if (arrayElements !== undefined) {
-            return arrayElements;
-        }
-        return undefined;
     }
 
     public async __Offset_of(container: RefContainer, typedefMember: string): Promise<number | undefined> {
-        const memberRef = container.base.getMember(typedefMember);
-        if (memberRef) {
-            const offset = await memberRef.getMemberOffset();
-            return offset;
+        const perfStartTime = perfStart();
+        try {
+            const memberRef = container.base.getMember(typedefMember);
+            if (memberRef) {
+                const offset = await memberRef.getMemberOffset();
+                return offset;
+            }
+            return undefined;
+        } finally {
+            perfEnd(perfStartTime, 'symbolOffsetMs', 'symbolOffsetCalls');
         }
-        return undefined;
     }
 
     public async __Running(): Promise<number | undefined> {
@@ -361,6 +381,8 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
 
     public async formatPrintf(spec: FormatSegment['spec'], value: EvalValue, container: RefContainer): Promise<string | undefined> {
         const perfStartTime = perfStart();
+        recordPrintfSpec(spec);
+        recordPrintfValueType(value);
         try {
         const base = container.current;
         const formatRef = container.origin ?? base;
@@ -379,6 +401,29 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
             }
             return NaN;
         };
+
+        const cacheableNumber =
+            (spec === 'd' || spec === 'u' || spec === 'x') &&
+            (typeof value === 'number' ? Number.isFinite(value) : typeof value === 'bigint');
+        const cacheableText = spec === 't' && typeof value === 'string';
+        if (cacheableNumber) {
+            const numericValue = value as number | bigint;
+            const key = this.makePrintfCacheKey(spec, numericValue, typeInfo);
+            const cached = this._printfCache.get(key);
+            if (cached !== undefined) {
+                recordPrintfCacheHit();
+                return cached;
+            }
+            recordPrintfCacheMiss();
+        } else if (cacheableText) {
+            const key = this.makePrintfTextCacheKey(spec, value);
+            const cached = this._printfCache.get(key);
+            if (cached !== undefined) {
+                recordPrintfCacheHit();
+                return cached;
+            }
+            recordPrintfCacheMiss();
+        }
 
         switch (spec) {
             case 'C': {
@@ -409,11 +454,24 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                     ? await (memberItem?.getEnum(value) ?? varItem?.getEnum(value))
                     : undefined;
                 const enumStr = await enumItem?.getGuiName();
+                if (typeof value === 'number' && enumStr !== undefined) {
+                    const enumKey = this.makePrintfCacheKey('E', value, typeInfo, enumStr);
+                    const cached = this._printfCache.get(enumKey);
+                    if (cached !== undefined) {
+                        recordPrintfCacheHit();
+                        return cached;
+                    }
+                    recordPrintfCacheMiss();
+                }
                 const opts: { typeInfo: FormatTypeInfo; allowUnknownSpec: true; enumText?: string } = { typeInfo, allowUnknownSpec: true };
                 if (enumStr !== undefined) {
                     opts.enumText = enumStr;
                 }
-                return this.formatSpecifier.format(spec, value, opts);
+                const formatted = this.formatSpecifier.format(spec, value, opts);
+                if (typeof value === 'number' && enumStr !== undefined) {
+                    this._printfCache.set(this.makePrintfCacheKey('E', value, typeInfo, enumStr), formatted);
+                }
+                return formatted;
             }
             case 'I': {
                 if (value instanceof Uint8Array) {
@@ -440,7 +498,9 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                 if (typeof n === 'number') {
                     n = Math.trunc(n);
                 }
-                return this.formatSpecifier.format(spec, n, { typeInfo, allowUnknownSpec: true });
+                const formatted = this.formatSpecifier.format(spec, n, { typeInfo, allowUnknownSpec: true });
+                this.storePrintfCache(spec, value, typeInfo, formatted);
+                return formatted;
             }
             case 'N': {
                 if (typeof value === 'number' && Number.isInteger(value)) {
@@ -462,7 +522,9 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                     return next;
                 };
                 if (typeof value === 'string') {
-                    return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+                    const formatted = this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+                    this.storePrintfTextCache(spec, value, formatted);
+                    return formatted;
                 }
                 if (value instanceof Uint8Array) {
                     return this.formatSpecifier.format(spec, ensureNullTerminated(value), { typeInfo, allowUnknownSpec: true });
@@ -522,11 +584,42 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                 return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
             }
             default: {
-                return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+                const formatted = this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+                this.storePrintfCache(spec, value, typeInfo, formatted);
+                return formatted;
             }
         }
         } finally {
             perfEnd(perfStartTime, 'printfMs', 'printfCalls');
+        }
+    }
+
+    private makePrintfCacheKey(spec: string, value: number | bigint, typeInfo: FormatTypeInfo, suffix?: string): string {
+        const bits = typeInfo.bits ?? 0;
+        const kind = typeInfo.kind ?? 'unknown';
+        const extra = suffix ? `:${suffix}` : '';
+        return `${spec}:${kind}:${bits}:${value.toString()}${extra}`;
+    }
+
+    private storePrintfCache(spec: string, value: EvalValue, typeInfo: FormatTypeInfo, formatted: string): void {
+        if (
+            (spec === 'd' || spec === 'u' || spec === 'x') &&
+            (typeof value === 'number' ? Number.isFinite(value) : typeof value === 'bigint')
+        ) {
+            const numericValue = value as number | bigint;
+            const key = this.makePrintfCacheKey(spec, numericValue, typeInfo);
+            this._printfCache.set(key, formatted);
+        }
+    }
+
+    private makePrintfTextCacheKey(spec: string, value: string): string {
+        return `${spec}:text:${value}`;
+    }
+
+    private storePrintfTextCache(spec: string, value: string, formatted: string): void {
+        if (spec === 't') {
+            const key = this.makePrintfTextCacheKey(spec, value);
+            this._printfCache.set(key, formatted);
         }
     }
 }

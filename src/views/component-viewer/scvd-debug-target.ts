@@ -15,6 +15,7 @@
  */
 
 import { ComponentViewerTargetAccess } from './component-viewer-target-access';
+import { perfEnd, perfStart } from './perf-stats';
 import { TargetReadCache } from './target-read-cache';
 import { TargetReadCacheStats, TargetReadStats } from './target-read-stats';
 import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-session';
@@ -300,20 +301,26 @@ export class ScvdDebugTarget {
         if (ScvdDebugTarget.TARGET_READ_CACHE_ENABLED && normalized !== undefined) {
             this.targetReadStats.recordRequest();
             this.targetReadCache.recordRequestRange(normalized, size);
+            const hitStart = perfStart();
             const cached = this.targetReadCache.read(normalized, size);
             if (cached) {
+                perfEnd(hitStart, 'targetReadCacheHitMs', 'targetReadCacheHitCalls');
                 return cached;
             }
+            const missStart = perfStart();
             const missing = this.targetReadCache.getMissingRanges(normalized, size);
             for (const range of missing) {
                 const data = await this.readMemoryFromTarget(range.start, range.size);
                 if (!data) {
+                    perfEnd(missStart, 'targetReadCacheMissMs', 'targetReadCacheMissCalls');
                     return undefined;
                 }
                 this.targetReadStats.recordMissRead();
                 this.targetReadCache.write(range.start, data);
             }
-            return this.targetReadCache.read(normalized, size);
+            const filled = this.targetReadCache.read(normalized, size);
+            perfEnd(missStart, 'targetReadCacheMissMs', 'targetReadCacheMissCalls');
+            return filled;
         }
         return this.readMemoryFromTarget(address, size);
     }
@@ -323,22 +330,27 @@ export class ScvdDebugTarget {
             return undefined;
         }
 
+        const perfStartTime = perfStart();
         const timingStart = ScvdDebugTarget.TIMING_ENABLED ? Date.now() : 0;
         const dataAsString = await this.targetAccess.evaluateMemory(address.toString(), size, 0);
         if (typeof dataAsString !== 'string') {
+            perfEnd(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
             return undefined;
         }
         // if data is returned as error message string
         if (dataAsString.startsWith('Unable')) {
+            perfEnd(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
             return undefined;
         }
         if (!isLikelyBase64(dataAsString)) {
             console.error(`ScvdDebugTarget.readMemory: invalid base64 data for address ${address.toString()}`);
+            perfEnd(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
             return undefined;
         }
         // Convert String data to Uint8Array
         const byteArray = this.decodeGdbData(dataAsString);
         if (byteArray === undefined) {
+            perfEnd(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
             return undefined;
         }
 
@@ -351,6 +363,7 @@ export class ScvdDebugTarget {
             this.readStats.maxMs = Math.max(this.readStats.maxMs, elapsed);
             // Aggregate stats are reported after statement execution; avoid per-read logging.
         }
+        perfEnd(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
         return result;
     }
 

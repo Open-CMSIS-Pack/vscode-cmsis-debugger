@@ -56,7 +56,7 @@ import {
 import type { DataAccessHost, EvalValue, ModelHost, RefContainer, ScalarKind, ScalarType } from './model-host';
 import type { IntrinsicProvider } from './intrinsics';
 import { handleIntrinsic, handlePseudoMember, INTRINSIC_DEFINITIONS, IntrinsicName, isIntrinsicName } from './intrinsics';
-import { perfEnd, perfStart } from '../perf-stats';
+import { perfEnd, perfStart, recordEvalNodeKind } from '../perf-stats';
 
 /* =============================================================================
  * Public API
@@ -476,6 +476,7 @@ export class Evaluator {
     }
 
     private async evalArgsForIntrinsic(name: IntrinsicName, rawArgs: ASTNode[], ctx: EvalContext): Promise<EvalValue[] | undefined> {
+        const perfStartTime = perfStart();
         // INTRINSIC_DEFINITIONS is a trusted static map.
         // eslint-disable-next-line security/detect-object-injection
         const needsName = INTRINSIC_DEFINITIONS[name]?.expectsNameArg === true;
@@ -510,9 +511,11 @@ export class Evaluator {
             }
             // Make the failure explicit; this avoids silently passing evaluated values like 0.
             this.recordMessage(`${name} expects identifier/string for argument ${idx + 1}, got ${arg.kind}`);
+            perfEnd(perfStartTime, 'evalIntrinsicArgsMs', 'evalIntrinsicArgsCalls');
             return undefined;
         }
 
+        perfEnd(perfStartTime, 'evalIntrinsicArgsMs', 'evalIntrinsicArgsCalls');
         return resolved;
     }
 
@@ -799,6 +802,7 @@ export class Evaluator {
     }
 
     public async evalNode(node: ASTNode, ctx: EvalContext): Promise<EvalValue> {
+        recordEvalNodeKind(node.kind);
         switch (node.kind) {
             case 'NumberLiteral':  return (node as NumberLiteral).value;
             case 'StringLiteral':  return (node as StringLiteral).value;

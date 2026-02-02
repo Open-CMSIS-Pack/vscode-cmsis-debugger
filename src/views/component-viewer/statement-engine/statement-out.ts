@@ -18,6 +18,7 @@ import { ScvdNode } from '../model/scvd-node';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
 import { StatementBase } from './statement-base';
+import { recordGuiOutNode } from '../perf-stats';
 
 
 export class StatementOut extends StatementBase {
@@ -34,6 +35,7 @@ export class StatementOut extends StatementBase {
 
         const guiName = await this.getGuiNamePerf();
         const childGuiTree = this.getOrCreateGuiChild(guiTree, guiName);
+        recordGuiOutNode();
         childGuiTree.setGuiName(guiName);
 
         if (this.children.length > 0) {

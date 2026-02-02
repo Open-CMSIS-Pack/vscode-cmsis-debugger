@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { perfEnd, perfStart } from './perf-stats';
 import type { TargetReadStats } from './target-read-stats';
 
 type TargetReadSegment = { start: number; data: Uint8Array };
@@ -40,9 +41,11 @@ export class TargetReadCache {
         }
         const merged = this.mergeRanges(this.prevRequestedRanges, TargetReadCache.PREFETCH_GAP);
         for (const range of merged) {
+            const perfStartTime = perfStart();
             const fetchStart = Date.now();
             const data = await fetcher(range.start, range.size);
             stats?.recordPrefetchTime(Date.now() - fetchStart);
+            perfEnd(perfStartTime, 'targetReadPrefetchMs', 'targetReadPrefetchCalls');
             if (!data) {
                 continue;
             }

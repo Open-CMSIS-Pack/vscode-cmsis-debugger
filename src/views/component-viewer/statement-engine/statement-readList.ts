@@ -19,6 +19,7 @@ import { ScvdReadList } from '../model/scvd-readlist';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
 import { StatementBase } from './statement-base';
+import { perfEnd, perfStart } from '../perf-stats';
 
 type ResolvedReadList = {
     itemName: string;
@@ -169,10 +170,12 @@ export class StatementReadList extends StatementBase {
         }
 
         const count = await scvdReadList.getCount();  // Number of list items to read, default is 1. Limited to 1..1024 in ScvdExpression.
+        const resolveStart = perfStart();
         const resolved = await this.resolveReadList(scvdReadList, executionContext, true, {
             includeMaxArraySize: count === undefined || count > 1,
             ...(count !== undefined ? { count } : {})
         });
+        perfEnd(resolveStart, 'readListResolveMs', 'readListResolveCalls');
         if (!resolved) {
             return;
         }
@@ -235,6 +238,7 @@ export class StatementReadList extends StatementBase {
         let didBatchRead = false;
 
         if (shouldBatchRead) {
+            const batchStart = perfStart();
             const baseNum = typeof baseAddress === 'bigint' ? baseAddress : BigInt(baseAddress >>> 0);
             const totalBytes = count * readBytes;
             const readData = await executionContext.debugTarget.readMemory(baseNum, totalBytes);
@@ -257,6 +261,7 @@ export class StatementReadList extends StatementBase {
                     }
                     if (requests.length > 0) {
                         const results = await executionContext.debugTarget.readMemoryBatch(requests);
+                        const storeStart = perfStart();
                         for (const req of requests) {
                             const itemData = results.get(req.key);
                             if (!itemData) {
@@ -273,8 +278,10 @@ export class StatementReadList extends StatementBase {
                                 isConst ? true : undefined
                             );
                         }
+                        perfEnd(storeStart, 'readListStoreMs', 'readListStoreCalls');
                     }
                 } else {
+                    const storeStart = perfStart();
                     for (let readIdx = 0; readIdx < count; readIdx++) {
                         const itemOffset = readIdx * readBytes;
                         const itemData = readData.subarray(itemOffset, itemOffset + readBytes);
@@ -289,12 +296,15 @@ export class StatementReadList extends StatementBase {
                             isConst ? true : undefined
                         );
                     }
+                    perfEnd(storeStart, 'readListStoreMs', 'readListStoreCalls');
                 }
                 didBatchRead = true;
             }
+            perfEnd(batchStart, 'readListBatchMs', 'readListBatchCalls');
         }
 
         if (!didBatchRead) {
+            const loopStart = perfStart();
             let readIdx = 0;
             while (nextPtrAddr !== undefined) {
                 const itemAddress: number | bigint | undefined = typeof nextPtrAddr === 'bigint' ? nextPtrAddr : (nextPtrAddr >>> 0);
@@ -316,6 +326,7 @@ export class StatementReadList extends StatementBase {
                         console.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, address: ${addr}, size: ${targetSize} bytes, read target memory failed`);
                         break;
                     }
+                    const storeStart = perfStart();
                     executionContext.memoryHost.setVariable(
                         itemName,
                         targetSize,
@@ -325,8 +336,10 @@ export class StatementReadList extends StatementBase {
                         virtualSize,
                         isConst ? true : undefined
                     );
+                    perfEnd(storeStart, 'readListStoreMs', 'readListStoreCalls');
                 } else {
                     // Store in memory host
+                    const storeStart = perfStart();
                     executionContext.memoryHost.setVariable(
                         itemName,
                         readBytes,
@@ -336,6 +349,7 @@ export class StatementReadList extends StatementBase {
                         virtualBytes,
                         isConst ? true : undefined
                     );
+                    perfEnd(storeStart, 'readListStoreMs', 'readListStoreCalls');
                 }
                 readIdx ++;
 
@@ -381,6 +395,7 @@ export class StatementReadList extends StatementBase {
                     break;
                 }
             }
+            perfEnd(loopStart, 'readListLoopMs', 'readListLoopCalls');
         }
 
         if (isConst) {   // Mark variable as already initialized

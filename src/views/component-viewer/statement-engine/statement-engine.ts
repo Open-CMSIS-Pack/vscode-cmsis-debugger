@@ -165,6 +165,8 @@ export class StatementEngine {
         // This is a placeholder implementation.
 
         this._executionContext.memoryHost.clearNonConst();
+        const evalHost = this._executionContext.evalContext.data as { resetPrintfCache?: () => void };
+        evalHost.resetPrintfCache?.();
 
         const timingStart = StatementEngine.TIMING_ENABLED ? Date.now() : 0;
         if (StatementEngine.TIMING_ENABLED) {
