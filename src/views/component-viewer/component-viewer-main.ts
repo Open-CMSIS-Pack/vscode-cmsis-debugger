@@ -39,7 +39,7 @@ export class ComponentViewer {
     private _updateQueue: UpdateQueueItem[] = [];
     private _pendingUpdateTimer: NodeJS.Timeout | undefined;
     private _pendingUpdate: boolean = false;
-    private _runningUpdate: boolean = true;
+    private _runningUpdate: boolean = false;
     private static readonly pendingUpdateDelayMs = 200;
 
     public constructor(context: vscode.ExtensionContext) {
