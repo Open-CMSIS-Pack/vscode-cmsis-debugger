@@ -69,7 +69,7 @@ import type { ExtensionContext } from 'vscode';
 import * as vscode from 'vscode';
 import type { GDBTargetDebugTracker } from '../../../../debug-session';
 import { logger } from '../../../../logger';
-import { ComponentViewer } from '../../component-viewer-main';
+import { ComponentViewer, fifoUpdateReason } from '../../component-viewer-main';
 
 // Local test mocks
 
@@ -299,9 +299,9 @@ describe('ComponentViewer', () => {
         jest.useFakeTimers();
         const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
         const runUpdateIfIdle = jest
-            .spyOn(controller as unknown as { runUpdateIfIdle: (reason: 'sessionChanged' | 'refreshTimer' | 'stackTrace') => Promise<void> }, 'runUpdateIfIdle')
+            .spyOn(controller as unknown as { runUpdateIfIdle: (reason: fifoUpdateReason) => Promise<void> }, 'runUpdateIfIdle')
             .mockResolvedValue(undefined);
-        const schedulePendingUpdate = (controller as unknown as { schedulePendingUpdate: (reason: 'sessionChanged' | 'refreshTimer' | 'stackTrace') => void }).schedulePendingUpdate.bind(controller);
+        const schedulePendingUpdate = (controller as unknown as { schedulePendingUpdate: (reason: fifoUpdateReason) => void }).schedulePendingUpdate.bind(controller);
 
         schedulePendingUpdate('stackTrace');
         schedulePendingUpdate('stackTrace');
@@ -315,10 +315,10 @@ describe('ComponentViewer', () => {
     it('re-queues updates when one is already in flight', async () => {
         jest.useFakeTimers();
         const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
-        const schedulePendingUpdate = jest.spyOn(controller as unknown as { schedulePendingUpdate: (reason: 'sessionChanged' | 'refreshTimer' | 'stackTrace') => void }, 'schedulePendingUpdate');
+        const schedulePendingUpdate = jest.spyOn(controller as unknown as { schedulePendingUpdate: (reason: fifoUpdateReason) => void }, 'schedulePendingUpdate');
 
         (controller as unknown as { _updateInFlight: boolean })._updateInFlight = true;
-        const runUpdateIfIdle = (controller as unknown as { runUpdateIfIdle: (reason: 'sessionChanged' | 'refreshTimer' | 'stackTrace') => Promise<void> }).runUpdateIfIdle.bind(controller);
+        const runUpdateIfIdle = (controller as unknown as { runUpdateIfIdle: (reason: fifoUpdateReason) => Promise<void> }).runUpdateIfIdle.bind(controller);
 
         await runUpdateIfIdle('stackTrace');
         expect(schedulePendingUpdate).toHaveBeenCalledWith('stackTrace');
@@ -328,9 +328,9 @@ describe('ComponentViewer', () => {
     it('runs update immediately when idle', async () => {
         const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
         const runUpdateOnce = jest
-            .spyOn(controller as unknown as { runUpdateOnce: (reason: 'sessionChanged' | 'refreshTimer' | 'stackTrace') => Promise<void> }, 'runUpdateOnce')
+            .spyOn(controller as unknown as { runUpdateOnce: (reason: fifoUpdateReason) => Promise<void> }, 'runUpdateOnce')
             .mockResolvedValue(undefined);
-        const runUpdateIfIdle = (controller as unknown as { runUpdateIfIdle: (reason: 'sessionChanged' | 'refreshTimer' | 'stackTrace') => Promise<void> }).runUpdateIfIdle.bind(controller);
+        const runUpdateIfIdle = (controller as unknown as { runUpdateIfIdle: (reason: fifoUpdateReason) => Promise<void> }).runUpdateIfIdle.bind(controller);
 
         await runUpdateIfIdle('stackTrace');
         expect(runUpdateOnce).toHaveBeenCalledWith('stackTrace');
@@ -338,13 +338,10 @@ describe('ComponentViewer', () => {
 
     it('clears in-flight flag even when updateInstances throws', async () => {
         const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
-        type UpdateReason = Parameters<
-            (typeof controller) extends { updateInstances: (reason: infer R) => Promise<void> } ? (reason: R) => Promise<void> : never
-        >[0];
-        (controller as unknown as { updateInstances: (reason: UpdateReason) => Promise<void> }).updateInstances = jest.fn().mockRejectedValue(new Error('fail'));
-        const runUpdateOnce = (controller as unknown as { runUpdateOnce: (reason: UpdateReason) => Promise<void> }).runUpdateOnce.bind(controller);
+        (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances = jest.fn().mockRejectedValue(new Error('fail'));
+        const runUpdateOnce = (controller as unknown as { runUpdateOnce: (reason: fifoUpdateReason) => Promise<void> }).runUpdateOnce.bind(controller);
 
-        await expect(runUpdateOnce('stackTrace' as UpdateReason)).rejects.toThrow('fail');
+        await expect(runUpdateOnce('stackTrace')).rejects.toThrow('fail');
         expect((controller as unknown as { _updateInFlight: boolean })._updateInFlight).toBe(false);
     });
 
@@ -352,7 +349,7 @@ describe('ComponentViewer', () => {
         const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
         const session = makeSession('s1', []);
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
-        (controller as unknown as { _updateFifo: unknown[] })._updateFifo = [{ updateId: 1 }];
+        (controller as unknown as { _updateQueue: unknown[] })._updateQueue = [{ updateId: 1 }];
         (controller as unknown as { _isFirstUpdate: boolean })._isFirstUpdate = false;
 
         const handleOnWillStopSession = (controller as unknown as { handleOnWillStopSession: (s: Session) => Promise<void> }).handleOnWillStopSession.bind(controller);

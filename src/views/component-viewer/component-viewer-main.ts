@@ -22,7 +22,7 @@ import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
 import { logger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 
-type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace';
+export type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace';
 interface UpdateQueueItem {
     updateId: number;
     debugSession: GDBTargetDebugSession;
