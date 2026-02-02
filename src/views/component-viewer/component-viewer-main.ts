@@ -22,7 +22,7 @@ import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
 import { logger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 
-export type fifoUpdateReason = 'refreshTimer' | 'stackTrace';
+export type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace';
 interface UpdateQueueItem {
     updateId: number;
     debugSession: GDBTargetDebugSession;
@@ -166,6 +166,7 @@ export class ComponentViewer {
         }
         // update active debug session for all instances
         this._instances.forEach((instance) => instance.updateActiveSession(session));
+        this.schedulePendingUpdate('sessionChanged');
     }
 
     private schedulePendingUpdate(updateReason: fifoUpdateReason): void {
@@ -175,18 +176,23 @@ export class ComponentViewer {
         }
         this._pendingUpdateTimer = setTimeout(() => {
             this._pendingUpdateTimer = undefined;
-            void this.runCoalescingUpdateIfIdle(updateReason);
+            void this.runUpdate(updateReason);
         }, ComponentViewer.pendingUpdateDelayMs);
     }
 
-    private async runCoalescingUpdateIfIdle(updateReason: fifoUpdateReason): Promise<void> {
+    private async runUpdate(updateReason: fifoUpdateReason): Promise<void> {
         if (this._runningUpdate) {
             return;
         }
         this._runningUpdate = true;
         while (this._pendingUpdate) {
             this._pendingUpdate = false;
+            try {
             await this.updateInstances(updateReason);
+            } finally {
+                this._runningUpdate = false;
+                logger.error('Component Viewer: Error during update');
+            }
         }
         this._runningUpdate = false;
     }
