@@ -18,6 +18,7 @@
 
 
 import { NumberType, NumFormat } from './number-type';
+import { perfEnd, perfStart } from '../perf-stats';
 
 export type FormatKind = 'int' | 'uint' | 'float' | 'unknown';
 export interface FormatTypeInfo {
@@ -121,6 +122,8 @@ export class ScvdFormatSpecifier {
      * All data fetching and symbol/memory lookups should happen before calling this.
      */
     public format(spec: string, value: unknown, options?: FormatOptions): string {
+        const perfStartTime = perfStart();
+        try {
         const typeInfo = options?.typeInfo;
         const enumText = options?.enumText;
         const padHex = options?.padHex ?? false;
@@ -240,6 +243,9 @@ export class ScvdFormatSpecifier {
                 }
                 return String(value);
             }
+        }
+        } finally {
+            perfEnd(perfStartTime, 'formatMs', 'formatCalls');
         }
     }
 

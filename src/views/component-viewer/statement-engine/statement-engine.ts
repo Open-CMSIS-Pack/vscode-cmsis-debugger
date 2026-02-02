@@ -29,7 +29,7 @@ import { ScvdReadList } from '../model/scvd-readlist';
 import { ScvdVar } from '../model/scvd-var';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
-import { formatPerfSummary, resetPerfStats, setPerfEnabled } from '../perf-stats';
+import { formatPerfSummary, resetPerfBackendStats, setPerfBackendEnabled } from '../perf-stats';
 import { StatementBase } from './statement-base';
 import { StatementBreak } from './statement-break';
 import { StatementCalc } from './statement-calc';
@@ -168,8 +168,8 @@ export class StatementEngine {
 
         const timingStart = StatementEngine.TIMING_ENABLED ? Date.now() : 0;
         if (StatementEngine.TIMING_ENABLED) {
-            setPerfEnabled(true);
-            resetPerfStats();
+            setPerfBackendEnabled(true);
+            resetPerfBackendStats();
             await this._executionContext.debugTarget.beginUpdateCycle();
             this._executionContext.debugTarget.resetReadStats();
         }
@@ -187,7 +187,7 @@ export class StatementEngine {
             const perfSummary = formatPerfSummary();
             logger.appendLine(perfSummary);
             console.log(perfSummary);
-            setPerfEnabled(false);
+            setPerfBackendEnabled(false);
         }
     }
 
