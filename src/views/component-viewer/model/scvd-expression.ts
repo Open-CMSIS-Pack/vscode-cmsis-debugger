@@ -73,7 +73,7 @@ export class ScvdExpression extends ScvdNode {
         return this._executionContext.evaluator.evaluateParseResult(this.expressionAst, this._executionContext.evalContext);
     }
 
-    public override async getValue(): Promise<EvaluateResult> {
+    public override getValue(): Promise<EvaluateResult> {
         return this.evaluate();
     }
 

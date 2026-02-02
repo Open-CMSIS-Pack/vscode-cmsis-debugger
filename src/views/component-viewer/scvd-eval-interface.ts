@@ -33,6 +33,8 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     private _debugTarget: ScvdDebugTarget;
     private _formatSpecifier: ScvdFormatSpecifier;
     private _printfCache: Map<string, string> = new Map();
+    private _symbolRefCache: Map<ScvdNode, Map<string, ScvdNode | undefined>> = new Map();
+    private _byteWidthCache: Map<ScvdNode, number> = new Map();
 
     constructor(
         memHost: MemoryHost,
@@ -64,6 +66,12 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
 
     public resetPrintfCache(): void {
         this._printfCache.clear();
+    }
+
+    public resetEvalCaches(): void {
+        this._printfCache.clear();
+        this._symbolRefCache.clear();
+        this._byteWidthCache.clear();
     }
 
     private normalizeScalarType(raw: string | ScalarType | undefined): ScalarType | undefined {
@@ -171,7 +179,17 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
 
     // ---------------- Host Interface: model + data access ----------------
     public async getSymbolRef(container: RefContainer, name: string, _forWrite?: boolean): Promise<ScvdNode | undefined> {
-        return container.base.getSymbol?.(name);
+        let baseCache = this._symbolRefCache.get(container.base);
+        if (!baseCache) {
+            baseCache = new Map();
+            this._symbolRefCache.set(container.base, baseCache);
+        }
+        if (baseCache.has(name)) {
+            return baseCache.get(name);
+        }
+        const ref = container.base.getSymbol?.(name);
+        baseCache.set(name, ref);
+        return ref;
     }
 
     public async getMemberRef(container: RefContainer, property: string, _forWrite?: boolean): Promise<ScvdNode | undefined> {
@@ -191,8 +209,12 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     // Returns the byte width of a ref (scalars, structs, arrays – host-defined).
     // getTargetSize, getTypeSize, getVirtualSize
     public async getByteWidth(ref: ScvdNode): Promise<number | undefined> {
+        if (this._byteWidthCache.has(ref)) {
+            return this._byteWidthCache.get(ref);
+        }
         const isPointer = ref.getIsPointer();
         if (isPointer) {
+            this._byteWidthCache.set(ref, 4);
             return 4;   // pointer size
         }
         const size = await ref.getTargetSize();
@@ -200,6 +222,9 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
 
         if (size !== undefined) {
             const width = numOfElements ? size * numOfElements : size;
+            if (width > 0) {
+                this._byteWidthCache.set(ref, width);
+            }
             return width;
         }
         console.error(`ScvdEvalInterface.getByteWidth: size undefined for ${ref.getDisplayLabel()}`);

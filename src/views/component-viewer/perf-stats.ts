@@ -21,6 +21,26 @@ export type BackendPerfStats = {
     evalCalls: number;
     evalIntrinsicArgsMs: number;
     evalIntrinsicArgsCalls: number;
+    evalMustRefMs: number;
+    evalMustRefCalls: number;
+    evalMustReadMs: number;
+    evalMustReadCalls: number;
+    evalMustRefIdentifierMs: number;
+    evalMustRefIdentifierCalls: number;
+    evalMustRefMemberMs: number;
+    evalMustRefMemberCalls: number;
+    evalMustRefArrayMs: number;
+    evalMustRefArrayCalls: number;
+    evalHostGetSymbolRefMs: number;
+    evalHostGetSymbolRefCalls: number;
+    evalHostGetMemberRefMs: number;
+    evalHostGetMemberRefCalls: number;
+    evalHostGetElementRefMs: number;
+    evalHostGetElementRefCalls: number;
+    evalHostGetElementStrideMs: number;
+    evalHostGetElementStrideCalls: number;
+    evalHostGetByteWidthMs: number;
+    evalHostGetByteWidthCalls: number;
     evalReadMs: number;
     evalReadCalls: number;
     evalWriteMs: number;
@@ -39,6 +59,11 @@ export type BackendPerfStats = {
     printfCalls: number;
     printfCacheHits: number;
     printfCacheMiss: number;
+    evalNodeIdentifierMs: number;
+    evalNodeMemberMs: number;
+    evalNodeArrayMs: number;
+    evalNodeBinaryMs: number;
+    evalNodePrintfMs: number;
     readListResolveMs: number;
     readListResolveCalls: number;
     readListBatchMs: number;
@@ -113,6 +138,16 @@ export type UiPerfStats = {
 type BackendPerfMsKey =
     | 'evalMs'
     | 'evalIntrinsicArgsMs'
+    | 'evalMustRefMs'
+    | 'evalMustReadMs'
+    | 'evalMustRefIdentifierMs'
+    | 'evalMustRefMemberMs'
+    | 'evalMustRefArrayMs'
+    | 'evalHostGetSymbolRefMs'
+    | 'evalHostGetMemberRefMs'
+    | 'evalHostGetElementRefMs'
+    | 'evalHostGetElementStrideMs'
+    | 'evalHostGetByteWidthMs'
     | 'evalReadMs'
     | 'evalWriteMs'
     | 'formatMs'
@@ -121,6 +156,11 @@ type BackendPerfMsKey =
     | 'guiTreeMs'
     | 'guiTreeDetachMs'
     | 'printfMs'
+    | 'evalNodeIdentifierMs'
+    | 'evalNodeMemberMs'
+    | 'evalNodeArrayMs'
+    | 'evalNodeBinaryMs'
+    | 'evalNodePrintfMs'
     | 'readListResolveMs'
     | 'readListBatchMs'
     | 'readListLoopMs'
@@ -135,6 +175,16 @@ type BackendPerfMsKey =
 type BackendPerfCallsKey =
     | 'evalCalls'
     | 'evalIntrinsicArgsCalls'
+    | 'evalMustRefCalls'
+    | 'evalMustReadCalls'
+    | 'evalMustRefIdentifierCalls'
+    | 'evalMustRefMemberCalls'
+    | 'evalMustRefArrayCalls'
+    | 'evalHostGetSymbolRefCalls'
+    | 'evalHostGetMemberRefCalls'
+    | 'evalHostGetElementRefCalls'
+    | 'evalHostGetElementStrideCalls'
+    | 'evalHostGetByteWidthCalls'
     | 'evalReadCalls'
     | 'evalWriteCalls'
     | 'formatCalls'
@@ -166,6 +216,26 @@ const backendStats: BackendPerfStats = {
     evalCalls: 0,
     evalIntrinsicArgsMs: 0,
     evalIntrinsicArgsCalls: 0,
+    evalMustRefMs: 0,
+    evalMustRefCalls: 0,
+    evalMustReadMs: 0,
+    evalMustReadCalls: 0,
+    evalMustRefIdentifierMs: 0,
+    evalMustRefIdentifierCalls: 0,
+    evalMustRefMemberMs: 0,
+    evalMustRefMemberCalls: 0,
+    evalMustRefArrayMs: 0,
+    evalMustRefArrayCalls: 0,
+    evalHostGetSymbolRefMs: 0,
+    evalHostGetSymbolRefCalls: 0,
+    evalHostGetMemberRefMs: 0,
+    evalHostGetMemberRefCalls: 0,
+    evalHostGetElementRefMs: 0,
+    evalHostGetElementRefCalls: 0,
+    evalHostGetElementStrideMs: 0,
+    evalHostGetElementStrideCalls: 0,
+    evalHostGetByteWidthMs: 0,
+    evalHostGetByteWidthCalls: 0,
     evalReadMs: 0,
     evalReadCalls: 0,
     evalWriteMs: 0,
@@ -184,6 +254,11 @@ const backendStats: BackendPerfStats = {
     printfCalls: 0,
     printfCacheHits: 0,
     printfCacheMiss: 0,
+    evalNodeIdentifierMs: 0,
+    evalNodeMemberMs: 0,
+    evalNodeArrayMs: 0,
+    evalNodeBinaryMs: 0,
+    evalNodePrintfMs: 0,
     readListResolveMs: 0,
     readListResolveCalls: 0,
     readListBatchMs: 0,
@@ -268,6 +343,26 @@ export function resetPerfBackendStats(): void {
     backendStats.evalCalls = 0;
     backendStats.evalIntrinsicArgsMs = 0;
     backendStats.evalIntrinsicArgsCalls = 0;
+    backendStats.evalMustRefMs = 0;
+    backendStats.evalMustRefCalls = 0;
+    backendStats.evalMustReadMs = 0;
+    backendStats.evalMustReadCalls = 0;
+    backendStats.evalMustRefIdentifierMs = 0;
+    backendStats.evalMustRefIdentifierCalls = 0;
+    backendStats.evalMustRefMemberMs = 0;
+    backendStats.evalMustRefMemberCalls = 0;
+    backendStats.evalMustRefArrayMs = 0;
+    backendStats.evalMustRefArrayCalls = 0;
+    backendStats.evalHostGetSymbolRefMs = 0;
+    backendStats.evalHostGetSymbolRefCalls = 0;
+    backendStats.evalHostGetMemberRefMs = 0;
+    backendStats.evalHostGetMemberRefCalls = 0;
+    backendStats.evalHostGetElementRefMs = 0;
+    backendStats.evalHostGetElementRefCalls = 0;
+    backendStats.evalHostGetElementStrideMs = 0;
+    backendStats.evalHostGetElementStrideCalls = 0;
+    backendStats.evalHostGetByteWidthMs = 0;
+    backendStats.evalHostGetByteWidthCalls = 0;
     backendStats.evalReadMs = 0;
     backendStats.evalReadCalls = 0;
     backendStats.evalWriteMs = 0;
@@ -286,6 +381,11 @@ export function resetPerfBackendStats(): void {
     backendStats.printfCalls = 0;
     backendStats.printfCacheHits = 0;
     backendStats.printfCacheMiss = 0;
+    backendStats.evalNodeIdentifierMs = 0;
+    backendStats.evalNodeMemberMs = 0;
+    backendStats.evalNodeArrayMs = 0;
+    backendStats.evalNodeBinaryMs = 0;
+    backendStats.evalNodePrintfMs = 0;
     backendStats.readListResolveMs = 0;
     backendStats.readListResolveCalls = 0;
     backendStats.readListBatchMs = 0;
@@ -375,7 +475,7 @@ export function perfUiHasData(): boolean {
 
 export function formatPerfSummary(): string {
     const ms = (value: number) => Math.max(0, Math.floor(value));
-    return `[SCVD][perf] evalMs=${ms(backendStats.evalMs)} evalCalls=${backendStats.evalCalls} evalIntrinsicArgsMs=${ms(backendStats.evalIntrinsicArgsMs)} evalIntrinsicArgsCalls=${backendStats.evalIntrinsicArgsCalls} evalReadMs=${ms(backendStats.evalReadMs)} evalReadCalls=${backendStats.evalReadCalls} evalWriteMs=${ms(backendStats.evalWriteMs)} evalWriteCalls=${backendStats.evalWriteCalls} formatMs=${ms(backendStats.formatMs)} formatCalls=${backendStats.formatCalls} guiNameMs=${ms(backendStats.guiNameMs)} guiNameCalls=${backendStats.guiNameCalls} guiValueMs=${ms(backendStats.guiValueMs)} guiValueCalls=${backendStats.guiValueCalls} guiTreeMs=${ms(backendStats.guiTreeMs)} guiTreeCalls=${backendStats.guiTreeCalls} guiTreeDetachMs=${ms(backendStats.guiTreeDetachMs)} guiTreeDetachCalls=${backendStats.guiTreeDetachCalls} printfMs=${ms(backendStats.printfMs)} printfCalls=${backendStats.printfCalls} printfCacheHits=${backendStats.printfCacheHits} printfCacheMiss=${backendStats.printfCacheMiss} readListResolveMs=${ms(backendStats.readListResolveMs)} readListResolveCalls=${backendStats.readListResolveCalls} readListBatchMs=${ms(backendStats.readListBatchMs)} readListBatchCalls=${backendStats.readListBatchCalls} readListLoopMs=${ms(backendStats.readListLoopMs)} readListLoopCalls=${backendStats.readListLoopCalls} readListStoreMs=${ms(backendStats.readListStoreMs)} readListStoreCalls=${backendStats.readListStoreCalls} targetReadCacheHitMs=${ms(backendStats.targetReadCacheHitMs)} targetReadCacheHitCalls=${backendStats.targetReadCacheHitCalls} targetReadCacheMissMs=${ms(backendStats.targetReadCacheMissMs)} targetReadCacheMissCalls=${backendStats.targetReadCacheMissCalls} targetReadPrefetchMs=${ms(backendStats.targetReadPrefetchMs)} targetReadPrefetchCalls=${backendStats.targetReadPrefetchCalls} targetReadFromTargetMs=${ms(backendStats.targetReadFromTargetMs)} targetReadFromTargetCalls=${backendStats.targetReadFromTargetCalls} symbolFindMs=${ms(backendStats.symbolFindMs)} symbolFindCalls=${backendStats.symbolFindCalls} symbolSizeMs=${ms(backendStats.symbolSizeMs)} symbolSizeCalls=${backendStats.symbolSizeCalls} symbolOffsetMs=${ms(backendStats.symbolOffsetMs)} symbolOffsetCalls=${backendStats.symbolOffsetCalls} evalNodeIdentifierCalls=${backendStats.evalNodeIdentifierCalls} evalNodeMemberCalls=${backendStats.evalNodeMemberCalls} evalNodeArrayCalls=${backendStats.evalNodeArrayCalls} evalNodeCallCalls=${backendStats.evalNodeCallCalls} evalNodeEvalPointCalls=${backendStats.evalNodeEvalPointCalls} evalNodeUnaryCalls=${backendStats.evalNodeUnaryCalls} evalNodeUpdateCalls=${backendStats.evalNodeUpdateCalls} evalNodeBinaryCalls=${backendStats.evalNodeBinaryCalls} evalNodeConditionalCalls=${backendStats.evalNodeConditionalCalls} evalNodeAssignmentCalls=${backendStats.evalNodeAssignmentCalls} evalNodePrintfCalls=${backendStats.evalNodePrintfCalls} evalNodeFormatCalls=${backendStats.evalNodeFormatCalls} evalNodeTextCalls=${backendStats.evalNodeTextCalls} evalNodeLiteralCalls=${backendStats.evalNodeLiteralCalls} evalNodeOtherCalls=${backendStats.evalNodeOtherCalls} guiItemNodes=${backendStats.guiItemNodes} guiPrintNodes=${backendStats.guiPrintNodes} guiOutNodes=${backendStats.guiOutNodes} printfSpecD=${backendStats.printfSpecD} printfSpecU=${backendStats.printfSpecU} printfSpecX=${backendStats.printfSpecX} printfSpecT=${backendStats.printfSpecT} printfSpecC=${backendStats.printfSpecC} printfSpecS=${backendStats.printfSpecS} printfSpecE=${backendStats.printfSpecE} printfSpecI=${backendStats.printfSpecI} printfSpecJ=${backendStats.printfSpecJ} printfSpecN=${backendStats.printfSpecN} printfSpecM=${backendStats.printfSpecM} printfSpecTFloat=${backendStats.printfSpecTFloat} printfSpecUUint=${backendStats.printfSpecUUint} printfSpecPercent=${backendStats.printfSpecPercent} printfSpecOther=${backendStats.printfSpecOther} printfValueNumber=${backendStats.printfValueNumber} printfValueBigInt=${backendStats.printfValueBigInt} printfValueString=${backendStats.printfValueString} printfValueBytes=${backendStats.printfValueBytes} printfValueOther=${backendStats.printfValueOther}`;
+    return `[SCVD][perf] evalMs=${ms(backendStats.evalMs)} evalCalls=${backendStats.evalCalls} evalIntrinsicArgsMs=${ms(backendStats.evalIntrinsicArgsMs)} evalIntrinsicArgsCalls=${backendStats.evalIntrinsicArgsCalls} evalMustRefMs=${ms(backendStats.evalMustRefMs)} evalMustRefCalls=${backendStats.evalMustRefCalls} evalMustReadMs=${ms(backendStats.evalMustReadMs)} evalMustReadCalls=${backendStats.evalMustReadCalls} evalMustRefIdentifierMs=${ms(backendStats.evalMustRefIdentifierMs)} evalMustRefIdentifierCalls=${backendStats.evalMustRefIdentifierCalls} evalMustRefMemberMs=${ms(backendStats.evalMustRefMemberMs)} evalMustRefMemberCalls=${backendStats.evalMustRefMemberCalls} evalMustRefArrayMs=${ms(backendStats.evalMustRefArrayMs)} evalMustRefArrayCalls=${backendStats.evalMustRefArrayCalls} evalHostGetSymbolRefMs=${ms(backendStats.evalHostGetSymbolRefMs)} evalHostGetSymbolRefCalls=${backendStats.evalHostGetSymbolRefCalls} evalHostGetMemberRefMs=${ms(backendStats.evalHostGetMemberRefMs)} evalHostGetMemberRefCalls=${backendStats.evalHostGetMemberRefCalls} evalHostGetElementRefMs=${ms(backendStats.evalHostGetElementRefMs)} evalHostGetElementRefCalls=${backendStats.evalHostGetElementRefCalls} evalHostGetElementStrideMs=${ms(backendStats.evalHostGetElementStrideMs)} evalHostGetElementStrideCalls=${backendStats.evalHostGetElementStrideCalls} evalHostGetByteWidthMs=${ms(backendStats.evalHostGetByteWidthMs)} evalHostGetByteWidthCalls=${backendStats.evalHostGetByteWidthCalls} evalReadMs=${ms(backendStats.evalReadMs)} evalReadCalls=${backendStats.evalReadCalls} evalWriteMs=${ms(backendStats.evalWriteMs)} evalWriteCalls=${backendStats.evalWriteCalls} formatMs=${ms(backendStats.formatMs)} formatCalls=${backendStats.formatCalls} guiNameMs=${ms(backendStats.guiNameMs)} guiNameCalls=${backendStats.guiNameCalls} guiValueMs=${ms(backendStats.guiValueMs)} guiValueCalls=${backendStats.guiValueCalls} guiTreeMs=${ms(backendStats.guiTreeMs)} guiTreeCalls=${backendStats.guiTreeCalls} guiTreeDetachMs=${ms(backendStats.guiTreeDetachMs)} guiTreeDetachCalls=${backendStats.guiTreeDetachCalls} printfMs=${ms(backendStats.printfMs)} printfCalls=${backendStats.printfCalls} printfCacheHits=${backendStats.printfCacheHits} printfCacheMiss=${backendStats.printfCacheMiss} evalNodeIdentifierMs=${ms(backendStats.evalNodeIdentifierMs)} evalNodeMemberMs=${ms(backendStats.evalNodeMemberMs)} evalNodeArrayMs=${ms(backendStats.evalNodeArrayMs)} evalNodeBinaryMs=${ms(backendStats.evalNodeBinaryMs)} evalNodePrintfMs=${ms(backendStats.evalNodePrintfMs)} readListResolveMs=${ms(backendStats.readListResolveMs)} readListResolveCalls=${backendStats.readListResolveCalls} readListBatchMs=${ms(backendStats.readListBatchMs)} readListBatchCalls=${backendStats.readListBatchCalls} readListLoopMs=${ms(backendStats.readListLoopMs)} readListLoopCalls=${backendStats.readListLoopCalls} readListStoreMs=${ms(backendStats.readListStoreMs)} readListStoreCalls=${backendStats.readListStoreCalls} targetReadCacheHitMs=${ms(backendStats.targetReadCacheHitMs)} targetReadCacheHitCalls=${backendStats.targetReadCacheHitCalls} targetReadCacheMissMs=${ms(backendStats.targetReadCacheMissMs)} targetReadCacheMissCalls=${backendStats.targetReadCacheMissCalls} targetReadPrefetchMs=${ms(backendStats.targetReadPrefetchMs)} targetReadPrefetchCalls=${backendStats.targetReadPrefetchCalls} targetReadFromTargetMs=${ms(backendStats.targetReadFromTargetMs)} targetReadFromTargetCalls=${backendStats.targetReadFromTargetCalls} symbolFindMs=${ms(backendStats.symbolFindMs)} symbolFindCalls=${backendStats.symbolFindCalls} symbolSizeMs=${ms(backendStats.symbolSizeMs)} symbolSizeCalls=${backendStats.symbolSizeCalls} symbolOffsetMs=${ms(backendStats.symbolOffsetMs)} symbolOffsetCalls=${backendStats.symbolOffsetCalls} evalNodeIdentifierCalls=${backendStats.evalNodeIdentifierCalls} evalNodeMemberCalls=${backendStats.evalNodeMemberCalls} evalNodeArrayCalls=${backendStats.evalNodeArrayCalls} evalNodeCallCalls=${backendStats.evalNodeCallCalls} evalNodeEvalPointCalls=${backendStats.evalNodeEvalPointCalls} evalNodeUnaryCalls=${backendStats.evalNodeUnaryCalls} evalNodeUpdateCalls=${backendStats.evalNodeUpdateCalls} evalNodeBinaryCalls=${backendStats.evalNodeBinaryCalls} evalNodeConditionalCalls=${backendStats.evalNodeConditionalCalls} evalNodeAssignmentCalls=${backendStats.evalNodeAssignmentCalls} evalNodePrintfCalls=${backendStats.evalNodePrintfCalls} evalNodeFormatCalls=${backendStats.evalNodeFormatCalls} evalNodeTextCalls=${backendStats.evalNodeTextCalls} evalNodeLiteralCalls=${backendStats.evalNodeLiteralCalls} evalNodeOtherCalls=${backendStats.evalNodeOtherCalls} guiItemNodes=${backendStats.guiItemNodes} guiPrintNodes=${backendStats.guiPrintNodes} guiOutNodes=${backendStats.guiOutNodes} printfSpecD=${backendStats.printfSpecD} printfSpecU=${backendStats.printfSpecU} printfSpecX=${backendStats.printfSpecX} printfSpecT=${backendStats.printfSpecT} printfSpecC=${backendStats.printfSpecC} printfSpecS=${backendStats.printfSpecS} printfSpecE=${backendStats.printfSpecE} printfSpecI=${backendStats.printfSpecI} printfSpecJ=${backendStats.printfSpecJ} printfSpecN=${backendStats.printfSpecN} printfSpecM=${backendStats.printfSpecM} printfSpecTFloat=${backendStats.printfSpecTFloat} printfSpecUUint=${backendStats.printfSpecUUint} printfSpecPercent=${backendStats.printfSpecPercent} printfSpecOther=${backendStats.printfSpecOther} printfValueNumber=${backendStats.printfValueNumber} printfValueBigInt=${backendStats.printfValueBigInt} printfValueString=${backendStats.printfValueString} printfValueBytes=${backendStats.printfValueBytes} printfValueOther=${backendStats.printfValueOther}`;
 }
 
 export function formatPerfUiSummary(): string {
@@ -384,6 +484,10 @@ export function formatPerfUiSummary(): string {
 }
 
 export function perfStart(): number {
+    return backendEnabled ? performance.now() : 0;
+}
+
+export function perfNow(): number {
     return backendEnabled ? performance.now() : 0;
 }
 
@@ -397,6 +501,13 @@ export function perfEnd(start: number, msKey: BackendPerfMsKey, callsKey: Backen
     }
     backendStats[msKey] += performance.now() - start;
     backendStats[callsKey] += 1;
+}
+
+export function perfEndMs(start: number, msKey: BackendPerfMsKey): void {
+    if (!backendEnabled || start === 0) {
+        return;
+    }
+    backendStats[msKey] += performance.now() - start;
 }
 
 export function perfEndUi(start: number, msKey: UiPerfMsKey, callsKey: UiPerfCallsKey): void {
@@ -564,6 +675,31 @@ export function recordEvalNodeKind(kind: string): void {
             return;
         default:
             backendStats.evalNodeOtherCalls += 1;
+            return;
+    }
+}
+
+export function recordEvalNodeKindMs(kind: string, ms: number): void {
+    if (!backendEnabled) {
+        return;
+    }
+    switch (kind) {
+        case 'Identifier':
+            backendStats.evalNodeIdentifierMs += ms;
+            return;
+        case 'MemberAccess':
+            backendStats.evalNodeMemberMs += ms;
+            return;
+        case 'ArrayIndex':
+            backendStats.evalNodeArrayMs += ms;
+            return;
+        case 'BinaryExpression':
+            backendStats.evalNodeBinaryMs += ms;
+            return;
+        case 'PrintfExpression':
+            backendStats.evalNodePrintfMs += ms;
+            return;
+        default:
             return;
     }
 }

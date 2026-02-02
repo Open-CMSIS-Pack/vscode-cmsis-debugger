@@ -92,8 +92,8 @@ export abstract class ScvdNode extends ScvdBase {
     }
 
     // default condition always true
-    public async getConditionResult(): Promise<boolean> {
-        return true;
+    public getConditionResult(): Promise<boolean> {
+        return Promise.resolve(true);
     }
 
     // Member function available to all ScvdItems and derived classes
@@ -168,8 +168,8 @@ export abstract class ScvdNode extends ScvdBase {
     }
 
     // ------------  GUI Interface Begin ------------
-    public async getGuiName(): Promise<string | undefined> {
-        return this.name;
+    public getGuiName(): Promise<string | undefined> {
+        return Promise.resolve(this.name);
     }
 
     public async getGuiValue(): Promise<string | undefined> {
