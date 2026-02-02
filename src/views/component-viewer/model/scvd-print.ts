@@ -84,7 +84,7 @@ export class ScvdPrint extends ScvdNode {
 
     public override async getConditionResult(): Promise<boolean> {
         if (this._cond) {
-            return this._cond.getResult();
+            return await this._cond.getResult();
         }
         return super.getConditionResult();
     }
@@ -114,14 +114,14 @@ export class ScvdPrint extends ScvdNode {
         if (this.property === undefined) {
             return undefined;
         }
-        return this.property.getGuiName();
+        return await this.property.getGuiName();
     }
 
     public override async getGuiValue(): Promise<string | undefined> {
         if (this.value === undefined) {
             return undefined;
         }
-        return this.value.getGuiValue();
+        return await this.value.getGuiValue();
     }
 
 

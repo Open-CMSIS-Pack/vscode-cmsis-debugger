@@ -192,7 +192,7 @@ export class StatementReadList extends StatementBase {
             init,
             isPointerArray
         } = resolved;
-        const maxArraySize = resolved.maxArraySize;
+        let maxArraySize = resolved.maxArraySize;
 
         // ---- handle init ----
         if (init === 1) {

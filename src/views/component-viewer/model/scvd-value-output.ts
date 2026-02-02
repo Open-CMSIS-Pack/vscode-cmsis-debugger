@@ -54,7 +54,7 @@ export class ScvdValueOutput extends ScvdNode {
         if (expression === undefined) {
             return undefined;
         }
-        return expression.getResultString();
+        return await expression.getResultString();
     }
 
     public override async getGuiValue(): Promise<string | undefined> {
@@ -62,6 +62,6 @@ export class ScvdValueOutput extends ScvdNode {
         if (expression === undefined) {
             return undefined;
         }
-        return expression.getResultString();
+        return await expression.getResultString();
     }
 }
