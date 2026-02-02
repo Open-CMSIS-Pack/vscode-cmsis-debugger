@@ -59,7 +59,7 @@ jest.mock('../../component-viewer-instance', () => ({
 
 jest.mock('../../../../logger', () => ({
     logger: {
-        debug: jest.fn(),
+        error: jest.fn(),
     },
 }));
 
@@ -270,7 +270,7 @@ describe('ComponentViewer', () => {
         const controller = new ComponentViewer(context as unknown as ExtensionContext);
         const provider = treeProviderFactory();
         (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
-        const debugSpy = jest.spyOn(logger, 'debug');
+        const errorSpy = jest.spyOn(logger, 'error');
 
         const updateInstances = (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances.bind(controller);
 
@@ -292,7 +292,7 @@ describe('ComponentViewer', () => {
         expect(provider.setRoots).toHaveBeenCalledWith(['node', 'node']);
         expect(instanceA.update).toHaveBeenCalled();
         expect(instanceB.update).toHaveBeenCalled();
-        expect(debugSpy).toHaveBeenCalled();
+        expect(errorSpy).toHaveBeenCalled();
     });
 
     it('runs a debounced update when scheduling multiple times', async () => {
