@@ -37,10 +37,10 @@ export class ComponentViewer {
     private _loadingCounter: number = 0;
     // Update queue is currently used for logging purposes only
     private _updateQueue: UpdateQueueItem[] = [];
-    private _isFirstUpdate: boolean = true;
-    private _updateInFlight = false;
     private _pendingUpdateTimer: NodeJS.Timeout | undefined;
-    private static readonly pendingUpdateDelayMs = 500;
+    private _pendingUpdate: boolean = false;
+    private _runningUpdate: boolean = false;
+    private static readonly pendingUpdateDelayMs = 200;
 
     public constructor(context: vscode.ExtensionContext) {
         this._context = context;
@@ -132,7 +132,6 @@ export class ComponentViewer {
         }
         // Clearing update queue
         this._updateQueue = [];
-        this._isFirstUpdate = true;
     }
 
     private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
@@ -162,40 +161,40 @@ export class ComponentViewer {
     private async handleOnDidChangeActiveDebugSession(session: GDBTargetDebugSession | undefined): Promise<void> {
         // Update debug session
         this._activeSession = session;
-        // If first update after activation, skip updating instances as there is no stack frame yet. Hence, no data to show.
-        if (this._isFirstUpdate && session !== undefined) {
-            this._isFirstUpdate = false;
+        if (session === undefined) {
             return;
         }
-        // Update component viewer instance(s)
+        // update active debug session for all instances
+        this._instances.forEach((instance) => instance.updateActiveSession(session));
         this.schedulePendingUpdate('sessionChanged');
     }
 
     private schedulePendingUpdate(updateReason: fifoUpdateReason): void {
+        this._pendingUpdate = true;
         if (this._pendingUpdateTimer) {
             clearTimeout(this._pendingUpdateTimer);
         }
         this._pendingUpdateTimer = setTimeout(() => {
             this._pendingUpdateTimer = undefined;
-            void this.runUpdateIfIdle(updateReason);
+            void this.runUpdate(updateReason);
         }, ComponentViewer.pendingUpdateDelayMs);
     }
 
-    private async runUpdateIfIdle(updateReason: fifoUpdateReason): Promise<void> {
-        if (this._updateInFlight) {
-            this.schedulePendingUpdate(updateReason);
+    private async runUpdate(updateReason: fifoUpdateReason): Promise<void> {
+        if (this._runningUpdate) {
             return;
         }
-        await this.runUpdateOnce(updateReason);
-    }
-
-    private async runUpdateOnce(updateReason: fifoUpdateReason): Promise<void> {
-        this._updateInFlight = true;
-        try {
-            await this.updateInstances(updateReason);
-        } finally {
-            this._updateInFlight = false;
+        this._runningUpdate = true;
+        while (this._pendingUpdate) {
+            this._pendingUpdate = false;
+            try {
+                await this.updateInstances(updateReason);
+            } finally {
+                this._runningUpdate = false;
+                logger.error('Component Viewer: Error during update');
+            }
         }
+        this._runningUpdate = false;
     }
 
     private async updateInstances(updateReason: fifoUpdateReason): Promise<void> {
