@@ -18,6 +18,7 @@ import { ScvdNode } from '../model/scvd-node';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
 import { StatementBase } from './statement-base';
+import { perfEnd, perfStart } from '../perf-stats';
 
 
 export class StatementPrint extends StatementBase {
@@ -27,14 +28,17 @@ export class StatementPrint extends StatementBase {
     }
 
     public override async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
-        const conditionResult = await this.scvdItem.getConditionResult();
-        if (conditionResult === false) {
-            //console.log(`${this.scvdItem.getLineNoStr()}: Skipping ${this.scvdItem.getDisplayLabel()} for condition result: ${conditionResult}`);
+        const shouldExecute = await this.shouldExecute(executionContext);
+        if (!shouldExecute) {
             return;
         }
 
+        const guiNameStart = perfStart();
         const guiName = await this.scvdItem.getGuiName();
+        perfEnd(guiNameStart, 'guiNameMs', 'guiNameCalls');
+        const guiValueStart = perfStart();
         const guiValue = await this.scvdItem.getGuiValue();
+        perfEnd(guiValueStart, 'guiValueMs', 'guiValueCalls');
         const childGuiTree = this.getOrCreateGuiChild(guiTree, guiName);
         childGuiTree.setGuiName(guiName);
         childGuiTree.setGuiValue(guiValue);

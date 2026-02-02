@@ -72,6 +72,7 @@ describe('scvd-debug-target', () => {
 
         accessMock.evaluateSymbolAddress.mockResolvedValue('zzz');
         const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        target.init(session, tracker);
         await expect(target.getSymbolInfo('foo')).resolves.toBeUndefined();
         spy.mockRestore();
     });
@@ -150,6 +151,7 @@ describe('scvd-debug-target', () => {
         await expect(target.getSymbolSize('foo')).resolves.toBe(16);
 
         accessMock.evaluateSymbolSize.mockResolvedValue(-1);
+        target.init(session, tracker);
         await expect(target.getSymbolSize('foo')).resolves.toBeUndefined();
         await expect(target.getSymbolSize('')).resolves.toBeUndefined();
 
@@ -177,31 +179,32 @@ describe('scvd-debug-target', () => {
         accessMock.evaluateMemory.mockResolvedValue('AQID');
         await expect(target.readMemory(0x0, 3)).resolves.toEqual(new Uint8Array([1, 2, 3]));
 
+        await target.beginUpdateCycle();
         accessMock.evaluateMemory.mockResolvedValue('Unable to read');
-        await expect(target.readMemory(0x0, 3)).resolves.toBeUndefined();
+        await expect(target.readMemory(0x10, 3)).resolves.toBeUndefined();
 
         accessMock.evaluateMemory.mockResolvedValue(undefined);
-        await expect(target.readMemory(0x0, 3)).resolves.toBeUndefined();
+        await expect(target.readMemory(0x10, 3)).resolves.toBeUndefined();
 
         const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
         accessMock.evaluateMemory.mockResolvedValue('No active session');
-        await expect(target.readMemory(0x0, 3)).resolves.toBeUndefined();
+        await expect(target.readMemory(0x10, 3)).resolves.toBeUndefined();
         expect(errorSpy).toHaveBeenCalled();
         errorSpy.mockRestore();
 
         const invalidSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
         accessMock.evaluateMemory.mockResolvedValue('bad@');
-        await expect(target.readMemory(0x0, 3)).resolves.toBeUndefined();
+        await expect(target.readMemory(0x10, 3)).resolves.toBeUndefined();
         expect(invalidSpy).toHaveBeenCalled();
         invalidSpy.mockRestore();
 
         accessMock.evaluateMemory.mockResolvedValue('AQID');
         const decodeSpy = jest.spyOn(target, 'decodeGdbData').mockReturnValue(undefined);
-        await expect(target.readMemory(0x0, 3)).resolves.toBeUndefined();
+        await expect(target.readMemory(0x10, 3)).resolves.toBeUndefined();
         decodeSpy.mockRestore();
 
         accessMock.evaluateMemory.mockResolvedValue('AQID'); // len 3 vs requested 4
-        await expect(target.readMemory(0x0, 4)).resolves.toBeUndefined();
+        await expect(target.readMemory(0x10, 4)).resolves.toBeUndefined();
     });
 
     it('calculates memory usage and overflow bit', async () => {

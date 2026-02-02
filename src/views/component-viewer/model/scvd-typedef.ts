@@ -92,6 +92,7 @@ export class ScvdTypedef extends ScvdNode {
     private _import: ScvdSymbol | undefined;
     private _member: ScvdMember[] = [];     // target system variable
     private _var: ScvdVar[] = [];       // local SCVD variable
+    private _fieldByNameCache = new Map<string, ScvdNode>(); // name->node lookup to avoid repeated scans
     private _virtualSize: number | undefined;
     private _targetSize: number | undefined;
 
@@ -218,11 +219,25 @@ export class ScvdTypedef extends ScvdNode {
     }
 
     public override getMember(property: string): ScvdNode | undefined {
-        return this.symbolsCache(
-            property,
-            this.member.find(s => s.name === property) ??
-            this.var.find(s => s.name === property)
-        );
+        const cached = this._fieldByNameCache.get(property);
+        if (cached) {
+            return this.symbolsCache(property, cached);
+        }
+        const found = this._member.find((member) => member.name === property)
+            ?? this._var.find((variable) => variable.name === property);
+        if (found?.name !== undefined) {
+            this._fieldByNameCache.set(found.name, found);
+        }
+        return this.symbolsCache(property, found);
+    }
+
+    private rebuildFieldCaches(): void {
+        this._fieldByNameCache.clear();
+        for (const field of [...this._member, ...this._var]) {
+            if (field.name !== undefined) {
+                this._fieldByNameCache.set(field.name, field);
+            }
+        }
     }
 
     public async calculateTypedef() {
@@ -231,6 +246,7 @@ export class ScvdTypedef extends ScvdNode {
         }
 
         await this.calculateOffsets();
+        this.rebuildFieldCaches();
     }
 
     public async calculateOffsets() { // move to after starting debug session

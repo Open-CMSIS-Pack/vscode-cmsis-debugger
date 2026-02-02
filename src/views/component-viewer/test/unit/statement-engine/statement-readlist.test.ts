@@ -26,6 +26,7 @@ import type { ScvdDebugTarget } from '../../../scvd-debug-target';
 import { StatementReadList } from '../../../statement-engine/statement-readList';
 import { createExecutionContext, TestNode } from '../helpers/statement-engine-helpers';
 import type { ScvdNode } from '../../../model/scvd-node';
+import type { RefContainer } from '../../../parser-evaluator/model-host';
 
 function createReadList(): ScvdReadList {
     const readList = new ScvdReadList(undefined);
@@ -50,6 +51,19 @@ function createMemberNode(targetSize: number | undefined, memberOffset: number |
     jest.spyOn(node, 'getTargetSize').mockResolvedValue(targetSize);
     jest.spyOn(node, 'getMemberOffset').mockResolvedValue(memberOffset);
     return node;
+}
+
+function makeRef(name: string, widthBytes: number, offsetBytes = 0): RefContainer {
+    const ref = new TestNode(undefined);
+    ref.name = name;
+    return {
+        base: ref,
+        anchor: ref,
+        current: ref,
+        offsetBytes,
+        widthBytes,
+        valueType: undefined,
+    };
 }
 
 describe('StatementReadList', () => {
@@ -506,7 +520,7 @@ describe('StatementReadList', () => {
 
         await stmt.executeStatement(ctx, guiTree);
 
-        expect(ctx.memoryHost.getVariable('list')).toBeDefined();
+        expect(await ctx.memoryHost.readRaw(makeRef('list', 4, 0), 4)).toBeDefined();
     });
 
     it('detects linked list loops', async () => {
@@ -548,7 +562,7 @@ describe('StatementReadList', () => {
         await stmt.executeStatement(ctx, guiTree);
 
         (ScvdReadList as unknown as { READ_SIZE_MAX: number }).READ_SIZE_MAX = originalMax;
-        expect(ctx.memoryHost.getVariable('list')).toBeDefined();
+        expect(await ctx.memoryHost.readRaw(makeRef('list', 4, 0), 4)).toBeDefined();
     });
 
     it('marks const readlists as initialized', async () => {

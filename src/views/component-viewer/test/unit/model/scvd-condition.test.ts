@@ -23,6 +23,7 @@
 import { ScvdCondition } from '../../../model/scvd-condition';
 import { ScvdExpression } from '../../../model/scvd-expression';
 import { ExecutionContext } from '../../../scvd-eval-context';
+import { Evaluator } from '../../../parser-evaluator/evaluator';
 
 describe('ScvdCondition', () => {
     it('defaults to true when no expression is defined', async () => {
@@ -69,7 +70,7 @@ describe('ScvdCondition', () => {
         condition.expression = 'next';
         expect(condition.expression).toBe(original);
 
-        const ctx = { evalContext: {} } as ExecutionContext;
+        const ctx = { evalContext: {}, evaluator: new Evaluator() } as ExecutionContext;
         const ctxSpy = jest.spyOn(ScvdExpression.prototype, 'setExecutionContext');
         condition.setExecutionContext(ctx);
 

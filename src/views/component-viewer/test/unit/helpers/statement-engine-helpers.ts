@@ -20,7 +20,7 @@
  * Test helpers for statement-engine.
  */
 
-import { EvalContext } from '../../../parser-evaluator/evaluator';
+import { EvalContext, Evaluator } from '../../../parser-evaluator/evaluator';
 import type { ExecutionContext } from '../../../scvd-eval-context';
 import { MemoryHost } from '../../../data-host/memory-host';
 import { RegisterHost } from '../../../data-host/register-host';
@@ -81,10 +81,16 @@ export function createExecutionContext(
         data: {} as never,
         container: base,
     });
+    const evaluator = new Evaluator();
     const debugTargetDefaults: Partial<ScvdDebugTarget> = {
         findSymbolAddress: async () => undefined,
         getNumArrayElements: async () => undefined,
         readMemory: async () => undefined,
+        readMemoryBatch: async () => new Map(),
+        resetReadStats: () => {},
+        getReadStats: () => ({ count: 0, totalMs: 0, totalBytes: 0, maxMs: 0 }),
+        beginUpdateCycle: async () => {},
+        getTargetReadCacheStats: () => ({ refreshReads: 0, missReads: 0, totalReads: 0, requestedReads: 0, prefetchMs: 0 }),
     };
     const debugTarget = { ...debugTargetDefaults, ...debugTargetOverrides } as ScvdDebugTarget;
 
@@ -93,5 +99,6 @@ export function createExecutionContext(
         registerHost,
         evalContext,
         debugTarget,
+        evaluator,
     };
 }

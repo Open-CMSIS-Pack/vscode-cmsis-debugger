@@ -17,7 +17,7 @@
 import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
 import { MemoryHost } from './data-host/memory-host';
 import { RegisterHost } from './data-host/register-host';
-import { EvalContext } from './parser-evaluator/evaluator';
+import { EvalContext, Evaluator } from './parser-evaluator/evaluator';
 import { ScvdNode } from './model/scvd-node';
 import { ScvdComponentViewer } from './model/scvd-component-viewer';
 import { ScvdFormatSpecifier } from './model/scvd-format-specifier';
@@ -29,12 +29,14 @@ export interface ExecutionContext {
     registerHost: RegisterHost;
     evalContext: EvalContext;
     debugTarget: ScvdDebugTarget;
+    evaluator: Evaluator;
 }
 
 
 export class ScvdEvalContext {
     private _ctx: EvalContext;
     private _evalHost: ScvdEvalInterface;
+    private _evaluator: Evaluator;
     private _memoryHost: MemoryHost;
     private _registerHost: RegisterHost;
     private _debugTarget: ScvdDebugTarget;
@@ -50,6 +52,7 @@ export class ScvdEvalContext {
         this._debugTarget = new ScvdDebugTarget();
         this._formatSpecifier = new ScvdFormatSpecifier();
         this._evalHost = new ScvdEvalInterface(this._memoryHost, this._registerHost, this._debugTarget, this._formatSpecifier);
+        this._evaluator = new Evaluator();
         const outItem = this.getOutItem();
         if (outItem === undefined) {
             throw new Error('SCVD EvalContext: No output item defined');
@@ -90,6 +93,7 @@ export class ScvdEvalContext {
             memoryHost: this.memoryHost,
             registerHost: this.registerHost,
             evalContext: this.ctx,
+            evaluator: this._evaluator,
             debugTarget: this._debugTarget !== undefined ? this._debugTarget : (() => {
                 throw new Error('SCVD EvalContext: DebugTarget not initialized');
             })(),

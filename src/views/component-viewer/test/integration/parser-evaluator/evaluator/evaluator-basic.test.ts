@@ -20,7 +20,7 @@
  * Integration test for EvaluatorBasic.
  */
 
-import { EvalContext, evaluateParseResult } from '../../../../parser-evaluator/evaluator';
+import { Evaluator, EvalContext } from '../../../../parser-evaluator/evaluator';
 import type { EvalValue, RefContainer } from '../../../../parser-evaluator/model-host';
 import type { FullDataHost } from '../../helpers/full-data-host';
 import { parseExpression } from '../../../../parser-evaluator/parser';
@@ -41,6 +41,8 @@ type EvaluatorCase = {
     checkSymbol?: string;
     expectedSymbol?: number | string | undefined;
 };
+
+const evaluator = new Evaluator();
 
 type EvaluatorCasesFile = {
     _meta: { format: string; copyright: string; generatedWith?: string };
@@ -234,7 +236,7 @@ describe('evaluator', () => {
 
         expect(pr.diagnostics).toHaveLength(0);
 
-        const result = await evaluateParseResult(pr, ctx);
+        const result = await evaluator.evaluateParseResult(pr, ctx);
         expect(result).toEqual(testCase.expected);
 
         if (testCase.checkSymbol) {

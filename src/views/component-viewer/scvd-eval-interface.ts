@@ -24,8 +24,10 @@ import { FormatSegment } from './parser-evaluator/parser';
 import { FormatTypeInfo, ScvdFormatSpecifier } from './model/scvd-format-specifier';
 import { ScvdMember } from './model/scvd-member';
 import { ScvdVar } from './model/scvd-var';
+import { perfEnd, perfStart } from './perf-stats';
 
 export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicProvider {
+    private static readonly INVALID_ADDR_MIN = 0xFFFFFFF0;
     private _registerCache: RegisterHost;
     private _memHost: MemoryHost;
     private _debugTarget: ScvdDebugTarget;
@@ -143,6 +145,9 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         if (!Number.isFinite(address) || length <= 0) {
             return undefined;
         }
+        if (address === 0 || address >= ScvdEvalInterface.INVALID_ADDR_MIN) {
+            return undefined;
+        }
         return this.debugTarget.readMemory(address >>> 0, length);
     }
 
@@ -189,7 +194,8 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         const numOfElements = await ref.getArraySize();
 
         if (size !== undefined) {
-            return numOfElements ? size * numOfElements : size;
+            const width = numOfElements ? size * numOfElements : size;
+            return width;
         }
         console.error(`ScvdEvalInterface.getByteWidth: size undefined for ${ref.getDisplayLabel()}`);
         return undefined;
@@ -235,22 +241,28 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
 
     /* ---------------- Read/Write via caches ---------------- */
     public async readValue(container: RefContainer): Promise<EvalValue> {
+        const perfStartTime = perfStart();
         try {
             const value = await this.memHost.readValue(container);
             return value as EvalValue;
         } catch (e) {
             console.error(`ScvdEvalInterface.readValue: exception for container with base=${container.base.getDisplayLabel()}: ${e}`);
             return undefined;
+        } finally {
+            perfEnd(perfStartTime, 'evalReadMs', 'evalReadCalls');
         }
     }
 
     public async writeValue(container: RefContainer, value: EvalValue): Promise<EvalValue> {
+        const perfStartTime = perfStart();
         try {
             await this.memHost.writeValue(container, value);
             return value;
         } catch (e) {
             console.error(`ScvdEvalInterface.writeValue: exception for container with base=${container.base.getDisplayLabel()}: ${e}`);
             return undefined;
+        } finally {
+            perfEnd(perfStartTime, 'evalWriteMs', 'evalWriteCalls');
         }
     }
 
@@ -348,6 +360,8 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     }
 
     public async formatPrintf(spec: FormatSegment['spec'], value: EvalValue, container: RefContainer): Promise<string | undefined> {
+        const perfStartTime = perfStart();
+        try {
         const base = container.current;
         const formatRef = container.origin ?? base;
         const typeInfo = await this.getScalarInfo(container);
@@ -438,8 +452,20 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                 return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
             }
             case 't': {
-                if (typeof value === 'string' || value instanceof Uint8Array) {
+                const ensureNullTerminated = (bytes: Uint8Array): Uint8Array => {
+                    if (bytes.length === 0 || bytes[bytes.length - 1] === 0) {
+                        return bytes;
+                    }
+                    const next = new Uint8Array(bytes.length + 1);
+                    next.set(bytes, 0);
+                    next[bytes.length] = 0;
+                    return next;
+                };
+                if (typeof value === 'string') {
                     return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+                }
+                if (value instanceof Uint8Array) {
+                    return this.formatSpecifier.format(spec, ensureNullTerminated(value), { typeInfo, allowUnknownSpec: true });
                 }
                 const anchor = container.anchor ?? base;
                 const width = container.widthBytes ?? (formatRef ? await this.getByteWidth(formatRef) : undefined);
@@ -451,7 +477,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                     };
                     const raw = await this.memHost.readRaw(cacheRef, width);
                     if (raw !== undefined) {
-                        return this.formatSpecifier.format(spec, raw, { typeInfo, allowUnknownSpec: true });
+                        return this.formatSpecifier.format(spec, ensureNullTerminated(raw), { typeInfo, allowUnknownSpec: true });
                     }
                 }
                 return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
@@ -498,6 +524,9 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
             default: {
                 return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
             }
+        }
+        } finally {
+            perfEnd(perfStartTime, 'formatMs', 'formatCalls');
         }
     }
 }

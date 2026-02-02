@@ -29,6 +29,7 @@ import { ScvdReadList } from '../model/scvd-readlist';
 import { ScvdVar } from '../model/scvd-var';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
+import { getPerfStats, resetPerfStats, setPerfEnabled } from '../perf-stats';
 import { StatementBase } from './statement-base';
 import { StatementBreak } from './statement-break';
 import { StatementCalc } from './statement-calc';
@@ -41,9 +42,11 @@ import { StatementPrint } from './statement-print';
 import { StatementRead } from './statement-read';
 import { StatementReadList } from './statement-readList';
 import { StatementVar } from './statement-var';
+import { logger } from '../../../logger';
 
 
 export class StatementEngine {
+    private static readonly TIMING_ENABLED = true;
     private _model: ScvdComponentViewer;
     private _statementTree: StatementBase | undefined;
     private _executionContext: ExecutionContext;
@@ -163,9 +166,29 @@ export class StatementEngine {
 
         this._executionContext.memoryHost.clearNonConst();
 
+        const timingStart = StatementEngine.TIMING_ENABLED ? Date.now() : 0;
+        if (StatementEngine.TIMING_ENABLED) {
+            setPerfEnabled(true);
+            resetPerfStats();
+            await this._executionContext.debugTarget.beginUpdateCycle();
+            this._executionContext.debugTarget.resetReadStats();
+        }
         if (this._statementTree) {
             //console.log('Executing statements in the statement tree...');
             await this._statementTree.executeStatement(this.executionContext, guiTree);
+        }
+        if (StatementEngine.TIMING_ENABLED) {
+            const elapsed = Date.now() - timingStart;
+            const stats = this._executionContext.debugTarget.getReadStats();
+            const cacheStats = this._executionContext.debugTarget.getTargetReadCacheStats();
+            const summary = `[SCVD][executeAll] total=${elapsed}ms reads=${stats.count} readMs=${stats.totalMs} readBytes=${stats.totalBytes} maxReadMs=${stats.maxMs} cacheMaxReads=${cacheStats.requestedReads} cacheActualReads=${cacheStats.totalReads} cacheRefreshReads=${cacheStats.refreshReads} cacheMissReads=${cacheStats.missReads} prefetchMs=${cacheStats.prefetchMs}`;
+            logger.appendLine(summary);
+            console.log(summary);
+            const perf = getPerfStats();
+            const perfSummary = `[SCVD][perf] evalMs=${perf.evalMs} evalCalls=${perf.evalCalls} evalReadMs=${perf.evalReadMs} evalReadCalls=${perf.evalReadCalls} evalWriteMs=${perf.evalWriteMs} evalWriteCalls=${perf.evalWriteCalls} formatMs=${perf.formatMs} formatCalls=${perf.formatCalls} guiNameMs=${perf.guiNameMs} guiNameCalls=${perf.guiNameCalls} guiValueMs=${perf.guiValueMs} guiValueCalls=${perf.guiValueCalls} guiTreeMs=${perf.guiTreeMs} guiTreeCalls=${perf.guiTreeCalls} guiTreeDetachMs=${perf.guiTreeDetachMs} guiTreeDetachCalls=${perf.guiTreeDetachCalls}`;
+            logger.appendLine(perfSummary);
+            console.log(perfSummary);
+            setPerfEnabled(false);
         }
     }
 
