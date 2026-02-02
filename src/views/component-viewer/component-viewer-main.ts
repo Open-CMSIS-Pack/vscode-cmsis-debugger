@@ -188,7 +188,7 @@ export class ComponentViewer {
         while (this._pendingUpdate) {
             this._pendingUpdate = false;
             try {
-            await this.updateInstances(updateReason);
+                await this.updateInstances(updateReason);
             } finally {
                 this._runningUpdate = false;
                 logger.error('Component Viewer: Error during update');
