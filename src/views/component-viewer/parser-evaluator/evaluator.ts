@@ -527,7 +527,7 @@ export class Evaluator {
         const c = ctx.container;
         const saved = this.snapshotContainer(c);
         try {
-            return await fn();
+            return fn();
         } finally {
             c.anchor = saved.anchor;
             c.offsetBytes = saved.offsetBytes;
@@ -770,11 +770,10 @@ export class Evaluator {
                     return undefined;
                 }
                 ctx.container.valueType = valueType;
-                return await evaluator.mustRead(ctx);
+                return evaluator.mustRead(ctx);
             },
             set: async (v: EvalValue): Promise<EvalValue> => {
-                const out = await ctx.data.writeValue(target, v); // use frozen target
-                return out;
+                return ctx.data.writeValue(target, v); // use frozen target
             },
             type: valueType,
         };
@@ -812,13 +811,13 @@ export class Evaluator {
                 const name = (node as Identifier).name;
                 // __Running can appear as a bare identifier; treat it as an intrinsic, not a symbol.
                 if (name === '__Running') {
-                    return await handleIntrinsic(ctx.data, ctx.container, '__Running', [], this.onIntrinsicError);
+                    return handleIntrinsic(ctx.data, ctx.container, '__Running', [], this.onIntrinsicError);
                 }
                 const ref = await this.mustRef(node, ctx, false);
                 if (!ref) {
                     return undefined;
                 }
-                return await this.mustRead(ctx);
+                return this.mustRead(ctx);
             }
 
             case 'MemberAccess': {
@@ -829,14 +828,14 @@ export class Evaluator {
                     if (!baseRef) {
                         return undefined;
                     }
-                    return await handlePseudoMember(ctx.data, ctx.container, ma.property, baseRef, this.onIntrinsicError);
+                    return handlePseudoMember(ctx.data, ctx.container, ma.property, baseRef, this.onIntrinsicError);
                 }
                 // Default: resolve member and read its value
                 const ref = await this.mustRef(node, ctx, false);
                 if (!ref) {
                     return undefined;
                 }
-                return await this.mustRead(ctx);
+                return this.mustRead(ctx);
             }
 
             case 'ArrayIndex': {
@@ -844,7 +843,7 @@ export class Evaluator {
                 if (!ref) {
                     return undefined;
                 }
-                return await this.mustRead(ctx);
+                return this.mustRead(ctx);
             }
 
             case 'ColonPath': {
@@ -905,7 +904,7 @@ export class Evaluator {
                 return u.prefix ? ref.get() : prev;
             }
 
-            case 'BinaryExpression':   return await this.evalBinary(node as BinaryExpression, ctx);
+            case 'BinaryExpression':   return this.evalBinary(node as BinaryExpression, ctx);
 
             case 'ConditionalExpression': {
                 const c = node as ConditionalExpression;
@@ -914,7 +913,7 @@ export class Evaluator {
                     return undefined;
                 }
                 const branch = this.truthy(testValue) ? c.consequent : c.alternate;
-                return await this.evalNode(branch, ctx);
+                return this.evalNode(branch, ctx);
             }
 
             case 'AssignmentExpression': {
@@ -925,7 +924,7 @@ export class Evaluator {
                     if (value === undefined) {
                         return undefined;
                     }
-                    return await ref.set(value);
+                    return ref.set(value);
                 }
 
                 // Use the LValue to read current LHS value (and we already captured its type in lref)
@@ -955,7 +954,7 @@ export class Evaluator {
                 if (out === undefined) {
                     return undefined;
                 }
-                return await ref.set(out);
+                return ref.set(out);
             }
 
             case 'CallExpression': {
@@ -971,7 +970,7 @@ export class Evaluator {
                         if (!args) {
                             return undefined;
                         }
-                        return await handleIntrinsic(ctx.data, ctx.container, name, args, this.onIntrinsicError);
+                        return handleIntrinsic(ctx.data, ctx.container, name, args, this.onIntrinsicError);
                     }
                 }
 
@@ -981,7 +980,7 @@ export class Evaluator {
                 }
                 const fnVal = await this.evalNode(c.callee, ctx);
                 if (typeof fnVal === 'function') {
-                    return await fnVal(...args);
+                    return fnVal(...args);
                 }
                 return undefined;
             }
@@ -997,7 +996,7 @@ export class Evaluator {
                 if (!args) {
                     return undefined;
                 }
-                return await handleIntrinsic(ctx.data, ctx.container, intrinsicName, args, this.onIntrinsicError);
+                return handleIntrinsic(ctx.data, ctx.container, intrinsicName, args, this.onIntrinsicError);
             }
 
             case 'PrintfExpression': {
@@ -1029,7 +1028,7 @@ export class Evaluator {
                 if (value === undefined) {
                     return undefined;
                 }
-                return await this.formatValue(seg.spec, value, ctx, container);
+                return this.formatValue(seg.spec, value, ctx, container);
             }
 
             case 'ErrorNode':

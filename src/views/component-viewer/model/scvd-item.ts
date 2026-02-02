@@ -121,7 +121,7 @@ export class ScvdItem extends ScvdNode {
 
     public override async getConditionResult(): Promise<boolean> {
         if (this._cond) {
-            return await this._cond.getResult();
+            return this._cond.getResult();
         }
         return super.getConditionResult();
     }
@@ -180,7 +180,7 @@ export class ScvdItem extends ScvdNode {
         if (this.property === undefined) {
             return undefined;
         }
-        return await this.property.getGuiValue();
+        return this.property.getGuiValue();
     }
 
     public hasGuiChildren(): boolean {
@@ -191,7 +191,7 @@ export class ScvdItem extends ScvdNode {
         if (this.value === undefined) {
             return undefined;
         }
-        return await this.value.getGuiValue();
+        return this.value.getGuiValue();
     }
 
 

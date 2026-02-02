@@ -137,15 +137,15 @@ export class ScvdDebugTarget {
         );
     }
 
-    protected async subscribeToTargetRunningState(debugTracker: GDBTargetDebugTracker): Promise<void> {
-        debugTracker.onContinued(async (event) => {
+    protected subscribeToTargetRunningState(debugTracker: GDBTargetDebugTracker): void {
+        debugTracker.onContinued((event) => {
             if (!this.activeSession || event.session.session.id !== this.activeSession.session.id) {
                 return;
             }
             this.isTargetRunning = true;
         });
 
-        debugTracker.onStopped(async (event) => {
+        debugTracker.onStopped((event) => {
             if (!this.activeSession || event.session.session.id !== this.activeSession.session.id) {
                 return;
             }
@@ -192,7 +192,7 @@ export class ScvdDebugTarget {
         }
 
         try {
-            return await this.targetAccess.evaluateSymbolName(address.toString());
+            return this.targetAccess.evaluateSymbolName(address.toString());
         } catch (error: unknown) {
             console.error(`findSymbolNameAtAddress failed for ${address}:`, error);
             return undefined;
@@ -206,7 +206,7 @@ export class ScvdDebugTarget {
         }
 
         try {
-            return await this.targetAccess.evaluateSymbolContext(address.toString());
+            return this.targetAccess.evaluateSymbolContext(address.toString());
         } catch (error: unknown) {
             console.error(`findSymbolContextAtAddress failed for ${address}:`, error);
             return undefined;
@@ -233,7 +233,7 @@ export class ScvdDebugTarget {
         return count;
     }
 
-    public async getTargetIsRunning(): Promise<boolean> {
+    public getTargetIsRunning(): boolean {
         if (!this.activeSession) {
             return false;
         }
