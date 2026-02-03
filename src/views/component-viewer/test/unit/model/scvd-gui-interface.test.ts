@@ -39,6 +39,10 @@ class DummyGui implements ScvdGuiInterface {
         return 'value';
     }
 
+    public getGuiId(): string | undefined {
+        return 'id';
+    }
+
     public getGuiConditionResult(): boolean {
         return true;
     }
@@ -59,6 +63,7 @@ describe('ScvdGuiInterface', () => {
         expect(gui.getGuiChildren()).toEqual([]);
         expect(gui.getGuiName()).toBe('name');
         expect(gui.getGuiValue()).toBe('value');
+        expect(gui.getGuiId()).toBe('id');
         expect(gui.getGuiConditionResult()).toBe(true);
         expect(gui.getGuiLineInfo()).toBe('line');
         expect(gui.hasGuiChildren()).toBe(false);
