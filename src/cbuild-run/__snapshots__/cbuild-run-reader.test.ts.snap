@@ -125,6 +125,10 @@ exports[`CbuildRunReader Parser successfully parses a *.cbuild-run.yml file 1`] 
       "type": "svd",
     },
     {
+      "file": "../../MyDevice/multi-core-custom.svd",
+      "type": "svd",
+    },
+    {
       "file": "\${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core1.svd",
       "pname": "Core1",
       "type": "svd",
@@ -135,6 +139,10 @@ exports[`CbuildRunReader Parser successfully parses a *.cbuild-run.yml file 1`] 
     },
     {
       "file": "\${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SCVD/MySoftware_component.scvd",
+      "type": "scvd",
+    },
+    {
+      "file": "../../MyDevice/multi-core-custom.scvd",
       "type": "scvd",
     },
     {

@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
  */
 
 import * as yaml from 'yaml';
-import * as vscode from 'vscode';
 import * as path from 'path';
 import { CbuildRunRootType, CbuildRunType } from './cbuild-run-types';
 import { FileReader, VscodeFileReader } from '../desktop/file-reader';
@@ -25,6 +24,7 @@ const CMSIS_PACK_ROOT_ENVVAR = '${CMSIS_PACK_ROOT}';
 
 export class CbuildRunReader {
     private cbuildRun: CbuildRunType | undefined;
+    private cbuildRunFilePath: string | undefined;
 
     constructor(private reader: FileReader = new VscodeFileReader()) {}
 
@@ -43,6 +43,7 @@ export class CbuildRunReader {
         if (!this.cbuildRun) {
             throw new Error(`Invalid '*.cbuild-run.yml' file: ${filePath}`);
         }
+        this.cbuildRunFilePath = filePath;
     }
 
     public getSvdFilePaths(cmsisPackRoot?: string, pname?: string): string[] {
@@ -78,14 +79,13 @@ export class CbuildRunReader {
         const relativeFilePaths = filteredDescriptors.map(descriptor => `${effectiveCmsisPackRoot
             ? descriptor.file.replaceAll(CMSIS_PACK_ROOT_ENVVAR, effectiveCmsisPackRoot)
             : descriptor.file}`);
-        // Get workspace root path
-        const workspaceRoot = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
-        // resolve relative paths to workspace root
+        // resolve relative paths to cbuild run file location
+        const cbuildRunDir = this.cbuildRunFilePath ? path.dirname(this.cbuildRunFilePath) : undefined;
         const resolvedFilePaths = relativeFilePaths.map(filePath => {
-            if (path.isAbsolute(filePath) || !workspaceRoot) {
+            if (path.isAbsolute(filePath) || !cbuildRunDir) {
                 return filePath;
             }
-            return path.resolve(workspaceRoot, filePath);
+            return path.resolve(cbuildRunDir, filePath);
         });
         return resolvedFilePaths;
     }

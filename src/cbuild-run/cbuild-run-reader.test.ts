@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,32 +14,28 @@
  * limitations under the License.
  */
 
+import * as path from 'path';
 import { CbuildRunReader } from './cbuild-run-reader';
 
-jest.mock('vscode');
-
-import * as vscode from 'vscode';
-import * as path from 'path';
-
-jest.mock('../utils', () => ({
-    getCmsisPackRootPath: () => '',
-}));
 
 const TEST_CBUILD_RUN_FILE = 'test-data/multi-core.cbuild-run.yml'; // Relative to repo root
 const TEST_FILE_PATH = 'test-data/fileReaderTest.txt'; // Relative to repo root
-const PACK_ROOT = path.resolve(__dirname, '..', '..', 'packs');
+const PACK_ROOT = '/my/pack/root';
 const toPosixPath = (value: string): string => value.replace(/\\/g, '/');
+
+const EXPECTED_CUSTOM_SVD = path.resolve(path.dirname(TEST_CBUILD_RUN_FILE), '../../MyDevice/multi-core-custom.svd');
+const EXPECTED_CUSTOM_SCVD = path.resolve(path.dirname(TEST_CBUILD_RUN_FILE), '../../MyDevice/multi-core-custom.scvd');
+
+// Mock getCmsisPackRootPath to simply return PACK_ROOT value
+jest.mock('../utils', () => {
+    return {
+        getCmsisPackRootPath: jest.fn(() => PACK_ROOT),
+    };
+});
 
 describe('CbuildRunReader', () => {
 
     beforeEach(() => {
-        const workspaceRoot = path.resolve(__dirname, '..', '..');
-        Object.defineProperty(vscode.workspace, 'workspaceFolders', {
-            value: [
-                { uri: vscode.Uri.file(workspaceRoot), name: 'root', index: 0 },
-            ],
-            configurable: true,
-        });
     });
 
     describe('Parser', () => {
@@ -80,6 +76,7 @@ describe('CbuildRunReader', () => {
                 pname: undefined,
                 expectedSvdPaths: [
                     '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core0.svd',
+                    EXPECTED_CUSTOM_SVD,
                     '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core1.svd',
                     '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_generic.svd',
                 ]
@@ -89,6 +86,7 @@ describe('CbuildRunReader', () => {
                 pname: 'Core0',
                 expectedSvdPaths: [
                     '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core0.svd',
+                    EXPECTED_CUSTOM_SVD,
                     '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_generic.svd',
                 ]
             },
@@ -96,6 +94,7 @@ describe('CbuildRunReader', () => {
                 info: 'Core1',
                 pname: 'Core1',
                 expectedSvdPaths: [
+                    EXPECTED_CUSTOM_SVD,
                     '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core1.svd',
                     '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_generic.svd',
                 ]
@@ -103,7 +102,7 @@ describe('CbuildRunReader', () => {
         ])('returns SVD file path ($info)', async ({ pname, expectedSvdPaths }) => {
             await cbuildRunReader.parse(TEST_CBUILD_RUN_FILE);
             const svdFilePaths = cbuildRunReader.getSvdFilePaths('/my/pack/root', pname);
-            expect(svdFilePaths.length).toEqual(svdFilePaths.length);
+            expect(svdFilePaths.length).toEqual(expectedSvdPaths.length);
             for (let i = 0; i < svdFilePaths.length; i++) {
                 // eslint-disable-next-line security/detect-object-injection
                 expect(expectedSvdPaths[i]).toEqual(svdFilePaths[i]);
@@ -134,6 +133,7 @@ describe('CbuildRunReader', () => {
             const svdPaths = cbuildRunReader.getSvdFilePaths(PACK_ROOT, 'Core1').map(toPosixPath);
 
             expect(svdPaths).toEqual([
+                toPosixPath(EXPECTED_CUSTOM_SVD),
                 toPosixPath(path.join(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_Core1.svd')),
                 toPosixPath(path.join(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_generic.svd')),
             ]);
@@ -148,8 +148,23 @@ describe('CbuildRunReader', () => {
 
             expect(scvdPaths).toEqual([
                 toPosixPath(path.join(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SCVD', 'MySoftware_component.scvd')),
+                toPosixPath(EXPECTED_CUSTOM_SCVD),
                 toPosixPath(path.join(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SCVD', 'Core1.scvd')),
             ]);
+        });
+
+        it('resolves relative SVD paths relative to the cbuild-run.yml file location', async () => {
+            await cbuildRunReader.parse(TEST_CBUILD_RUN_FILE);
+            const svdFilePaths = cbuildRunReader.getSvdFilePaths(PACK_ROOT).map(toPosixPath);
+            const resolvedCustom = svdFilePaths.find(p => p.endsWith('/MyDevice/multi-core-custom.svd'));
+            expect(resolvedCustom).toEqual(toPosixPath(EXPECTED_CUSTOM_SVD));
+        });
+
+        it('resolves relative SCVD paths relative to the cbuild-run.yml file location', async () => {
+            await cbuildRunReader.parse(TEST_CBUILD_RUN_FILE);
+            const scvdFilePaths = cbuildRunReader.getScvdFilePaths(PACK_ROOT).map(toPosixPath);
+            const resolvedCustom = scvdFilePaths.find(p => p.endsWith('/MyDevice/multi-core-custom.scvd'));
+            expect(resolvedCustom).toEqual(toPosixPath(EXPECTED_CUSTOM_SCVD));
         });
     });
 });
