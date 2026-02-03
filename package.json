@@ -367,6 +367,7 @@
     "baseContentUrl": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/blob/main/README.md"
   },
   "dependencies": {
+    "vscode-uri": "^3.1.0",
     "yaml": "^2.8.2",
     "xml2js": "^0.6.2"
   },
@@ -412,7 +413,6 @@
     "type-fest": "^5.2.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "8.53.0",
-    "vscode-uri": "^3.1.0",
     "webpack": "^5.104.1",
     "webpack-cli": "^6.0.1",
     "yargs": "^18.0.0"
