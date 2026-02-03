@@ -18,7 +18,7 @@ import { ScvdNode } from '../model/scvd-node';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
 import { StatementBase } from './statement-base';
-import { recordGuiPrintNode } from '../perf-stats';
+import { perf } from '../stats-config';
 
 
 export class StatementPrint extends StatementBase {
@@ -36,7 +36,7 @@ export class StatementPrint extends StatementBase {
         const guiName = await this.getGuiNamePerf();
         const guiValue = await this.getGuiValuePerf();
         const childGuiTree = this.getOrCreateGuiChild(guiTree, guiName);
-        recordGuiPrintNode();
+        perf?.recordGuiPrintNode();
         childGuiTree.setGuiName(guiName);
         childGuiTree.setGuiValue(guiValue);
         childGuiTree.isPrint = true;

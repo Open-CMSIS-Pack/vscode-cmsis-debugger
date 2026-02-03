@@ -15,7 +15,7 @@
  */
 
 import { ScvdGuiInterface } from './model/scvd-gui-interface';
-import { perfEnd, perfStart } from './perf-stats';
+import { perf } from './stats-config';
 
 export class ScvdGuiTree implements ScvdGuiInterface {
     private _parent: ScvdGuiTree | undefined;
@@ -35,12 +35,12 @@ export class ScvdGuiTree implements ScvdGuiInterface {
     }
 
     public createChild(key: string, idSegmentBase?: string): ScvdGuiTree {
-        const perfStartTime = perfStart();
+        const perfStartTime = perf?.start() ?? 0;
         const segmentBase = idSegmentBase ?? key;
         const child = new ScvdGuiTree(this);
         const segment = this.nextIdSegment(segmentBase);
         child.setId(this.buildChildId(segment));
-        perfEnd(perfStartTime, 'guiTreeMs', 'guiTreeCalls');
+        perf?.end(perfStartTime, 'guiTreeMs', 'guiTreeCalls');
         return child;
     }
 
@@ -101,10 +101,10 @@ export class ScvdGuiTree implements ScvdGuiInterface {
         if (!this._parent) {
             return;
         }
-        const perfStartTime = perfStart();
+        const perfStartTime = perf?.start() ?? 0;
         this._parent._children = this._parent._children.filter(child => child !== this);
         this._parent = undefined;
-        perfEnd(perfStartTime, 'guiTreeDetachMs', 'guiTreeDetachCalls');
+        perf?.end(perfStartTime, 'guiTreeDetachMs', 'guiTreeDetachCalls');
     }
 
     public setGuiName(value: string | undefined) {

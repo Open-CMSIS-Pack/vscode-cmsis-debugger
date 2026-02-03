@@ -17,10 +17,7 @@
 import { ScvdNode } from '../model/scvd-node';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
-import {
-    perfEnd,
-    perfStart,
-} from '../perf-stats';
+import { perf } from '../stats-config';
 
 /**
  * Base statement node using an **array** for children.
@@ -96,16 +93,16 @@ export class StatementBase {
     }
 
     protected async getGuiNamePerf(): Promise<string | undefined> {
-        const start = perfStart();
+        const start = perf?.start() ?? 0;
         const name = await this.scvdItem.getGuiName();
-        perfEnd(start, 'guiNameMs', 'guiNameCalls');
+        perf?.end(start, 'guiNameMs', 'guiNameCalls');
         return name;
     }
 
     protected async getGuiValuePerf(): Promise<string | undefined> {
-        const start = perfStart();
+        const start = perf?.start() ?? 0;
         const value = await this.scvdItem.getGuiValue();
-        perfEnd(start, 'guiValueMs', 'guiValueCalls');
+        perf?.end(start, 'guiValueMs', 'guiValueCalls');
         return value;
     }
 

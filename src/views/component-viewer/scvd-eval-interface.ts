@@ -24,7 +24,7 @@ import { FormatSegment } from './parser-evaluator/parser';
 import { FormatTypeInfo, ScvdFormatSpecifier } from './model/scvd-format-specifier';
 import { ScvdMember } from './model/scvd-member';
 import { ScvdVar } from './model/scvd-var';
-import { perfEnd, perfStart, recordPrintfCacheHit, recordPrintfCacheMiss, recordPrintfSpec, recordPrintfValueType } from './perf-stats';
+import { perf } from './stats-config';
 
 export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicProvider {
     private static readonly INVALID_ADDR_MIN = 0xFFFFFFF0;
@@ -34,7 +34,9 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     private _formatSpecifier: ScvdFormatSpecifier;
     private _printfCache: Map<string, string> = new Map();
     private _symbolRefCache: Map<ScvdNode, Map<string, ScvdNode | undefined>> = new Map();
+    private _memberRefCache: Map<ScvdNode, Map<string, ScvdNode | undefined>> = new Map();
     private _byteWidthCache: Map<ScvdNode, number> = new Map();
+    private _memberOffsetCache: Map<ScvdNode, number | undefined> = new Map();
 
     constructor(
         memHost: MemoryHost,
@@ -71,7 +73,9 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     public resetEvalCaches(): void {
         this._printfCache.clear();
         this._symbolRefCache.clear();
+        this._memberRefCache.clear();
         this._byteWidthCache.clear();
+        this._memberOffsetCache.clear();
     }
 
     private normalizeScalarType(raw: string | ScalarType | undefined): ScalarType | undefined {
@@ -187,14 +191,31 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         if (baseCache.has(name)) {
             return baseCache.get(name);
         }
+        const modelStart = perf?.start() ?? 0;
         const ref = container.base.getSymbol?.(name);
+        perf?.end(modelStart, 'modelGetSymbolMs', 'modelGetSymbolCalls');
         baseCache.set(name, ref);
         return ref;
     }
 
     public async getMemberRef(container: RefContainer, property: string, _forWrite?: boolean): Promise<ScvdNode | undefined> {
         const base = container.current;
-        return base?.getMember(property);
+        if (!base) {
+            return undefined;
+        }
+        let baseCache = this._memberRefCache.get(base);
+        if (!baseCache) {
+            baseCache = new Map();
+            this._memberRefCache.set(base, baseCache);
+        }
+        if (baseCache.has(property)) {
+            return baseCache.get(property);
+        }
+        const modelStart = perf?.start() ?? 0;
+        const ref = base.getMember(property);
+        perf?.end(modelStart, 'modelGetMemberMs', 'modelGetMemberCalls');
+        baseCache.set(property, ref);
+        return ref;
     }
 
     public async resolveColonPath(_container: RefContainer, _parts: string[]): Promise<EvalValue> {
@@ -252,11 +273,17 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     }
 
     public async getMemberOffset(_base: ScvdNode, member: ScvdNode): Promise<number | undefined> {
+        if (this._memberOffsetCache.has(member)) {
+            return this._memberOffsetCache.get(member);
+        }
+        const modelStart = perf?.start() ?? 0;
         const offset = await member.getMemberOffset();
+        perf?.end(modelStart, 'modelGetMemberOffsetMs', 'modelGetMemberOffsetCalls');
         if (offset === undefined) {
             console.error(`ScvdEvalInterface.getMemberOffset: offset undefined for ${member.getDisplayLabel()}`);
             return undefined;
         }
+        this._memberOffsetCache.set(member, offset);
         return offset;
     }
 
@@ -271,7 +298,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
 
     /* ---------------- Read/Write via caches ---------------- */
     public async readValue(container: RefContainer): Promise<EvalValue> {
-        const perfStartTime = perfStart();
+        const perfStartTime = perf?.start() ?? 0;
         try {
             const value = await this.memHost.readValue(container);
             return value as EvalValue;
@@ -279,12 +306,12 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
             console.error(`ScvdEvalInterface.readValue: exception for container with base=${container.base.getDisplayLabel()}: ${e}`);
             return undefined;
         } finally {
-            perfEnd(perfStartTime, 'evalReadMs', 'evalReadCalls');
+            perf?.end(perfStartTime, 'evalReadMs', 'evalReadCalls');
         }
     }
 
     public async writeValue(container: RefContainer, value: EvalValue): Promise<EvalValue> {
-        const perfStartTime = perfStart();
+        const perfStartTime = perf?.start() ?? 0;
         try {
             await this.memHost.writeValue(container, value);
             return value;
@@ -292,18 +319,18 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
             console.error(`ScvdEvalInterface.writeValue: exception for container with base=${container.base.getDisplayLabel()}: ${e}`);
             return undefined;
         } finally {
-            perfEnd(perfStartTime, 'evalWriteMs', 'evalWriteCalls');
+            perf?.end(perfStartTime, 'evalWriteMs', 'evalWriteCalls');
         }
     }
 
     /* ---------------- Intrinsics ---------------- */
 
     public async __FindSymbol(symbolName: string): Promise<number | undefined> {
-        const perfStartTime = perfStart();
+        const perfStartTime = perf?.start() ?? 0;
         try {
             return this.findSymbolAddressNormalized(symbolName);
         } finally {
-            perfEnd(perfStartTime, 'symbolFindMs', 'symbolFindCalls');
+            perf?.end(perfStartTime, 'symbolFindMs', 'symbolFindCalls');
         }
     }
 
@@ -347,7 +374,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
 
     // Number of elements of an array defined by a symbol in user application.
     public async __size_of(symbol: string): Promise<number | undefined> {
-        const perfStartTime = perfStart();
+        const perfStartTime = perf?.start() ?? 0;
         try {
             const sizeBytes = await this.debugTarget.getSymbolSize(symbol);
             if (sizeBytes !== undefined) {
@@ -360,12 +387,12 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
             }
             return undefined;
         } finally {
-            perfEnd(perfStartTime, 'symbolSizeMs', 'symbolSizeCalls');
+            perf?.end(perfStartTime, 'symbolSizeMs', 'symbolSizeCalls');
         }
     }
 
     public async __Offset_of(container: RefContainer, typedefMember: string): Promise<number | undefined> {
-        const perfStartTime = perfStart();
+        const perfStartTime = perf?.start() ?? 0;
         try {
             const memberRef = container.base.getMember(typedefMember);
             if (memberRef) {
@@ -374,7 +401,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
             }
             return undefined;
         } finally {
-            perfEnd(perfStartTime, 'symbolOffsetMs', 'symbolOffsetCalls');
+            perf?.end(perfStartTime, 'symbolOffsetMs', 'symbolOffsetCalls');
         }
     }
 
@@ -405,9 +432,9 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     }
 
     public async formatPrintf(spec: FormatSegment['spec'], value: EvalValue, container: RefContainer): Promise<string | undefined> {
-        const perfStartTime = perfStart();
-        recordPrintfSpec(spec);
-        recordPrintfValueType(value);
+        const perfStartTime = perf?.start() ?? 0;
+        perf?.recordPrintfSpec(spec);
+        perf?.recordPrintfValueType(value);
         try {
         const base = container.current;
         const formatRef = container.origin ?? base;
@@ -436,18 +463,18 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
             const key = this.makePrintfCacheKey(spec, numericValue, typeInfo);
             const cached = this._printfCache.get(key);
             if (cached !== undefined) {
-                recordPrintfCacheHit();
+                perf?.recordPrintfCacheHit();
                 return cached;
             }
-            recordPrintfCacheMiss();
+            perf?.recordPrintfCacheMiss();
         } else if (cacheableText) {
             const key = this.makePrintfTextCacheKey(spec, value);
             const cached = this._printfCache.get(key);
             if (cached !== undefined) {
-                recordPrintfCacheHit();
+                perf?.recordPrintfCacheHit();
                 return cached;
             }
-            recordPrintfCacheMiss();
+            perf?.recordPrintfCacheMiss();
         }
 
         switch (spec) {
@@ -483,10 +510,10 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                     const enumKey = this.makePrintfCacheKey('E', value, typeInfo, enumStr);
                     const cached = this._printfCache.get(enumKey);
                     if (cached !== undefined) {
-                        recordPrintfCacheHit();
+                        perf?.recordPrintfCacheHit();
                         return cached;
                     }
-                    recordPrintfCacheMiss();
+                    perf?.recordPrintfCacheMiss();
                 }
                 const opts: { typeInfo: FormatTypeInfo; allowUnknownSpec: true; enumText?: string } = { typeInfo, allowUnknownSpec: true };
                 if (enumStr !== undefined) {
@@ -615,7 +642,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
             }
         }
         } finally {
-            perfEnd(perfStartTime, 'printfMs', 'printfCalls');
+            perf?.end(perfStartTime, 'printfMs', 'printfCalls');
         }
     }
 

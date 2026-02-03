@@ -29,7 +29,8 @@ import { ScvdReadList } from '../model/scvd-readlist';
 import { ScvdVar } from '../model/scvd-var';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
-import { formatPerfSummary, resetPerfBackendStats, setPerfBackendEnabled } from '../perf-stats';
+import { perf, targetReadStats, targetReadTimingStats } from '../stats-config';
+import { getReadCacheStats, getReadTimingStats, resetReadTimingStats } from '../target-read-stats';
 import { StatementBase } from './statement-base';
 import { StatementBreak } from './statement-break';
 import { StatementCalc } from './statement-calc';
@@ -42,11 +43,7 @@ import { StatementPrint } from './statement-print';
 import { StatementRead } from './statement-read';
 import { StatementReadList } from './statement-readList';
 import { StatementVar } from './statement-var';
-import { logger } from '../../../logger';
-
-
 export class StatementEngine {
-    private static readonly TIMING_ENABLED = true;
     private _model: ScvdComponentViewer;
     private _statementTree: StatementBase | undefined;
     private _executionContext: ExecutionContext;
@@ -173,29 +170,14 @@ export class StatementEngine {
         evalHost.resetPrintfCache?.();
         this._executionContext.evaluator.resetEvalCaches?.();
 
-        const timingStart = StatementEngine.TIMING_ENABLED ? Date.now() : 0;
-        if (StatementEngine.TIMING_ENABLED) {
-            setPerfBackendEnabled(true);
-            resetPerfBackendStats();
-            await this._executionContext.debugTarget.beginUpdateCycle();
-            this._executionContext.debugTarget.resetReadStats();
-        }
+        await this._executionContext.debugTarget.beginUpdateCycle();
+        resetReadTimingStats(targetReadTimingStats);
+        perf?.beginExecuteAll();
         if (this._statementTree) {
             //console.log('Executing statements in the statement tree...');
             await this._statementTree.executeStatement(this.executionContext, guiTree);
         }
-        if (StatementEngine.TIMING_ENABLED) {
-            const elapsed = Date.now() - timingStart;
-            const stats = this._executionContext.debugTarget.getReadStats();
-            const cacheStats = this._executionContext.debugTarget.getTargetReadCacheStats();
-            const summary = `[SCVD][executeAll] total=${elapsed}ms reads=${stats.count} readMs=${stats.totalMs} readBytes=${stats.totalBytes} maxReadMs=${stats.maxMs} cacheMaxReads=${cacheStats.requestedReads} cacheActualReads=${cacheStats.totalReads} cacheRefreshReads=${cacheStats.refreshReads} cacheMissReads=${cacheStats.missReads} prefetchMs=${cacheStats.prefetchMs}`;
-            logger.appendLine(summary);
-            console.log(summary);
-            const perfSummary = formatPerfSummary();
-            logger.appendLine(perfSummary);
-            console.log(perfSummary);
-            setPerfBackendEnabled(false);
-        }
+        perf?.endExecuteAll(getReadTimingStats(targetReadTimingStats), getReadCacheStats(targetReadStats));
     }
 
     private insertBreakAtLine(root: StatementBase, breakItem: ScvdBreak): void {

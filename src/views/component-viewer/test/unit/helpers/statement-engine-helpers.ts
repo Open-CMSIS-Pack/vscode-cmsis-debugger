@@ -87,10 +87,7 @@ export function createExecutionContext(
         getNumArrayElements: async () => undefined,
         readMemory: async () => undefined,
         readMemoryBatch: async () => new Map(),
-        resetReadStats: () => {},
-        getReadStats: () => ({ count: 0, totalMs: 0, totalBytes: 0, maxMs: 0 }),
         beginUpdateCycle: async () => {},
-        getTargetReadCacheStats: () => ({ refreshReads: 0, missReads: 0, totalReads: 0, requestedReads: 0, prefetchMs: 0 }),
     };
     const debugTarget = { ...debugTargetDefaults, ...debugTargetOverrides } as ScvdDebugTarget;
 

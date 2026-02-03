@@ -15,9 +15,10 @@
  */
 
 import { ComponentViewerTargetAccess } from './component-viewer-target-access';
-import { perfEnd, perfStart } from './perf-stats';
-import { TargetReadCache } from './target-read-cache';
-import { TargetReadCacheStats, TargetReadStats } from './target-read-stats';
+import { perf, targetReadStats, targetReadTimingStats } from './stats-config';
+import { TARGET_READ_CACHE_ENABLED } from './component-viewer-config';
+import { MAX_BATCH_BYTES, MAX_BATCH_GAP_BYTES, TargetReadCache } from './target-read-cache';
+import { SymbolCaches } from './scvd-debug-target-cache';
 import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-session';
 import { GDBTargetDebugTracker } from '../../debug-session';
 
@@ -91,21 +92,8 @@ export class ScvdDebugTarget {
     private targetAccess = new ComponentViewerTargetAccess();
     private debugTracker: GDBTargetDebugTracker | undefined;
     private isTargetRunning: boolean = false;
-    private symbolAddressCache = new Map<string, number>();
-    private symbolSizeCache = new Map<string, number>();
-    private symbolArrayCountCache = new Map<string, number>();
-    private static readonly MAX_BATCH_BYTES = 4096;
-    private static readonly MAX_BATCH_GAP_BYTES = 0;
-    private static readonly TIMING_ENABLED = true;
-    private static readonly TARGET_READ_CACHE_ENABLED = true;
-    private targetReadCache = new TargetReadCache();
-    private targetReadStats = new TargetReadStats();
-    private readStats = {
-        count: 0,
-        totalMs: 0,
-        totalBytes: 0,
-        maxMs: 0,
-    };
+    private symbolCaches = new SymbolCaches();
+    private targetReadCache: TargetReadCache | undefined = TARGET_READ_CACHE_ENABLED ? new TargetReadCache() : undefined;
 
     // -------------  Interface to debugger  -----------------
     public init(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker): void {
@@ -113,27 +101,18 @@ export class ScvdDebugTarget {
         this.targetAccess.setActiveSession(session);
         this.debugTracker = tracker;
         this.subscribeToTargetRunningState(this.debugTracker);
-        this.clearSymbolCaches();
-    }
-
-    private normalizeSymbolKey(symbol: string): string {
-        return symbol.trim();
-    }
-
-    private clearSymbolCaches(): void {
-        this.symbolAddressCache.clear();
-        this.symbolSizeCache.clear();
-        this.symbolArrayCountCache.clear();
+        this.symbolCaches.clearAll();
     }
 
     public async beginUpdateCycle(): Promise<void> {
-        this.targetReadStats.reset();
-        if (!ScvdDebugTarget.TARGET_READ_CACHE_ENABLED) {
+        targetReadStats?.reset();
+        const targetReadCache = this.targetReadCache;
+        if (!TARGET_READ_CACHE_ENABLED || !targetReadCache) {
             return;
         }
-        await this.targetReadCache.beginUpdateCycle(
+        await targetReadCache.beginUpdateCycle(
             (addr, length) => this.readMemoryFromTarget(addr, length),
-            this.targetReadStats
+            targetReadStats
         );
     }
 
@@ -161,29 +140,26 @@ export class ScvdDebugTarget {
             return undefined;
         }
 
-        const symbolName = this.normalizeSymbolKey(symbol);
-        const cachedAddress = this.symbolAddressCache.get(symbolName);
-        if (cachedAddress !== undefined) {
-            return {
-                name: symbolName,
-                address: cachedAddress
-            };
+        const addressInfo = await this.symbolCaches.getAddressWithName(symbol, async (symbolName) => {
+            const symbolAddressStr = await this.targetAccess.evaluateSymbolAddress(symbolName);
+            if (symbolAddressStr !== undefined) {
+                const parsed = parseInt(symbolAddressStr as unknown as string, 16);
+                if (Number.isFinite(parsed)) {
+                    return parsed;
+                }
+                console.error(`getSymbolInfo: could not parse address for ${symbolName}:`, symbolAddressStr);
+            }
+            return undefined;
+        });
+
+        if (!addressInfo) {
+            return undefined;
         }
 
-        const symbolAddressStr = await this.targetAccess.evaluateSymbolAddress(symbolName);
-        if (symbolAddressStr !== undefined) {
-            const addr = parseInt(symbolAddressStr as unknown as string, 16);
-            if (Number.isFinite(addr)) {
-                this.symbolAddressCache.set(symbolName, addr);
-                const symbolInfo: SymbolInfo = {
-                    name: symbolName,
-                    address: addr
-                };
-                return symbolInfo;
-            }
-            console.error(`getSymbolInfo: could not parse address for ${symbolName}:`, symbolAddressStr);
-        }
-        return undefined;
+        return {
+            name: addressInfo.name,
+            address: addressInfo.value
+        };
     }
 
     public async findSymbolNameAtAddress(address: number): Promise<string | undefined> {
@@ -221,16 +197,9 @@ export class ScvdDebugTarget {
         if (!this.activeSession) {
             return undefined;
         }
-        const symbolName = this.normalizeSymbolKey(symbol);
-        const cachedCount = this.symbolArrayCountCache.get(symbolName);
-        if (cachedCount !== undefined) {
-            return cachedCount;
-        }
-        const count = await this.targetAccess.evaluateNumberOfArrayElements(symbolName);
-        if (count !== undefined) {
-            this.symbolArrayCountCache.set(symbolName, count);
-        }
-        return count;
+        return this.symbolCaches.getArrayCount(symbol, async (symbolName) => {
+            return this.targetAccess.evaluateNumberOfArrayElements(symbolName);
+        });
     }
 
     public async getTargetIsRunning(): Promise<boolean> {
@@ -253,19 +222,13 @@ export class ScvdDebugTarget {
             return undefined;
         }
 
-        const symbolName = this.normalizeSymbolKey(symbol);
-        const cachedSize = this.symbolSizeCache.get(symbolName);
-        if (cachedSize !== undefined) {
-            return cachedSize;
-        }
-
-        // real session: ask debugger via target access
-        const size = await this.targetAccess.evaluateSymbolSize(symbolName);
-        if (typeof size === 'number' && size >= 0) {
-            this.symbolSizeCache.set(symbolName, size);
-            return size;
-        }
-        return undefined;
+        return this.symbolCaches.getSize(symbol, async (symbolName) => {
+            const size = await this.targetAccess.evaluateSymbolSize(symbolName);
+            if (typeof size === 'number' && size >= 0) {
+                return size;
+            }
+            return undefined;
+        });
     }
 
     /**
@@ -298,28 +261,29 @@ export class ScvdDebugTarget {
 
     public async readMemory(address: number | bigint, size: number): Promise<Uint8Array | undefined> {
         const normalized = this.normalizeAddress(address);
-        if (ScvdDebugTarget.TARGET_READ_CACHE_ENABLED && normalized !== undefined) {
-            this.targetReadStats.recordRequest();
-            this.targetReadCache.recordRequestRange(normalized, size);
-            const hitStart = perfStart();
-            const cached = this.targetReadCache.read(normalized, size);
+        const targetReadCache = this.targetReadCache;
+        if (TARGET_READ_CACHE_ENABLED && normalized !== undefined && targetReadCache) {
+            targetReadStats?.recordRequest();
+            targetReadCache.recordRequestRange(normalized, size);
+            const hitStart = perf?.start() ?? 0;
+            const cached = targetReadCache.read(normalized, size);
             if (cached) {
-                perfEnd(hitStart, 'targetReadCacheHitMs', 'targetReadCacheHitCalls');
+                perf?.end(hitStart, 'targetReadCacheHitMs', 'targetReadCacheHitCalls');
                 return cached;
             }
-            const missStart = perfStart();
-            const missing = this.targetReadCache.getMissingRanges(normalized, size);
+            const missStart = perf?.start() ?? 0;
+            const missing = targetReadCache.getMissingRanges(normalized, size);
             for (const range of missing) {
                 const data = await this.readMemoryFromTarget(range.start, range.size);
                 if (!data) {
-                    perfEnd(missStart, 'targetReadCacheMissMs', 'targetReadCacheMissCalls');
+                    perf?.end(missStart, 'targetReadCacheMissMs', 'targetReadCacheMissCalls');
                     return undefined;
                 }
-                this.targetReadStats.recordMissRead();
-                this.targetReadCache.write(range.start, data);
+                targetReadStats?.recordMissRead();
+                targetReadCache.write(range.start, data);
             }
-            const filled = this.targetReadCache.read(normalized, size);
-            perfEnd(missStart, 'targetReadCacheMissMs', 'targetReadCacheMissCalls');
+            const filled = targetReadCache.read(normalized, size);
+            perf?.end(missStart, 'targetReadCacheMissMs', 'targetReadCacheMissCalls');
             return filled;
         }
         return this.readMemoryFromTarget(address, size);
@@ -330,40 +294,37 @@ export class ScvdDebugTarget {
             return undefined;
         }
 
-        const perfStartTime = perfStart();
-        const timingStart = ScvdDebugTarget.TIMING_ENABLED ? Date.now() : 0;
+        const perfStartTime = perf?.start() ?? 0;
+        const timingStart = perf?.isBackendEnabled() ? Date.now() : 0;
         const dataAsString = await this.targetAccess.evaluateMemory(address.toString(), size, 0);
         if (typeof dataAsString !== 'string') {
-            perfEnd(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
+            perf?.end(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
             return undefined;
         }
         // if data is returned as error message string
         if (dataAsString.startsWith('Unable')) {
-            perfEnd(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
+            perf?.end(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
             return undefined;
         }
         if (!isLikelyBase64(dataAsString)) {
             console.error(`ScvdDebugTarget.readMemory: invalid base64 data for address ${address.toString()}`);
-            perfEnd(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
+            perf?.end(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
             return undefined;
         }
         // Convert String data to Uint8Array
         const byteArray = this.decodeGdbData(dataAsString);
         if (byteArray === undefined) {
-            perfEnd(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
+            perf?.end(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
             return undefined;
         }
 
         const result = byteArray.length === size ? byteArray : undefined;
-        if (ScvdDebugTarget.TIMING_ENABLED) {
+        if (timingStart !== 0) {
             const elapsed = Date.now() - timingStart;
-            this.readStats.count += 1;
-            this.readStats.totalMs += elapsed;
-            this.readStats.totalBytes += size;
-            this.readStats.maxMs = Math.max(this.readStats.maxMs, elapsed);
+            targetReadTimingStats?.recordRead(elapsed, size);
             // Aggregate stats are reported after statement execution; avoid per-read logging.
         }
-        perfEnd(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
+        perf?.end(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
         return result;
     }
 
@@ -409,11 +370,11 @@ export class ScvdDebugTarget {
 
             const lastEnd = last.start + BigInt(last.size);
             const gap = item.start - lastEnd;
-            const gapOk = gap <= BigInt(ScvdDebugTarget.MAX_BATCH_GAP_BYTES) && gap >= 0n;
+            const gapOk = gap <= BigInt(MAX_BATCH_GAP_BYTES) && gap >= 0n;
             const mergedEnd = itemEnd > lastEnd ? itemEnd : lastEnd;
             const mergedSize = Number(mergedEnd - last.start);
 
-            if (gapOk && mergedSize <= ScvdDebugTarget.MAX_BATCH_BYTES) {
+            if (gapOk && mergedSize <= MAX_BATCH_BYTES) {
                 last.size = mergedSize;
                 last.items.push(item);
             } else {
@@ -440,22 +401,6 @@ export class ScvdDebugTarget {
         return results;
     }
 
-    public resetReadStats(): void {
-        this.readStats = {
-            count: 0,
-            totalMs: 0,
-            totalBytes: 0,
-            maxMs: 0,
-        };
-    }
-
-    public getReadStats(): { count: number; totalMs: number; totalBytes: number; maxMs: number } {
-        return { ...this.readStats };
-    }
-
-    public getTargetReadCacheStats(): TargetReadCacheStats {
-        return this.targetReadStats.getStats();
-    }
 
     public readUint8ArrayStrFromPointer(address: number | bigint, bytesPerChar: number, maxLength: number): Promise<Uint8Array | undefined> {
         if (address === 0 || address === 0n) {

@@ -14,11 +14,14 @@
  * limitations under the License.
  */
 
-import { perfEnd, perfStart } from './perf-stats';
+import { perf } from './stats-config';
 import type { TargetReadStats } from './target-read-stats';
 
 type TargetReadSegment = { start: number; data: Uint8Array };
 type TargetReadRange = { start: number; size: number };
+
+export const MAX_BATCH_BYTES = 4096;
+export const MAX_BATCH_GAP_BYTES = 0;
 
 export class TargetReadCache {
     private static readonly PREFETCH_GAP = 0;
@@ -41,11 +44,11 @@ export class TargetReadCache {
         }
         const merged = this.mergeRanges(this.prevRequestedRanges, TargetReadCache.PREFETCH_GAP);
         for (const range of merged) {
-            const perfStartTime = perfStart();
+            const perfStartTime = perf?.start() ?? 0;
             const fetchStart = Date.now();
             const data = await fetcher(range.start, range.size);
             stats?.recordPrefetchTime(Date.now() - fetchStart);
-            perfEnd(perfStartTime, 'targetReadPrefetchMs', 'targetReadPrefetchCalls');
+            perf?.end(perfStartTime, 'targetReadPrefetchMs', 'targetReadPrefetchCalls');
             if (!data) {
                 continue;
             }
