@@ -104,8 +104,10 @@ export class StatementRead extends StatementBase {
         executionContext.memoryHost.setVariable(name, readBytes, readData, 0, typeof baseAddress === 'bigint' ? Number(baseAddress) : (baseAddress >>> 0), fullVirtualStrideSize);
 
         // TOIMPL: do not set if read failed, investigate
-        if (scvdRead.const === true) {   // Mark variable as already initialized
-            scvdRead.mustRead = false;
+        if (scvdRead.const === true) {   // Mark variable as initialized if some data has been read
+            if (readData.some((byte) => byte !== 0x00)) {
+                ; //scvdRead.mustRead = false; // TOIMPL: Re-enable once target updates are consistent
+            }
         }
         return;
     }

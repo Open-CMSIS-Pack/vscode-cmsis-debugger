@@ -14,6 +14,13 @@
         "license": "https://github.com/pyocd/pyOCD/blob/v0.42.0/LICENSE"
     },
     {
+        "name": "vscode-uri",
+        "version": "3.1.0",
+        "spdx": "MIT",
+        "url": "https://github.com/microsoft/vscode-uri",
+        "license": "https://github.com/microsoft/vscode-uri/blob/main/LICENSE.md"
+    },
+    {
         "name": "xml2js",
         "version": "0.6.2",
         "spdx": "MIT",

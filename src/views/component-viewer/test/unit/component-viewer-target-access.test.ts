@@ -53,7 +53,7 @@ describe('ComponentViewerTargetAccess', () => {
         gdbTargetSession = new GDBTargetDebugSession(debugSession);
         targetAccess = new ComponentViewerTargetAccess();
         targetAccess.setActiveSession(gdbTargetSession);
-        setActiveStackItem(undefined, undefined);
+        setActiveStackItem(debugSession, 1);
     });
 
     afterEach(() => {
@@ -99,11 +99,11 @@ describe('ComponentViewerTargetAccess', () => {
         await expect(targetAccess.evaluateSymbolName(0x20000000)).resolves.toBe('MySymbol');
 
         (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: '0x20000000 <Other>' });
-        setActiveStackItem(undefined, undefined);
+        setActiveStackItem(debugSession, 2);
         await expect(targetAccess.evaluateSymbolName('0x20000000')).resolves.toBe('Other');
         expect(debugSession.customRequest).toHaveBeenLastCalledWith('evaluate', {
             expression: '(unsigned int*)0x20000000',
-            frameId: 0,
+            frameId: 2,
             context: 'hover',
         });
 

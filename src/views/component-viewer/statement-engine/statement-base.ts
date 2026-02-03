@@ -83,9 +83,13 @@ export class StatementBase {
         }
     }
 
-    protected getOrCreateGuiChild(guiTree: ScvdGuiTree, guiName: string | undefined, nodeId?: string): ScvdGuiTree {
-        const key = guiName ?? `${StatementBase.unnamedPrefix}:${this.scvdItem.constructor?.name}:${this.line}`;
-        return guiTree.getOrCreateChild(key, nodeId);
+    protected getOrCreateGuiChild(guiTree: ScvdGuiTree, guiName: string | undefined): ScvdGuiTree {
+        const itemName = this.scvdItem.constructor?.name ?? 'UnknownItem';
+        const key = guiName ?? `${StatementBase.unnamedPrefix}:${itemName}:${this.line}`;
+        const idSegmentBase = `L${this.line}:${this.constructor.name}`;
+        const child = guiTree.createChild(key, idSegmentBase);
+        child.setGuiLineInfo(this.scvdItem.getLineInfoStr());
+        return child;
     }
 
     public async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {

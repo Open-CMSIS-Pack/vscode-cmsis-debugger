@@ -54,9 +54,9 @@ jest.mock('vscode', () => {
 });
 
 type TestGui = ScvdGuiInterface & {
-    nodeId: string;
     getGuiName: () => string | undefined;
     getGuiValue: () => string | undefined;
+    getGuiId: () => string | undefined;
     getGuiLineInfo: () => string | undefined;
     hasGuiChildren: () => boolean;
     getGuiChildren: () => ScvdGuiInterface[];
@@ -69,9 +69,9 @@ type TestGuiOptions = Partial<Omit<TestGui, 'getGuiChildren'>> & {
 };
 
 const makeGui = (options: TestGuiOptions): TestGui => ({
-    nodeId: options.nodeId ?? 'node-1',
     getGuiName: options.getGuiName ?? (() => 'Node'),
     getGuiValue: options.getGuiValue ?? (() => 'Value'),
+    getGuiId: options.getGuiId ?? (() => 'id-1'),
     getGuiLineInfo: options.getGuiLineInfo ?? (() => 'Line 1'),
     hasGuiChildren: options.hasGuiChildren ?? (() => false),
     getGuiChildren: options.getGuiChildren ?? (() => [] as ScvdGuiInterface[]),
@@ -87,87 +87,80 @@ describe('ComponentViewerTreeDataProvider', () => {
     it('builds tree items with fallbacks and collapsible state', () => {
         const provider = new ComponentViewerTreeDataProvider();
         const withChildren = makeGui({
-            nodeId: 'node-a',
             hasGuiChildren: () => true,
         });
         const withoutChildren = makeGui({
-            nodeId: 'node-b',
             getGuiName: () => undefined,
             getGuiValue: () => undefined,
             getGuiLineInfo: () => undefined,
+            getGuiId: () => undefined,
         });
 
         const treeItemWithChildren = provider.getTreeItem(withChildren);
         expect(treeItemWithChildren.label).toBe('Node');
         expect(treeItemWithChildren.collapsibleState).toBe(1);
         expect(treeItemWithChildren.description).toBe('Value');
-        expect(treeItemWithChildren.tooltip).toBe('Line 1');
-        expect(treeItemWithChildren.id).toBe('node-a');
+        expect(treeItemWithChildren.id).toBe('id-1');
+        const resolvedWith = provider.resolveTreeItem(treeItemWithChildren, withChildren);
+        expect(resolvedWith.tooltip).toBe('Line 1');
 
         const treeItemWithout = provider.getTreeItem(withoutChildren);
         expect(treeItemWithout.label).toBe('UNKNOWN');
         expect(treeItemWithout.collapsibleState).toBe(0);
         expect(treeItemWithout.description).toBe('');
-        expect(treeItemWithout.tooltip).toBe('');
-        expect(treeItemWithout.id).toBe('node-b');
+        expect(treeItemWithout.id).toBeUndefined();
+        const resolvedWithout = provider.resolveTreeItem(treeItemWithout, withoutChildren);
+        expect(resolvedWithout.tooltip).toBe('');
     });
 
     it('returns root children when no element is provided', async () => {
         const provider = new ComponentViewerTreeDataProvider();
-        const root = makeGui({ nodeId: 'root' });
-        provider.addGuiOut([root]);
-        provider.showModelData();
+        const root = makeGui({});
+        provider.setRoots([root]);
 
-        expect(provider.getChildren()).resolves.toEqual([root]);
+        expect(provider.getChildren()).toEqual([root]);
         expect(mockFire).toHaveBeenCalledTimes(1);
     });
 
     it('returns element children in order', async () => {
         const provider = new ComponentViewerTreeDataProvider();
-        const childA = makeGui({ nodeId: 'child-a' });
-        const childB = makeGui({ nodeId: 'child-b' });
+        const childA = makeGui({});
+        const childB = makeGui({});
         const parent = makeGui({
-            nodeId: 'parent',
             getGuiChildren: () => [childA, childB],
         });
 
-        expect(provider.getChildren(parent)).resolves.toEqual([childA, childB]);
+        expect(provider.getChildren(parent)).toEqual([childA, childB]);
     });
 
     it('returns empty children when element has none', async () => {
         const provider = new ComponentViewerTreeDataProvider();
         const parent = makeGui({
-            nodeId: 'parent-empty',
             getGuiChildren: () => undefined as unknown as ScvdGuiInterface[],
         });
 
-        expect(provider.getChildren(parent)).resolves.toEqual([]);
+        expect(provider.getChildren(parent)).toEqual([]);
     });
 
     it('handles empty caches and no gui output', async () => {
         const provider = new ComponentViewerTreeDataProvider();
 
-        provider.activate();
+        provider.setRoots([]);
         expect(mockFire).toHaveBeenCalledTimes(1);
-        expect(provider.getChildren()).resolves.toEqual([]);
+        expect(provider.getChildren()).toEqual([]);
 
-        provider.addGuiOut(undefined);
-        provider.showModelData();
-        expect(provider.getChildren()).resolves.toEqual([]);
-
-        provider.resetModelCache();
-        expect(provider.getChildren()).resolves.toEqual([]);
+        provider.clear();
+        expect(provider.getChildren()).toEqual([]);
     });
 
-    it('deletes models and refreshes', async () => {
+    it('clears models and refreshes', async () => {
         const provider = new ComponentViewerTreeDataProvider();
-        const root = makeGui({ nodeId: 'root' });
-        provider.addGuiOut([root]);
-        provider.showModelData();
+        const root = makeGui({});
+        provider.setRoots([root]);
         expect(mockFire).toHaveBeenCalledTimes(1);
 
-        provider.deleteModels();
+        provider.clear();
         expect(mockFire).toHaveBeenCalledTimes(2);
-        expect(provider.getChildren()).resolves.toEqual([]);
+        expect(provider.getChildren()).toEqual([]);
     });
 });
