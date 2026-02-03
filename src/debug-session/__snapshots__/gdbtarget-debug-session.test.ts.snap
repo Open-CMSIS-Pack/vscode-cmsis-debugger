@@ -135,7 +135,15 @@ CbuildRunReader {
         "type": "svd",
       },
       {
+        "file": "../../MyDevice/multi-core-custom.svd",
+        "type": "svd",
+      },
+      {
         "file": "\${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SCVD/MySoftware_component.scvd",
+        "type": "scvd",
+      },
+      {
+        "file": "../../MyDevice/multi-core-custom.scvd",
         "type": "scvd",
       },
       {
@@ -174,6 +182,7 @@ CbuildRunReader {
     },
     "target-type": "My-Test-Target-Type",
   },
+  "cbuildRunFilePath": "test-data/multi-core.cbuild-run.yml",
   "reader": VscodeFileReader {},
 }
 `;

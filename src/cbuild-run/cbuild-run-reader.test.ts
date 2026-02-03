@@ -76,9 +76,9 @@ describe('CbuildRunReader', () => {
                 pname: undefined,
                 expectedSvdPaths: [
                     '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core0.svd',
-                    EXPECTED_CUSTOM_SVD,
                     '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core1.svd',
                     '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_generic.svd',
+                    EXPECTED_CUSTOM_SVD,
                 ]
             },
             {
@@ -86,17 +86,17 @@ describe('CbuildRunReader', () => {
                 pname: 'Core0',
                 expectedSvdPaths: [
                     '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core0.svd',
-                    EXPECTED_CUSTOM_SVD,
                     '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_generic.svd',
+                    EXPECTED_CUSTOM_SVD,
                 ]
             },
             {
                 info: 'Core1',
                 pname: 'Core1',
                 expectedSvdPaths: [
-                    EXPECTED_CUSTOM_SVD,
                     '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_Core1.svd',
                     '/my/pack/root/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_generic.svd',
+                    EXPECTED_CUSTOM_SVD,
                 ]
             },
         ])('returns SVD file path ($info)', async ({ pname, expectedSvdPaths }) => {
@@ -133,9 +133,9 @@ describe('CbuildRunReader', () => {
             const svdPaths = cbuildRunReader.getSvdFilePaths(PACK_ROOT, 'Core1').map(toPosixPath);
 
             expect(svdPaths).toEqual([
-                toPosixPath(EXPECTED_CUSTOM_SVD),
                 toPosixPath(path.join(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_Core1.svd')),
                 toPosixPath(path.join(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_generic.svd')),
+                toPosixPath(EXPECTED_CUSTOM_SVD),
             ]);
         });
 
