@@ -21,18 +21,25 @@
  */
 
 const registerTreeDataProvider = jest.fn(() => ({ dispose: jest.fn() }));
+const createOutputChannel = jest.fn(() => ({
+    appendLine: jest.fn(),
+    dispose: jest.fn(),
+}));
 
 jest.mock('vscode', () => ({
     window: {
         registerTreeDataProvider,
+        createOutputChannel,
+    },
+    debug: {
+        activeDebugSession: undefined,
+        activeStackItem: undefined,
     },
 }));
 
 const treeProviderFactory = jest.fn(() => ({
-    addGuiOut: jest.fn(),
-    showModelData: jest.fn(),
-    deleteModels: jest.fn(),
-    resetModelCache: jest.fn(),
+    setRoots: jest.fn(),
+    clear: jest.fn(),
 }));
 
 jest.mock('../../component-viewer-tree-view', () => ({
@@ -43,17 +50,27 @@ const instanceFactory = jest.fn(() => ({
     readModel: jest.fn().mockResolvedValue(undefined),
     update: jest.fn().mockResolvedValue(undefined),
     getGuiTree: jest.fn(() => ['node']),
+    updateActiveSession: jest.fn(),
 }));
 
 jest.mock('../../component-viewer-instance', () => ({
     ComponentViewerInstance: jest.fn(() => instanceFactory()),
 }));
 
+jest.mock('../../../../logger', () => ({
+    logger: {
+        debug: jest.fn(),
+        error: jest.fn(),
+    },
+}));
+
 jest.mock('../../../../debug-session', () => ({}));
 
 import type { ExtensionContext } from 'vscode';
+import * as vscode from 'vscode';
 import type { GDBTargetDebugTracker } from '../../../../debug-session';
-import { ComponentViewer } from '../../component-viewer-main';
+import { logger } from '../../../../logger';
+import { ComponentViewer, fifoUpdateReason } from '../../component-viewer-main';
 
 // Local test mocks
 
@@ -84,6 +101,8 @@ type Context = { subscriptions: Array<{ dispose: jest.Mock }> };
 describe('ComponentViewer', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        (vscode.debug as unknown as { activeDebugSession?: unknown }).activeDebugSession = undefined;
+        (vscode.debug as unknown as { activeStackItem?: unknown }).activeStackItem = undefined;
     });
 
     const makeContext = (): Context => ({ subscriptions: [] });
@@ -215,7 +234,7 @@ describe('ComponentViewer', () => {
         }
 
         await tracker.callbacks.connected?.(otherSession);
-        expect(provider?.deleteModels).toHaveBeenCalled();
+        expect(provider?.clear).toHaveBeenCalled();
 
         await tracker.callbacks.activeSession?.(session);
         await tracker.callbacks.activeSession?.(undefined);
@@ -243,7 +262,7 @@ describe('ComponentViewer', () => {
 
         await tracker.callbacks.connected?.(session);
 
-        expect(provider?.deleteModels).not.toHaveBeenCalled();
+        expect(provider?.clear).not.toHaveBeenCalled();
         expect((controller as unknown as { _instances: unknown[] })._instances).toHaveLength(1);
     });
 
@@ -252,27 +271,97 @@ describe('ComponentViewer', () => {
         const controller = new ComponentViewer(context as unknown as ExtensionContext);
         const provider = treeProviderFactory();
         (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
+        const debugSpy = jest.spyOn(logger, 'debug');
 
-        const updateInstances = (controller as unknown as { updateInstances: () => Promise<void> }).updateInstances.bind(controller);
+        const updateInstances = (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances.bind(controller);
 
         (controller as unknown as { _activeSession?: Session | undefined })._activeSession = undefined;
-        await updateInstances();
-        expect(provider.deleteModels).toHaveBeenCalledTimes(1);
-        provider.deleteModels.mockClear();
+        await updateInstances('stackTrace');
+        expect(provider.clear).toHaveBeenCalledTimes(1);
+        provider.clear.mockClear();
 
         (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1');
         (controller as unknown as { _instances: unknown[] })._instances = [];
-        await updateInstances();
-        expect(provider.deleteModels).not.toHaveBeenCalled();
+        await updateInstances('stackTrace');
+        expect(provider.clear).not.toHaveBeenCalled();
+        expect(provider.setRoots).not.toHaveBeenCalled();
 
         const instanceA = instanceFactory();
         const instanceB = instanceFactory();
         (controller as unknown as { _instances: unknown[] })._instances = [instanceA, instanceB];
-        await updateInstances();
-        expect(provider.resetModelCache).toHaveBeenCalled();
-        expect(provider.addGuiOut).toHaveBeenCalledTimes(2);
-        expect(provider.showModelData).toHaveBeenCalled();
+        await updateInstances('stackTrace');
+        expect(provider.setRoots).toHaveBeenCalledWith(['node', 'node']);
         expect(instanceA.update).toHaveBeenCalled();
         expect(instanceB.update).toHaveBeenCalled();
+        expect(debugSpy).toHaveBeenCalled();
+    });
+
+    it('runs a debounced update when scheduling multiple times', async () => {
+        jest.useFakeTimers();
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const runUpdate = jest
+            .spyOn(controller as unknown as { runUpdate: (reason: fifoUpdateReason) => Promise<void> }, 'runUpdate')
+            .mockResolvedValue(undefined);
+        const schedulePendingUpdate = (controller as unknown as { schedulePendingUpdate: (reason: fifoUpdateReason) => void }).schedulePendingUpdate.bind(controller);
+
+        schedulePendingUpdate('stackTrace');
+        schedulePendingUpdate('stackTrace');
+        expect(runUpdate).not.toHaveBeenCalled();
+
+        jest.advanceTimersByTime(200);
+        expect(runUpdate).toHaveBeenCalledTimes(1);
+        jest.useRealTimers();
+    });
+
+    it('does nothing when an update is already running', async () => {
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        (controller as unknown as { _runningUpdate: boolean })._runningUpdate = true;
+        const updateInstances = jest.spyOn(controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }, 'updateInstances');
+        const runUpdate = (controller as unknown as { runUpdate: (reason: fifoUpdateReason) => Promise<void> }).runUpdate.bind(controller);
+
+        await runUpdate('stackTrace');
+
+        expect(updateInstances).not.toHaveBeenCalled();
+    });
+
+    it('runs update immediately when idle', async () => {
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        (controller as unknown as { _pendingUpdate: boolean })._pendingUpdate = true;
+        (controller as unknown as { _runningUpdate: boolean })._runningUpdate = false;
+        const updateInstances = jest
+            .spyOn(controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }, 'updateInstances')
+            .mockResolvedValue(undefined);
+        const runUpdate = (controller as unknown as { runUpdate: (reason: fifoUpdateReason) => Promise<void> }).runUpdate.bind(controller);
+
+        await runUpdate('stackTrace');
+        expect(updateInstances).toHaveBeenCalledWith('stackTrace');
+    });
+
+    it('propagates errors during a coalescing update', async () => {
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        (controller as unknown as { _pendingUpdate: boolean })._pendingUpdate = true;
+        (controller as unknown as { _runningUpdate: boolean })._runningUpdate = false;
+        (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances = jest
+            .fn()
+            .mockRejectedValue(new Error('fail'));
+        const runUpdate = (controller as unknown as { runUpdate: (reason: fifoUpdateReason) => Promise<void> }).runUpdate.bind(controller);
+
+        await expect(runUpdate('stackTrace')).rejects.toThrow('fail');
+        // Clears running state if runUpdate throws
+        expect((controller as unknown as { _runningUpdate: boolean })._runningUpdate).toBe(false);
+    });
+
+    it('clears update fifo and first-update flag on stop', async () => {
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const session = makeSession('s1', []);
+        (controller as unknown as { _activeSession?: Session })._activeSession = session;
+        (controller as unknown as { _updateQueue: unknown[] })._updateQueue = [{ updateId: 1 }];
+        (controller as unknown as { _isFirstUpdate: boolean })._isFirstUpdate = false;
+
+        const handleOnWillStopSession = (controller as unknown as { handleOnWillStopSession: (s: Session) => Promise<void> }).handleOnWillStopSession.bind(controller);
+        await handleOnWillStopSession(session);
+
+        expect((controller as unknown as { _activeSession?: Session })._activeSession).toBeUndefined();
+        expect((controller as unknown as { _updateQueue: unknown[] })._updateQueue).toHaveLength(0);
     });
 });

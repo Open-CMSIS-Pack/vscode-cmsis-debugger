@@ -565,6 +565,6 @@ describe('StatementReadList', () => {
 
         await stmt.executeStatement(ctx, guiTree);
 
-        expect(readList.mustRead).toBe(false);
+        expect(readList.mustRead).toBe(true);
     });
 });

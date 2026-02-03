@@ -19,8 +19,15 @@ import { GDBTargetDebugTracker, GDBTargetDebugSession } from '../../debug-sessio
 import { ComponentViewerInstance } from './component-viewer-instance';
 import { URI } from 'vscode-uri';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
+import { logger } from '../../logger';
+import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 
-
+export type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace';
+interface UpdateQueueItem {
+    updateId: number;
+    debugSession: GDBTargetDebugSession;
+    updateReason: fifoUpdateReason;
+}
 export class ComponentViewer {
     private _activeSession: GDBTargetDebugSession | undefined;
     private _instances: ComponentViewerInstance[] = [];
@@ -28,17 +35,21 @@ export class ComponentViewer {
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
     private _loadingCounter: number = 0;
+    // Update queue is currently used for logging purposes only
+    private _updateQueue: UpdateQueueItem[] = [];
+    private _pendingUpdateTimer: NodeJS.Timeout | undefined;
+    private _pendingUpdate: boolean = false;
+    private _runningUpdate: boolean = false;
+    private static readonly pendingUpdateDelayMs = 200;
 
     public constructor(context: vscode.ExtensionContext) {
         this._context = context;
     }
 
     public activate(tracker: GDBTargetDebugTracker): void {
-        /* Create Tree Viewer */
         this._componentViewerTreeDataProvider = new ComponentViewerTreeDataProvider();
         const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
-        this._context.subscriptions.push(
-            treeProviderDisposable);
+        this._context.subscriptions.push(treeProviderDisposable);
         // Subscribe to debug tracker events to update active session
         this.subscribetoDebugTrackerEvents(this._context, tracker);
     }
@@ -111,7 +122,7 @@ export class ComponentViewer {
             this._activeSession = undefined;
         }
         // Update component viewer instance(s)
-        await this.updateInstances();
+        this.schedulePendingUpdate('stackTrace');
     }
 
     private async handleOnWillStopSession(session: GDBTargetDebugSession): Promise<void> {
@@ -119,6 +130,8 @@ export class ComponentViewer {
         if (this._activeSession?.session.id === session.session.id) {
             this._activeSession = undefined;
         }
+        // Clearing update queue
+        this._updateQueue = [];
     }
 
     private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
@@ -130,7 +143,7 @@ export class ComponentViewer {
         // if new session is not the current active session, erase old instances and read the new ones
         if (this._activeSession?.session.id !== session.session.id) {
             this._instances = [];
-            this._componentViewerTreeDataProvider?.deleteModels();
+            this._componentViewerTreeDataProvider?.clear();
         }
         // Update debug session
         this._activeSession = session;
@@ -141,42 +154,76 @@ export class ComponentViewer {
     private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
         if (this._activeSession?.session.id === session.session.id) {
             // Update component viewer instance(s)
-            await this.updateInstances();
+            this.schedulePendingUpdate('refreshTimer');
         }
     }
 
     private async handleOnDidChangeActiveDebugSession(session: GDBTargetDebugSession | undefined): Promise<void> {
         // Update debug session
         this._activeSession = session;
-        if (!session) {
-            this._instances = [];
-            this._componentViewerTreeDataProvider?.deleteModels();
+        if (session === undefined) {
             return;
         }
-        // Update Active Session in all instances
-        for (const instance of this._instances) {
-            instance.updateActiveSession(session);
-        }
-        // Update component viewer instance(s)
-        await this.updateInstances();
+        // update active debug session for all instances
+        this._instances.forEach((instance) => instance.updateActiveSession(session));
+        this.schedulePendingUpdate('sessionChanged');
     }
 
-    private async updateInstances(): Promise<void> {
-        this._instanceUpdateCounter = 0;
-        if (!this._activeSession) {
-            this._componentViewerTreeDataProvider?.deleteModels();
+    private schedulePendingUpdate(updateReason: fifoUpdateReason): void {
+        this._pendingUpdate = true;
+        if (this._pendingUpdateTimer) {
+            clearTimeout(this._pendingUpdateTimer);
+        }
+        this._pendingUpdateTimer = setTimeout(() => {
+            this._pendingUpdateTimer = undefined;
+            void this.runUpdate(updateReason);
+        }, ComponentViewer.pendingUpdateDelayMs);
+    }
+
+    private async runUpdate(updateReason: fifoUpdateReason): Promise<void> {
+        if (this._runningUpdate) {
             return;
         }
+        this._runningUpdate = true;
+        while (this._pendingUpdate) {
+            this._pendingUpdate = false;
+            try {
+                await this.updateInstances(updateReason);
+            } finally {
+                this._runningUpdate = false;
+                logger.error('Component Viewer: Error during update');
+            }
+        }
+        this._runningUpdate = false;
+    }
+
+    private async updateInstances(updateReason: fifoUpdateReason): Promise<void> {
+        if (!this._activeSession) {
+            this._componentViewerTreeDataProvider?.clear();
+            return;
+        }
+        logger.debug(`Component Viewer: Queuing update due to '${updateReason}', that is update #${this._updateQueue.length + 1} in the queue`);
+        this._updateQueue.push({
+            updateId: this._updateQueue.length + 1,
+            debugSession: this._activeSession,
+            updateReason: updateReason
+        });
+        this._instanceUpdateCounter = 0;
         if (this._instances.length === 0) {
             return;
         }
-        this._componentViewerTreeDataProvider?.resetModelCache();
+        const roots: ScvdGuiInterface[] = [];
         for (const instance of this._instances) {
             this._instanceUpdateCounter++;
+            logger.debug(`Updating Component Viewer Instance #${this._instanceUpdateCounter} due to '${updateReason}' (queue position #${this._updateQueue.length})`);
             console.log(`Updating Component Viewer Instance #${this._instanceUpdateCounter}`);
             await instance.update();
-            this._componentViewerTreeDataProvider?.addGuiOut(instance.getGuiTree());
+            const guiTree = instance.getGuiTree();
+            if (guiTree) {
+                roots.push(...guiTree);
+            }
         }
-        this._componentViewerTreeDataProvider?.showModelData();
+        this._componentViewerTreeDataProvider?.setRoots(roots);
     }
 }
+

@@ -27,8 +27,8 @@ import { TestNode, createExecutionContext } from '../helpers/statement-engine-he
 class TestStatement extends StatementBase {
     public executed = false;
 
-    public createGuiChild(guiTree: ScvdGuiTree, guiName?: string, nodeId?: string): ScvdGuiTree {
-        return this.getOrCreateGuiChild(guiTree, guiName, nodeId);
+    public createGuiChild(guiTree: ScvdGuiTree, guiName?: string): ScvdGuiTree {
+        return this.getOrCreateGuiChild(guiTree, guiName);
     }
 
     protected override async onExecute(): Promise<void> {
@@ -89,12 +89,11 @@ describe('StatementBase', () => {
         node.lineNo = '3';
         const stmt = new TestStatement(node, undefined);
         const guiTree = new ScvdGuiTree(undefined);
-        guiTree.beginUpdate();
 
-        const child = stmt.createGuiChild(guiTree, undefined, 'node');
+        const child = stmt.createGuiChild(guiTree, undefined);
 
-        expect(child.key).toContain('Unnamed:TestNode:3');
-        expect(child.nodeId).toContain('node_');
+        expect(guiTree.children).toContain(child);
+        expect(child.getGuiId()).toBe('L3:TestStatement');
     });
 
     it('executes statements when condition passes', async () => {
