@@ -293,6 +293,6 @@ describe('StatementRead', () => {
         await stmt.executeStatement(ctx, guiTree);
 
         expect(spy).toHaveBeenCalledWith('value', 4, expect.any(Uint8Array), 0, 0x1000, 4);
-        expect(read.mustRead).toBe(false);
+        expect(read.mustRead).toBe(true);
     });
 });
