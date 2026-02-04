@@ -43,7 +43,7 @@ export class StatementVar extends StatementBase {
             }
 
             const initValue = value ?? 0;
-            executionContext.memoryHost.setVariable(name, targetSize, initValue, -1, undefined);
+            executionContext.memoryHost.setVariable(name, targetSize, initValue, -1, 0);
             //console.log(`${this.line} Variable "${name}" created with value: ${value}`);
         }
     }

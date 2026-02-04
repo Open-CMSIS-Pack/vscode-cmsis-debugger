@@ -399,7 +399,7 @@ export class StatementReadList extends StatementBase {
         }
 
         if (isConst) {   // Mark variable as already initialized
-            //scvdReadList.mustRead = false;
+            scvdReadList.mustRead = false;
         }
     }
 }
