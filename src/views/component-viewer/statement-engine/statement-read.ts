@@ -168,7 +168,7 @@ export class StatementRead extends StatementBase {
 
         // TOIMPL: do not set if read failed, investigate
         if (resolved.isConst) {   // Mark variable as already initialized
-            this.scvdItem.mustRead = false;
+            //this.scvdItem.mustRead = false;
         }
         return;
     }

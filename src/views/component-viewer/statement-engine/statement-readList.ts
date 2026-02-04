@@ -192,7 +192,7 @@ export class StatementReadList extends StatementBase {
             init,
             isPointerArray
         } = resolved;
-        let maxArraySize = resolved.maxArraySize;
+        const maxArraySize = resolved.maxArraySize;
 
         // ---- handle init ----
         if (init === 1) {
@@ -399,7 +399,7 @@ export class StatementReadList extends StatementBase {
         }
 
         if (isConst) {   // Mark variable as already initialized
-            scvdReadList.mustRead = false;
+            //scvdReadList.mustRead = false;
         }
     }
 }

@@ -23,6 +23,7 @@ import { ScvdMember } from './scvd-member';
 import { ScvdSymbol } from './scvd-symbol';
 import { ScvdVar } from './scvd-var';
 import { getArrayFromJson, getStringFromJson } from './scvd-utils';
+import { ScvdTypedefFieldCache } from './scvd-typedef-cache';
 
 // Container
 export class ScvdTypedefs extends ScvdNode {
@@ -92,7 +93,7 @@ export class ScvdTypedef extends ScvdNode {
     private _import: ScvdSymbol | undefined;
     private _member: ScvdMember[] = [];     // target system variable
     private _var: ScvdVar[] = [];       // local SCVD variable
-    private _fieldByNameCache = new Map<string, ScvdNode>(); // name->node lookup to avoid repeated scans
+    private _fieldByNameCache = new ScvdTypedefFieldCache();
     private _virtualSize: number | undefined;
     private _targetSize: number | undefined;
 
@@ -232,12 +233,7 @@ export class ScvdTypedef extends ScvdNode {
     }
 
     private rebuildFieldCaches(): void {
-        this._fieldByNameCache.clear();
-        for (const field of [...this._member, ...this._var]) {
-            if (field.name !== undefined) {
-                this._fieldByNameCache.set(field.name, field);
-            }
-        }
+        this._fieldByNameCache.rebuild(this._member, this._var);
     }
 
     public async calculateTypedef() {

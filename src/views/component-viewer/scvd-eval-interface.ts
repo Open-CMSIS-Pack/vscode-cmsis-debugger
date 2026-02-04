@@ -25,6 +25,7 @@ import { FormatTypeInfo, ScvdFormatSpecifier } from './model/scvd-format-specifi
 import { ScvdMember } from './model/scvd-member';
 import { ScvdVar } from './model/scvd-var';
 import { perf } from './stats-config';
+import { ScvdEvalInterfaceCache } from './scvd-eval-interface-cache';
 
 export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicProvider {
     private static readonly INVALID_ADDR_MIN = 0xFFFFFFF0;
@@ -32,11 +33,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     private _memHost: MemoryHost;
     private _debugTarget: ScvdDebugTarget;
     private _formatSpecifier: ScvdFormatSpecifier;
-    private _printfCache: Map<string, string> = new Map();
-    private _symbolRefCache: Map<ScvdNode, Map<string, ScvdNode | undefined>> = new Map();
-    private _memberRefCache: Map<ScvdNode, Map<string, ScvdNode | undefined>> = new Map();
-    private _byteWidthCache: Map<ScvdNode, number> = new Map();
-    private _memberOffsetCache: Map<ScvdNode, number | undefined> = new Map();
+    private _caches = new ScvdEvalInterfaceCache();
 
     constructor(
         memHost: MemoryHost,
@@ -67,15 +64,11 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     }
 
     public resetPrintfCache(): void {
-        this._printfCache.clear();
+        this._caches.clearPrintf();
     }
 
     public resetEvalCaches(): void {
-        this._printfCache.clear();
-        this._symbolRefCache.clear();
-        this._memberRefCache.clear();
-        this._byteWidthCache.clear();
-        this._memberOffsetCache.clear();
+        this._caches.clearAll();
     }
 
     private normalizeScalarType(raw: string | ScalarType | undefined): ScalarType | undefined {
@@ -183,18 +176,13 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
 
     // ---------------- Host Interface: model + data access ----------------
     public async getSymbolRef(container: RefContainer, name: string, _forWrite?: boolean): Promise<ScvdNode | undefined> {
-        let baseCache = this._symbolRefCache.get(container.base);
-        if (!baseCache) {
-            baseCache = new Map();
-            this._symbolRefCache.set(container.base, baseCache);
-        }
-        if (baseCache.has(name)) {
-            return baseCache.get(name);
+        if (this._caches.hasSymbolRef(container.base, name)) {
+            return this._caches.getSymbolRef(container.base, name);
         }
         const modelStart = perf?.start() ?? 0;
         const ref = container.base.getSymbol?.(name);
         perf?.end(modelStart, 'modelGetSymbolMs', 'modelGetSymbolCalls');
-        baseCache.set(name, ref);
+        this._caches.setSymbolRef(container.base, name, ref);
         return ref;
     }
 
@@ -203,18 +191,13 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         if (!base) {
             return undefined;
         }
-        let baseCache = this._memberRefCache.get(base);
-        if (!baseCache) {
-            baseCache = new Map();
-            this._memberRefCache.set(base, baseCache);
-        }
-        if (baseCache.has(property)) {
-            return baseCache.get(property);
+        if (this._caches.hasMemberRef(base, property)) {
+            return this._caches.getMemberRef(base, property);
         }
         const modelStart = perf?.start() ?? 0;
         const ref = base.getMember(property);
         perf?.end(modelStart, 'modelGetMemberMs', 'modelGetMemberCalls');
-        baseCache.set(property, ref);
+        this._caches.setMemberRef(base, property, ref);
         return ref;
     }
 
@@ -230,12 +213,12 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     // Returns the byte width of a ref (scalars, structs, arrays – host-defined).
     // getTargetSize, getTypeSize, getVirtualSize
     public async getByteWidth(ref: ScvdNode): Promise<number | undefined> {
-        if (this._byteWidthCache.has(ref)) {
-            return this._byteWidthCache.get(ref);
+        if (this._caches.hasByteWidth(ref)) {
+            return this._caches.getByteWidth(ref);
         }
         const isPointer = ref.getIsPointer();
         if (isPointer) {
-            this._byteWidthCache.set(ref, 4);
+            this._caches.setByteWidth(ref, 4);
             return 4;   // pointer size
         }
         const size = await ref.getTargetSize();
@@ -244,7 +227,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         if (size !== undefined) {
             const width = numOfElements ? size * numOfElements : size;
             if (width > 0) {
-                this._byteWidthCache.set(ref, width);
+                this._caches.setByteWidth(ref, width);
             }
             return width;
         }
@@ -273,8 +256,8 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     }
 
     public async getMemberOffset(_base: ScvdNode, member: ScvdNode): Promise<number | undefined> {
-        if (this._memberOffsetCache.has(member)) {
-            return this._memberOffsetCache.get(member);
+        if (this._caches.hasMemberOffset(member)) {
+            return this._caches.getMemberOffset(member);
         }
         const modelStart = perf?.start() ?? 0;
         const offset = await member.getMemberOffset();
@@ -283,7 +266,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
             console.error(`ScvdEvalInterface.getMemberOffset: offset undefined for ${member.getDisplayLabel()}`);
             return undefined;
         }
-        this._memberOffsetCache.set(member, offset);
+        this._caches.setMemberOffset(member, offset);
         return offset;
     }
 
@@ -461,7 +444,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         if (cacheableNumber) {
             const numericValue = value as number | bigint;
             const key = this.makePrintfCacheKey(spec, numericValue, typeInfo);
-            const cached = this._printfCache.get(key);
+            const cached = this._caches.getPrintf(key);
             if (cached !== undefined) {
                 perf?.recordPrintfCacheHit();
                 return cached;
@@ -469,7 +452,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
             perf?.recordPrintfCacheMiss();
         } else if (cacheableText) {
             const key = this.makePrintfTextCacheKey(spec, value);
-            const cached = this._printfCache.get(key);
+            const cached = this._caches.getPrintf(key);
             if (cached !== undefined) {
                 perf?.recordPrintfCacheHit();
                 return cached;
@@ -508,7 +491,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                 const enumStr = await enumItem?.getGuiName();
                 if (typeof value === 'number' && enumStr !== undefined) {
                     const enumKey = this.makePrintfCacheKey('E', value, typeInfo, enumStr);
-                    const cached = this._printfCache.get(enumKey);
+                    const cached = this._caches.getPrintf(enumKey);
                     if (cached !== undefined) {
                         perf?.recordPrintfCacheHit();
                         return cached;
@@ -521,7 +504,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                 }
                 const formatted = this.formatSpecifier.format(spec, value, opts);
                 if (typeof value === 'number' && enumStr !== undefined) {
-                    this._printfCache.set(this.makePrintfCacheKey('E', value, typeInfo, enumStr), formatted);
+                    this._caches.setPrintf(this.makePrintfCacheKey('E', value, typeInfo, enumStr), formatted);
                 }
                 return formatted;
             }
@@ -660,7 +643,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         ) {
             const numericValue = value as number | bigint;
             const key = this.makePrintfCacheKey(spec, numericValue, typeInfo);
-            this._printfCache.set(key, formatted);
+            this._caches.setPrintf(key, formatted);
         }
     }
 
@@ -671,7 +654,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     private storePrintfTextCache(spec: string, value: string, formatted: string): void {
         if (spec === 't') {
             const key = this.makePrintfTextCacheKey(spec, value);
-            this._printfCache.set(key, formatted);
+            this._caches.setPrintf(key, formatted);
         }
     }
 }

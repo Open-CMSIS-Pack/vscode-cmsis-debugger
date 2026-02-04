@@ -57,6 +57,7 @@ import type { DataAccessHost, EvalValue, ModelHost, RefContainer, ScalarKind, Sc
 import type { IntrinsicProvider } from './intrinsics';
 import { handleIntrinsic, INTRINSIC_DEFINITIONS, IntrinsicName, isIntrinsicName } from './intrinsics';
 import { perf } from '../stats-config';
+import { EvaluatorCache } from './evaluator-cache';
 
 /* =============================================================================
  * Public API
@@ -85,22 +86,16 @@ export class Evaluator {
         this.recordMessage(message);
     };
     private evalNodeFrames: Array<{ start: number; childMs: number; kind: string }> = [];
-    private identifierRefCache: Map<ScvdNode, Map<string, ScvdNode | undefined>> = new Map();
-    private byteWidthCache: Map<ScvdNode, number> = new Map();
-    private valueTypeCache: Map<ScvdNode, ScalarType | undefined> = new Map();
-    private pureEvalMemo: WeakMap<ASTNode, EvalValue | null> = new WeakMap();
+    private caches = new EvaluatorCache();
     private containerStack: RefContainer[] = [];
     private containerPool: RefContainer[] = [];
 
     public resetEvalCaches(): void {
-        this.identifierRefCache.clear();
-        this.byteWidthCache.clear();
-        this.valueTypeCache.clear();
-        this.pureEvalMemo = new WeakMap();
+        this.caches.resetAll();
     }
 
     private async getByteWidthCached(ctx: EvalContext, ref: ScvdNode): Promise<number | undefined> {
-        const cached = this.byteWidthCache.get(ref);
+        const cached = this.caches.getByteWidth(ref);
         if (cached !== undefined) {
             return cached;
         }
@@ -112,7 +107,7 @@ export class Evaluator {
         const w = await byteWidthFn.call(ctx.data, ref);
         perf?.end(byteWidthStart, 'evalHostGetByteWidthMs', 'evalHostGetByteWidthCalls');
         if (typeof w === 'number' && w > 0) {
-            this.byteWidthCache.set(ref, w);
+            this.caches.setByteWidth(ref, w);
             return w;
         }
         return undefined;
@@ -459,8 +454,8 @@ export class Evaluator {
                 return container.valueType;
             }
             if (container.current) {
-                if (this.valueTypeCache.has(container.current)) {
-                    const cached = this.valueTypeCache.get(container.current);
+                if (this.caches.hasValueType(container.current)) {
+                    const cached = this.caches.getValueType(container.current);
                     container.valueType = cached;
                     return cached;
                 }
@@ -474,7 +469,7 @@ export class Evaluator {
             perf?.end(valueTypeStart, 'evalGetValueTypeMs', 'evalGetValueTypeCalls');
             const normalized = this.normalizeScalarType(raw);
             if (container.current) {
-                this.valueTypeCache.set(container.current, normalized);
+                this.caches.setValueType(container.current, normalized);
             }
             container.valueType = normalized;
             return normalized;
@@ -660,20 +655,15 @@ export class Evaluator {
                 const perfStartKind = perf?.start() ?? 0;
                 const id = node as Identifier;
                 // Identifier lookup always starts from the root base
-                let baseCache = this.identifierRefCache.get(ctx.container.base);
-                if (!baseCache) {
-                    baseCache = new Map();
-                    this.identifierRefCache.set(ctx.container.base, baseCache);
-                }
                 const cacheKey = forWrite ? `w:${id.name}` : `r:${id.name}`;
                 let ref: ScvdNode | undefined;
-                if (baseCache.has(cacheKey)) {
-                    ref = baseCache.get(cacheKey);
+                if (this.caches.hasIdentifier(ctx.container.base, cacheKey)) {
+                    ref = this.caches.getIdentifier(ctx.container.base, cacheKey);
                 } else {
                     const symbolRefStart = perf?.start() ?? 0;
                     ref = await ctx.data.getSymbolRef(ctx.container, id.name, forWrite);
                     perf?.end(symbolRefStart, 'evalHostGetSymbolRefMs', 'evalHostGetSymbolRefCalls');
-                    baseCache.set(cacheKey, ref);
+                    this.caches.setIdentifier(ctx.container.base, cacheKey, ref);
                 }
                 if (!ref) {
                     perf?.end(perfStartKind, 'evalMustRefIdentifierMs', 'evalMustRefIdentifierCalls');
@@ -1572,22 +1562,22 @@ export class Evaluator {
         if (!this.isPureNode(node)) {
             return this.evalNode(node, ctx);
         }
-        if (this.pureEvalMemo.has(node)) {
+        if (this.caches.hasMemo(node)) {
             perf?.recordEvalNodeCacheHit();
-            const cached = this.pureEvalMemo.get(node);
+            const cached = this.caches.getMemo(node);
             return cached === null ? undefined : cached;
         }
         perf?.recordEvalNodeCacheMiss();
         const readBefore = ctx.readCount;
         const value = await this.evalNode(node, ctx);
         if (ctx.readCount === readBefore) {
-            this.pureEvalMemo.set(node, value === undefined ? null : value);
+            this.caches.setMemo(node, value === undefined ? null : value);
         }
         return value;
     }
 
     private clearEvalNodeMemo(): void {
-        this.pureEvalMemo = new WeakMap();
+        this.caches.resetMemo();
     }
 }
 
