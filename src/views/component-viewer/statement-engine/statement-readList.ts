@@ -246,13 +246,14 @@ export class StatementReadList extends StatementBase {
                 console.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${totalBytes} bytes, read target memory failed`);
             } else {
                 if (isPointerArray) {
+                    const view = new DataView(readData.buffer, readData.byteOffset, readData.byteLength);
                     const requests: Array<{ key: string; address: number; size: number }> = [];
                     for (let readIdx = 0; readIdx < count; readIdx++) {
                         const ptrOffset = readIdx * 4;
                         if (ptrOffset + 4 > readData.length) {
                             break;
                         }
-                        const addr = (readData[ptrOffset] | (readData[ptrOffset + 1] << 8) | (readData[ptrOffset + 2] << 16) | (readData[ptrOffset + 3] << 24)) >>> 0;
+                        const addr = view.getUint32(ptrOffset, true);
                         if (this.isInvalidAddress(addr)) {
                             break;
                         }

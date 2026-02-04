@@ -45,16 +45,7 @@ export class SymbolCaches {
         symbol: string,
         compute: (symbolName: string) => Promise<number | undefined>
     ): Promise<number | undefined> {
-        const symbolName = this.normalizeKey(symbol);
-        const cached = this.addressCache.get(symbolName);
-        if (cached !== undefined) {
-            return cached;
-        }
-        const value = await compute(symbolName);
-        if (value !== undefined) {
-            this.addressCache.set(symbolName, value);
-        }
-        return value;
+        return this.getCached(this.addressCache, symbol, compute);
     }
 
     public async getAddressWithName(
@@ -62,46 +53,45 @@ export class SymbolCaches {
         compute: (symbolName: string) => Promise<number | undefined>
     ): Promise<{ name: string; value: number } | undefined> {
         const symbolName = this.normalizeKey(symbol);
-        const cached = this.addressCache.get(symbolName);
-        if (cached !== undefined) {
-            return { name: symbolName, value: cached };
-        }
-        const value = await compute(symbolName);
-        if (value !== undefined) {
-            this.addressCache.set(symbolName, value);
-            return { name: symbolName, value };
-        }
-        return undefined;
+        const value = await this.getCachedByName(this.addressCache, symbolName, compute);
+        return value !== undefined ? { name: symbolName, value } : undefined;
     }
 
     public async getSize(
         symbol: string,
         compute: (symbolName: string) => Promise<number | undefined>
     ): Promise<number | undefined> {
-        const symbolName = this.normalizeKey(symbol);
-        const cached = this.sizeCache.get(symbolName);
-        if (cached !== undefined) {
-            return cached;
-        }
-        const value = await compute(symbolName);
-        if (value !== undefined) {
-            this.sizeCache.set(symbolName, value);
-        }
-        return value;
+        return this.getCached(this.sizeCache, symbol, compute);
     }
 
     public async getArrayCount(
         symbol: string,
         compute: (symbolName: string) => Promise<number | undefined>
     ): Promise<number | undefined> {
+        return this.getCached(this.arrayCountCache, symbol, compute);
+    }
+
+    private async getCached(
+        cache: StringNumberCache,
+        symbol: string,
+        compute: (symbolName: string) => Promise<number | undefined>
+    ): Promise<number | undefined> {
         const symbolName = this.normalizeKey(symbol);
-        const cached = this.arrayCountCache.get(symbolName);
+        return this.getCachedByName(cache, symbolName, compute);
+    }
+
+    private async getCachedByName(
+        cache: StringNumberCache,
+        symbolName: string,
+        compute: (symbolName: string) => Promise<number | undefined>
+    ): Promise<number | undefined> {
+        const cached = cache.get(symbolName);
         if (cached !== undefined) {
             return cached;
         }
         const value = await compute(symbolName);
         if (value !== undefined) {
-            this.arrayCountCache.set(symbolName, value);
+            cache.set(symbolName, value);
         }
         return value;
     }

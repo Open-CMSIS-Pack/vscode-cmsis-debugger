@@ -353,15 +353,17 @@ export class PerfStats {
         if (!this.enabled || !this.backendEnabled || start === 0) {
             return;
         }
-        this.backendStats[msKey] += performance.now() - start;
-        this.backendStats[callsKey] += 1;
+        const elapsed = performance.now() - start;
+        this.addBackendMs(msKey, elapsed);
+        this.addBackendCalls(callsKey, 1);
     }
 
     public endMs(start: number, msKey: BackendPerfMsKey): void {
         if (!this.enabled || !this.backendEnabled || start === 0) {
             return;
         }
-        this.backendStats[msKey] += performance.now() - start;
+        const elapsed = performance.now() - start;
+        this.addBackendMs(msKey, elapsed);
     }
 
     public startUi(): number {
@@ -372,8 +374,9 @@ export class PerfStats {
         if (!this.enabled || !this.uiEnabled || start === 0) {
             return;
         }
-        this.uiStats[msKey] += performance.now() - start;
-        this.uiStats[callsKey] += 1;
+        const elapsed = performance.now() - start;
+        this.addUiMs(msKey, elapsed);
+        this.addUiCalls(callsKey, 1);
     }
 
     public recordGuiItemNode(): void {
@@ -618,6 +621,355 @@ export class PerfStats {
         this.lastUiSummary = this.formatUiSummary();
         this.resetUiStats();
         this.setUiEnabled(true);
+    }
+
+    private addBackendMs(msKey: BackendPerfMsKey, delta: number): void {
+        switch (msKey) {
+            case 'evalMs':
+                this.backendStats.evalMs += delta;
+                return;
+            case 'evalIntrinsicArgsMs':
+                this.backendStats.evalIntrinsicArgsMs += delta;
+                return;
+            case 'evalRunningIntrinsicMs':
+                this.backendStats.evalRunningIntrinsicMs += delta;
+                return;
+            case 'evalPseudoMemberMs':
+                this.backendStats.evalPseudoMemberMs += delta;
+                return;
+            case 'evalBinaryMs':
+                this.backendStats.evalBinaryMs += delta;
+                return;
+            case 'evalBinaryTypedMs':
+                this.backendStats.evalBinaryTypedMs += delta;
+                return;
+            case 'evalBinaryTypedOperandMs':
+                this.backendStats.evalBinaryTypedOperandMs += delta;
+                return;
+            case 'evalBinaryTypedTypeMs':
+                this.backendStats.evalBinaryTypedTypeMs += delta;
+                return;
+            case 'evalBinaryTypedOpMs':
+                this.backendStats.evalBinaryTypedOpMs += delta;
+                return;
+            case 'evalBinaryTypedNormalizeMs':
+                this.backendStats.evalBinaryTypedNormalizeMs += delta;
+                return;
+            case 'evalBinaryNoTypesMs':
+                this.backendStats.evalBinaryNoTypesMs += delta;
+                return;
+            case 'evalOperandWithTypeMs':
+                this.backendStats.evalOperandWithTypeMs += delta;
+                return;
+            case 'evalOperandValueMs':
+                this.backendStats.evalOperandValueMs += delta;
+                return;
+            case 'evalNodeChildMs':
+                this.backendStats.evalNodeChildMs += delta;
+                return;
+            case 'evalGetScalarTypeMs':
+                this.backendStats.evalGetScalarTypeMs += delta;
+                return;
+            case 'evalGetValueTypeMs':
+                this.backendStats.evalGetValueTypeMs += delta;
+                return;
+            case 'evalMustRefMs':
+                this.backendStats.evalMustRefMs += delta;
+                return;
+            case 'evalMustReadMs':
+                this.backendStats.evalMustReadMs += delta;
+                return;
+            case 'evalMustRefIdentifierMs':
+                this.backendStats.evalMustRefIdentifierMs += delta;
+                return;
+            case 'evalMustRefMemberMs':
+                this.backendStats.evalMustRefMemberMs += delta;
+                return;
+            case 'evalMustRefArrayMs':
+                this.backendStats.evalMustRefArrayMs += delta;
+                return;
+            case 'evalHostGetSymbolRefMs':
+                this.backendStats.evalHostGetSymbolRefMs += delta;
+                return;
+            case 'evalHostGetMemberRefMs':
+                this.backendStats.evalHostGetMemberRefMs += delta;
+                return;
+            case 'evalHostGetElementRefMs':
+                this.backendStats.evalHostGetElementRefMs += delta;
+                return;
+            case 'evalHostGetElementStrideMs':
+                this.backendStats.evalHostGetElementStrideMs += delta;
+                return;
+            case 'evalHostGetByteWidthMs':
+                this.backendStats.evalHostGetByteWidthMs += delta;
+                return;
+            case 'modelGetSymbolMs':
+                this.backendStats.modelGetSymbolMs += delta;
+                return;
+            case 'modelGetMemberMs':
+                this.backendStats.modelGetMemberMs += delta;
+                return;
+            case 'modelGetMemberOffsetMs':
+                this.backendStats.modelGetMemberOffsetMs += delta;
+                return;
+            case 'evalReadMs':
+                this.backendStats.evalReadMs += delta;
+                return;
+            case 'evalWriteMs':
+                this.backendStats.evalWriteMs += delta;
+                return;
+            case 'formatMs':
+                this.backendStats.formatMs += delta;
+                return;
+            case 'guiNameMs':
+                this.backendStats.guiNameMs += delta;
+                return;
+            case 'guiValueMs':
+                this.backendStats.guiValueMs += delta;
+                return;
+            case 'guiTreeMs':
+                this.backendStats.guiTreeMs += delta;
+                return;
+            case 'guiTreeDetachMs':
+                this.backendStats.guiTreeDetachMs += delta;
+                return;
+            case 'printfMs':
+                this.backendStats.printfMs += delta;
+                return;
+            case 'evalNodeIdentifierMs':
+                this.backendStats.evalNodeIdentifierMs += delta;
+                return;
+            case 'evalNodeMemberMs':
+                this.backendStats.evalNodeMemberMs += delta;
+                return;
+            case 'evalNodeArrayMs':
+                this.backendStats.evalNodeArrayMs += delta;
+                return;
+            case 'evalNodeBinaryMs':
+                this.backendStats.evalNodeBinaryMs += delta;
+                return;
+            case 'evalNodePrintfMs':
+                this.backendStats.evalNodePrintfMs += delta;
+                return;
+            case 'readListResolveMs':
+                this.backendStats.readListResolveMs += delta;
+                return;
+            case 'readListBatchMs':
+                this.backendStats.readListBatchMs += delta;
+                return;
+            case 'readListLoopMs':
+                this.backendStats.readListLoopMs += delta;
+                return;
+            case 'readListStoreMs':
+                this.backendStats.readListStoreMs += delta;
+                return;
+            case 'targetReadCacheHitMs':
+                this.backendStats.targetReadCacheHitMs += delta;
+                return;
+            case 'targetReadCacheMissMs':
+                this.backendStats.targetReadCacheMissMs += delta;
+                return;
+            case 'targetReadPrefetchMs':
+                this.backendStats.targetReadPrefetchMs += delta;
+                return;
+            case 'targetReadFromTargetMs':
+                this.backendStats.targetReadFromTargetMs += delta;
+                return;
+            case 'symbolFindMs':
+                this.backendStats.symbolFindMs += delta;
+                return;
+            case 'symbolSizeMs':
+                this.backendStats.symbolSizeMs += delta;
+                return;
+            case 'symbolOffsetMs':
+                this.backendStats.symbolOffsetMs += delta;
+                return;
+            default:
+                return;
+        }
+    }
+
+    private addBackendCalls(callsKey: BackendPerfCallsKey, delta: number): void {
+        switch (callsKey) {
+            case 'evalCalls':
+                this.backendStats.evalCalls += delta;
+                return;
+            case 'evalIntrinsicArgsCalls':
+                this.backendStats.evalIntrinsicArgsCalls += delta;
+                return;
+            case 'evalRunningIntrinsicCalls':
+                this.backendStats.evalRunningIntrinsicCalls += delta;
+                return;
+            case 'evalPseudoMemberCalls':
+                this.backendStats.evalPseudoMemberCalls += delta;
+                return;
+            case 'evalBinaryCalls':
+                this.backendStats.evalBinaryCalls += delta;
+                return;
+            case 'evalBinaryTypedCalls':
+                this.backendStats.evalBinaryTypedCalls += delta;
+                return;
+            case 'evalBinaryTypedOperandCalls':
+                this.backendStats.evalBinaryTypedOperandCalls += delta;
+                return;
+            case 'evalBinaryTypedTypeCalls':
+                this.backendStats.evalBinaryTypedTypeCalls += delta;
+                return;
+            case 'evalBinaryTypedOpCalls':
+                this.backendStats.evalBinaryTypedOpCalls += delta;
+                return;
+            case 'evalBinaryTypedNormalizeCalls':
+                this.backendStats.evalBinaryTypedNormalizeCalls += delta;
+                return;
+            case 'evalBinaryNoTypesCalls':
+                this.backendStats.evalBinaryNoTypesCalls += delta;
+                return;
+            case 'evalOperandWithTypeCalls':
+                this.backendStats.evalOperandWithTypeCalls += delta;
+                return;
+            case 'evalOperandValueCalls':
+                this.backendStats.evalOperandValueCalls += delta;
+                return;
+            case 'evalNodeChildCalls':
+                this.backendStats.evalNodeChildCalls += delta;
+                return;
+            case 'evalGetScalarTypeCalls':
+                this.backendStats.evalGetScalarTypeCalls += delta;
+                return;
+            case 'evalGetValueTypeCalls':
+                this.backendStats.evalGetValueTypeCalls += delta;
+                return;
+            case 'evalMustRefCalls':
+                this.backendStats.evalMustRefCalls += delta;
+                return;
+            case 'evalMustReadCalls':
+                this.backendStats.evalMustReadCalls += delta;
+                return;
+            case 'evalMustRefIdentifierCalls':
+                this.backendStats.evalMustRefIdentifierCalls += delta;
+                return;
+            case 'evalMustRefMemberCalls':
+                this.backendStats.evalMustRefMemberCalls += delta;
+                return;
+            case 'evalMustRefArrayCalls':
+                this.backendStats.evalMustRefArrayCalls += delta;
+                return;
+            case 'evalHostGetSymbolRefCalls':
+                this.backendStats.evalHostGetSymbolRefCalls += delta;
+                return;
+            case 'evalHostGetMemberRefCalls':
+                this.backendStats.evalHostGetMemberRefCalls += delta;
+                return;
+            case 'evalHostGetElementRefCalls':
+                this.backendStats.evalHostGetElementRefCalls += delta;
+                return;
+            case 'evalHostGetElementStrideCalls':
+                this.backendStats.evalHostGetElementStrideCalls += delta;
+                return;
+            case 'evalHostGetByteWidthCalls':
+                this.backendStats.evalHostGetByteWidthCalls += delta;
+                return;
+            case 'modelGetSymbolCalls':
+                this.backendStats.modelGetSymbolCalls += delta;
+                return;
+            case 'modelGetMemberCalls':
+                this.backendStats.modelGetMemberCalls += delta;
+                return;
+            case 'modelGetMemberOffsetCalls':
+                this.backendStats.modelGetMemberOffsetCalls += delta;
+                return;
+            case 'evalReadCalls':
+                this.backendStats.evalReadCalls += delta;
+                return;
+            case 'evalWriteCalls':
+                this.backendStats.evalWriteCalls += delta;
+                return;
+            case 'formatCalls':
+                this.backendStats.formatCalls += delta;
+                return;
+            case 'guiNameCalls':
+                this.backendStats.guiNameCalls += delta;
+                return;
+            case 'guiValueCalls':
+                this.backendStats.guiValueCalls += delta;
+                return;
+            case 'guiTreeCalls':
+                this.backendStats.guiTreeCalls += delta;
+                return;
+            case 'guiTreeDetachCalls':
+                this.backendStats.guiTreeDetachCalls += delta;
+                return;
+            case 'printfCalls':
+                this.backendStats.printfCalls += delta;
+                return;
+            case 'readListResolveCalls':
+                this.backendStats.readListResolveCalls += delta;
+                return;
+            case 'readListBatchCalls':
+                this.backendStats.readListBatchCalls += delta;
+                return;
+            case 'readListLoopCalls':
+                this.backendStats.readListLoopCalls += delta;
+                return;
+            case 'readListStoreCalls':
+                this.backendStats.readListStoreCalls += delta;
+                return;
+            case 'targetReadCacheHitCalls':
+                this.backendStats.targetReadCacheHitCalls += delta;
+                return;
+            case 'targetReadCacheMissCalls':
+                this.backendStats.targetReadCacheMissCalls += delta;
+                return;
+            case 'targetReadPrefetchCalls':
+                this.backendStats.targetReadPrefetchCalls += delta;
+                return;
+            case 'targetReadFromTargetCalls':
+                this.backendStats.targetReadFromTargetCalls += delta;
+                return;
+            case 'symbolFindCalls':
+                this.backendStats.symbolFindCalls += delta;
+                return;
+            case 'symbolSizeCalls':
+                this.backendStats.symbolSizeCalls += delta;
+                return;
+            case 'symbolOffsetCalls':
+                this.backendStats.symbolOffsetCalls += delta;
+                return;
+            default:
+                return;
+        }
+    }
+
+    private addUiMs(msKey: UiPerfMsKey, delta: number): void {
+        switch (msKey) {
+            case 'treeViewGetTreeItemMs':
+                this.uiStats.treeViewGetTreeItemMs += delta;
+                return;
+            case 'treeViewResolveItemMs':
+                this.uiStats.treeViewResolveItemMs += delta;
+                return;
+            case 'treeViewGetChildrenMs':
+                this.uiStats.treeViewGetChildrenMs += delta;
+                return;
+            default:
+                return;
+        }
+    }
+
+    private addUiCalls(callsKey: UiPerfCallsKey, delta: number): void {
+        switch (callsKey) {
+            case 'treeViewGetTreeItemCalls':
+                this.uiStats.treeViewGetTreeItemCalls += delta;
+                return;
+            case 'treeViewResolveItemCalls':
+                this.uiStats.treeViewResolveItemCalls += delta;
+                return;
+            case 'treeViewGetChildrenCalls':
+                this.uiStats.treeViewGetChildrenCalls += delta;
+                return;
+            default:
+                return;
+        }
     }
 
     public consumeUiSummary(): string | undefined {
