@@ -178,10 +178,14 @@ export class ScvdVar extends ScvdNode {
 
     // search a member (member, var) in typedef
     public override getMember(_property: string): ScvdNode | undefined {
+        const cached = this.symbolsCache(_property, undefined);
+        if (cached !== undefined) {
+            return cached;
+        }
         const type = this._type;
         if (type !== undefined) {
             const typeObj = type.getMember(_property);
-            return typeObj;
+            return this.symbolsCache(_property, typeObj);
         }
         return undefined;
     }

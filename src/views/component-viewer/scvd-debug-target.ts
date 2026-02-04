@@ -15,6 +15,10 @@
  */
 
 import { ComponentViewerTargetAccess } from './component-viewer-target-access';
+import { perf, targetReadStats, targetReadTimingStats } from './stats-config';
+import { TARGET_READ_CACHE_ENABLED } from './component-viewer-config';
+import { MAX_BATCH_BYTES, MAX_BATCH_GAP_BYTES, TargetReadCache } from './target-read-cache';
+import { SymbolCaches } from './scvd-debug-target-cache';
 import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-session';
 import { GDBTargetDebugTracker } from '../../debug-session';
 
@@ -77,16 +81,19 @@ export interface SymbolInfo {
     member?: MemberInfo[];
 }
 
+export interface ReadMemoryRequest {
+    key: string;
+    address: number | bigint;
+    size: number;
+}
+
 export class ScvdDebugTarget {
     private activeSession: GDBTargetDebugSession | undefined;
-    private targetAccess: ComponentViewerTargetAccess;
+    private targetAccess = new ComponentViewerTargetAccess();
     private debugTracker: GDBTargetDebugTracker | undefined;
     private isTargetRunning: boolean = false;
-
-    constructor(
-    ) {
-        this.targetAccess = new ComponentViewerTargetAccess();
-    }
+    private symbolCaches = new SymbolCaches();
+    private targetReadCache: TargetReadCache | undefined = TARGET_READ_CACHE_ENABLED ? new TargetReadCache() : undefined;
 
     // -------------  Interface to debugger  -----------------
     public init(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker): void {
@@ -94,11 +101,24 @@ export class ScvdDebugTarget {
         this.targetAccess.setActiveSession(session);
         this.debugTracker = tracker;
         this.subscribeToTargetRunningState(this.debugTracker);
+        this.symbolCaches.clearAll();
     }
 
     public setActiveSession(session: GDBTargetDebugSession): void {
         this.activeSession = session;
         this.targetAccess.setActiveSession(session);
+    }
+
+    public async beginUpdateCycle(): Promise<void> {
+        targetReadStats?.reset();
+        const targetReadCache = this.targetReadCache;
+        if (!TARGET_READ_CACHE_ENABLED || !targetReadCache) {
+            return;
+        }
+        await targetReadCache.beginUpdateCycle(
+            (addr, length) => this.readMemoryFromTarget(addr, length),
+            targetReadStats
+        );
     }
 
     protected async subscribeToTargetRunningState(debugTracker: GDBTargetDebugTracker): Promise<void> {
@@ -125,20 +145,26 @@ export class ScvdDebugTarget {
             return undefined;
         }
 
-        const symbolName = symbol;
-        const symbolAddressStr = await this.targetAccess.evaluateSymbolAddress(symbol);
-        if (symbolAddressStr !== undefined) {
-            const addr = parseInt(symbolAddressStr as unknown as string, 16);
-            if (Number.isFinite(addr)) {
-                const symbolInfo: SymbolInfo = {
-                    name: symbolName,
-                    address: addr
-                };
-                return symbolInfo;
+        const addressInfo = await this.symbolCaches.getAddressWithName(symbol, async (symbolName) => {
+            const symbolAddressStr = await this.targetAccess.evaluateSymbolAddress(symbolName);
+            if (symbolAddressStr !== undefined) {
+                const parsed = parseInt(symbolAddressStr as unknown as string, 16);
+                if (Number.isFinite(parsed)) {
+                    return parsed;
+                }
+                console.error(`getSymbolInfo: could not parse address for ${symbolName}:`, symbolAddressStr);
             }
-            console.error(`getSymbolInfo: could not parse address for ${symbolName}:`, symbolAddressStr);
+            return undefined;
+        });
+
+        if (!addressInfo) {
+            return undefined;
         }
-        return undefined;
+
+        return {
+            name: addressInfo.name,
+            address: addressInfo.value
+        };
     }
 
     public async findSymbolNameAtAddress(address: number): Promise<string | undefined> {
@@ -176,7 +202,9 @@ export class ScvdDebugTarget {
         if (!this.activeSession) {
             return undefined;
         }
-        return await this.targetAccess.evaluateNumberOfArrayElements(symbol);
+        return this.symbolCaches.getArrayCount(symbol, async (symbolName) => {
+            return this.targetAccess.evaluateNumberOfArrayElements(symbolName);
+        });
     }
 
     public async getTargetIsRunning(): Promise<boolean> {
@@ -188,10 +216,7 @@ export class ScvdDebugTarget {
 
     public async findSymbolAddress(symbol: string): Promise<number | undefined> {
         const symbolInfo = await this.getSymbolInfo(symbol);
-        if (symbolInfo === undefined) {
-            return undefined;
-        }
-        return symbolInfo.address;
+        return symbolInfo?.address;
     }
 
     public async getSymbolSize(symbol: string): Promise<number | undefined> {
@@ -202,12 +227,13 @@ export class ScvdDebugTarget {
             return undefined;
         }
 
-        // real session: ask debugger via target access
-        const size = await this.targetAccess.evaluateSymbolSize(symbol);
-        if (typeof size === 'number' && size >= 0) {
-            return size;
-        }
-        return undefined;
+        return this.symbolCaches.getSize(symbol, async (symbolName) => {
+            const size = await this.targetAccess.evaluateSymbolSize(symbolName);
+            if (typeof size === 'number' && size >= 0) {
+                return size;
+            }
+            return undefined;
+        });
     }
 
     /**
@@ -239,30 +265,147 @@ export class ScvdDebugTarget {
     }
 
     public async readMemory(address: number | bigint, size: number): Promise<Uint8Array | undefined> {
+        const normalized = this.normalizeAddress(address);
+        const targetReadCache = this.targetReadCache;
+        if (TARGET_READ_CACHE_ENABLED && normalized !== undefined && targetReadCache) {
+            targetReadStats?.recordRequest();
+            targetReadCache.recordRequestRange(normalized, size);
+            const hitStart = perf?.start() ?? 0;
+            const cached = targetReadCache.read(normalized, size);
+            if (cached) {
+                perf?.end(hitStart, 'targetReadCacheHitMs', 'targetReadCacheHitCalls');
+                return cached;
+            }
+            const missStart = perf?.start() ?? 0;
+            const missing = targetReadCache.getMissingRanges(normalized, size);
+            for (const range of missing) {
+                const data = await this.readMemoryFromTarget(range.start, range.size);
+                if (!data) {
+                    perf?.end(missStart, 'targetReadCacheMissMs', 'targetReadCacheMissCalls');
+                    return undefined;
+                }
+                targetReadStats?.recordMissRead();
+                targetReadCache.write(range.start, data);
+            }
+            const filled = targetReadCache.read(normalized, size);
+            perf?.end(missStart, 'targetReadCacheMissMs', 'targetReadCacheMissCalls');
+            return filled;
+        }
+        return this.readMemoryFromTarget(address, size);
+    }
+
+    private async readMemoryFromTarget(address: number | bigint, size: number): Promise<Uint8Array | undefined> {
         if (!this.activeSession) {
             return undefined;
         }
 
+        const perfStartTime = perf?.start() ?? 0;
+        const timingStart = perf?.isBackendEnabled() ? Date.now() : 0;
         const dataAsString = await this.targetAccess.evaluateMemory(address.toString(), size, 0);
         if (typeof dataAsString !== 'string') {
+            perf?.end(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
             return undefined;
         }
         // if data is returned as error message string
         if (dataAsString.startsWith('Unable')) {
+            perf?.end(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
             return undefined;
         }
         if (!isLikelyBase64(dataAsString)) {
             console.error(`ScvdDebugTarget.readMemory: invalid base64 data for address ${address.toString()}`);
+            perf?.end(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
             return undefined;
         }
         // Convert String data to Uint8Array
         const byteArray = this.decodeGdbData(dataAsString);
         if (byteArray === undefined) {
+            perf?.end(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
             return undefined;
         }
 
-        return byteArray.length === size ? byteArray : undefined;
+        const result = byteArray.length === size ? byteArray : undefined;
+        if (timingStart !== 0) {
+            const elapsed = Date.now() - timingStart;
+            targetReadTimingStats?.recordRead(elapsed, size);
+            // Aggregate stats are reported after statement execution; avoid per-read logging.
+        }
+        perf?.end(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
+        return result;
     }
+
+    public async readMemoryBatch(requests: ReadMemoryRequest[]): Promise<Map<string, Uint8Array | undefined>> {
+        const results = new Map<string, Uint8Array | undefined>();
+        if (requests.length === 0) {
+            return results;
+        }
+        if (requests.length === 1) {
+            const req = requests[0];
+            const data = req.size > 0 ? await this.readMemory(req.address, req.size) : undefined;
+            results.set(req.key, data);
+            return results;
+        }
+        if (!this.activeSession) {
+            for (const req of requests) {
+                results.set(req.key, undefined);
+            }
+            return results;
+        }
+
+        const toBigInt = (addr: number | bigint): bigint => typeof addr === 'bigint' ? addr : BigInt(addr >>> 0);
+
+        const normalized = requests
+            .filter(req => req.size > 0)
+            .map(req => ({
+                req,
+                start: toBigInt(req.address),
+                size: req.size,
+            }))
+            .sort((left, right) => (left.start < right.start ? -1 : left.start > right.start ? 1 : 0));
+
+        type Range = { start: bigint; size: number; items: typeof normalized };
+        const ranges: Range[] = [];
+
+        for (const item of normalized) {
+            const itemEnd = item.start + BigInt(item.size);
+            const last = ranges[ranges.length - 1];
+            if (!last) {
+                ranges.push({ start: item.start, size: item.size, items: [item] });
+                continue;
+            }
+
+            const lastEnd = last.start + BigInt(last.size);
+            const gap = item.start - lastEnd;
+            const gapOk = gap <= BigInt(MAX_BATCH_GAP_BYTES) && gap >= 0n;
+            const mergedEnd = itemEnd > lastEnd ? itemEnd : lastEnd;
+            const mergedSize = Number(mergedEnd - last.start);
+
+            if (gapOk && mergedSize <= MAX_BATCH_BYTES) {
+                last.size = mergedSize;
+                last.items.push(item);
+            } else {
+                ranges.push({ start: item.start, size: item.size, items: [item] });
+            }
+        }
+
+        for (const range of ranges) {
+            const data = await this.readMemory(range.start, range.size);
+            for (const item of range.items) {
+                if (!data) {
+                    results.set(item.req.key, undefined);
+                    continue;
+                }
+                const offset = Number(item.start - range.start);
+                if (!Number.isSafeInteger(offset) || offset < 0 || offset + item.size > data.length) {
+                    results.set(item.req.key, undefined);
+                    continue;
+                }
+                results.set(item.req.key, data.subarray(offset, offset + item.size));
+            }
+        }
+
+        return results;
+    }
+
 
     public readUint8ArrayStrFromPointer(address: number | bigint, bytesPerChar: number, maxLength: number): Promise<Uint8Array | undefined> {
         if (address === 0 || address === 0n) {
@@ -340,6 +483,19 @@ export class ScvdDebugTarget {
         // Convert to number or bigint and return as uint32
         const numericValue = Number(value);
         return toUint32(numericValue);
+    }
+
+    private normalizeAddress(address: number | bigint): number | undefined {
+        if (typeof address === 'bigint') {
+            if (address < 0n || address > BigInt(Number.MAX_SAFE_INTEGER)) {
+                return undefined;
+            }
+            return Number(address);
+        }
+        if (!Number.isFinite(address) || address < 0 || !Number.isSafeInteger(address)) {
+            return undefined;
+        }
+        return address;
     }
 }
 

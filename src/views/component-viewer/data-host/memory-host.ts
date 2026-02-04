@@ -22,70 +22,58 @@ export class MemoryContainer {
     constructor(
         readonly symbolName: string
     ){ }
-    private buf: Uint8Array | null = null;
-    private winStart = 0;
-    private winSize = 0;
-
     private store: Uint8Array = new Uint8Array(0);
 
-    private ensure(off: number, size: number) {
-        // Grow the local store if needed so [off, off+size) fits.
-        const needed = off + size;
+    public get byteLength(): number {
+        return this.store.length;
+    }
+
+    public readExact(off: number, size: number): Uint8Array | undefined {
+        if (size <= 0 || off < 0) {
+            return undefined;
+        }
+        const end = off + size;
+        if (end > this.store.length) {
+            return undefined;
+        }
+        return this.store.subarray(off, end);
+    }
+
+    public readPartial(off: number, size: number): Uint8Array | undefined {
+        if (size <= 0 || off < 0) {
+            return undefined;
+        }
+        if (off >= this.store.length) {
+            return undefined;
+        }
+        const end = Math.min(this.store.length, off + size);
+        return this.store.subarray(off, end);
+    }
+
+    // allow writing with optional zero padding to `virtualSize`
+    public write(off: number, data: Uint8Array, virtualSize?: number): void {
+        const total = virtualSize !== undefined ? Math.max(virtualSize, data.length) : data.length;
+        if (total <= 0 || off < 0) {
+            return;
+        }
+        const needed = off + total;
         if (this.store.length < needed) {
             const next = new Uint8Array(needed);
             next.set(this.store, 0);
             this.store = next;
         }
 
-        // If our current window already covers the requested range, we're done.
-        if (this.buf && off >= this.winStart && off + size <= this.winStart + this.winSize) {
-            return;
-        }
-
-        // Point the window at the requested range in the local store.
-        this.buf = this.store.subarray(off, off + size);
-        this.winStart = off;
-        this.winSize = size;
-    }
-
-    public get byteLength(): number {
-        return this.store.length;
-    }
-
-    public read(off: number, size: number): Uint8Array {
-        this.ensure(off, size);
-        if (!this.buf) {
-            console.error('window not initialized');
-            return new Uint8Array(size);
-        }
-        const rel = off - this.winStart;
-        return this.buf.subarray(rel, rel + size);
-    }
-
-    // allow writing with optional zero padding to `virtualSize`
-    public write(off: number, data: Uint8Array, virtualSize?: number): void {
-        const total = virtualSize !== undefined ? Math.max(virtualSize, data.length) : data.length;
-        this.ensure(off, total);
-        if (!this.buf) {
-            console.error('window not initialized');
-            return;
-        }
-        const rel = off - this.winStart;
-
         // write the payload
-        this.buf.set(data, rel);
+        this.store.set(data, off);
 
         // zero-fill up to total
         const extra = total - data.length;
         if (extra > 0) {
-            this.buf.fill(0, rel + data.length, rel + total);
+            this.store.fill(0, off + data.length, off + total);
         }
     }
 
     public clear(): void {
-        this.buf = null;
-        this.winStart = 0;
-        this.winSize = 0;
         this.store = new Uint8Array(0);
     }
 }
@@ -97,6 +85,36 @@ function leToNumber(bytes: Uint8Array): number {
         out = (out << 8) | (b & 0xff);
     }
     return out >>> 0;
+}
+
+function leToSignedNumber(bytes: Uint8Array): number {
+    const unsigned = leToNumber(bytes);
+    const bits = bytes.length * 8;
+    if (bits <= 0 || bits >= 32) {
+        return unsigned | 0;
+    }
+    const signBit = 1 << (bits - 1);
+    return (unsigned & signBit) ? (unsigned | (~0 << bits)) : unsigned;
+}
+
+function leToFloat16(bytes: Uint8Array): number {
+    if (bytes.length < 2) {
+        return NaN;
+    }
+    const half = bytes[0] | (bytes[1] << 8);
+    const sign = (half & 0x8000) ? -1 : 1;
+    const exp = (half >> 10) & 0x1f;
+    const frac = half & 0x03ff;
+    if (exp === 0) {
+        if (frac === 0) {
+            return sign < 0 ? -0 : 0;
+        }
+        return sign * Math.pow(2, -14) * (frac / 1024);
+    }
+    if (exp === 0x1f) {
+        return frac === 0 ? (sign * Infinity) : NaN;
+    }
+    return sign * Math.pow(2, exp - 15) * (1 + frac / 1024);
 }
 function leIntToBytes(v: number, size: number): Uint8Array {
     const out = new Uint8Array(size);
@@ -114,7 +132,7 @@ export interface HostOptions { endianness?: Endianness; }
 type ElementMeta = {
   offsets: number[];              // append offsets within the symbol
   sizes: number[];                // logical size (actualSize) per append
-  bases: number[];                // target base address per append
+  bases: Array<number | undefined>; // target base address per append
   elementSize?: number;           // known uniform stride when consistent
 };
 
@@ -163,7 +181,12 @@ export class MemoryHost {
         const container = this.getContainer(variableName);
         const byteOff = ref.offsetBytes ?? 0;
 
-        const raw = container.read(byteOff, widthBytes);
+        const raw = widthBytes > 8
+            ? container.readPartial(byteOff, widthBytes)
+            : container.readExact(byteOff, widthBytes);
+        if (!raw) {
+            return undefined;
+        }
 
         if (this.endianness !== 'little') {
             // TOIMPL: add BE support if needed
@@ -175,6 +198,9 @@ export class MemoryHost {
         //  - 8 bytes: BigInt for full 64-bit integer fidelity
         //  - >8 bytes: return a copy of the raw bytes
         if (ref.valueType?.kind === 'float') {
+            if (widthBytes === 2) {
+                return leToFloat16(raw);
+            }
             if (widthBytes === 4) {
                 const dv = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
                 return dv.getFloat32(0, true);
@@ -185,6 +211,9 @@ export class MemoryHost {
             }
         }
         if (widthBytes <= 4) {
+            if (ref.valueType?.kind === 'int') {
+                return leToSignedNumber(raw);
+            }
             return leToNumber(raw);
         }
         if (widthBytes === 8) {
@@ -208,7 +237,16 @@ export class MemoryHost {
         }
         const container = this.getContainer(variableName);
         const byteOff = ref.offsetBytes ?? 0;
-        return container.read(byteOff, size).slice();
+        const raw = container.readPartial(byteOff, size);
+        if (!raw) {
+            return undefined;
+        }
+        if (raw.length === size) {
+            return raw.slice();
+        }
+        const out = new Uint8Array(size);
+        out.set(raw, 0);
+        return out;
     }
 
     // Write a value, using byte-only offsets and widths.
@@ -276,6 +314,7 @@ export class MemoryHost {
         offset: number,                     // NEW: controls where to place the data
         targetBase?: number,       // target base address where it was read from
         virtualSize?: number,                // total logical bytes for this element (>= size)
+        isConst?: boolean,
     ): void {
         if (!Number.isSafeInteger(offset)) {
             console.error(`setVariable: offset must be a safe integer, got ${offset}`);
@@ -327,8 +366,8 @@ export class MemoryHost {
         const meta = this.getOrInitMeta(name);
         meta.offsets.push(appendOff);
         meta.sizes.push(total);
-        const normBase = targetBase !== undefined ? this.toAddrNumber(targetBase) : 0;
-        meta.bases.push(normBase !== undefined ? normBase : 0);
+        const normBase = targetBase !== undefined ? this.toAddrNumber(targetBase) : undefined;
+        meta.bases.push(normBase);
 
         // maintain uniform stride when consistent
         if (meta.elementSize === undefined && meta.sizes.length === 1) {
@@ -337,78 +376,7 @@ export class MemoryHost {
             delete meta.elementSize;                 // mixed sizes → remove the optional prop
         }
 
-        this.cache.set(name, container, true);
-    }
-
-    /**
-     * Get bytes previously recorded for a symbol.
-     *
-     * - No args           → whole symbol.
-     * - `offset` only     → best-effort element at that offset (using metadata),
-     *                       or `[offset .. end)` if no matching element exists.
-     * - `offset` + `size` → exact range `[offset .. offset+size)`.
-     */
-    public getVariable(name: string, size?: number, offset?: number): number | undefined {
-        const container = this.getContainer(name);
-        const totalBytes = container.byteLength ?? 0;
-
-        if (totalBytes === 0) {
-            // symbol exists but has no data yet
-            return undefined;
-        }
-
-        const off = offset ?? 0;
-        if (!Number.isSafeInteger(off) || off < 0) {
-            return undefined;
-        }
-        if (off >= totalBytes) {
-            return undefined;
-        }
-
-        let spanSize: number;
-
-        if (size !== undefined) {
-            // explicit size wins
-            if (!Number.isSafeInteger(size) || size <= 0) {
-                return undefined;
-            }
-            spanSize = size;
-        } else {
-            // infer size from metadata if possible
-            const meta = this.elementMeta.get(name);
-            if (meta) {
-                const idx = meta.offsets.indexOf(off);
-                if (idx >= 0 && idx < meta.sizes.length) {
-                    spanSize = meta.sizes.at(idx) as number;
-                } else {
-                    // no matching element → default to [off .. end)
-                    spanSize = totalBytes - off;
-                }
-            } else {
-                // no metadata at all → [off .. end)
-                spanSize = totalBytes - off;
-            }
-        }
-
-        if (off + spanSize > totalBytes) {
-            return undefined;
-        }
-
-        if (spanSize > 4) {
-            return undefined;
-        }
-
-        // read() returns a view; return a copy so callers can't mutate our backing store
-        const raw = container.read(off, spanSize).slice();
-        return leToNumber(raw);
-    }
-
-    public invalidate(name?: string): void {
-        if (name === undefined) {
-            this.cache.invalidateAll();
-        } else {
-            this.cache.invalidate(name);
-        }
+        this.cache.set(name, container, true, isConst);
     }
 
     public clearVariable(name: string): boolean {
@@ -420,9 +388,18 @@ export class MemoryHost {
         return this.cache.delete(name);
     }
 
-    public clear(): void {
-        this.elementMeta.clear();
-        this.cache.clear();
+    public clearNonConst(): void {
+        // Iterate a snapshot since we delete entries during the pass.
+        for (const [name, entry] of Array.from(this.cache.entries())) {
+            if (entry.isConst === true) {
+                continue;
+            }
+            this.elementMeta.delete(name);
+            if (entry.value?.clear) {
+                entry.value.clear();
+            }
+            this.cache.delete(name);
+        }
     }
 
     // Number of array elements recorded for `name`. Defaults to 1 when unknown.
@@ -430,12 +407,6 @@ export class MemoryHost {
         const m = this.elementMeta.get(name);
         const n = m?.offsets.length ?? 0;
         return n > 0 ? n : 1;
-    }
-
-    // All recorded target base addresses (per append) for `name`.
-    public getArrayTargetBases(name: string): (number | undefined)[] {
-        const m = this.elementMeta.get(name);
-        return m ? m.bases.slice() : [];
     }
 
     // Target base address for element `index` of `name` (number | undefined).
@@ -450,41 +421,5 @@ export class MemoryHost {
             return undefined;
         }
         return m.bases.at(index);
-    }
-
-    // Optional: repair or set an address later.
-    public setElementTargetBase(name: string, index: number, base: number): void {
-        const m = this.elementMeta.get(name);
-        if (!m) {
-            console.error(`setElementTargetBase: unknown symbol "${name}"`);
-            return;
-        }
-        if (index < 0 || index >= m.bases.length) {
-            console.error(`setElementTargetBase: index ${index} out of range for "${name}"`);
-            return;
-        }
-        const norm = this.toAddrNumber(base);
-        if (norm !== undefined) {
-            m.bases.fill(norm, index, index + 1);
-        }
-    }
-
-    // Optional: if you sometimes need to infer a count from bytes for legacy data
-    public getArrayLengthFromBytes(name: string): number {
-        const m = this.elementMeta.get(name);
-        if (!m) {
-            return 1;
-        }
-        if (m.offsets.length > 0) {
-            return m.offsets.length;
-        }
-
-        const container = this.getContainer(name);
-        const totalBytes = container.byteLength ?? 0;
-        const stride = m.elementSize;
-        if (!stride || stride <= 0) {
-            return 1;
-        }
-        return Math.max(1, Math.floor(totalBytes / stride));
     }
 }

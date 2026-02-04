@@ -18,6 +18,7 @@ import { ScvdNode } from '../model/scvd-node';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
 import { StatementBase } from './statement-base';
+import { perf } from '../stats-config';
 
 
 export class StatementItem extends StatementBase {
@@ -28,15 +29,15 @@ export class StatementItem extends StatementBase {
 
     // TOIMPL: add printChildren to guiTree, and take the furst to set name/value for the item parent
     public override async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
-        const conditionResult = await this.scvdItem.getConditionResult();
-        if (conditionResult === false) {
-            //console.log(`${this.scvdItem.getLineNoStr()}: Skipping ${this.scvdItem.getDisplayLabel()} for condition result: ${conditionResult}`);
+        const shouldExecute = await this.shouldExecute(executionContext);
+        if (!shouldExecute) {
             return;
         }
 
-        const guiName = await this.scvdItem.getGuiName();
+        const guiName = await this.getGuiNamePerf();
         const childGuiTree = this.getOrCreateGuiChild(guiTree, guiName);
-        const guiValue = await this.scvdItem.getGuiValue();
+        perf?.recordGuiItemNode();
+        const guiValue = await this.getGuiValuePerf();
         childGuiTree.setGuiName(guiName);
         childGuiTree.setGuiValue(guiValue);
         await this.onExecute(executionContext, childGuiTree);

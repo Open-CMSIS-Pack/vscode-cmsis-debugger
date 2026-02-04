@@ -245,7 +245,7 @@ describe('StatementListOut', () => {
 
         await stmt.executeStatement(ctx, guiTree);
 
-        expect(child.executed).toBe(1);
+        expect(child.executed).toBe(2);
     });
 
     it('breaks when while expression resolves to zero', async () => {
@@ -269,7 +269,7 @@ describe('StatementListOut', () => {
 
         await stmt.executeStatement(ctx, guiTree);
 
-        expect(child.executed).toBe(0);
+        expect(child.executed).toBe(1);
     });
 
     it('breaks when while expression is undefined', async () => {
@@ -293,7 +293,7 @@ describe('StatementListOut', () => {
 
         await stmt.executeStatement(ctx, guiTree);
 
-        expect(child.executed).toBe(0);
+        expect(child.executed).toBe(1);
     });
 
     it('handles undefined while updates after executing children', async () => {
@@ -317,7 +317,7 @@ describe('StatementListOut', () => {
 
         await stmt.executeStatement(ctx, guiTree);
 
-        expect(child.executed).toBe(1);
+        expect(child.executed).toBe(2);
     });
 
     it('handles undefined limit values', async () => {

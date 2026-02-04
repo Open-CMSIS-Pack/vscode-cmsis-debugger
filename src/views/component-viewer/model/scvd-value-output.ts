@@ -49,19 +49,19 @@ export class ScvdValueOutput extends ScvdNode {
         this._expression.expression = value;
     }
 
-    public override async getGuiName(): Promise<string | undefined> {
+    public override getGuiName(): Promise<string | undefined> {
         const expression = this.expression;
         if (expression === undefined) {
-            return undefined;
+            return Promise.resolve(undefined);
         }
-        return await expression.getResultString();
+        return expression.getResultString();
     }
 
-    public override async getGuiValue(): Promise<string | undefined> {
+    public override getGuiValue(): Promise<string | undefined> {
         const expression = this.expression;
         if (expression === undefined) {
-            return undefined;
+            return Promise.resolve(undefined);
         }
-        return await expression.getResultString();
+        return expression.getResultString();
     }
 }

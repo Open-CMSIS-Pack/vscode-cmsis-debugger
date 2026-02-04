@@ -21,7 +21,7 @@
  */
 
 import { parseExpression, type FormatSegment, type ASTNode, type EvalPointCall, type CallExpression, type AssignmentExpression, type ConditionalExpression, type BinaryExpression, type UpdateExpression, type UnaryExpression, type ArrayIndex, type MemberAccess, type Identifier, type PrintfExpression, type TextSegment } from '../../../../parser-evaluator/parser';
-import { evaluateParseResult, EvalContext, evalNode, __test__ } from '../../../../parser-evaluator/evaluator';
+import { Evaluator, EvalContext } from '../../../../parser-evaluator/evaluator';
 import type { RefContainer, EvalValue, ScalarType } from '../../../../parser-evaluator/model-host';
 import type { FullDataHost } from '../../../integration/helpers/full-data-host';
 import { ScvdNode } from '../../../../model/scvd-node';
@@ -46,6 +46,16 @@ class FakeNode extends ScvdNode {
         return this.members.get(name);
     }
 }
+
+type TestHelpers = {
+    findReferenceNode(node: ASTNode | undefined): Identifier | MemberAccess | ArrayIndex | undefined;
+    asNumber(value: EvalValue): number;
+    mustRef(node: ASTNode, ctx: EvalContext, forWrite?: boolean): Promise<ScvdNode | undefined>;
+    formatValue(spec: FormatSegment['spec'], value: EvalValue): Promise<string | undefined>;
+};
+
+const evaluator = new Evaluator();
+const __test__ = evaluator.getTestHelpers() as unknown as TestHelpers;
 
 class Host implements FullDataHost {
     constructor(private values: Map<string, FakeNode>) {}
@@ -142,7 +152,7 @@ class Host implements FullDataHost {
 function evalExpr(expr: string, host: Host, base: ScvdNode): Promise<EvalValue> {
     const pr = parseExpression(expr, false);
     const ctx = new EvalContext({ data: host, container: base });
-    return evaluateParseResult(pr, ctx);
+    return evaluator.evaluateParseResult(pr, ctx);
 }
 
 describe('evaluator', () => {
@@ -174,8 +184,8 @@ describe('evaluator', () => {
 
         const pr = parseExpression('big + big2', false);
         const ctx = new EvalContext({ data: host, container: base });
-        await expect(evalNode(pr.ast, ctx)).resolves.toBe(5n);
-        await expect(evaluateParseResult(pr, ctx)).resolves.toBeUndefined();
+        await expect(evaluator.evalNode(pr.ast, ctx)).resolves.toBe(5n);
+        await expect(evaluator.evaluateParseResult(pr, ctx)).resolves.toBeUndefined();
     });
 
     it('covers assignment, update, conditionals, and logical ops', async () => {
@@ -238,7 +248,7 @@ describe('evaluator', () => {
         const pr = parseExpression('missing', false);
         const ctx = new EvalContext({ data: host, container: base });
         jest.spyOn(console, 'error').mockImplementation(() => {});
-        await expect(evaluateParseResult(pr, ctx)).resolves.toBeUndefined();
+        await expect(evaluator.evaluateParseResult(pr, ctx)).resolves.toBeUndefined();
         (console.error as unknown as jest.Mock).mockRestore();
     });
 
@@ -256,7 +266,7 @@ describe('evaluator', () => {
         const host = new OffsetHost(values);
         const ctx = new EvalContext({ data: host, container: base });
 
-        await expect(evalNode(parseExpression('obj.child', false).ast, ctx)).resolves.toBe(child['value']);
+        await expect(evaluator.evalNode(parseExpression('obj.child', false).ast, ctx)).resolves.toBe(child['value']);
         expect(ctx.container.offsetBytes).toBe(8);
     });
 
@@ -381,10 +391,10 @@ describe('evaluator', () => {
         const host = new Host(new Map<string, FakeNode>([['obj', obj], ['fn', fnNode]]));
         const ctx = new EvalContext({ data: host, container: base });
 
-        await expect(evalNode(parseExpression('obj.fn(1)', false).ast, ctx)).resolves.toBe(2);
+        await expect(evaluator.evalNode(parseExpression('obj.fn(1)', false).ast, ctx)).resolves.toBe(2);
 
         const badNode = { kind: 'Mystery', start: 0, end: 0 } as unknown as ASTNode;
-        await expect(evalNode(badNode, ctx)).rejects.toThrow('Unhandled node kind');
+        await expect(evaluator.evalNode(badNode, ctx)).resolves.toBeUndefined();
     });
 
     it('resolves colon paths via host hook', async () => {
@@ -394,7 +404,7 @@ describe('evaluator', () => {
             jest.fn(async (_c, parts) => parts.length);
         const ctx = new EvalContext({ data: host, container: base });
 
-        await expect(evalNode(parseExpression('Type:Field', false).ast, ctx)).resolves.toBe(2);
+        await expect(evaluator.evalNode(parseExpression('Type:Field', false).ast, ctx)).resolves.toBe(2);
     });
 
     it('supports unary plus and bigint update expressions', async () => {
@@ -403,8 +413,8 @@ describe('evaluator', () => {
         const host = new Host(new Map<string, FakeNode>([['big', big]]));
 
         const ctx = new EvalContext({ data: host, container: base });
-        await expect(evalNode(parseExpression('+big', false).ast, ctx)).resolves.toBe(2n);
-        await expect(evalNode(parseExpression('++big', false).ast, ctx)).resolves.toBe(3n);
+        await expect(evaluator.evalNode(parseExpression('+big', false).ast, ctx)).resolves.toBe(2n);
+        await expect(evaluator.evalNode(parseExpression('++big', false).ast, ctx)).resolves.toBe(3n);
     });
 
     it('formats bigint and non-string values in formatValue', async () => {
@@ -582,12 +592,12 @@ describe('evaluator edge', () => {
         const host = new BranchHost(values);
         const ctx = new EvalContext({ data: host, container: base });
 
-        expect(await evalNode(parseExpression('f1 / f2', false).ast, ctx)).toBeCloseTo(2.2);
-        expect(await evalNode(parseExpression('f1 % f2', false).ast, ctx)).toBe(1);
-        expect(await evalNode(parseExpression('5 >> 1', false).ast, ctx)).toBe(2);
-        expect(await evalNode(parseExpression('u1 / u2', false).ast, ctx)).toBe(2); // unsigned integer path
-        expect(await evalNode(parseExpression('u1 % u2', false).ast, ctx)).toBe(1);
-        await expect(evaluateParseResult(parseExpression('5 / 0', false), ctx)).resolves.toBeUndefined(); // division by zero handled
+        expect(await evaluator.evalNode(parseExpression('f1 / f2', false).ast, ctx)).toBeCloseTo(2.2);
+        expect(await evaluator.evalNode(parseExpression('f1 % f2', false).ast, ctx)).toBe(1);
+        expect(await evaluator.evalNode(parseExpression('5 >> 1', false).ast, ctx)).toBe(2);
+        expect(await evaluator.evalNode(parseExpression('u1 / u2', false).ast, ctx)).toBe(2); // unsigned integer path
+        expect(await evaluator.evalNode(parseExpression('u1 % u2', false).ast, ctx)).toBe(1);
+        await expect(evaluator.evaluateParseResult(parseExpression('5 / 0', false), ctx)).resolves.toBeUndefined(); // division by zero handled
     });
 
     it('normalizes scalar types from strings and booleans/bigints', async () => {
@@ -595,12 +605,12 @@ describe('evaluator edge', () => {
         const host = new BranchHost(new Map<string, BranchNode>([['q1', new BranchNode('q1', base, 1n)]]));
         const ctx = new EvalContext({ data: host, container: base });
         // bigint result is normalized to undefined
-        await expect(evaluateParseResult(parseExpression('q1 + 1', false), ctx)).resolves.toBeUndefined();
+        await expect(evaluator.evaluateParseResult(parseExpression('q1 + 1', false), ctx)).resolves.toBeUndefined();
         // boolean normalized to 1
-        await expect(evaluateParseResult(parseExpression('!0', false), ctx)).resolves.toBe(1);
+        await expect(evaluator.evaluateParseResult(parseExpression('!0', false), ctx)).resolves.toBe(1);
 
         const alt = new BranchNode('alt');
-        await expect(evaluateParseResult(parseExpression('1+2', false), ctx, alt)).resolves.toBe(3);
+        await expect(evaluator.evaluateParseResult(parseExpression('1+2', false), ctx, alt)).resolves.toBe(3);
     });
 
     it('routes intrinsics and error paths', async () => {
@@ -615,16 +625,16 @@ describe('evaluator edge', () => {
         host.__Offset_of = async () => 16;
         const ctx = new EvalContext({ data: host, container: base });
 
-        await expect(evalNode(parseExpression('__Running', false).ast, ctx)).resolves.toBe(1);
-        await expect(evalNode(parseExpression('__GetRegVal("r0")', false).ast as CallExpression, ctx)).resolves.toBe(7);
-        await expect(evalNode(parseExpression('__FindSymbol("x")', false).ast as CallExpression, ctx)).resolves.toBe(9);
-        await expect(evalNode(parseExpression('__CalcMemUsed(1,2,3,4)', false).ast as CallExpression, ctx)).resolves.toBe(4);
-        await expect(evalNode(parseExpression('__size_of("x")', false).ast as CallExpression, ctx)).resolves.toBe(8);
-        await expect(evalNode(parseExpression('__Symbol_exists("x")', false).ast as CallExpression, ctx)).resolves.toBe(1);
-        await expect(evalNode(parseExpression('__Offset_of("m")', false).ast as CallExpression, ctx)).resolves.toBe(16);
+        await expect(evaluator.evalNode(parseExpression('__Running', false).ast, ctx)).resolves.toBe(1);
+        await expect(evaluator.evalNode(parseExpression('__GetRegVal("r0")', false).ast as CallExpression, ctx)).resolves.toBe(7);
+        await expect(evaluator.evalNode(parseExpression('__FindSymbol("x")', false).ast as CallExpression, ctx)).resolves.toBe(9);
+        await expect(evaluator.evalNode(parseExpression('__CalcMemUsed(1,2,3,4)', false).ast as CallExpression, ctx)).resolves.toBe(4);
+        await expect(evaluator.evalNode(parseExpression('__size_of("x")', false).ast as CallExpression, ctx)).resolves.toBe(8);
+        await expect(evaluator.evalNode(parseExpression('__Symbol_exists("x")', false).ast as CallExpression, ctx)).resolves.toBe(1);
+        await expect(evaluator.evalNode(parseExpression('__Offset_of("m")', false).ast as CallExpression, ctx)).resolves.toBe(16);
 
         const missingCtx = new EvalContext({ data: new BranchHost(new Map<string, BranchNode>()), container: base });
-        await expect(evalNode({ kind: 'EvalPointCall', intrinsic: '__CalcMemUsed', callee: { kind: 'Identifier', name: '__CalcMemUsed', start: 0, end: 0 } as Identifier, args: [], start: 0, end: 0 } as EvalPointCall, missingCtx)).rejects.toThrow('Intrinsic __CalcMemUsed expects at least 4 argument(s)');
+        await expect(evaluator.evalNode({ kind: 'EvalPointCall', intrinsic: '__CalcMemUsed', callee: { kind: 'Identifier', name: '__CalcMemUsed', start: 0, end: 0 } as Identifier, args: [], start: 0, end: 0 } as EvalPointCall, missingCtx)).resolves.toBeUndefined();
     });
 
     it('recovers containers via findReferenceNode across node kinds', async () => {
@@ -676,12 +686,12 @@ describe('evaluator edge', () => {
         ];
 
         for (const seg of segments) {
-            await expect(evalNode(seg, ctx)).resolves.toBeDefined();
+            await expect(evaluator.evalNode(seg, ctx)).resolves.toBeDefined();
         }
 
         // PrintfExpression path with formatPrintf override
         host.formatPrintf = async () => 'fmt';
-        await expect(evalNode(printfAst, ctx)).resolves.toContain('fmt');
+        await expect(evaluator.evalNode(printfAst, ctx)).resolves.toContain('fmt');
     });
 
     it('resolves array member via fast path with stride and element refs', async () => {
@@ -702,7 +712,7 @@ describe('evaluator edge', () => {
         host.getByteWidth = async () => 4;
 
         const ctx = new EvalContext({ data: host, container: base });
-        await expect(evalNode(parseExpression('arr[1].m', false).ast, ctx)).resolves.toBe(42);
+        await expect(evaluator.evalNode(parseExpression('arr[1].m', false).ast, ctx)).resolves.toBe(42);
     });
 
     it('covers bigint comparisons and compound assignments', async () => {
@@ -713,10 +723,10 @@ describe('evaluator edge', () => {
         const bigA = new BranchNode('bigA', base, 5n);
         const bigB = new BranchNode('bigB', base, 7n);
         const compareCtx = new EvalContext({ data: makeHost([['bigA', bigA], ['bigB', bigB]]), container: base });
-        await expect(evalNode(parseExpression('bigA == bigA', false).ast, compareCtx)).resolves.toBeTruthy();
-        await expect(evalNode(parseExpression('bigA < bigB', false).ast, compareCtx)).resolves.toBeTruthy();
-        await expect(evalNode(parseExpression('bigB >= bigA', false).ast, compareCtx)).resolves.toBeTruthy();
-        await expect(evalNode(parseExpression('"1" == 1', false).ast, compareCtx)).resolves.toBeTruthy();
+        await expect(evaluator.evalNode(parseExpression('bigA == bigA', false).ast, compareCtx)).resolves.toBeTruthy();
+        await expect(evaluator.evalNode(parseExpression('bigA < bigB', false).ast, compareCtx)).resolves.toBeTruthy();
+        await expect(evaluator.evalNode(parseExpression('bigB >= bigA', false).ast, compareCtx)).resolves.toBeTruthy();
+        await expect(evaluator.evalNode(parseExpression('"1" == 1', false).ast, compareCtx)).resolves.toBeTruthy();
 
         // Compound assignment operators cover arithmetic/bitwise branches
         const target = new BranchNode('c', base, 8);
@@ -726,7 +736,7 @@ describe('evaluator edge', () => {
             target.value = expr.startsWith('c %=')
                 ? 9 // ensure a value divisible by d for %= branch
                 : target.value;
-            await expect(evalNode(parseExpression(expr, false).ast, ctx)).resolves.toBe(expected);
+            await expect(evaluator.evalNode(parseExpression(expr, false).ast, ctx)).resolves.toBe(expected);
         };
 
         target.value = 8; await run('c += d', 11);
@@ -757,7 +767,7 @@ describe('evaluator edge', () => {
 
         const host = new TypenameHost(new Map<string, BranchNode>([['alias', new BranchNode('alias', base, 1)]]));
         const ctx = new EvalContext({ data: host, container: base });
-        await expect(evalNode(parseExpression('alias + 1', false).ast, ctx)).resolves.toBe(2);
+        await expect(evaluator.evalNode(parseExpression('alias + 1', false).ast, ctx)).resolves.toBe(2);
         expect(sawTypename).toBe(true);
     });
 
@@ -797,11 +807,11 @@ describe('evaluator edge', () => {
         } as PrintfExpression);
         const literalSeg = segFromAst({ kind: 'NumberLiteral', value: 9, raw: '9', valueType: 'number', constValue: 9, start: 0, end: 1 } as ASTNode);
 
-        await expect(evalNode(assignmentSeg, ctx)).resolves.toBeDefined();
-        await expect(evalNode(callSeg, ctx)).resolves.toBeDefined();
-        await expect(evalNode(evalPointSeg, ctx)).resolves.toBeDefined();
-        await expect(evalNode(printfSeg, ctx)).resolves.toBeDefined();
-        await expect(evalNode(literalSeg, ctx)).resolves.toBeDefined();
+        await expect(evaluator.evalNode(assignmentSeg, ctx)).resolves.toBeDefined();
+        await expect(evaluator.evalNode(callSeg, ctx)).resolves.toBeDefined();
+        await expect(evaluator.evalNode(evalPointSeg, ctx)).resolves.toBeDefined();
+        await expect(evaluator.evalNode(printfSeg, ctx)).resolves.toBeDefined();
+        await expect(evaluator.evalNode(literalSeg, ctx)).resolves.toBeDefined();
     });
 
     it('handles call expressions and read/write failures', async () => {
@@ -822,13 +832,13 @@ describe('evaluator edge', () => {
 
         const fnHost = new FnHost(new Map<string, FakeNode>([['fn', fnNode], ['x', valNode]]));
         const fnCtx = new EvalContext({ data: fnHost, container: base });
-        await expect(evalNode(parseExpression('fn(2, 3)', false).ast, fnCtx)).resolves.toBe(5);
-        await expect(evalNode(parseExpression('x(1)', false).ast, fnCtx)).rejects.toThrow('Callee is not callable.');
-        await expect(evalNode(parseExpression('x = 2', false).ast, fnCtx)).rejects.toThrow('Write returned undefined');
+        await expect(evaluator.evalNode(parseExpression('fn(2, 3)', false).ast, fnCtx)).resolves.toBe(5);
+        await expect(evaluator.evalNode(parseExpression('x(1)', false).ast, fnCtx)).resolves.toBeUndefined();
+        await expect(evaluator.evalNode(parseExpression('x = 2', false).ast, fnCtx)).resolves.toBeUndefined();
 
         const readHost = new UndefinedReadHost(new Map<string, FakeNode>([['x', valNode]]));
         const readCtx = new EvalContext({ data: readHost, container: base });
-        await expect(evalNode(parseExpression('x', false).ast, readCtx)).rejects.toThrow('Undefined value');
+        await expect(evaluator.evalNode(parseExpression('x', false).ast, readCtx)).resolves.toBeUndefined();
     });
 
     it('formats values across printf specs and NaN paths', async () => {
@@ -849,7 +859,7 @@ describe('evaluator edge', () => {
 
         for (const { spec, ast, expect: expected } of specs) {
             const seg: FormatSegment = { kind: 'FormatSegment', spec, value: ast, start: 0, end: 0 };
-            await expect(evalNode(seg, ctx)).resolves.toBe(expected);
+            await expect(evaluator.evalNode(seg, ctx)).resolves.toBe(expected);
         }
     });
 });

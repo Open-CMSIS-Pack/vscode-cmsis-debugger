@@ -22,7 +22,7 @@
  */
 
 import { parseExpression } from '../../../../parser-evaluator/parser';
-import { EvalContext, evalNode, evaluateParseResult } from '../../../../parser-evaluator/evaluator';
+import { Evaluator, EvalContext } from '../../../../parser-evaluator/evaluator';
 import type { EvalValue, RefContainer, ScalarType } from '../../../../parser-evaluator/model-host';
 import type { FullDataHost } from '../../helpers/full-data-host';
 import { ScvdNode } from '../../../../model/scvd-node';
@@ -37,6 +37,8 @@ class TypedNode extends ScvdNode {
         this.typeName = typeName;
     }
 }
+
+const evaluator = new Evaluator();
 
 class MathHost implements FullDataHost {
     constructor(private readonly values: Map<string, TypedNode>) {}
@@ -102,12 +104,12 @@ function makeHost(defs: Array<[string, EvalValue, string]>): { host: MathHost; b
 
 function evalParsed(expr: string, host: MathHost, base: TypedNode) {
     const ctx = new EvalContext({ data: host, container: base });
-    return evalNode(parseExpression(expr, false).ast, ctx);
+    return evaluator.evalNode(parseExpression(expr, false).ast, ctx);
 }
 
 function evalParsedNormalized(expr: string, host: MathHost, base: TypedNode) {
     const ctx = new EvalContext({ data: host, container: base });
-    return evaluateParseResult(parseExpression(expr, false), ctx);
+    return evaluator.evaluateParseResult(parseExpression(expr, false), ctx);
 }
 
 describe('evaluator math mixing scalar kinds', () => {

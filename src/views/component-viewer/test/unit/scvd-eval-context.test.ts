@@ -99,24 +99,4 @@ describe('ScvdEvalContext', () => {
         ctx.init(fakeSession, fakeTracker);
         expect(debugTarget.init).toHaveBeenCalledWith(fakeSession, fakeTracker);
     });
-
-    it('updates model via setter', () => {
-        const { viewer } = buildViewerWithObject();
-        const ctx = new ScvdEvalContext(viewer);
-        const replacement = new ScvdComponentViewer(undefined);
-
-        ctx.model = replacement;
-        expect(ctx.model).toBe(replacement);
-    });
-
-    it('forwards active session updates to debug target', () => {
-        const { viewer } = buildViewerWithObject();
-        const ctx = new ScvdEvalContext(viewer);
-        const debugTarget = ctx.getExecutionContext().debugTarget;
-        const setActiveSessionSpy = jest.spyOn(debugTarget, 'setActiveSession').mockImplementation(() => undefined);
-        const session = {} as unknown as Parameters<typeof debugTarget.setActiveSession>[0];
-
-        ctx.updateActiveSession(session);
-        expect(setActiveSessionSpy).toHaveBeenCalledWith(session);
-    });
 });

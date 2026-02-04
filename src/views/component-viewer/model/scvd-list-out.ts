@@ -82,7 +82,7 @@ export class ScvdListOut extends ScvdList {
         return newItem;
     }
 
-    public override async getGuiName(): Promise<string | undefined> {
-        return undefined;
+    public override getGuiName(): Promise<string | undefined> {
+        return Promise.resolve(undefined);
     }
 }

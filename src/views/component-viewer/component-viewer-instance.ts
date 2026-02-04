@@ -25,6 +25,7 @@ import { StatementEngine } from './statement-engine/statement-engine';
 import { ScvdEvalContext } from './scvd-eval-context';
 import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
 import { ScvdGuiTree } from './scvd-gui-tree';
+import { perf } from './stats-config';
 
 
 const xmlOpts: ParserOptions = {
@@ -133,11 +134,15 @@ export class ComponentViewerInstance {
         this.model.readXml(xml);
         stats.push(this.getStats('  model.readXml'));
 
-        this._scvdEvalContext = new ScvdEvalContext(this.model);
-        this._scvdEvalContext.init(debugSession, debugTracker);
+        this.scvdEvalContext = new ScvdEvalContext(this.model);
+        this.scvdEvalContext.init(debugSession, debugTracker);
         stats.push(this.getStats('  evalContext.init'));
 
-        const executionContext = this._scvdEvalContext.getExecutionContext();
+        const executionContext = this.scvdEvalContext?.getExecutionContext();
+        if (executionContext === undefined) {
+            console.error('Failed to get execution context from SCVD EvalContext');
+            return;
+        }
         this.model.setExecutionContextAll(executionContext);
         stats.push(this.getStats('  model.setExecutionContextAll'));
 
@@ -170,9 +175,10 @@ export class ComponentViewerInstance {
             return;
         }
         this._guiTree.clear();
-        await this._statementEngine.executeAll(this._guiTree);
+        await this.executeStatements(this._guiTree);
         stats.push(this.getStats('end'));
         console.log('ComponentViewerInstance update stats:\n' + stats.join('\n  '));
+        perf?.logSummaries();
     }
 
     private async readFileToBuffer(filePath: URI): Promise<Buffer> {
@@ -231,4 +237,5 @@ export class ComponentViewerInstance {
             await this._statementEngine.executeAll(guiTree);
         }
     }
+
 }

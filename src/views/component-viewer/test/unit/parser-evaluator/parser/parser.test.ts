@@ -271,8 +271,10 @@ describe('parser', () => {
         const chainAst = chain.ast as BinaryExpression;
         expect((chainAst.right as NumberLiteral).value).toBe(3);
 
-        const nonCombine = parseExpression('(foo-1)+2', false).ast as BinaryExpression;
-        expect((nonCombine.left as BinaryExpression).operator).toBe('-');
+        const combined = parseExpression('(foo-1)+2', false).ast as BinaryExpression;
+        expect(combined.operator).toBe('+');
+        expect((combined.left as Identifier).name).toBe('foo');
+        expect((combined.right as NumberLiteral).value).toBe(1);
     });
 
     it('folds printf segments and nested expressions', () => {
