@@ -651,85 +651,193 @@ export class Evaluator {
         const perfStartTime = perf?.start() ?? 0;
         try {
             switch (node.kind) {
-            case 'Identifier': {
-                const perfStartKind = perf?.start() ?? 0;
-                const id = node as Identifier;
-                // Identifier lookup always starts from the root base
-                const cacheKey = forWrite ? `w:${id.name}` : `r:${id.name}`;
-                let ref: ScvdNode | undefined;
-                if (this.caches.hasIdentifier(ctx.container.base, cacheKey)) {
-                    ref = this.caches.getIdentifier(ctx.container.base, cacheKey);
-                } else {
-                    const symbolRefStart = perf?.start() ?? 0;
-                    ref = await ctx.data.getSymbolRef(ctx.container, id.name, forWrite);
-                    perf?.end(symbolRefStart, 'evalHostGetSymbolRefMs', 'evalHostGetSymbolRefCalls');
-                    this.caches.setIdentifier(ctx.container.base, cacheKey, ref);
-                }
-                if (!ref) {
+                case 'Identifier': {
+                    const perfStartKind = perf?.start() ?? 0;
+                    const id = node as Identifier;
+                    // Identifier lookup always starts from the root base
+                    const cacheKey = forWrite ? `w:${id.name}` : `r:${id.name}`;
+                    let ref: ScvdNode | undefined;
+                    if (this.caches.hasIdentifier(ctx.container.base, cacheKey)) {
+                        ref = this.caches.getIdentifier(ctx.container.base, cacheKey);
+                    } else {
+                        const symbolRefStart = perf?.start() ?? 0;
+                        ref = await ctx.data.getSymbolRef(ctx.container, id.name, forWrite);
+                        perf?.end(symbolRefStart, 'evalHostGetSymbolRefMs', 'evalHostGetSymbolRefCalls');
+                        this.caches.setIdentifier(ctx.container.base, cacheKey, ref);
+                    }
+                    if (!ref) {
+                        perf?.end(perfStartKind, 'evalMustRefIdentifierMs', 'evalMustRefIdentifierCalls');
+                        this.recordMessage(`Unknown symbol '${id.name}' in ${this.formatNodeForMessage(node)}`);
+                        return undefined;
+                    }
+                    // Start a new anchor chain at this identifier
+                    ctx.container.anchor = ref;
+                    ctx.container.offsetBytes = 0;
+                    ctx.container.widthBytes = undefined;
+                    // Reset last-context hints for a plain identifier
+                    ctx.container.member = undefined;
+                    ctx.container.index = undefined;
+                    ctx.container.valueType = undefined;
+                    ctx.container.origin = undefined;
+                    // Set the current target for subsequent resolution
+                    ctx.container.current = ref;
+
+                    const w = await this.getByteWidthCached(ctx, ref);
+                    if (typeof w === 'number' && w > 0) {
+                        ctx.container.widthBytes = w;
+                    }
+
                     perf?.end(perfStartKind, 'evalMustRefIdentifierMs', 'evalMustRefIdentifierCalls');
-                    this.recordMessage(`Unknown symbol '${id.name}' in ${this.formatNodeForMessage(node)}`);
-                    return undefined;
-                }
-                // Start a new anchor chain at this identifier
-                ctx.container.anchor = ref;
-                ctx.container.offsetBytes = 0;
-                ctx.container.widthBytes = undefined;
-                // Reset last-context hints for a plain identifier
-                ctx.container.member = undefined;
-                ctx.container.index = undefined;
-                ctx.container.valueType = undefined;
-                ctx.container.origin = undefined;
-                // Set the current target for subsequent resolution
-                ctx.container.current = ref;
-
-                const w = await this.getByteWidthCached(ctx, ref);
-                if (typeof w === 'number' && w > 0) {
-                    ctx.container.widthBytes = w;
+                    return ref;
                 }
 
-                perf?.end(perfStartKind, 'evalMustRefIdentifierMs', 'evalMustRefIdentifierCalls');
-                return ref;
-            }
+                case 'MemberAccess': {
+                    const perfStartKind = perf?.start() ?? 0;
+                    const ma = node as MemberAccess;
 
-            case 'MemberAccess': {
-                const perfStartKind = perf?.start() ?? 0;
-                const ma = node as MemberAccess;
+                    // Pseudo-members are resolved against the base ref; capture container hints without member lookup.
+                    if (ma.property === '_count' || ma.property === '_addr') {
+                        const baseRef = await this.mustRef(ma.object, ctx, forWrite);
+                        if (!baseRef) {
+                            perf?.end(perfStartKind, 'evalMustRefMemberMs', 'evalMustRefMemberCalls');
+                            return undefined;
+                        }
+                        ctx.container.member = baseRef;
+                        ctx.container.current = baseRef;
+                        ctx.container.valueType = undefined;
+                        perf?.end(perfStartKind, 'evalMustRefMemberMs', 'evalMustRefMemberCalls');
+                        return baseRef;
+                    }
 
-                // Pseudo-members are resolved against the base ref; capture container hints without member lookup.
-                if (ma.property === '_count' || ma.property === '_addr') {
+                    // Fast-path: if object is an ArrayIndex, compute index ONCE, then resolve the member on the element.
+                    if (ma.object.kind === 'ArrayIndex') {
+                        const ai = ma.object as ArrayIndex;
+
+                        // Resolve array symbol and establish anchor/current
+                        const baseRef = await this.mustRef(ai.array, ctx, forWrite);
+                        if (!baseRef) {
+                            perf?.end(perfStartKind, 'evalMustRefMemberMs', 'evalMustRefMemberCalls');
+                            return undefined;
+                        }
+
+                        // Evaluate index in isolation (so i/j/mem.length don't clobber outer anchor)
+                        const idx = this.asNumber(await this.withIsolatedContainer(ctx, () => this.evalNodeChild(ai.index, ctx))) | 0;
+
+                        // Remember the index for hosts that use it
+                        ctx.container.index = idx;
+
+                        // Use the thing we're actually indexing (supports nested arr[i][j].field)
+                        const arrayRef = ctx.container.current ?? baseRef;
+
+                        // Apply array offset using the correct dimension's stride (bytes)
+                        let strideBytes = 0;
+                        if (ctx.data.getElementStride) {
+                            const strideStart = perf?.start() ?? 0;
+                            strideBytes = await ctx.data.getElementStride(arrayRef);
+                            perf?.end(strideStart, 'evalHostGetElementStrideMs', 'evalHostGetElementStrideCalls');
+                        }
+                        if (typeof strideBytes === 'number' && strideBytes !== 0) {
+                            this.addByteOffset(ctx, idx * strideBytes);
+                        }
+
+                        // Base for member resolution = element model if host provides one
+                        let baseForMember = arrayRef;
+                        if (ctx.data.getElementRef) {
+                            const elementRefStart = perf?.start() ?? 0;
+                            baseForMember = (await ctx.data.getElementRef(arrayRef)) ?? arrayRef;
+                            perf?.end(elementRefStart, 'evalHostGetElementRefMs', 'evalHostGetElementRefCalls');
+                        }
+                        ctx.container.current = baseForMember;
+
+                        // Resolve member
+                        const memberRefStart = perf?.start() ?? 0;
+                        const child = await ctx.data.getMemberRef(ctx.container, ma.property, forWrite);
+                        perf?.end(memberRefStart, 'evalHostGetMemberRefMs', 'evalHostGetMemberRefCalls');
+                        if (!child) {
+                            const baseName = baseForMember?.name ?? baseRef?.name ?? 'unknown';
+                            this.recordMessage(`Missing member '${ma.property}' on '${baseName}'`);
+                            perf?.end(perfStartKind, 'evalMustRefMemberMs', 'evalMustRefMemberCalls');
+                            return undefined;
+                        }
+
+                        // Accumulate member byte offset
+                        const memberOffsetBytes = ctx.data.getMemberOffset ? await ctx.data.getMemberOffset(baseForMember, child) : undefined;
+                        if (typeof memberOffsetBytes === 'number') {
+                            this.addByteOffset(ctx, memberOffsetBytes);
+                        }
+
+                        const w = await this.getByteWidthCached(ctx, child);
+                        if (typeof w === 'number' && w > 0) {
+                            ctx.container.widthBytes = w;
+                        }
+
+                        // Finalize hints
+                        ctx.container.member = child;
+                        ctx.container.current = child;
+                        ctx.container.origin = arrayRef;
+                        ctx.container.valueType = undefined; // will be resolved on read/write via getValueType
+                        perf?.end(perfStartKind, 'evalMustRefMemberMs', 'evalMustRefMemberCalls');
+                        return child;
+                    }
+
+                    // Default path: resolve base then member
                     const baseRef = await this.mustRef(ma.object, ctx, forWrite);
                     if (!baseRef) {
                         perf?.end(perfStartKind, 'evalMustRefMemberMs', 'evalMustRefMemberCalls');
                         return undefined;
                     }
-                    ctx.container.member = baseRef;
+
                     ctx.container.current = baseRef;
-                    ctx.container.valueType = undefined;
-                    perf?.end(perfStartKind, 'evalMustRefMemberMs', 'evalMustRefMemberCalls');
-                    return baseRef;
-                }
-
-                // Fast-path: if object is an ArrayIndex, compute index ONCE, then resolve the member on the element.
-                if (ma.object.kind === 'ArrayIndex') {
-                    const ai = ma.object as ArrayIndex;
-
-                    // Resolve array symbol and establish anchor/current
-                    const baseRef = await this.mustRef(ai.array, ctx, forWrite);
-                    if (!baseRef) {
+                    const memberRefStart = perf?.start() ?? 0;
+                    const child = await ctx.data.getMemberRef(ctx.container, ma.property, forWrite);
+                    perf?.end(memberRefStart, 'evalHostGetMemberRefMs', 'evalHostGetMemberRefCalls');
+                    if (!child) {
+                        const baseName = baseRef?.name ?? 'unknown';
+                        this.recordMessage(`Missing member '${ma.property}' on '${baseName}'`);
                         perf?.end(perfStartKind, 'evalMustRefMemberMs', 'evalMustRefMemberCalls');
                         return undefined;
                     }
 
-                    // Evaluate index in isolation (so i/j/mem.length don't clobber outer anchor)
+                    const memberOffsetBytes = ctx.data.getMemberOffset ? await ctx.data.getMemberOffset(baseRef, child) : undefined;
+                    if (typeof memberOffsetBytes === 'number') {
+                        this.addByteOffset(ctx, memberOffsetBytes);
+                    }
+
+                    const w = await this.getByteWidthCached(ctx, child);
+                    if (typeof w === 'number' && w > 0) {
+                        ctx.container.widthBytes = w;
+                    }
+
+                    ctx.container.member = child;
+                    ctx.container.current = child;
+                    ctx.container.origin = undefined;
+                    ctx.container.valueType = undefined;
+                    perf?.end(perfStartKind, 'evalMustRefMemberMs', 'evalMustRefMemberCalls');
+                    return child;
+                }
+
+                case 'ArrayIndex': {
+                    const perfStartKind = perf?.start() ?? 0;
+                    const ai = node as ArrayIndex;
+
+                    // Resolve array base (establishes anchor/current on the array)
+                    const baseRef = await this.mustRef(ai.array, ctx, forWrite);
+                    if (!baseRef) {
+                        perf?.end(perfStartKind, 'evalMustRefArrayMs', 'evalMustRefArrayCalls');
+                        return undefined;
+                    }
+
+                    // Evaluate the index in isolation
                     const idx = this.asNumber(await this.withIsolatedContainer(ctx, () => this.evalNodeChild(ai.index, ctx))) | 0;
 
-                    // Remember the index for hosts that use it
+                    // Translate index -> byte offset
                     ctx.container.index = idx;
 
-                    // Use the thing we're actually indexing (supports nested arr[i][j].field)
                     const arrayRef = ctx.container.current ?? baseRef;
+                    ctx.container.member = undefined;
+                    ctx.container.valueType = undefined;
+                    ctx.container.origin = arrayRef;
 
-                    // Apply array offset using the correct dimension's stride (bytes)
                     let strideBytes = 0;
                     if (ctx.data.getElementStride) {
                         const strideStart = perf?.start() ?? 0;
@@ -740,140 +848,32 @@ export class Evaluator {
                         this.addByteOffset(ctx, idx * strideBytes);
                     }
 
-                    // Base for member resolution = element model if host provides one
-                    let baseForMember = arrayRef;
+                    // Current target becomes element if host exposes it, otherwise array
+                    let elementRef = arrayRef;
                     if (ctx.data.getElementRef) {
                         const elementRefStart = perf?.start() ?? 0;
-                        baseForMember = (await ctx.data.getElementRef(arrayRef)) ?? arrayRef;
+                        elementRef = (await ctx.data.getElementRef(arrayRef)) ?? arrayRef;
                         perf?.end(elementRefStart, 'evalHostGetElementRefMs', 'evalHostGetElementRefCalls');
                     }
-                    ctx.container.current = baseForMember;
+                    ctx.container.current = elementRef;
 
-                    // Resolve member
-                    const memberRefStart = perf?.start() ?? 0;
-                    const child = await ctx.data.getMemberRef(ctx.container, ma.property, forWrite);
-                    perf?.end(memberRefStart, 'evalHostGetMemberRefMs', 'evalHostGetMemberRefCalls');
-                    if (!child) {
-                        const baseName = baseForMember?.name ?? baseRef?.name ?? 'unknown';
-                        this.recordMessage(`Missing member '${ma.property}' on '${baseName}'`);
-                        perf?.end(perfStartKind, 'evalMustRefMemberMs', 'evalMustRefMemberCalls');
-                        return undefined;
-                    }
-
-                    // Accumulate member byte offset
-                    const memberOffsetBytes = ctx.data.getMemberOffset ? await ctx.data.getMemberOffset(baseForMember, child) : undefined;
-                    if (typeof memberOffsetBytes === 'number') {
-                        this.addByteOffset(ctx, memberOffsetBytes);
-                    }
-
-                    const w = await this.getByteWidthCached(ctx, child);
+                    const w = await this.getByteWidthCached(ctx, elementRef);
                     if (typeof w === 'number' && w > 0) {
                         ctx.container.widthBytes = w;
                     }
 
-                    // Finalize hints
-                    ctx.container.member = child;
-                    ctx.container.current = child;
-                    ctx.container.origin = arrayRef;
-                    ctx.container.valueType = undefined; // will be resolved on read/write via getValueType
-                    perf?.end(perfStartKind, 'evalMustRefMemberMs', 'evalMustRefMemberCalls');
-                    return child;
-                }
-
-                // Default path: resolve base then member
-                const baseRef = await this.mustRef(ma.object, ctx, forWrite);
-                if (!baseRef) {
-                    perf?.end(perfStartKind, 'evalMustRefMemberMs', 'evalMustRefMemberCalls');
-                    return undefined;
-                }
-
-                ctx.container.current = baseRef;
-                const memberRefStart = perf?.start() ?? 0;
-                const child = await ctx.data.getMemberRef(ctx.container, ma.property, forWrite);
-                perf?.end(memberRefStart, 'evalHostGetMemberRefMs', 'evalHostGetMemberRefCalls');
-                if (!child) {
-                    const baseName = baseRef?.name ?? 'unknown';
-                    this.recordMessage(`Missing member '${ma.property}' on '${baseName}'`);
-                    perf?.end(perfStartKind, 'evalMustRefMemberMs', 'evalMustRefMemberCalls');
-                    return undefined;
-                }
-
-                const memberOffsetBytes = ctx.data.getMemberOffset ? await ctx.data.getMemberOffset(baseRef, child) : undefined;
-                if (typeof memberOffsetBytes === 'number') {
-                    this.addByteOffset(ctx, memberOffsetBytes);
-                }
-
-                const w = await this.getByteWidthCached(ctx, child);
-                if (typeof w === 'number' && w > 0) {
-                    ctx.container.widthBytes = w;
-                }
-
-                ctx.container.member = child;
-                ctx.container.current = child;
-                ctx.container.origin = undefined;
-                ctx.container.valueType = undefined;
-                perf?.end(perfStartKind, 'evalMustRefMemberMs', 'evalMustRefMemberCalls');
-                return child;
-            }
-
-            case 'ArrayIndex': {
-                const perfStartKind = perf?.start() ?? 0;
-                const ai = node as ArrayIndex;
-
-                // Resolve array base (establishes anchor/current on the array)
-                const baseRef = await this.mustRef(ai.array, ctx, forWrite);
-                if (!baseRef) {
                     perf?.end(perfStartKind, 'evalMustRefArrayMs', 'evalMustRefArrayCalls');
+                    return baseRef;
+                }
+
+                case 'EvalPointCall': {
+                    this.recordMessage(`Invalid reference target (${node.kind})`);
                     return undefined;
                 }
 
-                // Evaluate the index in isolation
-                const idx = this.asNumber(await this.withIsolatedContainer(ctx, () => this.evalNodeChild(ai.index, ctx))) | 0;
-
-                // Translate index -> byte offset
-                ctx.container.index = idx;
-
-                const arrayRef = ctx.container.current ?? baseRef;
-                ctx.container.member = undefined;
-                ctx.container.valueType = undefined;
-                ctx.container.origin = arrayRef;
-
-                let strideBytes = 0;
-                if (ctx.data.getElementStride) {
-                    const strideStart = perf?.start() ?? 0;
-                    strideBytes = await ctx.data.getElementStride(arrayRef);
-                    perf?.end(strideStart, 'evalHostGetElementStrideMs', 'evalHostGetElementStrideCalls');
-                }
-                if (typeof strideBytes === 'number' && strideBytes !== 0) {
-                    this.addByteOffset(ctx, idx * strideBytes);
-                }
-
-                // Current target becomes element if host exposes it, otherwise array
-                let elementRef = arrayRef;
-                if (ctx.data.getElementRef) {
-                    const elementRefStart = perf?.start() ?? 0;
-                    elementRef = (await ctx.data.getElementRef(arrayRef)) ?? arrayRef;
-                    perf?.end(elementRefStart, 'evalHostGetElementRefMs', 'evalHostGetElementRefCalls');
-                }
-                ctx.container.current = elementRef;
-
-                const w = await this.getByteWidthCached(ctx, elementRef);
-                if (typeof w === 'number' && w > 0) {
-                    ctx.container.widthBytes = w;
-                }
-
-                perf?.end(perfStartKind, 'evalMustRefArrayMs', 'evalMustRefArrayCalls');
-                return baseRef;
-            }
-
-            case 'EvalPointCall': {
-                this.recordMessage(`Invalid reference target (${node.kind})`);
-                return undefined;
-            }
-
-            default:
-                this.recordMessage(`Invalid reference target (${node.kind})`);
-                return undefined;
+                default:
+                    this.recordMessage(`Invalid reference target (${node.kind})`);
+                    return undefined;
             }
         } finally {
             perf?.end(perfStartTime, 'evalMustRefMs', 'evalMustRefCalls');
@@ -1016,244 +1016,244 @@ export class Evaluator {
         }
         try {
             switch (node.kind) {
-            case 'NumberLiteral':  return (node as NumberLiteral).value;
-            case 'StringLiteral':  return (node as StringLiteral).value;
-            case 'BooleanLiteral': return (node as BooleanLiteral).value;
+                case 'NumberLiteral':  return (node as NumberLiteral).value;
+                case 'StringLiteral':  return (node as StringLiteral).value;
+                case 'BooleanLiteral': return (node as BooleanLiteral).value;
 
-            case 'Identifier': {
-                const name = (node as Identifier).name;
-                // __Running can appear as a bare identifier; treat it as an intrinsic, not a symbol.
-                if (name === '__Running') {
-                    return this.evalRunningIntrinsic(ctx);
-                }
-                const ref = await this.mustRef(node, ctx, false);
-                if (!ref) {
-                    return undefined;
-                }
-                return this.mustRead(ctx);
-            }
-
-            case 'MemberAccess': {
-                const ma = node as MemberAccess;
-                // Support pseudo-members that evaluate to numbers: obj._count and obj._addr
-                if (ma.property === '_count' || ma.property === '_addr') {
-                    const baseRef = await this.mustRef(ma.object, ctx, false);
-                    if (!baseRef) {
+                case 'Identifier': {
+                    const name = (node as Identifier).name;
+                    // __Running can appear as a bare identifier; treat it as an intrinsic, not a symbol.
+                    if (name === '__Running') {
+                        return this.evalRunningIntrinsic(ctx);
+                    }
+                    const ref = await this.mustRef(node, ctx, false);
+                    if (!ref) {
                         return undefined;
                     }
-                    return this.evalPseudoMember(ctx, ma.property, baseRef);
-                }
-                // Default: resolve member and read its value
-                const ref = await this.mustRef(node, ctx, false);
-                if (!ref) {
-                    return undefined;
-                }
-                return this.mustRead(ctx);
-            }
-
-            case 'ArrayIndex': {
-                const ref = await this.mustRef(node, ctx, false);
-                if (!ref) {
-                    return undefined;
-                }
-                return this.mustRead(ctx);
-            }
-
-            case 'ColonPath': {
-                const cp = node as ColonPath;
-                // Colon paths (foo:bar:baz) are host-defined lookups resolved by the DataHost.
-                const handled = ctx.data.resolveColonPath
-                    ? await ctx.data.resolveColonPath(ctx.container, cp.parts.slice())
-                    : undefined;
-                if (handled === undefined) {
-                    return undefined;
-                }
-                return handled;
-            }
-
-            case 'UnaryExpression': {
-                const u = node as UnaryExpression;
-                const v = await this.evalNodeChild(u.argument, ctx);
-                if (v === undefined) {
-                    return undefined;
-                }
-                switch (u.operator) {
-                    case '+': {
-                        const n = toNumeric(v);
-                        return typeof n === 'bigint' ? n : +n;
-                    }
-                    case '-': {
-                        const n = toNumeric(v);
-                        return typeof n === 'bigint' ? -toBigInt(n as EvalValue) : -(n as number);
-                    }
-                    case '!': return !this.truthy(v);
-                    case '~': {
-                        const n = toNumeric(v);
-                        if (typeof n === 'bigint') {
-                            return ~n;
-                        }
-                        return ((~((n as number) | 0)) >>> 0);
-                    }
-                    default:
-                        this.recordMessage(`Unsupported unary operator ${u.operator} for ${this.formatNodeForMessage(u.argument)}`);
-                        return undefined;
-                }
-            }
-
-            case 'UpdateExpression': {
-                const u = node as UpdateExpression;
-                const ref = await this.lref(u.argument, ctx);
-                const prev = await ref.get();
-                if (prev === undefined) {
-                    return undefined;
-                }
-                const prevNum = typeof prev === 'bigint' ? undefined : this.asNumber(prev);
-                const next = (u.operator === '++'
-                    ? (typeof prev === 'bigint' ? prev + 1n : (prevNum ?? 0) + 1)
-                    : (typeof prev === 'bigint' ? prev - 1n : (prevNum ?? 0) - 1));
-                const updated = await ref.set(next);
-                if (updated === undefined) {
-                    return undefined;
-                }
-                return u.prefix ? ref.get() : prev;
-            }
-
-            case 'BinaryExpression':   return this.evalBinary(node as BinaryExpression, ctx);
-
-            case 'ConditionalExpression': {
-                const c = node as ConditionalExpression;
-                const testValue = await this.evalNodeChild(c.test, ctx);
-                if (testValue === undefined) {
-                    return undefined;
-                }
-                const branch = this.truthy(testValue) ? c.consequent : c.alternate;
-                return this.evalNodeChild(branch, ctx);
-            }
-
-            case 'AssignmentExpression': {
-                const a = node as AssignmentExpression;
-                const ref = await this.lref(a.left, ctx);
-                if (a.operator === '=') {
-                    const value = await this.withIsolatedContainer(ctx, () => this.evalNodeChild(a.right, ctx));
-                    if (value === undefined) {
-                        return undefined;
-                    }
-                    return ref.set(value);
+                    return this.mustRead(ctx);
                 }
 
-                // Use the LValue to read current LHS value (and we already captured its type in lref)
-                const L = await ref.get();
-                const R = await this.evalNodeChild(a.right, ctx);
-                if (L === undefined || R === undefined) {
-                    return undefined;
-                }
-                const lhsKind: MergedKind = ref.type ? ref.type.kind : 'unknown';
-
-                let out: EvalValue;
-                switch (a.operator) {
-                    case '+=':  out = addVals(L, R); break;
-                    case '-=':  out = subVals(L, R); break;
-                    case '*=':  out = mulVals(L, R); break;
-                    case '/=':  out = this.divValsWithKind(L, R, lhsKind); break;
-                    case '%=':  out = this.modValsWithKind(L, R, lhsKind); break;
-                    case '<<=': out = shlVals(L, R); break;
-                    case '>>=': out = sarVals(L, R); break;
-                    case '&=':  out = andVals(L, R); break;
-                    case '^=':  out = xorVals(L, R); break;
-                    case '|=':  out = orVals(L, R); break;
-                    default:
-                        this.recordMessage(`Unsupported assignment operator ${a.operator} for ${this.formatNodeForMessage(a.left)}`);
-                        return undefined;
-                }
-                if (out === undefined) {
-                    return undefined;
-                }
-                return ref.set(out);
-            }
-
-            case 'CallExpression': {
-                const c = node as CallExpression;
-
-                if (c.callee.kind === 'Identifier') {
-                    const name = (c.callee as Identifier).name;
-                    if (isIntrinsicName(name) && (
-                        // eslint-disable-next-line security/detect-object-injection
-                        INTRINSIC_DEFINITIONS[name].allowCallExpression
-                    )) {
-                        const args = await this.evalArgsForIntrinsic(name, c.args, ctx);
-                        if (!args) {
+                case 'MemberAccess': {
+                    const ma = node as MemberAccess;
+                    // Support pseudo-members that evaluate to numbers: obj._count and obj._addr
+                    if (ma.property === '_count' || ma.property === '_addr') {
+                        const baseRef = await this.mustRef(ma.object, ctx, false);
+                        if (!baseRef) {
                             return undefined;
                         }
-                        return handleIntrinsic(ctx.data, ctx.container, name, args, this.onIntrinsicError);
+                        return this.evalPseudoMember(ctx, ma.property, baseRef);
+                    }
+                    // Default: resolve member and read its value
+                    const ref = await this.mustRef(node, ctx, false);
+                    if (!ref) {
+                        return undefined;
+                    }
+                    return this.mustRead(ctx);
+                }
+
+                case 'ArrayIndex': {
+                    const ref = await this.mustRef(node, ctx, false);
+                    if (!ref) {
+                        return undefined;
+                    }
+                    return this.mustRead(ctx);
+                }
+
+                case 'ColonPath': {
+                    const cp = node as ColonPath;
+                    // Colon paths (foo:bar:baz) are host-defined lookups resolved by the DataHost.
+                    const handled = ctx.data.resolveColonPath
+                        ? await ctx.data.resolveColonPath(ctx.container, cp.parts.slice())
+                        : undefined;
+                    if (handled === undefined) {
+                        return undefined;
+                    }
+                    return handled;
+                }
+
+                case 'UnaryExpression': {
+                    const u = node as UnaryExpression;
+                    const v = await this.evalNodeChild(u.argument, ctx);
+                    if (v === undefined) {
+                        return undefined;
+                    }
+                    switch (u.operator) {
+                        case '+': {
+                            const n = toNumeric(v);
+                            return typeof n === 'bigint' ? n : +n;
+                        }
+                        case '-': {
+                            const n = toNumeric(v);
+                            return typeof n === 'bigint' ? -toBigInt(n as EvalValue) : -(n as number);
+                        }
+                        case '!': return !this.truthy(v);
+                        case '~': {
+                            const n = toNumeric(v);
+                            if (typeof n === 'bigint') {
+                                return ~n;
+                            }
+                            return ((~((n as number) | 0)) >>> 0);
+                        }
+                        default:
+                            this.recordMessage(`Unsupported unary operator ${u.operator} for ${this.formatNodeForMessage(u.argument)}`);
+                            return undefined;
                     }
                 }
 
-                const args = [];
-                for (const a of c.args) {
-                    args.push(await this.evalNodeChild(a, ctx)); // evaluate sequentially to avoid parallel side effects
+                case 'UpdateExpression': {
+                    const u = node as UpdateExpression;
+                    const ref = await this.lref(u.argument, ctx);
+                    const prev = await ref.get();
+                    if (prev === undefined) {
+                        return undefined;
+                    }
+                    const prevNum = typeof prev === 'bigint' ? undefined : this.asNumber(prev);
+                    const next = (u.operator === '++'
+                        ? (typeof prev === 'bigint' ? prev + 1n : (prevNum ?? 0) + 1)
+                        : (typeof prev === 'bigint' ? prev - 1n : (prevNum ?? 0) - 1));
+                    const updated = await ref.set(next);
+                    if (updated === undefined) {
+                        return undefined;
+                    }
+                    return u.prefix ? ref.get() : prev;
                 }
-                const fnVal = await this.evalNodeChild(c.callee, ctx);
-                if (typeof fnVal === 'function') {
-                    return fnVal(...args);
-                }
-                return undefined;
-            }
 
-            case 'EvalPointCall': {
-                const c = node as EvalPointCall;
-                const name = c.intrinsic as string;
-                if (!isIntrinsicName(name)) {
-                    return undefined;
-                }
-                const intrinsicName = name as IntrinsicName;
-                const args = await this.evalArgsForIntrinsic(intrinsicName, c.args, ctx);
-                if (!args) {
-                    return undefined;
-                }
-                return handleIntrinsic(ctx.data, ctx.container, intrinsicName, args, this.onIntrinsicError);
-            }
+                case 'BinaryExpression':   return this.evalBinary(node as BinaryExpression, ctx);
 
-            case 'PrintfExpression': {
-                const pf = node as PrintfExpression;
-                let out = '';
-                for (const seg of pf.segments) {
-                    if (seg.kind === 'TextSegment') {
-                        out += (seg as TextSegment).text;
-                    } else {
-                        const fs = seg as FormatSegment;
-                        const { value, container } = await this.evaluateFormatSegmentValue(fs, ctx);
+                case 'ConditionalExpression': {
+                    const c = node as ConditionalExpression;
+                    const testValue = await this.evalNodeChild(c.test, ctx);
+                    if (testValue === undefined) {
+                        return undefined;
+                    }
+                    const branch = this.truthy(testValue) ? c.consequent : c.alternate;
+                    return this.evalNodeChild(branch, ctx);
+                }
+
+                case 'AssignmentExpression': {
+                    const a = node as AssignmentExpression;
+                    const ref = await this.lref(a.left, ctx);
+                    if (a.operator === '=') {
+                        const value = await this.withIsolatedContainer(ctx, () => this.evalNodeChild(a.right, ctx));
                         if (value === undefined) {
                             return undefined;
                         }
-                        const formatted = await this.formatValue(fs.spec, value, ctx, container);
-                        if (formatted === undefined) {
-                            return undefined;
-                        }
-                        out += formatted;
+                        return ref.set(value);
                     }
-                }
-                return out;
-            }
 
-            case 'TextSegment':    return (node as TextSegment).text;
-            case 'FormatSegment': {
-                const seg = node as FormatSegment;
-                const { value, container } = await this.evaluateFormatSegmentValue(seg, ctx);
-                if (value === undefined) {
+                    // Use the LValue to read current LHS value (and we already captured its type in lref)
+                    const L = await ref.get();
+                    const R = await this.evalNodeChild(a.right, ctx);
+                    if (L === undefined || R === undefined) {
+                        return undefined;
+                    }
+                    const lhsKind: MergedKind = ref.type ? ref.type.kind : 'unknown';
+
+                    let out: EvalValue;
+                    switch (a.operator) {
+                        case '+=':  out = addVals(L, R); break;
+                        case '-=':  out = subVals(L, R); break;
+                        case '*=':  out = mulVals(L, R); break;
+                        case '/=':  out = this.divValsWithKind(L, R, lhsKind); break;
+                        case '%=':  out = this.modValsWithKind(L, R, lhsKind); break;
+                        case '<<=': out = shlVals(L, R); break;
+                        case '>>=': out = sarVals(L, R); break;
+                        case '&=':  out = andVals(L, R); break;
+                        case '^=':  out = xorVals(L, R); break;
+                        case '|=':  out = orVals(L, R); break;
+                        default:
+                            this.recordMessage(`Unsupported assignment operator ${a.operator} for ${this.formatNodeForMessage(a.left)}`);
+                            return undefined;
+                    }
+                    if (out === undefined) {
+                        return undefined;
+                    }
+                    return ref.set(out);
+                }
+
+                case 'CallExpression': {
+                    const c = node as CallExpression;
+
+                    if (c.callee.kind === 'Identifier') {
+                        const name = (c.callee as Identifier).name;
+                        if (isIntrinsicName(name) && (
+                        // eslint-disable-next-line security/detect-object-injection
+                            INTRINSIC_DEFINITIONS[name].allowCallExpression
+                        )) {
+                            const args = await this.evalArgsForIntrinsic(name, c.args, ctx);
+                            if (!args) {
+                                return undefined;
+                            }
+                            return handleIntrinsic(ctx.data, ctx.container, name, args, this.onIntrinsicError);
+                        }
+                    }
+
+                    const args = [];
+                    for (const a of c.args) {
+                        args.push(await this.evalNodeChild(a, ctx)); // evaluate sequentially to avoid parallel side effects
+                    }
+                    const fnVal = await this.evalNodeChild(c.callee, ctx);
+                    if (typeof fnVal === 'function') {
+                        return fnVal(...args);
+                    }
                     return undefined;
                 }
-                return this.formatValue(seg.spec, value, ctx, container);
-            }
 
-            case 'ErrorNode':
-                this.recordMessage('Cannot evaluate an ErrorNode.');
-                return undefined;
+                case 'EvalPointCall': {
+                    const c = node as EvalPointCall;
+                    const name = c.intrinsic as string;
+                    if (!isIntrinsicName(name)) {
+                        return undefined;
+                    }
+                    const intrinsicName = name as IntrinsicName;
+                    const args = await this.evalArgsForIntrinsic(intrinsicName, c.args, ctx);
+                    if (!args) {
+                        return undefined;
+                    }
+                    return handleIntrinsic(ctx.data, ctx.container, intrinsicName, args, this.onIntrinsicError);
+                }
 
-            default: {
-                const kind = (node as Partial<ASTNode>).kind ?? 'unknown';
-                this.recordMessage(`Unhandled node kind: ${kind}`);
-                return undefined;
-            }
+                case 'PrintfExpression': {
+                    const pf = node as PrintfExpression;
+                    let out = '';
+                    for (const seg of pf.segments) {
+                        if (seg.kind === 'TextSegment') {
+                            out += (seg as TextSegment).text;
+                        } else {
+                            const fs = seg as FormatSegment;
+                            const { value, container } = await this.evaluateFormatSegmentValue(fs, ctx);
+                            if (value === undefined) {
+                                return undefined;
+                            }
+                            const formatted = await this.formatValue(fs.spec, value, ctx, container);
+                            if (formatted === undefined) {
+                                return undefined;
+                            }
+                            out += formatted;
+                        }
+                    }
+                    return out;
+                }
+
+                case 'TextSegment':    return (node as TextSegment).text;
+                case 'FormatSegment': {
+                    const seg = node as FormatSegment;
+                    const { value, container } = await this.evaluateFormatSegmentValue(seg, ctx);
+                    if (value === undefined) {
+                        return undefined;
+                    }
+                    return this.formatValue(seg.spec, value, ctx, container);
+                }
+
+                case 'ErrorNode':
+                    this.recordMessage('Cannot evaluate an ErrorNode.');
+                    return undefined;
+
+                default: {
+                    const kind = (node as Partial<ASTNode>).kind ?? 'unknown';
+                    this.recordMessage(`Unhandled node kind: ${kind}`);
+                    return undefined;
+                }
             }
         } finally {
             if (frame) {
