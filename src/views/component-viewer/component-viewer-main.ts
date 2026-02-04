@@ -64,7 +64,14 @@ export class ComponentViewer {
         const lockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.lockInstance', async (node) => {
             this.handleLockInstance(node);
         });
-        this._context.subscriptions.push(treeProviderDisposable, lockInstanceCommandDisposable);
+        const unlockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.unlockInstance', async (node) => {
+            this.handleLockInstance(node);
+        });
+        this._context.subscriptions.push(
+            treeProviderDisposable,
+            lockInstanceCommandDisposable,
+            unlockInstanceCommandDisposable
+        );
     }
 
     protected handleLockInstance(node: ScvdGuiInterface): void {
@@ -87,10 +94,26 @@ export class ComponentViewer {
             }
             return false;
         });
-        if (instance) {
-            instance.lockState = !instance.lockState;
-            logger.info(`Component Viewer: Instance lock state changed to ${instance.lockState}`);
+        if (!instance) {
+            return;
         }
+        instance.lockState = !instance.lockState;
+        logger.info(`Component Viewer: Instance lock state changed to ${instance.lockState}`);
+        // If instance is locked, set isLocked flag to true for root nodes
+        if (instance.lockState) {
+            const guiTree = instance.componentViewerInstance.getGuiTree();
+            if (guiTree) {
+                const rootNode: ScvdGuiInterface[] = [...guiTree];
+                rootNode[0].isLocked = true;
+            }
+        } else {
+            const guiTree = instance.componentViewerInstance.getGuiTree();
+            if (guiTree) {
+                const rootNode: ScvdGuiInterface[] = [...guiTree];
+                rootNode[0].isLocked = false;
+            }
+        }
+        this._componentViewerTreeDataProvider?.refresh();
     }
     protected async readScvdFiles(tracker: GDBTargetDebugTracker,session?: GDBTargetDebugSession): Promise<void> {
         if (!session) {

@@ -70,7 +70,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         this.refresh();
     }
 
-    private refresh(): void {
+    public refresh(): void {
         this._onDidChangeTreeData.fire();
     }
 }

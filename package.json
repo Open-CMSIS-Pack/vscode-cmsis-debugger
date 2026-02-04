@@ -147,13 +147,13 @@
       {
         "command": "vscode-cmsis-debugger.componentViewer.lockInstance",
         "title": "Lock Instance",
-        "icon": "$(lock)",
+        "icon": "$(unlock)",
         "category": "Component Viewer"
       },
       {
         "command": "vscode-cmsis-debugger.componentViewer.unlockInstance",
         "title": "Unlock Instance",
-        "icon": "$(unlock)",
+        "icon": "$(lock)",
         "category": "Component Viewer"
       }
     ],
