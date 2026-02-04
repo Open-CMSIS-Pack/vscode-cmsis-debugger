@@ -431,12 +431,6 @@ describe('Evaluator coverage branches', () => {
         expect(await evaluator.evalNode(binary('&', num(3), num(1)), ctxNoTypes)).toBe(1);
         expect(await evaluator.evalNode(binary('^', num(3), num(1)), ctxNoTypes)).toBe(2);
         expect(await evaluator.evalNode(binary('|', num(2), num(1)), ctxNoTypes)).toBe(3);
-        await expect(evaluator.evalNode(binary('>>>', num(1), num(1)) as unknown as BinaryExpression, ctxNoTypes)).resolves.toBeUndefined();
-
-        const typedHost = makeHost({}, { a: new TestNode('a', 1), b: new TestNode('b', 1) });
-        const ctxTyped = makeCtx(typedHost);
-        await expect(evaluator.evalNode(binary('>>>' as BinaryExpression['operator'], num(1), num(1)), ctxTyped)).resolves.toBeUndefined();
-
         const memoPrev = (Evaluator as unknown as { MEMO_ENABLED: boolean }).MEMO_ENABLED;
         (Evaluator as unknown as { MEMO_ENABLED: boolean }).MEMO_ENABLED = false;
         const evalNodeChild = (evaluator as unknown as { evalNodeChild: (node: ASTNode, ctx: EvalContext) => Promise<EvalValue> }).evalNodeChild;

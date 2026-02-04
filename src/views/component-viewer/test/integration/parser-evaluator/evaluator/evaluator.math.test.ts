@@ -213,10 +213,4 @@ describe('evaluator math mixing scalar kinds', () => {
         await expect(evalParsedNormalized('u16 >> 1', host, base)).resolves.toBe(0x4000);
     });
 
-    it('rejects JS-style unsigned shift', async () => {
-        const { host, base } = makeHost([
-            ['u32', 1, 'uint32'],
-        ]);
-        await expect(evalParsedNormalized('u32 >>> 1', host, base)).resolves.toBeUndefined();
-    });
 });

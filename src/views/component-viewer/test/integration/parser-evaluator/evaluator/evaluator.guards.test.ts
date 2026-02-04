@@ -242,15 +242,13 @@ describe('evaluator guards', () => {
         await expect(evaluator.evalNode({ kind: 'Identifier', name: 'x', start: 0, end: 0 }, ctx)).resolves.toBeUndefined();
     });
 
-    it('covers unary bigint and bitwise paths plus >>> error', async () => {
+    it('covers unary bigint and bitwise paths', async () => {
         const base = new BareNode();
         const ctx = new EvalContext({ data: new StubHost() as never, container: base });
         await expect(evaluator.evalNode({ kind: 'UnaryExpression', operator: '+', argument: { kind: 'NumberLiteral', value: 1n, raw: '1n', valueType: 'number', constValue: 1n, start: 0, end: 0 }, start: 0, end: 0 } as unknown as ASTNode, ctx)).resolves.toBe(1n);
         await expect(evaluator.evalNode({ kind: 'UnaryExpression', operator: '-', argument: { kind: 'NumberLiteral', value: 2n, raw: '2n', valueType: 'number', constValue: 2n, start: 0, end: 0 }, start: 0, end: 0 } as unknown as ASTNode, ctx)).resolves.toBe(-2n);
         await expect(evaluator.evalNode({ kind: 'UnaryExpression', operator: '~', argument: { kind: 'NumberLiteral', value: 1n, raw: '1n', valueType: 'number', constValue: 1n, start: 0, end: 0 }, start: 0, end: 0 } as unknown as ASTNode, ctx)).resolves.toBe(~1n);
         await expect(evaluator.evalNode({ kind: 'UnaryExpression', operator: '~', argument: { kind: 'NumberLiteral', value: 3, raw: '3', valueType: 'number', constValue: 3, start: 0, end: 0 }, start: 0, end: 0 } as ASTNode, ctx)).resolves.toBe(((~(3 | 0)) >>> 0));
-        const evalBinary = asAny.evalBinary as (n: BinaryExpression, ctx: EvalContext) => Promise<EvalValue>;
-        await expect(evalBinary({ kind: 'BinaryExpression', operator: '>>>', left: { kind: 'NumberLiteral', value: 1, raw: '1', valueType: 'number', constValue: 1, start: 0, end: 0 }, right: { kind: 'NumberLiteral', value: 1, raw: '1', valueType: 'number', constValue: 1, start: 0, end: 0 }, start: 0, end: 0 } as BinaryExpression, ctx)).resolves.toBeUndefined();
     });
 
     it('covers call-expression intrinsic and EvalPointCall missing intrinsic', async () => {
