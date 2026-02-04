@@ -33,8 +33,12 @@ export class StatementPrint extends StatementBase {
             return;
         }
 
-        const guiName = await this.getGuiNamePerf();
-        const guiValue = await this.getGuiValuePerf();
+        const guiNameStart = perf?.start() ?? 0;
+        const guiName = await this.getGuiName();
+        perf?.end(guiNameStart, 'guiNameMs', 'guiNameCalls');
+        const guiValueStart = perf?.start() ?? 0;
+        const guiValue = await this.getGuiValue();
+        perf?.end(guiValueStart, 'guiValueMs', 'guiValueCalls');
         const childGuiTree = this.getOrCreateGuiChild(guiTree, guiName);
         perf?.recordGuiPrintNode();
         childGuiTree.setGuiName(guiName);

@@ -33,7 +33,9 @@ export class StatementOut extends StatementBase {
             return;
         }
 
-        const guiName = await this.getGuiNamePerf();
+        const guiNameStart = perf?.start() ?? 0;
+        const guiName = await this.getGuiName();
+        perf?.end(guiNameStart, 'guiNameMs', 'guiNameCalls');
         const childGuiTree = this.getOrCreateGuiChild(guiTree, guiName);
         perf?.recordGuiOutNode();
         childGuiTree.setGuiName(guiName);

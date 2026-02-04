@@ -34,10 +34,14 @@ export class StatementItem extends StatementBase {
             return;
         }
 
-        const guiName = await this.getGuiNamePerf();
+        const guiNameStart = perf?.start() ?? 0;
+        const guiName = await this.getGuiName();
+        perf?.end(guiNameStart, 'guiNameMs', 'guiNameCalls');
         const childGuiTree = this.getOrCreateGuiChild(guiTree, guiName);
         perf?.recordGuiItemNode();
-        const guiValue = await this.getGuiValuePerf();
+        const guiValueStart = perf?.start() ?? 0;
+        const guiValue = await this.getGuiValue();
+        perf?.end(guiValueStart, 'guiValueMs', 'guiValueCalls');
         childGuiTree.setGuiName(guiName);
         childGuiTree.setGuiValue(guiValue);
         await this.onExecute(executionContext, childGuiTree);
