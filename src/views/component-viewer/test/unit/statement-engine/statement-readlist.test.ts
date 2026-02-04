@@ -28,6 +28,15 @@ import { createExecutionContext, TestNode } from '../helpers/statement-engine-he
 import type { ScvdNode } from '../../../model/scvd-node';
 import type { RefContainer } from '../../../parser-evaluator/model-host';
 
+class ExposedStatementReadList extends StatementReadList {
+    public async run(executionContext: Parameters<StatementReadList['executeStatement']>[0], guiTree: ScvdGuiTree): Promise<void> {
+        return this.onExecute(executionContext, guiTree);
+    }
+    protected override async shouldExecute(): Promise<boolean> {
+        return true;
+    }
+}
+
 function createReadList(): ScvdReadList {
     const readList = new ScvdReadList(undefined);
     readList.name = 'list';
@@ -579,5 +588,224 @@ describe('StatementReadList', () => {
         await stmt.executeStatement(ctx, guiTree);
 
         expect(readList.mustRead).toBe(false);
+    });
+
+    it('logs when symbol address is missing and skips invalid addresses', async () => {
+        const readList = createReadList();
+        const stmt = new StatementReadList(readList, undefined);
+        const ctx = createContext(readList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(undefined),
+        });
+        const guiTree = new ScvdGuiTree(undefined);
+        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+        expect(spy).toHaveBeenCalled();
+
+        spy.mockClear();
+        const ctxInvalid = createContext(readList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0),
+        });
+        await stmt.executeStatement(ctxInvalid, guiTree);
+        expect(spy).not.toHaveBeenCalledWith(expect.stringContaining('offset evaluated to undefined'));
+        spy.mockRestore();
+    });
+
+    it('handles pointer batch reads and invalid pointers', async () => {
+        const readList = createReadList();
+        readList.based = 1;
+        jest.spyOn(readList, 'getIsPointer').mockReturnValue(true);
+        jest.spyOn(readList, 'getCount').mockResolvedValue(1);
+        const stmt = new StatementReadList(readList, undefined);
+
+        const ctxInvalidPtr = createContext(readList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
+            readMemory: jest.fn().mockResolvedValue(new Uint8Array([0, 0, 0, 0])),
+        });
+        await stmt.executeStatement(ctxInvalidPtr, new ScvdGuiTree(undefined));
+
+        const ctxBatch = createContext(readList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
+            readMemory: jest.fn().mockResolvedValue(new Uint8Array([0x00, 0x20, 0x00, 0x00])),
+            readMemoryBatch: jest.fn().mockResolvedValue(new Map([
+                [`${readList.getLineNoStr()}:StatementReadList:list:ptr:0`, new Uint8Array([1, 2, 3, 4])]
+            ])),
+        });
+        const spy = jest.spyOn(ctxBatch.memoryHost, 'setVariable');
+        await stmt.executeStatement(ctxBatch, new ScvdGuiTree(undefined));
+        expect(spy).toHaveBeenCalled();
+    });
+
+    it('handles pointer list loop data and count limits', async () => {
+        const readList = createReadList();
+        readList.based = 1;
+        jest.spyOn(readList, 'getIsPointer').mockReturnValue(true);
+        jest.spyOn(readList, 'getCount').mockResolvedValue(undefined);
+
+        const stmt = new StatementReadList(readList, undefined);
+        const ctxInvalidPtr = createContext(readList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
+            readMemory: jest.fn().mockResolvedValue(new Uint8Array([0, 0, 0, 0])),
+        });
+        await stmt.executeStatement(ctxInvalidPtr, new ScvdGuiTree(undefined));
+
+        const ctxMissingItem = createContext(readList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
+            readMemory: jest.fn()
+                .mockResolvedValueOnce(new Uint8Array([0x00, 0x20, 0x00, 0x00]))
+                .mockResolvedValueOnce(undefined),
+        });
+        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        await stmt.executeStatement(ctxMissingItem, new ScvdGuiTree(undefined));
+        expect(errorSpy).toHaveBeenCalled();
+        errorSpy.mockRestore();
+
+        const ctxStoreItem = createContext(readList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
+            readMemory: jest.fn()
+                .mockResolvedValueOnce(new Uint8Array([0x00, 0x20, 0x00, 0x00]))
+                .mockResolvedValueOnce(new Uint8Array([1, 2, 3, 4])),
+        });
+        await stmt.executeStatement(ctxStoreItem, new ScvdGuiTree(undefined));
+    });
+
+    it('breaks when count is reached for non-batch reads', async () => {
+        const readList = createReadList();
+        jest.spyOn(readList, 'getIsPointer').mockReturnValue(false);
+        jest.spyOn(readList, 'getCount').mockResolvedValue(1);
+        readList.next = 'next';
+        const member = createMemberNode(4, 0);
+        (readList as unknown as { _type?: { getMember: () => ScvdNode | undefined } })._type = {
+            getMember: () => member,
+        };
+
+        const stmt = new StatementReadList(readList, undefined);
+        const ctx = createContext(readList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
+            readMemory: jest.fn().mockResolvedValue(new Uint8Array([1, 2, 3, 4])),
+        });
+        await stmt.executeStatement(ctx, new ScvdGuiTree(undefined));
+    });
+
+    it('skips error logging when resolveReadList is called with logErrors=false', async () => {
+        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const callResolveReadList = async (
+            stmt: StatementReadList,
+            readList: ScvdReadList,
+            ctx: Parameters<StatementReadList['executeStatement']>[0],
+            options?: { includeMaxArraySize?: boolean; count?: number }
+        ) => (stmt as unknown as {
+            resolveReadList: (item: ScvdReadList, ctx: Parameters<StatementReadList['executeStatement']>[0], logErrors: boolean, options?: { includeMaxArraySize?: boolean; count?: number }) => Promise<unknown>;
+        }).resolveReadList(readList, ctx, false, options);
+
+        const missingName = new ScvdReadList(undefined);
+        const stmtMissingName = new StatementReadList(missingName, undefined);
+        await callResolveReadList(stmtMissingName, missingName, createContext(missingName, {}));
+
+        const missingSize = new ScvdReadList(undefined);
+        missingSize.name = 'list';
+        jest.spyOn(missingSize, 'getTargetSize').mockResolvedValue(undefined);
+        const stmtMissingSize = new StatementReadList(missingSize, undefined);
+        await callResolveReadList(stmtMissingSize, missingSize, createContext(missingSize, {}));
+
+        const missingSymbol = createReadList();
+        const stmtMissingSymbol = new StatementReadList(missingSymbol, undefined);
+        await callResolveReadList(stmtMissingSymbol, missingSymbol, createContext(missingSymbol, {
+            findSymbolAddress: jest.fn().mockResolvedValue(undefined),
+        }));
+
+        const badOffset = createReadList();
+        badOffset.offset = 'offset';
+        jest.spyOn(badOffset.offset!, 'getValue').mockResolvedValue('bad');
+        const stmtBadOffset = new StatementReadList(badOffset, undefined);
+        await callResolveReadList(stmtBadOffset, badOffset, createContext(badOffset, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
+        }));
+
+        const noBase = createReadList();
+        noBase.symbol = undefined;
+        const stmtNoBase = new StatementReadList(noBase, undefined);
+        await callResolveReadList(stmtNoBase, noBase, createContext(noBase, {}));
+
+        const countOne = createReadList();
+        const stmtCountOne = new StatementReadList(countOne, undefined);
+        const getNumArrayElements = jest.fn().mockResolvedValue(5);
+        await callResolveReadList(stmtCountOne, countOne, createContext(countOne, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
+            getNumArrayElements,
+        }), { includeMaxArraySize: true, count: 1 });
+        expect(getNumArrayElements).not.toHaveBeenCalled();
+
+        expect(spy).not.toHaveBeenCalled();
+        spy.mockRestore();
+    });
+
+    it('passes const flags for batch and loop readlist paths', async () => {
+        const batchList = createReadList();
+        batchList.const = 1;
+        batchList.based = 1;
+        jest.spyOn(batchList, 'getIsPointer').mockReturnValue(true);
+        jest.spyOn(batchList, 'getCount').mockResolvedValue(1);
+        const batchStmt = new StatementReadList(batchList, undefined);
+        const batchCtx = createContext(batchList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
+            readMemory: jest.fn().mockResolvedValue(new Uint8Array([0x00, 0x20, 0x00, 0x00])),
+            readMemoryBatch: jest.fn().mockResolvedValue(new Map([
+                [`${batchList.getLineNoStr()}:StatementReadList:list:ptr:0`, new Uint8Array([1, 2, 3, 4])]
+            ])),
+        });
+        const batchSpy = jest.spyOn(batchCtx.memoryHost, 'setVariable');
+        await batchStmt.executeStatement(batchCtx, new ScvdGuiTree(undefined));
+        expect(batchSpy.mock.calls.some((call) => call[6] === true)).toBe(true);
+
+        const loopList = createReadList();
+        loopList.const = 1;
+        jest.spyOn(loopList, 'getIsPointer').mockReturnValue(false);
+        jest.spyOn(loopList, 'getCount').mockResolvedValue(undefined);
+        const loopStmt = new StatementReadList(loopList, undefined);
+        const loopCtx = createContext(loopList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
+            readMemory: jest.fn().mockResolvedValue(new Uint8Array([1, 2, 3, 4])),
+        });
+        const loopSpy = jest.spyOn(loopCtx.memoryHost, 'setVariable');
+        await loopStmt.executeStatement(loopCtx, new ScvdGuiTree(undefined));
+        expect(loopSpy.mock.calls.some((call) => call[6] === true)).toBe(true);
+    });
+
+    it('advances pointer arrays using stride when no next member is defined', async () => {
+        const readList = createReadList();
+        readList.based = 1;
+        jest.spyOn(readList, 'getIsPointer').mockReturnValue(true);
+        jest.spyOn(readList, 'getCount').mockResolvedValue(2);
+        const stmt = new StatementReadList(readList, undefined);
+        const readMemory = jest.fn(async (addr: number | bigint) => {
+            if (addr === 0x1000) {
+                return new Uint8Array([0x00, 0x20, 0x00, 0x00]);
+            }
+            if (addr === 0x2000) {
+                return new Uint8Array([1, 2, 3, 4]);
+            }
+            if (addr === 0x1004) {
+                return new Uint8Array([0, 0, 0, 0]);
+            }
+            return undefined;
+        });
+        const ctx = createContext(readList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
+            getNumArrayElements: jest.fn().mockResolvedValue(1),
+            readMemory,
+        });
+
+        await stmt.executeStatement(ctx, new ScvdGuiTree(undefined));
+
+        expect(readMemory).toHaveBeenCalledWith(0x1004n, 4);
+    });
+
+    it('skips mustRead inside onExecute', async () => {
+        const readList = createReadList();
+        readList.mustRead = false;
+        const stmt = new ExposedStatementReadList(readList, undefined);
+        const ctx = createContext(readList, {});
+        await stmt.run(ctx, new ScvdGuiTree(undefined));
     });
 });

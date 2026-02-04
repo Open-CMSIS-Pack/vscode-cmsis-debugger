@@ -116,6 +116,10 @@ function leToFloat16(bytes: Uint8Array): number {
     }
     return sign * Math.pow(2, exp - 15) * (1 + frac / 1024);
 }
+
+export const __test__ = {
+    leToFloat16,
+};
 function leIntToBytes(v: number, size: number): Uint8Array {
     const out = new Uint8Array(size);
     let tmp = v >>> 0;

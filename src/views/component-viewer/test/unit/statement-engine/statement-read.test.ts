@@ -26,6 +26,15 @@ import type { ScvdDebugTarget } from '../../../scvd-debug-target';
 import { StatementRead } from '../../../statement-engine/statement-read';
 import { createExecutionContext, TestNode } from '../helpers/statement-engine-helpers';
 
+class ExposedStatementRead extends StatementRead {
+    public async run(executionContext: Parameters<StatementRead['executeStatement']>[0], guiTree: ScvdGuiTree): Promise<void> {
+        return this.onExecute(executionContext, guiTree);
+    }
+    protected override async shouldExecute(): Promise<boolean> {
+        return true;
+    }
+}
+
 function createRead(_debugTarget: Partial<ScvdDebugTarget>): ScvdRead {
     const read = new ScvdRead(undefined);
     read.name = 'value';
@@ -198,6 +207,49 @@ describe('StatementRead', () => {
         expect(ctx.debugTarget.readMemory).toHaveBeenCalledWith(0x3004n, 4);
     });
 
+    it('skips error logging when resolveRead is called with logErrors=false', async () => {
+        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const callResolveRead = async (
+            stmt: StatementRead,
+            ctx: Parameters<StatementRead['executeStatement']>[0]
+        ) => (stmt as unknown as {
+            resolveRead: (ctx: Parameters<StatementRead['executeStatement']>[0], logErrors: boolean) => Promise<unknown>;
+        }).resolveRead(ctx, false);
+
+        const missingName = new ScvdRead(undefined);
+        const stmtMissingName = new StatementRead(missingName, undefined);
+        await callResolveRead(stmtMissingName, createExecutionContext(missingName, {}));
+
+        const missingSize = new ScvdRead(undefined);
+        missingSize.name = 'value';
+        jest.spyOn(missingSize, 'getTargetSize').mockResolvedValue(undefined);
+        const stmtMissingSize = new StatementRead(missingSize, undefined);
+        await callResolveRead(stmtMissingSize, createExecutionContext(missingSize, {}));
+
+        const missingSymbol = createRead({ findSymbolAddress: jest.fn().mockResolvedValue(undefined) });
+        const stmtMissingSymbol = new StatementRead(missingSymbol, undefined);
+        await callResolveRead(stmtMissingSymbol, createExecutionContext(missingSymbol, {
+            findSymbolAddress: jest.fn().mockResolvedValue(undefined),
+        }));
+
+        const badOffset = createRead({ findSymbolAddress: jest.fn().mockResolvedValue(0x1000) });
+        badOffset.offset = 'offset';
+        jest.spyOn(badOffset.offset!, 'getValue').mockResolvedValue('bad');
+        const stmtBadOffset = new StatementRead(badOffset, undefined);
+        await callResolveRead(stmtBadOffset, createExecutionContext(badOffset, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
+        }));
+
+        const noBase = new ScvdRead(undefined);
+        noBase.name = 'value';
+        jest.spyOn(noBase, 'getTargetSize').mockResolvedValue(4);
+        const stmtNoBase = new StatementRead(noBase, undefined);
+        await callResolveRead(stmtNoBase, createExecutionContext(noBase, {}));
+
+        expect(spy).not.toHaveBeenCalled();
+        spy.mockRestore();
+    });
+
     it('skips offset updates when BigInt conversion yields undefined', async () => {
         const originalBigInt = globalThis.BigInt;
         (globalThis as unknown as { BigInt: (value: number) => bigint | undefined }).BigInt = jest.fn(() => undefined);
@@ -294,5 +346,24 @@ describe('StatementRead', () => {
 
         expect(spy).toHaveBeenCalledWith('value', 4, expect.any(Uint8Array), 0, 0x1000, 4, true);
         expect(read.mustRead).toBe(false);
+    });
+
+    it('skips invalid addresses and mustRead in onExecute', async () => {
+        const read = createRead({
+            findSymbolAddress: jest.fn().mockResolvedValue(0),
+            readMemory: jest.fn(),
+        });
+        const stmt = new StatementRead(read, undefined);
+        const ctx = createExecutionContext(read, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0),
+            readMemory: jest.fn(),
+        });
+        const guiTree = new ScvdGuiTree(undefined);
+        await stmt.executeStatement(ctx, guiTree);
+        expect(ctx.debugTarget.readMemory).not.toHaveBeenCalled();
+
+        read.mustRead = false;
+        const direct = new ExposedStatementRead(read, undefined);
+        await direct.run(ctx, guiTree);
     });
 });

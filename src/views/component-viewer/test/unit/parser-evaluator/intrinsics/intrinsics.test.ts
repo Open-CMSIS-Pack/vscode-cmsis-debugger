@@ -52,10 +52,10 @@ describe('intrinsics', () => {
     it('runs numeric intrinsics and coercions', async () => {
         const host = {
             __GetRegVal: jest.fn(async (r: string) => r === 'r0' ? 1 : (r === '' ? 2 : undefined)),
-            __FindSymbol: jest.fn(async () => 0x10),
+            __FindSymbol: jest.fn(async (name: string) => name === '' ? 0x99 : 0x10),
             __CalcMemUsed: jest.fn(async (a: number, b: number, c: number, d: number) => a + b + c + d),
-            __size_of: jest.fn(async () => 4),
-            __Symbol_exists: jest.fn(async () => 1),
+            __size_of: jest.fn(async (name: string) => name === '' ? 8 : 4),
+            __Symbol_exists: jest.fn(async (name: string) => name === '' ? 0 : 1),
             __Offset_of: jest.fn(async (_c: RefContainer, name: string) => name.length),
             __Running: jest.fn(async () => 1),
         } as unknown as IntrinsicProvider;
@@ -63,11 +63,15 @@ describe('intrinsics', () => {
         await expect(handleIntrinsic(host, container(), '__GetRegVal', ['r0'])).resolves.toBe(1);
         await expect(handleIntrinsic(host, container(), '__GetRegVal', [undefined])).resolves.toBe(2);
         await expect(handleIntrinsic(host, container(), '__FindSymbol', ['main'])).resolves.toBe(0x10);
+        await expect(handleIntrinsic(host, container(), '__FindSymbol', [undefined])).resolves.toBe(0x99);
         await expect(handleIntrinsic(host, container(), '__CalcMemUsed', [1, 2, 3, 4])).resolves.toBe(10);
         await expect(handleIntrinsic(host, container(), '__CalcMemUsed', [undefined, undefined, undefined, undefined])).resolves.toBe(0);
         await expect(handleIntrinsic(host, container(), '__size_of', ['T'])).resolves.toBe(4);
+        await expect(handleIntrinsic(host, container(), '__size_of', [undefined])).resolves.toBe(8);
         await expect(handleIntrinsic(host, container(), '__Symbol_exists', ['foo'])).resolves.toBe(1);
+        await expect(handleIntrinsic(host, container(), '__Symbol_exists', [undefined])).resolves.toBe(0);
         await expect(handleIntrinsic(host, container(), '__Offset_of', ['member'])).resolves.toBe('member'.length >>> 0);
+        await expect(handleIntrinsic(host, container(), '__Offset_of', [undefined])).resolves.toBe(0);
         await expect(handleIntrinsic(host, container(), '__Running', [])).resolves.toBe(1);
     });
 

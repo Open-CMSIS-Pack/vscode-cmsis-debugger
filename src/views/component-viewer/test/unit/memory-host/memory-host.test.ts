@@ -20,7 +20,7 @@
  * Unit test for MemoryHost.
  */
 
-import { MemoryContainer, MemoryHost } from '../../../data-host/memory-host';
+import { MemoryContainer, MemoryHost, __test__ as memoryHostTest } from '../../../data-host/memory-host';
 import { RefContainer } from '../../../parser-evaluator/model-host';
 import { ScvdNode } from '../../../model/scvd-node';
 
@@ -72,6 +72,17 @@ describe('MemoryHost', () => {
         expect(container.byteLength).toBe(0);
     });
 
+    it('returns undefined for invalid MemoryContainer access', () => {
+        const container = new MemoryContainer('invalid');
+        expect(container.readExact(-1, 1)).toBeUndefined();
+        expect(container.readExact(0, 0)).toBeUndefined();
+        expect(container.readPartial(-1, 1)).toBeUndefined();
+        expect(container.readPartial(0, 0)).toBeUndefined();
+        container.write(-1, new Uint8Array([1]));
+        container.write(0, new Uint8Array(), -1);
+        expect(container.byteLength).toBe(0);
+    });
+
     it('zero-fills when virtualSize exceeds payload', () => {
         const container = new MemoryContainer('pad');
         container.write(0, new Uint8Array([9, 8]), 4);
@@ -119,15 +130,64 @@ describe('MemoryHost', () => {
         expect(raw).toEqual(new Uint8Array([1, 2, 3, 4]));
     });
 
+    it('falls back to raw bytes for non-standard float widths', async () => {
+        const host = new MemoryHost();
+        host.setVariable('f6', 6, new Uint8Array([1, 2, 3, 4, 5, 6]), 0);
+        const ref = makeRef('f6', 6, 0, { kind: 'float' });
+
+        const out = await host.readValue(ref);
+        expect(out).toEqual(new Uint8Array([1, 2, 3, 4, 5, 6]));
+    });
+
+    it('appends when offset is -1', async () => {
+        const host = new MemoryHost();
+        host.setVariable('arr', 2, new Uint8Array([1, 2]), -1);
+        host.setVariable('arr', 2, new Uint8Array([3, 4]), -1);
+
+        const out = await host.readRaw(makeRef('arr', 4), 4);
+        expect(out).toEqual(new Uint8Array([1, 2, 3, 4]));
+    });
+
+    it('handles undefined byteLength when appending', () => {
+        const host = new MemoryHost();
+        host.setVariable('arr', 2, new Uint8Array([1, 2]), 0);
+        const cache = host as unknown as { cache: { get: (key: string) => MemoryContainer | undefined } };
+        const container = cache.cache.get('arr');
+        if (container) {
+            Object.defineProperty(container, 'byteLength', { value: undefined });
+        }
+        host.setVariable('arr', 2, new Uint8Array([3, 4]), -1);
+    });
+
+    it('covers float16 edge cases', async () => {
+        const host = new MemoryHost();
+        host.setVariable('f16zero', 2, new Uint8Array([0x00, 0x00]), 0);
+        host.setVariable('f16negzero', 2, new Uint8Array([0x00, 0x80]), 0);
+        host.setVariable('f16sub', 2, new Uint8Array([0x01, 0x00]), 0);
+        host.setVariable('f16inf', 2, new Uint8Array([0x00, 0x7c]), 0);
+        host.setVariable('f16nan', 2, new Uint8Array([0x01, 0x7c]), 0);
+
+        const f16Ref = (name: string) => makeRef(name, 2, 0, { kind: 'float' });
+        expect(await host.readValue(f16Ref('f16zero'))).toBe(0);
+        expect(Object.is(await host.readValue(f16Ref('f16negzero')), -0)).toBe(true);
+        expect(await host.readValue(f16Ref('f16sub'))).toBeGreaterThan(0);
+        expect(await host.readValue(f16Ref('f16inf'))).toBe(Infinity);
+        expect(Number.isNaN(await host.readValue(f16Ref('f16nan')) as number)).toBe(true);
+
+        expect(Number.isNaN(memoryHostTest.leToFloat16(new Uint8Array([0x00])))).toBe(true);
+    });
+
     it('sign-extends int scalar reads', async () => {
         const host = new MemoryHost();
         host.setVariable('i8', 1, new Uint8Array([0x80]), 0);
         host.setVariable('i16', 2, new Uint8Array([0x00, 0x80]), 0);
         host.setVariable('i32', 4, new Uint8Array([0x00, 0x00, 0x00, 0x80]), 0);
+        host.setVariable('i8pos', 1, new Uint8Array([0x7f]), 0);
 
         expect(await host.readValue(makeRef('i8', 1, 0, { kind: 'int' }))).toBe(-128);
         expect(await host.readValue(makeRef('i16', 2, 0, { kind: 'int' }))).toBe(-32768);
         expect(await host.readValue(makeRef('i32', 4, 0, { kind: 'int' }))).toBe(-2147483648);
+        expect(await host.readValue(makeRef('i8pos', 1, 0, { kind: 'int' }))).toBe(127);
 
         expect(await host.readValue(makeRef('i8', 1, 0, { kind: 'uint' }))).toBe(128);
     });
@@ -160,6 +220,7 @@ describe('MemoryHost', () => {
         const missing = makeRef('missing', 4, 0, undefined, false);
 
         expect(await host.readValue(missing)).toBeUndefined();
+        expect(await host.readValue(makeRef('missing', 4))).toBeUndefined();
         expect(await host.readValue(makeRef('bad', 0))).toBeUndefined();
         const undefWidth: RefContainer = {
             ...makeRef('undef', 1),
@@ -236,6 +297,17 @@ describe('MemoryHost', () => {
         const tempRef = makeRef('temp', 2, 0);
         expect(await host.readRaw(constRef, 2)).toEqual(new Uint8Array([0x11, 0x11]));
         expect(await host.readRaw(tempRef, 2)).toBeUndefined();
+    });
+
+    it('handles clearNonConst entries without clear methods and empty element counts', () => {
+        const host = new MemoryHost();
+        host.setVariable('temp', 2, 0x2222, 0);
+        const cache = host as unknown as { cache: Map<string, { value?: { clear?: () => void }; isConst?: boolean }> };
+        cache.cache.set('noclear', { value: {}, isConst: false });
+
+        host.clearNonConst();
+
+        expect(host.getArrayElementCount('missing')).toBe(1);
     });
 
     it('validates element base accessors', () => {

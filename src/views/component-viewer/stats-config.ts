@@ -20,6 +20,13 @@ import { TargetReadStats, TargetReadTiming } from './target-read-stats';
 export const PERF_ENABLED = false;
 export const TARGET_READ_STATS_ENABLED = true;
 
-export const perf = PERF_ENABLED ? new PerfStats() : undefined;
-export const targetReadStats = TARGET_READ_STATS_ENABLED ? new TargetReadStats() : undefined;
-export const targetReadTimingStats = TARGET_READ_STATS_ENABLED ? new TargetReadTiming() : undefined;
+const globalOverrides = globalThis as unknown as {
+    __SCVD_PERF_ENABLED__?: boolean;
+    __SCVD_TARGET_READ_STATS_ENABLED__?: boolean;
+};
+const perfEnabled = globalOverrides.__SCVD_PERF_ENABLED__ ?? PERF_ENABLED;
+const targetReadStatsEnabled = globalOverrides.__SCVD_TARGET_READ_STATS_ENABLED__ ?? TARGET_READ_STATS_ENABLED;
+
+export const perf = perfEnabled ? new PerfStats() : undefined;
+export const targetReadStats = targetReadStatsEnabled ? new TargetReadStats() : undefined;
+export const targetReadTimingStats = targetReadStatsEnabled ? new TargetReadTiming() : undefined;

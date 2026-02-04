@@ -27,7 +27,6 @@ export class TargetReadCache {
     private static readonly PREFETCH_GAP = 0;
     private segments: TargetReadSegment[] = [];
     private requestedRanges: TargetReadRange[] = [];
-    private prevRequestedRanges: TargetReadRange[] = [];
 
     constructor() {
     }
@@ -36,13 +35,11 @@ export class TargetReadCache {
         fetcher: (addr: number, size: number) => Promise<Uint8Array | undefined>,
         stats?: TargetReadStats
     ): Promise<void> {
-        this.prevRequestedRanges = this.requestedRanges;
-        this.requestedRanges = [];
         this.segments = [];
-        if (this.prevRequestedRanges.length === 0) {
+        if (this.requestedRanges.length === 0) {
             return;
         }
-        const merged = this.mergeRanges(this.prevRequestedRanges, TargetReadCache.PREFETCH_GAP);
+        const merged = this.mergeRanges(this.requestedRanges, TargetReadCache.PREFETCH_GAP);
         for (const range of merged) {
             const perfStartTime = perf?.start() ?? 0;
             const fetchStart = Date.now();
@@ -55,6 +52,7 @@ export class TargetReadCache {
             stats?.recordRefreshRead();
             this.write(range.start, data);
         }
+        this.requestedRanges.length = 0;
     }
 
     public read(start: number, size: number): Uint8Array | undefined {
@@ -87,9 +85,7 @@ export class TargetReadCache {
                 missing.push({ start: cursor, size: gapEnd - cursor });
                 cursor = gapEnd;
             }
-            if (segEnd > cursor) {
-                cursor = segEnd;
-            }
+            cursor = Math.max(cursor, segEnd);
             if (cursor >= end) {
                 break;
             }
@@ -137,7 +133,8 @@ export class TargetReadCache {
 
         for (const seg of segments) {
             const segEnd = seg.start + seg.data.length;
-            const overlaps = !(segEnd < start - 1 || seg.start > end + 1);
+            // Merge only overlapping or directly adjacent segments (no gaps).
+            const overlaps = !(segEnd < start || seg.start > end);
             if (overlaps) {
                 overlapping.push(seg);
             } else {

@@ -21,6 +21,7 @@
  */
 
 import * as vscode from 'vscode';
+import { createHash } from 'node:crypto';
 import { URI } from 'vscode-uri';
 import { parseStringPromise } from 'xml2js';
 import { ComponentViewerInstance } from '../../component-viewer-instance';
@@ -201,6 +202,34 @@ describe('ComponentViewerInstance', () => {
         consoleError.mockRestore();
     });
 
+    it('handles missing execution context', async () => {
+        const readFileMock = vscode.workspace.fs.readFile as jest.Mock;
+        const parseStringMock = parseStringPromise as jest.Mock;
+        const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        readFileMock.mockResolvedValue(Buffer.from('<root/>'));
+        parseStringMock.mockResolvedValue({ root: {} });
+
+        (ScvdComponentViewer as unknown as jest.Mock).mockImplementation(() => ({
+            readXml: jest.fn(),
+            setExecutionContextAll: jest.fn(),
+            configureAll: jest.fn(),
+            validateAll: jest.fn(),
+            calculateTypedefs: jest.fn(),
+        }));
+
+        (ScvdEvalContext as unknown as jest.Mock).mockImplementation(() => ({
+            init: jest.fn(),
+            getExecutionContext: jest.fn().mockReturnValue(undefined),
+        }));
+
+        const instance = new ComponentViewerInstance();
+        await instance.readModel(URI.file('/tmp/no-exec.scvd'), {} as unknown as GDBTargetDebugSession, {} as unknown as GDBTargetDebugTracker);
+
+        expect(consoleError).toHaveBeenCalledWith('Failed to get execution context from SCVD EvalContext');
+        consoleError.mockRestore();
+    });
+
     it('rethrows file read errors', async () => {
         const readFileMock = vscode.workspace.fs.readFile as jest.Mock;
         const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -255,5 +284,27 @@ describe('ComponentViewerInstance', () => {
         const key = getFileKey(uri);
 
         expect(key).toBe(expectedKey);
+    });
+
+    it('adds suffixes for repeated hashes and falls back to URI string paths', () => {
+        const keyMap = (ComponentViewerInstance as unknown as { _fileKeysByPath: Map<string, string> })._fileKeysByPath;
+        const countMap = (ComponentViewerInstance as unknown as { _fileKeyCounts: Map<string, number> })._fileKeyCounts;
+        keyMap.clear();
+        countMap.clear();
+
+        const filePath = '/tmp/with-hash.scvd';
+        const uri = URI.file(filePath);
+        const baseHash = createHash('sha1').update(filePath).digest('hex').slice(0, 16);
+        countMap.set(baseHash, 1);
+
+        const getFileKey = (ComponentViewerInstance as unknown as { getFileKey: (f: URI) => string }).getFileKey;
+        const key = getFileKey(uri);
+        expect(key).toBe(`${baseHash}-f1`);
+
+        const fakePath = 'untitled:Untitled-1';
+        const fakeUri = { fsPath: undefined, toString: () => fakePath } as unknown as URI;
+        const key2 = getFileKey(fakeUri);
+        const fakeHash = createHash('sha1').update(fakePath).digest('hex').slice(0, 16);
+        expect(key2).toBe(fakeHash);
     });
 });

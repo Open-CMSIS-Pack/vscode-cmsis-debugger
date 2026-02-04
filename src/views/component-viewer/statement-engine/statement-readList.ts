@@ -120,11 +120,7 @@ export class StatementReadList extends StatementBase {
 
         if (baseAddress === undefined) {
             if (logErrors) {
-                if (symbolName !== undefined) {
-                    console.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, could not find symbol address for symbol: ${symbolName}`);
-                } else {
-                    console.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, offset evaluated to undefined`);
-                }
+                console.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, offset evaluated to undefined`);
             }
             return undefined;
         }

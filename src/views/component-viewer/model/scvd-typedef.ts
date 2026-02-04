@@ -156,8 +156,12 @@ export class ScvdTypedef extends ScvdNode {
             return this.targetSize;
         }
         const sizeValue = await this.size?.getValue();
-        const numericSize = typeof sizeValue === 'bigint' ? Number(sizeValue)
-            : (typeof sizeValue === 'number' ? sizeValue : undefined);
+        let numericSize: number | undefined;
+        if (typeof sizeValue === 'bigint') {
+            numericSize = Number(sizeValue);
+        } else if (typeof sizeValue === 'number') {
+            numericSize = sizeValue;
+        }
         if (numericSize === undefined || Number.isNaN(numericSize)) {
             return undefined;
         }

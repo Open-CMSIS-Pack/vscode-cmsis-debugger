@@ -1285,8 +1285,8 @@ export class Evaluator {
             }
 
             const typedOps = operator === '+' || operator === '-' || operator === '*' || operator === '/'
-                || operator === '%' || operator === '<<' || operator === '>>' || operator === '&'
-                || operator === '^' || operator === '|';
+                || operator === '%' || operator === '<<' || operator === '>>'
+                || operator === '&' || operator === '^' || operator === '|';
 
             if (!typedOps || typeof ctx.data.getValueType !== 'function') {
                 const noTypesStart = perf?.start() ?? 0;
@@ -1388,9 +1388,6 @@ export class Evaluator {
             case '%': return this.modValsWithKind(a, b, undefined);
             case '<<': return shlVals(a, b);
             case '>>': return sarVals(a, b);
-            case '>>>':
-                this.recordMessage(`Unsupported operator >>> for a=${this.formatEvalValueForMessage(a)}, b=${this.formatEvalValueForMessage(b)}`);
-                return undefined;
             case '&': return andVals(a, b);
             case '^': return xorVals(a, b);
             case '|': return orVals(a, b);

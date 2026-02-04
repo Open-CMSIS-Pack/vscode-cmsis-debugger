@@ -49,7 +49,7 @@ jest.mock('../../component-viewer-tree-view', () => ({
 const instanceFactory = jest.fn(() => ({
     readModel: jest.fn().mockResolvedValue(undefined),
     update: jest.fn().mockResolvedValue(undefined),
-    getGuiTree: jest.fn(() => ['node']),
+    getGuiTree: jest.fn<string[] | undefined, []>(() => ['node']),
     updateActiveSession: jest.fn(),
 }));
 
@@ -294,6 +294,24 @@ describe('ComponentViewer', () => {
         expect(instanceA.update).toHaveBeenCalled();
         expect(instanceB.update).toHaveBeenCalled();
         expect(debugSpy).toHaveBeenCalled();
+    });
+
+    it('skips undefined gui trees when updating instances', async () => {
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const provider = treeProviderFactory();
+        (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
+        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1');
+
+        const instanceNoTree = instanceFactory();
+        instanceNoTree.getGuiTree = jest.fn(() => undefined);
+        const instanceWithTree = instanceFactory();
+
+        (controller as unknown as { _instances: unknown[] })._instances = [instanceNoTree, instanceWithTree];
+
+        const updateInstances = (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances.bind(controller);
+        await updateInstances('stackTrace');
+
+        expect(provider.setRoots).toHaveBeenCalledWith(['node']);
     });
 
     it('runs a debounced update when scheduling multiple times', async () => {
