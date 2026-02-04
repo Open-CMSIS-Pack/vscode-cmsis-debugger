@@ -143,6 +143,12 @@
         "command": "vscode-cmsis-debugger.liveWatch.showInMemoryInspector",
         "title": "Show in Memory Inspector",
         "category": "Live Watch"
+      },
+      {
+        "command": "vscode-cmsis-debugger.componentViewer.lockInstance",
+        "title": "Lock Instance",
+        "icon": "$(lock)",
+        "category": "Component Viewer"
       }
     ],
     "menus": {
@@ -226,6 +232,10 @@
         {
           "command": "vscode-cmsis-debugger.liveWatch.showInMemoryInspector",
           "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.lockInstance",
+          "when": "false"
         }
       ],
       "view/title": [
@@ -302,6 +312,11 @@
           "command": "vscode-cmsis-debugger.liveWatch.showInMemoryInspector",
           "when": "view == cmsis-debugger.liveWatch",
           "group": "contextMenuG3@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.lockInstance",
+          "when": "view == cmsis-debugger.componentViewer",
+          "group": "inline@1"
         }
       ]
     },
