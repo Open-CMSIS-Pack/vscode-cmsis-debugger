@@ -17,7 +17,7 @@
 import { PerfStats } from './perf-stats';
 import { TargetReadStats, TargetReadTiming } from './target-read-stats';
 
-export const PERF_ENABLED = true;
+export const PERF_ENABLED = false;
 export const TARGET_READ_STATS_ENABLED = true;
 
 export const perf = PERF_ENABLED ? new PerfStats() : undefined;
