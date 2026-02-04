@@ -86,12 +86,14 @@ type TrackerCallbacks = {
     onConnected: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
     onDidChangeActiveDebugSession: (cb: (session: Session | undefined) => Promise<void>) => { dispose: jest.Mock };
     onStackTrace: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
+    onDidChangeActiveStackItem: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
     onWillStartSession: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
     callbacks: Partial<{
         willStop: (session: Session) => Promise<void>;
         connected: (session: Session) => Promise<void>;
         activeSession: (session: Session | undefined) => Promise<void>;
         stackTrace: (session: { session: Session }) => Promise<void>;
+        activeStackItem: (session: { session: Session }) => Promise<void>;
         willStart: (session: Session) => Promise<void>;
     }>;
 };
@@ -127,6 +129,10 @@ describe('ComponentViewer', () => {
                 callbacks.stackTrace = cb;
                 return { dispose: jest.fn() };
             },
+            onDidChangeActiveStackItem: (cb) => {
+                callbacks.activeStackItem = cb;
+                return { dispose: jest.fn() };
+            },
             onWillStartSession: (cb) => {
                 callbacks.willStart = cb;
                 return { dispose: jest.fn() };
@@ -151,7 +157,23 @@ describe('ComponentViewer', () => {
         controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         expect(registerTreeDataProvider).toHaveBeenCalledWith('cmsis-debugger.componentViewer', expect.any(Object));
-        expect(context.subscriptions.length).toBe(6);
+        expect(context.subscriptions.length).toBe(7);
+    });
+
+    it('triggers an update when active stack item changes', async () => {
+        const context = makeContext();
+        const tracker = makeTracker();
+        const controller = new ComponentViewer(context as unknown as ExtensionContext);
+        controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const session = makeSession('s1', ['a.scvd']);
+        (controller as unknown as { _activeSession?: Session })._activeSession = session;
+
+        const schedulePendingUpdate = jest.spyOn(controller as unknown as { schedulePendingUpdate: (reason: fifoUpdateReason) => void }, 'schedulePendingUpdate');
+
+        await tracker.callbacks.activeStackItem?.({ session });
+
+        expect(schedulePendingUpdate).toHaveBeenCalledWith('stackTrace');
     });
 
     it('skips reading scvd files when session or cbuild-run is missing', async () => {
