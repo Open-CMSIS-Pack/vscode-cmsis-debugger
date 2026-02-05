@@ -162,14 +162,16 @@ describe('CbuildRunReader', () => {
         it('resolves relative SVD paths relative to the cbuild-run.yml file location', async () => {
             await cbuildRunReader.parse(TEST_CBUILD_RUN_FILE);
             const svdFilePaths = cbuildRunReader.getSvdFilePaths(PACK_ROOT).map(path.normalize);
-            const resolvedCustom = svdFilePaths.find(p => p.endsWith('/MyDevice/multi-core-custom.svd'));
+            const expectedTail = path.normalize(path.join('MyDevice', 'multi-core-custom.svd'));
+            const resolvedCustom = svdFilePaths.find((p: string) => p.endsWith(expectedTail));
             expect(resolvedCustom).toEqual(path.normalize(EXPECTED_CUSTOM_SVD));
         });
 
         it('resolves relative SCVD paths relative to the cbuild-run.yml file location', async () => {
             await cbuildRunReader.parse(TEST_CBUILD_RUN_FILE);
             const scvdFilePaths = cbuildRunReader.getScvdFilePaths(PACK_ROOT).map(path.normalize);
-            const resolvedCustom = scvdFilePaths.find(p => p.endsWith('/MyDevice/multi-core-custom.scvd'));
+            const expectedTail = path.normalize(path.join('MyDevice', 'multi-core-custom.scvd'));
+            const resolvedCustom = scvdFilePaths.find((p: string) => p.endsWith(expectedTail));
             expect(resolvedCustom).toEqual(path.normalize(EXPECTED_CUSTOM_SCVD));
         });
     });
