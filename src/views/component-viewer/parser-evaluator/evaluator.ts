@@ -58,6 +58,7 @@ import type { IntrinsicProvider } from './intrinsics';
 import { handleIntrinsic, INTRINSIC_DEFINITIONS, IntrinsicName, isIntrinsicName } from './intrinsics';
 import { perf } from '../stats-config';
 import { EvaluatorCache } from './evaluator-cache';
+import { EvaluatorDiagnostics } from './evaluator-diagnostics';
 
 /* =============================================================================
  * Public API
@@ -81,10 +82,7 @@ export interface EvalContextInit {
 
 export class Evaluator {
     private static readonly MEMO_ENABLED = true;
-    private readonly messages: string[] = [];
-    private readonly onIntrinsicError = (message: string): void => {
-        this.recordMessage(message);
-    };
+    private readonly diagnostics = new EvaluatorDiagnostics();
     private evalNodeFrames: Array<{ start: number; childMs: number; kind: string }> = [];
     private caches = new EvaluatorCache();
     private containerStack: RefContainer[] = [];
@@ -113,79 +111,11 @@ export class Evaluator {
         return undefined;
     }
 
-    private resetMessages(): void {
-        this.messages.length = 0;
+    protected getMessages(): string {
+        return this.diagnostics.getMessages();
     }
 
-    private recordMessage(message: string): void {
-        this.messages.push(message);
-    }
-
-    public getMessages(): string {
-        return this.messages.join('\n');
-    }
-
-    private formatEvalValueForMessage(value: EvalValue): string {
-        if (value === undefined) {
-            return 'undefined';
-        }
-        if (typeof value === 'string') {
-            const trimmed = value.length > 64 ? `${value.slice(0, 61)}...` : value;
-            return `"${trimmed}"`;
-        }
-        if (typeof value === 'number' || typeof value === 'bigint') {
-            return String(value);
-        }
-        if (value instanceof Uint8Array) {
-            return `Uint8Array(${value.length})`;
-        }
-        return String(value);
-    }
-
-    private formatNodeForMessage(node: ASTNode): string {
-        switch (node.kind) {
-            case 'Identifier':
-                return `Identifier(${(node as Identifier).name})`;
-            case 'MemberAccess': {
-                const ma = node as MemberAccess;
-                return `MemberAccess(${this.formatNodeForMessage(ma.object)}.${ma.property})`;
-            }
-            case 'ArrayIndex': {
-                const ai = node as ArrayIndex;
-                return `ArrayIndex(${this.formatNodeForMessage(ai.array)}[...])`;
-            }
-            case 'CallExpression':
-                return 'CallExpression';
-            case 'EvalPointCall':
-                return 'EvalPointCall';
-            case 'UnaryExpression':
-                return `UnaryExpression(${(node as UnaryExpression).operator})`;
-            case 'BinaryExpression':
-                return `BinaryExpression(${(node as BinaryExpression).operator})`;
-            case 'ConditionalExpression':
-                return 'ConditionalExpression';
-            case 'AssignmentExpression':
-                return `AssignmentExpression(${(node as AssignmentExpression).operator})`;
-            case 'UpdateExpression':
-                return `UpdateExpression(${(node as UpdateExpression).operator})`;
-            case 'PrintfExpression':
-                return 'PrintfExpression';
-            case 'FormatSegment':
-                return 'FormatSegment';
-            case 'TextSegment':
-                return 'TextSegment';
-            case 'NumberLiteral':
-                return `NumberLiteral(${(node as NumberLiteral).value})`;
-            case 'StringLiteral':
-                return `StringLiteral("${(node as StringLiteral).value}")`;
-            case 'BooleanLiteral':
-                return `BooleanLiteral(${(node as BooleanLiteral).value})`;
-            default:
-                return node.kind;
-        }
-    }
-
-    public getTestHelpers(): Record<string, unknown> {
+    protected getTestHelpers(): Record<string, unknown> {
         return {
             findReferenceNode: this.findReferenceNode.bind(this),
             asNumber: this.asNumber.bind(this),
@@ -203,6 +133,8 @@ export class Evaluator {
             captureContainerForReference: this.captureContainerForReference.bind(this),
             evalBinary: this.evalBinary.bind(this),
             normalizeEvaluateResult: this.normalizeEvaluateResult.bind(this),
+            formatEvalValueForMessage: this.diagnostics.formatEvalValueForMessage.bind(this.diagnostics),
+            formatNodeForMessage: this.diagnostics.formatNodeForMessage.bind(this.diagnostics),
         };
     }
 
@@ -560,7 +492,7 @@ export class Evaluator {
         if (pref.use) {
             const result = this.integerDiv(toNumeric(a), toNumeric(b), pref.unsigned);
             if (result === undefined) {
-                this.recordMessage(`Division by zero in "/": a=${this.formatEvalValueForMessage(a)}, b=${this.formatEvalValueForMessage(b)}`);
+                this.diagnostics.record(`Division by zero in "/": a=${this.diagnostics.formatEvalValueForMessage(a)}, b=${this.diagnostics.formatEvalValueForMessage(b)}`);
             }
             return result;
         }
@@ -573,7 +505,7 @@ export class Evaluator {
         if (pref.use) {
             const result = this.integerMod(toNumeric(a), toNumeric(b), pref.unsigned);
             if (result === undefined) {
-                this.recordMessage(`Division by zero in "%": a=${this.formatEvalValueForMessage(a)}, b=${this.formatEvalValueForMessage(b)}`);
+                this.diagnostics.record(`Division by zero in "%": a=${this.diagnostics.formatEvalValueForMessage(a)}, b=${this.diagnostics.formatEvalValueForMessage(b)}`);
             }
             return result;
         }
@@ -615,7 +547,7 @@ export class Evaluator {
                 continue;
             }
             // Make the failure explicit; this avoids silently passing evaluated values like 0.
-            this.recordMessage(`${name} expects identifier/string for argument ${idx + 1}, got ${arg.kind}`);
+            this.diagnostics.record(`${name} expects identifier/string for argument ${idx + 1}, got ${arg.kind}`);
             perf?.end(perfStartTime, 'evalIntrinsicArgsMs', 'evalIntrinsicArgsCalls');
             return undefined;
         }
@@ -667,7 +599,7 @@ export class Evaluator {
                     }
                     if (!ref) {
                         perf?.end(perfStartKind, 'evalMustRefIdentifierMs', 'evalMustRefIdentifierCalls');
-                        this.recordMessage(`Unknown symbol '${id.name}' in ${this.formatNodeForMessage(node)}`);
+                        this.diagnostics.record(`Unknown symbol '${id.name}' in ${this.diagnostics.formatNodeForMessage(node)}`);
                         return undefined;
                     }
                     // Start a new anchor chain at this identifier
@@ -755,7 +687,7 @@ export class Evaluator {
                         perf?.end(memberRefStart, 'evalHostGetMemberRefMs', 'evalHostGetMemberRefCalls');
                         if (!child) {
                             const baseName = baseForMember?.name ?? baseRef?.name ?? 'unknown';
-                            this.recordMessage(`Missing member '${ma.property}' on '${baseName}'`);
+                            this.diagnostics.record(`Missing member '${ma.property}' on '${baseName}'`);
                             perf?.end(perfStartKind, 'evalMustRefMemberMs', 'evalMustRefMemberCalls');
                             return undefined;
                         }
@@ -793,7 +725,7 @@ export class Evaluator {
                     perf?.end(memberRefStart, 'evalHostGetMemberRefMs', 'evalHostGetMemberRefCalls');
                     if (!child) {
                         const baseName = baseRef?.name ?? 'unknown';
-                        this.recordMessage(`Missing member '${ma.property}' on '${baseName}'`);
+                        this.diagnostics.record(`Missing member '${ma.property}' on '${baseName}'`);
                         perf?.end(perfStartKind, 'evalMustRefMemberMs', 'evalMustRefMemberCalls');
                         return undefined;
                     }
@@ -867,12 +799,12 @@ export class Evaluator {
                 }
 
                 case 'EvalPointCall': {
-                    this.recordMessage(`Invalid reference target (${node.kind})`);
+                    this.diagnostics.record(`Invalid reference target (${node.kind})`);
                     return undefined;
                 }
 
                 default:
-                    this.recordMessage(`Invalid reference target (${node.kind})`);
+                    this.diagnostics.record(`Invalid reference target (${node.kind})`);
                     return undefined;
             }
         } finally {
@@ -971,12 +903,12 @@ export class Evaluator {
         try {
             const fn = ctx.data.__Running;
             if (typeof fn !== 'function') {
-                this.recordMessage('Missing intrinsic __Running');
+                this.diagnostics.record('Missing intrinsic __Running');
                 return undefined;
             }
             const out = await fn.call(ctx.data);
             if (out === undefined) {
-                this.recordMessage('Intrinsic __Running returned undefined');
+                this.diagnostics.record('Intrinsic __Running returned undefined');
                 return undefined;
             }
             return out | 0;
@@ -993,12 +925,12 @@ export class Evaluator {
             ctx.container.valueType = undefined;
             const fn = property === '_count' ? ctx.data._count : ctx.data._addr;
             if (typeof fn !== 'function') {
-                this.recordMessage(`Missing pseudo-member ${property}`);
+                this.diagnostics.record(`Missing pseudo-member ${property}`);
                 return undefined;
             }
             const out = await fn.call(ctx.data, ctx.container);
             if (out === undefined) {
-                this.recordMessage(`Pseudo-member ${property} returned undefined`);
+                this.diagnostics.record(`Pseudo-member ${property} returned undefined`);
             }
             return out;
         } finally {
@@ -1006,7 +938,7 @@ export class Evaluator {
         }
     }
 
-    public async evalNode(node: ASTNode, ctx: EvalContext): Promise<EvalValue> {
+    protected async evalNode(node: ASTNode, ctx: EvalContext): Promise<EvalValue> {
         perf?.recordEvalNodeKind(node.kind);
         const start = perf?.now() ?? 0;
         const frame = start !== 0 ? { start, childMs: 0, kind: node.kind } : undefined;
@@ -1094,7 +1026,7 @@ export class Evaluator {
                             return ((~((n as number) | 0)) >>> 0);
                         }
                         default:
-                            this.recordMessage(`Unsupported unary operator ${u.operator} for ${this.formatNodeForMessage(u.argument)}`);
+                            this.diagnostics.record(`Unsupported unary operator ${u.operator} for ${this.diagnostics.formatNodeForMessage(u.argument)}`);
                             return undefined;
                     }
                 }
@@ -1161,7 +1093,7 @@ export class Evaluator {
                         case '^=':  out = xorVals(L, R); break;
                         case '|=':  out = orVals(L, R); break;
                         default:
-                            this.recordMessage(`Unsupported assignment operator ${a.operator} for ${this.formatNodeForMessage(a.left)}`);
+                            this.diagnostics.record(`Unsupported assignment operator ${a.operator} for ${this.diagnostics.formatNodeForMessage(a.left)}`);
                             return undefined;
                     }
                     if (out === undefined) {
@@ -1183,7 +1115,7 @@ export class Evaluator {
                             if (!args) {
                                 return undefined;
                             }
-                            return handleIntrinsic(ctx.data, ctx.container, name, args, this.onIntrinsicError);
+                            return handleIntrinsic(ctx.data, ctx.container, name, args, this.diagnostics.onIntrinsicError);
                         }
                     }
 
@@ -1209,7 +1141,7 @@ export class Evaluator {
                     if (!args) {
                         return undefined;
                     }
-                    return handleIntrinsic(ctx.data, ctx.container, intrinsicName, args, this.onIntrinsicError);
+                    return handleIntrinsic(ctx.data, ctx.container, intrinsicName, args, this.diagnostics.onIntrinsicError);
                 }
 
                 case 'PrintfExpression': {
@@ -1245,12 +1177,12 @@ export class Evaluator {
                 }
 
                 case 'ErrorNode':
-                    this.recordMessage('Cannot evaluate an ErrorNode.');
+                    this.diagnostics.record('Cannot evaluate an ErrorNode.');
                     return undefined;
 
                 default: {
                     const kind = (node as Partial<ASTNode>).kind ?? 'unknown';
-                    this.recordMessage(`Unhandled node kind: ${kind}`);
+                    this.diagnostics.record(`Unhandled node kind: ${kind}`);
                     return undefined;
                 }
             }
@@ -1358,7 +1290,7 @@ export class Evaluator {
                     break;
                 /* istanbul ignore next -- unreachable: typedOps guards valid operators */
                 default:
-                    this.recordMessage(`Unsupported binary operator ${operator} for a=${this.formatEvalValueForMessage(a)}, b=${this.formatEvalValueForMessage(b)}`);
+                    this.diagnostics.record(`Unsupported binary operator ${operator} for a=${this.diagnostics.formatEvalValueForMessage(a)}, b=${this.diagnostics.formatEvalValueForMessage(b)}`);
                     perf?.end(opStart, 'evalBinaryTypedOpMs', 'evalBinaryTypedOpCalls');
                     perf?.end(typedStart, 'evalBinaryTypedMs', 'evalBinaryTypedCalls');
                     return undefined;
@@ -1399,7 +1331,7 @@ export class Evaluator {
             case '>': return this.gtVals(a, b);
             case '>=': return this.gteVals(a, b);
             default:
-                this.recordMessage(`Unsupported binary operator ${operator} for a=${this.formatEvalValueForMessage(a)}, b=${this.formatEvalValueForMessage(b)}`);
+                this.diagnostics.record(`Unsupported binary operator ${operator} for a=${this.diagnostics.formatEvalValueForMessage(a)}, b=${this.diagnostics.formatEvalValueForMessage(b)}`);
                 return undefined;
         }
     }
@@ -1514,7 +1446,7 @@ export class Evaluator {
 
     public async evaluateParseResult(pr: ParseResult, ctx: EvalContext, container?: ScvdNode): Promise<EvaluateResult> {
         const perfStartTime = perf?.start() ?? 0;
-        this.resetMessages();
+        this.diagnostics.reset();
         const override = container !== undefined;
         this.pushContainer(ctx, override ? { base: container as ScvdNode } : undefined);
         try {
@@ -1526,8 +1458,9 @@ export class Evaluator {
             return undefined;
         } finally {
             perf?.end(perfStartTime, 'evalMs', 'evalCalls');
-            if (this.messages.length > 0) {
-                console.error(this.getMessages());
+            const messages = this.diagnostics.getMessages();
+            if (messages.length > 0) {
+                console.error(messages);
             }
             this.popContainer(ctx);
         }

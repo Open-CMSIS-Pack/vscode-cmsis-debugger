@@ -22,7 +22,8 @@
  */
 
 import { parseExpression } from '../../../../parser-evaluator/parser';
-import { Evaluator, EvalContext } from '../../../../parser-evaluator/evaluator';
+import { EvalContext } from '../../../../parser-evaluator/evaluator';
+import { TestEvaluator } from '../../../unit/helpers/test-evaluator';
 import type { EvalValue, RefContainer, ScalarType } from '../../../../parser-evaluator/model-host';
 import type { FullDataHost } from '../../helpers/full-data-host';
 import { ScvdNode } from '../../../../model/scvd-node';
@@ -38,7 +39,7 @@ class TypedNode extends ScvdNode {
     }
 }
 
-const evaluator = new Evaluator();
+const evaluator = new TestEvaluator();
 
 class MathHost implements FullDataHost {
     constructor(private readonly values: Map<string, TypedNode>) {}
@@ -104,7 +105,7 @@ function makeHost(defs: Array<[string, EvalValue, string]>): { host: MathHost; b
 
 function evalParsed(expr: string, host: MathHost, base: TypedNode) {
     const ctx = new EvalContext({ data: host, container: base });
-    return evaluator.evalNode(parseExpression(expr, false).ast, ctx);
+    return evaluator.evalNodePublic(parseExpression(expr, false).ast, ctx);
 }
 
 function evalParsedNormalized(expr: string, host: MathHost, base: TypedNode) {

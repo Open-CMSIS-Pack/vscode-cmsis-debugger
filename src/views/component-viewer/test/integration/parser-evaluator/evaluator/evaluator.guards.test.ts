@@ -20,7 +20,8 @@
  * Integration test for Evaluator.guardCoverage.
  */
 
-import { Evaluator, EvalContext } from '../../../../parser-evaluator/evaluator';
+import { EvalContext } from '../../../../parser-evaluator/evaluator';
+import { TestEvaluator } from '../../../unit/helpers/test-evaluator';
 import type { ASTNode, AssignmentExpression, CallExpression, UnaryExpression, BinaryExpression, ColonPath, FormatSegment } from '../../../../parser-evaluator/parser';
 import type { ModelHost } from '../../../../parser-evaluator/model-host';
 import { ScvdNode } from '../../../../model/scvd-node';
@@ -62,8 +63,8 @@ function makeCtx(host: ModelHost): EvalContext {
 }
 
 describe('evaluator guards', () => {
-    const evaluator = new Evaluator();
-    const asAny = evaluator.getTestHelpers() as Record<string, unknown>;
+    const evaluator = new TestEvaluator();
+    const asAny = evaluator.getTestHelpersPublic() as Record<string, unknown>;
 
     it('covers findReferenceNode guards and non-reference path', () => {
         const fn = asAny.findReferenceNode as (n: ASTNode | undefined) => ASTNode | undefined;
@@ -202,13 +203,13 @@ describe('evaluator guards', () => {
     it('covers colon path unresolved error', async () => {
         const ctx = makeCtx(new StubHost());
         const colon: ColonPath = { kind: 'ColonPath', parts: ['a', 'b'], start: 0, end: 0 };
-        await expect(evaluator.evalNode(colon as ASTNode, ctx)).resolves.toBeUndefined();
+        await expect(evaluator.evalNodePublic(colon as ASTNode, ctx)).resolves.toBeUndefined();
     });
 
     it('covers unsupported operators and unknown node kinds', async () => {
         const ctx = makeCtx(new StubHost());
         const badUnary = { kind: 'UnaryExpression', operator: '?' as unknown as UnaryExpression['operator'], argument: { kind: 'NumberLiteral', value: 1, raw: '1', valueType: 'number', constValue: 1, start: 0, end: 1 }, start: 0, end: 0 } as unknown as UnaryExpression;
-        await expect(evaluator.evalNode(badUnary, ctx)).resolves.toBeUndefined();
+        await expect(evaluator.evalNodePublic(badUnary, ctx)).resolves.toBeUndefined();
 
         const badAssign = {
             kind: 'AssignmentExpression',
@@ -218,9 +219,9 @@ describe('evaluator guards', () => {
             start: 0,
             end: 0,
         } as unknown as AssignmentExpression;
-        await expect(evaluator.evalNode(badAssign, ctx)).resolves.toBeUndefined();
+        await expect(evaluator.evalNodePublic(badAssign, ctx)).resolves.toBeUndefined();
 
-        await expect(evaluator.evalNode({ kind: 'Unknown', start: 0, end: 0 } as unknown as ASTNode, ctx)).resolves.toBeUndefined();
+        await expect(evaluator.evalNodePublic({ kind: 'Unknown', start: 0, end: 0 } as unknown as ASTNode, ctx)).resolves.toBeUndefined();
     });
 
     it('covers formatValue bigint/NaN paths', async () => {
@@ -239,16 +240,16 @@ describe('evaluator guards', () => {
             async readValue(): Promise<EvalValue> { return undefined; }
         }
         const ctx = makeCtx(new UndefinedReadHost());
-        await expect(evaluator.evalNode({ kind: 'Identifier', name: 'x', start: 0, end: 0 }, ctx)).resolves.toBeUndefined();
+        await expect(evaluator.evalNodePublic({ kind: 'Identifier', name: 'x', start: 0, end: 0 }, ctx)).resolves.toBeUndefined();
     });
 
     it('covers unary bigint and bitwise paths', async () => {
         const base = new BareNode();
         const ctx = new EvalContext({ data: new StubHost() as never, container: base });
-        await expect(evaluator.evalNode({ kind: 'UnaryExpression', operator: '+', argument: { kind: 'NumberLiteral', value: 1n, raw: '1n', valueType: 'number', constValue: 1n, start: 0, end: 0 }, start: 0, end: 0 } as unknown as ASTNode, ctx)).resolves.toBe(1n);
-        await expect(evaluator.evalNode({ kind: 'UnaryExpression', operator: '-', argument: { kind: 'NumberLiteral', value: 2n, raw: '2n', valueType: 'number', constValue: 2n, start: 0, end: 0 }, start: 0, end: 0 } as unknown as ASTNode, ctx)).resolves.toBe(-2n);
-        await expect(evaluator.evalNode({ kind: 'UnaryExpression', operator: '~', argument: { kind: 'NumberLiteral', value: 1n, raw: '1n', valueType: 'number', constValue: 1n, start: 0, end: 0 }, start: 0, end: 0 } as unknown as ASTNode, ctx)).resolves.toBe(~1n);
-        await expect(evaluator.evalNode({ kind: 'UnaryExpression', operator: '~', argument: { kind: 'NumberLiteral', value: 3, raw: '3', valueType: 'number', constValue: 3, start: 0, end: 0 }, start: 0, end: 0 } as ASTNode, ctx)).resolves.toBe(((~(3 | 0)) >>> 0));
+        await expect(evaluator.evalNodePublic({ kind: 'UnaryExpression', operator: '+', argument: { kind: 'NumberLiteral', value: 1n, raw: '1n', valueType: 'number', constValue: 1n, start: 0, end: 0 }, start: 0, end: 0 } as unknown as ASTNode, ctx)).resolves.toBe(1n);
+        await expect(evaluator.evalNodePublic({ kind: 'UnaryExpression', operator: '-', argument: { kind: 'NumberLiteral', value: 2n, raw: '2n', valueType: 'number', constValue: 2n, start: 0, end: 0 }, start: 0, end: 0 } as unknown as ASTNode, ctx)).resolves.toBe(-2n);
+        await expect(evaluator.evalNodePublic({ kind: 'UnaryExpression', operator: '~', argument: { kind: 'NumberLiteral', value: 1n, raw: '1n', valueType: 'number', constValue: 1n, start: 0, end: 0 }, start: 0, end: 0 } as unknown as ASTNode, ctx)).resolves.toBe(~1n);
+        await expect(evaluator.evalNodePublic({ kind: 'UnaryExpression', operator: '~', argument: { kind: 'NumberLiteral', value: 3, raw: '3', valueType: 'number', constValue: 3, start: 0, end: 0 }, start: 0, end: 0 } as ASTNode, ctx)).resolves.toBe(((~(3 | 0)) >>> 0));
     });
 
     it('covers call-expression intrinsic and EvalPointCall missing intrinsic', async () => {
@@ -264,17 +265,17 @@ describe('evaluator guards', () => {
             start: 0,
             end: 0,
         };
-        await expect(evaluator.evalNode(callExpr, ctx)).resolves.toBe(7);
+        await expect(evaluator.evalNodePublic(callExpr, ctx)).resolves.toBe(7);
 
         const missingEval: ASTNode = { kind: 'EvalPointCall', intrinsic: 'missing', callee: { kind: 'Identifier', name: 'missing', start: 0, end: 0 }, args: [], start: 0, end: 0 } as unknown as ASTNode;
-        await expect(evaluator.evalNode(missingEval, ctx)).resolves.toBeUndefined();
+        await expect(evaluator.evalNodePublic(missingEval, ctx)).resolves.toBeUndefined();
     });
 
     it('covers TextSegment and unsupported binary operator throw', async () => {
         const base = new BareNode();
         const ctx = new EvalContext({ data: new StubHost() as never, container: base });
         const textSeg: ASTNode = { kind: 'TextSegment', text: 'hi', start: 0, end: 0 } as ASTNode;
-        await expect(evaluator.evalNode(textSeg, ctx)).resolves.toBe('hi');
+        await expect(evaluator.evalNodePublic(textSeg, ctx)).resolves.toBe('hi');
 
         const evalBinary = asAny.evalBinary as (n: BinaryExpression, ctx: EvalContext) => Promise<EvalValue>;
         const badBin: BinaryExpression = { kind: 'BinaryExpression', operator: '**', left: { kind: 'NumberLiteral', value: 1, raw: '1', valueType: 'number', constValue: 1, start: 0, end: 0 }, right: { kind: 'NumberLiteral', value: 2, raw: '2', valueType: 'number', constValue: 2, start: 0, end: 0 }, start: 0, end: 0 };
