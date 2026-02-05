@@ -103,8 +103,8 @@ export class ComponentViewer {
         if (instance.lockState) {
             const guiTree = instance.componentViewerInstance.getGuiTree();
             if (guiTree) {
-                const rootNode: ScvdGuiInterface[] = [...guiTree];
-                rootNode[0].isLocked = true;
+                const rootNodes: ScvdGuiInterface[] = [...guiTree];
+                rootNodes[0].isLocked = true;
             }
         } else {
             const guiTree = instance.componentViewerInstance.getGuiTree();
