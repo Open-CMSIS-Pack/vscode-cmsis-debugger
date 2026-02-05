@@ -20,29 +20,14 @@
  * Unit test for ComponentViewerController.
  */
 
-const registerTreeDataProvider = jest.fn(() => ({ dispose: jest.fn() }));
-const createOutputChannel = jest.fn(() => ({
-    appendLine: jest.fn(),
-    dispose: jest.fn(),
-}));
+import * as vscode from 'vscode';
+import type { GDBTargetDebugTracker } from '../../../../debug-session';
+import { logger } from '../../../../logger';
+import { extensionContextFactory } from '../../../../__test__/vscode.factory';
+import { ComponentViewer, fifoUpdateReason } from '../../component-viewer-main';
+import type { ScvdGuiInterface } from '../../model/scvd-gui-interface';
 
-type Disposable = { dispose: jest.Mock };
-type CommandHandler = (...args: unknown[]) => unknown;
-const registerCommand = jest.fn<Disposable, [string, CommandHandler]>(() => ({ dispose: jest.fn() }));
-
-jest.mock('vscode', () => ({
-    window: {
-        registerTreeDataProvider,
-        createOutputChannel,
-    },
-    commands: {
-        registerCommand,
-    },
-    debug: {
-        activeDebugSession: undefined,
-        activeStackItem: undefined,
-    },
-}));
+jest.mock('vscode');
 
 const treeProviderFactory = jest.fn(() => ({
     setRoots: jest.fn(),
@@ -57,7 +42,7 @@ jest.mock('../../component-viewer-tree-view', () => ({
 const instanceFactory = jest.fn(() => ({
     readModel: jest.fn().mockResolvedValue(undefined),
     update: jest.fn().mockResolvedValue(undefined),
-    getGuiTree: jest.fn<import('../../model/scvd-gui-interface').ScvdGuiInterface[] | undefined, []>(() => []),
+    getGuiTree: jest.fn<ScvdGuiInterface[] | undefined, []>(() => []),
     updateActiveSession: jest.fn(),
 }));
 
@@ -75,12 +60,11 @@ jest.mock('../../../../logger', () => ({
 
 jest.mock('../../../../debug-session', () => ({}));
 
-import type { ExtensionContext } from 'vscode';
-import * as vscode from 'vscode';
-import type { GDBTargetDebugTracker } from '../../../../debug-session';
-import { logger } from '../../../../logger';
-import { ComponentViewer, fifoUpdateReason } from '../../component-viewer-main';
-import type { ScvdGuiInterface } from '../../model/scvd-gui-interface';
+function asMockedFunction<Args extends unknown[], Return>(
+    fn: (...args: Args) => Return
+): jest.MockedFunction<(...args: Args) => Return> {
+    return fn as unknown as jest.MockedFunction<(...args: Args) => Return>;
+}
 
 // Local test mocks
 
@@ -106,13 +90,15 @@ type TrackerCallbacks = {
     }>;
 };
 
-type Context = { subscriptions: Array<{ dispose: jest.Mock }> };
-
 describe('ComponentViewer', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         (vscode.debug as unknown as { activeDebugSession?: unknown }).activeDebugSession = undefined;
         (vscode.debug as unknown as { activeStackItem?: unknown }).activeStackItem = undefined;
+
+        // Global vscode mock defines registerCommand as jest.fn(), but it does not provide a default return value.
+        // The production code stores the return value in subscriptions, so return a disposable by default.
+        asMockedFunction(vscode.commands.registerCommand).mockReturnValue({ dispose: jest.fn() } as unknown as vscode.Disposable);
     });
 
     const makeGuiNode = (id: string, children: ScvdGuiInterface[] = []): ScvdGuiInterface => ({
@@ -127,8 +113,6 @@ describe('ComponentViewer', () => {
         getGuiLineInfo: () => undefined,
         hasGuiChildren: () => children.length > 0,
     });
-
-    const makeContext = (): Context => ({ subscriptions: [] });
 
     const makeTracker = (): TrackerCallbacks => {
         const callbacks: TrackerCallbacks['callbacks'] = {};
@@ -167,21 +151,21 @@ describe('ComponentViewer', () => {
     });
 
     it('activates tree provider and registers tracker events', async () => {
-        const context = makeContext();
+        const context = extensionContextFactory();
         const tracker = makeTracker();
-        const controller = new ComponentViewer(context as unknown as ExtensionContext);
+        const controller = new ComponentViewer(context);
 
         controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
-        expect(registerTreeDataProvider).toHaveBeenCalledWith('cmsis-debugger.componentViewer', expect.any(Object));
-        expect(registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.lockInstance', expect.any(Function));
-        expect(registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.unlockInstance', expect.any(Function));
+        expect(vscode.window.registerTreeDataProvider).toHaveBeenCalledWith('cmsis-debugger.componentViewer', expect.any(Object));
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.lockInstance', expect.any(Function));
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.unlockInstance', expect.any(Function));
         // tree provider + 2 commands + 5 tracker disposables
         expect(context.subscriptions.length).toBe(8);
     });
 
     it('skips reading scvd files when session or cbuild-run is missing', async () => {
-        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const controller = new ComponentViewer(extensionContextFactory());
         const tracker = makeTracker();
 
         const readScvdFiles = (controller as unknown as { readScvdFiles: (t: TrackerCallbacks, s?: Session) => Promise<void> }).readScvdFiles.bind(controller);
@@ -201,7 +185,7 @@ describe('ComponentViewer', () => {
     });
 
     it('skips reading when no scvd files are listed', async () => {
-        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const controller = new ComponentViewer(extensionContextFactory());
         const tracker = makeTracker();
         const session = makeSession('s1', []);
         const readScvdFiles = (controller as unknown as { readScvdFiles: (t: TrackerCallbacks, s?: Session) => Promise<void> }).readScvdFiles.bind(controller);
@@ -212,8 +196,8 @@ describe('ComponentViewer', () => {
     });
 
     it('reads scvd files when active session is set', async () => {
-        const context = makeContext();
-        const controller = new ComponentViewer(context as unknown as ExtensionContext);
+        const context = extensionContextFactory();
+        const controller = new ComponentViewer(context);
         const tracker = makeTracker();
         const session = makeSession('s1', ['a.scvd', 'b.scvd']);
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
@@ -227,7 +211,7 @@ describe('ComponentViewer', () => {
     });
 
     it('skips reading scvd files when no active session is set', async () => {
-        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const controller = new ComponentViewer(extensionContextFactory());
         const tracker = makeTracker();
         const session = makeSession('s1', ['a.scvd']);
         const readScvdFiles = (controller as unknown as { readScvdFiles: (t: TrackerCallbacks, s?: Session) => Promise<void> }).readScvdFiles.bind(controller);
@@ -239,9 +223,9 @@ describe('ComponentViewer', () => {
     });
 
     it('handles tracker events and updates sessions', async () => {
-        const context = makeContext();
+        const context = extensionContextFactory();
         const tracker = makeTracker();
-        const controller = new ComponentViewer(context as unknown as ExtensionContext);
+        const controller = new ComponentViewer(context);
         controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         const provider = (controller as unknown as { _componentViewerTreeDataProvider?: ReturnType<typeof treeProviderFactory> })._componentViewerTreeDataProvider;
@@ -279,9 +263,9 @@ describe('ComponentViewer', () => {
     });
 
     it('does not reset instances when the same session reconnects', async () => {
-        const context = makeContext();
+        const context = extensionContextFactory();
         const tracker = makeTracker();
-        const controller = new ComponentViewer(context as unknown as ExtensionContext);
+        const controller = new ComponentViewer(context);
         controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         const provider = (controller as unknown as { _componentViewerTreeDataProvider?: ReturnType<typeof treeProviderFactory> })._componentViewerTreeDataProvider;
@@ -301,8 +285,8 @@ describe('ComponentViewer', () => {
     });
 
     it('updates instances when active session and instances are present', async () => {
-        const context = makeContext();
-        const controller = new ComponentViewer(context as unknown as ExtensionContext);
+        const context = extensionContextFactory();
+        const controller = new ComponentViewer(context);
         const provider = treeProviderFactory();
         (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
         const debugSpy = jest.spyOn(logger, 'debug');
@@ -340,7 +324,7 @@ describe('ComponentViewer', () => {
     });
 
     it('skips updating a locked instance and marks root as locked', async () => {
-        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const controller = new ComponentViewer(extensionContextFactory());
         const provider = treeProviderFactory();
         (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
 
@@ -371,9 +355,9 @@ describe('ComponentViewer', () => {
     });
 
     it('toggles lock state when lock command is invoked for a node in an instance tree', async () => {
-        const context = makeContext();
+        const context = extensionContextFactory();
         const tracker = makeTracker();
-        const controller = new ComponentViewer(context as unknown as ExtensionContext);
+        const controller = new ComponentViewer(context);
         controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         const provider = (controller as unknown as { _componentViewerTreeDataProvider?: ReturnType<typeof treeProviderFactory> })._componentViewerTreeDataProvider;
@@ -384,7 +368,8 @@ describe('ComponentViewer', () => {
 
         (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: inst, lockState: false }];
 
-        const lockHandler = registerCommand.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.componentViewer.lockInstance')?.[1] as
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const lockHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.componentViewer.lockInstance')?.[1] as
             | ((node: ScvdGuiInterface) => Promise<void> | void)
             | undefined;
         expect(lockHandler).toBeDefined();
@@ -401,7 +386,7 @@ describe('ComponentViewer', () => {
 
     it('runs a debounced update when scheduling multiple times', async () => {
         jest.useFakeTimers();
-        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const controller = new ComponentViewer(extensionContextFactory());
         const runUpdate = jest
             .spyOn(controller as unknown as { runUpdate: (reason: fifoUpdateReason) => Promise<void> }, 'runUpdate')
             .mockResolvedValue(undefined);
@@ -417,7 +402,7 @@ describe('ComponentViewer', () => {
     });
 
     it('does nothing when an update is already running', async () => {
-        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const controller = new ComponentViewer(extensionContextFactory());
         (controller as unknown as { _runningUpdate: boolean })._runningUpdate = true;
         const updateInstances = jest.spyOn(controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }, 'updateInstances');
         const runUpdate = (controller as unknown as { runUpdate: (reason: fifoUpdateReason) => Promise<void> }).runUpdate.bind(controller);
@@ -428,7 +413,7 @@ describe('ComponentViewer', () => {
     });
 
     it('runs update immediately when idle', async () => {
-        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const controller = new ComponentViewer(extensionContextFactory());
         (controller as unknown as { _pendingUpdate: boolean })._pendingUpdate = true;
         (controller as unknown as { _runningUpdate: boolean })._runningUpdate = false;
         const updateInstances = jest
@@ -441,7 +426,7 @@ describe('ComponentViewer', () => {
     });
 
     it('propagates errors during a coalescing update', async () => {
-        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const controller = new ComponentViewer(extensionContextFactory());
         (controller as unknown as { _pendingUpdate: boolean })._pendingUpdate = true;
         (controller as unknown as { _runningUpdate: boolean })._runningUpdate = false;
         (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances = jest
@@ -455,7 +440,7 @@ describe('ComponentViewer', () => {
     });
 
     it('clears update fifo and first-update flag on stop', async () => {
-        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const controller = new ComponentViewer(extensionContextFactory());
         const session = makeSession('s1', []);
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
         (controller as unknown as { _updateQueue: unknown[] })._updateQueue = [{ updateId: 1 }];
