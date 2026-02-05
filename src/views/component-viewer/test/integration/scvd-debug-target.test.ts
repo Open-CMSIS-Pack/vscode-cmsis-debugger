@@ -400,7 +400,7 @@ describe('scvd-debug-target', () => {
         target.init(session, tracker);
         (target as unknown as { targetReadCache: TargetReadCache | undefined }).targetReadCache = undefined;
 
-        const stats = require('../../stats-config') as { perf: { isBackendEnabled: () => boolean; setBackendEnabled: (v: boolean) => void } };
+        const stats = await import('../../stats-config') as { perf: { isBackendEnabled: () => boolean; setBackendEnabled: (v: boolean) => void } };
         const prev = stats.perf.isBackendEnabled();
         stats.perf.setBackendEnabled(false);
 
@@ -429,35 +429,32 @@ describe('scvd-debug-target', () => {
     it('reads without perf hooks when stats are disabled', async () => {
         const tracker = { onContinued: jest.fn(), onStopped: jest.fn() } as unknown as GDBTargetDebugTracker;
 
-        await new Promise<void>((resolve) => {
-            jest.isolateModules(() => {
-                const accessLocal = {
-                    setActiveSession: jest.fn(),
-                    evaluateSymbolAddress: jest.fn(),
-                    evaluateSymbolName: jest.fn(),
-                    evaluateSymbolContext: jest.fn(),
-                    evaluateNumberOfArrayElements: jest.fn(),
-                    evaluateSymbolSize: jest.fn(),
-                    evaluateMemory: jest.fn().mockResolvedValue('AQID'),
-                    evaluateRegisterValue: jest.fn(),
-                };
-                jest.doMock('../../component-viewer-target-access', () => ({
-                    ComponentViewerTargetAccess: jest.fn(() => accessLocal),
-                }));
-                jest.doMock('../../stats-config', () => ({
-                    perf: undefined,
-                    targetReadStats: undefined,
-                    targetReadTimingStats: undefined,
-                }));
+        jest.resetModules();
+        const accessLocal = {
+            setActiveSession: jest.fn(),
+            evaluateSymbolAddress: jest.fn(),
+            evaluateSymbolName: jest.fn(),
+            evaluateSymbolContext: jest.fn(),
+            evaluateNumberOfArrayElements: jest.fn(),
+            evaluateSymbolSize: jest.fn(),
+            evaluateMemory: jest.fn().mockResolvedValue('AQID'),
+            evaluateRegisterValue: jest.fn(),
+        };
+        jest.doMock('../../component-viewer-target-access', () => ({
+            ComponentViewerTargetAccess: jest.fn(() => accessLocal),
+        }));
+        jest.doMock('../../stats-config', () => ({
+            perf: undefined,
+            targetReadStats: undefined,
+            targetReadTimingStats: undefined,
+        }));
 
-                const mod = require('../../scvd-debug-target') as typeof import('../../scvd-debug-target');
-                const target = new mod.ScvdDebugTarget();
-                target.init(session, tracker);
-                (target as unknown as { targetReadCache: TargetReadCache | undefined }).targetReadCache = undefined;
+        const mod = await import('../../scvd-debug-target');
+        const target = new mod.ScvdDebugTarget();
+        target.init(session, tracker);
+        (target as unknown as { targetReadCache: TargetReadCache | undefined }).targetReadCache = undefined;
 
-                target.readMemory(0x1000, 3).then(() => resolve());
-            });
-        });
+        await target.readMemory(0x1000, 3);
     });
 
     it('covers cache-disabled initialization and readMemoryFromTarget timing', async () => {
@@ -496,14 +493,13 @@ describe('scvd-debug-target', () => {
         expect(results2.get('b')).toBeDefined();
     });
 
-    it('constructs targets without cache when disabled', () => {
-        jest.isolateModules(() => {
-            jest.doMock('../../component-viewer-config', () => ({ TARGET_READ_CACHE_ENABLED: false }));
-            const mod = require('../../scvd-debug-target') as typeof import('../../scvd-debug-target');
-            const target = new mod.ScvdDebugTarget();
-            expect((target as unknown as { targetReadCache?: TargetReadCache }).targetReadCache).toBeUndefined();
-            jest.dontMock('../../component-viewer-config');
-        });
+    it('constructs targets without cache when disabled', async () => {
+        jest.resetModules();
+        jest.doMock('../../component-viewer-config', () => ({ TARGET_READ_CACHE_ENABLED: false }));
+        const mod = await import('../../scvd-debug-target');
+        const target = new mod.ScvdDebugTarget();
+        expect((target as unknown as { targetReadCache?: TargetReadCache }).targetReadCache).toBeUndefined();
+        jest.dontMock('../../component-viewer-config');
     });
 
     it('throws when no base64 decoder is available', () => {

@@ -245,6 +245,10 @@ describe('Evaluator coverage branches', () => {
         base.members.set('field', field);
         const host = makeHost({}, { arr: base });
         const { getElementStride, getElementRef, getMemberOffset, getByteWidth, ...hostNoHooks } = host;
+        void getElementStride;
+        void getElementRef;
+        void getMemberOffset;
+        void getByteWidth;
         const ctx = makeCtx(hostNoHooks);
         await expect(helpers.mustRef(member(arr(id('arr'), num(1)), 'field'), ctx, false)).resolves.toBe(field);
         await expect(helpers.mustRef(arr(id('arr'), num(0)), ctx, false)).resolves.toBe(base);
@@ -340,6 +344,7 @@ describe('Evaluator coverage branches', () => {
             writeValue: jest.fn(async () => undefined),
         });
         const { __Running, ...missingHostNoRunning } = missingHost;
+        void __Running;
         const ctxMissing = makeCtx(missingHostNoRunning);
 
         await expect(evaluator.evalNode(id('__Running'), ctxMissing)).resolves.toBeUndefined();
@@ -351,6 +356,7 @@ describe('Evaluator coverage branches', () => {
         const base = new TestNode('base');
         const pseudoMissingHost = makeHost({}, { base });
         const { _count, ...pseudoMissingHostNoCount } = pseudoMissingHost;
+        void _count;
         const ctxPseudoMissing = makeCtx(pseudoMissingHostNoCount);
         await expect(evaluator.evalNode(member(id('base'), '_count'), ctxPseudoMissing)).resolves.toBeUndefined();
 
@@ -414,6 +420,7 @@ describe('Evaluator coverage branches', () => {
 
         const noTypesHost = makeHost({}, { a: new TestNode('a', 5), b: new TestNode('b', 2) });
         const { getValueType, ...noTypesHostNoTypes } = noTypesHost;
+        void getValueType;
         const ctxNoTypes = makeCtx(noTypesHostNoTypes);
 
         await expect(evaluator.evalNode(binary('&&', id('missing'), num(1)), ctxNoTypes)).resolves.toBeUndefined();
