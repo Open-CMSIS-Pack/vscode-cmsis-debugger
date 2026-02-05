@@ -80,16 +80,13 @@ export class ComponentViewer {
             if (!guiTree) {
                 return false;
             }
-            // Check if the node belongs to this instance
-            const stack: ScvdGuiInterface[] = [...guiTree];
-            while (stack.length > 0) {
-                const current = stack.pop()!;
-                if (current.getGuiId() === node.getGuiId()) {
+            // Check if the node belongs to this instance. We only care about parent nodes, as locking/unlocking a child node is not supported,
+            // so we can skip checking the whole tree and just check if the node is one of the roots.
+            const rootNodes: ScvdGuiInterface[] = [...guiTree];
+            while (rootNodes.length > 0) {
+                const current = rootNodes.pop();
+                if (current && current.getGuiId() === node.getGuiId()) {
                     return true;
-                }
-                const children = current.getGuiChildren();
-                if (children && children.length > 0) {
-                    stack.push(...children);
                 }
             }
             return false;
@@ -100,21 +97,19 @@ export class ComponentViewer {
         instance.lockState = !instance.lockState;
         logger.info(`Component Viewer: Instance lock state changed to ${instance.lockState}`);
         // If instance is locked, set isLocked flag to true for root nodes
+        const guiTree = instance.componentViewerInstance.getGuiTree();
+        if (!guiTree) {
+            return;
+        }
+        const rootNodes: ScvdGuiInterface[] = [...guiTree];
         if (instance.lockState) {
-            const guiTree = instance.componentViewerInstance.getGuiTree();
-            if (guiTree) {
-                const rootNodes: ScvdGuiInterface[] = [...guiTree];
-                rootNodes[0].isLocked = true;
-            }
+            rootNodes[0].isLocked = true;
         } else {
-            const guiTree = instance.componentViewerInstance.getGuiTree();
-            if (guiTree) {
-                const rootNodes: ScvdGuiInterface[] = [...guiTree];
-                rootNodes[0].isLocked = false;
-            }
+            rootNodes[0].isLocked = false;
         }
         this._componentViewerTreeDataProvider?.refresh();
     }
+
     protected async readScvdFiles(tracker: GDBTargetDebugTracker,session?: GDBTargetDebugSession): Promise<void> {
         if (!session) {
             return;
