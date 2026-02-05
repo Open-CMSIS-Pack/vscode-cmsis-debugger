@@ -20,7 +20,7 @@
  * Coverage-focused tests for Evaluator branches.
  */
 
-import { Evaluator, EvalContext } from '../../../../parser-evaluator/evaluator';
+import { Evaluator, EvalContext, type EvaluateResult } from '../../../../parser-evaluator/evaluator';
 import type { ASTNode, AssignmentExpression, BinaryExpression, CallExpression, ConditionalExpression, EvalPointCall, FormatSegment, Identifier, MemberAccess, NumberLiteral, PrintfExpression, StringLiteral, TextSegment, UnaryExpression, UpdateExpression, ArrayIndex, ColonPath, BooleanLiteral, ErrorNode } from '../../../../parser-evaluator/parser';
 import type { DataAccessHost, EvalValue, ModelHost, RefContainer, ScalarType } from '../../../../parser-evaluator/model-host';
 import type { IntrinsicProvider } from '../../../../parser-evaluator/intrinsics';
@@ -874,6 +874,9 @@ describe('Evaluator coverage branches', () => {
             consoleSpy.mockRestore();
         }
 
+        if (!perf) {
+            return;
+        }
         const originalNow = perf.now;
         try {
             perf.now = () => 0;
