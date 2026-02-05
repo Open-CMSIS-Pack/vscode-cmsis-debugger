@@ -1356,6 +1356,7 @@ export class Evaluator {
                 case '|':
                     result = orVals(a, b, bitWidth, isUnsigned);
                     break;
+                /* istanbul ignore next -- unreachable: typedOps guards valid operators */
                 default:
                     this.recordMessage(`Unsupported binary operator ${operator} for a=${this.formatEvalValueForMessage(a)}, b=${this.formatEvalValueForMessage(b)}`);
                     perf?.end(opStart, 'evalBinaryTypedOpMs', 'evalBinaryTypedOpCalls');
