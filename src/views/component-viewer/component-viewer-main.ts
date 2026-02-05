@@ -292,7 +292,7 @@ export class ComponentViewer {
                 }
             }
         }
-        // Set isParent flag for all roots to true
+        // Set isRootInstance flag for all roots to true
         roots.forEach((root) => {
             root.isRootInstance = true;
         });
