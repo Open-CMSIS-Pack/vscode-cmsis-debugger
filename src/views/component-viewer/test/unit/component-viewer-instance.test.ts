@@ -294,7 +294,8 @@ describe('ComponentViewerInstance', () => {
 
         const filePath = '/tmp/with-hash.scvd';
         const uri = URI.file(filePath);
-        const baseHash = createHash('sha1').update(filePath).digest('hex').slice(0, 16);
+        const hashPath = uri.fsPath ?? uri.toString();
+        const baseHash = createHash('sha1').update(hashPath).digest('hex').slice(0, 16);
         countMap.set(baseHash, 1);
 
         const getFileKey = (ComponentViewerInstance as unknown as { getFileKey: (f: URI) => string }).getFileKey;
