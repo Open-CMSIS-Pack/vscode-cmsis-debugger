@@ -17,7 +17,6 @@
 import * as path from 'path';
 import { CbuildRunReader } from './cbuild-run-reader';
 
-
 const TEST_CBUILD_RUN_FILE = 'test-data/multi-core.cbuild-run.yml'; // Relative to repo root
 const TEST_FILE_PATH = 'test-data/fileReaderTest.txt'; // Relative to repo root
 const PACK_ROOT = '/my/pack/root';
@@ -25,12 +24,6 @@ const PACK_ROOT = '/my/pack/root';
 const EXPECTED_CUSTOM_SVD = path.resolve(path.dirname(TEST_CBUILD_RUN_FILE), '../../MyDevice/multi-core-custom.svd');
 const EXPECTED_CUSTOM_SCVD = path.resolve(path.dirname(TEST_CBUILD_RUN_FILE), '../../MyDevice/multi-core-custom.scvd');
 
-// Mock getCmsisPackRootPath to simply return PACK_ROOT value
-jest.mock('../utils', () => {
-    return {
-        getCmsisPackRootPath: jest.fn(() => PACK_ROOT),
-    };
-});
 
 describe('CbuildRunReader', () => {
 
@@ -119,6 +112,23 @@ describe('CbuildRunReader', () => {
             await cbuildRunReader.parse(TEST_CBUILD_RUN_FILE);
             const pnames = cbuildRunReader.getPnames();
             expect(pnames).toEqual(['Core0', 'Core1']);
+        });
+
+        it('includes descriptors without pname when filtering by pname (SVD)', async () => {
+            await cbuildRunReader.parse(TEST_CBUILD_RUN_FILE);
+            const cbuildRun = (cbuildRunReader as unknown as { cbuildRun?: { ['system-descriptions']?: Array<{ file: string; type: string; pname?: string }> } }).cbuildRun;
+            const systemDescriptions = cbuildRun?.['system-descriptions'];
+            expect(systemDescriptions).toBeDefined();
+            const svdPaths = cbuildRunReader.getSvdFilePaths('', 'Core1').map(path.normalize);
+            expect(svdPaths).toEqual([
+                path.normalize(
+                    path.resolve(path.dirname(TEST_CBUILD_RUN_FILE), '${CMSIS_PACK_ROOT}', 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_Core1.svd')
+                ),
+                path.normalize(
+                    path.resolve(path.dirname(TEST_CBUILD_RUN_FILE), '${CMSIS_PACK_ROOT}', 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_generic.svd')
+                ),
+                path.normalize(EXPECTED_CUSTOM_SVD),
+            ]);
         });
 
         it('includes descriptors without pname when filtering by pname (SVD)', async () => {
