@@ -29,13 +29,13 @@ interface UpdateQueueItem {
     updateReason: fifoUpdateReason;
 }
 
-export interface IComponentViewerInstance {
+export interface ComponentViewerInstancesInterface {
     componentViewerInstance: ComponentViewerInstance;
     lockState: boolean;
 }
 export class ComponentViewer {
     private _activeSession: GDBTargetDebugSession | undefined;
-    private _instances: IComponentViewerInstance[] = [];
+    private _instances: ComponentViewerInstancesInterface[] = [];
     private _componentViewerTreeDataProvider: ComponentViewerTreeDataProvider | undefined;
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
@@ -55,7 +55,7 @@ export class ComponentViewer {
         // Register Component Viewer tree view
         this.registerTreeView();
         // Subscribe to debug tracker events to update active session
-        this.subscribetoDebugTrackerEvents(this._context, tracker);
+        this.subscribetoDebugTrackerEvents(tracker);
     }
 
     protected registerTreeView(): void {
@@ -157,7 +157,7 @@ export class ComponentViewer {
         }
     }
 
-    private subscribetoDebugTrackerEvents(context: vscode.ExtensionContext, tracker: GDBTargetDebugTracker): void {
+    private subscribetoDebugTrackerEvents(tracker: GDBTargetDebugTracker): void {
         const onWillStopSessionDisposable = tracker.onWillStopSession(async (session) => {
             await this.handleOnWillStopSession(session);
         });
@@ -174,7 +174,7 @@ export class ComponentViewer {
             await this.handleOnWillStartSession(session);
         });
         // clear all disposables on extension deactivation
-        context.subscriptions.push(
+        this._context.subscriptions.push(
             onWillStopSessionDisposable,
             onConnectedDisposable,
             onDidChangeActiveDebugSessionDisposable,
