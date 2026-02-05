@@ -82,14 +82,11 @@ export class ComponentViewer {
             }
             // Check if the node belongs to this instance. We only care about parent nodes, as locking/unlocking a child node is not supported,
             // so we can skip checking the whole tree and just check if the node is one of the roots.
-            const rootNodes: ScvdGuiInterface[] = [...guiTree];
-            while (rootNodes.length > 0) {
-                const current = rootNodes.pop();
-                if (current && current.getGuiId() === node.getGuiId()) {
-                    return true;
-                }
+            if (guiTree[0].getGuiId() === node.getGuiId()) {
+                return true;
+            } else {
+                return false;
             }
-            return false;
         });
         if (!instance) {
             return;
