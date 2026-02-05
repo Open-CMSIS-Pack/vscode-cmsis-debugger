@@ -37,6 +37,15 @@ describe('ScvdGuiTree', () => {
         expect(grand.getGuiId()).toBe('file/L1:Test/L2:Test');
     });
 
+    it('uses key when no id segment base is provided', () => {
+        const root = new ScvdGuiTree(undefined);
+        root.setId('file');
+
+        const child = root.createChild('child');
+
+        expect(child.getGuiId()).toBe('file/child');
+    });
+
     it('detaches and clears children', () => {
         const root = new ScvdGuiTree(undefined);
         root.setId('file');
@@ -71,5 +80,16 @@ describe('ScvdGuiTree', () => {
         expect(node.getGuiLineInfo()).toBe('Line');
         expect(node.isPrint).toBe(true);
         expect(node.hasGuiChildren()).toBe(false);
+    });
+
+    it('handles root detach and private name setter', () => {
+        const root = new ScvdGuiTree(undefined);
+        root.detach();
+        expect(root.parent).toBeUndefined();
+
+        // Access the private setter to cover the assignment path.
+        // @ts-expect-error testing private setter
+        root.name = 'Hidden';
+        expect(root.getGuiName()).toBe('Hidden');
     });
 });

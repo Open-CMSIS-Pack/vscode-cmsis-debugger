@@ -36,18 +36,26 @@ describe('intrinsics', () => {
 
     it('enforces intrinsic arg bounds', async () => {
         const host = {} as unknown as IntrinsicProvider;
-        await expect(handleIntrinsic(host, container(), '__GetRegVal', [])).rejects.toThrow('at least 1 argument');
-        await expect(handleIntrinsic(host, container(), '__CalcMemUsed', [1, 2, 3])).rejects.toThrow('at least 4 argument');
-        await expect(handleIntrinsic(host, container(), '__CalcMemUsed', [1, 2, 3, 4, 5])).rejects.toThrow('at most 4 argument');
+        const onError = jest.fn();
+        await expect(handleIntrinsic(host, container(), '__GetRegVal', [], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Intrinsic __GetRegVal expects at least 1 argument(s)');
+
+        onError.mockClear();
+        await expect(handleIntrinsic(host, container(), '__CalcMemUsed', [1, 2, 3], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Intrinsic __CalcMemUsed expects at least 4 argument(s)');
+
+        onError.mockClear();
+        await expect(handleIntrinsic(host, container(), '__CalcMemUsed', [1, 2, 3, 4, 5], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Intrinsic __CalcMemUsed expects at most 4 argument(s)');
     });
 
     it('runs numeric intrinsics and coercions', async () => {
         const host = {
             __GetRegVal: jest.fn(async (r: string) => r === 'r0' ? 1 : (r === '' ? 2 : undefined)),
-            __FindSymbol: jest.fn(async () => 0x10),
+            __FindSymbol: jest.fn(async (name: string) => name === '' ? 0x99 : 0x10),
             __CalcMemUsed: jest.fn(async (a: number, b: number, c: number, d: number) => a + b + c + d),
-            __size_of: jest.fn(async () => 4),
-            __Symbol_exists: jest.fn(async () => 1),
+            __size_of: jest.fn(async (name: string) => name === '' ? 8 : 4),
+            __Symbol_exists: jest.fn(async (name: string) => name === '' ? 0 : 1),
             __Offset_of: jest.fn(async (_c: RefContainer, name: string) => name.length),
             __Running: jest.fn(async () => 1),
         } as unknown as IntrinsicProvider;
@@ -55,23 +63,47 @@ describe('intrinsics', () => {
         await expect(handleIntrinsic(host, container(), '__GetRegVal', ['r0'])).resolves.toBe(1);
         await expect(handleIntrinsic(host, container(), '__GetRegVal', [undefined])).resolves.toBe(2);
         await expect(handleIntrinsic(host, container(), '__FindSymbol', ['main'])).resolves.toBe(0x10);
+        await expect(handleIntrinsic(host, container(), '__FindSymbol', [undefined])).resolves.toBe(0x99);
         await expect(handleIntrinsic(host, container(), '__CalcMemUsed', [1, 2, 3, 4])).resolves.toBe(10);
         await expect(handleIntrinsic(host, container(), '__CalcMemUsed', [undefined, undefined, undefined, undefined])).resolves.toBe(0);
         await expect(handleIntrinsic(host, container(), '__size_of', ['T'])).resolves.toBe(4);
+        await expect(handleIntrinsic(host, container(), '__size_of', [undefined])).resolves.toBe(8);
         await expect(handleIntrinsic(host, container(), '__Symbol_exists', ['foo'])).resolves.toBe(1);
+        await expect(handleIntrinsic(host, container(), '__Symbol_exists', [undefined])).resolves.toBe(0);
         await expect(handleIntrinsic(host, container(), '__Offset_of', ['member'])).resolves.toBe('member'.length >>> 0);
+        await expect(handleIntrinsic(host, container(), '__Offset_of', [undefined])).resolves.toBe(0);
         await expect(handleIntrinsic(host, container(), '__Running', [])).resolves.toBe(1);
     });
 
-    it('throws on missing or undefined intrinsic results', async () => {
+    it('reports missing or undefined intrinsic results', async () => {
         const missing = {} as unknown as IntrinsicProvider;
-        await expect(handleIntrinsic(missing, container(), '__Running', [])).rejects.toThrow('Missing intrinsic __Running');
-        await expect(handleIntrinsic(missing, container(), '__GetRegVal', ['r0'])).rejects.toThrow('Missing intrinsic __GetRegVal');
-        await expect(handleIntrinsic(missing, container(), '__FindSymbol', ['x'])).rejects.toThrow('Missing intrinsic __FindSymbol');
-        await expect(handleIntrinsic(missing, container(), '__CalcMemUsed', [0, 0, 0, 0])).rejects.toThrow('Missing intrinsic __CalcMemUsed');
-        await expect(handleIntrinsic(missing, container(), '__size_of', ['x'])).rejects.toThrow('Missing intrinsic __size_of');
-        await expect(handleIntrinsic(missing, container(), '__Symbol_exists', ['x'])).rejects.toThrow('Missing intrinsic __Symbol_exists');
-        await expect(handleIntrinsic(missing, container(), '__Offset_of', ['m'])).rejects.toThrow('Missing intrinsic __Offset_of');
+        const onError = jest.fn();
+        await expect(handleIntrinsic(missing, container(), '__Running', [], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Missing intrinsic __Running');
+
+        onError.mockClear();
+        await expect(handleIntrinsic(missing, container(), '__GetRegVal', ['r0'], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Missing intrinsic __GetRegVal');
+
+        onError.mockClear();
+        await expect(handleIntrinsic(missing, container(), '__FindSymbol', ['x'], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Missing intrinsic __FindSymbol');
+
+        onError.mockClear();
+        await expect(handleIntrinsic(missing, container(), '__CalcMemUsed', [0, 0, 0, 0], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Missing intrinsic __CalcMemUsed');
+
+        onError.mockClear();
+        await expect(handleIntrinsic(missing, container(), '__size_of', ['x'], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Missing intrinsic __size_of');
+
+        onError.mockClear();
+        await expect(handleIntrinsic(missing, container(), '__Symbol_exists', ['x'], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Missing intrinsic __Symbol_exists');
+
+        onError.mockClear();
+        await expect(handleIntrinsic(missing, container(), '__Offset_of', ['m'], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Missing intrinsic __Offset_of');
 
         const host = {
             __GetRegVal: jest.fn(async () => undefined),
@@ -83,24 +115,69 @@ describe('intrinsics', () => {
             __Running: jest.fn(async () => undefined),
         } as unknown as IntrinsicProvider;
 
-        await expect(handleIntrinsic(host, container(), '__GetRegVal', ['r0'])).rejects.toThrow('returned undefined');
-        await expect(handleIntrinsic(host, container(), '__FindSymbol', ['x'])).rejects.toThrow('returned undefined');
-        await expect(handleIntrinsic(host, container(), '__CalcMemUsed', [0, 0, 0, 0])).rejects.toThrow('returned undefined');
-        await expect(handleIntrinsic(host, container(), '__size_of', ['x'])).rejects.toThrow('returned undefined');
-        await expect(handleIntrinsic(host, container(), '__Symbol_exists', ['x'])).rejects.toThrow('returned undefined');
-        await expect(handleIntrinsic(host, container(), '__Offset_of', ['m'])).rejects.toThrow('returned undefined');
-        await expect(handleIntrinsic(host, container(), '__Running', [])).rejects.toThrow('returned undefined');
+        onError.mockClear();
+        await expect(handleIntrinsic(host, container(), '__GetRegVal', ['r0'], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Intrinsic __GetRegVal returned undefined');
 
-        await expect(handleIntrinsic(host, container(), '__Running' as IntrinsicName, [])).rejects.toThrow();
-        await expect(handleIntrinsic(host, container(), '__GetRegVal' as IntrinsicName, [''])).rejects.toThrow();
-        await expect(handleIntrinsic(host, container(), '__Symbol_exists' as IntrinsicName, [''])).rejects.toThrow();
-        await expect(handleIntrinsic(host, container(), '__Offset_of' as IntrinsicName, [''])).rejects.toThrow();
-        await expect(handleIntrinsic(host, container(), '__CalcMemUsed' as IntrinsicName, [0, 0, 0, 0])).rejects.toThrow();
-        await expect(handleIntrinsic(host, container(), '__FindSymbol' as IntrinsicName, [''])).rejects.toThrow();
-        await expect(handleIntrinsic(host, container(), '__size_of' as IntrinsicName, [''])).rejects.toThrow();
+        onError.mockClear();
+        await expect(handleIntrinsic(host, container(), '__FindSymbol', ['x'], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Intrinsic __FindSymbol returned undefined');
 
-        await expect(handleIntrinsic(host, container(), '_addr' as IntrinsicName, [])).rejects.toThrow('Missing intrinsic _addr');
-        await expect(handleIntrinsic(host, container(), '__NotReal' as IntrinsicName, [])).rejects.toThrow('Missing intrinsic __NotReal');
+        onError.mockClear();
+        await expect(handleIntrinsic(host, container(), '__CalcMemUsed', [0, 0, 0, 0], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Intrinsic __CalcMemUsed returned undefined');
+
+        onError.mockClear();
+        await expect(handleIntrinsic(host, container(), '__size_of', ['x'], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Intrinsic __size_of returned undefined');
+
+        onError.mockClear();
+        await expect(handleIntrinsic(host, container(), '__Symbol_exists', ['x'], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Intrinsic __Symbol_exists returned undefined');
+
+        onError.mockClear();
+        await expect(handleIntrinsic(host, container(), '__Offset_of', ['m'], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Intrinsic __Offset_of returned undefined');
+
+        onError.mockClear();
+        await expect(handleIntrinsic(host, container(), '__Running', [], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Intrinsic __Running returned undefined');
+
+        onError.mockClear();
+        await expect(handleIntrinsic(host, container(), '__Running' as IntrinsicName, [], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Intrinsic __Running returned undefined');
+
+        onError.mockClear();
+        await expect(handleIntrinsic(host, container(), '__GetRegVal' as IntrinsicName, [''], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Intrinsic __GetRegVal returned undefined');
+
+        onError.mockClear();
+        await expect(handleIntrinsic(host, container(), '__Symbol_exists' as IntrinsicName, [''], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Intrinsic __Symbol_exists returned undefined');
+
+        onError.mockClear();
+        await expect(handleIntrinsic(host, container(), '__Offset_of' as IntrinsicName, [''], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Intrinsic __Offset_of returned undefined');
+
+        onError.mockClear();
+        await expect(handleIntrinsic(host, container(), '__CalcMemUsed' as IntrinsicName, [0, 0, 0, 0], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Intrinsic __CalcMemUsed returned undefined');
+
+        onError.mockClear();
+        await expect(handleIntrinsic(host, container(), '__FindSymbol' as IntrinsicName, [''], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Intrinsic __FindSymbol returned undefined');
+
+        onError.mockClear();
+        await expect(handleIntrinsic(host, container(), '__size_of' as IntrinsicName, [''], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Intrinsic __size_of returned undefined');
+
+        onError.mockClear();
+        await expect(handleIntrinsic(host, container(), '_addr' as IntrinsicName, [], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Missing intrinsic _addr');
+
+        onError.mockClear();
+        await expect(handleIntrinsic(host, container(), '__NotReal' as IntrinsicName, [], onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Missing intrinsic __NotReal');
     });
 
     it('covers pseudo-member handling', async () => {
@@ -113,13 +190,17 @@ describe('intrinsics', () => {
         await expect(handlePseudoMember(host, container(), '_addr', base)).resolves.toBe(0x1000);
 
         const missing = {} as unknown as IntrinsicProvider;
-        await expect(handlePseudoMember(missing, container(), '_count', base)).rejects.toThrow('Missing pseudo-member _count');
+        const onError = jest.fn();
+        await expect(handlePseudoMember(missing, container(), '_count', base, onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Missing pseudo-member _count');
 
         const undef = {
             _count: jest.fn(async () => undefined),
             _addr: jest.fn(async () => undefined),
         } as unknown as IntrinsicProvider;
-        await expect(handlePseudoMember(undef, container(), '_addr', base)).rejects.toThrow('returned undefined');
+        onError.mockClear();
+        await expect(handlePseudoMember(undef, container(), '_addr', base, onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Pseudo-member _addr returned undefined');
     });
 
     it('keeps intrinsic definitions aligned', () => {

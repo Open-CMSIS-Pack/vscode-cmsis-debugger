@@ -18,6 +18,7 @@
 
 
 import { NumberType, NumFormat } from './number-type';
+import { perf } from '../stats-config';
 
 export type FormatKind = 'int' | 'uint' | 'float' | 'unknown';
 export interface FormatTypeInfo {
@@ -121,125 +122,130 @@ export class ScvdFormatSpecifier {
      * All data fetching and symbol/memory lookups should happen before calling this.
      */
     public format(spec: string, value: unknown, options?: FormatOptions): string {
-        const typeInfo = options?.typeInfo;
-        const enumText = options?.enumText;
-        const padHex = options?.padHex ?? false;
+        const perfStartTime = perf?.start() ?? 0;
+        try {
+            const typeInfo = options?.typeInfo;
+            const enumText = options?.enumText;
+            const padHex = options?.padHex ?? false;
 
-        const toNumeric = (v: unknown): number | bigint => {
-            if (typeof v === 'number' || typeof v === 'bigint') {
-                return v;
-            }
-            if (typeof v === 'boolean') {
-                return v ? 1 : 0;
-            }
-            if (typeof v === 'string') {
-                const n = Number(v);
-                return Number.isFinite(n) ? n : NaN;
-            }
-            return NaN;
-        };
-
-        const toNumber = toNumeric;
-
-        const numOpts = (kind: FormatKind) => {
-            const o: { kind: FormatKind; bits?: number } = { kind };
-            if (typeInfo?.bits !== undefined) {
-                o.bits = typeInfo.bits;
-            }
-            return o;
-        };
-
-        switch (spec) {
-            case 'd': {
-                let n = toNumber(value);
-                if (typeof n === 'number') {
-                    n = Math.trunc(n);
+            const toNumeric = (v: unknown): number | bigint => {
+                if (typeof v === 'number' || typeof v === 'bigint') {
+                    return v;
                 }
-                return this.formatNumberByType(n, numOpts('int'));
-            }
-            case 'u': {
-                let n = toNumber(value);
-                if (typeof n === 'number') {
-                    n = Math.trunc(n);
+                if (typeof v === 'boolean') {
+                    return v ? 1 : 0;
                 }
-                return this.formatNumberByType(n, numOpts('uint'));
-            }
-            case 'x': {
-                let n = toNumeric(value);
-                if (typeof n === 'number' && (typeInfo?.kind ?? 'unknown') !== 'float') {
-                    n = Math.trunc(n);
+                if (typeof v === 'string') {
+                    const n = Number(v);
+                    return Number.isFinite(n) ? n : NaN;
                 }
-                return this.format_x(n, typeInfo, padHex);
-            }
-            case 't': {
-                if (typeof value === 'string') {
-                    const sanitized = this.sanitizeLiteral(value);
-                    if (!sanitized) {
-                        return 'bad literal - %t: text with embedded %format specifier(s)';
+                return NaN;
+            };
+
+            const toNumber = toNumeric;
+
+            const numOpts = (kind: FormatKind) => {
+                const o: { kind: FormatKind; bits?: number } = { kind };
+                if (typeInfo?.bits !== undefined) {
+                    o.bits = typeInfo.bits;
+                }
+                return o;
+            };
+
+            switch (spec) {
+                case 'd': {
+                    let n = toNumber(value);
+                    if (typeof n === 'number') {
+                        n = Math.trunc(n);
                     }
-                    return this.escapeNonPrintable(sanitized);
+                    return this.formatNumberByType(n, numOpts('int'));
                 }
-                if (value instanceof Uint8Array) {
-                    return this.escapeNonPrintable(this.format_N(value));
+                case 'u': {
+                    let n = toNumber(value);
+                    if (typeof n === 'number') {
+                        n = Math.trunc(n);
+                    }
+                    return this.formatNumberByType(n, numOpts('uint'));
                 }
-                return String(value);
-            }
-            case 'C': {
-                return this.format_C(value as number | string);
-            }
-            case 'S': {
-                return this.format_S(value as number | string);
-            }
-            case 'E': {
-                if (enumText) {
-                    return this.format_E(enumText);
+                case 'x': {
+                    let n = toNumeric(value);
+                    if (typeof n === 'number' && (typeInfo?.kind ?? 'unknown') !== 'float') {
+                        n = Math.trunc(n);
+                    }
+                    return this.format_x(n, typeInfo, padHex);
                 }
-                const n = toNumber(value);
-                return this.format_E(Number.isFinite(n) ? this.formatNumberByType(n, numOpts('int')) : String(value));
-            }
-            case 'I': {
-                if (value instanceof Uint8Array) {
-                    return this.formatIpv4(value);
+                case 't': {
+                    if (typeof value === 'string') {
+                        const sanitized = this.sanitizeLiteral(value);
+                        if (!sanitized) {
+                            return 'bad literal - %t: text with embedded %format specifier(s)';
+                        }
+                        return this.escapeNonPrintable(sanitized);
+                    }
+                    if (value instanceof Uint8Array) {
+                        return this.escapeNonPrintable(this.format_N(value));
+                    }
+                    return String(value);
                 }
-                const n = toNumber(value);
-                return this.format_I(n as number | bigint);
-            }
-            case 'J': {
-                if (value instanceof Uint8Array) {
-                    return this.formatIpv6(value);
+                case 'C': {
+                    return this.format_C(value as number | string);
                 }
-                return this.format_J(value as number | string | bigint);
-            }
-            case 'N': {
-                if (value instanceof Uint8Array) {
-                    return this.format_N(value);
+                case 'S': {
+                    return this.format_S(value as number | string);
                 }
-                return String(value);
-            }
-            case 'M': {
-                if (value instanceof Uint8Array) {
-                    return this.formatMac(value);
+                case 'E': {
+                    if (enumText) {
+                        return this.format_E(enumText);
+                    }
+                    const n = toNumber(value);
+                    return this.format_E(Number.isFinite(n) ? this.formatNumberByType(n, numOpts('int')) : String(value));
                 }
-                return this.format_M(value as number | string);
-            }
-            case 'T': {
-                return this.format_T(value, typeInfo, padHex);
-            }
-            case 'U': {
-                if (value instanceof Uint8Array) {
-                    return this.format_U(value);
+                case 'I': {
+                    if (value instanceof Uint8Array) {
+                        return this.formatIpv4(value);
+                    }
+                    const n = toNumber(value);
+                    return this.format_I(n as number | bigint);
                 }
-                return String(value);
-            }
-            case '%': {
-                return this.format_percent();
-            }
-            default: {
-                if (options?.allowUnknownSpec) {
-                    return `<unknown format specifier %${spec}>`;
+                case 'J': {
+                    if (value instanceof Uint8Array) {
+                        return this.formatIpv6(value);
+                    }
+                    return this.format_J(value as number | string | bigint);
                 }
-                return String(value);
+                case 'N': {
+                    if (value instanceof Uint8Array) {
+                        return this.format_N(value);
+                    }
+                    return String(value);
+                }
+                case 'M': {
+                    if (value instanceof Uint8Array) {
+                        return this.formatMac(value);
+                    }
+                    return this.format_M(value as number | string);
+                }
+                case 'T': {
+                    return this.format_T(value, typeInfo, padHex);
+                }
+                case 'U': {
+                    if (value instanceof Uint8Array) {
+                        return this.format_U(value);
+                    }
+                    return String(value);
+                }
+                case '%': {
+                    return this.format_percent();
+                }
+                default: {
+                    if (options?.allowUnknownSpec) {
+                        return `<unknown format specifier %${spec}>`;
+                    }
+                    return String(value);
+                }
             }
+        } finally {
+            perf?.end(perfStartTime, 'formatMs', 'formatCalls');
         }
     }
 

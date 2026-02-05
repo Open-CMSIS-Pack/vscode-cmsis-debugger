@@ -93,9 +93,9 @@ export class ScvdBreak extends ScvdNode {
         return this._cond;
     }
 
-    public override async getConditionResult(): Promise<boolean> {
+    public override getConditionResult(): Promise<boolean> {
         if (this._cond) {
-            return await this._cond.getResult();
+            return this._cond.getResult();
         }
         return super.getConditionResult();
     }

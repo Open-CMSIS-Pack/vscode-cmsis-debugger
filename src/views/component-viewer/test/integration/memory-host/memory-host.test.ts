@@ -44,44 +44,35 @@ const makeContainer = (name: string, widthBytes: number, offsetBytes = 0): RefCo
 };
 
 describe('MemoryHost', () => {
-    it('stores and retrieves numeric values with explicit offsets', () => {
+    it('stores and retrieves numeric values with explicit offsets', async () => {
         const host = new MemoryHost();
 
         host.setVariable('foo', 4, 0x12345678, 0);
-        expect(host.getVariable('foo')).toBe(0x12345678);
+        expect(await host.readRaw(makeContainer('foo', 4, 0), 4)).toEqual(new Uint8Array([0x78, 0x56, 0x34, 0x12]));
 
         host.setVariable('foo', 2, 0xabcd, 4);
-        expect(host.getVariable('foo', 2, 4)).toBe(0xabcd);
+        expect(await host.readRaw(makeContainer('foo', 2, 4), 2)).toEqual(new Uint8Array([0xcd, 0xab]));
     });
 
-    it('appends when offset is -1 and tracks element count', () => {
+    it('appends when offset is -1 and tracks element count', async () => {
         const host = new MemoryHost();
         host.setVariable('arr', 4, 1, -1);
         host.setVariable('arr', 4, 2, -1);
         host.setVariable('arr', 4, 3, -1);
 
         expect(host.getArrayElementCount('arr')).toBe(3);
-        expect(host.getVariable('arr', 4, 0)).toBe(1);
-        expect(host.getVariable('arr', 4, 4)).toBe(2);
-        expect(host.getVariable('arr', 4, 8)).toBe(3);
+        expect(await host.readRaw(makeContainer('arr', 4, 0), 4)).toEqual(new Uint8Array([1, 0, 0, 0]));
+        expect(await host.readRaw(makeContainer('arr', 4, 4), 4)).toEqual(new Uint8Array([2, 0, 0, 0]));
+        expect(await host.readRaw(makeContainer('arr', 4, 8), 4)).toEqual(new Uint8Array([3, 0, 0, 0]));
     });
 
-    it('rejects spans larger than 4 bytes via getVariable', () => {
-        const host = new MemoryHost();
-        host.setVariable('big', 8, new Uint8Array(8), 0);
-        expect(host.getVariable('big', 8, 0)).toBeUndefined();
-    });
-
-    it('tracks target bases and allows updating them', () => {
+    it('tracks target bases per element', () => {
         const host = new MemoryHost();
         host.setVariable('sym', 4, 1, -1, 0x1000);
         host.setVariable('sym', 4, 2, -1, 0x2000);
 
         expect(host.getElementTargetBase('sym', 0)).toBe(0x1000);
         expect(host.getElementTargetBase('sym', 1)).toBe(0x2000);
-
-        host.setElementTargetBase('sym', 1, 0x3000);
-        expect(host.getElementTargetBase('sym', 1)).toBe(0x3000);
     });
 
     it('supports readValue/writeValue round-trips for numbers', async () => {
@@ -113,11 +104,11 @@ describe('MemoryHost', () => {
         expect(out).toEqual(new Uint8Array([9, 8, 7, 6]));
     });
 
-    it('round-trips via setVariable/getVariable for a simple read', () => {
+    it('round-trips via setVariable for a simple read', async () => {
         const host = new MemoryHost();
         host.setVariable('simple', 2, 0x1234, 0);
 
-        expect(host.getVariable('simple')).toBe(0x1234);
+        expect(await host.readValue(makeContainer('simple', 2, 0))).toBe(0x1234);
     });
 
     it('preserves untouched bytes on partial overwrites', async () => {
@@ -132,14 +123,14 @@ describe('MemoryHost', () => {
         expect(out).toEqual(new Uint8Array([1, 2, 9, 8]));
     });
 
-    it('partial setVariable writes only affect the specified range', () => {
+    it('partial setVariable writes only affect the specified range', async () => {
         const host = new MemoryHost();
 
         host.setVariable('window', 4, new Uint8Array([1, 2, 3, 4]), 0);
         host.setVariable('window', 2, new Uint8Array([9, 8]), 2);
 
-        expect(host.getVariable('window', 2, 0)).toBe(0x0201);
-        expect(host.getVariable('window', 2, 2)).toBe(0x0809);
+        expect(await host.readRaw(makeContainer('window', 2, 0), 2)).toEqual(new Uint8Array([1, 2]));
+        expect(await host.readRaw(makeContainer('window', 2, 2), 2)).toEqual(new Uint8Array([9, 8]));
     });
 
     it('zero-fills virtual size and supports writes into virtual space', async () => {

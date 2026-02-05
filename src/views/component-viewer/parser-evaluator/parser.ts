@@ -379,12 +379,17 @@ function isZeroConst(v: ConstValue): boolean {
     return (typeof n === 'number') ? n === 0 : n === 0n;
 }
 
+function isTruthyConst(v: ConstValue): boolean {
+    return !!v;
+}
+
 export class Parser {
     private s = '';
     private tok = new Tokenizer('');
     private cur: Token = this.tok.next();
     private diagnostics: Diagnostic[] = [];
     private externals: Set<string> = new Set();
+    private foldStats = { full: 0, partial: 0, identity: 0 };
 
     /* ---------- lifecycle ---------- */
 
@@ -429,6 +434,7 @@ export class Parser {
 
     public parse(input: string, isPrintExpression: boolean): ParseResult {
         this.reinit(input);
+        this.foldStats = { full: 0, partial: 0, identity: 0 };
 
         let ast: ASTNode;
         let isPrintf = false;
@@ -460,6 +466,9 @@ export class Parser {
 
         // Constant folding only for non-printf ASTs
         ast = this.fold(ast);
+        if (this.diagnostics.some((d) => d.type === 'error')) {
+            console.error(`[SCVD][parser][fold] full=${this.foldStats.full} partial=${this.foldStats.partial} identity=${this.foldStats.identity}`);
+        }
         const constValue = isPrintf ? undefined : ast.constValue;
 
         return {
@@ -951,6 +960,7 @@ export class Parser {
                     this.error(`Failed to fold unary expression ${op}: ${msg}`, startOf(node), endOf(node));
                 }
                 if (res.constValue !== undefined) {
+                    this.foldStats.full += 1;
                     return literalFromConst(res.constValue, startOf(node), endOf(node));
                 }
             }
@@ -1003,35 +1013,131 @@ export class Parser {
                     this.error(`Failed to fold binary expression ${op}: ${msg}`, startOf(node), endOf(node));
                 }
                 if (res.constValue !== undefined) {
+                    this.foldStats.full += 1;
                     return literalFromConst(res.constValue, startOf(node), endOf(node));
                 }
             } else {
-                if (op === '&&' && hasL && !la) {
-                    res.constValue = false;
+                if (op === '&&' && hasL && !isTruthyConst(la as ConstValue)) {
+                    this.foldStats.full += 1;
+                    return literalFromConst(false, startOf(node), endOf(node));
                 }
-                if (op === '||' && hasL && la) {
-                    res.constValue = true;
+                if (op === '||' && hasL && isTruthyConst(la as ConstValue)) {
+                    this.foldStats.full += 1;
+                    return literalFromConst(true, startOf(node), endOf(node));
                 }
             }
 
-            // Partial folding: combine trailing numeric constants in addition chains (e.g., foo+1+2 => foo+3)
-            if (op === '+' && right.constValue !== undefined && typeof right.constValue === 'number') {
-                const rightVal = Number(right.constValue);
-                // Pattern: (X + constA) + constB
-                if (left.kind === 'BinaryExpression') {
-                    const lb = left as BinaryExpression;
-                    if (lb.operator === '+' && lb.right.constValue !== undefined && typeof lb.right.constValue === 'number') {
-                        const combined = Number(lb.right.constValue) + rightVal;
-                        const newRight = makeNumberLiteral(combined, startOf(right), endOf(right));
-                        const newLeft = lb.left;
-                        return {
-                            kind: 'BinaryExpression',
-                            operator: '+',
-                            left: newLeft,
-                            right: newRight,
-                            ...span(startOf(newLeft), endOf(newRight)),
-                        };
+            const leftConst = constOf(left);
+            const rightConst = constOf(right);
+            const leftNum = typeof leftConst === 'number' ? leftConst : undefined;
+            const rightNum = typeof rightConst === 'number' ? rightConst : undefined;
+
+            if (op === '&&' && rightConst !== undefined && isTruthyConst(rightConst)) {
+                this.foldStats.identity += 1;
+                return left;
+            }
+            if (op === '||' && rightConst !== undefined && !isTruthyConst(rightConst)) {
+                this.foldStats.identity += 1;
+                return left;
+            }
+            if (op === '+' && rightNum === 0) {
+                this.foldStats.identity += 1;
+                return left;
+            }
+            if (op === '+' && leftNum === 0) {
+                this.foldStats.identity += 1;
+                return right;
+            }
+            if (op === '-' && rightNum === 0) {
+                this.foldStats.identity += 1;
+                return left;
+            }
+            if (op === '*' && rightNum === 1) {
+                this.foldStats.identity += 1;
+                return left;
+            }
+            if (op === '*' && leftNum === 1) {
+                this.foldStats.identity += 1;
+                return right;
+            }
+            if (op === '/' && rightNum === 1) {
+                this.foldStats.identity += 1;
+                return left;
+            }
+            if (op === '|' && rightNum === 0) {
+                this.foldStats.identity += 1;
+                return left;
+            }
+            if (op === '|' && leftNum === 0) {
+                this.foldStats.identity += 1;
+                return right;
+            }
+            if (op === '^' && rightNum === 0) {
+                this.foldStats.identity += 1;
+                return left;
+            }
+            if (op === '^' && leftNum === 0) {
+                this.foldStats.identity += 1;
+                return right;
+            }
+            if (op === '<<' && rightNum === 0) {
+                this.foldStats.identity += 1;
+                return left;
+            }
+            if (op === '>>' && rightNum === 0) {
+                this.foldStats.identity += 1;
+                return left;
+            }
+
+            // Partial folding: combine trailing numeric constants in addition/subtraction chains.
+            if ((op === '+' || op === '-') && rightNum !== undefined && left.kind === 'BinaryExpression') {
+                const lb = left as BinaryExpression;
+                const lbRightConst = constOf(lb.right);
+                if ((lb.operator === '+' || lb.operator === '-') && typeof lbRightConst === 'number') {
+                    let combined = 0;
+                    let newOp: '+' | '-' = '+';
+                    if (lb.operator === '+' && op === '+') {
+                        combined = lbRightConst + rightNum;
+                        newOp = '+';
+                    } else if (lb.operator === '+' && op === '-') {
+                        combined = lbRightConst - rightNum;
+                        newOp = '+';
+                    } else if (lb.operator === '-' && op === '+') {
+                        combined = rightNum - lbRightConst;
+                        newOp = '+';
+                    } else {
+                        combined = lbRightConst + rightNum;
+                        newOp = '-';
                     }
+                    const newRight = makeNumberLiteral(combined, startOf(right), endOf(right));
+                    const newLeft = lb.left;
+                    this.foldStats.partial += 1;
+                    return {
+                        kind: 'BinaryExpression',
+                        operator: newOp,
+                        left: newLeft,
+                        right: newRight,
+                        ...span(startOf(newLeft), endOf(newRight)),
+                    };
+                }
+            }
+
+            // Partial folding: combine trailing numeric constants in multiplication chains.
+            if (op === '*' && rightNum !== undefined && left.kind === 'BinaryExpression') {
+                const lb = left as BinaryExpression;
+                const lbRightConst = constOf(lb.right);
+                if (lb.operator === '*' && typeof lbRightConst === 'number') {
+                    const combined = lbRightConst * rightNum;
+                    const newRight = makeNumberLiteral(combined, startOf(right), endOf(right));
+                    const newLeft = lb.left;
+                    this.foldStats.partial += 1;
+                    return {
+                        kind: 'BinaryExpression',
+                        operator: '*',
+                        left: newLeft,
+                        right: newRight,
+                        ...span(startOf(newLeft), endOf(newRight)),
+                    };
                 }
             }
             return res;
@@ -1051,7 +1157,8 @@ export class Parser {
             const res: ConditionalExpression & { constValue?: ConstValue } = { ...(node as ConditionalExpression), test, consequent: cons, alternate: alt };
             const testConst = constOf(test);
             if (testConst !== undefined) {
-                res.constValue = (testConst ? constOf(cons) : constOf(alt));
+                this.foldStats.identity += 1;
+                return isTruthyConst(testConst) ? cons : alt;
             }
             return res;
         }

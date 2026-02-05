@@ -69,7 +69,12 @@ export class ScvdDataType extends ScvdNode {
     }
 
     public override getMember(property: string): ScvdNode | undefined {
-        return this._type?.getMember(property);
+        const cached = this.symbolsCache(property, undefined);
+        if (cached !== undefined) {
+            return cached;
+        }
+        const ref = this._type?.getMember(property);
+        return this.symbolsCache(property, ref);
     }
 
     public override getTypeSize(): number | undefined {
@@ -238,7 +243,12 @@ export class ScvdComplexDataType extends ScvdNode{
     }
 
     public override getMember(property: string): ScvdNode | undefined {
-        return this._typeDef?.getMember(property);
+        const cached = this.symbolsCache(property, undefined);
+        if (cached !== undefined) {
+            return cached;
+        }
+        const ref = this._typeDef?.getMember(property);
+        return this.symbolsCache(property, ref);
     }
 
 

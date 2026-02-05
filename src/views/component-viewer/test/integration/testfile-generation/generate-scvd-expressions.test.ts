@@ -48,6 +48,7 @@ describe('generate-scvd-expressions', () => {
         ]);
 
         expect(decodeEntities('A &gt; B &amp; C')).toBe('A > B & C');
+        expect(decodeEntities('A &unknown; B')).toBe('A &unknown; B');
     });
 
     it('writes JSONL with printf detection', () => {
