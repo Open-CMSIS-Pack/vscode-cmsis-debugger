@@ -143,6 +143,18 @@
         "command": "vscode-cmsis-debugger.liveWatch.showInMemoryInspector",
         "title": "Show in Memory Inspector",
         "category": "Live Watch"
+      },
+      {
+        "command": "vscode-cmsis-debugger.componentViewer.lock",
+        "title": "Lock Component Viewer Instance",
+        "icon": "$(lock)",
+        "category": "Component Viewer"
+      },
+      {
+        "command": "vscode-cmsis-debugger.componentViewer.unlock",
+        "title": "Unlock Component Viewer Instance",
+        "icon": "$(unlock)",
+        "category": "Component Viewer"
       }
     ],
     "menus": {
@@ -226,6 +238,14 @@
         {
           "command": "vscode-cmsis-debugger.liveWatch.showInMemoryInspector",
           "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.lock",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.unlock",
+          "when": "false"
         }
       ],
       "view/title": [
@@ -302,6 +322,16 @@
           "command": "vscode-cmsis-debugger.liveWatch.showInMemoryInspector",
           "when": "view == cmsis-debugger.liveWatch",
           "group": "contextMenuG3@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.lock",
+          "when": "view == cmsis-debugger.componentViewer && viewItem == componentViewerRootUnlocked",
+          "group": "inline@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.unlock",
+          "when": "view == cmsis-debugger.componentViewer && viewItem == componentViewerRootLocked",
+          "group": "inline@1"
         }
       ]
     },

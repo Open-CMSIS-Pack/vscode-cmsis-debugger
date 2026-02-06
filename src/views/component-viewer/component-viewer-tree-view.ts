@@ -16,6 +16,7 @@
 
 
 import * as vscode from 'vscode';
+import { GuiInstanceRoot } from './gui-instance-root';
 import { ScvdGuiInterface } from './model/scvd-gui-interface';
 import { perf } from './stats-config';
 
@@ -40,6 +41,11 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         const guiId = element.getGuiId();
         if (guiId !== undefined) {
             treeItem.id = guiId;
+        }
+        if (element instanceof GuiInstanceRoot) {
+            treeItem.contextValue = element.isLocked()
+                ? 'componentViewerRootLocked'
+                : 'componentViewerRootUnlocked';
         }
         perf?.endUi(perfStartTime, 'treeViewGetTreeItemMs', 'treeViewGetTreeItemCalls');
         return treeItem;
@@ -80,7 +86,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         this.refresh();
     }
 
-    private refresh(): void {
+    public refresh(): void {
         this._onDidChangeTreeData.fire();
     }
 

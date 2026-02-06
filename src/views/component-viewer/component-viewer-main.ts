@@ -17,10 +17,12 @@
 import * as vscode from 'vscode';
 import { GDBTargetDebugTracker, GDBTargetDebugSession } from '../../debug-session';
 import { ComponentViewerInstance } from './component-viewer-instance';
+import { GuiInstanceRoot, GuiInstanceLockHandle } from './gui-instance-root';
 import { URI } from 'vscode-uri';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
 import { logger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
+import type { ScvdGuiTree } from './scvd-gui-tree';
 
 export type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace';
 interface UpdateQueueItem {
@@ -28,9 +30,36 @@ interface UpdateQueueItem {
     debugSession: GDBTargetDebugSession;
     updateReason: fifoUpdateReason;
 }
+
+class ComponentViewerInstanceSlot implements GuiInstanceLockHandle {
+    public readonly instance: ComponentViewerInstance;
+    private _locked = false;
+    private _guiTree: ScvdGuiTree[] | undefined;
+
+    public constructor(instance: ComponentViewerInstance) {
+        this.instance = instance;
+    }
+
+    public get locked(): boolean {
+        return this._locked;
+    }
+
+    public toggleLock(): void {
+        this._locked = !this._locked;
+    }
+
+    public get guiTree(): ScvdGuiTree[] | undefined {
+        return this._guiTree;
+    }
+
+    public set guiTree(value: ScvdGuiTree[] | undefined) {
+        this._guiTree = value;
+    }
+}
+
 export class ComponentViewer {
     private _activeSession: GDBTargetDebugSession | undefined;
-    private _instances: ComponentViewerInstance[] = [];
+    private _instanceSlots: ComponentViewerInstanceSlot[] = [];
     private _componentViewerTreeDataProvider: ComponentViewerTreeDataProvider | undefined;
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
@@ -50,6 +79,15 @@ export class ComponentViewer {
         this._componentViewerTreeDataProvider = new ComponentViewerTreeDataProvider();
         const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
         this._context.subscriptions.push(treeProviderDisposable);
+        const lockDisposable = vscode.commands.registerCommand(
+            'vscode-cmsis-debugger.componentViewer.lock',
+            (root?: GuiInstanceRoot) => this.setRootLock(root, true)
+        );
+        const unlockDisposable = vscode.commands.registerCommand(
+            'vscode-cmsis-debugger.componentViewer.unlock',
+            (root?: GuiInstanceRoot) => this.setRootLock(root, false)
+        );
+        this._context.subscriptions.push(lockDisposable, unlockDisposable);
         // Subscribe to debug tracker events to update active session
         this.subscribetoDebugTrackerEvents(this._context, tracker);
     }
@@ -68,15 +106,15 @@ export class ComponentViewer {
         if (scvdFilesPaths.length === 0) {
             return undefined;
         }
-        const cbuildRunInstances: ComponentViewerInstance[] = [];
+        const cbuildRunInstances: ComponentViewerInstanceSlot[] = [];
         for (const scvdFilePath of scvdFilesPaths) {
             const instance = new ComponentViewerInstance();
             if (this._activeSession !== undefined) {
                 await instance.readModel(URI.file(scvdFilePath), this._activeSession, tracker);
-                cbuildRunInstances.push(instance);
+                cbuildRunInstances.push(new ComponentViewerInstanceSlot(instance));
             }
         }
-        this._instances = cbuildRunInstances;
+        this._instanceSlots = cbuildRunInstances;
     }
 
     private async loadCbuildRunInstances(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker) : Promise<void | undefined> {
@@ -85,7 +123,7 @@ export class ComponentViewer {
         // Try to read SCVD files from cbuild-run file first
         await this.readScvdFiles(tracker, session);
         // Are there any SCVD files found in cbuild-run?
-        if (this._instances.length === 0) {
+        if (this._instanceSlots.length === 0) {
             return undefined;
         }
     }
@@ -142,7 +180,7 @@ export class ComponentViewer {
     private async handleOnConnected(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker): Promise<void> {
         // if new session is not the current active session, erase old instances and read the new ones
         if (this._activeSession?.session.id !== session.session.id) {
-            this._instances = [];
+            this._instanceSlots = [];
             this._componentViewerTreeDataProvider?.clear();
         }
         // Update debug session
@@ -165,7 +203,7 @@ export class ComponentViewer {
             return;
         }
         // update active debug session for all instances
-        this._instances.forEach((instance) => instance.updateActiveSession(session));
+        this._instanceSlots.forEach((slot) => slot.instance.updateActiveSession(session));
         this.schedulePendingUpdate('sessionChanged');
     }
 
@@ -209,21 +247,34 @@ export class ComponentViewer {
             updateReason: updateReason
         });
         this._instanceUpdateCounter = 0;
-        if (this._instances.length === 0) {
+        if (this._instanceSlots.length === 0) {
             return;
         }
         const roots: ScvdGuiInterface[] = [];
-        for (const instance of this._instances) {
+        for (const slot of this._instanceSlots) {
             this._instanceUpdateCounter++;
             logger.debug(`Updating Component Viewer Instance #${this._instanceUpdateCounter} due to '${updateReason}' (queue position #${this._updateQueue.length})`);
             console.log(`Updating Component Viewer Instance #${this._instanceUpdateCounter}`);
-            await instance.update();
-            const guiTree = instance.getGuiTree();
+            if (!slot.locked) {
+                await slot.instance.update();
+                slot.guiTree = slot.instance.getGuiTree();
+            }
+            const guiTree = slot.guiTree ?? slot.instance.getGuiTree();
             if (guiTree) {
-                roots.push(...guiTree);
+                roots.push(...guiTree.map((root) => new GuiInstanceRoot(root, slot)));
             }
         }
         this._componentViewerTreeDataProvider?.setRoots(roots);
     }
-}
 
+    private setRootLock(root: GuiInstanceRoot | undefined, locked: boolean): void {
+        if (!root || root.isLocked() === locked) {
+            return;
+        }
+        root.toggleLock();
+        this._componentViewerTreeDataProvider?.refresh();
+        if (!locked) {
+            this.schedulePendingUpdate('refreshTimer');
+        }
+    }
+}

@@ -21,6 +21,7 @@
  */
 
 const registerTreeDataProvider = jest.fn(() => ({ dispose: jest.fn() }));
+const registerCommand = jest.fn(() => ({ dispose: jest.fn() }));
 const createOutputChannel = jest.fn(() => ({
     appendLine: jest.fn(),
     dispose: jest.fn(),
@@ -30,6 +31,9 @@ jest.mock('vscode', () => ({
     window: {
         registerTreeDataProvider,
         createOutputChannel,
+    },
+    commands: {
+        registerCommand,
     },
     debug: {
         activeDebugSession: undefined,
@@ -46,10 +50,24 @@ jest.mock('../../component-viewer-tree-view', () => ({
     ComponentViewerTreeDataProvider: jest.fn(() => treeProviderFactory()),
 }));
 
+const makeGuiNode = (id: string) => ({
+    getGuiEntry: () => ({ name: id, value: undefined }),
+    getGuiChildren: () => [],
+    getGuiName: () => id,
+    getGuiValue: () => undefined,
+    getGuiId: () => id,
+    getGuiConditionResult: () => true,
+    getGuiLineInfo: () => '',
+    hasGuiChildren: () => false,
+});
+
+type GuiNode = ReturnType<typeof makeGuiNode>;
+type GuiTree = GuiNode[] | undefined;
+
 const instanceFactory = jest.fn(() => ({
     readModel: jest.fn().mockResolvedValue(undefined),
     update: jest.fn().mockResolvedValue(undefined),
-    getGuiTree: jest.fn<string[] | undefined, []>(() => ['node']),
+    getGuiTree: jest.fn<GuiTree, []>(() => [makeGuiNode('node')]),
     updateActiveSession: jest.fn(),
 }));
 
@@ -71,6 +89,7 @@ import * as vscode from 'vscode';
 import type { GDBTargetDebugTracker } from '../../../../debug-session';
 import { logger } from '../../../../logger';
 import { ComponentViewer, fifoUpdateReason } from '../../component-viewer-main';
+import { GuiInstanceRoot } from '../../gui-instance-root';
 
 // Local test mocks
 
@@ -151,7 +170,9 @@ describe('ComponentViewer', () => {
         controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         expect(registerTreeDataProvider).toHaveBeenCalledWith('cmsis-debugger.componentViewer', expect.any(Object));
-        expect(context.subscriptions.length).toBe(6);
+        expect(registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.lock', expect.any(Function));
+        expect(registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.unlock', expect.any(Function));
+        expect(context.subscriptions.length).toBe(8);
     });
 
     it('skips reading scvd files when session or cbuild-run is missing', async () => {
@@ -170,8 +191,8 @@ describe('ComponentViewer', () => {
         };
         await readScvdFiles(tracker, sessionNoReader);
 
-        const instances = (controller as unknown as { _instances: unknown[] })._instances;
-        expect(instances).toEqual([]);
+        const instanceSlots = (controller as unknown as { _instanceSlots: unknown[] })._instanceSlots;
+        expect(instanceSlots).toEqual([]);
     });
 
     it('skips reading when no scvd files are listed', async () => {
@@ -181,8 +202,8 @@ describe('ComponentViewer', () => {
         const readScvdFiles = (controller as unknown as { readScvdFiles: (t: TrackerCallbacks, s?: Session) => Promise<void> }).readScvdFiles.bind(controller);
 
         await readScvdFiles(tracker, session);
-        const instances = (controller as unknown as { _instances: unknown[] })._instances;
-        expect(instances).toEqual([]);
+        const instanceSlots = (controller as unknown as { _instanceSlots: unknown[] })._instanceSlots;
+        expect(instanceSlots).toEqual([]);
     });
 
     it('reads scvd files when active session is set', async () => {
@@ -195,8 +216,8 @@ describe('ComponentViewer', () => {
         const readScvdFiles = (controller as unknown as { readScvdFiles: (t: TrackerCallbacks, s?: Session) => Promise<void> }).readScvdFiles.bind(controller);
         await readScvdFiles(tracker, session);
 
-        const instances = (controller as unknown as { _instances: unknown[] })._instances;
-        expect(instances.length).toBe(2);
+        const instanceSlots = (controller as unknown as { _instanceSlots: unknown[] })._instanceSlots;
+        expect(instanceSlots.length).toBe(2);
         expect(instanceFactory).toHaveBeenCalledTimes(2);
     });
 
@@ -208,8 +229,8 @@ describe('ComponentViewer', () => {
 
         await readScvdFiles(tracker, session);
 
-        const instances = (controller as unknown as { _instances: unknown[] })._instances;
-        expect(instances).toEqual([]);
+        const instanceSlots = (controller as unknown as { _instanceSlots: unknown[] })._instanceSlots;
+        expect(instanceSlots).toEqual([]);
     });
 
     it('handles tracker events and updates sessions', async () => {
@@ -258,12 +279,14 @@ describe('ComponentViewer', () => {
         const provider = (controller as unknown as { _componentViewerTreeDataProvider?: ReturnType<typeof treeProviderFactory> })._componentViewerTreeDataProvider;
         const session = makeSession('s1', ['a.scvd']);
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
-        (controller as unknown as { _instances: unknown[] })._instances = [instanceFactory()];
+        (controller as unknown as { _instanceSlots: unknown[] })._instanceSlots = [
+            { instance: instanceFactory(), locked: false, guiTree: undefined },
+        ];
 
         await tracker.callbacks.connected?.(session);
 
         expect(provider?.clear).not.toHaveBeenCalled();
-        expect((controller as unknown as { _instances: unknown[] })._instances).toHaveLength(1);
+        expect((controller as unknown as { _instanceSlots: unknown[] })._instanceSlots).toHaveLength(1);
     });
 
     it('updates instances when active session and instances are present', async () => {
@@ -281,16 +304,21 @@ describe('ComponentViewer', () => {
         provider.clear.mockClear();
 
         (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1');
-        (controller as unknown as { _instances: unknown[] })._instances = [];
+        (controller as unknown as { _instanceSlots: unknown[] })._instanceSlots = [];
         await updateInstances('stackTrace');
         expect(provider.clear).not.toHaveBeenCalled();
         expect(provider.setRoots).not.toHaveBeenCalled();
 
         const instanceA = instanceFactory();
         const instanceB = instanceFactory();
-        (controller as unknown as { _instances: unknown[] })._instances = [instanceA, instanceB];
+        (controller as unknown as { _instanceSlots: unknown[] })._instanceSlots = [
+            { instance: instanceA, locked: false, guiTree: undefined },
+            { instance: instanceB, locked: false, guiTree: undefined },
+        ];
         await updateInstances('stackTrace');
-        expect(provider.setRoots).toHaveBeenCalledWith(['node', 'node']);
+        const rootsArg = provider.setRoots.mock.calls[0]?.[0];
+        expect(rootsArg).toHaveLength(2);
+        expect(rootsArg[0]).toBeInstanceOf(GuiInstanceRoot);
         expect(instanceA.update).toHaveBeenCalled();
         expect(instanceB.update).toHaveBeenCalled();
         expect(debugSpy).toHaveBeenCalled();
@@ -306,12 +334,17 @@ describe('ComponentViewer', () => {
         instanceNoTree.getGuiTree = jest.fn(() => undefined);
         const instanceWithTree = instanceFactory();
 
-        (controller as unknown as { _instances: unknown[] })._instances = [instanceNoTree, instanceWithTree];
+        (controller as unknown as { _instanceSlots: unknown[] })._instanceSlots = [
+            { instance: instanceNoTree, locked: false, guiTree: undefined },
+            { instance: instanceWithTree, locked: false, guiTree: undefined },
+        ];
 
         const updateInstances = (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances.bind(controller);
         await updateInstances('stackTrace');
 
-        expect(provider.setRoots).toHaveBeenCalledWith(['node']);
+        const rootsArg = provider.setRoots.mock.calls[0]?.[0];
+        expect(rootsArg).toHaveLength(1);
+        expect(rootsArg[0]).toBeInstanceOf(GuiInstanceRoot);
     });
 
     it('runs a debounced update when scheduling multiple times', async () => {
