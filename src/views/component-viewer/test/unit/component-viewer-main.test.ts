@@ -157,8 +157,8 @@ describe('ComponentViewer', () => {
         controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         expect(vscode.window.registerTreeDataProvider).toHaveBeenCalledWith('cmsis-debugger.componentViewer', expect.any(Object));
-        expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.lockInstance', expect.any(Function));
-        expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.unlockInstance', expect.any(Function));
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.lockComponent', expect.any(Function));
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.unlockComponent', expect.any(Function));
         // tree provider + 2 commands + 5 tracker disposables
         expect(context.subscriptions.length).toBe(8);
     });
@@ -368,7 +368,7 @@ describe('ComponentViewer', () => {
         (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: inst, lockState: false }];
 
         const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
-        const lockHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.componentViewer.lockInstance')?.[1] as
+        const lockHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.componentViewer.lockComponent')?.[1] as
             | ((node: ScvdGuiInterface) => Promise<void> | void)
             | undefined;
         expect(lockHandler).toBeDefined();
