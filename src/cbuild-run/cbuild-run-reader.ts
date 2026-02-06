@@ -82,12 +82,13 @@ export class CbuildRunReader {
             ? descriptor.file.replaceAll(CMSIS_PACK_ROOT_ENVVAR, effectiveCmsisPackRoot)
             : descriptor.file}`);
         // resolve relative paths to cbuild run file location
-        const resolvedFilePaths = filePaths.map(filePath => {
+        const resolvedRelativeFilePaths = filePaths.map(filePath => {
             if (path.isAbsolute(filePath) || !this.cbuildRunDir) {
                 return filePath;
             }
-            return path.resolve(this.cbuildRunDir, filePath);
+            return path.join(this.cbuildRunDir, filePath);
         });
+        const resolvedFilePaths = resolvedRelativeFilePaths.map(filePath => path.resolve(filePath));
         return resolvedFilePaths;
     }
 
