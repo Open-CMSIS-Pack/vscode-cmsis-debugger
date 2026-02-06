@@ -94,7 +94,9 @@ describe('CbuildRunReader', () => {
             expect(svdFilePaths.length).toEqual(expectedSvdPaths.length);
             for (let i = 0; i < svdFilePaths.length; i++) {
                 // eslint-disable-next-line security/detect-object-injection
-                expect(path.normalize(expectedSvdPaths[i])).toEqual(svdFilePaths[i]);
+                const expectedPath = path.normalize(path.resolve(expectedSvdPaths[i]));
+                const actualPath = path.normalize(path.resolve(svdFilePaths[i]));
+                expect(expectedPath).toEqual(actualPath);
             }
         });
 
