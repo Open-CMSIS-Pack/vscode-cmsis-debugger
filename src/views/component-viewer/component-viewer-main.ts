@@ -21,6 +21,7 @@ import { URI } from 'vscode-uri';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
 import { logger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
+import { ScvdGuiTree } from './scvd-gui-tree';
 
 export type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace';
 interface UpdateQueueItem {
@@ -29,13 +30,14 @@ interface UpdateQueueItem {
     updateReason: fifoUpdateReason;
 }
 
-export interface ComponentViewerInstancesInterface {
+interface ComponentViewerInstancesWrapper {
     componentViewerInstance: ComponentViewerInstance;
     lockState: boolean;
 }
+
 export class ComponentViewer {
     private _activeSession: GDBTargetDebugSession | undefined;
-    private _instances: ComponentViewerInstancesInterface[] = [];
+    private _instances: ComponentViewerInstancesWrapper[] = [];
     private _componentViewerTreeDataProvider: ComponentViewerTreeDataProvider | undefined;
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
@@ -82,11 +84,7 @@ export class ComponentViewer {
             }
             // Check if the node belongs to this instance. We only care about parent nodes, as locking/unlocking a child node is not supported,
             // so we can skip checking the whole tree and just check if the node is one of the roots.
-            if (guiTree[0].getGuiId() === node.getGuiId()) {
-                return true;
-            } else {
-                return false;
-            }
+            return guiTree[0].getGuiId() === node.getGuiId(); 
         });
         if (!instance) {
             return;
@@ -98,12 +96,8 @@ export class ComponentViewer {
         if (!guiTree) {
             return;
         }
-        const rootNodes: ScvdGuiInterface[] = [...guiTree];
-        if (instance.lockState) {
-            rootNodes[0].isLocked = true;
-        } else {
-            rootNodes[0].isLocked = false;
-        }
+        const rootNode: ScvdGuiInterface = guiTree[0];
+        rootNode.isLocked = instance.lockState;
         this._componentViewerTreeDataProvider?.refresh();
     }
 
@@ -130,12 +124,10 @@ export class ComponentViewer {
             }
         }
         // Store loaded instances, set default lock state to false
-        cbuildRunInstances.forEach((instance) => {
-            this._instances.push({
-                componentViewerInstance: instance,
-                lockState: false
-            });
-        });
+        this._instances.push(...cbuildRunInstances.map(instance => ({
+            componentViewerInstance: instance,
+            lockState: false
+        })));  
     }
 
     private async loadCbuildRunInstances(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker) : Promise<void | undefined> {
@@ -284,9 +276,7 @@ export class ComponentViewer {
             if (guiTree) {
                 roots.push(...guiTree);
                 // If instance is locked, set isLocked flag to true for root nodes
-                if (instance.lockState) {
-                    roots[roots.length - 1].isLocked = true;
-                }
+                roots[roots.length - 1].isLocked = instance.lockState;
             }
         }
         // Set isRootInstance flag for all roots to true

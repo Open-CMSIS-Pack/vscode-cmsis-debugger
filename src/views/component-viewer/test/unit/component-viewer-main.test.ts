@@ -27,7 +27,6 @@ import { extensionContextFactory } from '../../../../__test__/vscode.factory';
 import { ComponentViewer, fifoUpdateReason } from '../../component-viewer-main';
 import type { ScvdGuiInterface } from '../../model/scvd-gui-interface';
 
-jest.mock('vscode');
 
 const treeProviderFactory = jest.fn(() => ({
     setRoots: jest.fn(),
