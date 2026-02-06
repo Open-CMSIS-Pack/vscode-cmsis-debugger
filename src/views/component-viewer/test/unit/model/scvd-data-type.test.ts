@@ -119,6 +119,21 @@ describe('ScvdDataType', () => {
         expect(dataType.getValueType()).toBe('uint32_t');
     });
 
+    it('returns cached members for data types', () => {
+        const typedef = new DummyTypedef();
+        const dataType = new ScvdDataType(undefined, 'MyType');
+        const inner = dataType.type as ScvdComplexDataType;
+        inner.resolveAndLink((name) => (name === 'MyType' ? typedef : undefined));
+
+        expect(dataType.getMember('field')).toBe(typedef);
+        expect(dataType.getMember('field')).toBe(typedef);
+
+        const complex = new ScvdComplexDataType(undefined, 'MyType');
+        complex.resolveAndLink((name) => (name === 'MyType' ? typedef : undefined));
+        expect(complex.getMember('field')).toBe(typedef);
+        expect(complex.getMember('field')).toBe(typedef);
+    });
+
     it('exposes classnames and target sizes', async () => {
         const dataType = new ScvdDataType(undefined, 'uint16_t');
         expect(dataType.classname).toBe('ScvdDataType');

@@ -192,4 +192,14 @@ describe('ComponentViewerTargetAccess', () => {
             'Session \'test-session\': Failed to evaluate register value for \'r1\' - \'reg fail\''
         );
     });
+
+    it('returns undefined when no frameId is available', async () => {
+        setActiveStackItem(debugSession, undefined);
+
+        await expect(targetAccess.evaluateSymbolName('0x1')).resolves.toBeUndefined();
+        await expect(targetAccess.evaluateSymbolContext('0x1')).resolves.toBeUndefined();
+        await expect(targetAccess.evaluateSymbolSize('sym')).resolves.toBeUndefined();
+        await expect(targetAccess.evaluateNumberOfArrayElements('arr')).resolves.toBeUndefined();
+        await expect(targetAccess.evaluateRegisterValue('r0')).resolves.toBeUndefined();
+    });
 });

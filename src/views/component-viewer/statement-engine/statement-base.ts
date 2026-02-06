@@ -18,7 +18,6 @@ import { ScvdNode } from '../model/scvd-node';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
 
-
 /**
  * Base statement node using an **array** for children.
  * - Children are appended as added.
@@ -92,9 +91,17 @@ export class StatementBase {
         return child;
     }
 
+    protected async getGuiName(): Promise<string | undefined> {
+        return this.scvdItem.getGuiName();
+    }
+
+    protected async getGuiValue(): Promise<string | undefined> {
+        return this.scvdItem.getGuiValue();
+    }
+
     public async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
-        const conditionResult = await this.scvdItem.getConditionResult();
-        if (conditionResult === false) {
+        const shouldExecute = await this.shouldExecute(executionContext);
+        if (!shouldExecute) {
             //console.log(`${this.scvdItem.getLineNoStr()}: Skipping ${this.scvdItem.getDisplayLabel()} for condition result: ${conditionResult}`);
             return;
         }
@@ -110,4 +117,10 @@ export class StatementBase {
     protected async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
         //console.log(`${this.line}: Executing base: ${await this.scvdItem.getGuiName()}`);
     }
+
+    protected async shouldExecute(_executionContext: ExecutionContext): Promise<boolean> {
+        const conditionResult = await this.scvdItem.getConditionResult();
+        return conditionResult !== false;
+    }
+
 }

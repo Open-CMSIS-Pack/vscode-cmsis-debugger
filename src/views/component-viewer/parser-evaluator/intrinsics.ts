@@ -79,13 +79,14 @@ export function isIntrinsicName(name: string): name is IntrinsicName {
 
 /**
  * Route built-in intrinsics to the host implementation (enforcing presence).
- * Throws when an intrinsic is missing or returns undefined.
+ * Returns undefined and reports via onError when an intrinsic is missing or returns undefined.
  */
 export async function handleIntrinsic(
     data: IntrinsicProvider,
     container: RefContainer,
     name: IntrinsicName,
-    args: EvalValue[]
+    args: EvalValue[],
+    onError?: (message: string) => void
 ): Promise<EvalValue> {
     // INTRINSIC_DEFINITIONS is a static map of trusted keys.
     // eslint-disable-next-line security/detect-object-injection
@@ -93,10 +94,12 @@ export async function handleIntrinsic(
     if (intrinsicDef) {
         const { minArgs, maxArgs } = intrinsicDef;
         if (minArgs !== undefined && args.length < minArgs) {
-            throw new Error(`Intrinsic ${name} expects at least ${minArgs} argument(s)`);
+            onError?.(`Intrinsic ${name} expects at least ${minArgs} argument(s)`);
+            return undefined;
         }
         if (maxArgs !== undefined && args.length > maxArgs) {
-            throw new Error(`Intrinsic ${name} expects at most ${maxArgs} argument(s)`);
+            onError?.(`Intrinsic ${name} expects at most ${maxArgs} argument(s)`);
+            return undefined;
         }
     }
 
@@ -104,29 +107,34 @@ export async function handleIntrinsic(
     if (name === '__GetRegVal') {
         const fn = data.__GetRegVal;
         if (typeof fn !== 'function') {
-            throw new Error('Missing intrinsic __GetRegVal');
+            onError?.('Missing intrinsic __GetRegVal');
+            return undefined;
         }
         const out = await fn.call(data, String(args[0] ?? ''));
         if (out === undefined) {
-            throw new Error('Intrinsic __GetRegVal returned undefined');
+            onError?.('Intrinsic __GetRegVal returned undefined');
+            return undefined;
         }
         return out;
     }
     if (name === '__FindSymbol') {
         const fn = data.__FindSymbol;
         if (typeof fn !== 'function') {
-            throw new Error('Missing intrinsic __FindSymbol');
+            onError?.('Missing intrinsic __FindSymbol');
+            return undefined;
         }
         const out = await fn.call(data, String(args[0] ?? ''));
         if (out === undefined) {
-            throw new Error('Intrinsic __FindSymbol returned undefined');
+            onError?.('Intrinsic __FindSymbol returned undefined');
+            return undefined;
         }
         return out | 0;
     }
     if (name === '__CalcMemUsed') {
         const fn = data.__CalcMemUsed;
         if (typeof fn !== 'function') {
-            throw new Error('Missing intrinsic __CalcMemUsed');
+            onError?.('Missing intrinsic __CalcMemUsed');
+            return undefined;
         }
         const n0 = Number(args[0] ?? 0) >>> 0;
         const n1 = Number(args[1] ?? 0) >>> 0;
@@ -134,29 +142,34 @@ export async function handleIntrinsic(
         const n3 = Number(args[3] ?? 0) >>> 0;
         const out = await fn.call(data, n0, n1, n2, n3);
         if (out === undefined) {
-            throw new Error('Intrinsic __CalcMemUsed returned undefined');
+            onError?.('Intrinsic __CalcMemUsed returned undefined');
+            return undefined;
         }
         return out >>> 0;
     }
     if (name === '__size_of') {
         const fn = data.__size_of;
         if (typeof fn !== 'function') {
-            throw new Error('Missing intrinsic __size_of');
+            onError?.('Missing intrinsic __size_of');
+            return undefined;
         }
         const out = await fn.call(data, String(args[0] ?? ''));
         if (out === undefined) {
-            throw new Error('Intrinsic __size_of returned undefined');
+            onError?.('Intrinsic __size_of returned undefined');
+            return undefined;
         }
         return out | 0;
     }
     if (name === '__Symbol_exists') {
         const fn = data.__Symbol_exists;
         if (typeof fn !== 'function') {
-            throw new Error('Missing intrinsic __Symbol_exists');
+            onError?.('Missing intrinsic __Symbol_exists');
+            return undefined;
         }
         const out = await fn.call(data, String(args[0] ?? ''));
         if (out === undefined) {
-            throw new Error('Intrinsic __Symbol_exists returned undefined');
+            onError?.('Intrinsic __Symbol_exists returned undefined');
+            return undefined;
         }
         return out | 0;
     }
@@ -164,27 +177,32 @@ export async function handleIntrinsic(
     if (name === '__Offset_of') {
         const fn = data.__Offset_of;
         if (typeof fn !== 'function') {
-            throw new Error('Missing intrinsic __Offset_of');
+            onError?.('Missing intrinsic __Offset_of');
+            return undefined;
         }
         const out = await fn.call(data, container, String(args[0] ?? ''));
         if (out === undefined) {
-            throw new Error('Intrinsic __Offset_of returned undefined');
+            onError?.('Intrinsic __Offset_of returned undefined');
+            return undefined;
         }
         return out >>> 0;
     }
     if (name === '__Running') {
         const fn = data.__Running;
         if (typeof fn !== 'function') {
-            throw new Error('Missing intrinsic __Running');
+            onError?.('Missing intrinsic __Running');
+            return undefined;
         }
         const out = await fn.call(data);
         if (out === undefined) {
-            throw new Error('Intrinsic __Running returned undefined');
+            onError?.('Intrinsic __Running returned undefined');
+            return undefined;
         }
         return out | 0;
     }
 
-    throw new Error(`Missing intrinsic ${name}`);
+    onError?.(`Missing intrinsic ${name}`);
+    return undefined;
 }
 
 /**
@@ -194,18 +212,20 @@ export async function handlePseudoMember(
     data: IntrinsicProvider,
     container: RefContainer,
     property: string,
-    baseRef: ScvdNode
+    baseRef: ScvdNode,
+    onError?: (message: string) => void
 ): Promise<EvalValue> {
     container.member = baseRef;
     container.current = baseRef;
     container.valueType = undefined;
     const fn = property === '_count' ? data._count : data._addr;
     if (typeof fn !== 'function') {
-        throw new Error(`Missing pseudo-member ${property}`);
+        onError?.(`Missing pseudo-member ${property}`);
+        return undefined;
     }
     const out = await fn.call(data, container);
     if (out === undefined) {
-        throw new Error(`Pseudo-member ${property} returned undefined`);
+        onError?.(`Pseudo-member ${property} returned undefined`);
     }
     return out;
 }

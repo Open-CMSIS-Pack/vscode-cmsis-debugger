@@ -37,10 +37,14 @@ export class StatementVar extends StatementBase {
             const count = await varItem.getArraySize();
             const targetSize = elementSize !== undefined ? elementSize * (count ?? 1) : undefined;
             const value = await varItem.getValue();
-            if (name !== undefined && targetSize !== undefined && value !== undefined) {
-                executionContext.memoryHost.setVariable(name, targetSize, value, -1, 0);
-                //console.log(`${this.line} Variable "${name}" created with value: ${value}`);
+            if (name === undefined || targetSize === undefined) {
+                console.error(`${this.line}: Variable missing name or size.`);
+                return;
             }
+
+            const initValue = value ?? 0;
+            executionContext.memoryHost.setVariable(name, targetSize, initValue, -1, 0);
+            //console.log(`${this.line} Variable "${name}" created with value: ${value}`);
         }
     }
 }

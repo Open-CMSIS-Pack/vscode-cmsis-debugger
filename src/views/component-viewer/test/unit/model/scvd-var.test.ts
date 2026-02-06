@@ -107,6 +107,7 @@ describe('ScvdVar', () => {
         await expect(item.getVirtualSize()).resolves.toBe(4);
         expect(item.getIsPointer()).toBe(true);
         expect(item.getMember('m')).toBe(member);
+        expect(item.getMember('m')).toBe(member);
         expect(item.getElementRef()).toBe(typeStub);
         expect(item.getValueType()).toBe('uint32');
 

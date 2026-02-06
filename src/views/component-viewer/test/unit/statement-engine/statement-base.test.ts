@@ -96,6 +96,19 @@ describe('StatementBase', () => {
         expect(child.getGuiId()).toBe('L3:TestStatement');
     });
 
+    it('falls back to UnknownItem when constructor name is missing', () => {
+        const node = new TestNode(undefined);
+        Object.defineProperty(node, 'constructor', { value: undefined });
+        node.lineNo = '5';
+        const stmt = new TestStatement(node, undefined);
+        const guiTree = new ScvdGuiTree(undefined);
+
+        const child = stmt.createGuiChild(guiTree, undefined);
+
+        expect(child.getGuiId()).toBe('L5:TestStatement');
+        expect(child.getGuiEntry().name).toBeUndefined();
+    });
+
     it('executes statements when condition passes', async () => {
         const node = new TestNode(undefined, { conditionResult: true });
         const stmt = new TestStatement(node, undefined);

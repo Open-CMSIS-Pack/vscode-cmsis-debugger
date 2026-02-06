@@ -28,12 +28,10 @@ export class StatementListOut extends StatementBase {
     }
 
     public override async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
-        const conditionResult = await this.scvdItem.getConditionResult();
-        if (conditionResult === false) {
-            //console.log(`${this.scvdItem.getLineNoStr()}: Skipping ${this.scvdItem.getDisplayLabel()} for condition result: ${conditionResult}`);
+        const shouldExecute = await this.shouldExecute(executionContext);
+        if (!shouldExecute) {
             return;
         }
-
         await this.onExecute(executionContext, guiTree);
         /* Example code for evaluating children.
            Normally this happens here, but in this case it’s done in onExecute
@@ -111,11 +109,6 @@ export class StatementListOut extends StatementBase {
                 if (loopValue === 0) {
                     break;
                 }
-                const whileValue = await whileExpr.getValue();
-                const whileNum = whileValue !== undefined ? Number(whileValue) : undefined;
-                if (whileNum === 0 || whileNum === undefined) {   // break on read error too
-                    break;
-                }
             }
             if (limitExpr !== undefined) {
                 if (loopValue >= limitValue) {
@@ -129,9 +122,11 @@ export class StatementListOut extends StatementBase {
 
             if (whileExpr !== undefined) {
                 const whileValue = await whileExpr.getValue();
-                if (whileValue !== undefined) {
-                    loopValue = Number(whileValue);
+                const whileNum = whileValue !== undefined ? Number(whileValue) : undefined;
+                if (whileNum === 0 || whileNum === undefined) {   // break on read error too
+                    break;
                 }
+                loopValue = whileNum;
             }
             if (limitExpr !== undefined) {
                 loopValue++;
