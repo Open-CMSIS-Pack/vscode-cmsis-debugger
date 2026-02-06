@@ -28,9 +28,15 @@ interface UpdateQueueItem {
     debugSession: GDBTargetDebugSession;
     updateReason: fifoUpdateReason;
 }
+
+interface ComponentViewerInstancesWrapper {
+    componentViewerInstance: ComponentViewerInstance;
+    lockState: boolean;
+}
+
 export class ComponentViewer {
     private _activeSession: GDBTargetDebugSession | undefined;
-    private _instances: ComponentViewerInstance[] = [];
+    private _instances: ComponentViewerInstancesWrapper[] = [];
     private _componentViewerTreeDataProvider: ComponentViewerTreeDataProvider | undefined;
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
@@ -47,11 +53,51 @@ export class ComponentViewer {
     }
 
     public activate(tracker: GDBTargetDebugTracker): void {
+        // Register Component Viewer tree view
+        this.registerTreeView();
+        // Subscribe to debug tracker events to update active session
+        this.subscribetoDebugTrackerEvents(tracker);
+    }
+
+    protected registerTreeView(): void {
         this._componentViewerTreeDataProvider = new ComponentViewerTreeDataProvider();
         const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
-        this._context.subscriptions.push(treeProviderDisposable);
-        // Subscribe to debug tracker events to update active session
-        this.subscribetoDebugTrackerEvents(this._context, tracker);
+        const lockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.lockComponent', async (node) => {
+            this.handleLockInstance(node);
+        });
+        const unlockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.unlockComponent', async (node) => {
+            this.handleLockInstance(node);
+        });
+        this._context.subscriptions.push(
+            treeProviderDisposable,
+            lockInstanceCommandDisposable,
+            unlockInstanceCommandDisposable
+        );
+    }
+
+    protected handleLockInstance(node: ScvdGuiInterface): void {
+        const instance = this._instances.find((inst) => {
+            const guiTree = inst.componentViewerInstance.getGuiTree();
+            if (!guiTree) {
+                return false;
+            }
+            // Check if the node belongs to this instance. We only care about parent nodes, as locking/unlocking a child node is not supported,
+            // so we can skip checking the whole tree and just check if the node is one of the roots.
+            return guiTree[0].getGuiId() === node.getGuiId();
+        });
+        if (!instance) {
+            return;
+        }
+        instance.lockState = !instance.lockState;
+        logger.info(`Component Viewer: Instance lock state changed to ${instance.lockState}`);
+        // If instance is locked, set isLocked flag to true for root nodes
+        const guiTree = instance.componentViewerInstance.getGuiTree();
+        if (!guiTree) {
+            return;
+        }
+        const rootNode: ScvdGuiInterface = guiTree[0];
+        rootNode.isLocked = instance.lockState;
+        this._componentViewerTreeDataProvider?.refresh();
     }
 
     protected async readScvdFiles(tracker: GDBTargetDebugTracker,session?: GDBTargetDebugSession): Promise<void> {
@@ -76,7 +122,11 @@ export class ComponentViewer {
                 cbuildRunInstances.push(instance);
             }
         }
-        this._instances = cbuildRunInstances;
+        // Store loaded instances, set default lock state to false
+        this._instances.push(...cbuildRunInstances.map(instance => ({
+            componentViewerInstance: instance,
+            lockState: false
+        })));
     }
 
     private async loadCbuildRunInstances(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker) : Promise<void | undefined> {
@@ -90,7 +140,7 @@ export class ComponentViewer {
         }
     }
 
-    private subscribetoDebugTrackerEvents(context: vscode.ExtensionContext, tracker: GDBTargetDebugTracker): void {
+    private subscribetoDebugTrackerEvents(tracker: GDBTargetDebugTracker): void {
         const onWillStopSessionDisposable = tracker.onWillStopSession(async (session) => {
             await this.handleOnWillStopSession(session);
         });
@@ -110,7 +160,7 @@ export class ComponentViewer {
             await this.handleOnWillStartSession(session);
         });
         // clear all disposables on extension deactivation
-        context.subscriptions.push(
+        this._context.subscriptions.push(
             onWillStopSessionDisposable,
             onConnectedDisposable,
             onDidChangeActiveDebugSessionDisposable,
@@ -170,7 +220,7 @@ export class ComponentViewer {
             return;
         }
         // update active debug session for all instances
-        this._instances.forEach((instance) => instance.updateActiveSession(session));
+        this._instances.forEach((instance) => instance.componentViewerInstance.updateActiveSession(session));
         this.schedulePendingUpdate('sessionChanged');
     }
 
@@ -222,12 +272,21 @@ export class ComponentViewer {
             this._instanceUpdateCounter++;
             logger.debug(`Updating Component Viewer Instance #${this._instanceUpdateCounter} due to '${updateReason}' (queue position #${this._updateQueue.length})`);
             console.log(`Updating Component Viewer Instance #${this._instanceUpdateCounter}`);
-            await instance.update();
-            const guiTree = instance.getGuiTree();
+            // Check instance's lock state, skip update if locked
+            if (!instance.lockState) {
+                await instance.componentViewerInstance.update();
+            }
+            const guiTree = instance.componentViewerInstance.getGuiTree();
             if (guiTree) {
                 roots.push(...guiTree);
+                // If instance is locked, set isLocked flag to true for root nodes
+                roots[roots.length - 1].isLocked = instance.lockState;
             }
         }
+        // Set isRootInstance flag for all roots to true
+        roots.forEach((root) => {
+            root.isRootInstance = true;
+        });
         this._componentViewerTreeDataProvider?.setRoots(roots);
     }
 }

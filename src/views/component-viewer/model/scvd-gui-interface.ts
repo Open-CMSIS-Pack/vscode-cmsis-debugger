@@ -23,4 +23,6 @@ export interface ScvdGuiInterface {
     getGuiConditionResult(): boolean;
     getGuiLineInfo(): string | undefined;
     hasGuiChildren(): boolean;
+    isRootInstance?: boolean;
+    isLocked?: boolean;
 }
