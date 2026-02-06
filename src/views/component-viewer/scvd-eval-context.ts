@@ -18,6 +18,9 @@ import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-sessio
 import { MemoryHost } from './data-host/memory-host';
 import { RegisterHost } from './data-host/register-host';
 import { EvalContext, Evaluator } from './parser-evaluator/evaluator';
+import { Parser, type ParseResult } from './parser-evaluator/parser';
+import { ExpressionOptimizer } from './parser-evaluator/expression-optimizer';
+import { IntegerModelKind, type IntegerModel, integerModelFromKind } from './parser-evaluator/c-numeric';
 import { ScvdNode } from './model/scvd-node';
 import { ScvdComponentViewer } from './model/scvd-component-viewer';
 import { ScvdFormatSpecifier } from './model/scvd-format-specifier';
@@ -30,29 +33,37 @@ export interface ExecutionContext {
     evalContext: EvalContext;
     debugTarget: ScvdDebugTarget;
     evaluator: Evaluator;
+    parseExpression: (expression: string, isPrintExpression: boolean) => ParseResult;
 }
-
 
 export class ScvdEvalContext {
     private _ctx: EvalContext;
     private _evalHost: ScvdEvalInterface;
     private _evaluator: Evaluator;
+    private _parser: Parser;
+    private _optimizer: ExpressionOptimizer;
+    private _integerModel: IntegerModel;
     private _memoryHost: MemoryHost;
     private _registerHost: RegisterHost;
     private _debugTarget: ScvdDebugTarget;
     private _formatSpecifier: ScvdFormatSpecifier;
     private _model: ScvdComponentViewer;
+    private _integerModelKind: IntegerModelKind;
 
     constructor(
         model: ScvdComponentViewer
     ) {
         this._model = model;
+        this._integerModelKind = IntegerModelKind.Model32;
+        this._integerModel = integerModelFromKind(this._integerModelKind);
         this._memoryHost = new MemoryHost();
         this._registerHost = new RegisterHost();
         this._debugTarget = new ScvdDebugTarget();
         this._formatSpecifier = new ScvdFormatSpecifier();
         this._evalHost = new ScvdEvalInterface(this._memoryHost, this._registerHost, this._debugTarget, this._formatSpecifier);
-        this._evaluator = new Evaluator();
+        this._parser = new Parser(this._integerModel);
+        this._optimizer = new ExpressionOptimizer(this._integerModel);
+        this._evaluator = new Evaluator(this._integerModel);
         const outItem = this.getOutItem();
         if (outItem === undefined) {
             throw new Error('SCVD EvalContext: No output item defined');
@@ -92,6 +103,15 @@ export class ScvdEvalContext {
         this._debugTarget.setActiveSession(debugSession);
     }
 
+    public setIntegerModelKind(kind: IntegerModelKind | undefined): void {
+        if (!kind) {
+            return;
+        }
+        this._integerModelKind = kind;
+        this._integerModel = integerModelFromKind(kind);
+        this.applyIntegerModel();
+    }
+
     public getExecutionContext(): ExecutionContext {
         return {
             memoryHost: this.memoryHost,
@@ -101,6 +121,7 @@ export class ScvdEvalContext {
             debugTarget: this._debugTarget !== undefined ? this._debugTarget : (() => {
                 throw new Error('SCVD EvalContext: DebugTarget not initialized');
             })(),
+            parseExpression: (expression: string, isPrintExpression: boolean) => this.parseExpression(expression, isPrintExpression),
         };
     }
 
@@ -117,6 +138,23 @@ export class ScvdEvalContext {
     }
 
     public init(debugSession: GDBTargetDebugSession, debugTracker: GDBTargetDebugTracker): void {
+        this.configureIntegerModel(debugSession);
         this._debugTarget.init(debugSession, debugTracker);
+    }
+
+    private configureIntegerModel(debugSession: GDBTargetDebugSession): void {
+        void debugSession;
+        this.applyIntegerModel();
+    }
+
+    private applyIntegerModel(): void {
+        this._parser.setIntegerModel(this._integerModel);
+        this._optimizer.setIntegerModel(this._integerModel);
+        this._evaluator.setIntegerModel(this._integerModel);
+    }
+
+    private parseExpression(expression: string, isPrintExpression: boolean): ParseResult {
+        const parsed = this._parser.parseWithDiagnostics(expression, isPrintExpression);
+        return this._optimizer.optimizeParseResult(parsed);
     }
 }

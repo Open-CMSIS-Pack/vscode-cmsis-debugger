@@ -21,6 +21,7 @@
  */
 
 import { EvalContext, Evaluator } from '../../../parser-evaluator/evaluator';
+import { parseExpression } from '../../../parser-evaluator/parser';
 import type { ExecutionContext } from '../../../scvd-eval-context';
 import { MemoryHost } from '../../../data-host/memory-host';
 import { RegisterHost } from '../../../data-host/register-host';
@@ -97,5 +98,11 @@ export function createExecutionContext(
         evalContext,
         debugTarget,
         evaluator,
+        parseExpression,
     };
+}
+
+export function applyExecutionContext(root: ScvdNode, ctx: ExecutionContext): void {
+    root.setExecutionContext(ctx);
+    root.children.forEach((child) => applyExecutionContext(child as ScvdNode, ctx));
 }

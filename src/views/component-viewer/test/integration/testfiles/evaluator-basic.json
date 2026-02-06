@@ -203,7 +203,7 @@
     },
     {
       "expr": "foo || bar",
-      "expected": 2,
+      "expected": 1,
       "symbols": {
         "foo": {
           "value": 0

@@ -22,6 +22,7 @@
 
 import { ParseResult } from '../../../parser-evaluator/parser';
 import { ScvdEventId } from '../../../model/scvd-event-id';
+import { applyExecutionContext, createExecutionContext } from '../helpers/statement-engine-helpers';
 
 describe('ScvdEventId', () => {
     const makeAst = (constValue: ParseResult['constValue']): ParseResult => ({
@@ -35,6 +36,7 @@ describe('ScvdEventId', () => {
     it('derives message, component, and level from numeric const values', () => {
         const eventId = new ScvdEventId(undefined, '0x12345');
         eventId.id.expressionAst = makeAst(0x12345);
+        applyExecutionContext(eventId, createExecutionContext(eventId));
 
         expect(eventId.configure()).toBe(true);
         expect(eventId.messageNumber).toBe(0x45);
@@ -45,6 +47,7 @@ describe('ScvdEventId', () => {
     it('ignores non-numeric constant values', () => {
         const eventId = new ScvdEventId(undefined, 'ID');
         eventId.id.expressionAst = makeAst('ID');
+        applyExecutionContext(eventId, createExecutionContext(eventId));
 
         eventId.configure();
         expect(eventId.messageNumber).toBeUndefined();
@@ -60,6 +63,7 @@ describe('ScvdEventId', () => {
 
     it('handles missing id expressions', () => {
         const eventId = new ScvdEventId(undefined, '1');
+        applyExecutionContext(eventId, createExecutionContext(eventId));
         (eventId as unknown as { _id?: unknown })._id = undefined;
         expect(eventId.configure()).toBe(true);
     });

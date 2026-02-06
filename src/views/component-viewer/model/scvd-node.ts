@@ -26,6 +26,7 @@ import { ScvdNodeSymbolCache } from './scvd-node-cache';
  */
 export abstract class ScvdNode extends ScvdBase {
     private _symbolsCache = new ScvdNodeSymbolCache();
+    protected _executionContext: ExecutionContext | undefined;
 
     public override get parent(): ScvdNode | undefined {
         return super.parent as ScvdNode | undefined;
@@ -90,6 +91,11 @@ export abstract class ScvdNode extends ScvdBase {
     }
 
     public setExecutionContext(_executionContext: ExecutionContext) {
+        this._executionContext = _executionContext;
+    }
+
+    public getExecutionContext(): ExecutionContext | undefined {
+        return this._executionContext;
     }
 
     // default condition always true
