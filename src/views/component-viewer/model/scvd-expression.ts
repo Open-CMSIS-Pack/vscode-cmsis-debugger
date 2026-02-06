@@ -18,7 +18,7 @@
 
 
 import { parseExpression, ParseResult } from '../parser-evaluator/parser';
-import {  evaluateParseResult, EvaluateResult } from '../parser-evaluator/evaluator';
+import { EvaluateResult } from '../parser-evaluator/evaluator';
 import { ScvdNode } from './scvd-node';
 import { ExecutionContext } from '../scvd-eval-context';
 
@@ -70,10 +70,10 @@ export class ScvdExpression extends ScvdNode {
             console.error(this.getLineInfoStr(), 'Expression evaluation missing AST or execution context');
             return undefined;
         }
-        return evaluateParseResult(this.expressionAst, this._executionContext.evalContext);
+        return this._executionContext.evaluator.evaluateParseResult(this.expressionAst, this._executionContext.evalContext);
     }
 
-    public override async getValue(): Promise<EvaluateResult> {
+    public override getValue(): Promise<EvaluateResult> {
         return this.evaluate();
     }
 

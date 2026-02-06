@@ -17,6 +17,7 @@
 
 import * as vscode from 'vscode';
 import { ScvdGuiInterface } from './model/scvd-gui-interface';
+import { perf } from './stats-config';
 
 
 export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<ScvdGuiInterface> {
@@ -28,6 +29,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     }
 
     public getTreeItem(element: ScvdGuiInterface): vscode.TreeItem {
+        const perfStartTime = perf?.startUi() ?? 0;
         const treeItemLabel = element.getGuiName() ?? 'UNKNOWN';
         const treeItem = new vscode.TreeItem(treeItemLabel);
         treeItem.collapsibleState = element.hasGuiChildren()
@@ -41,6 +43,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         if (guiId !== undefined) {
             treeItem.id = guiId;
         }
+        perf?.endUi(perfStartTime, 'treeViewGetTreeItemMs', 'treeViewGetTreeItemCalls');
         return treeItem;
     }
 
@@ -48,29 +51,42 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
      * Called by VS Code to lazily populate tooltip details for tree items.
      */
     public resolveTreeItem(treeItem: vscode.TreeItem, element: ScvdGuiInterface): vscode.TreeItem {
+        const perfStartTime = perf?.startUi() ?? 0;
         treeItem.tooltip = element.getGuiLineInfo() ?? '';
+        perf?.endUi(perfStartTime, 'treeViewResolveItemMs', 'treeViewResolveItemCalls');
         return treeItem;
     }
 
     public getChildren(element?: ScvdGuiInterface): ScvdGuiInterface[] {
+        const perfStartTime = perf?.startUi() ?? 0;
         if (!element) {
-            return this._roots;
+            const roots = this._roots;
+            perf?.endUi(perfStartTime, 'treeViewGetChildrenMs', 'treeViewGetChildrenCalls');
+            return roots;
         }
 
-        return element.getGuiChildren() || [];
+        const children = element.getGuiChildren() || [];
+        perf?.endUi(perfStartTime, 'treeViewGetChildrenMs', 'treeViewGetChildrenCalls');
+        return children;
     }
 
     public setRoots(roots: ScvdGuiInterface[] = []): void {
+        this.logUiPerf();
         this._roots = roots;
         this.refresh();
     }
 
     public clear(): void {
+        this.logUiPerf();
         this._roots = [];
         this.refresh();
     }
 
     public refresh(): void {
         this._onDidChangeTreeData.fire();
+    }
+
+    private logUiPerf(): void {
+        perf?.captureUiSummary();
     }
 }

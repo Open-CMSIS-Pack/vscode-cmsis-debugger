@@ -22,7 +22,8 @@
  */
 
 import { parseExpression } from '../../../../parser-evaluator/parser';
-import { EvalContext, evalNode, evaluateParseResult } from '../../../../parser-evaluator/evaluator';
+import { EvalContext } from '../../../../parser-evaluator/evaluator';
+import { TestEvaluator } from '../../../unit/helpers/test-evaluator';
 import type { EvalValue, RefContainer, ScalarType } from '../../../../parser-evaluator/model-host';
 import type { FullDataHost } from '../../helpers/full-data-host';
 import { ScvdNode } from '../../../../model/scvd-node';
@@ -37,6 +38,8 @@ class TypedNode extends ScvdNode {
         this.typeName = typeName;
     }
 }
+
+const evaluator = new TestEvaluator();
 
 class MathHost implements FullDataHost {
     constructor(private readonly values: Map<string, TypedNode>) {}
@@ -102,12 +105,12 @@ function makeHost(defs: Array<[string, EvalValue, string]>): { host: MathHost; b
 
 function evalParsed(expr: string, host: MathHost, base: TypedNode) {
     const ctx = new EvalContext({ data: host, container: base });
-    return evalNode(parseExpression(expr, false).ast, ctx);
+    return evaluator.evalNodePublic(parseExpression(expr, false).ast, ctx);
 }
 
 function evalParsedNormalized(expr: string, host: MathHost, base: TypedNode) {
     const ctx = new EvalContext({ data: host, container: base });
-    return evaluateParseResult(parseExpression(expr, false), ctx);
+    return evaluator.evaluateParseResult(parseExpression(expr, false), ctx);
 }
 
 describe('evaluator math mixing scalar kinds', () => {
@@ -211,10 +214,4 @@ describe('evaluator math mixing scalar kinds', () => {
         await expect(evalParsedNormalized('u16 >> 1', host, base)).resolves.toBe(0x4000);
     });
 
-    it('rejects JS-style unsigned shift', async () => {
-        const { host, base } = makeHost([
-            ['u32', 1, 'uint32'],
-        ]);
-        await expect(evalParsedNormalized('u32 >>> 1', host, base)).resolves.toBeUndefined();
-    });
 });

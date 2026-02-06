@@ -52,7 +52,7 @@ describe('ValidatingCache', () => {
         expect(factory).toHaveBeenCalledTimes(1);
     });
 
-    it('invalidates entries and supports bulk invalidation', () => {
+    it('invalidates entries', () => {
         const cache = new ValidatingCache<number>();
         cache.set('one', 1);
         cache.set('two', 2);
@@ -62,9 +62,6 @@ describe('ValidatingCache', () => {
         cache.invalidate('one');
         expect(cache.get('one')).toBeUndefined();
         expect(cache.get('two')).toBe(2);
-
-        cache.invalidateAll();
-        expect(cache.get('two')).toBeUndefined();
     });
 
     it('clears and deletes keys', () => {
@@ -77,5 +74,24 @@ describe('ValidatingCache', () => {
 
         cache.clear();
         expect(cache.get('one')).toBeUndefined();
+    });
+
+    it('exposes cache keys', () => {
+        const cache = new ValidatingCache<number>();
+        cache.set('one', 1);
+        cache.set('two', 2);
+        expect(Array.from(cache.keys()).sort()).toEqual(['one', 'two']);
+    });
+
+    it('preserves const flags until explicitly cleared', () => {
+        const cache = new ValidatingCache<number>();
+        cache.set('one', 1, true, true);
+        expect(Array.from(cache.entries()).find(([key]) => key === 'one')?.[1].isConst).toBe(true);
+
+        cache.set('one', 2);
+        expect(Array.from(cache.entries()).find(([key]) => key === 'one')?.[1].isConst).toBe(true);
+
+        cache.set('one', 3, true, false);
+        expect(Array.from(cache.entries()).find(([key]) => key === 'one')?.[1].isConst).toBe(false);
     });
 });

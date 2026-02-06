@@ -122,6 +122,14 @@ describe('ComponentViewerTreeDataProvider', () => {
         expect(mockFire).toHaveBeenCalledTimes(1);
     });
 
+    it('defaults to empty roots when none are provided', async () => {
+        const provider = new ComponentViewerTreeDataProvider();
+        provider.setRoots();
+
+        expect(provider.getChildren()).toEqual([]);
+        expect(mockFire).toHaveBeenCalledTimes(1);
+    });
+
     it('returns element children in order', async () => {
         const provider = new ComponentViewerTreeDataProvider();
         const childA = makeGui({});

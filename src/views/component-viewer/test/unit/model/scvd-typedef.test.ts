@@ -107,12 +107,39 @@ describe('ScvdTypedef', () => {
         await expect(typedef.getTargetSize()).resolves.toBe(7);
     });
 
+    it('supports bigint size expressions and missing member lookups', async () => {
+        const typedef = new ScvdTypedef(undefined);
+        typedef.size = '7';
+        jest.spyOn(typedef.size as ScvdExpression, 'getValue').mockResolvedValue(7n);
+
+        await expect(typedef.getTargetSize()).resolves.toBe(7);
+
+        const member = typedef.addMember();
+        member.name = 'field';
+        expect(typedef.getMember('field')).toBe(member);
+        expect(typedef.getMember('missing')).toBeUndefined();
+    });
+
     it('returns undefined for non-numeric size expressions', async () => {
         const typedef = new ScvdTypedef(undefined);
         typedef.size = 'bad';
         jest.spyOn(typedef.size as ScvdExpression, 'getValue').mockResolvedValue(Number.NaN);
 
         await expect(typedef.getTargetSize()).resolves.toBeUndefined();
+    });
+
+    it('returns undefined when size is missing', async () => {
+        const typedef = new ScvdTypedef(undefined);
+
+        await expect(typedef.getTargetSize()).resolves.toBeUndefined();
+    });
+
+    it('handles numeric size expressions explicitly', async () => {
+        const typedef = new ScvdTypedef(undefined);
+        typedef.size = '5';
+        jest.spyOn(typedef.size as ScvdExpression, 'getValue').mockResolvedValue(5);
+
+        await expect(typedef.getTargetSize()).resolves.toBe(5);
     });
 
     it('ignores undefined setter inputs', () => {
@@ -134,6 +161,7 @@ describe('ScvdTypedef', () => {
 
         expect(typedef.getMember('field')).toBe(member);
         expect(typedef.getMember('local')).toBe(variable);
+        expect(typedef.getMember('field')).toBe(member);
     });
 
     it('calculates offsets with explicit member offsets and size overflow', async () => {

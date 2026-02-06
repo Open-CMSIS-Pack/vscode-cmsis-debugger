@@ -22,49 +22,75 @@ import { StatementBase } from './statement-base';
 
 
 export class StatementRead extends StatementBase {
+    private static readonly INVALID_ADDR_MIN = 0xFFFFFFF0;
 
     constructor(item: ScvdNode, parent: StatementBase | undefined) {
         super(item, parent);
     }
 
-    protected override async onExecute(executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        //console.log(`${this.line}: Executing read: ${this.scvdItem.getDisplayLabel()}`);
-        const mustRead = this.scvdItem.mustRead;
-        if (mustRead === false) {
-            //console.log(`${this.scvdItem.getLineNoStr()}: Skipping "read" as already initialized: ${this.scvdItem.name}`);
-            return;
+    protected override async shouldExecute(_executionContext: ExecutionContext): Promise<boolean> {
+        if (this.scvdItem.mustRead === false) {
+            return false;
         }
+        const conditionResult = await this.scvdItem.getConditionResult();
+        return conditionResult !== false;
+    }
 
+    private isInvalidAddress(address: number | bigint): boolean {
+        // Cortex-M: treat 0 or >= 0xFFFFFFF0 as invalid pointer addresses (skip read).
+        if (typeof address === 'bigint') {
+            return address === 0n || address >= BigInt(StatementRead.INVALID_ADDR_MIN);
+        }
+        return address === 0 || address >= StatementRead.INVALID_ADDR_MIN;
+    }
+
+    private async resolveRead(
+        executionContext: ExecutionContext,
+        logErrors: boolean
+    ): Promise<{
+        name: string;
+        readBytes: number;
+        fullVirtualStrideSize: number;
+        baseAddress: number | bigint;
+        isConst: boolean;
+        symbolName: string | undefined;
+    } | undefined> {
         const scvdRead = this.scvdItem.castToDerived(ScvdRead);
         if (scvdRead === undefined) {
-            return;
+            return undefined;
         }
 
         const name = scvdRead.name;
         if (name === undefined) {
-            console.error(`${this.line}: Executing "read": no name defined`);
-            return;
+            if (logErrors) {
+                console.error(`${this.line}: Executing "read": no name defined`);
+            }
+            return undefined;
         }
 
         const targetSize = await scvdRead.getTargetSize(); // use size specified in SCVD
         if (targetSize === undefined) {
-            console.error(`${this.line} Executing "read": ${scvdRead.name}, type: ${scvdRead.getDisplayLabel()}, could not determine target size`);
-            return;
+            if (logErrors) {
+                console.error(`${this.line} Executing "read": ${scvdRead.name}, type: ${scvdRead.getDisplayLabel()}, could not determine target size`);
+            }
+            return undefined;
         }
         const virtualSize = (await scvdRead.getVirtualSize()) ?? targetSize;
         const sizeValue = await scvdRead.getArraySize();
         const numOfElements = sizeValue ?? 1;
-        const readBytes = numOfElements * targetSize; // Is an Expressions representing the array size or the number of values to read from target. The maximum array size is limited to 512. Default value is 1.
+        const readBytes = numOfElements * targetSize;
         const fullVirtualStrideSize = virtualSize * numOfElements;
         let baseAddress: number | bigint | undefined = undefined;
 
-        // Check if symbol address is defined
         const symbol = scvdRead.symbol;
-        if (symbol?.symbol !== undefined) {
-            const symAddr = await executionContext.debugTarget.findSymbolAddress(symbol.symbol);
+        const symbolName = symbol?.symbol;
+        if (symbolName !== undefined) {
+            const symAddr = await executionContext.debugTarget.findSymbolAddress(symbolName);
             if (symAddr === undefined) {
-                console.error(`${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, could not find symbol address for symbol: ${symbol?.symbol}`);
-                return;
+                if (logErrors) {
+                    console.error(`${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, could not find symbol address for symbol: ${symbolName}`);
+                }
+                return undefined;
             }
             baseAddress = typeof symAddr === 'bigint' ? symAddr : (symAddr >>> 0);
         }
@@ -77,8 +103,10 @@ export class StatementRead extends StatementBase {
             } else if (typeof offset === 'number') {
                 offs = BigInt(Math.trunc(offset));
             } else {
-                console.error(`${this.line}: Executing "read": ${scvdRead.name}, offset is not numeric`);
-                return;
+                if (logErrors) {
+                    console.error(`${this.line}: Executing "read": ${scvdRead.name}, offset is not numeric`);
+                }
+                return undefined;
             }
             if (offs !== undefined) {
                 baseAddress = baseAddress !== undefined
@@ -88,26 +116,60 @@ export class StatementRead extends StatementBase {
         }
 
         if (baseAddress === undefined) {
-            console.error(`${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, could not find symbol address for symbol: ${symbol?.symbol}`);
+            if (logErrors) {
+                console.error(`${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, could not find symbol address for symbol: ${symbolName}`);
+            }
+            return undefined;
+        }
+        if (this.isInvalidAddress(baseAddress)) {
+            return undefined;
+        }
+
+        return {
+            name,
+            readBytes,
+            fullVirtualStrideSize,
+            baseAddress,
+            isConst: scvdRead.const === true,
+            symbolName
+        };
+    }
+
+    protected override async onExecute(executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
+        //console.log(`${this.line}: Executing read: ${this.scvdItem.getDisplayLabel()}`);
+        const mustRead = this.scvdItem.mustRead;
+        if (mustRead === false) {
+            //console.log(`${this.scvdItem.getLineNoStr()}: Skipping "read" as already initialized: ${this.scvdItem.name}`);
+            return;
+        }
+
+        const resolved = await this.resolveRead(executionContext, true);
+        if (!resolved) {
             return;
         }
         //console.log(`${this.line}: Executing target read: ${scvdRead.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes`);
 
         // Read from target memory
-        const readData = await executionContext.debugTarget.readMemory(baseAddress, readBytes);
+        const readData = await executionContext.debugTarget.readMemory(resolved.baseAddress, resolved.readBytes);
         if (readData === undefined) {
-            console.error(`${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes, read target memory failed`);
+            console.error(`${this.line}: Executing "read": ${resolved.name}, symbol: ${resolved.symbolName}, address: ${resolved.baseAddress}, size: ${resolved.readBytes} bytes, read target memory failed`);
             return;
         }
 
         // Write to local variable cache
-        executionContext.memoryHost.setVariable(name, readBytes, readData, 0, typeof baseAddress === 'bigint' ? Number(baseAddress) : (baseAddress >>> 0), fullVirtualStrideSize);
+        executionContext.memoryHost.setVariable(
+            resolved.name,
+            resolved.readBytes,
+            readData,
+            0,
+            typeof resolved.baseAddress === 'bigint' ? Number(resolved.baseAddress) : (resolved.baseAddress >>> 0),
+            resolved.fullVirtualStrideSize,
+            resolved.isConst ? true : undefined
+        );
 
         // TOIMPL: do not set if read failed, investigate
-        if (scvdRead.const === true) {   // Mark variable as initialized if some data has been read
-            if (readData.some((byte) => byte !== 0x00)) {
-                ; //scvdRead.mustRead = false; // TOIMPL: Re-enable once target updates are consistent
-            }
+        if (resolved.isConst) {   // Mark variable as already initialized
+            this.scvdItem.mustRead = false;
         }
         return;
     }

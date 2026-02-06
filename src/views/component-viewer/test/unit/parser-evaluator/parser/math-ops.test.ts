@@ -49,6 +49,8 @@ describe('math-ops helpers', () => {
         expect(toNumeric('bad')).toBe(0);
         expect(toBigInt('not-a-number' as unknown as string)).toBe(0n);
         expect(toBigInt(true)).toBe(1n);
+        expect(toBigInt(false)).toBe(0n);
+        expect(toBigInt('1.9')).toBe(1n);
         expect(toBigInt(3.7)).toBe(3n);
         expect(toBigInt(undefined)).toBe(0n);
     });
@@ -74,6 +76,7 @@ describe('math-ops helpers', () => {
         expect(subVals(1n, 3n)).toBe(-2n);
         expect(subVals(1n, 3n, 8, true)).toBe(254n);
         expect(mulVals(2n, 3n, 4, true)).toBe(6n);
+        expect(mulVals(2n, 3n, 4, false)).toBe(6n);
         expect(modVals(10n, 3n)).toBe(1n);
         expect(() => divVals(1, 0)).toThrow('Division by zero');
         expect(divVals(5n, 2n)).toBe(2n);
@@ -94,6 +97,7 @@ describe('math-ops helpers', () => {
         expect(orVals(0x10n, 0x01n, 4, true)).toBe(0x1n);
         expect(xorVals(0xFn, 0x1n, 4, true)).toBe(0xEn);
         expect(shlVals(1n, 65n, 8, true)).toBe(0n); // bigint shift with mask
+        expect(shlVals(1n, 2n, 8, false)).toBe(4n);
         expect(sarVals(8n, 1n)).toBe(4n);
         expect(sarVals(-1n, 1n, 8, true)).toBe(0xFFn);
         expect(shrVals(-1n, 1n, 8)).toBe(0n);

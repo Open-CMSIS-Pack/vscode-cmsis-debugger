@@ -452,4 +452,100 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
 
         await expect(evalIf.formatPrintf('M', 0, container)).resolves.toBe('1E-30-6C-A2-45-5F');
     });
+
+    it('resets caches and hits symbol/member/byte caches', async () => {
+        const { evalIf } = makeEval();
+        evalIf.resetPrintfCache();
+        evalIf.resetEvalCaches();
+
+        class SymbolNode extends ScvdNode {
+            constructor(private readonly child: ScvdNode) { super(undefined); }
+            public override getSymbol(name: string): ScvdNode | undefined {
+                return name === 'child' ? this.child : undefined;
+            }
+        }
+
+        const child = new DummyNode('child');
+        const base = new SymbolNode(child);
+        const container: RefContainer = { base, current: base, valueType: undefined };
+        const symSpy = jest.spyOn(base, 'getSymbol');
+        await evalIf.getSymbolRef(container, 'child');
+        await evalIf.getSymbolRef(container, 'child');
+        expect(symSpy).toHaveBeenCalledTimes(1);
+
+        const member = new DummyNode('member');
+        const memberBase = new DummyNode('base', { symbolMap: new Map([['m', member]]) });
+        const memberContainer: RefContainer = { base: memberBase, current: memberBase, valueType: undefined };
+        const memberSpy = jest.spyOn(memberBase, 'getMember');
+        await evalIf.getMemberRef(memberContainer, 'm');
+        await evalIf.getMemberRef(memberContainer, 'm');
+        expect(memberSpy).toHaveBeenCalledTimes(1);
+
+        const sizeNode = new DummyNode('size', { targetSize: 4 });
+        const sizeSpy = jest.spyOn(sizeNode, 'getTargetSize');
+        await evalIf.getByteWidth(sizeNode);
+        await evalIf.getByteWidth(sizeNode);
+        expect(sizeSpy).toHaveBeenCalledTimes(1);
+
+        const baseForOffset = new DummyNode('b');
+        const memberForOffset = new DummyNode('m', { memberOffset: 2 });
+        const offsetSpy = jest.spyOn(memberForOffset, 'getMemberOffset');
+        await evalIf.getMemberOffset(baseForOffset, memberForOffset);
+        await evalIf.getMemberOffset(baseForOffset, memberForOffset);
+        expect(offsetSpy).toHaveBeenCalledTimes(1);
+
+        const missingBaseContainer: RefContainer = { base: new DummyNode('b'), current: undefined, valueType: undefined };
+        await expect(evalIf.getMemberRef(missingBaseContainer, 'm')).resolves.toBeUndefined();
+    });
+
+    it('caches formatPrintf results and handles invalid pointer text', async () => {
+        const debugTarget = {
+            findSymbolContextAtAddress: jest.fn().mockResolvedValue(undefined),
+            findSymbolNameAtAddress: jest.fn().mockResolvedValue(undefined),
+            readUint8ArrayStrFromPointer: jest.fn().mockResolvedValue(undefined),
+            readMemory: jest.fn().mockResolvedValue(undefined),
+        } as unknown as ScvdDebugTarget;
+        const evalIf = new ScvdEvalInterface({} as MemoryHost, {} as RegisterHost, debugTarget, new ScvdFormatSpecifier());
+        const member = new LocalFakeMember();
+        const container: RefContainer = { base: member, current: member, valueType: undefined };
+
+        expect(await evalIf.formatPrintf('x', 7, container)).toBe('0x7');
+        expect(await evalIf.formatPrintf('x', 7, container)).toBe('0x7');
+
+        expect(await evalIf.formatPrintf('t', 'hello', container)).toBe('hello');
+        expect(await evalIf.formatPrintf('t', 'hello', container)).toBe('hello');
+        const cacheKey = 't:text:hello';
+        const caches = evalIf as unknown as { _caches: { getPrintf: (key: string) => string | undefined } };
+        expect(caches._caches.getPrintf(cacheKey)).toBe('hello');
+
+        expect(await evalIf.formatPrintf('E', 1, container)).toBe('ENUM_READY');
+        expect(await evalIf.formatPrintf('E', 1, container)).toBe('ENUM_READY');
+
+        const bytes = new Uint8Array([65, 0]);
+        expect(await evalIf.formatPrintf('t', bytes, container)).toBeDefined();
+
+        const invalidPtr = await evalIf.formatPrintf('I', 0xFFFFFFF0, container);
+        expect(invalidPtr).toBeDefined();
+    });
+
+    it('builds printf cache keys with defaults and stores text cache for t spec', () => {
+        const debugTarget = {} as unknown as ScvdDebugTarget;
+        const evalIf = new ScvdEvalInterface({} as MemoryHost, {} as RegisterHost, debugTarget, new ScvdFormatSpecifier());
+        const helpers = evalIf as unknown as {
+            makePrintfCacheKey: (spec: string, value: number | bigint, typeInfo: { bits?: number; kind?: string }, suffix?: string) => string;
+            makePrintfTextCacheKey: (spec: string, value: string) => string;
+            storePrintfTextCache: (spec: string, value: string, formatted: string) => void;
+            _caches: { getPrintf: (key: string) => string | undefined };
+        };
+
+        const key = helpers.makePrintfCacheKey('x', 5, {});
+        expect(key).toBe('x:unknown:0:5');
+
+        const textKey = helpers.makePrintfTextCacheKey('t', 'hello');
+        helpers.storePrintfTextCache('t', 'hello', 'HELLO');
+        expect(helpers._caches.getPrintf(textKey)).toBe('HELLO');
+
+        helpers.storePrintfTextCache('x', 'hello', 'NOPE');
+        expect(helpers._caches.getPrintf('x:text:hello')).toBeUndefined();
+    });
 });

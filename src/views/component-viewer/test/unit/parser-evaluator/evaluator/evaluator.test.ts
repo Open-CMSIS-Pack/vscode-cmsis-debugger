@@ -17,839 +17,899 @@
 // generated with AI
 
 /**
- * Unit test for evaluator helpers using real parser ASTs and a minimal DataHost.
+ * Coverage-focused tests for Evaluator branches.
  */
 
-import { parseExpression, type FormatSegment, type ASTNode, type EvalPointCall, type CallExpression, type AssignmentExpression, type ConditionalExpression, type BinaryExpression, type UpdateExpression, type UnaryExpression, type ArrayIndex, type MemberAccess, type Identifier, type PrintfExpression, type TextSegment } from '../../../../parser-evaluator/parser';
-import { evaluateParseResult, EvalContext, evalNode, __test__ } from '../../../../parser-evaluator/evaluator';
-import type { RefContainer, EvalValue, ScalarType } from '../../../../parser-evaluator/model-host';
-import type { FullDataHost } from '../../../integration/helpers/full-data-host';
+import { Evaluator, EvalContext, type EvaluateResult } from '../../../../parser-evaluator/evaluator';
+import { TestEvaluator } from '../../helpers/test-evaluator';
+import type { ASTNode, AssignmentExpression, BinaryExpression, CallExpression, ConditionalExpression, EvalPointCall, FormatSegment, Identifier, MemberAccess, NumberLiteral, PrintfExpression, StringLiteral, TextSegment, UnaryExpression, UpdateExpression, ArrayIndex, ColonPath, BooleanLiteral, ErrorNode } from '../../../../parser-evaluator/parser';
+import type { DataAccessHost, EvalValue, ModelHost, RefContainer, ScalarType } from '../../../../parser-evaluator/model-host';
+import type { IntrinsicProvider } from '../../../../parser-evaluator/intrinsics';
 import { ScvdNode } from '../../../../model/scvd-node';
+import { perf } from '../../../../stats-config';
 
-class FakeNode extends ScvdNode {
-    constructor(
-        public readonly id: string,
-        parent?: ScvdNode,
-        public value: EvalValue = undefined,
-        private members: Map<string, ScvdNode> = new Map(),
-    ) {
-        super(parent);
-    }
-    public async setValue(v: number | string): Promise<number | string | undefined> {
-        this.value = v;
-        return v;
-    }
-    public async getValue(): Promise<string | number | bigint | Uint8Array<ArrayBufferLike> | undefined> {
-        return this.value as unknown as string | number | bigint | Uint8Array<ArrayBufferLike> | undefined;
-    }
-    public getSymbol(name: string): ScvdNode | undefined {
-        return this.members.get(name);
-    }
-}
-
-class Host implements FullDataHost {
-    constructor(private values: Map<string, FakeNode>) {}
-    private setCurrent(container: RefContainer, node: FakeNode): FakeNode {
-        container.current = node;
-        return node;
-    }
-    async resolveColonPath(): Promise<EvalValue> {
-        return undefined;
-    }
-    async getSymbolRef(container: RefContainer, name: string): Promise<FakeNode | undefined> {
-        if (!this.values.has(name)) {
-            return undefined;
-        }
-        const n = this.values.get(name);
-        return n ? this.setCurrent(container, n) : undefined;
-    }
-    async getMemberRef(container: RefContainer, property: string): Promise<FakeNode | undefined> {
-        const cur = container.current as FakeNode | undefined;
-        const m = cur?.getSymbol(property) as FakeNode | undefined;
-        if (m) {
-            return this.setCurrent(container, m);
-        }
-        return undefined;
-    }
-    async readValue(container: RefContainer): Promise<EvalValue> {
-        return (container.current as FakeNode | undefined)?.value;
-    }
-    async writeValue(container: RefContainer, value: EvalValue): Promise<EvalValue> {
-        const node = container.current as FakeNode | undefined;
-        if (typeof value === 'number' || typeof value === 'string' || typeof value === 'bigint') {
-            await node?.setValue(value as number | string);
-        }
-        return value;
-    }
-    async getByteWidth(ref?: ScvdNode): Promise<number | undefined> {
-        const cur = ref as FakeNode | undefined;
-        const val = cur?.['value'] as EvalValue;
-        return typeof val === 'bigint' ? 8 : 1;
-    }
-    async getElementStride(_ref: ScvdNode): Promise<number> {
-        return 1;
-    }
-    async getMemberOffset(_base: ScvdNode, _member: ScvdNode): Promise<number | undefined> {
-        return undefined;
-    }
-    async getElementRef(ref: ScvdNode): Promise<ScvdNode | undefined> {
-        const node = this.values.get((ref as FakeNode).id + '[0]');
-        return node ?? this.values.get((ref as FakeNode).id);
-    }
-    async __GetRegVal(): Promise<number | bigint | undefined> {
-        return undefined;
-    }
-    async __FindSymbol(): Promise<number | undefined> {
-        return undefined;
-    }
-    async __CalcMemUsed(): Promise<number | undefined> {
-        return undefined;
-    }
-    async __size_of(): Promise<number | undefined> {
-        return undefined;
-    }
-    async __Symbol_exists(): Promise<number | undefined> {
-        return undefined;
-    }
-    async __Offset_of(): Promise<number | undefined> {
-        return undefined;
-    }
-    async __Running(): Promise<number | undefined> {
-        return undefined;
-    }
-    async _count(): Promise<number | undefined> {
-        return undefined;
-    }
-    async _addr(): Promise<number | undefined> {
-        return undefined;
-    }
-    async formatPrintf(): Promise<string | undefined> {
-        return undefined;
-    }
-    async getValueType(container: RefContainer): Promise<string | ScalarType | undefined> {
-        const cur = container.current as FakeNode | undefined;
-        const val = cur?.['value'] as EvalValue;
-        if (typeof val === 'bigint') {
-            return { kind: 'uint', bits: 64 };
-        }
-        if (typeof val === 'number') {
-            return { kind: 'int', bits: 32 };
-        }
-        return undefined;
-    }
-}
-
-function evalExpr(expr: string, host: Host, base: ScvdNode): Promise<EvalValue> {
-    const pr = parseExpression(expr, false);
-    const ctx = new EvalContext({ data: host, container: base });
-    return evaluateParseResult(pr, ctx);
-}
-
-describe('evaluator', () => {
-    it('handles arithmetic, bitwise, shifts, and comparisons', async () => {
-        const base = new FakeNode('base');
-        const values = new Map<string, FakeNode>([
-            ['a', new FakeNode('a', base, 5)],
-            ['b', new FakeNode('b', base, 2)],
-            ['big', new FakeNode('big', base, 2n)],
-            ['big2', new FakeNode('big2', base, 3n)],
-        ]);
-        const host = new Host(values);
-
-        await expect(evalExpr('a + b - 1', host, base)).resolves.toBe(6);
-        await expect(evalExpr('a * b', host, base)).resolves.toBe(10);
-        await expect(evalExpr('a / b', host, base)).resolves.toBe(2);
-        await expect(evalExpr('a % b', host, base)).resolves.toBe(1);
-        await expect(evalExpr('a & b', host, base)).resolves.toBe(0);
-        await expect(evalExpr('a ^ b', host, base)).resolves.toBe(7);
-        await expect(evalExpr('a | b', host, base)).resolves.toBe(7);
-        await expect(evalExpr('a << b', host, base)).resolves.toBe(20);
-        await expect(evalExpr('a >> b', host, base)).resolves.toBe(1);
-        await expect(evalExpr('a == b', host, base)).resolves.toBe(0);
-        await expect(evalExpr('a != b', host, base)).resolves.toBe(1);
-        await expect(evalExpr('a < b', host, base)).resolves.toBe(0);
-        await expect(evalExpr('a <= b', host, base)).resolves.toBe(0);
-        await expect(evalExpr('a > b', host, base)).resolves.toBe(1);
-        await expect(evalExpr('a >= b', host, base)).resolves.toBe(1);
-
-        const pr = parseExpression('big + big2', false);
-        const ctx = new EvalContext({ data: host, container: base });
-        await expect(evalNode(pr.ast, ctx)).resolves.toBe(5n);
-        await expect(evaluateParseResult(pr, ctx)).resolves.toBeUndefined();
-    });
-
-    it('covers assignment, update, conditionals, and logical ops', async () => {
-        const base = new FakeNode('base');
-        const x = new FakeNode('x', base, 1);
-        const y = new FakeNode('y', base, 0);
-        const values = new Map<string, FakeNode>([['x', x], ['y', y]]);
-        const host = new Host(values);
-
-        await expect(evalExpr('x = 3', host, base)).resolves.toBe(3);
-        expect(x['value']).toBe(3);
-        await expect(evalExpr('++x', host, base)).resolves.toBe(4);
-        await expect(evalExpr('--x', host, base)).resolves.toBe(3);
-        await expect(evalExpr('x ? 5 : 6', host, base)).resolves.toBe(5);
-        await expect(evalExpr('x && y', host, base)).resolves.toBe(0);
-        await expect(evalExpr('x || y', host, base)).resolves.toBe(3);
-    });
-
-    it('covers reference discovery and numeric coercion helpers', () => {
-        const cond = parseExpression('x ? a : b', false).ast as ConditionalExpression;
-        expect((__test__.findReferenceNode(cond) as Identifier).name).toBe('x');
-
-        const alt = {
-            kind: 'ConditionalExpression',
-            test: parseExpression('0', false).ast as ASTNode,
-            consequent: parseExpression('a', false).ast,
-            alternate: parseExpression('c', false).ast
-        } as unknown as ConditionalExpression;
-        expect((__test__.findReferenceNode(alt) as Identifier).name).toBe('a');
-
-        const assignRight = parseExpression('a = b', false).ast as AssignmentExpression;
-        expect((__test__.findReferenceNode(assignRight) as Identifier).name).toBe('b');
-
-        const assignLeft = parseExpression('a = 1', false).ast as AssignmentExpression;
-        expect((__test__.findReferenceNode(assignLeft) as Identifier).name).toBe('a');
-
-        const evalCall = parseExpression('__GetRegVal(1, foo)', false).ast as EvalPointCall;
-        expect((__test__.findReferenceNode(evalCall) as Identifier).name).toBe('foo');
-
-        const printf = parseExpression('%x[a]', true).ast as PrintfExpression;
-        expect((__test__.findReferenceNode(printf) as Identifier).name).toBe('a');
-
-        expect(__test__.asNumber(Number.POSITIVE_INFINITY)).toBe(0);
-        expect(__test__.asNumber('bad')).toBe(0);
-        expect(__test__.asNumber('2')).toBe(2);
-    });
-
-    it('handles member access, array indexing, and error paths', async () => {
-        const base = new FakeNode('base');
-        const obj = new FakeNode('obj', base, undefined, new Map([['m', new FakeNode('m', base, 9)]]));
-        const arrElem = new FakeNode('arr[0]', base, 7);
-        const arr = new FakeNode('arr', base, undefined, new Map([['0', arrElem]]));
-        const values = new Map<string, FakeNode>([['obj', obj], ['arr', arr], ['arr[0]', arrElem]]);
-        const host = new Host(values);
-
-        await expect(evalExpr('obj.m', host, base)).resolves.toBe(9);
-        await expect(evalExpr('arr[0]', host, base)).resolves.toBe(7);
-
-        // Unknown symbol triggers error and normalizeEvaluateResult returns undefined
-        const pr = parseExpression('missing', false);
-        const ctx = new EvalContext({ data: host, container: base });
-        jest.spyOn(console, 'error').mockImplementation(() => {});
-        await expect(evaluateParseResult(pr, ctx)).resolves.toBeUndefined();
-        (console.error as unknown as jest.Mock).mockRestore();
-    });
-
-    it('applies member offsets when provided by host', async () => {
-        class OffsetHost extends Host {
-            async getMemberOffset(): Promise<number | undefined> {
-                return 8;
-            }
-        }
-
-        const base = new FakeNode('base');
-        const child = new FakeNode('child', base, 1);
-        const obj = new FakeNode('obj', base, undefined, new Map([['child', child]]));
-        const values = new Map<string, FakeNode>([['obj', obj], ['child', child]]);
-        const host = new OffsetHost(values);
-        const ctx = new EvalContext({ data: host, container: base });
-
-        await expect(evalNode(parseExpression('obj.child', false).ast, ctx)).resolves.toBe(child['value']);
-        expect(ctx.container.offsetBytes).toBe(8);
-    });
-
-    it('covers mustRef array/member branches and host fallbacks', async () => {
-        const base = new FakeNode('base');
-        const arr = new FakeNode('arr', base);
-        const field = new FakeNode('field', base);
-        const elem = new FakeNode('arr[0]', base, undefined, new Map([['field', field]]));
-        const obj = new FakeNode('obj', base, undefined, new Map([['field', field]]));
-
-        const host = {
-            getSymbolRef: async (container: RefContainer, name: string) => {
-                if (name === 'arr') {
-                    container.current = arr;
-                    return arr;
-                }
-                if (name === 'obj') {
-                    container.current = obj;
-                    return obj;
-                }
-                return undefined;
-            },
-            getElementStride: async () => 2,
-            getElementRef: async () => elem,
-            getMemberRef: async (container: RefContainer, property: string) => {
-                const cur = container.current as FakeNode | undefined;
-                const member = cur?.getSymbol(property) as FakeNode | undefined;
-                if (member) {
-                    container.current = member;
-                }
-                return member;
-            },
-            getMemberOffset: async () => 4,
-            getByteWidth: async () => 2,
-            readValue: async () => 0,
-            writeValue: async (_c: RefContainer, v: EvalValue) => v,
-        } as unknown as FullDataHost;
-
-        const ctx = new EvalContext({ data: host, container: base });
-        const memberAccess = parseExpression('arr[1].field', false).ast as MemberAccess;
-        await expect(__test__.mustRef(memberAccess, ctx, false)).resolves.toBe(field);
-        expect(ctx.container.current).toBe(field);
-    });
-
-    it('handles array indexing when stride helpers are missing', async () => {
-        const base = new FakeNode('base');
-        const arr = new FakeNode('arr', base);
-        const host = {
-            getSymbolRef: async (container: RefContainer, name: string) => {
-                if (name === 'arr') {
-                    container.current = arr;
-                    return arr;
-                }
-                return undefined;
-            },
-            readValue: async () => 0,
-            writeValue: async (_c: RefContainer, v: EvalValue) => v,
-        } as unknown as FullDataHost;
-
-        const ctx = new EvalContext({ data: host, container: base });
-        const arrayIndex = parseExpression('arr[2]', false).ast as ArrayIndex;
-        await expect(__test__.mustRef(arrayIndex, ctx, false)).resolves.toBe(arr);
-    });
-
-    it('handles array indexing with stride and byte width helpers', async () => {
-        const base = new FakeNode('base');
-        const arr = new FakeNode('arr', base);
-        const elem = new FakeNode('arr[0]', base);
-        const host = {
-            getSymbolRef: async (container: RefContainer, name: string) => {
-                if (name === 'arr') {
-                    container.current = arr;
-                    return arr;
-                }
-                return undefined;
-            },
-            getElementStride: async () => 2,
-            getElementRef: async () => elem,
-            getByteWidth: async () => 1,
-            readValue: async () => 0,
-            writeValue: async (_c: RefContainer, v: EvalValue) => v,
-        } as unknown as FullDataHost;
-
-        const ctx = new EvalContext({ data: host, container: base });
-        const arrayIndex = parseExpression('arr[1]', false).ast as ArrayIndex;
-        await expect(__test__.mustRef(arrayIndex, ctx, false)).resolves.toBe(arr);
-        expect(ctx.container.widthBytes).toBe(1);
-    });
-
-    it('covers member access without offset helpers', async () => {
-        const base = new FakeNode('base');
-        const child = new FakeNode('child', base, 5);
-        const obj = new FakeNode('obj', base, undefined, new Map([['child', child]]));
-        const host = {
-            getSymbolRef: async (container: RefContainer, name: string) => {
-                if (name === 'obj') {
-                    container.current = obj;
-                    return obj;
-                }
-                return undefined;
-            },
-            getMemberRef: async (container: RefContainer, property: string) => {
-                const cur = container.current as FakeNode | undefined;
-                const member = cur?.getSymbol(property) as FakeNode | undefined;
-                if (member) {
-                    container.current = member;
-                }
-                return member;
-            },
-            readValue: async (container: RefContainer) => (container.current as FakeNode | undefined)?.value,
-            writeValue: async (_c: RefContainer, v: EvalValue) => v,
-        } as unknown as FullDataHost;
-
-        const ctx = new EvalContext({ data: host, container: base });
-        await expect(__test__.mustRef(parseExpression('obj.child', false).ast, ctx, false)).resolves.toBe(child);
-    });
-
-    it('evaluates non-intrinsic call expressions and unknown node kinds', async () => {
-        const base = new FakeNode('base');
-        const fnNode = new FakeNode('fn', base, ((x: number) => x + 1) as unknown as EvalValue);
-        const obj = new FakeNode('obj', base, undefined, new Map([['fn', fnNode]]));
-        const host = new Host(new Map<string, FakeNode>([['obj', obj], ['fn', fnNode]]));
-        const ctx = new EvalContext({ data: host, container: base });
-
-        await expect(evalNode(parseExpression('obj.fn(1)', false).ast, ctx)).resolves.toBe(2);
-
-        const badNode = { kind: 'Mystery', start: 0, end: 0 } as unknown as ASTNode;
-        await expect(evalNode(badNode, ctx)).rejects.toThrow('Unhandled node kind');
-    });
-
-    it('resolves colon paths via host hook', async () => {
-        const base = new FakeNode('base');
-        const host = new Host(new Map());
-        (host as unknown as { resolveColonPath?: (c: RefContainer, parts: string[]) => Promise<number> }).resolveColonPath =
-            jest.fn(async (_c, parts) => parts.length);
-        const ctx = new EvalContext({ data: host, container: base });
-
-        await expect(evalNode(parseExpression('Type:Field', false).ast, ctx)).resolves.toBe(2);
-    });
-
-    it('supports unary plus and bigint update expressions', async () => {
-        const base = new FakeNode('base');
-        const big = new FakeNode('big', base, 2n);
-        const host = new Host(new Map<string, FakeNode>([['big', big]]));
-
-        const ctx = new EvalContext({ data: host, container: base });
-        await expect(evalNode(parseExpression('+big', false).ast, ctx)).resolves.toBe(2n);
-        await expect(evalNode(parseExpression('++big', false).ast, ctx)).resolves.toBe(3n);
-    });
-
-    it('formats bigint and non-string values in formatValue', async () => {
-        await expect(__test__.formatValue('u', -1n)).resolves.toBe('1');
-        await expect(__test__.formatValue('S', 12)).resolves.toBe('12');
-        await expect(__test__.formatValue('t', 0)).resolves.toBe('false');
-    });
-
-    it('evaluates a complex conditional expression', async () => {
-        const base = new FakeNode('base');
-        const count = new FakeNode('Count', base, 2);
-        const values = new Map<string, FakeNode>([['Count', count]]);
-        const host = new Host(values);
-        const expr = '0==( (Count==0) || (Count==1) || (Count==8) || (Count==9) || (Count==10) )';
-        await expect(evalExpr(expr, host, base)).resolves.toBe(1);
-    });
-
-    it('covers intrinsics, pseudo members, and string/unary paths', async () => {
-        const base = new FakeNode('base');
-        const arrElem = new FakeNode('arr[0]', base, 1);
-        const arr = new FakeNode('arr', base, undefined, new Map([['0', arrElem]]));
-        const str = new FakeNode('str', base, 0);
-        const values = new Map<string, FakeNode>([['arr', arr], ['arr[0]', arrElem], ['str', str]]);
-        const host = new Host(values);
-        host._count = async () => 2;
-        host._addr = async () => 0x1000;
-        host.__Running = async () => 1;
-
-        await expect(evalExpr('__Running', host, base)).resolves.toBe(1);
-        await expect(evalExpr('arr._count', host, base)).resolves.toBe(2);
-        await expect(evalExpr('arr._addr', host, base)).resolves.toBe(0x1000);
-        await expect(evalExpr('"x" + 5', host, base)).resolves.toBe('x5');
-        await expect(evalExpr('~1', host, base)).resolves.toBe(4294967294);
-        await expect(evalExpr('!0', host, base)).resolves.toBe(1);
-    });
+jest.mock('../../../../stats-config', () => {
+    const { PerfStats } = jest.requireActual('../../../../perf-stats');
+    const perf = new PerfStats();
+    perf.setBackendEnabled(true);
+    return { perf, targetReadStats: undefined, targetReadTimingStats: undefined };
 });
 
-class BranchNode extends ScvdNode {
-    private readonly members: Map<string, BranchNode>;
-    public value: EvalValue;
-    constructor(name: string, parent?: ScvdNode, value: EvalValue = 0, members: Record<string, BranchNode> = {}) {
-        super(parent);
+type Host = ModelHost & DataAccessHost & IntrinsicProvider;
+
+class TestNode extends ScvdNode {
+    public value?: EvalValue;
+    public members = new Map<string, TestNode>();
+    public element?: TestNode;
+
+    constructor(name: string, value?: EvalValue) {
+        super(undefined);
         this.name = name;
         this.value = value;
-        this.members = new Map(Object.entries(members));
-    }
-    public async setValue(v: string | number): Promise<string | number | undefined> {
-        this.value = v;
-        return v;
-    }
-    public async getValue(): Promise<string | number | bigint | Uint8Array | undefined> {
-        const v = this.value;
-        if (typeof v === 'boolean') {
-            return v ? 1 : 0;
-        }
-        if (typeof v === 'function') {
-            return undefined;
-        }
-        if (typeof v === 'string' || typeof v === 'number' || typeof v === 'bigint' || v instanceof Uint8Array) {
-            return v;
-        }
-        return undefined;
-    }
-    public getMember(property: string): BranchNode | undefined { return this.members.get(property); }
-    public setMember(property: string, node: BranchNode) { this.members.set(property, node); }
-}
-
-class BranchHost implements FullDataHost {
-    constructor(private readonly values: Map<string, BranchNode>) {}
-    async resolveColonPath(): Promise<EvalValue> {
-        return undefined;
     }
 
-    async getSymbolRef(container: RefContainer, name: string, _forWrite?: boolean): Promise<ScvdNode | undefined> {
-        const n = this.values.get(name);
-        container.current = n;
-        container.anchor = n;
-        return n;
+    public override getDisplayLabel(): string {
+        return this.name ?? '<anon>';
     }
-    async getMemberRef(container: RefContainer, property: string, _forWrite?: boolean): Promise<ScvdNode | undefined> {
-        const cur = container.current as BranchNode | undefined;
-        const member = cur?.getMember(property);
-        if (member) {
-            container.current = member;
-        }
-        return member;
+
+    public override getMember(property: string): ScvdNode | undefined {
+        return this.members.get(property);
     }
-    async readValue(container: RefContainer): Promise<EvalValue> {
-        const cur = container.current as BranchNode | undefined;
-        const v = await cur?.getValue();
-        container.current = undefined; // force evaluateFormatSegmentValue to recover via findReferenceNode
-        return v;
-    }
-    async writeValue(container: RefContainer, value: EvalValue): Promise<EvalValue> {
-        if (typeof value === 'number' || typeof value === 'string') {
-            await (container.current as BranchNode | undefined)?.setValue(value);
-        }
-        return value;
-    }
-    async getElementStride(_ref: ScvdNode): Promise<number> {
-        return 1;
-    }
-    async getMemberOffset(_base: ScvdNode, _member: ScvdNode): Promise<number | undefined> {
-        return undefined;
-    }
-    async getElementRef(ref: ScvdNode): Promise<ScvdNode | undefined> {
-        return ref.getElementRef();
-    }
-    async __GetRegVal(): Promise<number | bigint | undefined> {
-        return undefined;
-    }
-    async __FindSymbol(): Promise<number | undefined> {
-        return undefined;
-    }
-    async __CalcMemUsed(): Promise<number | undefined> {
-        return undefined;
-    }
-    async __size_of(): Promise<number | undefined> {
-        return undefined;
-    }
-    async __Symbol_exists(): Promise<number | undefined> {
-        return undefined;
-    }
-    async __Offset_of(): Promise<number | undefined> {
-        return undefined;
-    }
-    async __Running(): Promise<number | undefined> {
-        return undefined;
-    }
-    async _count(): Promise<number | undefined> {
-        return undefined;
-    }
-    async _addr(): Promise<number | undefined> {
-        return undefined;
-    }
-    async formatPrintf(): Promise<string | undefined> {
-        return undefined;
-    }
-    async getValueType(container: RefContainer): Promise<string | ScalarType | undefined> {
-        const cur = container.current as BranchNode | undefined;
-        if (!cur) {
-            return undefined;
-        }
-        const name = cur.name ?? '';
-        if (name.startsWith('u')) {
-            return 'uint32';
-        }
-        if (name.startsWith('f')) {
-            return 'float32';
-        }
-        if (name.startsWith('q')) {
-            return 'uint64';
-        }
-        return { kind: 'int', bits: 32 };
-    }
-    async getByteWidth(ref: ScvdNode): Promise<number | undefined> {
-        const n = ref as BranchNode;
-        return typeof n.value === 'bigint' ? 8 : 4;
+
+    public override getElementRef(): ScvdNode | undefined {
+        return this.element;
     }
 }
 
-function segFromAst(ast: ASTNode, spec = 'd'): FormatSegment {
-    return { kind: 'FormatSegment', spec, value: ast, start: 0, end: 0 };
+function makeHost(overrides: Partial<Host> = {}, symbols: Record<string, TestNode> = {}): Host {
+    const symbolMap = new Map(Object.entries(symbols));
+    const host: Host = {
+        getSymbolRef: jest.fn(async (_container, name) => symbolMap.get(name)),
+        getMemberRef: jest.fn(async (container, property) => (container.current as TestNode | undefined)?.members.get(property)),
+        readValue: jest.fn(async (container) => {
+            const ref = (container.member ?? container.current ?? container.anchor) as TestNode | undefined;
+            return ref?.value;
+        }),
+        writeValue: jest.fn(async (container, value) => {
+            const ref = (container.member ?? container.current ?? container.anchor) as TestNode | undefined;
+            if (!ref) {
+                return undefined;
+            }
+            ref.value = value;
+            return value;
+        }),
+        resolveColonPath: jest.fn(async () => undefined),
+        getElementStride: jest.fn(async () => 1),
+        getElementRef: jest.fn(async (ref) => (ref as TestNode).element ?? undefined),
+        getMemberOffset: jest.fn(async () => 0),
+        getByteWidth: jest.fn(async () => 4),
+        getValueType: jest.fn(async () => ({ kind: 'int', name: 'int', bits: 32 } as ScalarType)),
+        _count: jest.fn(async () => 1),
+        _addr: jest.fn(async () => 0x1000),
+        __Running: jest.fn(async () => 1),
+        __GetRegVal: jest.fn(async () => 1),
+        __FindSymbol: jest.fn(async () => 1),
+        __Symbol_exists: jest.fn(async () => 1),
+        __size_of: jest.fn(async () => 1),
+        __Offset_of: jest.fn(async () => 1),
+        __CalcMemUsed: jest.fn(async () => 1),
+    };
+    return { ...host, ...overrides };
 }
 
-describe('evaluator edge', () => {
-    it('hits float/unsigned math and shift branches', async () => {
-        const base = new BranchNode('base');
-        const values = new Map<string, BranchNode>([
-            ['f1', new BranchNode('f1', base, 5.5)],
-            ['f2', new BranchNode('f2', base, 2.5)],
-            ['u1', new BranchNode('u1', base, 5)],
-            ['u2', new BranchNode('u2', base, 2)],
-        ]);
-        const host = new BranchHost(values);
-        const ctx = new EvalContext({ data: host, container: base });
+function makeCtx(host: Host | Partial<Host>, base?: TestNode): EvalContext {
+    return new EvalContext({ data: host as Host, container: base ?? new TestNode('root') });
+}
 
-        expect(await evalNode(parseExpression('f1 / f2', false).ast, ctx)).toBeCloseTo(2.2);
-        expect(await evalNode(parseExpression('f1 % f2', false).ast, ctx)).toBe(1);
-        expect(await evalNode(parseExpression('5 >> 1', false).ast, ctx)).toBe(2);
-        expect(await evalNode(parseExpression('u1 / u2', false).ast, ctx)).toBe(2); // unsigned integer path
-        expect(await evalNode(parseExpression('u1 % u2', false).ast, ctx)).toBe(1);
-        await expect(evaluateParseResult(parseExpression('5 / 0', false), ctx)).resolves.toBeUndefined(); // division by zero handled
-    });
+const span = { start: 0, end: 0 };
+const id = (name: string): Identifier => ({ kind: 'Identifier', name, ...span });
+const num = (value: number): NumberLiteral => ({ kind: 'NumberLiteral', value, raw: String(value), valueType: 'number', constValue: value, ...span });
+const str = (value: string): StringLiteral => ({ kind: 'StringLiteral', value, raw: JSON.stringify(value), valueType: 'string', constValue: value, ...span });
+const bool = (value: boolean): BooleanLiteral => ({ kind: 'BooleanLiteral', value, valueType: 'boolean', constValue: value, ...span });
+const member = (object: ASTNode, property: string): MemberAccess => ({ kind: 'MemberAccess', object, property, ...span });
+const arr = (array: ASTNode, index: ASTNode): ArrayIndex => ({ kind: 'ArrayIndex', array, index, ...span } as ArrayIndex);
+const unary = (operator: UnaryExpression['operator'], argument: ASTNode): UnaryExpression => ({ kind: 'UnaryExpression', operator, argument, ...span });
+const binary = (operator: BinaryExpression['operator'], left: ASTNode, right: ASTNode): BinaryExpression => ({ kind: 'BinaryExpression', operator, left, right, ...span });
+const update = (operator: UpdateExpression['operator'], argument: ASTNode, prefix: boolean): UpdateExpression => ({ kind: 'UpdateExpression', operator, argument, prefix, ...span });
+const assign = (operator: AssignmentExpression['operator'], left: ASTNode, right: ASTNode): AssignmentExpression => ({ kind: 'AssignmentExpression', operator, left, right, ...span });
+const callExpr = (callee: ASTNode, args: ASTNode[]): CallExpression => ({ kind: 'CallExpression', callee, args, ...span });
+const evalPoint = (name: string, args: ASTNode[]): EvalPointCall => ({ kind: 'EvalPointCall', intrinsic: name, callee: id(name), args, ...span } as EvalPointCall);
+const formatSeg = (spec: FormatSegment['spec'], value: ASTNode): FormatSegment => ({ kind: 'FormatSegment', spec, value, ...span });
+const errorNode = (message: string): ErrorNode => ({ kind: 'ErrorNode', message, ...span });
+const textSeg = (text: string): TextSegment => ({ kind: 'TextSegment', text, ...span });
+const printfExpr = (segments: Array<TextSegment | FormatSegment>): PrintfExpression => ({ kind: 'PrintfExpression', segments, resultType: 'string', ...span } as PrintfExpression);
 
-    it('normalizes scalar types from strings and booleans/bigints', async () => {
-        const base = new BranchNode('base');
-        const host = new BranchHost(new Map<string, BranchNode>([['q1', new BranchNode('q1', base, 1n)]]));
-        const ctx = new EvalContext({ data: host, container: base });
-        // bigint result is normalized to undefined
-        await expect(evaluateParseResult(parseExpression('q1 + 1', false), ctx)).resolves.toBeUndefined();
-        // boolean normalized to 1
-        await expect(evaluateParseResult(parseExpression('!0', false), ctx)).resolves.toBe(1);
-
-        const alt = new BranchNode('alt');
-        await expect(evaluateParseResult(parseExpression('1+2', false), ctx, alt)).resolves.toBe(3);
-    });
-
-    it('routes intrinsics and error paths', async () => {
-        const base = new BranchNode('base');
-        const host = new BranchHost(new Map<string, BranchNode>([['reg', new BranchNode('reg', base, 0)]]));
-        host.__Running = async () => 1;
-        host.__GetRegVal = async () => 7;
-        host.__FindSymbol = async () => 9;
-        host.__CalcMemUsed = async () => 4;
-        host.__size_of = async () => 8;
-        host.__Symbol_exists = async () => 1;
-        host.__Offset_of = async () => 16;
-        const ctx = new EvalContext({ data: host, container: base });
-
-        await expect(evalNode(parseExpression('__Running', false).ast, ctx)).resolves.toBe(1);
-        await expect(evalNode(parseExpression('__GetRegVal("r0")', false).ast as CallExpression, ctx)).resolves.toBe(7);
-        await expect(evalNode(parseExpression('__FindSymbol("x")', false).ast as CallExpression, ctx)).resolves.toBe(9);
-        await expect(evalNode(parseExpression('__CalcMemUsed(1,2,3,4)', false).ast as CallExpression, ctx)).resolves.toBe(4);
-        await expect(evalNode(parseExpression('__size_of("x")', false).ast as CallExpression, ctx)).resolves.toBe(8);
-        await expect(evalNode(parseExpression('__Symbol_exists("x")', false).ast as CallExpression, ctx)).resolves.toBe(1);
-        await expect(evalNode(parseExpression('__Offset_of("m")', false).ast as CallExpression, ctx)).resolves.toBe(16);
-
-        const missingCtx = new EvalContext({ data: new BranchHost(new Map<string, BranchNode>()), container: base });
-        await expect(evalNode({ kind: 'EvalPointCall', intrinsic: '__CalcMemUsed', callee: { kind: 'Identifier', name: '__CalcMemUsed', start: 0, end: 0 } as Identifier, args: [], start: 0, end: 0 } as EvalPointCall, missingCtx)).rejects.toThrow('Intrinsic __CalcMemUsed expects at least 4 argument(s)');
-    });
-
-    it('recovers containers via findReferenceNode across node kinds', async () => {
-        const base = new BranchNode('base');
-        const vals = new Map<string, BranchNode>([
-            ['x', new BranchNode('x', base, 1)],
-            ['y', new BranchNode('y', base, 2)],
-            ['z', new BranchNode('z', base, 3)],
-            ['elem', new BranchNode('elem', base, 4)],
-            ['__Running', new BranchNode('__Running', base, 0)],
-        ]);
-        const arr = new BranchNode('arr', base, 0, { '0': vals.get('elem') as BranchNode });
-        const obj = new BranchNode('obj', base, 0, { m: new BranchNode('m', base, 6) });
-        vals.set('arr', arr);
-        vals.set('obj', obj);
-        const host = new BranchHost(vals);
-        host.resolveColonPath = async () => 0;
-        host.__Running = async () => 1;
-        const ctx = new EvalContext({ data: host, container: base });
-
-        const unaryAst = parseExpression('!x', false).ast as UnaryExpression;
-        const updateAst = parseExpression('++y', false).ast as UpdateExpression;
-        const binaryAst = parseExpression('x + y', false).ast as BinaryExpression;
-        const condAst = parseExpression('x ? y : z', false).ast as ConditionalExpression;
-        const assignAst = parseExpression('z = 5', false).ast as AssignmentExpression;
-        const evalCall: EvalPointCall = { kind: 'EvalPointCall', intrinsic: '__Running', callee: { kind: 'Identifier', name: '__Running', start: 0, end: 0 } as Identifier, args: [], start: 0, end: 0 };
-        const memberAst = parseExpression('obj.m', false).ast as MemberAccess;
-        const arrayAst = parseExpression('arr[0]', false).ast as ArrayIndex;
-        const printfAst: PrintfExpression = {
-            kind: 'PrintfExpression',
-            segments: [
-                { kind: 'TextSegment', text: 'pre', start: 0, end: 0 } as TextSegment,
-                segFromAst(parseExpression('x', false).ast),
-            ],
-            resultType: 'string',
-            start: 0,
-            end: 0,
+describe('Evaluator coverage branches', () => {
+    it('formats values and nodes for messages', () => {
+        const evaluator = new TestEvaluator();
+        const helpers = evaluator.getTestHelpersPublic() as {
+            formatEvalValueForMessage: (v: EvalValue) => string;
+            formatNodeForMessage: (n: ASTNode) => string;
+        };
+        const anyEval = evaluator as unknown as {
+            popContainer: (ctx: EvalContext) => void;
         };
 
-        const segments: FormatSegment[] = [
-            segFromAst(unaryAst),
-            segFromAst(updateAst),
-            segFromAst(binaryAst),
-            segFromAst(condAst),
-            segFromAst(assignAst),
-            segFromAst(evalCall),
-            segFromAst(memberAst),
-            segFromAst(arrayAst),
-        ];
+        expect(helpers.formatEvalValueForMessage(undefined)).toBe('undefined');
+        const long = 'a'.repeat(80);
+        const formattedLong = helpers.formatEvalValueForMessage(long);
+        expect(formattedLong.startsWith('"')).toBe(true);
+        expect(formattedLong.endsWith('"')).toBe(true);
+        expect(formattedLong).toContain('...');
+        expect(helpers.formatEvalValueForMessage('short')).toBe('"short"');
+        expect(helpers.formatEvalValueForMessage(123)).toBe('123');
+        expect(helpers.formatEvalValueForMessage(new Uint8Array([1, 2, 3]))).toBe('Uint8Array(3)');
+        expect(helpers.formatEvalValueForMessage({} as unknown as EvalValue)).toBe('[object Object]');
 
-        for (const seg of segments) {
-            await expect(evalNode(seg, ctx)).resolves.toBeDefined();
-        }
+        expect(helpers.formatNodeForMessage(id('x'))).toBe('Identifier(x)');
+        expect(helpers.formatNodeForMessage(member(id('obj'), 'field'))).toBe('MemberAccess(Identifier(obj).field)');
+        expect(helpers.formatNodeForMessage(arr(id('arr'), num(0)))).toBe('ArrayIndex(Identifier(arr)[...])');
+        expect(helpers.formatNodeForMessage(callExpr(id('fn'), []))).toBe('CallExpression');
+        expect(helpers.formatNodeForMessage(evalPoint('__Running', []))).toBe('EvalPointCall');
+        expect(helpers.formatNodeForMessage(unary('-', num(1)))).toBe('UnaryExpression(-)');
+        expect(helpers.formatNodeForMessage(binary('+', num(1), num(2)))).toBe('BinaryExpression(+)');
+        expect(helpers.formatNodeForMessage({ kind: 'ConditionalExpression', test: num(1), consequent: num(2), alternate: num(3), ...span } as ConditionalExpression)).toBe('ConditionalExpression');
+        expect(helpers.formatNodeForMessage(assign('=', id('x'), num(1)))).toBe('AssignmentExpression(=)');
+        expect(helpers.formatNodeForMessage(update('++', id('x'), true))).toBe('UpdateExpression(++)');
+        expect(helpers.formatNodeForMessage(printfExpr([textSeg('x')]))).toBe('PrintfExpression');
+        expect(helpers.formatNodeForMessage(formatSeg('d', num(1)))).toBe('FormatSegment');
+        expect(helpers.formatNodeForMessage(textSeg('t'))).toBe('TextSegment');
+        expect(helpers.formatNodeForMessage(num(5))).toBe('NumberLiteral(5)');
+        expect(helpers.formatNodeForMessage(str('hi'))).toBe('StringLiteral("hi")');
+        expect(helpers.formatNodeForMessage(bool(true))).toBe('BooleanLiteral(true)');
+        expect(helpers.formatNodeForMessage(errorNode('boom'))).toBe('ErrorNode');
 
-        // PrintfExpression path with formatPrintf override
-        host.formatPrintf = async () => 'fmt';
-        await expect(evalNode(printfAst, ctx)).resolves.toContain('fmt');
+        const ctx = makeCtx(makeHost());
+        anyEval.popContainer(ctx);
     });
 
-    it('resolves array member via fast path with stride and element refs', async () => {
-        const base = new BranchNode('base');
-        const member = new BranchNode('m', base, 42);
-        const element = new BranchNode('elem', base, 0, { m: member });
-        const arr = new BranchNode('arr', base, undefined, { '1': element });
-        (arr as unknown as { getElementRef(): BranchNode }).getElementRef = () => element;
-
-        const values = new Map<string, BranchNode>([
-            ['arr', arr],
-            ['elem', element],
-            ['m', member],
-        ]);
-        const host = new BranchHost(values);
-        host.getMemberOffset = async () => 4;
-        host.getElementStride = async () => 8;
-        host.getByteWidth = async () => 4;
-
-        const ctx = new EvalContext({ data: host, container: base });
-        await expect(evalNode(parseExpression('arr[1].m', false).ast, ctx)).resolves.toBe(42);
-    });
-
-    it('covers bigint comparisons and compound assignments', async () => {
-        const base = new BranchNode('base');
-        const makeHost = (entries: [string, BranchNode][]) => new BranchHost(new Map(entries));
-
-        // Bigint comparisons exercise eq/lt/gte bigint paths and string equality coercion
-        const bigA = new BranchNode('bigA', base, 5n);
-        const bigB = new BranchNode('bigB', base, 7n);
-        const compareCtx = new EvalContext({ data: makeHost([['bigA', bigA], ['bigB', bigB]]), container: base });
-        await expect(evalNode(parseExpression('bigA == bigA', false).ast, compareCtx)).resolves.toBeTruthy();
-        await expect(evalNode(parseExpression('bigA < bigB', false).ast, compareCtx)).resolves.toBeTruthy();
-        await expect(evalNode(parseExpression('bigB >= bigA', false).ast, compareCtx)).resolves.toBeTruthy();
-        await expect(evalNode(parseExpression('"1" == 1', false).ast, compareCtx)).resolves.toBeTruthy();
-
-        // Compound assignment operators cover arithmetic/bitwise branches
-        const target = new BranchNode('c', base, 8);
-        const other = new BranchNode('d', base, 3);
-        const ctx = new EvalContext({ data: makeHost([['c', target], ['d', other]]), container: base });
-        const run = async (expr: string, expected: number) => {
-            target.value = expr.startsWith('c %=')
-                ? 9 // ensure a value divisible by d for %= branch
-                : target.value;
-            await expect(evalNode(parseExpression(expr, false).ast, ctx)).resolves.toBe(expected);
+    it('captures containers and compares values', async () => {
+        const evaluator = new TestEvaluator();
+        const helpers = evaluator.getTestHelpersPublic() as {
+            captureContainerForReference: (n: ASTNode, ctx: EvalContext) => Promise<RefContainer | undefined>;
+            ltVals: (a: EvalValue, b: EvalValue) => boolean;
+            gtVals: (a: EvalValue, b: EvalValue) => boolean;
         };
 
-        target.value = 8; await run('c += d', 11);
-        target.value = 8; await run('c -= d', 5);
-        target.value = 8; await run('c *= d', 24);
-        target.value = 8; await run('c /= d', 2);
-        target.value = 9; await run('c %= d', 0);
-        target.value = 1; await run('c <<= d', 8);
-        target.value = 8; await run('c >>= d', 1);
-        target.value = 6; await run('c &= d', 2);
-        target.value = 6; await run('c ^= d', 5);
-        target.value = 6; await run('c |= d', 7);
+        const ctx = makeCtx(makeHost({ getSymbolRef: jest.fn(async () => undefined) }));
+        await expect(helpers.captureContainerForReference(id('missing'), ctx)).resolves.toBeUndefined();
+        expect(helpers.ltVals('a', 'b')).toBe(true);
+        expect(helpers.gtVals('b', 'a')).toBe(true);
     });
 
-    it('normalizes scalar types that only provide a typename', async () => {
-        const base = new BranchNode('base');
-        let sawTypename = false;
-        class TypenameHost extends BranchHost {
-            async getValueType(container: RefContainer): Promise<string | ScalarType | undefined> {
-                const cur = container.current as BranchNode | undefined;
-                if (cur?.name === 'alias') {
-                    sawTypename = true;
-                    return { kind: 'int', bits: 16, typename: 'alias_t' };
+    it('evaluates intrinsic args and mod-by-zero messages', async () => {
+        const evaluator = new TestEvaluator();
+        const helpers = evaluator.getTestHelpersPublic() as {
+            evalArgsForIntrinsic: (name: string, args: ASTNode[], ctx: EvalContext) => Promise<EvalValue[] | undefined>;
+        };
+
+        const sym = new TestNode('sym', 42);
+        const host = makeHost({}, { sym });
+        const ctx = makeCtx(host);
+        const args = await helpers.evalArgsForIntrinsic('__Running', [
+            num(1),
+            str('s'),
+            bool(true) as ASTNode,
+            id('sym'),
+        ], ctx);
+        expect(args).toEqual([1, 's', true, 42]);
+
+        const badArgs = await helpers.evalArgsForIntrinsic('__size_of', [num(1)], ctx);
+        expect(badArgs).toBeUndefined();
+
+        const modValsWithKind = (evaluator as unknown as { modValsWithKind: (a: EvalValue, b: EvalValue, kind: string | undefined) => EvalValue }).modValsWithKind;
+        expect(modValsWithKind.call(evaluator, 10, 0, 'int')).toBeUndefined();
+    });
+
+    it('covers mustRef branches for pseudo members and arrays', async () => {
+        const evaluator = new TestEvaluator();
+        const helpers = evaluator.getTestHelpersPublic() as {
+            mustRef: (node: ASTNode, ctx: EvalContext, forWrite?: boolean) => Promise<ScvdNode | undefined>;
+        };
+
+        const ctxMissing = makeCtx(makeHost({ getSymbolRef: jest.fn(async () => undefined) }));
+        await expect(helpers.mustRef(member(id('missing'), '_count'), ctxMissing, false)).resolves.toBeUndefined();
+
+        const base = new TestNode('base');
+        const ctxOk = makeCtx(makeHost({}, { base }));
+        await expect(helpers.mustRef(member(id('base'), '_count'), ctxOk, false)).resolves.toBe(base);
+
+        const ctxMissingArray = makeCtx(makeHost({ getSymbolRef: jest.fn(async () => undefined) }));
+        await expect(helpers.mustRef(member(arr(id('arr'), num(0)), 'field'), ctxMissingArray, false)).resolves.toBeUndefined();
+
+        const ctxMissingMember = makeCtx(makeHost({ getSymbolRef: jest.fn(async () => undefined) }));
+        await expect(helpers.mustRef(member(id('obj'), 'field'), ctxMissingMember, false)).resolves.toBeUndefined();
+
+        const ctxMissingIndex = makeCtx(makeHost({ getSymbolRef: jest.fn(async () => undefined) }));
+        await expect(helpers.mustRef(arr(id('arr'), num(0)), ctxMissingIndex, false)).resolves.toBeUndefined();
+    });
+
+    it('covers pure nodes, reference discovery, and optional host hooks', async () => {
+        const evaluator = new TestEvaluator();
+        const priv = evaluator as unknown as {
+            isPureNode: (node: ASTNode) => boolean;
+            addByteOffset: (ctx: EvalContext, bytes: number) => void;
+            evalOperandWithType: (node: ASTNode, ctx: EvalContext) => Promise<{ value: EvalValue; type: ScalarType | undefined }>;
+        };
+        const helpers = evaluator.getTestHelpersPublic() as {
+            findReferenceNode: (node: ASTNode) => ASTNode | undefined;
+            mustRef: (node: ASTNode, ctx: EvalContext, forWrite?: boolean) => Promise<ScvdNode | undefined>;
+        };
+
+        const pureCond: ConditionalExpression = { kind: 'ConditionalExpression', test: num(1), consequent: num(2), alternate: num(3), ...span };
+        expect(priv.isPureNode(pureCond)).toBe(true);
+
+        const printfRef = helpers.findReferenceNode(printfExpr([formatSeg('d', id('x'))]));
+        expect(printfRef?.kind).toBe('Identifier');
+        const condRef = helpers.findReferenceNode({ kind: 'ConditionalExpression', test: id('x'), consequent: num(1), alternate: num(2), ...span } as ConditionalExpression);
+        expect(condRef?.kind).toBe('Identifier');
+
+        const base = new TestNode('arr');
+        const field = new TestNode('field', 7);
+        base.members.set('field', field);
+        const host = makeHost({}, { arr: base });
+        const { getElementStride, getElementRef, getMemberOffset, getByteWidth, ...hostNoHooks } = host;
+        void getElementStride;
+        void getElementRef;
+        void getMemberOffset;
+        void getByteWidth;
+        const ctx = makeCtx(hostNoHooks);
+        await expect(helpers.mustRef(member(arr(id('arr'), num(1)), 'field'), ctx, false)).resolves.toBe(field);
+        await expect(helpers.mustRef(arr(id('arr'), num(0)), ctx, false)).resolves.toBe(base);
+
+        const base2 = new TestNode('arr2');
+        const element = new TestNode('elem');
+        const field2 = new TestNode('field', 3);
+        element.members.set('field', field2);
+        base2.element = element;
+        const host2 = makeHost({}, { arr2: base2 });
+        const ctx2 = makeCtx(host2);
+        await expect(helpers.mustRef(member(arr(id('arr2'), num(1)), 'field'), ctx2, false)).resolves.toBe(field2);
+        await expect(helpers.mustRef(arr(id('arr2'), num(0)), ctx2, false)).resolves.toBe(base2);
+
+        const offsetCtx = makeCtx(makeHost({}, { arr: base }));
+        offsetCtx.container.offsetBytes = undefined;
+        priv.addByteOffset(offsetCtx, 4);
+        expect(offsetCtx.container.offsetBytes).toBe(4);
+
+        const operand = await priv.evalOperandWithType(num(1), offsetCtx);
+        expect(operand.value).toBe(1);
+        expect(operand.type?.kind).toBeDefined();
+    });
+
+    it('covers colon paths, unary/update bigint, conditionals, and format fallbacks', async () => {
+        const evaluator = new TestEvaluator();
+        const helpers = evaluator.getTestHelpersPublic() as {
+            formatValue: (spec: FormatSegment['spec'], v: EvalValue, ctx?: EvalContext, container?: RefContainer) => Promise<string | undefined>;
+        };
+
+        const colonNode: ColonPath = { kind: 'ColonPath', parts: ['a', 'b'], ...span } as ColonPath;
+        const host = makeHost({
+            resolveColonPath: jest.fn(async () => 42),
+        });
+        const ctx = makeCtx(host);
+        await expect(evaluator.evalNodePublic(colonNode, ctx)).resolves.toBe(42);
+
+        const bigNode = new TestNode('big', 1n);
+        const bigHost = makeHost({}, { big: bigNode });
+        const bigCtx = makeCtx(bigHost);
+        await expect(evaluator.evalNodePublic(unary('+', id('big')), bigCtx)).resolves.toBe(1n);
+
+        const counter = new TestNode('counter', 1n);
+        const counterHost = makeHost({}, { counter });
+        const counterCtx = makeCtx(counterHost);
+        await expect(evaluator.evalNodePublic(update('++', id('counter'), true), counterCtx)).resolves.toBe(2n);
+        await expect(evaluator.evalNodePublic(update('--', id('counter'), true), counterCtx)).resolves.toBe(1n);
+
+        const cond: ConditionalExpression = { kind: 'ConditionalExpression', test: bool(false), consequent: num(1), alternate: num(2), ...span };
+        await expect(evaluator.evalNodePublic(cond, counterCtx)).resolves.toBe(2);
+
+        await expect(helpers.formatValue('u', -5n, counterCtx)).resolves.toBe('5');
+        await expect(helpers.formatValue('t', 0, counterCtx)).resolves.toBe('false');
+        await expect(helpers.formatValue('t', 1, counterCtx)).resolves.toBe('true');
+
+        await expect(evaluator.evalNodePublic({ kind: 'UnknownKind', ...span } as unknown as ASTNode, counterCtx)).resolves.toBeUndefined();
+    });
+
+    it('exercises printf container recovery and memo caching paths', async () => {
+        const evaluator = new TestEvaluator();
+        const host = makeHost({}, { x: new TestNode('x', 5) });
+        const ctx = makeCtx(host);
+        ctx.container.current = undefined;
+
+        const cond: ConditionalExpression = { kind: 'ConditionalExpression', test: bool(true), consequent: id('x'), alternate: num(0), ...span };
+        const printfNode = printfExpr([formatSeg('d', cond)]);
+        await expect(evaluator.evalNodePublic(printfNode, ctx)).resolves.toBeDefined();
+
+        const memoCtx = makeCtx(makeHost());
+        const pure = num(7);
+        const evalNodeChild = (evaluator as unknown as { evalNodeChild: (node: ASTNode, ctx: EvalContext) => Promise<EvalValue> }).evalNodeChild;
+        await expect(evalNodeChild.call(evaluator, pure, memoCtx)).resolves.toBe(7);
+        await expect(evalNodeChild.call(evaluator, pure, memoCtx)).resolves.toBe(7);
+
+        const divZero: BinaryExpression = { kind: 'BinaryExpression', operator: '/', left: num(1), right: num(0), ...span };
+        await expect(evalNodeChild.call(evaluator, divZero, memoCtx)).resolves.toBeUndefined();
+        await expect(evalNodeChild.call(evaluator, divZero, memoCtx)).resolves.toBeUndefined();
+    });
+
+    it('accumulates child timing when evaluating nested nodes', async () => {
+        const evaluator = new TestEvaluator();
+        const ctx = makeCtx(makeHost());
+
+        await expect(evaluator.evalNodePublic(binary('+', num(1), num(2)), ctx)).resolves.toBe(3);
+    });
+
+    it('covers evalNode error paths and assignment/update fallbacks', async () => {
+        const evaluator = new TestEvaluator();
+
+        const missingHost = makeHost({
+            getSymbolRef: jest.fn(async () => undefined),
+            readValue: jest.fn(async () => undefined),
+            writeValue: jest.fn(async () => undefined),
+        });
+        const { __Running, ...missingHostNoRunning } = missingHost;
+        void __Running;
+        const ctxMissing = makeCtx(missingHostNoRunning);
+
+        await expect(evaluator.evalNodePublic(id('__Running'), ctxMissing)).resolves.toBeUndefined();
+
+        const runningUndefHost = makeHost({ __Running: jest.fn(async () => undefined) });
+        const ctxRunningUndef = makeCtx(runningUndefHost);
+        await expect(evaluator.evalNodePublic(id('__Running'), ctxRunningUndef)).resolves.toBeUndefined();
+
+        const base = new TestNode('base');
+        const pseudoMissingHost = makeHost({}, { base });
+        const { _count, ...pseudoMissingHostNoCount } = pseudoMissingHost;
+        void _count;
+        const ctxPseudoMissing = makeCtx(pseudoMissingHostNoCount);
+        await expect(evaluator.evalNodePublic(member(id('base'), '_count'), ctxPseudoMissing)).resolves.toBeUndefined();
+
+        const pseudoUndefHost = makeHost({ _count: jest.fn(async () => undefined) } as Partial<Host>, { base });
+        const ctxPseudoUndef = makeCtx(pseudoUndefHost);
+        await expect(evaluator.evalNodePublic(member(id('base'), '_count'), ctxPseudoUndef)).resolves.toBeUndefined();
+
+        await expect(evaluator.evalNodePublic(member(id('missing'), '_addr'), ctxMissing)).resolves.toBeUndefined();
+        await expect(evaluator.evalNodePublic(member(id('missing'), 'field'), ctxMissing)).resolves.toBeUndefined();
+        await expect(evaluator.evalNodePublic(arr(id('missing'), num(0)), ctxMissing)).resolves.toBeUndefined();
+
+        await expect(evaluator.evalNodePublic(unary('-', id('missing')), ctxMissing)).resolves.toBeUndefined();
+
+        await expect(evaluator.evalNodePublic(update('++', id('missing'), true), ctxMissing)).resolves.toBeUndefined();
+
+        const writeFailNode = new TestNode('counter', 1);
+        const writeFailHost = makeHost({ writeValue: jest.fn(async () => undefined) }, { counter: writeFailNode });
+        const ctxWriteFail = makeCtx(writeFailHost);
+        await expect(evaluator.evalNodePublic(update('++', id('counter'), true), ctxWriteFail)).resolves.toBeUndefined();
+
+        const special = new TestNode('special', 1);
+        const forWriteHost = makeHost({
+            getSymbolRef: jest.fn(async (_container, name: string, forWrite?: boolean) => (name === 'special' && forWrite ? special : undefined)),
+        }, { special });
+        const ctxForWrite = makeCtx(forWriteHost);
+        await expect(evaluator.evalNodePublic(update('++', id('special'), true), ctxForWrite)).resolves.toBeUndefined();
+
+        const cond: ConditionalExpression = { kind: 'ConditionalExpression', test: id('missing'), consequent: num(1), alternate: num(2), ...span };
+        await expect(evaluator.evalNodePublic(cond, ctxMissing)).resolves.toBeUndefined();
+
+        const rightMissingHost = makeHost({}, { left: new TestNode('left', 5) });
+        const ctxRightMissing = makeCtx(rightMissingHost);
+        await expect(evaluator.evalNodePublic(assign('=', id('left'), id('missing')), ctxRightMissing)).resolves.toBeUndefined();
+        await expect(evaluator.evalNodePublic(assign('+=', id('left'), id('missing')), ctxRightMissing)).resolves.toBeUndefined();
+        await expect(evaluator.evalNodePublic(assign('=', id('missing'), num(1)), ctxMissing)).resolves.toBeUndefined();
+
+        const divideNode = new TestNode('div', 10);
+        const divHost = makeHost({}, { div: divideNode, zero: new TestNode('zero', 0) });
+        const ctxDiv = makeCtx(divHost);
+        await expect(evaluator.evalNodePublic(assign('/=', id('div'), id('zero')), ctxDiv)).resolves.toBeUndefined();
+
+        await expect(evaluator.evalNodePublic(callExpr(id('__size_of'), [num(1)]), ctxRightMissing)).resolves.toBeUndefined();
+        await expect(evaluator.evalNodePublic(evalPoint('__size_of', [num(1)]), ctxRightMissing)).resolves.toBeUndefined();
+
+        const pfMissing = printfExpr([formatSeg('d', id('missing'))]);
+        await expect(evaluator.evalNodePublic(pfMissing, ctxMissing)).resolves.toBeUndefined();
+
+        await expect(evaluator.evalNodePublic(formatSeg('d', id('missing')), ctxMissing)).resolves.toBeUndefined();
+
+        const formatterEval = new TestEvaluator();
+        (formatterEval as unknown as { formatValue: () => Promise<string | undefined> }).formatValue = jest.fn().mockResolvedValueOnce(undefined);
+        const ctxFormat = makeCtx(makeHost());
+        await expect(formatterEval.evalNodePublic(printfExpr([formatSeg('d', num(1))]), ctxFormat)).resolves.toBeUndefined();
+
+        const formatValue = (evaluator as unknown as { formatValue: (spec: FormatSegment['spec'], v: EvalValue, ctx?: EvalContext, container?: RefContainer) => Promise<string | undefined> }).formatValue;
+        await expect(formatValue('d', undefined, ctxMissing)).resolves.toBeUndefined();
+    });
+
+    it('covers binary evaluation fallbacks and memo control', async () => {
+        const evaluator = new TestEvaluator();
+
+        const noTypesHost = makeHost({}, { a: new TestNode('a', 5), b: new TestNode('b', 2) });
+        const { getValueType, ...noTypesHostNoTypes } = noTypesHost;
+        void getValueType;
+        const ctxNoTypes = makeCtx(noTypesHostNoTypes);
+
+        await expect(evaluator.evalNodePublic(binary('&&', id('missing'), num(1)), ctxNoTypes)).resolves.toBeUndefined();
+        await expect(evaluator.evalNodePublic(binary('||', id('missing'), num(1)), ctxNoTypes)).resolves.toBeUndefined();
+        await expect(evaluator.evalNodePublic(binary('+', id('missing'), num(1)), ctxNoTypes)).resolves.toBeUndefined();
+        await expect(evaluator.evalNodePublic(binary('+', num(1), id('missing')), ctxNoTypes)).resolves.toBeUndefined();
+
+        expect(await evaluator.evalNodePublic(binary('+', num(1), num(2)), ctxNoTypes)).toBe(3);
+        expect(await evaluator.evalNodePublic(binary('-', num(5), num(3)), ctxNoTypes)).toBe(2);
+        expect(await evaluator.evalNodePublic(binary('*', num(2), num(4)), ctxNoTypes)).toBe(8);
+        expect(await evaluator.evalNodePublic(binary('/', num(8), num(2)), ctxNoTypes)).toBe(4);
+        expect(await evaluator.evalNodePublic(binary('%', num(9), num(4)), ctxNoTypes)).toBe(1);
+        expect(await evaluator.evalNodePublic(binary('<<', num(1), num(2)), ctxNoTypes)).toBe(4);
+        expect(await evaluator.evalNodePublic(binary('>>', num(8), num(1)), ctxNoTypes)).toBe(4);
+        expect(await evaluator.evalNodePublic(binary('&', num(3), num(1)), ctxNoTypes)).toBe(1);
+        expect(await evaluator.evalNodePublic(binary('^', num(3), num(1)), ctxNoTypes)).toBe(2);
+        expect(await evaluator.evalNodePublic(binary('|', num(2), num(1)), ctxNoTypes)).toBe(3);
+        const memoPrev = (Evaluator as unknown as { MEMO_ENABLED: boolean }).MEMO_ENABLED;
+        (Evaluator as unknown as { MEMO_ENABLED: boolean }).MEMO_ENABLED = false;
+        const evalNodeChild = (evaluator as unknown as { evalNodeChild: (node: ASTNode, ctx: EvalContext) => Promise<EvalValue> }).evalNodeChild;
+        await expect(evalNodeChild.call(evaluator, num(1), ctxNoTypes)).resolves.toBe(1);
+        (Evaluator as unknown as { MEMO_ENABLED: boolean }).MEMO_ENABLED = memoPrev;
+    });
+
+    it('handles evaluateParseResult exceptions', async () => {
+        const evaluator = new TestEvaluator();
+        const readThrowsHost = makeHost({
+            readValue: jest.fn(async () => { throw new Error('boom'); }),
+        }, { bad: new TestNode('bad', 1) });
+        const ctx = makeCtx(readThrowsHost);
+        const pr = { ast: id('bad'), diagnostics: [], isPrintf: false, externalSymbols: [] };
+        await expect(evaluator.evaluateParseResult(pr, ctx)).resolves.toBeUndefined();
+    });
+
+    it('normalizes scalar types and caches value type lookups', async () => {
+        const evaluator = new TestEvaluator();
+        const helpers = evaluator.getTestHelpersPublic() as {
+            getScalarTypeForContainer: (ctx: EvalContext, container: RefContainer) => Promise<ScalarType | undefined>;
+        };
+
+        const u = new TestNode('u');
+        const f = new TestNode('f');
+        const t = new TestNode('t');
+        const host = makeHost({
+            getValueType: jest.fn(async (container: RefContainer) => {
+                const name = container.current?.name;
+                if (name === 'u') {
+                    return 'unsigned 16';
                 }
-                return super.getValueType(container);
-            }
-        }
+                if (name === 'f') {
+                    return 'float64';
+                }
+                if (name === 't') {
+                    return { kind: 'int', typename: 'int16' } as ScalarType;
+                }
+                return undefined;
+            }),
+        }, { u, f, t });
+        const ctx = makeCtx(host);
 
-        const host = new TypenameHost(new Map<string, BranchNode>([['alias', new BranchNode('alias', base, 1)]]));
-        const ctx = new EvalContext({ data: host, container: base });
-        await expect(evalNode(parseExpression('alias + 1', false).ast, ctx)).resolves.toBe(2);
-        expect(sawTypename).toBe(true);
+        ctx.container.current = u;
+        ctx.container.valueType = undefined;
+        const typeU = await helpers.getScalarTypeForContainer(ctx, ctx.container);
+        expect(typeU?.kind).toBe('uint');
+        expect(typeU?.bits).toBe(16);
+
+        ctx.container.current = f;
+        ctx.container.valueType = undefined;
+        const typeF = await helpers.getScalarTypeForContainer(ctx, ctx.container);
+        expect(typeF?.kind).toBe('float');
+        expect(typeF?.bits).toBe(64);
+
+        ctx.container.current = t;
+        ctx.container.valueType = undefined;
+        const typeT = await helpers.getScalarTypeForContainer(ctx, ctx.container);
+        expect(typeT?.name).toBe('int16');
+
+        ctx.container.current = u;
+        ctx.container.valueType = undefined;
+        const typeCached = await helpers.getScalarTypeForContainer(ctx, ctx.container);
+        expect(typeCached?.kind).toBe('uint');
+        expect(host.getValueType).toHaveBeenCalledTimes(3);
+
+        ctx.container.valueType = { kind: 'uint', name: 'uint8', bits: 8 };
+        const typeDirect = await helpers.getScalarTypeForContainer(ctx, ctx.container);
+        expect(typeDirect?.bits).toBe(8);
+
+        const undefNode = new TestNode('undef');
+        const hostUndefined = makeHost({
+            getValueType: jest.fn(async () => undefined),
+        }, { undef: undefNode });
+        const ctxUndefined = makeCtx(hostUndefined);
+        ctxUndefined.container.current = undefNode;
+        await expect(helpers.getScalarTypeForContainer(ctxUndefined, ctxUndefined.container)).resolves.toBeUndefined();
+
+        const uNode = new TestNode('u');
+        const hostNoTypes = makeHost({}, { u: uNode });
+        const { getValueType, ...hostNoTypesNoValue } = hostNoTypes;
+        void getValueType;
+        const ctxNoTypes = makeCtx(hostNoTypesNoValue);
+        ctxNoTypes.container.current = uNode;
+        await expect(helpers.getScalarTypeForContainer(ctxNoTypes, ctxNoTypes.container)).resolves.toBeUndefined();
     });
 
-    it('recovers references across all findReferenceNode branches', async () => {
-        class ClearingHost extends Host {
-            async readValue(container: RefContainer): Promise<EvalValue> {
-                const v = await super.readValue(container);
-                container.current = undefined; // force recovery path
-                return v;
-            }
-        }
-
-        const base = new FakeNode('base');
-        const fn = new FakeNode('fn', base, ((n: number) => n + 1) as unknown as EvalValue);
-        const val = new FakeNode('v', base, 1);
-        const values = new Map<string, FakeNode>([['fn', fn], ['v', val], ['__Running', new FakeNode('__Running', base, 1)]]);
-        const host = new ClearingHost(values);
-        host.__Running = async () => 1;
-
-        const ctx = new EvalContext({ data: host, container: base });
-
-        const assignmentSeg = segFromAst(parseExpression('v = 2', false).ast);
-        const callSeg = segFromAst(parseExpression('fn(3)', false).ast);
-        const evalPointSeg: FormatSegment = {
-            kind: 'FormatSegment',
-            spec: 'd',
-            value: { kind: 'EvalPointCall', intrinsic: '__Running', callee: { kind: 'Identifier', name: '__Running', start: 0, end: 0 } as Identifier, args: [], start: 0, end: 0 },
-            start: 0,
-            end: 0,
+    it('handles numeric conversion and comparisons', () => {
+        const evaluator = new TestEvaluator();
+        const helpers = evaluator.getTestHelpersPublic() as {
+            asNumber: (v: unknown) => number;
+            eqVals: (a: EvalValue, b: EvalValue) => boolean;
+            ltVals: (a: EvalValue, b: EvalValue) => boolean;
+            lteVals: (a: EvalValue, b: EvalValue) => boolean;
+            gtVals: (a: EvalValue, b: EvalValue) => boolean;
+            gteVals: (a: EvalValue, b: EvalValue) => boolean;
         };
-        const printfSeg = segFromAst({
-            kind: 'PrintfExpression',
-            segments: [{ kind: 'TextSegment', text: 'x', start: 0, end: 0 }, segFromAst(parseExpression('v', false).ast)],
-            resultType: 'string',
-            start: 0,
-            end: 0,
-        } as PrintfExpression);
-        const literalSeg = segFromAst({ kind: 'NumberLiteral', value: 9, raw: '9', valueType: 'number', constValue: 9, start: 0, end: 1 } as ASTNode);
 
-        await expect(evalNode(assignmentSeg, ctx)).resolves.toBeDefined();
-        await expect(evalNode(callSeg, ctx)).resolves.toBeDefined();
-        await expect(evalNode(evalPointSeg, ctx)).resolves.toBeDefined();
-        await expect(evalNode(printfSeg, ctx)).resolves.toBeDefined();
-        await expect(evalNode(literalSeg, ctx)).resolves.toBeDefined();
+        expect(helpers.asNumber(true)).toBe(1);
+        expect(helpers.asNumber(false)).toBe(0);
+        expect(helpers.asNumber('  ')).toBe(0);
+        expect(helpers.asNumber('12')).toBe(12);
+        expect(helpers.asNumber(5n)).toBe(5);
+
+        expect(helpers.eqVals('1', 1)).toBe(true);
+        expect(helpers.eqVals(true, 1)).toBe(true);
+        expect(helpers.eqVals(1n, 1)).toBe(true);
+        expect(helpers.ltVals('a', 'b')).toBe(true);
+        expect(helpers.ltVals(1n, 2n)).toBe(true);
+        expect(helpers.lteVals('a', 'a')).toBe(true);
+        expect(helpers.gtVals(2n, 1n)).toBe(true);
+        expect(helpers.gteVals(2n, 2n)).toBe(true);
     });
 
-    it('handles call expressions and read/write failures', async () => {
-        class FnHost extends Host {
-            async writeValue(): Promise<EvalValue> {
-                return undefined;
-            }
-        }
-        class UndefinedReadHost extends Host {
-            async readValue(): Promise<EvalValue> {
-                return undefined;
-            }
-        }
+    it('covers integer division/modulo and prefersInteger fallbacks', () => {
+        const evaluator = new TestEvaluator();
+        const helpers = evaluator.getTestHelpersPublic() as {
+            integerDiv: (a: number | bigint, b: number | bigint, unsigned: boolean) => number | bigint | undefined;
+            integerMod: (a: number | bigint, b: number | bigint, unsigned: boolean) => number | bigint | undefined;
+        };
 
-        const base = new FakeNode('base');
-        const fnNode = new FakeNode('fn', base, ((a: number, b: number) => a + b) as unknown as EvalValue);
-        const valNode = new FakeNode('x', base, 1);
-
-        const fnHost = new FnHost(new Map<string, FakeNode>([['fn', fnNode], ['x', valNode]]));
-        const fnCtx = new EvalContext({ data: fnHost, container: base });
-        await expect(evalNode(parseExpression('fn(2, 3)', false).ast, fnCtx)).resolves.toBe(5);
-        await expect(evalNode(parseExpression('x(1)', false).ast, fnCtx)).rejects.toThrow('Callee is not callable.');
-        await expect(evalNode(parseExpression('x = 2', false).ast, fnCtx)).rejects.toThrow('Write returned undefined');
-
-        const readHost = new UndefinedReadHost(new Map<string, FakeNode>([['x', valNode]]));
-        const readCtx = new EvalContext({ data: readHost, container: base });
-        await expect(evalNode(parseExpression('x', false).ast, readCtx)).rejects.toThrow('Undefined value');
+        expect(helpers.integerDiv(5n, 2n, false)).toBe(2n);
+        expect(helpers.integerDiv(5n, 0.5, false)).toBeUndefined();
+        expect(helpers.integerDiv(5, 2, true)).toBe(2);
+        expect(helpers.integerDiv(5, 0.5, true)).toBeUndefined();
+        expect(helpers.integerDiv(5, Number.NaN, false)).toBeUndefined();
+        expect(helpers.integerMod(5n, 2n, false)).toBe(1n);
+        expect(helpers.integerMod(5n, 0.5, false)).toBeUndefined();
+        expect(helpers.integerMod(5, 2, true)).toBe(1);
+        expect(helpers.integerMod(5, 0.5, true)).toBeUndefined();
+        expect(helpers.integerMod(5, Number.NaN, false)).toBeUndefined();
     });
 
-    it('formats values across printf specs and NaN paths', async () => {
-        const base = new BranchNode('base');
-        const host = new BranchHost(new Map());
-        const ctx = new EvalContext({ data: host, container: base });
+    it('covers byte width caching and missing byte width hooks', async () => {
+        const evaluator = new TestEvaluator();
+        const helpers = evaluator.getTestHelpersPublic() as {
+            mustRef: (node: ASTNode, ctx: EvalContext, forWrite?: boolean) => Promise<ScvdNode | undefined>;
+        };
 
-        const specs: Array<{ spec: FormatSegment['spec']; ast: ASTNode; expect: string }> = [
-            { spec: '%', ast: { kind: 'NumberLiteral', value: 0, raw: '0', valueType: 'number', constValue: 0, start: 0, end: 1 }, expect: '%' },
-            { spec: 'd', ast: { kind: 'NumberLiteral', value: Number.POSITIVE_INFINITY, raw: 'inf', valueType: 'number', constValue: undefined, start: 0, end: 1 }, expect: 'NaN' },
-            { spec: 'u', ast: { kind: 'NumberLiteral', value: Number.NaN, raw: 'NaN', valueType: 'number', constValue: undefined, start: 0, end: 1 }, expect: 'NaN' },
-            { spec: 'u', ast: { kind: 'NumberLiteral', value: -5, raw: '-5', valueType: 'number', constValue: -5, start: 0, end: 2 }, expect: String(((-5) >>> 0)) },
-            { spec: 'x', ast: { kind: 'NumberLiteral', value: 255, raw: '255', valueType: 'number', constValue: 255, start: 0, end: 3 }, expect: 'ff' },
-            { spec: 't', ast: { kind: 'BooleanLiteral', value: false, valueType: 'boolean', start: 0, end: 1 } as ASTNode, expect: 'false' },
-            { spec: 'S', ast: { kind: 'StringLiteral', value: 'hi', raw: '"hi"', valueType: 'string', constValue: 'hi', start: 0, end: 2 } as ASTNode, expect: 'hi' },
-            { spec: 'C', ast: { kind: 'StringLiteral', value: 'foo', raw: '"foo"', valueType: 'string', constValue: 'foo', start: 0, end: 3 } as ASTNode, expect: 'foo' },
+        const wide = new TestNode('wide', 1);
+        const host = makeHost({ getByteWidth: jest.fn(async () => 4) }, { wide });
+        const ctx = makeCtx(host);
+        await expect(helpers.mustRef(id('wide'), ctx, false)).resolves.toBe(wide);
+        await expect(helpers.mustRef(id('wide'), ctx, false)).resolves.toBe(wide);
+        expect(host.getByteWidth).toHaveBeenCalledTimes(1);
+
+        const zeroWidth = new TestNode('zero', 1);
+        const hostZero = makeHost({ getByteWidth: jest.fn(async () => 0) }, { zero: zeroWidth });
+        const ctxZero = makeCtx(hostZero);
+        await expect(helpers.mustRef(id('zero'), ctxZero, false)).resolves.toBe(zeroWidth);
+        expect(ctxZero.container.widthBytes).toBeUndefined();
+
+        const xNode = new TestNode('x');
+        const hostNoByte = makeHost({}, { x: xNode });
+        const { getByteWidth, ...hostNoByteWidth } = hostNoByte;
+        void getByteWidth;
+        const ctxNoByte = makeCtx(hostNoByteWidth);
+        await expect(helpers.mustRef(id('x'), ctxNoByte, false)).resolves.toBe(xNode);
+    });
+
+    it('captures containers and reports missing members', async () => {
+        const evaluator = new TestEvaluator();
+        const helpers = evaluator.getTestHelpersPublic() as {
+            mustRef: (node: ASTNode, ctx: EvalContext, forWrite?: boolean) => Promise<ScvdNode | undefined>;
+            captureContainerForReference: (node: ASTNode, ctx: EvalContext) => Promise<RefContainer | undefined>;
+        };
+
+        const arrayNode = new TestNode('arr');
+        arrayNode.element = new TestNode('elem');
+        const obj = new TestNode('obj');
+        const host = makeHost({}, { arr: arrayNode, obj });
+
+        const ctxArray = makeCtx(host);
+        await expect(helpers.mustRef(member(arr(id('arr'), num(0)), 'missing'), ctxArray, false)).resolves.toBeUndefined();
+
+        const ctxObj = makeCtx(host);
+        await expect(helpers.mustRef(member(id('obj'), 'missing'), ctxObj, false)).resolves.toBeUndefined();
+
+        await expect(helpers.captureContainerForReference(num(1), ctxObj)).resolves.toBeUndefined();
+    });
+
+    it('finds reference nodes through nested structures', () => {
+        const evaluator = new TestEvaluator();
+        const helpers = evaluator.getTestHelpersPublic() as {
+            findReferenceNode: (node: ASTNode | undefined) => ASTNode | undefined;
+        };
+
+        expect(helpers.findReferenceNode(undefined)).toBeUndefined();
+        expect(helpers.findReferenceNode(unary('-', id('x')))?.kind).toBe('Identifier');
+        expect(helpers.findReferenceNode(update('++', id('y'), true))?.kind).toBe('Identifier');
+        expect(helpers.findReferenceNode(binary('+', num(1), id('z')))?.kind).toBe('Identifier');
+        expect(helpers.findReferenceNode(assign('=', id('a'), num(1)))?.kind).toBe('Identifier');
+        expect(helpers.findReferenceNode(callExpr(id('fn'), [num(1), id('arg')]))?.kind).toBe('Identifier');
+        expect(helpers.findReferenceNode(callExpr(id('fn'), []))?.kind).toBe('Identifier');
+        expect(helpers.findReferenceNode(evalPoint('__Running', []))?.kind).toBe('Identifier');
+        expect(helpers.findReferenceNode(evalPoint('__size_of', [id('sym')]))?.kind).toBe('Identifier');
+        expect(helpers.findReferenceNode(printfExpr([formatSeg('d', id('p'))]))?.kind).toBe('Identifier');
+        expect(helpers.findReferenceNode(printfExpr([textSeg('only-text')]))).toBeUndefined();
+    });
+
+    it('handles invalid mustRef targets', async () => {
+        const evaluator = new TestEvaluator();
+        const helpers = evaluator.getTestHelpersPublic() as {
+            mustRef: (node: ASTNode, ctx: EvalContext, forWrite?: boolean) => Promise<ScvdNode | undefined>;
+        };
+        const ctx = makeCtx(makeHost());
+
+        await expect(helpers.mustRef(evalPoint('__Running', []), ctx, false)).resolves.toBeUndefined();
+        await expect(helpers.mustRef(num(1), ctx, false)).resolves.toBeUndefined();
+    });
+
+    it('evaluates identifiers, members, arrays, and unary operators', async () => {
+        const evaluator = new TestEvaluator();
+        const element = new TestNode('element', 9);
+        const arrayNode = new TestNode('arr');
+        arrayNode.element = element;
+        const obj = new TestNode('obj');
+        const field = new TestNode('field', 6);
+        obj.members.set('field', field);
+        const host = makeHost({
+            _count: jest.fn(async () => 7),
+            _addr: jest.fn(async () => 0x10),
+            __Running: jest.fn(async () => 2),
+        }, { arr: arrayNode, obj, field, run: new TestNode('run', 2) });
+        const ctx = makeCtx(host);
+
+        await expect(evaluator.evalNodePublic(id('__Running'), ctx)).resolves.toBe(2);
+        await expect(evaluator.evalNodePublic(member(id('obj'), '_count'), ctx)).resolves.toBe(7);
+        await expect(evaluator.evalNodePublic(member(id('obj'), '_addr'), ctx)).resolves.toBe(0x10);
+        await expect(evaluator.evalNodePublic(member(id('obj'), 'field'), ctx)).resolves.toBe(6);
+        await expect(evaluator.evalNodePublic(arr(id('arr'), num(0)), ctx)).resolves.toBe(9);
+
+        await expect(evaluator.evalNodePublic(unary('-', num(5)), ctx)).resolves.toBe(-5);
+        await expect(evaluator.evalNodePublic(unary('!', bool(false)), ctx)).resolves.toBe(true);
+        await expect(evaluator.evalNodePublic(unary('~', num(1)), ctx)).resolves.toBe(0xfffffffe);
+        const bigHost = makeHost({}, { big: new TestNode('big', 1n) });
+        const bigCtx = makeCtx(bigHost);
+        await expect(evaluator.evalNodePublic(unary('~', id('big')), bigCtx)).resolves.toBe(-2n);
+    });
+
+    it('covers colon path misses and invalid unary operators', async () => {
+        const evaluator = new TestEvaluator();
+        const host = makeHost({ resolveColonPath: jest.fn(async () => undefined) });
+        const ctx = makeCtx(host);
+        const colonNode: ColonPath = { kind: 'ColonPath', parts: ['missing'], ...span } as ColonPath;
+        await expect(evaluator.evalNodePublic(colonNode, ctx)).resolves.toBeUndefined();
+
+        const badUnary = { kind: 'UnaryExpression', operator: '??', argument: num(1), ...span } as unknown as UnaryExpression;
+        await expect(evaluator.evalNodePublic(badUnary, ctx)).resolves.toBeUndefined();
+    });
+
+    it('updates and assigns with supported operators', async () => {
+        const evaluator = new TestEvaluator();
+        const ops: Array<{ op: AssignmentExpression['operator']; start: number; rhs: number; expected: number }> = [
+            { op: '+=', start: 2, rhs: 3, expected: 5 },
+            { op: '-=', start: 5, rhs: 3, expected: 2 },
+            { op: '*=', start: 2, rhs: 4, expected: 8 },
+            { op: '/=', start: 7, rhs: 2, expected: 3 },
+            { op: '%=', start: 7, rhs: 2, expected: 1 },
+            { op: '<<=', start: 1, rhs: 3, expected: 8 },
+            { op: '>>=', start: 8, rhs: 2, expected: 2 },
+            { op: '&=', start: 6, rhs: 3, expected: 2 },
+            { op: '^=', start: 6, rhs: 3, expected: 5 },
+            { op: '|=', start: 2, rhs: 1, expected: 3 },
         ];
 
-        for (const { spec, ast, expect: expected } of specs) {
-            const seg: FormatSegment = { kind: 'FormatSegment', spec, value: ast, start: 0, end: 0 };
-            await expect(evalNode(seg, ctx)).resolves.toBe(expected);
+        for (const { op, start, rhs, expected } of ops) {
+            const node = new TestNode('x', start);
+            const host = makeHost({
+                getValueType: jest.fn(async () => ({ kind: 'int', name: 'int', bits: 32 } as ScalarType)),
+            }, { x: node });
+            const ctx = makeCtx(host);
+            await expect(evaluator.evalNodePublic(assign(op, id('x'), num(rhs)), ctx)).resolves.toBe(expected);
+            expect(node.value).toBe(expected);
         }
+
+        const counter = new TestNode('counter', 1);
+        const host = makeHost({}, { counter });
+        const ctx = makeCtx(host);
+        await expect(evaluator.evalNodePublic(update('++', id('counter'), false), ctx)).resolves.toBe(1);
+        expect(counter.value).toBe(2);
+
+        const base = new TestNode('base', 1);
+        const setHost = makeHost({}, { base });
+        const ctxSet = makeCtx(setHost);
+        await expect(evaluator.evalNodePublic(assign('=', id('base'), num(9)), ctxSet)).resolves.toBe(9);
+        expect(base.value).toBe(9);
+    });
+
+    it('covers unsupported assignment operator branch', async () => {
+        const evaluator = new TestEvaluator();
+        const node = new TestNode('x', 1);
+        const host = makeHost({}, { x: node });
+        const ctx = makeCtx(host);
+        const badAssign = { kind: 'AssignmentExpression', operator: '??=', left: id('x'), right: num(1), ...span } as unknown as AssignmentExpression;
+        await expect(evaluator.evalNodePublic(badAssign, ctx)).resolves.toBeUndefined();
+    });
+
+    it('handles call expressions and eval points', async () => {
+        const evaluator = new TestEvaluator();
+        const fnNode = new TestNode('fn', async (...args: EvalValue[]) => {
+            const [a, b] = args;
+            if (typeof a === 'number' && typeof b === 'number') {
+                return a + b;
+            }
+            return undefined;
+        });
+        const host = makeHost({}, { fn: fnNode, sym: new TestNode('sym', 1) });
+        const ctx = makeCtx(host);
+
+        await expect(evaluator.evalNodePublic(callExpr(id('fn'), [num(2), num(3)]), ctx)).resolves.toBe(5);
+        await expect(evaluator.evalNodePublic(callExpr(num(1), []), ctx)).resolves.toBeUndefined();
+        await expect(evaluator.evalNodePublic(callExpr(id('__size_of'), [id('sym')]), ctx)).resolves.toBe(1);
+
+        const badEvalPoint = evalPoint('NotIntrinsic', []);
+        await expect(evaluator.evalNodePublic(badEvalPoint, ctx)).resolves.toBeUndefined();
+
+        await expect(evaluator.evalNodePublic(evalPoint('__GetRegVal', [id('sym')]), ctx)).resolves.toBe(1);
+    });
+
+    it('evaluates binary operations with and without types', async () => {
+        const evaluator = new TestEvaluator();
+        const helpers = evaluator.getTestHelpersPublic() as {
+            evalBinary: (node: BinaryExpression, ctx: EvalContext) => Promise<EvalValue>;
+        };
+        const typeHost = makeHost({
+            getValueType: jest.fn(async () => ({ kind: 'uint', name: 'uint32', bits: 32 } as ScalarType)),
+        });
+        const ctxTyped = makeCtx(typeHost);
+        await expect(helpers.evalBinary(binary('<<', num(1), num(2)), ctxTyped)).resolves.toBe(4);
+        await expect(helpers.evalBinary(binary('>>', num(8), num(1)), ctxTyped)).resolves.toBe(4);
+        await expect(helpers.evalBinary(binary('/', num(5), num(2)), ctxTyped)).resolves.toBe(2);
+        await expect(helpers.evalBinary(binary('-', num(5), num(2)), ctxTyped)).resolves.toBe(3);
+        await expect(helpers.evalBinary(binary('*', num(3), num(2)), ctxTyped)).resolves.toBe(6);
+        await expect(helpers.evalBinary(binary('%', num(7), num(2)), ctxTyped)).resolves.toBe(1);
+        await expect(helpers.evalBinary(binary('&', num(3), num(1)), ctxTyped)).resolves.toBe(1);
+        await expect(helpers.evalBinary(binary('^', num(3), num(1)), ctxTyped)).resolves.toBe(2);
+        await expect(helpers.evalBinary(binary('|', num(2), num(1)), ctxTyped)).resolves.toBe(3);
+
+        const missingHost = makeHost({
+            getValueType: jest.fn(async () => ({ kind: 'uint', name: 'uint32', bits: 32 } as ScalarType)),
+            getSymbolRef: jest.fn(async () => undefined),
+        });
+        const ctxMissing = makeCtx(missingHost);
+        await expect(helpers.evalBinary(binary('+', id('missing'), num(1)), ctxMissing)).resolves.toBeUndefined();
+
+        const noTypesHost = makeHost({}, { a: new TestNode('a', 'x'), b: new TestNode('b', 'y') });
+        const { getValueType, ...noTypesHostNoTypes } = noTypesHost;
+        void getValueType;
+        const ctxNoTypes = makeCtx(noTypesHostNoTypes);
+        await expect(evaluator.evalNodePublic(binary('==', str('1'), num(1)), ctxNoTypes)).resolves.toBe(true);
+        await expect(evaluator.evalNodePublic(binary('!=', num(1), num(2)), ctxNoTypes)).resolves.toBe(true);
+        await expect(evaluator.evalNodePublic(binary('<', num(1), num(2)), ctxNoTypes)).resolves.toBe(true);
+        await expect(evaluator.evalNodePublic(binary('<=', num(2), num(2)), ctxNoTypes)).resolves.toBe(true);
+        await expect(evaluator.evalNodePublic(binary('>', num(3), num(2)), ctxNoTypes)).resolves.toBe(true);
+        await expect(evaluator.evalNodePublic(binary('>=', num(2), num(2)), ctxNoTypes)).resolves.toBe(true);
+        await expect(evaluator.evalNodePublic(binary('===', num(1), num(1)), ctxNoTypes)).resolves.toBeUndefined();
+        await expect(evaluator.evalNodePublic(binary('&&', num(0), num(1)), ctxNoTypes)).resolves.toBe(0);
+        await expect(evaluator.evalNodePublic(binary('&&', num(1), num(2)), ctxNoTypes)).resolves.toBe(2);
+        await expect(evaluator.evalNodePublic(binary('||', num(0), num(2)), ctxNoTypes)).resolves.toBe(2);
+        await expect(evaluator.evalNodePublic(binary('||', num(1), num(2)), ctxNoTypes)).resolves.toBe(1);
+        await expect(evaluator.evalNodePublic(binary('/', num(5.5), num(2)), ctxNoTypes)).resolves.toBeCloseTo(2.75);
+        await expect(evaluator.evalNodePublic(binary('%', num(5.5), num(2)), ctxNoTypes)).resolves.toBe(1);
+    });
+
+    it('formats values and normalizes evaluate results', async () => {
+        const evaluator = new TestEvaluator();
+        const helpers = evaluator.getTestHelpersPublic() as {
+            formatValue: (spec: FormatSegment['spec'], v: EvalValue, ctx?: EvalContext, container?: RefContainer) => Promise<string | undefined>;
+            normalizeEvaluateResult: (v: EvalValue) => EvaluateResult;
+        };
+
+        const host = makeHost({
+            formatPrintf: jest.fn(async () => 'override'),
+        });
+        const ctx = makeCtx(host);
+        await expect(helpers.formatValue('d', 5, ctx)).resolves.toBe('override');
+
+        const noOverrideHost = makeHost({});
+        const ctxNoOverride = makeCtx(noOverrideHost);
+        await expect(helpers.formatValue('%', 1, ctxNoOverride)).resolves.toBe('%');
+        await expect(helpers.formatValue('d', 1n, ctxNoOverride)).resolves.toBe('1');
+        await expect(helpers.formatValue('d', Number.NaN, ctxNoOverride)).resolves.toBe('NaN');
+        await expect(helpers.formatValue('u', Number.NaN, ctxNoOverride)).resolves.toBe('NaN');
+        await expect(helpers.formatValue('x', Number.NaN, ctxNoOverride)).resolves.toBe('NaN');
+        await expect(helpers.formatValue('x', 15, ctxNoOverride)).resolves.toBe('f');
+        await expect(helpers.formatValue('u', 15, ctxNoOverride)).resolves.toBe('15');
+        await expect(helpers.formatValue('x', 15n, ctxNoOverride)).resolves.toBe('0xf');
+        await expect(helpers.formatValue('S', 5, ctxNoOverride)).resolves.toBe('5');
+        await expect(helpers.formatValue('C', 5, ctxNoOverride)).resolves.toBe('5');
+        await expect(helpers.formatValue('q', 5, ctxNoOverride)).resolves.toBe('5');
+        await expect(helpers.formatValue('d', undefined, ctxNoOverride)).resolves.toBeUndefined();
+
+        expect(helpers.normalizeEvaluateResult(true)).toBe(1);
+        expect(helpers.normalizeEvaluateResult(false)).toBe(0);
+        expect(helpers.normalizeEvaluateResult('ok')).toBe('ok');
+        expect(helpers.normalizeEvaluateResult(5)).toBe(5);
+        expect(helpers.normalizeEvaluateResult(1n)).toBeUndefined();
+        expect(helpers.normalizeEvaluateResult(new Uint8Array([1]))).toBeUndefined();
+    });
+
+    it('covers printf container recovery and format segment evaluation', async () => {
+        const evaluator = new TestEvaluator();
+        const host = makeHost({}, { x: new TestNode('x', 8) });
+        const ctx = makeCtx(host);
+
+        const refSegment = printfExpr([textSeg('v='), formatSeg('d', id('x'))]);
+        await expect(evaluator.evalNodePublic(refSegment, ctx)).resolves.toBe('v=8');
+
+        ctx.container.current = undefined;
+        const nonConstLiteral: NumberLiteral = { kind: 'NumberLiteral', value: 3, raw: '3', valueType: 'number', ...span };
+        const plainSegment = printfExpr([formatSeg('d', nonConstLiteral)]);
+        await expect(evaluator.evalNodePublic(plainSegment, ctx)).resolves.toBe('3');
+
+        const recoveredSegment = printfExpr([formatSeg('d', binary('+', id('x'), num(1)))]);
+        await expect(evaluator.evalNodePublic(recoveredSegment, ctx)).resolves.toBe('9');
+
+        await expect(evaluator.evalNodePublic(textSeg('only-text'), ctx)).resolves.toBe('only-text');
+        await expect(evaluator.evalNodePublic(formatSeg('d', num(2)), ctx)).resolves.toBe('2');
+        await expect(evaluator.evalNodePublic(errorNode('fail'), ctx)).resolves.toBeUndefined();
+    });
+
+    it('records messages during evaluateParseResult and handles perf start == 0', async () => {
+        const evaluator = new TestEvaluator();
+        const host = makeHost({ getSymbolRef: jest.fn(async () => undefined) });
+        const ctx = makeCtx(host);
+        const pr = { ast: id('missing'), diagnostics: [], isPrintf: false, externalSymbols: [] };
+
+        const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        try {
+            await expect(evaluator.evaluateParseResult(pr, ctx)).resolves.toBeUndefined();
+        } finally {
+            consoleSpy.mockRestore();
+        }
+
+        if (!perf) {
+            return;
+        }
+        const originalNow = perf.now;
+        try {
+            perf.now = () => 0;
+            const evalNodeChild = (evaluator as unknown as { evalNodeChild: (node: ASTNode, ctx: EvalContext) => Promise<EvalValue> }).evalNodeChild;
+            await expect(evalNodeChild.call(evaluator, num(1), ctx)).resolves.toBe(1);
+        } finally {
+            perf.now = originalNow;
+        }
+    });
+
+    it('records intrinsic errors, resets caches, and uses container overrides', async () => {
+        const evaluator = new TestEvaluator();
+        evaluator.resetEvalCaches();
+
+        const host = makeHost({}, { sym: new TestNode('sym', 1) });
+        const { __GetRegVal, ...hostNoReg } = host;
+        void __GetRegVal;
+        const ctx = makeCtx(hostNoReg);
+        await expect(evaluator.evalNodePublic(evalPoint('__GetRegVal', [str('r0')]), ctx)).resolves.toBeUndefined();
+        expect(evaluator.getMessagesPublic()).toContain('Missing intrinsic __GetRegVal');
+
+        const overrideBase = new TestNode('override');
+        const pr = { ast: num(1), diagnostics: [], isPrintf: false, externalSymbols: [] };
+        await expect(evaluator.evaluateParseResult(pr, ctx, overrideBase)).resolves.toBe(1);
+    });
+
+    it('uses memoization for unary pure nodes', async () => {
+        const evaluator = new TestEvaluator();
+        const ctx = makeCtx(makeHost());
+        const evalNodeChild = (evaluator as unknown as { evalNodeChild: (node: ASTNode, ctx: EvalContext) => Promise<EvalValue> }).evalNodeChild;
+        await expect(evalNodeChild.call(evaluator, unary('-', num(2)), ctx)).resolves.toBe(-2);
     });
 });

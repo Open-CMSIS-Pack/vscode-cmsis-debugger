@@ -20,7 +20,7 @@
  * Integration test for EvaluatorDatahostHooks.
  */
 
-import { EvalContext, evaluateParseResult } from '../../../../parser-evaluator/evaluator';
+import { Evaluator, EvalContext } from '../../../../parser-evaluator/evaluator';
 import type { RefContainer, EvalValue } from '../../../../parser-evaluator/model-host';
 import type { FullDataHost } from '../../helpers/full-data-host';
 import { parseExpression } from '../../../../parser-evaluator/parser';
@@ -123,6 +123,8 @@ class HookHost implements FullDataHost {
 
     public __Running = jest.fn(async (): Promise<number | undefined> => undefined);
 }
+
+const evaluator = new Evaluator();
 
 class NestedArrayHost implements FullDataHost {
     readonly root = new BasicRef();
@@ -233,7 +235,7 @@ describe('evaluator data host hooks', () => {
         const ctx = new EvalContext({ data: host, container: host.root });
         const pr = parseExpression('arr[2].field', false);
 
-        const out = await evaluateParseResult(pr, ctx);
+        const out = await evaluator.evaluateParseResult(pr, ctx);
         expect(out).toBe(99);
         expect(host.getElementStride).toHaveBeenCalledTimes(1);
         expect(host.getElementRef).toHaveBeenCalledTimes(1);
@@ -246,7 +248,7 @@ describe('evaluator data host hooks', () => {
         const ctx = new EvalContext({ data: host, container: host.root });
         const pr = parseExpression('foo:bar:baz', false);
 
-        const out = await evaluateParseResult(pr, ctx);
+        const out = await evaluator.evaluateParseResult(pr, ctx);
         expect(out).toBe(300); // 3 parts * 100
         expect(host.resolveColonPath).toHaveBeenCalledTimes(1);
     });
@@ -256,7 +258,7 @@ describe('evaluator data host hooks', () => {
         const ctx = new EvalContext({ data: host, container: host.root });
         const pr = parseExpression('val=%x[arr[1].field]', true);
 
-        const out = await evaluateParseResult(pr, ctx);
+        const out = await evaluator.evaluateParseResult(pr, ctx);
         expect(out).toBe('val=fmt-x-171');
         expect(host.formatPrintf).toHaveBeenCalledTimes(1);
     });
@@ -266,7 +268,7 @@ describe('evaluator data host hooks', () => {
         const ctx = new EvalContext({ data: host, container: host.root });
         const pr = parseExpression('val=%x[arr[1].field + 1]', true);
 
-        await evaluateParseResult(pr, ctx);
+        await evaluator.evaluateParseResult(pr, ctx);
         expect(host.formatPrintf).toHaveBeenCalledTimes(1);
         expect(host.lastFormattingContainer?.current).toBe(host.fieldRef);
     });
@@ -276,7 +278,7 @@ describe('evaluator data host hooks', () => {
         const ctx = new EvalContext({ data: host, container: host.root });
         const pr = parseExpression('val=%x[false ? arr[1].field : 5]', true);
 
-        await evaluateParseResult(pr, ctx);
+        await evaluator.evaluateParseResult(pr, ctx);
         expect(host.formatPrintf).toHaveBeenCalledTimes(1);
         expect(host.lastFormattingContainer?.current).toBeUndefined();
     });
@@ -288,7 +290,7 @@ describe('evaluator data host hooks', () => {
         const ctx = new EvalContext({ data: host, container: host.root });
         const pr = parseExpression('mac=%M[arr[1].field]', true);
 
-        const out = await evaluateParseResult(pr, ctx);
+        const out = await evaluator.evaluateParseResult(pr, ctx);
         expect(out).toBe('mac=1E-30-6C-A2-45-5F');
         expect(host.formatPrintf).toHaveBeenCalledTimes(1);
         expect(host.lastFormattingContainer?.current).toBe(host.fieldRef);
@@ -299,11 +301,11 @@ describe('evaluator data host hooks', () => {
         const ctx = new EvalContext({ data: host, container: host.root });
 
         const memberExpr = parseExpression('obj[1].member[2]', false);
-        const memberOut = await evaluateParseResult(memberExpr, ctx);
+        const memberOut = await evaluator.evaluateParseResult(memberExpr, ctx);
         expect(memberOut).toBe(111);
 
         const varExpr = parseExpression('obj[1].var[2]', false);
-        const varOut = await evaluateParseResult(varExpr, ctx);
+        const varOut = await evaluator.evaluateParseResult(varExpr, ctx);
         expect(varOut).toBe(222);
     });
 });

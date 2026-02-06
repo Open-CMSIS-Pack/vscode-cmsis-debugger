@@ -119,9 +119,9 @@ export class ScvdItem extends ScvdNode {
         }
     }
 
-    public override async getConditionResult(): Promise<boolean> {
+    public override getConditionResult(): Promise<boolean> {
         if (this._cond) {
-            return await this._cond.getResult();
+            return this._cond.getResult();
         }
         return super.getConditionResult();
     }
@@ -176,22 +176,22 @@ export class ScvdItem extends ScvdNode {
         return item;
     }
 
-    public override async getGuiName(): Promise<string | undefined> {
+    public override getGuiName(): Promise<string | undefined> {
         if (this.property === undefined) {
-            return undefined;
+            return Promise.resolve(undefined);
         }
-        return await this.property.getGuiValue();
+        return this.property.getGuiValue();
     }
 
     public hasGuiChildren(): boolean {
         return this.item.length > 0 || this.listOut.length > 0 || this.print.length > 0;
     }
 
-    public override async getGuiValue(): Promise<string | undefined> {
+    public override getGuiValue(): Promise<string | undefined> {
         if (this.value === undefined) {
-            return undefined;
+            return Promise.resolve(undefined);
         }
-        return await this.value.getGuiValue();
+        return this.value.getGuiValue();
     }
 
 

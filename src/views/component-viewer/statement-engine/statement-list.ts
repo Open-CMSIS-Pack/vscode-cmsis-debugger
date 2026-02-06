@@ -19,8 +19,6 @@ import { ScvdList } from '../model/scvd-list';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
 import { StatementBase } from './statement-base';
-
-
 export class StatementList extends StatementBase {
 
     constructor(item: ScvdNode, parent: StatementBase | undefined) {
@@ -28,12 +26,10 @@ export class StatementList extends StatementBase {
     }
 
     public async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
-        const conditionResult = await this.scvdItem.getConditionResult();
-        if (conditionResult === false) {
-            //console.log(`${this.scvdItem.getLineNoStr()}: Skipping ${this.scvdItem.getDisplayLabel()} for condition result: ${conditionResult}`);
+        const shouldExecute = await this.shouldExecute(executionContext);
+        if (!shouldExecute) {
             return;
         }
-
         await this.onExecute(executionContext, guiTree);
         /* Example code for evaluating children.
            Normally this happens here, but in this case it’s done in onExecute

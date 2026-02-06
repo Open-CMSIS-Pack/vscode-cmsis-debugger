@@ -18,13 +18,14 @@ import { ResolveSymbolCb } from '../resolver';
 import { ExecutionContext } from '../scvd-eval-context';
 import { getLineNumberFromJson, getStringField } from './scvd-utils';
 import { Json, ScvdBase } from './scvd-base';
+import { ScvdNodeSymbolCache } from './scvd-node-cache';
 
 /**
  * Model-aware node that carries symbol resolution, execution context hooks and
  * size/value helpers. Keeps ScvdBase focused on tree wiring.
  */
 export abstract class ScvdNode extends ScvdBase {
-    private _symbolsCache: Map<string, ScvdNode> | undefined;
+    private _symbolsCache = new ScvdNodeSymbolCache();
 
     public override get parent(): ScvdNode | undefined {
         return super.parent as ScvdNode | undefined;
@@ -92,8 +93,8 @@ export abstract class ScvdNode extends ScvdBase {
     }
 
     // default condition always true
-    public async getConditionResult(): Promise<boolean> {
-        return true;
+    public getConditionResult(): Promise<boolean> {
+        return Promise.resolve(true);
     }
 
     // Member function available to all ScvdItems and derived classes
@@ -168,8 +169,8 @@ export abstract class ScvdNode extends ScvdBase {
     }
 
     // ------------  GUI Interface Begin ------------
-    public async getGuiName(): Promise<string | undefined> {
-        return this.name;
+    public getGuiName(): Promise<string | undefined> {
+        return Promise.resolve(this.name);
     }
 
     public async getGuiValue(): Promise<string | undefined> {
@@ -194,11 +195,19 @@ export abstract class ScvdNode extends ScvdBase {
     // ------------  GUI Interface End ------------
 
     protected symbolsCache(key: string, value: ScvdNode | undefined): ScvdNode | undefined {
-        return this._symbolsCache?.get(key) ?? (value !== undefined ? ((this._symbolsCache ??= new Map()).set(key, value), value) : undefined);
+        const cached = this._symbolsCache.get(key);
+        if (cached !== undefined) {
+            return cached;
+        }
+        if (value !== undefined) {
+            this._symbolsCache.set(key, value);
+            return value;
+        }
+        return undefined;
     }
 
     protected clearSymbolsCache(): void {
-        this._symbolsCache = undefined; // let GC reclaim the Map
+        this._symbolsCache.clear();
     }
 
     protected clearSymbolCachesRecursive(): void {

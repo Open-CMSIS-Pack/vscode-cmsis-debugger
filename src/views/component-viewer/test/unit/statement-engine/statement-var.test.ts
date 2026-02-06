@@ -74,6 +74,41 @@ describe('StatementVar', () => {
         expect(spy).not.toHaveBeenCalled();
     });
 
+    it('skips when target size is undefined', async () => {
+        const item = new ScvdVar(undefined);
+        item.name = 'varMissingSize';
+        jest.spyOn(item, 'getTargetSize').mockResolvedValue(undefined);
+        jest.spyOn(item, 'getValue').mockResolvedValue(123);
+
+        const stmt = new StatementVar(item, undefined);
+        const ctx = createExecutionContext(item);
+        const spy = jest.spyOn(ctx.memoryHost, 'setVariable');
+        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        expect(spy).not.toHaveBeenCalled();
+        expect(errorSpy).toHaveBeenCalled();
+        errorSpy.mockRestore();
+    });
+
+    it('defaults undefined values to zero', async () => {
+        const item = new ScvdVar(undefined);
+        item.name = 'varZero';
+        jest.spyOn(item, 'getTargetSize').mockResolvedValue(4);
+        jest.spyOn(item, 'getValue').mockResolvedValue(undefined);
+
+        const stmt = new StatementVar(item, undefined);
+        const ctx = createExecutionContext(item);
+        const spy = jest.spyOn(ctx.memoryHost, 'setVariable');
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        expect(spy).toHaveBeenCalledWith('varZero', 4, 0, -1, 0);
+    });
+
     it('ignores non-var items', async () => {
         const node = new TestNode(undefined);
         const stmt = new StatementVar(node, undefined);
