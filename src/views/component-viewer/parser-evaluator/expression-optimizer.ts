@@ -69,6 +69,9 @@ function literalFromConst(cv: ConstValue, start: number, end: number): ASTNode {
     if (typeof cv === 'number') {
         return makeNumberLiteral(cv, start, end);
     }
+    if (typeof cv === 'bigint') {
+        return { kind: 'NumberLiteral', value: cv, raw: cv.toString(), valueType: 'number', constValue: cv, start, end };
+    }
     if (typeof cv === 'string') {
         return { kind: 'StringLiteral', value: cv, raw: JSON.stringify(cv), valueType: 'string', constValue: cv, start, end };
     }

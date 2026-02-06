@@ -101,3 +101,8 @@ export function createExecutionContext(
         parseExpression,
     };
 }
+
+export function applyExecutionContext(root: ScvdNode, ctx: ExecutionContext): void {
+    root.setExecutionContext(ctx);
+    root.children.forEach((child) => applyExecutionContext(child as ScvdNode, ctx));
+}

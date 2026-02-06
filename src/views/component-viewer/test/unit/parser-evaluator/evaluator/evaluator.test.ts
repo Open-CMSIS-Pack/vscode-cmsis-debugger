@@ -679,7 +679,7 @@ describe('Evaluator coverage branches', () => {
         await expect(evaluator.evalNodePublic(unary('~', num(1)), ctx)).resolves.toBe(-2);
         const bigHost = makeHost({}, { big: new TestNode('big', 1n) });
         const bigCtx = makeCtx(bigHost);
-        await expect(evaluator.evalNodePublic(unary('~', id('big')), bigCtx)).resolves.toBe(-2n);
+        await expect(evaluator.evalNodePublic(unary('~', id('big')), bigCtx)).resolves.toBe(-2);
     });
 
     it('covers colon path misses and invalid unary operators', async () => {

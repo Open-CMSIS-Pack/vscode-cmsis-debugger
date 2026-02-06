@@ -23,6 +23,7 @@
 import { ScvdVar } from '../../../model/scvd-var';
 import { Json } from '../../../model/scvd-base';
 import { ScvdExpression } from '../../../model/scvd-expression';
+import { applyExecutionContext, createExecutionContext } from '../helpers/statement-engine-helpers';
 
 describe('ScvdVar', () => {
     it('exposes classname', () => {
@@ -80,6 +81,7 @@ describe('ScvdVar', () => {
     it('computes sizes, member lookups, and offsets', async () => {
         const item = new ScvdVar(undefined);
         const member = new ScvdVar(item);
+        applyExecutionContext(item, createExecutionContext(item));
         item.size = '2';
         item.configure();
         await expect(item.getTargetSize()).resolves.toBe(1);

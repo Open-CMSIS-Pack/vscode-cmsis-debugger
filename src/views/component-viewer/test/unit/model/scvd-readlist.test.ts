@@ -25,6 +25,7 @@ import { ScvdReadList } from '../../../model/scvd-readlist';
 import { ScvdNode } from '../../../model/scvd-node';
 import { Json } from '../../../model/scvd-base';
 import { ResolveSymbolCb, ResolveType } from '../../../resolver';
+import { applyExecutionContext, createExecutionContext } from '../helpers/statement-engine-helpers';
 
 const makeType = (overrides?: Partial<{ size: number; vsize: number; isPointer: boolean }>) => ({
     getTypeSize: () => overrides?.size ?? 4,
@@ -69,6 +70,7 @@ describe('ScvdReadList', () => {
 
     it('keeps target size as element size', async () => {
         const readlist = new ScvdReadList(undefined);
+        applyExecutionContext(readlist, createExecutionContext(readlist));
         readlist.size = '3';
         readlist.size?.configure();
         (readlist as unknown as { _type?: { getTypeSize: () => number } })._type = {

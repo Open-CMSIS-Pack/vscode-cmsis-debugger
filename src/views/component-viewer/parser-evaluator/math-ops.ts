@@ -95,6 +95,10 @@ function fromCValue(value: CValue): number | bigint {
         return value.value as number;
     }
     const big = value.value as bigint;
+    const bits = value.type.bits ?? 0;
+    if (bits > 32) {
+        return big;
+    }
     const maxSafe = BigInt(Number.MAX_SAFE_INTEGER);
     const minSafe = BigInt(Number.MIN_SAFE_INTEGER);
     if (big > maxSafe || big < minSafe) {

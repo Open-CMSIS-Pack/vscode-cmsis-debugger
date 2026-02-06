@@ -110,13 +110,12 @@ export class ScvdExpression extends ScvdNode {
             return false;
         }
 
-        if (this._executionContext === undefined) {
-            console.error(this.getLineInfoStr(), 'Expression parsing missing execution context');
-            this.expressionAst = undefined;
-            return false;
-        }
-
         if (this.expressionAst === undefined) {  // if already parsed by dependency, skip parsing
+            if (this._executionContext === undefined) {
+                console.error(this.getLineInfoStr(), 'Expression parsing missing execution context');
+                this.expressionAst = undefined;
+                return false;
+            }
             const expressionAst = this._executionContext.parseExpression(expression, this.isPrintExpression);
             if (expressionAst !== undefined && !expressionAst.diagnostics.some((d) => d.type === 'error')) {
                 this.expressionAst = expressionAst;

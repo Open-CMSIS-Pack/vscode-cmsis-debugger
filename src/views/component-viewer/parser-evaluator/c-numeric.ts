@@ -165,16 +165,21 @@ export function convertToType(value: CValue, target: CType): CValue {
 
 export function parseNumericLiteral(raw: string, model: IntegerModel = DEFAULT_INTEGER_MODEL): CValue {
     const cleaned = raw.replace(/_/g, '');
-    const suffixMatch = cleaned.match(/([uUlLfF]+)$/);
+    const hasHexPrefix = /^0[xX]/.test(cleaned);
+    const hasDot = cleaned.includes('.');
+    const hasHexExponent = /[pP]/.test(cleaned);
+    const hasDecimalExponent = /[eE]/.test(cleaned);
+    const hasFloatMarker = hasDot || hasHexExponent || (!hasHexPrefix && hasDecimalExponent);
+    const suffixMatch = hasFloatMarker
+        ? cleaned.match(/([fFlL]+)$/)
+        : cleaned.match(/([uUlL]+)$/);
     const suffix = suffixMatch ? suffixMatch[1] : '';
     const core = suffix ? cleaned.slice(0, -suffix.length) : cleaned;
     const lowerSuffix = suffix.toLowerCase();
     const hasFloatSuffix = lowerSuffix.includes('f');
 
     const isHex = /^0[xX]/.test(core);
-    const hasHexExponent = /p/i.test(core);
-    const hasDecimalExponent = /e/i.test(core);
-    const isFloat = hasFloatSuffix || core.includes('.') || hasHexExponent || (!isHex && hasDecimalExponent);
+    const isFloat = hasFloatMarker || hasFloatSuffix;
     if (isFloat) {
         const hasHexExp = /[pP]/.test(core);
         let val = NaN;
