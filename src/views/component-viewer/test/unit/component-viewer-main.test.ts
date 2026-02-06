@@ -166,7 +166,7 @@ describe('ComponentViewer', () => {
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.lockComponent', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.unlockComponent', expect.any(Function));
         // tree provider + 2 commands + 5 tracker disposables
-        expect(context.subscriptions.length).toBe(8);
+        expect(context.subscriptions.length).toBe(9);
     });
 
     it('skips reading scvd files when session or cbuild-run is missing', async () => {
