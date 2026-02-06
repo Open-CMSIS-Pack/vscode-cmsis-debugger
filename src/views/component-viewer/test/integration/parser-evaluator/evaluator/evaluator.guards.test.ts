@@ -134,8 +134,8 @@ describe('evaluator guards', () => {
         // NaN bypasses the first guard but is coerced to 0 inside the signed path
         expect(integerDiv(1, Number.NaN, false)).toBeUndefined();
         expect(integerMod(1, Number.NaN, false)).toBeUndefined();
-        expect(integerDiv(8n, 2n, false)).toBe(4n);
-        expect(integerMod(9n, 2n, false)).toBe(1n);
+        expect(integerDiv(8n, 2n, false)).toBe(4);
+        expect(integerMod(9n, 2n, false)).toBe(1);
         expect(integerDiv(8, 2, true)).toBe(4);
         expect(integerMod(9, 2, true)).toBe(1);
         // Signed numeric path (non-unsigned) to exercise the signed guard blocks
@@ -163,18 +163,18 @@ describe('evaluator guards', () => {
     });
 
     it('covers comparison helpers string/boolean/bigint paths', () => {
-        const eq = asAny.eqVals as (a: EvalValue, b: EvalValue) => boolean;
-        const lt = asAny.ltVals as (a: EvalValue, b: EvalValue) => boolean;
-        const lte = asAny.lteVals as (a: EvalValue, b: EvalValue) => boolean;
-        const gt = asAny.gtVals as (a: EvalValue, b: EvalValue) => boolean;
-        const gte = asAny.gteVals as (a: EvalValue, b: EvalValue) => boolean;
+        const eq = asAny.eqVals as (a: EvalValue, b: EvalValue) => number | undefined;
+        const lt = asAny.ltVals as (a: EvalValue, b: EvalValue) => number | undefined;
+        const lte = asAny.lteVals as (a: EvalValue, b: EvalValue) => number | undefined;
+        const gt = asAny.gtVals as (a: EvalValue, b: EvalValue) => number | undefined;
+        const gte = asAny.gteVals as (a: EvalValue, b: EvalValue) => number | undefined;
 
-        expect(eq('1', 1)).toBe(true);
-        expect(lt(1n, 2n)).toBe(true);
-        expect(lte(2n, 2n)).toBe(true);
-        expect(gt(3n, 2n)).toBe(true);
-        expect(gte(2n, 2n)).toBe(true);
-        expect(eq('a', 'b')).toBe(false);
+        expect(eq('1', 1)).toBeUndefined();
+        expect(lt(1n, 2n)).toBe(1);
+        expect(lte(2n, 2n)).toBe(1);
+        expect(gt(3n, 2n)).toBe(1);
+        expect(gte(2n, 2n)).toBe(1);
+        expect(eq('a', 'b')).toBeUndefined();
     });
 
     it('covers mustRef invalid targets and missing members', async () => {
@@ -246,10 +246,10 @@ describe('evaluator guards', () => {
     it('covers unary bigint and bitwise paths', async () => {
         const base = new BareNode();
         const ctx = new EvalContext({ data: new StubHost() as never, container: base });
-        await expect(evaluator.evalNodePublic({ kind: 'UnaryExpression', operator: '+', argument: { kind: 'NumberLiteral', value: 1n, raw: '1n', valueType: 'number', constValue: 1n, start: 0, end: 0 }, start: 0, end: 0 } as unknown as ASTNode, ctx)).resolves.toBe(1n);
-        await expect(evaluator.evalNodePublic({ kind: 'UnaryExpression', operator: '-', argument: { kind: 'NumberLiteral', value: 2n, raw: '2n', valueType: 'number', constValue: 2n, start: 0, end: 0 }, start: 0, end: 0 } as unknown as ASTNode, ctx)).resolves.toBe(-2n);
-        await expect(evaluator.evalNodePublic({ kind: 'UnaryExpression', operator: '~', argument: { kind: 'NumberLiteral', value: 1n, raw: '1n', valueType: 'number', constValue: 1n, start: 0, end: 0 }, start: 0, end: 0 } as unknown as ASTNode, ctx)).resolves.toBe(~1n);
-        await expect(evaluator.evalNodePublic({ kind: 'UnaryExpression', operator: '~', argument: { kind: 'NumberLiteral', value: 3, raw: '3', valueType: 'number', constValue: 3, start: 0, end: 0 }, start: 0, end: 0 } as ASTNode, ctx)).resolves.toBe(((~(3 | 0)) >>> 0));
+        await expect(evaluator.evalNodePublic({ kind: 'UnaryExpression', operator: '+', argument: { kind: 'NumberLiteral', value: 1n, raw: '1n', valueType: 'number', constValue: 1n, start: 0, end: 0 }, start: 0, end: 0 } as unknown as ASTNode, ctx)).resolves.toBe(1);
+        await expect(evaluator.evalNodePublic({ kind: 'UnaryExpression', operator: '-', argument: { kind: 'NumberLiteral', value: 2n, raw: '2n', valueType: 'number', constValue: 2n, start: 0, end: 0 }, start: 0, end: 0 } as unknown as ASTNode, ctx)).resolves.toBe(-2);
+        await expect(evaluator.evalNodePublic({ kind: 'UnaryExpression', operator: '~', argument: { kind: 'NumberLiteral', value: 1n, raw: '1n', valueType: 'number', constValue: 1n, start: 0, end: 0 }, start: 0, end: 0 } as unknown as ASTNode, ctx)).resolves.toBe(-2);
+        await expect(evaluator.evalNodePublic({ kind: 'UnaryExpression', operator: '~', argument: { kind: 'NumberLiteral', value: 3, raw: '3', valueType: 'number', constValue: 3, start: 0, end: 0 }, start: 0, end: 0 } as ASTNode, ctx)).resolves.toBe(-4);
     });
 
     it('covers call-expression intrinsic and EvalPointCall missing intrinsic', async () => {
@@ -289,7 +289,7 @@ describe('evaluator guards', () => {
             start: 0,
             end: 0,
         };
-        await expect(evalBinary(plusString, ctx)).resolves.toBe('ab');
+        await expect(evalBinary(plusString, ctx)).resolves.toBeUndefined();
     });
 
     it('covers normalizeEvaluateResult for null/boolean', () => {

@@ -21,6 +21,7 @@
  */
 
 import { ExecutionContext } from '../../../scvd-eval-context';
+import { parseExpression } from '../../../parser-evaluator/parser';
 import { Evaluator } from '../../../parser-evaluator/evaluator';
 import { ScvdBreaks } from '../../../model/scvd-break';
 import { ScvdComponentIdentifier } from '../../../model/scvd-component-identifier';
@@ -129,7 +130,7 @@ describe('ScvdComponentViewer', () => {
     it('sets execution context recursively', () => {
         const viewer = new ScvdComponentViewer(undefined);
         const child = new ScvdComponentViewer(viewer);
-        const ctx = { evalContext: {}, evaluator: new Evaluator() } as ExecutionContext;
+        const ctx = { evalContext: {}, evaluator: new Evaluator(), parseExpression } as ExecutionContext;
 
         const setSpy = jest.spyOn(child, 'setExecutionContext');
         viewer.setExecutionContextAll(ctx);

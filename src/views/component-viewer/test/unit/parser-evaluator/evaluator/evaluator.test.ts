@@ -167,14 +167,14 @@ describe('Evaluator coverage branches', () => {
         const evaluator = new TestEvaluator();
         const helpers = evaluator.getTestHelpersPublic() as {
             captureContainerForReference: (n: ASTNode, ctx: EvalContext) => Promise<RefContainer | undefined>;
-            ltVals: (a: EvalValue, b: EvalValue) => boolean;
-            gtVals: (a: EvalValue, b: EvalValue) => boolean;
+            ltVals: (a: EvalValue, b: EvalValue) => number | undefined;
+            gtVals: (a: EvalValue, b: EvalValue) => number | undefined;
         };
 
         const ctx = makeCtx(makeHost({ getSymbolRef: jest.fn(async () => undefined) }));
         await expect(helpers.captureContainerForReference(id('missing'), ctx)).resolves.toBeUndefined();
-        expect(helpers.ltVals('a', 'b')).toBe(true);
-        expect(helpers.gtVals('b', 'a')).toBe(true);
+        expect(helpers.ltVals('a', 'b')).toBeUndefined();
+        expect(helpers.gtVals('b', 'a')).toBeUndefined();
     });
 
     it('evaluates intrinsic args and mod-by-zero messages', async () => {
@@ -197,8 +197,8 @@ describe('Evaluator coverage branches', () => {
         const badArgs = await helpers.evalArgsForIntrinsic('__size_of', [num(1)], ctx);
         expect(badArgs).toBeUndefined();
 
-        const modValsWithKind = (evaluator as unknown as { modValsWithKind: (a: EvalValue, b: EvalValue, kind: string | undefined) => EvalValue }).modValsWithKind;
-        expect(modValsWithKind.call(evaluator, 10, 0, 'int')).toBeUndefined();
+        const evalBinary = (evaluator as unknown as { evalBinary: (n: BinaryExpression, ctx: EvalContext) => Promise<EvalValue> }).evalBinary;
+        await expect(evalBinary.call(evaluator, binary('%', num(10), num(0)), ctx)).resolves.toBeUndefined();
     });
 
     it('covers mustRef branches for pseudo members and arrays', async () => {
@@ -293,13 +293,13 @@ describe('Evaluator coverage branches', () => {
         const bigNode = new TestNode('big', 1n);
         const bigHost = makeHost({}, { big: bigNode });
         const bigCtx = makeCtx(bigHost);
-        await expect(evaluator.evalNodePublic(unary('+', id('big')), bigCtx)).resolves.toBe(1n);
+        await expect(evaluator.evalNodePublic(unary('+', id('big')), bigCtx)).resolves.toBe(1);
 
         const counter = new TestNode('counter', 1n);
         const counterHost = makeHost({}, { counter });
         const counterCtx = makeCtx(counterHost);
-        await expect(evaluator.evalNodePublic(update('++', id('counter'), true), counterCtx)).resolves.toBe(2n);
-        await expect(evaluator.evalNodePublic(update('--', id('counter'), true), counterCtx)).resolves.toBe(1n);
+        await expect(evaluator.evalNodePublic(update('++', id('counter'), true), counterCtx)).resolves.toBe(2);
+        await expect(evaluator.evalNodePublic(update('--', id('counter'), true), counterCtx)).resolves.toBe(1);
 
         const cond: ConditionalExpression = { kind: 'ConditionalExpression', test: bool(false), consequent: num(1), alternate: num(2), ...span };
         await expect(evaluator.evalNodePublic(cond, counterCtx)).resolves.toBe(2);
@@ -533,11 +533,11 @@ describe('Evaluator coverage branches', () => {
         const evaluator = new TestEvaluator();
         const helpers = evaluator.getTestHelpersPublic() as {
             asNumber: (v: unknown) => number;
-            eqVals: (a: EvalValue, b: EvalValue) => boolean;
-            ltVals: (a: EvalValue, b: EvalValue) => boolean;
-            lteVals: (a: EvalValue, b: EvalValue) => boolean;
-            gtVals: (a: EvalValue, b: EvalValue) => boolean;
-            gteVals: (a: EvalValue, b: EvalValue) => boolean;
+            eqVals: (a: EvalValue, b: EvalValue) => number | undefined;
+            ltVals: (a: EvalValue, b: EvalValue) => number | undefined;
+            lteVals: (a: EvalValue, b: EvalValue) => number | undefined;
+            gtVals: (a: EvalValue, b: EvalValue) => number | undefined;
+            gteVals: (a: EvalValue, b: EvalValue) => number | undefined;
         };
 
         expect(helpers.asNumber(true)).toBe(1);
@@ -546,14 +546,14 @@ describe('Evaluator coverage branches', () => {
         expect(helpers.asNumber('12')).toBe(12);
         expect(helpers.asNumber(5n)).toBe(5);
 
-        expect(helpers.eqVals('1', 1)).toBe(true);
-        expect(helpers.eqVals(true, 1)).toBe(true);
-        expect(helpers.eqVals(1n, 1)).toBe(true);
-        expect(helpers.ltVals('a', 'b')).toBe(true);
-        expect(helpers.ltVals(1n, 2n)).toBe(true);
-        expect(helpers.lteVals('a', 'a')).toBe(true);
-        expect(helpers.gtVals(2n, 1n)).toBe(true);
-        expect(helpers.gteVals(2n, 2n)).toBe(true);
+        expect(helpers.eqVals('1', 1)).toBeUndefined();
+        expect(helpers.eqVals(true, 1)).toBe(1);
+        expect(helpers.eqVals(1n, 1)).toBe(1);
+        expect(helpers.ltVals('a', 'b')).toBeUndefined();
+        expect(helpers.ltVals(1n, 2n)).toBe(1);
+        expect(helpers.lteVals('a', 'a')).toBeUndefined();
+        expect(helpers.gtVals(2n, 1n)).toBe(1);
+        expect(helpers.gteVals(2n, 2n)).toBe(1);
     });
 
     it('covers integer division/modulo and prefersInteger fallbacks', () => {
@@ -563,12 +563,12 @@ describe('Evaluator coverage branches', () => {
             integerMod: (a: number | bigint, b: number | bigint, unsigned: boolean) => number | bigint | undefined;
         };
 
-        expect(helpers.integerDiv(5n, 2n, false)).toBe(2n);
+        expect(helpers.integerDiv(5n, 2n, false)).toBe(2);
         expect(helpers.integerDiv(5n, 0.5, false)).toBeUndefined();
         expect(helpers.integerDiv(5, 2, true)).toBe(2);
         expect(helpers.integerDiv(5, 0.5, true)).toBeUndefined();
         expect(helpers.integerDiv(5, Number.NaN, false)).toBeUndefined();
-        expect(helpers.integerMod(5n, 2n, false)).toBe(1n);
+        expect(helpers.integerMod(5n, 2n, false)).toBe(1);
         expect(helpers.integerMod(5n, 0.5, false)).toBeUndefined();
         expect(helpers.integerMod(5, 2, true)).toBe(1);
         expect(helpers.integerMod(5, 0.5, true)).toBeUndefined();
@@ -675,8 +675,8 @@ describe('Evaluator coverage branches', () => {
         await expect(evaluator.evalNodePublic(arr(id('arr'), num(0)), ctx)).resolves.toBe(9);
 
         await expect(evaluator.evalNodePublic(unary('-', num(5)), ctx)).resolves.toBe(-5);
-        await expect(evaluator.evalNodePublic(unary('!', bool(false)), ctx)).resolves.toBe(true);
-        await expect(evaluator.evalNodePublic(unary('~', num(1)), ctx)).resolves.toBe(0xfffffffe);
+        await expect(evaluator.evalNodePublic(unary('!', bool(false)), ctx)).resolves.toBe(1);
+        await expect(evaluator.evalNodePublic(unary('~', num(1)), ctx)).resolves.toBe(-2);
         const bigHost = makeHost({}, { big: new TestNode('big', 1n) });
         const bigCtx = makeCtx(bigHost);
         await expect(evaluator.evalNodePublic(unary('~', id('big')), bigCtx)).resolves.toBe(-2n);
@@ -792,19 +792,19 @@ describe('Evaluator coverage branches', () => {
         const { getValueType, ...noTypesHostNoTypes } = noTypesHost;
         void getValueType;
         const ctxNoTypes = makeCtx(noTypesHostNoTypes);
-        await expect(evaluator.evalNodePublic(binary('==', str('1'), num(1)), ctxNoTypes)).resolves.toBe(true);
-        await expect(evaluator.evalNodePublic(binary('!=', num(1), num(2)), ctxNoTypes)).resolves.toBe(true);
-        await expect(evaluator.evalNodePublic(binary('<', num(1), num(2)), ctxNoTypes)).resolves.toBe(true);
-        await expect(evaluator.evalNodePublic(binary('<=', num(2), num(2)), ctxNoTypes)).resolves.toBe(true);
-        await expect(evaluator.evalNodePublic(binary('>', num(3), num(2)), ctxNoTypes)).resolves.toBe(true);
-        await expect(evaluator.evalNodePublic(binary('>=', num(2), num(2)), ctxNoTypes)).resolves.toBe(true);
+        await expect(evaluator.evalNodePublic(binary('==', str('1'), num(1)), ctxNoTypes)).resolves.toBeUndefined();
+        await expect(evaluator.evalNodePublic(binary('!=', num(1), num(2)), ctxNoTypes)).resolves.toBe(1);
+        await expect(evaluator.evalNodePublic(binary('<', num(1), num(2)), ctxNoTypes)).resolves.toBe(1);
+        await expect(evaluator.evalNodePublic(binary('<=', num(2), num(2)), ctxNoTypes)).resolves.toBe(1);
+        await expect(evaluator.evalNodePublic(binary('>', num(3), num(2)), ctxNoTypes)).resolves.toBe(1);
+        await expect(evaluator.evalNodePublic(binary('>=', num(2), num(2)), ctxNoTypes)).resolves.toBe(1);
         await expect(evaluator.evalNodePublic(binary('===', num(1), num(1)), ctxNoTypes)).resolves.toBeUndefined();
         await expect(evaluator.evalNodePublic(binary('&&', num(0), num(1)), ctxNoTypes)).resolves.toBe(0);
-        await expect(evaluator.evalNodePublic(binary('&&', num(1), num(2)), ctxNoTypes)).resolves.toBe(2);
-        await expect(evaluator.evalNodePublic(binary('||', num(0), num(2)), ctxNoTypes)).resolves.toBe(2);
+        await expect(evaluator.evalNodePublic(binary('&&', num(1), num(2)), ctxNoTypes)).resolves.toBe(1);
+        await expect(evaluator.evalNodePublic(binary('||', num(0), num(2)), ctxNoTypes)).resolves.toBe(1);
         await expect(evaluator.evalNodePublic(binary('||', num(1), num(2)), ctxNoTypes)).resolves.toBe(1);
         await expect(evaluator.evalNodePublic(binary('/', num(5.5), num(2)), ctxNoTypes)).resolves.toBeCloseTo(2.75);
-        await expect(evaluator.evalNodePublic(binary('%', num(5.5), num(2)), ctxNoTypes)).resolves.toBe(1);
+        await expect(evaluator.evalNodePublic(binary('%', num(5.5), num(2)), ctxNoTypes)).resolves.toBeUndefined();
     });
 
     it('formats values and normalizes evaluate results', async () => {

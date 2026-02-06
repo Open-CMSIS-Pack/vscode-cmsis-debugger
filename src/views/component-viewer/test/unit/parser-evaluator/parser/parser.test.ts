@@ -35,15 +35,14 @@ import {
     type ErrorNode,
     type Identifier,
     Parser,
-    __parserTestUtils,
     parseExpression
 } from '../../../../parser-evaluator/parser';
+import { __expressionOptimizerTestUtils, foldAst } from '../../../../parser-evaluator/expression-optimizer';
 
 type ParserPrivate = {
     diagnostics: Diagnostic[];
     reset(input: string): void;
     eat(token: string): void;
-    fold(node: ASTNode): ASTNode;
     parse: (...args: unknown[]) => ASTNode;
     parseWithDiagnostics(input: string, allowPrintf: boolean): { ast: ASTNode; diagnostics: Diagnostic[] };
 };
@@ -131,8 +130,8 @@ describe('parser', () => {
     });
 
     it('folds to string and boolean literals when possible', () => {
-        expect(parseExpression('"a" + "b"', false).ast.constValue).toBe('ab');
-        expect(parseExpression('1 == 1', false).ast.constValue).toBe(true);
+        expect(parseExpression('"a" + "b"', false).ast.constValue).toBeUndefined();
+        expect(parseExpression('1 == 1', false).ast.constValue).toBe(1);
         expect(parseExpression('\'\\\'\'', false).ast.constValue).toBe(39);
     });
 
@@ -210,11 +209,11 @@ describe('parser', () => {
     });
 
     it('exposes parser test utilities for const normalization', () => {
-        expect(__parserTestUtils.normalizeConstValue(true)).toBe(true);
-        expect(__parserTestUtils.normalizeConstValue({} as unknown as ConstValue)).toBeUndefined();
-        expect(__parserTestUtils.isZeroConst(0)).toBe(true);
-        expect(__parserTestUtils.isZeroConst(1)).toBe(false);
-        expect(__parserTestUtils.isZeroConst(undefined)).toBe(true);
+        expect(__expressionOptimizerTestUtils.normalizeConstValue(true)).toBe(true);
+        expect(__expressionOptimizerTestUtils.normalizeConstValue({} as unknown as ConstValue)).toBeUndefined();
+        expect(__expressionOptimizerTestUtils.isZeroConst(0)).toBe(true);
+        expect(__expressionOptimizerTestUtils.isZeroConst(1)).toBe(false);
+        expect(__expressionOptimizerTestUtils.isZeroConst(undefined)).toBe(true);
     });
 
     it('parses plain printf text without specifiers', () => {
@@ -266,7 +265,7 @@ describe('parser', () => {
 
     it('folds unary plus, bitwise not, and addition chains', () => {
         expect(parseExpression('+5', false).ast.constValue).toBe(5);
-        expect(parseExpression('~1', false).ast.constValue).toBe(4294967294);
+        expect(parseExpression('~1', false).ast.constValue).toBe(-2);
 
         const chain = parseExpression('foo + 1 + 2', false);
         const chainAst = chain.ast as BinaryExpression;
@@ -289,14 +288,14 @@ describe('parser', () => {
         expect(parseExpression('5 % 2', false).ast.constValue).toBe(1);
         expect(parseExpression('5-2', false).ast.constValue).toBe(3);
         expect(parseExpression('4/2', false).ast.constValue).toBe(2);
-        expect(parseExpression('1 != 2', false).ast.constValue).toBe(true);
-        expect(parseExpression('1 < 2', false).ast.constValue).toBe(true);
-        expect(parseExpression('2 <= 2', false).ast.constValue).toBe(true);
-        expect(parseExpression('3 > 2', false).ast.constValue).toBe(true);
-        expect(parseExpression('3 >= 3', false).ast.constValue).toBe(true);
-        expect(parseExpression('1 && 0', false).ast.constValue).toBe(false);
-        expect(parseExpression('1 || 0', false).ast.constValue).toBe(true);
-        expect(parseExpression('0 || 1', false).ast.constValue).toBe(true);
+        expect(parseExpression('1 != 2', false).ast.constValue).toBe(1);
+        expect(parseExpression('1 < 2', false).ast.constValue).toBe(1);
+        expect(parseExpression('2 <= 2', false).ast.constValue).toBe(1);
+        expect(parseExpression('3 > 2', false).ast.constValue).toBe(1);
+        expect(parseExpression('3 >= 3', false).ast.constValue).toBe(1);
+        expect(parseExpression('1 && 0', false).ast.constValue).toBe(0);
+        expect(parseExpression('1 || 0', false).ast.constValue).toBe(1);
+        expect(parseExpression('0 || 1', false).ast.constValue).toBe(1);
         const divZero = parseExpression('1/0', false);
         expect(divZero.diagnostics.some(d => d.message.includes('Division by zero'))).toBe(true);
     });
@@ -310,46 +309,46 @@ describe('parser', () => {
     });
 
     it('covers fold error paths via direct invocation', () => {
-        const parser = new Parser() as unknown as ParserPrivate;
+        const diagnostics: Diagnostic[] = [];
         const throwingPrimitive = { valueOf: () => { throw 'boom'; }, toString: () => { throw 'boom'; } };
 
         const badUnaryArg: ErrorNode = { kind: 'ErrorNode', message: 'boom', constValue: throwingPrimitive as unknown as ConstValue, start: 0, end: 1 };
         const unaryNode: UnaryExpression = { kind: 'UnaryExpression', operator: '+', argument: badUnaryArg, start: 0, end: 1 };
-        const unaryResult = parser.fold(unaryNode);
-        expect(parser.diagnostics.some((d: Diagnostic) => d.message.includes('Failed to fold unary expression'))).toBe(true);
+        const unaryResult = foldAst(unaryNode, diagnostics);
+        expect(diagnostics.some((d: Diagnostic) => d.message.includes('Failed to fold unary expression'))).toBe(true);
         expect(unaryResult.constValue).toBeUndefined();
 
         const oddUnary: UnaryExpression = { kind: 'UnaryExpression', operator: '*' as '+' | '-' | '!' | '~', argument: { kind: 'NumberLiteral', value: 1, raw: '1', valueType: 'number', constValue: 1, start: 0, end: 1 }, start: 0, end: 1 };
-        const oddUnaryResult = parser.fold(oddUnary);
+        const oddUnaryResult = foldAst(oddUnary, diagnostics);
         expect(oddUnaryResult.constValue).toBeUndefined();
 
         const badBinaryLeft: ErrorNode = { kind: 'ErrorNode', message: 'bin', constValue: throwingPrimitive as unknown as ConstValue, start: 0, end: 1 };
         const badBinaryRight: NumberLiteral = { kind: 'NumberLiteral', value: 2, raw: '2', valueType: 'number', constValue: 2, start: 0, end: 1 };
         const badBinary: BinaryExpression = { kind: 'BinaryExpression', operator: '+', left: badBinaryLeft, right: badBinaryRight, start: 0, end: 1 };
-        const badBinaryResult = parser.fold(badBinary);
-        expect(parser.diagnostics.some((d: Diagnostic) => d.message.includes('Failed to fold binary expression'))).toBe(true);
+        const badBinaryResult = foldAst(badBinary, diagnostics);
+        expect(diagnostics.some((d: Diagnostic) => d.message.includes('Failed to fold binary expression'))).toBe(true);
         expect(badBinaryResult.constValue).toBeUndefined();
 
         const errId: Identifier = { kind: 'Identifier', name: 'x', constValue: { valueOf: () => { throw new Error('err'); } } as unknown as ConstValue, valueType: 'unknown', start: 0, end: 1 };
         const errUnary: UnaryExpression = { kind: 'UnaryExpression', operator: '+', argument: errId, start: 0, end: 1 };
-        parser.fold(errUnary);
+        foldAst(errUnary, diagnostics);
 
-        const literalFallback = __parserTestUtils.literalFromConst(undefined, 0, 1);
+        const literalFallback = __expressionOptimizerTestUtils.literalFromConst(undefined, 0, 1);
         expect(literalFallback.kind).toBe('ErrorNode');
 
         const errBinary: BinaryExpression = { kind: 'BinaryExpression', operator: '+', left: errId, right: { kind: 'NumberLiteral', value: 1, raw: '1', valueType: 'number', constValue: 1, start: 0, end: 1 }, start: 0, end: 1 };
-        parser.fold(errBinary);
+        foldAst(errBinary, diagnostics);
 
         // BigInt normalization, modulo-by-zero early return, and unknown operator fallbacks
         const bigLeft: NumberLiteral = { kind: 'NumberLiteral', value: 1, raw: '1', valueType: 'number', constValue: 1n as unknown as ConstValue, start: 0, end: 1 };
         const bigRight: NumberLiteral = { kind: 'NumberLiteral', value: 2, raw: '2', valueType: 'number', constValue: 2n as unknown as ConstValue, start: 0, end: 1 };
-        const bigintSum = parser.fold({ kind: 'BinaryExpression', operator: '+', left: bigLeft, right: bigRight, start: 0, end: 1 });
+        const bigintSum = foldAst({ kind: 'BinaryExpression', operator: '+', left: bigLeft, right: bigRight, start: 0, end: 1 }, diagnostics);
         expect(bigintSum.constValue).toBe(3); // bigint coerced to number
 
         const modZeroParsed = parseExpression('1%0', false);
         expect(modZeroParsed.ast.constValue).toBeUndefined();
 
-        const unknownOp = parser.fold({ kind: 'BinaryExpression', operator: '**', left: bigLeft, right: bigRight, start: 0, end: 1 });
+        const unknownOp = foldAst({ kind: 'BinaryExpression', operator: '**', left: bigLeft, right: bigRight, start: 0, end: 1 }, diagnostics);
         expect(unknownOp.constValue).toBeUndefined();
     });
 
@@ -389,16 +388,15 @@ describe('parser', () => {
     });
 
     it('covers boolean literals, hex scanning, and grouped expression diagnostics', () => {
-        expect(parseExpression('true', false).ast.constValue).toBe(true);
-        expect(parseExpression('false', false).ast.constValue).toBe(false);
+        expect(parseExpression('true', false).ast.constValue).toBe(1);
+        expect(parseExpression('false', false).ast.constValue).toBe(0);
         expect(parseExpression('0x1f', false).ast.constValue).toBe(31);
         const missingParen = parseExpression('(1', false);
         expect(missingParen.diagnostics.some(d => d.message.includes('Expected ")"'))).toBe(true);
     });
 
     it('folds member/array access operands without altering structure', () => {
-        const parser = new Parser() as unknown as ParserPrivate;
-        const member = parser.fold({
+        const member = foldAst({
             kind: 'MemberAccess',
             object: { kind: 'Identifier', name: 'foo', valueType: 'unknown', start: 0, end: 3 },
             property: { kind: 'Identifier', name: 'bar', valueType: 'unknown', start: 4, end: 7 },
@@ -407,7 +405,7 @@ describe('parser', () => {
         } as unknown as ASTNode);
         expect(member.kind).toBe('MemberAccess');
 
-        const arrayIdx = parser.fold({
+        const arrayIdx = foldAst({
             kind: 'ArrayIndex',
             array: { kind: 'Identifier', name: 'arr', valueType: 'unknown', start: 0, end: 3 },
             index: { kind: 'NumberLiteral', value: 1, raw: '1', valueType: 'number', constValue: 1, start: 4, end: 5 },
@@ -418,18 +416,17 @@ describe('parser', () => {
     });
 
     it('folds unary/logical/conditional expressions and BigInt coercion', () => {
-        expect(parseExpression('!1', false).ast.constValue).toBe(false);
-        expect(parseExpression('~0', false).ast.constValue).toBe(4294967295);
-        expect(parseExpression('0 && foo', false).ast.constValue).toBe(false);
-        expect(parseExpression('1 || foo', false).ast.constValue).toBe(true);
+        expect(parseExpression('!1', false).ast.constValue).toBe(0);
+        expect(parseExpression('~0', false).ast.constValue).toBe(-1);
+        expect(parseExpression('0 && foo', false).ast.constValue).toBe(0);
+        expect(parseExpression('1 || foo', false).ast.constValue).toBe(1);
         expect(parseExpression('true ? 1 : 2', false).ast.constValue).toBe(1);
         expect(parseExpression('1 / 0', false).ast.constValue).toBeUndefined();
         expect(parseExpression('1 % 0', false).ast.constValue).toBeUndefined();
 
-        const parser = new Parser() as unknown as ParserPrivate;
         const bigLeft = { kind: 'NumberLiteral', value: 1, raw: '1', valueType: 'number', constValue: 1n as unknown as ConstValue, start: 0, end: 1 } as NumberLiteral;
         const bigRight = { kind: 'NumberLiteral', value: 2, raw: '2', valueType: 'number', constValue: 2n as unknown as ConstValue, start: 0, end: 1 } as NumberLiteral;
-        const folded = parser.fold({ kind: 'BinaryExpression', operator: '+', left: bigLeft, right: bigRight, start: 0, end: 1 });
+        const folded = foldAst({ kind: 'BinaryExpression', operator: '+', left: bigLeft, right: bigRight, start: 0, end: 1 });
         expect(folded.constValue).toBe(3);
 
         expect(parseExpression('-2', false).ast.constValue).toBe(-2);
@@ -437,7 +434,7 @@ describe('parser', () => {
         const falseTernary = parseExpression('false ? 1 : 2', false);
         expect(falseTernary.ast.constValue).toBe(2);
 
-        const bigintNot = parser.fold({
+        const bigintNot = foldAst({
             kind: 'UnaryExpression',
             operator: '~',
             argument: { kind: 'NumberLiteral', value: 1, raw: '1', valueType: 'number', constValue: 1n as unknown as ConstValue, start: 0, end: 1 },
@@ -448,9 +445,9 @@ describe('parser', () => {
 
         // Exercise bigint branches in foldBinaryConst (div/mod zero and non-zero)
         const bigZero: NumberLiteral = { kind: 'NumberLiteral', value: 0, raw: '0', valueType: 'number', constValue: 0n as unknown as ConstValue, start: 0, end: 1 };
-        const divZeroBig = parser.fold({ kind: 'BinaryExpression', operator: '/', left: bigLeft, right: bigZero, start: 0, end: 1 });
+        const divZeroBig = foldAst({ kind: 'BinaryExpression', operator: '/', left: bigLeft, right: bigZero, start: 0, end: 1 });
         expect((divZeroBig as { constValue?: ConstValue }).constValue).toBeUndefined();
-        const modBig = parser.fold({ kind: 'BinaryExpression', operator: '%', left: bigRight, right: bigLeft, start: 0, end: 1 });
+        const modBig = foldAst({ kind: 'BinaryExpression', operator: '%', left: bigRight, right: bigLeft, start: 0, end: 1 });
         expect(modBig.constValue).toBe(0);
     });
     it('folds remaining binary operators and normalizes const values', () => {
@@ -462,8 +459,8 @@ describe('parser', () => {
         expect(parseExpression('1 ^ 3', false).ast.constValue).toBe(2);
         expect(parseExpression('1 | 2', false).ast.constValue).toBe(3);
         const bigNormalized = parseExpression('1 + 9007199254740993', false).ast.constValue;
-        expect(typeof bigNormalized).toBe('number');
-        expect(bigNormalized as number).toBeGreaterThan(9e15);
+        expect(typeof bigNormalized).toBe('bigint');
+        expect(bigNormalized as bigint).toBeGreaterThan(9_000_000_000_000_000n);
         const idxOk = parseExpression('arr[1]', false);
         expect(idxOk.ast.kind).toBe('ArrayIndex');
     });

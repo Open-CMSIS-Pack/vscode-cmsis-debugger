@@ -17,7 +17,7 @@
 // https://arm-software.github.io/CMSIS-View/main/scvd_expression.html
 
 
-import { parseExpression, ParseResult } from '../parser-evaluator/parser';
+import { ParseResult } from '../parser-evaluator/parser';
 import { EvaluateResult } from '../parser-evaluator/evaluator';
 import { ScvdNode } from './scvd-node';
 import { ExecutionContext } from '../scvd-eval-context';
@@ -27,7 +27,6 @@ export class ScvdExpression extends ScvdNode {
     private _scvdVarName: string | undefined;
     private _expressionAst: ParseResult | undefined;
     private _isPrintExpression: boolean = false;
-    private _executionContext: ExecutionContext | undefined;
 
     constructor(
         parent: ScvdNode | undefined,
@@ -36,6 +35,10 @@ export class ScvdExpression extends ScvdNode {
         isPrintExpression?: boolean,
     ) {
         super(parent);
+        const parentContext = parent?.getExecutionContext();
+        if (parentContext !== undefined) {
+            this._executionContext = parentContext;
+        }
         this.expression = expression;
         this.scvdVarName = scvdVarName;
         this.tag = scvdVarName;
@@ -107,9 +110,15 @@ export class ScvdExpression extends ScvdNode {
             return false;
         }
 
+        if (this._executionContext === undefined) {
+            console.error(this.getLineInfoStr(), 'Expression parsing missing execution context');
+            this.expressionAst = undefined;
+            return false;
+        }
+
         if (this.expressionAst === undefined) {  // if already parsed by dependency, skip parsing
-            const expressionAst = parseExpression(expression, this.isPrintExpression);
-            if (expressionAst !== undefined && expressionAst.diagnostics.length === 0) {
+            const expressionAst = this._executionContext.parseExpression(expression, this.isPrintExpression);
+            if (expressionAst !== undefined && !expressionAst.diagnostics.some((d) => d.type === 'error')) {
                 this.expressionAst = expressionAst;
             }
         }
@@ -123,7 +132,7 @@ export class ScvdExpression extends ScvdNode {
     }
 
     public override setExecutionContext(_executionContext: ExecutionContext) {
-        this._executionContext = _executionContext;
+        super.setExecutionContext(_executionContext);
     }
 
     public override validate(prevResult: boolean): boolean {

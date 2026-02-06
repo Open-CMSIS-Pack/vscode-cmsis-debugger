@@ -22,7 +22,6 @@ import { MemberInfo } from '../scvd-debug-target';
 
 export class ScvdSymbol extends ScvdNode {
     private _symbol: string | undefined;
-    private _executionContext: ExecutionContext | undefined;
     private _address: number | undefined;
     private _memberInfo: MemberInfo[] = [];
 
@@ -85,7 +84,7 @@ export class ScvdSymbol extends ScvdNode {
     }
 
     public override setExecutionContext(executionContext: ExecutionContext) {
-        this._executionContext = executionContext;
+        super.setExecutionContext(executionContext);
     }
 
 
