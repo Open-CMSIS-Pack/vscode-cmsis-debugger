@@ -139,8 +139,8 @@ describe('CbuildRunReader', () => {
             const svdPaths = cbuildRunReader.getSvdFilePaths(PACK_ROOT, 'Core1');
 
             expect(svdPaths.map(path.normalize)).toEqual([
-                path.normalize(path.join(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_Core1.svd')),
-                path.normalize(path.join(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_generic.svd')),
+                path.normalize(path.resolve(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_Core1.svd')),
+                path.normalize(path.resolve(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_generic.svd')),
                 path.normalize(EXPECTED_CUSTOM_SVD),
             ]);
         });
@@ -153,9 +153,9 @@ describe('CbuildRunReader', () => {
             const scvdPaths = cbuildRunReader.getScvdFilePaths(PACK_ROOT, 'Core1');
 
             expect(scvdPaths).toEqual([
-                path.normalize(path.join(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SCVD', 'MySoftware_component.scvd')),
+                path.normalize(path.resolve(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SCVD', 'MySoftware_component.scvd')),
                 path.normalize(EXPECTED_CUSTOM_SCVD),
-                path.normalize(path.join(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SCVD', 'Core1.scvd')),
+                path.normalize(path.resolve(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SCVD', 'Core1.scvd')),
             ]);
         });
 
