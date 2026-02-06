@@ -79,12 +79,14 @@ type TrackerCallbacks = {
     onConnected: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
     onDidChangeActiveDebugSession: (cb: (session: Session | undefined) => Promise<void>) => { dispose: jest.Mock };
     onStackTrace: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
+    onDidChangeActiveStackItem: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
     onWillStartSession: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
     callbacks: Partial<{
         willStop: (session: Session) => Promise<void>;
         connected: (session: Session) => Promise<void>;
         activeSession: (session: Session | undefined) => Promise<void>;
         stackTrace: (session: { session: Session }) => Promise<void>;
+        activeStackItem: (session: { session: Session }) => Promise<void>;
         willStart: (session: Session) => Promise<void>;
     }>;
 };
@@ -131,6 +133,10 @@ describe('ComponentViewer', () => {
             },
             onStackTrace: (cb) => {
                 callbacks.stackTrace = cb;
+                return { dispose: jest.fn() };
+            },
+            onDidChangeActiveStackItem: (cb) => {
+                callbacks.activeStackItem = cb;
                 return { dispose: jest.fn() };
             },
             onWillStartSession: (cb) => {

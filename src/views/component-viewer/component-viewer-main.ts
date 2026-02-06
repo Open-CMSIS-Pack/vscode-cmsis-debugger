@@ -153,6 +153,9 @@ export class ComponentViewer {
         const onStackTraceDisposable = tracker.onStackTrace(async (session) => {
             await this.handleOnStackTrace(session.session);
         });
+        const onDidChangeActiveStackItemDisposable = tracker.onDidChangeActiveStackItem(async (session) => {
+            await this.handleOnStackTrace(session.session);
+        });
         const onWillStartSessionDisposable = tracker.onWillStartSession(async (session) => {
             await this.handleOnWillStartSession(session);
         });
@@ -162,6 +165,7 @@ export class ComponentViewer {
             onConnectedDisposable,
             onDidChangeActiveDebugSessionDisposable,
             onStackTraceDisposable,
+            onDidChangeActiveStackItemDisposable,
             onWillStartSessionDisposable
         );
     }
@@ -170,6 +174,7 @@ export class ComponentViewer {
         // Clear active session if it is NOT the one being stopped
         if (this._activeSession?.session.id !== session.session.id) {
             this._activeSession = undefined;
+            return;
         }
         // Update component viewer instance(s)
         this.schedulePendingUpdate('stackTrace');
