@@ -25,6 +25,7 @@ const CMSIS_PACK_ROOT_ENVVAR = '${CMSIS_PACK_ROOT}';
 export class CbuildRunReader {
     private cbuildRun: CbuildRunType | undefined;
     private cbuildRunFilePath: string | undefined;
+    private cbuildRunDir: string | undefined;
 
     constructor(private reader: FileReader = new VscodeFileReader()) {}
 
@@ -44,6 +45,7 @@ export class CbuildRunReader {
             throw new Error(`Invalid '*.cbuild-run.yml' file: ${filePath}`);
         }
         this.cbuildRunFilePath = filePath;
+        this.cbuildRunDir = path.dirname(this.cbuildRunFilePath);
     }
 
     public getSvdFilePaths(cmsisPackRoot?: string, pname?: string): string[] {
@@ -80,12 +82,11 @@ export class CbuildRunReader {
             ? descriptor.file.replaceAll(CMSIS_PACK_ROOT_ENVVAR, effectiveCmsisPackRoot)
             : descriptor.file}`);
         // resolve relative paths to cbuild run file location
-        const cbuildRunDir = this.cbuildRunFilePath ? path.dirname(this.cbuildRunFilePath) : undefined;
         const resolvedFilePaths = filePaths.map(filePath => {
-            if (path.isAbsolute(filePath) || !cbuildRunDir) {
+            if (path.isAbsolute(filePath) || !this.cbuildRunDir) {
                 return filePath;
             }
-            return path.resolve(cbuildRunDir, filePath);
+            return path.resolve(this.cbuildRunDir, filePath);
         });
         return resolvedFilePaths;
     }

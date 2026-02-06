@@ -182,6 +182,7 @@ CbuildRunReader {
     },
     "target-type": "My-Test-Target-Type",
   },
+  "cbuildRunDir": "test-data",
   "cbuildRunFilePath": "test-data/multi-core.cbuild-run.yml",
   "reader": VscodeFileReader {},
 }
