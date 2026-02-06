@@ -81,7 +81,7 @@ export class Resolver {
 
     private resolveTargetType(_name: string): ScvdNode | undefined {
         // resolve using debugger interface
-        console.log(`  Resolving target symbol: ${_name}`);
+        //console.log(`  Resolving target symbol: ${_name}`);
         return undefined;
     }
 

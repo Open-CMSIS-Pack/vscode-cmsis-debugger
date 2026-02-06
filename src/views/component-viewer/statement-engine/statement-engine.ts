@@ -29,6 +29,8 @@ import { ScvdReadList } from '../model/scvd-readlist';
 import { ScvdVar } from '../model/scvd-var';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
+import { perf, targetReadStats, targetReadTimingStats } from '../stats-config';
+import { getReadCacheStats, getReadTimingStats, resetReadTimingStats } from '../target-read-stats';
 import { StatementBase } from './statement-base';
 import { StatementBreak } from './statement-break';
 import { StatementCalc } from './statement-calc';
@@ -41,8 +43,6 @@ import { StatementPrint } from './statement-print';
 import { StatementRead } from './statement-read';
 import { StatementReadList } from './statement-readList';
 import { StatementVar } from './statement-var';
-
-
 export class StatementEngine {
     private _model: ScvdComponentViewer;
     private _statementTree: StatementBase | undefined;
@@ -161,12 +161,23 @@ export class StatementEngine {
         // Execute all statements in the statement tree.
         // This is a placeholder implementation.
 
-        this._executionContext.memoryHost.clear();
+        this._executionContext.memoryHost.clearNonConst();
+        const evalHost = this._executionContext.evalContext.data as {
+            resetEvalCaches?: () => void;
+            resetPrintfCache?: () => void;
+        };
+        evalHost.resetEvalCaches?.();
+        evalHost.resetPrintfCache?.();
+        this._executionContext.evaluator.resetEvalCaches?.();
 
+        await this._executionContext.debugTarget.beginUpdateCycle();
+        resetReadTimingStats(targetReadTimingStats);
+        perf?.beginExecuteAll();
         if (this._statementTree) {
             //console.log('Executing statements in the statement tree...');
             await this._statementTree.executeStatement(this.executionContext, guiTree);
         }
+        perf?.endExecuteAll(getReadTimingStats(targetReadTimingStats), getReadCacheStats(targetReadStats));
     }
 
     private insertBreakAtLine(root: StatementBase, breakItem: ScvdBreak): void {

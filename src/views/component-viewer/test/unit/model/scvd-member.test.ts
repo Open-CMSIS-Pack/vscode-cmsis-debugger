@@ -107,6 +107,7 @@ describe('ScvdMember', () => {
         const typeMember = { getMember: jest.fn().mockReturnValue(enumItem) };
         (member as unknown as { _type?: { getMember: (property: string) => unknown } })._type = typeMember;
         expect(member.getMember('field')).toBe(enumItem);
+        expect(member.getMember('field')).toBe(enumItem);
     });
 
     it('returns member offsets and defaults', async () => {

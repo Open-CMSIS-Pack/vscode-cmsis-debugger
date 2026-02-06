@@ -49,7 +49,7 @@ jest.mock('../../component-viewer-tree-view', () => ({
 const instanceFactory = jest.fn(() => ({
     readModel: jest.fn().mockResolvedValue(undefined),
     update: jest.fn().mockResolvedValue(undefined),
-    getGuiTree: jest.fn(() => ['node']),
+    getGuiTree: jest.fn<string[] | undefined, []>(() => ['node']),
     updateActiveSession: jest.fn(),
 }));
 
@@ -86,12 +86,14 @@ type TrackerCallbacks = {
     onConnected: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
     onDidChangeActiveDebugSession: (cb: (session: Session | undefined) => Promise<void>) => { dispose: jest.Mock };
     onStackTrace: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
+    onDidChangeActiveStackItem: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
     onWillStartSession: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
     callbacks: Partial<{
         willStop: (session: Session) => Promise<void>;
         connected: (session: Session) => Promise<void>;
         activeSession: (session: Session | undefined) => Promise<void>;
         stackTrace: (session: { session: Session }) => Promise<void>;
+        activeStackItem: (session: { session: Session }) => Promise<void>;
         willStart: (session: Session) => Promise<void>;
     }>;
 };
@@ -127,6 +129,10 @@ describe('ComponentViewer', () => {
                 callbacks.stackTrace = cb;
                 return { dispose: jest.fn() };
             },
+            onDidChangeActiveStackItem: (cb) => {
+                callbacks.activeStackItem = cb;
+                return { dispose: jest.fn() };
+            },
             onWillStartSession: (cb) => {
                 callbacks.willStart = cb;
                 return { dispose: jest.fn() };
@@ -151,7 +157,23 @@ describe('ComponentViewer', () => {
         controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         expect(registerTreeDataProvider).toHaveBeenCalledWith('cmsis-debugger.componentViewer', expect.any(Object));
-        expect(context.subscriptions.length).toBe(6);
+        expect(context.subscriptions.length).toBe(7);
+    });
+
+    it('triggers an update when active stack item changes', async () => {
+        const context = makeContext();
+        const tracker = makeTracker();
+        const controller = new ComponentViewer(context as unknown as ExtensionContext);
+        controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const session = makeSession('s1', ['a.scvd']);
+        (controller as unknown as { _activeSession?: Session })._activeSession = session;
+
+        const schedulePendingUpdate = jest.spyOn(controller as unknown as { schedulePendingUpdate: (reason: fifoUpdateReason) => void }, 'schedulePendingUpdate');
+
+        await tracker.callbacks.activeStackItem?.({ session });
+
+        expect(schedulePendingUpdate).toHaveBeenCalledWith('stackTrace');
     });
 
     it('skips reading scvd files when session or cbuild-run is missing', async () => {
@@ -294,6 +316,24 @@ describe('ComponentViewer', () => {
         expect(instanceA.update).toHaveBeenCalled();
         expect(instanceB.update).toHaveBeenCalled();
         expect(debugSpy).toHaveBeenCalled();
+    });
+
+    it('skips undefined gui trees when updating instances', async () => {
+        const controller = new ComponentViewer(makeContext() as unknown as ExtensionContext);
+        const provider = treeProviderFactory();
+        (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
+        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1');
+
+        const instanceNoTree = instanceFactory();
+        instanceNoTree.getGuiTree = jest.fn(() => undefined);
+        const instanceWithTree = instanceFactory();
+
+        (controller as unknown as { _instances: unknown[] })._instances = [instanceNoTree, instanceWithTree];
+
+        const updateInstances = (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances.bind(controller);
+        await updateInstances('stackTrace');
+
+        expect(provider.setRoots).toHaveBeenCalledWith(['node']);
     });
 
     it('runs a debounced update when scheduling multiple times', async () => {

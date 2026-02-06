@@ -17,7 +17,7 @@
 // generated with AI
 
 /**
- * Integration test for ParserConstEval.
+ * Unit test for ParserConstEval.
  */
 
 import { BinaryExpression, Identifier, NumberLiteral, parseExpression } from '../../../../parser-evaluator/parser';
@@ -35,7 +35,7 @@ interface ParserCasesFile {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- static test fixture load
-const cases: ParserCasesFile = require('../../testfiles/cases.json');
+const cases: ParserCasesFile = require('../../../integration/testfiles/cases.json');
 
 describe('Parser constant folding', () => {
     const { constCases, nonConstCases } = cases;
@@ -68,6 +68,51 @@ describe('Parser constant folding', () => {
                 expect(ast.right.kind).toBe('NumberLiteral');
                 expect((ast.right as NumberLiteral).value).toBe(expected.right);
             }
+        }
+    });
+
+    it('folds identity and partial chains for mixed operators', () => {
+        const identityCases = [
+            'x && 1',
+            'x || 0',
+            'x + 0',
+            '0 + x',
+            'x - 0',
+            'x * 1',
+            '1 * x',
+            'x / 1',
+            'x | 0',
+            '0 | x',
+            'x ^ 0',
+            '0 ^ x',
+            'x << 0',
+            'x >> 0',
+        ];
+        for (const expr of identityCases) {
+            const pr = parseExpression(expr, false);
+            expect(pr.diagnostics).toEqual([]);
+            expect(pr.constValue).toBeUndefined();
+            expect(pr.ast.kind).toBe('Identifier');
+            expect((pr.ast as Identifier).name).toBe('x');
+        }
+
+        const partialCases: Array<{ expr: string; operator: '+' | '-' | '*'; right: number }> = [
+            { expr: 'x + 2 - 3', operator: '+', right: -1 },
+            { expr: 'x - 2 - 3', operator: '-', right: 5 },
+            { expr: 'x - 2 + 3', operator: '+', right: 1 },
+            { expr: 'x * 2 * 3', operator: '*', right: 6 },
+        ];
+        for (const { expr, operator, right } of partialCases) {
+            const pr = parseExpression(expr, false);
+            expect(pr.diagnostics).toEqual([]);
+            expect(pr.constValue).toBeUndefined();
+            expect(pr.ast.kind).toBe('BinaryExpression');
+            const ast = pr.ast as BinaryExpression;
+            expect(ast.operator).toBe(operator);
+            expect(ast.left.kind).toBe('Identifier');
+            expect((ast.left as Identifier).name).toBe('x');
+            expect(ast.right.kind).toBe('NumberLiteral');
+            expect((ast.right as NumberLiteral).value).toBe(right);
         }
     });
 });

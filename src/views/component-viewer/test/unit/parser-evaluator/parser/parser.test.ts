@@ -214,6 +214,7 @@ describe('parser', () => {
         expect(__parserTestUtils.normalizeConstValue({} as unknown as ConstValue)).toBeUndefined();
         expect(__parserTestUtils.isZeroConst(0)).toBe(true);
         expect(__parserTestUtils.isZeroConst(1)).toBe(false);
+        expect(__parserTestUtils.isZeroConst(undefined)).toBe(true);
     });
 
     it('parses plain printf text without specifiers', () => {
@@ -271,8 +272,10 @@ describe('parser', () => {
         const chainAst = chain.ast as BinaryExpression;
         expect((chainAst.right as NumberLiteral).value).toBe(3);
 
-        const nonCombine = parseExpression('(foo-1)+2', false).ast as BinaryExpression;
-        expect((nonCombine.left as BinaryExpression).operator).toBe('-');
+        const combined = parseExpression('(foo-1)+2', false).ast as BinaryExpression;
+        expect(combined.operator).toBe('+');
+        expect((combined.left as Identifier).name).toBe('foo');
+        expect((combined.right as NumberLiteral).value).toBe(1);
     });
 
     it('folds printf segments and nested expressions', () => {
@@ -420,6 +423,8 @@ describe('parser', () => {
         expect(parseExpression('0 && foo', false).ast.constValue).toBe(false);
         expect(parseExpression('1 || foo', false).ast.constValue).toBe(true);
         expect(parseExpression('true ? 1 : 2', false).ast.constValue).toBe(1);
+        expect(parseExpression('1 / 0', false).ast.constValue).toBeUndefined();
+        expect(parseExpression('1 % 0', false).ast.constValue).toBeUndefined();
 
         const parser = new Parser() as unknown as ParserPrivate;
         const bigLeft = { kind: 'NumberLiteral', value: 1, raw: '1', valueType: 'number', constValue: 1n as unknown as ConstValue, start: 0, end: 1 } as NumberLiteral;

@@ -16,7 +16,7 @@
 // generated with AI
 
 import type { EvalValue, ScalarKind, ScalarType, RefContainer } from './ref-container';
-import type { DataAccessHost } from '../data-host/access-host';
+import type { DataAccessHost } from '../data-host/data-access-host';
 import type { ScvdNode } from '../model/scvd-node';
 
 export type { EvalValue, ScalarKind, ScalarType, RefContainer, DataAccessHost };

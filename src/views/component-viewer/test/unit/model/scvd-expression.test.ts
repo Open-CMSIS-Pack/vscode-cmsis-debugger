@@ -28,12 +28,7 @@ jest.mock('../../../parser-evaluator/parser', () => ({
     parseExpression: jest.fn()
 }));
 
-jest.mock('../../../parser-evaluator/evaluator', () => ({
-    evaluateParseResult: jest.fn()
-}));
-
 import { parseExpression } from '../../../parser-evaluator/parser';
-import { evaluateParseResult } from '../../../parser-evaluator/evaluator';
 import { ScvdExpression } from '../../../model/scvd-expression';
 
 describe('ScvdExpression', () => {
@@ -76,9 +71,8 @@ describe('ScvdExpression', () => {
         const expr = new ScvdExpression(undefined, 'X', 'value');
         const ast = makeAst({ constValue: undefined });
         expr.expressionAst = ast;
-        (evaluateParseResult as jest.Mock).mockResolvedValue(42 as EvaluateResult);
-
-        const ctx = { evalContext: {} } as ExecutionContext;
+        const evaluator = { evaluateParseResult: jest.fn().mockResolvedValue(42 as EvaluateResult) };
+        const ctx = { evalContext: {}, evaluator } as unknown as ExecutionContext;
         expr.setExecutionContext(ctx);
         await expect(expr.getValue()).resolves.toBe(42);
     });
@@ -88,7 +82,7 @@ describe('ScvdExpression', () => {
         expr.expressionAst = makeAst({ constValue: undefined });
         await expect(expr.evaluate()).resolves.toBeUndefined();
 
-        expr.setExecutionContext({ evalContext: {} } as ExecutionContext);
+        expr.setExecutionContext({ evalContext: {}, evaluator: { evaluateParseResult: jest.fn() } } as unknown as ExecutionContext);
         expr.expressionAst = undefined;
         await expect(expr.evaluate()).resolves.toBeUndefined();
     });
@@ -102,10 +96,12 @@ describe('ScvdExpression', () => {
         await expect(expr.getResultString()).resolves.toBe('str');
 
         expr.expressionAst = makeAst({ constValue: undefined });
-        expr.setExecutionContext({ evalContext: {} } as ExecutionContext);
-        (evaluateParseResult as jest.Mock)
-            .mockResolvedValueOnce(5n as EvaluateResult)
-            .mockResolvedValueOnce({} as EvaluateResult);
+        const evaluator = {
+            evaluateParseResult: jest.fn()
+                .mockResolvedValueOnce(5n as EvaluateResult)
+                .mockResolvedValueOnce({} as EvaluateResult),
+        };
+        expr.setExecutionContext({ evalContext: {}, evaluator } as unknown as ExecutionContext);
         await expect(expr.getResultString()).resolves.toBe('5');
 
         expr.expressionAst = makeAst({ constValue: undefined });
