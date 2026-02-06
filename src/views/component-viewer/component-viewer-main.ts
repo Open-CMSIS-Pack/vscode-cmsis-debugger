@@ -83,7 +83,7 @@ export class ComponentViewer {
             }
             // Check if the node belongs to this instance. We only care about parent nodes, as locking/unlocking a child node is not supported,
             // so we can skip checking the whole tree and just check if the node is one of the roots.
-            return guiTree[0].getGuiId() === node.getGuiId(); 
+            return guiTree[0].getGuiId() === node.getGuiId();
         });
         if (!instance) {
             return;
@@ -126,7 +126,7 @@ export class ComponentViewer {
         this._instances.push(...cbuildRunInstances.map(instance => ({
             componentViewerInstance: instance,
             lockState: false
-        })));  
+        })));
     }
 
     private async loadCbuildRunInstances(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker) : Promise<void | undefined> {
