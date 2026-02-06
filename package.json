@@ -145,13 +145,13 @@
         "category": "Live Watch"
       },
       {
-        "command": "vscode-cmsis-debugger.componentViewer.lockInstance",
+        "command": "vscode-cmsis-debugger.componentViewer.lockComponent",
         "title": "Lock Instance",
         "icon": "$(unlock)",
         "category": "Component Viewer"
       },
       {
-        "command": "vscode-cmsis-debugger.componentViewer.unlockInstance",
+        "command": "vscode-cmsis-debugger.componentViewer.unlockComponent",
         "title": "Unlock Instance",
         "icon": "$(lock)",
         "category": "Component Viewer"
@@ -240,11 +240,11 @@
           "when": "false"
         },
         {
-          "command": "vscode-cmsis-debugger.componentViewer.lockInstance",
+          "command": "vscode-cmsis-debugger.componentViewer.lockComponent",
           "when": "false"
         },
         {
-          "command": "vscode-cmsis-debugger.componentViewer.unlockInstance",
+          "command": "vscode-cmsis-debugger.componentViewer.unlockComponent",
           "when": "false"
         }
       ],
@@ -324,12 +324,12 @@
           "group": "contextMenuG3@1"
         },
         {
-          "command": "vscode-cmsis-debugger.componentViewer.lockInstance",
+          "command": "vscode-cmsis-debugger.componentViewer.lockComponent",
           "when": "view == cmsis-debugger.componentViewer && viewItem == parentInstance",
           "group": "inline@1"
         },
         {
-          "command": "vscode-cmsis-debugger.componentViewer.unlockInstance",
+          "command": "vscode-cmsis-debugger.componentViewer.unlockComponent",
           "when": "view == cmsis-debugger.componentViewer && viewItem == locked.parentInstance",
           "group": "inline@2"
         }

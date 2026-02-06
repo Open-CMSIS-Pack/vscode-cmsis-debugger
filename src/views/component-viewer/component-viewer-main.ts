@@ -21,7 +21,6 @@ import { URI } from 'vscode-uri';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
 import { logger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
-import { ScvdGuiTree } from './scvd-gui-tree';
 
 export type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace';
 interface UpdateQueueItem {
@@ -63,10 +62,10 @@ export class ComponentViewer {
     protected registerTreeView(): void {
         this._componentViewerTreeDataProvider = new ComponentViewerTreeDataProvider();
         const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
-        const lockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.lockInstance', async (node) => {
+        const lockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.lockComponent', async (node) => {
             this.handleLockInstance(node);
         });
-        const unlockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.unlockInstance', async (node) => {
+        const unlockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.unlockComponent', async (node) => {
             this.handleLockInstance(node);
         });
         this._context.subscriptions.push(
