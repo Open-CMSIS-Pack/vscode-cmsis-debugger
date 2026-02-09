@@ -1018,6 +1018,10 @@ export class Evaluator {
                         }
                         const out = applyUnary(u.operator, cv);
                         if (!out) {
+                            if (cv.type.kind === 'float' && u.operator === '~') {
+                                this.diagnostics.record('Illegal operation on floating-point value');
+                                return undefined;
+                            }
                             this.diagnostics.record(`Unsupported unary operator ${u.operator} for ${this.diagnostics.formatNodeForMessage(u.argument)}`);
                             return undefined;
                         }
@@ -1365,6 +1369,11 @@ export class Evaluator {
         const cA = this.toCValueFromEval(a, typeA);
         const cB = this.toCValueFromEval(b, typeB);
         if (!cA || !cB) {
+            return undefined;
+        }
+        if ((operator === '&' || operator === '|' || operator === '^' || operator === '<<' || operator === '>>' || operator === '%')
+            && (cA.type.kind === 'float' || cB.type.kind === 'float')) {
+            this.diagnostics.record('Illegal operation on floating-point value');
             return undefined;
         }
         const out = applyBinary(operator, cA, cB, this._model);

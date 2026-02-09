@@ -84,11 +84,9 @@ export class ScvdParserInterface {
         }
 
         let typeName: string | undefined;
-        if (current.getValueType !== ScvdNode.prototype.getValueType) {
+        const hasTypedValue = current.getValueType !== ScvdNode.prototype.getValueType;
+        if (hasTypedValue) {
             typeName = current.getValueType();
-        }
-        if (!typeName) {
-            console.error(`ScvdParserInterface: undefined type for '${path.join('.')}'`);
         }
         const valueType = this.mapValueType(typeName);
         const info: ParserSymbolInfo = { symbolPath: path };

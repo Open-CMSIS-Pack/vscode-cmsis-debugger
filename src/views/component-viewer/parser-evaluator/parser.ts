@@ -303,12 +303,31 @@ function unescapeString(rawWithQuotes: string): string {
             case '\\': out += '\\'; break;
             case '"': out += '"'; break;
             case '\'': out += '\''; break;
-            case '0': out += '\0'; break;
+            case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': {
+                let oct = e;
+                let j = i + 1;
+                let count = 0;
+                while (count < 2 && j < s.length && /[0-7]/.test(s.charAt(j))) {
+                    oct += s.charAt(j);
+                    j++;
+                    count++;
+                }
+                const code = parseInt(oct, 8);
+                out += String.fromCharCode(code & 0xFF);
+                i = j - 1;
+                break;
+            }
             case 'x': {
-                const h1 = s.charAt(i+1), h2 = s.charAt(i+2);
-                if (h1 && h2 && /[0-9a-fA-F]/.test(h1) && /[0-9a-fA-F]/.test(h2)) {
-                    out += String.fromCharCode(parseInt(h1 + h2, 16));
-                    i += 2;
+                let j = i + 1;
+                let hex = '';
+                while (j < s.length && /[0-9a-fA-F]/.test(s.charAt(j))) {
+                    hex += s.charAt(j);
+                    j++;
+                }
+                if (hex.length > 0) {
+                    const code = parseInt(hex, 16);
+                    out += String.fromCharCode(code & 0xFF);
+                    i = j - 1;
                 } else {
                     out += 'x';
                 }

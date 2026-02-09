@@ -92,8 +92,10 @@ describe('ComponentViewerInstance', () => {
         }));
 
         const resolve = jest.fn();
+        const resolveTypeRefsOnly = jest.fn();
         (Resolver as unknown as jest.Mock).mockImplementation(() => ({
             resolve,
+            resolveTypeRefsOnly,
         }));
 
         const init = jest.fn();
@@ -129,6 +131,7 @@ describe('ComponentViewerInstance', () => {
         expect(setExecutionContextAll).toHaveBeenCalledWith({ exec: true });
         expect(configureAll).toHaveBeenCalled();
         expect(validateAll).toHaveBeenCalledWith(true);
+        expect(resolveTypeRefsOnly).toHaveBeenCalled();
         expect(resolve).toHaveBeenCalled();
         expect(calculateTypedefs).toHaveBeenCalled();
         expect(initialize).toHaveBeenCalled();

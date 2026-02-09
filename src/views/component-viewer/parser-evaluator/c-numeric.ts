@@ -170,11 +170,22 @@ export function parseNumericLiteral(raw: string, model: IntegerModel = DEFAULT_I
     const hasHexExponent = /[pP]/.test(cleaned);
     const hasDecimalExponent = /[eE]/.test(cleaned);
     const hasFloatMarker = hasDot || hasHexExponent || (!hasHexPrefix && hasDecimalExponent);
-    const suffixMatch = hasFloatMarker
-        ? cleaned.match(/([fFlL]+)$/)
-        : cleaned.match(/([uUlL]+)$/);
-    const suffix = suffixMatch ? suffixMatch[1] : '';
-    const core = suffix ? cleaned.slice(0, -suffix.length) : cleaned;
+    let suffix = '';
+    let core = cleaned;
+    if (!hasFloatMarker) {
+        const i64Match = cleaned.match(/([iI]64)$/);
+        if (i64Match) {
+            suffix = i64Match[1];
+            core = cleaned.slice(0, -suffix.length);
+        }
+    }
+    if (!suffix) {
+        const suffixMatch = hasFloatMarker
+            ? cleaned.match(/([fFlL]+)$/)
+            : cleaned.match(/([uUlL]+)$/);
+        suffix = suffixMatch ? suffixMatch[1] : '';
+        core = suffix ? cleaned.slice(0, -suffix.length) : cleaned;
+    }
     const lowerSuffix = suffix.toLowerCase();
     const hasFloatSuffix = lowerSuffix.includes('f');
 
@@ -242,6 +253,7 @@ export function parseNumericLiteral(raw: string, model: IntegerModel = DEFAULT_I
     }
 
     const isUnsignedLiteral = lowerSuffix.includes('u');
+    const hasI64Suffix = lowerSuffix === 'i64';
     const hasLongLong = /ll/.test(lowerSuffix);
     const hasLong = /l/.test(lowerSuffix);
 
@@ -249,7 +261,9 @@ export function parseNumericLiteral(raw: string, model: IntegerModel = DEFAULT_I
     const fitsSigned = (bits: number) => value <= ((1n << BigInt(bits - 1)) - 1n);
 
     let literalType: CType | undefined;
-    if (isUnsignedLiteral) {
+    if (hasI64Suffix) {
+        literalType = makeIntType('long long', false, model);
+    } else if (isUnsignedLiteral) {
         if (hasLongLong) {
             literalType = makeIntType('long long', true, model);
         } else if (hasLong) {
@@ -428,14 +442,31 @@ export function parseTypeName(name: string, model: IntegerModel = DEFAULT_INTEGE
     }
     const lower = trimmed.toLowerCase();
     const isUnsigned = lower.includes('unsigned');
+    const fixedWidthMatch = lower.match(/^(u?)int(8|16|32|64)_t$/);
+    if (fixedWidthMatch) {
+        const unsigned = fixedWidthMatch[1] === 'u';
+        const bits = Number.parseInt(fixedWidthMatch[2] ?? '0', 10);
+        if (bits > 0) {
+            return makeType(unsigned ? 'uint' : 'int', bits, trimmed);
+        }
+    }
     if (lower.includes('bool') || lower === '_bool') {
         return makeType('bool', 1, 'bool');
+    }
+    if (lower === 'signed') {
+        return makeType('int', model.intBits, 'int');
+    }
+    if (lower === 'unsigned') {
+        return makeType('uint', model.intBits, 'unsigned int');
     }
     if (lower.includes('char')) {
         return makeType(isUnsigned ? 'uint' : 'int', 8, isUnsigned ? 'unsigned char' : 'char');
     }
     if (lower.includes('short')) {
         return makeType(isUnsigned ? 'uint' : 'int', 16, isUnsigned ? 'unsigned short' : 'short');
+    }
+    if (lower.includes('long double')) {
+        return makeType('float', 64, 'long double');
     }
     if (lower.includes('long long')) {
         return makeIntType('long long', isUnsigned, model);

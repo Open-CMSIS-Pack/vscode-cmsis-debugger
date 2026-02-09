@@ -56,6 +56,9 @@ describe('ScvdDataType', () => {
         expect(scalar.getValueType()).toBe('uint32_t');
         expect(scalar.getMember('anything')).toBeUndefined();
 
+        const float = new ScvdDataType(undefined, 'double');
+        expect(float.getValueType()).toBe('double');
+
         const pointer = new ScvdDataType(undefined, '*uint16_t');
         expect(pointer.getIsPointer()).toBe(true);
         expect(pointer.getValueType()).toBe('uint32_t');

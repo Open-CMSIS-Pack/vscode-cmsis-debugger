@@ -120,6 +120,26 @@ const textSeg = (text: string): TextSegment => ({ kind: 'TextSegment', text, ...
 const printfExpr = (segments: Array<TextSegment | FormatSegment>): PrintfExpression => ({ kind: 'PrintfExpression', segments, resultType: 'string', ...span } as PrintfExpression);
 
 describe('Evaluator coverage branches', () => {
+    it('records illegal float operations', async () => {
+        const evaluator = new TestEvaluator();
+        const host = makeHost({
+            getValueType: jest.fn(async (container) => {
+                const cur = container.current as TestNode | undefined;
+                if (cur?.name === 'f') {
+                    return { kind: 'float', bits: 32, name: 'float' } as ScalarType;
+                }
+                return { kind: 'int', bits: 32, name: 'int' } as ScalarType;
+            }),
+        }, {
+            f: new TestNode('f', 1.25),
+            i: new TestNode('i', 2),
+        });
+        const ctx = makeCtx(host);
+
+        await evaluator.evalNodePublic(binary('&', id('f'), id('i')), ctx);
+        expect(evaluator.getMessagesPublic()).toContain('Illegal operation on floating-point value');
+    });
+
     it('formats values and nodes for messages', () => {
         const evaluator = new TestEvaluator();
         const helpers = evaluator.getTestHelpersPublic() as {
