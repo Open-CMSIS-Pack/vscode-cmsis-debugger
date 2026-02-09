@@ -26,6 +26,7 @@ import {
     type CType,
     type CValue,
 } from './c-numeric';
+import { perf } from '../stats-config';
 
 export type ScalarKind = 'int' | 'uint' | 'float';
 
@@ -150,39 +151,57 @@ export function toBigInt(x: MathValue): bigint {
 }
 
 export function maskToBits(v: number | bigint, bits?: number): number | bigint {
+    const perfStart = perf?.start() ?? 0;
     if (!bits || bits <= 0) {
+        perf?.end(perfStart, 'cNumericMaskMs', 'cNumericMaskCalls');
         return v;
     }
+    const big = typeof v === 'bigint' ? v : BigInt(Math.trunc(v));
+    const mask = (1n << BigInt(bits)) - 1n;
+    const out = big & mask;
     if (typeof v === 'bigint') {
-        const mask = (1n << BigInt(bits)) - 1n;
-        return v & mask;
+        perf?.end(perfStart, 'cNumericMaskMs', 'cNumericMaskCalls');
+        return out;
     }
-    if (bits >= 32) {
-        return v >>> 0;
+    const maxSafe = BigInt(Number.MAX_SAFE_INTEGER);
+    const minSafe = BigInt(Number.MIN_SAFE_INTEGER);
+    if (out > maxSafe || out < minSafe) {
+        perf?.end(perfStart, 'cNumericMaskMs', 'cNumericMaskCalls');
+        return out;
     }
-    const mask = (1 << bits) - 1;
-    return (v >>> 0) & mask;
+    perf?.end(perfStart, 'cNumericMaskMs', 'cNumericMaskCalls');
+    return Number(out);
 }
 
 export function normalizeToWidth(v: number | bigint, bits: number | undefined, kind: ScalarKind | 'unknown'): number | bigint {
+    const perfStart = perf?.start() ?? 0;
     if (!bits || bits <= 0 || kind === 'float') {
+        perf?.end(perfStart, 'cNumericNormalizeMs', 'cNumericNormalizeCalls');
         return v;
     }
     if (kind === 'uint') {
-        return maskToBits(v, bits);
+        const out = maskToBits(v, bits);
+        perf?.end(perfStart, 'cNumericNormalizeMs', 'cNumericNormalizeCalls');
+        return out;
     }
     // signed: mask then sign-extend
+    const big = typeof v === 'bigint' ? v : BigInt(Math.trunc(v));
+    const mask = (1n << BigInt(bits)) - 1n;
+    const m = big & mask;
+    const sign = 1n << BigInt(bits - 1);
+    const out = (m & sign) ? m - (1n << BigInt(bits)) : m;
     if (typeof v === 'bigint') {
-        const mask = (1n << BigInt(bits)) - 1n;
-        const m = v & mask;
-        const sign = 1n << BigInt(bits - 1);
-        return (m & sign) ? m - (1n << BigInt(bits)) : m;
+        perf?.end(perfStart, 'cNumericNormalizeMs', 'cNumericNormalizeCalls');
+        return out;
     }
-    const width = bits >= 32 ? 32 : bits;
-    const mask = width === 32 ? 0xFFFF_FFFF : (1 << width) - 1;
-    const m = (v >>> 0) & mask;
-    const sign = 1 << (width - 1);
-    return (m & sign) ? (m | (~mask)) : m;
+    const maxSafe = BigInt(Number.MAX_SAFE_INTEGER);
+    const minSafe = BigInt(Number.MIN_SAFE_INTEGER);
+    if (out > maxSafe || out < minSafe) {
+        perf?.end(perfStart, 'cNumericNormalizeMs', 'cNumericNormalizeCalls');
+        return out;
+    }
+    perf?.end(perfStart, 'cNumericNormalizeMs', 'cNumericNormalizeCalls');
+    return Number(out);
 }
 
 export function addVals(a: MathValue, b: MathValue, bits?: number, unsigned?: boolean, model: IntegerModel = DEFAULT_INTEGER_MODEL): MathValue {

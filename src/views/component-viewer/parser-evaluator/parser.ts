@@ -19,13 +19,22 @@
 import { INTRINSIC_DEFINITIONS, isIntrinsicName } from './intrinsics';
 import type { IntrinsicName as HostIntrinsicName } from './intrinsics';
 import { ExpressionOptimizer } from './expression-optimizer';
-import { DEFAULT_INTEGER_MODEL, type IntegerModel, parseNumericLiteral } from './c-numeric';
+import { DEFAULT_INTEGER_MODEL, type IntegerModel, cValueFromConst, convertToType, parseNumericLiteral } from './c-numeric';
+import type { ParserModelInfo, ParserSymbolInfo } from '../scvd-parser-interface';
 
 export type ValueType = 'number' | 'boolean' | 'string' | 'unknown';
 
 export type ConstValue = number | bigint | string | boolean | undefined;
 
-export interface BaseNode { kind: string; start: number; end: number; valueType?: ValueType; constValue?: ConstValue; }
+export interface BaseNode {
+  kind: string;
+  start: number;
+  end: number;
+  valueType?: ValueType;
+  constValue?: ConstValue;
+  modelInfo?: ParserSymbolInfo;
+  symbolPath?: string[];
+}
 export interface NumberLiteral extends BaseNode { kind:'NumberLiteral'; value:number | bigint; raw:string; valueType:'number'; }
 export interface StringLiteral extends BaseNode { kind:'StringLiteral'; value:string; raw:string; valueType:'string'; }
 export interface BooleanLiteral extends BaseNode { kind:'BooleanLiteral'; value:boolean; valueType:'boolean'; }
@@ -339,6 +348,7 @@ export class Parser {
     private diagnostics: Diagnostic[] = [];
     private externals: Set<string> = new Set();
     private _model: IntegerModel;
+    private _modelInfo: ParserModelInfo | undefined;
     private static readonly TYPE_KEYWORDS = new Set([
         'void','char','short','int','long','float','double','signed','unsigned','bool','_bool','_Bool','size_t','ptrdiff_t'
     ]);
@@ -351,6 +361,10 @@ export class Parser {
 
     public setIntegerModel(model: IntegerModel): void {
         this._model = model;
+    }
+
+    public setModelInfoProvider(info: ParserModelInfo | undefined): void {
+        this._modelInfo = info;
     }
 
     private reinit(s:string) {
@@ -807,7 +821,18 @@ export class Parser {
                         lastEnd = idt.end;
                     }
                 }
-                node = { kind:'ColonPath', parts, valueType:'unknown', ...span(startPos, lastEnd) };
+                const colonNode: ColonPath = { kind:'ColonPath', parts, valueType:'unknown', ...span(startPos, lastEnd) };
+                const modelInfo = this._modelInfo?.resolveColonPath?.(parts);
+                if (modelInfo) {
+                    colonNode.modelInfo = modelInfo;
+                    if (modelInfo.valueType) {
+                        colonNode.valueType = modelInfo.valueType;
+                    }
+                    colonNode.symbolPath = modelInfo.symbolPath ?? parts.slice();
+                } else {
+                    colonNode.symbolPath = parts.slice();
+                }
+                node = colonNode;
                 continue;
             }
 
@@ -870,7 +895,20 @@ export class Parser {
                 if (this.cur.kind === 'IDENT') {
                     const prop = this.cur.value;
                     const idt = this.eat('IDENT');
-                    node = { kind:'MemberAccess', object:node, property:prop, ...span(startOf(node), idt.end) };
+                    const memberNode: MemberAccess = { kind:'MemberAccess', object:node, property:prop, ...span(startOf(node), idt.end) };
+                    if (node.symbolPath) {
+                        const modelInfo = this._modelInfo?.resolveMember(node.symbolPath, prop);
+                        if (modelInfo) {
+                            memberNode.modelInfo = modelInfo;
+                            if (modelInfo.valueType) {
+                                memberNode.valueType = modelInfo.valueType;
+                            }
+                            memberNode.symbolPath = modelInfo.symbolPath ?? [...node.symbolPath, prop];
+                        } else {
+                            memberNode.symbolPath = [...node.symbolPath, prop];
+                        }
+                    }
+                    node = memberNode;
                 } else {
                     this.error('Expected identifier after "."', this.cur.start, this.cur.end);
                 }
@@ -881,8 +919,28 @@ export class Parser {
                 if (this.cur.kind === 'IDENT') {
                     const prop = this.cur.value;
                     const idt = this.eat('IDENT');
-                    const deref: UnaryExpression = { kind:'UnaryExpression', operator:'*', argument: node, ...span(startOf(node), endOf(node)) };
-                    node = { kind:'MemberAccess', object:deref, property:prop, ...span(startOf(node), idt.end) };
+                    const deref: UnaryExpression = {
+                        kind:'UnaryExpression',
+                        operator:'*',
+                        argument: node,
+                        ...(node.symbolPath ? { symbolPath: node.symbolPath } : {}),
+                        ...(node.modelInfo ? { modelInfo: node.modelInfo } : {}),
+                        ...span(startOf(node), endOf(node))
+                    };
+                    const memberNode: MemberAccess = { kind:'MemberAccess', object:deref, property:prop, ...span(startOf(node), idt.end) };
+                    if (deref.symbolPath) {
+                        const modelInfo = this._modelInfo?.resolveMember(deref.symbolPath, prop);
+                        if (modelInfo) {
+                            memberNode.modelInfo = modelInfo;
+                            if (modelInfo.valueType) {
+                                memberNode.valueType = modelInfo.valueType;
+                            }
+                            memberNode.symbolPath = modelInfo.symbolPath ?? [...deref.symbolPath, prop];
+                        } else {
+                            memberNode.symbolPath = [...deref.symbolPath, prop];
+                        }
+                    }
+                    node = memberNode;
                 } else {
                     this.error('Expected identifier after "->"', this.cur.start, this.cur.end);
                 }
@@ -894,7 +952,14 @@ export class Parser {
                 if (!this.tryEat('PUNCT', ']')) {
                     this.error('Expected "]"', this.cur.start, this.cur.end);
                 }
-                node = { kind:'ArrayIndex', array:node, index, ...span(startOf(node), endOf(index)) };
+                const arrayNode: ArrayIndex = { kind:'ArrayIndex', array:node, index, ...span(startOf(node), endOf(index)) };
+                if (node.symbolPath) {
+                    arrayNode.symbolPath = node.symbolPath;
+                }
+                if (node.modelInfo) {
+                    arrayNode.modelInfo = node.modelInfo;
+                }
+                node = arrayNode;
                 continue;
             }      // postfix ++ / --
             if (this.cur.kind === 'PUNCT' && (this.cur.value === '++' || this.cur.value === '--')) {
@@ -925,7 +990,9 @@ export class Parser {
             const isCharLiteral = t.value.startsWith('\'') && t.value.endsWith('\'');
             if (isCharLiteral) {
                 const code = text.codePointAt(0) ?? 0;
-                const val = (code >>> 0);
+                const charType = { kind: 'int', bits: this._model.intBits, name: 'int' } as const;
+                const cv = convertToType(cValueFromConst(code, charType), charType);
+                const val = constValueFromCValue(cv);
                 return { kind:'NumberLiteral', value:val, raw:t.value, valueType:'number', constValue: val, ...span(t.start,t.end) };
             }
             return { kind:'StringLiteral', value:text, raw:t.value, valueType:'string', constValue: text, ...span(t.start,t.end) };
@@ -938,6 +1005,16 @@ export class Parser {
         if (t.kind === 'IDENT') {
             this.eat('IDENT');
             const node: Identifier = { kind:'Identifier', name:t.value, valueType:'unknown', ...span(t.start,t.end) };
+            const modelInfo = this._modelInfo?.resolveIdentifier(t.value);
+            if (modelInfo) {
+                node.modelInfo = modelInfo;
+                if (modelInfo.valueType) {
+                    node.valueType = modelInfo.valueType;
+                }
+                node.symbolPath = modelInfo.symbolPath ?? [t.value];
+            } else {
+                node.symbolPath = [t.value];
+            }
             if (!isIntrinsicName(t.value)) {
                 this.externals.add(t.value);
             }
@@ -960,8 +1037,14 @@ export class Parser {
 
 /* -------- Convenience API -------- */
 
-export function parseExpression(expr: string, isPrintExpression: boolean, model: IntegerModel = DEFAULT_INTEGER_MODEL): ParseResult {
+export function parseExpression(
+    expr: string,
+    isPrintExpression: boolean,
+    model: IntegerModel = DEFAULT_INTEGER_MODEL,
+    modelInfo?: ParserModelInfo
+): ParseResult {
     const parser = new Parser(model);
+    parser.setModelInfoProvider(modelInfo);
     const parsed = parser.parseWithDiagnostics(expr, isPrintExpression);
     const optimizer = new ExpressionOptimizer(model);
     return optimizer.optimizeParseResult(parsed);

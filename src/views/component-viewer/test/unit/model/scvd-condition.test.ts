@@ -71,7 +71,8 @@ describe('ScvdCondition', () => {
         condition.expression = 'next';
         expect(condition.expression).toBe(original);
 
-        const ctx = { evalContext: {}, evaluator: new Evaluator(), parseExpression } as ExecutionContext;
+        const parser = { parseExpression };
+        const ctx = { evalContext: {}, evaluator: new Evaluator(), parser } as ExecutionContext;
         const ctxSpy = jest.spyOn(ScvdExpression.prototype, 'setExecutionContext');
         condition.setExecutionContext(ctx);
 

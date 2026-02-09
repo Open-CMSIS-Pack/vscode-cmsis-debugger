@@ -40,9 +40,6 @@ import type {
     ColonPath,
 } from './parser';
 import type { ScvdNode } from '../model/scvd-node';
-import {
-    toNumeric,
-} from './math-ops';
 import type { DataAccessHost, EvalValue, ModelHost, RefContainer, ScalarKind, ScalarType } from './model-host';
 import type { IntrinsicProvider } from './intrinsics';
 import { handleIntrinsic, INTRINSIC_DEFINITIONS, IntrinsicName, isIntrinsicName } from './intrinsics';
@@ -579,7 +576,7 @@ export class Evaluator {
 
     private addByteOffset(ctx: EvalContext, bytes: number) {
         const c = ctx.container;
-        const add = (bytes | 0);
+        const add = Number.isFinite(bytes) ? Math.trunc(bytes) : 0;
         c.offsetBytes = ((c.offsetBytes ?? 0) + add);
     }
 
@@ -657,7 +654,7 @@ export class Evaluator {
                         }
 
                         // Evaluate index in isolation (so i/j/mem.length don't clobber outer anchor)
-                        const idx = this.asNumber(await this.withIsolatedContainer(ctx, () => this.evalNodeChild(ai.index, ctx))) | 0;
+                        const idx = Math.trunc(this.asNumber(await this.withIsolatedContainer(ctx, () => this.evalNodeChild(ai.index, ctx))));
 
                         // Remember the index for hosts that use it
                         ctx.container.index = idx;
@@ -764,7 +761,7 @@ export class Evaluator {
                     }
 
                     // Evaluate the index in isolation
-                    const idx = this.asNumber(await this.withIsolatedContainer(ctx, () => this.evalNodeChild(ai.index, ctx))) | 0;
+                    const idx = Math.trunc(this.asNumber(await this.withIsolatedContainer(ctx, () => this.evalNodeChild(ai.index, ctx))));
 
                     // Translate index -> byte offset
                     ctx.container.index = idx;
@@ -906,7 +903,11 @@ export class Evaluator {
                 this.diagnostics.record('Intrinsic __Running returned undefined');
                 return undefined;
             }
-            return out | 0;
+            if (!Number.isFinite(out)) {
+                this.diagnostics.record('Intrinsic __Running returned non-finite');
+                return undefined;
+            }
+            return Math.trunc(out);
         } finally {
             perf?.end(perfStartTime, 'evalRunningIntrinsicMs', 'evalRunningIntrinsicCalls');
         }
@@ -1431,40 +1432,47 @@ export class Evaluator {
         }
 
         // Existing fallback behaviour
+        const formatInt = (value: EvalValue, unsigned: boolean, radix: number): string | undefined => {
+            const perfStart = perf?.start() ?? 0;
+            const scalarType: ScalarType = { kind: unsigned ? 'uint' : 'int', bits: this._model.intBits, name: unsigned ? 'unsigned int' : 'int' };
+            const target = { kind: unsigned ? 'uint' : 'int', bits: this._model.intBits, name: unsigned ? 'unsigned int' : 'int' } as const;
+            const cv = this.toCValueFromEval(value, scalarType);
+            if (!cv) {
+                if (typeof value === 'number' && !Number.isFinite(value)) {
+                    perf?.end(perfStart, 'evalFormatIntMs', 'evalFormatIntCalls');
+                    return 'NaN';
+                }
+                perf?.end(perfStart, 'evalFormatIntMs', 'evalFormatIntCalls');
+                return undefined;
+            }
+            const normalized = convertToType(cv, target);
+            if (normalized.type.kind === 'float') {
+                const num = normalized.value as number;
+                if (!Number.isFinite(num)) {
+                    perf?.end(perfStart, 'evalFormatIntMs', 'evalFormatIntCalls');
+                    return 'NaN';
+                }
+                perf?.end(perfStart, 'evalFormatIntMs', 'evalFormatIntCalls');
+                return Math.trunc(num).toString(radix);
+            }
+            const big = normalized.value as bigint;
+            perf?.end(perfStart, 'evalFormatIntMs', 'evalFormatIntCalls');
+            return big.toString(radix);
+        };
         switch (spec) {
             case '%':  return '%';
             case 'd':  {
-                const n = toNumeric(v);
-                if (typeof n === 'bigint') {
-                    return n.toString(10);
-                }
-                const num = Number(n);
-                if (!Number.isFinite(num)) {
-                    return 'NaN';
-                }
-                return (num | 0).toString(10);
+                return formatInt(v, false, 10);
             }
             case 'u':  {
-                const n = toNumeric(v);
-                if (typeof n === 'bigint') {
-                    return (n < 0n ? -n : n).toString(10);
-                }
-                const num = Number(n);
-                if (!Number.isFinite(num)) {
-                    return 'NaN';
-                }
-                return (num >>> 0).toString(10);
+                return formatInt(v, true, 10);
             }
             case 'x':  {
-                const n = toNumeric(v);
-                if (typeof n === 'bigint') {
-                    return `0x${n.toString(16)}`;
+                const formatted = formatInt(v, true, 16);
+                if (formatted === undefined || formatted === 'NaN') {
+                    return formatted;
                 }
-                const num = Number(n);
-                if (!Number.isFinite(num)) {
-                    return 'NaN';
-                }
-                return (num >>> 0).toString(16);
+                return `0x${formatted}`;
             }
             case 't':  return this.truthy(v) ? 'true' : 'false';
             case 'S':  return typeof v === 'string' ? v : String(v);

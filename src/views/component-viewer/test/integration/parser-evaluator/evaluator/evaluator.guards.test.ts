@@ -228,7 +228,7 @@ describe('evaluator guards', () => {
         const formatValue = asAny.formatValue as (spec: FormatSegment['spec'], v: EvalValue, ctx?: EvalContext) => Promise<string>;
         const ctx = makeCtx(new StubHost());
         await expect(formatValue('d', 2n, ctx)).resolves.toBe('2');
-        await expect(formatValue('u', -2n, ctx)).resolves.toBe('2');
+        await expect(formatValue('u', -2n, ctx)).resolves.toBe('4294967294');
         await expect(formatValue('x', 0xffn, ctx)).resolves.toBe('0xff');
         await expect(formatValue('x', Number.POSITIVE_INFINITY, ctx)).resolves.toBe('NaN');
         await expect(formatValue('?', 123, ctx)).resolves.toBe('123');

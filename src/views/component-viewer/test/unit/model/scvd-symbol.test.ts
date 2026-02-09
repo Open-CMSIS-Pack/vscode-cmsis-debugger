@@ -53,7 +53,8 @@ describe('ScvdSymbol', () => {
                 { name: 'next', size: 2, offset: 12 }
             ]
         });
-        const context = { debugTarget: { getSymbolInfo }, parseExpression } as unknown as ExecutionContext;
+        const parser = { parseExpression };
+        const context = { debugTarget: { getSymbolInfo }, parser } as unknown as ExecutionContext;
 
         symbol.setExecutionContext(context);
         const result = await symbol.fetchSymbolInformation();
@@ -77,7 +78,8 @@ describe('ScvdSymbol', () => {
     it('handles missing symbol info gracefully', async () => {
         const symbol = new ScvdSymbol(undefined, 'sym');
         const getSymbolInfo = jest.fn().mockResolvedValue(undefined);
-        const context = { debugTarget: { getSymbolInfo }, parseExpression } as unknown as ExecutionContext;
+        const parser = { parseExpression };
+        const context = { debugTarget: { getSymbolInfo }, parser } as unknown as ExecutionContext;
 
         symbol.setExecutionContext(context);
         const result = await symbol.fetchSymbolInformation();

@@ -304,7 +304,7 @@ describe('Evaluator coverage branches', () => {
         const cond: ConditionalExpression = { kind: 'ConditionalExpression', test: bool(false), consequent: num(1), alternate: num(2), ...span };
         await expect(evaluator.evalNodePublic(cond, counterCtx)).resolves.toBe(2);
 
-        await expect(helpers.formatValue('u', -5n, counterCtx)).resolves.toBe('5');
+        await expect(helpers.formatValue('u', -5n, counterCtx)).resolves.toBe('4294967291');
         await expect(helpers.formatValue('t', 0, counterCtx)).resolves.toBe('false');
         await expect(helpers.formatValue('t', 1, counterCtx)).resolves.toBe('true');
 
@@ -827,7 +827,7 @@ describe('Evaluator coverage branches', () => {
         await expect(helpers.formatValue('d', Number.NaN, ctxNoOverride)).resolves.toBe('NaN');
         await expect(helpers.formatValue('u', Number.NaN, ctxNoOverride)).resolves.toBe('NaN');
         await expect(helpers.formatValue('x', Number.NaN, ctxNoOverride)).resolves.toBe('NaN');
-        await expect(helpers.formatValue('x', 15, ctxNoOverride)).resolves.toBe('f');
+        await expect(helpers.formatValue('x', 15, ctxNoOverride)).resolves.toBe('0xf');
         await expect(helpers.formatValue('u', 15, ctxNoOverride)).resolves.toBe('15');
         await expect(helpers.formatValue('x', 15n, ctxNoOverride)).resolves.toBe('0xf');
         await expect(helpers.formatValue('S', 5, ctxNoOverride)).resolves.toBe('5');

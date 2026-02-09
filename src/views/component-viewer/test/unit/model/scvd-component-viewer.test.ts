@@ -130,7 +130,8 @@ describe('ScvdComponentViewer', () => {
     it('sets execution context recursively', () => {
         const viewer = new ScvdComponentViewer(undefined);
         const child = new ScvdComponentViewer(viewer);
-        const ctx = { evalContext: {}, evaluator: new Evaluator(), parseExpression } as ExecutionContext;
+        const parser = { parseExpression };
+        const ctx = { evalContext: {}, evaluator: new Evaluator(), parser } as ExecutionContext;
 
         const setSpy = jest.spyOn(child, 'setExecutionContext');
         viewer.setExecutionContextAll(ctx);
