@@ -15,18 +15,23 @@
  */
 
 import { PerfStats } from './perf-stats';
+import { ParsePerfStats } from './parse-perf-stats';
 import { TargetReadStats, TargetReadTiming } from './target-read-stats';
 
 export const PERF_ENABLED = false;
+export const PARSE_PERF_ENABLED = true;
 export const TARGET_READ_STATS_ENABLED = true;
 
 const globalOverrides = globalThis as unknown as {
     __SCVD_PERF_ENABLED__?: boolean;
+    __SCVD_PARSE_PERF_ENABLED__?: boolean;
     __SCVD_TARGET_READ_STATS_ENABLED__?: boolean;
 };
 const perfEnabled = globalOverrides.__SCVD_PERF_ENABLED__ ?? PERF_ENABLED;
+const parsePerfEnabled = globalOverrides.__SCVD_PARSE_PERF_ENABLED__ ?? PARSE_PERF_ENABLED;
 const targetReadStatsEnabled = globalOverrides.__SCVD_TARGET_READ_STATS_ENABLED__ ?? TARGET_READ_STATS_ENABLED;
 
 export const perf = perfEnabled ? new PerfStats() : undefined;
+export const parsePerf = parsePerfEnabled ? new ParsePerfStats() : undefined;
 export const targetReadStats = targetReadStatsEnabled ? new TargetReadStats() : undefined;
 export const targetReadTimingStats = targetReadStatsEnabled ? new TargetReadTiming() : undefined;

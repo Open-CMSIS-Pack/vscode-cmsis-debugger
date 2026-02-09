@@ -21,6 +21,7 @@ import { URI } from 'vscode-uri';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
 import { logger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
+import { perf, parsePerf } from './stats-config';
 
 export type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace';
 interface UpdateQueueItem {
@@ -68,6 +69,7 @@ export class ComponentViewer {
         if (scvdFilesPaths.length === 0) {
             return undefined;
         }
+        parsePerf?.reset();
         const cbuildRunInstances: ComponentViewerInstance[] = [];
         for (const scvdFilePath of scvdFilesPaths) {
             const instance = new ComponentViewerInstance();
@@ -76,6 +78,7 @@ export class ComponentViewer {
                 cbuildRunInstances.push(instance);
             }
         }
+        parsePerf?.logSummary();
         this._instances = cbuildRunInstances;
     }
 
@@ -212,6 +215,8 @@ export class ComponentViewer {
         if (this._instances.length === 0) {
             return;
         }
+        perf?.resetBackendStats();
+        perf?.resetUiStats();
         const roots: ScvdGuiInterface[] = [];
         for (const instance of this._instances) {
             this._instanceUpdateCounter++;
@@ -223,7 +228,7 @@ export class ComponentViewer {
                 roots.push(...guiTree);
             }
         }
+        perf?.logSummaries();
         this._componentViewerTreeDataProvider?.setRoots(roots);
     }
 }
-

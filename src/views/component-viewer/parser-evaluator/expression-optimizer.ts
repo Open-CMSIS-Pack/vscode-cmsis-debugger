@@ -121,6 +121,77 @@ function isOneConst(v: ConstValue): boolean {
     return false;
 }
 
+function isTruthyConst(v: ConstValue): boolean {
+    if (typeof v === 'boolean') {
+        return v;
+    }
+    if (typeof v === 'number') {
+        return v !== 0;
+    }
+    if (typeof v === 'bigint') {
+        return v !== 0n;
+    }
+    return false;
+}
+
+function isFalsyConst(v: ConstValue): boolean {
+    if (typeof v === 'boolean') {
+        return !v;
+    }
+    if (typeof v === 'number') {
+        return v === 0;
+    }
+    if (typeof v === 'bigint') {
+        return v === 0n;
+    }
+    return false;
+}
+
+function isPure(node: ASTNode): boolean {
+    switch (node.kind) {
+        case 'NumberLiteral':
+        case 'StringLiteral':
+        case 'BooleanLiteral':
+        case 'ErrorNode':
+            return true;
+        case 'UnaryExpression': {
+            const ue = node as UnaryExpression;
+            if (ue.operator === '*' || ue.operator === '&') {
+                return false;
+            }
+            return isPure(ue.argument);
+        }
+        case 'BinaryExpression': {
+            const be = node as BinaryExpression;
+            return isPure(be.left) && isPure(be.right);
+        }
+        case 'ConditionalExpression': {
+            const ce = node as ConditionalExpression;
+            return isPure(ce.test) && isPure(ce.consequent) && isPure(ce.alternate);
+        }
+        case 'CastExpression':
+            return isPure((node as CastExpression).argument);
+        case 'SizeofExpression':
+        case 'AlignofExpression': {
+            const se = node as SizeofExpression | AlignofExpression;
+            return se.argument ? isPure(se.argument) : true;
+        }
+        case 'AssignmentExpression':
+        case 'UpdateExpression':
+        case 'CallExpression':
+        case 'EvalPointCall':
+        case 'Identifier':
+        case 'MemberAccess':
+        case 'ArrayIndex':
+        case 'ColonPath':
+        case 'PrintfExpression':
+        case 'FormatSegment':
+        case 'TextSegment':
+        default:
+            return false;
+    }
+}
+
 function cValueFromNode(node: ASTNode, map: WeakMap<ASTNode, CValue>, model: IntegerModel): CValue | undefined {
     const cached = map.get(node);
     if (cached) {
@@ -268,8 +339,10 @@ export class ExpressionOptimizer {
             const op = (node as BinaryExpression).operator;
             const res: BinaryExpression & { constValue?: ConstValue } = { ...(node as BinaryExpression), left, right };
             if (op === ',' && constOf(right) !== undefined) {
-                stats.full += 1;
-                return right;
+                if (isPure(left)) {
+                    stats.full += 1;
+                    return right;
+                }
             }
             const lcv = cValueFromNode(left, cMap, this._model);
             const rcv = cValueFromNode(right, cMap, this._model);
@@ -305,11 +378,11 @@ export class ExpressionOptimizer {
                     const lTruth = leftOnly.type.kind === 'float'
                         ? (leftOnly.value as number) !== 0
                         : (leftOnly.value as bigint) !== 0n;
-                    if (op === '&&' && !lTruth) {
+                    if (op === '&&' && !lTruth && isPure(left)) {
                         stats.full += 1;
                         return literalFromConst(0, startOf(node), endOf(node));
                     }
-                    if (op === '||' && lTruth) {
+                    if (op === '||' && lTruth && isPure(left)) {
                         stats.full += 1;
                         return literalFromConst(1, startOf(node), endOf(node));
                     }
@@ -327,56 +400,81 @@ export class ExpressionOptimizer {
                 stats.identity += 1;
                 return left;
             }
-        if (op === '+' && rightConst !== undefined && isZeroConst(rightConst)) {
-            stats.identity += 1;
-            return left;
-        }
-        if (op === '+' && leftConst !== undefined && isZeroConst(leftConst)) {
-            stats.identity += 1;
-            return right;
-        }
-        if (op === '-' && rightConst !== undefined && isZeroConst(rightConst)) {
-            stats.identity += 1;
-            return left;
-        }
-        if (op === '*' && rightConst !== undefined && isOneConst(rightConst)) {
-            stats.identity += 1;
-            return left;
-        }
-        if (op === '*' && leftConst !== undefined && isOneConst(leftConst)) {
-            stats.identity += 1;
-            return right;
-        }
-        if (op === '/' && rightConst !== undefined && isOneConst(rightConst)) {
-            stats.identity += 1;
-            return left;
-        }
-        if (op === '|' && rightConst !== undefined && isZeroConst(rightConst)) {
-            stats.identity += 1;
-            return left;
-        }
-        if (op === '|' && leftConst !== undefined && isZeroConst(leftConst)) {
-            stats.identity += 1;
-            return right;
-        }
-        if (op === '^' && rightConst !== undefined && isZeroConst(rightConst)) {
-            stats.identity += 1;
-            return left;
-        }
-        if (op === '^' && leftConst !== undefined && isZeroConst(leftConst)) {
-            stats.identity += 1;
-            return right;
-        }
-        if (op === '<<' && rightConst !== undefined && isZeroConst(rightConst)) {
-            stats.identity += 1;
-            return left;
-        }
-        if (op === '>>' && rightConst !== undefined && isZeroConst(rightConst)) {
-            stats.identity += 1;
-            return left;
-        }
+            if (op === '+' && rightConst !== undefined && isZeroConst(rightConst)) {
+                stats.identity += 1;
+                return left;
+            }
+            if (op === '+' && leftConst !== undefined && isZeroConst(leftConst)) {
+                stats.identity += 1;
+                return right;
+            }
+            if (op === '-' && rightConst !== undefined && isZeroConst(rightConst)) {
+                stats.identity += 1;
+                return left;
+            }
+            if (op === '*' && rightConst !== undefined && isOneConst(rightConst)) {
+                stats.identity += 1;
+                return left;
+            }
+            if (op === '*' && leftConst !== undefined && isOneConst(leftConst)) {
+                stats.identity += 1;
+                return right;
+            }
+            if (op === '/' && rightConst !== undefined && isOneConst(rightConst)) {
+                stats.identity += 1;
+                return left;
+            }
+            if (op === '|' && rightConst !== undefined && isZeroConst(rightConst)) {
+                stats.identity += 1;
+                return left;
+            }
+            if (op === '|' && leftConst !== undefined && isZeroConst(leftConst)) {
+                stats.identity += 1;
+                return right;
+            }
+            if (op === '^' && rightConst !== undefined && isZeroConst(rightConst)) {
+                stats.identity += 1;
+                return left;
+            }
+            if (op === '^' && leftConst !== undefined && isZeroConst(leftConst)) {
+                stats.identity += 1;
+                return right;
+            }
+            if (op === '<<' && rightConst !== undefined && isZeroConst(rightConst)) {
+                stats.identity += 1;
+                return left;
+            }
+            if (op === '>>' && rightConst !== undefined && isZeroConst(rightConst)) {
+                stats.identity += 1;
+                return left;
+            }
 
-        // Partial folding: combine trailing numeric constants in addition/subtraction chains.
+            if (op === '||' && rightConst !== undefined && isTruthyConst(rightConst) && isPure(left)) {
+                stats.full += 1;
+                return literalFromConst(1, startOf(node), endOf(node));
+            }
+            if (op === '&&' && rightConst !== undefined && isFalsyConst(rightConst) && isPure(left)) {
+                stats.full += 1;
+                return literalFromConst(0, startOf(node), endOf(node));
+            }
+            if (op === '*' && rightConst !== undefined && isZeroConst(rightConst) && isPure(left)) {
+                stats.full += 1;
+                return literalFromConst(0, startOf(node), endOf(node));
+            }
+            if (op === '*' && leftConst !== undefined && isZeroConst(leftConst) && isPure(right)) {
+                stats.full += 1;
+                return literalFromConst(0, startOf(node), endOf(node));
+            }
+            if (op === '&' && rightConst !== undefined && isZeroConst(rightConst) && isPure(left)) {
+                stats.full += 1;
+                return literalFromConst(0, startOf(node), endOf(node));
+            }
+            if (op === '&' && leftConst !== undefined && isZeroConst(leftConst) && isPure(right)) {
+                stats.full += 1;
+                return literalFromConst(0, startOf(node), endOf(node));
+            }
+
+            // Partial folding: combine trailing numeric constants in addition/subtraction chains.
             if ((op === '+' || op === '-') && rightConst !== undefined && left.kind === 'BinaryExpression') {
                 const lb = left as BinaryExpression;
                 const lbRightConst = constOf(lb.right);
@@ -417,7 +515,7 @@ export class ExpressionOptimizer {
                 }
             }
 
-        // Partial folding: combine trailing numeric constants in multiplication chains.
+            // Partial folding: combine trailing numeric constants in multiplication chains.
             if (op === '*' && rightConst !== undefined && left.kind === 'BinaryExpression') {
                 const lb = left as BinaryExpression;
                 const lbRightConst = constOf(lb.right);
@@ -443,8 +541,8 @@ export class ExpressionOptimizer {
                     }
                 }
             }
-        return res;
-    }
+            return res;
+        }
 
         if (k === 'AssignmentExpression') {
             const ae = node as AssignmentExpression;
@@ -459,9 +557,9 @@ export class ExpressionOptimizer {
             const alt = this.fold((node as ConditionalExpression).alternate, diagnostics, stats, cMap);
             const res: ConditionalExpression & { constValue?: ConstValue } = { ...(node as ConditionalExpression), test, consequent: cons, alternate: alt };
             const testConst = constOf(test);
-            if (testConst !== undefined) {
+            if (testConst !== undefined && isPure(test)) {
                 stats.identity += 1;
-                const truthy = testConst !== false && testConst !== 0 && testConst !== 0n;
+                const truthy = isTruthyConst(testConst);
                 return truthy ? cons : alt;
             }
             return res;

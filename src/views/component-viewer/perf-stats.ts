@@ -582,7 +582,6 @@ export class PerfStats {
             return;
         }
         this.setBackendEnabled(true);
-        this.resetBackendStats();
         this.executeAllStartMs = Date.now();
     }
 

@@ -26,6 +26,7 @@ import { ScvdComponentViewer } from './model/scvd-component-viewer';
 import { ScvdFormatSpecifier } from './model/scvd-format-specifier';
 import { ScvdDebugTarget } from './scvd-debug-target';
 import { ScvdEvalInterface } from './scvd-eval-interface';
+import { parsePerf } from './stats-config';
 
 export interface ExecutionContext {
     memoryHost: MemoryHost;
@@ -154,7 +155,14 @@ export class ScvdEvalContext {
     }
 
     private parseExpression(expression: string, isPrintExpression: boolean): ParseResult {
+        const parseStart = parsePerf?.start() ?? 0;
         const parsed = this._parser.parseWithDiagnostics(expression, isPrintExpression);
-        return this._optimizer.optimizeParseResult(parsed);
+        parsePerf?.endParse(parseStart);
+        parsePerf?.recordParse(parsed.ast);
+        const optimizeStart = parsePerf?.start() ?? 0;
+        const optimized = this._optimizer.optimizeParseResult(parsed);
+        parsePerf?.endOptimize(optimizeStart);
+        parsePerf?.recordOptimize(parsed.ast, optimized.ast, isPrintExpression);
+        return optimized;
     }
 }
