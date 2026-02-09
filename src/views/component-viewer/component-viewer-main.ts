@@ -141,7 +141,7 @@ export class ComponentViewer {
 
     private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
         // Subscribe to refresh events of the started session
-        //session.refreshTimer.onRefresh(async (refreshSession) => await this.handleRefreshTimerEvent(refreshSession));
+        session.refreshTimer.onRefresh(async (refreshSession) => await this.handleRefreshTimerEvent(refreshSession));
     }
 
     private async handleOnConnected(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker): Promise<void> {
@@ -159,7 +159,7 @@ export class ComponentViewer {
     private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
         if (this._activeSession?.session.id === session.session.id) {
             // Update component viewer instance(s)
-            this.schedulePendingUpdate('refreshTimer');
+            //this.schedulePendingUpdate('refreshTimer');
         }
     }
 
