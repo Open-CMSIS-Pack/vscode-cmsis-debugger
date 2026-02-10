@@ -24,7 +24,7 @@ import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 
 export type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace' | 'StackItemChanged';
 
-interface ComponentViewerInstancesWrapper {
+export interface ComponentViewerInstancesWrapper {
     componentViewerInstance: ComponentViewerInstance;
     lockState: boolean;
     sessionId: string; // ID of the debug session this instance belongs to, used to clear instances when session changes
