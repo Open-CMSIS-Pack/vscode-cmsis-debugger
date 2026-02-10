@@ -129,6 +129,19 @@ describe('ScvdExpression', () => {
         expect(expr.expressionAst).toBe(ast);
     });
 
+    it('uses parent execution context when parsing expressions', () => {
+        const parent = new ScvdExpression(undefined, undefined, 'parent');
+        const ctx = createExecutionContext(parent);
+        parent.setExecutionContext(ctx);
+
+        const expr = new ScvdExpression(parent, '1', 'value');
+        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        expect(expr.configure()).toBe(true);
+        expect(expr.expressionAst?.constValue).toBe(1);
+        expect(errorSpy).not.toHaveBeenCalled();
+        errorSpy.mockRestore();
+    });
+
     it('does not set AST when parse diagnostics exist', () => {
         const expr = new ScvdExpression(undefined, '1', 'value');
         const ast = makeAst({

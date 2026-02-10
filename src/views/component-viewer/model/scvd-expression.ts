@@ -64,11 +64,15 @@ export class ScvdExpression extends ScvdNode {
     }
 
     private async evaluateExpression(): Promise<EvaluateResult> {
-        if (this.expressionAst === undefined || this._executionContext === undefined) {
+        const executionContext = this.getExecutionContext();
+        if (this.expressionAst === undefined || executionContext === undefined) {
             console.error(this.getLineInfoStr(), 'Expression evaluation missing AST or execution context');
             return undefined;
         }
-        return this._executionContext.evaluator.evaluateParseResult(this.expressionAst, this._executionContext.evalContext);
+        if (executionContext && this._executionContext !== executionContext) {
+            this._executionContext = executionContext;
+        }
+        return executionContext.evaluator.evaluateParseResult(this.expressionAst, executionContext.evalContext);
     }
 
     public override getValue(): Promise<EvaluateResult> {
@@ -106,7 +110,11 @@ export class ScvdExpression extends ScvdNode {
         }
 
         if (this.expressionAst === undefined) {  // if already parsed by dependency, skip parsing
-            const parser = this._executionContext?.parser;
+            const executionContext = this.getExecutionContext();
+            if (executionContext && this._executionContext !== executionContext) {
+                this._executionContext = executionContext;
+            }
+            const parser = executionContext?.parser;
             if (!parser) {
                 console.error(this.getLineInfoStr(), 'Expression parsing missing execution context or parser');
                 return false;

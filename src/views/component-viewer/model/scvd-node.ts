@@ -95,7 +95,10 @@ export abstract class ScvdNode extends ScvdBase {
     }
 
     public getExecutionContext(): ExecutionContext | undefined {
-        return this._executionContext;
+        if (this._executionContext !== undefined) {
+            return this._executionContext;
+        }
+        return this.parent?.getExecutionContext();
     }
 
     // default condition always true
