@@ -37,6 +37,7 @@ import {
 } from '../../../../parser-evaluator/parser';
 import { __expressionOptimizerTestUtils, foldAst } from '../../../../parser-evaluator/expression-optimizer';
 import { parseExpressionForTest as parseExpression } from '../../helpers/parse-expression';
+import { DEFAULT_INTEGER_MODEL } from '../../../../parser-evaluator/c-numeric';
 
 type ParserPrivate = {
     diagnostics: Diagnostic[];
@@ -89,6 +90,20 @@ describe('parser', () => {
         const node = pr.ast as UpdateExpression;
         expect(node.operator).toBe('++');
         expect(node.prefix).toBe(false);
+    });
+
+    it('parses casts and pointer member access', () => {
+        const parser = new Parser(DEFAULT_INTEGER_MODEL);
+        const cast = parser.parseWithDiagnostics('(int)1', false);
+        expect(cast.diagnostics).toHaveLength(0);
+        expect(cast.ast.kind).toBe('CastExpression');
+
+        const ptr = parseExpression('p->field', false);
+        expect(ptr.diagnostics).toHaveLength(0);
+        expect(ptr.ast.kind).toBe('MemberAccess');
+
+        const badPtr = parseExpression('p->', false);
+        expect(badPtr.diagnostics.some(d => d.type === 'error')).toBe(true);
     });
 
     it('reports diagnostics on unterminated printf bracket', () => {

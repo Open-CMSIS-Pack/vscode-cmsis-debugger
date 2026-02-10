@@ -46,12 +46,16 @@ describe('math-ops helpers', () => {
         expect(toNumeric('10')).toBe(10);
         expect(toNumeric('   ')).toBe(0);
         expect(toNumeric('bad')).toBe(0);
+        expect(toNumeric('1'.repeat(400))).toBe(BigInt('1'.repeat(400)));
+        expect(toNumeric(new Uint8Array([1, 2, 3]))).toBe(0);
         expect(toBigInt('not-a-number' as unknown as string)).toBe(0n);
         expect(toBigInt(true)).toBe(1n);
         expect(toBigInt(false)).toBe(0n);
         expect(toBigInt('1.9')).toBe(1n);
+        expect(toBigInt('nan')).toBe(0n);
         expect(toBigInt(3.7)).toBe(3n);
         expect(toBigInt(undefined)).toBe(0n);
+        expect(addVals(new Uint8Array([1]), 2)).toBeUndefined();
     });
 
     it('masks and normalizes widths for signed and unsigned', () => {
@@ -62,8 +66,17 @@ describe('math-ops helpers', () => {
         expect(normalizeToWidth(0x1FFn, 8, 'int')).toBe(-1n);
         expect(maskToBits(0x1234_5678, 40)).toBe(0x1234_5678); // >=32 path
         expect(maskToBits(0xABCD, 0)).toBe(0xABCD); // no-op when bits falsy
+        expect(maskToBits(Number.MAX_SAFE_INTEGER + 10, 60)).toBe(
+            BigInt(Math.trunc(Number.MAX_SAFE_INTEGER + 10)),
+        );
         expect(normalizeToWidth(5, undefined, 'float')).toBe(5); // float bypass
         expect(normalizeToWidth(-1, 33, 'int')).toBe(-1); // width capped at 32
+        expect(normalizeToWidth(Number.MAX_SAFE_INTEGER + 10, 63, 'uint')).toBe(
+            BigInt(Math.trunc(Number.MAX_SAFE_INTEGER + 10)),
+        );
+        expect(normalizeToWidth(Number.MAX_SAFE_INTEGER + 10, 63, 'int')).toBe(
+            BigInt(Math.trunc(Number.MAX_SAFE_INTEGER + 10)),
+        );
     });
 
     it('performs integer arithmetic with optional truncation', () => {
@@ -80,12 +93,18 @@ describe('math-ops helpers', () => {
         expect(divVals(1, 0)).toBeUndefined();
         expect(divVals(5n, 2n)).toBe(2n);
         expect(divVals(6, 2)).toBe(3);
+        expect(addVals(1, 2, 64)).toBe(3n);
+        expect(addVals(1.5, 2.25)).toBe(3.75);
+        expect(divVals(5.5, 2)).toBe(2.75);
+        expect(modVals(5.5, 2)).toBeUndefined();
+        expect(addVals(Number.POSITIVE_INFINITY, 1)).toBeUndefined();
     });
 
     it('supports bitwise ops and shifts across kinds', () => {
         expect(andVals(0xF0, 0x0F)).toBe(0);
         expect(orVals(0xF0, 0x0F)).toBe(0xFF);
         expect(xorVals(0xAA, 0xFF)).toBe(0x55);
+        expect(xorVals(1.5, 1)).toBeUndefined();
         expect(shlVals(1, 3, 8, true)).toBe(8);
         expect(sarVals(-16, 2)).toBe(-4);
         expect(shrVals(-1, 1, 8)).toBe(127);
@@ -95,10 +114,19 @@ describe('math-ops helpers', () => {
         expect(andVals(0xFFn, 0xF0n, 4, true)).toBe(0);
         expect(orVals(0x10n, 0x01n, 4, true)).toBe(0x1);
         expect(xorVals(0xFn, 0x1n, 4, true)).toBe(0xE);
+        expect(orVals(undefined, 1)).toBeUndefined();
+        expect(orVals(1.5, 2)).toBeUndefined();
+        expect(shlVals(undefined, 1)).toBeUndefined();
         expect(shlVals(1n, 65n, 8, true)).toBeUndefined(); // shift count out of range
+        expect(shlVals(1, -1)).toBeUndefined();
+        expect(shlVals(1.5, 2)).toBeUndefined();
         expect(shlVals(1n, 2n, 8, false)).toBe(4);
+        expect(sarVals(undefined, 1)).toBeUndefined();
+        expect(sarVals(1.5, 2)).toBeUndefined();
         expect(sarVals(8n, 1n)).toBe(4n);
         expect(sarVals(-1n, 1n, 8, true)).toBe(127);
+        expect(shrVals(undefined, 1)).toBeUndefined();
+        expect(shrVals(1.5, 2)).toBeUndefined();
         expect(shrVals(-1n, 1n, 8)).toBe(127);
         expect(shrVals(8n, 1n, 8)).toBe(4);
     });

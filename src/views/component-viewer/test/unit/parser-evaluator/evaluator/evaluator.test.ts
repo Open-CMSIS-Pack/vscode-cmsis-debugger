@@ -24,6 +24,7 @@ import { TestEvaluator } from '../../helpers/test-evaluator';
 import type { ASTNode, AssignmentExpression, BinaryExpression, CallExpression, ConditionalExpression, EvalPointCall, FormatSegment, Identifier, MemberAccess, NumberLiteral, PrintfExpression, StringLiteral, TextSegment, UnaryExpression, UpdateExpression, ArrayIndex, ColonPath, BooleanLiteral, ErrorNode } from '../../../../parser-evaluator/parser';
 import type { DataAccessHost, EvalValue, ModelHost, RefContainer, ScalarType } from '../../../../parser-evaluator/model-host';
 import type { IntrinsicProvider } from '../../../../parser-evaluator/intrinsics';
+import * as cNumeric from '../../../../parser-evaluator/c-numeric';
 import { ScvdNode } from '../../../../model/scvd-node';
 import { perf } from '../../../../stats-config';
 
@@ -853,6 +854,14 @@ describe('Evaluator coverage branches', () => {
         await expect(helpers.formatValue('C', 5, ctxNoOverride)).resolves.toBe('5');
         await expect(helpers.formatValue('q', 5, ctxNoOverride)).resolves.toBe('5');
         await expect(helpers.formatValue('d', undefined, ctxNoOverride)).resolves.toBeUndefined();
+        await expect(helpers.formatValue('d', 'bad', ctxNoOverride)).resolves.toBeUndefined();
+
+        const convertSpy = jest.spyOn(cNumeric, 'convertToType').mockReturnValue({
+            type: { kind: 'float', bits: 64, name: 'double' },
+            value: 3.25,
+        });
+        await expect(helpers.formatValue('d', 3.25, ctxNoOverride)).resolves.toBe('3');
+        convertSpy.mockRestore();
 
         expect(helpers.normalizeEvaluateResult(true)).toBe(1);
         expect(helpers.normalizeEvaluateResult(false)).toBe(0);

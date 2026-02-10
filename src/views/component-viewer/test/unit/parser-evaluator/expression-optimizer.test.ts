@@ -30,6 +30,7 @@ import type {
     CastExpression,
     ConditionalExpression,
     Diagnostic,
+    ErrorNode,
     EvalPointCall,
     FormatSegment,
     NumberLiteral,
@@ -186,6 +187,12 @@ describe('expression-optimizer', () => {
             expect(folded.kind).toBe('NumberLiteral');
         });
 
+        const errNode: ErrorNode = { kind: 'ErrorNode', message: 'err', ...span(0, 1) };
+        const foldedRightZero = foldAst(bin('&', errNode, num('0', 0)));
+        expect(foldedRightZero.kind).toBe('NumberLiteral');
+        const foldedLeftZero = foldAst(bin('&', num('0', 0), errNode));
+        expect(foldedLeftZero.kind).toBe('NumberLiteral');
+
         const divZero = foldAst(bin('/', num('1', 1), num('0', 0)), diagnostics);
         expect(divZero.kind).toBe('BinaryExpression');
         expect(diagnostics.some((d) => d.message === 'Division by zero')).toBe(true);
@@ -268,6 +275,10 @@ describe('expression-optimizer', () => {
         const alignofExpr: ASTNode = { kind: 'AlignofExpression', argument: num('1', 1), ...span(0, 1) };
         const foldedAlignof = foldAst(alignofExpr);
         expect((foldedAlignof as { argument?: ASTNode }).argument?.constValue).toBe(1);
+
+        const bareSizeof: SizeofExpression = { kind: 'SizeofExpression', ...span(0, 1) };
+        const foldedBareSizeof = foldAst(bareSizeof);
+        expect(foldedBareSizeof.kind).toBe('SizeofExpression');
 
         const call: CallExpression = { kind: 'CallExpression', callee: ident('fn'), args: [num('1', 1), num('2', 2)], ...span(0, 2) };
         const foldedCall = foldAst(call);

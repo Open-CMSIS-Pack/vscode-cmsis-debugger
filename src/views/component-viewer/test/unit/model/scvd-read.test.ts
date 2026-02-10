@@ -195,6 +195,15 @@ describe('ScvdRead', () => {
         await expect(read.getTargetSize()).resolves.toBeUndefined();
     });
 
+    it('exposes element references via type access', () => {
+        const read = new ScvdRead(undefined);
+        expect(read.getElementRef()).toBeUndefined();
+
+        const typeNode = new ScvdRead(undefined);
+        (read as unknown as { _type?: ScvdRead })._type = typeNode;
+        expect(read.getElementRef()).toBe(typeNode);
+    });
+
     it('clamps invalid array sizes and logs an error', async () => {
         const read = new ScvdRead(undefined);
         read.size = 'size';

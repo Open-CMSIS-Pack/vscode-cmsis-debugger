@@ -176,6 +176,7 @@ describe('c-numeric', () => {
         expect(applyBinary('||', intVal, zero)?.value).toBe(1n);
         expect(applyBinary('==', floatVal, makeValue(floatType, 2))?.value).toBe(1n);
         expect(applyBinary('!=', floatVal, makeValue(floatType, 3))?.value).toBe(1n);
+        expect(applyBinary('>=', floatVal, makeValue(floatType, 2))?.value).toBe(1n);
         expect(applyBinary('<', intVal, makeValue(intType, 3n))?.value).toBe(1n);
         expect(applyBinary('<=', intVal, makeValue(intType, 2n))?.value).toBe(1n);
         expect(applyBinary('>', intVal, makeValue(intType, 1n))?.value).toBe(1n);
@@ -204,6 +205,7 @@ describe('c-numeric', () => {
         expect(applyBinary('>>', intVal, makeValue(intType, 1n))?.value).toBe(2n);
         expect(applyBinary('<<', intVal, makeValue(intType, -1n))).toBeUndefined();
         expect(applyBinary('>>', intVal, makeValue(intType, 8n))?.value).toBe(0n);
+        expect(applyBinary('>>', intVal, makeValue(intType, 32n))).toBeUndefined();
         expect(applyBinary('@', intVal, makeValue(intType, 1n))).toBeUndefined();
     });
 
@@ -242,10 +244,12 @@ describe('c-numeric', () => {
         expect(parseTypeName('ptrdiff_t')).toEqual({ kind: 'int', bits: 32, name: 'ptrdiff_t' });
         expect(parseTypeName('unsigned long')).toEqual({ kind: 'uint', bits: 32, name: 'unsigned long' });
         expect(parseTypeName('int *')).toEqual({ kind: 'int', bits: 32, name: 'int' });
+        expect(parseTypeName('void*')).toEqual({ kind: 'ptr', bits: 32, name: 'void*' });
 
         expect(sizeofTypeName('double')).toBe(8);
         expect(sizeofTypeName('bool')).toBe(1);
         expect(sizeofTypeName('int *')).toBe(4);
+        expect(sizeofTypeName('void*')).toBe(4);
         expect(sizeofTypeName('int')).toBe(4);
         expect(sizeofTypeName('not a type')).toBeUndefined();
     });

@@ -109,6 +109,37 @@ describe('StatementItem', () => {
         expect(child.getGuiValue()).toBe('PrintValue');
     });
 
+    it('detaches when all print children are suppressed', async () => {
+        const node = new TestNode(undefined);
+        const stmt = new StatementItem(node, undefined);
+        const printNode = new TestNode(node, { guiName: 'Hidden', guiValue: 'Hidden' });
+        printNode.conditionResult = false;
+        new StatementPrint(printNode, stmt);
+
+        const ctx = createExecutionContext(node);
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        expect(guiTree.children).toHaveLength(0);
+    });
+
+    it('executes non-print children when no print children exist', async () => {
+        const node = new TestNode(undefined, { guiName: 'Parent' });
+        const stmt = new StatementItem(node, undefined);
+        const outNode = new TestNode(node, { guiName: 'Child' });
+        const outStmt = new StatementOut(outNode, stmt);
+        const execSpy = jest.spyOn(outStmt, 'executeStatement');
+
+        const ctx = createExecutionContext(node);
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        expect(execSpy).toHaveBeenCalled();
+        execSpy.mockRestore();
+    });
+
     it('checks non-print children before selecting a print entry', async () => {
         const node = new TestNode(undefined);
         const stmt = new StatementItem(node, undefined);

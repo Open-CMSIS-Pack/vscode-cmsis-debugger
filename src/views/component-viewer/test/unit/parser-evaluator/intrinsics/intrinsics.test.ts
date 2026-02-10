@@ -74,6 +74,14 @@ describe('intrinsics', () => {
         await expect(handleIntrinsic(host, container(), '__Running', [])).resolves.toBe(1);
     });
 
+    it('coerces intrinsic arguments via toInt helpers', async () => {
+        const host = {
+            __CalcMemUsed: jest.fn(async (a: number, b: number, c: number, d: number) => a + b + c + d),
+        } as unknown as IntrinsicProvider;
+
+        await expect(handleIntrinsic(host, container(), '__CalcMemUsed', [1n, true, '3', 'bad'])).resolves.toBe(5);
+    });
+
     it('reports missing or undefined intrinsic results', async () => {
         const missing = {} as unknown as IntrinsicProvider;
         const onError = jest.fn();

@@ -317,6 +317,9 @@ describe('MemoryHost', () => {
         host.setVariable('bases', 1, 1, -1, 0x10);
         expect(host.getElementTargetBase('bases', 2)).toBe(0x10);
 
+        host.setVariable('bases', 1, 2, -1, 0x20);
+        expect(host.getElementTargetBase('bases', 5)).toBeUndefined();
+
         expect(host.getElementTargetBase('bases', 0)).toBe(0x10);
 
         expect(errorSpy).toHaveBeenCalled();

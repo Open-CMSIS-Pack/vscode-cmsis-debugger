@@ -142,6 +142,21 @@ describe('ScvdExpression', () => {
         errorSpy.mockRestore();
     });
 
+    it('updates cached execution context during evaluation', async () => {
+        const parent = new ScvdExpression(undefined, undefined, 'parent');
+        const ctx = createExecutionContext(parent);
+        parent.setExecutionContext(ctx);
+
+        const expr = new ScvdExpression(parent, 'X', 'value');
+        expr.expressionAst = makeAst({ constValue: undefined });
+        const evalSpy = jest.spyOn(ctx.evaluator, 'evaluateParseResult').mockResolvedValue(7 as EvaluateResult);
+
+        await expect(expr.getValue()).resolves.toBe(7);
+        expect((expr as unknown as { _executionContext?: unknown })._executionContext).toBe(ctx);
+
+        evalSpy.mockRestore();
+    });
+
     it('does not set AST when parse diagnostics exist', () => {
         const expr = new ScvdExpression(undefined, '1', 'value');
         const ast = makeAst({

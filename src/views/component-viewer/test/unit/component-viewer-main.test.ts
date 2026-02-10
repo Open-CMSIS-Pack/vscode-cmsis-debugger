@@ -257,6 +257,7 @@ describe('ComponentViewer', () => {
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
         await tracker.callbacks.stackTrace?.({ session });
         await tracker.callbacks.stackTrace?.({ session: otherSession });
+        await tracker.callbacks.activeStackItem?.({ session: otherSession });
 
         // stackTrace from a different session clears active session
         expect((controller as unknown as { _activeSession?: Session })._activeSession).toBeUndefined();
@@ -468,6 +469,54 @@ describe('ComponentViewer', () => {
         await lockHandler?.(root);
         expect((controller as unknown as { _instances: Array<{ lockState: boolean }> })._instances[0].lockState).toBe(false);
         expect(root.isLocked).toBe(false);
+    });
+
+    it('invokes unlock handler and skips lock when no matching instance exists', async () => {
+        const context = extensionContextFactory();
+        const tracker = makeTracker();
+        const controller = new ComponentViewer(context);
+        controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const unlockHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.componentViewer.unlockComponent')?.[1] as
+            | ((node: ScvdGuiInterface) => Promise<void> | void)
+            | undefined;
+
+        expect(unlockHandler).toBeDefined();
+        const root = makeGuiNode('root');
+        await unlockHandler?.(root);
+    });
+
+    it('skips lock operations when gui trees are missing', () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const provider = treeProviderFactory();
+        (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
+
+        const instMissingTree = instanceFactory();
+        instMissingTree.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => undefined);
+        (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: instMissingTree, lockState: false }];
+
+        const handleLockInstance = (controller as unknown as { handleLockInstance: (node: ScvdGuiInterface) => void }).handleLockInstance.bind(controller);
+        handleLockInstance(makeGuiNode('root'));
+        expect(provider.refresh).not.toHaveBeenCalled();
+    });
+
+    it('returns early when gui tree disappears after toggling lock', () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const provider = treeProviderFactory();
+        (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
+
+        const root = makeGuiNode('root');
+        const inst = instanceFactory();
+        inst.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>()
+            .mockReturnValueOnce([root])
+            .mockReturnValueOnce(undefined);
+        (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: inst, lockState: false }];
+
+        const handleLockInstance = (controller as unknown as { handleLockInstance: (node: ScvdGuiInterface) => void }).handleLockInstance.bind(controller);
+        handleLockInstance(root);
+
+        expect(provider.refresh).not.toHaveBeenCalled();
     });
 
     it('runs a debounced update when scheduling multiple times', async () => {
