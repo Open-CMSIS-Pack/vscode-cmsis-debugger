@@ -100,7 +100,7 @@ describe('ComponentViewerTreeDataProvider', () => {
         expect(treeItemWithChildren.collapsibleState).toBe(1);
         expect(treeItemWithChildren.description).toBe('Value');
         expect(treeItemWithChildren.id).toBe('id-1');
-    
+
         const treeItemWithout = provider.getTreeItem(withoutChildren);
         expect(treeItemWithout.label).toBe('UNKNOWN');
         expect(treeItemWithout.collapsibleState).toBe(0);
