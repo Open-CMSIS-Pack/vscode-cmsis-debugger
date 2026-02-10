@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 
 import * as yaml from 'yaml';
+import * as path from 'path';
 import { CbuildRunRootType, CbuildRunType } from './cbuild-run-types';
 import { FileReader, VscodeFileReader } from '../desktop/file-reader';
 import { getCmsisPackRootPath } from '../utils';
@@ -23,6 +24,8 @@ const CMSIS_PACK_ROOT_ENVVAR = '${CMSIS_PACK_ROOT}';
 
 export class CbuildRunReader {
     private cbuildRun: CbuildRunType | undefined;
+    private cbuildRunFilePath: string | undefined;
+    private cbuildRunDir: string | undefined;
 
     constructor(private reader: FileReader = new VscodeFileReader()) {}
 
@@ -41,6 +44,8 @@ export class CbuildRunReader {
         if (!this.cbuildRun) {
             throw new Error(`Invalid '*.cbuild-run.yml' file: ${filePath}`);
         }
+        this.cbuildRunFilePath = filePath;
+        this.cbuildRunDir = path.dirname(this.cbuildRunFilePath);
     }
 
     public getSvdFilePaths(cmsisPackRoot?: string, pname?: string): string[] {
@@ -72,10 +77,19 @@ export class CbuildRunReader {
             }
             return descriptor.pname === pname;
         }): fileDescriptors;
+        // Get file paths, they might be relative paths
         const filePaths = filteredDescriptors.map(descriptor => `${effectiveCmsisPackRoot
             ? descriptor.file.replaceAll(CMSIS_PACK_ROOT_ENVVAR, effectiveCmsisPackRoot)
             : descriptor.file}`);
-        return filePaths;
+        // resolve relative paths to cbuild run file location
+        const resolvedRelativeFilePaths = filePaths.map(filePath => {
+            if (path.isAbsolute(filePath) || !this.cbuildRunDir) {
+                return filePath;
+            }
+            return path.join(this.cbuildRunDir, filePath);
+        });
+        const resolvedFilePaths = resolvedRelativeFilePaths.map(filePath => path.resolve(filePath));
+        return resolvedFilePaths;
     }
 
     public getPnames(): string[] {
