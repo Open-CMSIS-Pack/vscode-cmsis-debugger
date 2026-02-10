@@ -40,7 +40,7 @@ export class ComponentViewer {
     private _pendingUpdateTimer: NodeJS.Timeout | undefined;
     private _pendingUpdate: boolean = false;
     private _runningUpdate: boolean = false;
-    private static readonly pendingUpdateDelayMs = 200;
+    private static readonly pendingUpdateDelayMs = 150;
 
     public constructor(context: vscode.ExtensionContext) {
         this._context = context;
