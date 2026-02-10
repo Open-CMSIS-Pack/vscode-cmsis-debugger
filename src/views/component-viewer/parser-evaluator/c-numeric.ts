@@ -59,8 +59,7 @@ export function integerModelFromKind(kind: IntegerModelKind): IntegerModel {
     return kind === IntegerModelKind.Model64 ? { ...INTEGER_MODEL_64 } : { ...INTEGER_MODEL_32 };
 }
 
-const INT_RANKS = ['int', 'long', 'long long'] as const;
-type IntRankName = (typeof INT_RANKS)[number];
+type IntRankName = 'int' | 'long' | 'long long';
 
 function makeType(kind: CScalarKind, bits: number, name?: string): CType {
     if (name) {
