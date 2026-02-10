@@ -257,10 +257,12 @@ describe('ComponentViewer', () => {
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
         await tracker.callbacks.stackTrace?.({ session });
         await tracker.callbacks.stackTrace?.({ session: otherSession });
-        await tracker.callbacks.activeStackItem?.({ session: otherSession });
 
         // stackTrace from a different session clears active session
         expect((controller as unknown as { _activeSession?: Session })._activeSession).toBeUndefined();
+
+        await tracker.callbacks.activeStackItem?.({ session: otherSession });
+        expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(otherSession);
 
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
         await tracker.callbacks.willStop?.(session);
@@ -327,7 +329,7 @@ describe('ComponentViewer', () => {
         const scheduleSpy = jest.spyOn(
             controller as unknown as { schedulePendingUpdate: (reason: fifoUpdateReason) => void },
             'schedulePendingUpdate'
-        );
+        ).mockImplementation(() => undefined);
 
         const handleOnStackItemChanged = (controller as unknown as { handleOnStackItemChanged: (s: Session) => Promise<void> }).handleOnStackItemChanged.bind(controller);
         await handleOnStackItemChanged(sessionB);
