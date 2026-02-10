@@ -19,7 +19,8 @@
  * Integration test for ParserScvdExpressions.
  */
 
-import { parseExpression, ParseResult } from '../../../../parser-evaluator/parser';
+import { type ParseResult } from '../../../../parser-evaluator/parser';
+import { parseExpressionForTest as parseExpression } from '../../../unit/helpers/parse-expression';
 
 interface ExpressionRow {
     expr: string;

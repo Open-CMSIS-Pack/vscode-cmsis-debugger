@@ -22,7 +22,7 @@
 import { Evaluator, EvalContext } from '../../../../parser-evaluator/evaluator';
 import type { RefContainer, EvalValue } from '../../../../parser-evaluator/model-host';
 import type { FullDataHost } from '../../helpers/full-data-host';
-import { parseExpression } from '../../../../parser-evaluator/parser';
+import { parseExpressionForTest as parseExpression } from '../../../unit/helpers/parse-expression';
 import { ScvdNode } from '../../../../model/scvd-node';
 
 class BasicRef extends ScvdNode {

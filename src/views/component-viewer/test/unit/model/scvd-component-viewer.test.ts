@@ -19,9 +19,7 @@
  * Unit test for ScvdComponentViewer.
  */
 
-import { ExecutionContext } from '../../../scvd-eval-context';
-import { parseExpression } from '../../../parser-evaluator/parser';
-import { Evaluator } from '../../../parser-evaluator/evaluator';
+import { createExecutionContext } from '../helpers/statement-engine-helpers';
 import { ScvdBreaks } from '../../../model/scvd-break';
 import { ScvdComponentIdentifier } from '../../../model/scvd-component-identifier';
 import { ScvdComponentViewer } from '../../../model/scvd-component-viewer';
@@ -129,8 +127,7 @@ describe('ScvdComponentViewer', () => {
     it('sets execution context recursively', () => {
         const viewer = new ScvdComponentViewer(undefined);
         const child = new ScvdComponentViewer(viewer);
-        const parser = { parseExpression };
-        const ctx = { evalContext: {}, evaluator: new Evaluator(), parser } as ExecutionContext;
+        const ctx = createExecutionContext(viewer);
 
         const setSpy = jest.spyOn(child, 'setExecutionContext');
         viewer.setExecutionContextAll(ctx);

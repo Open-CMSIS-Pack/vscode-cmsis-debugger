@@ -17,7 +17,7 @@
 // https://arm-software.github.io/CMSIS-View/main/scvd_expression.html
 
 
-import { parseExpression, ParseResult } from '../parser-evaluator/parser';
+import { ParseResult } from '../parser-evaluator/parser';
 import { EvaluateResult } from '../parser-evaluator/evaluator';
 import { ScvdNode } from './scvd-node';
 
@@ -106,7 +106,12 @@ export class ScvdExpression extends ScvdNode {
         }
 
         if (this.expressionAst === undefined) {  // if already parsed by dependency, skip parsing
-            const expressionAst = parseExpression(expression, this.isPrintExpression);
+            const parser = this._executionContext?.parser;
+            if (!parser) {
+                console.error(this.getLineInfoStr(), 'Expression parsing missing execution context or parser');
+                return false;
+            }
+            const expressionAst = parser.parseExpression(expression, this.isPrintExpression);
             if (expressionAst !== undefined && expressionAst.diagnostics.length === 0) {
                 this.expressionAst = expressionAst;
             }

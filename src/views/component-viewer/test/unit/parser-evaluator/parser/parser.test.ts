@@ -33,10 +33,10 @@ import {
     type UpdateExpression,
     type ErrorNode,
     type Identifier,
-    Parser,
-    parseExpression
+    Parser
 } from '../../../../parser-evaluator/parser';
 import { __expressionOptimizerTestUtils, foldAst } from '../../../../parser-evaluator/expression-optimizer';
+import { parseExpressionForTest as parseExpression } from '../../helpers/parse-expression';
 
 type ParserPrivate = {
     diagnostics: Diagnostic[];
@@ -201,8 +201,13 @@ describe('parser', () => {
                 }
             };
         });
-        const parser = await import('../../../../parser-evaluator/parser');
-        const pr = parser.parseExpression('__GetRegVal(1)', false);
+        const { Parser } = await import('../../../../parser-evaluator/parser');
+        const { ExpressionOptimizer } = await import('../../../../parser-evaluator/expression-optimizer');
+        const { DEFAULT_INTEGER_MODEL } = await import('../../../../parser-evaluator/c-numeric');
+        const parser = new Parser(DEFAULT_INTEGER_MODEL);
+        const parsed = parser.parseWithDiagnostics('__GetRegVal(1)', false);
+        const optimizer = new ExpressionOptimizer(DEFAULT_INTEGER_MODEL);
+        const pr = optimizer.optimizeParseResult(parsed);
         expect(pr.ast.kind).toBe('EvalPointCall');
         jest.dontMock('../../../../parser-evaluator/intrinsics');
         jest.resetModules();

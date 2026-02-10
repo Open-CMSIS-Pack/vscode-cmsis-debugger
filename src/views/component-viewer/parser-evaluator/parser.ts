@@ -17,7 +17,6 @@
 
 import { INTRINSIC_DEFINITIONS, isIntrinsicName } from './intrinsics';
 import type { IntrinsicName as HostIntrinsicName } from './intrinsics';
-import { ExpressionOptimizer } from './expression-optimizer';
 import { DEFAULT_INTEGER_MODEL, type IntegerModel, cValueFromConst, convertToType, parseNumericLiteral } from './c-numeric';
 
 export type ValueType = 'number' | 'boolean' | 'string' | 'unknown';
@@ -991,17 +990,4 @@ export class Parser {
         return { kind:'ErrorNode', message:'Unexpected token', ...span(t.start,t.end) };
     }
 
-}
-
-/* -------- Convenience API -------- */
-
-export function parseExpression(
-    expr: string,
-    isPrintExpression: boolean,
-    model: IntegerModel = DEFAULT_INTEGER_MODEL
-): ParseResult {
-    const parser = new Parser(model);
-    const parsed = parser.parseWithDiagnostics(expr, isPrintExpression);
-    const optimizer = new ExpressionOptimizer(model);
-    return optimizer.optimizeParseResult(parsed);
 }

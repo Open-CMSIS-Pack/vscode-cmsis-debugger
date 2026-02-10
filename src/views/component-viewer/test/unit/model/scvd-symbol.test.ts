@@ -20,8 +20,7 @@
  */
 
 import { ScvdSymbol } from '../../../model/scvd-symbol';
-import { ExecutionContext } from '../../../scvd-eval-context';
-import { parseExpression } from '../../../parser-evaluator/parser';
+import { createExecutionContext } from '../helpers/statement-engine-helpers';
 
 describe('ScvdSymbol', () => {
     it('tracks symbol and address values', () => {
@@ -52,8 +51,7 @@ describe('ScvdSymbol', () => {
                 { name: 'next', size: 2, offset: 12 }
             ]
         });
-        const parser = { parseExpression };
-        const context = { debugTarget: { getSymbolInfo }, parser } as unknown as ExecutionContext;
+        const context = createExecutionContext(symbol, { getSymbolInfo });
 
         symbol.setExecutionContext(context);
         const result = await symbol.fetchSymbolInformation();
@@ -77,8 +75,7 @@ describe('ScvdSymbol', () => {
     it('handles missing symbol info gracefully', async () => {
         const symbol = new ScvdSymbol(undefined, 'sym');
         const getSymbolInfo = jest.fn().mockResolvedValue(undefined);
-        const parser = { parseExpression };
-        const context = { debugTarget: { getSymbolInfo }, parser } as unknown as ExecutionContext;
+        const context = createExecutionContext(symbol, { getSymbolInfo });
 
         symbol.setExecutionContext(context);
         const result = await symbol.fetchSymbolInformation();

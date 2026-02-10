@@ -20,7 +20,7 @@
  * Integration test for Evaluator.math.
  */
 
-import { parseExpression } from '../../../../parser-evaluator/parser';
+import { parseExpressionForTest as parseExpression } from '../../../unit/helpers/parse-expression';
 import { EvalContext } from '../../../../parser-evaluator/evaluator';
 import { TestEvaluator } from '../../../unit/helpers/test-evaluator';
 import type { EvalValue, RefContainer, ScalarType } from '../../../../parser-evaluator/model-host';

@@ -19,7 +19,8 @@
  * Integration test for ParserIntrinsics.
  */
 
-import { parseExpression, EvalPointCall, Identifier } from '../../../../parser-evaluator/parser';
+import { EvalPointCall, Identifier } from '../../../../parser-evaluator/parser';
+import { parseExpressionForTest as parseExpression } from '../../../unit/helpers/parse-expression';
 import { INTRINSIC_DEFINITIONS, type IntrinsicName } from '../../../../parser-evaluator/intrinsics';
 
 type IntrinsicFixture = {

@@ -19,7 +19,8 @@
  * Unit test for ParserConstEval.
  */
 
-import { BinaryExpression, Identifier, NumberLiteral, parseExpression } from '../../../../parser-evaluator/parser';
+import { BinaryExpression, Identifier, NumberLiteral } from '../../../../parser-evaluator/parser';
+import { parseExpressionForTest as parseExpression } from '../../helpers/parse-expression';
 
 interface Case { expr: string; expected: number | boolean | string; }
 interface NonConstCase {

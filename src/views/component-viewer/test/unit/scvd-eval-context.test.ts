@@ -25,6 +25,7 @@ import { ScvdObjects } from '../../model/scvd-object';
 import type { ScvdNode } from '../../model/scvd-node';
 import { MemoryHost } from '../../data-host/memory-host';
 import { RegisterHost } from '../../data-host/register-host';
+import { IntegerModelKind } from '../../parser-evaluator/c-numeric';
 
 describe('ScvdEvalContext', () => {
     const buildViewerWithObject = (): { viewer: ScvdComponentViewer; firstObject: ScvdNode } => {
@@ -88,6 +89,14 @@ describe('ScvdEvalContext', () => {
         expect(ctx.getOutItem()).toBeUndefined();
     });
 
+    it('returns undefined when objects container is missing', () => {
+        const { viewer } = buildViewerWithObject();
+        const ctx = new ScvdEvalContext(viewer);
+
+        delete (viewer as unknown as { _objects?: ScvdObjects })._objects;
+        expect(ctx.getOutItem()).toBeUndefined();
+    });
+
     it('delegates init to debug target', () => {
         const { viewer } = buildViewerWithObject();
         const ctx = new ScvdEvalContext(viewer);
@@ -107,5 +116,79 @@ describe('ScvdEvalContext', () => {
         const fakeSession = {} as unknown as Parameters<typeof debugTarget.setActiveSession>[0];
         ctx.updateActiveSession(fakeSession);
         expect(spy).toHaveBeenCalledWith(fakeSession);
+    });
+
+    it('updates integer model when setIntegerModelKind is provided', () => {
+        const { viewer } = buildViewerWithObject();
+        const ctx = new ScvdEvalContext(viewer);
+        const ctxAny = ctx as unknown as {
+            _parserInterface: { setIntegerModel: (model: unknown) => void };
+            _evaluator: { setIntegerModel: (model: unknown) => void };
+            _integerModelKind: IntegerModelKind;
+            _integerModel: { pointerBits: number };
+        };
+        const parserSpy = jest.spyOn(ctxAny._parserInterface, 'setIntegerModel');
+        const evaluatorSpy = jest.spyOn(ctxAny._evaluator, 'setIntegerModel');
+
+        ctx.setIntegerModelKind(IntegerModelKind.Model64);
+
+        expect(ctxAny._integerModelKind).toBe(IntegerModelKind.Model64);
+        expect(ctxAny._integerModel.pointerBits).toBe(64);
+        expect(parserSpy).toHaveBeenCalled();
+        expect(evaluatorSpy).toHaveBeenCalled();
+    });
+
+    it('ignores undefined integer model updates', () => {
+        const { viewer } = buildViewerWithObject();
+        const ctx = new ScvdEvalContext(viewer);
+        const ctxAny = ctx as unknown as {
+            _parserInterface: { setIntegerModel: (model: unknown) => void };
+            _evaluator: { setIntegerModel: (model: unknown) => void };
+            _integerModelKind: IntegerModelKind;
+        };
+        const parserSpy = jest.spyOn(ctxAny._parserInterface, 'setIntegerModel');
+        const evaluatorSpy = jest.spyOn(ctxAny._evaluator, 'setIntegerModel');
+        const prevKind = ctxAny._integerModelKind;
+
+        ctx.setIntegerModelKind(undefined);
+
+        expect(ctxAny._integerModelKind).toBe(prevKind);
+        expect(parserSpy).not.toHaveBeenCalled();
+        expect(evaluatorSpy).not.toHaveBeenCalled();
+    });
+});
+
+describe('ScvdExpressionParser', () => {
+    afterEach(() => {
+        jest.resetModules();
+    });
+
+    it('records parse and optimize stats when parsePerf is enabled', async () => {
+        const parsePerf = {
+            start: jest.fn()
+                .mockReturnValueOnce(1)
+                .mockReturnValueOnce(2),
+            endParse: jest.fn(),
+            recordParse: jest.fn(),
+            endOptimize: jest.fn(),
+            recordOptimize: jest.fn(),
+        };
+
+        await jest.isolateModulesAsync(async () => {
+            jest.doMock('../../stats-config', () => ({ parsePerf }));
+
+            const mod = await import('../../scvd-eval-context');
+            const { IntegerModelKind, integerModelFromKind } = await import('../../parser-evaluator/c-numeric');
+
+            const parser = new mod.ScvdExpressionParser(integerModelFromKind(IntegerModelKind.Model32));
+            const result = parser.parseExpression('1+2', false);
+
+            expect(result).toBeDefined();
+            expect(parsePerf.start).toHaveBeenCalledTimes(2);
+            expect(parsePerf.endParse).toHaveBeenCalledTimes(1);
+            expect(parsePerf.recordParse).toHaveBeenCalledTimes(1);
+            expect(parsePerf.endOptimize).toHaveBeenCalledTimes(1);
+            expect(parsePerf.recordOptimize).toHaveBeenCalledTimes(1);
+        });
     });
 });
