@@ -439,7 +439,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         const evalIf = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier());
         const container = { base: undefined, current: undefined, valueType: undefined } as unknown as RefContainer;
 
-        await expect(evalIf.formatPrintf('M', 0, container)).resolves.toBe('00-00-00-00-00-00');
+        await expect(evalIf.formatPrintf('M', 0, container)).resolves.toBe('0');
     });
 
     it('uses existing widthBytes for cached MAC reads', async () => {

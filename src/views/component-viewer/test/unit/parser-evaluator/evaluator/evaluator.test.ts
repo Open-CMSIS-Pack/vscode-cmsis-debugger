@@ -197,6 +197,39 @@ describe('Evaluator coverage branches', () => {
         expect(helpers.gtVals('b', 'a')).toBeUndefined();
     });
 
+    it('normalizes scalar types and converts eval values', () => {
+        const evaluator = new TestEvaluator();
+        const priv = evaluator as unknown as {
+            normalizeScalarType: (t: string | ScalarType | undefined) => ScalarType | undefined;
+            toCValueFromEval: (v: EvalValue, t: ScalarType | undefined) => unknown;
+            fromCValue: (v: { type: { kind: string; bits?: number; name?: string }; value: bigint | number }) => number | bigint;
+        };
+
+        const scalar = priv.normalizeScalarType('unsigned int32');
+        expect(scalar).toEqual({ kind: 'uint', name: 'unsigned int32', bits: 32 });
+
+        const typed = priv.normalizeScalarType({ kind: 'int', bits: 16, typename: 'int16_t' } as ScalarType);
+        expect(typed?.name).toBe('int16_t');
+
+        const cFloat = priv.toCValueFromEval(1.25, { kind: 'float', bits: 32, name: 'float' } as ScalarType) as { type: { kind: string } };
+        expect(cFloat.type.kind).toBe('float');
+
+        const cBool = priv.toCValueFromEval(false, undefined) as { value: bigint };
+        expect(cBool.value).toBe(0n);
+
+        const cBig = priv.toCValueFromEval(1n, undefined) as { value: bigint };
+        expect(cBig.value).toBe(1n);
+
+        expect(priv.toCValueFromEval(Number.NaN, undefined)).toBeUndefined();
+        expect(priv.toCValueFromEval(undefined, undefined)).toBeUndefined();
+
+        const bigOut = priv.fromCValue({
+            type: { kind: 'int', bits: 32, name: 'int' },
+            value: BigInt(Number.MAX_SAFE_INTEGER) + 1n,
+        });
+        expect(typeof bigOut).toBe('bigint');
+    });
+
     it('evaluates intrinsic args and mod-by-zero messages', async () => {
         const evaluator = new TestEvaluator();
         const helpers = evaluator.getTestHelpersPublic() as {

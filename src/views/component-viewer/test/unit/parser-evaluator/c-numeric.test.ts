@@ -58,6 +58,22 @@ describe('c-numeric', () => {
         expect(ld).toEqual({ kind: 'float', bits: 64, name: 'long double' });
     });
 
+    it('parses additional type names and size calculations', () => {
+        expect(parseTypeName('bool')).toEqual({ kind: 'bool', bits: 1, name: 'bool' });
+        expect(parseTypeName('char')).toEqual({ kind: 'int', bits: 8, name: 'char' });
+        expect(parseTypeName('unsigned short')).toEqual({ kind: 'uint', bits: 16, name: 'unsigned short' });
+        expect(parseTypeName('float')).toEqual({ kind: 'float', bits: 32, name: 'float' });
+        expect(parseTypeName('double')).toEqual({ kind: 'float', bits: 64, name: 'double' });
+        expect(parseTypeName('size_t')).toEqual({ kind: 'int', bits: 32, name: 'size_t' });
+        expect(parseTypeName('unsigned size_t')).toEqual({ kind: 'uint', bits: 32, name: 'unsigned size_t' });
+        expect(parseTypeName('ptrdiff_t')).toEqual({ kind: 'int', bits: 32, name: 'ptrdiff_t' });
+        expect(parseTypeName('foo*')).toEqual({ kind: 'ptr', bits: 32, name: 'foo*' });
+
+        expect(sizeofTypeName('bool')).toBe(1);
+        expect(sizeofTypeName('foo*')).toBe(4);
+        expect(sizeofTypeName('double')).toBe(8);
+    });
+
     it('selects integer models by kind', () => {
         expect(integerModelFromKind(IntegerModelKind.Model32)).toEqual({
             intBits: 32,
@@ -84,8 +100,15 @@ describe('c-numeric', () => {
         expect(parseNumericLiteral('1ul').type.name).toBe('unsigned long');
         expect(parseNumericLiteral('1ULL').type.name).toBe('unsigned long long');
         expect(parseNumericLiteral('1ll').type.name).toBe('long long');
+        expect(parseNumericLiteral('1l').type.name).toBe('long');
         expect(parseNumericLiteral('123_456').value).toBe(123456n);
         expect(parseNumericLiteral('2147483648').type.name).toBe('long long');
+    });
+
+    it('selects wider integer types for 64-bit models', () => {
+        const model64 = integerModelFromKind(IntegerModelKind.Model64);
+        expect(parseNumericLiteral('2147483648', model64).type.name).toBe('long');
+        expect(parseNumericLiteral('0x100000000', model64).type.name).toBe('long');
     });
 
     it('parses floating literals with decimal and hex notation', () => {

@@ -740,6 +740,25 @@ describe('StatementReadList', () => {
         spy.mockRestore();
     });
 
+    it('does not log when base address is undefined and logErrors is false', async () => {
+        const readList = new ScvdReadList(undefined);
+        readList.name = 'list';
+        jest.spyOn(readList, 'getTargetSize').mockResolvedValue(4);
+        jest.spyOn(readList, 'getVirtualSize').mockResolvedValue(4);
+        const stmt = new StatementReadList(readList, undefined);
+        const ctx = createContext(readList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(undefined),
+        });
+        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+        await (stmt as unknown as {
+            resolveReadList: (item: ScvdReadList, ctx: Parameters<StatementReadList['executeStatement']>[0], logErrors: boolean) => Promise<unknown>;
+        }).resolveReadList(readList, ctx, false);
+
+        expect(errorSpy).not.toHaveBeenCalled();
+        errorSpy.mockRestore();
+    });
+
     it('passes const flags for batch and loop readlist paths', async () => {
         const batchList = createReadList();
         batchList.const = 1;
@@ -909,5 +928,29 @@ describe('StatementReadList', () => {
         await stmt.executeStatement(ctx, new ScvdGuiTree(undefined));
 
         expect(readMemory).toHaveBeenCalledWith(0x1004n, 4);
+    });
+
+    it('advances non-pointer arrays via stride using bigint base address', async () => {
+        const readList = createReadList();
+        (readList.getIsPointer as jest.Mock).mockReturnValue(false);
+        (readList.getCount as jest.Mock).mockResolvedValue(2);
+        const stmt = new StatementReadList(readList, undefined);
+        const readMemory = jest.fn(async (addr: number | bigint) => {
+            if (addr === 0x2000n) {
+                return new Uint8Array([1, 2, 3, 4]);
+            }
+            if (addr === 0x2004n) {
+                return new Uint8Array([5, 6, 7, 8]);
+            }
+            return undefined;
+        });
+        const ctx = createContext(readList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x2000n),
+            getNumArrayElements: jest.fn().mockResolvedValue(1),
+            readMemory,
+        });
+        await stmt.executeStatement(ctx, new ScvdGuiTree(undefined));
+
+        expect(readMemory).toHaveBeenCalledWith(0x2004n, 4);
     });
 });

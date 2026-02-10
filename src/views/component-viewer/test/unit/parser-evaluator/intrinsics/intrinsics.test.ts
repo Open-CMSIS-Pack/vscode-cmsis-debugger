@@ -80,6 +80,27 @@ describe('intrinsics', () => {
         } as unknown as IntrinsicProvider;
 
         await expect(handleIntrinsic(host, container(), '__CalcMemUsed', [1n, true, '3', 'bad'])).resolves.toBe(5);
+        await expect(handleIntrinsic(host, container(), '__CalcMemUsed', [Number.POSITIVE_INFINITY, '   ', false, -1.9])).resolves.toBe(-1);
+    });
+
+    it('returns undefined for non-finite intrinsic outputs', async () => {
+        const host = {
+            __FindSymbol: jest.fn(async () => Number.POSITIVE_INFINITY),
+            __CalcMemUsed: jest.fn(async () => Number.NaN),
+            __size_of: jest.fn(async () => Number.POSITIVE_INFINITY),
+            __Symbol_exists: jest.fn(async () => Number.NaN),
+            __Offset_of: jest.fn(async () => Number.POSITIVE_INFINITY),
+            __Running: jest.fn(async () => Number.NaN),
+            __GetRegVal: jest.fn(async () => Number.POSITIVE_INFINITY),
+        } as unknown as IntrinsicProvider;
+
+        await expect(handleIntrinsic(host, container(), '__FindSymbol', ['x'])).resolves.toBeUndefined();
+        await expect(handleIntrinsic(host, container(), '__CalcMemUsed', [1, 2, 3, 4])).resolves.toBeUndefined();
+        await expect(handleIntrinsic(host, container(), '__size_of', ['x'])).resolves.toBeUndefined();
+        await expect(handleIntrinsic(host, container(), '__Symbol_exists', ['x'])).resolves.toBeUndefined();
+        await expect(handleIntrinsic(host, container(), '__Offset_of', ['x'])).resolves.toBeUndefined();
+        await expect(handleIntrinsic(host, container(), '__Running', [])).resolves.toBeUndefined();
+        await expect(handleIntrinsic(host, container(), '__GetRegVal', ['r0'])).resolves.toBe(Number.POSITIVE_INFINITY);
     });
 
     it('reports missing or undefined intrinsic results', async () => {

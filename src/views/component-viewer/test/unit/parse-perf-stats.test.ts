@@ -189,4 +189,47 @@ describe('ParsePerfStats', () => {
         expect(perf.hasData()).toBe(false);
         expect(perf.formatSummary()).toBe('');
     });
+
+    it('formats summaries with only optimize calls', () => {
+        const perf = new ParsePerfStats();
+        const start = perf.start();
+        perf.endOptimize(start);
+        perf.recordOptimize(num(1), num(2), true);
+
+        const summary = perf.formatSummary();
+        expect(summary).toContain('[SCVD][parse-perf]');
+        expect(summary).toContain('parseCalls=0');
+        expect(summary).toContain('optimizeCalls=1');
+    });
+
+    it('collects stats without op or callee maps and skips max updates', () => {
+        const perf = new ParsePerfStats();
+        (perf as unknown as { parseMaxNodes: number; parseMaxDepth: number }).parseMaxNodes = 100;
+        (perf as unknown as { parseMaxNodes: number; parseMaxDepth: number }).parseMaxDepth = 100;
+
+        const call: CallExpression = {
+            kind: 'CallExpression',
+            callee: { kind: 'MemberAccess', object: id('obj'), property: 'prop', start: 0, end: 0 },
+            args: [num(1)],
+            start: 0,
+            end: 0,
+        };
+        const binary: BinaryExpression = { kind: 'BinaryExpression', operator: '+', left: call, right: num(2), start: 0, end: 0 };
+
+        const collect = (perf as unknown as {
+            collectAstStats: (node: ASTNode, kindCounts: Map<string, number>, opCounts?: Map<string, number>, calleeCounts?: Map<string, number>) => {
+                nodes: number;
+                maxDepth: number;
+                maxDepthKind: string;
+            };
+        }).collectAstStats.bind(perf);
+
+        const kindCounts = new Map<string, number>();
+        const stats = collect(binary, kindCounts, undefined, undefined);
+        expect(stats.nodes).toBeGreaterThan(0);
+
+        perf.recordParse(num(1));
+        expect((perf as unknown as { parseMaxNodes: number }).parseMaxNodes).toBe(100);
+        expect((perf as unknown as { parseMaxDepth: number }).parseMaxDepth).toBe(100);
+    });
 });

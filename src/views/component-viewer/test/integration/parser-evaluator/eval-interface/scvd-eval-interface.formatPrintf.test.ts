@@ -168,6 +168,11 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
         expect(out).toBe('4294967295');
     });
 
+    it('masks %u for sub-32-bit widths', async () => {
+        const out = await scvd.formatPrintf('u', -1, makeContainer('uint8_t'));
+        expect(out).toBe('255');
+    });
+
     it('truncates floats for %u', async () => {
         const out = await scvd.formatPrintf('u', 9.8, makeContainer('uint32_t'));
         expect(out).toBe('9');
@@ -387,7 +392,7 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
     it('formats %M with numeric fallback when pointer read fails', async () => {
         const noMem = makeEvalInterface(new Map(), new Map());
         const out = await noMem.formatPrintf('M', 0x30, makeContainer(undefined, new FakePointer()));
-        expect(out).toBe('00-30-00-00-00-30');
+        expect(out).toBe('48');
     });
 
     it('formats %N (string address)', async () => {

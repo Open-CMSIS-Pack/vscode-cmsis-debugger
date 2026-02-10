@@ -108,7 +108,7 @@ export class ScvdFormatSpecifier {
 
         if (kind === 'uint') {
             if (bits && bits < 32) {
-                const mask = (1 << bits) >>> 0;
+                const mask = ((1 << bits) - 1) >>> 0;
                 return (((value as number) >>> 0) & mask).toString(10);
             }
             return ((value as number) >>> 0).toString(10);
@@ -221,9 +221,12 @@ export class ScvdFormatSpecifier {
                 }
                 case 'M': {
                     if (value instanceof Uint8Array) {
-                        return this.formatMac(value);
+                        return this.format_M(value);
                     }
-                    return this.format_M(value as number | string);
+                    if (typeof value === 'string') {
+                        return this.format_M(value);
+                    }
+                    return String(value);
                 }
                 case 'T': {
                     return this.format_T(value, typeInfo, padHex);
@@ -389,20 +392,12 @@ export class ScvdFormatSpecifier {
     }
 
 
-    public format_M(value: number | string): string {
+    public format_M(value: Uint8Array | string): string {
         if (typeof value === 'string') {
             const cleaned = value.replace(/[^0-9a-fA-F]/g, '').slice(0, 12).padStart(12, '0');
             return cleaned.match(/.{1,2}/g)?.join('-').toUpperCase() ?? value;
         }
-        const n = Number(value);
-        if (!Number.isFinite(n)) {
-            return `${value}`;
-        }
-        const parts: string[] = [];
-        for (let i = 5; i >= 0; i--) {
-            parts.push(((n >> (i * 8)) & 0xFF).toString(16).padStart(2, '0'));
-        }
-        return parts.join('-').toUpperCase();
+        return this.formatMac(value);
     }
 
     public format_T(value: unknown, typeInfo?: FormatTypeInfo, padZeroes: boolean = false): string {

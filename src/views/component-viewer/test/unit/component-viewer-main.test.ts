@@ -227,6 +227,24 @@ describe('ComponentViewer', () => {
         expect(instances).toEqual([]);
     });
 
+    it('returns undefined when cbuild run contains no scvd instances', async () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const tracker = makeTracker();
+        const session = makeSession('s1', []);
+
+        const readScvdFiles = jest.fn().mockResolvedValue(undefined);
+        (controller as unknown as { readScvdFiles: typeof readScvdFiles }).readScvdFiles = readScvdFiles;
+
+        const load = (controller as unknown as {
+            loadCbuildRunInstances: (s: Session, t: TrackerCallbacks) => Promise<void | undefined>;
+        }).loadCbuildRunInstances.bind(controller);
+
+        const result = await load(session, tracker);
+        expect(result).toBeUndefined();
+        expect(readScvdFiles).toHaveBeenCalled();
+        expect((controller as unknown as { _instances: unknown[] })._instances).toHaveLength(0);
+    });
+
     it('handles tracker events and updates sessions', async () => {
         const context = extensionContextFactory();
         const tracker = makeTracker();
@@ -339,6 +357,31 @@ describe('ComponentViewer', () => {
         expect(scheduleSpy).toHaveBeenCalledWith('stackItemChanged');
     });
 
+    it('does not update active session when stack item matches the active session', async () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const sessionA = makeSession('s1');
+        const updateSpy = jest.fn();
+
+        (controller as unknown as { _activeSession?: Session })._activeSession = sessionA;
+        (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
+            {
+                componentViewerInstance: { updateActiveSession: updateSpy } as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'],
+                lockState: false,
+                sessionId: 's1',
+            },
+        ];
+
+        const scheduleSpy = jest
+            .spyOn(controller as unknown as { schedulePendingUpdate: (reason: fifoUpdateReason) => void }, 'schedulePendingUpdate')
+            .mockImplementation(() => undefined);
+
+        const handleOnStackItemChanged = (controller as unknown as { handleOnStackItemChanged: (s: Session) => Promise<void> }).handleOnStackItemChanged.bind(controller);
+        await handleOnStackItemChanged(sessionA);
+
+        expect(updateSpy).not.toHaveBeenCalled();
+        expect(scheduleSpy).toHaveBeenCalledWith('stackItemChanged');
+    });
+
     it('updates instances when active session and instances are present', async () => {
         const context = extensionContextFactory();
         const controller = new ComponentViewer(context);
@@ -376,6 +419,23 @@ describe('ComponentViewer', () => {
         expect(rootA.isRootInstance).toBe(true);
         expect(rootB.isRootInstance).toBe(true);
         expect(debugSpy).toHaveBeenCalled();
+    });
+
+    it('skips gui tree updates when an instance returns no gui tree', async () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const provider = treeProviderFactory();
+        (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
+
+        const updateInstances = (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances.bind(controller);
+        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1');
+        const instance = instanceFactory();
+        instance.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => undefined);
+        (controller as unknown as { _instances: unknown[] })._instances = [
+            { componentViewerInstance: instance, lockState: false, sessionId: 's1' },
+        ];
+
+        await updateInstances('stackTrace');
+        expect(provider.setRoots).toHaveBeenCalledWith([]);
     });
 
     it('updates only instances for the active session', async () => {

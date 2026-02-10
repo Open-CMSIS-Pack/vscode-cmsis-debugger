@@ -46,9 +46,11 @@ describe('math-ops helpers', () => {
         expect(toNumeric('10')).toBe(10);
         expect(toNumeric('   ')).toBe(0);
         expect(toNumeric('bad')).toBe(0);
+        expect(toNumeric(2n)).toBe(2n);
         expect(toNumeric('1'.repeat(400))).toBe(BigInt('1'.repeat(400)));
         expect(toNumeric(new Uint8Array([1, 2, 3]))).toBe(0);
         expect(toBigInt('not-a-number' as unknown as string)).toBe(0n);
+        expect(toBigInt(2n)).toBe(2n);
         expect(toBigInt(true)).toBe(1n);
         expect(toBigInt(false)).toBe(0n);
         expect(toBigInt('1.9')).toBe(1n);
@@ -98,6 +100,8 @@ describe('math-ops helpers', () => {
         expect(divVals(5.5, 2)).toBe(2.75);
         expect(modVals(5.5, 2)).toBeUndefined();
         expect(addVals(Number.POSITIVE_INFINITY, 1)).toBeUndefined();
+        expect(subVals(Number.NaN, 1)).toBeUndefined();
+        expect(typeof addVals(9_007_199_254_740_993n, 1n)).toBe('bigint');
     });
 
     it('supports bitwise ops and shifts across kinds', () => {
@@ -129,6 +133,13 @@ describe('math-ops helpers', () => {
         expect(shrVals(1.5, 2)).toBeUndefined();
         expect(shrVals(-1n, 1n, 8)).toBe(127);
         expect(shrVals(8n, 1n, 8)).toBe(4);
+    });
+
+    it('coerces boolean operands for typed arithmetic and bitwise operations', () => {
+        expect(addVals(true, false, 8, false)).toBe(1);
+        expect(orVals(true, false, 8, false)).toBe(1);
+        expect(shlVals(true, 1, 8, false)).toBe(2);
+        expect(divVals(true, false)).toBeUndefined();
     });
 
     it('merges scalar kinds with float > uint > int precedence', () => {

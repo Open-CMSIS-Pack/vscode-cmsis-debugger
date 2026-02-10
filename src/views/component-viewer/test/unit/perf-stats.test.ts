@@ -397,6 +397,21 @@ describe('PerfStats', () => {
         perf.beginExecuteAll();
     });
 
+    it('resets backend stats and handles empty eval node frames', () => {
+        const perf = new PerfStats();
+        perf.setBackendEnabled(true);
+
+        perf.end(perf.start(), 'evalMs', 'evalCalls');
+        expect(perf.formatSummary()).toContain('[SCVD][perf]');
+
+        perf.resetBackendStats();
+        expect(perf.formatSummary()).toBe('');
+
+        perf.endEvalNodeFrame(1, 2);
+        perf.addEvalNodeChildMs(1, 2);
+        // No assertions beyond verifying no throws and branches were hit.
+    });
+
     it('logs summaries when present', () => {
         const perf = new PerfStats();
         const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});

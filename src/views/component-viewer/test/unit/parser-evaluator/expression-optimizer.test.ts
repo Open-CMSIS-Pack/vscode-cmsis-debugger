@@ -229,6 +229,43 @@ describe('expression-optimizer', () => {
         expect(foldedMul.right.constValue).toBe(6);
     });
 
+    it('handles non-numeric const values in identity and purity checks', () => {
+        const strLiteral: ASTNode = { kind: 'StringLiteral', value: 's', raw: '"s"', valueType: 'string', ...span() };
+        const boolLiteral: ASTNode = { kind: 'BooleanLiteral', value: true, valueType: 'boolean', constValue: true, ...span() };
+
+        const mul = foldAst(bin('*', ident('x'), strLiteral));
+        expect(mul.kind).toBe('BinaryExpression');
+
+        const orExpr = foldAst(bin('||', ident('x'), strLiteral));
+        expect(orExpr.kind).toBe('BinaryExpression');
+
+        const andExpr = foldAst(bin('&&', ident('x'), strLiteral));
+        expect(andExpr.kind).toBe('Identifier');
+
+        const comma = foldAst(bin(',', unary('*', num('1', 1)), num('2', 2)));
+        expect(comma.kind).toBe('BinaryExpression');
+
+        const boolSum = foldAst(bin('+', ident('flag', true), boolLiteral));
+        expect(boolSum.kind).toBe('NumberLiteral');
+    });
+
+    it('folds boolean truthy/falsy constants and bigint identity cases', () => {
+        const rightTrue: BooleanLiteral = { kind: 'BooleanLiteral', value: true, valueType: 'boolean', constValue: true, ...span() };
+        const rightFalse: BooleanLiteral = { kind: 'BooleanLiteral', value: false, valueType: 'boolean', constValue: false, ...span() };
+
+        const foldedOr = foldAst(bin('||', num('0', 0), rightTrue));
+        expect(foldedOr.constValue).toBe(1);
+        const foldedAnd = foldAst(bin('&&', num('1', 1), rightFalse));
+        expect(foldedAnd.constValue).toBe(0);
+
+        const oneBig = ident('one', 1n);
+        const left = ident('x');
+        const mulIdentity = foldAst(bin('*', left, oneBig));
+        expect(mulIdentity.kind).toBe('Identifier');
+        const divIdentity = foldAst(bin('/', left, oneBig));
+        expect(divIdentity.kind).toBe('Identifier');
+    });
+
     it('folds conditional, casts, sizeof/alignof, and calls', () => {
         const cond: ConditionalExpression = {
             kind: 'ConditionalExpression',

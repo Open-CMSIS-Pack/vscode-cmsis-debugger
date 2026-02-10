@@ -130,6 +130,17 @@ describe('parser', () => {
         expect(parseExpression('1.5e2', false).ast.constValue).toBe(150);
     });
 
+    it('parses hex float exponents and sizeof/alignof type names', () => {
+        const hexFloat = parseExpression('0x1.2p-3', false);
+        expect(hexFloat.diagnostics).toHaveLength(0);
+        expect(hexFloat.ast.constValue).toBeCloseTo(0.140625, 6);
+
+        const sizeofType = parseExpression('sizeof(int)', false);
+        expect(sizeofType.ast.constValue).toBe(4);
+        const alignofType = parseExpression('alignof(int)', false);
+        expect(alignofType.ast.constValue).toBe(4);
+    });
+
     it('unescapes valid and invalid string escapes', () => {
         expect(parseExpression('"\\u0041"', false).ast.constValue).toBe('A');
         expect(parseExpression('"\\u{1F600}"', false).ast.constValue).toBe('😀');
@@ -398,6 +409,11 @@ describe('parser', () => {
 
         const call = parseExpression('(obj.fn)()', false);
         expect((call.ast as { callee: ASTNode }).callee.kind).toBeDefined();
+    });
+
+    it('falls back when type-name parsing misses closing parens', () => {
+        const res = parseExpression('(int 1)', false);
+        expect(res.diagnostics.length).toBeGreaterThan(0);
     });
 
     it('covers empty char literal codepoint fallback', () => {

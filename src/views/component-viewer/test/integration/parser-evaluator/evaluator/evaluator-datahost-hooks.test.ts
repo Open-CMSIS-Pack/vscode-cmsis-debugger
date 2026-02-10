@@ -24,6 +24,11 @@ import type { RefContainer, EvalValue } from '../../../../parser-evaluator/model
 import type { FullDataHost } from '../../helpers/full-data-host';
 import { parseExpressionForTest as parseExpression } from '../../../unit/helpers/parse-expression';
 import { ScvdNode } from '../../../../model/scvd-node';
+import { ScvdEvalInterface } from '../../../../scvd-eval-interface';
+import { MemoryHost } from '../../../../data-host/memory-host';
+import { ScvdFormatSpecifier } from '../../../../model/scvd-format-specifier';
+import { RegisterHost } from '../../../../data-host/register-host';
+import { ScvdDebugTarget } from '../../../../scvd-debug-target';
 
 class BasicRef extends ScvdNode {
     constructor(parent?: ScvdNode) {
@@ -124,6 +129,37 @@ class HookHost implements FullDataHost {
 }
 
 const evaluator = new Evaluator();
+
+class MacRoot extends ScvdNode {
+    private readonly macRef: ScvdNode;
+
+    constructor() {
+        super(undefined);
+        this.macRef = new MacNode(this);
+        this.macRef.name = 'mac';
+    }
+
+    public override getSymbol(name: string): ScvdNode | undefined {
+        if (name === 'mac') {
+            return this.macRef;
+        }
+        return undefined;
+    }
+}
+
+class MacNode extends ScvdNode {
+    constructor(parent?: ScvdNode) {
+        super(parent);
+    }
+
+    public override async getTargetSize(): Promise<number | undefined> {
+        return 6;
+    }
+
+    public override getValueType(): string | undefined {
+        return undefined;
+    }
+}
 
 class NestedArrayHost implements FullDataHost {
     readonly root = new BasicRef();
@@ -293,6 +329,31 @@ describe('evaluator data host hooks', () => {
         expect(out).toBe('mac=1E-30-6C-A2-45-5F');
         expect(host.formatPrintf).toHaveBeenCalledTimes(1);
         expect(host.lastFormattingContainer?.current).toBe(host.fieldRef);
+    });
+
+    it('formats %M using memhost-backed bytes', async () => {
+        const memHost = new MemoryHost();
+        memHost.setVariable('mac', 6, new Uint8Array([0x1e, 0x30, 0x6c, 0xa2, 0x45, 0x5f]), 0);
+        const debugTarget = {
+            readMemory: jest.fn(async () => undefined),
+            findSymbolNameAtAddress: jest.fn(async () => undefined),
+            findSymbolContextAtAddress: jest.fn(async () => undefined),
+            readUint8ArrayStrFromPointer: jest.fn(async () => undefined),
+            findSymbolAddress: jest.fn(async () => undefined),
+            getTargetIsRunning: jest.fn(async () => false),
+        } as unknown as ScvdDebugTarget;
+        const scvd = new ScvdEvalInterface(
+            memHost,
+            {} as RegisterHost,
+            debugTarget,
+            new ScvdFormatSpecifier()
+        );
+        const root = new MacRoot();
+        const ctx = new EvalContext({ data: scvd, container: root });
+        const pr = parseExpression('mac=%M[mac]', true);
+
+        const out = await evaluator.evaluateParseResult(pr, ctx);
+        expect(out).toBe('mac=1E-30-6C-A2-45-5F');
     });
 
     it('computes nested array offsets for member and var arrays', async () => {
