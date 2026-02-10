@@ -22,7 +22,7 @@ import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
 import { logger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 
-export type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace' | 'StackItemChanged';
+export type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace' | 'stackItemChanged';
 
 export interface ComponentViewerInstancesWrapper {
     componentViewerInstance: ComponentViewerInstance;
@@ -176,7 +176,8 @@ export class ComponentViewer {
     }
 
     protected async handleOnStackItemChanged(session: GDBTargetDebugSession): Promise<void> {
-        // Clear active session if it is NOT the one being stopped
+        // If the active session is not the one being updated, update it. 
+        // This can happen when a session is started and stack trace/item events are emitted before the session is set as active in the component viewer.
         if (this._activeSession?.session.id !== session.session.id) {
             this._activeSession = session;
             this._instances.forEach((instance) => instance.componentViewerInstance.updateActiveSession(session));
@@ -193,7 +194,6 @@ export class ComponentViewer {
         // Clear instances belonging to the stopped session and update tree view
         this._instances = this._instances.filter((instance) => {
             if (instance.sessionId === session.session.id) {
-                //instance.componentViewerInstance.getGuiTree()?.forEach(root => root.clear());
                 return false;
             }
             return true;
@@ -228,7 +228,6 @@ export class ComponentViewer {
         }
         // update active debug session for all instances
         this._instances.forEach((instance) => instance.componentViewerInstance.updateActiveSession(session));
-        //this.schedulePendingUpdate('sessionChanged');
     }
 
     private schedulePendingUpdate(updateReason: fifoUpdateReason): void {
