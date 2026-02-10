@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { componentViewerLogger } from '../../../logger';
 import { ResolveSymbolCb } from '../resolver';
 import { ExecutionContext } from '../scvd-eval-context';
 import { getLineNumberFromJson, getStringField } from './scvd-utils';
@@ -118,29 +119,29 @@ export abstract class ScvdNode extends ScvdBase {
     }
 
     public writeAt(byteOffset: number, widthBits: number, value: number | string): number | string | undefined {
-        console.error(`WriteAt not implemented: item=${this.classname}: ${this.getDisplayLabel()}, offset=${byteOffset}, width=${widthBits}, value=${value}`);
+        componentViewerLogger.error(`WriteAt not implemented: item=${this.classname}: ${this.getDisplayLabel()}, offset=${byteOffset}, width=${widthBits}, value=${value}`);
         return undefined;
     }
 
     public readAt(byteOffset: number, widthBits: number): number | string | undefined {
-        console.error(`ReadAt not implemented: item=${this.classname}: ${this.getDisplayLabel()}, offset=${byteOffset}, width=${widthBits}`);
+        componentViewerLogger.error(`ReadAt not implemented: item=${this.classname}: ${this.getDisplayLabel()}, offset=${byteOffset}, width=${widthBits}`);
         return undefined;
     }
 
     public async getTargetSize(): Promise<number | undefined> {
-        console.error(`GetTargetSize not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
+        componentViewerLogger.error(`GetTargetSize not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
         return undefined;
     }
     public getTypeSize(): number | undefined {
-        console.error(`GetTypeSize not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
+        componentViewerLogger.error(`GetTypeSize not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
         return undefined;
     }
     public async getVirtualSize(): Promise<number | undefined> {
-        console.error(`GetVirtualSize not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
+        componentViewerLogger.error(`GetVirtualSize not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
         return undefined;
     }
     public getIsPointer(): boolean {
-        console.error(`GetIsPointer not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
+        componentViewerLogger.error(`GetIsPointer not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
         return false;
     }
     public async getArraySize(): Promise<number | undefined> {
@@ -149,17 +150,17 @@ export abstract class ScvdNode extends ScvdBase {
 
     // member’s byte offset
     public async getMemberOffset(): Promise<number | undefined> {
-        console.error(`GetMemberOffset not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
+        componentViewerLogger.error(`GetMemberOffset not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
         return undefined;
     }
 
     public getElementBitWidth(): number | undefined {
-        console.error(`GetElementBitWidth not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
+        componentViewerLogger.error(`GetElementBitWidth not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
         return undefined;
     }
 
     public getValueType(): string | undefined {
-        console.error(`GetValueType not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
+        componentViewerLogger.error(`GetValueType not implemented: item=${this.classname}: ${this.getDisplayLabel()}`);
         return undefined;
     }
 

@@ -15,6 +15,7 @@
  */
 // generated with AI
 
+import { componentViewerLogger } from '../../../logger';
 import { EvalValue, RefContainer } from '../parser-evaluator/model-host';
 import { ValidatingCache } from './validating-cache';
 
@@ -160,7 +161,7 @@ export class MemoryHost {
     // normalize number → safe JS number for addresses
     private toAddrNumber(x: number): number | undefined {
         if (!Number.isFinite(x) || x < 0 || !Number.isSafeInteger(x)) {
-            console.error(`invalid target base address (number): ${x}`);
+            componentViewerLogger.error(`invalid target base address (number): ${x}`);
             return undefined;
         }
         return x;
@@ -284,7 +285,7 @@ export class MemoryHost {
             } else if (typeof value === 'bigint') {
                 valNum = value;
             } else {
-                console.error('writeValue: unsupported value type');
+                componentViewerLogger.error('writeValue: unsupported value type');
                 return;
             }
 
@@ -303,7 +304,7 @@ export class MemoryHost {
         }
 
         if (virtualSize !== undefined && virtualSize < widthBytes) {
-            console.error(`writeValue: virtualSize (${virtualSize}) must be >= widthBytes (${widthBytes})`);
+            componentViewerLogger.error(`writeValue: virtualSize (${virtualSize}) must be >= widthBytes (${widthBytes})`);
             return;
         }
 
@@ -321,7 +322,7 @@ export class MemoryHost {
         isConst?: boolean,
     ): void {
         if (!Number.isSafeInteger(offset)) {
-            console.error(`setVariable: offset must be a safe integer, got ${offset}`);
+            componentViewerLogger.error(`setVariable: offset must be a safe integer, got ${offset}`);
             return;
         }
 
@@ -332,7 +333,7 @@ export class MemoryHost {
         //  - otherwise     → write at the given offset
         const appendOff = offset === -1 ? (container.byteLength ?? 0) : offset;
         if (appendOff < 0) {
-            console.error(`setVariable: offset must be >= 0 or -1, got ${offset}`);
+            componentViewerLogger.error(`setVariable: offset must be >= 0 or -1, got ${offset}`);
             return;
         }
 
@@ -353,12 +354,12 @@ export class MemoryHost {
             // Avoid an extra allocation when already the right size
             buf = value.length === size ? value : new Uint8Array(value.subarray(0, size));
         } else {
-            console.error('setVariable: unsupported value type');
+            componentViewerLogger.error('setVariable: unsupported value type');
             return;
         }
 
         if (virtualSize !== undefined && virtualSize < size) {
-            console.error(`setVariable: virtualSize (${virtualSize}) must be >= size (${size})`);
+            componentViewerLogger.error(`setVariable: virtualSize (${virtualSize}) must be >= size (${size})`);
             return;
         }
         const total = virtualSize ?? size;
@@ -417,11 +418,11 @@ export class MemoryHost {
     public getElementTargetBase(name: string, index: number): number | undefined {
         const m = this.elementMeta.get(name);
         if (!m) {
-            console.error(`getElementTargetBase: unknown symbol "${name}"`);
+            componentViewerLogger.error(`getElementTargetBase: unknown symbol "${name}"`);
             return undefined;
         }
         if (index < 0 || index >= m.bases.length) {
-            console.error(`getElementTargetBase: index ${index} out of range for "${name}"`);
+            componentViewerLogger.error(`getElementTargetBase: index ${index} out of range for "${name}"`);
             return undefined;
         }
         return m.bases.at(index);

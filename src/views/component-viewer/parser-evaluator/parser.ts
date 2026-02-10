@@ -16,6 +16,7 @@
 
 // generated with AI
 
+import { componentViewerLogger } from '../../../logger';
 import { addVals, andVals, divVals, maskToBits, modVals, mulVals, orVals, sarVals, shlVals, subVals, toNumeric, xorVals } from './math-ops';
 import { INTRINSIC_DEFINITIONS, isIntrinsicName } from './intrinsics';
 import type { IntrinsicName as HostIntrinsicName } from './intrinsics';
@@ -467,7 +468,7 @@ export class Parser {
         // Constant folding only for non-printf ASTs
         ast = this.fold(ast);
         if (this.diagnostics.some((d) => d.type === 'error')) {
-            console.error(`[SCVD][parser][fold] full=${this.foldStats.full} partial=${this.foldStats.partial} identity=${this.foldStats.identity}`);
+            componentViewerLogger.error(`[SCVD][parser][fold] full=${this.foldStats.full} partial=${this.foldStats.partial} identity=${this.foldStats.identity}`);
         }
         const constValue = isPrintf ? undefined : ast.constValue;
 

@@ -16,6 +16,7 @@
 
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
+import { componentViewerLogger } from '../../../logger';
 import { ScvdNode } from './scvd-node';
 import { ScvdExpression } from './scvd-expression';
 import { ExecutionContext } from '../scvd-eval-context';
@@ -58,7 +59,7 @@ export class ScvdCondition extends ScvdNode {
             // Treat numeric zero as false; everything else (including bigint) as true.
             return value === undefined ? false : value !== 0 && value !== 0n;
         } catch (err) {
-            console.error(this.getLineInfoStr(), 'Failed to evaluate condition expression', err);
+            componentViewerLogger.error(this.getLineInfoStr(), 'Failed to evaluate condition expression', err);
             return false;
         }
     }

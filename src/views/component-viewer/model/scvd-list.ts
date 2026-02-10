@@ -16,6 +16,7 @@
 
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
+import { componentViewerLogger } from '../../../logger';
 import { ScvdCalc } from './scvd-calc';
 import { ScvdExpression } from './scvd-expression';
 import { Json } from './scvd-base';
@@ -96,7 +97,7 @@ export class ScvdList extends ScvdNode {
 
     public verify(): boolean {
         if (this._limit && this._while) {
-            console.error('List cannot have both limit and while attributes');
+            componentViewerLogger.error('List cannot have both limit and while attributes');
             return false;
         }
         return true;

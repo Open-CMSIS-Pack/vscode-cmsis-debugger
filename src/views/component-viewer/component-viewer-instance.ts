@@ -25,6 +25,7 @@ import { StatementEngine } from './statement-engine/statement-engine';
 import { ScvdEvalContext } from './scvd-eval-context';
 import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
 import { ScvdGuiTree } from './scvd-gui-tree';
+import { componentViewerLogger } from '../../logger';
 import { perf } from './stats-config';
 
 
@@ -121,13 +122,13 @@ export class ComponentViewerInstance {
         stats.push(this.getStats('  parse'));
 
         if (xml === undefined) {
-            console.error('Failed to parse SCVD XML');
+            componentViewerLogger.error('Failed to parse SCVD XML');
             return;
         }
 
         this.model = new ScvdComponentViewer(undefined);
         if (!this.model) {
-            console.error('Failed to create SCVD model');
+            componentViewerLogger.error('Failed to create SCVD model');
             return;
         }
 
@@ -140,7 +141,7 @@ export class ComponentViewerInstance {
 
         const executionContext = this.scvdEvalContext?.getExecutionContext();
         if (executionContext === undefined) {
-            console.error('Failed to get execution context from SCVD EvalContext');
+            componentViewerLogger.error('Failed to get execution context from SCVD EvalContext');
             return;
         }
         this.model.setExecutionContextAll(executionContext);
@@ -186,7 +187,7 @@ export class ComponentViewerInstance {
             const buffer = await vscode.workspace.fs.readFile(filePath);
             return Buffer.from(buffer);
         } catch (error) {
-            console.error('Error reading file:', error);
+            componentViewerLogger.error('Error reading file:', error);
             throw error;
         }
     }
@@ -197,7 +198,7 @@ export class ComponentViewerInstance {
             //console.log(JSON.stringify(json, null, 2));
             return json;
         } catch (err) {
-            console.error('Error parsing XML:', err);
+            componentViewerLogger.error('Error parsing XML:', err);
         }
     }
 

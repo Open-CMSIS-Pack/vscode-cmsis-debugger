@@ -19,7 +19,7 @@ import { GDBTargetDebugTracker, GDBTargetDebugSession } from '../../debug-sessio
 import { ComponentViewerInstance } from './component-viewer-instance';
 import { URI } from 'vscode-uri';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
-import { logger } from '../../logger';
+import { componentViewerLogger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 
 export type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace';
@@ -89,7 +89,7 @@ export class ComponentViewer {
             return;
         }
         instance.lockState = !instance.lockState;
-        logger.info(`Component Viewer: Instance lock state changed to ${instance.lockState}`);
+        componentViewerLogger.info(`Component Viewer: Instance lock state changed to ${instance.lockState}`);
         // If instance is locked, set isLocked flag to true for root nodes
         const guiTree = instance.componentViewerInstance.getGuiTree();
         if (!guiTree) {
@@ -246,7 +246,7 @@ export class ComponentViewer {
                 await this.updateInstances(updateReason);
             } finally {
                 this._runningUpdate = false;
-                logger.error('Component Viewer: Error during update');
+                componentViewerLogger.error('Component Viewer: Error during update');
             }
         }
         this._runningUpdate = false;
@@ -257,7 +257,7 @@ export class ComponentViewer {
             this._componentViewerTreeDataProvider?.clear();
             return;
         }
-        logger.debug(`Component Viewer: Queuing update due to '${updateReason}', that is update #${this._updateQueue.length + 1} in the queue`);
+        componentViewerLogger.debug(`Component Viewer: Queuing update due to '${updateReason}', that is update #${this._updateQueue.length + 1} in the queue`);
         this._updateQueue.push({
             updateId: this._updateQueue.length + 1,
             debugSession: this._activeSession,
@@ -270,7 +270,7 @@ export class ComponentViewer {
         const roots: ScvdGuiInterface[] = [];
         for (const instance of this._instances) {
             this._instanceUpdateCounter++;
-            logger.debug(`Updating Component Viewer Instance #${this._instanceUpdateCounter} due to '${updateReason}' (queue position #${this._updateQueue.length})`);
+            componentViewerLogger.debug(`Updating Component Viewer Instance #${this._instanceUpdateCounter} due to '${updateReason}' (queue position #${this._updateQueue.length})`);
             console.log(`Updating Component Viewer Instance #${this._instanceUpdateCounter}`);
             // Check instance's lock state, skip update if locked
             if (!instance.lockState) {

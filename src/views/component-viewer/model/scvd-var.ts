@@ -16,6 +16,7 @@
 
 // https://arm-software.github.io/CMSIS-View/main/elem_var.html
 
+import { componentViewerLogger } from '../../../logger';
 import { ScvdDataType } from './scvd-data-type';
 import { ScvdEnum } from './scvd-enum';
 import { ScvdExpression } from './scvd-expression';
@@ -140,7 +141,7 @@ export class ScvdVar extends ScvdNode {
         const count = typeof sizeValue === 'bigint' ? Number(sizeValue)
             : (typeof sizeValue === 'number' ? sizeValue : undefined);
         if (count === undefined || !Number.isFinite(count) || count < 1 || count > 1024) {
-            console.error(this.getLineInfoStr(), `'${this.name ?? 'var'}': invalid size specified (1...1024)`);
+            componentViewerLogger.error(this.getLineInfoStr(), `'${this.name ?? 'var'}': invalid size specified (1...1024)`);
             if (count !== undefined && count > 1024) {
                 return 1024;
             }

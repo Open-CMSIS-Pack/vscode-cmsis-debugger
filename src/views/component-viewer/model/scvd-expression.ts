@@ -17,6 +17,7 @@
 // https://arm-software.github.io/CMSIS-View/main/scvd_expression.html
 
 
+import { componentViewerLogger } from '../../../logger';
 import { parseExpression, ParseResult } from '../parser-evaluator/parser';
 import { EvaluateResult } from '../parser-evaluator/evaluator';
 import { ScvdNode } from './scvd-node';
@@ -67,7 +68,7 @@ export class ScvdExpression extends ScvdNode {
 
     private async evaluateExpression(): Promise<EvaluateResult> {
         if (this.expressionAst === undefined || this._executionContext === undefined) {
-            console.error(this.getLineInfoStr(), 'Expression evaluation missing AST or execution context');
+            componentViewerLogger.error(this.getLineInfoStr(), 'Expression evaluation missing AST or execution context');
             return undefined;
         }
         return this._executionContext.evaluator.evaluateParseResult(this.expressionAst, this._executionContext.evalContext);
@@ -129,17 +130,17 @@ export class ScvdExpression extends ScvdNode {
     public override validate(prevResult: boolean): boolean {
         const expression = this.expression;
         if (expression === undefined) {
-            console.error(this.getLineInfoStr(), 'Expression is empty.');
+            componentViewerLogger.error(this.getLineInfoStr(), 'Expression is empty.');
             return super.validate(false);
         }
 
         const expressionAst = this.expressionAst;
         if (expressionAst === undefined) {
-            console.error(this.getLineInfoStr(), 'Expression AST is undefined for expression: ', expression);
+            componentViewerLogger.error(this.getLineInfoStr(), 'Expression AST is undefined for expression: ', expression);
             return super.validate(false);
         }
         if (expressionAst.diagnostics.length > 0) {
-            console.error(this.getLineInfoStr(), 'Expression AST has diagnostics for expression: ', expression, '\nDiagnostics: ', expressionAst.diagnostics);
+            componentViewerLogger.error(this.getLineInfoStr(), 'Expression AST has diagnostics for expression: ', expression, '\nDiagnostics: ', expressionAst.diagnostics);
             return super.validate(false);
         }
 
