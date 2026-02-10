@@ -40,7 +40,11 @@ cbuild-run:
       pname: Core1
     - file: ${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_generic.svd
       type: svd
+    - file: ../../MyDevice/multi-core-custom.svd
+      type: svd
     - file: ${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SCVD/MySoftware_component.scvd
+      type: scvd
+    - file: ../../MyDevice/multi-core-custom.scvd
       type: scvd
     - file: ${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SCVD/Core1.scvd
       type: scvd
