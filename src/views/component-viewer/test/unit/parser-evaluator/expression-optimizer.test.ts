@@ -82,7 +82,8 @@ const unary = (operator: UnaryExpression['operator'], argument: ASTNode, start =
 describe('expression-optimizer', () => {
     it('exposes literal helpers and normalizers', () => {
         expect(__expressionOptimizerTestUtils.normalizeConstValue(1)).toBe(1);
-        expect(__expressionOptimizerTestUtils.normalizeConstValue({})).toBeUndefined();
+        const normalize = __expressionOptimizerTestUtils.normalizeConstValue as (v: unknown) => unknown;
+        expect(normalize({})).toBeUndefined();
         expect(__expressionOptimizerTestUtils.isZeroConst(0)).toBe(true);
         expect(__expressionOptimizerTestUtils.isZeroConst(0n)).toBe(true);
         expect(__expressionOptimizerTestUtils.isZeroConst(1)).toBe(false);
@@ -91,7 +92,7 @@ describe('expression-optimizer', () => {
         expect(__expressionOptimizerTestUtils.literalFromConst(3n, 0, 1).kind).toBe('NumberLiteral');
         expect(__expressionOptimizerTestUtils.literalFromConst('s', 0, 1).kind).toBe('StringLiteral');
         expect(__expressionOptimizerTestUtils.literalFromConst(true, 0, 1).kind).toBe('BooleanLiteral');
-        expect(__expressionOptimizerTestUtils.literalFromConst({}, 0, 1).kind).toBe('ErrorNode');
+        expect(__expressionOptimizerTestUtils.literalFromConst(undefined, 0, 1).kind).toBe('ErrorNode');
     });
 
     it('folds literals, member access, and array indices', () => {
@@ -99,8 +100,8 @@ describe('expression-optimizer', () => {
         const numLiteral = num('0x10', 16, 2, 3);
         const strLiteral: ASTNode = { kind: 'StringLiteral', value: 'hi', raw: '"hi"', valueType: 'string', ...span(3, 4) };
         const boolLiteral = bool(true, 4, 5);
-        const member = { kind: 'MemberAccess', object: numLiteral, property: 'field', ...span(5, 6) };
-        const index = { kind: 'ArrayIndex', array: member, index: num('2', 2, 6, 7), ...span(6, 8) };
+        const member: ASTNode = { kind: 'MemberAccess', object: numLiteral, property: 'field', ...span(5, 6) };
+        const index: ASTNode = { kind: 'ArrayIndex', array: member as ASTNode, index: num('2', 2, 6, 7), ...span(6, 8) };
 
         const foldedChar = foldAst(charLiteral);
         expect(foldedChar.constValue).toBe(65);
