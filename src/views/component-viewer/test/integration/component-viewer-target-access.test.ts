@@ -24,7 +24,7 @@ import * as vscode from 'vscode';
 import { ComponentViewerTargetAccess } from '../../component-viewer-target-access';
 import { debugSessionFactory } from '../../../../__test__/vscode.factory';
 import { GDBTargetDebugSession } from '../../../../debug-session';
-import { logger } from '../../../../logger';
+import { componentViewerLogger } from '../../../../logger';
 
 describe('ComponentViewerTargetAccess', () => {
     const defaultConfig = () => {
@@ -101,7 +101,7 @@ describe('ComponentViewerTargetAccess', () => {
         });
 
         it('should log when evaluation fails', async () => {
-            const debugSpy = jest.spyOn(logger, 'debug');
+            const debugSpy = jest.spyOn(componentViewerLogger, 'debug');
             (vscode.debug.activeStackItem as unknown) = { session: debugSession, threadId: 1, frameId: 1 };
             (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('Variable not found'));
 
@@ -114,7 +114,7 @@ describe('ComponentViewerTargetAccess', () => {
         });
 
         it('should log when custom request fails', async () => {
-            const debugSpy = jest.spyOn(logger, 'debug');
+            const debugSpy = jest.spyOn(componentViewerLogger, 'debug');
             (vscode.debug.activeStackItem as unknown) = { session: debugSession, threadId: 1, frameId: 1 };
             (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('custom request failed'));
 
@@ -163,7 +163,7 @@ describe('ComponentViewerTargetAccess', () => {
         });
 
         it('should return undefined when memory read fails', async () => {
-            const debugSpy = jest.spyOn(logger, 'debug');
+            const debugSpy = jest.spyOn(componentViewerLogger, 'debug');
             (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('Invalid memory address'));
 
             const result = await targetAccess.evaluateMemory('0xFFFFFFFF', 4, 0);
@@ -175,7 +175,7 @@ describe('ComponentViewerTargetAccess', () => {
         });
 
         it('should return undefined when custom request fails for memory read', async () => {
-            const debugSpy = jest.spyOn(logger, 'debug');
+            const debugSpy = jest.spyOn(componentViewerLogger, 'debug');
             (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('custom request failed'));
 
             const result = await targetAccess.evaluateMemory('0x20000000', 4, 0);

@@ -20,6 +20,7 @@
  * Unit test for MemoryHost.
  */
 
+import { componentViewerLogger } from '../../../../../logger';
 import { MemoryContainer, MemoryHost, __test__ as memoryHostTest } from '../../../data-host/memory-host';
 import { RefContainer } from '../../../parser-evaluator/model-host';
 import { ScvdNode } from '../../../model/scvd-node';
@@ -251,7 +252,7 @@ describe('MemoryHost', () => {
         await host.writeValue(ref, new Uint8Array([9, 8, 7, 6]));
         expect(await host.readRaw(ref, 4)).toEqual(new Uint8Array([9, 8, 7, 6]));
 
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         await host.writeValue(ref, 'bad' as unknown as number);
         await host.writeValue(ref, 5, 2);
         expect(errorSpy).toHaveBeenCalled();
@@ -260,7 +261,7 @@ describe('MemoryHost', () => {
 
     it('handles setVariable metadata and error cases', () => {
         const host = new MemoryHost();
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
 
         host.setVariable('badOffset', 1, 1, Number.NaN);
         host.setVariable('neg', 1, 1, -2);
@@ -312,7 +313,7 @@ describe('MemoryHost', () => {
 
     it('validates element base accessors', () => {
         const host = new MemoryHost();
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
 
         expect(host.getElementTargetBase('none', 0)).toBeUndefined();
         host.setVariable('bases', 1, 1, -1, 0x10);

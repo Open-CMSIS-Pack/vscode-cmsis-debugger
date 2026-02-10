@@ -20,6 +20,7 @@
  * Integration test for ScvdDebugTarget.
  */
 
+import { componentViewerLogger } from '../../../../logger';
 import { ScvdDebugTarget, gdbNameFor, __test__ } from '../../scvd-debug-target';
 import { TargetReadCache } from '../../target-read-cache';
 import type { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../../../debug-session';
@@ -83,7 +84,7 @@ describe('scvd-debug-target', () => {
         await expect(target.getSymbolInfo('foo')).resolves.toEqual({ name: 'foo', address: 0x100 });
 
         accessMock.evaluateSymbolAddress.mockResolvedValue('zzz');
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         target.init(session, tracker);
         await expect(target.getSymbolInfo('foo')).resolves.toBeUndefined();
         spy.mockRestore();
@@ -112,7 +113,7 @@ describe('scvd-debug-target', () => {
         await expect(target.findSymbolNameAtAddress(0x200)).resolves.toBe('main');
         await expect(target.findSymbolContextAtAddress(0x200)).resolves.toBe('file.c:10');
 
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         accessMock.evaluateSymbolName.mockRejectedValue(new Error('fail'));
         await expect(target.findSymbolNameAtAddress(0x200)).resolves.toBeUndefined();
         accessMock.evaluateSymbolContext.mockRejectedValue(new Error('fail'));
@@ -198,13 +199,13 @@ describe('scvd-debug-target', () => {
         accessMock.evaluateMemory.mockResolvedValue(undefined);
         await expect(target.readMemory(0x10, 3)).resolves.toBeUndefined();
 
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         accessMock.evaluateMemory.mockResolvedValue('No active session');
         await expect(target.readMemory(0x10, 3)).resolves.toBeUndefined();
         expect(errorSpy).toHaveBeenCalled();
         errorSpy.mockRestore();
 
-        const invalidSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const invalidSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         accessMock.evaluateMemory.mockResolvedValue('bad@');
         await expect(target.readMemory(0x10, 3)).resolves.toBeUndefined();
         expect(invalidSpy).toHaveBeenCalled();
@@ -252,7 +253,7 @@ describe('scvd-debug-target', () => {
         target.readMemory = jest.fn().mockResolvedValue(new Uint8Array([1, 2, 3, 4]));
         await expect(target.readUint8ArrayStrFromPointer(1, 1, 4)).resolves.toEqual(new Uint8Array([1, 2, 3, 4]));
 
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         await expect(target.readRegister('unknown')).resolves.toBeUndefined();
         spy.mockRestore();
 
@@ -510,7 +511,7 @@ describe('scvd-debug-target', () => {
         // Remove decoders
         globalWithBuffer.Buffer = undefined;
         globalWithBuffer.atob = undefined;
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         expect(target.decodeGdbData('AQID')).toBeUndefined();
         expect(errorSpy).toHaveBeenCalledWith('ScvdDebugTarget.decodeGdbData: no base64 decoder available in this environment');
         errorSpy.mockRestore();

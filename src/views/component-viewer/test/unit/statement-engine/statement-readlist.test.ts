@@ -20,6 +20,7 @@
  * Unit test for StatementReadList.
  */
 
+import { componentViewerLogger } from '../../../../../logger';
 import { ScvdGuiTree } from '../../../scvd-gui-tree';
 import { ScvdReadList } from '../../../model/scvd-readlist';
 import type { ScvdDebugTarget } from '../../../scvd-debug-target';
@@ -93,7 +94,7 @@ describe('StatementReadList', () => {
         const stmt = new StatementReadList(node, undefined);
         const ctx = createExecutionContext(node, {});
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -106,7 +107,7 @@ describe('StatementReadList', () => {
         const stmt = new StatementReadList(readList, undefined);
         const ctx = createContext(readList, {});
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -137,7 +138,7 @@ describe('StatementReadList', () => {
         const stmt = new StatementReadList(readList, undefined);
         const ctx = createContext(readList, {});
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -152,7 +153,7 @@ describe('StatementReadList', () => {
             findSymbolAddress: jest.fn().mockResolvedValue(undefined),
         });
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -169,7 +170,7 @@ describe('StatementReadList', () => {
             findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
         });
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -256,7 +257,7 @@ describe('StatementReadList', () => {
         const stmt = new StatementReadList(readList, undefined);
         const ctx = createContext(readList, {});
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -272,7 +273,7 @@ describe('StatementReadList', () => {
             findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
         });
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -293,7 +294,7 @@ describe('StatementReadList', () => {
             findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
         });
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -313,7 +314,7 @@ describe('StatementReadList', () => {
             findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
         });
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -330,7 +331,7 @@ describe('StatementReadList', () => {
             readMemory: jest.fn().mockResolvedValue(undefined),
         });
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -503,7 +504,7 @@ describe('StatementReadList', () => {
             readMemory: jest.fn().mockResolvedValue(new Uint8Array([1, 2])),
         });
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -597,7 +598,7 @@ describe('StatementReadList', () => {
             findSymbolAddress: jest.fn().mockResolvedValue(undefined),
         });
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
         expect(spy).toHaveBeenCalled();
@@ -655,7 +656,7 @@ describe('StatementReadList', () => {
                 .mockResolvedValueOnce(new Uint8Array([0x00, 0x20, 0x00, 0x00]))
                 .mockResolvedValueOnce(undefined),
         });
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
         await stmt.executeStatement(ctxMissingItem, new ScvdGuiTree(undefined));
         expect(errorSpy).toHaveBeenCalled();
         errorSpy.mockRestore();
@@ -688,7 +689,7 @@ describe('StatementReadList', () => {
     });
 
     it('skips error logging when resolveReadList is called with logErrors=false', async () => {
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
         const callResolveReadList = async (
             stmt: StatementReadList,
             readList: ScvdReadList,

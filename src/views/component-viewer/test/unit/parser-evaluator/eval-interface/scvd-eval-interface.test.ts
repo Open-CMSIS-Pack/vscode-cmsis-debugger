@@ -394,7 +394,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
 
     it('covers default scalar bits, toNumeric branches, and formatPrintf fallbacks', async () => {
         const { evalIf } = makeEval();
-        jest.spyOn(console, 'error').mockImplementation(() => {});
+        jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         const scalarInfo = await (evalIf as unknown as { getScalarInfo(c: RefContainer): Promise<{ bits?: number; kind: string }> })
             .getScalarInfo({ base: new DummyNode('plain', { valueType: 'int' }), current: new DummyNode('plain', { valueType: 'int' }), valueType: undefined } as unknown as RefContainer);
         expect(scalarInfo.bits).toBe(32);

@@ -20,6 +20,7 @@
  * Unit test for StatementVar.
  */
 
+import { componentViewerLogger } from '../../../../../logger';
 import { ScvdGuiTree } from '../../../scvd-gui-tree';
 import { ScvdVar } from '../../../model/scvd-var';
 import { StatementVar } from '../../../statement-engine/statement-var';
@@ -83,7 +84,7 @@ describe('StatementVar', () => {
         const stmt = new StatementVar(item, undefined);
         const ctx = createExecutionContext(item);
         const spy = jest.spyOn(ctx.memoryHost, 'setVariable');
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
         const guiTree = new ScvdGuiTree(undefined);
 
         await stmt.executeStatement(ctx, guiTree);

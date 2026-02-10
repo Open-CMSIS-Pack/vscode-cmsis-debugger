@@ -20,6 +20,7 @@
  * Coverage-focused tests for Evaluator branches.
  */
 
+import { componentViewerLogger } from '../../../../../../logger';
 import { Evaluator, EvalContext, type EvaluateResult } from '../../../../parser-evaluator/evaluator';
 import { TestEvaluator } from '../../helpers/test-evaluator';
 import type { ASTNode, AssignmentExpression, BinaryExpression, CallExpression, ConditionalExpression, EvalPointCall, FormatSegment, Identifier, MemberAccess, NumberLiteral, PrintfExpression, StringLiteral, TextSegment, UnaryExpression, UpdateExpression, ArrayIndex, ColonPath, BooleanLiteral, ErrorNode } from '../../../../parser-evaluator/parser';
@@ -870,7 +871,7 @@ describe('Evaluator coverage branches', () => {
         const ctx = makeCtx(host);
         const pr = { ast: id('missing'), diagnostics: [], isPrintf: false, externalSymbols: [] };
 
-        const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const consoleSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
         try {
             await expect(evaluator.evaluateParseResult(pr, ctx)).resolves.toBeUndefined();
         } finally {

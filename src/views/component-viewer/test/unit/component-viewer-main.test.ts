@@ -22,7 +22,7 @@
 
 import * as vscode from 'vscode';
 import type { GDBTargetDebugTracker } from '../../../../debug-session';
-import { logger } from '../../../../logger';
+import { componentViewerLogger } from '../../../../logger';
 import { extensionContextFactory } from '../../../../__test__/vscode.factory';
 import { ComponentViewer, ComponentViewerInstancesWrapper, fifoUpdateReason } from '../../component-viewer-main';
 import type { ScvdGuiInterface } from '../../model/scvd-gui-interface';
@@ -54,6 +54,13 @@ jest.mock('../../../../logger', () => ({
         debug: jest.fn(),
         info: jest.fn(),
         error: jest.fn(),
+    },
+    componentViewerLogger: {
+        debug: jest.fn(),
+        info: jest.fn(),
+        error: jest.fn(),
+        warn: jest.fn(),
+        trace: jest.fn(),
     },
 }));
 
@@ -342,7 +349,7 @@ describe('ComponentViewer', () => {
         const controller = new ComponentViewer(context);
         const provider = treeProviderFactory();
         (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
-        const debugSpy = jest.spyOn(logger, 'debug');
+        const debugSpy = jest.spyOn(componentViewerLogger, 'debug');
 
         const updateInstances = (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances.bind(controller);
 

@@ -24,7 +24,7 @@ import * as vscode from 'vscode';
 import { ComponentViewerTargetAccess } from '../../component-viewer-target-access';
 import { debugSessionFactory } from '../../../../__test__/vscode.factory';
 import { GDBTargetDebugSession } from '../../../../debug-session';
-import { logger } from '../../../../logger';
+import { componentViewerLogger } from '../../../../logger';
 
 type DebugWithSession = {
     activeDebugSession: vscode.DebugSession | undefined;
@@ -83,7 +83,7 @@ describe('ComponentViewerTargetAccess', () => {
         (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: 'Error: failed' });
         await expect(targetAccess.evaluateSymbolAddress('bad')).resolves.toBeUndefined();
 
-        const debugSpy = jest.spyOn(logger, 'debug');
+        const debugSpy = jest.spyOn(componentViewerLogger, 'debug');
         (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('bad'));
 
         await expect(targetAccess.evaluateSymbolAddress('missing')).resolves.toBeUndefined();
@@ -110,7 +110,7 @@ describe('ComponentViewerTargetAccess', () => {
         (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: 'No symbol matches' });
         await expect(targetAccess.evaluateSymbolName('0x0')).resolves.toBeUndefined();
 
-        const debugSpy = jest.spyOn(logger, 'debug');
+        const debugSpy = jest.spyOn(componentViewerLogger, 'debug');
         (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('oops'));
         await expect(targetAccess.evaluateSymbolName('0x1')).resolves.toBeUndefined();
         expect(debugSpy).toHaveBeenCalledWith(
@@ -125,7 +125,7 @@ describe('ComponentViewerTargetAccess', () => {
         (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: 'No line information' });
         await expect(targetAccess.evaluateSymbolContext('0x100')).resolves.toBeUndefined();
 
-        const debugSpy = jest.spyOn(logger, 'debug');
+        const debugSpy = jest.spyOn(componentViewerLogger, 'debug');
         (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('context fail'));
         await expect(targetAccess.evaluateSymbolContext('0x100')).resolves.toBeUndefined();
         expect(debugSpy).toHaveBeenCalledWith(
@@ -140,7 +140,7 @@ describe('ComponentViewerTargetAccess', () => {
         (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: 'nan' });
         await expect(targetAccess.evaluateSymbolSize('var')).resolves.toBeUndefined();
 
-        const debugSpy = jest.spyOn(logger, 'debug');
+        const debugSpy = jest.spyOn(componentViewerLogger, 'debug');
         (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('size fail'));
         await expect(targetAccess.evaluateSymbolSize('var')).resolves.toBeUndefined();
         expect(debugSpy).toHaveBeenCalledWith(
@@ -152,7 +152,7 @@ describe('ComponentViewerTargetAccess', () => {
         (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ data: 'AAAA' });
         await expect(targetAccess.evaluateMemory('16', 4, 0)).resolves.toBe('AAAA');
 
-        const debugSpy = jest.spyOn(logger, 'debug');
+        const debugSpy = jest.spyOn(componentViewerLogger, 'debug');
         (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('custom request failed'));
         await expect(targetAccess.evaluateMemory('16', 4, 0)).resolves.toBeUndefined();
         expect(debugSpy).toHaveBeenCalledWith(
@@ -173,7 +173,7 @@ describe('ComponentViewerTargetAccess', () => {
         (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: 'NaN' });
         await expect(targetAccess.evaluateNumberOfArrayElements('arr')).resolves.toBeUndefined();
 
-        const debugSpy = jest.spyOn(logger, 'debug');
+        const debugSpy = jest.spyOn(componentViewerLogger, 'debug');
         (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('count fail'));
         await expect(targetAccess.evaluateNumberOfArrayElements('arr')).resolves.toBeUndefined();
         expect(debugSpy).toHaveBeenCalledWith(
@@ -185,7 +185,7 @@ describe('ComponentViewerTargetAccess', () => {
         (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: '0x1234' });
         await expect(targetAccess.evaluateRegisterValue('r0')).resolves.toBe('0x1234');
 
-        const debugSpy = jest.spyOn(logger, 'debug');
+        const debugSpy = jest.spyOn(componentViewerLogger, 'debug');
         (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('reg fail'));
         await expect(targetAccess.evaluateRegisterValue('r1')).resolves.toBeUndefined();
         expect(debugSpy).toHaveBeenCalledWith(

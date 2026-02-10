@@ -20,6 +20,7 @@
  * Unit test for ScvdTypedefs/ScvdTypedef.
  */
 
+import { componentViewerLogger } from '../../../../../logger';
 import { ScvdExpression } from '../../../model/scvd-expression';
 import { ScvdMember } from '../../../model/scvd-member';
 import { ScvdSymbol } from '../../../model/scvd-symbol';
@@ -176,7 +177,7 @@ describe('ScvdTypedef', () => {
         typedef.size = '8';
         jest.spyOn(typedef.size as ScvdExpression, 'getValue').mockResolvedValue(8);
 
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         await typedef.calculateOffsets();
         errorSpy.mockRestore();
 
@@ -238,7 +239,7 @@ describe('ScvdTypedef', () => {
         member.name = 'm1';
         jest.spyOn(member, 'getTargetSize').mockResolvedValue(2);
 
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         await typedef.calculateOffsets();
         errorSpy.mockRestore();
 
