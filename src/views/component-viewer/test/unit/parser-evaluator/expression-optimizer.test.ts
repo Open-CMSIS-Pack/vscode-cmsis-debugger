@@ -95,7 +95,7 @@ describe('expression-optimizer', () => {
     });
 
     it('folds literals, member access, and array indices', () => {
-        const charLiteral = num("'A'", 65, 1, 2);
+        const charLiteral = num('\'A\'', 65, 1, 2);
         const numLiteral = num('0x10', 16, 2, 3);
         const strLiteral: ASTNode = { kind: 'StringLiteral', value: 'hi', raw: '"hi"', valueType: 'string', ...span(3, 4) };
         const boolLiteral = bool(true, 4, 5);
