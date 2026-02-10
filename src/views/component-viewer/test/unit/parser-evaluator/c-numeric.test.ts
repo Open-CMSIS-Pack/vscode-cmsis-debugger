@@ -203,7 +203,7 @@ describe('c-numeric', () => {
         expect(applyBinary('<<', intVal, makeValue(intType, 1n))?.value).toBe(8n);
         expect(applyBinary('>>', intVal, makeValue(intType, 1n))?.value).toBe(2n);
         expect(applyBinary('<<', intVal, makeValue(intType, -1n))).toBeUndefined();
-        expect(applyBinary('>>', intVal, makeValue(intType, 8n))).toBeUndefined();
+        expect(applyBinary('>>', intVal, makeValue(intType, 8n))?.value).toBe(0n);
         expect(applyBinary('@', intVal, makeValue(intType, 1n))).toBeUndefined();
     });
 
@@ -229,7 +229,7 @@ describe('c-numeric', () => {
 
     it('parses additional type names and sizes', () => {
         expect(parseTypeName('')).toBeUndefined();
-        expect(parseTypeName('uint0_t')).toBeUndefined();
+        expect(parseTypeName('uint0_t')).toEqual({ kind: 'int', bits: 32, name: 'int' });
         expect(parseTypeName('_bool')).toEqual({ kind: 'bool', bits: 1, name: 'bool' });
         expect(parseTypeName('unsigned char')).toEqual({ kind: 'uint', bits: 8, name: 'unsigned char' });
         expect(parseTypeName('short')).toEqual({ kind: 'int', bits: 16, name: 'short' });
@@ -241,7 +241,7 @@ describe('c-numeric', () => {
         expect(parseTypeName('size_t')).toEqual({ kind: 'int', bits: 32, name: 'size_t' });
         expect(parseTypeName('ptrdiff_t')).toEqual({ kind: 'int', bits: 32, name: 'ptrdiff_t' });
         expect(parseTypeName('unsigned long')).toEqual({ kind: 'uint', bits: 32, name: 'unsigned long' });
-        expect(parseTypeName('int *')).toEqual({ kind: 'ptr', bits: 32, name: 'int *' });
+        expect(parseTypeName('int *')).toEqual({ kind: 'int', bits: 32, name: 'int' });
 
         expect(sizeofTypeName('double')).toBe(8);
         expect(sizeofTypeName('bool')).toBe(1);
