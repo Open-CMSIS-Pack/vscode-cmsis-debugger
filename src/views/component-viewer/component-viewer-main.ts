@@ -212,7 +212,7 @@ export class ComponentViewer {
     private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
         if (this._activeSession?.session.id === session.session.id) {
             // Update component viewer instance(s)
-            this.schedulePendingUpdate('refreshTimer');
+            //this.schedulePendingUpdate('refreshTimer');
         }
     }
 
