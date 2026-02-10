@@ -24,7 +24,7 @@ import * as vscode from 'vscode';
 import type { GDBTargetDebugTracker } from '../../../../debug-session';
 import { logger } from '../../../../logger';
 import { extensionContextFactory } from '../../../../__test__/vscode.factory';
-import { ComponentViewer, fifoUpdateReason } from '../../component-viewer-main';
+import { ComponentViewer, ComponentViewerInstancesWrapper, fifoUpdateReason } from '../../component-viewer-main';
 import type { ScvdGuiInterface } from '../../model/scvd-gui-interface';
 
 
@@ -114,6 +114,7 @@ describe('ComponentViewer', () => {
         getGuiLineInfo: () => undefined,
         hasGuiChildren: () => children.length > 0,
     });
+
 
     const makeTracker = (): TrackerCallbacks => {
         const callbacks: TrackerCallbacks['callbacks'] = {};
@@ -249,7 +250,7 @@ describe('ComponentViewer', () => {
         }
 
         await tracker.callbacks.connected?.(otherSession);
-        expect(provider?.clear).toHaveBeenCalled();
+        expect(provider?.clear).not.toHaveBeenCalled();
 
         await tracker.callbacks.activeSession?.(session);
         await tracker.callbacks.activeSession?.(undefined);
@@ -281,12 +282,59 @@ describe('ComponentViewer', () => {
             refreshTimer: { onRefresh: jest.fn() },
         };
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
-        (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: instanceFactory(), lockState: false }];
+        (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's1' }];
 
         await tracker.callbacks.connected?.(session);
 
         expect(provider?.clear).not.toHaveBeenCalled();
         expect((controller as unknown as { _instances: unknown[] })._instances).toHaveLength(1);
+    });
+
+    it('clears all instances after all sessions stop', async () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const sessionA = makeSession('s1');
+        const sessionB = makeSession('s2');
+
+        (controller as unknown as { _instances: unknown[] })._instances = [
+            { componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's1' },
+            { componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's2' },
+        ];
+
+        const handleOnWillStopSession = (controller as unknown as { handleOnWillStopSession: (s: Session) => Promise<void> }).handleOnWillStopSession.bind(controller);
+
+        await handleOnWillStopSession(sessionA);
+        expect((controller as unknown as { _instances: unknown[] })._instances).toHaveLength(1);
+
+        await handleOnWillStopSession(sessionB);
+        expect((controller as unknown as { _instances: unknown[] })._instances).toHaveLength(0);
+    });
+
+    it('updates active session and instances on stack item change', async () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const sessionA = makeSession('s1');
+        const sessionB = makeSession('s2');
+        const updateSpy = jest.fn();
+
+        (controller as unknown as { _activeSession?: Session })._activeSession = sessionA;
+        (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
+            {
+                componentViewerInstance: { updateActiveSession: updateSpy } as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'],
+                lockState: false,
+                sessionId: 's1',
+            },
+        ];
+
+        const scheduleSpy = jest.spyOn(
+            controller as unknown as { schedulePendingUpdate: (reason: fifoUpdateReason) => void },
+            'schedulePendingUpdate'
+        );
+
+        const handleOnStackItemChanged = (controller as unknown as { handleOnStackItemChanged: (s: Session) => Promise<void> }).handleOnStackItemChanged.bind(controller);
+        await handleOnStackItemChanged(sessionB);
+
+        expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(sessionB);
+        expect(updateSpy).toHaveBeenCalledWith(sessionB);
+        expect(scheduleSpy).toHaveBeenCalledWith('stackItemChanged');
     });
 
     it('updates instances when active session and instances are present', async () => {
@@ -316,8 +364,8 @@ describe('ComponentViewer', () => {
         const instanceB = instanceFactory();
         instanceB.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => [rootB]);
         (controller as unknown as { _instances: unknown[] })._instances = [
-            { componentViewerInstance: instanceA, lockState: false },
-            { componentViewerInstance: instanceB, lockState: false },
+            { componentViewerInstance: instanceA, lockState: false, sessionId: 's1' },
+            { componentViewerInstance: instanceB, lockState: false, sessionId: 's1' },
         ];
         await updateInstances('stackTrace');
         expect(provider.setRoots).toHaveBeenCalledWith([rootA, rootB]);
@@ -326,6 +374,40 @@ describe('ComponentViewer', () => {
         expect(rootA.isRootInstance).toBe(true);
         expect(rootB.isRootInstance).toBe(true);
         expect(debugSpy).toHaveBeenCalled();
+    });
+
+    it('updates only instances for the active session', async () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const provider = treeProviderFactory();
+        (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
+
+        const sessionA = makeSession('s1');
+        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = sessionA;
+
+        const rootA = { ...makeGuiNode('rootA'), clear: jest.fn() } as ScvdGuiInterface & { clear: jest.Mock };
+        const rootB = { ...makeGuiNode('rootB'), clear: jest.fn() } as ScvdGuiInterface & { clear: jest.Mock };
+        const rootOther = { ...makeGuiNode('rootOther'), clear: jest.fn() } as ScvdGuiInterface & { clear: jest.Mock };
+
+        const instanceA = instanceFactory();
+        instanceA.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => [rootA]);
+        const instanceB = instanceFactory();
+        instanceB.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => [rootB]);
+        const instanceOther = instanceFactory();
+        instanceOther.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => [rootOther]);
+
+        (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
+            { componentViewerInstance: instanceA as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1' },
+            { componentViewerInstance: instanceB as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1' },
+            { componentViewerInstance: instanceOther as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's2' },
+        ];
+
+        const updateInstances = (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances.bind(controller);
+        await updateInstances('stackTrace');
+
+        expect(instanceA.update).toHaveBeenCalled();
+        expect(instanceB.update).toHaveBeenCalled();
+        expect(instanceOther.update).not.toHaveBeenCalled();
+        expect(provider.setRoots).toHaveBeenCalledWith([rootA, rootB]);
     });
 
     it('skips updating a locked instance and marks root as locked', async () => {
@@ -344,8 +426,8 @@ describe('ComponentViewer', () => {
         lockedInstance.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => [rootLocked]);
 
         (controller as unknown as { _instances: unknown[] })._instances = [
-            { componentViewerInstance: unlockedInstance, lockState: false },
-            { componentViewerInstance: lockedInstance, lockState: true },
+            { componentViewerInstance: unlockedInstance, lockState: false, sessionId: 's1' },
+            { componentViewerInstance: lockedInstance, lockState: true, sessionId: 's1' },
         ];
 
         const updateInstances = (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances.bind(controller);
@@ -371,7 +453,7 @@ describe('ComponentViewer', () => {
         const inst = instanceFactory();
         inst.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => [root]);
 
-        (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: inst, lockState: false }];
+        (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: inst, lockState: false, sessionId: 's1' }];
 
         const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
         const lockHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.componentViewer.lockComponent')?.[1] as
@@ -444,17 +526,4 @@ describe('ComponentViewer', () => {
         expect((controller as unknown as { _runningUpdate: boolean })._runningUpdate).toBe(false);
     });
 
-    it('clears update fifo and first-update flag on stop', async () => {
-        const controller = new ComponentViewer(extensionContextFactory());
-        const session = makeSession('s1', []);
-        (controller as unknown as { _activeSession?: Session })._activeSession = session;
-        (controller as unknown as { _updateQueue: unknown[] })._updateQueue = [{ updateId: 1 }];
-        (controller as unknown as { _isFirstUpdate: boolean })._isFirstUpdate = false;
-
-        const handleOnWillStopSession = (controller as unknown as { handleOnWillStopSession: (s: Session) => Promise<void> }).handleOnWillStopSession.bind(controller);
-        await handleOnWillStopSession(session);
-
-        expect((controller as unknown as { _activeSession?: Session })._activeSession).toBeUndefined();
-        expect((controller as unknown as { _updateQueue: unknown[] })._updateQueue).toHaveLength(0);
-    });
 });
