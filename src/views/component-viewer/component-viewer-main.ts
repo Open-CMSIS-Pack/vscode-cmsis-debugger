@@ -27,6 +27,7 @@ export type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace' 
 interface ComponentViewerInstancesWrapper {
     componentViewerInstance: ComponentViewerInstance;
     lockState: boolean;
+    sessionId: string; // ID of the debug session this instance belongs to, used to clear instances when session changes 
 }
 
 export class ComponentViewer {
@@ -118,7 +119,8 @@ export class ComponentViewer {
         // Store loaded instances, set default lock state to false
         this._instances.push(...cbuildRunInstances.map(instance => ({
             componentViewerInstance: instance,
-            lockState: false
+            lockState: false,
+            sessionId: session.session.id,
         })));
     }
 
@@ -170,17 +172,17 @@ export class ComponentViewer {
             return;
         }
         // Update component viewer instance(s)
-        //this.schedulePendingUpdate('stackTrace');
+        this.schedulePendingUpdate('stackTrace');
     }
 
     protected async handleOnStackItemChanged(session: GDBTargetDebugSession): Promise<void> {
         // Clear active session if it is NOT the one being stopped
         if (this._activeSession?.session.id !== session.session.id) {
-            this._activeSession = undefined;
-            return;
+            this._activeSession = session;
+            this._instances.forEach((instance) => instance.componentViewerInstance.updateActiveSession(session));
         }
         // Update component viewer instance(s)
-        //this.schedulePendingUpdate('StackItemChanged');
+        this.schedulePendingUpdate('StackItemChanged');
     }
 
     private async handleOnWillStopSession(session: GDBTargetDebugSession): Promise<void> {
@@ -197,10 +199,10 @@ export class ComponentViewer {
 
     private async handleOnConnected(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker): Promise<void> {
         // if new session is not the current active session, erase old instances and read the new ones
-        if (this._activeSession?.session.id !== session.session.id) {
-            this._instances = [];
-            this._componentViewerTreeDataProvider?.clear();
-        }
+        //if (this._activeSession?.session.id !== session.session.id) {
+        //    this._instances = [];
+        //    this._componentViewerTreeDataProvider?.clear();
+        //}
         // Update debug session
         this._activeSession = session;
         // Load SCVD files from cbuild-run
@@ -222,7 +224,7 @@ export class ComponentViewer {
         }
         // update active debug session for all instances
         this._instances.forEach((instance) => instance.componentViewerInstance.updateActiveSession(session));
-        this.schedulePendingUpdate('sessionChanged');
+        //this.schedulePendingUpdate('sessionChanged');
     }
 
     private schedulePendingUpdate(updateReason: fifoUpdateReason): void {
@@ -265,6 +267,12 @@ export class ComponentViewer {
         }
         const roots: ScvdGuiInterface[] = [];
         for (const instance of this._instances) {
+            // Check if instance belongs to the active session, if not skip it and clear its data from the tree view.
+            // However, lockedState should be maintained.
+            if (instance.sessionId !== this._activeSession.session.id) {
+                instance.componentViewerInstance.getGuiTree()?.forEach(root => root.clear());
+                continue;
+            }
             this._instanceUpdateCounter++;
             logger.debug(`Updating Component Viewer Instance #${this._instanceUpdateCounter} due to '${updateReason}'`);
             //console.log(`Updating Component Viewer Instance #${this._instanceUpdateCounter}`);
@@ -276,7 +284,7 @@ export class ComponentViewer {
             if (guiTree) {
                 roots.push(...guiTree);
                 // If instance is locked, set isLocked flag to true for root nodes
-                roots[roots.length - 1].isLocked = instance.lockState;
+                roots[roots.length - 1].isLocked = !!instance.lockState;
                 roots[roots.length - 1].isRootInstance = true;
             }
         }
