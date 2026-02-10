@@ -271,15 +271,32 @@ Most Arm Cortex-M processors (except Cortex-M0/M0+/M23) include a `DWT->CYCCNT` 
 
 The **Trace and Live View**
 ![Trace and Live view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/TraceLiveView.png)
-(available from the VS Code Activity Bar) currently shows the **LIVE WATCH**. You can add expressions to this view that
-are updated while the application is running on your target.
+(available from the VS Code Activity Bar) currently contains the [**LIVE WATCH**](#live-watch) and the
+[**COMPONENT VIEWER**](#component-viewer) views.
 
-You can add expressions to the **LIVE WATCH** by:
+#### LIVE WATCH
+
+You can add expressions to this view that are updated while the application is running on your target by:
 
 1. Pressing the `+` sign and entering an expression.
 2. Using the context menu item **Add to Live Watch** in the editor or the the **Run and Debug** view.
 
 ![Displaying a variable in the LIVE WATCH](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main//images/lw-counter.gif)
+
+#### COMPONENT VIEWER
+
+This view shows static information and helps to analyze the operation of software components. The required
+infrastructure can be easily added to user applications.
+
+Refer to the [Component Viewer documentation](https://arm-software.github.io/CMSIS-View/latest/cmp_viewer.html) for
+detailed advice on how to show information from user software using using an SCVD file.
+
+The Component Viewer shows information about:
+
+- Information from software components that is provided in memory for example by static variables or structures.
+- Objects that are addressed by handles or dynamic arrays.
+
+![Showing software component properties in the COMPONENT VIEWER](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/component-viewer.png)
 
 ### PERIPHERALS
 
