@@ -190,6 +190,15 @@ export class ComponentViewer {
         if (this._activeSession?.session.id === session.session.id) {
             this._activeSession = undefined;
         }
+        // Clear instances belonging to the stopped session and update tree view
+        this._instances = this._instances.filter((instance) => {
+            if (instance.sessionId === session.session.id) {
+                //instance.componentViewerInstance.getGuiTree()?.forEach(root => root.clear());
+                return false;
+            }
+            return true;
+        });
+        this.schedulePendingUpdate('sessionChanged');
     }
 
     private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
@@ -198,11 +207,6 @@ export class ComponentViewer {
     }
 
     private async handleOnConnected(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker): Promise<void> {
-        // if new session is not the current active session, erase old instances and read the new ones
-        //if (this._activeSession?.session.id !== session.session.id) {
-        //    this._instances = [];
-        //    this._componentViewerTreeDataProvider?.clear();
-        //}
         // Update debug session
         this._activeSession = session;
         // Load SCVD files from cbuild-run
