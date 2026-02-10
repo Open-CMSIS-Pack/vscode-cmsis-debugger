@@ -18,13 +18,15 @@ import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-sessio
 import { MemoryHost } from './data-host/memory-host';
 import { RegisterHost } from './data-host/register-host';
 import { EvalContext, Evaluator } from './parser-evaluator/evaluator';
-import { ScvdParserInterface } from './scvd-parser-interface';
+import { ExpressionOptimizer } from './parser-evaluator/expression-optimizer';
+import { Parser, type ParseResult } from './parser-evaluator/parser';
 import { IntegerModelKind, type IntegerModel, integerModelFromKind } from './parser-evaluator/c-numeric';
 import { ScvdNode } from './model/scvd-node';
 import { ScvdComponentViewer } from './model/scvd-component-viewer';
 import { ScvdFormatSpecifier } from './model/scvd-format-specifier';
 import { ScvdDebugTarget } from './scvd-debug-target';
 import { ScvdEvalInterface } from './scvd-eval-interface';
+import { parsePerf } from './stats-config';
 
 export interface ExecutionContext {
     memoryHost: MemoryHost;
@@ -32,7 +34,34 @@ export interface ExecutionContext {
     evalContext: EvalContext;
     debugTarget: ScvdDebugTarget;
     evaluator: Evaluator;
-    parser: ScvdParserInterface;
+    parser: ScvdExpressionParser;
+}
+
+export class ScvdExpressionParser {
+    private _parser: Parser;
+    private _optimizer: ExpressionOptimizer;
+
+    constructor(model: IntegerModel) {
+        this._parser = new Parser(model);
+        this._optimizer = new ExpressionOptimizer(model);
+    }
+
+    public setIntegerModel(model: IntegerModel): void {
+        this._parser.setIntegerModel(model);
+        this._optimizer.setIntegerModel(model);
+    }
+
+    public parseExpression(expression: string, isPrintExpression: boolean): ParseResult {
+        const parseStart = parsePerf?.start() ?? 0;
+        const parsed = this._parser.parseWithDiagnostics(expression, isPrintExpression);
+        parsePerf?.endParse(parseStart);
+        parsePerf?.recordParse(parsed.ast);
+        const optimizeStart = parsePerf?.start() ?? 0;
+        const optimized = this._optimizer.optimizeParseResult(parsed);
+        parsePerf?.endOptimize(optimizeStart);
+        parsePerf?.recordOptimize(parsed.ast, optimized.ast, isPrintExpression);
+        return optimized;
+    }
 }
 
 export class ScvdEvalContext {
@@ -46,7 +75,7 @@ export class ScvdEvalContext {
     private _formatSpecifier: ScvdFormatSpecifier;
     private _model: ScvdComponentViewer;
     private _integerModelKind: IntegerModelKind;
-    private _parserInterface: ScvdParserInterface;
+    private _parserInterface: ScvdExpressionParser;
 
     constructor(
         model: ScvdComponentViewer
@@ -59,8 +88,7 @@ export class ScvdEvalContext {
         this._debugTarget = new ScvdDebugTarget();
         this._formatSpecifier = new ScvdFormatSpecifier();
         this._evalHost = new ScvdEvalInterface(this._memoryHost, this._registerHost, this._debugTarget, this._formatSpecifier);
-        this._parserInterface = new ScvdParserInterface(this._integerModel);
-        this._parserInterface.setModelInfoFromOutItem(this.getOutItem());
+        this._parserInterface = new ScvdExpressionParser(this._integerModel);
         this._evaluator = new Evaluator(this._integerModel);
         const outItem = this.getOutItem();
         if (outItem === undefined) {

@@ -21,7 +21,7 @@
  */
 
 import { EvalContext, Evaluator } from '../../../parser-evaluator/evaluator';
-import { ScvdParserInterface } from '../../../scvd-parser-interface';
+import { ScvdExpressionParser } from '../../../scvd-eval-context';
 import { DEFAULT_INTEGER_MODEL } from '../../../parser-evaluator/c-numeric';
 import type { ExecutionContext } from '../../../scvd-eval-context';
 import { MemoryHost } from '../../../data-host/memory-host';
@@ -93,8 +93,7 @@ export function createExecutionContext(
     };
     const debugTarget = { ...debugTargetDefaults, ...debugTargetOverrides } as ScvdDebugTarget;
 
-    const parser = new ScvdParserInterface(DEFAULT_INTEGER_MODEL);
-    parser.setModelInfoFromOutItem(base);
+    const parser = new ScvdExpressionParser(DEFAULT_INTEGER_MODEL);
 
     return {
         memoryHost,

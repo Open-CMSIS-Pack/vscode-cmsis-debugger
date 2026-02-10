@@ -148,10 +148,6 @@ export class ComponentViewerInstance {
         await this.model.calculateTypedefs();
         stats.push(this.getStats('  model.calculateTypedefs'));
 
-        const preResolver = new Resolver(this.model);
-        preResolver.resolveTypeRefsOnly();
-        stats.push(this.getStats('  resolver.resolveTypeRefsOnly'));
-
         this.model.configureAll();
         stats.push(this.getStats('  model.configureAll'));
         this.model.validateAll(true);

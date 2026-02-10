@@ -119,10 +119,10 @@ export class ScvdExpression extends ScvdNode {
             this.expressionAst = undefined;
             return false;
         }
-            const expressionAst = this._executionContext.parser.parseExpression(expression, this.isPrintExpression);
-            if (expressionAst !== undefined && !expressionAst.diagnostics.some((d) => d.type === 'error')) {
-                this.expressionAst = expressionAst;
-            }
+        const expressionAst = this._executionContext.parser.parseExpression(expression, this.isPrintExpression);
+        if (expressionAst !== undefined && !expressionAst.diagnostics.some((d) => d.type === 'error')) {
+            this.expressionAst = expressionAst;
+        }
 
         return true;
     }
