@@ -224,9 +224,6 @@ export class ScvdComplexDataType extends ScvdNode{
     }
 
     public override resolveAndLink(resolveFunc: ResolveSymbolCb): boolean {
-        if (this._typeDef !== undefined) {
-            return true;
-        }
         const typeName = this.typeName?.replace(/\*/g, '').trim();
         if (typeName === undefined) {
             return false;
