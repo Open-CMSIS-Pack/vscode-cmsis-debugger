@@ -18,6 +18,7 @@ import { ScvdNode } from '../model/scvd-node';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
 import { StatementBase } from './statement-base';
+import { StatementPrint } from './statement-print';
 import { perf } from '../stats-config';
 
 
@@ -46,34 +47,39 @@ export class StatementItem extends StatementBase {
         childGuiTree.setGuiValue(guiValue);
         await this.onExecute(executionContext, childGuiTree);
 
+        const printChildren = this.children.filter((child): child is StatementPrint => child instanceof StatementPrint);
+        if (printChildren.length > 0) {
+            let matched = false;
+            for (const printChild of printChildren) {
+                const shouldPrint = await printChild.scvdItem.getConditionResult();
+                if (shouldPrint !== false) {
+                    const guiNamePrint = await printChild.scvdItem.getGuiName();
+                    const guiValuePrint = await printChild.scvdItem.getGuiValue();
+                    childGuiTree.setGuiName(guiNamePrint);
+                    childGuiTree.setGuiValue(guiValuePrint);
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                childGuiTree.detach();
+                return;
+            }
+            for (const child of this.children) {
+                if (!(child instanceof StatementPrint)) {
+                    await child.executeStatement(executionContext, childGuiTree);
+                }
+            }
+            return;
+        }
+
         if (this.children.length > 0) {
             for (const child of this.children) {
                 await child.executeStatement(executionContext, childGuiTree);
             }
         }
 
-        if (guiName === undefined) {
-            const guiChildren = [...childGuiTree.children];  // copy to keep iteration safe during detach
-            for (const guiChild of guiChildren) {
-                if (guiChild.isPrint) {
-                    const guiNamePrint = guiChild.getGuiName();
-                    const guiValuePrint = guiChild.getGuiValue();
-                    childGuiTree.setGuiName(guiNamePrint);
-                    childGuiTree.setGuiValue(guiValuePrint);
-                    break;  // use first found
-                }
-            }
-
-            for (const guiChild of guiChildren) {
-                if (guiChild.isPrint) {
-                    guiChild.detach();  // remove temporary print nodes
-                }
-            }
-
-            if (guiName === undefined && childGuiTree.children.length === 0) { // TOIMPL: check other conditions to drop
-                childGuiTree.detach();  // drop empty items that never produced a GUI name/value
-            }
-        }
+        // UV4 keeps nameless items; do not drop empty items here.
     }
 
     protected override async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {

@@ -81,7 +81,7 @@ describe('StatementItem', () => {
         expect(child.children.length).toBe(1);
     });
 
-    it('detaches empty items without gui name', async () => {
+    it('keeps empty items without gui name', async () => {
         const node = new TestNode(undefined);
         const stmt = new StatementItem(node, undefined);
         const ctx = createExecutionContext(node);
@@ -89,10 +89,12 @@ describe('StatementItem', () => {
 
         await stmt.executeStatement(ctx, guiTree);
 
-        expect(guiTree.children).toHaveLength(0);
+        const child = getOnlyChild(guiTree);
+        expect(child.getGuiName()).toBeUndefined();
+        expect(child.getGuiValue()).toBeUndefined();
     });
 
-    it('uses print-only children before detaching', async () => {
+    it('keeps print-only items and uses the print name/value', async () => {
         const node = new TestNode(undefined);
         const stmt = new StatementItem(node, undefined);
         const printNode = new TestNode(node, { guiName: 'PrintName', guiValue: 'PrintValue' });
@@ -103,7 +105,9 @@ describe('StatementItem', () => {
 
         await stmt.executeStatement(ctx, guiTree);
 
-        expect(guiTree.children).toHaveLength(0);
+        const child = getOnlyChild(guiTree);
+        expect(child.getGuiName()).toBe('PrintName');
+        expect(child.getGuiValue()).toBe('PrintValue');
     });
 
     it('checks non-print children before selecting a print entry', async () => {
