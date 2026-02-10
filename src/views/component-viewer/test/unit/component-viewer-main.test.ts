@@ -334,7 +334,7 @@ describe('ComponentViewer', () => {
 
         expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(sessionB);
         expect(updateSpy).toHaveBeenCalledWith(sessionB);
-        expect(scheduleSpy).toHaveBeenCalledWith('StackItemChanged');
+        expect(scheduleSpy).toHaveBeenCalledWith('stackItemChanged');
     });
 
     it('updates instances when active session and instances are present', async () => {

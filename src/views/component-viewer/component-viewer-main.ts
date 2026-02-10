@@ -176,14 +176,14 @@ export class ComponentViewer {
     }
 
     protected async handleOnStackItemChanged(session: GDBTargetDebugSession): Promise<void> {
-        // If the active session is not the one being updated, update it. 
+        // If the active session is not the one being updated, update it.
         // This can happen when a session is started and stack trace/item events are emitted before the session is set as active in the component viewer.
         if (this._activeSession?.session.id !== session.session.id) {
             this._activeSession = session;
             this._instances.forEach((instance) => instance.componentViewerInstance.updateActiveSession(session));
         }
         // Update component viewer instance(s)
-        this.schedulePendingUpdate('StackItemChanged');
+        this.schedulePendingUpdate('stackItemChanged');
     }
 
     private async handleOnWillStopSession(session: GDBTargetDebugSession): Promise<void> {
