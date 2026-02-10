@@ -277,12 +277,9 @@ export class ComponentViewer {
                 roots.push(...guiTree);
                 // If instance is locked, set isLocked flag to true for root nodes
                 roots[roots.length - 1].isLocked = instance.lockState;
+                roots[roots.length - 1].isRootInstance = true;
             }
         }
-        // Set isRootInstance flag for all roots to true
-        roots.forEach((root) => {
-            root.isRootInstance = true;
-        });
         this._componentViewerTreeDataProvider?.setRoots(roots);
     }
 }
