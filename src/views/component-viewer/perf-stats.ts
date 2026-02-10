@@ -305,6 +305,7 @@ export class PerfStats {
     private lastExecuteSummary = '';
     private lastPerfSummary = '';
     private lastUiSummary = '';
+    private evalNodeFrames: Array<{ start: number; childMs: number; kind: string }> = [];
 
     constructor() {}
 
@@ -592,6 +593,37 @@ export class PerfStats {
             default:
                 return;
         }
+    }
+
+    public beginEvalNodeFrame(start: number, kind: string): void {
+        if (!this.enabled || !this.backendEnabled || start === 0) {
+            return;
+        }
+        this.evalNodeFrames.push({ start, childMs: 0, kind });
+    }
+
+    public endEvalNodeFrame(start: number, end: number): void {
+        if (!this.enabled || !this.backendEnabled || start === 0) {
+            return;
+        }
+        const frame = this.evalNodeFrames.pop();
+        if (!frame) {
+            return;
+        }
+        const total = Math.max(0, end - start);
+        const selfMs = Math.max(0, total - frame.childMs);
+        this.recordEvalNodeKindMs(frame.kind, selfMs);
+    }
+
+    public addEvalNodeChildMs(start: number, end: number): void {
+        if (!this.enabled || !this.backendEnabled || start === 0) {
+            return;
+        }
+        if (this.evalNodeFrames.length === 0) {
+            return;
+        }
+        const frame = this.evalNodeFrames[this.evalNodeFrames.length - 1];
+        frame.childMs += Math.max(0, end - start);
     }
 
     public beginExecuteAll(): void {

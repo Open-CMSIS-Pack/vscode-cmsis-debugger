@@ -82,7 +82,6 @@ export class Evaluator {
     private static readonly STRICT_C = true;
     private static readonly MEMO_ENABLED = true;
     private readonly diagnostics = new EvaluatorDiagnostics();
-    private evalNodeFrames: Array<{ start: number; childMs: number; kind: string }> = [];
     private caches = new EvaluatorCache();
     private containerStack: RefContainer[] = [];
     private containerPool: RefContainer[] = [];
@@ -937,10 +936,7 @@ export class Evaluator {
     protected async evalNode(node: ASTNode, ctx: EvalContext): Promise<EvalValue> {
         perf?.recordEvalNodeKind(node.kind);
         const start = perf?.now() ?? 0;
-        const frame = start !== 0 ? { start, childMs: 0, kind: node.kind } : undefined;
-        if (frame) {
-            this.evalNodeFrames.push(frame);
-        }
+        perf?.beginEvalNodeFrame(start, node.kind);
         try {
             switch (node.kind) {
                 case 'NumberLiteral': {
@@ -1313,13 +1309,8 @@ export class Evaluator {
                 }
             }
         } finally {
-            if (frame) {
-                this.evalNodeFrames.pop();
-                const end = perf?.now() ?? 0;
-                const total = Math.max(0, end - start);
-                const selfMs = Math.max(0, total - frame.childMs);
-                perf?.recordEvalNodeKindMs(frame.kind, selfMs);
-            }
+            const end = perf?.now() ?? 0;
+            perf?.endEvalNodeFrame(start, end);
         }
     }
 
@@ -1533,11 +1524,8 @@ export class Evaluator {
                 return this.evalNodeWithMemo(node, ctx);
             }
             const out = await this.evalNodeWithMemo(node, ctx);
-            if (start !== 0 && this.evalNodeFrames.length > 0) {
-                const end = perf?.now() ?? 0;
-                const frame = this.evalNodeFrames[this.evalNodeFrames.length - 1];
-                frame.childMs += Math.max(0, end - start);
-            }
+            const end = perf?.now() ?? 0;
+            perf?.addEvalNodeChildMs(start, end);
             return out;
         } finally {
             perf?.end(perfStartTime, 'evalNodeChildMs', 'evalNodeChildCalls');
