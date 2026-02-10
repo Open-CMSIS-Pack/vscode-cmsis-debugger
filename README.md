@@ -294,7 +294,7 @@ detailed advice on how to show information from user software using using an SCV
 The Component Viewer shows information about:
 
 - Information from software components that is provided in memory for example by static variables or structures.
-- Objects that are addressed by an object handles or dynamic arrays.
+- Objects that are addressed by handles or dynamic arrays.
 
 ![Showing software component properties in the COMPONENT VIEWER](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/component-viewer.png)
 
