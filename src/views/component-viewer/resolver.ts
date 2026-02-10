@@ -18,7 +18,6 @@ import { ScvdNode } from './model/scvd-node';
 import { ScvdComponentViewer } from './model/scvd-component-viewer';
 import { ScvdTypedef } from './model/scvd-typedef';
 import { ScvdTypesCache } from './scvd-types-cache';
-import { ScvdDataType } from './model/scvd-data-type';
 
 export enum ResolveType {
     localType = 'localType',
@@ -116,16 +115,6 @@ export class Resolver {
         return true;
     }
 
-    private resolveTypeRefsRecursive(item: ScvdNode, resolveFunc: ResolveSymbolCb): boolean {
-        if (item instanceof ScvdDataType) {
-            item.resolveAndLink(resolveFunc);
-        }
-        item.forEach(child => {
-            this.resolveTypeRefsRecursive(child, resolveFunc);
-        });
-        return true;
-    }
-
     private resolveTypes(): boolean {
         const model = this.model;
         const typesCache = this.typesCache;
@@ -135,16 +124,6 @@ export class Resolver {
 
         this.resolveRecursive(model, this.resolveSymbolCb.bind(this));
 
-        return true;
-    }
-
-    public resolveTypeRefsOnly(): boolean {
-        const model = this.model;
-        if (model === undefined) {
-            return false;
-        }
-        this.createTypesCache();
-        this.resolveTypeRefsRecursive(model, this.resolveSymbolCb.bind(this));
         return true;
     }
 

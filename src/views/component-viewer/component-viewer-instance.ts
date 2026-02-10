@@ -145,9 +145,6 @@ export class ComponentViewerInstance {
         this.model.setExecutionContextAll(executionContext);
         stats.push(this.getStats('  model.setExecutionContextAll'));
 
-        await this.model.calculateTypedefs();
-        stats.push(this.getStats('  model.calculateTypedefs'));
-
         this.model.configureAll();
         stats.push(this.getStats('  model.configureAll'));
         this.model.validateAll(true);
@@ -156,6 +153,9 @@ export class ComponentViewerInstance {
         const resolver = new Resolver(this.model);
         resolver.resolve();
         stats.push(this.getStats('  resolver.resolve'));
+
+        await this.model.calculateTypedefs();
+        stats.push(this.getStats('  model.calculateTypedefs'));
 
         this.statementEngine = new StatementEngine(this.model, executionContext);
         this.statementEngine.initialize();
