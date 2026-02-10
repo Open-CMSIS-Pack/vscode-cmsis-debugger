@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
 /**
  * Shared numeric helpers used by the evaluator and parser constant folding.

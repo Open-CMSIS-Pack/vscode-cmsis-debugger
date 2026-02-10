@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
@@ -121,7 +120,7 @@ describe('parser', () => {
         expect(parseExpression('"\\u{1F600}"', false).ast.constValue).toBe('😀');
         expect(parseExpression('"\\xZZ"', false).ast.constValue).toBe('xZZ');
         expect(parseExpression('"unterminated\\\\\\"', false).ast.constValue).toBe('unterminated\\\\');
-        expect(parseExpression("'\\101'", false).ast.constValue).toBe(65);
+        expect(parseExpression('\'\\101\'', false).ast.constValue).toBe(65);
     });
 
     it('covers tokenizer branches (exponent signs and unknown tokens)', () => {

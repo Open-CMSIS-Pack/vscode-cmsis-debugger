@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
 import { performance } from 'node:perf_hooks';
 import type { ASTNode, AssignmentExpression, BinaryExpression, CallExpression, ConditionalExpression, EvalPointCall, FormatSegment, PrintfExpression, UnaryExpression, UpdateExpression } from './parser-evaluator/parser';

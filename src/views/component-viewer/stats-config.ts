@@ -13,14 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
 import { PerfStats } from './perf-stats';
 import { ParsePerfStats } from './parse-perf-stats';
 import { TargetReadStats, TargetReadTiming } from './target-read-stats';
 
 export const PERF_ENABLED = false;
-export const PARSE_PERF_ENABLED = true;
-export const TARGET_READ_STATS_ENABLED = true;
+export const PARSE_PERF_ENABLED = false;
+export const TARGET_READ_STATS_ENABLED = false;
 
 const globalOverrides = globalThis as unknown as {
     __SCVD_PERF_ENABLED__?: boolean;
