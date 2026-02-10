@@ -22,12 +22,7 @@ import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
 import { logger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 
-export type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace';
-interface UpdateQueueItem {
-    updateId: number;
-    debugSession: GDBTargetDebugSession;
-    updateReason: fifoUpdateReason;
-}
+export type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace' | 'StackItemChanged';
 
 interface ComponentViewerInstancesWrapper {
     componentViewerInstance: ComponentViewerInstance;
@@ -41,8 +36,6 @@ export class ComponentViewer {
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
     private _loadingCounter: number = 0;
-    // Update queue is currently used for logging purposes only
-    private _updateQueue: UpdateQueueItem[] = [];
     private _pendingUpdateTimer: NodeJS.Timeout | undefined;
     private _pendingUpdate: boolean = false;
     private _runningUpdate: boolean = false;
@@ -154,7 +147,7 @@ export class ComponentViewer {
             await this.handleOnStackTrace(session.session);
         });
         const onDidChangeActiveStackItemDisposable = tracker.onDidChangeActiveStackItem(async (session) => {
-            await this.handleOnStackTrace(session.session);
+            await this.handleOnStackItemChanged(session.session);
         });
         const onWillStartSessionDisposable = tracker.onWillStartSession(async (session) => {
             await this.handleOnWillStartSession(session);
@@ -177,7 +170,17 @@ export class ComponentViewer {
             return;
         }
         // Update component viewer instance(s)
-        this.schedulePendingUpdate('stackTrace');
+        //this.schedulePendingUpdate('stackTrace');
+    }
+
+    protected async handleOnStackItemChanged(session: GDBTargetDebugSession): Promise<void> {
+        // Clear active session if it is NOT the one being stopped
+        if (this._activeSession?.session.id !== session.session.id) {
+            this._activeSession = undefined;
+            return;
+        }
+        // Update component viewer instance(s)
+        //this.schedulePendingUpdate('StackItemChanged');
     }
 
     private async handleOnWillStopSession(session: GDBTargetDebugSession): Promise<void> {
@@ -185,8 +188,6 @@ export class ComponentViewer {
         if (this._activeSession?.session.id === session.session.id) {
             this._activeSession = undefined;
         }
-        // Clearing update queue
-        this._updateQueue = [];
     }
 
     private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
@@ -209,7 +210,7 @@ export class ComponentViewer {
     private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
         if (this._activeSession?.session.id === session.session.id) {
             // Update component viewer instance(s)
-            this.schedulePendingUpdate('refreshTimer');
+            //this.schedulePendingUpdate('refreshTimer');
         }
     }
 
@@ -246,7 +247,7 @@ export class ComponentViewer {
                 await this.updateInstances(updateReason);
             } finally {
                 this._runningUpdate = false;
-                logger.error('Component Viewer: Error during update');
+                //logger.error('Component Viewer: Error during update');
             }
         }
         this._runningUpdate = false;
@@ -257,12 +258,7 @@ export class ComponentViewer {
             this._componentViewerTreeDataProvider?.clear();
             return;
         }
-        logger.debug(`Component Viewer: Queuing update due to '${updateReason}', that is update #${this._updateQueue.length + 1} in the queue`);
-        this._updateQueue.push({
-            updateId: this._updateQueue.length + 1,
-            debugSession: this._activeSession,
-            updateReason: updateReason
-        });
+        logger.debug(`Component Viewer: Queuing update due to '${updateReason}'`);
         this._instanceUpdateCounter = 0;
         if (this._instances.length === 0) {
             return;
@@ -270,8 +266,8 @@ export class ComponentViewer {
         const roots: ScvdGuiInterface[] = [];
         for (const instance of this._instances) {
             this._instanceUpdateCounter++;
-            logger.debug(`Updating Component Viewer Instance #${this._instanceUpdateCounter} due to '${updateReason}' (queue position #${this._updateQueue.length})`);
-            console.log(`Updating Component Viewer Instance #${this._instanceUpdateCounter}`);
+            logger.debug(`Updating Component Viewer Instance #${this._instanceUpdateCounter} due to '${updateReason}'`);
+            //console.log(`Updating Component Viewer Instance #${this._instanceUpdateCounter}`);
             // Check instance's lock state, skip update if locked
             if (!instance.lockState) {
                 await instance.componentViewerInstance.update();
