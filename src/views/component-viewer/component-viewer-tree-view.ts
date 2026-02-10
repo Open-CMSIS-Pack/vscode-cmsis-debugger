@@ -37,6 +37,8 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
             : vscode.TreeItemCollapsibleState.None;
         // Needs fixing, getGuiValue() for ScvdNode returns 0 when undefined
         treeItem.description = element.getGuiValue() ?? '';
+        const intermediateContextValue = element.isRootInstance ? 'parentInstance' : 'child';
+        treeItem.contextValue = element.isLocked ? `locked.${intermediateContextValue}` : intermediateContextValue;
         const guiId = element.getGuiId();
         if (guiId !== undefined) {
             treeItem.id = guiId;
@@ -80,7 +82,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         this.refresh();
     }
 
-    private refresh(): void {
+    public refresh(): void {
         this._onDidChangeTreeData.fire();
     }
 
