@@ -750,7 +750,7 @@ describe('StatementReadList', () => {
         const ctx = createContext(readList, {
             findSymbolAddress: jest.fn().mockResolvedValue(undefined),
         });
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await (stmt as unknown as {
             resolveReadList: (item: ScvdReadList, ctx: Parameters<StatementReadList['executeStatement']>[0], logErrors: boolean) => Promise<unknown>;
@@ -857,7 +857,7 @@ describe('StatementReadList', () => {
         jest.spyOn(readList, 'getVirtualSize').mockResolvedValue(4);
         const stmt = new StatementReadList(readList, undefined);
         const ctx = createContext(readList, {});
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, new ScvdGuiTree(undefined));
 
@@ -893,7 +893,7 @@ describe('StatementReadList', () => {
         jest.spyOn(readList, 'getVirtualSize').mockResolvedValue(4);
         const stmt = new StatementReadList(readList, undefined);
         const ctx = createContext(readList, {});
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await (stmt as unknown as {
             resolveReadList: (item: ScvdReadList, ctx: Parameters<StatementReadList['executeStatement']>[0], logErrors: boolean) => Promise<unknown>;
