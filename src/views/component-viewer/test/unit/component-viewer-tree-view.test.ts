@@ -115,7 +115,7 @@ describe('ComponentViewerTreeDataProvider', () => {
         expect(treeItemWithChildren.label).toBe('Node');
         expect(treeItemWithChildren.collapsibleState).toBe(1);
         expect(treeItemWithChildren.description).toBe('Value');
-        expect(treeItemWithChildren.id).toBe('id-1')
+        expect(treeItemWithChildren.id).toBe('id-1');
         const resolvedWith = provider.resolveTreeItem(treeItemWithChildren, withChildren) as vscode.TreeItem;
         expect(resolvedWith.tooltip).toBeInstanceOf(vscode.MarkdownString);
         const tooltipWith = resolvedWith.tooltip as { value: string; supportHtml: boolean };
