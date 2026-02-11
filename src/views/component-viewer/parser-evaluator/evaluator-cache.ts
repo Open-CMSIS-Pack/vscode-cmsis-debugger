@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
 import type { ASTNode } from './parser';
 import type { ScvdNode } from '../model/scvd-node';

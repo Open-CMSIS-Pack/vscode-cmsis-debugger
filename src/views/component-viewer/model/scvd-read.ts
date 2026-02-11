@@ -193,6 +193,10 @@ export class ScvdRead extends ScvdNode {
         return this.type?.getMember(property);
     }
 
+    public override getElementRef(): ScvdNode | undefined {
+        return this.type ?? undefined;
+    }
+
     public override getValueType(): string | undefined {
         return this.type?.getValueType();
     }

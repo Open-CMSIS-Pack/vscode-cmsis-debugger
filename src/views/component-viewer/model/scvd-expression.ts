@@ -17,17 +17,15 @@
 // https://arm-software.github.io/CMSIS-View/main/scvd_expression.html
 
 
-import { parseExpression, ParseResult } from '../parser-evaluator/parser';
+import { ParseResult } from '../parser-evaluator/parser';
 import { EvaluateResult } from '../parser-evaluator/evaluator';
 import { ScvdNode } from './scvd-node';
-import { ExecutionContext } from '../scvd-eval-context';
 
 export class ScvdExpression extends ScvdNode {
     private _expression: string | undefined;
     private _scvdVarName: string | undefined;
     private _expressionAst: ParseResult | undefined;
     private _isPrintExpression: boolean = false;
-    private _executionContext: ExecutionContext | undefined;
 
     constructor(
         parent: ScvdNode | undefined,
@@ -66,11 +64,15 @@ export class ScvdExpression extends ScvdNode {
     }
 
     private async evaluateExpression(): Promise<EvaluateResult> {
-        if (this.expressionAst === undefined || this._executionContext === undefined) {
+        const executionContext = this.getExecutionContext();
+        if (this.expressionAst === undefined || executionContext === undefined) {
             console.error(this.getLineInfoStr(), 'Expression evaluation missing AST or execution context');
             return undefined;
         }
-        return this._executionContext.evaluator.evaluateParseResult(this.expressionAst, this._executionContext.evalContext);
+        if (executionContext && this._executionContext !== executionContext) {
+            this._executionContext = executionContext;
+        }
+        return executionContext.evaluator.evaluateParseResult(this.expressionAst, executionContext.evalContext);
     }
 
     public override getValue(): Promise<EvaluateResult> {
@@ -108,7 +110,16 @@ export class ScvdExpression extends ScvdNode {
         }
 
         if (this.expressionAst === undefined) {  // if already parsed by dependency, skip parsing
-            const expressionAst = parseExpression(expression, this.isPrintExpression);
+            const executionContext = this.getExecutionContext();
+            if (executionContext && this._executionContext !== executionContext) {
+                this._executionContext = executionContext;
+            }
+            const parser = executionContext?.parser;
+            if (!parser) {
+                console.error(this.getLineInfoStr(), 'Expression parsing missing execution context or parser');
+                return false;
+            }
+            const expressionAst = parser.parseExpression(expression, this.isPrintExpression);
             if (expressionAst !== undefined && expressionAst.diagnostics.length === 0) {
                 this.expressionAst = expressionAst;
             }
@@ -120,10 +131,6 @@ export class ScvdExpression extends ScvdNode {
     public override configure(): boolean {
         this.parseExpression();
         return super.configure();
-    }
-
-    public override setExecutionContext(_executionContext: ExecutionContext) {
-        this._executionContext = _executionContext;
     }
 
     public override validate(prevResult: boolean): boolean {

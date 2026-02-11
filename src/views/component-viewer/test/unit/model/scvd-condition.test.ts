@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
@@ -22,8 +21,7 @@
 
 import { ScvdCondition } from '../../../model/scvd-condition';
 import { ScvdExpression } from '../../../model/scvd-expression';
-import { ExecutionContext } from '../../../scvd-eval-context';
-import { Evaluator } from '../../../parser-evaluator/evaluator';
+import { createExecutionContext } from '../helpers/statement-engine-helpers';
 
 describe('ScvdCondition', () => {
     it('defaults to true when no expression is defined', async () => {
@@ -70,7 +68,7 @@ describe('ScvdCondition', () => {
         condition.expression = 'next';
         expect(condition.expression).toBe(original);
 
-        const ctx = { evalContext: {}, evaluator: new Evaluator() } as ExecutionContext;
+        const ctx = createExecutionContext(condition);
         const ctxSpy = jest.spyOn(ScvdExpression.prototype, 'setExecutionContext');
         condition.setExecutionContext(ctx);
 

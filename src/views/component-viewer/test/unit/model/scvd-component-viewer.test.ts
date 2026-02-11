@@ -13,15 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
  * Unit test for ScvdComponentViewer.
  */
 
-import { ExecutionContext } from '../../../scvd-eval-context';
-import { Evaluator } from '../../../parser-evaluator/evaluator';
+import { createExecutionContext } from '../helpers/statement-engine-helpers';
 import { ScvdBreaks } from '../../../model/scvd-break';
 import { ScvdComponentIdentifier } from '../../../model/scvd-component-identifier';
 import { ScvdComponentViewer } from '../../../model/scvd-component-viewer';
@@ -129,7 +127,7 @@ describe('ScvdComponentViewer', () => {
     it('sets execution context recursively', () => {
         const viewer = new ScvdComponentViewer(undefined);
         const child = new ScvdComponentViewer(viewer);
-        const ctx = { evalContext: {}, evaluator: new Evaluator() } as ExecutionContext;
+        const ctx = createExecutionContext(viewer);
 
         const setSpy = jest.spyOn(child, 'setExecutionContext');
         viewer.setExecutionContextAll(ctx);

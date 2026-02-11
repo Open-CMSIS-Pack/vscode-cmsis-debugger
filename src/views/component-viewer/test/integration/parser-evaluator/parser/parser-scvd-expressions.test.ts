@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
  * Integration test for ParserScvdExpressions.
  */
 
-import { parseExpression, ParseResult } from '../../../../parser-evaluator/parser';
+import { type ParseResult } from '../../../../parser-evaluator/parser';
+import { parseExpressionForTest as parseExpression } from '../../../unit/helpers/parse-expression';
 
 interface ExpressionRow {
     expr: string;

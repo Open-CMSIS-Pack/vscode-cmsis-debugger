@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
@@ -21,6 +20,7 @@
  */
 
 import { ScvdPrintExpression } from '../../../model/scvd-print-expression';
+import { applyExecutionContext, createExecutionContext } from '../helpers/statement-engine-helpers';
 
 describe('ScvdPrintExpression', () => {
     it('exposes classname', () => {
@@ -30,6 +30,7 @@ describe('ScvdPrintExpression', () => {
 
     it('constructs and defers configure/validate to base', () => {
         const expr = new ScvdPrintExpression(undefined, '1+2', 'value');
+        applyExecutionContext(expr, createExecutionContext(expr));
         expect(expr.configure()).toBe(true);
         expect(expr.validate(true)).toBe(true);
     });

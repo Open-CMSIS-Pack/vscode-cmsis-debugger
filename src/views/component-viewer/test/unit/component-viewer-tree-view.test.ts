@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
@@ -37,6 +36,7 @@ jest.mock('vscode', () => {
         public description: string | undefined;
         public tooltip: string | undefined;
         public id: string | undefined;
+        public contextValue: string | undefined;
 
         constructor(label: string) {
             this.label = label;
@@ -62,6 +62,8 @@ type TestGui = ScvdGuiInterface & {
     getGuiChildren: () => ScvdGuiInterface[];
     getGuiEntry: () => { name: string | undefined; value: string | undefined };
     getGuiConditionResult: () => boolean;
+    isRootInstance?: boolean;
+    isLocked?: boolean;
 };
 
 type TestGuiOptions = Partial<Omit<TestGui, 'getGuiChildren'>> & {
@@ -77,6 +79,8 @@ const makeGui = (options: TestGuiOptions): TestGui => ({
     getGuiChildren: options.getGuiChildren ?? (() => [] as ScvdGuiInterface[]),
     getGuiEntry: options.getGuiEntry ?? (() => ({ name: 'Node', value: 'Value' })),
     getGuiConditionResult: options.getGuiConditionResult ?? (() => true),
+    isRootInstance: options.isRootInstance ?? false,
+    isLocked: options.isLocked ?? false,
 });
 
 describe('ComponentViewerTreeDataProvider', () => {
@@ -111,6 +115,18 @@ describe('ComponentViewerTreeDataProvider', () => {
         expect(treeItemWithout.id).toBeUndefined();
         const resolvedWithout = provider.resolveTreeItem(treeItemWithout, withoutChildren);
         expect(resolvedWithout.tooltip).toBe('');
+    });
+
+    it('assigns locked context values for root and child nodes', () => {
+        const provider = new ComponentViewerTreeDataProvider();
+        const rootLocked = makeGui({ isRootInstance: true, isLocked: true });
+        const childUnlocked = makeGui({ isRootInstance: false, isLocked: false });
+
+        const rootItem = provider.getTreeItem(rootLocked);
+        expect(rootItem.contextValue).toBe('locked.parentInstance');
+
+        const childItem = provider.getTreeItem(childUnlocked);
+        expect(childItem.contextValue).toBe('child');
     });
 
     it('returns root children when no element is provided', async () => {

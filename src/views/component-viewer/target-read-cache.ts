@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
 import { perf } from './stats-config';
 import type { TargetReadStats } from './target-read-stats';

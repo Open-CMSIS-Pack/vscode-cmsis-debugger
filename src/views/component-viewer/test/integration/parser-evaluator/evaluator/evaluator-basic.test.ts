@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
@@ -23,7 +22,7 @@
 import { Evaluator, EvalContext } from '../../../../parser-evaluator/evaluator';
 import type { EvalValue, RefContainer } from '../../../../parser-evaluator/model-host';
 import type { FullDataHost } from '../../helpers/full-data-host';
-import { parseExpression } from '../../../../parser-evaluator/parser';
+import { parseExpressionForTest as parseExpression } from '../../../unit/helpers/parse-expression';
 import { ScvdNode } from '../../../../model/scvd-node';
 
 type SymbolDef = {

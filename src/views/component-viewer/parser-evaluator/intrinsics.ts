@@ -17,6 +17,7 @@
 
 import type { EvalValue, RefContainer } from './model-host';
 import type { ScvdNode } from '../model/scvd-node';
+import { perf } from '../stats-config';
 
 export interface IntrinsicDefinition {
     // Arguments should be identifier names (not evaluated values).
@@ -77,6 +78,23 @@ export function isIntrinsicName(name: string): name is IntrinsicName {
     return Object.prototype.hasOwnProperty.call(INTRINSIC_DEFINITIONS, name);
 }
 
+function toInt(value: EvalValue): number {
+    if (typeof value === 'bigint') {
+        return Number(value);
+    }
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? Math.trunc(value) : 0;
+    }
+    if (typeof value === 'boolean') {
+        return value ? 1 : 0;
+    }
+    if (typeof value === 'string' && value.trim() !== '') {
+        const n = Number(value);
+        return Number.isFinite(n) ? Math.trunc(n) : 0;
+    }
+    return 0;
+}
+
 /**
  * Route built-in intrinsics to the host implementation (enforcing presence).
  * Returns undefined and reports via onError when an intrinsic is missing or returns undefined.
@@ -128,7 +146,7 @@ export async function handleIntrinsic(
             onError?.('Intrinsic __FindSymbol returned undefined');
             return undefined;
         }
-        return out | 0;
+        return Number.isFinite(out) ? Math.trunc(out) : undefined;
     }
     if (name === '__CalcMemUsed') {
         const fn = data.__CalcMemUsed;
@@ -136,16 +154,18 @@ export async function handleIntrinsic(
             onError?.('Missing intrinsic __CalcMemUsed');
             return undefined;
         }
-        const n0 = Number(args[0] ?? 0) >>> 0;
-        const n1 = Number(args[1] ?? 0) >>> 0;
-        const n2 = Number(args[2] ?? 0) >>> 0;
-        const n3 = Number(args[3] ?? 0) >>> 0;
+        const perfStart = perf?.start() ?? 0;
+        const n0 = toInt(args[0]);
+        const n1 = toInt(args[1]);
+        const n2 = toInt(args[2]);
+        const n3 = toInt(args[3]);
+        perf?.end(perfStart, 'evalIntrinsicCoerceMs', 'evalIntrinsicCoerceCalls');
         const out = await fn.call(data, n0, n1, n2, n3);
         if (out === undefined) {
             onError?.('Intrinsic __CalcMemUsed returned undefined');
             return undefined;
         }
-        return out >>> 0;
+        return Number.isFinite(out) ? Math.trunc(out) : undefined;
     }
     if (name === '__size_of') {
         const fn = data.__size_of;
@@ -158,7 +178,7 @@ export async function handleIntrinsic(
             onError?.('Intrinsic __size_of returned undefined');
             return undefined;
         }
-        return out | 0;
+        return Number.isFinite(out) ? Math.trunc(out) : undefined;
     }
     if (name === '__Symbol_exists') {
         const fn = data.__Symbol_exists;
@@ -171,7 +191,7 @@ export async function handleIntrinsic(
             onError?.('Intrinsic __Symbol_exists returned undefined');
             return undefined;
         }
-        return out | 0;
+        return Number.isFinite(out) ? Math.trunc(out) : undefined;
     }
     // Explicit intrinsic that needs the container but returns a number
     if (name === '__Offset_of') {
@@ -185,7 +205,7 @@ export async function handleIntrinsic(
             onError?.('Intrinsic __Offset_of returned undefined');
             return undefined;
         }
-        return out >>> 0;
+        return Number.isFinite(out) ? Math.trunc(out) : undefined;
     }
     if (name === '__Running') {
         const fn = data.__Running;
@@ -198,7 +218,7 @@ export async function handleIntrinsic(
             onError?.('Intrinsic __Running returned undefined');
             return undefined;
         }
-        return out | 0;
+        return Number.isFinite(out) ? Math.trunc(out) : undefined;
     }
 
     onError?.(`Missing intrinsic ${name}`);
