@@ -55,9 +55,12 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     cpuStatesCommands.activate(context, cpuStates);
     cpuStatesStatusBarItem.activate(context, cpuStates);
     // Live Watch view
+    console.debug('Activating Live Watch Tree Data Provider');
     liveWatchTreeDataProvider.activate(gdbtargetDebugTracker);
     // Component Viewer
+    console.debug('Activating Component Viewer');
     componentViewer.activate(gdbtargetDebugTracker);
+    console.debug('CMSIS Debugger activated');
 
     logger.debug('Extension Pack activated');
 };
