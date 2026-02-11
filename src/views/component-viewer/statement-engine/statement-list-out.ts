@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { componentViewerLogger } from '../../../logger';
 import { ScvdNode } from '../model/scvd-node';
 import { ScvdListOut } from '../model/scvd-list-out';
 import { ExecutionContext } from '../scvd-eval-context';
@@ -45,42 +46,42 @@ export class StatementListOut extends StatementBase {
     protected override async onExecute(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
         const scvdList = this.scvdItem.castToDerived(ScvdListOut);
         if (scvdList === undefined) {
-            console.error(`${this.line}: Executing "out-list": could not cast to ScvdList`);
+            componentViewerLogger.error(`${this.line}: Executing "out-list": could not cast to ScvdList`);
             return;
         }
         //console.log(`${this.line}: Executing out-list: ${scvdList.name}`);
 
         const name = scvdList.name;
         if (name === undefined) {
-            console.error(`${this.line}: Executing "out-list": no name defined`);
+            componentViewerLogger.error(`${this.line}: Executing "out-list": no name defined`);
             return;
         }
 
         const startExpr = scvdList.start;
         if (startExpr === undefined) {
-            console.error(`${this.line}: Executing "out-list": ${scvdList.name}, no start expression defined`);
+            componentViewerLogger.error(`${this.line}: Executing "out-list": ${scvdList.name}, no start expression defined`);
             return;
         }
         const startValue = await startExpr.getValue();
         if (startValue === undefined) {
-            console.error(`${this.line}: Executing "out-list": ${scvdList.name}, could not evaluate start expression`);
+            componentViewerLogger.error(`${this.line}: Executing "out-list": ${scvdList.name}, could not evaluate start expression`);
             return;
         }
 
         const modelBase = executionContext.evalContext.container.base;
         if (modelBase === undefined) {
-            console.error(`${this.line}: Executing "out-list": ${scvdList.name}, no base container defined`);
+            componentViewerLogger.error(`${this.line}: Executing "out-list": ${scvdList.name}, no base container defined`);
             return;
         }
 
         const varItem = modelBase.getSymbol(name);
         if (varItem === undefined) {
-            console.error(`${this.line}: Executing "out-list": ${scvdList.name}, could not find variable in base container: ${modelBase.name}`);
+            componentViewerLogger.error(`${this.line}: Executing "out-list": ${scvdList.name}, could not find variable in base container: ${modelBase.name}`);
             return;
         }
         const varTargetSize = await varItem.getTargetSize();
         if (varTargetSize === undefined) {
-            console.error(`${this.line}: Executing "out-list": ${scvdList.name}, variable: ${varItem.name}, could not determine target size`);
+            componentViewerLogger.error(`${this.line}: Executing "out-list": ${scvdList.name}, variable: ${varItem.name}, could not determine target size`);
             return;
         }
 
@@ -93,7 +94,7 @@ export class StatementListOut extends StatementBase {
 
         const whileExpr = scvdList.while;
         if (whileExpr !== undefined && limitExpr !== undefined) {
-            console.error(`${this.line}: Executing "out-list": ${scvdList.name}, cannot define both limit and while expressions`);
+            componentViewerLogger.error(`${this.line}: Executing "out-list": ${scvdList.name}, cannot define both limit and while expressions`);
             return;
         }
 

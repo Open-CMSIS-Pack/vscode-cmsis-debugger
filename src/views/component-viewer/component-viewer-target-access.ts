@@ -17,7 +17,7 @@
 import * as vscode from 'vscode';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { GDBTargetDebugSession } from '../../debug-session';
-import { logger } from '../../logger';
+import { componentViewerLogger } from '../../logger';
 
 
 export class ComponentViewerTargetAccess {
@@ -50,7 +50,7 @@ export class ComponentViewerTargetAccess {
             return response.result.split(' ')[0]; // Return only the address part
         } catch (error: unknown) {
             const errorMessage = (error as Error)?.message;
-            logger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate address '${address}' - '${errorMessage}'`);
+            componentViewerLogger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate address '${address}' - '${errorMessage}'`);
             return undefined;
         }
     }
@@ -95,7 +95,7 @@ export class ComponentViewerTargetAccess {
             return resultText;
         } catch (error: unknown) {
             const errorMessage = (error as Error)?.message;
-            logger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate name '${address}' - '${errorMessage}'`);
+            componentViewerLogger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate name '${address}' - '${errorMessage}'`);
             return undefined;
         }
     }
@@ -122,7 +122,7 @@ export class ComponentViewerTargetAccess {
             return resultText.trim();
         } catch (error: unknown) {
             const errorMessage = (error as Error)?.message;
-            logger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate context for '${address}' - '${errorMessage}'`);
+            componentViewerLogger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate context for '${address}' - '${errorMessage}'`);
             return undefined;
         }
     }
@@ -148,7 +148,7 @@ export class ComponentViewerTargetAccess {
             return undefined;
         } catch (error: unknown) {
             const errorMessage = (error as Error)?.message;
-            logger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate size of '${symbol}' - '${errorMessage}'`);
+            componentViewerLogger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate size of '${symbol}' - '${errorMessage}'`);
             return undefined;
         }
     }
@@ -166,7 +166,7 @@ export class ComponentViewerTargetAccess {
             // Change address to hex format for better logging
             const hexAddress = `0x${Number(address).toString(16).toUpperCase()}`;
             const errorMessage = (error as Error)?.message;
-            logger.debug(`Session '${this._activeSession?.session.name}': Failed to read memory at address '${hexAddress}' - '${errorMessage}'`);
+            componentViewerLogger.debug(`Session '${this._activeSession?.session.name}': Failed to read memory at address '${hexAddress}' - '${errorMessage}'`);
             return undefined;
         }
     }
@@ -192,7 +192,7 @@ export class ComponentViewerTargetAccess {
             return numElements;
         } catch (error: unknown) {
             const errorMessage = (error as Error)?.message;
-            logger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate number of elements for array '${symbol}' - '${errorMessage}'`);
+            componentViewerLogger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate number of elements for array '${symbol}' - '${errorMessage}'`);
             return undefined;
         }
     }
@@ -213,7 +213,7 @@ export class ComponentViewerTargetAccess {
             return response.result;
         } catch (error: unknown) {
             const errorMessage = (error as Error)?.message;
-            logger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate register value for '${register}' - '${errorMessage}'`);
+            componentViewerLogger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate register value for '${register}' - '${errorMessage}'`);
             return undefined;
         }
     }

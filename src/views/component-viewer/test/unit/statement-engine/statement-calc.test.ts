@@ -19,6 +19,7 @@
  * Unit test for StatementCalc.
  */
 
+import { componentViewerLogger } from '../../../../../logger';
 import { ScvdGuiTree } from '../../../scvd-gui-tree';
 import { ScvdCalc } from '../../../model/scvd-calc';
 import { StatementCalc } from '../../../statement-engine/statement-calc';
@@ -30,7 +31,7 @@ describe('StatementCalc', () => {
         const stmt = new StatementCalc(node, undefined);
         const ctx = createExecutionContext(node);
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
