@@ -345,14 +345,6 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     Bit 0..19 Used memory in Bytes (how many bytes of FillPattern are overwritten)
     Bit 20..28 Used memory in percent (how many percent of FillPattern are overwritten)
     Bit 31 Memory overflow (MagicValue is overwritten)
-
-    * from UV4:
-    * Intrinsic: __CalcMemUsed (U32 Stack, U32 StackSize, U32 FillPattern, U32 Magic_Pattern);
-    *   example: __CalcMemUsed (Stack, StackSize, 0xCCCCCCCC, 0xE25A2EA5);
-    *   Returns: uint32_t - a combination of used-size, percent-size and overflow marker
-    *            (value >>  0) & 0xFFFFF  := used size
-    *            (value >> 20) & 0xFF     := percent size
-    *            (value >> 31) & 0x01     := Overflow marker
     */
     public async __CalcMemUsed(stackAddress: number, stackSize: number, fillPattern: number, magicValue: number): Promise<number | undefined> {
         const memUsed = await this.debugTarget.calculateMemoryUsage(
