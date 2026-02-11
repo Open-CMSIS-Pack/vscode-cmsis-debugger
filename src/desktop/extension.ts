@@ -73,5 +73,8 @@ export const deactivate = async (): Promise<void> => {
     if (liveWatchTreeDataProvider) {
         await liveWatchTreeDataProvider.deactivate();
     }
+    if (componentViewerTreeDataProvider) {
+        componentViewerTreeDataProvider.clear();
+    }
     logger.debug('Extension Pack deactivated');
 };
