@@ -55,7 +55,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         const guiName = element.getGuiName();
         const guiValue = element.getGuiValue();
         if (guiName && guiValue) {
-            const tooltip = new vscode.MarkdownString(`**${guiName}**<br>${guiValue}`);
+            const tooltip = new vscode.MarkdownString(`**${guiName}**  \n${guiValue}`);
             tooltip.supportHtml = true;
             item.tooltip = tooltip;
         } else if (guiName) {
