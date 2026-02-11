@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
@@ -377,6 +376,58 @@ describe('scvd-debug-target', () => {
         expect(readMemory).toHaveBeenCalledWith(0x1000n, 8);
         expect(results.get('a')).toEqual(new Uint8Array([1, 1, 1, 1]));
         expect(results.get('b')).toEqual(new Uint8Array([1, 1, 1, 1]));
+    });
+
+    it('sorts batch requests with identical start addresses', async () => {
+        const tracker = { onContinued: jest.fn(), onStopped: jest.fn() } as unknown as GDBTargetDebugTracker;
+        const target = new ScvdDebugTarget();
+        target.init(session, tracker);
+
+        const readMemory = jest.fn(async (_addr: number | bigint, size: number) => new Uint8Array(size).fill(2));
+        target.readMemory = readMemory as unknown as ScvdDebugTarget['readMemory'];
+
+        const results = await target.readMemoryBatch([
+            { key: 'a', address: 0x2000, size: 4 },
+            { key: 'b', address: 0x2000, size: 4 },
+        ]);
+
+        expect(results.get('a')).toEqual(new Uint8Array([2, 2, 2, 2]));
+        expect(results.get('b')).toEqual(new Uint8Array([2, 2, 2, 2]));
+    });
+
+    it('sorts batch requests when addresses are out of order', async () => {
+        const tracker = { onContinued: jest.fn(), onStopped: jest.fn() } as unknown as GDBTargetDebugTracker;
+        const target = new ScvdDebugTarget();
+        target.init(session, tracker);
+
+        const readMemory = jest.fn(async (_addr: number | bigint, size: number) => new Uint8Array(size).fill(4));
+        target.readMemory = readMemory as unknown as ScvdDebugTarget['readMemory'];
+
+        const results = await target.readMemoryBatch([
+            { key: 'b', address: 0x2004, size: 4 },
+            { key: 'a', address: 0x2000, size: 4 },
+        ]);
+
+        expect(results.get('a')).toEqual(new Uint8Array([4, 4, 4, 4]));
+        expect(results.get('b')).toEqual(new Uint8Array([4, 4, 4, 4]));
+    });
+
+    it('normalizes bigint batch addresses when merging reads', async () => {
+        const tracker = { onContinued: jest.fn(), onStopped: jest.fn() } as unknown as GDBTargetDebugTracker;
+        const target = new ScvdDebugTarget();
+        target.init(session, tracker);
+
+        const readMemory = jest.fn(async (_addr: number | bigint, size: number) => new Uint8Array(size).fill(1));
+        target.readMemory = readMemory as unknown as ScvdDebugTarget['readMemory'];
+
+        const results = await target.readMemoryBatch([
+            { key: 'a', address: 0x1000n, size: 4 },
+            { key: 'b', address: 0x1004n, size: 4 },
+        ]);
+
+        expect(readMemory).toHaveBeenCalledWith(0x1000n, 8);
+        expect(results.get('a')).toBeDefined();
+        expect(results.get('b')).toBeDefined();
     });
 
     it('handles overlapping batch requests and non-merge timing', async () => {

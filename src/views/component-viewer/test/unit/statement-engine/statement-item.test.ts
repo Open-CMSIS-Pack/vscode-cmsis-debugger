@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
@@ -81,7 +80,7 @@ describe('StatementItem', () => {
         expect(child.children.length).toBe(1);
     });
 
-    it('detaches empty items without gui name', async () => {
+    it('keeps empty items without gui name', async () => {
         const node = new TestNode(undefined);
         const stmt = new StatementItem(node, undefined);
         const ctx = createExecutionContext(node);
@@ -89,10 +88,12 @@ describe('StatementItem', () => {
 
         await stmt.executeStatement(ctx, guiTree);
 
-        expect(guiTree.children).toHaveLength(0);
+        const child = getOnlyChild(guiTree);
+        expect(child.getGuiName()).toBeUndefined();
+        expect(child.getGuiValue()).toBeUndefined();
     });
 
-    it('uses print-only children before detaching', async () => {
+    it('keeps print-only items and uses the print name/value', async () => {
         const node = new TestNode(undefined);
         const stmt = new StatementItem(node, undefined);
         const printNode = new TestNode(node, { guiName: 'PrintName', guiValue: 'PrintValue' });
@@ -103,7 +104,40 @@ describe('StatementItem', () => {
 
         await stmt.executeStatement(ctx, guiTree);
 
+        const child = getOnlyChild(guiTree);
+        expect(child.getGuiName()).toBe('PrintName');
+        expect(child.getGuiValue()).toBe('PrintValue');
+    });
+
+    it('detaches when all print children are suppressed', async () => {
+        const node = new TestNode(undefined);
+        const stmt = new StatementItem(node, undefined);
+        const printNode = new TestNode(node, { guiName: 'Hidden', guiValue: 'Hidden' });
+        printNode.conditionResult = false;
+        new StatementPrint(printNode, stmt);
+
+        const ctx = createExecutionContext(node);
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
         expect(guiTree.children).toHaveLength(0);
+    });
+
+    it('executes non-print children when no print children exist', async () => {
+        const node = new TestNode(undefined, { guiName: 'Parent' });
+        const stmt = new StatementItem(node, undefined);
+        const outNode = new TestNode(node, { guiName: 'Child' });
+        const outStmt = new StatementOut(outNode, stmt);
+        const execSpy = jest.spyOn(outStmt, 'executeStatement');
+
+        const ctx = createExecutionContext(node);
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        expect(execSpy).toHaveBeenCalled();
+        execSpy.mockRestore();
     });
 
     it('checks non-print children before selecting a print entry', async () => {

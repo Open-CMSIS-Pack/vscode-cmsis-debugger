@@ -242,6 +242,17 @@ export class ScvdTypedef extends ScvdNode {
     }
 
     public async calculateTypedef() {
+        // Ensure typedef expressions are parsed before any value access.
+        this._size?.configure();
+        for (const member of this._member) {
+            member.offset?.configure();
+            member.size?.configure();
+        }
+        for (const varItem of this._var) {
+            varItem.size?.configure();
+            varItem.offset?.configure();
+        }
+
         if (this.import !== undefined) {
             await this.import.fetchSymbolInformation();
         }

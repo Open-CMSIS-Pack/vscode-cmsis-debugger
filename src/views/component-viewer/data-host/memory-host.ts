@@ -421,6 +421,9 @@ export class MemoryHost {
             componentViewerLogger.error(`getElementTargetBase: unknown symbol "${name}"`);
             return undefined;
         }
+        if (m.bases.length === 1) {
+            return m.bases[0];
+        }
         if (index < 0 || index >= m.bases.length) {
             componentViewerLogger.error(`getElementTargetBase: index ${index} out of range for "${name}"`);
             return undefined;

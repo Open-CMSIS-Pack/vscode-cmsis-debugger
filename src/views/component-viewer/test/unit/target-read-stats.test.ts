@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
 import { TargetReadStats, TargetReadTiming, getReadCacheStats, getReadTimingStats, resetReadTimingStats } from '../../target-read-stats';
 

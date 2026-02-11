@@ -29,6 +29,9 @@ import type {
     ConditionalExpression,
     AssignmentExpression,
     UpdateExpression,
+    CastExpression,
+    SizeofExpression,
+    AlignofExpression,
     CallExpression,
     EvalPointCall,
     PrintfExpression,
@@ -38,28 +41,24 @@ import type {
     ColonPath,
 } from './parser';
 import type { ScvdNode } from '../model/scvd-node';
-import {
-    addVals,
-    andVals,
-    divVals,
-    mergeKinds as mergeScalarKinds,
-    modVals,
-    mulVals,
-    normalizeToWidth,
-    orVals,
-    sarVals,
-    shlVals,
-    subVals,
-    toBigInt,
-    toNumeric,
-    xorVals,
-} from './math-ops';
 import type { DataAccessHost, EvalValue, ModelHost, RefContainer, ScalarKind, ScalarType } from './model-host';
 import type { IntrinsicProvider } from './intrinsics';
 import { handleIntrinsic, INTRINSIC_DEFINITIONS, IntrinsicName, isIntrinsicName } from './intrinsics';
 import { perf } from '../stats-config';
 import { EvaluatorCache } from './evaluator-cache';
 import { EvaluatorDiagnostics } from './evaluator-diagnostics';
+import {
+    applyBinary,
+    applyUnary,
+    convertToType,
+    DEFAULT_INTEGER_MODEL,
+    type IntegerModel,
+    parseNumericLiteral,
+    parseTypeName,
+    sizeofTypeName,
+    type CType,
+    type CValue,
+} from './c-numeric';
 
 /* =============================================================================
  * Public API
@@ -68,7 +67,6 @@ import { EvaluatorDiagnostics } from './evaluator-diagnostics';
 export type EvaluateResult = number | string | bigint | Uint8Array | undefined;
 
 type Host = ModelHost & DataAccessHost & IntrinsicProvider;
-type MergedKind = ScalarKind | 'unknown';
 type LValue = {
     get(): Promise<EvalValue>;
     set(v: EvalValue): Promise<EvalValue>;
@@ -82,12 +80,21 @@ export interface EvalContextInit {
 }
 
 export class Evaluator {
+    private static readonly STRICT_C = true;
     private static readonly MEMO_ENABLED = true;
     private readonly diagnostics = new EvaluatorDiagnostics();
-    private evalNodeFrames: Array<{ start: number; childMs: number; kind: string }> = [];
     private caches = new EvaluatorCache();
     private containerStack: RefContainer[] = [];
     private containerPool: RefContainer[] = [];
+    private _model: IntegerModel;
+
+    constructor(model: IntegerModel = DEFAULT_INTEGER_MODEL) {
+        this._model = model;
+    }
+
+    public setIntegerModel(model: IntegerModel): void {
+        this._model = model;
+    }
 
     public resetEvalCaches(): void {
         this.caches.resetAll();
@@ -136,6 +143,8 @@ export class Evaluator {
             normalizeEvaluateResult: this.normalizeEvaluateResult.bind(this),
             formatEvalValueForMessage: this.diagnostics.formatEvalValueForMessage.bind(this.diagnostics),
             formatNodeForMessage: this.diagnostics.formatNodeForMessage.bind(this.diagnostics),
+            toCTypeFromScalarType: this.toCTypeFromScalarType.bind(this),
+            fromCValue: this.fromCValue.bind(this),
         };
     }
 
@@ -305,45 +314,38 @@ export class Evaluator {
         return 0;
     }
 
-    private eqVals(a: EvalValue, b: EvalValue): boolean {
-        if (typeof a === 'string' || typeof b === 'string') {
-            return String(a) === String(b);
+    private compareVals(op: '==' | '!=' | '<' | '<=' | '>' | '>=', a: EvalValue, b: EvalValue): number | undefined {
+        const cA = this.toCValueFromEval(a, undefined);
+        const cB = this.toCValueFromEval(b, undefined);
+        if (!cA || !cB) {
+            return undefined;
         }
-        if (typeof a === 'boolean' || typeof b === 'boolean') {
-            return this.asNumber(a) === this.asNumber(b);
+        const out = applyBinary(op, cA, cB, this._model);
+        if (!out) {
+            return undefined;
         }
-        if (typeof a === 'bigint' || typeof b === 'bigint') {
-            return toBigInt(a) === toBigInt(b);
-        }
-        return a === b;
+        const v = this.fromCValue(out);
+        return typeof v === 'bigint' ? Number(v) : v;
     }
 
-    private ltVals(a: EvalValue, b: EvalValue): boolean {
-        if (typeof a === 'string' || typeof b === 'string') {
-            return String(a) < String(b);
-        }
-        if (typeof a === 'bigint' || typeof b === 'bigint') {
-            return toBigInt(a) < toBigInt(b);
-        }
-        return (a as number) < (b as number);
+    private eqVals(a: EvalValue, b: EvalValue): number | undefined {
+        return this.compareVals('==', a, b);
     }
 
-    private lteVals(a: EvalValue, b: EvalValue): boolean {
-        return this.ltVals(a, b) || this.eqVals(a, b);
+    private ltVals(a: EvalValue, b: EvalValue): number | undefined {
+        return this.compareVals('<', a, b);
     }
 
-    private gtVals(a: EvalValue, b: EvalValue): boolean {
-        if (typeof a === 'string' || typeof b === 'string') {
-            return String(a) > String(b);
-        }
-        if (typeof a === 'bigint' || typeof b === 'bigint') {
-            return toBigInt(a) > toBigInt(b);
-        }
-        return (a as number) > (b as number);
+    private lteVals(a: EvalValue, b: EvalValue): number | undefined {
+        return this.compareVals('<=', a, b);
     }
 
-    private gteVals(a: EvalValue, b: EvalValue): boolean {
-        return this.gtVals(a, b) || this.eqVals(a, b);
+    private gtVals(a: EvalValue, b: EvalValue): number | undefined {
+        return this.compareVals('>', a, b);
+    }
+
+    private gteVals(a: EvalValue, b: EvalValue): number | undefined {
+        return this.compareVals('>=', a, b);
     }
 
     private normalizeScalarTypeFromName(name: string): ScalarType {
@@ -380,6 +382,68 @@ export class Evaluator {
         return t;
     }
 
+    private toCTypeFromScalarType(type: ScalarType | undefined): CType | undefined {
+        if (!type) {
+            return undefined;
+        }
+        const name = type.name;
+        if (type.kind === 'float') {
+            const bits = type.bits ?? 64;
+            return name ? { kind: 'float', bits, name } : { kind: 'float', bits };
+        }
+        if (type.kind === 'uint') {
+            const bits = type.bits ?? this._model.intBits;
+            return name ? { kind: 'uint', bits, name } : { kind: 'uint', bits };
+        }
+        const bits = type.bits ?? this._model.intBits;
+        return name ? { kind: 'int', bits, name } : { kind: 'int', bits };
+    }
+
+    private toCValueFromEval(value: EvalValue, type: ScalarType | undefined): CValue | undefined {
+        if (value === undefined) {
+            return undefined;
+        }
+        const cType = this.toCTypeFromScalarType(type);
+        if (typeof value === 'bigint') {
+            const outType = cType ?? { kind: 'int', bits: this._model.longLongBits, name: 'long long' };
+            return { type: outType, value };
+        }
+        if (typeof value === 'number') {
+            if (!Number.isFinite(value)) {
+                return undefined;
+            }
+            const isInt = Number.isInteger(value);
+            if (cType) {
+                return { type: cType, value: cType.kind === 'float' ? value : BigInt(Math.trunc(value)) };
+            }
+            if (isInt) {
+                return { type: { kind: 'int', bits: this._model.intBits, name: 'int' }, value: BigInt(Math.trunc(value)) };
+            }
+            return { type: { kind: 'float', bits: 64, name: 'double' }, value };
+        }
+        if (typeof value === 'boolean') {
+            return { type: { kind: 'int', bits: this._model.intBits, name: 'int' }, value: value ? 1n : 0n };
+        }
+        return undefined;
+    }
+
+    private fromCValue(value: CValue): number | bigint {
+        if (value.type.kind === 'float') {
+            return value.value as number;
+        }
+        const big = value.value as bigint;
+        const bits = value.type.bits ?? 0;
+        if (bits > 32) {
+            return big;
+        }
+        const maxSafe = BigInt(Number.MAX_SAFE_INTEGER);
+        const minSafe = BigInt(Number.MIN_SAFE_INTEGER);
+        if (big > maxSafe || big < minSafe) {
+            return big;
+        }
+        return Number(big);
+    }
+
     private async getScalarTypeForContainer(ctx: EvalContext, container: RefContainer): Promise<ScalarType | undefined> {
         const perfStartTime = perf?.start() ?? 0;
         try {
@@ -412,105 +476,43 @@ export class Evaluator {
     }
 
     private integerDiv(a: number | bigint, b: number | bigint, unsigned: boolean): number | bigint | undefined {
-        if ((typeof b === 'bigint' && b === 0n) || (typeof b === 'number' && b === 0)) {
+        if (typeof a === 'number' && (!Number.isFinite(a) || !Number.isInteger(a))) {
             return undefined;
         }
-        if (typeof a === 'bigint' || typeof b === 'bigint') {
-            const na = toBigInt(a as EvalValue);
-            const nb = toBigInt(b as EvalValue);
-            if (nb === 0n) {
-                return undefined;
-            }
-            // unsigned is ignored for bigint (values already exact)
-            return na / nb;
+        if (typeof b === 'number' && (!Number.isFinite(b) || !Number.isInteger(b))) {
+            return undefined;
         }
-        if (unsigned) {
-            const na = (a as number) >>> 0;
-            const nb = (b as number) >>> 0;
-            if (nb === 0) {
-                return undefined;
-            }
-            return Math.trunc(na / nb) >>> 0;
-        } else {
-            const na = (a as number) | 0;
-            const nb = (b as number) | 0;
-            if (nb === 0) {
-                return undefined;
-            }
-            return (na / nb) | 0;
+        const type: ScalarType = { kind: unsigned ? 'uint' : 'int', bits: this._model.intBits, name: unsigned ? 'unsigned int' : 'int' };
+        const cA = this.toCValueFromEval(a as EvalValue, type);
+        const cB = this.toCValueFromEval(b as EvalValue, type);
+        if (!cA || !cB) {
+            return undefined;
         }
+        const out = applyBinary('/', cA, cB, this._model);
+        if (!out) {
+            return undefined;
+        }
+        return this.fromCValue(out);
     }
 
     private integerMod(a: number | bigint, b: number | bigint, unsigned: boolean): number | bigint | undefined {
-        if ((typeof b === 'bigint' && b === 0n) || (typeof b === 'number' && b === 0)) {
+        if (typeof a === 'number' && (!Number.isFinite(a) || !Number.isInteger(a))) {
             return undefined;
         }
-        if (typeof a === 'bigint' || typeof b === 'bigint') {
-            const na = toBigInt(a as EvalValue);
-            const nb = toBigInt(b as EvalValue);
-            if (nb === 0n) {
-                return undefined;
-            }
-            return na % nb;
+        if (typeof b === 'number' && (!Number.isFinite(b) || !Number.isInteger(b))) {
+            return undefined;
         }
-        if (unsigned) {
-            const na = (a as number) >>> 0;
-            const nb = (b as number) >>> 0;
-            if (nb === 0) {
-                return undefined;
-            }
-            return (na % nb) >>> 0;
-        } else {
-            const na = (a as number) | 0;
-            const nb = (b as number) | 0;
-            if (nb === 0) {
-                return undefined;
-            }
-            return na % nb;
+        const type: ScalarType = { kind: unsigned ? 'uint' : 'int', bits: this._model.intBits, name: unsigned ? 'unsigned int' : 'int' };
+        const cA = this.toCValueFromEval(a as EvalValue, type);
+        const cB = this.toCValueFromEval(b as EvalValue, type);
+        if (!cA || !cB) {
+            return undefined;
         }
-    }
-
-    private prefersInteger(kind: MergedKind | undefined, a: EvalValue, b: EvalValue): { use: boolean; unsigned: boolean } {
-        if (kind === 'int') {
-            return { use: true, unsigned: false };
+        const out = applyBinary('%', cA, cB, this._model);
+        if (!out) {
+            return undefined;
         }
-        if (kind === 'uint') {
-            return { use: true, unsigned: true };
-        }
-
-        // Fallback when host doesn't provide types:
-        const na = toNumeric(a);
-        const nb = toNumeric(b);
-        if ((typeof na === 'bigint') || (typeof nb === 'bigint') || (Number.isInteger(na as number) && Number.isInteger(nb as number))) {
-            // Default to signed if we only know "integer-ish"
-            return { use: true, unsigned: false };
-        }
-        return { use: false, unsigned: false };
-    }
-
-    private divValsWithKind(a: EvalValue, b: EvalValue, kind: MergedKind | undefined): EvalValue {
-        const pref = this.prefersInteger(kind, a, b);
-        if (pref.use) {
-            const result = this.integerDiv(toNumeric(a), toNumeric(b), pref.unsigned);
-            if (result === undefined) {
-                this.diagnostics.record(`Division by zero in "/": a=${this.diagnostics.formatEvalValueForMessage(a)}, b=${this.diagnostics.formatEvalValueForMessage(b)}`);
-            }
-            return result;
-        }
-        // Fallback to original floating semantics
-        return divVals(a, b);
-    }
-
-    private modValsWithKind(a: EvalValue, b: EvalValue, kind: MergedKind | undefined): EvalValue {
-        const pref = this.prefersInteger(kind, a, b);
-        if (pref.use) {
-            const result = this.integerMod(toNumeric(a), toNumeric(b), pref.unsigned);
-            if (result === undefined) {
-                this.diagnostics.record(`Division by zero in "%": a=${this.diagnostics.formatEvalValueForMessage(a)}, b=${this.diagnostics.formatEvalValueForMessage(b)}`);
-            }
-            return result;
-        }
-        return modVals(a, b);
+        return this.fromCValue(out);
     }
 
     private async evalArgsForIntrinsic(name: IntrinsicName, rawArgs: ASTNode[], ctx: EvalContext): Promise<EvalValue[] | undefined> {
@@ -524,7 +526,7 @@ export class Evaluator {
             if (!needsName) {
                 switch (arg.kind) {
                     case 'NumberLiteral':
-                        resolved.push((arg as NumberLiteral).value);
+                        resolved.push((arg as NumberLiteral).constValue ?? (arg as NumberLiteral).value);
                         continue;
                     case 'StringLiteral':
                         resolved.push((arg as StringLiteral).value);
@@ -576,7 +578,7 @@ export class Evaluator {
 
     private addByteOffset(ctx: EvalContext, bytes: number) {
         const c = ctx.container;
-        const add = (bytes | 0);
+        const add = Number.isFinite(bytes) ? Math.trunc(bytes) : 0;
         c.offsetBytes = ((c.offsetBytes ?? 0) + add);
     }
 
@@ -654,7 +656,7 @@ export class Evaluator {
                         }
 
                         // Evaluate index in isolation (so i/j/mem.length don't clobber outer anchor)
-                        const idx = this.asNumber(await this.withIsolatedContainer(ctx, () => this.evalNodeChild(ai.index, ctx))) | 0;
+                        const idx = Math.trunc(this.asNumber(await this.withIsolatedContainer(ctx, () => this.evalNodeChild(ai.index, ctx))));
 
                         // Remember the index for hosts that use it
                         ctx.container.index = idx;
@@ -761,7 +763,7 @@ export class Evaluator {
                     }
 
                     // Evaluate the index in isolation
-                    const idx = this.asNumber(await this.withIsolatedContainer(ctx, () => this.evalNodeChild(ai.index, ctx))) | 0;
+                    const idx = Math.trunc(this.asNumber(await this.withIsolatedContainer(ctx, () => this.evalNodeChild(ai.index, ctx))));
 
                     // Translate index -> byte offset
                     ctx.container.index = idx;
@@ -890,15 +892,6 @@ export class Evaluator {
         }
     }
 
-    private async evalOperandValue(node: ASTNode, ctx: EvalContext): Promise<EvalValue> {
-        const perfStartTime = perf?.start() ?? 0;
-        try {
-            return this.withIsolatedContainer(ctx, () => this.evalNodeChild(node, ctx));
-        } finally {
-            perf?.end(perfStartTime, 'evalOperandValueMs', 'evalOperandValueCalls');
-        }
-    }
-
     private async evalRunningIntrinsic(ctx: EvalContext): Promise<EvalValue> {
         const perfStartTime = perf?.start() ?? 0;
         try {
@@ -912,7 +905,11 @@ export class Evaluator {
                 this.diagnostics.record('Intrinsic __Running returned undefined');
                 return undefined;
             }
-            return out | 0;
+            if (!Number.isFinite(out)) {
+                this.diagnostics.record('Intrinsic __Running returned non-finite');
+                return undefined;
+            }
+            return Math.trunc(out);
         } finally {
             perf?.end(perfStartTime, 'evalRunningIntrinsicMs', 'evalRunningIntrinsicCalls');
         }
@@ -942,13 +939,17 @@ export class Evaluator {
     protected async evalNode(node: ASTNode, ctx: EvalContext): Promise<EvalValue> {
         perf?.recordEvalNodeKind(node.kind);
         const start = perf?.now() ?? 0;
-        const frame = start !== 0 ? { start, childMs: 0, kind: node.kind } : undefined;
-        if (frame) {
-            this.evalNodeFrames.push(frame);
-        }
+        perf?.beginEvalNodeFrame(start, node.kind);
         try {
             switch (node.kind) {
-                case 'NumberLiteral':  return (node as NumberLiteral).value;
+                case 'NumberLiteral': {
+                    const nl = node as NumberLiteral;
+                    if (nl.constValue !== undefined) {
+                        return nl.constValue as number | bigint;
+                    }
+                    const parsed = parseNumericLiteral(nl.raw, this._model);
+                    return this.fromCValue(parsed);
+                }
                 case 'StringLiteral':  return (node as StringLiteral).value;
                 case 'BooleanLiteral': return (node as BooleanLiteral).value;
 
@@ -1005,26 +1006,41 @@ export class Evaluator {
 
                 case 'UnaryExpression': {
                     const u = node as UnaryExpression;
+                    if (Evaluator.STRICT_C && (u.operator === '+' || u.operator === '-' || u.operator === '!' || u.operator === '~')) {
+                        const { value: v, type } = await this.evalOperandWithType(u.argument, ctx);
+                        if (v === undefined) {
+                            return undefined;
+                        }
+                        const cv = this.toCValueFromEval(v, type);
+                        if (!cv) {
+                            return undefined;
+                        }
+                        const out = applyUnary(u.operator, cv);
+                        if (!out) {
+                            if (cv.type.kind === 'float' && u.operator === '~') {
+                                this.diagnostics.record('Illegal operation on floating-point value');
+                                return undefined;
+                            }
+                            this.diagnostics.record(`Unsupported unary operator ${u.operator} for ${this.diagnostics.formatNodeForMessage(u.argument)}`);
+                            return undefined;
+                        }
+                        return this.fromCValue(out);
+                    }
                     const v = await this.evalNodeChild(u.argument, ctx);
                     if (v === undefined) {
                         return undefined;
                     }
                     switch (u.operator) {
-                        case '+': {
-                            const n = toNumeric(v);
-                            return typeof n === 'bigint' ? n : +n;
-                        }
-                        case '-': {
-                            const n = toNumeric(v);
-                            return typeof n === 'bigint' ? -toBigInt(n as EvalValue) : -(n as number);
-                        }
-                        case '!': return !this.truthy(v);
-                        case '~': {
-                            const n = toNumeric(v);
-                            if (typeof n === 'bigint') {
-                                return ~n;
+                        case '&': {
+                            const ref = await this.mustRef(u.argument, ctx, false);
+                            if (!ref) {
+                                return undefined;
                             }
-                            return ((~((n as number) | 0)) >>> 0);
+                            return this.evalPseudoMember(ctx, '_addr', ref);
+                        }
+                        case '*': {
+                            this.diagnostics.record('Dereference operator "*" is not supported in expression evaluation.');
+                            return undefined;
                         }
                         default:
                             this.diagnostics.record(`Unsupported unary operator ${u.operator} for ${this.diagnostics.formatNodeForMessage(u.argument)}`);
@@ -1039,6 +1055,27 @@ export class Evaluator {
                     if (prev === undefined) {
                         return undefined;
                     }
+                    if (Evaluator.STRICT_C) {
+                        const lhsType = ref.type;
+                        const cPrev = this.toCValueFromEval(prev, lhsType);
+                        const one = this.toCValueFromEval(1, lhsType);
+                        if (!cPrev || !one) {
+                            return undefined;
+                        }
+                        const op = u.operator === '++' ? '+' : '-';
+                        const tmp = applyBinary(op, cPrev, one, this._model);
+                        if (!tmp) {
+                            return undefined;
+                        }
+                        const targetType = this.toCTypeFromScalarType(lhsType);
+                        const converted = targetType ? convertToType(tmp, targetType) : tmp;
+                        const nextValue = this.fromCValue(converted);
+                        const updated = await ref.set(nextValue);
+                        if (updated === undefined) {
+                            return undefined;
+                        }
+                        return u.prefix ? ref.get() : prev;
+                    }
                     const prevNum = typeof prev === 'bigint' ? undefined : this.asNumber(prev);
                     const next = (u.operator === '++'
                         ? (typeof prev === 'bigint' ? prev + 1n : (prevNum ?? 0) + 1)
@@ -1052,13 +1089,78 @@ export class Evaluator {
 
                 case 'BinaryExpression':   return this.evalBinary(node as BinaryExpression, ctx);
 
+                case 'CastExpression': {
+                    const ce = node as CastExpression;
+                    const v = await this.evalNodeChild(ce.argument, ctx);
+                    if (v === undefined) {
+                        return undefined;
+                    }
+                    const target = parseTypeName(ce.typeName, this._model);
+                    const cv = this.toCValueFromEval(v, undefined);
+                    if (!cv) {
+                        return undefined;
+                    }
+                    if (!target) {
+                        return this.fromCValue(cv);
+                    }
+                    const converted = convertToType(cv, target);
+                    return this.fromCValue(converted);
+                }
+
+                case 'SizeofExpression': {
+                    const se = node as SizeofExpression;
+                    if (se.typeName) {
+                        const size = sizeofTypeName(se.typeName, this._model);
+                        return size;
+                    }
+                    if (se.argument) {
+                        const refNode = this.findReferenceNode(se.argument);
+                        if (refNode) {
+                            const ref = await this.mustRef(refNode, ctx, false);
+                            if (!ref) {
+                                return undefined;
+                            }
+                            const w = await this.getByteWidthCached(ctx, ref);
+                            return w;
+                        }
+                    }
+                    return undefined;
+                }
+
+                case 'AlignofExpression': {
+                    const ae = node as AlignofExpression;
+                    if (ae.typeName) {
+                        const size = sizeofTypeName(ae.typeName, this._model);
+                        return size;
+                    }
+                    if (ae.argument) {
+                        const refNode = this.findReferenceNode(ae.argument);
+                        if (refNode) {
+                            const ref = await this.mustRef(refNode, ctx, false);
+                            if (!ref) {
+                                return undefined;
+                            }
+                            const w = await this.getByteWidthCached(ctx, ref);
+                            return w;
+                        }
+                    }
+                    return undefined;
+                }
+
                 case 'ConditionalExpression': {
                     const c = node as ConditionalExpression;
                     const testValue = await this.evalNodeChild(c.test, ctx);
                     if (testValue === undefined) {
                         return undefined;
                     }
-                    const branch = this.truthy(testValue) ? c.consequent : c.alternate;
+                    const testCv = this.toCValueFromEval(testValue, undefined);
+                    if (!testCv) {
+                        return undefined;
+                    }
+                    const truthy = testCv.type.kind === 'float'
+                        ? (testCv.value as number) !== 0
+                        : (testCv.value as bigint) !== 0n;
+                    const branch = truthy ? c.consequent : c.alternate;
                     return this.evalNodeChild(branch, ctx);
                 }
 
@@ -1070,6 +1172,18 @@ export class Evaluator {
                         if (value === undefined) {
                             return undefined;
                         }
+                        if (Evaluator.STRICT_C) {
+                            const targetType = this.toCTypeFromScalarType(ref.type);
+                            if (!targetType) {
+                                return ref.set(value);
+                            }
+                            const cValue = this.toCValueFromEval(value, ref.type);
+                            if (!cValue) {
+                                return undefined;
+                            }
+                            const converted = convertToType(cValue, targetType);
+                            return ref.set(this.fromCValue(converted));
+                        }
                         return ref.set(value);
                     }
 
@@ -1079,28 +1193,38 @@ export class Evaluator {
                     if (L === undefined || R === undefined) {
                         return undefined;
                     }
-                    const lhsKind: MergedKind = ref.type ? ref.type.kind : 'unknown';
-
-                    let out: EvalValue;
-                    switch (a.operator) {
-                        case '+=':  out = addVals(L, R); break;
-                        case '-=':  out = subVals(L, R); break;
-                        case '*=':  out = mulVals(L, R); break;
-                        case '/=':  out = this.divValsWithKind(L, R, lhsKind); break;
-                        case '%=':  out = this.modValsWithKind(L, R, lhsKind); break;
-                        case '<<=': out = shlVals(L, R); break;
-                        case '>>=': out = sarVals(L, R); break;
-                        case '&=':  out = andVals(L, R); break;
-                        case '^=':  out = xorVals(L, R); break;
-                        case '|=':  out = orVals(L, R); break;
-                        default:
-                            this.diagnostics.record(`Unsupported assignment operator ${a.operator} for ${this.diagnostics.formatNodeForMessage(a.left)}`);
+                    if (Evaluator.STRICT_C) {
+                        const cType = this.toCTypeFromScalarType(ref.type);
+                        const cL = this.toCValueFromEval(L, ref.type);
+                        const cR = this.toCValueFromEval(R, ref.type);
+                        if (!cL || !cR) {
                             return undefined;
+                        }
+                        let tmp: CValue | undefined;
+                        switch (a.operator) {
+                            case '+=': tmp = applyBinary('+', cL, cR, this._model); break;
+                            case '-=': tmp = applyBinary('-', cL, cR, this._model); break;
+                            case '*=': tmp = applyBinary('*', cL, cR, this._model); break;
+                            case '/=': tmp = applyBinary('/', cL, cR, this._model); break;
+                            case '%=': tmp = applyBinary('%', cL, cR, this._model); break;
+                            case '<<=': tmp = applyBinary('<<', cL, cR, this._model); break;
+                            case '>>=': tmp = applyBinary('>>', cL, cR, this._model); break;
+                            case '&=': tmp = applyBinary('&', cL, cR, this._model); break;
+                            case '^=': tmp = applyBinary('^', cL, cR, this._model); break;
+                            case '|=': tmp = applyBinary('|', cL, cR, this._model); break;
+                            default:
+                                this.diagnostics.record(`Unsupported assignment operator ${a.operator} for ${this.diagnostics.formatNodeForMessage(a.left)}`);
+                                return undefined;
+                        }
+                        if (!tmp) {
+                            return undefined;
+                        }
+                        const converted = cType ? convertToType(tmp, cType) : tmp;
+                        return ref.set(this.fromCValue(converted));
                     }
-                    if (out === undefined) {
-                        return undefined;
-                    }
-                    return ref.set(out);
+
+                    this.diagnostics.record(`Unsupported assignment operator ${a.operator} for ${this.diagnostics.formatNodeForMessage(a.left)}`);
+                    return undefined;
                 }
 
                 case 'CallExpression': {
@@ -1188,153 +1312,74 @@ export class Evaluator {
                 }
             }
         } finally {
-            if (frame) {
-                this.evalNodeFrames.pop();
-                const end = perf?.now() ?? 0;
-                const total = Math.max(0, end - start);
-                const selfMs = Math.max(0, total - frame.childMs);
-                perf?.recordEvalNodeKindMs(frame.kind, selfMs);
-            }
+            const end = perf?.now() ?? 0;
+            perf?.endEvalNodeFrame(start, end);
         }
     }
 
     private async evalBinary(node: BinaryExpression, ctx: EvalContext): Promise<EvalValue> {
-        const perfStartTime = perf?.start() ?? 0;
-        try {
-            const { operator, left, right } = node;
-            if (operator === '&&') {
-                const lv = await this.evalNodeChild(left, ctx);
-                if (lv === undefined) {
-                    return undefined;
-                }
-                return this.truthy(lv) ? await this.evalNodeChild(right, ctx) : lv;
-            }
-            if (operator === '||') {
-                const lv = await this.evalNodeChild(left, ctx);
-                if (lv === undefined) {
-                    return undefined;
-                }
-                return this.truthy(lv) ? lv : await this.evalNodeChild(right, ctx);
-            }
-
-            const typedOps = operator === '+' || operator === '-' || operator === '*' || operator === '/'
-                || operator === '%' || operator === '<<' || operator === '>>'
-                || operator === '&' || operator === '^' || operator === '|';
-
-            if (!typedOps || typeof ctx.data.getValueType !== 'function') {
-                const noTypesStart = perf?.start() ?? 0;
-                const a = await this.evalOperandValue(left, ctx);
-                if (a === undefined) {
-                    perf?.end(noTypesStart, 'evalBinaryNoTypesMs', 'evalBinaryNoTypesCalls');
-                    return undefined;
-                }
-                const b = await this.evalOperandValue(right, ctx);
-                if (b === undefined) {
-                    perf?.end(noTypesStart, 'evalBinaryNoTypesMs', 'evalBinaryNoTypesCalls');
-                    return undefined;
-                }
-                const out = this.evalBinaryNoTypes(operator, a, b);
-                perf?.end(noTypesStart, 'evalBinaryNoTypesMs', 'evalBinaryNoTypesCalls');
-                return out;
-            }
-
-            const typedStart = perf?.start() ?? 0;
-            const operandStart = perf?.start() ?? 0;
-            const { value: a, type: typeA } = await this.evalOperandWithType(left, ctx);
-            const { value: b, type: typeB } = await this.evalOperandWithType(right, ctx);
-            perf?.end(operandStart, 'evalBinaryTypedOperandMs', 'evalBinaryTypedOperandCalls');
-            if (a === undefined || b === undefined) {
-                perf?.end(typedStart, 'evalBinaryTypedMs', 'evalBinaryTypedCalls');
-                return undefined;
-            }
-            const typeStart = perf?.start() ?? 0;
-            const mergedKind = mergeScalarKinds(typeA, typeB);
-            const bitWidthValue = Math.max(typeA?.bits ?? 0, typeB?.bits ?? 0);
-            const bitWidth = bitWidthValue > 0 ? bitWidthValue : undefined;
-
-            const isUnsigned = mergedKind === 'uint';
-            perf?.end(typeStart, 'evalBinaryTypedTypeMs', 'evalBinaryTypedTypeCalls');
-
-            let result: EvalValue;
-            const opStart = perf?.start() ?? 0;
-
-            switch (operator) {
-                case '+':
-                    result = addVals(a, b, bitWidth, isUnsigned);
-                    break;
-                case '-':
-                    result = subVals(a, b, bitWidth, isUnsigned);
-                    break;
-                case '*':
-                    result = mulVals(a, b, bitWidth, isUnsigned);
-                    break;
-                case '/':
-                    result = this.divValsWithKind(a, b, mergedKind);
-                    break;
-                case '%':
-                    result = this.modValsWithKind(a, b, mergedKind);
-                    break;
-                case '<<':
-                    result = shlVals(a, b, bitWidth, isUnsigned);
-                    break;
-                case '>>':
-                    result = sarVals(a, b, bitWidth, isUnsigned);
-                    break;
-                case '&':
-                    result = andVals(a, b, bitWidth, isUnsigned);
-                    break;
-                case '^':
-                    result = xorVals(a, b, bitWidth, isUnsigned);
-                    break;
-                case '|':
-                    result = orVals(a, b, bitWidth, isUnsigned);
-                    break;
-                /* istanbul ignore next -- unreachable: typedOps guards valid operators */
-                default:
-                    this.diagnostics.record(`Unsupported binary operator ${operator} for a=${this.diagnostics.formatEvalValueForMessage(a)}, b=${this.diagnostics.formatEvalValueForMessage(b)}`);
-                    perf?.end(opStart, 'evalBinaryTypedOpMs', 'evalBinaryTypedOpCalls');
-                    perf?.end(typedStart, 'evalBinaryTypedMs', 'evalBinaryTypedCalls');
-                    return undefined;
-            }
-
-            if (typeof result === 'number' || typeof result === 'bigint') {
-                perf?.end(opStart, 'evalBinaryTypedOpMs', 'evalBinaryTypedOpCalls');
-                const normalizeStart = perf?.start() ?? 0;
-                const out = normalizeToWidth(result, bitWidth, mergedKind);
-                perf?.end(normalizeStart, 'evalBinaryTypedNormalizeMs', 'evalBinaryTypedNormalizeCalls');
-                perf?.end(typedStart, 'evalBinaryTypedMs', 'evalBinaryTypedCalls');
-                return out;
-            }
-            perf?.end(opStart, 'evalBinaryTypedOpMs', 'evalBinaryTypedOpCalls');
-            perf?.end(typedStart, 'evalBinaryTypedMs', 'evalBinaryTypedCalls');
-            return result;
-        } finally {
-            perf?.end(perfStartTime, 'evalBinaryMs', 'evalBinaryCalls');
-        }
+        return this.evalBinaryStrict(node, ctx);
     }
 
-    private evalBinaryNoTypes(operator: BinaryExpression['operator'], a: EvalValue, b: EvalValue): EvalValue {
-        switch (operator) {
-            case '+': return addVals(a, b);
-            case '-': return subVals(a, b);
-            case '*': return mulVals(a, b);
-            case '/': return this.divValsWithKind(a, b, undefined);
-            case '%': return this.modValsWithKind(a, b, undefined);
-            case '<<': return shlVals(a, b);
-            case '>>': return sarVals(a, b);
-            case '&': return andVals(a, b);
-            case '^': return xorVals(a, b);
-            case '|': return orVals(a, b);
-            case '==': return this.eqVals(a, b);
-            case '!=': return !this.eqVals(a, b);
-            case '<': return this.ltVals(a, b);
-            case '<=': return this.lteVals(a, b);
-            case '>': return this.gtVals(a, b);
-            case '>=': return this.gteVals(a, b);
-            default:
-                this.diagnostics.record(`Unsupported binary operator ${operator} for a=${this.diagnostics.formatEvalValueForMessage(a)}, b=${this.diagnostics.formatEvalValueForMessage(b)}`);
-                return undefined;
+    private async evalBinaryStrict(node: BinaryExpression, ctx: EvalContext): Promise<EvalValue> {
+        const { operator, left, right } = node;
+        if (operator === ',') {
+            await this.evalNodeChild(left, ctx);
+            return this.evalNodeChild(right, ctx);
         }
+        if (operator === '&&' || operator === '||') {
+            const { value: lv, type: lt } = await this.evalOperandWithType(left, ctx);
+            if (lv === undefined) {
+                return undefined;
+            }
+            const lcv = this.toCValueFromEval(lv, lt);
+            if (!lcv) {
+                return undefined;
+            }
+            const lTruth = lcv.type.kind === 'float' ? (lcv.value as number) !== 0 : (lcv.value as bigint) !== 0n;
+            if (operator === '&&' && !lTruth) {
+                return 0;
+            }
+            if (operator === '||' && lTruth) {
+                return 1;
+            }
+            const { value: rv, type: rt } = await this.evalOperandWithType(right, ctx);
+            if (rv === undefined) {
+                return undefined;
+            }
+            const rcv = this.toCValueFromEval(rv, rt);
+            if (!rcv) {
+                return undefined;
+            }
+            const rTruth = rcv.type.kind === 'float' ? (rcv.value as number) !== 0 : (rcv.value as bigint) !== 0n;
+            return rTruth ? 1 : 0;
+        }
+
+        const { value: a, type: typeA } = await this.evalOperandWithType(left, ctx);
+        const { value: b, type: typeB } = await this.evalOperandWithType(right, ctx);
+        if (a === undefined || b === undefined) {
+            return undefined;
+        }
+        const cA = this.toCValueFromEval(a, typeA);
+        const cB = this.toCValueFromEval(b, typeB);
+        if (!cA || !cB) {
+            return undefined;
+        }
+        if ((operator === '&' || operator === '|' || operator === '^' || operator === '<<' || operator === '>>' || operator === '%')
+            && (cA.type.kind === 'float' || cB.type.kind === 'float')) {
+            this.diagnostics.record('Illegal operation on floating-point value');
+            return undefined;
+        }
+        const out = applyBinary(operator, cA, cB, this._model);
+        if (!out) {
+            if (operator === '/' || operator === '%') {
+                this.diagnostics.record(`Division by zero in "${operator}": a=${this.diagnostics.formatEvalValueForMessage(a)}, b=${this.diagnostics.formatEvalValueForMessage(b)}`);
+            } else if (operator === '<<' || operator === '>>') {
+                this.diagnostics.record(`Invalid shift in "${operator}": a=${this.diagnostics.formatEvalValueForMessage(a)}, b=${this.diagnostics.formatEvalValueForMessage(b)}`);
+            }
+            return undefined;
+        }
+        return this.fromCValue(out);
     }
 
     /* =============================================================================
@@ -1390,40 +1435,47 @@ export class Evaluator {
         }
 
         // Existing fallback behaviour
+        const formatInt = (value: EvalValue, unsigned: boolean, radix: number): string | undefined => {
+            const perfStart = perf?.start() ?? 0;
+            const scalarType: ScalarType = { kind: unsigned ? 'uint' : 'int', bits: this._model.intBits, name: unsigned ? 'unsigned int' : 'int' };
+            const target = { kind: unsigned ? 'uint' : 'int', bits: this._model.intBits, name: unsigned ? 'unsigned int' : 'int' } as const;
+            const cv = this.toCValueFromEval(value, scalarType);
+            if (!cv) {
+                if (typeof value === 'number' && !Number.isFinite(value)) {
+                    perf?.end(perfStart, 'evalFormatIntMs', 'evalFormatIntCalls');
+                    return 'NaN';
+                }
+                perf?.end(perfStart, 'evalFormatIntMs', 'evalFormatIntCalls');
+                return undefined;
+            }
+            const normalized = convertToType(cv, target);
+            if (normalized.type.kind === 'float') {
+                const num = normalized.value as number;
+                if (!Number.isFinite(num)) {
+                    perf?.end(perfStart, 'evalFormatIntMs', 'evalFormatIntCalls');
+                    return 'NaN';
+                }
+                perf?.end(perfStart, 'evalFormatIntMs', 'evalFormatIntCalls');
+                return Math.trunc(num).toString(radix);
+            }
+            const big = normalized.value as bigint;
+            perf?.end(perfStart, 'evalFormatIntMs', 'evalFormatIntCalls');
+            return big.toString(radix);
+        };
         switch (spec) {
             case '%':  return '%';
             case 'd':  {
-                const n = toNumeric(v);
-                if (typeof n === 'bigint') {
-                    return n.toString(10);
-                }
-                const num = Number(n);
-                if (!Number.isFinite(num)) {
-                    return 'NaN';
-                }
-                return (num | 0).toString(10);
+                return formatInt(v, false, 10);
             }
             case 'u':  {
-                const n = toNumeric(v);
-                if (typeof n === 'bigint') {
-                    return (n < 0n ? -n : n).toString(10);
-                }
-                const num = Number(n);
-                if (!Number.isFinite(num)) {
-                    return 'NaN';
-                }
-                return (num >>> 0).toString(10);
+                return formatInt(v, true, 10);
             }
             case 'x':  {
-                const n = toNumeric(v);
-                if (typeof n === 'bigint') {
-                    return `0x${n.toString(16)}`;
+                const formatted = formatInt(v, true, 16);
+                if (formatted === undefined || formatted === 'NaN') {
+                    return formatted;
                 }
-                const num = Number(n);
-                if (!Number.isFinite(num)) {
-                    return 'NaN';
-                }
-                return (num >>> 0).toString(16);
+                return `0x${formatted}`;
             }
             case 't':  return this.truthy(v) ? 'true' : 'false';
             case 'S':  return typeof v === 'string' ? v : String(v);
@@ -1475,11 +1527,8 @@ export class Evaluator {
                 return this.evalNodeWithMemo(node, ctx);
             }
             const out = await this.evalNodeWithMemo(node, ctx);
-            if (start !== 0 && this.evalNodeFrames.length > 0) {
-                const end = perf?.now() ?? 0;
-                const frame = this.evalNodeFrames[this.evalNodeFrames.length - 1];
-                frame.childMs += Math.max(0, end - start);
-            }
+            const end = perf?.now() ?? 0;
+            perf?.addEvalNodeChildMs?.(start, end);
             return out;
         } finally {
             perf?.end(perfStartTime, 'evalNodeChildMs', 'evalNodeChildCalls');

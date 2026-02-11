@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
 import { PerfStats } from '../../perf-stats';
 
@@ -253,6 +254,10 @@ describe('PerfStats', () => {
             'evalReadMs',
             'evalWriteMs',
             'formatMs',
+            'evalFormatIntMs',
+            'evalIntrinsicCoerceMs',
+            'cNumericMaskMs',
+            'cNumericNormalizeMs',
             'guiNameMs',
             'guiValueMs',
             'guiTreeMs',
@@ -309,6 +314,10 @@ describe('PerfStats', () => {
             'evalReadCalls',
             'evalWriteCalls',
             'formatCalls',
+            'evalFormatIntCalls',
+            'evalIntrinsicCoerceCalls',
+            'cNumericMaskCalls',
+            'cNumericNormalizeCalls',
             'guiNameCalls',
             'guiValueCalls',
             'guiTreeCalls',
@@ -386,6 +395,22 @@ describe('PerfStats', () => {
         // @ts-expect-error testing private flag
         perf.enabled = false;
         perf.beginExecuteAll();
+    });
+
+    it('resets backend stats and handles empty eval node frames', () => {
+        const perf = new PerfStats();
+        perf.setBackendEnabled(true);
+
+        perf.end(perf.start(), 'evalMs', 'evalCalls');
+        expect(perf.formatSummary()).toContain('[SCVD][perf]');
+
+        perf.resetBackendStats();
+        expect(perf.formatSummary()).toBe('');
+
+        perf.endEvalNodeFrame(1, 2);
+        perf.addEvalNodeChildMs(1, 2);
+        perf.addEvalNodeChildMs(0, 2);
+        // No assertions beyond verifying no throws and branches were hit.
     });
 
     it('logs summaries when present', () => {

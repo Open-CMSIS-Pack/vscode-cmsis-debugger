@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
@@ -21,6 +20,8 @@
  */
 
 import { EvalContext, Evaluator } from '../../../parser-evaluator/evaluator';
+import { ScvdExpressionParser } from '../../../scvd-eval-context';
+import { DEFAULT_INTEGER_MODEL } from '../../../parser-evaluator/c-numeric';
 import type { ExecutionContext } from '../../../scvd-eval-context';
 import { MemoryHost } from '../../../data-host/memory-host';
 import { RegisterHost } from '../../../data-host/register-host';
@@ -91,11 +92,19 @@ export function createExecutionContext(
     };
     const debugTarget = { ...debugTargetDefaults, ...debugTargetOverrides } as ScvdDebugTarget;
 
+    const parser = new ScvdExpressionParser(DEFAULT_INTEGER_MODEL);
+
     return {
         memoryHost,
         registerHost,
         evalContext,
         debugTarget,
         evaluator,
+        parser,
     };
+}
+
+export function applyExecutionContext(root: ScvdNode, ctx: ExecutionContext): void {
+    root.setExecutionContext(ctx);
+    root.children.forEach((child) => applyExecutionContext(child as ScvdNode, ctx));
 }

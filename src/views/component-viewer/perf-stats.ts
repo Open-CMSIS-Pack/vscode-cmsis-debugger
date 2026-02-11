@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
 import { performance } from 'node:perf_hooks';
 
@@ -83,6 +84,14 @@ type BackendPerfStats = {
     evalWriteCalls: number;
     formatMs: number;
     formatCalls: number;
+    evalFormatIntMs: number;
+    evalFormatIntCalls: number;
+    evalIntrinsicCoerceMs: number;
+    evalIntrinsicCoerceCalls: number;
+    cNumericMaskMs: number;
+    cNumericMaskCalls: number;
+    cNumericNormalizeMs: number;
+    cNumericNormalizeCalls: number;
     guiNameMs: number;
     guiNameCalls: number;
     guiValueMs: number;
@@ -204,6 +213,10 @@ type BackendPerfMsKey =
     | 'evalReadMs'
     | 'evalWriteMs'
     | 'formatMs'
+    | 'evalFormatIntMs'
+    | 'evalIntrinsicCoerceMs'
+    | 'cNumericMaskMs'
+    | 'cNumericNormalizeMs'
     | 'guiNameMs'
     | 'guiValueMs'
     | 'guiTreeMs'
@@ -258,6 +271,10 @@ type BackendPerfCallsKey =
     | 'evalReadCalls'
     | 'evalWriteCalls'
     | 'formatCalls'
+    | 'evalFormatIntCalls'
+    | 'evalIntrinsicCoerceCalls'
+    | 'cNumericMaskCalls'
+    | 'cNumericNormalizeCalls'
     | 'guiNameCalls'
     | 'guiValueCalls'
     | 'guiTreeCalls'
@@ -288,6 +305,7 @@ export class PerfStats {
     private lastExecuteSummary = '';
     private lastPerfSummary = '';
     private lastUiSummary = '';
+    private evalNodeFrames: Array<{ start: number; childMs: number; kind: string }> = [];
 
     constructor() {}
 
@@ -329,7 +347,7 @@ export class PerfStats {
         }
         const ms = (value: number) => Math.max(0, Math.floor(value));
         const stats = this.backendStats;
-        return `[SCVD][perf] evalMs=${ms(stats.evalMs)} evalCalls=${stats.evalCalls} evalIntrinsicArgsMs=${ms(stats.evalIntrinsicArgsMs)} evalIntrinsicArgsCalls=${stats.evalIntrinsicArgsCalls} evalRunningIntrinsicMs=${ms(stats.evalRunningIntrinsicMs)} evalRunningIntrinsicCalls=${stats.evalRunningIntrinsicCalls} evalPseudoMemberMs=${ms(stats.evalPseudoMemberMs)} evalPseudoMemberCalls=${stats.evalPseudoMemberCalls} evalBinaryMs=${ms(stats.evalBinaryMs)} evalBinaryCalls=${stats.evalBinaryCalls} evalBinaryTypedMs=${ms(stats.evalBinaryTypedMs)} evalBinaryTypedCalls=${stats.evalBinaryTypedCalls} evalBinaryTypedOperandMs=${ms(stats.evalBinaryTypedOperandMs)} evalBinaryTypedOperandCalls=${stats.evalBinaryTypedOperandCalls} evalBinaryTypedTypeMs=${ms(stats.evalBinaryTypedTypeMs)} evalBinaryTypedTypeCalls=${stats.evalBinaryTypedTypeCalls} evalBinaryTypedOpMs=${ms(stats.evalBinaryTypedOpMs)} evalBinaryTypedOpCalls=${stats.evalBinaryTypedOpCalls} evalBinaryTypedNormalizeMs=${ms(stats.evalBinaryTypedNormalizeMs)} evalBinaryTypedNormalizeCalls=${stats.evalBinaryTypedNormalizeCalls} evalBinaryNoTypesMs=${ms(stats.evalBinaryNoTypesMs)} evalBinaryNoTypesCalls=${stats.evalBinaryNoTypesCalls} evalOperandWithTypeMs=${ms(stats.evalOperandWithTypeMs)} evalOperandWithTypeCalls=${stats.evalOperandWithTypeCalls} evalOperandValueMs=${ms(stats.evalOperandValueMs)} evalOperandValueCalls=${stats.evalOperandValueCalls} evalNodeChildMs=${ms(stats.evalNodeChildMs)} evalNodeChildCalls=${stats.evalNodeChildCalls} evalGetScalarTypeMs=${ms(stats.evalGetScalarTypeMs)} evalGetScalarTypeCalls=${stats.evalGetScalarTypeCalls} evalGetValueTypeMs=${ms(stats.evalGetValueTypeMs)} evalGetValueTypeCalls=${stats.evalGetValueTypeCalls} evalMustRefMs=${ms(stats.evalMustRefMs)} evalMustRefCalls=${stats.evalMustRefCalls} evalMustReadMs=${ms(stats.evalMustReadMs)} evalMustReadCalls=${stats.evalMustReadCalls} evalMustRefIdentifierMs=${ms(stats.evalMustRefIdentifierMs)} evalMustRefIdentifierCalls=${stats.evalMustRefIdentifierCalls} evalMustRefMemberMs=${ms(stats.evalMustRefMemberMs)} evalMustRefMemberCalls=${stats.evalMustRefMemberCalls} evalMustRefArrayMs=${ms(stats.evalMustRefArrayMs)} evalMustRefArrayCalls=${stats.evalMustRefArrayCalls} evalHostGetSymbolRefMs=${ms(stats.evalHostGetSymbolRefMs)} evalHostGetSymbolRefCalls=${stats.evalHostGetSymbolRefCalls} evalHostGetMemberRefMs=${ms(stats.evalHostGetMemberRefMs)} evalHostGetMemberRefCalls=${stats.evalHostGetMemberRefCalls} evalHostGetElementRefMs=${ms(stats.evalHostGetElementRefMs)} evalHostGetElementRefCalls=${stats.evalHostGetElementRefCalls} evalHostGetElementStrideMs=${ms(stats.evalHostGetElementStrideMs)} evalHostGetElementStrideCalls=${stats.evalHostGetElementStrideCalls} evalHostGetByteWidthMs=${ms(stats.evalHostGetByteWidthMs)} evalHostGetByteWidthCalls=${stats.evalHostGetByteWidthCalls} modelGetSymbolMs=${ms(stats.modelGetSymbolMs)} modelGetSymbolCalls=${stats.modelGetSymbolCalls} modelGetMemberMs=${ms(stats.modelGetMemberMs)} modelGetMemberCalls=${stats.modelGetMemberCalls} modelGetMemberOffsetMs=${ms(stats.modelGetMemberOffsetMs)} modelGetMemberOffsetCalls=${stats.modelGetMemberOffsetCalls} evalReadMs=${ms(stats.evalReadMs)} evalReadCalls=${stats.evalReadCalls} evalWriteMs=${ms(stats.evalWriteMs)} evalWriteCalls=${stats.evalWriteCalls} formatMs=${ms(stats.formatMs)} formatCalls=${stats.formatCalls} guiNameMs=${ms(stats.guiNameMs)} guiNameCalls=${stats.guiNameCalls} guiValueMs=${ms(stats.guiValueMs)} guiValueCalls=${stats.guiValueCalls} guiTreeMs=${ms(stats.guiTreeMs)} guiTreeCalls=${stats.guiTreeCalls} guiTreeDetachMs=${ms(stats.guiTreeDetachMs)} guiTreeDetachCalls=${stats.guiTreeDetachCalls} printfMs=${ms(stats.printfMs)} printfCalls=${stats.printfCalls} printfCacheHits=${stats.printfCacheHits} printfCacheMiss=${stats.printfCacheMiss} evalNodeIdentifierMs=${ms(stats.evalNodeIdentifierMs)} evalNodeMemberMs=${ms(stats.evalNodeMemberMs)} evalNodeArrayMs=${ms(stats.evalNodeArrayMs)} evalNodeBinaryMs=${ms(stats.evalNodeBinaryMs)} evalNodePrintfMs=${ms(stats.evalNodePrintfMs)} readListResolveMs=${ms(stats.readListResolveMs)} readListResolveCalls=${stats.readListResolveCalls} readListBatchMs=${ms(stats.readListBatchMs)} readListBatchCalls=${stats.readListBatchCalls} readListLoopMs=${ms(stats.readListLoopMs)} readListLoopCalls=${stats.readListLoopCalls} readListStoreMs=${ms(stats.readListStoreMs)} readListStoreCalls=${stats.readListStoreCalls} targetReadCacheHitMs=${ms(stats.targetReadCacheHitMs)} targetReadCacheHitCalls=${stats.targetReadCacheHitCalls} targetReadCacheMissMs=${ms(stats.targetReadCacheMissMs)} targetReadCacheMissCalls=${stats.targetReadCacheMissCalls} targetReadPrefetchMs=${ms(stats.targetReadPrefetchMs)} targetReadPrefetchCalls=${stats.targetReadPrefetchCalls} targetReadFromTargetMs=${ms(stats.targetReadFromTargetMs)} targetReadFromTargetCalls=${stats.targetReadFromTargetCalls} symbolFindMs=${ms(stats.symbolFindMs)} symbolFindCalls=${stats.symbolFindCalls} symbolSizeMs=${ms(stats.symbolSizeMs)} symbolSizeCalls=${stats.symbolSizeCalls} symbolOffsetMs=${ms(stats.symbolOffsetMs)} symbolOffsetCalls=${stats.symbolOffsetCalls} evalNodeIdentifierCalls=${stats.evalNodeIdentifierCalls} evalNodeMemberCalls=${stats.evalNodeMemberCalls} evalNodeArrayCalls=${stats.evalNodeArrayCalls} evalNodeCallCalls=${stats.evalNodeCallCalls} evalNodeEvalPointCalls=${stats.evalNodeEvalPointCalls} evalNodeUnaryCalls=${stats.evalNodeUnaryCalls} evalNodeUpdateCalls=${stats.evalNodeUpdateCalls} evalNodeBinaryCalls=${stats.evalNodeBinaryCalls} evalNodeConditionalCalls=${stats.evalNodeConditionalCalls} evalNodeAssignmentCalls=${stats.evalNodeAssignmentCalls} evalNodePrintfCalls=${stats.evalNodePrintfCalls} evalNodeFormatCalls=${stats.evalNodeFormatCalls} evalNodeTextCalls=${stats.evalNodeTextCalls} evalNodeLiteralCalls=${stats.evalNodeLiteralCalls} evalNodeOtherCalls=${stats.evalNodeOtherCalls} evalNodeCacheHitCalls=${stats.evalNodeCacheHitCalls} evalNodeCacheMissCalls=${stats.evalNodeCacheMissCalls} guiItemNodes=${stats.guiItemNodes} guiPrintNodes=${stats.guiPrintNodes} guiOutNodes=${stats.guiOutNodes} printfSpecD=${stats.printfSpecD} printfSpecU=${stats.printfSpecU} printfSpecX=${stats.printfSpecX} printfSpecT=${stats.printfSpecT} printfSpecC=${stats.printfSpecC} printfSpecS=${stats.printfSpecS} printfSpecE=${stats.printfSpecE} printfSpecI=${stats.printfSpecI} printfSpecJ=${stats.printfSpecJ} printfSpecN=${stats.printfSpecN} printfSpecM=${stats.printfSpecM} printfSpecTFloat=${stats.printfSpecTFloat} printfSpecUUint=${stats.printfSpecUUint} printfSpecPercent=${stats.printfSpecPercent} printfSpecOther=${stats.printfSpecOther} printfValueNumber=${stats.printfValueNumber} printfValueBigInt=${stats.printfValueBigInt} printfValueString=${stats.printfValueString} printfValueBytes=${stats.printfValueBytes} printfValueOther=${stats.printfValueOther}`;
+        return `[SCVD][perf] evalMs=${ms(stats.evalMs)} evalCalls=${stats.evalCalls} evalIntrinsicArgsMs=${ms(stats.evalIntrinsicArgsMs)} evalIntrinsicArgsCalls=${stats.evalIntrinsicArgsCalls} evalRunningIntrinsicMs=${ms(stats.evalRunningIntrinsicMs)} evalRunningIntrinsicCalls=${stats.evalRunningIntrinsicCalls} evalPseudoMemberMs=${ms(stats.evalPseudoMemberMs)} evalPseudoMemberCalls=${stats.evalPseudoMemberCalls} evalBinaryMs=${ms(stats.evalBinaryMs)} evalBinaryCalls=${stats.evalBinaryCalls} evalBinaryTypedMs=${ms(stats.evalBinaryTypedMs)} evalBinaryTypedCalls=${stats.evalBinaryTypedCalls} evalBinaryTypedOperandMs=${ms(stats.evalBinaryTypedOperandMs)} evalBinaryTypedOperandCalls=${stats.evalBinaryTypedOperandCalls} evalBinaryTypedTypeMs=${ms(stats.evalBinaryTypedTypeMs)} evalBinaryTypedTypeCalls=${stats.evalBinaryTypedTypeCalls} evalBinaryTypedOpMs=${ms(stats.evalBinaryTypedOpMs)} evalBinaryTypedOpCalls=${stats.evalBinaryTypedOpCalls} evalBinaryTypedNormalizeMs=${ms(stats.evalBinaryTypedNormalizeMs)} evalBinaryTypedNormalizeCalls=${stats.evalBinaryTypedNormalizeCalls} evalBinaryNoTypesMs=${ms(stats.evalBinaryNoTypesMs)} evalBinaryNoTypesCalls=${stats.evalBinaryNoTypesCalls} evalOperandWithTypeMs=${ms(stats.evalOperandWithTypeMs)} evalOperandWithTypeCalls=${stats.evalOperandWithTypeCalls} evalOperandValueMs=${ms(stats.evalOperandValueMs)} evalOperandValueCalls=${stats.evalOperandValueCalls} evalNodeChildMs=${ms(stats.evalNodeChildMs)} evalNodeChildCalls=${stats.evalNodeChildCalls} evalGetScalarTypeMs=${ms(stats.evalGetScalarTypeMs)} evalGetScalarTypeCalls=${stats.evalGetScalarTypeCalls} evalGetValueTypeMs=${ms(stats.evalGetValueTypeMs)} evalGetValueTypeCalls=${stats.evalGetValueTypeCalls} evalMustRefMs=${ms(stats.evalMustRefMs)} evalMustRefCalls=${stats.evalMustRefCalls} evalMustReadMs=${ms(stats.evalMustReadMs)} evalMustReadCalls=${stats.evalMustReadCalls} evalMustRefIdentifierMs=${ms(stats.evalMustRefIdentifierMs)} evalMustRefIdentifierCalls=${stats.evalMustRefIdentifierCalls} evalMustRefMemberMs=${ms(stats.evalMustRefMemberMs)} evalMustRefMemberCalls=${stats.evalMustRefMemberCalls} evalMustRefArrayMs=${ms(stats.evalMustRefArrayMs)} evalMustRefArrayCalls=${stats.evalMustRefArrayCalls} evalHostGetSymbolRefMs=${ms(stats.evalHostGetSymbolRefMs)} evalHostGetSymbolRefCalls=${stats.evalHostGetSymbolRefCalls} evalHostGetMemberRefMs=${ms(stats.evalHostGetMemberRefMs)} evalHostGetMemberRefCalls=${stats.evalHostGetMemberRefCalls} evalHostGetElementRefMs=${ms(stats.evalHostGetElementRefMs)} evalHostGetElementRefCalls=${stats.evalHostGetElementRefCalls} evalHostGetElementStrideMs=${ms(stats.evalHostGetElementStrideMs)} evalHostGetElementStrideCalls=${stats.evalHostGetElementStrideCalls} evalHostGetByteWidthMs=${ms(stats.evalHostGetByteWidthMs)} evalHostGetByteWidthCalls=${stats.evalHostGetByteWidthCalls} modelGetSymbolMs=${ms(stats.modelGetSymbolMs)} modelGetSymbolCalls=${stats.modelGetSymbolCalls} modelGetMemberMs=${ms(stats.modelGetMemberMs)} modelGetMemberCalls=${stats.modelGetMemberCalls} modelGetMemberOffsetMs=${ms(stats.modelGetMemberOffsetMs)} modelGetMemberOffsetCalls=${stats.modelGetMemberOffsetCalls} evalReadMs=${ms(stats.evalReadMs)} evalReadCalls=${stats.evalReadCalls} evalWriteMs=${ms(stats.evalWriteMs)} evalWriteCalls=${stats.evalWriteCalls} formatMs=${ms(stats.formatMs)} formatCalls=${stats.formatCalls} evalFormatIntMs=${ms(stats.evalFormatIntMs)} evalFormatIntCalls=${stats.evalFormatIntCalls} evalIntrinsicCoerceMs=${ms(stats.evalIntrinsicCoerceMs)} evalIntrinsicCoerceCalls=${stats.evalIntrinsicCoerceCalls} cNumericMaskMs=${ms(stats.cNumericMaskMs)} cNumericMaskCalls=${stats.cNumericMaskCalls} cNumericNormalizeMs=${ms(stats.cNumericNormalizeMs)} cNumericNormalizeCalls=${stats.cNumericNormalizeCalls} guiNameMs=${ms(stats.guiNameMs)} guiNameCalls=${stats.guiNameCalls} guiValueMs=${ms(stats.guiValueMs)} guiValueCalls=${stats.guiValueCalls} guiTreeMs=${ms(stats.guiTreeMs)} guiTreeCalls=${stats.guiTreeCalls} guiTreeDetachMs=${ms(stats.guiTreeDetachMs)} guiTreeDetachCalls=${stats.guiTreeDetachCalls} printfMs=${ms(stats.printfMs)} printfCalls=${stats.printfCalls} printfCacheHits=${stats.printfCacheHits} printfCacheMiss=${stats.printfCacheMiss} evalNodeIdentifierMs=${ms(stats.evalNodeIdentifierMs)} evalNodeMemberMs=${ms(stats.evalNodeMemberMs)} evalNodeArrayMs=${ms(stats.evalNodeArrayMs)} evalNodeBinaryMs=${ms(stats.evalNodeBinaryMs)} evalNodePrintfMs=${ms(stats.evalNodePrintfMs)} readListResolveMs=${ms(stats.readListResolveMs)} readListResolveCalls=${stats.readListResolveCalls} readListBatchMs=${ms(stats.readListBatchMs)} readListBatchCalls=${stats.readListBatchCalls} readListLoopMs=${ms(stats.readListLoopMs)} readListLoopCalls=${stats.readListLoopCalls} readListStoreMs=${ms(stats.readListStoreMs)} readListStoreCalls=${stats.readListStoreCalls} targetReadCacheHitMs=${ms(stats.targetReadCacheHitMs)} targetReadCacheHitCalls=${stats.targetReadCacheHitCalls} targetReadCacheMissMs=${ms(stats.targetReadCacheMissMs)} targetReadCacheMissCalls=${stats.targetReadCacheMissCalls} targetReadPrefetchMs=${ms(stats.targetReadPrefetchMs)} targetReadPrefetchCalls=${stats.targetReadPrefetchCalls} targetReadFromTargetMs=${ms(stats.targetReadFromTargetMs)} targetReadFromTargetCalls=${stats.targetReadFromTargetCalls} symbolFindMs=${ms(stats.symbolFindMs)} symbolFindCalls=${stats.symbolFindCalls} symbolSizeMs=${ms(stats.symbolSizeMs)} symbolSizeCalls=${stats.symbolSizeCalls} symbolOffsetMs=${ms(stats.symbolOffsetMs)} symbolOffsetCalls=${stats.symbolOffsetCalls} evalNodeIdentifierCalls=${stats.evalNodeIdentifierCalls} evalNodeMemberCalls=${stats.evalNodeMemberCalls} evalNodeArrayCalls=${stats.evalNodeArrayCalls} evalNodeCallCalls=${stats.evalNodeCallCalls} evalNodeEvalPointCalls=${stats.evalNodeEvalPointCalls} evalNodeUnaryCalls=${stats.evalNodeUnaryCalls} evalNodeUpdateCalls=${stats.evalNodeUpdateCalls} evalNodeBinaryCalls=${stats.evalNodeBinaryCalls} evalNodeConditionalCalls=${stats.evalNodeConditionalCalls} evalNodeAssignmentCalls=${stats.evalNodeAssignmentCalls} evalNodePrintfCalls=${stats.evalNodePrintfCalls} evalNodeFormatCalls=${stats.evalNodeFormatCalls} evalNodeTextCalls=${stats.evalNodeTextCalls} evalNodeLiteralCalls=${stats.evalNodeLiteralCalls} evalNodeOtherCalls=${stats.evalNodeOtherCalls} evalNodeCacheHitCalls=${stats.evalNodeCacheHitCalls} evalNodeCacheMissCalls=${stats.evalNodeCacheMissCalls} guiItemNodes=${stats.guiItemNodes} guiPrintNodes=${stats.guiPrintNodes} guiOutNodes=${stats.guiOutNodes} printfSpecD=${stats.printfSpecD} printfSpecU=${stats.printfSpecU} printfSpecX=${stats.printfSpecX} printfSpecT=${stats.printfSpecT} printfSpecC=${stats.printfSpecC} printfSpecS=${stats.printfSpecS} printfSpecE=${stats.printfSpecE} printfSpecI=${stats.printfSpecI} printfSpecJ=${stats.printfSpecJ} printfSpecN=${stats.printfSpecN} printfSpecM=${stats.printfSpecM} printfSpecTFloat=${stats.printfSpecTFloat} printfSpecUUint=${stats.printfSpecUUint} printfSpecPercent=${stats.printfSpecPercent} printfSpecOther=${stats.printfSpecOther} printfValueNumber=${stats.printfValueNumber} printfValueBigInt=${stats.printfValueBigInt} printfValueString=${stats.printfValueString} printfValueBytes=${stats.printfValueBytes} printfValueOther=${stats.printfValueOther}`;
     }
 
     public formatUiSummary(): string {
@@ -577,12 +595,42 @@ export class PerfStats {
         }
     }
 
+    public beginEvalNodeFrame(start: number, kind: string): void {
+        if (!this.enabled || !this.backendEnabled || start === 0) {
+            return;
+        }
+        this.evalNodeFrames.push({ start, childMs: 0, kind });
+    }
+
+    public endEvalNodeFrame(start: number, end: number): void {
+        if (!this.enabled || !this.backendEnabled || start === 0) {
+            return;
+        }
+        const frame = this.evalNodeFrames.pop();
+        if (!frame) {
+            return;
+        }
+        const total = Math.max(0, end - start);
+        const selfMs = Math.max(0, total - frame.childMs);
+        this.recordEvalNodeKindMs(frame.kind, selfMs);
+    }
+
+    public addEvalNodeChildMs(start: number, end: number): void {
+        if (!this.enabled || !this.backendEnabled || start === 0) {
+            return;
+        }
+        if (this.evalNodeFrames.length === 0) {
+            return;
+        }
+        const frame = this.evalNodeFrames[this.evalNodeFrames.length - 1];
+        frame.childMs += Math.max(0, end - start);
+    }
+
     public beginExecuteAll(): void {
         if (!this.enabled) {
             return;
         }
         this.setBackendEnabled(true);
-        this.resetBackendStats();
         this.executeAllStartMs = Date.now();
     }
 
@@ -720,6 +768,18 @@ export class PerfStats {
                 return;
             case 'formatMs':
                 this.backendStats.formatMs += delta;
+                return;
+            case 'evalFormatIntMs':
+                this.backendStats.evalFormatIntMs += delta;
+                return;
+            case 'evalIntrinsicCoerceMs':
+                this.backendStats.evalIntrinsicCoerceMs += delta;
+                return;
+            case 'cNumericMaskMs':
+                this.backendStats.cNumericMaskMs += delta;
+                return;
+            case 'cNumericNormalizeMs':
+                this.backendStats.cNumericNormalizeMs += delta;
                 return;
             case 'guiNameMs':
                 this.backendStats.guiNameMs += delta;
@@ -886,6 +946,18 @@ export class PerfStats {
                 return;
             case 'formatCalls':
                 this.backendStats.formatCalls += delta;
+                return;
+            case 'evalFormatIntCalls':
+                this.backendStats.evalFormatIntCalls += delta;
+                return;
+            case 'evalIntrinsicCoerceCalls':
+                this.backendStats.evalIntrinsicCoerceCalls += delta;
+                return;
+            case 'cNumericMaskCalls':
+                this.backendStats.cNumericMaskCalls += delta;
+                return;
+            case 'cNumericNormalizeCalls':
+                this.backendStats.cNumericNormalizeCalls += delta;
                 return;
             case 'guiNameCalls':
                 this.backendStats.guiNameCalls += delta;
@@ -1060,6 +1132,14 @@ export class PerfStats {
             evalWriteCalls: 0,
             formatMs: 0,
             formatCalls: 0,
+            evalFormatIntMs: 0,
+            evalFormatIntCalls: 0,
+            evalIntrinsicCoerceMs: 0,
+            evalIntrinsicCoerceCalls: 0,
+            cNumericMaskMs: 0,
+            cNumericMaskCalls: 0,
+            cNumericNormalizeMs: 0,
+            cNumericNormalizeCalls: 0,
             guiNameMs: 0,
             guiNameCalls: 0,
             guiValueMs: 0,

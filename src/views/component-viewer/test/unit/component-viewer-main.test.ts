@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
@@ -235,6 +234,24 @@ describe('ComponentViewer', () => {
         expect(instances).toEqual([]);
     });
 
+    it('returns undefined when cbuild run contains no scvd instances', async () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const tracker = makeTracker();
+        const session = makeSession('s1', []);
+
+        const readScvdFiles = jest.fn().mockResolvedValue(undefined);
+        (controller as unknown as { readScvdFiles: typeof readScvdFiles }).readScvdFiles = readScvdFiles;
+
+        const load = (controller as unknown as {
+            loadCbuildRunInstances: (s: Session, t: TrackerCallbacks) => Promise<void | undefined>;
+        }).loadCbuildRunInstances.bind(controller);
+
+        const result = await load(session, tracker);
+        expect(result).toBeUndefined();
+        expect(readScvdFiles).toHaveBeenCalled();
+        expect((controller as unknown as { _instances: unknown[] })._instances).toHaveLength(0);
+    });
+
     it('handles tracker events and updates sessions', async () => {
         const context = extensionContextFactory();
         const tracker = makeTracker();
@@ -268,6 +285,9 @@ describe('ComponentViewer', () => {
 
         // stackTrace from a different session clears active session
         expect((controller as unknown as { _activeSession?: Session })._activeSession).toBeUndefined();
+
+        await tracker.callbacks.activeStackItem?.({ session: otherSession });
+        expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(otherSession);
 
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
         await tracker.callbacks.willStop?.(session);
@@ -334,13 +354,38 @@ describe('ComponentViewer', () => {
         const scheduleSpy = jest.spyOn(
             controller as unknown as { schedulePendingUpdate: (reason: fifoUpdateReason) => void },
             'schedulePendingUpdate'
-        );
+        ).mockImplementation(() => undefined);
 
         const handleOnStackItemChanged = (controller as unknown as { handleOnStackItemChanged: (s: Session) => Promise<void> }).handleOnStackItemChanged.bind(controller);
         await handleOnStackItemChanged(sessionB);
 
         expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(sessionB);
         expect(updateSpy).toHaveBeenCalledWith(sessionB);
+        expect(scheduleSpy).toHaveBeenCalledWith('stackItemChanged');
+    });
+
+    it('does not update active session when stack item matches the active session', async () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const sessionA = makeSession('s1');
+        const updateSpy = jest.fn();
+
+        (controller as unknown as { _activeSession?: Session })._activeSession = sessionA;
+        (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
+            {
+                componentViewerInstance: { updateActiveSession: updateSpy } as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'],
+                lockState: false,
+                sessionId: 's1',
+            },
+        ];
+
+        const scheduleSpy = jest
+            .spyOn(controller as unknown as { schedulePendingUpdate: (reason: fifoUpdateReason) => void }, 'schedulePendingUpdate')
+            .mockImplementation(() => undefined);
+
+        const handleOnStackItemChanged = (controller as unknown as { handleOnStackItemChanged: (s: Session) => Promise<void> }).handleOnStackItemChanged.bind(controller);
+        await handleOnStackItemChanged(sessionA);
+
+        expect(updateSpy).not.toHaveBeenCalled();
         expect(scheduleSpy).toHaveBeenCalledWith('stackItemChanged');
     });
 
@@ -381,6 +426,23 @@ describe('ComponentViewer', () => {
         expect(rootA.isRootInstance).toBe(true);
         expect(rootB.isRootInstance).toBe(true);
         expect(debugSpy).toHaveBeenCalled();
+    });
+
+    it('skips gui tree updates when an instance returns no gui tree', async () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const provider = treeProviderFactory();
+        (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
+
+        const updateInstances = (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances.bind(controller);
+        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1');
+        const instance = instanceFactory();
+        instance.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => undefined);
+        (controller as unknown as { _instances: unknown[] })._instances = [
+            { componentViewerInstance: instance, lockState: false, sessionId: 's1' },
+        ];
+
+        await updateInstances('stackTrace');
+        expect(provider.setRoots).toHaveBeenCalledWith([]);
     });
 
     it('updates only instances for the active session', async () => {
@@ -476,6 +538,54 @@ describe('ComponentViewer', () => {
         await lockHandler?.(root);
         expect((controller as unknown as { _instances: Array<{ lockState: boolean }> })._instances[0].lockState).toBe(false);
         expect(root.isLocked).toBe(false);
+    });
+
+    it('invokes unlock handler and skips lock when no matching instance exists', async () => {
+        const context = extensionContextFactory();
+        const tracker = makeTracker();
+        const controller = new ComponentViewer(context);
+        controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const unlockHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.componentViewer.unlockComponent')?.[1] as
+            | ((node: ScvdGuiInterface) => Promise<void> | void)
+            | undefined;
+
+        expect(unlockHandler).toBeDefined();
+        const root = makeGuiNode('root');
+        await unlockHandler?.(root);
+    });
+
+    it('skips lock operations when gui trees are missing', () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const provider = treeProviderFactory();
+        (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
+
+        const instMissingTree = instanceFactory();
+        instMissingTree.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => undefined);
+        (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: instMissingTree, lockState: false }];
+
+        const handleLockInstance = (controller as unknown as { handleLockInstance: (node: ScvdGuiInterface) => void }).handleLockInstance.bind(controller);
+        handleLockInstance(makeGuiNode('root'));
+        expect(provider.refresh).not.toHaveBeenCalled();
+    });
+
+    it('returns early when gui tree disappears after toggling lock', () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const provider = treeProviderFactory();
+        (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
+
+        const root = makeGuiNode('root');
+        const inst = instanceFactory();
+        inst.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>()
+            .mockReturnValueOnce([root])
+            .mockReturnValueOnce(undefined);
+        (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: inst, lockState: false }];
+
+        const handleLockInstance = (controller as unknown as { handleLockInstance: (node: ScvdGuiInterface) => void }).handleLockInstance.bind(controller);
+        handleLockInstance(root);
+
+        expect(provider.refresh).not.toHaveBeenCalled();
     });
 
     it('runs a debounced update when scheduling multiple times', async () => {

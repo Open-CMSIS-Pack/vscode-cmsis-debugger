@@ -13,28 +13,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 import { componentViewerLogger } from '../../../logger';
-import { addVals, andVals, divVals, maskToBits, modVals, mulVals, orVals, sarVals, shlVals, subVals, toNumeric, xorVals } from './math-ops';
 import { INTRINSIC_DEFINITIONS, isIntrinsicName } from './intrinsics';
 import type { IntrinsicName as HostIntrinsicName } from './intrinsics';
+import { DEFAULT_INTEGER_MODEL, type IntegerModel, cValueFromConst, convertToType, parseNumericLiteral } from './c-numeric';
 
 export type ValueType = 'number' | 'boolean' | 'string' | 'unknown';
 
-export type ConstValue = number | string | boolean | undefined;
+export type ConstValue = number | bigint | string | boolean | undefined;
 
-export interface BaseNode { kind: string; start: number; end: number; valueType?: ValueType; constValue?: ConstValue; }
-export interface NumberLiteral extends BaseNode { kind:'NumberLiteral'; value:number; raw:string; valueType:'number'; }
+export interface BaseNode {
+  kind: string;
+  start: number;
+  end: number;
+  valueType?: ValueType;
+  constValue?: ConstValue;
+}
+export interface NumberLiteral extends BaseNode { kind:'NumberLiteral'; value:number | bigint; raw:string; valueType:'number'; }
 export interface StringLiteral extends BaseNode { kind:'StringLiteral'; value:string; raw:string; valueType:'string'; }
 export interface BooleanLiteral extends BaseNode { kind:'BooleanLiteral'; value:boolean; valueType:'boolean'; }
 export interface Identifier extends BaseNode { kind:'Identifier'; name:string; }
 export interface MemberAccess extends BaseNode { kind:'MemberAccess'; object: ASTNode; property: string; }
 export interface ArrayIndex extends BaseNode { kind:'ArrayIndex'; array: ASTNode; index: ASTNode; }
-export interface UnaryExpression extends BaseNode { kind:'UnaryExpression'; operator:'+'|'-'|'!'|'~'; argument:ASTNode; }
+export interface UnaryExpression extends BaseNode { kind:'UnaryExpression'; operator:'+'|'-'|'!'|'~'|'*'|'&'; argument:ASTNode; }
 export interface BinaryExpression extends BaseNode { kind:'BinaryExpression'; operator:string; left:ASTNode; right:ASTNode; }
 export interface ConditionalExpression extends BaseNode { kind:'ConditionalExpression'; test:ASTNode; consequent:ASTNode; alternate:ASTNode; }
+export interface CastExpression extends BaseNode { kind:'CastExpression'; typeName:string; argument:ASTNode; }
+export interface SizeofExpression extends BaseNode { kind:'SizeofExpression'; typeName?:string; argument?:ASTNode; }
+export interface AlignofExpression extends BaseNode { kind:'AlignofExpression'; typeName?:string; argument?:ASTNode; }
 
 export interface AssignmentExpression extends BaseNode {
   kind:'AssignmentExpression';
@@ -69,6 +77,7 @@ export interface ErrorNode extends BaseNode { kind:'ErrorNode'; message:string; 
 export type ASTNode =
   | NumberLiteral | StringLiteral | BooleanLiteral | Identifier | MemberAccess | ArrayIndex
   | UnaryExpression | BinaryExpression | ConditionalExpression | AssignmentExpression | UpdateExpression
+  | CastExpression | SizeofExpression | AlignofExpression
   | ColonPath
   | CallExpression | EvalPointCall | PrintfExpression | TextSegment | FormatSegment | ErrorNode;
 
@@ -90,7 +99,7 @@ interface Token { kind: TokenKind; value: string; start: number; end: number; }
 const MULTI = [
     '>>=','<<=',
     '++','--',
-    '&&','||','==','!=','<=','>=','<<','>>',
+    '&&','||','==','!=','<=','>=','<<','>>','->',
     '+=','-=','*=','/=','%=','&=','^=','|='
 ] as const;
 
@@ -107,6 +116,12 @@ class Tokenizer {
         this.s = s;
         this.i = 0;
         this.n = s.length;
+    }
+    public getIndex(): number {
+        return this.i;
+    }
+    public setIndex(i: number): void {
+        this.i = i;
     }
     public eof() {
         return this.i >= this.n;
@@ -142,15 +157,33 @@ class Tokenizer {
         if (isDigit(ch) || (ch === '.' && isDigit(this.peek(1)))) {
             const start = this.i;
             if (ch === '0' && (this.peek(1).toLowerCase() === 'x')) {
-                this.advance(2); while (!this.eof() && /[0-9a-f]/i.test(this.peek())) {
+                this.advance(2);
+                while (!this.eof() && /[0-9a-f_]/i.test(this.peek())) {
                     this.advance();
                 }
+                if (this.peek() === '.') {
+                    this.advance();
+                    while (!this.eof() && /[0-9a-f_]/i.test(this.peek())) {
+                        this.advance();
+                    }
+                }
+                if (this.peek().toLowerCase() === 'p') {
+                    this.advance();
+                    if (/[+-]/.test(this.peek())) {
+                        this.advance();
+                    }
+                    while (!this.eof() && /[0-9_]/.test(this.peek())) {
+                        this.advance();
+                    }
+                }
             } else if (ch === '0' && (this.peek(1).toLowerCase() === 'b')) {
-                this.advance(2); while (!this.eof() && /[01]/.test(this.peek())) {
+                this.advance(2);
+                while (!this.eof() && /[01_]/.test(this.peek())) {
                     this.advance();
                 }
             } else if (ch === '0' && (this.peek(1).toLowerCase() === 'o')) {
-                this.advance(2); while (!this.eof() && /[0-7]/.test(this.peek())) {
+                this.advance(2);
+                while (!this.eof() && /[0-7_]/.test(this.peek())) {
                     this.advance();
                 }
             } else {
@@ -158,17 +191,23 @@ class Tokenizer {
                     this.advance();
                 }
                 if (this.peek() === '.') {
-                    this.advance(); while (!this.eof() && /[0-9_]/.test(this.peek())) {
+                    this.advance();
+                    while (!this.eof() && /[0-9_]/.test(this.peek())) {
                         this.advance();
                     }
                 }
                 if (this.peek().toLowerCase() === 'e') {
-                    this.advance(); if (/[+-]/.test(this.peek())) {
+                    this.advance();
+                    if (/[+-]/.test(this.peek())) {
                         this.advance();
-                    } while (!this.eof() && /[0-9]/.test(this.peek())) {
+                    }
+                    while (!this.eof() && /[0-9_]/.test(this.peek())) {
                         this.advance();
                     }
                 }
+            }
+            while (!this.eof() && /[a-zA-Z]/.test(this.peek())) {
+                this.advance();
             }
             const raw = this.s.slice(start, this.i);
             return { kind:'NUMBER', value:raw, start, end:this.i };
@@ -223,48 +262,18 @@ function span(start:number, end:number) {
 }
 const startOf = (n: ASTNode) => (n as BaseNode).start;
 const endOf = (n: ASTNode) => (n as BaseNode).end;
-const constOf = (n: ASTNode) => (n as BaseNode).constValue;
-const makeNumberLiteral = (value: number, start: number, end: number): NumberLiteral => ({
-    kind: 'NumberLiteral',
-    value,
-    raw: value.toString(),
-    valueType: 'number',
-    constValue: value,
-    ...span(start, end),
-});
-function literalFromConst(cv: ConstValue, start: number, end: number): ASTNode {
-    if (typeof cv === 'number') {
-        return makeNumberLiteral(cv, start, end);
-    }
-    if (typeof cv === 'string') {
-        return { kind: 'StringLiteral', value: cv, raw: JSON.stringify(cv), valueType: 'string', constValue: cv, ...span(start, end) };
-    }
-    if (typeof cv === 'boolean') {
-        return { kind: 'BooleanLiteral', value: cv, valueType: 'boolean', constValue: cv, ...span(start, end) };
-    }
-    return { kind: 'ErrorNode', message: 'Unsupported literal', ...span(start, end) };
-}
 
-function numFromRaw(raw: string): number {
-    try {
-        const cleaned = raw.replace(/_/g, '');
-        if (/^0[xX]/.test(cleaned)) {
-            return parseInt(cleaned.slice(2), 16);
-        }
-        if (/^0[bB]/.test(cleaned)) {
-            return parseInt(cleaned.slice(2), 2);
-        }
-        if (/^0[oO]/.test(cleaned)) {
-            return parseInt(cleaned.slice(2), 8);
-        }
-        if (cleaned.includes('.') || /e/i.test(cleaned)) {
-            return parseFloat(cleaned);
-        } // decimal float
-        return parseInt(cleaned, 10);
-    } catch {
-        /* istanbul ignore next -- defensive fallback; hard to trigger parsing failure */
-        return NaN;
+function constValueFromCValue(value: { type: { kind: string }, value: bigint | number }): number | bigint {
+    if (value.type.kind === 'float') {
+        return value.value as number;
     }
+    const bigintValue = value.value as bigint;
+    const maxSafe = BigInt(Number.MAX_SAFE_INTEGER);
+    const minSafe = BigInt(Number.MIN_SAFE_INTEGER);
+    if (bigintValue > maxSafe || bigintValue < minSafe) {
+        return bigintValue;
+    }
+    return Number(bigintValue);
 }
 
 function unescapeString(rawWithQuotes: string): string {
@@ -290,12 +299,31 @@ function unescapeString(rawWithQuotes: string): string {
             case '\\': out += '\\'; break;
             case '"': out += '"'; break;
             case '\'': out += '\''; break;
-            case '0': out += '\0'; break;
+            case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': {
+                let oct = e;
+                let j = i + 1;
+                let count = 0;
+                while (count < 2 && j < s.length && /[0-7]/.test(s.charAt(j))) {
+                    oct += s.charAt(j);
+                    j++;
+                    count++;
+                }
+                const code = parseInt(oct, 8);
+                out += String.fromCharCode(code & 0xFF);
+                i = j - 1;
+                break;
+            }
             case 'x': {
-                const h1 = s.charAt(i+1), h2 = s.charAt(i+2);
-                if (h1 && h2 && /[0-9a-fA-F]/.test(h1) && /[0-9a-fA-F]/.test(h2)) {
-                    out += String.fromCharCode(parseInt(h1 + h2, 16));
-                    i += 2;
+                let j = i + 1;
+                let hex = '';
+                while (j < s.length && /[0-9a-fA-F]/.test(s.charAt(j))) {
+                    hex += s.charAt(j);
+                    j++;
+                }
+                if (hex.length > 0) {
+                    const code = parseInt(hex, 16);
+                    out += String.fromCharCode(code & 0xFF);
+                    i = j - 1;
                 } else {
                     out += 'x';
                 }
@@ -328,71 +356,26 @@ function unescapeString(rawWithQuotes: string): string {
     return out;
 }
 
-function normalizeConstValue(v: unknown): ConstValue {
-    /* istanbul ignore next -- parser never produces BigInt; only reachable in synthetic tests */
-    if (typeof v === 'bigint') {
-        return Number(v);
-    }
-    /* istanbul ignore else -- defensive guard, practical inputs are always numeric/string/boolean */
-    if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') {
-        return v;
-    }
-    /* istanbul ignore next -- defensive fallback for unexpected const types */
-    return undefined;
-}
-
-function foldBinaryConst(op: string, a: ConstValue, b: ConstValue): ConstValue | undefined {
-    // Probe numeric coercions early to surface any user-defined valueOf/toString errors (legacy behavior).
-    Number(a as number);
-    Number(b as number);
-
-    switch (op) {
-        case '+': return normalizeConstValue(addVals(a, b));
-        case '-': return normalizeConstValue(subVals(a, b));
-        case '*': return normalizeConstValue(mulVals(a, b));
-        case '/': {
-            const bn = toNumeric(b);
-            /* istanbul ignore else -- zero is caught above; other cases return numeric */
-            if ((typeof bn === 'number' && bn === 0) || (typeof bn === 'bigint' && bn === 0n)) {
-                return undefined;
-            }
-            return normalizeConstValue(divVals(a, b));
-        }
-        case '%': {
-            const bn = toNumeric(b);
-            /* istanbul ignore else -- zero is caught above; other cases return numeric */
-            if ((typeof bn === 'number' && bn === 0) || (typeof bn === 'bigint' && bn === 0n)) {
-                return undefined;
-            }
-            return normalizeConstValue(modVals(a, b));
-        }
-        case '<<': return normalizeConstValue(shlVals(a, b));
-        case '>>': return normalizeConstValue(sarVals(a, b));
-        case '&': return normalizeConstValue(andVals(a, b));
-        case '^': return normalizeConstValue(xorVals(a, b));
-        case '|': return normalizeConstValue(orVals(a, b));
-    }
-    return undefined;
-}
-
-function isZeroConst(v: ConstValue): boolean {
-    const n = toNumeric(v);
-    return (typeof n === 'number') ? n === 0 : n === 0n;
-}
-
-function isTruthyConst(v: ConstValue): boolean {
-    return !!v;
-}
-
 export class Parser {
     private s = '';
     private tok = new Tokenizer('');
     private cur: Token = this.tok.next();
     private diagnostics: Diagnostic[] = [];
     private externals: Set<string> = new Set();
-    private foldStats = { full: 0, partial: 0, identity: 0 };
+    private _model: IntegerModel;
+    private static readonly TYPE_KEYWORDS = new Set([
+        'void','char','short','int','long','float','double','signed','unsigned','bool','_bool','_Bool','size_t','ptrdiff_t'
+    ]);
 
     /* ---------- lifecycle ---------- */
+
+    constructor(model: IntegerModel = DEFAULT_INTEGER_MODEL) {
+        this._model = model;
+    }
+
+    public setIntegerModel(model: IntegerModel): void {
+        this._model = model;
+    }
 
     private reinit(s:string) {
         this.s = s;
@@ -435,8 +418,6 @@ export class Parser {
 
     public parse(input: string, isPrintExpression: boolean): ParseResult {
         this.reinit(input);
-        this.foldStats = { full: 0, partial: 0, identity: 0 };
-
         let ast: ASTNode;
         let isPrintf = false;
 
@@ -465,19 +446,11 @@ export class Parser {
             }
         }
 
-        // Constant folding only for non-printf ASTs
-        ast = this.fold(ast);
-        if (this.diagnostics.some((d) => d.type === 'error')) {
-            componentViewerLogger.error(`[SCVD][parser][fold] full=${this.foldStats.full} partial=${this.foldStats.partial} identity=${this.foldStats.identity}`);
-        }
-        const constValue = isPrintf ? undefined : ast.constValue;
-
         return {
             ast,
             diagnostics: this.diagnostics.slice(),
             externalSymbols: Array.from(this.externals).sort(),
             isPrintf,
-            constValue,
         };
     }
 
@@ -509,6 +482,53 @@ export class Parser {
     private curIs(kind: TokenKind, value?: string): boolean {
         const t = this.cur;
         return t.kind === kind && (value === undefined || t.value === value);
+    }
+
+    private isTypeKeyword(name: string): boolean {
+        if (Parser.TYPE_KEYWORDS.has(name)) {
+            return true;
+        }
+        return /_t$/.test(name);
+    }
+
+    private tryParseTypeNameInParens(): { typeName: string; start: number; end: number } | undefined {
+        const savedIndex = this.tok.getIndex();
+        const savedCur = this.cur;
+        const startTok = this.tryEat('PUNCT', '(');
+        if (!startTok) {
+            return undefined;
+        }
+        if (!this.curIs('IDENT')) {
+            this.tok.setIndex(savedIndex);
+            this.cur = savedCur;
+            return undefined;
+        }
+        if (!this.isTypeKeyword(this.cur.value)) {
+            this.tok.setIndex(savedIndex);
+            this.cur = savedCur;
+            return undefined;
+        }
+        const parts: string[] = [];
+        while (this.curIs('IDENT') || this.curIs('PUNCT', '*')) {
+            parts.push(this.cur.value);
+            this.cur = this.tok.next();
+        }
+        if (!this.curIs('PUNCT', ')')) {
+            this.tok.setIndex(savedIndex);
+            this.cur = savedCur;
+            return undefined;
+        }
+        const endTok = this.eat('PUNCT', ')');
+        return { typeName: parts.join(' '), start: startTok.start, end: endTok.end };
+    }
+
+    private tryParseCast(): CastExpression | undefined {
+        const maybeType = this.tryParseTypeNameInParens();
+        if (!maybeType) {
+            return undefined;
+        }
+        const arg = this.parseUnary();
+        return { kind:'CastExpression', typeName: maybeType.typeName, argument: arg, ...span(maybeType.start, endOf(arg)) };
     }
 
     // Generic printf detection: %% or %x[ ... ] for ANY non-space spec x
@@ -630,7 +650,6 @@ export class Parser {
         this.externals = new Set<string>();
 
         const node = this.parseExpression();
-        const folded = this.fold(node);
 
         // consume optional semicolons and check for trailing junk
         while (this.cur.kind === 'PUNCT' && this.cur.value === ';') {
@@ -650,13 +669,26 @@ export class Parser {
         this.cur = savedCur;
         this.diagnostics = savedDiag;
         this.externals = savedExt;
-        return folded;
+        return node;
     }
 
     /* ---------- expression parsing ---------- */
 
     private parseExpression(): ASTNode {
-        return this.parseAssignment();
+        return this.parseComma();
+    }
+
+    private parseComma(): ASTNode {
+        let node = this.parseAssignment();
+        while (this.curIs('PUNCT', ',')) {
+            const comma = this.eat('PUNCT', ',');
+            const rhs = this.parseAssignment();
+            node = { kind:'BinaryExpression', operator:',', left:node, right:rhs, ...span(startOf(node), endOf(rhs)) };
+            if (comma) {
+                // no-op; keeps structure
+            }
+        }
+        return node;
     }
 
     private parseConditional(): ASTNode {
@@ -725,6 +757,28 @@ export class Parser {
     private parseUnary(): ASTNode {
         const punct = this.cur.kind === 'PUNCT' ? this.cur.value : undefined;
 
+        if (this.cur.kind === 'IDENT' && (this.cur.value === 'sizeof' || this.cur.value === 'alignof')) {
+            const keyword = this.cur.value;
+            const t = this.eat('IDENT');
+            const typeName = this.tryParseTypeNameInParens();
+            if (typeName) {
+                if (keyword === 'sizeof') {
+                    return { kind:'SizeofExpression', typeName: typeName.typeName, ...span(t.start, typeName.end) };
+                }
+                return { kind:'AlignofExpression', typeName: typeName.typeName, ...span(t.start, typeName.end) };
+            }
+            const arg = this.parseUnary();
+            if (keyword === 'sizeof') {
+                return { kind:'SizeofExpression', argument: arg, ...span(t.start, endOf(arg)) };
+            }
+            return { kind:'AlignofExpression', argument: arg, ...span(t.start, endOf(arg)) };
+        }
+
+        const cast = this.tryParseCast();
+        if (cast) {
+            return cast;
+        }
+
         if (punct && (punct === '++' || punct === '--')) {
             const op = punct;
             const t = this.eat('PUNCT', op);
@@ -735,7 +789,7 @@ export class Parser {
             return { kind:'UpdateExpression', operator: op as UpdateExpression['operator'], argument: arg, prefix: true, ...span(t.start, endOf(arg)) };
         }
 
-        if (punct && ['+', '-', '!', '~'].includes(punct)) {
+        if (punct && ['+', '-', '!', '~', '*', '&'].includes(punct)) {
             const op = punct;
             const t = this.eat('PUNCT', op);
             const arg = this.parseUnary();
@@ -777,7 +831,8 @@ export class Parser {
                         lastEnd = idt.end;
                     }
                 }
-                node = { kind:'ColonPath', parts, valueType:'unknown', ...span(startPos, lastEnd) };
+                const colonNode: ColonPath = { kind:'ColonPath', parts, valueType:'unknown', ...span(startPos, lastEnd) };
+                node = colonNode;
                 continue;
             }
 
@@ -791,7 +846,7 @@ export class Parser {
                 const args: ASTNode[] = [];
                 if (!(this.cur.kind === 'PUNCT' && this.cur.value === ')')) {
                     while (true) {
-                        args.push(this.parseExpression());
+                        args.push(this.parseAssignment());
                         if (this.tryEat('PUNCT',',')) {
                             continue;
                         }
@@ -840,9 +895,28 @@ export class Parser {
                 if (this.cur.kind === 'IDENT') {
                     const prop = this.cur.value;
                     const idt = this.eat('IDENT');
-                    node = { kind:'MemberAccess', object:node, property:prop, ...span(startOf(node), idt.end) };
+                    const memberNode: MemberAccess = { kind:'MemberAccess', object:node, property:prop, ...span(startOf(node), idt.end) };
+                    node = memberNode;
                 } else {
                     this.error('Expected identifier after "."', this.cur.start, this.cur.end);
+                }
+                continue;
+            }
+            // pointer member access
+            if (this.tryEat('PUNCT','->')) {
+                if (this.cur.kind === 'IDENT') {
+                    const prop = this.cur.value;
+                    const idt = this.eat('IDENT');
+                    const deref: UnaryExpression = {
+                        kind:'UnaryExpression',
+                        operator:'*',
+                        argument: node,
+                        ...span(startOf(node), endOf(node))
+                    };
+                    const memberNode: MemberAccess = { kind:'MemberAccess', object:deref, property:prop, ...span(startOf(node), idt.end) };
+                    node = memberNode;
+                } else {
+                    this.error('Expected identifier after "->"', this.cur.start, this.cur.end);
                 }
                 continue;
             }
@@ -852,7 +926,8 @@ export class Parser {
                 if (!this.tryEat('PUNCT', ']')) {
                     this.error('Expected "]"', this.cur.start, this.cur.end);
                 }
-                node = { kind:'ArrayIndex', array:node, index, ...span(startOf(node), endOf(index)) };
+                const arrayNode: ArrayIndex = { kind:'ArrayIndex', array:node, index, ...span(startOf(node), endOf(index)) };
+                node = arrayNode;
                 continue;
             }      // postfix ++ / --
             if (this.cur.kind === 'PUNCT' && (this.cur.value === '++' || this.cur.value === '--')) {
@@ -873,7 +948,8 @@ export class Parser {
         const t = this.cur;
         if (t.kind === 'NUMBER') {
             this.eat('NUMBER');
-            const val = numFromRaw(t.value);
+            const parsed = parseNumericLiteral(t.value, this._model);
+            const val = constValueFromCValue(parsed);
             return { kind:'NumberLiteral', value:val, raw:t.value, valueType:'number', constValue: val, ...span(t.start,t.end) };
         }
         if (t.kind === 'STRING') {
@@ -882,7 +958,9 @@ export class Parser {
             const isCharLiteral = t.value.startsWith('\'') && t.value.endsWith('\'');
             if (isCharLiteral) {
                 const code = text.codePointAt(0) ?? 0;
-                const val = (code >>> 0);
+                const charType = { kind: 'int', bits: this._model.intBits, name: 'int' } as const;
+                const cv = convertToType(cValueFromConst(code, charType), charType);
+                const val = constValueFromCValue(cv);
                 return { kind:'NumberLiteral', value:val, raw:t.value, valueType:'number', constValue: val, ...span(t.start,t.end) };
             }
             return { kind:'StringLiteral', value:text, raw:t.value, valueType:'string', constValue: text, ...span(t.start,t.end) };
@@ -913,281 +991,4 @@ export class Parser {
         return { kind:'ErrorNode', message:'Unexpected token', ...span(t.start,t.end) };
     }
 
-    /* ---------- constant folding ---------- */
-
-    private fold(node: ASTNode): ASTNode {
-        const k = node.kind;
-
-        if (k === 'NumberLiteral' || k === 'StringLiteral' || k === 'BooleanLiteral') {
-            return { ...node, constValue: node.value };
-        }
-        if (k === 'Identifier') {
-            return node;
-        }
-        if (k === 'ColonPath') {
-            return node;
-        }
-        if (k === 'MemberAccess') {
-            return { ...node, object: this.fold((node as MemberAccess).object) };
-        }
-        if (k === 'ArrayIndex') {
-            return { ...node, array: this.fold((node as ArrayIndex).array), index: this.fold((node as ArrayIndex).index) };
-        }
-
-        if (k === 'UnaryExpression') {
-            const arg = this.fold((node as UnaryExpression).argument);
-            const op = (node as UnaryExpression).operator;
-            const res: UnaryExpression & { constValue?: ConstValue } = { ...(node as UnaryExpression), argument: arg };
-            const v = constOf(arg);
-            if (v !== undefined) {
-                try {
-                    let cv: ConstValue;
-                    if (op === '+') {
-                        cv = Number(v);
-                    } else if (op === '-') {
-                        cv = -Number(v);
-                    } else if (op === '!') {
-                        cv = !v;
-                    } else if (op === '~') {
-                        const toggled = maskToBits(~Number(v), 32);
-                        /* istanbul ignore next -- BigInt path only triggered by synthetic inputs */
-                        cv = typeof toggled === 'bigint' ? Number(toggled) : toggled;
-                    }
-                    if (cv !== undefined) {
-                        res.constValue = cv;
-                    }
-                } catch (err) {
-                    const msg = err instanceof Error ? err.message : String(err);
-                    this.error(`Failed to fold unary expression ${op}: ${msg}`, startOf(node), endOf(node));
-                }
-                if (res.constValue !== undefined) {
-                    this.foldStats.full += 1;
-                    return literalFromConst(res.constValue, startOf(node), endOf(node));
-                }
-            }
-            return res;
-        }
-
-        if (k === 'UpdateExpression') {
-            const ue = node as UpdateExpression;
-            return { ...ue, argument: this.fold(ue.argument) };
-        }
-
-        if (k === 'BinaryExpression') {
-            const left = this.fold((node as BinaryExpression).left);
-            const right = this.fold((node as BinaryExpression).right);
-            const op = (node as BinaryExpression).operator;
-            const res: BinaryExpression & { constValue?: ConstValue } = { ...(node as BinaryExpression), left, right };
-            const la = constOf(left); const ra = constOf(right);
-            const hasL = la !== undefined; const hasR = ra !== undefined;
-            if (hasL && hasR) {
-                try {
-                    let cv: ConstValue;
-                    const a = la as Exclude<ConstValue, undefined>;
-                    const b = ra as Exclude<ConstValue, undefined>;
-                    switch (op) {
-                        case '==': cv = a == b; break;
-                        case '!=': cv = a != b; break;
-                        case '<': cv = a < b; break;
-                        case '<=': cv = a <= b; break;
-                        case '>': cv = a > b; break;
-                        case '>=': cv = a >= b; break;
-                        case '&&': cv = !!a && !!b; break;
-                        case '||': cv = !!a || !!b; break;
-                        default: {
-                            const folded = foldBinaryConst(op, a, b);
-                            if (folded === undefined) {
-                                if ((op === '/' || op === '%') && isZeroConst(b)) {
-                                    this.error('Division by zero', startOf(node), endOf(node));
-                                }
-                            } else {
-                                cv = folded;
-                            }
-                            break;
-                        }
-                    }
-                    if (cv !== undefined) {
-                        res.constValue = cv;
-                    }
-                } catch (err) {
-                    const msg = err instanceof Error ? err.message : String(err);
-                    this.error(`Failed to fold binary expression ${op}: ${msg}`, startOf(node), endOf(node));
-                }
-                if (res.constValue !== undefined) {
-                    this.foldStats.full += 1;
-                    return literalFromConst(res.constValue, startOf(node), endOf(node));
-                }
-            } else {
-                if (op === '&&' && hasL && !isTruthyConst(la as ConstValue)) {
-                    this.foldStats.full += 1;
-                    return literalFromConst(false, startOf(node), endOf(node));
-                }
-                if (op === '||' && hasL && isTruthyConst(la as ConstValue)) {
-                    this.foldStats.full += 1;
-                    return literalFromConst(true, startOf(node), endOf(node));
-                }
-            }
-
-            const leftConst = constOf(left);
-            const rightConst = constOf(right);
-            const leftNum = typeof leftConst === 'number' ? leftConst : undefined;
-            const rightNum = typeof rightConst === 'number' ? rightConst : undefined;
-
-            if (op === '&&' && rightConst !== undefined && isTruthyConst(rightConst)) {
-                this.foldStats.identity += 1;
-                return left;
-            }
-            if (op === '||' && rightConst !== undefined && !isTruthyConst(rightConst)) {
-                this.foldStats.identity += 1;
-                return left;
-            }
-            if (op === '+' && rightNum === 0) {
-                this.foldStats.identity += 1;
-                return left;
-            }
-            if (op === '+' && leftNum === 0) {
-                this.foldStats.identity += 1;
-                return right;
-            }
-            if (op === '-' && rightNum === 0) {
-                this.foldStats.identity += 1;
-                return left;
-            }
-            if (op === '*' && rightNum === 1) {
-                this.foldStats.identity += 1;
-                return left;
-            }
-            if (op === '*' && leftNum === 1) {
-                this.foldStats.identity += 1;
-                return right;
-            }
-            if (op === '/' && rightNum === 1) {
-                this.foldStats.identity += 1;
-                return left;
-            }
-            if (op === '|' && rightNum === 0) {
-                this.foldStats.identity += 1;
-                return left;
-            }
-            if (op === '|' && leftNum === 0) {
-                this.foldStats.identity += 1;
-                return right;
-            }
-            if (op === '^' && rightNum === 0) {
-                this.foldStats.identity += 1;
-                return left;
-            }
-            if (op === '^' && leftNum === 0) {
-                this.foldStats.identity += 1;
-                return right;
-            }
-            if (op === '<<' && rightNum === 0) {
-                this.foldStats.identity += 1;
-                return left;
-            }
-            if (op === '>>' && rightNum === 0) {
-                this.foldStats.identity += 1;
-                return left;
-            }
-
-            // Partial folding: combine trailing numeric constants in addition/subtraction chains.
-            if ((op === '+' || op === '-') && rightNum !== undefined && left.kind === 'BinaryExpression') {
-                const lb = left as BinaryExpression;
-                const lbRightConst = constOf(lb.right);
-                if ((lb.operator === '+' || lb.operator === '-') && typeof lbRightConst === 'number') {
-                    let combined = 0;
-                    let newOp: '+' | '-' = '+';
-                    if (lb.operator === '+' && op === '+') {
-                        combined = lbRightConst + rightNum;
-                        newOp = '+';
-                    } else if (lb.operator === '+' && op === '-') {
-                        combined = lbRightConst - rightNum;
-                        newOp = '+';
-                    } else if (lb.operator === '-' && op === '+') {
-                        combined = rightNum - lbRightConst;
-                        newOp = '+';
-                    } else {
-                        combined = lbRightConst + rightNum;
-                        newOp = '-';
-                    }
-                    const newRight = makeNumberLiteral(combined, startOf(right), endOf(right));
-                    const newLeft = lb.left;
-                    this.foldStats.partial += 1;
-                    return {
-                        kind: 'BinaryExpression',
-                        operator: newOp,
-                        left: newLeft,
-                        right: newRight,
-                        ...span(startOf(newLeft), endOf(newRight)),
-                    };
-                }
-            }
-
-            // Partial folding: combine trailing numeric constants in multiplication chains.
-            if (op === '*' && rightNum !== undefined && left.kind === 'BinaryExpression') {
-                const lb = left as BinaryExpression;
-                const lbRightConst = constOf(lb.right);
-                if (lb.operator === '*' && typeof lbRightConst === 'number') {
-                    const combined = lbRightConst * rightNum;
-                    const newRight = makeNumberLiteral(combined, startOf(right), endOf(right));
-                    const newLeft = lb.left;
-                    this.foldStats.partial += 1;
-                    return {
-                        kind: 'BinaryExpression',
-                        operator: '*',
-                        left: newLeft,
-                        right: newRight,
-                        ...span(startOf(newLeft), endOf(newRight)),
-                    };
-                }
-            }
-            return res;
-        }
-
-        if (k === 'AssignmentExpression') {
-            const ae = node as AssignmentExpression;
-            const right = this.fold(ae.right);
-            // Do not fold assignments to constants; keep side effects for evaluator
-            return { ...ae, right };
-        }
-
-        if (k === 'ConditionalExpression') {
-            const test = this.fold((node as ConditionalExpression).test);
-            const cons = this.fold((node as ConditionalExpression).consequent);
-            const alt = this.fold((node as ConditionalExpression).alternate);
-            const res: ConditionalExpression & { constValue?: ConstValue } = { ...(node as ConditionalExpression), test, consequent: cons, alternate: alt };
-            const testConst = constOf(test);
-            if (testConst !== undefined) {
-                this.foldStats.identity += 1;
-                return isTruthyConst(testConst) ? cons : alt;
-            }
-            return res;
-        }
-
-        if (k === 'CallExpression' || k === 'EvalPointCall') {
-            const args = (node as CallExpression | EvalPointCall).args.map((a:ASTNode)=> this.fold(a));
-            return { ...(node as CallExpression | EvalPointCall), args };
-        }
-
-        if (k === 'PrintfExpression') {
-            return { ...node, segments: (node as PrintfExpression).segments.map(seg => {
-                if (seg.kind === 'FormatSegment') {
-                    return { ...seg, value: this.fold(seg.value) };
-                }
-                return seg;
-            }) };
-        }
-
-        return node;
-    }
-}
-
-/* -------- Convenience singleton and API -------- */
-
-// Internal helpers exposed for tests.
-export const __parserTestUtils = { literalFromConst, normalizeConstValue, isZeroConst };
-
-export const defaultParser = new Parser();
-export function parseExpression(expr: string, isPrintExpression: boolean): ParseResult {
-    return defaultParser.parseWithDiagnostics(expr, isPrintExpression);
 }

@@ -179,7 +179,6 @@ export class ComponentViewerInstance {
         await this.executeStatements(this._guiTree);
         stats.push(this.getStats('end'));
         console.log('ComponentViewerInstance update stats:\n' + stats.join('\n  '));
-        perf?.logSummaries();
     }
 
     private async readFileToBuffer(filePath: URI): Promise<Buffer> {

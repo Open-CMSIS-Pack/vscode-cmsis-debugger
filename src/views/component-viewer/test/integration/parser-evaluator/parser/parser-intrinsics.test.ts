@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
  * Integration test for ParserIntrinsics.
  */
 
-import { parseExpression, EvalPointCall, Identifier } from '../../../../parser-evaluator/parser';
+import { EvalPointCall, Identifier } from '../../../../parser-evaluator/parser';
+import { parseExpressionForTest as parseExpression } from '../../../unit/helpers/parse-expression';
 import { INTRINSIC_DEFINITIONS, type IntrinsicName } from '../../../../parser-evaluator/intrinsics';
 
 type IntrinsicFixture = {

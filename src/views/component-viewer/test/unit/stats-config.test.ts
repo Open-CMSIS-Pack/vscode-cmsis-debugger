@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
@@ -21,10 +20,12 @@
  */
 
 import { PerfStats } from '../../perf-stats';
+import { ParsePerfStats } from '../../parse-perf-stats';
 import { TargetReadStats, TargetReadTiming } from '../../target-read-stats';
 
 type GlobalOverrides = {
     __SCVD_PERF_ENABLED__?: boolean;
+    __SCVD_PARSE_PERF_ENABLED__?: boolean;
     __SCVD_TARGET_READ_STATS_ENABLED__?: boolean;
 };
 
@@ -38,6 +39,7 @@ async function loadConfig() {
 describe('stats-config', () => {
     afterEach(() => {
         delete overrides.__SCVD_PERF_ENABLED__;
+        delete overrides.__SCVD_PARSE_PERF_ENABLED__;
         delete overrides.__SCVD_TARGET_READ_STATS_ENABLED__;
     });
 
@@ -45,18 +47,30 @@ describe('stats-config', () => {
         const mod = await loadConfig();
 
         expect(mod.perf).toBeUndefined();
-        expect(mod.targetReadStats?.constructor.name).toBe(TargetReadStats.name);
-        expect(mod.targetReadTimingStats?.constructor.name).toBe(TargetReadTiming.name);
+        expect(mod.parsePerf).toBeUndefined();
+        expect(mod.targetReadStats).toBeUndefined();
+        expect(mod.targetReadTimingStats).toBeUndefined();
     });
 
     it('respects global overrides for perf and target read stats', async () => {
         overrides.__SCVD_PERF_ENABLED__ = true;
+        overrides.__SCVD_PARSE_PERF_ENABLED__ = true;
         overrides.__SCVD_TARGET_READ_STATS_ENABLED__ = false;
 
         const mod = await loadConfig();
 
         expect(mod.perf?.constructor.name).toBe(PerfStats.name);
+        expect(mod.parsePerf?.constructor.name).toBe(ParsePerfStats.name);
         expect(mod.targetReadStats).toBeUndefined();
         expect(mod.targetReadTimingStats).toBeUndefined();
+    });
+
+    it('respects target read stats override', async () => {
+        overrides.__SCVD_TARGET_READ_STATS_ENABLED__ = true;
+
+        const mod = await loadConfig();
+
+        expect(mod.targetReadStats?.constructor.name).toBe(TargetReadStats.name);
+        expect(mod.targetReadTimingStats?.constructor.name).toBe(TargetReadTiming.name);
     });
 });

@@ -283,7 +283,9 @@ export class StatementReadList extends StatementBase {
                     for (let readIdx = 0; readIdx < count; readIdx++) {
                         const itemOffset = readIdx * readBytes;
                         const itemData = readData.subarray(itemOffset, itemOffset + readBytes);
-                        const itemAddress = baseNum + BigInt(readIdx * targetSize);
+                        const itemAddress = typeof baseAddress === 'bigint'
+                            ? baseNum + BigInt(readIdx * targetSize)
+                            : baseAddress + (readIdx * targetSize);
                         executionContext.memoryHost.setVariable(
                             itemName,
                             readBytes,

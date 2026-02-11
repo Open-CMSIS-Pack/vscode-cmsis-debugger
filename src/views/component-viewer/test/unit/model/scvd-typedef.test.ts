@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
@@ -349,6 +348,29 @@ describe('ScvdTypedef', () => {
 
         await typedef.calculateTypedef();
         expect(offsetsSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('configures member and var expressions before calculating typedefs', async () => {
+        const typedef = new ScvdTypedef(undefined);
+        const member = typedef.addMember();
+        member.offset = '1';
+        member.size = '2';
+        const varItem = typedef.addVar();
+        varItem.offset = '3';
+        varItem.size = '4';
+
+        const memberOffsetSpy = jest.spyOn(member.offset as ScvdExpression, 'configure');
+        const memberSizeSpy = jest.spyOn(member.size as ScvdExpression, 'configure');
+        const varOffsetSpy = jest.spyOn(varItem.offset as ScvdExpression, 'configure');
+        const varSizeSpy = jest.spyOn(varItem.size as ScvdExpression, 'configure');
+        jest.spyOn(typedef, 'calculateOffsets').mockResolvedValue();
+
+        await typedef.calculateTypedef();
+
+        expect(memberOffsetSpy).toHaveBeenCalled();
+        expect(memberSizeSpy).toHaveBeenCalled();
+        expect(varOffsetSpy).toHaveBeenCalled();
+        expect(varSizeSpy).toHaveBeenCalled();
     });
 
     it('updates import name when import already exists', () => {

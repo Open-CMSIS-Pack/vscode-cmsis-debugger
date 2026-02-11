@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
 import { ScvdBreak, ScvdBreaks } from '../../../model/scvd-break';
 import { ScvdCalc } from '../../../model/scvd-calc';

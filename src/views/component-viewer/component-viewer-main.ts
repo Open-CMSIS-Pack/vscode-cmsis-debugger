@@ -21,6 +21,7 @@ import { URI } from 'vscode-uri';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
 import { componentViewerLogger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
+import { perf, parsePerf } from './stats-config';
 
 export type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace' | 'stackItemChanged';
 
@@ -108,6 +109,7 @@ export class ComponentViewer {
         if (scvdFilesPaths.length === 0) {
             return undefined;
         }
+        parsePerf?.reset();
         const cbuildRunInstances: ComponentViewerInstance[] = [];
         for (const scvdFilePath of scvdFilesPaths) {
             const instance = new ComponentViewerInstance();
@@ -116,6 +118,7 @@ export class ComponentViewer {
                 cbuildRunInstances.push(instance);
             }
         }
+        parsePerf?.logSummary();
         // Store loaded instances, set default lock state to false
         this._instances.push(...cbuildRunInstances.map(instance => ({
             componentViewerInstance: instance,
@@ -268,6 +271,8 @@ export class ComponentViewer {
         if (this._instances.length === 0) {
             return;
         }
+        perf?.resetBackendStats();
+        perf?.resetUiStats();
         const roots: ScvdGuiInterface[] = [];
         for (const instance of this._instances) {
             // Check if instance belongs to the active session, if not skip it and clear its data from the tree view.
@@ -291,7 +296,7 @@ export class ComponentViewer {
                 roots[roots.length - 1].isRootInstance = true;
             }
         }
+        perf?.logSummaries();
         this._componentViewerTreeDataProvider?.setRoots(roots);
     }
 }
-
