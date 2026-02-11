@@ -19,6 +19,7 @@
  * Unit test for ComponentViewerTreeDataProvider.
  */
 
+import * as vscode from 'vscode';
 import { ComponentViewerTreeDataProvider } from '../../component-viewer-tree-view';
 import type { ScvdGuiInterface } from '../../model/scvd-gui-interface';
 
@@ -30,10 +31,20 @@ jest.mock('vscode', () => {
         public event = jest.fn();
     }
 
+    class MarkdownString {
+        public value: string;
+        public supportHtml = false;
+
+        constructor(value: string) {
+            this.value = value;
+        }
+    }
+
     class TreeItem {
         public label: string;
         public collapsibleState: number | undefined;
         public description: string | undefined;
+        public tooltip: string | MarkdownString | undefined;
         public id: string | undefined;
         public contextValue: string | undefined;
 
@@ -44,6 +55,7 @@ jest.mock('vscode', () => {
 
     return {
         EventEmitter,
+        MarkdownString,
         TreeItem,
         TreeItemCollapsibleState: {
             Collapsed: 1,
@@ -104,12 +116,38 @@ describe('ComponentViewerTreeDataProvider', () => {
         expect(treeItemWithChildren.collapsibleState).toBe(1);
         expect(treeItemWithChildren.description).toBe('Value');
         expect(treeItemWithChildren.id).toBe('id-1');
+        const resolvedWith = provider.resolveTreeItem(treeItemWithChildren, withChildren) as vscode.TreeItem;
+        expect(resolvedWith.tooltip).toBeInstanceOf(vscode.MarkdownString);
+        const tooltipWith = resolvedWith.tooltip as { value: string; supportHtml: boolean };
+        expect(tooltipWith.value).toBe('**Node**  \nValue');
+        expect(tooltipWith.supportHtml).toBe(true);
 
         const treeItemWithout = provider.getTreeItem(withoutChildren);
         expect(treeItemWithout.label).toBe('UNKNOWN');
         expect(treeItemWithout.collapsibleState).toBe(0);
         expect(treeItemWithout.description).toBe('');
         expect(treeItemWithout.id).toBeUndefined();
+        const resolvedWithout = provider.resolveTreeItem(treeItemWithout, withoutChildren) as vscode.TreeItem;
+        expect(resolvedWithout.tooltip).toBeUndefined();
+    });
+
+    it('formats tooltip for name-only, value-only, and empty values', () => {
+        const provider = new ComponentViewerTreeDataProvider();
+        const nameOnly = makeGui({ getGuiValue: () => undefined });
+        const valueOnly = makeGui({ getGuiName: () => undefined });
+        const emptyBoth = makeGui({ getGuiName: () => undefined, getGuiValue: () => undefined });
+
+        const nameItem = provider.resolveTreeItem(new vscode.TreeItem('Label'), nameOnly) as vscode.TreeItem;
+        expect(nameItem.tooltip).toBeInstanceOf(vscode.MarkdownString);
+        const nameTooltip = nameItem.tooltip as { value: string; supportHtml: boolean };
+        expect(nameTooltip.value).toBe('**Node**');
+        expect(nameTooltip.supportHtml).toBe(false);
+
+        const valueItem = provider.resolveTreeItem(new vscode.TreeItem('Label'), valueOnly) as vscode.TreeItem;
+        expect(valueItem.tooltip).toBe('Value');
+
+        const emptyItem = provider.resolveTreeItem(new vscode.TreeItem('Label'), emptyBoth) as vscode.TreeItem;
+        expect(emptyItem.tooltip).toBeUndefined();
     });
 
     it('assigns locked context values for root and child nodes', () => {
