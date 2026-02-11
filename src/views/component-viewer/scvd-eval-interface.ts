@@ -348,10 +348,10 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     */
     public async __CalcMemUsed(stackAddress: number, stackSize: number, fillPattern: number, magicValue: number): Promise<number | undefined> {
         const memUsed = await this.debugTarget.calculateMemoryUsage(
-            stackAddress >>> 0,
-            stackSize >>> 0,
-            fillPattern >>> 0,
-            magicValue >>> 0
+            stackAddress,
+            stackSize,
+            fillPattern,
+            magicValue
         );
         return memUsed;
     }

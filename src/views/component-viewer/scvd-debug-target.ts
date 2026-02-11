@@ -415,54 +415,62 @@ export class ScvdDebugTarget {
         return this.readMemory(address, maxLength * bytesPerChar);
     }
 
+    private normalizeCalcMemUsedArgs(
+        stackAddress: number,
+        stackSize: number,
+        fillPattern: number,
+        magicValue: number
+    ): { addr: number; size: number; fill: number; magic: number } {
+        const toUint32 = (value: number): number => (Number.isFinite(value) ? (value >>> 0) : 0);
+        return {
+            addr: toUint32(stackAddress),
+            size: toUint32(stackSize),
+            fill: toUint32(fillPattern),
+            magic: toUint32(magicValue),
+        };
+    }
+
     public async calculateMemoryUsage(startAddress: number, size: number, FillPattern: number, MagicValue: number): Promise<number | undefined> {
-        const memData = await this.readMemory(startAddress, size);
-        if (memData !== undefined) {
-            let usedBytes = 0;
-            const fillPatternBytes = new Uint8Array(4);
-            const magicValueBytes = new Uint8Array(4);
-            // Use FillPattern for the fill pattern bytes (little-endian)
-            fillPatternBytes[0] = (FillPattern & 0xFF);
-            fillPatternBytes[1] = (FillPattern >> 8) & 0xFF;
-            fillPatternBytes[2] = (FillPattern >> 16) & 0xFF;
-            fillPatternBytes[3] = (FillPattern >> 24) & 0xFF;
-            // Use MagicValue for the magic value bytes (little-endian)
-            magicValueBytes[0] = (MagicValue & 0xFF);
-            magicValueBytes[1] = (MagicValue >> 8) & 0xFF;
-            magicValueBytes[2] = (MagicValue >> 16) & 0xFF;
-            magicValueBytes[3] = (MagicValue >> 24) & 0xFF;
+        const normalized = this.normalizeCalcMemUsedArgs(startAddress, size, FillPattern, MagicValue);
+        if (normalized.addr === 0 || normalized.size === 0) {
+            return 0;
+        }
+        const memData = await this.readMemory(normalized.addr, normalized.size);
+        if (memData === undefined || memData.length < normalized.size) {
+            return undefined;
+        }
 
-            for (let i = 0; i < memData.length; i += 4) {
-                const chunk = memData.subarray(i, i + 4);
-                const matchesFill = chunk.every((byte, idx) => byte === fillPatternBytes.at(idx));
-                const matchesMagic = matchesFill || chunk.every((byte, idx) => byte === magicValueBytes.at(idx));
-                if (!matchesMagic) {
-                    usedBytes += chunk.length;
-                }
-            }
+        const k = Math.floor(normalized.size / 4); // number of u32 words
+        if (k <= 0) {
+            return 0;
+        }
 
-            const usedPercent = Math.floor((usedBytes / size) * 100) & 0x1FF;
-            let result = usedBytes & 0xFFFFF; // bits 0..19
-            result |= (usedPercent << 20); // bits 20..28
+        const view = new DataView(memData.buffer, memData.byteOffset, memData.byteLength);
+        const readWord = (index: number): number => view.getUint32(index * 4, true);
+        const word0 = readWord(0);
+        const fill = normalized.fill;
+        const magic = normalized.magic;
 
-            // Check for overflow (MagicValue overwritten)
-            let overflow = true;
-            const tailStart = Math.max(0, memData.length - 4);
-            for (let i = tailStart; i < memData.length; i++) {
-                const expected = magicValueBytes.at(i - tailStart);
-                if (memData.at(i) !== expected) {
-                    overflow = false;
+        let n = 0;
+        if (word0 === magic) {
+            n = 1; // aStk[0] := MAGIC pattern for overflow check.
+            for (; n < k; n += 1) {
+                if (readWord(n) !== fill) {
                     break;
                 }
             }
-            if (overflow) {
-                result |= (1 << 31); // set overflow bit
-            }
-
-            return result;
         }
 
-        return undefined;
+        const usedWords = k - n;
+        const usedBytes = usedWords * 4;
+        const usedPercent = Math.trunc((usedWords * 100) / k);
+
+        let result = (usedBytes & 0xFFFFF) | ((usedPercent & 0xFF) << 20);
+        if (fill !== magic && word0 !== magic) {
+            result |= (1 << 31); // overflow indicator
+        }
+
+        return result >>> 0;
     }
 
 
