@@ -39,13 +39,19 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         treeItem.description = element.getGuiValue() ?? '';
         const intermediateContextValue = element.isRootInstance ? 'parentInstance' : 'child';
         treeItem.contextValue = element.isLocked ? `locked.${intermediateContextValue}` : intermediateContextValue;
-        treeItem.tooltip = (treeItemLabel === 'UNKNOWN' ? '' : treeItemLabel) + '\n' + (treeItem.description);
         const guiId = element.getGuiId();
         if (guiId !== undefined) {
             treeItem.id = guiId;
         }
         perf?.endUi(perfStartTime, 'treeViewGetTreeItemMs', 'treeViewGetTreeItemCalls');
         return treeItem;
+    }
+
+    public resolveTreeItem(item: vscode.TreeItem, element: ScvdGuiInterface): vscode.ProviderResult<vscode.TreeItem> {
+        const perfStartTime = perf?.startUi() ?? 0;
+        item.tooltip = new vscode.MarkdownString((element.getGuiName() === 'UNKNOWN' ? '' : element.getGuiName()) + '\n' + (element.getGuiValue() ?? ''));
+        perf?.endUi(perfStartTime, 'treeViewResolveItemMs', 'treeViewResolveItemCalls');
+        return item;
     }
 
     public getChildren(element?: ScvdGuiInterface): ScvdGuiInterface[] {
