@@ -142,6 +142,8 @@ export class Evaluator {
             normalizeEvaluateResult: this.normalizeEvaluateResult.bind(this),
             formatEvalValueForMessage: this.diagnostics.formatEvalValueForMessage.bind(this.diagnostics),
             formatNodeForMessage: this.diagnostics.formatNodeForMessage.bind(this.diagnostics),
+            toCTypeFromScalarType: this.toCTypeFromScalarType.bind(this),
+            fromCValue: this.fromCValue.bind(this),
         };
     }
 
@@ -1525,7 +1527,7 @@ export class Evaluator {
             }
             const out = await this.evalNodeWithMemo(node, ctx);
             const end = perf?.now() ?? 0;
-            perf?.addEvalNodeChildMs(start, end);
+            perf?.addEvalNodeChildMs?.(start, end);
             return out;
         } finally {
             perf?.end(perfStartTime, 'evalNodeChildMs', 'evalNodeChildCalls');

@@ -202,6 +202,17 @@ describe('ParsePerfStats', () => {
         expect(summary).toContain('optimizeCalls=1');
     });
 
+    it('logs summaries when data exists', () => {
+        const perf = new ParsePerfStats();
+        perf.endParse(perf.start());
+        perf.recordParse(num(1));
+
+        const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+        perf.logSummary();
+        expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[SCVD][parse-perf]'));
+        logSpy.mockRestore();
+    });
+
     it('collects stats without op or callee maps and skips max updates', () => {
         const perf = new ParsePerfStats();
         (perf as unknown as { parseMaxNodes: number; parseMaxDepth: number }).parseMaxNodes = 100;

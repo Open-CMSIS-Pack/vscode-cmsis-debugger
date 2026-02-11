@@ -50,6 +50,12 @@ describe('generate-scvd-expressions', () => {
         expect(decodeEntities('A &unknown; B')).toBe('A &unknown; B');
     });
 
+    it('falls back to the original entity when lookup misses', () => {
+        const getSpy = jest.spyOn(Map.prototype, 'get').mockImplementationOnce(() => undefined);
+        expect(decodeEntities('A &amp; B')).toBe('A &amp; B');
+        getSpy.mockRestore();
+    });
+
     it('writes JSONL with printf detection', () => {
         const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scvd-expr-'));
         const outPath = path.join(tempDir, 'out.jsonl');

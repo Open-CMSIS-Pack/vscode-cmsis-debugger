@@ -409,6 +409,7 @@ describe('PerfStats', () => {
 
         perf.endEvalNodeFrame(1, 2);
         perf.addEvalNodeChildMs(1, 2);
+        perf.addEvalNodeChildMs(0, 2);
         // No assertions beyond verifying no throws and branches were hit.
     });
 

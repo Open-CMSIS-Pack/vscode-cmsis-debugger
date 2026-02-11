@@ -55,6 +55,13 @@ export const INTEGER_MODEL_64: IntegerModel = {
     pointerBits: 64,
 };
 
+let forceDefaultType = false;
+export const __cNumericTestUtils = {
+    setForceDefaultType: (value: boolean): void => {
+        forceDefaultType = value;
+    },
+};
+
 export function integerModelFromKind(kind: IntegerModelKind): IntegerModel {
     return kind === IntegerModelKind.Model64 ? { ...INTEGER_MODEL_64 } : { ...INTEGER_MODEL_32 };
 }
@@ -299,6 +306,9 @@ export function parseNumericLiteral(raw: string, model: IntegerModel = DEFAULT_I
         }
     }
 
+    if (forceDefaultType) {
+        literalType = undefined;
+    }
     const finalType = literalType ?? makeIntType('int', false, model);
     return { type: finalType, value: normalizeIntegerValue(value, finalType) };
 }

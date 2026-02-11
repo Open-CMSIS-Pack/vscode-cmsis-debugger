@@ -380,3 +380,9 @@ export function mergeKinds(a?: ScalarType, b?: ScalarType): ScalarKind | 'unknow
     }
     return 'unknown';
 }
+
+export const __mathOpsTestUtils = {
+    toCType,
+    toCValueFromMath,
+    fromCValue,
+};

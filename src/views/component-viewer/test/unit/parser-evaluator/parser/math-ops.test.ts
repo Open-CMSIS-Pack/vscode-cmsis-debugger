@@ -36,6 +36,7 @@ import {
     toBigInt,
     toNumeric,
     xorVals,
+    __mathOpsTestUtils,
 } from '../../../../parser-evaluator/math-ops';
 
 describe('math-ops helpers', () => {
@@ -135,6 +136,29 @@ describe('math-ops helpers', () => {
         expect(shrVals(8n, 1n, 8)).toBe(4);
     });
 
+    it('returns undefined when operands are missing or unsupported', () => {
+        expect(mulVals(undefined, 1)).toBeUndefined();
+        expect(divVals(undefined, 1)).toBeUndefined();
+        expect(modVals(undefined, 1)).toBeUndefined();
+        expect(andVals(undefined, 1)).toBeUndefined();
+        expect(xorVals(undefined, 1)).toBeUndefined();
+        expect(andVals(1.5, 1)).toBeUndefined();
+    });
+
+    it('propagates failed binary operations', async () => {
+        await jest.isolateModulesAsync(async () => {
+            jest.doMock('../../../../parser-evaluator/c-numeric', () => {
+                const actual = jest.requireActual('../../../../parser-evaluator/c-numeric');
+                return { ...actual, applyBinary: () => undefined };
+            });
+
+            const mod = await import('../../../../parser-evaluator/math-ops');
+            expect(mod.addVals(1, 2)).toBeUndefined();
+            expect(mod.subVals(2, 1)).toBeUndefined();
+            expect(mod.mulVals(2, 2)).toBeUndefined();
+        });
+    });
+
     it('coerces boolean operands for typed arithmetic and bitwise operations', () => {
         expect(addVals(true, false, 8, false)).toBe(1);
         expect(orVals(true, false, 8, false)).toBe(1);
@@ -147,5 +171,33 @@ describe('math-ops helpers', () => {
         expect(mergeKinds({ kind: 'uint' }, { kind: 'float' })).toBe('float');
         expect(mergeKinds({ kind: 'int' }, { kind: 'int' })).toBe('int');
         expect(mergeKinds(undefined, undefined)).toBe('unknown');
+    });
+
+    it('exposes C-type conversions for math helpers', () => {
+        const { toCType, toCValueFromMath, fromCValue } = __mathOpsTestUtils;
+
+        expect(toCType(32, false, 'float')).toEqual({ kind: 'float', bits: 32, name: 'float' });
+        expect(toCType(64, false, 'float')).toEqual({ kind: 'float', bits: 64, name: 'double' });
+        expect(toCType(0, false)).toBeUndefined();
+
+        const floatTarget = { kind: 'float', bits: 64, name: 'double' } as const;
+        expect(toCValueFromMath(1.25, floatTarget)).toEqual({ type: floatTarget, value: 1.25 });
+
+        const boolCv = toCValueFromMath(true);
+        expect(boolCv?.value).toBe(1n);
+
+        const bigIntCv = toCValueFromMath(5n, { kind: 'int', bits: 32, name: 'int' });
+        expect(bigIntCv?.value).toBe(5n);
+
+        expect(fromCValue({ type: { kind: 'int', bits: 32, name: 'int' }, value: BigInt(Number.MAX_SAFE_INTEGER) + 1n })).toBe(
+            BigInt(Number.MAX_SAFE_INTEGER) + 1n,
+        );
+        expect(fromCValue({ type: { kind: 'int', bits: 32, name: 'int' }, value: 5n })).toBe(5);
+        expect(fromCValue({ type: { kind: 'int', bits: 0, name: 'int' }, value: 5n })).toBe(5);
+        expect(toNumeric(false)).toBe(0);
+        expect(shlVals(2, 1, 8, true)).toBe(4);
+        expect(shrVals(8, 1, 8)).toBe(4);
+        expect(shlVals(2, 1)).toBe(4);
+        expect(shrVals(8, 1)).toBe(4);
     });
 });

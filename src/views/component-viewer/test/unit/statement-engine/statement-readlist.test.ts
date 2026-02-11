@@ -759,6 +759,25 @@ describe('StatementReadList', () => {
         errorSpy.mockRestore();
     });
 
+    it('stores batch read addresses as numbers for non-pointer arrays', async () => {
+        const readList = createReadList();
+        readList.based = 0;
+        jest.spyOn(readList, 'getIsPointer').mockReturnValue(false);
+        jest.spyOn(readList, 'getCount').mockResolvedValue(2);
+        const stmt = new StatementReadList(readList, undefined);
+        const ctx = createContext(readList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
+            getNumArrayElements: jest.fn().mockResolvedValue(2),
+            readMemory: jest.fn().mockResolvedValue(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])),
+        });
+        const setSpy = jest.spyOn(ctx.memoryHost, 'setVariable');
+
+        await stmt.executeStatement(ctx, new ScvdGuiTree(undefined));
+
+        expect(setSpy).toHaveBeenCalled();
+        expect(typeof setSpy.mock.calls[0]?.[4]).toBe('number');
+    });
+
     it('passes const flags for batch and loop readlist paths', async () => {
         const batchList = createReadList();
         batchList.const = 1;

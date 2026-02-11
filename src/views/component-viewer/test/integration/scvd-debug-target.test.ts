@@ -394,6 +394,23 @@ describe('scvd-debug-target', () => {
         expect(results.get('b')).toEqual(new Uint8Array([2, 2, 2, 2]));
     });
 
+    it('sorts batch requests when addresses are out of order', async () => {
+        const tracker = { onContinued: jest.fn(), onStopped: jest.fn() } as unknown as GDBTargetDebugTracker;
+        const target = new ScvdDebugTarget();
+        target.init(session, tracker);
+
+        const readMemory = jest.fn(async (_addr: number | bigint, size: number) => new Uint8Array(size).fill(4));
+        target.readMemory = readMemory as unknown as ScvdDebugTarget['readMemory'];
+
+        const results = await target.readMemoryBatch([
+            { key: 'b', address: 0x2004, size: 4 },
+            { key: 'a', address: 0x2000, size: 4 },
+        ]);
+
+        expect(results.get('a')).toEqual(new Uint8Array([4, 4, 4, 4]));
+        expect(results.get('b')).toEqual(new Uint8Array([4, 4, 4, 4]));
+    });
+
     it('normalizes bigint batch addresses when merging reads', async () => {
         const tracker = { onContinued: jest.fn(), onStopped: jest.fn() } as unknown as GDBTargetDebugTracker;
         const target = new ScvdDebugTarget();

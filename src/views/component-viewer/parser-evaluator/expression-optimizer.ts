@@ -625,4 +625,4 @@ export function optimizeParseResult(parsed: ParseResult, model: IntegerModel = D
     return new ExpressionOptimizer(model).optimizeParseResult(parsed);
 }
 
-export const __expressionOptimizerTestUtils = { literalFromConst, normalizeConstValue, isZeroConst };
+export const __expressionOptimizerTestUtils = { literalFromConst, normalizeConstValue, isZeroConst, isFalsyConst, isPure };

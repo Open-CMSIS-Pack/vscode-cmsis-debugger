@@ -18,6 +18,7 @@
 import {
     DEFAULT_INTEGER_MODEL,
     IntegerModelKind,
+    __cNumericTestUtils,
     type CValue,
     type CType,
     applyBinary,
@@ -46,6 +47,20 @@ describe('c-numeric', () => {
         const i8 = parseTypeName('int8_t');
         expect(u16).toEqual({ kind: 'uint', bits: 16, name: 'uint16_t' });
         expect(i8).toEqual({ kind: 'int', bits: 8, name: 'int8_t' });
+    });
+
+    it('falls back to unsigned when signed bits are unusable', () => {
+        const brokenInt: CType = { kind: 'int', bits: Number.NaN, name: 'int' };
+        const unsignedSmall: CType = { kind: 'uint', bits: 64, name: 'uint64' };
+        const converted = usualArithmeticConversion(brokenInt, unsignedSmall, DEFAULT_INTEGER_MODEL);
+        expect(converted.kind).toBe('uint');
+        expect(converted.name).toBe('uint64');
+        expect(Number.isNaN(converted.bits)).toBe(true);
+
+        const unsignedNoName: CType = { kind: 'uint', bits: 64 };
+        const convertedNoName = usualArithmeticConversion(brokenInt, unsignedNoName, DEFAULT_INTEGER_MODEL);
+        expect(convertedNoName.kind).toBe('uint');
+        expect(convertedNoName.name).toBe('int');
     });
 
     it('parses signed/unsigned and long double', () => {
@@ -105,6 +120,13 @@ describe('c-numeric', () => {
         expect(parseNumericLiteral('2147483648').type.name).toBe('long long');
     });
 
+    it('falls back to default integer types when requested', () => {
+        __cNumericTestUtils.setForceDefaultType(true);
+        const parsed = parseNumericLiteral('123');
+        expect(parsed.type.name).toBe('int');
+        __cNumericTestUtils.setForceDefaultType(false);
+    });
+
     it('selects wider integer types for 64-bit models', () => {
         const model64 = integerModelFromKind(IntegerModelKind.Model64);
         expect(parseNumericLiteral('2147483648', model64).type.name).toBe('long');
@@ -124,10 +146,32 @@ describe('c-numeric', () => {
         expect(exp.type).toEqual({ kind: 'float', bits: 64, name: 'double' });
         expect(exp.value).toBe(100);
 
+        const hexFrac = parseNumericLiteral('0x.8p1');
+        expect(hexFrac.type).toEqual({ kind: 'float', bits: 64, name: 'double' });
+
         const badHex = parseNumericLiteral('0x1.gp1');
         expect(Number.isNaN(badHex.value as number)).toBe(true);
     });
 
+    it('covers hex float split defaults and fixed-width fallback', () => {
+        const splitSpy = jest.spyOn(String.prototype, 'split').mockImplementationOnce(() => [undefined, undefined] as unknown as string[]);
+        const parsed = parseNumericLiteral('0x1p1');
+        splitSpy.mockRestore();
+        expect(parsed.type.kind).toBe('float');
+
+        const matchSpy = jest.spyOn(String.prototype, 'match').mockImplementationOnce((pattern) => {
+            if (pattern instanceof RegExp && pattern.source === '^(u?)int(8|16|32|64)_t$') {
+                return ['uint_t', 'u'] as RegExpMatchArray;
+            }
+            return null;
+        });
+        expect(parseTypeName('uint_t')).toEqual({ kind: 'int', bits: 32, name: 'int' });
+        matchSpy.mockRestore();
+
+        const parseSpy = jest.spyOn(Number, 'parseInt').mockReturnValueOnce(0);
+        expect(parseTypeName('uint8_t')).toEqual({ kind: 'int', bits: 32, name: 'int' });
+        parseSpy.mockRestore();
+    });
     it('handles invalid integer literals as NaN', () => {
         const bad = parseNumericLiteral('0b2');
         expect(bad.type).toEqual({ kind: 'float', bits: 64, name: 'double' });
@@ -147,6 +191,9 @@ describe('c-numeric', () => {
 
         const asInt = convertToType({ type: { kind: 'float', bits: 64 }, value: 255.9 }, { kind: 'int', bits: 8, name: 'int8' });
         expect(asInt.value).toBe(-1n);
+
+        const maskZero = convertToType({ type: { kind: 'int', bits: 32 }, value: 5n }, { kind: 'uint', bits: 0, name: 'uint0' });
+        expect(maskZero.value).toBe(5n);
     });
 
     it('creates C values from constants', () => {
@@ -173,10 +220,12 @@ describe('c-numeric', () => {
         const floatType: CType = { kind: 'float', bits: 64, name: 'double' };
         const intVal = makeValue(intType, 1n);
         const floatVal = makeValue(floatType, 2);
+        const intNum = makeValue(intType, 2);
 
         expect(applyUnary('+', intVal)).toBe(intVal);
         expect(applyUnary('-', floatVal)).toEqual({ type: floatVal.type, value: -2 });
         expect(applyUnary('-', intVal)).toEqual({ type: intVal.type, value: -1n });
+        expect(applyUnary('-', intNum)).toEqual({ type: intVal.type, value: -2n });
         expect(applyUnary('!', floatVal)).toEqual({ type: { kind: 'int', bits: 32, name: 'int' }, value: 0n });
         expect(applyUnary('!', intVal)).toEqual({ type: { kind: 'int', bits: 32, name: 'int' }, value: 0n });
         expect(applyUnary('!', makeValue(intType, 0n))).toEqual({
@@ -185,6 +234,7 @@ describe('c-numeric', () => {
         });
         expect(applyUnary('~', floatVal)).toBeUndefined();
         expect(applyUnary('~', intVal)).toEqual({ type: intVal.type, value: -2n });
+        expect(applyUnary('~', intNum)).toEqual({ type: intVal.type, value: -3n });
         expect(applyUnary('?', intVal)).toBeUndefined();
     });
 
@@ -194,12 +244,17 @@ describe('c-numeric', () => {
         const intVal = makeValue(intType, 2n);
         const zero = makeValue(intType, 0n);
         const floatVal = makeValue(floatType, 2);
+        const floatZero = makeValue(floatType, 0);
 
         expect(applyBinary('&&', intVal, zero)?.value).toBe(0n);
         expect(applyBinary('||', intVal, zero)?.value).toBe(1n);
+        expect(applyBinary('&&', floatVal, floatZero)?.value).toBe(0n);
         expect(applyBinary('==', floatVal, makeValue(floatType, 2))?.value).toBe(1n);
         expect(applyBinary('!=', floatVal, makeValue(floatType, 3))?.value).toBe(1n);
         expect(applyBinary('>=', floatVal, makeValue(floatType, 2))?.value).toBe(1n);
+        expect(applyBinary('<', floatVal, makeValue(floatType, 3))?.value).toBe(1n);
+        expect(applyBinary('>', floatVal, makeValue(floatType, 3))?.value).toBe(0n);
+        expect(applyBinary('<=', floatVal, makeValue(floatType, 2))?.value).toBe(1n);
         expect(applyBinary('<', intVal, makeValue(intType, 3n))?.value).toBe(1n);
         expect(applyBinary('<=', intVal, makeValue(intType, 2n))?.value).toBe(1n);
         expect(applyBinary('>', intVal, makeValue(intType, 1n))?.value).toBe(1n);
@@ -250,12 +305,16 @@ describe('c-numeric', () => {
 
         const forcedUnsigned = usualArithmeticConversion({ kind: 'int', bits: Number.NaN, name: 'int' }, { kind: 'uint', bits: Number.NaN, name: 'unsigned int' }, DEFAULT_INTEGER_MODEL);
         expect(forcedUnsigned).toEqual({ kind: 'uint', bits: Number.NaN, name: 'unsigned int' });
+
+        const ptrConv = usualArithmeticConversion({ kind: 'ptr', bits: 32, name: 'ptr' }, { kind: 'ptr', bits: 32, name: 'ptr' }, DEFAULT_INTEGER_MODEL);
+        expect(ptrConv).toEqual({ kind: 'ptr', bits: 32, name: 'ptr' });
     });
 
     it('parses additional type names and sizes', () => {
         expect(parseTypeName('')).toBeUndefined();
         expect(parseTypeName('uint0_t')).toEqual({ kind: 'int', bits: 32, name: 'int' });
         expect(parseTypeName('_bool')).toEqual({ kind: 'bool', bits: 1, name: 'bool' });
+        expect(parseTypeName('uint64_t')).toEqual({ kind: 'uint', bits: 64, name: 'uint64_t' });
         expect(parseTypeName('unsigned char')).toEqual({ kind: 'uint', bits: 8, name: 'unsigned char' });
         expect(parseTypeName('short')).toEqual({ kind: 'int', bits: 16, name: 'short' });
         expect(parseTypeName('long long')).toEqual({ kind: 'int', bits: 64, name: 'long long' });
@@ -275,5 +334,30 @@ describe('c-numeric', () => {
         expect(sizeofTypeName('void*')).toBe(4);
         expect(sizeofTypeName('int')).toBe(4);
         expect(sizeofTypeName('not a type')).toBeUndefined();
+    });
+
+    it('chooses signed/unsigned types for long suffixes and larger models', () => {
+        expect(parseNumericLiteral('0x7fffffffL').type.name).toBe('long');
+        expect(parseNumericLiteral('0x80000000l').type.name).toBe('unsigned long');
+        expect(parseNumericLiteral('0x7fffffffffffffffll').type.name).toBe('long long');
+        expect(parseNumericLiteral('0xffffffffffffffffll').type.name).toBe('unsigned long long');
+
+        const model64 = integerModelFromKind(IntegerModelKind.Model64);
+        expect(parseNumericLiteral('0x1_0000_0000', model64).type.name).toBe('long');
+        expect(parseNumericLiteral('0xffffffffffffffff', model64).type.name).toBe('unsigned long');
+    });
+
+    it('handles name-less arithmetic conversions and non-integer kinds', () => {
+        const conv = usualArithmeticConversion({ kind: 'uint', bits: 32 }, { kind: 'int', bits: 32 }, DEFAULT_INTEGER_MODEL);
+        expect(conv).toEqual({ kind: 'uint', bits: 32 });
+
+        const convNameFallback = usualArithmeticConversion({ kind: 'uint', bits: 32 }, { kind: 'int', bits: 32, name: 'int' }, DEFAULT_INTEGER_MODEL);
+        expect(convNameFallback).toEqual({ kind: 'uint', bits: 32, name: 'int' });
+
+        const boolConv = usualArithmeticConversion({ kind: 'bool', bits: 32 }, { kind: 'int', bits: 32 }, DEFAULT_INTEGER_MODEL);
+        expect(boolConv).toEqual({ kind: 'int', bits: 32, name: 'int' });
+
+        const ptrUnary = applyUnary('-', { type: { kind: 'ptr', bits: 32 }, value: 5n });
+        expect(ptrUnary).toEqual({ type: { kind: 'ptr', bits: 32 }, value: -5n });
     });
 });

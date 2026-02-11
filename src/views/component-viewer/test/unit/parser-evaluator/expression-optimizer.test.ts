@@ -21,6 +21,7 @@ import {
     foldAst,
     optimizeParseResult,
 } from '../../../parser-evaluator/expression-optimizer';
+import * as cNumeric from '../../../parser-evaluator/c-numeric';
 import type {
     ASTNode,
     AssignmentExpression,
@@ -96,6 +97,28 @@ describe('expression-optimizer', () => {
         expect(__expressionOptimizerTestUtils.literalFromConst(undefined, 0, 1).kind).toBe('ErrorNode');
     });
 
+    it('covers purity checks and default fold helpers', () => {
+        const optimizer = new ExpressionOptimizer();
+        const pureNum = num('1', 1);
+        expect(optimizer.foldAst(pureNum).kind).toBe('NumberLiteral');
+
+        const pureCheck = __expressionOptimizerTestUtils.isPure;
+        expect(pureCheck(pureNum)).toBe(true);
+        expect(pureCheck(ident('x'))).toBe(false);
+        expect(pureCheck({ kind: 'SizeofExpression', ...span() } as SizeofExpression)).toBe(true);
+        expect(pureCheck({ kind: 'SizeofExpression', argument: pureNum, ...span() } as SizeofExpression)).toBe(true);
+        expect(pureCheck({ kind: 'FormatSegment', spec: 'd', value: pureNum, ...span() } as FormatSegment)).toBe(false);
+        expect(pureCheck({ kind: 'PrintfExpression', segments: [], resultType: 'string', ...span() } as PrintfExpression)).toBe(false);
+        expect(pureCheck({ kind: 'TextSegment', text: 't', ...span() } as ASTNode)).toBe(false);
+        expect(pureCheck({ kind: 'CallExpression', callee: ident('fn'), args: [], ...span() } as CallExpression)).toBe(false);
+        expect(pureCheck({ kind: 'EvalPointCall', intrinsic: '__size_of', callee: ident('__size_of'), args: [], ...span() } as EvalPointCall)).toBe(false);
+        expect(pureCheck({ kind: 'AssignmentExpression', operator: '=', left: ident('x'), right: pureNum, ...span() } as AssignmentExpression)).toBe(false);
+        expect(pureCheck({ kind: 'UpdateExpression', operator: '++', argument: ident('x'), prefix: true, ...span() } as UpdateExpression)).toBe(false);
+        expect(pureCheck({ kind: 'MemberAccess', object: ident('x'), property: 'field', ...span() } as ASTNode)).toBe(false);
+        expect(pureCheck({ kind: 'ArrayIndex', array: ident('x'), index: pureNum, ...span() } as ASTNode)).toBe(false);
+        expect(pureCheck({ kind: 'ColonPath', parts: ['a', 'b'], ...span() } as ASTNode)).toBe(false);
+    });
+
     it('folds literals, member access, and array indices', () => {
         const charLiteral = num('\'A\'', 65, 1, 2);
         const numLiteral = num('0x10', 16, 2, 3);
@@ -137,6 +160,9 @@ describe('expression-optimizer', () => {
         };
         const foldedUpdate = foldAst(update, diagnostics);
         expect((foldedUpdate as UpdateExpression).argument.constValue).toBe(1);
+
+        const floatUnary = foldAst(unary('~', num('1.5', 1.5, 0, 2)));
+        expect(floatUnary.kind).toBe('UnaryExpression');
     });
 
     it('folds binary expressions, short-circuits, and identities', () => {
@@ -200,6 +226,28 @@ describe('expression-optimizer', () => {
         const badShift = foldAst(bin('<<', num('1', 1), num('-1', -1)), diagnostics);
         expect(badShift.kind).toBe('BinaryExpression');
         expect(diagnostics.some((d) => d.message.includes('Invalid <<'))).toBe(true);
+
+        const divZeroFloat = foldAst(bin('/', num('1.5', 1.5), num('0', 0)), diagnostics);
+        expect(divZeroFloat.kind).toBe('NumberLiteral');
+        expect(diagnostics.some((d) => d.message === 'Division by zero')).toBe(true);
+
+        const floatModZero = foldAst(bin('%', num('1.5', 1.5), num('0.0', 0)), diagnostics);
+        expect(floatModZero.kind).toBe('BinaryExpression');
+        expect(diagnostics.some((d) => d.message === 'Division by zero')).toBe(true);
+
+        const noZeroDiagnostics: Diagnostic[] = [];
+        const floatModNonZero = foldAst(bin('%', num('1.5', 1.5), num('2.0', 2)), noZeroDiagnostics);
+        expect(floatModNonZero.kind).toBe('BinaryExpression');
+        expect(noZeroDiagnostics.length).toBe(0);
+
+        const floatShortCircuit = foldAst(bin('||', num('1.5', 1.5), { kind: 'ErrorNode', message: 'err', ...span() }));
+        expect(floatShortCircuit.kind).toBe('NumberLiteral');
+
+        const truthyOr = foldAst(bin('||', num('2', 2), { kind: 'ErrorNode', message: 'err', ...span() }));
+        expect(truthyOr.constValue).toBe(1);
+
+        const nonPureOr = foldAst(bin('||', ident('x', 1), ident('y')));
+        expect(nonPureOr.kind).toBe('BinaryExpression');
     });
 
     it('partially folds numeric chains', () => {
@@ -227,6 +275,19 @@ describe('expression-optimizer', () => {
         const foldedMul = foldAst(mulChain) as BinaryExpression;
         expect(foldedMul.operator).toBe('*');
         expect(foldedMul.right.constValue).toBe(6);
+
+        const noPartial = foldAst(bin('+', bin('*', ident('x'), num('1', 1)), num('2', 2)));
+        expect(noPartial.kind).toBe('BinaryExpression');
+
+        const stringRight: ASTNode = { kind: 'StringLiteral', value: 's', raw: '"s"', valueType: 'string', constValue: 's', ...span() };
+        const noCombine = foldAst(bin('+', bin('+', ident('x'), stringRight), num('2', 2)));
+        expect(noCombine.kind).toBe('BinaryExpression');
+
+        const noRightConst = foldAst(bin('+', bin('+', ident('x'), ident('y')), num('2', 2)));
+        expect(noRightConst.kind).toBe('BinaryExpression');
+
+        const noMulCombine = foldAst(bin('*', bin('*', ident('x'), num('2', 2)), stringRight));
+        expect(noMulCombine.kind).toBe('BinaryExpression');
     });
 
     it('handles non-numeric const values in identity and purity checks', () => {
@@ -264,6 +325,42 @@ describe('expression-optimizer', () => {
         expect(mulIdentity.kind).toBe('Identifier');
         const divIdentity = foldAst(bin('/', left, oneBig));
         expect(divIdentity.kind).toBe('Identifier');
+    });
+
+    it('uses purity checks for composite nodes and truthy/falsy consts', () => {
+        const composite: ASTNode = {
+            kind: 'ConditionalExpression',
+            test: unary('-', { kind: 'ErrorNode', message: 'err', ...span() }),
+            consequent: bin('+', { kind: 'ErrorNode', message: 'err', ...span() }, num('3', 3)),
+            alternate: {
+                kind: 'CastExpression',
+                typeName: 'int',
+                argument: { kind: 'SizeofExpression', argument: { kind: 'ErrorNode', message: 'err', ...span() }, ...span() },
+                ...span(),
+            } as CastExpression,
+            ...span(),
+        } as ConditionalExpression;
+
+        const foldedComma = foldAst(bin(',', composite, num('0', 0)));
+        expect(foldedComma.kind).toBe('NumberLiteral');
+
+        const pureError: ASTNode = { kind: 'ErrorNode', message: 'err', ...span() };
+        const truthyBool = ident('flag', true);
+        const falsyBool = ident('flag', false);
+        const truthyBig = ident('big', 1n);
+        const falsyBig = ident('big', 0n);
+
+        expect(foldAst(bin('||', pureError, truthyBool)).kind).toBe('NumberLiteral');
+        expect(foldAst(bin('&&', pureError, falsyBool)).kind).toBe('NumberLiteral');
+        expect(foldAst(bin('||', pureError, truthyBig)).kind).toBe('NumberLiteral');
+        expect(foldAst(bin('&&', pureError, falsyBig)).kind).toBe('NumberLiteral');
+        expect(foldAst(bin('*', pureError, num('0', 0))).kind).toBe('NumberLiteral');
+        expect(foldAst(bin('*', num('0', 0), pureError)).kind).toBe('NumberLiteral');
+
+        const strLiteral: ASTNode = { kind: 'StringLiteral', value: 's', raw: '"s"', valueType: 'string', constValue: 's', ...span() };
+        const noFold = foldAst(bin('&&', pureError, strLiteral));
+        expect(noFold.kind).toBe('ErrorNode');
+        expect(__expressionOptimizerTestUtils.isFalsyConst('s')).toBe(false);
     });
 
     it('folds conditional, casts, sizeof/alignof, and calls', () => {
@@ -316,6 +413,10 @@ describe('expression-optimizer', () => {
         const bareSizeof: SizeofExpression = { kind: 'SizeofExpression', ...span(0, 1) };
         const foldedBareSizeof = foldAst(bareSizeof);
         expect(foldedBareSizeof.kind).toBe('SizeofExpression');
+
+        const badSizeof: SizeofExpression = { kind: 'SizeofExpression', typeName: 'nope', ...span(0, 1) };
+        const foldedBadSizeof = foldAst(badSizeof);
+        expect(foldedBadSizeof.kind).toBe('SizeofExpression');
 
         const call: CallExpression = { kind: 'CallExpression', callee: ident('fn'), args: [num('1', 1), num('2', 2)], ...span(0, 2) };
         const foldedCall = foldAst(call);
@@ -405,5 +506,70 @@ describe('expression-optimizer', () => {
             expect(diagnostics.some((d) => d.message.includes('Failed to fold unary'))).toBe(true);
             expect(diagnostics.some((d) => d.message.includes('Failed to fold binary'))).toBe(true);
         });
+    });
+
+    it('handles non-error throwables and boolean literal fallbacks', async () => {
+        await jest.isolateModulesAsync(async () => {
+            jest.doMock('../../../parser-evaluator/c-numeric', () => {
+                const actual = jest.requireActual('../../../parser-evaluator/c-numeric');
+                return {
+                    ...actual,
+                    applyUnary: () => {
+                        throw 'boom';
+                    },
+                    applyBinary: () => {
+                        throw 'boom';
+                    },
+                    cValueFromConst: () => undefined,
+                };
+            });
+
+            const mod = await import('../../../parser-evaluator/expression-optimizer');
+            const diagnostics: Diagnostic[] = [];
+            const unaryExpr = unary('-', num('1', 1));
+            const binaryExpr = bin('+', num('1', 1), num('2', 2));
+            const boolLiteral: BooleanLiteral = { kind: 'BooleanLiteral', value: true, valueType: 'boolean', ...span() };
+            mod.foldAst(unaryExpr, diagnostics);
+            mod.foldAst(binaryExpr, diagnostics);
+            const foldedBool = mod.foldAst(boolLiteral) as BooleanLiteral;
+            expect(foldedBool.constValue).toBe(true);
+            expect(diagnostics.some((d) => d.message.includes('Failed to fold unary'))).toBe(true);
+            expect(diagnostics.some((d) => d.message.includes('Failed to fold binary'))).toBe(true);
+        });
+    });
+
+    it('handles partial fold fallbacks when binary combines fail', async () => {
+        await jest.isolateModulesAsync(async () => {
+            jest.doMock('../../../parser-evaluator/c-numeric', () => {
+                const actual = jest.requireActual('../../../parser-evaluator/c-numeric');
+                return {
+                    ...actual,
+                    applyBinary: () => undefined,
+                };
+            });
+
+            const mod = await import('../../../parser-evaluator/expression-optimizer');
+            const chain = bin('+', bin('+', ident('x'), num('1', 1)), num('2', 2));
+            const mulChain = bin('*', bin('*', ident('x'), num('2', 2)), num('3', 3));
+            expect(mod.foldAst(chain).kind).toBe('BinaryExpression');
+            expect(mod.foldAst(mulChain).kind).toBe('BinaryExpression');
+        });
+    });
+
+    it('stops partial folding when combine operations return undefined', () => {
+        const originalApplyBinary = cNumeric.applyBinary;
+        const applySpy = jest.spyOn(cNumeric, 'applyBinary').mockImplementation((op, left, right, model) => {
+            if (op === '+' || op === '*') {
+                return undefined;
+            }
+            return originalApplyBinary(op, left, right, model);
+        });
+
+        const chain = bin('+', bin('+', ident('x'), num('1', 1)), num('2', 2));
+        const mulChain = bin('*', bin('*', ident('x'), num('2', 2)), num('3', 3));
+        expect(foldAst(chain).kind).toBe('BinaryExpression');
+        expect(foldAst(mulChain).kind).toBe('BinaryExpression');
+
+        applySpy.mockRestore();
     });
 });

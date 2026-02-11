@@ -135,10 +135,28 @@ describe('parser', () => {
         expect(hexFloat.diagnostics).toHaveLength(0);
         expect(hexFloat.ast.constValue).toBeCloseTo(0.140625, 6);
 
+        const hexFloatPlus = parseExpression('0x1p+1', false);
+        expect(hexFloatPlus.diagnostics).toHaveLength(0);
+        expect(hexFloatPlus.ast.constValue).toBe(2);
+
+        const hexFloatNoSign = parseExpression('0x1p1', false);
+        expect(hexFloatNoSign.diagnostics).toHaveLength(0);
+        expect(hexFloatNoSign.ast.constValue).toBe(2);
+
         const sizeofType = parseExpression('sizeof(int)', false);
         expect(sizeofType.ast.constValue).toBe(4);
         const alignofType = parseExpression('alignof(int)', false);
         expect(alignofType.ast.constValue).toBe(4);
+    });
+
+    it('parses sizeof/alignof with expression arguments', () => {
+        const sizeofExpr = parseExpression('sizeof x', false);
+        expect(sizeofExpr.ast.kind).toBe('SizeofExpression');
+        expect((sizeofExpr.ast as { argument?: ASTNode }).argument?.kind).toBe('Identifier');
+
+        const alignofExpr = parseExpression('alignof y', false);
+        expect(alignofExpr.ast.kind).toBe('AlignofExpression');
+        expect((alignofExpr.ast as { argument?: ASTNode }).argument?.kind).toBe('Identifier');
     });
 
     it('unescapes valid and invalid string escapes', () => {
@@ -177,6 +195,24 @@ describe('parser', () => {
         const res = parseExpression('0x', false);
         const ast = res.ast as NumberLiteral;
         expect(Number.isNaN(ast.value)).toBe(true);
+    });
+
+    it('parses comma-separated expressions', () => {
+        const expr = parseExpression('1, 2', false);
+        expect(expr.ast.kind).toBe('NumberLiteral');
+        expect(expr.ast.constValue).toBe(2);
+    });
+
+    it('parses comma expressions when comma token is falsy', () => {
+        const parser = new Parser(DEFAULT_INTEGER_MODEL);
+        const originalEat = (parser as unknown as { eat: (kind: string, value?: string) => unknown }).eat.bind(parser);
+        (parser as unknown as { eat: (kind: string, value?: string) => unknown }).eat = (kind, value) => {
+            originalEat(kind, value);
+            return undefined;
+        };
+
+        const parsed = parser.parseWithDiagnostics('1, 2', false);
+        expect(parsed.ast.kind).toBe('BinaryExpression');
     });
 
     it('covers printf edge cases and scanning logic', () => {
