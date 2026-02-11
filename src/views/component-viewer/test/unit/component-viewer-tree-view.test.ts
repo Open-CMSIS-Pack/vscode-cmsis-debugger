@@ -119,7 +119,7 @@ describe('ComponentViewerTreeDataProvider', () => {
         const resolvedWith = provider.resolveTreeItem(treeItemWithChildren, withChildren) as vscode.TreeItem;
         expect(resolvedWith.tooltip).toBeInstanceOf(vscode.MarkdownString);
         const tooltipWith = resolvedWith.tooltip as { value: string; supportHtml: boolean };
-        expect(tooltipWith.value).toBe('**Node**<br>Value');
+        expect(tooltipWith.value).toBe('**Node**  \nValue');
         expect(tooltipWith.supportHtml).toBe(true);
 
         const treeItemWithout = provider.getTreeItem(withoutChildren);
