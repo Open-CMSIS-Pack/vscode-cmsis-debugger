@@ -34,7 +34,12 @@ describe('CbuildRunReader', () => {
             expect(cbuildRunReader.hasContents()).toBe(true);
             const contents = cbuildRunReader.getContents();
             expect(contents).toBeDefined();
-            expect(contents).toMatchSnapshot();
+            // Snapshot match all but cbuildRunDir which is an absolute path and hence OS specific.
+            // That part gets tested in separate tests.
+            expect({
+                ...contents,
+                cbuildRunDir: expect.any(String)
+            }).toMatchSnapshot();
         });
 
         it('throws if it parses something other than a *.cbuild-run.yml file and correctly responds to raw contents calls', async () => {
