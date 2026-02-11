@@ -15,7 +15,6 @@
  */
 // generated with AI
 
-import { componentViewerLogger } from '../../../logger';
 import { INTRINSIC_DEFINITIONS, isIntrinsicName } from './intrinsics';
 import type { IntrinsicName as HostIntrinsicName } from './intrinsics';
 import { DEFAULT_INTEGER_MODEL, type IntegerModel, cValueFromConst, convertToType, parseNumericLiteral } from './c-numeric';

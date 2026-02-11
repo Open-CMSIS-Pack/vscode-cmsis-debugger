@@ -26,7 +26,6 @@ import { ScvdEvalContext } from './scvd-eval-context';
 import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
 import { ScvdGuiTree } from './scvd-gui-tree';
 import { componentViewerLogger } from '../../logger';
-import { perf } from './stats-config';
 
 
 const xmlOpts: ParserOptions = {

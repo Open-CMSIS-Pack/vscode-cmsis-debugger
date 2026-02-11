@@ -66,7 +66,8 @@ export class ScvdExpression extends ScvdNode {
     }
 
     private async evaluateExpression(): Promise<EvaluateResult> {
-        if (this.expressionAst === undefined || this._executionContext === undefined) {
+        const executionContext = this.getExecutionContext();
+        if (this.expressionAst === undefined || executionContext === undefined) {
             componentViewerLogger.error(this.getLineInfoStr(), 'Expression evaluation missing AST or execution context');
             return undefined;
         }
