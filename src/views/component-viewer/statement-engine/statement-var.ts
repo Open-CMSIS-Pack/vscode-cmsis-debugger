@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { componentViewerLogger } from '../../../logger';
 import { ScvdNode } from '../model/scvd-node';
 import { ScvdVar } from '../model/scvd-var';
 import { ExecutionContext } from '../scvd-eval-context';
@@ -38,7 +39,7 @@ export class StatementVar extends StatementBase {
             const targetSize = elementSize !== undefined ? elementSize * (count ?? 1) : undefined;
             const value = await varItem.getValue();
             if (name === undefined || targetSize === undefined) {
-                console.error(`${this.line}: Variable missing name or size.`);
+                componentViewerLogger.error(`${this.line}: Variable missing name or size.`);
                 return;
             }
 

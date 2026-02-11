@@ -19,6 +19,7 @@
  * Unit test for ScvdRead.
  */
 
+import { componentViewerLogger } from '../../../../../logger';
 import { ScvdCondition } from '../../../model/scvd-condition';
 import { ScvdEndian } from '../../../model/scvd-endian';
 import { ScvdExpression } from '../../../model/scvd-expression';
@@ -208,7 +209,7 @@ describe('ScvdRead', () => {
         const read = new ScvdRead(undefined);
         read.size = 'size';
         const expr = read.size as ScvdExpression;
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         const valueSpy = jest.spyOn(expr, 'getValue');
 
         valueSpy.mockResolvedValueOnce(0);

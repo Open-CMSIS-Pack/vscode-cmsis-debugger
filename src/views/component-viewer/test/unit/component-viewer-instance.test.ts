@@ -30,12 +30,23 @@ import { ScvdEvalContext } from '../../scvd-eval-context';
 import { StatementEngine } from '../../statement-engine/statement-engine';
 import { ScvdGuiTree } from '../../scvd-gui-tree';
 import type { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../../../debug-session';
+import { componentViewerLogger } from '../../../../logger';
 
 jest.mock('vscode', () => ({
     workspace: {
         fs: {
             readFile: jest.fn(),
         },
+    },
+    window: {
+        createOutputChannel: jest.fn(() => ({
+            appendLine: jest.fn(),
+            trace: jest.fn(),
+            debug: jest.fn(),
+            info: jest.fn(),
+            warn: jest.fn(),
+            error: jest.fn(),
+        })),
     },
 }));
 
@@ -72,7 +83,7 @@ describe('ComponentViewerInstance', () => {
         const readFileMock = vscode.workspace.fs.readFile as jest.Mock;
         const parseStringMock = parseStringPromise as jest.Mock;
         const consoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
-        const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const consoleError = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
 
         readFileMock.mockResolvedValue(Buffer.from('<root>\n  <child/>\n</root>'));
         parseStringMock.mockResolvedValue({ root: { child: {} } });
@@ -161,7 +172,7 @@ describe('ComponentViewerInstance', () => {
     it('handles XML parse failures', async () => {
         const readFileMock = vscode.workspace.fs.readFile as jest.Mock;
         const parseStringMock = parseStringPromise as jest.Mock;
-        const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const consoleError = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
 
         readFileMock.mockResolvedValue(Buffer.from('<root/>'));
         parseStringMock.mockRejectedValue(new Error('parse failed'));
@@ -176,7 +187,7 @@ describe('ComponentViewerInstance', () => {
     it('handles model construction failures', async () => {
         const readFileMock = vscode.workspace.fs.readFile as jest.Mock;
         const parseStringMock = parseStringPromise as jest.Mock;
-        const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const consoleError = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
 
         readFileMock.mockResolvedValue(Buffer.from('<root/>'));
         parseStringMock.mockResolvedValue({ root: {} });
@@ -204,7 +215,7 @@ describe('ComponentViewerInstance', () => {
     it('handles missing execution context', async () => {
         const readFileMock = vscode.workspace.fs.readFile as jest.Mock;
         const parseStringMock = parseStringPromise as jest.Mock;
-        const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const consoleError = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
 
         readFileMock.mockResolvedValue(Buffer.from('<root/>'));
         parseStringMock.mockResolvedValue({ root: {} });
@@ -231,7 +242,7 @@ describe('ComponentViewerInstance', () => {
 
     it('rethrows file read errors', async () => {
         const readFileMock = vscode.workspace.fs.readFile as jest.Mock;
-        const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const consoleError = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
 
         readFileMock.mockRejectedValue(new Error('read failed'));
         const instance = new ComponentViewerInstance();

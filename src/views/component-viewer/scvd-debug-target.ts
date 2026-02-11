@@ -21,6 +21,7 @@ import { MAX_BATCH_BYTES, MAX_BATCH_GAP_BYTES, TargetReadCache } from './target-
 import { SymbolCaches } from './scvd-debug-target-cache';
 import { GDBTargetDebugSession } from '../../debug-session/gdbtarget-debug-session';
 import { GDBTargetDebugTracker } from '../../debug-session';
+import { componentViewerLogger } from '../../logger';
 
 const REGISTER_GDB_ENTRIES: Array<[string, string]> = [
     // Core
@@ -152,7 +153,7 @@ export class ScvdDebugTarget {
                 if (Number.isFinite(parsed)) {
                     return parsed;
                 }
-                console.error(`getSymbolInfo: could not parse address for ${symbolName}:`, symbolAddressStr);
+                componentViewerLogger.error(`getSymbolInfo: could not parse address for ${symbolName}:`, symbolAddressStr);
             }
             return undefined;
         });
@@ -175,7 +176,7 @@ export class ScvdDebugTarget {
         try {
             return await this.targetAccess.evaluateSymbolName(address.toString());
         } catch (error: unknown) {
-            console.error(`findSymbolNameAtAddress failed for ${address}:`, error);
+            componentViewerLogger.error(`findSymbolNameAtAddress failed for ${address}:`, error);
             return undefined;
         }
     }
@@ -189,7 +190,7 @@ export class ScvdDebugTarget {
         try {
             return await this.targetAccess.evaluateSymbolContext(address.toString());
         } catch (error: unknown) {
-            console.error(`findSymbolContextAtAddress failed for ${address}:`, error);
+            componentViewerLogger.error(`findSymbolContextAtAddress failed for ${address}:`, error);
             return undefined;
         }
     }
@@ -260,7 +261,7 @@ export class ScvdDebugTarget {
             return bytes;
         }
 
-        console.error('ScvdDebugTarget.decodeGdbData: no base64 decoder available in this environment');
+        componentViewerLogger.error('ScvdDebugTarget.decodeGdbData: no base64 decoder available in this environment');
         return undefined;
     }
 
@@ -312,7 +313,7 @@ export class ScvdDebugTarget {
             return undefined;
         }
         if (!isLikelyBase64(dataAsString)) {
-            console.error(`ScvdDebugTarget.readMemory: invalid base64 data for address ${address.toString()}`);
+            componentViewerLogger.error(`ScvdDebugTarget.readMemory: invalid base64 data for address ${address.toString()}`);
             perf?.end(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
             return undefined;
         }
@@ -472,7 +473,7 @@ export class ScvdDebugTarget {
 
         const gdbName = gdbNameFor(name);
         if (gdbName === undefined) {
-            console.error(`ScvdDebugTarget: readRegister: could not find GDB name for register: ${name}`);
+            componentViewerLogger.error(`ScvdDebugTarget: readRegister: could not find GDB name for register: ${name}`);
             return undefined;
         }
         // Read register value via target access

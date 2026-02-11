@@ -19,7 +19,7 @@ import { GDBTargetDebugTracker, GDBTargetDebugSession } from '../../debug-sessio
 import { ComponentViewerInstance } from './component-viewer-instance';
 import { URI } from 'vscode-uri';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
-import { logger } from '../../logger';
+import { componentViewerLogger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 import { perf, parsePerf } from './stats-config';
 
@@ -84,7 +84,7 @@ export class ComponentViewer {
             return;
         }
         instance.lockState = !instance.lockState;
-        logger.info(`Component Viewer: Instance lock state changed to ${instance.lockState}`);
+        componentViewerLogger.info(`Component Viewer: Instance lock state changed to ${instance.lockState}`);
         // If instance is locked, set isLocked flag to true for root nodes
         const guiTree = instance.componentViewerInstance.getGuiTree();
         if (!guiTree) {
@@ -266,7 +266,7 @@ export class ComponentViewer {
             this._componentViewerTreeDataProvider?.clear();
             return;
         }
-        logger.debug(`Component Viewer: Queuing update due to '${updateReason}'`);
+        componentViewerLogger.debug(`Component Viewer: Queuing update due to '${updateReason}'`);
         this._instanceUpdateCounter = 0;
         if (this._instances.length === 0) {
             return;
@@ -282,8 +282,8 @@ export class ComponentViewer {
                 continue;
             }
             this._instanceUpdateCounter++;
-            logger.debug(`Updating Component Viewer Instance #${this._instanceUpdateCounter} due to '${updateReason}'`);
-            //console.log(`Updating Component Viewer Instance #${this._instanceUpdateCounter}`);
+            componentViewerLogger.debug(`Updating Component Viewer Instance #${this._instanceUpdateCounter} due to '${updateReason}'`);
+
             // Check instance's lock state, skip update if locked
             if (!instance.lockState) {
                 await instance.componentViewerInstance.update();

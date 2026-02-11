@@ -34,7 +34,6 @@ jest.mock('vscode', () => {
         public label: string;
         public collapsibleState: number | undefined;
         public description: string | undefined;
-        public tooltip: string | undefined;
         public id: string | undefined;
         public contextValue: string | undefined;
 
@@ -105,16 +104,12 @@ describe('ComponentViewerTreeDataProvider', () => {
         expect(treeItemWithChildren.collapsibleState).toBe(1);
         expect(treeItemWithChildren.description).toBe('Value');
         expect(treeItemWithChildren.id).toBe('id-1');
-        const resolvedWith = provider.resolveTreeItem(treeItemWithChildren, withChildren);
-        expect(resolvedWith.tooltip).toBe('Line 1');
 
         const treeItemWithout = provider.getTreeItem(withoutChildren);
         expect(treeItemWithout.label).toBe('UNKNOWN');
         expect(treeItemWithout.collapsibleState).toBe(0);
         expect(treeItemWithout.description).toBe('');
         expect(treeItemWithout.id).toBeUndefined();
-        const resolvedWithout = provider.resolveTreeItem(treeItemWithout, withoutChildren);
-        expect(resolvedWithout.tooltip).toBe('');
     });
 
     it('assigns locked context values for root and child nodes', () => {

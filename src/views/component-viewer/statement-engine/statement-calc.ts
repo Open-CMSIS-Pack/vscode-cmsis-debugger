@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { componentViewerLogger } from '../../../logger';
 import { ScvdNode } from '../model/scvd-node';
 import { ScvdCalc } from '../model/scvd-calc';
 import { ExecutionContext } from '../scvd-eval-context';
@@ -30,7 +31,7 @@ export class StatementCalc extends StatementBase {
     protected override async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
         const calcItem = this.scvdItem.castToDerived(ScvdCalc);
         if (!calcItem) {
-            console.error(`${this.line}: Executing "calc": could not cast to ScvdCalc`);
+            componentViewerLogger.error(`${this.line}: Executing "calc": could not cast to ScvdCalc`);
             return;
         }
         //console.log(`${this.line}: Executing calc: ${await this.scvdItem.getGuiName()}`);

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { componentViewerLogger } from '../../../logger';
 import { ResolveSymbolCb, ResolveType } from '../resolver';
 import { ScvdNode } from './scvd-node';
 import { ScvdTypedef } from './scvd-typedef';
@@ -235,7 +236,7 @@ export class ScvdComplexDataType extends ScvdNode{
 
         const item = resolveFunc(typeName, ResolveType.localType);
         if (item === undefined || !(item instanceof ScvdTypedef)) {
-            console.error('Failed to resolve complex data type:', typeName);
+            componentViewerLogger.error('Failed to resolve complex data type:', typeName);
             return false;
         }
         this._typeDef = item;

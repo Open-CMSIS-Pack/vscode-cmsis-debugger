@@ -15,6 +15,7 @@
  */
 // generated with AI
 
+import { componentViewerLogger } from '../../../logger';
 import type {
     ASTNode,
     NumberLiteral,
@@ -1506,13 +1507,13 @@ export class Evaluator {
             const normalized = this.normalizeEvaluateResult(v);
             return normalized;
         } catch (error) {
-            console.error('Error evaluating parse result:', error);
+            componentViewerLogger.error('Error evaluating parse result:', error);
             return undefined;
         } finally {
             perf?.end(perfStartTime, 'evalMs', 'evalCalls');
             const messages = this.diagnostics.getMessages();
             if (messages.length > 0) {
-                console.error(messages);
+                componentViewerLogger.error(messages);
             }
             this.popContainer(ctx);
         }

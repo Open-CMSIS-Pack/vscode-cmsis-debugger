@@ -16,6 +16,7 @@
 
 // https://arm-software.github.io/CMSIS-View/main/elem_member.html
 
+import { componentViewerLogger } from '../../../logger';
 import { ScvdDataType } from './scvd-data-type';
 import { ScvdEnum } from './scvd-enum';
 import { ScvdExpression } from './scvd-expression';
@@ -116,12 +117,12 @@ export class ScvdMember extends ScvdNode {
             : (typeof sizeValue === 'number' ? sizeValue : undefined);
         if (numericValue !== undefined && !Number.isNaN(numericValue)) {
             if (!Number.isFinite(numericValue) || numericValue < 1 || numericValue > 65536) {
-                console.error(this.getLineInfoStr(), `'${this.name ?? 'member'}': invalid size specified`);
+                componentViewerLogger.error(this.getLineInfoStr(), `'${this.name ?? 'member'}': invalid size specified`);
                 return 1;
             }
             return numericValue;
         }
-        console.error(this.getLineInfoStr(), `'${this.name ?? 'member'}': invalid size specified`);
+        componentViewerLogger.error(this.getLineInfoStr(), `'${this.name ?? 'member'}': invalid size specified`);
         return 1;
     }
 

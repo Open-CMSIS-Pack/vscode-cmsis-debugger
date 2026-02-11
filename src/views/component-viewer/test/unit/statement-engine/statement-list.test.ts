@@ -19,6 +19,7 @@
  * Unit test for StatementList.
  */
 
+import { componentViewerLogger } from '../../../../../logger';
 import { ScvdGuiTree } from '../../../scvd-gui-tree';
 import { ScvdList } from '../../../model/scvd-list';
 import { ScvdVar } from '../../../model/scvd-var';
@@ -66,7 +67,7 @@ describe('StatementList', () => {
         const stmt = new StatementList(node, undefined);
         const ctx = createExecutionContext(node);
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -79,7 +80,7 @@ describe('StatementList', () => {
         const stmt = new StatementList(list, undefined);
         const ctx = createExecutionContext(list);
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -93,7 +94,7 @@ describe('StatementList', () => {
         const stmt = new StatementList(list, undefined);
         const ctx = createExecutionContext(list);
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -109,7 +110,7 @@ describe('StatementList', () => {
         const stmt = new StatementList(list, undefined);
         const ctx = createExecutionContext(list);
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -126,7 +127,7 @@ describe('StatementList', () => {
         const ctx = createExecutionContext(list);
         (ctx.evalContext.container as { base: ScvdNode | undefined }).base = undefined;
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -143,7 +144,7 @@ describe('StatementList', () => {
         const stmt = new StatementList(list, undefined);
         const ctx = createExecutionContext(base);
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -165,7 +166,7 @@ describe('StatementList', () => {
         const stmt = new StatementList(list, undefined);
         const ctx = createExecutionContext(base);
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -192,7 +193,7 @@ describe('StatementList', () => {
         const stmt = new StatementList(list, undefined);
         const ctx = createExecutionContext(base);
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 

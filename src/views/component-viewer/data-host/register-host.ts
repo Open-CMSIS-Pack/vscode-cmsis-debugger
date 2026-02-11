@@ -15,6 +15,7 @@
  */
 // generated with AI
 
+import { componentViewerLogger } from '../../../logger';
 import { ValidatingCache } from './validating-cache';
 
 function normalize(name: string): string {
@@ -33,7 +34,7 @@ export class RegisterHost {
 
     public read(name: string): number | bigint | undefined {
         if (!name) {
-            console.error('RegisterHost: read: empty register name');
+            componentViewerLogger.error('RegisterHost: read: empty register name');
             return undefined;
         }
         return this.cache.get(name);
@@ -41,7 +42,7 @@ export class RegisterHost {
 
     public write(name: string, value: number | bigint): number | bigint | undefined {
         if (!name) {
-            console.error('RegisterHost: write: empty register name');
+            componentViewerLogger.error('RegisterHost: write: empty register name');
             return undefined;
         }
         this.cache.set(name, toUint32(value));

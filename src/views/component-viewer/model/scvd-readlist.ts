@@ -22,6 +22,7 @@ import { Json } from './scvd-base';
 import { ScvdNode } from './scvd-node';
 import { ScvdRead } from './scvd-read';
 import { getStringFromJson } from './scvd-utils';
+import { componentViewerLogger } from '../../../logger';
 import { ResolveSymbolCb, ResolveType } from '../resolver';
 
 
@@ -117,7 +118,7 @@ export class ScvdReadList extends ScvdRead {
             const typedef = resolveFunc(this._next, ResolveType.localType);
             const member = typedef ? resolveFunc(this._next, ResolveType.localMember, typedef) : undefined;
             if (member === undefined && typedef) {
-                console.error(`${this.getLineNoStr()}: Resolving readlist .next: could not find member '${this._next}' in typedef '${typedef.name}'`);
+                componentViewerLogger.error(`${this.getLineNoStr()}: Resolving readlist .next: could not find member '${this._next}' in typedef '${typedef.name}'`);
             }
         }
         return super.resolveAndLink(resolveFunc);

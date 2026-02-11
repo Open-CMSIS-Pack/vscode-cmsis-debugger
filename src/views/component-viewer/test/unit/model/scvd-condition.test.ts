@@ -19,6 +19,7 @@
  * Unit test for ScvdCondition.
  */
 
+import { componentViewerLogger } from '../../../../../logger';
 import { ScvdCondition } from '../../../model/scvd-condition';
 import { ScvdExpression } from '../../../model/scvd-expression';
 import { createExecutionContext } from '../helpers/statement-engine-helpers';
@@ -53,7 +54,7 @@ describe('ScvdCondition', () => {
 
     it('handles expression evaluation errors', async () => {
         const condition = new ScvdCondition(undefined, 'expr');
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         jest.spyOn(ScvdExpression.prototype, 'getValue').mockRejectedValue(new Error('fail'));
 
         await expect(condition.getResult()).resolves.toBe(false);
