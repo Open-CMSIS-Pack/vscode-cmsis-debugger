@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-import * as yaml from 'yaml';
 import * as path from 'path';
+import * as vscode from 'vscode';
+import * as yaml from 'yaml';
 import { CbuildRunRootType, CbuildRunType } from './cbuild-run-types';
 import { FileReader, VscodeFileReader } from '../desktop/file-reader';
 import { getCmsisPackRootPath } from '../utils';
@@ -45,7 +46,10 @@ export class CbuildRunReader {
             throw new Error(`Invalid '*.cbuild-run.yml' file: ${filePath}`);
         }
         this.cbuildRunFilePath = filePath;
-        this.cbuildRunDir = path.dirname(this.cbuildRunFilePath);
+        const dirName = path.dirname(this.cbuildRunFilePath);
+        const workspace = vscode.workspace.workspaceFolders?.at(0)?.uri.fsPath;
+        // path.resolve() only resolves if dirName isn't absolute already.
+        this.cbuildRunDir = path.resolve(workspace ? path.join(workspace, dirName) : dirName);
     }
 
     public getSvdFilePaths(cmsisPackRoot?: string, pname?: string): string[] {
