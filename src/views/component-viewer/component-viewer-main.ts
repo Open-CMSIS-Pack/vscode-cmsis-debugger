@@ -49,20 +49,24 @@ export class ComponentViewer {
 
     public activate(tracker: GDBTargetDebugTracker): void {
         // Register Component Viewer tree view
+        console.log('Activating Component Viewer Tree View and commands');
         this.registerTreeView();
         // Subscribe to debug tracker events to update active session
+        console.log('Subscribing to debug tracker events');
         this.subscribetoDebugTrackerEvents(tracker);
     }
 
     protected registerTreeView(): void {
         this._componentViewerTreeDataProvider = new ComponentViewerTreeDataProvider();
         const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
+        console.log('Component Viewer: Registered tree data provider for Component Viewer Tree View id: cmsis-debugger.componentViewer');
         const lockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.lockComponent', async (node) => {
             this.handleLockInstance(node);
         });
         const unlockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.unlockComponent', async (node) => {
             this.handleLockInstance(node);
         });
+        console.log('Component Viewer: Registered lock/unlock instance commands');
         this._context.subscriptions.push(
             treeProviderDisposable,
             lockInstanceCommandDisposable,
