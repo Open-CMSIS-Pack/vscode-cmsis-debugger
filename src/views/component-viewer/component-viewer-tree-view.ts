@@ -49,7 +49,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
 
     public resolveTreeItem(item: vscode.TreeItem, element: ScvdGuiInterface): vscode.ProviderResult<vscode.TreeItem> {
         const perfStartTime = perf?.startUi() ?? 0;
-        item.tooltip = new vscode.MarkdownString((element.getGuiName() === 'UNKNOWN' ? '' : element.getGuiName()) + '\n' + (element.getGuiValue() ?? ''));
+        item.tooltip = new vscode.MarkdownString((element.getGuiName() ?? '') + '\n' + (element.getGuiValue() ?? ''));
         perf?.endUi(perfStartTime, 'treeViewResolveItemMs', 'treeViewResolveItemCalls');
         return item;
     }
