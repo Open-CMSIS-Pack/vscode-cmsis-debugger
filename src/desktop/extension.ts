@@ -25,6 +25,7 @@ import { CpuStatesCommands } from '../features/cpu-states/cpu-states-commands';
 import { LiveWatchTreeDataProvider } from '../views/live-watch/live-watch';
 import { GenericCommands } from '../features/generic-commands';
 import { ComponentViewer } from '../views/component-viewer/component-viewer-main';
+import { ComponentViewerTreeDataProvider } from '../views/component-viewer/component-viewer-tree-view';
 
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
@@ -32,6 +33,7 @@ const BUILTIN_TOOLS_PATHS = [
 ];
 
 let liveWatchTreeDataProvider: LiveWatchTreeDataProvider;
+let componentViewerTreeDataProvider: ComponentViewerTreeDataProvider;
 
 export const activate = async (context: vscode.ExtensionContext): Promise<void> => {
     const genericCommands = new GenericCommands();
@@ -40,9 +42,10 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     const cpuStates = new CpuStates();
     const cpuStatesCommands = new CpuStatesCommands();
     const cpuStatesStatusBarItem = new CpuStatesStatusBarItem();
-    const componentViewer = new ComponentViewer(context);
     // Register the Tree View under the id from package.json
     liveWatchTreeDataProvider = new LiveWatchTreeDataProvider(context);
+    componentViewerTreeDataProvider = new ComponentViewerTreeDataProvider();
+    const componentViewer = new ComponentViewer(context, componentViewerTreeDataProvider);
 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);
     // Activate generic commands
