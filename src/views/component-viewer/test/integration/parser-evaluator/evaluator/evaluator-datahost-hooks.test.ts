@@ -29,6 +29,7 @@ import { MemoryHost } from '../../../../data-host/memory-host';
 import { ScvdFormatSpecifier } from '../../../../model/scvd-format-specifier';
 import { RegisterHost } from '../../../../data-host/register-host';
 import { ScvdDebugTarget } from '../../../../scvd-debug-target';
+import { TargetReadCache } from '../../../../target-read-cache';
 
 class BasicRef extends ScvdNode {
     constructor(parent?: ScvdNode) {
@@ -354,6 +355,53 @@ describe('evaluator data host hooks', () => {
 
         const out = await evaluator.evaluateParseResult(pr, ctx);
         expect(out).toBe('mac=1E-30-6C-A2-45-5F');
+    });
+
+    it('evaluates __CalcMemUsed with varied stack usage and uses the readMemory cache', async () => {
+        const packWords = (...words: number[]) => {
+            const bytes = new Uint8Array(words.length * 4);
+            const view = new DataView(bytes.buffer);
+            words.forEach((word, index) => view.setUint32(index * 4, word >>> 0, true));
+            return bytes;
+        };
+
+        const fill = 0xCCCCCCCC;
+        const magic = 0xE25A2EA5;
+        const cases = [
+            { name: 'free 4', data: packWords(magic, fill), usedBytes: 0, overflow: 0 },
+            { name: 'free 0', data: packWords(magic, 0x11111111), usedBytes: 4, overflow: 0 },
+            { name: 'overflow', data: packWords(0xDEADBEEF, fill), usedBytes: 8, overflow: 1 },
+            { name: 'magic corrupted with usage', data: packWords(0xDEADBEEF, 0x11111111), usedBytes: 8, overflow: 1 },
+        ];
+
+        for (const testCase of cases) {
+            const readMemoryFromTarget = jest.fn().mockResolvedValue(testCase.data);
+            const debugTarget = new ScvdDebugTarget();
+            (debugTarget as unknown as { targetReadCache: TargetReadCache | undefined }).targetReadCache = new TargetReadCache();
+            (debugTarget as unknown as { readMemoryFromTarget: (addr: number | bigint, size: number) => Promise<Uint8Array | undefined> })
+                .readMemoryFromTarget = readMemoryFromTarget;
+
+            const evalIf = new ScvdEvalInterface(
+                new MemoryHost(),
+                {} as RegisterHost,
+                debugTarget,
+                new ScvdFormatSpecifier()
+            );
+            const ctx = new EvalContext({ data: evalIf, container: new BasicRef() });
+            const pr = parseExpression(
+                `__CalcMemUsed(0x1000, 8, 0x${fill.toString(16).toUpperCase()}, 0x${magic.toString(16).toUpperCase()})`,
+                false
+            );
+
+            const out1 = await evaluator.evaluateParseResult(pr, ctx);
+            const out2 = await evaluator.evaluateParseResult(pr, ctx);
+
+            const usedPercent = Math.trunc((testCase.usedBytes * 100) / 8);
+            const expected = ((testCase.usedBytes & 0xfffff) | ((usedPercent & 0xff) << 20) | (testCase.overflow ? 1 << 31 : 0)) >>> 0;
+            expect(out1).toBe(expected);
+            expect(out2).toBe(expected);
+            expect(readMemoryFromTarget).toHaveBeenCalledTimes(1);
+        }
     });
 
     it('computes nested array offsets for member and var arrays', async () => {

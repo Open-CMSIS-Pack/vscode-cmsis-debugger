@@ -220,27 +220,56 @@ describe('scvd-debug-target', () => {
     });
 
     it('calculates memory usage and overflow bit', async () => {
+        const packWords = (...words: number[]) => {
+            const bytes = new Uint8Array(words.length * 4);
+            const view = new DataView(bytes.buffer);
+            words.forEach((word, index) => view.setUint32(index * 4, word >>> 0, true));
+            return bytes;
+        };
+
         class MemTarget extends ScvdDebugTarget {
             constructor(private readonly data: Uint8Array) { super(); }
             async readMemory(): Promise<Uint8Array | undefined> {
                 return this.data;
             }
         }
-        // Two chunks: first fill pattern, second magic value triggers overflow bit
-        const data = new Uint8Array([0, 0, 0, 0, 0x44, 0x33, 0x22, 0x11]);
-        const target = new MemTarget(data);
-        const result = await target.calculateMemoryUsage(0, 8, 0, 0x11223344);
-        expect(result).toBeDefined();
-        expect((result as number) >>> 0).toBe(0x80000000);
+
+        const fill = 0xCCCCCCCC;
+        const magic = 0xE25A2EA5;
+
+        // Magic at start, remaining fill => 0 used, 0%, no overflow
+        const clean = new MemTarget(packWords(magic, fill));
+        const cleanResult = await clean.calculateMemoryUsage(0x1000, 8, fill, magic);
+        expect(cleanResult).toBe(0);
+
+        // Magic at start, one word used
+        const used = new MemTarget(packWords(magic, 0x11111111));
+        const usedResult = await used.calculateMemoryUsage(0x1000, 8, fill, magic);
+        expect(usedResult).toBeDefined();
+        expect((usedResult as number) & 0xFFFFF).toBe(4);
+        expect(((usedResult as number) >> 20) & 0xFF).toBe(50);
+        expect(((usedResult as number) >>> 31) & 1).toBe(0);
+
+        // Magic overwritten at start => overflow and 100% used
+        const overflow = new MemTarget(packWords(0xDEADBEEF, fill));
+        const overflowResult = await overflow.calculateMemoryUsage(0x1000, 8, fill, magic);
+        expect(overflowResult).toBeDefined();
+        expect((overflowResult as number) & 0xFFFFF).toBe(8);
+        expect(((overflowResult as number) >> 20) & 0xFF).toBe(100);
+        expect(((overflowResult as number) >>> 31) & 1).toBe(1);
 
         // No data path
         const noData = new MemTarget(undefined as unknown as Uint8Array);
-        await expect(noData.calculateMemoryUsage(0, 4, 0, 0)).resolves.toBeUndefined();
+        await expect(noData.calculateMemoryUsage(0x1000, 4, fill, magic)).resolves.toBeUndefined();
 
-        const used = new MemTarget(new Uint8Array([1, 0, 0, 0, 1, 0, 0, 0]));
-        const usedResult = await used.calculateMemoryUsage(0, 8, 0, 0);
-        expect((usedResult as number) >>> 0).toBeGreaterThan(0);
-        expect(((usedResult as number) >>> 31) & 1).toBe(0);
+        // Fill equals magic: overflow bit must stay clear even if first word mismatches
+        const fillIsMagic = new MemTarget(packWords(0x12345678, fill));
+        const fillIsMagicResult = await fillIsMagic.calculateMemoryUsage(0x1000, 8, fill, fill);
+        expect(((fillIsMagicResult as number) >>> 31) & 1).toBe(0);
+
+        // Address/size guard returns 0
+        await expect(clean.calculateMemoryUsage(0, 8, fill, magic)).resolves.toBe(0);
+        await expect(clean.calculateMemoryUsage(0x1000, 0, fill, magic)).resolves.toBe(0);
     });
 
     it('reads string from pointer and registers', async () => {
