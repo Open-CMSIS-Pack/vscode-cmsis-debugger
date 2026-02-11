@@ -49,7 +49,7 @@ export class CbuildRunReader {
         const dirName = path.dirname(this.cbuildRunFilePath);
         const workspace = vscode.workspace.workspaceFolders?.at(0)?.uri.fsPath;
         // path.resolve() only resolves if dirName isn't absolute already.
-        this.cbuildRunDir = path.resolve(workspace ? path.join(workspace, dirName) : dirName);
+        this.cbuildRunDir = workspace ? path.resolve(workspace, dirName) : dirName;
     }
 
     public getSvdFilePaths(cmsisPackRoot?: string, pname?: string): string[] {
