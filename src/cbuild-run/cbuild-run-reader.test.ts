@@ -101,7 +101,7 @@ describe('CbuildRunReader', () => {
                 // eslint-disable-next-line security/detect-object-injection
                 const expectedPath = path.normalize(path.resolve(expectedSvdPaths[i]));
                 // eslint-disable-next-line security/detect-object-injection
-                const actualPath = path.normalize(path.resolve(svdFilePaths[i]));
+                const actualPath = svdFilePaths[i];
                 expect(expectedPath).toEqual(actualPath);
             }
         });
@@ -128,7 +128,7 @@ describe('CbuildRunReader', () => {
             const systemDescriptions = cbuildRun?.['system-descriptions'];
             expect(systemDescriptions).toBeDefined();
             const svdPaths = cbuildRunReader.getSvdFilePaths('', 'Core1');
-            expect(svdPaths.map(path.normalize)).toEqual([
+            expect(svdPaths).toEqual([
                 path.normalize(
                     path.resolve(path.dirname(TEST_CBUILD_RUN_FILE), '${CMSIS_PACK_ROOT}', 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_Core1.svd')
                 ),
@@ -146,7 +146,7 @@ describe('CbuildRunReader', () => {
             expect(systemDescriptions).toBeDefined();
             const svdPaths = cbuildRunReader.getSvdFilePaths(PACK_ROOT, 'Core1');
 
-            expect(svdPaths.map(path.normalize)).toEqual([
+            expect(svdPaths).toEqual([
                 path.normalize(path.resolve(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_Core1.svd')),
                 path.normalize(path.resolve(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_generic.svd')),
                 path.normalize(EXPECTED_CUSTOM_SVD),
