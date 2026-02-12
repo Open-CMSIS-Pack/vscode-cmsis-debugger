@@ -25,6 +25,7 @@ import { CpuStatesCommands } from '../features/cpu-states/cpu-states-commands';
 import { LiveWatchTreeDataProvider } from '../views/live-watch/live-watch';
 import { GenericCommands } from '../features/generic-commands';
 import { ComponentViewer } from '../views/component-viewer/component-viewer-main';
+import { ComponentViewerTreeDataProvider } from '../views/component-viewer/component-viewer-tree-view';
 
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
@@ -32,6 +33,7 @@ const BUILTIN_TOOLS_PATHS = [
 ];
 
 let liveWatchTreeDataProvider: LiveWatchTreeDataProvider;
+let componentViewerTreeDataProvider: ComponentViewerTreeDataProvider;
 
 export const activate = async (context: vscode.ExtensionContext): Promise<void> => {
     const genericCommands = new GenericCommands();
@@ -40,9 +42,10 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     const cpuStates = new CpuStates();
     const cpuStatesCommands = new CpuStatesCommands();
     const cpuStatesStatusBarItem = new CpuStatesStatusBarItem();
-    const componentViewer = new ComponentViewer(context);
     // Register the Tree View under the id from package.json
     liveWatchTreeDataProvider = new LiveWatchTreeDataProvider(context);
+    componentViewerTreeDataProvider = new ComponentViewerTreeDataProvider();
+    const componentViewer = new ComponentViewer(context, componentViewerTreeDataProvider);
 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);
     // Activate generic commands
@@ -55,9 +58,12 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     cpuStatesCommands.activate(context, cpuStates);
     cpuStatesStatusBarItem.activate(context, cpuStates);
     // Live Watch view
+    console.debug('Activating Live Watch Tree Data Provider');
     liveWatchTreeDataProvider.activate(gdbtargetDebugTracker);
     // Component Viewer
+    console.debug('Activating Component Viewer');
     componentViewer.activate(gdbtargetDebugTracker);
+    console.debug('CMSIS Debugger activated');
 
     logger.debug('Extension Pack activated');
 };
@@ -66,6 +72,9 @@ export const deactivate = async (): Promise<void> => {
     // Call deactivate of Live Watch to save its state
     if (liveWatchTreeDataProvider) {
         await liveWatchTreeDataProvider.deactivate();
+    }
+    if (componentViewerTreeDataProvider) {
+        componentViewerTreeDataProvider.clear();
     }
     logger.debug('Extension Pack deactivated');
 };
