@@ -15,6 +15,21 @@
  */
 // generated with AI
 
+jest.mock('../../../../../logger', () => ({
+    logger: {
+        trace: jest.fn(),
+        debug: jest.fn(),
+        error: jest.fn(),
+    },
+    componentViewerLogger: {
+        trace: jest.fn(),
+        debug: jest.fn(),
+        error: jest.fn(),
+    },
+}));
+
+import { componentViewerLogger } from '../../../../../logger';
+
 import {
     ExpressionOptimizer,
     __expressionOptimizerTestUtils,
@@ -471,7 +486,7 @@ describe('expression-optimizer', () => {
             externalSymbols: [],
             isPrintf: false,
         };
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         const optimized = optimizer.optimizeParseResult(parsed);
         expect(optimized.diagnostics.some((d) => d.type === 'error')).toBe(true);
         expect(errorSpy).toHaveBeenCalled();

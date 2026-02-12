@@ -15,7 +15,21 @@
  */
 // generated with AI
 
+jest.mock('../../../../logger', () => ({
+    logger: {
+        trace: jest.fn(),
+        debug: jest.fn(),
+        error: jest.fn(),
+    },
+    componentViewerLogger: {
+        trace: jest.fn(),
+        debug: jest.fn(),
+        error: jest.fn(),
+    },
+}));
+
 import { performance } from 'node:perf_hooks';
+import { componentViewerLogger } from '../../../../logger';
 import { ParsePerfStats } from '../../parse-perf-stats';
 import type {
     AlignofExpression,
@@ -56,7 +70,7 @@ describe('ParsePerfStats', () => {
         const perf = new ParsePerfStats();
         Reflect.set(perf as object, 'enabled', false);
 
-        const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+        const logSpy = jest.spyOn(componentViewerLogger, 'trace').mockImplementation(() => {});
 
         expect(perf.start()).toBe(0);
         perf.endParse(0);
@@ -137,7 +151,7 @@ describe('ParsePerfStats', () => {
 
         const summary = perf.formatSummary();
 
-        expect(summary).toContain('[SCVD][parse-perf]');
+        expect(summary).toContain('[parse-perf]');
         expect(summary).toContain('parseCalls=1');
         expect(summary).toContain('optimizeCalls=3');
         expect(summary).toContain('foldFull=1');
@@ -182,7 +196,7 @@ describe('ParsePerfStats', () => {
         perf.endOptimize(perf.start());
         perf.recordOptimize(num(4), num(5), false);
         expect(perf.hasData()).toBe(true);
-        expect(perf.formatSummary()).toContain('[SCVD][parse-perf]');
+        expect(perf.formatSummary()).toContain('[parse-perf]');
 
         perf.reset();
 
@@ -197,7 +211,7 @@ describe('ParsePerfStats', () => {
         perf.recordOptimize(num(1), num(2), true);
 
         const summary = perf.formatSummary();
-        expect(summary).toContain('[SCVD][parse-perf]');
+        expect(summary).toContain('[parse-perf]');
         expect(summary).toContain('parseCalls=0');
         expect(summary).toContain('optimizeCalls=1');
     });
@@ -207,9 +221,9 @@ describe('ParsePerfStats', () => {
         perf.endParse(perf.start());
         perf.recordParse(num(1));
 
-        const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+        const logSpy = jest.spyOn(componentViewerLogger, 'trace').mockImplementation(() => {});
         perf.logSummary();
-        expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[SCVD][parse-perf]'));
+        expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[parse-perf]'));
         logSpy.mockRestore();
     });
 
