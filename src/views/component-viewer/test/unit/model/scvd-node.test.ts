@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
  * Unit test for ScvdNode.
  */
 
+import { componentViewerLogger } from '../../../../../logger';
 import { ScvdNode } from '../../../model/scvd-node';
 import { Json, ScvdBase } from '../../../model/scvd-base';
 
@@ -147,7 +147,7 @@ describe('ScvdNode', () => {
 
     it('logs default errors for unimplemented accessors', async () => {
         const node = new TestNode(undefined);
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         expect(node.writeAt(0, 8, 1)).toBeUndefined();
         expect(node.readAt(0, 8)).toBeUndefined();

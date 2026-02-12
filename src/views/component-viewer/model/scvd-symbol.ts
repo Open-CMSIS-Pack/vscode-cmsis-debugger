@@ -16,13 +16,11 @@
 
 // https://arm-software.github.io/CMSIS-View/main/elem_component_viewer.html
 
-import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdNode } from './scvd-node';
 import { MemberInfo } from '../scvd-debug-target';
 
 export class ScvdSymbol extends ScvdNode {
     private _symbol: string | undefined;
-    private _executionContext: ExecutionContext | undefined;
     private _address: number | undefined;
     private _memberInfo: MemberInfo[] = [];
 
@@ -83,10 +81,5 @@ export class ScvdSymbol extends ScvdNode {
         const memberInfo = this.memberInfo.find(member => member.name === name);
         return memberInfo?.offset;
     }
-
-    public override setExecutionContext(executionContext: ExecutionContext) {
-        this._executionContext = executionContext;
-    }
-
 
 }

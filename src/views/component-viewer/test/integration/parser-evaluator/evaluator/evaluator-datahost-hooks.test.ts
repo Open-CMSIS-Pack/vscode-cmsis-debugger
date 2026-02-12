@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
@@ -23,8 +22,14 @@
 import { Evaluator, EvalContext } from '../../../../parser-evaluator/evaluator';
 import type { RefContainer, EvalValue } from '../../../../parser-evaluator/model-host';
 import type { FullDataHost } from '../../helpers/full-data-host';
-import { parseExpression } from '../../../../parser-evaluator/parser';
+import { parseExpressionForTest as parseExpression } from '../../../unit/helpers/parse-expression';
 import { ScvdNode } from '../../../../model/scvd-node';
+import { ScvdEvalInterface } from '../../../../scvd-eval-interface';
+import { MemoryHost } from '../../../../data-host/memory-host';
+import { ScvdFormatSpecifier } from '../../../../model/scvd-format-specifier';
+import { RegisterHost } from '../../../../data-host/register-host';
+import { ScvdDebugTarget } from '../../../../scvd-debug-target';
+import { TargetReadCache } from '../../../../target-read-cache';
 
 class BasicRef extends ScvdNode {
     constructor(parent?: ScvdNode) {
@@ -125,6 +130,37 @@ class HookHost implements FullDataHost {
 }
 
 const evaluator = new Evaluator();
+
+class MacRoot extends ScvdNode {
+    private readonly macRef: ScvdNode;
+
+    constructor() {
+        super(undefined);
+        this.macRef = new MacNode(this);
+        this.macRef.name = 'mac';
+    }
+
+    public override getSymbol(name: string): ScvdNode | undefined {
+        if (name === 'mac') {
+            return this.macRef;
+        }
+        return undefined;
+    }
+}
+
+class MacNode extends ScvdNode {
+    constructor(parent?: ScvdNode) {
+        super(parent);
+    }
+
+    public override async getTargetSize(): Promise<number | undefined> {
+        return 6;
+    }
+
+    public override getValueType(): string | undefined {
+        return undefined;
+    }
+}
 
 class NestedArrayHost implements FullDataHost {
     readonly root = new BasicRef();
@@ -294,6 +330,129 @@ describe('evaluator data host hooks', () => {
         expect(out).toBe('mac=1E-30-6C-A2-45-5F');
         expect(host.formatPrintf).toHaveBeenCalledTimes(1);
         expect(host.lastFormattingContainer?.current).toBe(host.fieldRef);
+    });
+
+    it('formats %M using memhost-backed bytes', async () => {
+        const memHost = new MemoryHost();
+        memHost.setVariable('mac', 6, new Uint8Array([0x1e, 0x30, 0x6c, 0xa2, 0x45, 0x5f]), 0);
+        const debugTarget = {
+            readMemory: jest.fn(async () => undefined),
+            findSymbolNameAtAddress: jest.fn(async () => undefined),
+            findSymbolContextAtAddress: jest.fn(async () => undefined),
+            readUint8ArrayStrFromPointer: jest.fn(async () => undefined),
+            findSymbolAddress: jest.fn(async () => undefined),
+            getTargetIsRunning: jest.fn(async () => false),
+        } as unknown as ScvdDebugTarget;
+        const scvd = new ScvdEvalInterface(
+            memHost,
+            {} as RegisterHost,
+            debugTarget,
+            new ScvdFormatSpecifier()
+        );
+        const root = new MacRoot();
+        const ctx = new EvalContext({ data: scvd, container: root });
+        const pr = parseExpression('mac=%M[mac]', true);
+
+        const out = await evaluator.evaluateParseResult(pr, ctx);
+        expect(out).toBe('mac=1E-30-6C-A2-45-5F');
+    });
+
+    it('evaluates __CalcMemUsed with varied stack usage and uses the readMemory cache', async () => {
+        const packWords = (...words: number[]) => {
+            const bytes = new Uint8Array(words.length * 4);
+            const view = new DataView(bytes.buffer);
+            words.forEach((word, index) => view.setUint32(index * 4, word >>> 0, true));
+            return bytes;
+        };
+
+        const makeFreeBytesData = (freeBytes: number, corruptMagicBytes = 0): Uint8Array => {
+            const bytes = new Uint8Array(12);
+            bytes.fill(0xcc);
+            const view = new DataView(bytes.buffer);
+            view.setUint32(0, magic >>> 0, true);
+            if (corruptMagicBytes > 0) {
+                const magicCorruptLen = Math.min(magicBytes, corruptMagicBytes);
+                const start = magicBytes - magicCorruptLen;
+                bytes.set(corruptBytes.subarray(0, magicCorruptLen), start);
+            }
+            if (freeBytes < 8) {
+                bytes.set(corruptBytes.subarray(0, 8 - freeBytes), 4 + freeBytes);
+            }
+            return bytes;
+        };
+
+        const fill = 0xCCCCCCCC;
+        const magic = 0xE25A2EA5;
+        const magicBytes = 4;
+        const corruptBytes = new Uint8Array([0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
+        const cases = [
+            { name: 'free 0 bytes', size: 12, data: makeFreeBytesData(0), usedBytes: 8, overflow: 0 },
+            { name: 'free 1 bytes', size: 12, data: makeFreeBytesData(1), usedBytes: 8, overflow: 0 },
+            { name: 'free 2 bytes', size: 12, data: makeFreeBytesData(2), usedBytes: 8, overflow: 0 },
+            { name: 'free 3 bytes', size: 12, data: makeFreeBytesData(3), usedBytes: 8, overflow: 0 },
+            { name: 'free 4 bytes', size: 12, data: makeFreeBytesData(4), usedBytes: 4, overflow: 0 },
+            { name: 'free 5 bytes', size: 12, data: makeFreeBytesData(5), usedBytes: 4, overflow: 0 },
+            { name: 'magic partially corrupted', size: 12, data: makeFreeBytesData(4, 1), usedBytes: 12, overflow: 1 },
+            { name: 'all free', size: 8, data: packWords(magic, fill), usedBytes: 0, overflow: 0 },
+            { name: 'all used', size: 8, data: packWords(magic, 0x11111111), usedBytes: 4, overflow: 0 },
+            { name: 'overflow', size: 8, data: packWords(0xDEADBEEF, fill), usedBytes: 8, overflow: 1 },
+            { name: 'magic corrupted with usage', size: 8, data: packWords(0xDEADBEEF, 0x11111111), usedBytes: 8, overflow: 1 },
+            { name: 'fill equals magic', size: 8, data: packWords(0x11111111, magic), usedBytes: 8, overflow: 0, fillOverride: magic },
+            { name: 'non-multiple size', size: 10, data: packWords(magic, fill, fill), usedBytes: 0, overflow: 0 },
+        ];
+
+        for (const testCase of cases) {
+            const readMemoryFromTarget = jest.fn().mockResolvedValue(testCase.data);
+            const debugTarget = new ScvdDebugTarget();
+            (debugTarget as unknown as { targetReadCache: TargetReadCache | undefined }).targetReadCache = new TargetReadCache();
+            (debugTarget as unknown as { readMemoryFromTarget: (addr: number | bigint, size: number) => Promise<Uint8Array | undefined> })
+                .readMemoryFromTarget = readMemoryFromTarget;
+
+            const evalIf = new ScvdEvalInterface(
+                new MemoryHost(),
+                {} as RegisterHost,
+                debugTarget,
+                new ScvdFormatSpecifier()
+            );
+            const ctx = new EvalContext({ data: evalIf, container: new BasicRef() });
+            const pr = parseExpression(
+                `__CalcMemUsed(0x1000, ${testCase.size}, 0x${(testCase.fillOverride ?? fill).toString(16).toUpperCase()}, 0x${magic.toString(16).toUpperCase()})`,
+                false
+            );
+
+            const out1 = await evaluator.evaluateParseResult(pr, ctx);
+            const out2 = await evaluator.evaluateParseResult(pr, ctx);
+
+            const usedPercent = Math.trunc((testCase.usedBytes * 100) / testCase.size);
+            const expected = ((testCase.usedBytes & 0xfffff) | ((usedPercent & 0xff) << 20) | (testCase.overflow ? 1 << 31 : 0)) >>> 0;
+            expect(out1).toBe(expected);
+            expect(out2).toBe(expected);
+            expect(readMemoryFromTarget).toHaveBeenCalledTimes(1);
+        }
+
+        const readMemoryFromTarget = jest.fn();
+        const debugTarget = new ScvdDebugTarget();
+        (debugTarget as unknown as { targetReadCache: TargetReadCache | undefined }).targetReadCache = new TargetReadCache();
+        (debugTarget as unknown as { readMemoryFromTarget: (addr: number | bigint, size: number) => Promise<Uint8Array | undefined> })
+            .readMemoryFromTarget = readMemoryFromTarget;
+        const evalIf = new ScvdEvalInterface(
+            new MemoryHost(),
+            {} as RegisterHost,
+            debugTarget,
+            new ScvdFormatSpecifier()
+        );
+        const ctx = new EvalContext({ data: evalIf, container: new BasicRef() });
+        const addrZero = parseExpression(
+            `__CalcMemUsed(0, 8, 0x${fill.toString(16).toUpperCase()}, 0x${magic.toString(16).toUpperCase()})`,
+            false
+        );
+        await expect(evaluator.evaluateParseResult(addrZero, ctx)).resolves.toBe(0);
+        const sizeZero = parseExpression(
+            `__CalcMemUsed(0x1000, 0, 0x${fill.toString(16).toUpperCase()}, 0x${magic.toString(16).toUpperCase()})`,
+            false
+        );
+        await expect(evaluator.evaluateParseResult(sizeZero, ctx)).resolves.toBe(0);
+        expect(readMemoryFromTarget).not.toHaveBeenCalled();
     });
 
     it('computes nested array offsets for member and var arrays', async () => {

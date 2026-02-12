@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
@@ -27,7 +26,7 @@ describe('ScvdFormatSpecifier', () => {
 
     it('formats numbers by type and bit width', () => {
         expect(formatter.formatNumberByType(3.7, { kind: 'int' })).toBe('3');
-        expect(formatter.formatNumberByType(-1, { kind: 'uint', bits: 8 })).toBe('256');
+        expect(formatter.formatNumberByType(-1, { kind: 'uint', bits: 8 })).toBe('255');
         expect(formatter.formatNumberByType(0xFF, { kind: 'int', bits: 8 })).toBe('-1');
         expect(formatter.formatNumberByType(1.23456, { kind: 'float', bits: 32 })).toBe('1.235');
         expect(formatter.formatNumberByType(42, { kind: 'uint', bits: 64 })).toBe('42');
@@ -38,7 +37,7 @@ describe('ScvdFormatSpecifier', () => {
         expect(formatter.formatNumberByType(0xFFn, { kind: 'int', bits: 8 })).toBe('-1');
         expect(formatter.formatNumberByType(0x7Fn, { kind: 'int', bits: 8 })).toBe('127');
         expect(formatter.formatNumberByType(0xFFFF, { kind: 'int', bits: 16 })).toBe('-1');
-        expect(formatter.formatNumberByType(0xFFFF, { kind: 'uint', bits: 16 })).toBe('0');
+        expect(formatter.formatNumberByType(0xFFFF, { kind: 'uint', bits: 16 })).toBe('65535');
         expect(formatter.formatNumberByType(3.14, { kind: 'unknown' })).toBe('3.14');
         expect(formatter.formatNumberByType(Number.NaN, { kind: 'uint', bits: 64 })).toBe('NaN');
         expect(formatter.formatNumberByType(Number.POSITIVE_INFINITY, { kind: 'int' })).toBe('Infinity');
@@ -150,11 +149,11 @@ describe('ScvdFormatSpecifier', () => {
         const mac = new Uint8Array([0, 1, 2, 3, 4, 5]);
         const macShort = new Uint8Array([0, 1]);
         expect(formatter.format('M', mac)).toBe('00-01-02-03-04-05');
-        expect(formatter.format('M', 0x010203040506)).toBe('05-06-03-04-05-06');
+        expect(formatter.format('M', new Uint8Array([1, 2, 3, 4, 5, 6]))).toBe('01-02-03-04-05-06');
         expect(formatter.formatMac(macShort)).toBe('<MAC: access out of bounds>');
-        expect(formatter.format_M(0x000102030405)).toBe('04-05-02-03-04-05');
+        expect(formatter.format_M(new Uint8Array([0, 1, 2, 3, 4, 5]))).toBe('00-01-02-03-04-05');
         expect(formatter.format_M('AA:BB:CC')).toBe('00-00-00-AA-BB-CC');
-        expect(formatter.format_M(Number.NaN)).toBe('NaN');
+        expect(formatter.format('M', Number.NaN)).toBe('NaN');
 
         const savedMatch = String.prototype.match;
         try {

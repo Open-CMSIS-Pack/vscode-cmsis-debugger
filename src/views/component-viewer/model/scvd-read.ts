@@ -23,6 +23,7 @@ import { ScvdEndian } from './scvd-endian';
 import { ScvdExpression } from './scvd-expression';
 import { ScvdCondition } from './scvd-condition';
 import { ScvdSymbol } from './scvd-symbol';
+import { componentViewerLogger } from '../../../logger';
 import { ScvdDataType } from './scvd-data-type';
 import { getStringFromJson } from './scvd-utils';
 
@@ -152,7 +153,7 @@ export class ScvdRead extends ScvdNode {
             return 1;
         }
         if (!Number.isFinite(numericValue) || numericValue < 1 || numericValue > 65536) {
-            console.error(this.getLineInfoStr(), `'${this.name ?? 'read'}': invalid size specified (1...65536)`);
+            componentViewerLogger.error(this.getLineInfoStr(), `'${this.name ?? 'read'}': invalid size specified (1...65536)`);
             if (numericValue < 1) {
                 return 1;
             }
@@ -191,6 +192,10 @@ export class ScvdRead extends ScvdNode {
 
     public override getMember(property: string): ScvdNode | undefined {
         return this.type?.getMember(property);
+    }
+
+    public override getElementRef(): ScvdNode | undefined {
+        return this.type ?? undefined;
     }
 
     public override getValueType(): string | undefined {

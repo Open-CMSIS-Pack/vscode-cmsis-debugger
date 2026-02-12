@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { componentViewerLogger } from '../../../logger';
 import { ScvdNode } from '../model/scvd-node';
 import { ScvdCalc } from '../model/scvd-calc';
 import { ExecutionContext } from '../scvd-eval-context';
@@ -28,18 +29,17 @@ export class StatementCalc extends StatementBase {
     }
 
     protected override async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
+        componentViewerLogger.debug(`Line: ${this.line}: Executing <${this.scvdItem.tag}>}`);
         const calcItem = this.scvdItem.castToDerived(ScvdCalc);
         if (!calcItem) {
-            console.error(`${this.line}: Executing "calc": could not cast to ScvdCalc`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "calc": could not cast to ScvdCalc`);
             return;
         }
-        //console.log(`${this.line}: Executing calc: ${await this.scvdItem.getGuiName()}`);
 
         const expressions = calcItem.expression;
         for (const expr of expressions) {
-            await expr.evaluate();
-            //const value = await expr.getValue();
-            //console.log(`${this.line} Executing "calc": ${expr.expression}, value: ${value}`);
+            const value = await expr.evaluate();
+            componentViewerLogger.debug(`Line: ${this.line}: Completed executing <${this.scvdItem.tag}>, ${expr.expression}, value: ${value}`);
         }
     }
 }

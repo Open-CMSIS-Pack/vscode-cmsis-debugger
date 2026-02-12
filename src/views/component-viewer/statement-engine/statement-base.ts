@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { componentViewerLogger } from '../../../logger';
 import { ScvdNode } from '../model/scvd-node';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
@@ -99,10 +100,15 @@ export class StatementBase {
         return this.scvdItem.getGuiValue();
     }
 
+    protected async getLogName(): Promise<string> {
+        const guiName = await this.getGuiName();
+        return guiName ?? this.scvdItem.tag ?? 'unknown';
+    }
+
     public async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
+        componentViewerLogger.debug(`Line: ${this.line}: Executing statement: ${await this.getLogName()}`);
         const shouldExecute = await this.shouldExecute(executionContext);
         if (!shouldExecute) {
-            //console.log(`${this.scvdItem.getLineNoStr()}: Skipping ${this.scvdItem.getDisplayLabel()} for condition result: ${conditionResult}`);
             return;
         }
 
@@ -115,12 +121,22 @@ export class StatementBase {
 
     // Override in subclasses to perform work for this node.
     protected async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        //console.log(`${this.line}: Executing base: ${await this.scvdItem.getGuiName()}`);
+        componentViewerLogger.debug(`Line: ${this.line}: Executing <${this.scvdItem.tag}> : ${await this.getLogName()}`);
     }
 
     protected async shouldExecute(_executionContext: ExecutionContext): Promise<boolean> {
-        const conditionResult = await this.scvdItem.getConditionResult();
-        return conditionResult !== false;
-    }
+        const mustRead = this.scvdItem.mustRead;
+        if (mustRead === false) {
+            componentViewerLogger.debug(`Line: ${this.line}: Skipping ${await this.getGuiName()} as already initialized`);
+            return false;
+        }
 
+        const conditionResult = await this.scvdItem.getConditionResult();
+        if (conditionResult === false) {
+            componentViewerLogger.debug(`Line: ${this.line}: Skipping ${await this.getGuiName()} due to condition=false`);
+            return false;
+        }
+
+        return true;
+    }
 }

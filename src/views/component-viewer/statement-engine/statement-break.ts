@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { componentViewerLogger } from '../../../logger';
 import { ScvdNode } from '../model/scvd-node';
 import { ScvdBreak } from '../model/scvd-break';
 import { ExecutionContext } from '../scvd-eval-context';
@@ -27,20 +28,12 @@ export class StatementBreak extends StatementBase {
         super(item, parent);
     }
 
-    public override async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
-        const shouldExecute = await this.shouldExecute(executionContext);
-        if (!shouldExecute) {
-            return;
-        }
-        await this.onExecute(executionContext, guiTree);
-    }
-
     protected override async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
+        componentViewerLogger.debug(`Line: ${this.line}: Executing <${this.scvdItem.tag}> : ${await this.getLogName()}`);
         const breakItem = this.scvdItem.castToDerived(ScvdBreak);
         if (!breakItem) {
-            console.error(`${this.line}: Executing "break": could not cast to ScvdBreak`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "break": could not cast to ScvdBreak`);
             return;
         }
-        //console.log(`${this.line}: Executing break: ${await this.scvdItem.getGuiName()}`);
     }
 }

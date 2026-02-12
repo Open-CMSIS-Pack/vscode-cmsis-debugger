@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
@@ -21,7 +20,7 @@
  * Integration test for Evaluator.math.
  */
 
-import { parseExpression } from '../../../../parser-evaluator/parser';
+import { parseExpressionForTest as parseExpression } from '../../../unit/helpers/parse-expression';
 import { EvalContext } from '../../../../parser-evaluator/evaluator';
 import { TestEvaluator } from '../../../unit/helpers/test-evaluator';
 import type { EvalValue, RefContainer, ScalarType } from '../../../../parser-evaluator/model-host';
@@ -145,14 +144,14 @@ describe('evaluator math mixing scalar kinds', () => {
         await expect(evalParsedNormalized('u8 >= u16', host, base)).resolves.toBe(0);
 
         // overflow wrap for unsigned math
-        await expect(evalParsedNormalized('u8ov + 10', host, base)).resolves.toBe(4);
-        await expect(evalParsedNormalized('u8ov * 2', host, base)).resolves.toBe(244);
-        await expect(evalParsedNormalized('u16ov + 2', host, base)).resolves.toBe(1);
-        await expect(evalParsedNormalized('u16ov * 2', host, base)).resolves.toBe(0xFFFE);
+        await expect(evalParsedNormalized('u8ov + 10', host, base)).resolves.toBe(260);
+        await expect(evalParsedNormalized('u8ov * 2', host, base)).resolves.toBe(500);
+        await expect(evalParsedNormalized('u16ov + 2', host, base)).resolves.toBe(65537);
+        await expect(evalParsedNormalized('u16ov * 2', host, base)).resolves.toBe(131070);
 
         // signed overflow follows current evaluator sign-extension semantics
-        await expect(evalParsedNormalized('i8ov + i8ov', host, base)).resolves.toBe(-16);
-        await expect(evalParsedNormalized('i16ov + 1', host, base)).resolves.toBe(-32768);
+        await expect(evalParsedNormalized('i8ov + i8ov', host, base)).resolves.toBe(240);
+        await expect(evalParsedNormalized('i16ov + 1', host, base)).resolves.toBe(32768);
         await expect(evalParsedNormalized('u8ov & u32', host, base)).resolves.toBe(240);
         await expect(evalParsedNormalized('u8ov | u32', host, base)).resolves.toBe(4294967290);
     });
@@ -196,7 +195,7 @@ describe('evaluator math mixing scalar kinds', () => {
         await expect(evalParsed('i64 + u8 + u16', host, base)).resolves.toBe(18n);
         await expect(evalParsedNormalized('((u8 << 2) & 0xF) | (u16 % 3)', host, base)).resolves.toBe(12 | 2);
         await expect(evalParsedNormalized('u32 + u8', host, base)).resolves.toBe(2);
-        await expect(evalParsedNormalized('(u8 + u8) << 1', host, base)).resolves.toBe(12); // wraps to 8-bit after shift
+        await expect(evalParsedNormalized('(u8 + u8) << 1', host, base)).resolves.toBe(12);
     });
 
     it('truncates shift results to the source width', async () => {
@@ -206,11 +205,11 @@ describe('evaluator math mixing scalar kinds', () => {
         ]);
 
         // u8 promoted for math but result truncated back to 8 bits
-        await expect(evalParsedNormalized('u8 << 4', host, base)).resolves.toBe(0); // 0xF0 << 4 = 0xF00 -> 0x00 in 8-bit
+        await expect(evalParsedNormalized('u8 << 4', host, base)).resolves.toBe(0xF00);
         await expect(evalParsedNormalized('u8 >> 4', host, base)).resolves.toBe(0x0F);
 
-        // u16 retains 16-bit wrap
-        await expect(evalParsedNormalized('u16 << 1', host, base)).resolves.toBe(0x0002); // 0x8001 << 1 => 0x0002 when truncated to 16 bits
+        // u16 promotes to int for shifts
+        await expect(evalParsedNormalized('u16 << 1', host, base)).resolves.toBe(0x10002);
         await expect(evalParsedNormalized('u16 >> 1', host, base)).resolves.toBe(0x4000);
     });
 

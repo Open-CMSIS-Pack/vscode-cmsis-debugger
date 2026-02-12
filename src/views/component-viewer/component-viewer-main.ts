@@ -19,19 +19,16 @@ import { GDBTargetDebugTracker, GDBTargetDebugSession } from '../../debug-sessio
 import { ComponentViewerInstance } from './component-viewer-instance';
 import { URI } from 'vscode-uri';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
-import { logger } from '../../logger';
+import { componentViewerLogger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
+import { perf, parsePerf } from './stats-config';
 
-export type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace';
-interface UpdateQueueItem {
-    updateId: number;
-    debugSession: GDBTargetDebugSession;
-    updateReason: fifoUpdateReason;
-}
+export type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace' | 'stackItemChanged';
 
-interface ComponentViewerInstancesWrapper {
+export interface ComponentViewerInstancesWrapper {
     componentViewerInstance: ComponentViewerInstance;
     lockState: boolean;
+    sessionId: string; // ID of the debug session this instance belongs to, used to clear instances when session changes
 }
 
 export class ComponentViewer {
@@ -41,12 +38,10 @@ export class ComponentViewer {
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
     private _loadingCounter: number = 0;
-    // Update queue is currently used for logging purposes only
-    private _updateQueue: UpdateQueueItem[] = [];
     private _pendingUpdateTimer: NodeJS.Timeout | undefined;
     private _pendingUpdate: boolean = false;
     private _runningUpdate: boolean = false;
-    private static readonly pendingUpdateDelayMs = 200;
+    private static readonly pendingUpdateDelayMs = 150;
 
     public constructor(context: vscode.ExtensionContext) {
         this._context = context;
@@ -89,7 +84,7 @@ export class ComponentViewer {
             return;
         }
         instance.lockState = !instance.lockState;
-        logger.info(`Component Viewer: Instance lock state changed to ${instance.lockState}`);
+        componentViewerLogger.info(`Component Viewer: Instance lock state changed to ${instance.lockState}`);
         // If instance is locked, set isLocked flag to true for root nodes
         const guiTree = instance.componentViewerInstance.getGuiTree();
         if (!guiTree) {
@@ -114,6 +109,7 @@ export class ComponentViewer {
         if (scvdFilesPaths.length === 0) {
             return undefined;
         }
+        parsePerf?.reset();
         const cbuildRunInstances: ComponentViewerInstance[] = [];
         for (const scvdFilePath of scvdFilesPaths) {
             const instance = new ComponentViewerInstance();
@@ -122,16 +118,18 @@ export class ComponentViewer {
                 cbuildRunInstances.push(instance);
             }
         }
+        parsePerf?.logSummary();
         // Store loaded instances, set default lock state to false
         this._instances.push(...cbuildRunInstances.map(instance => ({
             componentViewerInstance: instance,
-            lockState: false
+            lockState: false,
+            sessionId: session.session.id,
         })));
     }
 
     private async loadCbuildRunInstances(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker) : Promise<void | undefined> {
         this._loadingCounter++;
-        console.log(`Loading SCVD files from cbuild-run, attempt #${this._loadingCounter}`);
+        componentViewerLogger.debug(`Loading SCVD files from cbuild-run, attempt #${this._loadingCounter}`);
         // Try to read SCVD files from cbuild-run file first
         await this.readScvdFiles(tracker, session);
         // Are there any SCVD files found in cbuild-run?
@@ -154,7 +152,7 @@ export class ComponentViewer {
             await this.handleOnStackTrace(session.session);
         });
         const onDidChangeActiveStackItemDisposable = tracker.onDidChangeActiveStackItem(async (session) => {
-            await this.handleOnStackTrace(session.session);
+            await this.handleOnStackItemChanged(session.session);
         });
         const onWillStartSessionDisposable = tracker.onWillStartSession(async (session) => {
             await this.handleOnWillStartSession(session);
@@ -180,13 +178,30 @@ export class ComponentViewer {
         this.schedulePendingUpdate('stackTrace');
     }
 
+    protected async handleOnStackItemChanged(session: GDBTargetDebugSession): Promise<void> {
+        // If the active session is not the one being updated, update it.
+        // This can happen when a session is started and stack trace/item events are emitted before the session is set as active in the component viewer.
+        if (this._activeSession?.session.id !== session.session.id) {
+            this._activeSession = session;
+            this._instances.forEach((instance) => instance.componentViewerInstance.updateActiveSession(session));
+        }
+        // Update component viewer instance(s)
+        this.schedulePendingUpdate('stackItemChanged');
+    }
+
     private async handleOnWillStopSession(session: GDBTargetDebugSession): Promise<void> {
         // Clear active session if it is the one being stopped
         if (this._activeSession?.session.id === session.session.id) {
             this._activeSession = undefined;
         }
-        // Clearing update queue
-        this._updateQueue = [];
+        // Clear instances belonging to the stopped session and update tree view
+        this._instances = this._instances.filter((instance) => {
+            if (instance.sessionId === session.session.id) {
+                return false;
+            }
+            return true;
+        });
+        this.schedulePendingUpdate('sessionChanged');
     }
 
     private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
@@ -195,11 +210,6 @@ export class ComponentViewer {
     }
 
     private async handleOnConnected(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker): Promise<void> {
-        // if new session is not the current active session, erase old instances and read the new ones
-        if (this._activeSession?.session.id !== session.session.id) {
-            this._instances = [];
-            this._componentViewerTreeDataProvider?.clear();
-        }
         // Update debug session
         this._activeSession = session;
         // Load SCVD files from cbuild-run
@@ -221,7 +231,6 @@ export class ComponentViewer {
         }
         // update active debug session for all instances
         this._instances.forEach((instance) => instance.componentViewerInstance.updateActiveSession(session));
-        this.schedulePendingUpdate('sessionChanged');
     }
 
     private schedulePendingUpdate(updateReason: fifoUpdateReason): void {
@@ -246,7 +255,7 @@ export class ComponentViewer {
                 await this.updateInstances(updateReason);
             } finally {
                 this._runningUpdate = false;
-                logger.error('Component Viewer: Error during update');
+                //logger.error('Component Viewer: Error during update');
             }
         }
         this._runningUpdate = false;
@@ -257,21 +266,24 @@ export class ComponentViewer {
             this._componentViewerTreeDataProvider?.clear();
             return;
         }
-        logger.debug(`Component Viewer: Queuing update due to '${updateReason}', that is update #${this._updateQueue.length + 1} in the queue`);
-        this._updateQueue.push({
-            updateId: this._updateQueue.length + 1,
-            debugSession: this._activeSession,
-            updateReason: updateReason
-        });
+        componentViewerLogger.debug(`Component Viewer: Queuing update due to '${updateReason}'`);
         this._instanceUpdateCounter = 0;
         if (this._instances.length === 0) {
             return;
         }
+        perf?.resetBackendStats();
+        perf?.resetUiStats();
         const roots: ScvdGuiInterface[] = [];
         for (const instance of this._instances) {
+            // Check if instance belongs to the active session, if not skip it and clear its data from the tree view.
+            // However, lockedState should be maintained.
+            if (instance.sessionId !== this._activeSession.session.id) {
+                instance.componentViewerInstance.getGuiTree()?.forEach(root => root.clear());
+                continue;
+            }
             this._instanceUpdateCounter++;
-            logger.debug(`Updating Component Viewer Instance #${this._instanceUpdateCounter} due to '${updateReason}' (queue position #${this._updateQueue.length})`);
-            console.log(`Updating Component Viewer Instance #${this._instanceUpdateCounter}`);
+            componentViewerLogger.debug(`Updating Component Viewer Instance #${this._instanceUpdateCounter} due to '${updateReason}'`);
+
             // Check instance's lock state, skip update if locked
             if (!instance.lockState) {
                 await instance.componentViewerInstance.update();
@@ -280,14 +292,11 @@ export class ComponentViewer {
             if (guiTree) {
                 roots.push(...guiTree);
                 // If instance is locked, set isLocked flag to true for root nodes
-                roots[roots.length - 1].isLocked = instance.lockState;
+                roots[roots.length - 1].isLocked = !!instance.lockState;
+                roots[roots.length - 1].isRootInstance = true;
             }
         }
-        // Set isRootInstance flag for all roots to true
-        roots.forEach((root) => {
-            root.isRootInstance = true;
-        });
+        perf?.logSummaries();
         this._componentViewerTreeDataProvider?.setRoots(roots);
     }
 }
-

@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
@@ -23,6 +22,7 @@
 import { Json } from '../../../model/scvd-base';
 import { ScvdMember } from '../../../model/scvd-member';
 import { ScvdExpression } from '../../../model/scvd-expression';
+import { applyExecutionContext, createExecutionContext } from '../helpers/statement-engine-helpers';
 
 describe('ScvdMember', () => {
     it('exposes classname', () => {
@@ -50,6 +50,7 @@ describe('ScvdMember', () => {
 
     it('computes target size and pointer behavior', async () => {
         const member = new ScvdMember(undefined);
+        applyExecutionContext(member, createExecutionContext(member));
         member.type = 'uint32_t';
         member.size = '8';
         member.configure();
@@ -60,6 +61,7 @@ describe('ScvdMember', () => {
         expect(member.getIsPointer()).toBe(false);
 
         const pointer = new ScvdMember(undefined);
+        applyExecutionContext(pointer, createExecutionContext(pointer));
         pointer.type = '*uint8_t';
         pointer.size = '8';
         pointer.configure();
@@ -69,6 +71,7 @@ describe('ScvdMember', () => {
         expect(pointer.isPointerRef()).toBe(true);
 
         const oversized = new ScvdMember(undefined);
+        applyExecutionContext(oversized, createExecutionContext(oversized));
         oversized.type = 'uint8_t';
         oversized.size = '70000';
         oversized.configure();

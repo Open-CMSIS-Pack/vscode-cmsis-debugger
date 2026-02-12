@@ -16,6 +16,7 @@
 
 // https://arm-software.github.io/CMSIS-View/main/elem_typedefs.html
 
+import { componentViewerLogger } from '../../../logger';
 import { ScvdExpression } from './scvd-expression';
 import { Json } from './scvd-base';
 import { ScvdNode } from './scvd-node';
@@ -241,6 +242,17 @@ export class ScvdTypedef extends ScvdNode {
     }
 
     public async calculateTypedef() {
+        // Ensure typedef expressions are parsed before any value access.
+        this._size?.configure();
+        for (const member of this._member) {
+            member.offset?.configure();
+            member.size?.configure();
+        }
+        for (const varItem of this._var) {
+            varItem.size?.configure();
+            varItem.offset?.configure();
+        }
+
         if (this.import !== undefined) {
             await this.import.fetchSymbolInformation();
         }
@@ -269,7 +281,7 @@ export class ScvdTypedef extends ScvdNode {
                     }
                 } else {
                     member.offset = currentNextOffset.toString();  // set current offset
-                    console.error(`ScvdTypedef.calculateOffsets: no offset defined for member: ${member.name} in typedef: ${this.getDisplayLabel()}`);
+                    componentViewerLogger.error(`ScvdTypedef.calculateOffsets: no offset defined for member: ${member.name} in typedef: ${this.getDisplayLabel()}`);
                 }
                 member.offset?.configure();
             }
@@ -287,7 +299,7 @@ export class ScvdTypedef extends ScvdNode {
             this.targetSize = size;
 
             if (currentNextOffset > size) {
-                console.error(`ScvdTypedef.calculateOffsets: typedef size (${size}) smaller than members size (${currentNextOffset}) for ${this.getDisplayLabel()}`);
+                componentViewerLogger.error(`ScvdTypedef.calculateOffsets: typedef size (${size}) smaller than members size (${currentNextOffset}) for ${this.getDisplayLabel()}`);
             } else if (currentNextOffset < size) {   // adjust to typedef size if padding is included
                 currentNextOffset = size;
             }

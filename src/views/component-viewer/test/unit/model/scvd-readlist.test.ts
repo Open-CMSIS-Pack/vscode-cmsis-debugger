@@ -13,18 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
  * Unit test for ScvdReadList.
  */
 
+import { componentViewerLogger } from '../../../../../logger';
 import { ScvdExpression } from '../../../model/scvd-expression';
 import { ScvdReadList } from '../../../model/scvd-readlist';
 import { ScvdNode } from '../../../model/scvd-node';
 import { Json } from '../../../model/scvd-base';
 import { ResolveSymbolCb, ResolveType } from '../../../resolver';
+import { applyExecutionContext, createExecutionContext } from '../helpers/statement-engine-helpers';
 
 const makeType = (overrides?: Partial<{ size: number; vsize: number; isPointer: boolean }>) => ({
     getTypeSize: () => overrides?.size ?? 4,
@@ -69,6 +70,7 @@ describe('ScvdReadList', () => {
 
     it('keeps target size as element size', async () => {
         const readlist = new ScvdReadList(undefined);
+        applyExecutionContext(readlist, createExecutionContext(readlist));
         readlist.size = '3';
         readlist.size?.configure();
         (readlist as unknown as { _type?: { getTypeSize: () => number } })._type = {
@@ -154,7 +156,7 @@ describe('ScvdReadList', () => {
         const readlist = new ScvdReadList(undefined);
         readlist.next = 'field';
 
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         const resolveFunc = jest.fn<ReturnType<ResolveSymbolCb>, Parameters<ResolveSymbolCb>>((name, resolveType) => {
             if (resolveType === ResolveType.localType) {
                 return { name } as unknown as ScvdNode;
@@ -172,7 +174,7 @@ describe('ScvdReadList', () => {
         const readlist = new ScvdReadList(undefined);
         readlist.next = 'field';
 
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         const resolveFunc = jest.fn<ReturnType<ResolveSymbolCb>, Parameters<ResolveSymbolCb>>((name, resolveType, scvdObject) => {
             if (resolveType === ResolveType.localType) {
                 return { name } as unknown as ScvdNode;
@@ -191,7 +193,7 @@ describe('ScvdReadList', () => {
 
     it('skips resolve checks when next is undefined', () => {
         const readlist = new ScvdReadList(undefined);
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         const resolveFunc = jest.fn<ReturnType<ResolveSymbolCb>, Parameters<ResolveSymbolCb>>(() => undefined);
 
         expect(readlist.resolveAndLink(resolveFunc)).toBe(false);
@@ -205,7 +207,7 @@ describe('ScvdReadList', () => {
         const readlist = new ScvdReadList(undefined);
         readlist.next = 'field';
 
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         const resolveFunc = jest.fn<ReturnType<ResolveSymbolCb>, Parameters<ResolveSymbolCb>>(() => undefined);
 
         expect(readlist.resolveAndLink(resolveFunc)).toBe(false);

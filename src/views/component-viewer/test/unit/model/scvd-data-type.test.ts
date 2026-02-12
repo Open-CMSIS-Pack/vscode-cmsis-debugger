@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
@@ -55,6 +54,9 @@ describe('ScvdDataType', () => {
         expect(scalar.getIsPointer()).toBe(false);
         expect(scalar.getValueType()).toBe('uint32_t');
         expect(scalar.getMember('anything')).toBeUndefined();
+
+        const float = new ScvdDataType(undefined, 'double');
+        expect(float.getValueType()).toBe('double');
 
         const pointer = new ScvdDataType(undefined, '*uint16_t');
         expect(pointer.getIsPointer()).toBe(true);

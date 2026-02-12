@@ -25,7 +25,7 @@ import { StatementEngine } from './statement-engine/statement-engine';
 import { ScvdEvalContext } from './scvd-eval-context';
 import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
 import { ScvdGuiTree } from './scvd-gui-tree';
-import { perf } from './stats-config';
+import { componentViewerLogger } from '../../logger';
 
 
 const xmlOpts: ParserOptions = {
@@ -121,13 +121,13 @@ export class ComponentViewerInstance {
         stats.push(this.getStats('  parse'));
 
         if (xml === undefined) {
-            console.error('Failed to parse SCVD XML');
+            componentViewerLogger.error('Failed to parse SCVD XML');
             return;
         }
 
         this.model = new ScvdComponentViewer(undefined);
         if (!this.model) {
-            console.error('Failed to create SCVD model');
+            componentViewerLogger.error('Failed to create SCVD model');
             return;
         }
 
@@ -140,7 +140,7 @@ export class ComponentViewerInstance {
 
         const executionContext = this.scvdEvalContext?.getExecutionContext();
         if (executionContext === undefined) {
-            console.error('Failed to get execution context from SCVD EvalContext');
+            componentViewerLogger.error('Failed to get execution context from SCVD EvalContext');
             return;
         }
         this.model.setExecutionContextAll(executionContext);
@@ -165,7 +165,7 @@ export class ComponentViewerInstance {
         this._guiTree.setId(this._fileKey);
         this._guiTree.setGuiName('component-viewer-root');
 
-        console.log('ComponentViewerInstance readModel stats:\n' + stats.join('\n  '));
+        componentViewerLogger.debug(`ComponentViewerInstance readModel stats:\n  ${stats.join('\n  ')}`);
     }
 
     public async update(): Promise<void> {
@@ -177,8 +177,7 @@ export class ComponentViewerInstance {
         this._guiTree.clear();
         await this.executeStatements(this._guiTree);
         stats.push(this.getStats('end'));
-        console.log('ComponentViewerInstance update stats:\n' + stats.join('\n  '));
-        perf?.logSummaries();
+        componentViewerLogger.debug(`ComponentViewerInstance update stats:\n  ${stats.join('\n  ')}`);
     }
 
     private async readFileToBuffer(filePath: URI): Promise<Buffer> {
@@ -186,7 +185,7 @@ export class ComponentViewerInstance {
             const buffer = await vscode.workspace.fs.readFile(filePath);
             return Buffer.from(buffer);
         } catch (error) {
-            console.error('Error reading file:', error);
+            componentViewerLogger.error('Error reading file:', error);
             throw error;
         }
     }
@@ -194,10 +193,9 @@ export class ComponentViewerInstance {
     private async parseXml(text: string) {
         try {
             const json = await parseStringPromise(text, xmlOpts);
-            //console.log(JSON.stringify(json, null, 2));
             return json;
         } catch (err) {
-            console.error('Error parsing XML:', err);
+            componentViewerLogger.error('Error parsing XML:', err);
         }
     }
 

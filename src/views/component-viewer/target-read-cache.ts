@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
 import { perf } from './stats-config';
 import type { TargetReadStats } from './target-read-stats';
@@ -34,12 +35,13 @@ export class TargetReadCache {
     public async beginUpdateCycle(
         fetcher: (addr: number, size: number) => Promise<Uint8Array | undefined>,
         stats?: TargetReadStats
-    ): Promise<void> {
+    ): Promise<{ ranges: TargetReadRange[]; bytes: number; count: number }> {
         this.segments = [];
         if (this.requestedRanges.length === 0) {
-            return;
+            return { ranges: [], bytes: 0, count: 0 };
         }
         const merged = this.mergeRanges(this.requestedRanges, TargetReadCache.PREFETCH_GAP);
+        const totalBytes = merged.reduce((sum, range) => sum + range.size, 0);
         for (const range of merged) {
             const perfStartTime = perf?.start() ?? 0;
             const fetchStart = Date.now();
@@ -53,6 +55,7 @@ export class TargetReadCache {
             this.write(range.start, data);
         }
         this.requestedRanges.length = 0;
+        return { ranges: merged, bytes: totalBytes, count: merged.length };
     }
 
     public read(start: number, size: number): Uint8Array | undefined {

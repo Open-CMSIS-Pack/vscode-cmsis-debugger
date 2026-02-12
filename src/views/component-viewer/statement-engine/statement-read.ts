@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { componentViewerLogger } from '../../../logger';
 import { ScvdNode } from '../model/scvd-node';
 import { ScvdRead } from '../model/scvd-read';
 import { ExecutionContext } from '../scvd-eval-context';
@@ -26,14 +27,6 @@ export class StatementRead extends StatementBase {
 
     constructor(item: ScvdNode, parent: StatementBase | undefined) {
         super(item, parent);
-    }
-
-    protected override async shouldExecute(_executionContext: ExecutionContext): Promise<boolean> {
-        if (this.scvdItem.mustRead === false) {
-            return false;
-        }
-        const conditionResult = await this.scvdItem.getConditionResult();
-        return conditionResult !== false;
     }
 
     private isInvalidAddress(address: number | bigint): boolean {
@@ -63,7 +56,7 @@ export class StatementRead extends StatementBase {
         const name = scvdRead.name;
         if (name === undefined) {
             if (logErrors) {
-                console.error(`${this.line}: Executing "read": no name defined`);
+                componentViewerLogger.error(`Line: ${this.line}: Executing "read": no name defined`);
             }
             return undefined;
         }
@@ -71,7 +64,7 @@ export class StatementRead extends StatementBase {
         const targetSize = await scvdRead.getTargetSize(); // use size specified in SCVD
         if (targetSize === undefined) {
             if (logErrors) {
-                console.error(`${this.line} Executing "read": ${scvdRead.name}, type: ${scvdRead.getDisplayLabel()}, could not determine target size`);
+                componentViewerLogger.error(`Line: ${this.line}: ${this.line} Executing "read": ${scvdRead.name}, type: ${scvdRead.getDisplayLabel()}, could not determine target size`);
             }
             return undefined;
         }
@@ -88,7 +81,7 @@ export class StatementRead extends StatementBase {
             const symAddr = await executionContext.debugTarget.findSymbolAddress(symbolName);
             if (symAddr === undefined) {
                 if (logErrors) {
-                    console.error(`${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, could not find symbol address for symbol: ${symbolName}`);
+                    componentViewerLogger.error(`Line: ${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, could not find symbol address for symbol: ${symbolName}`);
                 }
                 return undefined;
             }
@@ -104,7 +97,7 @@ export class StatementRead extends StatementBase {
                 offs = BigInt(Math.trunc(offset));
             } else {
                 if (logErrors) {
-                    console.error(`${this.line}: Executing "read": ${scvdRead.name}, offset is not numeric`);
+                    componentViewerLogger.error(`Line: ${this.line}: Executing "read": ${scvdRead.name}, offset is not numeric`);
                 }
                 return undefined;
             }
@@ -117,7 +110,7 @@ export class StatementRead extends StatementBase {
 
         if (baseAddress === undefined) {
             if (logErrors) {
-                console.error(`${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, could not find symbol address for symbol: ${symbolName}`);
+                componentViewerLogger.error(`Line: ${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, could not find symbol address for symbol: ${symbolName}`);
             }
             return undefined;
         }
@@ -136,23 +129,17 @@ export class StatementRead extends StatementBase {
     }
 
     protected override async onExecute(executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        //console.log(`${this.line}: Executing read: ${this.scvdItem.getDisplayLabel()}`);
-        const mustRead = this.scvdItem.mustRead;
-        if (mustRead === false) {
-            //console.log(`${this.scvdItem.getLineNoStr()}: Skipping "read" as already initialized: ${this.scvdItem.name}`);
-            return;
-        }
-
+        componentViewerLogger.debug(`Line: ${this.line}: Executing <${this.scvdItem.tag}> : ${await this.getGuiName()}`);
         const resolved = await this.resolveRead(executionContext, true);
         if (!resolved) {
             return;
         }
-        //console.log(`${this.line}: Executing target read: ${scvdRead.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes`);
+        componentViewerLogger.debug(`Line: ${this.line}: Executing target read: ${resolved.name}, symbol: ${resolved.symbolName}, address: ${resolved.baseAddress}, size: ${resolved.readBytes} bytes`);
 
         // Read from target memory
         const readData = await executionContext.debugTarget.readMemory(resolved.baseAddress, resolved.readBytes);
         if (readData === undefined) {
-            console.error(`${this.line}: Executing "read": ${resolved.name}, symbol: ${resolved.symbolName}, address: ${resolved.baseAddress}, size: ${resolved.readBytes} bytes, read target memory failed`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "read": ${resolved.name}, symbol: ${resolved.symbolName}, address: ${resolved.baseAddress}, size: ${resolved.readBytes} bytes, read target memory failed`);
             return;
         }
 
@@ -171,6 +158,7 @@ export class StatementRead extends StatementBase {
         if (resolved.isConst) {   // Mark variable as already initialized
             this.scvdItem.mustRead = false;
         }
-        return;
+
+        componentViewerLogger.debug(`Line: ${this.line}: Completed executing <${this.scvdItem.tag}> : ${resolved.name}, symbol: ${resolved.symbolName}, address: ${resolved.baseAddress}, size: ${resolved.readBytes} bytes, const: ${resolved.isConst}`);
     }
 }

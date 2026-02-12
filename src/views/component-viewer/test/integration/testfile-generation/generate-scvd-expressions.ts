@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
@@ -22,6 +21,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { componentViewerLogger } from '../../../../../logger';
 
 type Attr = { name: string; forcePrintf?: boolean };
 type Extracted = { expr: string; forcePrintf: boolean };
@@ -121,7 +121,7 @@ export function main(): void {
         const out = path.join(root, 'src/views/component-viewer/test/integration/testfiles', `${base}_expressions.jsonl`);
         writeJsonl(out, expressions);
 
-        console.log(`Wrote ${expressions.length} expressions to ${out}`);
+        componentViewerLogger.debug(`Wrote ${expressions.length} expressions to ${out}`);
     }
 }
 

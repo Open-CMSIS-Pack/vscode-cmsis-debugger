@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
  * Unit test for StatementBreak.
  */
 
+import { componentViewerLogger } from '../../../../../logger';
 import { ScvdGuiTree } from '../../../scvd-gui-tree';
 import { ScvdBreak } from '../../../model/scvd-break';
 import { StatementBreak } from '../../../statement-engine/statement-break';
@@ -42,7 +42,7 @@ describe('StatementBreak', () => {
         const stmt = new StatementBreak(node, undefined);
         const ctx = createExecutionContext(node);
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 

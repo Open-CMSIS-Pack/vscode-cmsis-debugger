@@ -18,7 +18,9 @@ import { ScvdNode } from '../model/scvd-node';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
 import { StatementBase } from './statement-base';
+import { StatementPrint } from './statement-print';
 import { perf } from '../stats-config';
+import { componentViewerLogger } from '../../../logger';
 
 
 export class StatementItem extends StatementBase {
@@ -29,10 +31,25 @@ export class StatementItem extends StatementBase {
 
     // TOIMPL: add printChildren to guiTree, and take the furst to set name/value for the item parent
     public override async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
+        componentViewerLogger.debug(`Line: ${this.line}: Executing statement: ${await this.getLogName()}`);
         const shouldExecute = await this.shouldExecute(executionContext);
         if (!shouldExecute) {
             return;
         }
+
+        await this.onExecute(executionContext, guiTree);
+
+        /* Example code for evaluating children.
+           Normally this happens here, but in this case it’s done in onExecute
+           to account for nameless item and print.
+
+        for (const child of this.children) {  // executed in list
+            await child.executeStatement(executionContext, guiTree);
+        }*/
+    }
+
+    protected override async onExecute(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
+        componentViewerLogger.debug(`Line: ${this.line}: Executing <${this.scvdItem.tag}> : ${await this.getLogName()}`);
 
         const guiNameStart = perf?.start() ?? 0;
         const guiName = await this.getGuiName();
@@ -44,39 +61,37 @@ export class StatementItem extends StatementBase {
         perf?.end(guiValueStart, 'guiValueMs', 'guiValueCalls');
         childGuiTree.setGuiName(guiName);
         childGuiTree.setGuiValue(guiValue);
-        await this.onExecute(executionContext, childGuiTree);
+
+        const printChildren = this.children.filter((child): child is StatementPrint => child instanceof StatementPrint);
+        if (printChildren.length > 0) {
+            let matched = false;
+            for (const printChild of printChildren) {
+                const shouldPrint = await printChild.scvdItem.getConditionResult();
+                if (shouldPrint !== false) {
+                    const guiNamePrint = await printChild.scvdItem.getGuiName();
+                    const guiValuePrint = await printChild.scvdItem.getGuiValue();
+                    childGuiTree.setGuiName(guiNamePrint);
+                    childGuiTree.setGuiValue(guiValuePrint);
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                childGuiTree.detach();
+                return;
+            }
+            for (const child of this.children) {
+                if (!(child instanceof StatementPrint)) {
+                    await child.executeStatement(executionContext, childGuiTree);
+                }
+            }
+            return;
+        }
 
         if (this.children.length > 0) {
             for (const child of this.children) {
                 await child.executeStatement(executionContext, childGuiTree);
             }
         }
-
-        if (guiName === undefined) {
-            const guiChildren = [...childGuiTree.children];  // copy to keep iteration safe during detach
-            for (const guiChild of guiChildren) {
-                if (guiChild.isPrint) {
-                    const guiNamePrint = guiChild.getGuiName();
-                    const guiValuePrint = guiChild.getGuiValue();
-                    childGuiTree.setGuiName(guiNamePrint);
-                    childGuiTree.setGuiValue(guiValuePrint);
-                    break;  // use first found
-                }
-            }
-
-            for (const guiChild of guiChildren) {
-                if (guiChild.isPrint) {
-                    guiChild.detach();  // remove temporary print nodes
-                }
-            }
-
-            if (guiName === undefined && childGuiTree.children.length === 0) { // TOIMPL: check other conditions to drop
-                childGuiTree.detach();  // drop empty items that never produced a GUI name/value
-            }
-        }
-    }
-
-    protected override async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        //console.log(`${this.line}: Executing item: ${await this.scvdItem.getGuiName()}`);
     }
 }

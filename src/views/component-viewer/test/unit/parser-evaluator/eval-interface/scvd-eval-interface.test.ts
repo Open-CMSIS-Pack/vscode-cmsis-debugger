@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
  * Unit test for ScvdEvalInterface helpers and intrinsics.
  */
 
+import { componentViewerLogger } from '../../../../../../logger';
 import { ScvdEvalInterface } from '../../../../scvd-eval-interface';
 import type { RefContainer } from '../../../../parser-evaluator/model-host';
 import type { MemoryHost } from '../../../../data-host/memory-host';
@@ -171,9 +171,9 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         const { evalIf } = makeEval();
         await expect(evalIf.getByteWidth(ptrNode)).resolves.toBe(4);
         await expect(evalIf.getByteWidth(sizedNode)).resolves.toBe(6);
-        jest.spyOn(console, 'error').mockImplementation(() => {});
+        jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         await expect(evalIf.getByteWidth(missing)).resolves.toBeUndefined();
-        (console.error as unknown as jest.Mock).mockRestore();
+        (componentViewerLogger.error as unknown as jest.Mock).mockRestore();
     });
 
     it('getElementStride handles pointer, virtual size, target size, and missing stride', async () => {
@@ -181,21 +181,21 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         const virtualNode = new DummyNode('virt', { virtualSize: 5 });
         const sizedNode = new DummyNode('sized', { targetSize: 3 });
         const missing = new DummyNode('missing');
-        jest.spyOn(console, 'error').mockImplementation(() => {});
+        jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         const { evalIf } = makeEval();
         expect(await evalIf.getElementStride(ptrNode)).toBe(4);
         expect(await evalIf.getElementStride(virtualNode)).toBe(5);
         expect(await evalIf.getElementStride(sizedNode)).toBe(3);
         expect(await evalIf.getElementStride(missing)).toBe(0);
-        (console.error as unknown as jest.Mock).mockRestore();
+        (componentViewerLogger.error as unknown as jest.Mock).mockRestore();
     });
 
     it('getMemberOffset logs when undefined', async () => {
         const member = new DummyNode('m');
         const { evalIf } = makeEval();
-        jest.spyOn(console, 'error').mockImplementation(() => {});
+        jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         await expect(evalIf.getMemberOffset(new DummyNode('b'), member)).resolves.toBeUndefined();
-        (console.error as unknown as jest.Mock).mockRestore();
+        (componentViewerLogger.error as unknown as jest.Mock).mockRestore();
     });
 
     it('resolveColonPath and getElementRef fall back to undefined', async () => {
@@ -213,11 +213,11 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
             writeValue: jest.fn(() => { throw new Error('boom'); })
         } as unknown as MemoryHost;
         const { evalIf } = makeEval(memHost);
-        jest.spyOn(console, 'error').mockImplementation(() => {});
+        jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         const container: RefContainer = { base: new DummyNode('b'), current: new DummyNode('b'), valueType: undefined };
         expect(await evalIf.readValue(container)).toBeUndefined();
         expect(await evalIf.writeValue(container, 1)).toBeUndefined();
-        (console.error as unknown as jest.Mock).mockRestore();
+        (componentViewerLogger.error as unknown as jest.Mock).mockRestore();
     });
 
     it('getSymbolRef/getMemberRef/getValueType resolve through container', async () => {
@@ -286,11 +286,11 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
             .getScalarInfo({ base: wideNode, current: wideNode, widthBytes: undefined, valueType: undefined } as unknown as RefContainer);
         expect(info.bits).toBe(8); // regex picks 8 in 128, then clamped logic keeps scalar bits
 
-        jest.spyOn(console, 'error').mockImplementation(() => {});
+        jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         const sizedViaHelper = await (evalIf as unknown as { getScalarInfo(c: RefContainer): Promise<{ bits?: number; widthBytes?: number; kind: string }> })
             .getScalarInfo({ base: new DummyNode('viaHelper'), current: new DummyNode('viaHelper'), valueType: undefined } as unknown as RefContainer);
         expect(sizedViaHelper.bits).toBeDefined();
-        (console.error as unknown as jest.Mock).mockRestore();
+        (componentViewerLogger.error as unknown as jest.Mock).mockRestore();
 
         const viaByteWidth = await (evalIf as unknown as { getScalarInfo(c: RefContainer): Promise<{ bits?: number; widthBytes?: number; kind: string }> })
             .getScalarInfo({ base: new DummyNode('viaBW', { targetSize: 0 }), current: new DummyNode('viaBW', { targetSize: 0 }), widthBytes: undefined, valueType: undefined } as unknown as RefContainer);
@@ -330,12 +330,12 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         const debugTarget = { readUint8ArrayStrFromPointer, findSymbolNameAtAddress, readMemory: jest.fn().mockResolvedValue(undefined) } as unknown as ScvdDebugTarget;
         const { evalIf } = makeEval(debugTarget);
         const container: RefContainer = { base: new DummyNode('b'), current: new DummyNode('b'), valueType: undefined };
-        jest.spyOn(console, 'error').mockImplementation(() => {});
+        jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         await expect(evalIf.formatPrintf('C', 'noaddr' as unknown as number, container)).resolves.toBe('noaddr');
         await expect(evalIf.formatPrintf('S', 'noaddr' as unknown as number, container)).resolves.toBe('noaddr');
         const nOut = await evalIf.formatPrintf('N', 0x9999, container);
         expect(nOut).toBeDefined();
-        (console.error as unknown as jest.Mock).mockRestore();
+        (componentViewerLogger.error as unknown as jest.Mock).mockRestore();
     });
 
     it('covers formatPrintf data paths (context, enums, IPv4/IPv6, toNumeric)', async () => {
@@ -393,7 +393,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
 
     it('covers default scalar bits, toNumeric branches, and formatPrintf fallbacks', async () => {
         const { evalIf } = makeEval();
-        jest.spyOn(console, 'error').mockImplementation(() => {});
+        jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         const scalarInfo = await (evalIf as unknown as { getScalarInfo(c: RefContainer): Promise<{ bits?: number; kind: string }> })
             .getScalarInfo({ base: new DummyNode('plain', { valueType: 'int' }), current: new DummyNode('plain', { valueType: 'int' }), valueType: undefined } as unknown as RefContainer);
         expect(scalarInfo.bits).toBe(32);
@@ -417,7 +417,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         expect(await formatterEval.formatPrintf('M', 'str' as unknown as number, container)).toBeDefined();
         expect(await formatterEval.formatPrintf('U', 'str' as unknown as number, container)).toBeDefined();
         expect(await formatterEval.formatPrintf('Z' as unknown as FormatSegment['spec'], 1, container)).toBeDefined();
-        (console.error as unknown as jest.Mock).mockRestore();
+        (componentViewerLogger.error as unknown as jest.Mock).mockRestore();
     });
 
     it('formats %M using cached bytes with inferred width', async () => {
@@ -440,7 +440,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         const evalIf = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier());
         const container = { base: undefined, current: undefined, valueType: undefined } as unknown as RefContainer;
 
-        await expect(evalIf.formatPrintf('M', 0, container)).resolves.toBe('00-00-00-00-00-00');
+        await expect(evalIf.formatPrintf('M', 0, container)).resolves.toBe('0');
     });
 
     it('uses existing widthBytes for cached MAC reads', async () => {

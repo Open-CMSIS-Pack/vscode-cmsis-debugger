@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { componentViewerLogger } from '../../../logger';
 import { ScvdNode } from '../model/scvd-node';
 import { ScvdList } from '../model/scvd-list';
 import { ExecutionContext } from '../scvd-eval-context';
@@ -26,6 +27,7 @@ export class StatementList extends StatementBase {
     }
 
     public async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
+        componentViewerLogger.debug(`Line: ${this.line}: Executing statement: ${await this.getLogName()}`);
         const shouldExecute = await this.shouldExecute(executionContext);
         if (!shouldExecute) {
             return;
@@ -41,44 +43,44 @@ export class StatementList extends StatementBase {
     }
 
     protected async onExecute(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
+        componentViewerLogger.debug(`Line: ${this.line}: Executing <${this.scvdItem.tag}> : ${await this.getLogName()}`);
         const scvdList = this.scvdItem.castToDerived(ScvdList);
         if (scvdList === undefined) {
-            console.error(`${this.line}: Executing "list": could not cast to ScvdList`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "list": could not cast to ScvdList`);
             return;
         }
-        //console.log(`${this.line}: Executing list: ${scvdList.name}`);
 
         const name = scvdList.name;
         if (name === undefined) {
-            console.error(`${this.line}: Executing "list": no name defined`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "list": no name defined`);
             return;
         }
 
         const startExpr = scvdList.start;
         if (startExpr === undefined) {
-            console.error(`${this.line}: Executing "list": ${scvdList.name}, no start expression defined`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "list": ${scvdList.name}, no start expression defined`);
             return;
         }
         const startValue = await startExpr.getValue();
         if (startValue === undefined) {
-            console.error(`${this.line}: Executing "list": ${scvdList.name}, could not evaluate start expression`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "list": ${scvdList.name}, could not evaluate start expression`);
             return;
         }
 
         const modelBase = executionContext.evalContext.container.base;
         if (modelBase === undefined) {
-            console.error(`${this.line}: Executing "list": ${scvdList.name}, no base container defined`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "list": ${scvdList.name}, no base container defined`);
             return;
         }
 
         const varItem = modelBase.getSymbol(name);
         if (varItem === undefined) {
-            console.error(`${this.line}: Executing "list": ${scvdList.name}, could not find variable in base container: ${modelBase.name}`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "list": ${scvdList.name}, could not find variable in base container: ${modelBase.name}`);
             return;
         }
         const varTargetSize = await varItem.getTargetSize();
         if (varTargetSize === undefined) {
-            console.error(`${this.line}: Executing "list": ${scvdList.name}, variable: ${varItem.name}, could not determine target size`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "list": ${scvdList.name}, variable: ${varItem.name}, could not determine target size`);
             return;
         }
 
@@ -91,7 +93,7 @@ export class StatementList extends StatementBase {
 
         const whileExpr = scvdList.while;
         if (whileExpr !== undefined && limitExpr !== undefined) {
-            console.error(`${this.line}: Executing "list": ${scvdList.name}, cannot define both limit and while expressions`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "list": ${scvdList.name}, cannot define both limit and while expressions`);
             return;
         }
 

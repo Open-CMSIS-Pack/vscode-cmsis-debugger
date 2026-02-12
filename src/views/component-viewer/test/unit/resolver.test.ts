@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
@@ -21,6 +20,7 @@
  */
 
 import { Resolver, ResolveType } from '../../resolver';
+import { componentViewerLogger } from '../../../../logger';
 import { ScvdComponentViewer } from '../../model/scvd-component-viewer';
 import { ScvdTypedef, ScvdTypedefs } from '../../model/scvd-typedef';
 import { ScvdNode } from '../../model/scvd-node';
@@ -62,7 +62,7 @@ describe('Resolver', () => {
     it('routes resolveSymbolCb based on resolve type', () => {
         const viewer = new FakeViewer(undefined);
         const resolver = new Resolver(viewer);
-        jest.spyOn(console, 'log').mockImplementation(() => {});
+        jest.spyOn(componentViewerLogger, 'debug').mockImplementation(() => {});
         const typedef = new ScvdTypedef(viewer);
         typedef.name = 'Found';
         (resolver as unknown as { _typesCache: { findTypeByName: (n: string) => ScvdTypedef | undefined } })._typesCache = {
@@ -84,7 +84,7 @@ describe('Resolver', () => {
         expect(resolver.resolveSymbolCb('Other', ResolveType.localType)).toBeUndefined();
         // Default switch branch
         expect(resolver.resolveSymbolCb('noop', 'bogus' as unknown as ResolveType)).toBeUndefined();
-        (console.log as unknown as jest.Mock).mockRestore();
+        (componentViewerLogger.debug as unknown as jest.Mock).mockRestore();
     });
 
     it('guards when model or caches are missing', () => {

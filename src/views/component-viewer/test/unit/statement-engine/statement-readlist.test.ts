@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
  * Unit test for StatementReadList.
  */
 
+import { componentViewerLogger } from '../../../../../logger';
 import { ScvdGuiTree } from '../../../scvd-gui-tree';
 import { ScvdReadList } from '../../../model/scvd-readlist';
 import type { ScvdDebugTarget } from '../../../scvd-debug-target';
@@ -27,6 +27,7 @@ import { StatementReadList } from '../../../statement-engine/statement-readList'
 import { createExecutionContext, TestNode } from '../helpers/statement-engine-helpers';
 import type { ScvdNode } from '../../../model/scvd-node';
 import type { RefContainer } from '../../../parser-evaluator/model-host';
+import { ScvdExpression } from '../../../model/scvd-expression';
 
 class ExposedStatementReadList extends StatementReadList {
     public async run(executionContext: Parameters<StatementReadList['executeStatement']>[0], guiTree: ScvdGuiTree): Promise<void> {
@@ -93,7 +94,7 @@ describe('StatementReadList', () => {
         const stmt = new StatementReadList(node, undefined);
         const ctx = createExecutionContext(node, {});
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -106,7 +107,7 @@ describe('StatementReadList', () => {
         const stmt = new StatementReadList(readList, undefined);
         const ctx = createContext(readList, {});
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -137,7 +138,7 @@ describe('StatementReadList', () => {
         const stmt = new StatementReadList(readList, undefined);
         const ctx = createContext(readList, {});
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -152,7 +153,7 @@ describe('StatementReadList', () => {
             findSymbolAddress: jest.fn().mockResolvedValue(undefined),
         });
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -169,7 +170,7 @@ describe('StatementReadList', () => {
             findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
         });
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -256,7 +257,7 @@ describe('StatementReadList', () => {
         const stmt = new StatementReadList(readList, undefined);
         const ctx = createContext(readList, {});
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -272,7 +273,7 @@ describe('StatementReadList', () => {
             findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
         });
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -293,7 +294,7 @@ describe('StatementReadList', () => {
             findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
         });
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -313,7 +314,7 @@ describe('StatementReadList', () => {
             findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
         });
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -330,7 +331,7 @@ describe('StatementReadList', () => {
             readMemory: jest.fn().mockResolvedValue(undefined),
         });
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -503,7 +504,7 @@ describe('StatementReadList', () => {
             readMemory: jest.fn().mockResolvedValue(new Uint8Array([1, 2])),
         });
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
@@ -597,7 +598,7 @@ describe('StatementReadList', () => {
             findSymbolAddress: jest.fn().mockResolvedValue(undefined),
         });
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
         expect(spy).toHaveBeenCalled();
@@ -655,7 +656,7 @@ describe('StatementReadList', () => {
                 .mockResolvedValueOnce(new Uint8Array([0x00, 0x20, 0x00, 0x00]))
                 .mockResolvedValueOnce(undefined),
         });
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
         await stmt.executeStatement(ctxMissingItem, new ScvdGuiTree(undefined));
         expect(errorSpy).toHaveBeenCalled();
         errorSpy.mockRestore();
@@ -688,7 +689,7 @@ describe('StatementReadList', () => {
     });
 
     it('skips error logging when resolveReadList is called with logErrors=false', async () => {
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
         const callResolveReadList = async (
             stmt: StatementReadList,
             readList: ScvdReadList,
@@ -738,6 +739,44 @@ describe('StatementReadList', () => {
 
         expect(spy).not.toHaveBeenCalled();
         spy.mockRestore();
+    });
+
+    it('does not log when base address is undefined and logErrors is false', async () => {
+        const readList = new ScvdReadList(undefined);
+        readList.name = 'list';
+        jest.spyOn(readList, 'getTargetSize').mockResolvedValue(4);
+        jest.spyOn(readList, 'getVirtualSize').mockResolvedValue(4);
+        const stmt = new StatementReadList(readList, undefined);
+        const ctx = createContext(readList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(undefined),
+        });
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
+
+        await (stmt as unknown as {
+            resolveReadList: (item: ScvdReadList, ctx: Parameters<StatementReadList['executeStatement']>[0], logErrors: boolean) => Promise<unknown>;
+        }).resolveReadList(readList, ctx, false);
+
+        expect(errorSpy).not.toHaveBeenCalled();
+        errorSpy.mockRestore();
+    });
+
+    it('stores batch read addresses as numbers for non-pointer arrays', async () => {
+        const readList = createReadList();
+        readList.based = 0;
+        jest.spyOn(readList, 'getIsPointer').mockReturnValue(false);
+        jest.spyOn(readList, 'getCount').mockResolvedValue(2);
+        const stmt = new StatementReadList(readList, undefined);
+        const ctx = createContext(readList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
+            getNumArrayElements: jest.fn().mockResolvedValue(2),
+            readMemory: jest.fn().mockResolvedValue(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])),
+        });
+        const setSpy = jest.spyOn(ctx.memoryHost, 'setVariable');
+
+        await stmt.executeStatement(ctx, new ScvdGuiTree(undefined));
+
+        expect(setSpy).toHaveBeenCalled();
+        expect(typeof setSpy.mock.calls[0]?.[4]).toBe('number');
     });
 
     it('passes const flags for batch and loop readlist paths', async () => {
@@ -807,5 +846,131 @@ describe('StatementReadList', () => {
         const stmt = new ExposedStatementReadList(readList, undefined);
         const ctx = createContext(readList, {});
         await stmt.run(ctx, new ScvdGuiTree(undefined));
+    });
+
+    it('logs when base address is still undefined after resolving offset', async () => {
+        const readList = new ScvdReadList(undefined);
+        readList.name = 'list';
+        readList.offset = 'off';
+        jest.spyOn(readList.offset as ScvdExpression, 'getValue').mockResolvedValue(undefined);
+        jest.spyOn(readList, 'getTargetSize').mockResolvedValue(4);
+        jest.spyOn(readList, 'getVirtualSize').mockResolvedValue(4);
+        const stmt = new StatementReadList(readList, undefined);
+        const ctx = createContext(readList, {});
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
+
+        await stmt.executeStatement(ctx, new ScvdGuiTree(undefined));
+
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('offset evaluated to undefined'));
+        errorSpy.mockRestore();
+    });
+
+    it('stores batch array items using numeric target addresses', async () => {
+        const readList = createReadList();
+        (readList.getIsPointer as jest.Mock).mockReturnValue(false);
+        (readList.getCount as jest.Mock).mockResolvedValue(2);
+        const stmt = new StatementReadList(readList, undefined);
+        const ctx = createContext(readList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x1000n),
+            getNumArrayElements: jest.fn().mockResolvedValue(2),
+            readMemory: jest.fn().mockResolvedValue(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])),
+        });
+        const setSpy = jest.spyOn(ctx.memoryHost, 'setVariable');
+
+        await stmt.executeStatement(ctx, new ScvdGuiTree(undefined));
+
+        expect(setSpy).toHaveBeenCalled();
+        const addrArg = setSpy.mock.calls[0]?.[4];
+        expect(typeof addrArg).toBe('number');
+    });
+
+    it('logs when resolveReadList sees no base address', async () => {
+        const readList = new ScvdReadList(undefined);
+        readList.name = 'list';
+        readList.offset = 'off';
+        jest.spyOn(readList.offset as ScvdExpression, 'getValue').mockResolvedValue(undefined);
+        jest.spyOn(readList, 'getTargetSize').mockResolvedValue(4);
+        jest.spyOn(readList, 'getVirtualSize').mockResolvedValue(4);
+        const stmt = new StatementReadList(readList, undefined);
+        const ctx = createContext(readList, {});
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
+
+        await (stmt as unknown as {
+            resolveReadList: (item: ScvdReadList, ctx: Parameters<StatementReadList['executeStatement']>[0], logErrors: boolean) => Promise<unknown>;
+        }).resolveReadList(readList, ctx, true);
+
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('offset evaluated to undefined'));
+        errorSpy.mockRestore();
+    });
+
+    it('stores pointer array items in looped reads', async () => {
+        const readList = createReadList();
+        readList.const = 1;
+        readList.based = 1;
+        jest.spyOn(readList, 'getIsPointer').mockReturnValue(true);
+        jest.spyOn(readList, 'getCount').mockResolvedValue(1);
+        const stmt = new StatementReadList(readList, undefined);
+        const ctx = createContext(readList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
+            readMemory: jest.fn()
+                .mockResolvedValueOnce(new Uint8Array([0x00, 0x20, 0x00, 0x00]))
+                .mockResolvedValueOnce(new Uint8Array([9, 9, 9, 9])),
+        });
+        const setSpy = jest.spyOn(ctx.memoryHost, 'setVariable');
+
+        const originalMax = (ScvdReadList as unknown as { READ_SIZE_MAX: number }).READ_SIZE_MAX;
+        (ScvdReadList as unknown as { READ_SIZE_MAX: number }).READ_SIZE_MAX = 0;
+        await stmt.executeStatement(ctx, new ScvdGuiTree(undefined));
+        (ScvdReadList as unknown as { READ_SIZE_MAX: number }).READ_SIZE_MAX = originalMax;
+
+        expect(setSpy).toHaveBeenCalled();
+    });
+
+    it('advances non-pointer arrays via stride when batch reads are disabled', async () => {
+        const readList = createReadList();
+        (readList.getIsPointer as jest.Mock).mockReturnValue(false);
+        (readList.getCount as jest.Mock).mockResolvedValue(2);
+        const stmt = new StatementReadList(readList, undefined);
+        const readMemory = jest.fn(async (addr: number | bigint) => {
+            if (addr === 0x1000 || addr === 0x1000n) {
+                return new Uint8Array([1, 2, 3, 4]);
+            }
+            if (addr === 0x1004 || addr === 0x1004n) {
+                return new Uint8Array([5, 6, 7, 8]);
+            }
+            return undefined;
+        });
+        const ctx = createContext(readList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x1000),
+            getNumArrayElements: jest.fn().mockResolvedValue(1),
+            readMemory,
+        });
+        await stmt.executeStatement(ctx, new ScvdGuiTree(undefined));
+
+        expect(readMemory).toHaveBeenCalledWith(0x1004n, 4);
+    });
+
+    it('advances non-pointer arrays via stride using bigint base address', async () => {
+        const readList = createReadList();
+        (readList.getIsPointer as jest.Mock).mockReturnValue(false);
+        (readList.getCount as jest.Mock).mockResolvedValue(2);
+        const stmt = new StatementReadList(readList, undefined);
+        const readMemory = jest.fn(async (addr: number | bigint) => {
+            if (addr === 0x2000n) {
+                return new Uint8Array([1, 2, 3, 4]);
+            }
+            if (addr === 0x2004n) {
+                return new Uint8Array([5, 6, 7, 8]);
+            }
+            return undefined;
+        });
+        const ctx = createContext(readList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x2000n),
+            getNumArrayElements: jest.fn().mockResolvedValue(1),
+            readMemory,
+        });
+        await stmt.executeStatement(ctx, new ScvdGuiTree(undefined));
+
+        expect(readMemory).toHaveBeenCalledWith(0x2004n, 4);
     });
 });

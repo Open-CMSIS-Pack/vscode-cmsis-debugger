@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
 import { ScvdNode } from './model/scvd-node';
 import { ScvdComponentViewer } from './model/scvd-component-viewer';
 import { ScvdTypedef } from './model/scvd-typedef';
 import { ScvdTypesCache } from './scvd-types-cache';
+import { componentViewerLogger } from '../../logger';
 
 export enum ResolveType {
     localType = 'localType',
@@ -81,7 +83,7 @@ export class Resolver {
 
     private resolveTargetType(_name: string): ScvdNode | undefined {
         // resolve using debugger interface
-        //console.log(`  Resolving target symbol: ${_name}`);
+        componentViewerLogger.debug(`  Resolving target symbol: ${_name}`);
         return undefined;
     }
 
@@ -105,7 +107,7 @@ export class Resolver {
     private resolveRecursive(item: ScvdNode, resolveFunc: ResolveSymbolCb): boolean {
         /*const resolvedItem =*/ item.resolveAndLink(resolveFunc);
         // if (resolvedItem) {
-        //     console.log('Resolved item:', item.getDisplayLabel());
+        //     componentViewerLogger.debug(`Resolved item: ${item.getDisplayLabel()}`);
         // }
 
         item.forEach(child => {

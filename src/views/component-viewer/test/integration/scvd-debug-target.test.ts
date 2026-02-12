@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
  * Integration test for ScvdDebugTarget.
  */
 
+import { componentViewerLogger } from '../../../../logger';
 import { ScvdDebugTarget, gdbNameFor, __test__ } from '../../scvd-debug-target';
 import { TargetReadCache } from '../../target-read-cache';
 import type { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../../../debug-session';
@@ -83,7 +83,7 @@ describe('scvd-debug-target', () => {
         await expect(target.getSymbolInfo('foo')).resolves.toEqual({ name: 'foo', address: 0x100 });
 
         accessMock.evaluateSymbolAddress.mockResolvedValue('zzz');
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         target.init(session, tracker);
         await expect(target.getSymbolInfo('foo')).resolves.toBeUndefined();
         spy.mockRestore();
@@ -112,7 +112,7 @@ describe('scvd-debug-target', () => {
         await expect(target.findSymbolNameAtAddress(0x200)).resolves.toBe('main');
         await expect(target.findSymbolContextAtAddress(0x200)).resolves.toBe('file.c:10');
 
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         accessMock.evaluateSymbolName.mockRejectedValue(new Error('fail'));
         await expect(target.findSymbolNameAtAddress(0x200)).resolves.toBeUndefined();
         accessMock.evaluateSymbolContext.mockRejectedValue(new Error('fail'));
@@ -198,13 +198,13 @@ describe('scvd-debug-target', () => {
         accessMock.evaluateMemory.mockResolvedValue(undefined);
         await expect(target.readMemory(0x10, 3)).resolves.toBeUndefined();
 
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         accessMock.evaluateMemory.mockResolvedValue('No active session');
         await expect(target.readMemory(0x10, 3)).resolves.toBeUndefined();
         expect(errorSpy).toHaveBeenCalled();
         errorSpy.mockRestore();
 
-        const invalidSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const invalidSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         accessMock.evaluateMemory.mockResolvedValue('bad@');
         await expect(target.readMemory(0x10, 3)).resolves.toBeUndefined();
         expect(invalidSpy).toHaveBeenCalled();
@@ -220,27 +220,56 @@ describe('scvd-debug-target', () => {
     });
 
     it('calculates memory usage and overflow bit', async () => {
+        const packWords = (...words: number[]) => {
+            const bytes = new Uint8Array(words.length * 4);
+            const view = new DataView(bytes.buffer);
+            words.forEach((word, index) => view.setUint32(index * 4, word >>> 0, true));
+            return bytes;
+        };
+
         class MemTarget extends ScvdDebugTarget {
             constructor(private readonly data: Uint8Array) { super(); }
             async readMemory(): Promise<Uint8Array | undefined> {
                 return this.data;
             }
         }
-        // Two chunks: first fill pattern, second magic value triggers overflow bit
-        const data = new Uint8Array([0, 0, 0, 0, 0x44, 0x33, 0x22, 0x11]);
-        const target = new MemTarget(data);
-        const result = await target.calculateMemoryUsage(0, 8, 0, 0x11223344);
-        expect(result).toBeDefined();
-        expect((result as number) >>> 0).toBe(0x80000000);
+
+        const fill = 0xCCCCCCCC;
+        const magic = 0xE25A2EA5;
+
+        // Magic at start, remaining fill => 0 used, 0%, no overflow
+        const clean = new MemTarget(packWords(magic, fill));
+        const cleanResult = await clean.calculateMemoryUsage(0x1000, 8, fill, magic);
+        expect(cleanResult).toBe(0);
+
+        // Magic at start, one word used
+        const used = new MemTarget(packWords(magic, 0x11111111));
+        const usedResult = await used.calculateMemoryUsage(0x1000, 8, fill, magic);
+        expect(usedResult).toBeDefined();
+        expect((usedResult as number) & 0xFFFFF).toBe(4);
+        expect(((usedResult as number) >> 20) & 0xFF).toBe(50);
+        expect(((usedResult as number) >>> 31) & 1).toBe(0);
+
+        // Magic overwritten at start => overflow and 100% used
+        const overflow = new MemTarget(packWords(0xDEADBEEF, fill));
+        const overflowResult = await overflow.calculateMemoryUsage(0x1000, 8, fill, magic);
+        expect(overflowResult).toBeDefined();
+        expect((overflowResult as number) & 0xFFFFF).toBe(8);
+        expect(((overflowResult as number) >> 20) & 0xFF).toBe(100);
+        expect(((overflowResult as number) >>> 31) & 1).toBe(1);
 
         // No data path
         const noData = new MemTarget(undefined as unknown as Uint8Array);
-        await expect(noData.calculateMemoryUsage(0, 4, 0, 0)).resolves.toBeUndefined();
+        await expect(noData.calculateMemoryUsage(0x1000, 4, fill, magic)).resolves.toBeUndefined();
 
-        const used = new MemTarget(new Uint8Array([1, 0, 0, 0, 1, 0, 0, 0]));
-        const usedResult = await used.calculateMemoryUsage(0, 8, 0, 0);
-        expect((usedResult as number) >>> 0).toBeGreaterThan(0);
-        expect(((usedResult as number) >>> 31) & 1).toBe(0);
+        // Fill equals magic: overflow bit must stay clear even if first word mismatches
+        const fillIsMagic = new MemTarget(packWords(0x12345678, fill));
+        const fillIsMagicResult = await fillIsMagic.calculateMemoryUsage(0x1000, 8, fill, fill);
+        expect(((fillIsMagicResult as number) >>> 31) & 1).toBe(0);
+
+        // Address/size guard returns 0
+        await expect(clean.calculateMemoryUsage(0, 8, fill, magic)).resolves.toBe(0);
+        await expect(clean.calculateMemoryUsage(0x1000, 0, fill, magic)).resolves.toBe(0);
     });
 
     it('reads string from pointer and registers', async () => {
@@ -252,7 +281,7 @@ describe('scvd-debug-target', () => {
         target.readMemory = jest.fn().mockResolvedValue(new Uint8Array([1, 2, 3, 4]));
         await expect(target.readUint8ArrayStrFromPointer(1, 1, 4)).resolves.toEqual(new Uint8Array([1, 2, 3, 4]));
 
-        const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         await expect(target.readRegister('unknown')).resolves.toBeUndefined();
         spy.mockRestore();
 
@@ -376,6 +405,58 @@ describe('scvd-debug-target', () => {
         expect(readMemory).toHaveBeenCalledWith(0x1000n, 8);
         expect(results.get('a')).toEqual(new Uint8Array([1, 1, 1, 1]));
         expect(results.get('b')).toEqual(new Uint8Array([1, 1, 1, 1]));
+    });
+
+    it('sorts batch requests with identical start addresses', async () => {
+        const tracker = { onContinued: jest.fn(), onStopped: jest.fn() } as unknown as GDBTargetDebugTracker;
+        const target = new ScvdDebugTarget();
+        target.init(session, tracker);
+
+        const readMemory = jest.fn(async (_addr: number | bigint, size: number) => new Uint8Array(size).fill(2));
+        target.readMemory = readMemory as unknown as ScvdDebugTarget['readMemory'];
+
+        const results = await target.readMemoryBatch([
+            { key: 'a', address: 0x2000, size: 4 },
+            { key: 'b', address: 0x2000, size: 4 },
+        ]);
+
+        expect(results.get('a')).toEqual(new Uint8Array([2, 2, 2, 2]));
+        expect(results.get('b')).toEqual(new Uint8Array([2, 2, 2, 2]));
+    });
+
+    it('sorts batch requests when addresses are out of order', async () => {
+        const tracker = { onContinued: jest.fn(), onStopped: jest.fn() } as unknown as GDBTargetDebugTracker;
+        const target = new ScvdDebugTarget();
+        target.init(session, tracker);
+
+        const readMemory = jest.fn(async (_addr: number | bigint, size: number) => new Uint8Array(size).fill(4));
+        target.readMemory = readMemory as unknown as ScvdDebugTarget['readMemory'];
+
+        const results = await target.readMemoryBatch([
+            { key: 'b', address: 0x2004, size: 4 },
+            { key: 'a', address: 0x2000, size: 4 },
+        ]);
+
+        expect(results.get('a')).toEqual(new Uint8Array([4, 4, 4, 4]));
+        expect(results.get('b')).toEqual(new Uint8Array([4, 4, 4, 4]));
+    });
+
+    it('normalizes bigint batch addresses when merging reads', async () => {
+        const tracker = { onContinued: jest.fn(), onStopped: jest.fn() } as unknown as GDBTargetDebugTracker;
+        const target = new ScvdDebugTarget();
+        target.init(session, tracker);
+
+        const readMemory = jest.fn(async (_addr: number | bigint, size: number) => new Uint8Array(size).fill(1));
+        target.readMemory = readMemory as unknown as ScvdDebugTarget['readMemory'];
+
+        const results = await target.readMemoryBatch([
+            { key: 'a', address: 0x1000n, size: 4 },
+            { key: 'b', address: 0x1004n, size: 4 },
+        ]);
+
+        expect(readMemory).toHaveBeenCalledWith(0x1000n, 8);
+        expect(results.get('a')).toBeDefined();
+        expect(results.get('b')).toBeDefined();
     });
 
     it('handles overlapping batch requests and non-merge timing', async () => {
@@ -510,7 +591,7 @@ describe('scvd-debug-target', () => {
         // Remove decoders
         globalWithBuffer.Buffer = undefined;
         globalWithBuffer.atob = undefined;
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         expect(target.decodeGdbData('AQID')).toBeUndefined();
         expect(errorSpy).toHaveBeenCalledWith('ScvdDebugTarget.decodeGdbData: no base64 decoder available in this environment');
         errorSpy.mockRestore();

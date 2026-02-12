@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
  * Unit test for RegisterHost.
  */
 
+import { componentViewerLogger } from '../../../../../logger';
 import { RegisterHost } from '../../../data-host/register-host';
 
 describe('RegisterHost', () => {
@@ -33,7 +33,7 @@ describe('RegisterHost', () => {
 
     it('handles empty register names with errors', () => {
         const host = new RegisterHost();
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
 
         expect(host.read('')).toBeUndefined();
         expect(host.write('', 1)).toBeUndefined();

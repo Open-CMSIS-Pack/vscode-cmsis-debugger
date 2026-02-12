@@ -13,23 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
  * Unit test for ScvdExpression.
  */
 
-import { ParseResult } from '../../../parser-evaluator/parser';
+import { type ParseResult } from '../../../parser-evaluator/parser';
 import { EvaluateResult } from '../../../parser-evaluator/evaluator';
-import { ExecutionContext } from '../../../scvd-eval-context';
-
-jest.mock('../../../parser-evaluator/parser', () => ({
-    parseExpression: jest.fn()
-}));
-
-import { parseExpression } from '../../../parser-evaluator/parser';
 import { ScvdExpression } from '../../../model/scvd-expression';
+import { createExecutionContext } from '../helpers/statement-engine-helpers';
 
 describe('ScvdExpression', () => {
     const makeAst = (overrides: Partial<ParseResult>): ParseResult => ({
@@ -46,12 +39,12 @@ describe('ScvdExpression', () => {
 
     it('parses expressions and evaluates constant branches', async () => {
         const expr = new ScvdExpression(undefined, '1', 'value');
-        const ast = makeAst({ constValue: 7 });
-        (parseExpression as jest.Mock).mockReturnValue(ast);
+        const ctx = createExecutionContext(expr);
+        expr.setExecutionContext(ctx);
 
         expect(expr.configure()).toBe(true);
-        expect(expr.expressionAst).toBe(ast);
-        await expect(expr.evaluate()).resolves.toBe(7);
+        expect(expr.expressionAst?.constValue).toBe(1);
+        await expect(expr.evaluate()).resolves.toBe(1);
 
         expr.expressionAst = makeAst({ constValue: true });
         await expect(expr.evaluate()).resolves.toBe(1);
@@ -71,10 +64,11 @@ describe('ScvdExpression', () => {
         const expr = new ScvdExpression(undefined, 'X', 'value');
         const ast = makeAst({ constValue: undefined });
         expr.expressionAst = ast;
-        const evaluator = { evaluateParseResult: jest.fn().mockResolvedValue(42 as EvaluateResult) };
-        const ctx = { evalContext: {}, evaluator } as unknown as ExecutionContext;
+        const ctx = createExecutionContext(expr);
+        const evalSpy = jest.spyOn(ctx.evaluator, 'evaluateParseResult').mockResolvedValue(42 as EvaluateResult);
         expr.setExecutionContext(ctx);
         await expect(expr.getValue()).resolves.toBe(42);
+        evalSpy.mockRestore();
     });
 
     it('handles missing AST or context during evaluation', async () => {
@@ -82,7 +76,8 @@ describe('ScvdExpression', () => {
         expr.expressionAst = makeAst({ constValue: undefined });
         await expect(expr.evaluate()).resolves.toBeUndefined();
 
-        expr.setExecutionContext({ evalContext: {}, evaluator: { evaluateParseResult: jest.fn() } } as unknown as ExecutionContext);
+        const ctx = createExecutionContext(expr);
+        expr.setExecutionContext(ctx);
         expr.expressionAst = undefined;
         await expect(expr.evaluate()).resolves.toBeUndefined();
     });
@@ -96,13 +91,13 @@ describe('ScvdExpression', () => {
         await expect(expr.getResultString()).resolves.toBe('str');
 
         expr.expressionAst = makeAst({ constValue: undefined });
-        const evaluator = {
-            evaluateParseResult: jest.fn()
-                .mockResolvedValueOnce(5n as EvaluateResult)
-                .mockResolvedValueOnce({} as EvaluateResult),
-        };
-        expr.setExecutionContext({ evalContext: {}, evaluator } as unknown as ExecutionContext);
+        const ctx = createExecutionContext(expr);
+        const evalSpy = jest.spyOn(ctx.evaluator, 'evaluateParseResult')
+            .mockResolvedValueOnce(5n as EvaluateResult)
+            .mockResolvedValueOnce({} as EvaluateResult);
+        expr.setExecutionContext(ctx);
         await expect(expr.getResultString()).resolves.toBe('5');
+        evalSpy.mockRestore();
 
         expr.expressionAst = makeAst({ constValue: undefined });
         await expect(expr.getResultString()).resolves.toBeUndefined();
@@ -134,13 +129,44 @@ describe('ScvdExpression', () => {
         expect(expr.expressionAst).toBe(ast);
     });
 
+    it('uses parent execution context when parsing expressions', () => {
+        const parent = new ScvdExpression(undefined, undefined, 'parent');
+        const ctx = createExecutionContext(parent);
+        parent.setExecutionContext(ctx);
+
+        const expr = new ScvdExpression(parent, '1', 'value');
+        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        expect(expr.configure()).toBe(true);
+        expect(expr.expressionAst?.constValue).toBe(1);
+        expect(errorSpy).not.toHaveBeenCalled();
+        errorSpy.mockRestore();
+    });
+
+    it('updates cached execution context during evaluation', async () => {
+        const parent = new ScvdExpression(undefined, undefined, 'parent');
+        const ctx = createExecutionContext(parent);
+        parent.setExecutionContext(ctx);
+
+        const expr = new ScvdExpression(parent, 'X', 'value');
+        expr.expressionAst = makeAst({ constValue: undefined });
+        const evalSpy = jest.spyOn(ctx.evaluator, 'evaluateParseResult').mockResolvedValue(7 as EvaluateResult);
+
+        await expect(expr.getValue()).resolves.toBe(7);
+        expect((expr as unknown as { _executionContext?: unknown })._executionContext).toBe(ctx);
+
+        evalSpy.mockRestore();
+    });
+
     it('does not set AST when parse diagnostics exist', () => {
         const expr = new ScvdExpression(undefined, '1', 'value');
         const ast = makeAst({
             diagnostics: [{ type: 'error', message: 'err', start: 0, end: 1 }]
         });
-        (parseExpression as jest.Mock).mockReturnValue(ast);
+        const ctx = createExecutionContext(expr);
+        const parserSpy = jest.spyOn(ctx.parser, 'parseExpression').mockReturnValue(ast);
+        expr.setExecutionContext(ctx);
         expect(expr.configure()).toBe(true);
         expect(expr.expressionAst).toBeUndefined();
+        parserSpy.mockRestore();
     });
 });

@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // generated with AI
 
 /**
  * Unit test for ScvdRead.
  */
 
+import { componentViewerLogger } from '../../../../../logger';
 import { ScvdCondition } from '../../../model/scvd-condition';
 import { ScvdEndian } from '../../../model/scvd-endian';
 import { ScvdExpression } from '../../../model/scvd-expression';
@@ -196,11 +196,20 @@ describe('ScvdRead', () => {
         await expect(read.getTargetSize()).resolves.toBeUndefined();
     });
 
+    it('exposes element references via type access', () => {
+        const read = new ScvdRead(undefined);
+        expect(read.getElementRef()).toBeUndefined();
+
+        const typeNode = new ScvdRead(undefined);
+        (read as unknown as { _type?: ScvdRead })._type = typeNode;
+        expect(read.getElementRef()).toBe(typeNode);
+    });
+
     it('clamps invalid array sizes and logs an error', async () => {
         const read = new ScvdRead(undefined);
         read.size = 'size';
         const expr = read.size as ScvdExpression;
-        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
         const valueSpy = jest.spyOn(expr, 'getValue');
 
         valueSpy.mockResolvedValueOnce(0);

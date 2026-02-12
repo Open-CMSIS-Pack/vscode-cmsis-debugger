@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { componentViewerLogger } from '../../logger';
 import { DataAccessHost, EvalValue, ModelHost, RefContainer, ScalarType } from './parser-evaluator/model-host';
 import type { IntrinsicProvider } from './parser-evaluator/intrinsics';
 import { ScvdNode } from './model/scvd-node';
@@ -231,7 +232,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
             }
             return width;
         }
-        console.error(`ScvdEvalInterface.getByteWidth: size undefined for ${ref.getDisplayLabel()}`);
+        componentViewerLogger.error(`ScvdEvalInterface.getByteWidth: size undefined for ${ref.getDisplayLabel()}`);
         return undefined;
     }
 
@@ -251,7 +252,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         if (size !== undefined) {
             return size;
         }
-        console.error(`ScvdEvalInterface.getElementStride: size/stride undefined for ${ref.getDisplayLabel()}`);
+        componentViewerLogger.error(`ScvdEvalInterface.getElementStride: size/stride undefined for ${ref.getDisplayLabel()}`);
         return 0;
     }
 
@@ -263,7 +264,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         const offset = await member.getMemberOffset();
         perf?.end(modelStart, 'modelGetMemberOffsetMs', 'modelGetMemberOffsetCalls');
         if (offset === undefined) {
-            console.error(`ScvdEvalInterface.getMemberOffset: offset undefined for ${member.getDisplayLabel()}`);
+            componentViewerLogger.error(`ScvdEvalInterface.getMemberOffset: offset undefined for ${member.getDisplayLabel()}`);
             return undefined;
         }
         this._caches.setMemberOffset(member, offset);
@@ -286,7 +287,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
             const value = await this.memHost.readValue(container);
             return value as EvalValue;
         } catch (e) {
-            console.error(`ScvdEvalInterface.readValue: exception for container with base=${container.base.getDisplayLabel()}: ${e}`);
+            componentViewerLogger.error(`ScvdEvalInterface.readValue: exception for container with base=${container.base.getDisplayLabel()}: ${e}`);
             return undefined;
         } finally {
             perf?.end(perfStartTime, 'evalReadMs', 'evalReadCalls');
@@ -299,7 +300,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
             await this.memHost.writeValue(container, value);
             return value;
         } catch (e) {
-            console.error(`ScvdEvalInterface.writeValue: exception for container with base=${container.base.getDisplayLabel()}: ${e}`);
+            componentViewerLogger.error(`ScvdEvalInterface.writeValue: exception for container with base=${container.base.getDisplayLabel()}: ${e}`);
             return undefined;
         } finally {
             perf?.end(perfStartTime, 'evalWriteMs', 'evalWriteCalls');
@@ -347,10 +348,10 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     */
     public async __CalcMemUsed(stackAddress: number, stackSize: number, fillPattern: number, magicValue: number): Promise<number | undefined> {
         const memUsed = await this.debugTarget.calculateMemoryUsage(
-            stackAddress >>> 0,
-            stackSize >>> 0,
-            fillPattern >>> 0,
-            magicValue >>> 0
+            stackAddress,
+            stackSize,
+            fillPattern,
+            magicValue
         );
         return memUsed;
     }
