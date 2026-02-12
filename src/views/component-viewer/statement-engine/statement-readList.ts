@@ -43,14 +43,6 @@ export class StatementReadList extends StatementBase {
         super(item, parent);
     }
 
-    protected override async shouldExecute(_executionContext: ExecutionContext): Promise<boolean> {
-        if (this.scvdItem.mustRead === false) {
-            return false;
-        }
-        const conditionResult = await this.scvdItem.getConditionResult();
-        return conditionResult !== false;
-    }
-
     private isInvalidAddress(address: number | bigint): boolean {
         // Cortex-M: treat 0 or >= 0xFFFFFFF0 as invalid pointer addresses (stop readlist).
         if (typeof address === 'bigint') {
@@ -69,7 +61,7 @@ export class StatementReadList extends StatementBase {
         const itemName = scvdReadList.name;
         if (itemName === undefined) {
             if (logErrors) {
-                componentViewerLogger.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": no name defined`);
+                componentViewerLogger.error(`Line: ${this.line}: Executing "readlist": no name defined`);
             }
             return undefined;
         }
@@ -77,7 +69,7 @@ export class StatementReadList extends StatementBase {
         const targetSize = await scvdReadList.getTargetSize();
         if (targetSize === undefined) {
             if (logErrors) {
-                componentViewerLogger.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, type: ${scvdReadList.getDisplayLabel()}, could not determine target size`);
+                componentViewerLogger.error(`Line: ${this.line}: Executing "readlist": ${scvdReadList.name}, type: ${scvdReadList.getDisplayLabel()}, could not determine target size`);
             }
             return undefined;
         }
@@ -94,7 +86,7 @@ export class StatementReadList extends StatementBase {
             const symAddr = await executionContext.debugTarget.findSymbolAddress(symbolName);
             if (symAddr === undefined) {
                 if (logErrors) {
-                    componentViewerLogger.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, could not find symbol address for symbol: ${symbolName}`);
+                    componentViewerLogger.error(`Line: ${this.line}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, could not find symbol address for symbol: ${symbolName}`);
                 }
                 return undefined;
             }
@@ -110,7 +102,7 @@ export class StatementReadList extends StatementBase {
                 offs = BigInt(Math.trunc(offset));
             } else {
                 if (logErrors) {
-                    componentViewerLogger.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, offset is not numeric`);
+                    componentViewerLogger.error(`Line: ${this.line}: Executing "readlist": ${scvdReadList.name}, offset is not numeric`);
                 }
                 return undefined;
             }
@@ -121,7 +113,7 @@ export class StatementReadList extends StatementBase {
 
         if (baseAddress === undefined) {
             if (logErrors) {
-                componentViewerLogger.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, offset evaluated to undefined`);
+                componentViewerLogger.error(`Line: ${this.line}: Executing "readlist": ${scvdReadList.name}, offset evaluated to undefined`);
             }
             return undefined;
         }
@@ -154,15 +146,10 @@ export class StatementReadList extends StatementBase {
     }
 
     protected override async onExecute(executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        const mustRead = this.scvdItem.mustRead;
-        if (mustRead === false) {
-            //console.log(`${this.scvdItem.getLineNoStr()}: Skipping "read" as already initialized: ${this.scvdItem.name}`);
-            return;
-        }
-
+        componentViewerLogger.debug(`Line: ${this.line}: Executing <${this.scvdItem.tag}> : ${await this.getGuiName()}`);
         const scvdReadList = this.scvdItem.castToDerived(ScvdReadList);
         if (scvdReadList === undefined) {
-            componentViewerLogger.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": could not cast to ScvdReadList`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "readlist": could not cast to ScvdReadList`);
             return;
         }
 
@@ -205,7 +192,7 @@ export class StatementReadList extends StatementBase {
         // ---- fetch type info ----
             const typeItem = scvdReadList.type;
             if (typeItem === undefined) {
-                componentViewerLogger.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, no type defined`);
+                componentViewerLogger.error(`Line: ${this.line}: Executing "readlist": ${scvdReadList.name}, no type defined`);
                 return;
             }
 
@@ -214,16 +201,16 @@ export class StatementReadList extends StatementBase {
                 nextTargetSize = await nextMember.getTargetSize();
                 nextOffset = await nextMember.getMemberOffset();
                 if (nextTargetSize === undefined || nextOffset === undefined) {
-                    componentViewerLogger.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, could not determine size/offset of next member: ${next} in type: ${typeItem.getDisplayLabel()}`);
+                    componentViewerLogger.error(`Line: ${this.line}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, could not determine size/offset of next member: ${next} in type: ${typeItem.getDisplayLabel()}`);
                     return;
                 }
                 if (nextTargetSize > 4) {
-                    componentViewerLogger.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, next member: ${next} size is larger than 4 bytes (${nextTargetSize} bytes)`);
+                    componentViewerLogger.error(`Line: ${this.line}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, next member: ${next} size is larger than 4 bytes (${nextTargetSize} bytes)`);
                     return;
                 }
             }
         }
-        //console.log(`${this.scvdItem.getLineNoStr()}: Executing target readlist: ${scvdReadList.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes`);
+        componentViewerLogger.debug(`Line: ${this.line}: Executing target readlist: ${scvdReadList.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes`);
 
         // ---- calculate next address ----
         let nextPtrAddr: number | bigint | undefined = typeof baseAddress === 'bigint' ? baseAddress : (baseAddress >>> 0);
@@ -240,7 +227,7 @@ export class StatementReadList extends StatementBase {
             const totalBytes = count * readBytes;
             const readData = await executionContext.debugTarget.readMemory(baseNum, totalBytes);
             if (readData === undefined) {
-                componentViewerLogger.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${totalBytes} bytes, read target memory failed`);
+                componentViewerLogger.error(`Line: ${this.line}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${totalBytes} bytes, read target memory failed`);
             } else {
                 if (isPointerArray) {
                     const view = new DataView(readData.buffer, readData.byteOffset, readData.byteLength);
@@ -263,7 +250,7 @@ export class StatementReadList extends StatementBase {
                         for (const req of requests) {
                             const itemData = results.get(req.key);
                             if (!itemData) {
-                                componentViewerLogger.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, address: ${req.address}, size: ${targetSize} bytes, read target memory failed`);
+                                componentViewerLogger.error(`Line: ${this.line}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, address: ${req.address}, size: ${targetSize} bytes, read target memory failed`);
                                 break;
                             }
                             executionContext.memoryHost.setVariable(
@@ -312,7 +299,7 @@ export class StatementReadList extends StatementBase {
                 // Read data from target
                 const readData = await executionContext.debugTarget.readMemory(itemAddress, readBytes);
                 if (readData === undefined) {
-                    componentViewerLogger.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes, read target memory failed`);
+                    componentViewerLogger.error(`Line: ${this.line}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes, read target memory failed`);
                     break;
                 }
 
@@ -323,7 +310,7 @@ export class StatementReadList extends StatementBase {
                     }
                     const itemData = await executionContext.debugTarget.readMemory(addr, targetSize);
                     if (itemData === undefined) {
-                        componentViewerLogger.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, address: ${addr}, size: ${targetSize} bytes, read target memory failed`);
+                        componentViewerLogger.error(`Line: ${this.line}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, address: ${addr}, size: ${targetSize} bytes, read target memory failed`);
                         break;
                     }
                     const storeStart = perf?.start() ?? 0;
@@ -378,7 +365,7 @@ export class StatementReadList extends StatementBase {
                     }
                     const nextPtrUint8Arr = readData.subarray(nextOffset, nextOffset + nextTargetSize);
                     if (nextPtrUint8Arr.length !== nextTargetSize) {
-                        componentViewerLogger.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, could not extract next pointer data from read data`);
+                        componentViewerLogger.error(`Line: ${this.line}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, could not extract next pointer data from read data`);
                         break;
                     }
                     nextPtrAddr = (nextPtrUint8Arr[0] | (nextPtrUint8Arr[1] << 8) | (nextPtrUint8Arr[2] << 16) | (nextPtrUint8Arr[3] << 24)) >>> 0;
@@ -401,5 +388,7 @@ export class StatementReadList extends StatementBase {
         if (isConst) {   // Mark variable as already initialized
             scvdReadList.mustRead = false;
         }
+
+        componentViewerLogger.debug(`Line: ${this.line}: Completed executing <${this.scvdItem.tag}> : ${scvdReadList.name}, symbol: ${symbol?.name}, total items read: ${count ?? 'unknown'}, base address: ${baseAddress}, size per item: ${readBytes} bytes, isPointerArray: ${isPointerArray}, const: ${isConst}`);
     }
 }

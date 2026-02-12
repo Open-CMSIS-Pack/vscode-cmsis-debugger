@@ -118,7 +118,7 @@ export class ScvdExpression extends ScvdNode {
             }
             const parser = executionContext?.parser;
             if (!parser) {
-                console.error(this.getLineInfoStr(), 'Expression parsing missing execution context or parser');
+                componentViewerLogger.error(`${this.getLineInfoStr()} Expression parsing missing execution context or parser`);
                 return false;
             }
             const expressionAst = parser.parseExpression(expression, this.isPrintExpression);

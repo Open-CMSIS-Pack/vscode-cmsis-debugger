@@ -27,6 +27,7 @@ import { ScvdPrint } from '../model/scvd-print';
 import { ScvdRead } from '../model/scvd-read';
 import { ScvdReadList } from '../model/scvd-readlist';
 import { ScvdVar } from '../model/scvd-var';
+import { componentViewerLogger } from '../../../logger';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
 import { perf, targetReadStats, targetReadTimingStats } from '../stats-config';
@@ -174,7 +175,7 @@ export class StatementEngine {
         resetReadTimingStats(targetReadTimingStats);
         perf?.beginExecuteAll();
         if (this._statementTree) {
-            //console.log('Executing statements in the statement tree...');
+            componentViewerLogger.debug('Executing statements in the statement tree...');
             await this._statementTree.executeStatement(this.executionContext, guiTree);
         }
         perf?.endExecuteAll(getReadTimingStats(targetReadTimingStats), getReadCacheStats(targetReadStats));

@@ -98,6 +98,7 @@ export class ScvdDebugTarget {
 
     // -------------  Interface to debugger  -----------------
     public init(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker): void {
+        componentViewerLogger.debug('initialize target access and tracker');
         this.activeSession = session;
         this.targetAccess.setActiveSession(session);
         this.debugTracker = tracker;
@@ -106,23 +107,36 @@ export class ScvdDebugTarget {
     }
 
     public setActiveSession(session: GDBTargetDebugSession): void {
+        componentViewerLogger.debug('updating active session');
         this.activeSession = session;
         this.targetAccess.setActiveSession(session);
     }
 
     public async beginUpdateCycle(): Promise<void> {
+        componentViewerLogger.debug('reset read stats and prime cache');
         targetReadStats?.reset();
         const targetReadCache = this.targetReadCache;
         if (!TARGET_READ_CACHE_ENABLED || !targetReadCache) {
+            componentViewerLogger.debug('cache disabled, skipping priming');
             return;
         }
-        await targetReadCache.beginUpdateCycle(
+        const summary = await targetReadCache.beginUpdateCycle(
             (addr, length) => this.readMemoryFromTarget(addr, length),
             targetReadStats
+        );
+        if (summary.count === 0) {
+            componentViewerLogger.debug('cache primed for update cycle: no ranges prefetched');
+            return;
+        }
+        const rangesText = summary.ranges
+            .map(range => `${this.formatAddress(range.start)}+${range.size}`)
+            .join(', ');
+        componentViewerLogger.debug(`cache primed for update cycle: prefetched ${summary.count} range(s), ${summary.bytes} bytes [${rangesText}]`
         );
     }
 
     protected async subscribeToTargetRunningState(debugTracker: GDBTargetDebugTracker): Promise<void> {
+        componentViewerLogger.debug('attach debug tracker listeners');
         debugTracker.onContinued(async (event) => {
             if (!this.activeSession || event.session.session.id !== this.activeSession.session.id) {
                 return;
@@ -139,10 +153,13 @@ export class ScvdDebugTarget {
     }
 
     public async getSymbolInfo(symbol: string): Promise<SymbolInfo | undefined> {
+        componentViewerLogger.debug(`get Symbol Info: resolving ${symbol}`);
         if (symbol === undefined) {
+            componentViewerLogger.debug('get Symbol Info: no symbol provided');
             return undefined;
         }
         if (!this.activeSession) {
+            componentViewerLogger.debug('get Symbol Info: no active session');
             return undefined;
         }
 
@@ -153,15 +170,18 @@ export class ScvdDebugTarget {
                 if (Number.isFinite(parsed)) {
                     return parsed;
                 }
-                componentViewerLogger.error(`getSymbolInfo: could not parse address for ${symbolName}:`, symbolAddressStr);
+                componentViewerLogger.error(`get Symbol Info: could not parse address for ${symbolName}:`, symbolAddressStr);
             }
+            componentViewerLogger.debug(`get Symbol Info: could not resolve address for symbol ${symbolName}`);
             return undefined;
         });
 
         if (!addressInfo) {
+            componentViewerLogger.debug(`get Symbol Info: no address info for symbol ${symbol}`);
             return undefined;
         }
 
+        componentViewerLogger.debug(`get Symbol Info: resolved ${symbol} to address ${this.formatAddress(addressInfo.value)}`);
         return {
             name: addressInfo.name,
             address: addressInfo.value
@@ -169,46 +189,60 @@ export class ScvdDebugTarget {
     }
 
     public async findSymbolNameAtAddress(address: number): Promise<string | undefined> {
+        componentViewerLogger.debug(`find Symbol Name at Address: ${this.formatAddress(address)}`);
         if (!this.activeSession) {
+            componentViewerLogger.debug('find Symbol Name at Address: no active session');
             return Promise.resolve(undefined);
         }
 
         try {
-            return await this.targetAccess.evaluateSymbolName(address.toString());
+            const result = await this.targetAccess.evaluateSymbolName(address.toString());
+            componentViewerLogger.debug(`find Symbol Name at Address: ${this.formatAddress(address)} resolved to ${result}`);
+            return result;
         } catch (error: unknown) {
-            componentViewerLogger.error(`findSymbolNameAtAddress failed for ${address}:`, error);
+            componentViewerLogger.error(`find Symbol Name at Address failed for ${this.formatAddress(address)}:`, error);
             return undefined;
         }
     }
 
     public async findSymbolContextAtAddress(address: number | bigint): Promise<string | undefined> {
+        componentViewerLogger.debug(`find Symbol Context at Address: ${this.formatAddress(address)}`);
         // Return file/line context for an address when the adapter supports it.
         if (!this.activeSession) {
+            componentViewerLogger.debug('find Symbol Context at Address: no active session');
             return Promise.resolve(undefined);
         }
 
         try {
-            return await this.targetAccess.evaluateSymbolContext(address.toString());
+            const result = await this.targetAccess.evaluateSymbolContext(address.toString());
+            componentViewerLogger.debug(`find Symbol Context at Address: ${this.formatAddress(address)} resolved to ${result}`);
+            return result;
         } catch (error: unknown) {
-            componentViewerLogger.error(`findSymbolContextAtAddress failed for ${address}:`, error);
+            componentViewerLogger.error(`findSymbolContextAtAddress failed for ${this.formatAddress(address)}:`, error);
             return undefined;
         }
     }
 
     public async getNumArrayElements(symbol: string): Promise<number | undefined> {
+        componentViewerLogger.debug(`get Num Array Elements: ${symbol}`);
         if (symbol === undefined) {
+            componentViewerLogger.debug('get Num Array Elements: no symbol provided');
             return undefined;
         }
         // No active session: return undefined.
         if (!this.activeSession) {
+            componentViewerLogger.debug('get Num Array Elements: no active session');
             return undefined;
         }
         return this.symbolCaches.getArrayCount(symbol, async (symbolName) => {
-            return this.targetAccess.evaluateNumberOfArrayElements(symbolName);
+            const result = await this.targetAccess.evaluateNumberOfArrayElements(symbolName);
+            componentViewerLogger.debug(`get Num Array Elements: ${symbolName} resolved to ${result}`);
+            return result;
         });
     }
 
     public async getTargetIsRunning(): Promise<boolean> {
+        componentViewerLogger.debug('get Target Is Running');
         if (!this.activeSession) {
             return false;
         }
@@ -216,23 +250,29 @@ export class ScvdDebugTarget {
     }
 
     public async findSymbolAddress(symbol: string): Promise<number | undefined> {
+        componentViewerLogger.debug(`find Symbol Address: ${symbol}`);
         const symbolInfo = await this.getSymbolInfo(symbol);
         return symbolInfo?.address;
     }
 
     public async getSymbolSize(symbol: string): Promise<number | undefined> {
-        if (!symbol) {
+        componentViewerLogger.debug(`get Symbol Size: ${symbol}`);
+        if (!symbol ) {
+            componentViewerLogger.debug('get Symbol Size: no symbol provided');
             return undefined;
         }
         if (!this.activeSession) {
+            componentViewerLogger.debug('get Symbol Size: no active session');
             return undefined;
         }
 
         return this.symbolCaches.getSize(symbol, async (symbolName) => {
             const size = await this.targetAccess.evaluateSymbolSize(symbolName);
             if (typeof size === 'number' && size >= 0) {
+                componentViewerLogger.debug(`get Symbol Size: ${symbolName} resolved to ${size}`);
                 return size;
             }
+            componentViewerLogger.debug(`get Symbol Size: could not get size for symbol ${symbolName}`);
             return undefined;
         });
     }
@@ -266,6 +306,7 @@ export class ScvdDebugTarget {
     }
 
     public async readMemory(address: number | bigint, size: number): Promise<Uint8Array | undefined> {
+        componentViewerLogger.debug(`read Memory: addr=${this.formatAddress(address)} size=${size}`);
         const normalized = this.normalizeAddress(address);
         const targetReadCache = this.targetReadCache;
         if (TARGET_READ_CACHE_ENABLED && normalized !== undefined && targetReadCache) {
@@ -275,6 +316,7 @@ export class ScvdDebugTarget {
             const cached = targetReadCache.read(normalized, size);
             if (cached) {
                 perf?.end(hitStart, 'targetReadCacheHitMs', 'targetReadCacheHitCalls');
+                componentViewerLogger.debug(`read Memory: cache hit for addr=${this.formatAddress(address)} size=${size}`);
                 return cached;
             }
             const missStart = perf?.start() ?? 0;
@@ -283,6 +325,7 @@ export class ScvdDebugTarget {
                 const data = await this.readMemoryFromTarget(range.start, range.size);
                 if (!data) {
                     perf?.end(missStart, 'targetReadCacheMissMs', 'targetReadCacheMissCalls');
+                    componentViewerLogger.debug(`read Memory: read from target failed for addr=${this.formatAddress(address)} size=${size}`);
                     return undefined;
                 }
                 targetReadStats?.recordMissRead();
@@ -296,7 +339,9 @@ export class ScvdDebugTarget {
     }
 
     private async readMemoryFromTarget(address: number | bigint, size: number): Promise<Uint8Array | undefined> {
+        componentViewerLogger.debug(`read Memory From Target: addr=${this.formatAddress(address)} size=${size}`);
         if (!this.activeSession) {
+            componentViewerLogger.debug('read Memory From Target: no active session');
             return undefined;
         }
 
@@ -313,7 +358,7 @@ export class ScvdDebugTarget {
             return undefined;
         }
         if (!isLikelyBase64(dataAsString)) {
-            componentViewerLogger.error(`ScvdDebugTarget.readMemory: invalid base64 data for address ${address.toString()}`);
+            componentViewerLogger.error(`ScvdDebugTarget.readMemory: invalid base64 data for address ${this.formatAddress(address)}`);
             perf?.end(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
             return undefined;
         }
@@ -331,10 +376,12 @@ export class ScvdDebugTarget {
             // Aggregate stats are reported after statement execution; avoid per-read logging.
         }
         perf?.end(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
+        componentViewerLogger.debug(`read Memory From Target: completed for addr=${this.formatAddress(address)} size=${size} success=${result !== undefined}`);
         return result;
     }
 
     public async readMemoryBatch(requests: ReadMemoryRequest[]): Promise<Map<string, Uint8Array | undefined>> {
+        componentViewerLogger.debug(`read Memory Batch: ${requests.length} request(s)`);
         const results = new Map<string, Uint8Array | undefined>();
         if (requests.length === 0) {
             return results;
@@ -343,12 +390,14 @@ export class ScvdDebugTarget {
             const req = requests[0];
             const data = req.size > 0 ? await this.readMemory(req.address, req.size) : undefined;
             results.set(req.key, data);
+            componentViewerLogger.debug(`read Memory Batch: single request for addr=${this.formatAddress(req.address)} size=${req.size} completed`);
             return results;
         }
         if (!this.activeSession) {
             for (const req of requests) {
                 results.set(req.key, undefined);
             }
+            componentViewerLogger.debug('read Memory Batch: no active session, returning undefined for all requests');
             return results;
         }
 
@@ -393,6 +442,7 @@ export class ScvdDebugTarget {
             for (const item of range.items) {
                 if (!data) {
                     results.set(item.req.key, undefined);
+                    componentViewerLogger.debug(`read Memory Batch: read from target failed for addr=${this.formatAddress(item.start)} size=${item.size}`);
                     continue;
                 }
                 const offset = Number(item.start - range.start);
@@ -404,11 +454,13 @@ export class ScvdDebugTarget {
             }
         }
 
+        componentViewerLogger.debug(`read Memory Batch: completed ${results.size} result(s)`);
         return results;
     }
 
 
     public readUint8ArrayStrFromPointer(address: number | bigint, bytesPerChar: number, maxLength: number): Promise<Uint8Array | undefined> {
+        componentViewerLogger.debug(`read Uint8Array Str From Pointer: addr=${this.formatAddress(address)} bytesPerChar=${bytesPerChar} maxLength=${maxLength}`);
         if (address === 0 || address === 0n) {
             return Promise.resolve(undefined);
         }
@@ -431,6 +483,7 @@ export class ScvdDebugTarget {
     }
 
     public async calculateMemoryUsage(startAddress: number, size: number, FillPattern: number, MagicValue: number): Promise<number | undefined> {
+        componentViewerLogger.debug(`calculate Memory Usage: addr=${this.formatAddress(startAddress)} size=${size}`);
         const normalized = this.normalizeCalcMemUsedArgs(startAddress, size, FillPattern, MagicValue);
         if (normalized.addr === 0 || normalized.size === 0) {
             return 0;
@@ -470,31 +523,37 @@ export class ScvdDebugTarget {
             result |= (1 << 31); // overflow indicator
         }
 
+        componentViewerLogger.debug(`calculate Memory Usage: calculated usedBytes=${usedBytes} usedPercent=${usedPercent} overflow=${(result & 0x80000000) !== 0}`);
         return result >>> 0;
     }
 
 
     public async readRegister(name: string): Promise<number | bigint | undefined> {
+        componentViewerLogger.debug(`read Register: ${name}`);
         if (name === undefined) {
+            componentViewerLogger.debug('read Register: name is undefined');
             return undefined;
         }
 
         const gdbName = gdbNameFor(name);
         if (gdbName === undefined) {
-            componentViewerLogger.error(`ScvdDebugTarget: readRegister: could not find GDB name for register: ${name}`);
+            componentViewerLogger.error(`read Register: could not find GDB name for register: ${name}`);
             return undefined;
         }
         // Read register value via target access
         const value = await this.targetAccess.evaluateRegisterValue(gdbName);
         if (value === undefined) {
+            componentViewerLogger.debug(`read Register: no value returned for register ${name} (GDB name: ${gdbName})`);
             return undefined;
         }
         // Convert to number or bigint and return as uint32
         const numericValue = Number(value);
+        componentViewerLogger.debug(`read Register: raw value for register ${name} (GDB name: ${gdbName}) is ${value} (numeric: ${numericValue})`);
         return toUint32(numericValue);
     }
 
     private normalizeAddress(address: number | bigint): number | undefined {
+        componentViewerLogger.debug(`normalize Address: ${this.formatAddress(address)}`);
         if (typeof address === 'bigint') {
             if (address < 0n || address > BigInt(Number.MAX_SAFE_INTEGER)) {
                 return undefined;
@@ -505,6 +564,16 @@ export class ScvdDebugTarget {
             return undefined;
         }
         return address;
+    }
+
+    private formatAddress(address: number | bigint): string {
+        if (typeof address === 'bigint') {
+            return `0x${address.toString(16)}`;
+        }
+        if (!Number.isFinite(address)) {
+            return String(address);
+        }
+        return `0x${(address >>> 0).toString(16)}`;
     }
 }
 

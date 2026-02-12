@@ -49,6 +49,7 @@ import type {
     UnaryExpression,
     UpdateExpression,
 } from './parser';
+import { componentViewerLogger } from '../../../logger';
 
 const startOf = (n: ASTNode) => (n as { start: number }).start;
 const endOf = (n: ASTNode) => (n as { end: number }).end;
@@ -254,7 +255,7 @@ export class ExpressionOptimizer {
         const cMap = new WeakMap<ASTNode, CValue>();
         const ast = this.fold(parsed.ast, diagnostics, stats, cMap);
         if (diagnostics.some((d) => d.type === 'error')) {
-            console.error(`[SCVD][expression-optimizer][fold] full=${stats.full} partial=${stats.partial} identity=${stats.identity}`);
+            componentViewerLogger.error(`[expression-optimizer][fold] full=${stats.full} partial=${stats.partial} identity=${stats.identity}`);
         }
         const constValue = parsed.isPrintf ? undefined : ast.constValue;
         return {

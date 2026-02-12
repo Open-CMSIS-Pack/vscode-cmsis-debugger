@@ -29,7 +29,7 @@ export class StatementVar extends StatementBase {
     }
 
     protected override async onExecute(executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        //console.log(`${this.line}: Executing var: ${await this.scvdItem.getGuiName()}`);
+        componentViewerLogger.debug(`Line: ${this.line}: Executing <${this.scvdItem.tag}> : ${await this.getGuiName()}`);
 
         const varItem = this.scvdItem.castToDerived(ScvdVar);
         if (varItem !== undefined) {
@@ -39,13 +39,13 @@ export class StatementVar extends StatementBase {
             const targetSize = elementSize !== undefined ? elementSize * (count ?? 1) : undefined;
             const value = await varItem.getValue();
             if (name === undefined || targetSize === undefined) {
-                componentViewerLogger.error(`${this.line}: Variable missing name or size.`);
+                componentViewerLogger.error(`Line: ${this.line}: Variable missing name or size.`);
                 return;
             }
 
             const initValue = value ?? 0;
             executionContext.memoryHost.setVariable(name, targetSize, initValue, -1, 0);
-            //console.log(`${this.line} Variable "${name}" created with value: ${value}`);
+            componentViewerLogger.debug(`Line: ${this.line}: Variable "${name}" created with value: ${value}`);
         }
     }
 }

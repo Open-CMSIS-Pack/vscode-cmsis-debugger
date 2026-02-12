@@ -118,7 +118,7 @@ export class ScvdReadList extends ScvdRead {
             const typedef = resolveFunc(this._next, ResolveType.localType);
             const member = typedef ? resolveFunc(this._next, ResolveType.localMember, typedef) : undefined;
             if (member === undefined && typedef) {
-                componentViewerLogger.error(`${this.getLineNoStr()}: Resolving readlist .next: could not find member '${this._next}' in typedef '${typedef.name}'`);
+                componentViewerLogger.error(`Line: ${this.getLineNoStr()}: Resolving readlist .next: could not find member '${this._next}' in typedef '${typedef.name}'`);
             }
         }
         return super.resolveAndLink(resolveFunc);
