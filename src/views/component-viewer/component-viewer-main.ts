@@ -58,7 +58,10 @@ export class ComponentViewer {
     }
 
     protected registerTreeView(): void {
-        const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
+        try {
+        //const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
+            vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
+        }catch (error) { console.log(`Component Viewer: Error registering tree data provider: ${error}`); throw error; }
         console.log('Component Viewer: Registered tree data provider for Component Viewer Tree View id: cmsis-debugger.componentViewer');
         const lockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.lockComponent', async (node) => {
             this.handleLockInstance(node);
@@ -68,7 +71,7 @@ export class ComponentViewer {
         });
         console.log('Component Viewer: Registered lock/unlock instance commands');
         this._context.subscriptions.push(
-            treeProviderDisposable,
+            //treeProviderDisposable,
             lockInstanceCommandDisposable,
             unlockInstanceCommandDisposable
         );
