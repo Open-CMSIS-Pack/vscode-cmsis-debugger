@@ -29,7 +29,7 @@ export class StatementOut extends StatementBase {
     }
 
     public override async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
-        componentViewerLogger.debug(`Line: ${this.line}: Executing statement: ${await this.getGuiName()}`);
+        componentViewerLogger.debug(`Line: ${this.line}: Executing statement: ${await this.getLogName()}`);
         const shouldExecute = await this.shouldExecute(executionContext);
         if (!shouldExecute) {
             return;

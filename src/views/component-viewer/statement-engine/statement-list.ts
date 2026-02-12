@@ -27,7 +27,7 @@ export class StatementList extends StatementBase {
     }
 
     public async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
-        componentViewerLogger.debug(`Line: ${this.line}: Executing statement: ${await this.getGuiName()}`);
+        componentViewerLogger.debug(`Line: ${this.line}: Executing statement: ${await this.getLogName()}`);
         const shouldExecute = await this.shouldExecute(executionContext);
         if (!shouldExecute) {
             return;
@@ -43,7 +43,7 @@ export class StatementList extends StatementBase {
     }
 
     protected async onExecute(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
-        componentViewerLogger.debug(`Line: ${this.line}: Executing: ${await this.getGuiName()}`);
+        componentViewerLogger.debug(`Line: ${this.line}: Executing <${this.scvdItem.tag}> : ${await this.getLogName()}`);
         const scvdList = this.scvdItem.castToDerived(ScvdList);
         if (scvdList === undefined) {
             componentViewerLogger.error(`Line: ${this.line}: Executing "list": could not cast to ScvdList`);

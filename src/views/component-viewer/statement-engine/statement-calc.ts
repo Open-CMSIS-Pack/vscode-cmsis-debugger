@@ -29,17 +29,17 @@ export class StatementCalc extends StatementBase {
     }
 
     protected override async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
+        componentViewerLogger.debug(`Line: ${this.line}: Executing <${this.scvdItem.tag}>}`);
         const calcItem = this.scvdItem.castToDerived(ScvdCalc);
         if (!calcItem) {
             componentViewerLogger.error(`Line: ${this.line}: Executing "calc": could not cast to ScvdCalc`);
             return;
         }
-        componentViewerLogger.debug(`Line: ${this.line}: Executing calc: ${await this.scvdItem.getGuiName()}`);
 
         const expressions = calcItem.expression;
         for (const expr of expressions) {
             const value = await expr.evaluate();
-            componentViewerLogger.debug(`Line: ${this.line}: ${this.line} Executing "calc": ${expr.expression}, value: ${value}`);
+            componentViewerLogger.debug(`Line: ${this.line}: Completed executing <${this.scvdItem.tag}>, ${expr.expression}, value: ${value}`);
         }
     }
 }

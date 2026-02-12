@@ -100,8 +100,13 @@ export class StatementBase {
         return this.scvdItem.getGuiValue();
     }
 
+    protected async getLogName(): Promise<string> {
+        const guiName = await this.getGuiName();
+        return guiName ?? this.scvdItem.tag ?? 'unknown';
+    }
+
     public async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
-        componentViewerLogger.debug(`Line: ${this.line}: Executing statement: ${await this.getGuiName()}`);
+        componentViewerLogger.debug(`Line: ${this.line}: Executing statement: ${await this.getLogName()}`);
         const shouldExecute = await this.shouldExecute(executionContext);
         if (!shouldExecute) {
             return;
@@ -116,7 +121,7 @@ export class StatementBase {
 
     // Override in subclasses to perform work for this node.
     protected async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        componentViewerLogger.debug(`Line: ${this.line}: Executing: ${await this.getGuiName()}`);
+        componentViewerLogger.debug(`Line: ${this.line}: Executing <${this.scvdItem.tag}> : ${await this.getLogName()}`);
     }
 
     protected async shouldExecute(_executionContext: ExecutionContext): Promise<boolean> {

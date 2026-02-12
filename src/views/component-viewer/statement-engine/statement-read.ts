@@ -129,7 +129,7 @@ export class StatementRead extends StatementBase {
     }
 
     protected override async onExecute(executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        componentViewerLogger.debug(`Line: ${this.line}: Executing read: ${await this.getGuiName()}`);
+        componentViewerLogger.debug(`Line: ${this.line}: Executing <${this.scvdItem.tag}> : ${await this.getGuiName()}`);
         const resolved = await this.resolveRead(executionContext, true);
         if (!resolved) {
             return;
@@ -158,5 +158,7 @@ export class StatementRead extends StatementBase {
         if (resolved.isConst) {   // Mark variable as already initialized
             this.scvdItem.mustRead = false;
         }
+
+        componentViewerLogger.debug(`Line: ${this.line}: Completed executing <${this.scvdItem.tag}> : ${resolved.name}, symbol: ${resolved.symbolName}, address: ${resolved.baseAddress}, size: ${resolved.readBytes} bytes, const: ${resolved.isConst}`);
     }
 }

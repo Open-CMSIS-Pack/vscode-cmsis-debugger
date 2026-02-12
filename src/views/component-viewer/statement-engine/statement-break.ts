@@ -29,7 +29,7 @@ export class StatementBreak extends StatementBase {
     }
 
     protected override async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        componentViewerLogger.debug(`Line: ${this.line}: Executing: ${await this.getGuiName()}`);
+        componentViewerLogger.debug(`Line: ${this.line}: Executing <${this.scvdItem.tag}> : ${await this.getLogName()}`);
         const breakItem = this.scvdItem.castToDerived(ScvdBreak);
         if (!breakItem) {
             componentViewerLogger.error(`Line: ${this.line}: Executing "break": could not cast to ScvdBreak`);

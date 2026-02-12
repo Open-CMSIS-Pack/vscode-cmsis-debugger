@@ -146,7 +146,7 @@ export class StatementReadList extends StatementBase {
     }
 
     protected override async onExecute(executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        componentViewerLogger.debug(`Line: ${this.line}: Executing read: ${await this.getGuiName()}`);
+        componentViewerLogger.debug(`Line: ${this.line}: Executing <${this.scvdItem.tag}> : ${await this.getGuiName()}`);
         const scvdReadList = this.scvdItem.castToDerived(ScvdReadList);
         if (scvdReadList === undefined) {
             componentViewerLogger.error(`Line: ${this.line}: Executing "readlist": could not cast to ScvdReadList`);
@@ -388,5 +388,7 @@ export class StatementReadList extends StatementBase {
         if (isConst) {   // Mark variable as already initialized
             scvdReadList.mustRead = false;
         }
+
+        componentViewerLogger.debug(`Line: ${this.line}: Completed executing <${this.scvdItem.tag}> : ${scvdReadList.name}, symbol: ${symbol?.name}, total items read: ${count ?? 'unknown'}, base address: ${baseAddress}, size per item: ${readBytes} bytes, isPointerArray: ${isPointerArray}, const: ${isConst}`);
     }
 }
