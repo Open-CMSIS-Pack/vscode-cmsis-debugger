@@ -34,13 +34,12 @@ export class StatementCalc extends StatementBase {
             componentViewerLogger.error(`${this.line}: Executing "calc": could not cast to ScvdCalc`);
             return;
         }
-        //console.log(`${this.line}: Executing calc: ${await this.scvdItem.getGuiName()}`);
+        componentViewerLogger.debug(`${this.line}: Executing calc: ${await this.scvdItem.getGuiName()}`);
 
         const expressions = calcItem.expression;
         for (const expr of expressions) {
-            await expr.evaluate();
-            //const value = await expr.getValue();
-            //console.log(`${this.line} Executing "calc": ${expr.expression}, value: ${value}`);
+            const value = await expr.evaluate();
+            componentViewerLogger.debug(`${this.line} Executing "calc": ${expr.expression}, value: ${value}`);
         }
     }
 }

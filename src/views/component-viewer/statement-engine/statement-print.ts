@@ -19,6 +19,7 @@ import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
 import { StatementBase } from './statement-base';
 import { perf } from '../stats-config';
+import { componentViewerLogger } from '../../../logger';
 
 
 export class StatementPrint extends StatementBase {
@@ -55,6 +56,6 @@ export class StatementPrint extends StatementBase {
     }
 
     protected override async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        //console.log(`${this.line}: Executing print: ${await this.scvdItem.getGuiName()}`);
+        componentViewerLogger.debug(`${this.line}: Executing print: ${await this.scvdItem.getGuiName()}`);
     }
 }

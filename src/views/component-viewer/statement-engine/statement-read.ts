@@ -137,10 +137,10 @@ export class StatementRead extends StatementBase {
     }
 
     protected override async onExecute(executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        //console.log(`${this.line}: Executing read: ${this.scvdItem.getDisplayLabel()}`);
+        componentViewerLogger.debug(`${this.line}: Executing read: ${this.scvdItem.getDisplayLabel()}`);
         const mustRead = this.scvdItem.mustRead;
         if (mustRead === false) {
-            //console.log(`${this.scvdItem.getLineNoStr()}: Skipping "read" as already initialized: ${this.scvdItem.name}`);
+            componentViewerLogger.debug(`${this.scvdItem.getLineNoStr()}: Skipping "read" as already initialized: ${this.scvdItem.name}`);
             return;
         }
 
@@ -148,7 +148,7 @@ export class StatementRead extends StatementBase {
         if (!resolved) {
             return;
         }
-        //console.log(`${this.line}: Executing target read: ${scvdRead.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes`);
+        componentViewerLogger.debug(`${this.line}: Executing target read: ${resolved.name}, symbol: ${resolved.symbolName}, address: ${resolved.baseAddress}, size: ${resolved.readBytes} bytes`);
 
         // Read from target memory
         const readData = await executionContext.debugTarget.readMemory(resolved.baseAddress, resolved.readBytes);

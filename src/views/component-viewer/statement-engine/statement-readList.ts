@@ -156,7 +156,7 @@ export class StatementReadList extends StatementBase {
     protected override async onExecute(executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
         const mustRead = this.scvdItem.mustRead;
         if (mustRead === false) {
-            //console.log(`${this.scvdItem.getLineNoStr()}: Skipping "read" as already initialized: ${this.scvdItem.name}`);
+            componentViewerLogger.debug(`${this.scvdItem.getLineNoStr()}: Skipping "read" as already initialized: ${this.scvdItem.name}`);
             return;
         }
 
@@ -223,7 +223,7 @@ export class StatementReadList extends StatementBase {
                 }
             }
         }
-        //console.log(`${this.scvdItem.getLineNoStr()}: Executing target readlist: ${scvdReadList.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes`);
+        componentViewerLogger.debug(`${this.scvdItem.getLineNoStr()}: Executing target readlist: ${scvdReadList.name}, symbol: ${symbol?.name}, address: ${baseAddress}, size: ${readBytes} bytes`);
 
         // ---- calculate next address ----
         let nextPtrAddr: number | bigint | undefined = typeof baseAddress === 'bigint' ? baseAddress : (baseAddress >>> 0);

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { componentViewerLogger } from '../../../logger';
 import { ScvdNode } from '../model/scvd-node';
 import { ExecutionContext } from '../scvd-eval-context';
 import { ScvdGuiTree } from '../scvd-gui-tree';
@@ -115,7 +116,7 @@ export class StatementBase {
 
     // Override in subclasses to perform work for this node.
     protected async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        //console.log(`${this.line}: Executing base: ${await this.scvdItem.getGuiName()}`);
+        componentViewerLogger.debug(`${this.line}: Executing base: ${await this.scvdItem.getGuiName()}`);
     }
 
     protected async shouldExecute(_executionContext: ExecutionContext): Promise<boolean> {

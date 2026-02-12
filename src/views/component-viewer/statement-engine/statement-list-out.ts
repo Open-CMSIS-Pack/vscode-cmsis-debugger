@@ -49,7 +49,7 @@ export class StatementListOut extends StatementBase {
             componentViewerLogger.error(`${this.line}: Executing "out-list": could not cast to ScvdList`);
             return;
         }
-        //console.log(`${this.line}: Executing out-list: ${scvdList.name}`);
+        componentViewerLogger.debug(`${this.line}: Executing out-list: ${scvdList.name}`);
 
         const name = scvdList.name;
         if (name === undefined) {

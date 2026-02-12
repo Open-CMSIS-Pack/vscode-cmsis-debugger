@@ -19,6 +19,7 @@ import { ScvdNode } from './model/scvd-node';
 import { ScvdComponentViewer } from './model/scvd-component-viewer';
 import { ScvdTypedef } from './model/scvd-typedef';
 import { ScvdTypesCache } from './scvd-types-cache';
+import { componentViewerLogger } from '../../logger';
 
 export enum ResolveType {
     localType = 'localType',
@@ -82,7 +83,7 @@ export class Resolver {
 
     private resolveTargetType(_name: string): ScvdNode | undefined {
         // resolve using debugger interface
-        //console.log(`  Resolving target symbol: ${_name}`);
+        componentViewerLogger.debug(`  Resolving target symbol: ${_name}`);
         return undefined;
     }
 

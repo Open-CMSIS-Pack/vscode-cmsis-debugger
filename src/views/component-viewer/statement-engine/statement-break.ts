@@ -42,6 +42,6 @@ export class StatementBreak extends StatementBase {
             componentViewerLogger.error(`${this.line}: Executing "break": could not cast to ScvdBreak`);
             return;
         }
-        //console.log(`${this.line}: Executing break: ${await this.scvdItem.getGuiName()}`);
+        componentViewerLogger.debug(`${this.line}: Executing break: ${await this.scvdItem.getGuiName()}`);
     }
 }
