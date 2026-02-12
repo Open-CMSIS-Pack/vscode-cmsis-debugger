@@ -129,7 +129,7 @@ export class ComponentViewer {
 
     private async loadCbuildRunInstances(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker) : Promise<void | undefined> {
         this._loadingCounter++;
-        console.log(`Loading SCVD files from cbuild-run, attempt #${this._loadingCounter}`);
+        componentViewerLogger.debug(`Loading SCVD files from cbuild-run, attempt #${this._loadingCounter}`);
         // Try to read SCVD files from cbuild-run file first
         await this.readScvdFiles(tracker, session);
         // Are there any SCVD files found in cbuild-run?

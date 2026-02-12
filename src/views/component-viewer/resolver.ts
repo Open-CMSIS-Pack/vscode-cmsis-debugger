@@ -107,7 +107,7 @@ export class Resolver {
     private resolveRecursive(item: ScvdNode, resolveFunc: ResolveSymbolCb): boolean {
         /*const resolvedItem =*/ item.resolveAndLink(resolveFunc);
         // if (resolvedItem) {
-        //     console.log('Resolved item:', item.getDisplayLabel());
+        //     componentViewerLogger.debug(`Resolved item: ${item.getDisplayLabel()}`);
         // }
 
         item.forEach(child => {

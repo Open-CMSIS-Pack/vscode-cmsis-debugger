@@ -104,7 +104,7 @@ export class StatementBase {
         componentViewerLogger.debug(`Line: ${this.line}: Executing statement: ${await this.scvdItem.getGuiName()}`);
         const shouldExecute = await this.shouldExecute(executionContext);
         if (!shouldExecute) {
-            //console.log(`${this.scvdItem.getLineNoStr()}: Skipping ${this.scvdItem.getDisplayLabel()} for condition result: ${conditionResult}`);
+            // componentViewerLogger.debug(`Line: ${this.line}: Skipping ${this.scvdItem.getDisplayLabel()} for condition result: ${conditionResult}`);
             return;
         }
 
