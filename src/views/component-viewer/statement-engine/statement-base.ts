@@ -101,10 +101,9 @@ export class StatementBase {
     }
 
     public async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
-        componentViewerLogger.debug(`Line: ${this.line}: Executing statement: ${await this.scvdItem.getGuiName()}`);
+        componentViewerLogger.debug(`Line: ${this.line}: Executing statement: ${await this.getGuiName()}`);
         const shouldExecute = await this.shouldExecute(executionContext);
         if (!shouldExecute) {
-            // componentViewerLogger.debug(`Line: ${this.line}: Skipping ${this.scvdItem.getDisplayLabel()} for condition result: ${conditionResult}`);
             return;
         }
 
@@ -117,12 +116,22 @@ export class StatementBase {
 
     // Override in subclasses to perform work for this node.
     protected async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        componentViewerLogger.debug(`Line: ${this.line}: Executing base: ${await this.scvdItem.getGuiName()}`);
+        componentViewerLogger.debug(`Line: ${this.line}: Executing: ${await this.getGuiName()}`);
     }
 
     protected async shouldExecute(_executionContext: ExecutionContext): Promise<boolean> {
-        const conditionResult = await this.scvdItem.getConditionResult();
-        return conditionResult !== false;
-    }
+        const mustRead = this.scvdItem.mustRead;
+        if (mustRead === false) {
+            componentViewerLogger.debug(`Line: ${this.line}: Skipping ${await this.getGuiName()} as already initialized`);
+            return false;
+        }
 
+        const conditionResult = await this.scvdItem.getConditionResult();
+        if (conditionResult === false) {
+            componentViewerLogger.debug(`Line: ${this.line}: Skipping ${await this.getGuiName()} due to condition=false`);
+            return false;
+        }
+
+        return true;
+    }
 }

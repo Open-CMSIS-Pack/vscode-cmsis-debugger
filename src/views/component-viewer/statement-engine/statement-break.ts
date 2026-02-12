@@ -28,21 +28,12 @@ export class StatementBreak extends StatementBase {
         super(item, parent);
     }
 
-    public override async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
-        componentViewerLogger.debug(`Line: ${this.line}: Executing statement: ${await this.scvdItem.getGuiName()}`);
-        const shouldExecute = await this.shouldExecute(executionContext);
-        if (!shouldExecute) {
-            return;
-        }
-        await this.onExecute(executionContext, guiTree);
-    }
-
     protected override async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
+        componentViewerLogger.debug(`Line: ${this.line}: Executing: ${await this.getGuiName()}`);
         const breakItem = this.scvdItem.castToDerived(ScvdBreak);
         if (!breakItem) {
             componentViewerLogger.error(`Line: ${this.line}: Executing "break": could not cast to ScvdBreak`);
             return;
         }
-        componentViewerLogger.debug(`Line: ${this.line}: Executing break: ${await this.scvdItem.getGuiName()}`);
     }
 }

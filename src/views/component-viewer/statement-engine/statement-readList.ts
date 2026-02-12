@@ -43,14 +43,6 @@ export class StatementReadList extends StatementBase {
         super(item, parent);
     }
 
-    protected override async shouldExecute(_executionContext: ExecutionContext): Promise<boolean> {
-        if (this.scvdItem.mustRead === false) {
-            return false;
-        }
-        const conditionResult = await this.scvdItem.getConditionResult();
-        return conditionResult !== false;
-    }
-
     private isInvalidAddress(address: number | bigint): boolean {
         // Cortex-M: treat 0 or >= 0xFFFFFFF0 as invalid pointer addresses (stop readlist).
         if (typeof address === 'bigint') {
@@ -154,12 +146,7 @@ export class StatementReadList extends StatementBase {
     }
 
     protected override async onExecute(executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        const mustRead = this.scvdItem.mustRead;
-        if (mustRead === false) {
-            componentViewerLogger.debug(`Line: ${this.line}: Skipping "read" as already initialized: ${this.scvdItem.name}`);
-            return;
-        }
-
+        componentViewerLogger.debug(`Line: ${this.line}: Executing read: ${await this.getGuiName()}`);
         const scvdReadList = this.scvdItem.castToDerived(ScvdReadList);
         if (scvdReadList === undefined) {
             componentViewerLogger.error(`Line: ${this.line}: Executing "readlist": could not cast to ScvdReadList`);

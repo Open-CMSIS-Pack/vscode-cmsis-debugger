@@ -29,14 +29,6 @@ export class StatementRead extends StatementBase {
         super(item, parent);
     }
 
-    protected override async shouldExecute(_executionContext: ExecutionContext): Promise<boolean> {
-        if (this.scvdItem.mustRead === false) {
-            return false;
-        }
-        const conditionResult = await this.scvdItem.getConditionResult();
-        return conditionResult !== false;
-    }
-
     private isInvalidAddress(address: number | bigint): boolean {
         // Cortex-M: treat 0 or >= 0xFFFFFFF0 as invalid pointer addresses (skip read).
         if (typeof address === 'bigint') {
@@ -137,13 +129,7 @@ export class StatementRead extends StatementBase {
     }
 
     protected override async onExecute(executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        componentViewerLogger.debug(`Line: ${this.line}: Executing read: ${this.scvdItem.getDisplayLabel()}`);
-        const mustRead = this.scvdItem.mustRead;
-        if (mustRead === false) {
-            componentViewerLogger.debug(`Line: ${this.line}: Skipping "read" as already initialized: ${this.scvdItem.name}`);
-            return;
-        }
-
+        componentViewerLogger.debug(`Line: ${this.line}: Executing read: ${await this.getGuiName()}`);
         const resolved = await this.resolveRead(executionContext, true);
         if (!resolved) {
             return;
@@ -172,6 +158,5 @@ export class StatementRead extends StatementBase {
         if (resolved.isConst) {   // Mark variable as already initialized
             this.scvdItem.mustRead = false;
         }
-        return;
     }
 }
