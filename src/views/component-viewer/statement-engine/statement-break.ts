@@ -29,6 +29,7 @@ export class StatementBreak extends StatementBase {
     }
 
     public override async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
+        componentViewerLogger.debug(`Line: ${this.line}: Executing statement: ${await this.scvdItem.getGuiName()}`);
         const shouldExecute = await this.shouldExecute(executionContext);
         if (!shouldExecute) {
             return;
@@ -39,9 +40,9 @@ export class StatementBreak extends StatementBase {
     protected override async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
         const breakItem = this.scvdItem.castToDerived(ScvdBreak);
         if (!breakItem) {
-            componentViewerLogger.error(`${this.line}: Executing "break": could not cast to ScvdBreak`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "break": could not cast to ScvdBreak`);
             return;
         }
-        componentViewerLogger.debug(`${this.line}: Executing break: ${await this.scvdItem.getGuiName()}`);
+        componentViewerLogger.debug(`Line: ${this.line}: Executing break: ${await this.scvdItem.getGuiName()}`);
     }
 }

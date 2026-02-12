@@ -29,6 +29,7 @@ export class StatementPrint extends StatementBase {
     }
 
     public override async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
+        componentViewerLogger.debug(`Line: ${this.line}: Executing statement: ${await this.scvdItem.getGuiName()}`);
         const shouldExecute = await this.shouldExecute(executionContext);
         if (!shouldExecute) {
             return;
@@ -56,6 +57,6 @@ export class StatementPrint extends StatementBase {
     }
 
     protected override async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        componentViewerLogger.debug(`${this.line}: Executing print: ${await this.scvdItem.getGuiName()}`);
+        componentViewerLogger.debug(`Line: ${this.line}: Executing print: ${await this.scvdItem.getGuiName()}`);
     }
 }

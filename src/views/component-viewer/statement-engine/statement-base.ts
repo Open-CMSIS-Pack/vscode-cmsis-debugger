@@ -101,6 +101,7 @@ export class StatementBase {
     }
 
     public async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
+        componentViewerLogger.debug(`Line: ${this.line}: Executing statement: ${await this.scvdItem.getGuiName()}`);
         const shouldExecute = await this.shouldExecute(executionContext);
         if (!shouldExecute) {
             //console.log(`${this.scvdItem.getLineNoStr()}: Skipping ${this.scvdItem.getDisplayLabel()} for condition result: ${conditionResult}`);
@@ -116,7 +117,7 @@ export class StatementBase {
 
     // Override in subclasses to perform work for this node.
     protected async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        componentViewerLogger.debug(`${this.line}: Executing base: ${await this.scvdItem.getGuiName()}`);
+        componentViewerLogger.debug(`Line: ${this.line}: Executing base: ${await this.scvdItem.getGuiName()}`);
     }
 
     protected async shouldExecute(_executionContext: ExecutionContext): Promise<boolean> {

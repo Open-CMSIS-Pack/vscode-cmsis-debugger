@@ -31,6 +31,7 @@ export class StatementItem extends StatementBase {
 
     // TOIMPL: add printChildren to guiTree, and take the furst to set name/value for the item parent
     public override async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
+        componentViewerLogger.debug(`Line: ${this.line}: Executing statement: ${await this.scvdItem.getGuiName()}`);
         const shouldExecute = await this.shouldExecute(executionContext);
         if (!shouldExecute) {
             return;
@@ -84,6 +85,6 @@ export class StatementItem extends StatementBase {
     }
 
     protected override async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        componentViewerLogger.debug(`${this.line}: Executing item: ${await this.scvdItem.getGuiName()}`);
+        componentViewerLogger.debug(`Line: ${this.line}: Executing item: ${await this.scvdItem.getGuiName()}`);
     }
 }

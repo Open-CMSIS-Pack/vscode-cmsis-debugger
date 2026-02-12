@@ -64,7 +64,7 @@ export class StatementRead extends StatementBase {
         const name = scvdRead.name;
         if (name === undefined) {
             if (logErrors) {
-                componentViewerLogger.error(`${this.line}: Executing "read": no name defined`);
+                componentViewerLogger.error(`Line: ${this.line}: Executing "read": no name defined`);
             }
             return undefined;
         }
@@ -72,7 +72,7 @@ export class StatementRead extends StatementBase {
         const targetSize = await scvdRead.getTargetSize(); // use size specified in SCVD
         if (targetSize === undefined) {
             if (logErrors) {
-                componentViewerLogger.error(`${this.line} Executing "read": ${scvdRead.name}, type: ${scvdRead.getDisplayLabel()}, could not determine target size`);
+                componentViewerLogger.error(`Line: ${this.line}: ${this.line} Executing "read": ${scvdRead.name}, type: ${scvdRead.getDisplayLabel()}, could not determine target size`);
             }
             return undefined;
         }
@@ -89,7 +89,7 @@ export class StatementRead extends StatementBase {
             const symAddr = await executionContext.debugTarget.findSymbolAddress(symbolName);
             if (symAddr === undefined) {
                 if (logErrors) {
-                    componentViewerLogger.error(`${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, could not find symbol address for symbol: ${symbolName}`);
+                    componentViewerLogger.error(`Line: ${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, could not find symbol address for symbol: ${symbolName}`);
                 }
                 return undefined;
             }
@@ -105,7 +105,7 @@ export class StatementRead extends StatementBase {
                 offs = BigInt(Math.trunc(offset));
             } else {
                 if (logErrors) {
-                    componentViewerLogger.error(`${this.line}: Executing "read": ${scvdRead.name}, offset is not numeric`);
+                    componentViewerLogger.error(`Line: ${this.line}: Executing "read": ${scvdRead.name}, offset is not numeric`);
                 }
                 return undefined;
             }
@@ -118,7 +118,7 @@ export class StatementRead extends StatementBase {
 
         if (baseAddress === undefined) {
             if (logErrors) {
-                componentViewerLogger.error(`${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, could not find symbol address for symbol: ${symbolName}`);
+                componentViewerLogger.error(`Line: ${this.line}: Executing "read": ${scvdRead.name}, symbol: ${symbol?.name}, could not find symbol address for symbol: ${symbolName}`);
             }
             return undefined;
         }
@@ -137,10 +137,10 @@ export class StatementRead extends StatementBase {
     }
 
     protected override async onExecute(executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
-        componentViewerLogger.debug(`${this.line}: Executing read: ${this.scvdItem.getDisplayLabel()}`);
+        componentViewerLogger.debug(`Line: ${this.line}: Executing read: ${this.scvdItem.getDisplayLabel()}`);
         const mustRead = this.scvdItem.mustRead;
         if (mustRead === false) {
-            componentViewerLogger.debug(`${this.scvdItem.getLineNoStr()}: Skipping "read" as already initialized: ${this.scvdItem.name}`);
+            componentViewerLogger.debug(`Line: ${this.line}: Skipping "read" as already initialized: ${this.scvdItem.name}`);
             return;
         }
 
@@ -148,12 +148,12 @@ export class StatementRead extends StatementBase {
         if (!resolved) {
             return;
         }
-        componentViewerLogger.debug(`${this.line}: Executing target read: ${resolved.name}, symbol: ${resolved.symbolName}, address: ${resolved.baseAddress}, size: ${resolved.readBytes} bytes`);
+        componentViewerLogger.debug(`Line: ${this.line}: Executing target read: ${resolved.name}, symbol: ${resolved.symbolName}, address: ${resolved.baseAddress}, size: ${resolved.readBytes} bytes`);
 
         // Read from target memory
         const readData = await executionContext.debugTarget.readMemory(resolved.baseAddress, resolved.readBytes);
         if (readData === undefined) {
-            componentViewerLogger.error(`${this.line}: Executing "read": ${resolved.name}, symbol: ${resolved.symbolName}, address: ${resolved.baseAddress}, size: ${resolved.readBytes} bytes, read target memory failed`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "read": ${resolved.name}, symbol: ${resolved.symbolName}, address: ${resolved.baseAddress}, size: ${resolved.readBytes} bytes, read target memory failed`);
             return;
         }
 

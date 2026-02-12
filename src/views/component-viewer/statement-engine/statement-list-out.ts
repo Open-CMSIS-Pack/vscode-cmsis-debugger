@@ -29,6 +29,7 @@ export class StatementListOut extends StatementBase {
     }
 
     public override async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
+        componentViewerLogger.debug(`Line: ${this.line}: Executing statement: ${await this.scvdItem.getGuiName()}`);
         const shouldExecute = await this.shouldExecute(executionContext);
         if (!shouldExecute) {
             return;
@@ -46,42 +47,42 @@ export class StatementListOut extends StatementBase {
     protected override async onExecute(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
         const scvdList = this.scvdItem.castToDerived(ScvdListOut);
         if (scvdList === undefined) {
-            componentViewerLogger.error(`${this.line}: Executing "out-list": could not cast to ScvdList`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "out-list": could not cast to ScvdList`);
             return;
         }
-        componentViewerLogger.debug(`${this.line}: Executing out-list: ${scvdList.name}`);
+        componentViewerLogger.debug(`Line: ${this.line}: Executing out-list: ${scvdList.name}`);
 
         const name = scvdList.name;
         if (name === undefined) {
-            componentViewerLogger.error(`${this.line}: Executing "out-list": no name defined`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "out-list": no name defined`);
             return;
         }
 
         const startExpr = scvdList.start;
         if (startExpr === undefined) {
-            componentViewerLogger.error(`${this.line}: Executing "out-list": ${scvdList.name}, no start expression defined`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "out-list": ${scvdList.name}, no start expression defined`);
             return;
         }
         const startValue = await startExpr.getValue();
         if (startValue === undefined) {
-            componentViewerLogger.error(`${this.line}: Executing "out-list": ${scvdList.name}, could not evaluate start expression`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "out-list": ${scvdList.name}, could not evaluate start expression`);
             return;
         }
 
         const modelBase = executionContext.evalContext.container.base;
         if (modelBase === undefined) {
-            componentViewerLogger.error(`${this.line}: Executing "out-list": ${scvdList.name}, no base container defined`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "out-list": ${scvdList.name}, no base container defined`);
             return;
         }
 
         const varItem = modelBase.getSymbol(name);
         if (varItem === undefined) {
-            componentViewerLogger.error(`${this.line}: Executing "out-list": ${scvdList.name}, could not find variable in base container: ${modelBase.name}`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "out-list": ${scvdList.name}, could not find variable in base container: ${modelBase.name}`);
             return;
         }
         const varTargetSize = await varItem.getTargetSize();
         if (varTargetSize === undefined) {
-            componentViewerLogger.error(`${this.line}: Executing "out-list": ${scvdList.name}, variable: ${varItem.name}, could not determine target size`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "out-list": ${scvdList.name}, variable: ${varItem.name}, could not determine target size`);
             return;
         }
 
@@ -94,7 +95,7 @@ export class StatementListOut extends StatementBase {
 
         const whileExpr = scvdList.while;
         if (whileExpr !== undefined && limitExpr !== undefined) {
-            componentViewerLogger.error(`${this.line}: Executing "out-list": ${scvdList.name}, cannot define both limit and while expressions`);
+            componentViewerLogger.error(`Line: ${this.line}: Executing "out-list": ${scvdList.name}, cannot define both limit and while expressions`);
             return;
         }
 
