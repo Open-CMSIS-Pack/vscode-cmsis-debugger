@@ -17,6 +17,7 @@
 
 import { performance } from 'node:perf_hooks';
 import type { ASTNode, AssignmentExpression, BinaryExpression, CallExpression, ConditionalExpression, EvalPointCall, FormatSegment, PrintfExpression, UnaryExpression, UpdateExpression } from './parser-evaluator/parser';
+import { componentViewerLogger } from '../../logger';
 
 export class ParsePerfStats {
     private enabled = true;
@@ -170,13 +171,13 @@ export class ParsePerfStats {
         const optKindsOut = this.formatTop(this.optimizeKindOutCounts);
         const optOpsOut = this.formatTop(this.optimizeOpOutCounts);
         const callees = this.formatTop(this.calleeCounts);
-        return `[SCVD][parse-perf] parseMs=${ms(this.parseMs)} parseCalls=${this.parseCalls} parseNodes=${this.parseNodes} parseAvgNodes=${parseAvg.toFixed(1)} parseMaxNodes=${this.parseMaxNodes} parseMaxNodesKind=${this.parseMaxNodesKind} parseMaxDepth=${this.parseMaxDepth} parseMaxDepthKind=${this.parseMaxDepthKind} optimizeMs=${ms(this.optimizeMs)} optimizeCalls=${this.optimizeCalls} optimizeNodesIn=${this.optimizeNodesIn} optimizeAvgNodesIn=${optimizeAvgIn.toFixed(1)} optimizeMaxNodesIn=${this.optimizeMaxNodesIn} optimizeMaxNodesInKind=${this.optimizeMaxNodesInKind} optimizeMaxDepthIn=${this.optimizeMaxDepthIn} optimizeMaxDepthInKind=${this.optimizeMaxDepthInKind} optimizeNodesOut=${this.optimizeNodesOut} optimizeAvgNodesOut=${optimizeAvgOut.toFixed(1)} optimizeMaxNodesOut=${this.optimizeMaxNodesOut} optimizeMaxNodesOutKind=${this.optimizeMaxNodesOutKind} optimizeMaxDepthOut=${this.optimizeMaxDepthOut} optimizeMaxDepthOutKind=${this.optimizeMaxDepthOutKind} foldFull=${this.foldFull} foldFullRate=${fullRate.toFixed(1)}% foldPartial=${this.foldPartial} foldPartialRate=${partialRate.toFixed(1)}% parseKinds=${parseKinds} parseOps=${parseOps} optKindsIn=${optKindsIn} optOpsIn=${optOpsIn} optKindsOut=${optKindsOut} optOpsOut=${optOpsOut} callees=${callees}`;
+        return `[parse-perf] parseMs=${ms(this.parseMs)} parseCalls=${this.parseCalls} parseNodes=${this.parseNodes} parseAvgNodes=${parseAvg.toFixed(1)} parseMaxNodes=${this.parseMaxNodes} parseMaxNodesKind=${this.parseMaxNodesKind} parseMaxDepth=${this.parseMaxDepth} parseMaxDepthKind=${this.parseMaxDepthKind} optimizeMs=${ms(this.optimizeMs)} optimizeCalls=${this.optimizeCalls} optimizeNodesIn=${this.optimizeNodesIn} optimizeAvgNodesIn=${optimizeAvgIn.toFixed(1)} optimizeMaxNodesIn=${this.optimizeMaxNodesIn} optimizeMaxNodesInKind=${this.optimizeMaxNodesInKind} optimizeMaxDepthIn=${this.optimizeMaxDepthIn} optimizeMaxDepthInKind=${this.optimizeMaxDepthInKind} optimizeNodesOut=${this.optimizeNodesOut} optimizeAvgNodesOut=${optimizeAvgOut.toFixed(1)} optimizeMaxNodesOut=${this.optimizeMaxNodesOut} optimizeMaxNodesOutKind=${this.optimizeMaxNodesOutKind} optimizeMaxDepthOut=${this.optimizeMaxDepthOut} optimizeMaxDepthOutKind=${this.optimizeMaxDepthOutKind} foldFull=${this.foldFull} foldFullRate=${fullRate.toFixed(1)}% foldPartial=${this.foldPartial} foldPartialRate=${partialRate.toFixed(1)}% parseKinds=${parseKinds} parseOps=${parseOps} optKindsIn=${optKindsIn} optOpsIn=${optOpsIn} optKindsOut=${optKindsOut} optOpsOut=${optOpsOut} callees=${callees}`;
     }
 
     public logSummary(): void {
         const summary = this.formatSummary();
         if (summary) {
-            console.log(summary);
+            componentViewerLogger.trace(summary);
         }
     }
 

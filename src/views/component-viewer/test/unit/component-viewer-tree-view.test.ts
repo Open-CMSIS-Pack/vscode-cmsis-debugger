@@ -20,7 +20,6 @@
  */
 
 import * as vscode from 'vscode';
-import { ComponentViewerTreeDataProvider } from '../../component-viewer-tree-view';
 import type { ScvdGuiInterface } from '../../model/scvd-gui-interface';
 
 const mockFire = jest.fn();
@@ -63,6 +62,21 @@ jest.mock('vscode', () => {
         },
     };
 });
+
+jest.mock('../../../../logger', () => ({
+    logger: {
+        trace: jest.fn(),
+        debug: jest.fn(),
+        error: jest.fn(),
+    },
+    componentViewerLogger: {
+        trace: jest.fn(),
+        debug: jest.fn(),
+        error: jest.fn(),
+    },
+}));
+
+import { ComponentViewerTreeDataProvider } from '../../component-viewer-tree-view';
 
 type TestGui = ScvdGuiInterface & {
     getGuiName: () => string | undefined;
