@@ -24,6 +24,35 @@ const PACK_ROOT = '/my/pack/root';
 const EXPECTED_CUSTOM_SVD = path.resolve(path.dirname(TEST_CBUILD_RUN_FILE), '../../MyDevice/multi-core-custom.svd');
 const EXPECTED_CUSTOM_SCVD = path.resolve(path.dirname(TEST_CBUILD_RUN_FILE), '../../MyDevice/multi-core-custom.scvd');
 
+// Compare function that compares path and allows differing drive letter casing on Windows.
+const comparePath = (received: string|undefined, expected: string): boolean => {
+    if (!received) {
+        return false;
+    }
+    // Exact match first, majority of cases.
+    if (received === expected) {
+        return true;
+    }
+    // Exit if not Windows, no match
+    if (process.platform !== 'win32') {
+        return false;
+    }
+    // Split drive letter from path. Assumption: no URLs, no other colons in folder names.
+    const receivedFragments = received.split(':');
+    const expectedFragments = received.split(':');
+    if (receivedFragments.length !== expectedFragments.length) {
+        return false;
+    }
+    return receivedFragments.every((receivedFragment, index) => {
+        // eslint-disable-next-line security/detect-object-injection
+        const expectedFragment = expectedFragments[index];
+        if (index === 0) {
+            // Drive letter
+            return receivedFragment.toLowerCase() === expectedFragment.toLowerCase();
+        }
+        return receivedFragment === expectedFragment;
+    });
+};
 
 describe('CbuildRunReader', () => {
 
@@ -102,7 +131,7 @@ describe('CbuildRunReader', () => {
                 const expectedPath = path.normalize(path.resolve(expectedSvdPaths[i]));
                 // eslint-disable-next-line security/detect-object-injection
                 const actualPath = svdFilePaths[i];
-                expect(expectedPath).toEqual(actualPath);
+                expect(comparePath(actualPath, expectedPath)).toBe(true);
             }
         });
 
@@ -128,7 +157,7 @@ describe('CbuildRunReader', () => {
             const systemDescriptions = cbuildRun?.['system-descriptions'];
             expect(systemDescriptions).toBeDefined();
             const svdPaths = cbuildRunReader.getSvdFilePaths('', 'Core1');
-            expect(svdPaths).toEqual([
+            const expectedSvdPaths = [
                 path.normalize(
                     path.resolve(path.dirname(TEST_CBUILD_RUN_FILE), '${CMSIS_PACK_ROOT}', 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_Core1.svd')
                 ),
@@ -136,7 +165,9 @@ describe('CbuildRunReader', () => {
                     path.resolve(path.dirname(TEST_CBUILD_RUN_FILE), '${CMSIS_PACK_ROOT}', 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_generic.svd')
                 ),
                 path.normalize(EXPECTED_CUSTOM_SVD),
-            ]);
+            ];
+            // eslint-disable-next-line security/detect-object-injection
+            svdPaths.forEach((svdPath, index) => expect(comparePath(svdPath, expectedSvdPaths[index])).toBe(true));
         });
 
         it('includes descriptors without pname when filtering by pname (SVD)', async () => {
@@ -145,12 +176,13 @@ describe('CbuildRunReader', () => {
             const systemDescriptions = cbuildRun?.['system-descriptions'];
             expect(systemDescriptions).toBeDefined();
             const svdPaths = cbuildRunReader.getSvdFilePaths(PACK_ROOT, 'Core1');
-
-            expect(svdPaths).toEqual([
+            const expectedSvdPaths = [
                 path.normalize(path.resolve(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_Core1.svd')),
                 path.normalize(path.resolve(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_generic.svd')),
                 path.normalize(EXPECTED_CUSTOM_SVD),
-            ]);
+            ];
+            // eslint-disable-next-line security/detect-object-injection
+            svdPaths.forEach((svdPath, index) => expect(comparePath(svdPath, expectedSvdPaths[index])).toBe(true));
         });
 
         it('includes descriptors without pname when filtering by pname (SCVD)', async () => {
@@ -159,12 +191,13 @@ describe('CbuildRunReader', () => {
             const systemDescriptions = cbuildRun?.['system-descriptions'] ?? [];
             expect(systemDescriptions).toBeDefined();
             const scvdPaths = cbuildRunReader.getScvdFilePaths(PACK_ROOT, 'Core1');
-
-            expect(scvdPaths).toEqual([
+            const expectedScvdPaths = [
                 path.normalize(path.resolve(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SCVD', 'MySoftware_component.scvd')),
                 path.normalize(EXPECTED_CUSTOM_SCVD),
                 path.normalize(path.resolve(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SCVD', 'Core1.scvd')),
-            ]);
+            ];
+            // eslint-disable-next-line security/detect-object-injection
+            scvdPaths.forEach((scvdPath, index) => expect(comparePath(scvdPath, expectedScvdPaths[index])).toBe(true));
         });
 
         it('resolves relative SVD paths relative to the cbuild-run.yml file location', async () => {
@@ -172,7 +205,7 @@ describe('CbuildRunReader', () => {
             const svdFilePaths = cbuildRunReader.getSvdFilePaths(PACK_ROOT);
             const expectedTail = path.normalize(path.join('MyDevice', 'multi-core-custom.svd'));
             const resolvedCustom = svdFilePaths.find((p: string) => p.endsWith(expectedTail));
-            expect(resolvedCustom).toEqual(path.normalize(EXPECTED_CUSTOM_SVD));
+            expect(comparePath(resolvedCustom, path.normalize(EXPECTED_CUSTOM_SVD))).toBe(true);
         });
 
         it('resolves relative SCVD paths relative to the cbuild-run.yml file location', async () => {
@@ -180,7 +213,7 @@ describe('CbuildRunReader', () => {
             const scvdFilePaths = cbuildRunReader.getScvdFilePaths(PACK_ROOT);
             const expectedTail = path.normalize(path.join('MyDevice', 'multi-core-custom.scvd'));
             const resolvedCustom = scvdFilePaths.find((p: string) => p.endsWith(expectedTail));
-            expect(resolvedCustom).toEqual(path.normalize(EXPECTED_CUSTOM_SCVD));
+            expect(comparePath(resolvedCustom, path.normalize(EXPECTED_CUSTOM_SVD))).toBe(true);
         });
     });
 });
