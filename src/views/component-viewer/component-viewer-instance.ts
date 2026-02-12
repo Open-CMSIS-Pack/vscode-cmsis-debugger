@@ -165,7 +165,7 @@ export class ComponentViewerInstance {
         this._guiTree.setId(this._fileKey);
         this._guiTree.setGuiName('component-viewer-root');
 
-        console.log('ComponentViewerInstance readModel stats:\n' + stats.join('\n  '));
+        componentViewerLogger.debug(`ComponentViewerInstance readModel stats:\n  ${stats.join('\n  ')}`);
     }
 
     public async update(): Promise<void> {
@@ -177,7 +177,7 @@ export class ComponentViewerInstance {
         this._guiTree.clear();
         await this.executeStatements(this._guiTree);
         stats.push(this.getStats('end'));
-        console.log('ComponentViewerInstance update stats:\n' + stats.join('\n  '));
+        componentViewerLogger.debug(`ComponentViewerInstance update stats:\n  ${stats.join('\n  ')}`);
     }
 
     private async readFileToBuffer(filePath: URI): Promise<Buffer> {
@@ -193,7 +193,6 @@ export class ComponentViewerInstance {
     private async parseXml(text: string) {
         try {
             const json = await parseStringPromise(text, xmlOpts);
-            //console.log(JSON.stringify(json, null, 2));
             return json;
         } catch (err) {
             componentViewerLogger.error('Error parsing XML:', err);

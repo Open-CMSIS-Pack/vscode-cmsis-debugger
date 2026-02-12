@@ -15,6 +15,20 @@
  */
 // generated with AI
 
+jest.mock('../../../../logger', () => ({
+    logger: {
+        trace: jest.fn(),
+        debug: jest.fn(),
+        error: jest.fn(),
+    },
+    componentViewerLogger: {
+        trace: jest.fn(),
+        debug: jest.fn(),
+        error: jest.fn(),
+    },
+}));
+
+import { componentViewerLogger } from '../../../../logger';
 import { PerfStats } from '../../perf-stats';
 
 describe('PerfStats', () => {
@@ -30,7 +44,7 @@ describe('PerfStats', () => {
         expect(perf.now()).toBeGreaterThan(0);
 
         const summary = perf.formatSummary();
-        expect(summary).toContain('[SCVD][perf]');
+        expect(summary).toContain('[perf]');
 
         perf.beginExecuteAll();
         perf.end(perf.start(), 'evalMs', 'evalCalls');
@@ -39,8 +53,8 @@ describe('PerfStats', () => {
             { requestedReads: 3, totalReads: 2, refreshReads: 1, missReads: 1, prefetchMs: 4 }
         );
         const consumed = perf.consumeExecuteSummaries();
-        expect(consumed.executeSummary).toContain('[SCVD][executeAll]');
-        expect(consumed.perfSummary).toContain('[SCVD][perf]');
+        expect(consumed.executeSummary).toContain('[executeAll]');
+        expect(consumed.perfSummary).toContain('[perf]');
         expect(perf.consumeExecuteSummaries()).toEqual({});
     });
 
@@ -96,11 +110,11 @@ describe('PerfStats', () => {
         perf.endUi(uiStart, 'treeViewGetTreeItemMs', 'treeViewGetTreeItemCalls');
 
         const uiSummary = perf.formatUiSummary();
-        expect(uiSummary).toContain('[SCVD][perf-ui]');
+        expect(uiSummary).toContain('[perf-ui]');
         expect(perf.uiHasData()).toBe(true);
 
         perf.captureUiSummary();
-        expect(perf.consumeUiSummary()).toContain('[SCVD][perf-ui]');
+        expect(perf.consumeUiSummary()).toContain('[perf-ui]');
         expect(perf.consumeUiSummary()).toBeUndefined();
     });
 
@@ -118,7 +132,7 @@ describe('PerfStats', () => {
         perf.endUi(perf.startUi(), 'treeViewGetTreeItemMs', 'treeViewGetTreeItemCalls');
         perf.captureUiSummary();
 
-        const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+        const logSpy = jest.spyOn(componentViewerLogger, 'trace').mockImplementation(() => undefined);
         perf.logSummaries();
         expect(logSpy).toHaveBeenCalled();
         logSpy.mockRestore();
@@ -127,21 +141,21 @@ describe('PerfStats', () => {
     it('logs execute and ui summaries when explicitly set', () => {
         const perf = new PerfStats();
         const priv = perf as unknown as { lastExecuteSummary: string; lastPerfSummary: string; lastUiSummary: string };
-        priv.lastExecuteSummary = '[SCVD][executeAll] test';
-        priv.lastPerfSummary = '[SCVD][perf] test';
-        priv.lastUiSummary = '[SCVD][perf-ui] test';
+        priv.lastExecuteSummary = '[executeAll] test';
+        priv.lastPerfSummary = '[perf] test';
+        priv.lastUiSummary = '[perf-ui] test';
 
-        const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+        const logSpy = jest.spyOn(componentViewerLogger, 'trace').mockImplementation(() => undefined);
         perf.logSummaries();
-        expect(logSpy).toHaveBeenCalledWith('[SCVD][executeAll] test');
-        expect(logSpy).toHaveBeenCalledWith('[SCVD][perf] test');
-        expect(logSpy).toHaveBeenCalledWith('[SCVD][perf-ui] test');
+        expect(logSpy).toHaveBeenCalledWith('[executeAll] test');
+        expect(logSpy).toHaveBeenCalledWith('[perf] test');
+        expect(logSpy).toHaveBeenCalledWith('[perf-ui] test');
         logSpy.mockRestore();
     });
 
     it('does not log when summaries are empty', () => {
         const perf = new PerfStats();
-        const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+        const logSpy = jest.spyOn(componentViewerLogger, 'trace').mockImplementation(() => undefined);
 
         perf.logSummaries();
 
@@ -159,7 +173,7 @@ describe('PerfStats', () => {
             { requestedReads: 0, totalReads: 0, refreshReads: 0, missReads: 0, prefetchMs: 0 }
         );
         const consumed = perf.consumeExecuteSummaries();
-        expect(consumed.executeSummary).toContain('[SCVD][executeAll]');
+        expect(consumed.executeSummary).toContain('[executeAll]');
         expect(consumed.perfSummary).toBeUndefined();
     });
 
@@ -402,7 +416,7 @@ describe('PerfStats', () => {
         perf.setBackendEnabled(true);
 
         perf.end(perf.start(), 'evalMs', 'evalCalls');
-        expect(perf.formatSummary()).toContain('[SCVD][perf]');
+        expect(perf.formatSummary()).toContain('[perf]');
 
         perf.resetBackendStats();
         expect(perf.formatSummary()).toBe('');
@@ -415,7 +429,7 @@ describe('PerfStats', () => {
 
     it('logs summaries when present', () => {
         const perf = new PerfStats();
-        const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+        const logSpy = jest.spyOn(componentViewerLogger, 'trace').mockImplementation(() => {});
 
         perf.beginExecuteAll();
         perf.end(perf.start(), 'evalMs', 'evalCalls');
