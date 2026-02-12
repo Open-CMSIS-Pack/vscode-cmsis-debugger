@@ -48,7 +48,6 @@ jobs:
         with:
           node-version-file: package.json
           registry-url: https://npm.pkg.github.com
-          always-auth: true
           package-manager-cache: false
 
       - name: Set version
@@ -148,7 +147,6 @@ jobs:
         with:
           node-version-file: package.json
           registry-url: https://npm.pkg.github.com
-          always-auth: true
           package-manager-cache: false
 
       - name: Download dist
@@ -209,7 +207,6 @@ jobs:
         with:
           node-version-file: package.json
           registry-url: https://npm.pkg.github.com
-          always-auth: true
           package-manager-cache: false
 
       - name: Install dependencies
