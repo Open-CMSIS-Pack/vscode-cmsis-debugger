@@ -289,7 +289,7 @@ This view shows static information and helps to analyze the operation of softwar
 infrastructure can be easily added to user applications.
 
 Refer to the [Component Viewer documentation](https://arm-software.github.io/CMSIS-View/latest/cmp_viewer.html) for
-detailed advice on how to show information from user software using using an SCVD file.
+detailed advice on how to show information from user software using an SCVD file.
 
 The Component Viewer shows information about:
 
