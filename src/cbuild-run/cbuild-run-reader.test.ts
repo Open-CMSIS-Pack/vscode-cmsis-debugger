@@ -39,7 +39,7 @@ const comparePath = (received: string|undefined, expected: string): boolean => {
     }
     // Split drive letter from path. Assumption: no URLs, no other colons in folder names.
     const receivedFragments = received.split(':');
-    const expectedFragments = received.split(':');
+    const expectedFragments = expected.split(':');
     if (receivedFragments.length !== expectedFragments.length) {
         return false;
     }
@@ -213,7 +213,7 @@ describe('CbuildRunReader', () => {
             const scvdFilePaths = cbuildRunReader.getScvdFilePaths(PACK_ROOT);
             const expectedTail = path.normalize(path.join('MyDevice', 'multi-core-custom.scvd'));
             const resolvedCustom = scvdFilePaths.find((p: string) => p.endsWith(expectedTail));
-            expect(comparePath(resolvedCustom, path.normalize(EXPECTED_CUSTOM_SVD))).toBe(true);
+            expect(comparePath(resolvedCustom, path.normalize(EXPECTED_CUSTOM_SCVD))).toBe(true);
         });
     });
 });

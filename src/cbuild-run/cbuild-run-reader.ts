@@ -48,7 +48,7 @@ export class CbuildRunReader {
         this.cbuildRunFilePath = filePath;
         const dirName = path.dirname(this.cbuildRunFilePath);
         const workspace = vscode.workspace.workspaceFolders?.at(0)?.uri.fsPath;
-        // path.resolve() only resolves if dirName isn't absolute already.
+        // Only considers workspace if dirName is not absolute.
         this.cbuildRunDir = workspace ? path.resolve(workspace, dirName) : dirName;
     }
 
