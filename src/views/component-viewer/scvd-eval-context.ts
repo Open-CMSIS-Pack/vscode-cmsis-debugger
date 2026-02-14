@@ -125,10 +125,6 @@ export class ScvdEvalContext {
         })();
     }
 
-    public updateActiveSession(debugSession: GDBTargetDebugSession): void {
-        this._debugTarget.setActiveSession(debugSession);
-    }
-
     public setIntegerModelKind(kind: IntegerModelKind | undefined): void {
         if (!kind) {
             return;

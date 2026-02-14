@@ -106,12 +106,6 @@ export class ScvdDebugTarget {
         this.symbolCaches.clearAll();
     }
 
-    public setActiveSession(session: GDBTargetDebugSession): void {
-        componentViewerLogger.debug('updating active session');
-        this.activeSession = session;
-        this.targetAccess.setActiveSession(session);
-    }
-
     public async beginUpdateCycle(): Promise<void> {
         componentViewerLogger.debug('reset read stats and prime cache');
         targetReadStats?.reset();

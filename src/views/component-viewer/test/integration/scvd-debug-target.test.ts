@@ -302,10 +302,6 @@ describe('scvd-debug-target', () => {
         const target = new ScvdDebugTarget();
         target.init(session, tracker);
 
-        const otherSession = { session: { id: 'sess-2' } } as unknown as GDBTargetDebugSession;
-        target.setActiveSession(otherSession);
-        expect(accessMock.setActiveSession).toHaveBeenCalledWith(otherSession);
-
         (target as unknown as { targetReadCache: TargetReadCache | undefined }).targetReadCache = undefined;
         await target.beginUpdateCycle();
 

@@ -115,10 +115,8 @@ export class ComponentViewer {
         const cbuildRunInstances: ComponentViewerInstance[] = [];
         for (const scvdFilePath of scvdFilesPaths) {
             const instance = new ComponentViewerInstance();
-            if (this._activeSession !== undefined) {
-                await instance.readModel(URI.file(scvdFilePath), this._activeSession, tracker);
-                cbuildRunInstances.push(instance);
-            }
+            await instance.readModel(URI.file(scvdFilePath), session, tracker);
+            cbuildRunInstances.push(instance);
         }
         parsePerf?.logSummary();
         // Store loaded instances, set default lock state to false
@@ -185,7 +183,6 @@ export class ComponentViewer {
         // This can happen when a session is started and stack trace/item events are emitted before the session is set as active in the component viewer.
         if (this._activeSession?.session.id !== session.session.id) {
             this._activeSession = session;
-            this._instances.forEach((instance) => instance.componentViewerInstance.updateActiveSession(session));
         }
         // Update component viewer instance(s)
         this.schedulePendingUpdate('stackItemChanged');
@@ -232,11 +229,6 @@ export class ComponentViewer {
     private async handleOnDidChangeActiveDebugSession(session: GDBTargetDebugSession | undefined): Promise<void> {
         // Update debug session
         this._activeSession = session;
-        if (session === undefined) {
-            return;
-        }
-        // update active debug session for all instances
-        this._instances.forEach((instance) => instance.componentViewerInstance.updateActiveSession(session));
     }
 
     private schedulePendingUpdate(updateReason: fifoUpdateReason): void {
@@ -288,11 +280,12 @@ export class ComponentViewer {
     }
 
     private async updateInstances(updateReason: fifoUpdateReason): Promise<void> {
-        if (this.shouldClearTree(this._activeSession)) {
+        const activeSession = this._activeSession;
+        if (this.shouldClearTree(activeSession)) {
             this._componentViewerTreeDataProvider?.clear();
             return;
         }
-        if (!this.shouldUpdateInstances(this._activeSession)) {
+        if (!this.shouldUpdateInstances(activeSession)) {
             return;
         }
         componentViewerLogger.debug(`Component Viewer: Queuing update due to '${updateReason}'`);
@@ -303,11 +296,11 @@ export class ComponentViewer {
         perf?.resetBackendStats();
         perf?.resetUiStats();
         const roots: ScvdGuiInterface[] = [];
+        const sessionId = activeSession?.session.id; // keep stable for current update
         for (const instance of this._instances) {
             // Check if instance belongs to the active session, if not skip it and clear its data from the tree view.
             // However, lockedState should be maintained.
-            if (instance.sessionId !== this._activeSession?.session.id) {
-                instance.componentViewerInstance.getGuiTree()?.forEach(root => root.clear());
+            if (instance.sessionId !== sessionId) {
                 continue;
             }
             this._instanceUpdateCounter++;
