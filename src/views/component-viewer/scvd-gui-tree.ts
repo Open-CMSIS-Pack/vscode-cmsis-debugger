@@ -89,12 +89,10 @@ export class ScvdGuiTree implements ScvdGuiInterface {
     }
 
     protected addChild(child: ScvdGuiTree): void {
-        console.log(`Adding child with id '${child.getGuiId()}' to parent with id '${this.getGuiId()}'`);
         this._children.push(child);
     }
 
     public clear(): void {
-        console.log(`Clearing tree with id '${this._id}' and name '${this._name}'`);
         this._children = [];
         this._idCursor.clear();
     }
@@ -104,7 +102,6 @@ export class ScvdGuiTree implements ScvdGuiInterface {
             return;
         }
         const perfStartTime = perf?.start() ?? 0;
-        console.log(`Detaching tree with id '${this._id}' and name '${this._name}'`);
         this._parent._children = this._parent._children.filter(child => child !== this);
         this._parent = undefined;
         perf?.end(perfStartTime, 'guiTreeDetachMs', 'guiTreeDetachCalls');

@@ -301,7 +301,6 @@ export class ComponentViewer {
         const sessionId = activeSession?.session.id; // keep stable for current update
         // Filter for instances that belong to active session.
         const activeInstances = this._instances.filter(instance => instance.sessionId === sessionId);
-        console.log(`Updating ${activeInstances.length} instances for session '${activeSession?.session.name}'`);
         for (const instance of activeInstances) {
             this._instanceUpdateCounter++;
             componentViewerLogger.debug(`Updating Component Viewer Instance #${this._instanceUpdateCounter} due to '${updateReason}'`);
@@ -319,7 +318,6 @@ export class ComponentViewer {
             }
         }
         perf?.logSummaries();
-        console.log(`Got ${roots.length} trees`);
         this._componentViewerTreeDataProvider?.setRoots(roots);
     }
 }
