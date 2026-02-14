@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -127,15 +127,24 @@ export class GDBTargetDebugTracker {
         const gdbTargetSession = this.sessions.get(session.id);
         switch (event.event) {
             case 'continued':
+                if (gdbTargetSession) {
+                    gdbTargetSession.isRunning = true;
+                }
                 this._onContinued.fire({ session: gdbTargetSession, event } as ContinuedEvent);
                 gdbTargetSession?.refreshTimer.start();
                 break;
             case 'stopped':
+                if (gdbTargetSession) {
+                    gdbTargetSession.isRunning = false;
+                }
                 gdbTargetSession?.refreshTimer.stop();
                 this._onStopped.fire({ session: gdbTargetSession, event } as StoppedEvent);
                 break;
             case 'terminated':
             case 'exited':
+                if (gdbTargetSession) {
+                    gdbTargetSession.isRunning = null;
+                }
                 gdbTargetSession?.refreshTimer.stop();
                 break;
             case 'output':
@@ -212,10 +221,16 @@ export class GDBTargetDebugTracker {
                 case 'next':
                 case 'stepIn':
                 case 'stepOut':
+                    if (gdbTargetSession) {
+                        gdbTargetSession.isRunning = true;
+                    }
                     gdbTargetSession.refreshTimer.start();
                     break;
                 case 'disconnect':
                 case 'terminate':
+                    if (gdbTargetSession) {
+                        gdbTargetSession.isRunning = null;
+                    }
                     // In theory, this part also needs to handle 'restart' requests.
                     // But in reality the CDT GDB Adapter currently does not support customized
                     // 'restart' (which is different from the custom reset).

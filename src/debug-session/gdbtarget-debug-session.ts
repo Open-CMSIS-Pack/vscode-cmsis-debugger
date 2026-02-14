@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import path from 'path';
 export class GDBTargetDebugSession {
     public readonly refreshTimer: PeriodicRefreshTimer<GDBTargetDebugSession>;
     public readonly canAccessWhileRunning: boolean;
+    public isRunning: boolean | null = null;
     private capabilities: DebugProtocol.Capabilities | undefined;
     private _cbuildRun: CbuildRunReader|undefined;
     private _cbuildRunParsePromise: Promise<void>|undefined;
