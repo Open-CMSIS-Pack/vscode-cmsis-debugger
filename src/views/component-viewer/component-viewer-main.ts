@@ -251,9 +251,11 @@ export class ComponentViewer {
             this._pendingUpdate = false;
             try {
                 await this.updateInstances(updateReason);
-            } finally {
-                this._runningUpdate = false;
-                //logger.error('Component Viewer: Error during update');
+            } catch (error: unknown) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                componentViewerLogger.error(`Component Viewer: Error during update\n\t${errorMessage}`);
+                // Note: Monitor if this is enough. If runUpdate() should exit, then set
+                // pendingUpdate false and 'break' here.
             }
         }
         this._runningUpdate = false;
@@ -297,12 +299,10 @@ export class ComponentViewer {
         perf?.resetUiStats();
         const roots: ScvdGuiInterface[] = [];
         const sessionId = activeSession?.session.id; // keep stable for current update
-        for (const instance of this._instances) {
-            // Check if instance belongs to the active session, if not skip it and clear its data from the tree view.
-            // However, lockedState should be maintained.
-            if (instance.sessionId !== sessionId) {
-                continue;
-            }
+        // Filter for instances that belong to active session.
+        const activeInstances = this._instances.filter(instance => instance.sessionId === sessionId);
+        console.log(`Updating ${activeInstances.length} instances for session '${activeSession?.session.name}'`);
+        for (const instance of activeInstances) {
             this._instanceUpdateCounter++;
             componentViewerLogger.debug(`Updating Component Viewer Instance #${this._instanceUpdateCounter} due to '${updateReason}'`);
 
@@ -319,6 +319,7 @@ export class ComponentViewer {
             }
         }
         perf?.logSummaries();
+        console.log(`Got ${roots.length} trees`);
         this._componentViewerTreeDataProvider?.setRoots(roots);
     }
 }
