@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.4.0
+
+- TODO
+
 ## 1.3.0
 
 - Enhanced [pyOCD](https://open-cmsis-pack.github.io/cmsis-toolbox/YML-Input-Format/#pyocd)
