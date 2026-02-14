@@ -148,11 +148,11 @@ export class ComponentViewer {
         const onDidChangeActiveDebugSessionDisposable = tracker.onDidChangeActiveDebugSession(async (session) => {
             await this.handleOnDidChangeActiveDebugSession(session);
         });
-        const onStackTraceDisposable = tracker.onStackTrace(async (session) => {
-            await this.handleOnStackTrace(session.session);
+        const onStackTraceDisposable = tracker.onStackTrace(async (sessionStackTrace) => {
+            await this.handleOnStackTrace(sessionStackTrace.session);
         });
-        const onDidChangeActiveStackItemDisposable = tracker.onDidChangeActiveStackItem(async (session) => {
-            await this.handleOnStackItemChanged(session.session);
+        const onDidChangeActiveStackItemDisposable = tracker.onDidChangeActiveStackItem(async (sessionStackItem) => {
+            await this.handleOnStackItemChanged(sessionStackItem.session);
         });
         const onWillStartSessionDisposable = tracker.onWillStartSession(async (session) => {
             await this.handleOnWillStartSession(session);
@@ -261,9 +261,24 @@ export class ComponentViewer {
         this._runningUpdate = false;
     }
 
+    private shouldClearTree(session: GDBTargetDebugSession | undefined): boolean {
+        return !session || session.isRunning === null;
+    }
+
+    private shouldUpdateInstances(session: GDBTargetDebugSession | undefined): boolean {
+        const isRunning = session?.isRunning;
+        if (isRunning === null || isRunning === undefined) {
+            return false;
+        }
+        return !isRunning;
+    }
+
     private async updateInstances(updateReason: fifoUpdateReason): Promise<void> {
-        if (!this._activeSession) {
+        if (this.shouldClearTree(this._activeSession)) {
             this._componentViewerTreeDataProvider?.clear();
+            return;
+        }
+        if (!this.shouldUpdateInstances(this._activeSession)) {
             return;
         }
         componentViewerLogger.debug(`Component Viewer: Queuing update due to '${updateReason}'`);
@@ -277,7 +292,7 @@ export class ComponentViewer {
         for (const instance of this._instances) {
             // Check if instance belongs to the active session, if not skip it and clear its data from the tree view.
             // However, lockedState should be maintained.
-            if (instance.sessionId !== this._activeSession.session.id) {
+            if (instance.sessionId !== this._activeSession?.session.id) {
                 instance.componentViewerInstance.getGuiTree()?.forEach(root => root.clear());
                 continue;
             }
