@@ -42,6 +42,8 @@ export class ComponentViewer {
     private _pendingUpdate: boolean = false;
     private _runningUpdate: boolean = false;
     private static readonly pendingUpdateDelayMs = 150;
+    private readonly enablePeriodicUpdates = vscode.workspace.getConfiguration()
+        .get<boolean>('cmsis-debugger.componentViewer.enablePeriodicUpdates', false);
 
     public constructor(context: vscode.ExtensionContext) {
         this._context = context;
@@ -219,7 +221,11 @@ export class ComponentViewer {
     private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
         if (this._activeSession?.session.id === session.session.id) {
             // Update component viewer instance(s)
-            //this.schedulePendingUpdate('refreshTimer');
+            if (this.enablePeriodicUpdates) {
+                // Strictly speaking not necessary to guard, gets blocked later.
+                // But this way we can avoid unncessaty scheduling and timer usage.
+                this.schedulePendingUpdate('refreshTimer');
+            }
         }
     }
 
@@ -265,12 +271,20 @@ export class ComponentViewer {
         return !session || session.isRunning === null;
     }
 
+    private shouldUpdateWhileRunning(session: GDBTargetDebugSession | undefined): boolean {
+        return this.enablePeriodicUpdates && !!session?.canAccessWhileRunning;
+    }
+
     private shouldUpdateInstances(session: GDBTargetDebugSession | undefined): boolean {
         const isRunning = session?.isRunning;
         if (isRunning === null || isRunning === undefined) {
             return false;
         }
-        return !isRunning;
+        if (isRunning === false) {
+            return true;
+        }
+        // Is running
+        return this.shouldUpdateWhileRunning(session);
     }
 
     private async updateInstances(updateReason: fifoUpdateReason): Promise<void> {
