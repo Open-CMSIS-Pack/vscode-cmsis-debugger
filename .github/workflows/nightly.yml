@@ -2,7 +2,7 @@ name: Nightly
 
 on:
   schedule:
-    - cron: '0 4 * * *'  # nightly at 04:00 UTC
+    - cron: '0 5 * * *'  # nightly at 05:00 UTC
   workflow_dispatch:
 
 concurrency:
