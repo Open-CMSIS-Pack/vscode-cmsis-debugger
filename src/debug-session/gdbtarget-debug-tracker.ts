@@ -127,15 +127,25 @@ export class GDBTargetDebugTracker {
         const gdbTargetSession = this.sessions.get(session.id);
         switch (event.event) {
             case 'continued':
+                // Update target state before firing event to ensure listeners have the latest state
+                if (gdbTargetSession) {
+                    gdbTargetSession.targetState = 'running';
+                }
                 this._onContinued.fire({ session: gdbTargetSession, event } as ContinuedEvent);
                 gdbTargetSession?.refreshTimer.start();
                 break;
             case 'stopped':
+                if (gdbTargetSession) {
+                    gdbTargetSession.targetState = 'stopped';
+                }
                 gdbTargetSession?.refreshTimer.stop();
                 this._onStopped.fire({ session: gdbTargetSession, event } as StoppedEvent);
                 break;
             case 'terminated':
             case 'exited':
+                if (gdbTargetSession) {
+                    gdbTargetSession.targetState = 'unknown';
+                }
                 gdbTargetSession?.refreshTimer.stop();
                 break;
             case 'output':
@@ -212,6 +222,7 @@ export class GDBTargetDebugTracker {
                 case 'next':
                 case 'stepIn':
                 case 'stepOut':
+                    gdbTargetSession.targetState = 'running';
                     gdbTargetSession.refreshTimer.start();
                     break;
                 case 'disconnect':

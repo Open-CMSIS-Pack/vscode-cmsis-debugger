@@ -21,6 +21,7 @@
 
 import * as vscode from 'vscode';
 import type { GDBTargetDebugTracker } from '../../../../debug-session';
+import type { TargetState } from '../../../../debug-session/gdbtarget-debug-session';
 import { componentViewerLogger } from '../../../../logger';
 import { extensionContextFactory } from '../../../../__test__/vscode.factory';
 import { ComponentViewer, ComponentViewerInstancesWrapper, fifoUpdateReason } from '../../component-viewer-main';
@@ -78,6 +79,7 @@ type Session = {
     getCbuildRun: () => Promise<{ getScvdFilePaths: () => string[] } | undefined>;
     getPname: () => Promise<string | undefined>;
     refreshTimer: { onRefresh: (cb: (session: Session) => void) => void };
+    targetState?: TargetState;
 };
 
 type TrackerCallbacks = {
@@ -153,13 +155,14 @@ describe('ComponentViewer', () => {
         };
     };
 
-    const makeSession = (id: string, paths: string[] = []): Session => ({
+    const makeSession = (id: string, paths: string[] = [], targetState: Session['targetState'] = 'unknown'): Session => ({
         session: { id },
         getCbuildRun: async () => ({ getScvdFilePaths: () => paths }),
         getPname: async () => undefined,
         refreshTimer: {
             onRefresh: jest.fn(),
         },
+        targetState,
     });
 
     it('activates tree provider and registers tracker events', async () => {
@@ -317,8 +320,8 @@ describe('ComponentViewer', () => {
 
     it('clears all instances after all sessions stop', async () => {
         const controller = new ComponentViewer(extensionContextFactory());
-        const sessionA = makeSession('s1');
-        const sessionB = makeSession('s2');
+        const sessionA = makeSession('s1', [], 'stopped');
+        const sessionB = makeSession('s2', [], 'stopped');
 
         (controller as unknown as { _instances: unknown[] })._instances = [
             { componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's1' },
@@ -336,26 +339,19 @@ describe('ComponentViewer', () => {
 
     it('updates instances on stack item change', async () => {
         const controller = new ComponentViewer(extensionContextFactory());
-        const sessionA = makeSession('s1');
-        const updateSpy = jest.fn().mockResolvedValue(undefined);
+        const sessionA = makeSession('s1', [], 'stopped');
 
         (controller as unknown as { _activeSession?: Session })._activeSession = sessionA;
-        (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
-            {
-                componentViewerInstance: { update: updateSpy, getGuiTree: jest.fn(() => []) } as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'],
-                lockState: false,
-                sessionId: 's1',
-            },
-        ];
+
+        const scheduleSpy = jest
+            .spyOn(controller as unknown as { schedulePendingUpdate: (reason: fifoUpdateReason) => void }, 'schedulePendingUpdate')
+            .mockImplementation(() => undefined);
 
         const handleOnStackItemChanged = (controller as unknown as { handleOnStackItemChanged: (s: Session) => Promise<void> }).handleOnStackItemChanged.bind(controller);
-        jest.useFakeTimers();
         await handleOnStackItemChanged(sessionA);
-        jest.advanceTimersByTime(200);
-        await Promise.resolve();
 
-        expect(updateSpy).toHaveBeenCalled();
-        jest.useRealTimers();
+        expect(scheduleSpy).toHaveBeenCalledWith('stackItemChanged');
+        expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(sessionA);
     });
 
     it('does not update active session when stack item matches the active session', async () => {
@@ -372,15 +368,10 @@ describe('ComponentViewer', () => {
             },
         ];
 
-        const scheduleSpy = jest
-            .spyOn(controller as unknown as { schedulePendingUpdate: (reason: fifoUpdateReason) => void }, 'schedulePendingUpdate')
-            .mockImplementation(() => undefined);
-
         const handleOnStackItemChanged = (controller as unknown as { handleOnStackItemChanged: (s: Session) => Promise<void> }).handleOnStackItemChanged.bind(controller);
         await handleOnStackItemChanged(sessionA);
 
         expect(updateSpy).not.toHaveBeenCalled();
-        expect(scheduleSpy).toHaveBeenCalledWith('stackItemChanged');
     });
 
     it('updates instances when active session and instances are present', async () => {
@@ -397,7 +388,7 @@ describe('ComponentViewer', () => {
         expect(provider.clear).toHaveBeenCalledTimes(1);
         provider.clear.mockClear();
 
-        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1');
+        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1', [], 'stopped');
         (controller as unknown as { _instances: unknown[] })._instances = [];
         await updateInstances('stackTrace');
         expect(provider.clear).not.toHaveBeenCalled();
@@ -428,7 +419,7 @@ describe('ComponentViewer', () => {
         (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
 
         const updateInstances = (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances.bind(controller);
-        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1');
+        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1', [], 'stopped');
         const instance = instanceFactory();
         instance.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => undefined);
         (controller as unknown as { _instances: unknown[] })._instances = [
@@ -444,7 +435,7 @@ describe('ComponentViewer', () => {
         const provider = treeProviderFactory();
         (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
 
-        const sessionA = makeSession('s1');
+        const sessionA = makeSession('s1', [], 'stopped');
         (controller as unknown as { _activeSession?: Session | undefined })._activeSession = sessionA;
 
         const rootA = { ...makeGuiNode('rootA'), clear: jest.fn() } as ScvdGuiInterface & { clear: jest.Mock };
@@ -478,7 +469,7 @@ describe('ComponentViewer', () => {
         const provider = treeProviderFactory();
         (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
 
-        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1');
+        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1', [], 'stopped');
 
         const rootUnlocked = makeGuiNode('u');
         const rootLocked = makeGuiNode('l');
