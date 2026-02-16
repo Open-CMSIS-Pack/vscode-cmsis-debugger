@@ -281,10 +281,10 @@ describe('ComponentViewer', () => {
 
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
         await tracker.callbacks.stackTrace?.({ session });
-        await tracker.callbacks.stackTrace?.({ session: otherSession });
-
-        // stackTrace from a different session clears active session
-        expect((controller as unknown as { _activeSession?: Session })._activeSession).toBeUndefined();
+        await expect(tracker.callbacks.stackTrace?.({ session: otherSession }) as Promise<void>).rejects.toThrow(
+            'Component Viewer: Received stack trace event for session s2 while active session is s1'
+        );
+        expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(session);
 
 
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
