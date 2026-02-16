@@ -226,11 +226,6 @@ export class ComponentViewer {
     private async handleOnDidChangeActiveDebugSession(session: GDBTargetDebugSession | undefined): Promise<void> {
         // Update debug session
         this._activeSession = session;
-        if (session === undefined) {
-            return;
-        }
-        // update active debug session for all instances
-        this._instances.forEach((instance) => instance.componentViewerInstance.updateActiveSession(session));
     }
 
     private schedulePendingUpdate(updateReason: fifoUpdateReason): void {
@@ -273,11 +268,12 @@ export class ComponentViewer {
         }
         perf?.resetBackendStats();
         perf?.resetUiStats();
+        const activeSessionID = this._activeSession.session.id;
         const roots: ScvdGuiInterface[] = [];
         for (const instance of this._instances) {
             // Check if instance belongs to the active session, if not skip it and clear its data from the tree view.
             // However, lockedState should be maintained.
-            if (instance.sessionId !== this._activeSession.session.id) {
+            if (instance.sessionId !== activeSessionID) {
                 instance.componentViewerInstance.getGuiTree()?.forEach(root => root.clear());
                 continue;
             }
