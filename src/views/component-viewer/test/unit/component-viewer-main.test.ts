@@ -284,13 +284,11 @@ describe('ComponentViewer', () => {
 
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
         await tracker.callbacks.stackTrace?.({ session });
-        await tracker.callbacks.stackTrace?.({ session: otherSession });
+        await expect(tracker.callbacks.stackTrace?.({ session: otherSession }) as Promise<void>).rejects.toThrow(
+            'Component Viewer: Received stack trace event for session s2 while active session is s1'
+        );
+        expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(session);
 
-        // stackTrace from a different session clears active session
-        expect((controller as unknown as { _activeSession?: Session })._activeSession).toBeUndefined();
-
-        await tracker.callbacks.activeStackItem?.({ session: otherSession });
-        expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(otherSession);
 
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
         await tracker.callbacks.willStop?.(session);
@@ -339,7 +337,7 @@ describe('ComponentViewer', () => {
         expect((controller as unknown as { _instances: unknown[] })._instances).toHaveLength(0);
     });
 
-    it('updates active session and instances on stack item change', async () => {
+    it('updates instances on stack item change', async () => {
         const controller = new ComponentViewer(extensionContextFactory());
         const sessionA = makeSession('s1', [], 'stopped');
         const sessionB = makeSession('s2');
@@ -348,14 +346,17 @@ describe('ComponentViewer', () => {
         (controller as unknown as { _activeSession?: Session })._activeSession = sessionA;
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
             {
-                componentViewerInstance: { updateActiveSession: updateSpy } as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'],
+                componentViewerInstance: { update: updateSpy, getGuiTree: jest.fn(() => []) } as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'],
                 lockState: false,
                 sessionId: 's1',
             },
         ];
 
         const handleOnStackItemChanged = (controller as unknown as { handleOnStackItemChanged: (s: Session) => Promise<void> }).handleOnStackItemChanged.bind(controller);
-        await handleOnStackItemChanged(sessionB);
+        jest.useFakeTimers();
+        await handleOnStackItemChanged(sessionA);
+        jest.advanceTimersByTime(200);
+        await Promise.resolve();
 
         expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(sessionB);
         expect(updateSpy).toHaveBeenCalledWith(sessionB);
@@ -621,17 +622,17 @@ describe('ComponentViewer', () => {
         expect(updateInstances).toHaveBeenCalledWith('stackTrace');
     });
 
-    it('propagates errors during a coalescing update', async () => {
+    it('swallows errors during a coalescing update', async () => {
         const controller = new ComponentViewer(extensionContextFactory());
         (controller as unknown as { _pendingUpdate: boolean })._pendingUpdate = true;
         (controller as unknown as { _runningUpdate: boolean })._runningUpdate = false;
-        (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances = jest
-            .fn()
+        const updateInstances = jest.spyOn(controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }, 'updateInstances')
             .mockRejectedValue(new Error('fail'));
         const runUpdate = (controller as unknown as { runUpdate: (reason: fifoUpdateReason) => Promise<void> }).runUpdate.bind(controller);
 
-        await expect(runUpdate('stackTrace')).rejects.toThrow('fail');
-        // Clears running state if runUpdate throws
+        await expect(runUpdate('stackTrace')).resolves.toBeUndefined();
+        expect(updateInstances).toHaveBeenCalledWith('stackTrace');
+        // Clears running state after runUpdate completes
         expect((controller as unknown as { _runningUpdate: boolean })._runningUpdate).toBe(false);
     });
 
