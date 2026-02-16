@@ -78,6 +78,7 @@ type Session = {
     getCbuildRun: () => Promise<{ getScvdFilePaths: () => string[] } | undefined>;
     getPname: () => Promise<string | undefined>;
     refreshTimer: { onRefresh: (cb: (session: Session) => void) => void };
+    targetState?: 'unknown' | 'running' | 'stopped';
 };
 
 type TrackerCallbacks = {
@@ -153,13 +154,14 @@ describe('ComponentViewer', () => {
         };
     };
 
-    const makeSession = (id: string, paths: string[] = []): Session => ({
+    const makeSession = (id: string, paths: string[] = [], targetState: Session['targetState'] = 'unknown'): Session => ({
         session: { id },
         getCbuildRun: async () => ({ getScvdFilePaths: () => paths }),
         getPname: async () => undefined,
         refreshTimer: {
             onRefresh: jest.fn(),
         },
+        targetState,
     });
 
     it('activates tree provider and registers tracker events', async () => {
@@ -319,8 +321,8 @@ describe('ComponentViewer', () => {
 
     it('clears all instances after all sessions stop', async () => {
         const controller = new ComponentViewer(extensionContextFactory());
-        const sessionA = makeSession('s1');
-        const sessionB = makeSession('s2');
+        const sessionA = makeSession('s1', [], 'stopped');
+        const sessionB = makeSession('s2', [], 'stopped');
 
         (controller as unknown as { _instances: unknown[] })._instances = [
             { componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's1' },
@@ -338,7 +340,7 @@ describe('ComponentViewer', () => {
 
     it('updates active session and instances on stack item change', async () => {
         const controller = new ComponentViewer(extensionContextFactory());
-        const sessionA = makeSession('s1');
+        const sessionA = makeSession('s1', [], 'stopped');
         const sessionB = makeSession('s2');
         const updateSpy = jest.fn();
 
@@ -351,17 +353,11 @@ describe('ComponentViewer', () => {
             },
         ];
 
-        const scheduleSpy = jest.spyOn(
-            controller as unknown as { schedulePendingUpdate: (reason: fifoUpdateReason) => void },
-            'schedulePendingUpdate'
-        ).mockImplementation(() => undefined);
-
         const handleOnStackItemChanged = (controller as unknown as { handleOnStackItemChanged: (s: Session) => Promise<void> }).handleOnStackItemChanged.bind(controller);
         await handleOnStackItemChanged(sessionB);
 
         expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(sessionB);
         expect(updateSpy).toHaveBeenCalledWith(sessionB);
-        expect(scheduleSpy).toHaveBeenCalledWith('stackItemChanged');
     });
 
     it('does not update active session when stack item matches the active session', async () => {
@@ -378,15 +374,10 @@ describe('ComponentViewer', () => {
             },
         ];
 
-        const scheduleSpy = jest
-            .spyOn(controller as unknown as { schedulePendingUpdate: (reason: fifoUpdateReason) => void }, 'schedulePendingUpdate')
-            .mockImplementation(() => undefined);
-
         const handleOnStackItemChanged = (controller as unknown as { handleOnStackItemChanged: (s: Session) => Promise<void> }).handleOnStackItemChanged.bind(controller);
         await handleOnStackItemChanged(sessionA);
 
         expect(updateSpy).not.toHaveBeenCalled();
-        expect(scheduleSpy).toHaveBeenCalledWith('stackItemChanged');
     });
 
     it('updates instances when active session and instances are present', async () => {

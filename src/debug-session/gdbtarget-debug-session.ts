@@ -25,10 +25,10 @@ import { GDBTargetConfiguration } from '../debug-configuration';
 import { extractPname } from '../utils';
 import path from 'path';
 
+export type TargetState = 'unknown' | 'running' | 'stopped';
 /**
  * GDBTargetDebugSession - Wrapper class to provide session state/details
  */
-export type TargetState = 'unknown' | 'running' | 'stopped';
 export class GDBTargetDebugSession {
     public readonly refreshTimer: PeriodicRefreshTimer<GDBTargetDebugSession>;
     public readonly canAccessWhileRunning: boolean;
