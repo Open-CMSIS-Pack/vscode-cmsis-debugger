@@ -171,8 +171,7 @@ export class ComponentViewer {
     private async handleOnStackTrace(session: GDBTargetDebugSession): Promise<void> {
         // Clear active session if it is NOT the one being stopped
         if (this._activeSession?.session.id !== session.session.id) {
-            this._activeSession = undefined;
-            return;
+            throw new Error(`Component Viewer: Received stack trace event for session ${session.session.id} while active session is ${this._activeSession?.session.id}`);
         }
         // Update component viewer instance(s)
         this.schedulePendingUpdate('stackTrace');
@@ -182,7 +181,7 @@ export class ComponentViewer {
         // If the active session is not the one being updated, update it.
         // This can happen when a session is started and stack trace/item events are emitted before the session is set as active in the component viewer.
         if (this._activeSession?.session.id !== session.session.id) {
-            return;
+            throw new Error(`Component Viewer: Received stack item changed event for session ${session.session.id} while active session is ${this._activeSession?.session.id}`);
         }
         // Update component viewer instance(s)
         this.schedulePendingUpdate('stackItemChanged');
@@ -249,7 +248,6 @@ export class ComponentViewer {
                 await this.updateInstances(updateReason);
             } catch (error) {
                 componentViewerLogger.error(`Component Viewer: Error during update - ${(error as Error).message}`);
-                //logger.error('Component Viewer: Error during update');
             }
         }
         this._runningUpdate = false;
