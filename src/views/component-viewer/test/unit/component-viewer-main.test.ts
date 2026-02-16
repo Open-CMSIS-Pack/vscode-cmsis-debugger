@@ -388,7 +388,7 @@ describe('ComponentViewer', () => {
         expect(provider.clear).toHaveBeenCalledTimes(1);
         provider.clear.mockClear();
 
-        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1');
+        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1', [], 'stopped');
         (controller as unknown as { _instances: unknown[] })._instances = [];
         await updateInstances('stackTrace');
         expect(provider.clear).not.toHaveBeenCalled();
@@ -419,7 +419,7 @@ describe('ComponentViewer', () => {
         (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
 
         const updateInstances = (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances.bind(controller);
-        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1');
+        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1', [], 'stopped');
         const instance = instanceFactory();
         instance.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => undefined);
         (controller as unknown as { _instances: unknown[] })._instances = [
@@ -435,7 +435,7 @@ describe('ComponentViewer', () => {
         const provider = treeProviderFactory();
         (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
 
-        const sessionA = makeSession('s1');
+        const sessionA = makeSession('s1', [], 'stopped');
         (controller as unknown as { _activeSession?: Session | undefined })._activeSession = sessionA;
 
         const rootA = { ...makeGuiNode('rootA'), clear: jest.fn() } as ScvdGuiInterface & { clear: jest.Mock };
@@ -469,7 +469,7 @@ describe('ComponentViewer', () => {
         const provider = treeProviderFactory();
         (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
 
-        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1');
+        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1', [], 'stopped');
 
         const rootUnlocked = makeGuiNode('u');
         const rootLocked = makeGuiNode('l');
