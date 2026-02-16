@@ -16,6 +16,7 @@
 
 import * as path from 'path';
 import { CbuildRunReader } from './cbuild-run-reader';
+import { getCmsisPackRootPath } from '../utils';
 
 const TEST_CBUILD_RUN_FILE = 'test-data/multi-core.cbuild-run.yml'; // Relative to repo root
 const TEST_FILE_PATH = 'test-data/fileReaderTest.txt'; // Relative to repo root
@@ -151,18 +152,21 @@ describe('CbuildRunReader', () => {
             expect(pnames).toEqual(['Core0', 'Core1']);
         });
 
-        it('includes descriptors without pname when filtering by pname (SVD)', async () => {
+        it.each([
+            { packRoot: '', info: 'empty string' },
+            { packRoot: undefined, info: 'undefined' },
+        ])('includes descriptors without pname when filtering by pname (SVD) and uses default pack root if input is $info', async ({ packRoot }) => {
             await cbuildRunReader.parse(TEST_CBUILD_RUN_FILE);
             const cbuildRun = (cbuildRunReader as unknown as { cbuildRun?: { ['system-descriptions']?: Array<{ file: string; type: string; pname?: string }> } }).cbuildRun;
             const systemDescriptions = cbuildRun?.['system-descriptions'];
             expect(systemDescriptions).toBeDefined();
-            const svdPaths = cbuildRunReader.getSvdFilePaths('', 'Core1');
+            const svdPaths = cbuildRunReader.getSvdFilePaths(packRoot, 'Core1');
             const expectedSvdPaths = [
                 path.normalize(
-                    path.resolve(path.dirname(TEST_CBUILD_RUN_FILE), '${CMSIS_PACK_ROOT}', 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_Core1.svd')
+                    path.resolve(getCmsisPackRootPath(), 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_Core1.svd')
                 ),
                 path.normalize(
-                    path.resolve(path.dirname(TEST_CBUILD_RUN_FILE), '${CMSIS_PACK_ROOT}', 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_generic.svd')
+                    path.resolve(getCmsisPackRootPath(), 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_generic.svd')
                 ),
                 path.normalize(EXPECTED_CUSTOM_SVD),
             ];

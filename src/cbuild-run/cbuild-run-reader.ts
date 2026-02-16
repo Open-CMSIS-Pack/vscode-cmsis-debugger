@@ -72,8 +72,8 @@ export class CbuildRunReader {
         if (fileDescriptors.length === 0) {
             return [];
         }
-        // Replace potential ${CMSIS_PACK_ROOT} placeholder
-        const effectiveCmsisPackRoot = cmsisPackRoot ?? getCmsisPackRootPath();
+        // Replace potential ${CMSIS_PACK_ROOT} placeholder, treat empty string and undefined the same.
+        const effectiveCmsisPackRoot = cmsisPackRoot || getCmsisPackRootPath();
         // Map to copies, leave originals untouched, if file descriptors do not have a pname, always include it
         const filteredDescriptors = pname ? fileDescriptors.filter(descriptor => {
             if (!descriptor.pname) {
