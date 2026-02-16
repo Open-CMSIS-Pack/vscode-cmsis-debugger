@@ -387,7 +387,7 @@
     "all": "yarn && yarn download-tools && yarn test",
     "package": "vsce package --yarn",
     "tpip:report": "tsx scripts/tpip-reporter --header docs/tpip-header.md docs/third-party-licenses.json TPIP.md",
-    "lint:md": "markdownlint **/*.md -c ./.github/markdownlint.jsonc -i ./node_modules ./dist ./coverage ./tools",
+    "lint:md": "markdownlint **/*.md -c ./.github/markdownlint.jsonc -i ./node_modules -i ./dist -i ./coverage -i ./tools",
     "check:links": "tsx scripts/check-links.ts -i ./node_modules/** -i ./.github/** -c ./.github/markdown-link-check.jsonc",
     "copyright:check": "tsx scripts/copyright-manager.ts --mode=check --include=src/**/*.ts,scripts/**/*.ts --exclude=**/node_modules/**,coverage/**,dist/**,tools/**",
     "copyright:fix": "tsx scripts/copyright-manager.ts --mode=fix --include=src/**/*.ts,scripts/**/*.ts --exclude=**/node_modules/**,coverage/**,dist/**,tools/**"
@@ -449,7 +449,7 @@
   },
   "cmsis": {
     "pyocd": "pyocd/pyOCD@0.42.0",
-    "pyocdNightly": "pyocd/pyOCD@release_builds",
+    "pyocdNightly": "pyocd/pyOCD@nightly",
     "gdb": "14.3.1"
   }
 }
