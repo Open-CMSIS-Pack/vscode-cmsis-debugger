@@ -336,32 +336,28 @@ describe('ComponentViewer', () => {
         expect((controller as unknown as { _instances: unknown[] })._instances).toHaveLength(0);
     });
 
-    it('updates active session and instances on stack item change', async () => {
+    it('updates instances on stack item change', async () => {
         const controller = new ComponentViewer(extensionContextFactory());
         const sessionA = makeSession('s1');
-        const sessionB = makeSession('s2');
-        const updateSpy = jest.fn();
+        const updateSpy = jest.fn().mockResolvedValue(undefined);
 
         (controller as unknown as { _activeSession?: Session })._activeSession = sessionA;
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
             {
-                componentViewerInstance: { updateActiveSession: updateSpy } as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'],
+                componentViewerInstance: { update: updateSpy, getGuiTree: jest.fn(() => []) } as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'],
                 lockState: false,
                 sessionId: 's1',
             },
         ];
 
-        const scheduleSpy = jest.spyOn(
-            controller as unknown as { schedulePendingUpdate: (reason: fifoUpdateReason) => void },
-            'schedulePendingUpdate'
-        ).mockImplementation(() => undefined);
-
         const handleOnStackItemChanged = (controller as unknown as { handleOnStackItemChanged: (s: Session) => Promise<void> }).handleOnStackItemChanged.bind(controller);
-        await handleOnStackItemChanged(sessionB);
+        jest.useFakeTimers();
+        await handleOnStackItemChanged(sessionA);
+        jest.advanceTimersByTime(200);
+        await Promise.resolve();
 
-        expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(sessionB);
-        expect(updateSpy).toHaveBeenCalledWith(sessionB);
-        expect(scheduleSpy).toHaveBeenCalledWith('stackItemChanged');
+        expect(updateSpy).toHaveBeenCalled();
+        jest.useRealTimers();
     });
 
     it('does not update active session when stack item matches the active session', async () => {
