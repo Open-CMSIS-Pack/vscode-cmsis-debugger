@@ -173,7 +173,7 @@ export class ComponentViewer {
         if (this._activeSession?.session.id !== session.session.id) {
             throw new Error(`Component Viewer: Received stack trace event for session ${session.session.id} while active session is ${this._activeSession?.session.id}`);
         }
-        // Update component viewer instance(s)
+        // Update component viewer instance(s) if active session is stopped
         this.schedulePendingUpdate('stackTrace');
     }
 
@@ -183,7 +183,6 @@ export class ComponentViewer {
         if (this._activeSession?.session.id !== session.session.id) {
             throw new Error(`Component Viewer: Received stack item changed event for session ${session.session.id} while active session is ${this._activeSession?.session.id}`);
         }
-        // Update component viewer instance(s)
         this.schedulePendingUpdate('stackItemChanged');
     }
 
@@ -261,6 +260,9 @@ export class ComponentViewer {
         componentViewerLogger.debug(`Component Viewer: Queuing update due to '${updateReason}'`);
         this._instanceUpdateCounter = 0;
         if (this._instances.length === 0) {
+            return;
+        }
+        if (this._activeSession.targetState !== 'stopped') {
             return;
         }
         perf?.resetBackendStats();
