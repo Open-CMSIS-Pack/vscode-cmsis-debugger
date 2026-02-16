@@ -340,26 +340,18 @@ describe('ComponentViewer', () => {
     it('updates instances on stack item change', async () => {
         const controller = new ComponentViewer(extensionContextFactory());
         const sessionA = makeSession('s1', [], 'stopped');
-        const sessionB = makeSession('s2');
-        const updateSpy = jest.fn();
 
         (controller as unknown as { _activeSession?: Session })._activeSession = sessionA;
-        (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
-            {
-                componentViewerInstance: { update: updateSpy, getGuiTree: jest.fn(() => []) } as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'],
-                lockState: false,
-                sessionId: 's1',
-            },
-        ];
+
+        const scheduleSpy = jest
+            .spyOn(controller as unknown as { schedulePendingUpdate: (reason: fifoUpdateReason) => void }, 'schedulePendingUpdate')
+            .mockImplementation(() => undefined);
 
         const handleOnStackItemChanged = (controller as unknown as { handleOnStackItemChanged: (s: Session) => Promise<void> }).handleOnStackItemChanged.bind(controller);
-        jest.useFakeTimers();
         await handleOnStackItemChanged(sessionA);
-        jest.advanceTimersByTime(200);
-        await Promise.resolve();
 
-        expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(sessionB);
-        expect(updateSpy).toHaveBeenCalledWith(sessionB);
+        expect(scheduleSpy).toHaveBeenCalledWith('stackItemChanged');
+        expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(sessionA);
     });
 
     it('does not update active session when stack item matches the active session', async () => {
