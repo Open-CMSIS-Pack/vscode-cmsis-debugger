@@ -247,8 +247,8 @@ export class ComponentViewer {
             this._pendingUpdate = false;
             try {
                 await this.updateInstances(updateReason);
-            } finally {
-                this._runningUpdate = false;
+            } catch (error) {
+                componentViewerLogger.error(`Component Viewer: Error during update - ${(error as Error).message}`);
                 //logger.error('Component Viewer: Error during update');
             }
         }
