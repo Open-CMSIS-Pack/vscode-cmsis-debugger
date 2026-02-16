@@ -28,6 +28,7 @@ import path from 'path';
 /**
  * GDBTargetDebugSession - Wrapper class to provide session state/details
  */
+export type TargetState = 'unknown' | 'running' | 'stopped';
 export class GDBTargetDebugSession {
     public readonly refreshTimer: PeriodicRefreshTimer<GDBTargetDebugSession>;
     public readonly canAccessWhileRunning: boolean;
@@ -35,6 +36,7 @@ export class GDBTargetDebugSession {
     private _cbuildRun: CbuildRunReader|undefined;
     private _cbuildRunParsePromise: Promise<void>|undefined;
     private outputEventFilter = new OutputEventFilter();
+    public targetState: TargetState = 'unknown';
 
     constructor(public session: vscode.DebugSession) {
         this.refreshTimer = new PeriodicRefreshTimer(this);

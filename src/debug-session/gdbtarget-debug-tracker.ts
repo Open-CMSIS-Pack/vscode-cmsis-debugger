@@ -49,7 +49,6 @@ export interface SessionStackItem {
 }
 
 type stopTypes = 'disconnect' | 'terminate';
-
 export class GDBTargetDebugTracker {
     private sessions: Map<string, GDBTargetDebugSession> = new Map();
     private stackTraceRequests: Map<string, Map<number, number>> = new Map();
@@ -125,21 +124,27 @@ export class GDBTargetDebugTracker {
 
     private handleEvent(session: vscode.DebugSession, event: DebugProtocol.Event): void {
         const gdbTargetSession = this.sessions.get(session.id);
+        if (gdbTargetSession === undefined)  {
+            return;
+        }
         switch (event.event) {
             case 'continued':
+                gdbTargetSession.targetState = 'running';
                 this._onContinued.fire({ session: gdbTargetSession, event } as ContinuedEvent);
-                gdbTargetSession?.refreshTimer.start();
+                gdbTargetSession.refreshTimer.start();
                 break;
             case 'stopped':
-                gdbTargetSession?.refreshTimer.stop();
+                gdbTargetSession.targetState = 'stopped';
+                gdbTargetSession.refreshTimer.stop();
                 this._onStopped.fire({ session: gdbTargetSession, event } as StoppedEvent);
                 break;
             case 'terminated':
             case 'exited':
-                gdbTargetSession?.refreshTimer.stop();
+                gdbTargetSession.targetState = 'unknown';
+                gdbTargetSession.refreshTimer.stop();
                 break;
             case 'output':
-                gdbTargetSession?.filterOutputEvent(event as DebugProtocol.OutputEvent);
+                gdbTargetSession.filterOutputEvent(event as DebugProtocol.OutputEvent);
                 break;
         }
     }
