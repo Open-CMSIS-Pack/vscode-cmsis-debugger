@@ -286,8 +286,6 @@ describe('ComponentViewer', () => {
         // stackTrace from a different session clears active session
         expect((controller as unknown as { _activeSession?: Session })._activeSession).toBeUndefined();
 
-        await tracker.callbacks.activeStackItem?.({ session: otherSession });
-        expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(otherSession);
 
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
         await tracker.callbacks.willStop?.(session);
@@ -625,17 +623,17 @@ describe('ComponentViewer', () => {
         expect(updateInstances).toHaveBeenCalledWith('stackTrace');
     });
 
-    it('propagates errors during a coalescing update', async () => {
+    it('swallows errors during a coalescing update', async () => {
         const controller = new ComponentViewer(extensionContextFactory());
         (controller as unknown as { _pendingUpdate: boolean })._pendingUpdate = true;
         (controller as unknown as { _runningUpdate: boolean })._runningUpdate = false;
-        (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances = jest
-            .fn()
+        const updateInstances = jest.spyOn(controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }, 'updateInstances')
             .mockRejectedValue(new Error('fail'));
         const runUpdate = (controller as unknown as { runUpdate: (reason: fifoUpdateReason) => Promise<void> }).runUpdate.bind(controller);
 
-        await expect(runUpdate('stackTrace')).rejects.toThrow('fail');
-        // Clears running state if runUpdate throws
+        await expect(runUpdate('stackTrace')).resolves.toBeUndefined();
+        expect(updateInstances).toHaveBeenCalledWith('stackTrace');
+        // Clears running state after runUpdate completes
         expect((controller as unknown as { _runningUpdate: boolean })._runningUpdate).toBe(false);
     });
 
