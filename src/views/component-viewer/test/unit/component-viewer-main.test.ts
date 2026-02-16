@@ -21,6 +21,7 @@
 
 import * as vscode from 'vscode';
 import type { GDBTargetDebugTracker } from '../../../../debug-session';
+import type { TargetState } from '../../../../debug-session/gdbtarget-debug-session';
 import { componentViewerLogger } from '../../../../logger';
 import { extensionContextFactory } from '../../../../__test__/vscode.factory';
 import { ComponentViewer, ComponentViewerInstancesWrapper, fifoUpdateReason } from '../../component-viewer-main';
@@ -78,7 +79,7 @@ type Session = {
     getCbuildRun: () => Promise<{ getScvdFilePaths: () => string[] } | undefined>;
     getPname: () => Promise<string | undefined>;
     refreshTimer: { onRefresh: (cb: (session: Session) => void) => void };
-    targetState?: 'unknown' | 'running' | 'stopped';
+    targetState?: TargetState;
 };
 
 type TrackerCallbacks = {

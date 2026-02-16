@@ -222,6 +222,7 @@ export class GDBTargetDebugTracker {
                 case 'next':
                 case 'stepIn':
                 case 'stepOut':
+                    gdbTargetSession.targetState = 'running';
                     gdbTargetSession.refreshTimer.start();
                     break;
                 case 'disconnect':

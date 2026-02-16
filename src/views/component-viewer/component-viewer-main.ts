@@ -175,9 +175,7 @@ export class ComponentViewer {
             return;
         }
         // Update component viewer instance(s) if active session is stopped
-        if (session.targetState === 'stopped') {
-            this.schedulePendingUpdate('stackTrace');
-        }
+        this.schedulePendingUpdate('stackTrace');
     }
 
     protected async handleOnStackItemChanged(session: GDBTargetDebugSession): Promise<void> {
@@ -187,10 +185,7 @@ export class ComponentViewer {
             this._activeSession = session;
             this._instances.forEach((instance) => instance.componentViewerInstance.updateActiveSession(session));
         }
-        // Update component viewer instance(s) if active session is stopped
-        if (session.targetState === 'stopped') {
-            this.schedulePendingUpdate('stackItemChanged');
-        }
+        this.schedulePendingUpdate('stackItemChanged');
     }
 
     private async handleOnWillStopSession(session: GDBTargetDebugSession): Promise<void> {
@@ -273,6 +268,9 @@ export class ComponentViewer {
         componentViewerLogger.debug(`Component Viewer: Queuing update due to '${updateReason}'`);
         this._instanceUpdateCounter = 0;
         if (this._instances.length === 0) {
+            return;
+        }
+        if (this._activeSession.targetState === 'running') {
             return;
         }
         perf?.resetBackendStats();
