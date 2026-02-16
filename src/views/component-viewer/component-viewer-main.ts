@@ -262,7 +262,7 @@ export class ComponentViewer {
         if (this._instances.length === 0) {
             return;
         }
-        if (this._activeSession.targetState === 'running') {
+        if (this._activeSession.targetState !== 'stopped') {
             return;
         }
         perf?.resetBackendStats();
