@@ -2,6 +2,7 @@
 
 exports[`CbuildRunReader Parser successfully parses a *.cbuild-run.yml file 1`] = `
 {
+  "cbuildRunDir": Any<String>,
   "compiler": "AC6",
   "debug-sequences": [
     {

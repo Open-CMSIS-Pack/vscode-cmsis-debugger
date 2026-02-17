@@ -21,6 +21,7 @@
 
 import * as vscode from 'vscode';
 import type { GDBTargetDebugTracker } from '../../../../debug-session';
+import type { TargetState } from '../../../../debug-session/gdbtarget-debug-session';
 import { componentViewerLogger } from '../../../../logger';
 import { extensionContextFactory } from '../../../../__test__/vscode.factory';
 import { ComponentViewer, ComponentViewerInstancesWrapper, fifoUpdateReason } from '../../component-viewer-main';
@@ -78,6 +79,8 @@ type Session = {
     getCbuildRun: () => Promise<{ getScvdFilePaths: () => string[] } | undefined>;
     getPname: () => Promise<string | undefined>;
     refreshTimer: { onRefresh: (cb: (session: Session) => void) => void };
+    targetState?: TargetState;
+    canAccessWhileRunning?: boolean;
 };
 
 type TrackerCallbacks = {
@@ -153,13 +156,14 @@ describe('ComponentViewer', () => {
         };
     };
 
-    const makeSession = (id: string, paths: string[] = []): Session => ({
+    const makeSession = (id: string, paths: string[] = [], targetState: Session['targetState'] = 'unknown'): Session => ({
         session: { id },
         getCbuildRun: async () => ({ getScvdFilePaths: () => paths }),
         getPname: async () => undefined,
         refreshTimer: {
             onRefresh: jest.fn(),
         },
+        targetState,
     });
 
     it('activates tree provider and registers tracker events', async () => {
@@ -173,7 +177,7 @@ describe('ComponentViewer', () => {
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.lockComponent', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.unlockComponent', expect.any(Function));
         // tree provider + 2 commands + 5 tracker disposables
-        expect(context.subscriptions.length).toBe(9);
+        expect(context.subscriptions.length).toBe(11);
     });
 
     it('skips reading scvd files when session or cbuild-run is missing', async () => {
@@ -234,6 +238,35 @@ describe('ComponentViewer', () => {
         expect(instances).toEqual([]);
     });
 
+    it('logs and shows error when scvd read fails', async () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const tracker = makeTracker();
+        const session = makeSession('s1', ['a.scvd']);
+        (controller as unknown as { _activeSession?: Session })._activeSession = session;
+
+        const readModelError = new Error('boom');
+        const readModel = jest.fn().mockRejectedValue(readModelError);
+        instanceFactory.mockImplementationOnce(() => ({
+            readModel,
+            update: jest.fn(),
+            getGuiTree: jest.fn(() => []),
+            updateActiveSession: jest.fn(),
+        }));
+        const showErrorSpy = jest.spyOn(vscode.window, 'showErrorMessage').mockResolvedValue(undefined);
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error');
+
+        const readScvdFiles = (controller as unknown as { readScvdFiles: (t: TrackerCallbacks, s?: Session) => Promise<void> }).readScvdFiles.bind(controller);
+        await readScvdFiles(tracker, session);
+
+        expect(readModel).toHaveBeenCalled();
+        expect(errorSpy).toHaveBeenCalledWith(
+            'Component Viewer: Failed to read SCVD file at a.scvd - boom'
+        );
+        expect(showErrorSpy).toHaveBeenCalledWith('Component Viewer: cannot read SCVD file at a.scvd');
+        const instances = (controller as unknown as { _instances: unknown[] })._instances;
+        expect(instances).toEqual([]);
+    });
+
     it('returns undefined when cbuild run contains no scvd instances', async () => {
         const controller = new ComponentViewer(extensionContextFactory());
         const tracker = makeTracker();
@@ -267,10 +300,9 @@ describe('ComponentViewer', () => {
         await tracker.callbacks.connected?.(session);
 
         const refreshCallback = (session.refreshTimer.onRefresh as jest.Mock).mock.calls[0]?.[0];
-        //expect(refreshCallback).toBeDefined();
+        expect(refreshCallback).toBeDefined();
         if (refreshCallback) {
             await refreshCallback(session);
-            await refreshCallback(otherSession);
         }
 
         await tracker.callbacks.connected?.(otherSession);
@@ -281,13 +313,8 @@ describe('ComponentViewer', () => {
 
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
         await tracker.callbacks.stackTrace?.({ session });
-        await tracker.callbacks.stackTrace?.({ session: otherSession });
+        expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(session);
 
-        // stackTrace from a different session clears active session
-        expect((controller as unknown as { _activeSession?: Session })._activeSession).toBeUndefined();
-
-        await tracker.callbacks.activeStackItem?.({ session: otherSession });
-        expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(otherSession);
 
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
         await tracker.callbacks.willStop?.(session);
@@ -319,8 +346,8 @@ describe('ComponentViewer', () => {
 
     it('clears all instances after all sessions stop', async () => {
         const controller = new ComponentViewer(extensionContextFactory());
-        const sessionA = makeSession('s1');
-        const sessionB = makeSession('s2');
+        const sessionA = makeSession('s1', [], 'stopped');
+        const sessionB = makeSession('s2', [], 'stopped');
 
         (controller as unknown as { _instances: unknown[] })._instances = [
             { componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's1' },
@@ -336,32 +363,21 @@ describe('ComponentViewer', () => {
         expect((controller as unknown as { _instances: unknown[] })._instances).toHaveLength(0);
     });
 
-    it('updates active session and instances on stack item change', async () => {
+    it('updates instances on stack item change', async () => {
         const controller = new ComponentViewer(extensionContextFactory());
-        const sessionA = makeSession('s1');
-        const sessionB = makeSession('s2');
-        const updateSpy = jest.fn();
+        const sessionA = makeSession('s1', [], 'stopped');
 
         (controller as unknown as { _activeSession?: Session })._activeSession = sessionA;
-        (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
-            {
-                componentViewerInstance: { updateActiveSession: updateSpy } as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'],
-                lockState: false,
-                sessionId: 's1',
-            },
-        ];
 
-        const scheduleSpy = jest.spyOn(
-            controller as unknown as { schedulePendingUpdate: (reason: fifoUpdateReason) => void },
-            'schedulePendingUpdate'
-        ).mockImplementation(() => undefined);
+        const scheduleSpy = jest
+            .spyOn(controller as unknown as { schedulePendingUpdate: (reason: fifoUpdateReason) => void }, 'schedulePendingUpdate')
+            .mockImplementation(() => undefined);
 
         const handleOnStackItemChanged = (controller as unknown as { handleOnStackItemChanged: (s: Session) => Promise<void> }).handleOnStackItemChanged.bind(controller);
-        await handleOnStackItemChanged(sessionB);
+        await handleOnStackItemChanged(sessionA);
 
-        expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(sessionB);
-        expect(updateSpy).toHaveBeenCalledWith(sessionB);
         expect(scheduleSpy).toHaveBeenCalledWith('stackItemChanged');
+        expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(sessionA);
     });
 
     it('does not update active session when stack item matches the active session', async () => {
@@ -378,15 +394,10 @@ describe('ComponentViewer', () => {
             },
         ];
 
-        const scheduleSpy = jest
-            .spyOn(controller as unknown as { schedulePendingUpdate: (reason: fifoUpdateReason) => void }, 'schedulePendingUpdate')
-            .mockImplementation(() => undefined);
-
         const handleOnStackItemChanged = (controller as unknown as { handleOnStackItemChanged: (s: Session) => Promise<void> }).handleOnStackItemChanged.bind(controller);
         await handleOnStackItemChanged(sessionA);
 
         expect(updateSpy).not.toHaveBeenCalled();
-        expect(scheduleSpy).toHaveBeenCalledWith('stackItemChanged');
     });
 
     it('updates instances when active session and instances are present', async () => {
@@ -403,7 +414,7 @@ describe('ComponentViewer', () => {
         expect(provider.clear).toHaveBeenCalledTimes(1);
         provider.clear.mockClear();
 
-        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1');
+        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1', [], 'stopped');
         (controller as unknown as { _instances: unknown[] })._instances = [];
         await updateInstances('stackTrace');
         expect(provider.clear).not.toHaveBeenCalled();
@@ -434,7 +445,7 @@ describe('ComponentViewer', () => {
         (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
 
         const updateInstances = (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances.bind(controller);
-        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1');
+        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1', [], 'stopped');
         const instance = instanceFactory();
         instance.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => undefined);
         (controller as unknown as { _instances: unknown[] })._instances = [
@@ -450,7 +461,7 @@ describe('ComponentViewer', () => {
         const provider = treeProviderFactory();
         (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
 
-        const sessionA = makeSession('s1');
+        const sessionA = makeSession('s1', [], 'stopped');
         (controller as unknown as { _activeSession?: Session | undefined })._activeSession = sessionA;
 
         const rootA = { ...makeGuiNode('rootA'), clear: jest.fn() } as ScvdGuiInterface & { clear: jest.Mock };
@@ -484,7 +495,7 @@ describe('ComponentViewer', () => {
         const provider = treeProviderFactory();
         (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
 
-        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1');
+        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1', [], 'stopped');
 
         const rootUnlocked = makeGuiNode('u');
         const rootLocked = makeGuiNode('l');
@@ -538,6 +549,32 @@ describe('ComponentViewer', () => {
         await lockHandler?.(root);
         expect((controller as unknown as { _instances: Array<{ lockState: boolean }> })._instances[0].lockState).toBe(false);
         expect(root.isLocked).toBe(false);
+    });
+
+    it('toggles periodic updates via commands', async () => {
+        const context = extensionContextFactory();
+        const tracker = makeTracker();
+        const controller = new ComponentViewer(context);
+        controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const enableHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate')?.[1] as
+            | (() => Promise<void> | void)
+            | undefined;
+        const disableHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate')?.[1] as
+            | (() => Promise<void> | void)
+            | undefined;
+
+        expect(enableHandler).toBeDefined();
+        expect(disableHandler).toBeDefined();
+
+        await enableHandler?.();
+        expect((controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled).toBe(true);
+        expect(componentViewerLogger.info).toHaveBeenCalledWith('Component Viewer: Auto refresh enabled');
+
+        await disableHandler?.();
+        expect((controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled).toBe(false);
+        expect(componentViewerLogger.info).toHaveBeenCalledWith('Component Viewer: Auto refresh disabled');
     });
 
     it('invokes unlock handler and skips lock when no matching instance exists', async () => {
@@ -629,18 +666,94 @@ describe('ComponentViewer', () => {
         expect(updateInstances).toHaveBeenCalledWith('stackTrace');
     });
 
-    it('propagates errors during a coalescing update', async () => {
+    it('swallows errors during a coalescing update', async () => {
         const controller = new ComponentViewer(extensionContextFactory());
         (controller as unknown as { _pendingUpdate: boolean })._pendingUpdate = true;
         (controller as unknown as { _runningUpdate: boolean })._runningUpdate = false;
-        (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances = jest
-            .fn()
+        const updateInstances = jest.spyOn(controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }, 'updateInstances')
             .mockRejectedValue(new Error('fail'));
         const runUpdate = (controller as unknown as { runUpdate: (reason: fifoUpdateReason) => Promise<void> }).runUpdate.bind(controller);
 
-        await expect(runUpdate('stackTrace')).rejects.toThrow('fail');
-        // Clears running state if runUpdate throws
+        await expect(runUpdate('stackTrace')).resolves.toBeUndefined();
+        expect(updateInstances).toHaveBeenCalledWith('stackTrace');
+        // Clears running state after runUpdate completes
         expect((controller as unknown as { _runningUpdate: boolean })._runningUpdate).toBe(false);
+    });
+
+    it('shouldUpdateInstances returns false when no instances', () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const session = makeSession('s1', [], 'stopped');
+
+        (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [];
+
+        const shouldUpdateInstances = (controller as unknown as { shouldUpdateInstances: (s: Session) => boolean }).shouldUpdateInstances.bind(controller);
+        expect(shouldUpdateInstances(session)).toBe(false);
+    });
+
+    it('shouldUpdateInstances returns false when target state is unknown', () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const session = makeSession('s1', [], 'unknown');
+
+        (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
+            { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1' },
+        ];
+
+        const shouldUpdateInstances = (controller as unknown as { shouldUpdateInstances: (s: Session) => boolean }).shouldUpdateInstances.bind(controller);
+        expect(shouldUpdateInstances(session)).toBe(false);
+    });
+
+    it('shouldUpdateInstances returns false when running and refresh disabled', () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const session = makeSession('s1', [], 'running');
+        (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = true;
+
+        (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
+            { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1' },
+        ];
+        (controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled = false;
+
+        const shouldUpdateInstances = (controller as unknown as { shouldUpdateInstances: (s: Session) => boolean }).shouldUpdateInstances.bind(controller);
+        expect(shouldUpdateInstances(session)).toBe(false);
+    });
+
+    it('shouldUpdateInstances returns false when running without access', () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const session = makeSession('s1', [], 'running');
+        (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = false;
+
+        (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
+            { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1' },
+        ];
+        (controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled = true;
+
+        const shouldUpdateInstances = (controller as unknown as { shouldUpdateInstances: (s: Session) => boolean }).shouldUpdateInstances.bind(controller);
+        expect(shouldUpdateInstances(session)).toBe(false);
+    });
+
+    it('shouldUpdateInstances returns true when running with refresh and access', () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const session = makeSession('s1', [], 'running');
+        (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = true;
+
+        (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
+            { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1' },
+        ];
+        (controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled = true;
+
+        const shouldUpdateInstances = (controller as unknown as { shouldUpdateInstances: (s: Session) => boolean }).shouldUpdateInstances.bind(controller);
+        expect(shouldUpdateInstances(session)).toBe(true);
+    });
+
+    it('shouldUpdateInstances returns true when stopped', () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const session = makeSession('s1', [], 'stopped');
+
+        (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
+            { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1' },
+        ];
+
+        const shouldUpdateInstances = (controller as unknown as { shouldUpdateInstances: (s: Session) => boolean }).shouldUpdateInstances.bind(controller);
+        expect(shouldUpdateInstances(session)).toBe(true);
     });
 
 });

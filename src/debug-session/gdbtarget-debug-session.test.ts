@@ -72,7 +72,12 @@ describe('GDBTargetDebugSession', () => {
         it('returns a cbuild object and cbuild run path after parsing one', async () => {
             await gdbTargetSession.parseCbuildRun(TEST_CBUILD_RUN_FILE);
             const cbuildRun = await gdbTargetSession.getCbuildRun();
-            expect(cbuildRun).toMatchSnapshot();
+            // Snapshot match all but cbuildRunDir which is an absolute path and hence OS specific.
+            // That part gets tested separately in cbuild-run-reader.test.ts.
+            expect({
+                ...cbuildRun,
+                cbuildRunDir: expect.any(String)
+            }).toMatchSnapshot();
         });
 
         it('evaluates a global expression without active stack frame and returns a value', async () => {
