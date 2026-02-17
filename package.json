@@ -155,6 +155,16 @@
         "title": "Unlock Component",
         "icon": "$(lock)",
         "category": "Component Viewer"
+      },
+      {
+        "command": "vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate",
+        "title": "Enable Periodic Update",
+        "category": "Component Viewer"
+      },
+      {
+        "command": "vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate",
+        "title": "Disable Periodic Update",
+        "category": "Component Viewer"
       }
     ],
     "menus": {
@@ -246,6 +256,14 @@
         {
           "command": "vscode-cmsis-debugger.componentViewer.unlockComponent",
           "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate",
+          "when": "true"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate",
+          "when": "true"
         }
       ],
       "view/title": [
