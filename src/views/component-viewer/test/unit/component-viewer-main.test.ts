@@ -521,6 +521,32 @@ describe('ComponentViewer', () => {
         expect(root.isLocked).toBe(false);
     });
 
+    it('toggles periodic updates via commands', async () => {
+        const context = extensionContextFactory();
+        const tracker = makeTracker();
+        const controller = new ComponentViewer(context);
+        controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const enableHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate')?.[1] as
+            | (() => Promise<void> | void)
+            | undefined;
+        const disableHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate')?.[1] as
+            | (() => Promise<void> | void)
+            | undefined;
+
+        expect(enableHandler).toBeDefined();
+        expect(disableHandler).toBeDefined();
+
+        await enableHandler?.();
+        expect((controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled).toBe(true);
+        expect(componentViewerLogger.info).toHaveBeenCalledWith('Component Viewer: Auto refresh enabled');
+
+        await disableHandler?.();
+        expect((controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled).toBe(false);
+        expect(componentViewerLogger.info).toHaveBeenCalledWith('Component Viewer: Auto refresh disabled');
+    });
+
     it('invokes unlock handler and skips lock when no matching instance exists', async () => {
         const context = extensionContextFactory();
         const tracker = makeTracker();
