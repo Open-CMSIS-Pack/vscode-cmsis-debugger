@@ -158,12 +158,12 @@
       },
       {
         "command": "vscode-cmsis-debugger.componentViewer.enableRefreshTimer",
-        "title": "Enable Auto Refresh",
+        "title": "Enable Periodic Update",
         "category": "Component Viewer"
       },
       {
         "command": "vscode-cmsis-debugger.componentViewer.disableRefreshTimer",
-        "title": "Disable Auto Refresh",
+        "title": "Disable Periodic Update",
         "category": "Component Viewer"
       }
     ],

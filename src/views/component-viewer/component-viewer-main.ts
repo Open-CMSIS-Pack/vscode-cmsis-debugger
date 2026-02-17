@@ -266,6 +266,25 @@ export class ComponentViewer {
         this._runningUpdate = false;
     }
 
+    private shouldUpdateInstances(session: GDBTargetDebugSession): boolean {
+        this._instanceUpdateCounter = 0;
+        if (this._instances.length === 0) {
+            return false;
+        }
+        if (session.targetState === 'unknown') {
+            return false;
+        }
+        if (session.targetState === 'running') {
+            if (this._refreshTimerEnabled === false ) {
+                return false;
+            }
+            if (session.canAccessWhileRunning === false) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private async updateInstances(updateReason: fifoUpdateReason): Promise<void> {
         if (!this._activeSession) {
             this._componentViewerTreeDataProvider?.clear();
@@ -273,12 +292,12 @@ export class ComponentViewer {
         }
         componentViewerLogger.debug(`Component Viewer: Queuing update due to '${updateReason}'`);
         this._instanceUpdateCounter = 0;
-        if (this._instances.length === 0) {
+        
+        if (!this.shouldUpdateInstances(this._activeSession)) {
+            componentViewerLogger.debug(`Component Viewer: Skipping update due to '${updateReason}' - conditions not met`);
             return;
         }
-        if (this._activeSession.targetState !== 'stopped') {
-            return;
-        }
+
         perf?.resetBackendStats();
         perf?.resetUiStats();
         const activeSessionID = this._activeSession.session.id;
