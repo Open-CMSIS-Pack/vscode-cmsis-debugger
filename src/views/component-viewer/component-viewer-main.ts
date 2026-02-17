@@ -41,6 +41,7 @@ export class ComponentViewer {
     private _pendingUpdateTimer: NodeJS.Timeout | undefined;
     private _pendingUpdate: boolean = false;
     private _runningUpdate: boolean = false;
+    private _refreshTimerEnabled: boolean = false;
     private static readonly pendingUpdateDelayMs = 150;
 
     public constructor(context: vscode.ExtensionContext) {
@@ -63,10 +64,20 @@ export class ComponentViewer {
         const unlockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.unlockComponent', async (node) => {
             this.handleLockInstance(node);
         });
+        const enableRefreshTimerCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.enableRefreshTimer', async () => {
+            this._refreshTimerEnabled = true;
+             componentViewerLogger.info('Component Viewer: Auto refresh enabled');
+        });
+        const disableRefreshTimerCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.disableRefreshTimer', async () => {
+            this._refreshTimerEnabled = false;
+             componentViewerLogger.info('Component Viewer: Auto refresh disabled');
+        });
         this._context.subscriptions.push(
             treeProviderDisposable,
             lockInstanceCommandDisposable,
-            unlockInstanceCommandDisposable
+            unlockInstanceCommandDisposable,
+            enableRefreshTimerCommandDisposable,
+            disableRefreshTimerCommandDisposable
         );
     }
 
@@ -214,9 +225,12 @@ export class ComponentViewer {
     }
 
     private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
-        if (this._activeSession?.session.id === session.session.id) {
+        if(this._activeSession?.session.id !== session.session.id) {
+            throw new Error(`Component Viewer: Received refresh timer event for session ${session.session.id} while active session is ${this._activeSession?.session.id}`);
+        }
+        if (this._refreshTimerEnabled) {
             // Update component viewer instance(s)
-            //this.schedulePendingUpdate('refreshTimer');
+            this.schedulePendingUpdate('refreshTimer');
         }
     }
 

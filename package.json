@@ -155,6 +155,16 @@
         "title": "Unlock Component",
         "icon": "$(lock)",
         "category": "Component Viewer"
+      },
+      {
+        "command": "vscode-cmsis-debugger.componentViewer.enableRefreshTimer",
+        "title": "Enable Auto Refresh",
+        "category": "Component Viewer"
+      },
+      {
+        "command": "vscode-cmsis-debugger.componentViewer.disableRefreshTimer",
+        "title": "Disable Auto Refresh",
+        "category": "Component Viewer"
       }
     ],
     "menus": {
@@ -246,6 +256,14 @@
         {
           "command": "vscode-cmsis-debugger.componentViewer.unlockComponent",
           "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.enableRefreshTimer",
+          "when": "true"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.disableRefreshTimer",
+          "when": "true"
         }
       ],
       "view/title": [
