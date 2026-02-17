@@ -258,11 +258,11 @@
           "when": "false"
         },
         {
-          "command": "vscode-cmsis-debugger.componentViewer.enableRefreshTimer",
+          "command": "vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate",
           "when": "true"
         },
         {
-          "command": "vscode-cmsis-debugger.componentViewer.disableRefreshTimer",
+          "command": "vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate",
           "when": "true"
         }
       ],
