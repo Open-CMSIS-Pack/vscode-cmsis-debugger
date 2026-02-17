@@ -114,7 +114,13 @@ export class ComponentViewer {
         for (const scvdFilePath of scvdFilesPaths) {
             const instance = new ComponentViewerInstance();
             if (this._activeSession !== undefined) {
-                await instance.readModel(URI.file(scvdFilePath), this._activeSession, tracker);
+                try {
+                    await instance.readModel(URI.file(scvdFilePath), this._activeSession, tracker);
+                } catch (error) {
+                    componentViewerLogger.error(`Component Viewer: Failed to read SCVD file at ${scvdFilePath} - ${(error as Error).message}`);
+                    continue;
+                }
+
                 cbuildRunInstances.push(instance);
             }
         }
