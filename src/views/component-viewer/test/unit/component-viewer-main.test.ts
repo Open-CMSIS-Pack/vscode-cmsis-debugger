@@ -252,7 +252,7 @@ describe('ComponentViewer', () => {
             getGuiTree: jest.fn(() => []),
             updateActiveSession: jest.fn(),
         }));
-        const showErrorSpy = jest.spyOn(vscode.window, 'showErrorMessage').mockResolvedValue(undefined as unknown as string);
+        const showErrorSpy = jest.spyOn(vscode.window, 'showErrorMessage').mockResolvedValue(undefined);
         const errorSpy = jest.spyOn(componentViewerLogger, 'error');
 
         const readScvdFiles = (controller as unknown as { readScvdFiles: (t: TrackerCallbacks, s?: Session) => Promise<void> }).readScvdFiles.bind(controller);
