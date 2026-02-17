@@ -322,7 +322,7 @@ describe('ComponentViewer', () => {
     });
 
     it('clears all instances after all sessions stop', async () => {
-        const controller = new ComponentViewer(extensionContextFactory());
+        const controller = createController();
         const sessionA = makeSession('s1', [], 'stopped');
         const sessionB = makeSession('s2', [], 'stopped');
 
@@ -341,7 +341,7 @@ describe('ComponentViewer', () => {
     });
 
     it('updates instances on stack item change', async () => {
-        const controller = new ComponentViewer(extensionContextFactory());
+        const controller = createController();
         const sessionA = makeSession('s1', [], 'stopped');
 
         (controller as unknown as { _activeSession?: Session })._activeSession = sessionA;
@@ -527,7 +527,7 @@ describe('ComponentViewer', () => {
     it('toggles periodic updates via commands', async () => {
         const context = extensionContextFactory();
         const tracker = makeTracker();
-        const controller = new ComponentViewer(context);
+        const controller = createController(context);
         controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
@@ -638,7 +638,7 @@ describe('ComponentViewer', () => {
     });
 
     it('swallows errors during a coalescing update', async () => {
-        const controller = new ComponentViewer(extensionContextFactory());
+        const controller = createController();
         (controller as unknown as { _pendingUpdate: boolean })._pendingUpdate = true;
         (controller as unknown as { _runningUpdate: boolean })._runningUpdate = false;
         const updateInstances = jest.spyOn(controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }, 'updateInstances')
@@ -652,7 +652,7 @@ describe('ComponentViewer', () => {
     });
 
     it('shouldUpdateInstances returns false when no instances', () => {
-        const controller = new ComponentViewer(extensionContextFactory());
+        const controller = createController();
         const session = makeSession('s1', [], 'stopped');
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [];
@@ -662,7 +662,7 @@ describe('ComponentViewer', () => {
     });
 
     it('shouldUpdateInstances returns false when target state is unknown', () => {
-        const controller = new ComponentViewer(extensionContextFactory());
+        const controller = createController();
         const session = makeSession('s1', [], 'unknown');
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
@@ -674,7 +674,7 @@ describe('ComponentViewer', () => {
     });
 
     it('shouldUpdateInstances returns false when running and refresh disabled', () => {
-        const controller = new ComponentViewer(extensionContextFactory());
+        const controller = createController();
         const session = makeSession('s1', [], 'running');
         (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = true;
 
@@ -688,7 +688,7 @@ describe('ComponentViewer', () => {
     });
 
     it('shouldUpdateInstances returns false when running without access', () => {
-        const controller = new ComponentViewer(extensionContextFactory());
+        const controller = createController();
         const session = makeSession('s1', [], 'running');
         (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = false;
 
@@ -702,7 +702,7 @@ describe('ComponentViewer', () => {
     });
 
     it('shouldUpdateInstances returns true when running with refresh and access', () => {
-        const controller = new ComponentViewer(extensionContextFactory());
+        const controller = createController();
         const session = makeSession('s1', [], 'running');
         (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = true;
 
@@ -716,7 +716,7 @@ describe('ComponentViewer', () => {
     });
 
     it('shouldUpdateInstances returns true when stopped', () => {
-        const controller = new ComponentViewer(extensionContextFactory());
+        const controller = createController();
         const session = makeSession('s1', [], 'stopped');
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [

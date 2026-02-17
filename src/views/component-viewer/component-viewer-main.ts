@@ -59,10 +59,17 @@ export class ComponentViewer {
     }
 
     protected registerTreeView(): void {
-        try {
-        //const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
-            vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
-        }catch (error) { console.log(`Component Viewer: Error registering tree data provider: ${error}`); throw error; }
+        // Pop up box to reload vscode window when Component Viewer is activated for the first time, to ensure tree view is registered and visible in the UI.
+        const reloadPromptKey = 'componentViewerReloadPromptShown';
+        if (!this._context.globalState.get<boolean>(reloadPromptKey)) {
+            vscode.window.showInformationMessage('Component Viewer has been activated. Please reload the VSCode window to initialize the Component Viewer Tree View.', 'Reload').then((selection) => {
+                if (selection === 'Reload') {
+                    vscode.commands.executeCommand('workbench.action.reloadWindow');
+                }
+            });
+            void this._context.globalState.update(reloadPromptKey, true);
+        }
+        const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
         console.log('Component Viewer: Registered tree data provider for Component Viewer Tree View id: cmsis-debugger.componentViewer');
         const lockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.lockComponent', async (node) => {
             this.handleLockInstance(node);
@@ -79,7 +86,7 @@ export class ComponentViewer {
             componentViewerLogger.info('Component Viewer: Auto refresh disabled');
         });
         this._context.subscriptions.push(
-            //treeProviderDisposable,
+            treeProviderDisposable,
             lockInstanceCommandDisposable,
             unlockInstanceCommandDisposable,
             enablePeriodicUpdateCommandDisposable,
