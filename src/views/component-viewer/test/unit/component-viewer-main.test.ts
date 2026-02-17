@@ -666,7 +666,7 @@ describe('ComponentViewer', () => {
         const session = makeSession('s1', [], 'unknown');
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
-            { componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's1' },
+            { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1' },
         ];
 
         const shouldUpdateInstances = (controller as unknown as { shouldUpdateInstances: (s: Session) => boolean }).shouldUpdateInstances.bind(controller);
@@ -679,7 +679,7 @@ describe('ComponentViewer', () => {
         (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = true;
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
-            { componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's1' },
+            { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1' },
         ];
         (controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled = false;
 
@@ -693,7 +693,7 @@ describe('ComponentViewer', () => {
         (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = false;
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
-            { componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's1' },
+            { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1' },
         ];
         (controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled = true;
 
@@ -707,7 +707,7 @@ describe('ComponentViewer', () => {
         (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = true;
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
-            { componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's1' },
+            { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1' },
         ];
         (controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled = true;
 
@@ -720,7 +720,7 @@ describe('ComponentViewer', () => {
         const session = makeSession('s1', [], 'stopped');
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
-            { componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's1' },
+            { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1' },
         ];
 
         const shouldUpdateInstances = (controller as unknown as { shouldUpdateInstances: (s: Session) => boolean }).shouldUpdateInstances.bind(controller);
