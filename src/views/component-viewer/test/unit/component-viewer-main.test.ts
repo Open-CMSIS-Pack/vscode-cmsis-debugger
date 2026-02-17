@@ -80,6 +80,7 @@ type Session = {
     getPname: () => Promise<string | undefined>;
     refreshTimer: { onRefresh: (cb: (session: Session) => void) => void };
     targetState?: TargetState;
+    canAccessWhileRunning?: boolean;
 };
 
 type TrackerCallbacks = {
@@ -648,6 +649,82 @@ describe('ComponentViewer', () => {
         expect(updateInstances).toHaveBeenCalledWith('stackTrace');
         // Clears running state after runUpdate completes
         expect((controller as unknown as { _runningUpdate: boolean })._runningUpdate).toBe(false);
+    });
+
+    it('shouldUpdateInstances returns false when no instances', () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const session = makeSession('s1', [], 'stopped');
+
+        (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [];
+
+        const shouldUpdateInstances = (controller as unknown as { shouldUpdateInstances: (s: Session) => boolean }).shouldUpdateInstances.bind(controller);
+        expect(shouldUpdateInstances(session)).toBe(false);
+    });
+
+    it('shouldUpdateInstances returns false when target state is unknown', () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const session = makeSession('s1', [], 'unknown');
+
+        (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
+            { componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's1' },
+        ];
+
+        const shouldUpdateInstances = (controller as unknown as { shouldUpdateInstances: (s: Session) => boolean }).shouldUpdateInstances.bind(controller);
+        expect(shouldUpdateInstances(session)).toBe(false);
+    });
+
+    it('shouldUpdateInstances returns false when running and refresh disabled', () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const session = makeSession('s1', [], 'running');
+        (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = true;
+
+        (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
+            { componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's1' },
+        ];
+        (controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled = false;
+
+        const shouldUpdateInstances = (controller as unknown as { shouldUpdateInstances: (s: Session) => boolean }).shouldUpdateInstances.bind(controller);
+        expect(shouldUpdateInstances(session)).toBe(false);
+    });
+
+    it('shouldUpdateInstances returns false when running without access', () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const session = makeSession('s1', [], 'running');
+        (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = false;
+
+        (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
+            { componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's1' },
+        ];
+        (controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled = true;
+
+        const shouldUpdateInstances = (controller as unknown as { shouldUpdateInstances: (s: Session) => boolean }).shouldUpdateInstances.bind(controller);
+        expect(shouldUpdateInstances(session)).toBe(false);
+    });
+
+    it('shouldUpdateInstances returns true when running with refresh and access', () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const session = makeSession('s1', [], 'running');
+        (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = true;
+
+        (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
+            { componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's1' },
+        ];
+        (controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled = true;
+
+        const shouldUpdateInstances = (controller as unknown as { shouldUpdateInstances: (s: Session) => boolean }).shouldUpdateInstances.bind(controller);
+        expect(shouldUpdateInstances(session)).toBe(true);
+    });
+
+    it('shouldUpdateInstances returns true when stopped', () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const session = makeSession('s1', [], 'stopped');
+
+        (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
+            { componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's1' },
+        ];
+
+        const shouldUpdateInstances = (controller as unknown as { shouldUpdateInstances: (s: Session) => boolean }).shouldUpdateInstances.bind(controller);
+        expect(shouldUpdateInstances(session)).toBe(true);
     });
 
 });
