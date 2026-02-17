@@ -64,11 +64,11 @@ export class ComponentViewer {
         const unlockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.unlockComponent', async (node) => {
             this.handleLockInstance(node);
         });
-        const enableRefreshTimerCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.enableRefreshTimer', async () => {
+        const enablePeriodicUpdateCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate', async () => {
             this._refreshTimerEnabled = true;
             componentViewerLogger.info('Component Viewer: Auto refresh enabled');
         });
-        const disableRefreshTimerCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.disableRefreshTimer', async () => {
+        const disablePeriodicUpdateCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate', async () => {
             this._refreshTimerEnabled = false;
             componentViewerLogger.info('Component Viewer: Auto refresh disabled');
         });
@@ -76,8 +76,8 @@ export class ComponentViewer {
             treeProviderDisposable,
             lockInstanceCommandDisposable,
             unlockInstanceCommandDisposable,
-            enableRefreshTimerCommandDisposable,
-            disableRefreshTimerCommandDisposable
+            enablePeriodicUpdateCommandDisposable,
+            disablePeriodicUpdateCommandDisposable
         );
     }
 
