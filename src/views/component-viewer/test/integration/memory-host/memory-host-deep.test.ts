@@ -87,22 +87,33 @@ describe('MemoryHost – 9-byte append items', () => {
             const nextRef = makeContainer('mem_list_com', 4, offset);
             const nextBytes = await host.readRaw(nextRef, 4);
             expect(nextBytes).toBeDefined();
-            const nextVal = (nextBytes![0] | (nextBytes![1] << 8) | (nextBytes![2] << 16) | (nextBytes![3] << 24)) >>> 0;
-            const expectedNext = new DataView(blocks[i].buffer).getUint32(0, true);
-            expect(nextVal).toBe(expectedNext);
+            const b0 = nextBytes!.at(0) ?? 0;
+            const b1 = nextBytes!.at(1) ?? 0;
+            const b2 = nextBytes!.at(2) ?? 0;
+            const b3 = nextBytes!.at(3) ?? 0;
+            const nextVal = (b0 | (b1 << 8) | (b2 << 16) | (b3 << 24)) >>> 0;
+            const blockData = blocks.at(i);
+            if (blockData) {
+                const expectedNext = new DataView(blockData.buffer).getUint32(0, true);
+                expect(nextVal).toBe(expectedNext);
+            }
 
             // len (offset 4, 4 bytes)
             const lenRef = makeContainer('mem_list_com', 4, offset + 4);
             const lenBytes = await host.readRaw(lenRef, 4);
             expect(lenBytes).toBeDefined();
-            const lenVal = (lenBytes![0] | (lenBytes![1] << 8) | (lenBytes![2] << 16) | (lenBytes![3] << 24)) >>> 0;
+            const lb0 = lenBytes!.at(0) ?? 0;
+            const lb1 = lenBytes!.at(1) ?? 0;
+            const lb2 = lenBytes!.at(2) ?? 0;
+            const lb3 = lenBytes!.at(3) ?? 0;
+            const lenVal = (lb0 | (lb1 << 8) | (lb2 << 16) | (lb3 << 24)) >>> 0;
             expect(lenVal).toBe(41);
 
             // id (offset 8, 1 byte)
             const idRef = makeContainer('mem_list_com', 1, offset + 8);
             const idBytes = await host.readRaw(idRef, 1);
             expect(idBytes).toBeDefined();
-            expect(idBytes![0]).toBe(blocks[i][8]);
+            expect(idBytes!.at(0)).toBe(blockData?.at(8));
         }
     });
 
@@ -115,7 +126,7 @@ describe('MemoryHost – 9-byte append items', () => {
         }
 
         for (let i = 0; i < addrs.length; i++) {
-            expect(host.getElementTargetBase('mem_list_com', i)).toBe(addrs[i]);
+            expect(host.getElementTargetBase('mem_list_com', i)).toBe(addrs.at(i));
         }
     });
 
@@ -264,7 +275,8 @@ describe('MemoryHost – edge cases with the readlist _count-1 pattern', () => {
         // List loop: i from 0 to _count-2 (skip sentinel)
         for (let i = 0; i < count - 1; i++) {
             const addr = host.getElementTargetBase('mem_list_com', i);
-            expect(addr).toBe(blocks[i].addr);
+            const blockEntry = blocks.at(i);
+            expect(addr).toBe(blockEntry?.addr);
 
             // Read id byte to check condition (len & 1) && (id == 0xF1)
             const lenRef = makeContainer('mem_list_com', 4, i * 9 + 4);
@@ -273,7 +285,7 @@ describe('MemoryHost – edge cases with the readlist _count-1 pattern', () => {
             const id = await host.readValue(idRef) as number;
 
             expect(len & 1).toBe(1); // all allocated
-            expect(id).toBe(blocks[i].data[8]);
+            expect(id).toBe(blockEntry?.data.at(8));
         }
 
         // max_used = last element's len

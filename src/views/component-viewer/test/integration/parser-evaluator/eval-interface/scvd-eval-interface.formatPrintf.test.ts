@@ -299,6 +299,7 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
     it('formats %S with numeric fallback when symbol is missing', async () => {
         const noSymbols = makeEvalInterface(new Map(), new Map());
         const out = await noSymbols.formatPrintf('S', 0x2000, makeContainer());
+        // Fallback: formats as hex address when symbol lookup fails
         expect(out).toBe('0x00002000');
     });
 

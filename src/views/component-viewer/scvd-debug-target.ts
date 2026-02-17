@@ -306,7 +306,7 @@ export class ScvdDebugTarget {
     }
 
     public async readMemory(address: number | bigint, size: number): Promise<Uint8Array | undefined> {
-        componentViewerLogger.debug(`read Memory: addr=${this.formatAddress(address)} size=${size}`);
+        componentViewerLogger.trace(`[ScvdDebugTarget.readMemory] addr=0x${this.formatAddress(address)} size=${size}`);
         const normalized = this.normalizeAddress(address);
         const targetReadCache = this.targetReadCache;
         if (TARGET_READ_CACHE_ENABLED && normalized !== undefined && targetReadCache) {
@@ -316,16 +316,17 @@ export class ScvdDebugTarget {
             const cached = targetReadCache.read(normalized, size);
             if (cached) {
                 perf?.end(hitStart, 'targetReadCacheHitMs', 'targetReadCacheHitCalls');
-                componentViewerLogger.debug(`read Memory: cache hit for addr=${this.formatAddress(address)} size=${size}`);
+                componentViewerLogger.trace(`[ScvdDebugTarget.readMemory] CACHE HIT: addr=0x${this.formatAddress(address)} size=${size} data=[${Array.from(cached).map(b => b.toString(16).padStart(2, '0')).join(' ')}]`);
                 return cached;
             }
+            componentViewerLogger.trace(`[ScvdDebugTarget.readMemory] CACHE MISS: addr=0x${this.formatAddress(address)} size=${size}, fetching from target`);
             const missStart = perf?.start() ?? 0;
             const missing = targetReadCache.getMissingRanges(normalized, size);
             for (const range of missing) {
                 const data = await this.readMemoryFromTarget(range.start, range.size);
                 if (!data) {
                     perf?.end(missStart, 'targetReadCacheMissMs', 'targetReadCacheMissCalls');
-                    componentViewerLogger.debug(`read Memory: read from target failed for addr=${this.formatAddress(address)} size=${size}`);
+                    componentViewerLogger.trace(`[ScvdDebugTarget.readMemory] read from target FAILED for addr=0x${this.formatAddress(address)} size=${size}`);
                     return undefined;
                 }
                 targetReadStats?.recordMissRead();
@@ -339,7 +340,7 @@ export class ScvdDebugTarget {
     }
 
     private async readMemoryFromTarget(address: number | bigint, size: number): Promise<Uint8Array | undefined> {
-        componentViewerLogger.debug(`read Memory From Target: addr=${this.formatAddress(address)} size=${size}`);
+        componentViewerLogger.trace(`[ScvdDebugTarget.readMemoryFromTarget] TARGET READ: addr=0x${this.formatAddress(address)} size=${size}`);
         if (!this.activeSession) {
             componentViewerLogger.debug('read Memory From Target: no active session');
             return undefined;
@@ -370,13 +371,17 @@ export class ScvdDebugTarget {
         }
 
         const result = byteArray.length === size ? byteArray : undefined;
+        if (result) {
+            componentViewerLogger.trace(`[ScvdDebugTarget.readMemoryFromTarget] SUCCESS: addr=0x${this.formatAddress(address)} size=${size} data=[${Array.from(result).map(b => b.toString(16).padStart(2, '0')).join(' ')}]`);
+        } else {
+            componentViewerLogger.trace(`[ScvdDebugTarget.readMemoryFromTarget] FAILED: addr=0x${this.formatAddress(address)} size=${size} (received ${byteArray.length} bytes)`);
+        }
         if (timingStart !== 0) {
             const elapsed = Date.now() - timingStart;
             targetReadTimingStats?.recordRead(elapsed, size);
             // Aggregate stats are reported after statement execution; avoid per-read logging.
         }
         perf?.end(perfStartTime, 'targetReadFromTargetMs', 'targetReadFromTargetCalls');
-        componentViewerLogger.debug(`read Memory From Target: completed for addr=${this.formatAddress(address)} size=${size} success=${result !== undefined}`);
         return result;
     }
 

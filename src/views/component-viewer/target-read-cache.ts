@@ -15,6 +15,7 @@
  */
 // generated with AI
 
+import { componentViewerLogger } from '../../logger';
 import { perf } from './stats-config';
 import type { TargetReadStats } from './target-read-stats';
 
@@ -64,10 +65,13 @@ export class TargetReadCache {
         }
         const seg = this.findSegmentCovering(this.segments, start, size);
         if (!seg) {
+            componentViewerLogger.trace(`[TargetReadCache.read] MISS: addr=0x${start.toString(16)} size=${size}`);
             return undefined;
         }
         const rel = start - seg.start;
-        return seg.data.subarray(rel, rel + size);
+        const data = seg.data.subarray(rel, rel + size);
+        componentViewerLogger.trace(`[TargetReadCache.read] HIT: addr=0x${start.toString(16)} size=${size} data=[${Array.from(data).map(b => b.toString(16).padStart(2, '0')).join(' ')}]`);
+        return data;
     }
 
     public getMissingRanges(start: number, size: number): Array<{ start: number; size: number }> {
@@ -103,6 +107,7 @@ export class TargetReadCache {
         if (data.length === 0) {
             return;
         }
+        componentViewerLogger.trace(`[TargetReadCache.write] addr=0x${start.toString(16)} size=${data.length} data=[${Array.from(data).map(b => b.toString(16).padStart(2, '0')).join(' ')}]`);
         this.mergeSegments(this.segments, start, data);
     }
 

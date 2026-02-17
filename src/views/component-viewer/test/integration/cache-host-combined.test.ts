@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
 /**
  * Combined integration test: TargetReadCache + MemoryHost working together.
@@ -81,14 +82,20 @@ class TargetMemory {
 
     write(addr: number, bytes: Uint8Array): void {
         for (let i = 0; i < bytes.length; i++) {
-            this.data.set(addr + i, bytes[i]);
+            const byte = bytes.at(i);
+            if (byte !== undefined) {
+                this.data.set(addr + i, byte);
+            }
         }
     }
 
     read(addr: number, size: number): Uint8Array {
         const result = new Uint8Array(size);
         for (let i = 0; i < size; i++) {
-            result[i] = this.data.get(addr + i) ?? 0;
+            if (i < result.length) {
+                const value = this.data.get(addr + i) ?? 0;
+                result.set([value], i);
+            }
         }
         return result;
     }
@@ -128,10 +135,17 @@ async function walkLinkedList(
     nextSize: number
 ): Promise<{ addresses: number[]; count: number }> {
     const addresses: number[] = [];
+    const visitedAddresses = new Set<number>();
     let nextPtrAddr: number | undefined = startAddr >>> 0;
 
     while (nextPtrAddr !== undefined) {
-        const itemAddress = nextPtrAddr;
+        const itemAddress: number = nextPtrAddr;
+
+        // Detect cycles: check if we've visited this address before
+        if (visitedAddresses.has(itemAddress)) {
+            break;
+        }
+        visitedAddresses.add(itemAddress);
         const readData = await readMemory(targetMem, cache, itemAddress, readBytes);
         if (!readData) break;
 
@@ -147,10 +161,9 @@ async function walkLinkedList(
 
         if (isInvalidAddress(nextPtrAddr)) {
             nextPtrAddr = undefined;
-        } else if (nextPtrAddr === itemAddress) {
-            // loop detection
-            break;
         }
+        // Note: Cycle detection is now handled at the start of the loop
+        // by checking visitedAddresses Set
     }
     return { addresses, count: memHost.getArrayElementCount(listName) };
 }
@@ -186,7 +199,10 @@ describe('Combined: TargetReadCache + MemoryHost – RTX linked-list walk', () =
 
         // Verify each element's _addr
         for (let i = 0; i < blocks.length; i++) {
-            expect(memHost.getElementTargetBase('mem_list_com', i)).toBe(blocks[i].addr);
+            const block = blocks.at(i);
+            if (block) {
+                expect(memHost.getElementTargetBase('mem_list_com', i)).toBe(block.addr);
+            }
         }
 
         // Verify sentinel's len (max_used pattern)
@@ -296,7 +312,12 @@ describe('Combined: TargetReadCache + MemoryHost – RTX linked-list walk', () =
         // In real RTX memory, byte 0 of payload = object ID (0xF1 for thread)
         const tcbPayload = new Uint8Array(80);
         tcbPayload[0] = 0xF1;  // object ID — the 9th byte read by mem_list_com
-        for (let i = 1; i < 80; i++) tcbPayload[i] = 0xA0 + (i & 0x3F);
+        for (let i = 1; i < 80; i++) {
+            if (i < tcbPayload.length) {
+                const value = 0xA0 + (i & 0x3F);
+                tcbPayload.set([value], i);
+            }
+        }
         target.write(0x1008, tcbPayload);
         // Sentinel
         target.write(0x9000, makeBlock(0, 30000, 0));
@@ -406,7 +427,6 @@ describe('Combined: TargetReadCache + MemoryHost – RTX linked-list walk', () =
     it('subarray view from cache remains valid through the entire walk', async () => {
         const target = new TargetMemory();
         const cache = new TargetReadCache();
-        const memHost = new MemoryHost();
 
         // 3 blocks + sentinel
         target.write(0x1000, makeBlock(0x1028, 41 | 1, 0xF1));
@@ -445,9 +465,9 @@ describe('Combined: TargetReadCache + MemoryHost – RTX linked-list walk', () =
     it('const variables survive clearNonConst while readlist data is wiped', async () => {
         const target = new TargetMemory();
         const cache = new TargetReadCache();
-        const memHost = new MemoryHost();
 
         // Store a const variable (like cfg_mp_mpool with const="1")
+        const memHost = new MemoryHost();
         memHost.setVariable('os_Config', 4, new Uint8Array([0x20, 0x0D, 0x01, 0x20]), 0, 0x800761C, 4, true);
 
         // Walk a non-const linked list

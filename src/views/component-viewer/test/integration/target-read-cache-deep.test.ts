@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
 /**
  * Deep integration tests for TargetReadCache:
@@ -49,6 +50,7 @@ function extractNext(data: Uint8Array): number {
 /** Fill `size` bytes starting at `addr` inside a flat target memory map. */
 function fillTargetMemory(mem: Map<string, number>, addr: number, data: Uint8Array): void {
     for (let i = 0; i < data.length; i++) {
+        // eslint-disable-next-line security/detect-object-injection
         mem.set(`${addr + i}`, data[i]);
     }
 }
@@ -57,7 +59,9 @@ function fillTargetMemory(mem: Map<string, number>, addr: number, data: Uint8Arr
 function readTargetMemory(mem: Map<string, number>, addr: number, size: number): Uint8Array {
     const result = new Uint8Array(size);
     for (let i = 0; i < size; i++) {
-        result[i] = mem.get(`${addr + i}`) ?? 0;
+        const value = mem.get(`${addr + i}`) ?? 0;
+        // eslint-disable-next-line security/detect-object-injection
+        result[i] = value;
     }
     return result;
 }
@@ -67,8 +71,6 @@ function readTargetMemory(mem: Map<string, number>, addr: number, size: number):
 // Addresses matching the real RTX5 library-build log (part2)
 const BLOCK_ADDRS = [0x20010d28, 0x20010d50, 0x20010d78, 0x20010da0, 0x20010dc8];
 const SENTINEL_ADDR = 0x20018d18;
-// For cycle 2, new blocks appear between the last allocated block and sentinel
-const CYCLE2_NEW_BLOCKS = [0x20010df0, 0x20010e48, 0x20011a50, 0x20011aa8];
 
 describe('TargetReadCache – 9-byte unaligned reads', () => {
     it('writes and reads back 9-byte blocks at non-aligned addresses', () => {
@@ -137,7 +139,12 @@ describe('TargetReadCache – overlapping segment merges', () => {
         // This overlaps by 1 byte: byte at 0x20010d30 = id byte = 0xF5
         const mcbData = new Uint8Array(28);
         mcbData[0] = 0xF5;   // id byte (same as block[8])
-        for (let i = 1; i < 28; i++) mcbData[i] = 0xAA + i;
+        for (let i = 1; i < 28; i++) {
+            if (i < mcbData.length) {
+                const value = 0xAA + i;
+                mcbData.set([value], i);
+            }
+        }
         cache.write(0x20010d30, mcbData);
 
         // The merged segment should span [0x20010d28, 0x20010d28 + 9 = 0x20010d31)
@@ -217,8 +224,9 @@ describe('TargetReadCache – prefetch cycle simulation', () => {
         // Build target memory with 5 blocks + sentinel
         const targetMem = new Map<string, number>();
         for (let i = 0; i < BLOCK_ADDRS.length; i++) {
-            const nextAddr = i < BLOCK_ADDRS.length - 1 ? BLOCK_ADDRS[i + 1] : SENTINEL_ADDR;
-            fillTargetMemory(targetMem, BLOCK_ADDRS[i], makeBlock(nextAddr, 41 | 1, 0xF5));
+            const nextAddr = i < BLOCK_ADDRS.length - 1 ? BLOCK_ADDRS.at(i + 1)! : SENTINEL_ADDR;
+            const currentAddr = BLOCK_ADDRS.at(i)!;
+            fillTargetMemory(targetMem, currentAddr, makeBlock(nextAddr, 41 | 1, 0xF5));
         }
         fillTargetMemory(targetMem, SENTINEL_ADDR, makeBlock(0, 32552, 0));
 
@@ -330,7 +338,7 @@ describe('TargetReadCache – prefetch cycle simulation', () => {
         cache.recordRequestRange(0x1050, 9);
         cache.recordRequestRange(0x1058, 80); // TCB at 0x1050+8
 
-        const fetcher = jest.fn(async (addr: number, size: number) =>
+        const fetcher = jest.fn(async (_addr: number, size: number) =>
             new Uint8Array(size).fill(0x42));
 
         await cache.beginUpdateCycle(fetcher);
@@ -390,8 +398,9 @@ describe('TargetReadCache – full linked-list walk simulation', () => {
         // Cycle 1 target memory: 3 blocks + sentinel
         const cycle1Blocks = [0x1000, 0x1028, 0x1050];
         for (let i = 0; i < cycle1Blocks.length; i++) {
-            const next = i < cycle1Blocks.length - 1 ? cycle1Blocks[i + 1] : 0x9000;
-            fillTargetMemory(targetMem, cycle1Blocks[i], makeBlock(next, 41 | 1, 0xF1));
+            const next = (i < cycle1Blocks.length - 1) ? cycle1Blocks.at(i + 1)! : 0x9000;
+            const blockAddr = cycle1Blocks.at(i)!;
+            fillTargetMemory(targetMem, blockAddr, makeBlock(next, 41 | 1, 0xF1));
         }
         fillTargetMemory(targetMem, 0x9000, makeBlock(0, 30000, 0)); // sentinel
 
@@ -422,8 +431,9 @@ describe('TargetReadCache – full linked-list walk simulation', () => {
         // --- Update target for cycle 2: 2 new blocks inserted ---
         const cycle2Blocks = [0x1000, 0x1028, 0x1050, 0x1078, 0x10A0];
         for (let i = 0; i < cycle2Blocks.length; i++) {
-            const next = i < cycle2Blocks.length - 1 ? cycle2Blocks[i + 1] : 0x9000;
-            fillTargetMemory(targetMem, cycle2Blocks[i], makeBlock(next, 41 | 1, 0xF1));
+            const next = (i < cycle2Blocks.length - 1) ? cycle2Blocks.at(i + 1)! : 0x9000;
+            const blockAddr = cycle2Blocks.at(i)!;
+            fillTargetMemory(targetMem, blockAddr, makeBlock(next, 41 | 1, 0xF1));
         }
         fillTargetMemory(targetMem, 0x9000, makeBlock(0, 28000, 0)); // sentinel updated
 
