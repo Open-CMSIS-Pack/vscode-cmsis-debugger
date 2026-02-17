@@ -73,7 +73,7 @@ module.exports = {
         })),
         registerTreeDataProvider: jest.fn(() => ({ dispose: jest.fn() })),
         showErrorMessage: jest.fn(),
-        showInformationMessage: jest.fn(),
+        showInformationMessage: jest.fn(() => Promise.resolve(undefined)),
         showWarningMessage: jest.fn(),
         createStatusBarItem: jest.fn(),
         showQuickPick: jest.fn(),

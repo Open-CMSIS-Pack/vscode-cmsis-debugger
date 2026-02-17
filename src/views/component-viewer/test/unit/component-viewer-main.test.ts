@@ -115,9 +115,6 @@ describe('ComponentViewer', () => {
         // Global vscode mock defines registerCommand as jest.fn(), but it does not provide a default return value.
         // The production code stores the return value in subscriptions, so return a disposable by default.
         asMockedFunction(vscode.commands.registerCommand).mockReturnValue({ dispose: jest.fn() } as unknown as vscode.Disposable);
-
-        // Ensure showInformationMessage returns a thenable by default.
-        asMockedFunction(vscode.window.showInformationMessage).mockResolvedValue(undefined as unknown as vscode.MessageItem);
     });
 
     const makeGuiNode = (id: string, children: ScvdGuiInterface[] = []): ScvdGuiInterface => ({
