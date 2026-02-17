@@ -115,6 +115,9 @@ describe('ComponentViewer', () => {
         // Global vscode mock defines registerCommand as jest.fn(), but it does not provide a default return value.
         // The production code stores the return value in subscriptions, so return a disposable by default.
         asMockedFunction(vscode.commands.registerCommand).mockReturnValue({ dispose: jest.fn() } as unknown as vscode.Disposable);
+
+        // Ensure showInformationMessage returns a thenable by default.
+        asMockedFunction(vscode.window.showInformationMessage).mockResolvedValue(undefined as unknown as vscode.MessageItem);
     });
 
     const makeGuiNode = (id: string, children: ScvdGuiInterface[] = []): ScvdGuiInterface => ({
@@ -184,6 +187,38 @@ describe('ComponentViewer', () => {
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.unlockComponent', expect.any(Function));
         // tree provider + 2 commands + 5 tracker disposables
         expect(context.subscriptions.length).toBe(11);
+    });
+
+    it('shows reload prompt and stores global state flag', async () => {
+        const context = extensionContextFactory();
+        const tracker = makeTracker();
+        const controller = createController(context);
+
+        asMockedFunction(context.globalState.get).mockReturnValue(undefined);
+        asMockedFunction(vscode.window.showInformationMessage).mockResolvedValue('Reload' as unknown as vscode.MessageItem);
+
+        controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        await Promise.resolve();
+
+        expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+            'Component Viewer has been activated. Please reload the VSCode window to initialize the Component Viewer Tree View.',
+            'Reload'
+        );
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith('workbench.action.reloadWindow');
+        expect(context.globalState.update).toHaveBeenCalledWith('componentViewerReloadPromptShown', true);
+    });
+
+    it('does not show reload prompt when global state flag is set', () => {
+        const context = extensionContextFactory();
+        const tracker = makeTracker();
+        const controller = createController(context);
+
+        asMockedFunction(context.globalState.get).mockReturnValue(true);
+
+        controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        expect(vscode.window.showInformationMessage).not.toHaveBeenCalled();
+        expect(context.globalState.update).not.toHaveBeenCalled();
     });
 
     it('skips reading scvd files when session or cbuild-run is missing', async () => {
