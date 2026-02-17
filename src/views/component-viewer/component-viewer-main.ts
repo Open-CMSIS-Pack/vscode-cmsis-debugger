@@ -41,6 +41,7 @@ export class ComponentViewer {
     private _pendingUpdateTimer: NodeJS.Timeout | undefined;
     private _pendingUpdate: boolean = false;
     private _runningUpdate: boolean = false;
+    private _refreshTimerEnabled: boolean = true;
     private static readonly pendingUpdateDelayMs = 150;
 
     public constructor(context: vscode.ExtensionContext) {
@@ -63,10 +64,20 @@ export class ComponentViewer {
         const unlockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.unlockComponent', async (node) => {
             this.handleLockInstance(node);
         });
+        const enablePeriodicUpdateCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate', async () => {
+            this._refreshTimerEnabled = true;
+            componentViewerLogger.info('Component Viewer: Auto refresh enabled');
+        });
+        const disablePeriodicUpdateCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate', async () => {
+            this._refreshTimerEnabled = false;
+            componentViewerLogger.info('Component Viewer: Auto refresh disabled');
+        });
         this._context.subscriptions.push(
             treeProviderDisposable,
             lockInstanceCommandDisposable,
-            unlockInstanceCommandDisposable
+            unlockInstanceCommandDisposable,
+            enablePeriodicUpdateCommandDisposable,
+            disablePeriodicUpdateCommandDisposable
         );
     }
 
@@ -220,9 +231,12 @@ export class ComponentViewer {
     }
 
     private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
-        if (this._activeSession?.session.id === session.session.id) {
+        if(this._activeSession?.session.id !== session.session.id) {
+            throw new Error(`Component Viewer: Received refresh timer event for session ${session.session.id} while active session is ${this._activeSession?.session.id}`);
+        }
+        if (this._refreshTimerEnabled) {
             // Update component viewer instance(s)
-            //this.schedulePendingUpdate('refreshTimer');
+            this.schedulePendingUpdate('refreshTimer');
         }
     }
 
@@ -258,6 +272,25 @@ export class ComponentViewer {
         this._runningUpdate = false;
     }
 
+    private shouldUpdateInstances(session: GDBTargetDebugSession): boolean {
+        this._instanceUpdateCounter = 0;
+        if (this._instances.length === 0) {
+            return false;
+        }
+        if (session.targetState === 'unknown') {
+            return false;
+        }
+        if (session.targetState === 'running') {
+            if (this._refreshTimerEnabled === false ) {
+                return false;
+            }
+            if (session.canAccessWhileRunning === false) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private async updateInstances(updateReason: fifoUpdateReason): Promise<void> {
         if (!this._activeSession) {
             this._componentViewerTreeDataProvider?.clear();
@@ -265,12 +298,12 @@ export class ComponentViewer {
         }
         componentViewerLogger.debug(`Component Viewer: Queuing update due to '${updateReason}'`);
         this._instanceUpdateCounter = 0;
-        if (this._instances.length === 0) {
+
+        if (!this.shouldUpdateInstances(this._activeSession)) {
+            componentViewerLogger.debug(`Component Viewer: Skipping update due to '${updateReason}' - conditions not met`);
             return;
         }
-        if (this._activeSession.targetState !== 'stopped') {
-            return;
-        }
+
         perf?.resetBackendStats();
         perf?.resetUiStats();
         const activeSessionID = this._activeSession.session.id;
