@@ -25,6 +25,7 @@ import { GDBTargetConfiguration } from '../debug-configuration';
 import { extractPname } from '../utils';
 import path from 'path';
 
+export type TargetState = 'unknown' | 'running' | 'stopped';
 /**
  * GDBTargetDebugSession - Wrapper class to provide session state/details
  */
@@ -35,6 +36,7 @@ export class GDBTargetDebugSession {
     private _cbuildRun: CbuildRunReader|undefined;
     private _cbuildRunParsePromise: Promise<void>|undefined;
     private outputEventFilter = new OutputEventFilter();
+    public targetState: TargetState = 'unknown';
 
     constructor(public session: vscode.DebugSession) {
         this.refreshTimer = new PeriodicRefreshTimer(this);

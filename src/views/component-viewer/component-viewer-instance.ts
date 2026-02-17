@@ -104,10 +104,6 @@ export class ComponentViewerInstance {
         return `${text}, Time: ${timeUsage} ms, Mem: ${memUsage}, Mem Increase: ${memIncrease} MB, (Total: ${memCurrent} MB)`;
     }
 
-    public updateActiveSession(debugSession: GDBTargetDebugSession): void {
-        this._scvdEvalContext?.updateActiveSession(debugSession);
-    }
-
     public async readModel(filename: URI, debugSession: GDBTargetDebugSession, debugTracker: GDBTargetDebugTracker): Promise<void> {
         const stats: string[] = [];
         this._fileKey = ComponentViewerInstance.getFileKey(filename);
