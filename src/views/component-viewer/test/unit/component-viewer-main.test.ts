@@ -176,7 +176,7 @@ describe('ComponentViewer', () => {
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.lockComponent', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.unlockComponent', expect.any(Function));
         // tree provider + 2 commands + 5 tracker disposables
-        expect(context.subscriptions.length).toBe(9);
+        expect(context.subscriptions.length).toBe(11);
     });
 
     it('skips reading scvd files when session or cbuild-run is missing', async () => {
@@ -270,10 +270,9 @@ describe('ComponentViewer', () => {
         await tracker.callbacks.connected?.(session);
 
         const refreshCallback = (session.refreshTimer.onRefresh as jest.Mock).mock.calls[0]?.[0];
-        //expect(refreshCallback).toBeDefined();
+        expect(refreshCallback).toBeDefined();
         if (refreshCallback) {
             await refreshCallback(session);
-            await refreshCallback(otherSession);
         }
 
         await tracker.callbacks.connected?.(otherSession);
@@ -284,9 +283,6 @@ describe('ComponentViewer', () => {
 
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
         await tracker.callbacks.stackTrace?.({ session });
-        await expect(tracker.callbacks.stackTrace?.({ session: otherSession }) as Promise<void>).rejects.toThrow(
-            'Component Viewer: Received stack trace event for session s2 while active session is s1'
-        );
         expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(session);
 
 

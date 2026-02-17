@@ -66,11 +66,11 @@ export class ComponentViewer {
         });
         const enableRefreshTimerCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.enableRefreshTimer', async () => {
             this._refreshTimerEnabled = true;
-             componentViewerLogger.info('Component Viewer: Auto refresh enabled');
+            componentViewerLogger.info('Component Viewer: Auto refresh enabled');
         });
         const disableRefreshTimerCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.disableRefreshTimer', async () => {
             this._refreshTimerEnabled = false;
-             componentViewerLogger.info('Component Viewer: Auto refresh disabled');
+            componentViewerLogger.info('Component Viewer: Auto refresh disabled');
         });
         this._context.subscriptions.push(
             treeProviderDisposable,
