@@ -125,7 +125,15 @@ export class ComponentViewer {
         for (const scvdFilePath of scvdFilesPaths) {
             const instance = new ComponentViewerInstance();
             if (this._activeSession !== undefined) {
-                await instance.readModel(URI.file(scvdFilePath), this._activeSession, tracker);
+                try {
+                    await instance.readModel(URI.file(scvdFilePath), this._activeSession, tracker);
+                } catch (error) {
+                    componentViewerLogger.error(`Component Viewer: Failed to read SCVD file at ${scvdFilePath} - ${(error as Error).message}`);
+                    // Show error message in a pop up to the user, but continue loading other instances if there are multiple SCVD files
+                    vscode.window.showErrorMessage(`Component Viewer: cannot read SCVD file at ${scvdFilePath}`);
+                    continue;
+                }
+
                 cbuildRunInstances.push(instance);
             }
         }

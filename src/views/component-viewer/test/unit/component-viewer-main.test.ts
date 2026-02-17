@@ -238,6 +238,35 @@ describe('ComponentViewer', () => {
         expect(instances).toEqual([]);
     });
 
+    it('logs and shows error when scvd read fails', async () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const tracker = makeTracker();
+        const session = makeSession('s1', ['a.scvd']);
+        (controller as unknown as { _activeSession?: Session })._activeSession = session;
+
+        const readModelError = new Error('boom');
+        const readModel = jest.fn().mockRejectedValue(readModelError);
+        instanceFactory.mockImplementationOnce(() => ({
+            readModel,
+            update: jest.fn(),
+            getGuiTree: jest.fn(() => []),
+            updateActiveSession: jest.fn(),
+        }));
+        const showErrorSpy = jest.spyOn(vscode.window, 'showErrorMessage').mockResolvedValue(undefined);
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error');
+
+        const readScvdFiles = (controller as unknown as { readScvdFiles: (t: TrackerCallbacks, s?: Session) => Promise<void> }).readScvdFiles.bind(controller);
+        await readScvdFiles(tracker, session);
+
+        expect(readModel).toHaveBeenCalled();
+        expect(errorSpy).toHaveBeenCalledWith(
+            'Component Viewer: Failed to read SCVD file at a.scvd - boom'
+        );
+        expect(showErrorSpy).toHaveBeenCalledWith('Component Viewer: cannot read SCVD file at a.scvd');
+        const instances = (controller as unknown as { _instances: unknown[] })._instances;
+        expect(instances).toEqual([]);
+    });
+
     it('returns undefined when cbuild run contains no scvd instances', async () => {
         const controller = new ComponentViewer(extensionContextFactory());
         const tracker = makeTracker();
