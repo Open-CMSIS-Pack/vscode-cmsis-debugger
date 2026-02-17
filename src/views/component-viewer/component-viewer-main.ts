@@ -292,7 +292,7 @@ export class ComponentViewer {
         }
         componentViewerLogger.debug(`Component Viewer: Queuing update due to '${updateReason}'`);
         this._instanceUpdateCounter = 0;
-        
+
         if (!this.shouldUpdateInstances(this._activeSession)) {
             componentViewerLogger.debug(`Component Viewer: Skipping update due to '${updateReason}' - conditions not met`);
             return;
