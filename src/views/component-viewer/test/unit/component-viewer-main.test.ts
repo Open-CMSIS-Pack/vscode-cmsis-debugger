@@ -286,7 +286,7 @@ describe('ComponentViewer', () => {
     });
 
     it('logs and shows error when scvd read fails', async () => {
-        const controller = new ComponentViewer(extensionContextFactory());
+        const controller = createController(extensionContextFactory());
         const tracker = makeTracker();
         const session = makeSession('s1', ['a.scvd']);
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
@@ -597,7 +597,7 @@ describe('ComponentViewer', () => {
     });
 
     it('schedules an update when unlocking a locked instance', () => {
-        const controller = new ComponentViewer(extensionContextFactory());
+        const controller = createController(extensionContextFactory());
         const provider = treeProviderFactory();
         (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
 
@@ -619,7 +619,7 @@ describe('ComponentViewer', () => {
     });
 
     it('does not schedule an update when locking an unlocked instance', () => {
-        const controller = new ComponentViewer(extensionContextFactory());
+        const controller = createController(extensionContextFactory());
         const provider = treeProviderFactory();
         (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
 
