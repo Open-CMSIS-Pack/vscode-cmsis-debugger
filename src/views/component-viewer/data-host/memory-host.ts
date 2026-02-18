@@ -190,8 +190,10 @@ export class MemoryHost {
             ? container.readPartial(byteOff, widthBytes)
             : container.readExact(byteOff, widthBytes);
         if (!raw) {
+            componentViewerLogger.trace(`[MemoryHost.readValue] MISS: var="${variableName}" offset=${byteOff} width=${widthBytes}`);
             return undefined;
         }
+        componentViewerLogger.trace(`[MemoryHost.readValue] var="${variableName}" offset=${byteOff} width=${widthBytes} data=[${Array.from(raw).map(b => b.toString(16).padStart(2, '0')).join(' ')}]`);
 
         if (this.endianness !== 'little') {
             // TOIMPL: add BE support if needed
@@ -216,10 +218,9 @@ export class MemoryHost {
             }
         }
         if (widthBytes <= 4) {
-            if (ref.valueType?.kind === 'int') {
-                return leToSignedNumber(raw);
-            }
-            return leToNumber(raw);
+            const value = ref.valueType?.kind === 'int' ? leToSignedNumber(raw) : leToNumber(raw);
+            componentViewerLogger.trace(`[MemoryHost.readValue] → decoded as ${ref.valueType?.kind === 'int' ? 'int' : 'uint'}: ${value}`);
+            return value;
         }
         if (widthBytes === 8) {
             let out = 0n;
@@ -228,9 +229,11 @@ export class MemoryHost {
                 // eslint-disable-next-line security/detect-object-injection
                 out |= BigInt(raw[i]) << BigInt(8 * i);
             }
+            componentViewerLogger.trace(`[MemoryHost.readValue] → decoded as bigint: ${out}`);
             return out;
         }
         // for larger widths, return a copy of the bytes
+        componentViewerLogger.trace(`[MemoryHost.readValue] → raw bytes (len=${raw.length})`);
         return raw.slice();
     }
 
@@ -321,6 +324,7 @@ export class MemoryHost {
         virtualSize?: number,                // total logical bytes for this element (>= size)
         isConst?: boolean,
     ): void {
+        componentViewerLogger.trace(`[MemoryHost.setVariable] var="${name}" offset=${offset} size=${size} virtualSize=${virtualSize ?? size} targetBase=0x${targetBase?.toString(16)} value=${typeof value === 'object' ? `[${value.length}B]` : value}`);
         if (!Number.isSafeInteger(offset)) {
             componentViewerLogger.error(`setVariable: offset must be a safe integer, got ${offset}`);
             return;
@@ -373,6 +377,7 @@ export class MemoryHost {
         meta.sizes.push(total);
         const normBase = targetBase !== undefined ? this.toAddrNumber(targetBase) : undefined;
         meta.bases.push(normBase);
+        componentViewerLogger.trace(`[MemoryHost.setVariable] → wrote at offset=${appendOff}, element count now=${meta.offsets.length}, targetBase=0x${normBase?.toString(16)}`);
 
         // maintain uniform stride when consistent
         if (meta.elementSize === undefined && meta.sizes.length === 1) {
@@ -411,7 +416,9 @@ export class MemoryHost {
     public getArrayElementCount(name: string): number {
         const m = this.elementMeta.get(name);
         const n = m?.offsets.length ?? 0;
-        return n > 0 ? n : 1;
+        const count = n > 0 ? n : 1;
+        componentViewerLogger.trace(`[MemoryHost.getArrayElementCount] var="${name}" → count=${count}`);
+        return count;
     }
 
     // Target base address for element `index` of `name` (number | undefined).
@@ -421,13 +428,16 @@ export class MemoryHost {
             componentViewerLogger.error(`getElementTargetBase: unknown symbol "${name}"`);
             return undefined;
         }
+        let targetBase: number | undefined;
         if (m.bases.length === 1) {
-            return m.bases[0];
-        }
-        if (index < 0 || index >= m.bases.length) {
+            targetBase = m.bases[0];
+        } else if (index >= 0 && index < m.bases.length) {
+            targetBase = m.bases.at(index);
+        } else {
             componentViewerLogger.error(`getElementTargetBase: index ${index} out of range for "${name}"`);
             return undefined;
         }
-        return m.bases.at(index);
+        componentViewerLogger.trace(`[MemoryHost.getElementTargetBase] var="${name}" index=${index} → targetBase=0x${targetBase?.toString(16)}`);
+        return targetBase;
     }
 }

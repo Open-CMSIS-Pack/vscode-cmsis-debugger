@@ -161,7 +161,7 @@ export class ComponentViewerInstance {
         this._guiTree.setId(this._fileKey);
         this._guiTree.setGuiName('component-viewer-root');
 
-        componentViewerLogger.debug(`ComponentViewerInstance readModel stats:\n  ${stats.join('\n  ')}`);
+        componentViewerLogger.info(`ComponentViewerInstance readModel stats:\n  ${stats.join('\n  ')}`);
     }
 
     public async update(): Promise<void> {
@@ -173,7 +173,7 @@ export class ComponentViewerInstance {
         this._guiTree.clear();
         await this.executeStatements(this._guiTree);
         stats.push(this.getStats('end'));
-        componentViewerLogger.debug(`ComponentViewerInstance update stats:\n  ${stats.join('\n  ')}`);
+        componentViewerLogger.info(`ComponentViewerInstance update stats:\n  ${stats.join('\n  ')}`);
     }
 
     private async readFileToBuffer(filePath: URI): Promise<Buffer> {
