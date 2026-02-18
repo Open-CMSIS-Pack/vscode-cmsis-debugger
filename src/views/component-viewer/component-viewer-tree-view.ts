@@ -39,7 +39,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         treeItem.description = element.getGuiValue() ?? '';
         let intermediateContextValue = '';
         if (element.isRootInstance) {
-            intermediateContextValue = element.isRootInstance ? 'parentInstance' : '';
+            intermediateContextValue = 'parentInstance';
             if (element.isLocked) {
                 treeItem.iconPath = new vscode.ThemeIcon('lock');
             }
