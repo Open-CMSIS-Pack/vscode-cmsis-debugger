@@ -24,7 +24,7 @@ import type { GDBTargetDebugTracker } from '../../../../debug-session';
 import type { TargetState } from '../../../../debug-session/gdbtarget-debug-session';
 import { componentViewerLogger } from '../../../../logger';
 import { extensionContextFactory } from '../../../../__test__/vscode.factory';
-import { ComponentViewer, ComponentViewerInstancesWrapper, fifoUpdateReason } from '../../component-viewer-main';
+import { ComponentViewer, ComponentViewerInstancesWrapper, UpdateReason } from '../../component-viewer-main';
 import type { ScvdGuiInterface } from '../../model/scvd-gui-interface';
 
 
@@ -71,6 +71,15 @@ function asMockedFunction<Args extends unknown[], Return>(
 ): jest.MockedFunction<(...args: Args) => Return> {
     return fn as unknown as jest.MockedFunction<(...args: Args) => Return>;
 }
+
+const getUpdateInstances = (controller: ComponentViewer) =>
+    (controller as unknown as { updateInstances: (reason: UpdateReason) => Promise<void> }).updateInstances.bind(controller);
+
+const getSchedulePendingUpdate = (controller: ComponentViewer) =>
+    (controller as unknown as { schedulePendingUpdate: (reason: UpdateReason) => void }).schedulePendingUpdate.bind(controller);
+
+const getRunUpdate = (controller: ComponentViewer) =>
+    (controller as unknown as { runUpdate: (reason: UpdateReason) => Promise<void> }).runUpdate.bind(controller);
 
 // Local test mocks
 
@@ -336,7 +345,7 @@ describe('ComponentViewer', () => {
             refreshTimer: { onRefresh: jest.fn() },
         };
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
-        (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's1' }];
+        (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's1', dirtyWhileLocked: false }];
 
         await tracker.callbacks.connected?.(session);
 
@@ -350,8 +359,8 @@ describe('ComponentViewer', () => {
         const sessionB = makeSession('s2', [], 'stopped');
 
         (controller as unknown as { _instances: unknown[] })._instances = [
-            { componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's1' },
-            { componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's2' },
+            { componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's1', dirtyWhileLocked: false },
+            { componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's2', dirtyWhileLocked: false },
         ];
 
         const handleOnWillStopSession = (controller as unknown as { handleOnWillStopSession: (s: Session) => Promise<void> }).handleOnWillStopSession.bind(controller);
@@ -370,7 +379,7 @@ describe('ComponentViewer', () => {
         (controller as unknown as { _activeSession?: Session })._activeSession = sessionA;
 
         const scheduleSpy = jest
-            .spyOn(controller as unknown as { schedulePendingUpdate: (reason: fifoUpdateReason) => void }, 'schedulePendingUpdate')
+            .spyOn(controller as unknown as { schedulePendingUpdate: (reason: UpdateReason) => void }, 'schedulePendingUpdate')
             .mockImplementation(() => undefined);
 
         const handleOnStackItemChanged = (controller as unknown as { handleOnStackItemChanged: (s: Session) => Promise<void> }).handleOnStackItemChanged.bind(controller);
@@ -391,6 +400,7 @@ describe('ComponentViewer', () => {
                 componentViewerInstance: { updateActiveSession: updateSpy } as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'],
                 lockState: false,
                 sessionId: 's1',
+                dirtyWhileLocked: false,
             },
         ];
 
@@ -407,7 +417,7 @@ describe('ComponentViewer', () => {
         (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
         const debugSpy = jest.spyOn(componentViewerLogger, 'debug');
 
-        const updateInstances = (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances.bind(controller);
+        const updateInstances = getUpdateInstances(controller);
 
         (controller as unknown as { _activeSession?: Session | undefined })._activeSession = undefined;
         await updateInstances('stackTrace');
@@ -427,8 +437,8 @@ describe('ComponentViewer', () => {
         const instanceB = instanceFactory();
         instanceB.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => [rootB]);
         (controller as unknown as { _instances: unknown[] })._instances = [
-            { componentViewerInstance: instanceA, lockState: false, sessionId: 's1' },
-            { componentViewerInstance: instanceB, lockState: false, sessionId: 's1' },
+            { componentViewerInstance: instanceA, lockState: false, sessionId: 's1', dirtyWhileLocked: false },
+            { componentViewerInstance: instanceB, lockState: false, sessionId: 's1', dirtyWhileLocked: false },
         ];
         await updateInstances('stackTrace');
         expect(provider.setRoots).toHaveBeenCalledWith([rootA, rootB]);
@@ -444,12 +454,12 @@ describe('ComponentViewer', () => {
         const provider = treeProviderFactory();
         (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
 
-        const updateInstances = (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances.bind(controller);
+        const updateInstances = getUpdateInstances(controller);
         (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1', [], 'stopped');
         const instance = instanceFactory();
         instance.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => undefined);
         (controller as unknown as { _instances: unknown[] })._instances = [
-            { componentViewerInstance: instance, lockState: false, sessionId: 's1' },
+            { componentViewerInstance: instance, lockState: false, sessionId: 's1', dirtyWhileLocked: false },
         ];
 
         await updateInstances('stackTrace');
@@ -476,12 +486,12 @@ describe('ComponentViewer', () => {
         instanceOther.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => [rootOther]);
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
-            { componentViewerInstance: instanceA as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1' },
-            { componentViewerInstance: instanceB as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1' },
-            { componentViewerInstance: instanceOther as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's2' },
+            { componentViewerInstance: instanceA as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1', dirtyWhileLocked: false },
+            { componentViewerInstance: instanceB as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1', dirtyWhileLocked: false },
+            { componentViewerInstance: instanceOther as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's2', dirtyWhileLocked: false },
         ];
 
-        const updateInstances = (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances.bind(controller);
+        const updateInstances = getUpdateInstances(controller);
         await updateInstances('stackTrace');
 
         expect(instanceA.update).toHaveBeenCalled();
@@ -506,15 +516,16 @@ describe('ComponentViewer', () => {
         lockedInstance.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => [rootLocked]);
 
         (controller as unknown as { _instances: unknown[] })._instances = [
-            { componentViewerInstance: unlockedInstance, lockState: false, sessionId: 's1' },
-            { componentViewerInstance: lockedInstance, lockState: true, sessionId: 's1' },
+            { componentViewerInstance: unlockedInstance, lockState: false, sessionId: 's1', dirtyWhileLocked: false },
+            { componentViewerInstance: lockedInstance, lockState: true, sessionId: 's1', dirtyWhileLocked: false },
         ];
 
-        const updateInstances = (controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }).updateInstances.bind(controller);
+        const updateInstances = getUpdateInstances(controller);
         await updateInstances('stackTrace');
 
         expect(unlockedInstance.update).toHaveBeenCalled();
         expect(lockedInstance.update).not.toHaveBeenCalled();
+        expect((controller as unknown as { _instances: Array<{ dirtyWhileLocked: boolean }> })._instances[1].dirtyWhileLocked).toBe(true);
         expect(rootLocked.isLocked).toBe(true);
         expect(rootUnlocked.isLocked).toBe(false);
         expect(rootUnlocked.isRootInstance).toBe(true);
@@ -533,7 +544,7 @@ describe('ComponentViewer', () => {
         const inst = instanceFactory();
         inst.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => [root]);
 
-        (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: inst, lockState: false, sessionId: 's1' }];
+        (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: inst, lockState: false, sessionId: 's1', dirtyWhileLocked: false }];
 
         const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
         const lockHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.componentViewer.lockComponent')?.[1] as
@@ -549,6 +560,49 @@ describe('ComponentViewer', () => {
         await lockHandler?.(root);
         expect((controller as unknown as { _instances: Array<{ lockState: boolean }> })._instances[0].lockState).toBe(false);
         expect(root.isLocked).toBe(false);
+    });
+
+    it('schedules an update when unlocking a locked instance', () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const provider = treeProviderFactory();
+        (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
+
+        const root = makeGuiNode('root');
+        const inst = instanceFactory();
+        inst.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => [root]);
+
+        (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: inst, lockState: true, sessionId: 's1', dirtyWhileLocked: true }];
+
+        const scheduleSpy = jest
+            .spyOn(controller as unknown as { schedulePendingUpdate: (reason: UpdateReason) => void }, 'schedulePendingUpdate')
+            .mockImplementation(() => undefined);
+
+        const handleLockInstance = (controller as unknown as { handleLockInstance: (node: ScvdGuiInterface) => void }).handleLockInstance.bind(controller);
+        handleLockInstance(root);
+
+        expect(scheduleSpy).toHaveBeenCalledWith('unlockingInstance');
+        expect((controller as unknown as { _instances: Array<{ dirtyWhileLocked: boolean }> })._instances[0].dirtyWhileLocked).toBe(false);
+    });
+
+    it('does not schedule an update when locking an unlocked instance', () => {
+        const controller = new ComponentViewer(extensionContextFactory());
+        const provider = treeProviderFactory();
+        (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
+
+        const root = makeGuiNode('root');
+        const inst = instanceFactory();
+        inst.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => [root]);
+
+        (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: inst, lockState: false, sessionId: 's1', dirtyWhileLocked: false }];
+
+        const scheduleSpy = jest
+            .spyOn(controller as unknown as { schedulePendingUpdate: (reason: UpdateReason) => void }, 'schedulePendingUpdate')
+            .mockImplementation(() => undefined);
+
+        const handleLockInstance = (controller as unknown as { handleLockInstance: (node: ScvdGuiInterface) => void }).handleLockInstance.bind(controller);
+        handleLockInstance(root);
+
+        expect(scheduleSpy).not.toHaveBeenCalled();
     });
 
     it('toggles periodic updates via commands', async () => {
@@ -600,7 +654,7 @@ describe('ComponentViewer', () => {
 
         const instMissingTree = instanceFactory();
         instMissingTree.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => undefined);
-        (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: instMissingTree, lockState: false }];
+        (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: instMissingTree, lockState: false, sessionId: 's1', dirtyWhileLocked: false }];
 
         const handleLockInstance = (controller as unknown as { handleLockInstance: (node: ScvdGuiInterface) => void }).handleLockInstance.bind(controller);
         handleLockInstance(makeGuiNode('root'));
@@ -617,7 +671,7 @@ describe('ComponentViewer', () => {
         inst.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>()
             .mockReturnValueOnce([root])
             .mockReturnValueOnce(undefined);
-        (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: inst, lockState: false }];
+        (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: inst, lockState: false, sessionId: 's1', dirtyWhileLocked: false }];
 
         const handleLockInstance = (controller as unknown as { handleLockInstance: (node: ScvdGuiInterface) => void }).handleLockInstance.bind(controller);
         handleLockInstance(root);
@@ -629,9 +683,9 @@ describe('ComponentViewer', () => {
         jest.useFakeTimers();
         const controller = new ComponentViewer(extensionContextFactory());
         const runUpdate = jest
-            .spyOn(controller as unknown as { runUpdate: (reason: fifoUpdateReason) => Promise<void> }, 'runUpdate')
+            .spyOn(controller as unknown as { runUpdate: (reason: UpdateReason) => Promise<void> }, 'runUpdate')
             .mockResolvedValue(undefined);
-        const schedulePendingUpdate = (controller as unknown as { schedulePendingUpdate: (reason: fifoUpdateReason) => void }).schedulePendingUpdate.bind(controller);
+        const schedulePendingUpdate = getSchedulePendingUpdate(controller);
 
         schedulePendingUpdate('stackTrace');
         schedulePendingUpdate('stackTrace');
@@ -645,8 +699,8 @@ describe('ComponentViewer', () => {
     it('does nothing when an update is already running', async () => {
         const controller = new ComponentViewer(extensionContextFactory());
         (controller as unknown as { _runningUpdate: boolean })._runningUpdate = true;
-        const updateInstances = jest.spyOn(controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }, 'updateInstances');
-        const runUpdate = (controller as unknown as { runUpdate: (reason: fifoUpdateReason) => Promise<void> }).runUpdate.bind(controller);
+        const updateInstances = jest.spyOn(controller as unknown as { updateInstances: (reason: UpdateReason) => Promise<void> }, 'updateInstances');
+        const runUpdate = getRunUpdate(controller);
 
         await runUpdate('stackTrace');
 
@@ -658,9 +712,9 @@ describe('ComponentViewer', () => {
         (controller as unknown as { _pendingUpdate: boolean })._pendingUpdate = true;
         (controller as unknown as { _runningUpdate: boolean })._runningUpdate = false;
         const updateInstances = jest
-            .spyOn(controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }, 'updateInstances')
+            .spyOn(controller as unknown as { updateInstances: (reason: UpdateReason) => Promise<void> }, 'updateInstances')
             .mockResolvedValue(undefined);
-        const runUpdate = (controller as unknown as { runUpdate: (reason: fifoUpdateReason) => Promise<void> }).runUpdate.bind(controller);
+        const runUpdate = getRunUpdate(controller);
 
         await runUpdate('stackTrace');
         expect(updateInstances).toHaveBeenCalledWith('stackTrace');
@@ -670,9 +724,9 @@ describe('ComponentViewer', () => {
         const controller = new ComponentViewer(extensionContextFactory());
         (controller as unknown as { _pendingUpdate: boolean })._pendingUpdate = true;
         (controller as unknown as { _runningUpdate: boolean })._runningUpdate = false;
-        const updateInstances = jest.spyOn(controller as unknown as { updateInstances: (reason: fifoUpdateReason) => Promise<void> }, 'updateInstances')
+        const updateInstances = jest.spyOn(controller as unknown as { updateInstances: (reason: UpdateReason) => Promise<void> }, 'updateInstances')
             .mockRejectedValue(new Error('fail'));
-        const runUpdate = (controller as unknown as { runUpdate: (reason: fifoUpdateReason) => Promise<void> }).runUpdate.bind(controller);
+        const runUpdate = getRunUpdate(controller);
 
         await expect(runUpdate('stackTrace')).resolves.toBeUndefined();
         expect(updateInstances).toHaveBeenCalledWith('stackTrace');
@@ -695,7 +749,7 @@ describe('ComponentViewer', () => {
         const session = makeSession('s1', [], 'unknown');
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
-            { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1' },
+            { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1', dirtyWhileLocked: false },
         ];
 
         const shouldUpdateInstances = (controller as unknown as { shouldUpdateInstances: (s: Session) => boolean }).shouldUpdateInstances.bind(controller);
@@ -708,7 +762,7 @@ describe('ComponentViewer', () => {
         (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = true;
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
-            { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1' },
+            { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1', dirtyWhileLocked: false },
         ];
         (controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled = false;
 
@@ -722,7 +776,7 @@ describe('ComponentViewer', () => {
         (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = false;
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
-            { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1' },
+            { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1', dirtyWhileLocked: false },
         ];
         (controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled = true;
 
@@ -736,7 +790,7 @@ describe('ComponentViewer', () => {
         (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = true;
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
-            { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1' },
+            { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1', dirtyWhileLocked: false },
         ];
         (controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled = true;
 
@@ -749,7 +803,7 @@ describe('ComponentViewer', () => {
         const session = makeSession('s1', [], 'stopped');
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
-            { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1' },
+            { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1', dirtyWhileLocked: false },
         ];
 
         const shouldUpdateInstances = (controller as unknown as { shouldUpdateInstances: (s: Session) => boolean }).shouldUpdateInstances.bind(controller);
