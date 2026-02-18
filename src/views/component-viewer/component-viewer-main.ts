@@ -22,6 +22,7 @@ import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
 import { componentViewerLogger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 import { perf, parsePerf } from './stats-config';
+import { vscodeViewExists } from '../../utils';
 
 export type UpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace' | 'stackItemChanged' | 'unlockingInstance';
 
@@ -50,25 +51,22 @@ export class ComponentViewer {
         this._componentViewerTreeDataProvider = componentViewerTreeDataProvider;
     }
 
-    public activate(tracker: GDBTargetDebugTracker): void {
+    public async activate(tracker: GDBTargetDebugTracker): Promise<boolean> {
         // Register Component Viewer tree view
         console.log('Activating Component Viewer Tree View and commands');
-        this.registerTreeView();
+        if (!await this.registerTreeView()) {
+            console.log('Component Viewer: Component Viewer cannot be registered, abort activation');
+            return false;
+        }
         // Subscribe to debug tracker events to update active session
         console.log('Subscribing to debug tracker events');
         this.subscribetoDebugTrackerEvents(tracker);
+        return true;
     }
 
-    protected registerTreeView(): void {
-        // Pop up box to reload vscode window when Component Viewer is activated for the first time, to ensure tree view is registered and visible in the UI.
-        const reloadPromptKey = 'componentViewerReloadPromptShown';
-        if (!this._context.globalState.get<boolean>(reloadPromptKey)) {
-            vscode.window.showInformationMessage('Component Viewer has been activated. Please reload the VSCode window to initialize the Component Viewer Tree View.', 'Reload').then((selection) => {
-                if (selection === 'Reload') {
-                    vscode.commands.executeCommand('workbench.action.reloadWindow');
-                }
-            });
-            void this._context.globalState.update(reloadPromptKey, true);
+    protected async registerTreeView(): Promise<boolean> {
+        if (!await vscodeViewExists('componentViewer')) {
+            return false;
         }
         const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
         console.log('Component Viewer: Registered tree data provider for Component Viewer Tree View id: cmsis-debugger.componentViewer');
@@ -93,6 +91,7 @@ export class ComponentViewer {
             enablePeriodicUpdateCommandDisposable,
             disablePeriodicUpdateCommandDisposable
         );
+        return true;
     }
 
     protected handleLockInstance(node: ScvdGuiInterface): void {

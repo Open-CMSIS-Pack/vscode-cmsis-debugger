@@ -17,6 +17,8 @@
 
 import * as os from 'os';
 import * as path from 'path';
+import * as vscode from 'vscode';
+import { VIEW_PREFIX } from './manifest';
 
 export const isWindows = os.platform() === 'win32';
 
@@ -83,4 +85,10 @@ export const calculateTime = (states: bigint, frequency: number): string => {
 
 export const waitForMs = async (ms: number): Promise<void> => {
     return new Promise<void>(resolve => setTimeout(() => resolve(), ms));
+};
+
+export const vscodeViewExists = async (viewId: string): Promise<boolean> => {
+    // Properly loaded VS Code views have 'open' and 'focus' commands registered. Use focus command as indicator for whether the view is properly loaded.
+    const commands = await vscode.commands.getCommands(true);
+    return commands.includes(`${VIEW_PREFIX}.${viewId}.focus`);
 };

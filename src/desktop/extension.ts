@@ -35,7 +35,15 @@ const BUILTIN_TOOLS_PATHS = [
 let liveWatchTreeDataProvider: LiveWatchTreeDataProvider;
 let componentViewerTreeDataProvider: ComponentViewerTreeDataProvider;
 
+const askForReload = async (): Promise<void> => {
+    const result = await vscode.window.showWarningMessage('Cannot activate all Arm CMSIS Debugger views. Please reload the window.', 'Reload Window');
+    if (result === 'Reload Window') {
+        await vscode.commands.executeCommand('workbench.action.reloadWindow');
+    }
+};
+
 export const activate = async (context: vscode.ExtensionContext): Promise<void> => {
+    let canCompleteActivation = true;
     const genericCommands = new GenericCommands();
     const gdbtargetDebugTracker = new GDBTargetDebugTracker();
     const gdbtargetConfigurationProvider = new GDBTargetConfigurationProvider();
@@ -59,12 +67,23 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     cpuStatesStatusBarItem.activate(context, cpuStates);
     // Live Watch view
     console.debug('Activating Live Watch Tree Data Provider');
-    liveWatchTreeDataProvider.activate(gdbtargetDebugTracker);
+    if (!await liveWatchTreeDataProvider.activate(gdbtargetDebugTracker)) {
+        canCompleteActivation = false;
+    }
     // Component Viewer
     console.debug('Activating Component Viewer');
-    componentViewer.activate(gdbtargetDebugTracker);
-    console.debug('CMSIS Debugger activated');
+    if (!await componentViewer.activate(gdbtargetDebugTracker)) {
+        canCompleteActivation = false;
+    }
 
+    if (!canCompleteActivation) {
+        console.debug('CMSIS Debugger activation incomplete');
+        // Let promise float, we reload the window.
+        askForReload();
+        return;
+    }
+
+    console.debug('CMSIS Debugger activated');
     logger.debug('Extension Pack activated');
 };
 
