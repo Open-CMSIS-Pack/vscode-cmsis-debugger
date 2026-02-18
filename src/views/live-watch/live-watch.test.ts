@@ -47,8 +47,20 @@ describe('LiveWatchTreeDataProvider', () => {
     });
 
     describe('session management and connection tests', () => {
-        it('should activate the live watch tree data provider', async () => {
-            await liveWatchTreeDataProvider.activate(tracker);
+        it('should successfully activate the live watch tree data provider', async () => {
+            const activationResult = await liveWatchTreeDataProvider.activate(tracker);
+            expect(activationResult).toBe(true);
+        });
+
+        it('should successfully activate the live watch tree data provider', async () => {
+            // Clear live watch commands to simulate view not correctly loaded.
+            // Ensure to override the mock only once to not permanently change the global mock implementation for other tests.
+            (vscode.commands.getCommands as jest.Mock).mockResolvedValueOnce([
+                'cmsis-debugger.componentViewer.open',
+                'cmsis-debugger.componentViewer.focus',
+            ]);
+            const activationResult = await liveWatchTreeDataProvider.activate(tracker);
+            expect(activationResult).toBe(false);
         });
 
         it('registers the live watch tree data provider', async () => {
