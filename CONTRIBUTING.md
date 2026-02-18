@@ -19,14 +19,14 @@ documentation. You can submit a pull request to our
 ### Report an Issue
 
 Please feel free to raise an [issue on GitHub](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues)
-to report misbehavior (i.e. bugs)
+to report misbehavior (i.e. bugs).
 
 Issues are your best way to interact directly with the development team and the community.
 We encourage you to add implementation suggestions, as this enables the community to collaboratively shape the solutions needed.
 
 We shall be monitoring and responding to issues as best we can.
 Please attempt to avoid filing duplicates of open or closed items when possible.
-In the spirit of openness, We use labels to classify and filter issues. See [here](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/labels) for the available set of labels.
+We use labels to classify and filter issues. See the [available set of labels](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/labels).
 
 ### Open a Pull Request
 
