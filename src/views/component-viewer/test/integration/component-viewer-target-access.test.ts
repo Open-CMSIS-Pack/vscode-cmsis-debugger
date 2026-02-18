@@ -86,7 +86,7 @@ describe('ComponentViewerTargetAccess', () => {
             (vscode.debug.activeStackItem as unknown) = undefined;
         });
 
-        it('should return undefined when no active stack frame exists', async () => {
+        it('should evaluate symbol address when no active stack frame exists', async () => {
             (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({
                 result: '0x30000000',
                 variablesReference: 0
@@ -95,8 +95,12 @@ describe('ComponentViewerTargetAccess', () => {
 
             const result = await targetAccess.evaluateSymbolAddress('globalVar');
 
-            expect(result).toBeUndefined();
-            expect(debugSession.customRequest).not.toHaveBeenCalled();
+            expect(result).toBe('0x30000000');
+            expect(debugSession.customRequest).toHaveBeenCalledWith('evaluate', {
+                expression: '&globalVar',
+                frameId: undefined,
+                context: 'hover'
+            });
         });
 
         it('should log when evaluation fails', async () => {

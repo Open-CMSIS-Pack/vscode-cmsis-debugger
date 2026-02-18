@@ -145,7 +145,7 @@ export class ScvdDebugTarget {
         });
     }
 
-    public async getSymbolInfo(symbol: string): Promise<SymbolInfo | undefined> {
+    public async getSymbolInfo(symbol: string, existCheck: boolean = false): Promise<SymbolInfo | undefined> {
         componentViewerLogger.debug(`get Symbol Info: resolving ${symbol}`);
         if (symbol === undefined) {
             componentViewerLogger.debug('get Symbol Info: no symbol provided');
@@ -157,7 +157,7 @@ export class ScvdDebugTarget {
         }
 
         const addressInfo = await this.symbolCaches.getAddressWithName(symbol, async (symbolName) => {
-            const symbolAddressStr = await this.targetAccess.evaluateSymbolAddress(symbolName);
+            const symbolAddressStr = await this.targetAccess.evaluateSymbolAddress(symbolName, 'hover', existCheck);
             if (symbolAddressStr !== undefined) {
                 const parsed = parseInt(symbolAddressStr as unknown as string, 16);
                 if (Number.isFinite(parsed)) {
@@ -242,9 +242,9 @@ export class ScvdDebugTarget {
         return this.isTargetRunning;
     }
 
-    public async findSymbolAddress(symbol: string): Promise<number | undefined> {
+    public async findSymbolAddress(symbol: string, existCheck: boolean = false): Promise<number | undefined> {
         componentViewerLogger.debug(`find Symbol Address: ${symbol}`);
-        const symbolInfo = await this.getSymbolInfo(symbol);
+        const symbolInfo = await this.getSymbolInfo(symbol, existCheck);
         return symbolInfo?.address;
     }
 

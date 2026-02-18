@@ -169,12 +169,12 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         return trimmed && trimmed.length > 0 ? trimmed : undefined;
     }
 
-    private async findSymbolAddressNormalized(name: string | undefined): Promise<number | undefined> {
+    private async findSymbolAddressNormalized(name: string | undefined, existCheck: boolean = false): Promise<number | undefined> {
         const normalized = this.normalizeName(name);
         if (!normalized) {
             return undefined;
         }
-        return this.debugTarget.findSymbolAddress(normalized);
+        return this.debugTarget.findSymbolAddress(normalized, existCheck);
     }
 
     // ---------------- Host Interface: model + data access ----------------
@@ -347,7 +347,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     }
 
     public async __Symbol_exists(symbol: string): Promise<number | undefined> {
-        const found = await this.findSymbolAddressNormalized(symbol);
+        const found = await this.findSymbolAddressNormalized(symbol, true);
         return found !== undefined ? 1 : 0;
     }
 
