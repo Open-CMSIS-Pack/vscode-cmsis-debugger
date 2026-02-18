@@ -457,7 +457,7 @@ describe('StatementReadList', () => {
             getNumArrayElements: jest.fn().mockResolvedValue(1),
             readMemory: jest.fn().mockResolvedValue(new Uint8Array([1, 2, 3, 4])),
         });
-        const spy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
         const guiTree = new ScvdGuiTree(undefined);
 
         await stmt.executeStatement(ctx, guiTree);
@@ -548,7 +548,7 @@ describe('StatementReadList', () => {
             readMemory: jest.fn().mockResolvedValue(new Uint8Array([0x00, 0x10, 0x00, 0x00])),
         });
         const guiTree = new ScvdGuiTree(undefined);
-        const spy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const spy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => undefined);
 
         await stmt.executeStatement(ctx, guiTree);
 
