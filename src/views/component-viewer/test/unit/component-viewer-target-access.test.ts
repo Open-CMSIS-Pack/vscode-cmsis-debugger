@@ -25,15 +25,21 @@ import { debugSessionFactory } from '../../../../__test__/vscode.factory';
 import { GDBTargetDebugSession } from '../../../../debug-session';
 import { componentViewerLogger } from '../../../../logger';
 
-type DebugWithSession = {
-    activeDebugSession: vscode.DebugSession | undefined;
-    activeStackItem: vscode.DebugStackFrame | undefined;
-};
-
 function setActiveStackItem(session: vscode.DebugSession | undefined, frameId: number | undefined) {
-    (vscode.debug as unknown as DebugWithSession).activeStackItem = session
-        ? ({ session, threadId: 1, frameId } as unknown as vscode.DebugStackFrame)
-        : undefined;
+    const value = session ? { session, threadId: 1, frameId } : undefined;
+    Object.defineProperty(vscode.debug, 'activeStackItem', {
+        value,
+        configurable: true,
+        writable: true,
+    });
+}
+
+function setActiveDebugSession(session: vscode.DebugSession | undefined) {
+    Object.defineProperty(vscode.debug, 'activeDebugSession', {
+        value: session,
+        configurable: true,
+        writable: true,
+    });
 }
 
 describe('ComponentViewerTargetAccess', () => {
@@ -53,24 +59,42 @@ describe('ComponentViewerTargetAccess', () => {
         targetAccess = new ComponentViewerTargetAccess();
         targetAccess.setActiveSession(gdbTargetSession);
         setActiveStackItem(debugSession, 1);
+        setActiveDebugSession(debugSession);
     });
 
     afterEach(() => {
         setActiveStackItem(undefined, undefined);
-        (vscode.debug as unknown as DebugWithSession).activeDebugSession = undefined;
+        setActiveDebugSession(undefined);
         jest.restoreAllMocks();
     });
 
-    it('formats addresses consistently', () => {
-        const formatAddress = (targetAccess as unknown as { formatAddress: (addr: string | number | bigint) => string })
-            .formatAddress;
+    it('formats addresses consistently for symbol lookups', async () => {
+        setActiveStackItem(debugSession, 7);
 
-        expect(formatAddress('')).toBe('');
-        expect(formatAddress('  0x1A ')).toBe('0x1A');
-        expect(formatAddress('15')).toBe('0xf');
-        expect(formatAddress(16)).toBe('0x10');
-        expect(formatAddress(0x20n)).toBe('0x20');
-        expect(formatAddress('not-a-number')).toBe('not-a-number');
+        const cases = [
+            { input: '', expected: '(unsigned int*)' },
+            { input: '  0x1A ', expected: '(unsigned int*)0x1A' },
+            { input: '15', expected: '(unsigned int*)0xf' },
+            { input: 16, expected: '(unsigned int*)0x10' },
+            { input: 0x20n, expected: '(unsigned int*)0x20' },
+            { input: 'not-a-number', expected: '(unsigned int*)not-a-number' },
+        ];
+
+        const expectedExpressions = cases.map(({ expected }) => expected);
+        (debugSession.customRequest as jest.Mock).mockImplementation(async (_command, args) => {
+            const expectedExpression = expectedExpressions.shift();
+            expect(args).toEqual({
+                expression: expectedExpression ?? '',
+                frameId: 7,
+                context: 'hover',
+            });
+            return { result: '0x0 <Sym>' };
+        });
+
+        for (const { input } of cases) {
+            await expect(targetAccess.evaluateSymbolName(input)).resolves.toBe('Sym');
+        }
+        expect(expectedExpressions).toHaveLength(0);
     });
 
     it('evaluates symbol address and handles failures', async () => {
@@ -91,6 +115,14 @@ describe('ComponentViewerTargetAccess', () => {
         );
     });
 
+    it('returns undefined without logging when exist check fails', async () => {
+        const debugSpy = jest.spyOn(componentViewerLogger, 'debug');
+        (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('probe failed'));
+
+        await expect(targetAccess.evaluateSymbolAddress('missing', 'hover', true)).resolves.toBeUndefined();
+        expect(debugSpy).not.toHaveBeenCalled();
+    });
+
     it('evaluates symbol name with valid and missing results', async () => {
         (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: '0x20000000 <MySymbol>' });
         setActiveStackItem(debugSession, 1);
@@ -109,6 +141,9 @@ describe('ComponentViewerTargetAccess', () => {
         (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: 'No symbol matches' });
         await expect(targetAccess.evaluateSymbolName('0x0')).resolves.toBeUndefined();
 
+        (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: '0x20000000 Symbol' });
+        await expect(targetAccess.evaluateSymbolName('0x20000000')).resolves.toBeUndefined();
+
         const debugSpy = jest.spyOn(componentViewerLogger, 'debug');
         (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('oops'));
         await expect(targetAccess.evaluateSymbolName('0x1')).resolves.toBeUndefined();
@@ -122,6 +157,9 @@ describe('ComponentViewerTargetAccess', () => {
         await expect(targetAccess.evaluateSymbolContext('0x100')).resolves.toBe('main.c:10');
 
         (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: 'No line information' });
+        await expect(targetAccess.evaluateSymbolContext('0x100')).resolves.toBeUndefined();
+
+        (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: '' });
         await expect(targetAccess.evaluateSymbolContext('0x100')).resolves.toBeUndefined();
 
         const debugSpy = jest.spyOn(componentViewerLogger, 'debug');
