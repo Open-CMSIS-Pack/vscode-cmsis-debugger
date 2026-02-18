@@ -1,6 +1,6 @@
 # Contribution Guide
 
-Thank you for your interest in contributing to our project! We strive to maintain a welcoming and inclusive community.
+Thank you for your interest in contributing to our project.
 
 ## Ways to Contribute
 
@@ -21,29 +21,19 @@ documentation. You can submit a pull request to our
 Please feel free to raise an [issue on GitHub](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues)
 to report misbehavior (i.e. bugs)
 
-Issues are your best way to interact directly with the maintenance team and the community.
-We'd like to encourage you to add implementation suggestions, as this helps to decrease the
-workload of the very limited maintenance team.
+Issues are your best way to interact directly with the development team and the community.
+We encourage you to add implementation suggestions, as this enables the community to collaboratively shape solutions needed.
 
 We shall be monitoring and responding to issues as best we can.
 Please attempt to avoid filing duplicates of open or closed items when possible.
-In the spirit of openness, we shall be tagging issues with the following:
-
-- **bug** – This issue is identified as a bug and will be investigated.
-- **blocked** – Work on this issue is blocked by a dependency
-- **CDT GDB Adapter** – Change is required in the CDT Adapter
-- **CDT.cloud View Extensions** – Change is required in the CDT.cloud
-- **CMSIS Solution** – Issue needed to be addressed in CMSIS Solution component
-- **documentation** – This issue highlights a documentation gap, which will be addressed in future updates.
-- **duplicate** – This issue duplicates an existing one; see comments for related references.
-- **enhancement** – This issue represents a request for a new feature or improvement.
-- **question** – We need further information or clarification on this issue; please review and respond.
-- **wontfix** – While we appreciate this suggestion, we have decided not to make changes at this time.
+In the spirit of openness, We use labels to classify and filter issues. See [here](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/labels) for the available set of labels.
 
 ### Open a Pull Request
 
 We encourage contributions of all sizes, but please keep each contribution focused and independent. We prefer smaller,
 more manageable pull requests, which makes it easier for us to review, provide feedback, and merge changes quickly.
+
+You can submit a pull request at our [GitHub Pull Requests page](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/pulls).
 
 #### Contribution Process
 
@@ -68,9 +58,7 @@ To make a successful contribution, please follow these steps:
 
 ### Review Process
 
-Our team will review your proposed changes as soon as possible. Since our tools are complex and cover a wide range of
-use cases, we may request additional modifications. This helps ensure that your contribution meets our quality
-standards, is generally applicable, and doesn’t negatively impact other use cases or maintainability.
+Our team will review your proposed changes as soon as possible and provide feedback.
 
 📝 **Note**: *Contributors may use AI-assisted tools when creating code. All contributions must be reviewed and must comply with the project’s license and contribution standards.*
 
