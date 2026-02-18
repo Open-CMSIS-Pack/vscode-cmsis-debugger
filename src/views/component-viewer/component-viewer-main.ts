@@ -23,7 +23,7 @@ import { componentViewerLogger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 import { perf, parsePerf } from './stats-config';
 
-export type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace' | 'stackItemChanged';
+export type UpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace' | 'stackItemChanged' | 'unlockingInstance';
 
 export interface ComponentViewerInstancesWrapper {
     componentViewerInstance: ComponentViewerInstance;
@@ -82,6 +82,7 @@ export class ComponentViewer {
     }
 
     protected handleLockInstance(node: ScvdGuiInterface): void {
+        let shouldTriggerUpdate: boolean = false; // Unlocking a node should trigger an update
         const instance = this._instances.find((inst) => {
             const guiTree = inst.componentViewerInstance.getGuiTree();
             if (!guiTree) {
@@ -94,6 +95,9 @@ export class ComponentViewer {
         if (!instance) {
             return;
         }
+        if (instance.lockState === true) {
+            shouldTriggerUpdate = true;
+        }
         instance.lockState = !instance.lockState;
         componentViewerLogger.info(`Component Viewer: Instance lock state changed to ${instance.lockState}`);
         // If instance is locked, set isLocked flag to true for root nodes
@@ -103,6 +107,9 @@ export class ComponentViewer {
         }
         const rootNode: ScvdGuiInterface = guiTree[0];
         rootNode.isLocked = instance.lockState;
+        if (shouldTriggerUpdate) {
+            this.schedulePendingUpdate('unlockingInstance');
+        }
         this._componentViewerTreeDataProvider?.refresh();
     }
 
@@ -247,7 +254,7 @@ export class ComponentViewer {
         this._activeSession = session;
     }
 
-    private schedulePendingUpdate(updateReason: fifoUpdateReason): void {
+    private schedulePendingUpdate(updateReason: UpdateReason): void {
         this._pendingUpdate = true;
         if (this._pendingUpdateTimer) {
             clearTimeout(this._pendingUpdateTimer);
@@ -258,7 +265,7 @@ export class ComponentViewer {
         }, ComponentViewer.pendingUpdateDelayMs);
     }
 
-    private async runUpdate(updateReason: fifoUpdateReason): Promise<void> {
+    private async runUpdate(updateReason: UpdateReason): Promise<void> {
         if (this._runningUpdate) {
             return;
         }
@@ -293,7 +300,7 @@ export class ComponentViewer {
         return true;
     }
 
-    private async updateInstances(updateReason: fifoUpdateReason): Promise<void> {
+    private async updateInstances(updateReason: UpdateReason): Promise<void> {
         if (!this._activeSession) {
             this._componentViewerTreeDataProvider?.clear();
             return;
