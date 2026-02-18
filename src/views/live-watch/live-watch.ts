@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 import * as vscode from 'vscode';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
-import { vscodeViewExists } from '../../utils';
+import { vscodeViewExists } from '../../vscode-utils';
 
 export interface LiveWatchNode {
   id: number;

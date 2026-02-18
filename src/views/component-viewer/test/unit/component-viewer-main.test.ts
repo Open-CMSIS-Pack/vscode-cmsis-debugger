@@ -120,10 +120,6 @@ describe('ComponentViewer', () => {
         jest.clearAllMocks();
         (vscode.debug as unknown as { activeDebugSession?: unknown }).activeDebugSession = undefined;
         (vscode.debug as unknown as { activeStackItem?: unknown }).activeStackItem = undefined;
-
-        // Global vscode mock defines registerCommand as jest.fn(), but it does not provide a default return value.
-        // The production code stores the return value in subscriptions, so return a disposable by default.
-        asMockedFunction(vscode.commands.registerCommand).mockReturnValue({ dispose: jest.fn() } as unknown as vscode.Disposable);
     });
 
     const makeGuiNode = (id: string, children: ScvdGuiInterface[] = []): ScvdGuiInterface => ({
@@ -186,8 +182,9 @@ describe('ComponentViewer', () => {
         const tracker = makeTracker();
         const controller = createController(context);
 
-        controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        const activationResult = await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
+        expect(activationResult).toBe(true);
         expect(vscode.window.registerTreeDataProvider).toHaveBeenCalledWith('cmsis-debugger.componentViewer', expect.any(Object));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.lockComponent', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.unlockComponent', expect.any(Function));
@@ -195,36 +192,19 @@ describe('ComponentViewer', () => {
         expect(context.subscriptions.length).toBe(11);
     });
 
-    it('shows reload prompt and stores global state flag', async () => {
+    it('returns false on activation if component viewer not correctly loaded', async () => {
         const context = extensionContextFactory();
         const tracker = makeTracker();
         const controller = createController(context);
 
-        asMockedFunction(context.globalState.get).mockReturnValue(undefined);
-        asMockedFunction(vscode.window.showInformationMessage).mockResolvedValue('Reload' as unknown as vscode.MessageItem);
-
-        controller.activate(tracker as unknown as GDBTargetDebugTracker);
-        await Promise.resolve();
-
-        expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
-            'Component Viewer has been activated. Please reload the VSCode window to initialize the Component Viewer Tree View.',
-            'Reload'
-        );
-        expect(vscode.commands.executeCommand).toHaveBeenCalledWith('workbench.action.reloadWindow');
-        expect(context.globalState.update).toHaveBeenCalledWith('componentViewerReloadPromptShown', true);
-    });
-
-    it('does not show reload prompt when global state flag is set', () => {
-        const context = extensionContextFactory();
-        const tracker = makeTracker();
-        const controller = createController(context);
-
-        asMockedFunction(context.globalState.get).mockReturnValue(true);
-
-        controller.activate(tracker as unknown as GDBTargetDebugTracker);
-
-        expect(vscode.window.showInformationMessage).not.toHaveBeenCalled();
-        expect(context.globalState.update).not.toHaveBeenCalled();
+        // Clear component viewer commands to simulate view not correctly loaded.
+        // Ensure to override the mock only once to not permanently change the global mock implementation for other tests.
+        (vscode.commands.getCommands as jest.Mock).mockResolvedValueOnce([
+            'cmsis-debugger.liveWatch.open',
+            'cmsis-debugger.liveWatch.focus',
+        ]);
+        const activationResult = await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        expect(activationResult).toBe(false);
     });
 
     it('skips reading scvd files when session or cbuild-run is missing', async () => {
@@ -336,7 +316,7 @@ describe('ComponentViewer', () => {
         const context = extensionContextFactory();
         const tracker = makeTracker();
         const controller = createController(context);
-        controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         const provider = (controller as unknown as { _componentViewerTreeDataProvider?: ReturnType<typeof treeProviderFactory> })._componentViewerTreeDataProvider;
 
@@ -346,7 +326,8 @@ describe('ComponentViewer', () => {
         await tracker.callbacks.willStart?.(session);
         await tracker.callbacks.connected?.(session);
 
-        const refreshCallback = (session.refreshTimer.onRefresh as jest.Mock).mock.calls[0]?.[0];
+        const calls = (session.refreshTimer.onRefresh as jest.Mock).mock.calls[0];
+        const refreshCallback = calls?.[0];
         expect(refreshCallback).toBeDefined();
         if (refreshCallback) {
             await refreshCallback(session);
@@ -373,7 +354,7 @@ describe('ComponentViewer', () => {
         const context = extensionContextFactory();
         const tracker = makeTracker();
         const controller = createController(context);
-        controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         const provider = (controller as unknown as { _componentViewerTreeDataProvider?: ReturnType<typeof treeProviderFactory> })._componentViewerTreeDataProvider;
         const session: Session = {
@@ -570,7 +551,7 @@ describe('ComponentViewer', () => {
         const context = extensionContextFactory();
         const tracker = makeTracker();
         const controller = createController(context);
-        controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         const provider = (controller as unknown as { _componentViewerTreeDataProvider?: ReturnType<typeof treeProviderFactory> })._componentViewerTreeDataProvider;
 
@@ -643,7 +624,7 @@ describe('ComponentViewer', () => {
         const context = extensionContextFactory();
         const tracker = makeTracker();
         const controller = createController(context);
-        controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
         const enableHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate')?.[1] as
@@ -669,7 +650,7 @@ describe('ComponentViewer', () => {
         const context = extensionContextFactory();
         const tracker = makeTracker();
         const controller = createController(context);
-        controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
         const unlockHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.componentViewer.unlockComponent')?.[1] as

@@ -22,7 +22,7 @@ import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
 import { componentViewerLogger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 import { perf, parsePerf } from './stats-config';
-import { vscodeViewExists } from '../../utils';
+import { vscodeViewExists } from '../../vscode-utils';
 
 export type UpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace' | 'stackItemChanged' | 'unlockingInstance';
 
