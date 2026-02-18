@@ -72,6 +72,15 @@ function asMockedFunction<Args extends unknown[], Return>(
     return fn as unknown as jest.MockedFunction<(...args: Args) => Return>;
 }
 
+const getUpdateInstances = (controller: ComponentViewer) =>
+    (controller as unknown as { updateInstances: (reason: UpdateReason) => Promise<void> }).updateInstances.bind(controller);
+
+const getSchedulePendingUpdate = (controller: ComponentViewer) =>
+    (controller as unknown as { schedulePendingUpdate: (reason: UpdateReason) => void }).schedulePendingUpdate.bind(controller);
+
+const getRunUpdate = (controller: ComponentViewer) =>
+    (controller as unknown as { runUpdate: (reason: UpdateReason) => Promise<void> }).runUpdate.bind(controller);
+
 // Local test mocks
 
 type Session = {
@@ -408,7 +417,7 @@ describe('ComponentViewer', () => {
         (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
         const debugSpy = jest.spyOn(componentViewerLogger, 'debug');
 
-        const updateInstances = (controller as unknown as { updateInstances: (reason: UpdateReason) => Promise<void> }).updateInstances.bind(controller);
+        const updateInstances = getUpdateInstances(controller);
 
         (controller as unknown as { _activeSession?: Session | undefined })._activeSession = undefined;
         await updateInstances('stackTrace');
@@ -445,7 +454,7 @@ describe('ComponentViewer', () => {
         const provider = treeProviderFactory();
         (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
 
-        const updateInstances = (controller as unknown as { updateInstances: (reason: UpdateReason) => Promise<void> }).updateInstances.bind(controller);
+        const updateInstances = getUpdateInstances(controller);
         (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1', [], 'stopped');
         const instance = instanceFactory();
         instance.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => undefined);
@@ -482,7 +491,7 @@ describe('ComponentViewer', () => {
             { componentViewerInstance: instanceOther as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's2', dirtyWhileLocked: false },
         ];
 
-        const updateInstances = (controller as unknown as { updateInstances: (reason: UpdateReason) => Promise<void> }).updateInstances.bind(controller);
+        const updateInstances = getUpdateInstances(controller);
         await updateInstances('stackTrace');
 
         expect(instanceA.update).toHaveBeenCalled();
@@ -511,7 +520,7 @@ describe('ComponentViewer', () => {
             { componentViewerInstance: lockedInstance, lockState: true, sessionId: 's1', dirtyWhileLocked: false },
         ];
 
-        const updateInstances = (controller as unknown as { updateInstances: (reason: UpdateReason) => Promise<void> }).updateInstances.bind(controller);
+        const updateInstances = getUpdateInstances(controller);
         await updateInstances('stackTrace');
 
         expect(unlockedInstance.update).toHaveBeenCalled();
@@ -676,7 +685,7 @@ describe('ComponentViewer', () => {
         const runUpdate = jest
             .spyOn(controller as unknown as { runUpdate: (reason: UpdateReason) => Promise<void> }, 'runUpdate')
             .mockResolvedValue(undefined);
-        const schedulePendingUpdate = (controller as unknown as { schedulePendingUpdate: (reason: UpdateReason) => void }).schedulePendingUpdate.bind(controller);
+        const schedulePendingUpdate = getSchedulePendingUpdate(controller);
 
         schedulePendingUpdate('stackTrace');
         schedulePendingUpdate('stackTrace');
@@ -691,7 +700,7 @@ describe('ComponentViewer', () => {
         const controller = new ComponentViewer(extensionContextFactory());
         (controller as unknown as { _runningUpdate: boolean })._runningUpdate = true;
         const updateInstances = jest.spyOn(controller as unknown as { updateInstances: (reason: UpdateReason) => Promise<void> }, 'updateInstances');
-        const runUpdate = (controller as unknown as { runUpdate: (reason: UpdateReason) => Promise<void> }).runUpdate.bind(controller);
+        const runUpdate = getRunUpdate(controller);
 
         await runUpdate('stackTrace');
 
@@ -705,7 +714,7 @@ describe('ComponentViewer', () => {
         const updateInstances = jest
             .spyOn(controller as unknown as { updateInstances: (reason: UpdateReason) => Promise<void> }, 'updateInstances')
             .mockResolvedValue(undefined);
-        const runUpdate = (controller as unknown as { runUpdate: (reason: UpdateReason) => Promise<void> }).runUpdate.bind(controller);
+        const runUpdate = getRunUpdate(controller);
 
         await runUpdate('stackTrace');
         expect(updateInstances).toHaveBeenCalledWith('stackTrace');
@@ -717,7 +726,7 @@ describe('ComponentViewer', () => {
         (controller as unknown as { _runningUpdate: boolean })._runningUpdate = false;
         const updateInstances = jest.spyOn(controller as unknown as { updateInstances: (reason: UpdateReason) => Promise<void> }, 'updateInstances')
             .mockRejectedValue(new Error('fail'));
-        const runUpdate = (controller as unknown as { runUpdate: (reason: UpdateReason) => Promise<void> }).runUpdate.bind(controller);
+        const runUpdate = getRunUpdate(controller);
 
         await expect(runUpdate('stackTrace')).resolves.toBeUndefined();
         expect(updateInstances).toHaveBeenCalledWith('stackTrace');
