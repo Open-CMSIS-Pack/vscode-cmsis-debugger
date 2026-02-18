@@ -66,10 +66,12 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
 
     public resetPrintfCache(): void {
         this._caches.clearPrintf();
+        componentViewerLogger.trace('[ScvdEvalInterface] Reset printf cache');
     }
 
     public resetEvalCaches(): void {
         this._caches.clearAll();
+        componentViewerLogger.trace('[ScvdEvalInterface] Reset all caches');
     }
 
     private normalizeScalarType(raw: string | ScalarType | undefined): ScalarType | undefined {
@@ -283,8 +285,13 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     /* ---------------- Read/Write via caches ---------------- */
     public async readValue(container: RefContainer): Promise<EvalValue> {
         const perfStartTime = perf?.start() ?? 0;
+        const varName = container.anchor?.name ?? '?';
+        const offset = container.offsetBytes ?? 0;
+        const width = container.widthBytes ?? 0;
+        componentViewerLogger.trace(`[ScvdEvalInterface.readValue] container: var="${varName}" offset=${offset} width=${width}`);
         try {
             const value = await this.memHost.readValue(container);
+            componentViewerLogger.trace(`[ScvdEvalInterface.readValue] → ${value}`);
             return value as EvalValue;
         } catch (e) {
             componentViewerLogger.error(`ScvdEvalInterface.readValue: exception for container with base=${container.base.getDisplayLabel()}: ${e}`);
@@ -296,6 +303,10 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
 
     public async writeValue(container: RefContainer, value: EvalValue): Promise<EvalValue> {
         const perfStartTime = perf?.start() ?? 0;
+        const varName = container.anchor?.name ?? '?';
+        const offset = container.offsetBytes ?? 0;
+        const width = container.widthBytes ?? 0;
+        componentViewerLogger.trace(`[ScvdEvalInterface.writeValue] container: var="${varName}" offset=${offset} width=${width} value=${value}`);
         try {
             await this.memHost.writeValue(container, value);
             return value;
@@ -399,6 +410,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         const name = base?.name;
         if (name !== undefined) {
             const count = this.memHost.getArrayElementCount(name);  // TOIMPL: this works only for <readlist>, must add for <read>
+            componentViewerLogger.trace(`[ScvdEvalInterface._count] var="${name}" → ${count}`);
             return count;
         }
         return undefined;
@@ -410,6 +422,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         const index = container.index ?? 0;
         if (name !== undefined) {
             const addr = this.memHost.getElementTargetBase(name, index);
+            componentViewerLogger.trace(`[ScvdEvalInterface._addr] var="${name}" index=${index} → 0x${addr?.toString(16)}`);
             return addr;
         }
         return undefined;
