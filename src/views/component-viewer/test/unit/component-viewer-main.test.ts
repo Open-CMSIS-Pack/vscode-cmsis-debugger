@@ -192,7 +192,7 @@ describe('ComponentViewer', () => {
         expect(context.subscriptions.length).toBe(11);
     });
 
-    it('returns false on activation if component viewer not correctly loaded', async () => {
+    it('should fail to activate the component viewer tree data provider if view is not correctly loaded', async () => {
         const context = extensionContextFactory();
         const tracker = makeTracker();
         const controller = createController(context);
@@ -318,7 +318,8 @@ describe('ComponentViewer', () => {
         const controller = createController(context);
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
-        const provider = (controller as unknown as { _componentViewerTreeDataProvider?: ReturnType<typeof treeProviderFactory> })._componentViewerTreeDataProvider;
+        // Bypass 'private' qualifier for test purposes. Do NOT do this in production code!
+        const provider = controller['_componentViewerTreeDataProvider'];
 
         const session = makeSession('s1', ['a.scvd']);
         const otherSession = makeSession('s2', []);
@@ -326,8 +327,7 @@ describe('ComponentViewer', () => {
         await tracker.callbacks.willStart?.(session);
         await tracker.callbacks.connected?.(session);
 
-        const calls = (session.refreshTimer.onRefresh as jest.Mock).mock.calls[0];
-        const refreshCallback = calls?.[0];
+        const refreshCallback = (session.refreshTimer.onRefresh as jest.Mock).mock.calls[0]?.[0];
         expect(refreshCallback).toBeDefined();
         if (refreshCallback) {
             await refreshCallback(session);
@@ -356,7 +356,8 @@ describe('ComponentViewer', () => {
         const controller = createController(context);
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
-        const provider = (controller as unknown as { _componentViewerTreeDataProvider?: ReturnType<typeof treeProviderFactory> })._componentViewerTreeDataProvider;
+        // Bypass 'private' qualifier for test purposes. Do NOT do this in production code!
+        const provider = controller['_componentViewerTreeDataProvider'];
         const session: Session = {
             session: { id: 's1' },
             getCbuildRun: async () => undefined,
@@ -553,7 +554,8 @@ describe('ComponentViewer', () => {
         const controller = createController(context);
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
-        const provider = (controller as unknown as { _componentViewerTreeDataProvider?: ReturnType<typeof treeProviderFactory> })._componentViewerTreeDataProvider;
+        // Bypass 'private' qualifier for test purposes. Do NOT do this in production code!
+        const provider = controller['_componentViewerTreeDataProvider'];
 
         const root = makeGuiNode('root', [makeGuiNode('child')]);
         const inst = instanceFactory();

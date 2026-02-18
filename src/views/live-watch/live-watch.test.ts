@@ -52,7 +52,7 @@ describe('LiveWatchTreeDataProvider', () => {
             expect(activationResult).toBe(true);
         });
 
-        it('should successfully activate the live watch tree data provider', async () => {
+        it('should fail to activate the live watch tree data provider if view is not correctly loaded', async () => {
             // Clear live watch commands to simulate view not correctly loaded.
             // Ensure to override the mock only once to not permanently change the global mock implementation for other tests.
             (vscode.commands.getCommands as jest.Mock).mockResolvedValueOnce([
