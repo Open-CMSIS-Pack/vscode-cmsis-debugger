@@ -293,8 +293,16 @@ export class StatementReadList extends StatementBase {
         if (!didBatchRead) {
             const loopStart = perf?.start() ?? 0;
             let readIdx = 0;
+            const visitedAddresses = new Set<number | bigint>();
             while (nextPtrAddr !== undefined) {
                 const itemAddress: number | bigint | undefined = typeof nextPtrAddr === 'bigint' ? nextPtrAddr : (nextPtrAddr >>> 0);
+
+                // Detect cycles: check if we've visited this address before
+                if (visitedAddresses.has(itemAddress)) {
+                    componentViewerLogger.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, detected cycle in linked list at address: ${itemAddress.toString(16)}`);
+                    break;
+                }
+                visitedAddresses.add(itemAddress);
 
                 // Read data from target
                 const readData = await executionContext.debugTarget.readMemory(itemAddress, readBytes);
@@ -345,7 +353,7 @@ export class StatementReadList extends StatementBase {
                     if (readIdx >= count) {
                         break;
                     } else if (readIdx > maxArraySize) {
-                        console.warn(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, reached maximum array size: ${maxArraySize} for variable: ${itemName}`);
+                        componentViewerLogger.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, reached maximum array size: ${maxArraySize} for variable: ${itemName}`);
                         break;
                     }
                 }
@@ -377,10 +385,10 @@ export class StatementReadList extends StatementBase {
 
                 if (this.isInvalidAddress(nextPtrAddr)) { // NULL or invalid pointer, end of list
                     nextPtrAddr = undefined;
-                } else if (nextPtrAddr === itemAddress) {    // loop detection
-                    console.warn(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, detected loop in linked list at address: ${itemAddress.toString(16)}`);
-                    break;
                 }
+                // Note: Cycle detection is now handled at the start of the loop
+                // by checking visitedAddresses Set, which catches all cycles (A→B→C→A)
+                // not just self-loops (A→A)
             }
             perf?.end(loopStart, 'readListLoopMs', 'readListLoopCalls');
         }

@@ -23,12 +23,13 @@ import { componentViewerLogger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 import { perf, parsePerf } from './stats-config';
 
-export type fifoUpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace' | 'stackItemChanged';
+export type UpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace' | 'stackItemChanged' | 'unlockingInstance';
 
 export interface ComponentViewerInstancesWrapper {
     componentViewerInstance: ComponentViewerInstance;
     lockState: boolean;
     sessionId: string; // ID of the debug session this instance belongs to, used to clear instances when session changes
+    dirtyWhileLocked: boolean; // Flag to indicate if an update was attempted while instance was locked, used to trigger an update when instance is unlocked
 }
 
 export class ComponentViewer {
@@ -95,9 +96,10 @@ export class ComponentViewer {
     }
 
     protected handleLockInstance(node: ScvdGuiInterface): void {
+        let shouldTriggerUpdate: boolean = false; // Unlocking a node should trigger an update
         const instance = this._instances.find((inst) => {
             const guiTree = inst.componentViewerInstance.getGuiTree();
-            if (!guiTree) {
+            if (!guiTree || guiTree.length === 0) {
                 return false;
             }
             // Check if the node belongs to this instance. We only care about parent nodes, as locking/unlocking a child node is not supported,
@@ -107,15 +109,22 @@ export class ComponentViewer {
         if (!instance) {
             return;
         }
+        if (instance.lockState === true) {
+            shouldTriggerUpdate = true;
+        }
         instance.lockState = !instance.lockState;
         componentViewerLogger.info(`Component Viewer: Instance lock state changed to ${instance.lockState}`);
         // If instance is locked, set isLocked flag to true for root nodes
         const guiTree = instance.componentViewerInstance.getGuiTree();
-        if (!guiTree) {
+        if (!guiTree || guiTree.length === 0) {
             return;
         }
         const rootNode: ScvdGuiInterface = guiTree[0];
         rootNode.isLocked = instance.lockState;
+        if (shouldTriggerUpdate && instance.dirtyWhileLocked) {
+            this.schedulePendingUpdate('unlockingInstance');
+            instance.dirtyWhileLocked = false;
+        }
         this._componentViewerTreeDataProvider?.refresh();
     }
 
@@ -156,6 +165,7 @@ export class ComponentViewer {
             componentViewerInstance: instance,
             lockState: false,
             sessionId: session.session.id,
+            dirtyWhileLocked: false
         })));
     }
 
@@ -260,7 +270,7 @@ export class ComponentViewer {
         this._activeSession = session;
     }
 
-    private schedulePendingUpdate(updateReason: fifoUpdateReason): void {
+    private schedulePendingUpdate(updateReason: UpdateReason): void {
         this._pendingUpdate = true;
         if (this._pendingUpdateTimer) {
             clearTimeout(this._pendingUpdateTimer);
@@ -271,7 +281,7 @@ export class ComponentViewer {
         }, ComponentViewer.pendingUpdateDelayMs);
     }
 
-    private async runUpdate(updateReason: fifoUpdateReason): Promise<void> {
+    private async runUpdate(updateReason: UpdateReason): Promise<void> {
         if (this._runningUpdate) {
             return;
         }
@@ -306,7 +316,7 @@ export class ComponentViewer {
         return true;
     }
 
-    private async updateInstances(updateReason: fifoUpdateReason): Promise<void> {
+    private async updateInstances(updateReason: UpdateReason): Promise<void> {
         if (!this._activeSession) {
             this._componentViewerTreeDataProvider?.clear();
             return;
@@ -336,6 +346,8 @@ export class ComponentViewer {
             // Check instance's lock state, skip update if locked
             if (!instance.lockState) {
                 await instance.componentViewerInstance.update();
+            } else {
+                instance.dirtyWhileLocked = true;
             }
             const guiTree = instance.componentViewerInstance.getGuiTree();
             if (guiTree) {
