@@ -15,6 +15,9 @@
         "noImplicitAny": true,
         "noFallthroughCasesInSwitch": true,
         "exactOptionalPropertyTypes": true,
+        "types": [
+            "jest"
+        ]
     },
     "include": [
         "src"

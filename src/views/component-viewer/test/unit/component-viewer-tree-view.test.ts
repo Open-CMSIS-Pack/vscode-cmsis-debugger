@@ -30,6 +30,13 @@ jest.mock('vscode', () => {
         public event = jest.fn();
     }
 
+    class ThemeIcon {
+        public id: string;
+
+        constructor(id: string) {
+            this.id = id;
+        }
+    }
     class MarkdownString {
         public value: string;
         public supportHtml = false;
@@ -46,6 +53,7 @@ jest.mock('vscode', () => {
         public tooltip: string | MarkdownString | undefined;
         public id: string | undefined;
         public contextValue: string | undefined;
+        public iconPath: vscode.ThemeIcon | undefined;
 
         constructor(label: string) {
             this.label = label;
@@ -56,6 +64,7 @@ jest.mock('vscode', () => {
         EventEmitter,
         MarkdownString,
         TreeItem,
+        ThemeIcon,
         TreeItemCollapsibleState: {
             Collapsed: 1,
             None: 0,
@@ -173,7 +182,21 @@ describe('ComponentViewerTreeDataProvider', () => {
         expect(rootItem.contextValue).toBe('locked.parentInstance');
 
         const childItem = provider.getTreeItem(childUnlocked);
-        expect(childItem.contextValue).toBe('child');
+        expect(childItem.contextValue).toBe('');
+    });
+
+    it('assigns lock icon for locked root nodes', () => {
+        const provider = new ComponentViewerTreeDataProvider();
+        const rootLocked = makeGui({ isRootInstance: true, isLocked: true });
+        const rootUnLocked = makeGui({ isRootInstance: true, isLocked: false });
+
+        const rootItem = provider.getTreeItem(rootLocked);
+        expect(rootItem.iconPath).toBeInstanceOf(vscode.ThemeIcon);
+        const rootIcon = rootItem.iconPath as { id: string };
+        expect(rootIcon.id).toBe('lock');
+
+        const rootUnLockedItem = provider.getTreeItem(rootUnLocked);
+        expect(rootUnLockedItem.iconPath).toBeUndefined();
     });
 
     it('returns root children when no element is provided', async () => {
