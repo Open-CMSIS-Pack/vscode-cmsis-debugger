@@ -75,7 +75,11 @@ module.exports = {
         showErrorMessage: jest.fn(),
         showInformationMessage: jest.fn(() => Promise.resolve(undefined)),
         showWarningMessage: jest.fn(),
-        createStatusBarItem: jest.fn(),
+        createStatusBarItem: jest.fn(() => ({
+    		id: 'mockStatusBarItem',
+		    alignment: StatusBarAlignment.Left,
+            text: '',
+        })),
         showQuickPick: jest.fn(),
     },
     env: {

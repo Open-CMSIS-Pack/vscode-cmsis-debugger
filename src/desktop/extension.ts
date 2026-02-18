@@ -78,13 +78,14 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
 
     if (!canCompleteActivation) {
         console.debug('CMSIS Debugger activation incomplete');
+        logger.debug('CMSIS Debugger activation incomplete');
         // Let promise float, we reload the window.
         askForReload();
         return;
     }
 
     console.debug('CMSIS Debugger activated');
-    logger.debug('Extension Pack activated');
+    logger.debug('CMSIS Debugger activated');
 };
 
 export const deactivate = async (): Promise<void> => {
@@ -95,5 +96,5 @@ export const deactivate = async (): Promise<void> => {
     if (componentViewerTreeDataProvider) {
         componentViewerTreeDataProvider.clear();
     }
-    logger.debug('Extension Pack deactivated');
+    logger.debug('CMSIS Debugger deactivated');
 };
