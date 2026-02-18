@@ -22,7 +22,7 @@ Please feel free to raise an [issue on GitHub](https://github.com/Open-CMSIS-Pac
 to report misbehavior (i.e. bugs)
 
 Issues are your best way to interact directly with the development team and the community.
-We encourage you to add implementation suggestions, as this enables the community to collaboratively shape solutions needed.
+We encourage you to add implementation suggestions, as this enables the community to collaboratively shape the solutions needed.
 
 We shall be monitoring and responding to issues as best we can.
 Please attempt to avoid filing duplicates of open or closed items when possible.
