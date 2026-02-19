@@ -245,6 +245,167 @@ describe('GDBTargetDebugTracker', () => {
             expect(result!.event).toEqual(stoppedEvent);
         });
 
+        it('calls a session output event filter', async () => {
+            const tracker = await adapterFactory!.createDebugAdapterTracker(debugSessionFactory(debugConfigurationFactory()));
+            // Create GDB target session object
+            tracker!.onWillStartSession!();
+            const ouptutEvent: DebugProtocol.OutputEvent = {
+                event: 'output',
+                type: 'event',
+                seq: 1,
+                body: {
+                    category: 'log',
+                    output: 'warning: (Internal error: pc 0x12345678 in read in CU, but not in symtab.)\n'
+                }
+            };
+            tracker!.onDidSendMessage!(ouptutEvent);
+            // Expect event name was changed by filter
+            expect(ouptutEvent.event).toEqual('cmsis-debugger-discarded');
+        });
+
+    });
+
+    describe('other handling', () => {
+        let adapterFactory: vscode.DebugAdapterTrackerFactory|undefined;
+        let gdbSessions: GDBTargetDebugSession[];
+
+        beforeEach(() => {
+            adapterFactory = undefined;
+            gdbSessions = [];
+            (vscode.debug.registerDebugAdapterTrackerFactory as jest.Mock).mockImplementation((_debugType: string, factory: vscode.DebugAdapterTrackerFactory): vscode.Disposable => {
+                adapterFactory = factory;
+                return { dispose: jest.fn() };
+            });
+            debugTracker.activate(contextMock);
+            debugTracker.onWillStartSession(session => gdbSessions.push(session));
+        });
+
+        it('user does update capabilities on initialize request', async () => {
+            const firstSession = debugSessionFactory(debugConfigurationFactory( { name: 'pname first@session (launch)', request: 'launch', cmsis: { cbuildRunFile: 'first.cbuild-run.yml' } } ), 'first-session-id');
+            const trackerObjects = await Promise.all([
+                adapterFactory!.createDebugAdapterTracker(firstSession),
+            ]);
+            trackerObjects.forEach(tracker => tracker!.onWillStartSession!());
+
+            // Check before initialize
+            expect(gdbSessions[0]!.canTerminate()).toBe(false);
+
+            // initialize response with terminate support
+            trackerObjects[0]!.onDidSendMessage!({
+                command: 'initialize',
+                type: 'response',
+                seq: 1,
+                success: true,
+                body: {
+                    supportsTerminateRequest: true
+                }
+            });
+            await waitForMs(0);
+
+            // Check after initialize
+            expect(gdbSessions[0]!.canTerminate()).toBe(true);
+        });
+
+        it('user does not get notified if unrelated sessions gets stopped', async () => {
+            const firstSession = debugSessionFactory(debugConfigurationFactory( { name: 'pname first@session (launch)', request: 'launch', cmsis: { cbuildRunFile: 'first.cbuild-run.yml' } } ), 'first-session-id');
+            const secondSession = debugSessionFactory(debugConfigurationFactory( { name: 'pname second@session (launch)', request: 'launch', cmsis: { cbuildRunFile: 'second.cbuild-run.yml' } } ), 'second-session-id');
+            const trackerObjects = await Promise.all([
+                adapterFactory!.createDebugAdapterTracker(firstSession),
+                adapterFactory!.createDebugAdapterTracker(secondSession)
+            ]);
+            trackerObjects.forEach(tracker => tracker!.onWillStartSession!());
+
+            // Both sessions support terminate requests
+            gdbSessions.forEach(session => session.setCapabilities({ supportsTerminateRequest: true }));
+
+            (vscode.window.showInformationMessage as jest.Mock).mockClear();
+            // Terminate first launch session
+            trackerObjects[0]!.onWillReceiveMessage!({
+                command: 'terminate',
+                type: 'request',
+                seq: 1,
+            });
+            await waitForMs(0);
+            expect(vscode.window.showInformationMessage).not.toHaveBeenCalled();
+        });
+
+        it('user does get notified on terminate if attach session to same target exists and terminate supported', async () => {
+            const firstSession = debugSessionFactory(debugConfigurationFactory( { name: 'pname first@session (launch)', request: 'launch', cmsis: { cbuildRunFile: 'shared.cbuild-run.yml' } } ), 'first-session-id');
+            const secondSession = debugSessionFactory(debugConfigurationFactory( { name: 'pname second@session (attach)', request: 'attach', cmsis: { cbuildRunFile: 'shared.cbuild-run.yml' } } ), 'second-session-id');
+            const trackerObjects = await Promise.all([
+                adapterFactory!.createDebugAdapterTracker(firstSession),
+                adapterFactory!.createDebugAdapterTracker(secondSession)
+            ]);
+            trackerObjects.forEach(tracker => tracker!.onWillStartSession!());
+
+            // Both sessions support terminate requests
+            gdbSessions.forEach(session => session.setCapabilities({ supportsTerminateRequest: true }));
+
+            (vscode.window.showInformationMessage as jest.Mock).mockClear();
+            // Terminate the launch session
+            trackerObjects[0]!.onWillReceiveMessage!({
+                command: 'terminate',
+                type: 'request',
+                seq: 1,
+            });
+            await waitForMs(0);
+            expect(vscode.window.showInformationMessage).toHaveBeenCalled();
+        });
+
+        it('user does not get notified on disconnect if coming from attach session to same target', async () => {
+            const firstSession = debugSessionFactory(debugConfigurationFactory( { name: 'pname first@session (launch)', request: 'launch', cmsis: { cbuildRunFile: 'shared.cbuild-run.yml' } } ), 'first-session-id');
+            const secondSession = debugSessionFactory(debugConfigurationFactory( { name: 'pname second@session (attach)', request: 'attach', cmsis: { cbuildRunFile: 'shared.cbuild-run.yml' } } ), 'second-session-id');
+            const trackerObjects = await Promise.all([
+                adapterFactory!.createDebugAdapterTracker(firstSession),
+                adapterFactory!.createDebugAdapterTracker(secondSession)
+            ]);
+            trackerObjects.forEach(tracker => tracker!.onWillStartSession!());
+
+            // Both sessions support terminate requests
+            gdbSessions.forEach(session => session.setCapabilities({ supportsTerminateRequest: true }));
+
+            (vscode.window.showInformationMessage as jest.Mock).mockClear();
+            // Terminate the launch session
+            trackerObjects[1]!.onWillReceiveMessage!({
+                command: 'disconnect',
+                type: 'request',
+                seq: 1,
+            });
+            await waitForMs(0);
+            expect(vscode.window.showInformationMessage).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            { terminateSupported: true, command: 'terminate', notified: true },
+            { terminateSupported: true, command: 'disconnect', notified: false },
+            { terminateSupported: false, command: 'terminate', notified: false },
+            { terminateSupported: false, command: 'disconnect', notified: true },
+        ])('user gets notified=$notified on \'$command\' coming from launch session (terminate support=\'$terminateSupported\') while attach session to same target', async ({ terminateSupported, command, notified }) => {
+            const firstSession = debugSessionFactory(debugConfigurationFactory( { name: 'pname first@session (launch)', request: 'launch', cmsis: { cbuildRunFile: 'shared.cbuild-run.yml' } } ), 'first-session-id');
+            const secondSession = debugSessionFactory(debugConfigurationFactory( { name: 'pname second@session (attach)', request: 'attach', cmsis: { cbuildRunFile: 'shared.cbuild-run.yml' } } ), 'second-session-id');
+            const trackerObjects = await Promise.all([
+                adapterFactory!.createDebugAdapterTracker(firstSession),
+                adapterFactory!.createDebugAdapterTracker(secondSession)
+            ]);
+            trackerObjects.forEach(tracker => tracker!.onWillStartSession!());
+
+            // Both sessions support terminate requests
+            gdbSessions.forEach(session => session.setCapabilities({ supportsTerminateRequest: terminateSupported }));
+
+            (vscode.window.showInformationMessage as jest.Mock).mockClear();
+            // Terminate the launch session
+            trackerObjects[0]!.onWillReceiveMessage!({
+                command,
+                type: 'request',
+                seq: 1,
+            });
+            await waitForMs(0);
+            if (notified) {
+                expect(vscode.window.showInformationMessage).toHaveBeenCalled();
+            } else {
+                expect(vscode.window.showInformationMessage).not.toHaveBeenCalled();
+            }
+        });
     });
 
     describe('refresh timer management', () => {

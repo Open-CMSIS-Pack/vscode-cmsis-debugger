@@ -2,7 +2,7 @@
   "name": "vscode-cmsis-debugger",
   "displayName": "Arm CMSIS Debugger",
   "description": "Run and debug embedded and Edge AI projects on Arm Cortex-M single or multi core devices. Connects via pyOCD to CMSIS-DAP or other GDB servers.",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "preview": false,
   "publisher": "Arm",
   "author": "Jens Reinecke <jens.reinecke@arm.com>",
@@ -24,8 +24,7 @@
     "vscode": "^1.106.1"
   },
   "categories": [
-    "Debuggers",
-    "Extension Packs"
+    "Debuggers"
   ],
   "keywords": [
     "arm",
@@ -57,6 +56,11 @@
     },
     "views": {
       "cmsis-debugger": [
+        {
+          "id": "cmsis-debugger.componentViewer",
+          "name": "Component Viewer",
+          "icon": "media/trace-and-live-light.svg"
+        },
         {
           "id": "cmsis-debugger.liveWatch",
           "name": "Live Watch",
@@ -139,6 +143,28 @@
         "command": "vscode-cmsis-debugger.liveWatch.showInMemoryInspector",
         "title": "Show in Memory Inspector",
         "category": "Live Watch"
+      },
+      {
+        "command": "vscode-cmsis-debugger.componentViewer.lockComponent",
+        "title": "Lock Component",
+        "icon": "$(unlock)",
+        "category": "Component Viewer"
+      },
+      {
+        "command": "vscode-cmsis-debugger.componentViewer.unlockComponent",
+        "title": "Unlock Component",
+        "icon": "$(lock)",
+        "category": "Component Viewer"
+      },
+      {
+        "command": "vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate",
+        "title": "Enable Periodic Update",
+        "category": "Component Viewer"
+      },
+      {
+        "command": "vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate",
+        "title": "Disable Periodic Update",
+        "category": "Component Viewer"
       }
     ],
     "menus": {
@@ -222,6 +248,22 @@
         {
           "command": "vscode-cmsis-debugger.liveWatch.showInMemoryInspector",
           "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.lockComponent",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.unlockComponent",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate",
+          "when": "true"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate",
+          "when": "true"
         }
       ],
       "view/title": [
@@ -298,6 +340,16 @@
           "command": "vscode-cmsis-debugger.liveWatch.showInMemoryInspector",
           "when": "view == cmsis-debugger.liveWatch",
           "group": "contextMenuG3@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.lockComponent",
+          "when": "view == cmsis-debugger.componentViewer && viewItem == parentInstance",
+          "group": "inline@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.unlockComponent",
+          "when": "view == cmsis-debugger.componentViewer && viewItem == locked.parentInstance",
+          "group": "inline@2"
         }
       ]
     },
@@ -343,6 +395,7 @@
     "prepare": "yarn run build",
     "download-tools": "tsx scripts/download-tools.ts pyocd gdb",
     "download-tools:nightly": "tsx scripts/download-tools.ts pyocdNightly gdb",
+    "validate-tools": "tsx scripts/validate-tools.ts",
     "clean": "git clean -f -x ./node_modules ./dist ./coverage ./tools",
     "build": "webpack --mode production && yarn lint",
     "build:no-lint": "webpack --mode production",
@@ -352,7 +405,7 @@
     "all": "yarn && yarn download-tools && yarn test",
     "package": "vsce package --yarn",
     "tpip:report": "tsx scripts/tpip-reporter --header docs/tpip-header.md docs/third-party-licenses.json TPIP.md",
-    "lint:md": "markdownlint **/*.md -c ./.github/markdownlint.jsonc -i ./node_modules ./dist ./coverage ./tools",
+    "lint:md": "markdownlint **/*.md -c ./.github/markdownlint.jsonc -i ./node_modules -i ./dist -i ./coverage -i ./tools",
     "check:links": "tsx scripts/check-links.ts -i ./node_modules/** -i ./.github/** -c ./.github/markdown-link-check.jsonc",
     "copyright:check": "tsx scripts/copyright-manager.ts --mode=check --include=src/**/*.ts,scripts/**/*.ts --exclude=**/node_modules/**,coverage/**,dist/**,tools/**",
     "copyright:fix": "tsx scripts/copyright-manager.ts --mode=fix --include=src/**/*.ts,scripts/**/*.ts --exclude=**/node_modules/**,coverage/**,dist/**,tools/**"
@@ -362,56 +415,59 @@
     "baseContentUrl": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/blob/main/README.md"
   },
   "dependencies": {
-    "yaml": "^2.8.1"
+    "vscode-uri": "^3.1.0",
+    "yaml": "^2.8.2",
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
-    "@open-cmsis-pack/vsce-helper": "^0.2.0",
+    "@open-cmsis-pack/vsce-helper": "^0.2.2",
+    "@types/extract-zip": "^2.0.1",
     "@types/fs-extra": "^11.0.4",
     "@types/jest": "^30.0.0",
     "@types/minimist": "^1.2.5",
-    "@types/node": "^20.19.25",
+    "@types/node": "^20.19.30",
     "@types/node-fetch": "^2.6.13",
     "@types/vscode": "^1.106.1",
+    "@types/xml2js": "^0.4.14",
     "@types/yargs": "^17.0.35",
     "@types/yarnpkg__lockfile": "^1.1.9",
-    "@typescript-eslint/eslint-plugin": "^8.47.0",
-    "@typescript-eslint/parser": "^8.47.0",
+    "@typescript-eslint/eslint-plugin": "8.54.0",
+    "@typescript-eslint/parser": "8.54.0",
     "@vscode/debugprotocol": "^1.68.0",
     "@vscode/vsce": "^3.7.1",
     "@yarnpkg/lockfile": "^1.1.0",
-    "eslint": "^9.39.1",
+    "eslint": "^9.39.2",
     "eslint-plugin-security": "^3.0.1",
     "extract-zip": "^2.0.1",
-    "fast-extract": "^1.7.5",
-    "file-type": "^21.1.1",
-    "fs-extra": "^11.3.2",
+    "fast-extract": "^1.14.2",
+    "file-type": "^21.3.0",
+    "fs-extra": "^11.3.3",
     "glob": "^13.0.0",
-    "globby": "^16.0.0",
+    "globby": "^16.1.0",
     "jest": "^30.2.0",
     "jest-html-reporter": "^4.3.0",
     "lzma-native": "8.0.6",
     "markdown-link-check": "^3.14.2",
-    "markdownlint-cli": "^0.46.0",
+    "markdownlint-cli": "^0.47.0",
     "minimist": "^1.2.8",
     "node-fetch": "^3.3.2",
     "octokit": "^5.0.5",
-    "tempfile": "^5.0.0",
+    "tempfile": "^6.0.1",
     "ts-command-line-args": "^2.5.1",
-    "ts-jest": "29.4.5",
+    "ts-jest": "29.4.6",
     "ts-loader": "^9.5.4",
     "ts-node": "^10.9.2",
-    "tsx": "^4.20.6",
-    "type-fest": "^5.2.0",
+    "tsx": "^4.21.0",
+    "type-fest": "^5.4.2",
     "typescript": "^5.9.3",
-    "typescript-eslint": "8.48.0",
-    "vscode-uri": "^3.1.0",
-    "webpack": "^5.103.0",
+    "typescript-eslint": "8.54.0",
+    "webpack": "^5.104.1",
     "webpack-cli": "^6.0.1",
     "yargs": "^18.0.0"
   },
   "cmsis": {
-    "pyocd": "pyocd/pyOCD@0.41.0",
-    "pyocdNightly": "pyocd/pyOCD@release_builds",
+    "pyocd": "pyocd/pyOCD@0.42.0",
+    "pyocdNightly": "pyocd/pyOCD@nightly",
     "gdb": "14.3.1"
   }
 }

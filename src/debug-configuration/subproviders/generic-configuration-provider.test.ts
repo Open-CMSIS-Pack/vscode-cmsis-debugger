@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import path from 'path';
+
 import { gdbTargetConfiguration, targetConfigurationFactory } from '../debug-configuration.factory';
 import { ExtendedGDBTargetConfiguration } from '../gdbtarget-configuration';
 import { GenericConfigurationProvider } from './generic-configuration-provider';
@@ -48,7 +50,11 @@ describe('GenericConfigurationProvider', () => {
             });
             const debugConfig = await configProvider.resolveDebugConfigurationWithSubstitutedVariables(undefined, config, undefined);
             const gdbTargetConfig = debugConfig as ExtendedGDBTargetConfiguration;
-            expect(gdbTargetConfig.definitionPath?.endsWith(expectedSvdPath)).toBeTruthy();
+            const normalizedDefinitionPath = gdbTargetConfig.definitionPath
+                ? path.normalize(gdbTargetConfig.definitionPath)
+                : undefined;
+            const normalizedExpectedPath = path.normalize(expectedSvdPath);
+            expect(normalizedDefinitionPath?.endsWith(normalizedExpectedPath)).toBeTruthy();
         });
 
     });

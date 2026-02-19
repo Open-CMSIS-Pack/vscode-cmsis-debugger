@@ -8,14 +8,28 @@
     },
     {
         "name": "pyocd",
-        "version": "0.39.0",
+        "version": "0.42.0",
         "spdx": "Apache-2.0",
         "url": "https://github.com/pyocd/pyOCD",
-        "license": "https://github.com/pyocd/pyOCD/blob/v0.39.0/LICENSE"
+        "license": "https://github.com/pyocd/pyOCD/blob/v0.42.0/LICENSE"
+    },
+    {
+        "name": "vscode-uri",
+        "version": "3.1.0",
+        "spdx": "MIT",
+        "url": "https://github.com/microsoft/vscode-uri",
+        "license": "https://github.com/microsoft/vscode-uri/blob/main/LICENSE.md"
+    },
+    {
+        "name": "xml2js",
+        "version": "0.6.2",
+        "spdx": "MIT",
+        "url": "https://github.com/Leonidas-from-XIV/node-xml2js",
+        "license": "https://github.com/Leonidas-from-XIV/node-xml2js/blob/master/LICENSE"
     },
     {
         "name": "yaml",
-        "version": "2.8.1",
+        "version": "2.8.2",
         "spdx": "ISC",
         "url": "https://github.com/eemeli/yaml",
         "license": "https://github.com/eemeli/yaml/blob/main/LICENSE"

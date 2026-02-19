@@ -1,0 +1,79 @@
+/**
+ * Copyright 2026 Arm Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+// generated with AI
+
+/**
+ * Unit test for ScvdTypesCache creation and lookup paths.
+ */
+
+import { ScvdTypesCache } from '../../scvd-types-cache';
+import { ScvdComponentViewer } from '../../model/scvd-component-viewer';
+import { ScvdTypedefs } from '../../model/scvd-typedef';
+import { ScvdNode } from '../../model/scvd-node';
+
+class MinimalNode extends ScvdNode {
+    constructor(parent?: ScvdNode) {
+        super(parent);
+    }
+    public override async getValue(): Promise<string | number | bigint | Uint8Array | undefined> {
+        return undefined;
+    }
+}
+
+describe('ScvdTypesCache', () => {
+    it('returns undefined when no model or typedefs are present', () => {
+        const viewer = new ScvdComponentViewer(undefined);
+        const cache = new ScvdTypesCache(viewer);
+
+        cache.createCache(); // with no typedefs set, should no-op
+        expect(cache.findTypeByName('missing')).toBeUndefined();
+
+        // Simulate model cleared after construction
+        (cache as unknown as { _model: ScvdComponentViewer | undefined })._model = undefined;
+        cache.createCache();
+        expect(cache.findTypeByName('anything')).toBeUndefined();
+    });
+
+    it('caches only ScvdTypedef entries and resolves by name', () => {
+        const viewer = new ScvdComponentViewer(undefined);
+        const typedefs = new ScvdTypedefs(viewer);
+        const good = typedefs.addTypedef();
+        good.name = 'GoodType';
+        const unnamed = typedefs.addTypedef();
+        // Insert a non-typedef child to ensure it is skipped
+        new MinimalNode(typedefs);
+        (viewer as unknown as { _typedefs: ScvdTypedefs | undefined })._typedefs = typedefs;
+
+        const cache = new ScvdTypesCache(viewer);
+        cache.createCache();
+        expect(cache.findTypeByName('GoodType')).toBe(good);
+        expect(cache.findTypeByName(unnamed.name ?? '')).toBeUndefined();
+        expect(cache.findTypeByName('Missing')).toBeUndefined();
+    });
+
+    it('findTypeByName ignores non-typedef values in the map', () => {
+        const viewer = new ScvdComponentViewer(undefined);
+        const cache = new ScvdTypesCache(viewer);
+        (cache as unknown as { typesCache: Map<string, ScvdNode> | undefined }).typesCache = new Map<string, ScvdNode>([
+            ['bad', new MinimalNode(undefined)],
+        ]);
+        expect(cache.findTypeByName('bad')).toBeUndefined();
+
+        // If the internal map is missing entirely, bail out gracefully
+        (cache as unknown as { typesCache: Map<string, ScvdNode> | undefined }).typesCache = undefined;
+        expect(cache.findTypeByName('anything')).toBeUndefined();
+    });
+});

@@ -18,6 +18,8 @@ import * as vscode from 'vscode';
 import { debugSessionFactory } from '../__test__/vscode.factory';
 import { GDBTargetDebugSession } from './gdbtarget-debug-session';
 import { logger } from '../logger';
+import { DebugProtocol } from '@vscode/debugprotocol';
+import { isWindows } from '../utils';
 
 const TEST_CBUILD_RUN_FILE = 'test-data/multi-core.cbuild-run.yml'; // Relative to repo root
 
@@ -26,87 +28,238 @@ const generateBase64FromUint8Array = (input: Uint8Array): string => {
 };
 
 describe('GDBTargetDebugSession', () => {
-    const defaultConfig = () => {
+    const launchConfig = () => {
         return {
             name: 'session-name',
             type: 'gdbtarget',
-            request: 'launch'
+            request: 'launch',
         };
     };
 
-    let debugSession: vscode.DebugSession;
-    let gdbTargetSession: GDBTargetDebugSession;
+    const attachConfig = () => {
+        return {
+            name: 'session-name',
+            type: 'gdbtarget',
+            request: 'attach'
+        };
+    };
 
-    beforeEach(() => {
-        debugSession = debugSessionFactory(defaultConfig());
-        gdbTargetSession = new GDBTargetDebugSession(debugSession);
+    describe('with launch configuration', () => {
+        let debugSession: vscode.DebugSession;
+        let gdbTargetSession: GDBTargetDebugSession;
+
+        beforeEach(() => {
+            debugSession = debugSessionFactory(launchConfig());
+            gdbTargetSession = new GDBTargetDebugSession(debugSession);
+        });
+
+        it('can create a GDBTargetDebugSession', () => {
+            expect(gdbTargetSession).toBeDefined();
+        });
+
+        it('can set capabilities', () => {
+            const capabilities: DebugProtocol.Capabilities = {
+                supportsDataBreakpoints: true
+            };
+            gdbTargetSession.setCapabilities(capabilities);
+        });
+
+        it('returns an undefined cbuild object of not parsing one', async () => {
+            const cbuildRun = await gdbTargetSession.getCbuildRun();
+            expect(cbuildRun).toBeUndefined();
+        });
+
+        it('returns a cbuild object and cbuild run path after parsing one', async () => {
+            await gdbTargetSession.parseCbuildRun(TEST_CBUILD_RUN_FILE);
+            const cbuildRun = await gdbTargetSession.getCbuildRun();
+            // Snapshot match all but cbuildRunDir which is an absolute path and hence OS specific.
+            // That part gets tested separately in cbuild-run-reader.test.ts.
+            expect({
+                ...cbuildRun,
+                cbuildRunDir: expect.any(String)
+            }).toMatchSnapshot();
+        });
+
+        it('evaluates a global expression without active stack frame and returns a value', async () => {
+            // Only mock relevant properties, return value is body of EvaluateResponse
+            (debugSession.customRequest as jest.Mock).mockReturnValueOnce({ result: '1234567', variableReference: 0 });
+            const result = await gdbTargetSession.evaluateGlobalExpression('myGlobalVariable');
+            expect(result).toEqual({ result: '1234567', variableReference: 0 });
+            expect(debugSession.customRequest as jest.Mock).toHaveBeenCalledWith('evaluate', { expression: 'myGlobalVariable', frameId: 0, context: 'hover' });
+        });
+
+        it('evaluates a global expression with active stack frame and returns a value', async () => {
+            // Only mock relevant properties, return value is body of EvaluateResponse
+            (debugSession.customRequest as jest.Mock).mockReturnValueOnce({ result: '1234567', variableReference: 0 });
+            (vscode.debug.activeStackItem as unknown) = { session: debugSession, threadId: 1, frameId: 2 };
+            const result = await gdbTargetSession.evaluateGlobalExpression('myGlobalVariable');
+            expect(result).toEqual({ result: '1234567', variableReference: 0 });
+            expect(debugSession.customRequest as jest.Mock).toHaveBeenCalledWith('evaluate', { expression: 'myGlobalVariable', frameId: 2, context: 'hover' });
+            // restore default
+            (vscode.debug.activeStackItem as unknown) = undefined;
+        });
+
+        it('returns a string if evaluating a global expression fails', async () => {
+            // Only mock relevant properties, return value is body of EvaluateResponse
+            const logDebugSpy = jest.spyOn(logger, 'debug');
+            (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('myError'));
+            const result = await gdbTargetSession.evaluateGlobalExpression('myGlobalVariable');
+            expect(result).toBe('myError');
+            expect(debugSession.customRequest as jest.Mock).toHaveBeenCalledWith('evaluate', { expression: 'myGlobalVariable', frameId: 0, context: 'hover' });
+            expect(logDebugSpy).toHaveBeenCalledWith('Session \'session-name\': Failed to evaluate global expression \'myGlobalVariable\' - \'myError\'');
+        });
+
+        it('reads memory of an odd number of bytes', async () => {
+            const memoryContents = new Uint8Array([ 0x12, 0x34, 0x56, 0x78 ]);
+            const readMemory = generateBase64FromUint8Array(memoryContents);
+            (debugSession.customRequest as jest.Mock).mockReturnValueOnce({ address: '0xABABABAB', data: readMemory });
+            const result = await gdbTargetSession.readMemory(0xABABABAB, 3);
+            expect(new Uint8Array(result!)).toEqual(new Uint8Array(memoryContents.buffer.slice(0, 3)));
+        });
+
+        it('returns undefined for a failing memory read', async () => {
+            const logDebugSpy = jest.spyOn(logger, 'debug');
+            (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('myError'));
+            const result = await gdbTargetSession.readMemory(0xABABABAB, 4);
+            expect(result).toBeUndefined();
+            expect(logDebugSpy).toHaveBeenCalledWith('Session \'session-name\': Cannot read 4 Bytes from address 2880154539 - \'myError\'');
+        });
+
+        it('returns little-endian representation when it reads a U32', async() => {
+            const memoryContents = new Uint8Array([ 0x12, 0x34, 0x56, 0x78 ]);
+            const readMemory = generateBase64FromUint8Array(memoryContents);
+            (debugSession.customRequest as jest.Mock).mockReturnValueOnce({ address: '0xABABABAB', data: readMemory });
+            const result = await gdbTargetSession.readMemoryU32(0xABABABAB);
+            expect(result).toEqual(0x78563412);
+        });
+
+        it('returns the active pname for a multi-core session name', async () => {
+            const multiCoreSession = debugSessionFactory({
+                name: 'Core1 session-name',
+                type: 'gdbtarget',
+                request: 'launch',
+            });
+            const multiCoreTargetSession = new GDBTargetDebugSession(multiCoreSession);
+            await multiCoreTargetSession.parseCbuildRun(TEST_CBUILD_RUN_FILE);
+            const pname = await multiCoreTargetSession.getPname();
+            expect(pname).toBe('Core1');
+        });
+
+        it('filters output events correctly', () => {
+            const makeEvent = (output: string, category: string): DebugProtocol.OutputEvent => ({
+                seq: 1,
+                type: 'event',
+                event: 'output',
+                body: {
+                    output,
+                    category
+                }
+            });
+            const makeEvents = (): DebugProtocol.OutputEvent[]  => [
+                makeEvent('warning: (Internal error: pc 0x12345678 in read in CU, but not in symtab.)\n', 'log'),
+                makeEvent('warning: (Error: pc 0x12345678 in address map, but not in symtab.)\n', 'log')
+            ];
+            const eventsToFilter = makeEvents();
+            const referenceEvents = makeEvents();
+            // Update to expected event names
+            referenceEvents.forEach(event => event.event = 'cmsis-debugger-discarded');
+            // Look out for logger output
+            const logDebugSpy = jest.spyOn(logger, 'debug');
+            // Call the filter
+            eventsToFilter.forEach(event => gdbTargetSession.filterOutputEvent(event));
+            // Check if logger was called (2 lines = event info + output)
+            expect(logDebugSpy).toHaveBeenCalledTimes(eventsToFilter.length*2);
+            // Compare the outputs
+            expect(eventsToFilter).toEqual(referenceEvents);
+        });
+
+        it('does not filter output events if they do not match criteria', () => {
+            const makeEvent = (output: string, category: string): DebugProtocol.OutputEvent => ({
+                seq: 1,
+                type: 'event',
+                event: 'output',
+                body: {
+                    output,
+                    category
+                }
+            });
+            const makeEvents = (): DebugProtocol.OutputEvent[]  => [
+                makeEvent('warning: (Internal error: pc 0x12345678 in read in CU, but not in symtab.)\n', 'foo'),
+                makeEvent('Error: pc 0x12345678 in address map, but not in symtab.', 'log')
+            ];
+            const eventsToFilter = makeEvents();
+            const referenceEvents = makeEvents();
+            // Look out for logger output
+            const logDebugSpy = jest.spyOn(logger, 'debug');
+            // Call the filter
+            eventsToFilter.forEach(event => gdbTargetSession.filterOutputEvent(event));
+            // Check if logger was called (should not be called if not filtered)
+            expect(logDebugSpy).not.toHaveBeenCalled();
+            // Compare the outputs, should be exact matches as inputs should not cause a match
+            expect(eventsToFilter).toEqual(referenceEvents);
+        });
+
+        it('returns true if request is launch and supportsTerminateRequest is true', () => {
+            const capabilities: DebugProtocol.Capabilities = {
+                supportsTerminateRequest: true
+            };
+            gdbTargetSession.setCapabilities(capabilities);
+            expect(gdbTargetSession.canTerminate()).toBe(true);
+        });
+
+        it('returns false if request is launch and supportsTerminateRequest is false or undefined', () => {
+            gdbTargetSession.setCapabilities({ });
+            expect(gdbTargetSession.canTerminate()).toBe(false);
+
+            gdbTargetSession.setCapabilities({ supportsTerminateRequest: false });
+            expect(gdbTargetSession.canTerminate()).toBe(false);
+        });
     });
 
-    it('can create a GDBTargetDebugSession', () => {
-        expect(gdbTargetSession).toBeDefined();
+    describe('with attach configuration', () => {
+        let debugSession: vscode.DebugSession;
+        let gdbTargetSession: GDBTargetDebugSession;
+
+        beforeEach(() => {
+            debugSession = debugSessionFactory(attachConfig());
+            gdbTargetSession = new GDBTargetDebugSession(debugSession);
+        });
+
+        it('returns false if request is attach, regardless of supportsTerminateRequest value', () => {
+            gdbTargetSession.setCapabilities({ });
+            expect(gdbTargetSession.canTerminate()).toBe(false);
+
+            gdbTargetSession.setCapabilities({ supportsTerminateRequest: false });
+            expect(gdbTargetSession.canTerminate()).toBe(false);
+            gdbTargetSession.setCapabilities({ supportsTerminateRequest: true });
+            expect(gdbTargetSession.canTerminate()).toBe(false);
+        });
     });
 
-    it('returns an undefined cbuild object of not parsing one', async () => {
-        const cbuildRun = await gdbTargetSession.getCbuildRun();
-        expect(cbuildRun).toBeUndefined();
+    describe('with tailored configs', () => {
+
+        it('does not return cbuild run file path if not configured', () => {
+            const debugSession = debugSessionFactory({
+                name: 'session-name',
+                type: 'gdbtarget',
+                request: 'launch',
+            });
+            const gdbTargetSession = new GDBTargetDebugSession(debugSession);
+            expect(gdbTargetSession.getCbuildRunPath()).toBeUndefined();
+        });
+
+        it('does return cbuild run file path if configured', () => {
+            const debugSession = debugSessionFactory({
+                name: 'session-name',
+                type: 'gdbtarget',
+                request: 'launch',
+                cmsis: {
+                    cbuildRunFile: TEST_CBUILD_RUN_FILE
+                }
+            });
+            const gdbTargetSession = new GDBTargetDebugSession(debugSession);
+            expect(gdbTargetSession.getCbuildRunPath()?.endsWith(isWindows ? TEST_CBUILD_RUN_FILE.replaceAll('/', '\\') : TEST_CBUILD_RUN_FILE)).toBe(true);
+        });
     });
 
-    it('returns a cbuild object after parsing one', async () => {
-        await gdbTargetSession.parseCbuildRun(TEST_CBUILD_RUN_FILE);
-        const cbuildRun = await gdbTargetSession.getCbuildRun();
-        expect(cbuildRun).toMatchSnapshot();
-    });
-
-    it('evaluates a global expression without active stack frame and returns a value', async () => {
-        // Only mock relevant properties, return value is body of EvaluateResponse
-        (debugSession.customRequest as jest.Mock).mockReturnValueOnce({ result: '1234567', variableReference: 0 });
-        const result = await gdbTargetSession.evaluateGlobalExpression('myGlobalVariable');
-        expect(result).toEqual({ result: '1234567', variableReference: 0 });
-        expect(debugSession.customRequest as jest.Mock).toHaveBeenCalledWith('evaluate', { expression: 'myGlobalVariable', frameId: 0, context: 'hover' });
-    });
-
-    it('evaluates a global expression with active stack frame and returns a value', async () => {
-        // Only mock relevant properties, return value is body of EvaluateResponse
-        (debugSession.customRequest as jest.Mock).mockReturnValueOnce({ result: '1234567', variableReference: 0 });
-        (vscode.debug.activeStackItem as unknown) = { session: debugSession, threadId: 1, frameId: 2 };
-        const result = await gdbTargetSession.evaluateGlobalExpression('myGlobalVariable');
-        expect(result).toEqual({ result: '1234567', variableReference: 0 });
-        expect(debugSession.customRequest as jest.Mock).toHaveBeenCalledWith('evaluate', { expression: 'myGlobalVariable', frameId: 2, context: 'hover' });
-        // restore default
-        (vscode.debug.activeStackItem as unknown) = undefined;
-    });
-
-    it('returns a string if evaluating a global expression fails', async () => {
-        // Only mock relevant properties, return value is body of EvaluateResponse
-        const logDebugSpy = jest.spyOn(logger, 'debug');
-        (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('myError'));
-        const result = await gdbTargetSession.evaluateGlobalExpression('myGlobalVariable');
-        expect(result).toBe('myError');
-        expect(debugSession.customRequest as jest.Mock).toHaveBeenCalledWith('evaluate', { expression: 'myGlobalVariable', frameId: 0, context: 'hover' });
-        expect(logDebugSpy).toHaveBeenCalledWith('Session \'session-name\': Failed to evaluate global expression \'myGlobalVariable\' - \'myError\'');
-    });
-
-    it('reads memory of an odd number of bytes', async () => {
-        const memoryContents = new Uint8Array([ 0x12, 0x34, 0x56, 0x78 ]);
-        const readMemory = generateBase64FromUint8Array(memoryContents);
-        (debugSession.customRequest as jest.Mock).mockReturnValueOnce({ address: '0xABABABAB', data: readMemory });
-        const result = await gdbTargetSession.readMemory(0xABABABAB, 3);
-        expect(new Uint8Array(result!)).toEqual(new Uint8Array(memoryContents.buffer.slice(0, 3)));
-    });
-
-    it('returns undefined for a failing memory read', async () => {
-        const logDebugSpy = jest.spyOn(logger, 'debug');
-        (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('myError'));
-        const result = await gdbTargetSession.readMemory(0xABABABAB, 4);
-        expect(result).toBeUndefined();
-        expect(logDebugSpy).toHaveBeenCalledWith('Session \'session-name\': Cannot read 4 Bytes from address 2880154539 - \'myError\'');
-    });
-
-    it('returns little-endian representation when it reads a U32', async() => {
-        const memoryContents = new Uint8Array([ 0x12, 0x34, 0x56, 0x78 ]);
-        const readMemory = generateBase64FromUint8Array(memoryContents);
-        (debugSession.customRequest as jest.Mock).mockReturnValueOnce({ address: '0xABABABAB', data: readMemory });
-        const result = await gdbTargetSession.readMemoryU32(0xABABABAB);
-        expect(result).toEqual(0x78563412);
-    });
 });

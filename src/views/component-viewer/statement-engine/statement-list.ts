@@ -1,0 +1,129 @@
+/**
+ * Copyright 2025-2026 Arm Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { componentViewerLogger } from '../../../logger';
+import { ScvdNode } from '../model/scvd-node';
+import { ScvdList } from '../model/scvd-list';
+import { ExecutionContext } from '../scvd-eval-context';
+import { ScvdGuiTree } from '../scvd-gui-tree';
+import { StatementBase } from './statement-base';
+export class StatementList extends StatementBase {
+
+    constructor(item: ScvdNode, parent: StatementBase | undefined) {
+        super(item, parent);
+    }
+
+    public async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
+        componentViewerLogger.debug(`Line: ${this.line}: Executing statement: ${await this.getLogName()}`);
+        const shouldExecute = await this.shouldExecute(executionContext);
+        if (!shouldExecute) {
+            return;
+        }
+        await this.onExecute(executionContext, guiTree);
+        /* Example code for evaluating children.
+           Normally this happens here, but in this case it’s done in onExecute
+           to account for the loop and its variables.
+
+        for (const child of this.children) {  // executed in list
+            await child.executeStatement(executionContext, guiTree);
+        }*/
+    }
+
+    protected async onExecute(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
+        componentViewerLogger.debug(`Line: ${this.line}: Executing <${this.scvdItem.tag}> : ${await this.getLogName()}`);
+        const scvdList = this.scvdItem.castToDerived(ScvdList);
+        if (scvdList === undefined) {
+            componentViewerLogger.error(`Line: ${this.line}: Executing "list": could not cast to ScvdList`);
+            return;
+        }
+
+        const name = scvdList.name;
+        if (name === undefined) {
+            componentViewerLogger.error(`Line: ${this.line}: Executing "list": no name defined`);
+            return;
+        }
+
+        const startExpr = scvdList.start;
+        if (startExpr === undefined) {
+            componentViewerLogger.error(`Line: ${this.line}: Executing "list": ${scvdList.name}, no start expression defined`);
+            return;
+        }
+        const startValue = await startExpr.getValue();
+        if (startValue === undefined) {
+            componentViewerLogger.error(`Line: ${this.line}: Executing "list": ${scvdList.name}, could not evaluate start expression`);
+            return;
+        }
+
+        const modelBase = executionContext.evalContext.container.base;
+        if (modelBase === undefined) {
+            componentViewerLogger.error(`Line: ${this.line}: Executing "list": ${scvdList.name}, no base container defined`);
+            return;
+        }
+
+        const varItem = modelBase.getSymbol(name);
+        if (varItem === undefined) {
+            componentViewerLogger.error(`Line: ${this.line}: Executing "list": ${scvdList.name}, could not find variable in base container: ${modelBase.name}`);
+            return;
+        }
+        const varTargetSize = await varItem.getTargetSize();
+        if (varTargetSize === undefined) {
+            componentViewerLogger.error(`Line: ${this.line}: Executing "list": ${scvdList.name}, variable: ${varItem.name}, could not determine target size`);
+            return;
+        }
+
+        let limitValue = 0;
+        const limitExpr = scvdList.limit;
+        if (limitExpr !== undefined) {
+            const limitVal = await limitExpr.getValue();
+            limitValue = limitVal !== undefined ? Number(limitVal) : 0; // do not enter loop if undefined
+        }
+
+        const whileExpr = scvdList.while;
+        if (whileExpr !== undefined && limitExpr !== undefined) {
+            componentViewerLogger.error(`Line: ${this.line}: Executing "list": ${scvdList.name}, cannot define both limit and while expressions`);
+            return;
+        }
+
+        let loopValue = Number(startValue);
+        let maximumCount = 100000;   // prevent infinite loops
+        while (maximumCount-- > 0) {
+            executionContext.memoryHost.setVariable(name, varTargetSize, loopValue, 0, undefined, varTargetSize);    // update loop variable in memory
+
+            // while-loop
+            if (whileExpr !== undefined) {
+                const whileValue = await whileExpr.getValue();
+                if (whileValue !== undefined) {
+                    loopValue = Number(whileValue);
+                }
+                if (loopValue === 0 || whileValue === undefined) {   // break on read error too
+                    break;
+                }
+            }
+            // for-loop: test condition, exit if met
+            if (limitExpr !== undefined) {
+                if (loopValue >= limitValue) {
+                    break;
+                }
+                loopValue++;
+            }
+
+            for (const child of this.children) {  // executed in list
+                await child.executeStatement(executionContext, guiTree);
+            }
+        }
+        executionContext.memoryHost.setVariable(name, varTargetSize, loopValue, 0, undefined, varTargetSize);    // update last loop variable in memory
+    }
+}

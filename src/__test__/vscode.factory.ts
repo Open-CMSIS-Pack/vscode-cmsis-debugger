@@ -70,10 +70,11 @@ export function extensionContextFactory(): jest.Mocked<vscode.ExtensionContext> 
 };
 
 export function debugSessionFactory(
-    configuration: vscode.DebugConfiguration
+    configuration: vscode.DebugConfiguration,
+    id: string = '{session-id}'
 ): jest.Mocked<vscode.DebugSession> {
     return {
-        id: '{session-id}',
+        id,
         name: configuration.name,
         type: configuration.type,
         workspaceFolder: undefined,

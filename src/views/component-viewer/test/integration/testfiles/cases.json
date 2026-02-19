@@ -1,0 +1,163 @@
+{
+  "_meta": {
+    "format": "parser-cases-v1",
+    "copyright": "Copyright 2026 Arm Limited",
+    "counts": {
+      "const": 23,
+      "nonConst": 6,
+      "intrinsics": 7,
+      "pseudoMembers": 2
+    },
+    "generatedWith": "AI"
+  },
+  "constCases": [
+    {
+      "expr": "1+2",
+      "expected": 3
+    },
+    {
+      "expr": "-1+2",
+      "expected": 1
+    },
+    {
+      "expr": "0x12 + 7",
+      "expected": 25
+    },
+    {
+      "expr": "(3+4)*2",
+      "expected": 14
+    },
+    {
+      "expr": "((1+2)<<3) + (4>>1)",
+      "expected": 26
+    },
+    {
+      "expr": "1<<8",
+      "expected": 256
+    },
+    {
+      "expr": "5 & 3",
+      "expected": 1
+    },
+    {
+      "expr": "5 | 2",
+      "expected": 7
+    },
+    {
+      "expr": "5 ^ 2",
+      "expected": 7
+    },
+    {
+      "expr": "-1 >> 1",
+      "expected": -1
+    },
+    {
+      "expr": "0xFF >> 4",
+      "expected": 15
+    },
+    {
+      "expr": "0b1010 & 0b1100",
+      "expected": 8
+    },
+    {
+      "expr": "~0",
+      "expected": -1
+    },
+    {
+      "expr": "!0",
+      "expected": 1
+    },
+    {
+      "expr": "!!1",
+      "expected": 1
+    },
+    {
+      "expr": "1 + 2 * 3 << 2",
+      "expected": 28
+    },
+    {
+      "expr": "1 ? 2 + 3 * 4 : 0",
+      "expected": 14
+    },
+    {
+      "expr": "true ? 5 : 6",
+      "expected": 5
+    },
+    {
+      "expr": "false ? 5 : 6",
+      "expected": 6
+    },
+    {
+      "expr": "0 && foo",
+      "expected": 0
+    },
+    {
+      "expr": "1 || foo",
+      "expected": 1
+    },
+    {
+      "expr": "'A' + 1",
+      "expected": 66
+    }
+  ],
+  "nonConstCases": [
+    {
+      "expr": "foo + 1",
+      "symbols": [
+        "foo"
+      ]
+    },
+    {
+      "expr": "foo + 1 + 2",
+      "symbols": [
+        "foo"
+      ],
+      "foldedTo": {
+        "left": "foo",
+        "right": 3
+      }
+    },
+    {
+      "expr": "foo + (1 << 3)",
+      "symbols": [
+        "foo"
+      ],
+      "foldedTo": {
+        "left": "foo",
+        "right": 8
+      }
+    },
+    {
+      "expr": "foo ? 1+2 : bar",
+      "symbols": [
+        "foo",
+        "bar"
+      ]
+    },
+    {
+      "expr": "foo && 0",
+      "symbols": [
+        "foo"
+      ]
+    },
+    {
+      "expr": "foo || (1 + 2)",
+      "symbols": [
+        "foo"
+      ]
+    }
+  ],
+  "intrinsics": [
+    "__CalcMemUsed",
+    "__FindSymbol",
+    "__GetRegVal",
+    "__Offset_of",
+    "__size_of",
+    "__Symbol_exists",
+    "__Running"
+  ],
+  "pseudoMembers": [
+    "foo._count",
+    "bar._addr"
+  ]
+}

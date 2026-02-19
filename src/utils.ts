@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+// NOTE: Keep vscode imports out of this file.
+// Mocking path in this module's tests causes trouble with path-require in global vscode mock.
+// Can be merged once we found a better solution for path usage in global vscode mock.
 
 import * as os from 'os';
 import * as path from 'path';
