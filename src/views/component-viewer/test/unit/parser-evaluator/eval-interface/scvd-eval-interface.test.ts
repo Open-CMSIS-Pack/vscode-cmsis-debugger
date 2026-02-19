@@ -364,8 +364,8 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         expect(await formatterEval.formatPrintf('M', 0x30, container)).toBeDefined();
         expect(await formatterEval.formatPrintf('M', new Uint8Array([1, 2, 3, 4, 5, 6]), container)).toBeDefined();
         expect(await formatterEval.formatPrintf('U', 0x9999, container)).toBeDefined();
-        expect(await formatterEval.formatPrintf('x', true as unknown as number, container)).toBe('0x1');
-        expect(await formatterEval.formatPrintf('x', '7' as unknown as number, container)).toBe('0x7');
+        expect(await formatterEval.formatPrintf('x', true as unknown as number, container)).toBe('0x00000001');
+        expect(await formatterEval.formatPrintf('x', '7' as unknown as number, container)).toBe('0x00000007');
 
         const noContextDebug = {
             findSymbolContextAtAddress: jest.fn().mockResolvedValue(undefined),
@@ -407,7 +407,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         const memHost = { readRaw: jest.fn().mockResolvedValue(undefined) } as unknown as MemoryHost;
         const formatterEval = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier());
         const container: RefContainer = { base: new DummyNode('b'), current: new DummyNode('b'), valueType: undefined };
-        expect(await formatterEval.formatPrintf('x', BigInt(5) as unknown as number, container)).toBe('0x5');
+        expect(await formatterEval.formatPrintf('x', BigInt(5) as unknown as number, container)).toBe('0x00000005');
         expect(await formatterEval.formatPrintf('x', ({}) as unknown as number, container)).toBe('NaN');
         expect(await formatterEval.formatPrintf('I', 0x1, container)).toBeDefined();
         expect(await formatterEval.formatPrintf('I', 'text' as unknown as number, container)).toBeDefined();
@@ -509,8 +509,8 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         const member = new LocalFakeMember();
         const container: RefContainer = { base: member, current: member, valueType: undefined };
 
-        expect(await evalIf.formatPrintf('x', 7, container)).toBe('0x7');
-        expect(await evalIf.formatPrintf('x', 7, container)).toBe('0x7');
+        expect(await evalIf.formatPrintf('x', 7, container)).toBe('0x00000007');
+        expect(await evalIf.formatPrintf('x', 7, container)).toBe('0x00000007');
 
         expect(await evalIf.formatPrintf('t', 'hello', container)).toBe('hello');
         expect(await evalIf.formatPrintf('t', 'hello', container)).toBe('hello');
