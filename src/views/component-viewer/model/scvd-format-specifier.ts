@@ -158,7 +158,9 @@ export class ScvdFormatSpecifier {
                     if (typeof n === 'number') {
                         n = Math.trunc(n);
                     }
-                    return this.formatNumberByType(n, numOpts('int'));
+                    // Match UV4 behavior: if type is unsigned (uint8/uint16/uint32), format as unsigned
+                    const isUnsigned = typeInfo?.kind === 'uint';
+                    return this.formatNumberByType(n, numOpts(isUnsigned ? 'uint' : 'int'));
                 }
                 case 'u': {
                     let n = toNumber(value);
@@ -172,7 +174,8 @@ export class ScvdFormatSpecifier {
                     if (typeof n === 'number' && (typeInfo?.kind ?? 'unknown') !== 'float') {
                         n = Math.trunc(n);
                     }
-                    return this.format_x(n, typeInfo, padHex);
+                    // Always pad hex values based on type width (UV4: 8-bit→2, 16-bit→4, 32-bit→8)
+                    return this.format_x(n, typeInfo, true);
                 }
                 case 't': {
                     if (typeof value === 'string') {
@@ -258,7 +261,7 @@ export class ScvdFormatSpecifier {
         if (typeof value === 'bigint') {
             const widthRaw = bits ? Math.ceil(bits / 4) : 0;
             const width = padZeroes && widthRaw > 0 ? Math.min(widthRaw, 16) : 0;
-            const hex = value.toString(16);
+            const hex = value.toString(16).toUpperCase();
             const padded = width > 0 ? hex.padStart(width, '0') : hex;
             return '0x' + padded;
         }
@@ -268,7 +271,7 @@ export class ScvdFormatSpecifier {
         }
         const widthRaw = bits ? Math.ceil(bits / 4) : 0;
         const width = padZeroes && widthRaw > 0 ? Math.min(widthRaw, 16) : 0; // cap padding to 64-bit to avoid runaway zeros
-        const hex = (n >>> 0).toString(16);
+        const hex = (n >>> 0).toString(16).toUpperCase();
         const padded = width > 0 ? hex.padStart(width, '0') : hex;
         return '0x' + padded;
     }

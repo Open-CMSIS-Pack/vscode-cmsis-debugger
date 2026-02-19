@@ -527,6 +527,26 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                         return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
                     }
                     if (typeof value === 'number') {
+                        // If the container has an anchor with a known base address, compute the full address
+                        // This handles the case where a member is defined as uint8_t without size attribute
+                        // and we need to read all 4 bytes for the IP address
+                        let addressToRead: number | undefined;
+
+                        if (container.anchor?.name && container.offsetBytes !== undefined) {
+                            const baseAddr = this.memHost.getElementTargetBase(container.anchor.name, container.index ?? 0);
+                            if (baseAddr !== undefined) {
+                                addressToRead = baseAddr + container.offsetBytes;
+                            }
+                        }
+
+                        if (addressToRead !== undefined && Number.isFinite(addressToRead)) {
+                            const buf = await this.readBytesFromPointer(addressToRead, 4);
+                            if (buf) {
+                                return this.formatSpecifier.format(spec, buf, { typeInfo, allowUnknownSpec: true });
+                            }
+                        }
+
+                        // Fallback: treat value as a pointer to read from
                         const buf = await this.readBytesFromPointer(value, 4);
                         return this.formatSpecifier.format(spec, buf ?? value, { typeInfo, allowUnknownSpec: true });
                     }
@@ -537,6 +557,26 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                         return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
                     }
                     if (typeof value === 'number') {
+                        // If the container has an anchor with a known base address, compute the full address
+                        // This handles the case where a member is defined as uint8_t without size attribute
+                        // and we need to read all 16 bytes for the IPv6 address
+                        let addressToRead: number | undefined;
+
+                        if (container.anchor?.name && container.offsetBytes !== undefined) {
+                            const baseAddr = this.memHost.getElementTargetBase(container.anchor.name, container.index ?? 0);
+                            if (baseAddr !== undefined) {
+                                addressToRead = baseAddr + container.offsetBytes;
+                            }
+                        }
+
+                        if (addressToRead !== undefined && Number.isFinite(addressToRead)) {
+                            const buf = await this.readBytesFromPointer(addressToRead, 16);
+                            if (buf) {
+                                return this.formatSpecifier.format(spec, buf, { typeInfo, allowUnknownSpec: true });
+                            }
+                        }
+
+                        // Fallback: treat value as a pointer to read from
                         const buf = await this.readBytesFromPointer(value, 16);
                         return this.formatSpecifier.format(spec, buf ?? value, { typeInfo, allowUnknownSpec: true });
                     }
