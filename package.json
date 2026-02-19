@@ -21,7 +21,7 @@
   "engines": {
     "node": "^20.18.0",
     "yarn": "^1.22.0",
-    "vscode": "^1.106.1"
+    "vscode": "^1.108.1"
   },
   "categories": [
     "Debuggers"
@@ -420,14 +420,15 @@
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@open-cmsis-pack/vsce-helper": "^0.2.2",
-    "@types/extract-zip": "^2.0.1",
+    "@types/extract-zip": "^2.0.3",
     "@types/fs-extra": "^11.0.4",
     "@types/jest": "^30.0.0",
     "@types/minimist": "^1.2.5",
-    "@types/node": "^20.19.30",
+    "@types/node": "^20.19.33",
     "@types/node-fetch": "^2.6.13",
-    "@types/vscode": "^1.106.1",
+    "@types/vscode": "^1.108.1",
     "@types/xml2js": "^0.4.14",
     "@types/yargs": "^17.0.35",
     "@types/yarnpkg__lockfile": "^1.1.9",
@@ -436,14 +437,14 @@
     "@vscode/debugprotocol": "^1.68.0",
     "@vscode/vsce": "^3.7.1",
     "@yarnpkg/lockfile": "^1.1.0",
-    "eslint": "^9.39.2",
-    "eslint-plugin-security": "^3.0.1",
+    "eslint": "^10.0.0",
+    "eslint-plugin-security": "^4.0.0",
     "extract-zip": "^2.0.1",
     "fast-extract": "^1.14.2",
     "file-type": "^21.3.0",
     "fs-extra": "^11.3.3",
     "glob": "^13.0.5",
-    "globby": "^16.1.0",
+    "globby": "^16.1.1",
     "jest": "^30.2.0",
     "jest-html-reporter": "^4.3.0",
     "lzma-native": "8.0.6",
@@ -458,10 +459,10 @@
     "ts-loader": "^9.5.4",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
-    "type-fest": "^5.4.2",
+    "type-fest": "^5.4.4",
     "typescript": "^5.9.3",
     "typescript-eslint": "8.56.0",
-    "webpack": "^5.104.1",
+    "webpack": "^5.105.2",
     "webpack-cli": "^6.0.1",
     "yargs": "^18.0.0"
   },
