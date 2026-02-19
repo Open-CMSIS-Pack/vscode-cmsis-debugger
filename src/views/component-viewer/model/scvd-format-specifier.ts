@@ -139,6 +139,27 @@ export class ScvdFormatSpecifier {
                     const n = Number(v);
                     return Number.isFinite(n) ? n : NaN;
                 }
+                // Convert Uint8Array to number (little-endian)
+                if (v instanceof Uint8Array) {
+                    if (v.length === 0) {
+                        return 0;
+                    }
+                    if (v.length <= 4) {
+                        let out = 0;
+                        for (const b of Array.from(v).reverse()) {
+                            out = (out << 8) | (b & 0xff);
+                        }
+                        return out >>> 0;
+                    }
+                    if (v.length === 8) {
+                        let out = 0n;
+                        for (let i = 0; i < 8; i++) {
+                            // eslint-disable-next-line security/detect-object-injection
+                            out |= BigInt(v[i]) << BigInt(8 * i);
+                        }
+                        return out;
+                    }
+                }
                 return NaN;
             };
 
@@ -158,7 +179,7 @@ export class ScvdFormatSpecifier {
                     if (typeof n === 'number') {
                         n = Math.trunc(n);
                     }
-                    // Match UV4 behavior: if type is unsigned (uint8/uint16/uint32), format as unsigned
+                    // Legacy compatibility: if type is unsigned (uint8/uint16/uint32), format as unsigned
                     const isUnsigned = typeInfo?.kind === 'uint';
                     return this.formatNumberByType(n, numOpts(isUnsigned ? 'uint' : 'int'));
                 }
@@ -175,7 +196,7 @@ export class ScvdFormatSpecifier {
                     if (typeof n === 'number' && (typeInfo?.kind ?? 'unknown') !== 'float') {
                         n = Math.trunc(n);
                     }
-                    // Always pad hex values when type info is available OR when value is a string (UV4: 8-bit→2, 16-bit→4, 32-bit→8)
+                    // Always pad hex values when type info is available OR when value is a string (8-bit→2, 16-bit→4, 32-bit→8 hex digits)
                     const shouldPad = padHex || (typeInfo?.bits !== undefined) || isStringValue;
                     const effectiveType = typeInfo ?? (isStringValue ? { kind: 'int' as const, bits: 32 } : undefined);
                     return this.format_x(n, effectiveType, shouldPad);

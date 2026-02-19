@@ -448,6 +448,27 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                     const n = Number(v);
                     return Number.isFinite(n) ? n : NaN;
                 }
+                // Convert Uint8Array to number (little-endian)
+                if (v instanceof Uint8Array) {
+                    if (v.length === 0) {
+                        return 0;
+                    }
+                    if (v.length <= 4) {
+                        let out = 0;
+                        for (const b of Array.from(v).reverse()) {
+                            out = (out << 8) | (b & 0xff);
+                        }
+                        return out >>> 0;
+                    }
+                    if (v.length === 8) {
+                        let out = 0n;
+                        for (let i = 0; i < 8; i++) {
+                            // eslint-disable-next-line security/detect-object-injection
+                            out |= BigInt(v[i]) << BigInt(8 * i);
+                        }
+                        return out;
+                    }
+                }
                 return NaN;
             };
 
@@ -527,9 +548,8 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                         return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
                     }
                     if (typeof value === 'number') {
-                        // If the container has an anchor with a known base address, compute the full address
-                        // This handles the case where a member is defined as uint8_t without size attribute
-                        // and we need to read all 4 bytes for the IP address
+                        // Legacy compatibility: for members without size attribute, compute the full address
+                        // from the container's anchor base + offset to read all 4 bytes for the IP address
                         let addressToRead: number | undefined;
 
                         if (container.anchor?.name && container.offsetBytes !== undefined) {
@@ -546,7 +566,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                             }
                         }
 
-                        // Fallback: treat value as a pointer to read from
+                        // Compatibility fallback: treat value as a pointer to read from
                         const buf = await this.readBytesFromPointer(value, 4);
                         return this.formatSpecifier.format(spec, buf ?? value, { typeInfo, allowUnknownSpec: true });
                     }
@@ -557,9 +577,8 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                         return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
                     }
                     if (typeof value === 'number') {
-                        // If the container has an anchor with a known base address, compute the full address
-                        // This handles the case where a member is defined as uint8_t without size attribute
-                        // and we need to read all 16 bytes for the IPv6 address
+                        // Legacy compatibility: for members without size attribute, compute the full address
+                        // from the container's anchor base + offset to read all 16 bytes for the IPv6 address
                         let addressToRead: number | undefined;
 
                         if (container.anchor?.name && container.offsetBytes !== undefined) {
@@ -576,7 +595,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                             }
                         }
 
-                        // Fallback: treat value as a pointer to read from
+                        // Compatibility fallback: treat value as a pointer to read from
                         const buf = await this.readBytesFromPointer(value, 16);
                         return this.formatSpecifier.format(spec, buf ?? value, { typeInfo, allowUnknownSpec: true });
                     }
