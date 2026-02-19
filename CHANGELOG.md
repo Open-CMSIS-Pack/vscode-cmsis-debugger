@@ -1,5 +1,36 @@
 # Change Log
 
+## 1.3.0
+
+- Enhanced [pyOCD](https://open-cmsis-pack.github.io/cmsis-toolbox/YML-Input-Format/#pyocd)
+and [J-Link GDB Server](https://open-cmsis-pack.github.io/cmsis-toolbox/YML-Input-Format/#j-link-server) debug configurations for multi-core
+debug, semihosting serial I/O via Telnet, and more.
+- Includes updated pyOCD distribution ([pyOCD v0.42.0](https://github.com/pyocd/pyOCD/releases/tag/v0.42.0))
+    - Adds [`run`](https://open-cmsis-pack.github.io/cmsis-toolbox/pyOCD-Debugger/#command-line-invocation) subcommand capable of running targets until a time limit or EOT (suited for CI/CD workflows), and of semihosting console output/input and SWV output.
+    - Adds support for Cortex-M52 and Star-MC3 based devices ([@Liu-Gu](https://github.com/Liu-Gu)).
+    - Improves [CMSIS-Toolbox Run and Debug Management](https://open-cmsis-pack.github.io/cmsis-toolbox/YML-CBuild-Format/#run-and-debug-management) support:
+        - Port assignment logic for multi-core GDB server and telnet configurations.
+        - STDIO routing for `console`, `telnet`, `file` and `off`. (Currently only supports STDIO output)
+        - `connect` mode configuration.
+        - `pre-reset` and `post-reset` type for load configurations.
+        - Reworked priority of `*.cbuild-run.yml` settings to allow for example command line switches to override them.
+        - Check for required files and request pack installation for missing ones. Also improves related error messages.
+    - Improves Zephyr thread state definitions to match modern versions ([@mathieuchopstm](https://github.com/mathieuchopstm)).
+    - Relaxes flash algorithm requirement to only have RO sections.
+    - Fixes support for some HID-based CMSIS-DAP debug adapters.
+    - Fixes path normalization inside CMSIS-Pack archives to support `..` in file paths ([@xoriath](https://github.com/xoriath)).
+- Also included in this extension release:
+    - [arm-none-eabi-gdb v14.3.1](https://artifacts.tools.arm.com/arm-none-eabi-gdb/14.3.1/)
+- Full list of required minimum versions for correct functionality of the CMSIS Debugger v1.3.0 solution:
+    - [Arm CMSIS Solution extension v1.64.0](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution)
+    - [CDT GDB Adapter extension v2.6.0](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode)
+    - [Memory Inspector v1.2.0](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector)
+    - [Peripheral Inspector v1.8.1](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector)
+    - [Serial Monitor v0.13.1](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor)
+    - [RTOS Views v0.0.13](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views)
+- Refer to the [CMSIS Debugger 1.3.0 project board](https://github.com/orgs/Open-CMSIS-Pack/projects/21/views/8) for a full list
+of enhancement requests and defects addressed in this release.
+
 ## 1.2.0
 
 - Introduces the ability to access memory and calculate expression results while the target system is running.  

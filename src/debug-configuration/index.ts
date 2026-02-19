@@ -16,3 +16,4 @@
 
 export * from './gdbtarget-configuration';
 export * from './gdbtarget-configuration-provider';
+export * from './managed-config-utils';

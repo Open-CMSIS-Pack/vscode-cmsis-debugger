@@ -26,6 +26,8 @@ import {
 } from './subproviders';
 import { BuiltinToolPath } from '../desktop/builtin-tool-path';
 import { resolveToolPath } from '../desktop/tool-path-utils';
+import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../debug-session';
+import { getManagedConfigBaseName, hasManagedConfigEnding } from './managed-config-utils';
 
 const GDB_TARGET_DEBUGGER_TYPE = 'gdbtarget';
 const ARM_NONE_EABI_GDB_NAME = 'arm-none-eabi-gdb';
@@ -49,15 +51,22 @@ const GENERIC_SUBPROVIDER: GDBTargetConfigurationSubProvider = { serverRegExp: /
 
 export class GDBTargetConfigurationProvider implements vscode.DebugConfigurationProvider {
     protected builtinArmNoneEabiGdb = new BuiltinToolPath(ARM_NONE_EABI_GDB_BUILTIN_PATH);
+    protected activeSessions = new Set<GDBTargetDebugSession>();
 
     public constructor(
         protected subProviders: GDBTargetConfigurationSubProvider[] = SUPPORTED_SUBPROVIDERS
     ) {}
 
-    public activate(context: vscode.ExtensionContext) {
+    public activate(context: vscode.ExtensionContext, debugTracker?: GDBTargetDebugTracker) {
         context.subscriptions.push(
             vscode.debug.registerDebugConfigurationProvider(GDB_TARGET_DEBUGGER_TYPE, this)
         );
+        if (debugTracker) {
+            context.subscriptions.push(
+                debugTracker.onWillStartSession(session => this.activeSessions.add(session)),
+                debugTracker.onWillStopSession(session => this.activeSessions.delete(session))
+            );
+        }
     }
 
     private logDebugConfiguration(resolverType: ResolverType, config: vscode.DebugConfiguration, message = '') {
@@ -111,6 +120,33 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         return relevantProvider;
     }
 
+    private async shouldCancel(debugConfiguration: vscode.DebugConfiguration): Promise<boolean> {
+        if (!hasManagedConfigEnding(debugConfiguration.name)) {
+            // Not a managed config
+            return false;
+        }
+        const managedSessions = Array.from(this.activeSessions).filter(session => hasManagedConfigEnding(session.session.name));
+        if (!managedSessions.length) {
+            // No other running managed sessions
+            return false;
+        }
+        const configNameBase = getManagedConfigBaseName(debugConfiguration.name);
+        const alreadyRunning = managedSessions.find(session => {
+            return getManagedConfigBaseName(session.session.name) === configNameBase;
+        })?.session.name;
+        if (!alreadyRunning || alreadyRunning === debugConfiguration.name) {
+            // Nothing suitable running, or exact match which should be handled by VS Code built-in mechanism
+            return false;
+        }
+        const continueOption = 'Yes';
+        const result = await vscode.window.showInformationMessage(
+            `'${alreadyRunning}' is already running and may conflict with new session. Do you want to start '${debugConfiguration.name}' anyway?`,
+            { modal: true },
+            continueOption
+        );
+        return result !== continueOption;
+    }
+
     private async resolveDebugConfigurationByResolverType(
         resolverType: ResolverType,
         folder: vscode.WorkspaceFolder | undefined,
@@ -146,11 +182,15 @@ export class GDBTargetConfigurationProvider implements vscode.DebugConfiguration
         return this.resolveDebugConfigurationByResolverType('resolveDebugConfiguration', folder, debugConfiguration, token);
     }
 
-    public resolveDebugConfigurationWithSubstitutedVariables(
+    public async resolveDebugConfigurationWithSubstitutedVariables(
         folder: vscode.WorkspaceFolder | undefined,
         debugConfiguration: vscode.DebugConfiguration,
         token?: vscode.CancellationToken
     ): Promise<vscode.DebugConfiguration | null | undefined> {
+        // Check only with substituted variables in case name contains one
+        if (await this.shouldCancel(debugConfiguration)) {
+            return undefined;
+        }
         // Only resolve GDB path once, otherwise regexp check will fail
         logger.debug('resolveDebugConfigurationWithSubstitutedVariables: Resolve GDB path');
         debugConfiguration.gdb = resolveToolPath(debugConfiguration.gdb, ARM_NONE_EABI_GDB_NAME, ARM_NONE_EABI_GDB_EXECUTABLE_ONLY_REGEXP, this.builtinArmNoneEabiGdb);

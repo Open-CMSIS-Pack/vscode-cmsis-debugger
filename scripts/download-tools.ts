@@ -21,6 +21,13 @@ import { PackageJson } from 'type-fest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+// Temporary solution until we have fixed vsce-helper
+import extract from 'extract-zip';
+import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 type CmsisPackageJson = PackageJson & {
     cmsis: {
@@ -39,6 +46,15 @@ function splitGitReference(reference: string, owner: string, repo: string) {
         owner = repoAndOwner[0];
     }
     return { repo, owner, reference };
+}
+
+// Temporary solution until we have fixed vsce-helper
+class ExtractZipArchiveFileAsset extends ArchiveFileAsset {
+    protected async extractArchive(archiveFile: string, dest?: string): Promise<string> {
+        const effDest = dest ?? path.join(__dirname, 'tools', 'pyocd');
+        await extract(archiveFile, { dir: effDest });
+        return effDest;
+    }
 }
 
 const pyocd : Downloadable = new Downloadable(
@@ -64,10 +80,20 @@ const pyocd : Downloadable = new Downloadable(
             owner, repo, reference,
             `pyocd-${os}${arch}-${reference}.zip`, 
             { token: process.env.GITHUB_TOKEN });
-        const asset = new ArchiveFileAsset(releaseAsset);
+        const asset = new ExtractZipArchiveFileAsset(releaseAsset);
         return asset;
     },
 )
+
+// Temporary solution until we have fixed vsce-helper
+class ExtractZipGitHubWorkflowAsset extends GitHubWorkflowAsset {
+    protected async extractArchive(archiveFile: string, dest?: string): Promise<string> {
+        const effDest = dest ?? path.join(__dirname, 'tools', 'pyocd');
+        await extract(archiveFile, { dir: effDest });
+        return effDest;
+    }
+}
+
 
 const pyocdNightly : Downloadable = new Downloadable(
     'pyOCD', 'pyocd',
@@ -89,7 +115,7 @@ const pyocdNightly : Downloadable = new Downloadable(
         // Here, reference is expected to be the name of the workflow yaml file without file ending
         const { repo, owner, reference } = splitGitReference(workflow, 'pyocd', 'pyOCD');
         const assetPattern = (`pyocd-${os}${arch}-*`);
-        const asset = new GitHubWorkflowAsset(
+        const asset = new ExtractZipGitHubWorkflowAsset(
             owner, repo, `${reference}.yaml`,
             assetPattern, 
             { token: process.env.GITHUB_TOKEN });

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2026 Arm Limited -->
+<component_viewer schemaVersion="0.1" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="Component_Viewer.xsd">
+  <component name="MyExample" version="1.0.0"/>
+ 
+   <typedefs>
+    <typedef name="varOnly_t" info="" size="0">      
+      <var name="sum"     type="uint32_t"  info="Member sum"/>
+      <var name="m_var1" type="uint32_t" info="Member Variable 1"/>
+      <var name="m_var2" type="uint16_t" info="Member Variable 2"/>
+      <var name="m_var3" type="uint32_t" info="Member Variable 3"/>
+    </typedef>
+  </typedefs>
+
+  <objects>
+    <object name="MyProgram">
+      <var name="myVar"   type="varOnly_t" size="10" value="0"/>
+      <calc>
+        myVar[0].m_var1 = 10;
+        myVar[0].m_var2 = 20;
+        myVar[0].m_var3 = 30;
+        myVar[0].sum = myVar[0].m_var1 + myVar[0].m_var2 + myVar[0].m_var3;
+        myVar[1].m_var1 = 100;
+        myVar[1].m_var2 = 200;
+        myVar[1].m_var3 = 300;
+        myVar[1].sum = myVar[1].m_var1 + myVar[1].m_var2 + myVar[1].m_var3;
+      </calc>
+ 
+      <out name="MyProgram">
+      <item property="Sum"        value="%d[myVar[0].sum]"        info="Sum of variables"/>
+      <item property="Variable 1" value="%d[myVar[0].m_var1]" info="Member Variable 1"/>
+      <item property="Variable 2" value="%d[myVar[0].m_var2]" info="Member Variable 2"/>
+      <item property="Variable 3" value="%d[myVar[0].m_var3]" info="Member Variable 3"/>
+      <item property="Sum"        value="%d[myVar[1].sum]"        info="Sum of variables"/>
+      <item property="Variable 1" value="%d[myVar[1].m_var1]" info="Member Variable 1"/>
+      <item property="Variable 2" value="%d[myVar[1].m_var2]" info="Member Variable 2"/>
+      <item property="Variable 3" value="%d[myVar[1].m_var3]" info="Member Variable 3"/>
+      </out>
+    </object>
+  </objects>
+ 
+</component_viewer>

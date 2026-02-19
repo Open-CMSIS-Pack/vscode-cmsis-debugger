@@ -34,7 +34,7 @@ describe('PyocdConfigurationProvider', () => {
             expect(gdbtargetConfig?.target?.serverParameters).not.toContain('--port');
         });
 
-        it('adds port to server parameters, gdbserver always gets added', async () => {
+        it('always adds gdbserver, does not add port to server parameters', async () => {
             const configProvider = new PyocdConfigurationProvider();
             const config = gdbTargetConfiguration({
                 target: targetConfigurationFactory({ port: '4711' }),
@@ -43,16 +43,16 @@ describe('PyocdConfigurationProvider', () => {
             expect(debugConfig).toBeDefined();
             const gdbtargetConfig = debugConfig as GDBTargetConfiguration;
             expect(gdbtargetConfig?.target?.serverParameters).toContain('gdbserver');
-            expect(gdbtargetConfig?.target?.serverParameters).toContain('--port');
-            expect(gdbtargetConfig?.target?.serverParameters).toContain('4711');
+            // GDB port expected to come through *.cbuild-run.yml file.
+            expect(gdbtargetConfig?.target?.serverParameters).not.toContain('--port');
         });
 
-        it('does not overwrite port in server parameters', async () => {
+        it('keeps port from config in server parameters', async () => {
             const configProvider = new PyocdConfigurationProvider();
             const config = gdbTargetConfiguration({
                 target: targetConfigurationFactory({
                     port: '4711',
-                    serverParameters: ['-port', '10815'],
+                    serverParameters: ['--port', '10815'],
                 }),
             });
             const debugConfig = await configProvider.resolveDebugConfigurationWithSubstitutedVariables(undefined, config, undefined);

@@ -1,7 +1,7 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`GDBTargetDebugSession returns a cbuild object after parsing one 1`] = `
-CbuildRunReader {
+exports[`GDBTargetDebugSession with launch configuration returns a cbuild object and cbuild run path after parsing one 1`] = `
+{
   "cbuildRun": {
     "compiler": "AC6",
     "debug-sequences": [
@@ -130,6 +130,27 @@ CbuildRunReader {
         "pname": "Core1",
         "type": "svd",
       },
+      {
+        "file": "\${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SVD/MyDevice_generic.svd",
+        "type": "svd",
+      },
+      {
+        "file": "../../MyDevice/multi-core-custom.svd",
+        "type": "svd",
+      },
+      {
+        "file": "\${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SCVD/MySoftware_component.scvd",
+        "type": "scvd",
+      },
+      {
+        "file": "../../MyDevice/multi-core-custom.scvd",
+        "type": "scvd",
+      },
+      {
+        "file": "\${CMSIS_PACK_ROOT}/MyVendor/MyDevice/1.0.0/Debug/SCVD/Core1.scvd",
+        "pname": "Core1",
+        "type": "scvd",
+      },
     ],
     "system-resources": {
       "memory": [
@@ -161,6 +182,8 @@ CbuildRunReader {
     },
     "target-type": "My-Test-Target-Type",
   },
+  "cbuildRunDir": Any<String>,
+  "cbuildRunFilePath": "test-data/multi-core.cbuild-run.yml",
   "reader": VscodeFileReader {},
 }
 `;

@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import * as path from 'path';
+import * as vscode from 'vscode';
 import * as yaml from 'yaml';
 import { CbuildRunRootType, CbuildRunType } from './cbuild-run-types';
 import { FileReader, VscodeFileReader } from '../desktop/file-reader';
@@ -23,6 +25,8 @@ const CMSIS_PACK_ROOT_ENVVAR = '${CMSIS_PACK_ROOT}';
 
 export class CbuildRunReader {
     private cbuildRun: CbuildRunType | undefined;
+    private cbuildRunFilePath: string | undefined;
+    private cbuildRunDir: string | undefined;
 
     constructor(private reader: FileReader = new VscodeFileReader()) {}
 
@@ -41,26 +45,55 @@ export class CbuildRunReader {
         if (!this.cbuildRun) {
             throw new Error(`Invalid '*.cbuild-run.yml' file: ${filePath}`);
         }
+        this.cbuildRunFilePath = filePath;
+        const dirName = path.dirname(this.cbuildRunFilePath);
+        const workspace = vscode.workspace.workspaceFolders?.at(0)?.uri.fsPath;
+        // Only considers workspace if dirName is not absolute.
+        this.cbuildRunDir = workspace ? path.resolve(workspace, dirName) : dirName;
     }
 
     public getSvdFilePaths(cmsisPackRoot?: string, pname?: string): string[] {
+        const svdFilePaths = this.getFilePathsByType('svd', cmsisPackRoot, pname);
+        return svdFilePaths;
+    }
+
+    public getScvdFilePaths(cmsisPackRoot?: string, pname?: string): string[] {
+        const scvdFilePaths = this.getFilePathsByType('scvd', cmsisPackRoot, pname);
+        return scvdFilePaths;
+    }
+
+    private getFilePathsByType(type: 'svd' | 'scvd', cmsisPackRoot?: string, pname?: string): string[] {
         if (!this.cbuildRun) {
             return [];
         }
-        // Get SVD file descriptors
+        // Get file descriptors
         const systemDescriptions = this.cbuildRun['system-descriptions'];
-        const svdFileDescriptors = systemDescriptions?.filter(descriptor => descriptor.type === 'svd') ?? [];
-        if (svdFileDescriptors.length === 0) {
+        const fileDescriptors = systemDescriptions?.filter(descriptor => descriptor.type === type) ?? [];
+        if (fileDescriptors.length === 0) {
             return [];
         }
-        // Replace potential ${CMSIS_PACK_ROOT} placeholder
-        const effectiveCmsisPackRoot = cmsisPackRoot ?? getCmsisPackRootPath();
-        // Map to copies, leave originals untouched
-        const filteredSvdDescriptors = pname ? svdFileDescriptors.filter(descriptor => descriptor.pname === pname): svdFileDescriptors;
-        const svdFilePaths = filteredSvdDescriptors.map(descriptor => `${effectiveCmsisPackRoot
+        // Replace potential ${CMSIS_PACK_ROOT} placeholder, treat empty string and undefined the same.
+        const effectiveCmsisPackRoot = cmsisPackRoot || getCmsisPackRootPath();
+        // Map to copies, leave originals untouched, if file descriptors do not have a pname, always include it
+        const filteredDescriptors = pname ? fileDescriptors.filter(descriptor => {
+            if (!descriptor.pname) {
+                return true;
+            }
+            return descriptor.pname === pname;
+        }): fileDescriptors;
+        // Get file paths, they might be relative paths
+        const filePaths = filteredDescriptors.map(descriptor => `${effectiveCmsisPackRoot
             ? descriptor.file.replaceAll(CMSIS_PACK_ROOT_ENVVAR, effectiveCmsisPackRoot)
             : descriptor.file}`);
-        return svdFilePaths;
+        // resolve relative paths to cbuild run file location
+        const resolvedRelativeFilePaths = filePaths.map(filePath => {
+            if (path.isAbsolute(filePath) || !this.cbuildRunDir) {
+                return filePath;
+            }
+            return path.join(this.cbuildRunDir, filePath);
+        });
+        const resolvedFilePaths = resolvedRelativeFilePaths.map(filePath => path.resolve(filePath));
+        return resolvedFilePaths;
     }
 
     public getPnames(): string[] {

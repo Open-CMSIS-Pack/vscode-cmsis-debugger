@@ -1,0 +1,142 @@
+/**
+ * Copyright 2025-2026 Arm Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { componentViewerLogger } from '../../../logger';
+import { ScvdNode } from '../model/scvd-node';
+import { ExecutionContext } from '../scvd-eval-context';
+import { ScvdGuiTree } from '../scvd-gui-tree';
+
+/**
+ * Base statement node using an **array** for children.
+ * - Children are appended as added.
+ * - `sortChildren()` sorts by line number (ascending) and is **stable** so
+ *   statements on the same line keep the order they were added.
+ * - `executeStatement()` walks the tree depth-first in current order.
+ */
+export class StatementBase {
+    private _parent: StatementBase | undefined;
+    private _children: StatementBase[] = [];
+    private _scvdItem: ScvdNode;
+    private static readonly unnamedPrefix = 'Unnamed';
+
+    constructor(
+        item: ScvdNode, parent: StatementBase | undefined
+    ) {
+        this._scvdItem = item;
+        this._parent = parent;
+        parent?.addChild(this);
+    }
+
+    public get parent(): StatementBase | undefined {
+        return this._parent;
+    }
+
+    public get children(): StatementBase[] {
+        return this._children;
+    }
+
+    public get scvdItem(): ScvdNode {
+        return this._scvdItem;
+    }
+
+    // Append a child and return it.
+    public addChild(child: StatementBase): StatementBase | undefined {
+        if (child !== undefined) {
+            this._children.push(child);
+        }
+        return child;
+    }
+
+    // Numeric line for this node, derived from underlying item.
+    public get line(): number {
+        const lineNo = Number(this.scvdItem.lineNo);
+        return isNaN(lineNo) ? 0 : lineNo;
+    }
+
+    /**
+    * Stable sort by `line`, then recurse into children.
+    * Uses index tiebreak to guarantee same-line insertion order.
+    */
+    public sortChildren(): void {
+        if (this._children.length > 1) {
+            this._children = this._children
+                .map((child, originalIndex) => ({ child, originalIndex }))
+                .sort((left, right) => (left.child.line - right.child.line) || (left.originalIndex - right.originalIndex))
+                .map(wrapper => wrapper.child);
+        }
+
+        for (const child of this._children) {
+            child.sortChildren();
+        }
+    }
+
+    protected getOrCreateGuiChild(guiTree: ScvdGuiTree, guiName: string | undefined): ScvdGuiTree {
+        const itemName = this.scvdItem.constructor?.name ?? 'UnknownItem';
+        const key = guiName ?? `${StatementBase.unnamedPrefix}:${itemName}:${this.line}`;
+        const idSegmentBase = `L${this.line}:${this.constructor.name}`;
+        const child = guiTree.createChild(key, idSegmentBase);
+        child.setGuiLineInfo(this.scvdItem.getLineInfoStr());
+        return child;
+    }
+
+    protected async getGuiName(): Promise<string | undefined> {
+        return this.scvdItem.getGuiName();
+    }
+
+    protected async getGuiValue(): Promise<string | undefined> {
+        return this.scvdItem.getGuiValue();
+    }
+
+    protected async getLogName(): Promise<string> {
+        const guiName = await this.getGuiName();
+        return guiName ?? this.scvdItem.tag ?? 'unknown';
+    }
+
+    public async executeStatement(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
+        componentViewerLogger.debug(`Line: ${this.line}: Executing statement: ${await this.getLogName()}`);
+        const shouldExecute = await this.shouldExecute(executionContext);
+        if (!shouldExecute) {
+            return;
+        }
+
+        await this.onExecute(executionContext, guiTree);
+
+        for (const child of this.children) {
+            await child.executeStatement(executionContext, guiTree);
+        }
+    }
+
+    // Override in subclasses to perform work for this node.
+    protected async onExecute(_executionContext: ExecutionContext, _guiTree: ScvdGuiTree): Promise<void> {
+        componentViewerLogger.debug(`Line: ${this.line}: Executing <${this.scvdItem.tag}> : ${await this.getLogName()}`);
+    }
+
+    protected async shouldExecute(_executionContext: ExecutionContext): Promise<boolean> {
+        const mustRead = this.scvdItem.mustRead;
+        if (mustRead === false) {
+            componentViewerLogger.debug(`Line: ${this.line}: Skipping ${await this.getGuiName()} as already initialized`);
+            return false;
+        }
+
+        const conditionResult = await this.scvdItem.getConditionResult();
+        if (conditionResult === false) {
+            componentViewerLogger.debug(`Line: ${this.line}: Skipping ${await this.getGuiName()} due to condition=false`);
+            return false;
+        }
+
+        return true;
+    }
+}

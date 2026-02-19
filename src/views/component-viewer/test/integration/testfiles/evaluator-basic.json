@@ -1,0 +1,226 @@
+{
+  "_meta": {
+    "format": "evaluator-basic-v1",
+    "copyright": "Copyright 2026 Arm Limited",
+    "generatedWith": "AI"
+  },
+  "cases": [
+    {
+      "expr": "1+2",
+      "expected": 3
+    },
+    {
+      "expr": "foo+1",
+      "expected": 3,
+      "symbols": {
+        "foo": {
+          "value": 2
+        }
+      }
+    },
+    {
+      "expr": "foo.bar + 2",
+      "expected": 7,
+      "symbols": {
+        "foo": {
+          "members": {
+            "bar": {
+              "value": 5
+            }
+          }
+        }
+      }
+    },
+    {
+      "expr": "__Running()",
+      "expected": 1
+    },
+    {
+      "expr": "__GetRegVal(r0)",
+      "expected": 7
+    },
+    {
+      "expr": "__FindSymbol(symA)",
+      "expected": 4660
+    },
+    {
+      "expr": "__CalcMemUsed(1,2,3,0)",
+      "expected": 6
+    },
+    {
+      "expr": "__size_of(foo)",
+      "expected": 4
+    },
+    {
+      "expr": "__Symbol_exists(symA)",
+      "expected": 1
+    },
+    {
+      "expr": "__Symbol_exists(missing)",
+      "expected": 0
+    },
+    {
+      "expr": "__Offset_of(memberA)",
+      "expected": 12
+    },
+    {
+      "expr": "foo = 5",
+      "expected": 5,
+      "symbols": {
+        "foo": {
+          "value": 0
+        }
+      },
+      "checkSymbol": "foo",
+      "expectedSymbol": 5
+    },
+    {
+      "expr": "-foo",
+      "expected": -2,
+      "symbols": {
+        "foo": {
+          "value": 2
+        }
+      }
+    },
+    {
+      "expr": "foo && (bar = 5)",
+      "expected": 0,
+      "symbols": {
+        "foo": {
+          "value": 0
+        },
+        "bar": {
+          "value": 1
+        }
+      },
+      "checkSymbol": "bar",
+      "expectedSymbol": 1
+    },
+    {
+      "expr": "flag ? 1 : 2",
+      "expected": 1,
+      "symbols": {
+        "flag": {
+          "value": 3
+        }
+      }
+    },
+    {
+      "expr": "true",
+      "expected": 1
+    },
+    {
+      "expr": "false",
+      "expected": 0
+    },
+    {
+      "expr": "foo++",
+      "expected": 3,
+      "symbols": {
+        "foo": {
+          "value": 3
+        }
+      },
+      "checkSymbol": "foo",
+      "expectedSymbol": 4
+    },
+    {
+      "expr": "foo += 4",
+      "expected": 9,
+      "symbols": {
+        "foo": {
+          "value": 5
+        }
+      },
+      "checkSymbol": "foo",
+      "expectedSymbol": 9
+    },
+    {
+      "expr": "arr[2]",
+      "expected": 30,
+      "symbols": {
+        "arr": {
+          "elements": {
+            "0": {
+              "value": 10
+            },
+            "1": {
+              "value": 20
+            },
+            "2": {
+              "value": 30
+            }
+          }
+        }
+      }
+    },
+    {
+      "expr": "arr[1].val",
+      "expected": 7,
+      "symbols": {
+        "arr": {
+          "elements": {
+            "1": {
+              "members": {
+                "val": {
+                  "value": 7
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "expr": "arr._count",
+      "expected": 3,
+      "symbols": {
+        "arr": {
+          "elements": {
+            "0": {
+              "value": 1
+            },
+            "1": {
+              "value": 2
+            },
+            "2": {
+              "value": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "expr": "node._addr",
+      "expected": 4096,
+      "symbols": {
+        "node": {
+          "value": 1,
+          "addr": 4096
+        }
+      }
+    },
+    {
+      "expr": "foo || bar",
+      "expected": 1,
+      "symbols": {
+        "foo": {
+          "value": 0
+        },
+        "bar": {
+          "value": 2
+        }
+      }
+    },
+    {
+      "expr": "value=%u[foo]",
+      "expected": "value=2",
+      "symbols": {
+        "foo": {
+          "value": 2
+        }
+      }
+    }
+  ]
+}
