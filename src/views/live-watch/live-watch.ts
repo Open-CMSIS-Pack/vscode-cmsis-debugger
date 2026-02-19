@@ -18,6 +18,7 @@ import * as vscode from 'vscode';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
 import { vscodeViewExists } from '../../vscode-utils';
+import { logger } from '../..';
 
 export interface LiveWatchNode {
   id: number;
@@ -76,7 +77,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             // We do not store children of nodes in the tree, as they are dynamic
             return childNodes;
         } catch (error) {
-            console.error('Error fetching children:', error);
+            logger.error('Error fetching children:', error);
             return [];
         }
     }
@@ -96,7 +97,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
 
     public async activate(tracker: GDBTargetDebugTracker): Promise<boolean> {
         if (!await this.addVSCodeCommands()) {
-            console.log('Live Watch: Live Watch window cannot be registered, abort activation');
+            logger.error('Live Watch: Live Watch window cannot be registered, abort activation');
             return false;
         }
         const onDidChangeActiveDebugSession = tracker.onDidChangeActiveDebugSession(async (session) => await this.handleOnDidChangeActiveDebugSession(session));

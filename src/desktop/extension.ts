@@ -66,25 +66,23 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     cpuStatesCommands.activate(context, cpuStates);
     cpuStatesStatusBarItem.activate(context, cpuStates);
     // Live Watch view
-    console.debug('Activating Live Watch Tree Data Provider');
+    logger.debug('Activating Live Watch Tree Data Provider');
     if (!await liveWatchTreeDataProvider.activate(gdbtargetDebugTracker)) {
         canCompleteActivation = false;
     }
     // Component Viewer
-    console.debug('Activating Component Viewer');
+    logger.debug('Activating Component Viewer');
     if (!await componentViewer.activate(gdbtargetDebugTracker)) {
         canCompleteActivation = false;
     }
 
     if (!canCompleteActivation) {
-        console.debug('CMSIS Debugger activation incomplete');
         logger.debug('CMSIS Debugger activation incomplete');
         // Let promise float, we reload the window.
         askForReload();
         return;
     }
 
-    console.debug('CMSIS Debugger activated');
     logger.debug('CMSIS Debugger activated');
 };
 

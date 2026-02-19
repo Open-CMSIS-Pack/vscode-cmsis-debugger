@@ -19,7 +19,7 @@ import { GDBTargetDebugTracker, GDBTargetDebugSession } from '../../debug-sessio
 import { ComponentViewerInstance } from './component-viewer-instance';
 import { URI } from 'vscode-uri';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
-import { componentViewerLogger } from '../../logger';
+import { componentViewerLogger, logger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 import { perf, parsePerf } from './stats-config';
 import { vscodeViewExists } from '../../vscode-utils';
@@ -53,13 +53,13 @@ export class ComponentViewer {
 
     public async activate(tracker: GDBTargetDebugTracker): Promise<boolean> {
         // Register Component Viewer tree view
-        console.log('Activating Component Viewer Tree View and commands');
+        logger.debug('Activating Component Viewer Tree View and commands');
         if (!await this.registerTreeView()) {
-            console.log('Component Viewer: Component Viewer cannot be registered, abort activation');
+            logger.error('Component Viewer: Component Viewer cannot be registered, abort activation');
             return false;
         }
         // Subscribe to debug tracker events to update active session
-        console.log('Subscribing to debug tracker events');
+        componentViewerLogger.debug('Subscribing to debug tracker events');
         this.subscribetoDebugTrackerEvents(tracker);
         return true;
     }
@@ -69,7 +69,7 @@ export class ComponentViewer {
             return false;
         }
         const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
-        console.log('Component Viewer: Registered tree data provider for Component Viewer Tree View id: cmsis-debugger.componentViewer');
+        componentViewerLogger.debug('Component Viewer: Registered tree data provider for Component Viewer Tree View id: cmsis-debugger.componentViewer');
         const lockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.lockComponent', async (node) => {
             this.handleLockInstance(node);
         });
