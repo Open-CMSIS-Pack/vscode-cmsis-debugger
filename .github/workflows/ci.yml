@@ -97,6 +97,7 @@ jobs:
         run: |
           sed -i "/https:\/\/qlty\.sh\/gh/d" README.md
           sed -i "/https:\/\/securityscorecards\.dev\/viewer/d" README.md
+          sed -i "/https:\/\/img.shields.io\//d" README.md
 
       - name: Install dependencies
         env:
