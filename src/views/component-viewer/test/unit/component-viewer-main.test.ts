@@ -582,7 +582,7 @@ describe('ComponentViewer', () => {
     it('schedules an update when unlocking a locked instance', () => {
         const controller = createController(extensionContextFactory());
         const provider = treeProviderFactory();
-        (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
+        (controller as unknown as { _componentViewerTreeDataProvider: typeof provider })._componentViewerTreeDataProvider = provider;
 
         const root = makeGuiNode('root');
         const inst = instanceFactory();
@@ -604,7 +604,7 @@ describe('ComponentViewer', () => {
     it('does not schedule an update when locking an unlocked instance', () => {
         const controller = createController(extensionContextFactory());
         const provider = treeProviderFactory();
-        (controller as unknown as { _componentViewerTreeDataProvider?: typeof provider })._componentViewerTreeDataProvider = provider;
+        (controller as unknown as { _componentViewerTreeDataProvider: typeof provider })._componentViewerTreeDataProvider = provider;
 
         const root = makeGuiNode('root');
         const inst = instanceFactory();

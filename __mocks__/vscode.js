@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -79,6 +79,9 @@ module.exports = {
     		id: 'mockStatusBarItem',
 		    alignment: StatusBarAlignment.Left,
             text: '',
+            show: jest.fn(),
+            hide: jest.fn(),
+            dispose: jest.fn(),
         })),
         showQuickPick: jest.fn(),
     },

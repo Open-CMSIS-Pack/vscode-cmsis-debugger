@@ -79,7 +79,8 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     if (!canCompleteActivation) {
         logger.debug('CMSIS Debugger activation incomplete');
         // Let promise float, we reload the window.
-        askForReload();
+        askForReload()
+            .catch(error => logger.error(`Error while asking user to reload window: ${error instanceof Error ? error.message : error}`));
         return;
     }
 

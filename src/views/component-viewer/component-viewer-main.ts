@@ -124,7 +124,7 @@ export class ComponentViewer {
             this.schedulePendingUpdate('unlockingInstance');
             instance.dirtyWhileLocked = false;
         }
-        this._componentViewerTreeDataProvider?.refresh();
+        this._componentViewerTreeDataProvider.refresh();
     }
 
     protected async readScvdFiles(tracker: GDBTargetDebugTracker,session?: GDBTargetDebugSession): Promise<void> {
@@ -317,7 +317,7 @@ export class ComponentViewer {
 
     private async updateInstances(updateReason: UpdateReason): Promise<void> {
         if (!this._activeSession) {
-            this._componentViewerTreeDataProvider?.clear();
+            this._componentViewerTreeDataProvider.clear();
             return;
         }
         componentViewerLogger.debug(`Component Viewer: Queuing update due to '${updateReason}'`);
@@ -357,6 +357,6 @@ export class ComponentViewer {
             }
         }
         perf?.logSummaries();
-        this._componentViewerTreeDataProvider?.setRoots(roots);
+        this._componentViewerTreeDataProvider.setRoots(roots);
     }
 }
