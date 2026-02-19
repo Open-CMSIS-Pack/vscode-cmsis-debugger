@@ -1,5 +1,23 @@
 # Change Log
 
+## 1.4.0
+
+- Adds the [Component Viewer](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#component-viewer) which shows static information to help analyze the operation of software components based on [CMSIS-View](https://arm-software.github.io/CMSIS-View/latest/cmp_viewer.html) technology.
+- Includes updated pyOCD distribution ([pyOCD v0.43.0](https://github.com/pyocd/pyOCD/releases/tag/v0.43.0))
+    - Adds [Segger RTT](https://www.segger.com/products/debug-probes/j-link/technology/about-real-time-transfer/) support for [`run`](https://open-cmsis-pack.github.io/cmsis-toolbox/pyOCD-Debugger/#command-line-invocation) subcommand.
+- Also included in this extension release:
+    - [arm-none-eabi-gdb v14.3.1](https://artifacts.tools.arm.com/arm-none-eabi-gdb/14.3.1/)
+- Full list of required minimum versions for correct functionality of the CMSIS Debugger v1.4.0 solution:
+    - TODO: check latest versions
+    - [Arm CMSIS Solution extension v1.66.0](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution)
+    - [CDT GDB Adapter extension v2.6.0](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode)
+    - [Memory Inspector v1.2.0](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector)
+    - [Peripheral Inspector v1.8.1](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector)
+    - [Serial Monitor v0.13.1](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor)
+    - [RTOS Views v0.0.13](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views)
+- Refer to the [CMSIS Debugger 1.4.0 project board](https://github.com/orgs/Open-CMSIS-Pack/projects/21/views/9) for a full list
+of enhancement requests and defects addressed in this release.
+
 ## 1.3.0
 
 - Enhanced [pyOCD](https://open-cmsis-pack.github.io/cmsis-toolbox/YML-Input-Format/#pyocd)
