@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,28 +14,11 @@
  * limitations under the License.
  */
 
-import type { Config } from 'jest';
+import * as vscode from 'vscode';
+import { VIEW_PREFIX } from './manifest';
 
-const config: Config = {  
-  testEnvironment: "node",
-  preset: "ts-jest",
-  transform: {
-    "^.+\\.tsx?$": [
-      "ts-jest", {
-      }
-    ],
-  },
-  setupFiles: ["<rootDir>/jest.setup.ts"],
-  clearMocks: true,
-  collectCoverage: true,
-  collectCoverageFrom: [
-    "src/**/*.{ts,tsx}",
-    "!**/*.d.ts",
-    "!**/*.factories.{ts,tsx}",
-    "!**/__test__/**/*"
-  ],
-  coverageDirectory: "./coverage",
-  coverageReporters: ["lcov", "text"],
+export const vscodeViewExists = async (viewId: string): Promise<boolean> => {
+    // Properly loaded VS Code views have 'open' and 'focus' commands registered. Use focus command as indicator for whether the view is properly loaded.
+    const commands = await vscode.commands.getCommands(true);
+    return commands.includes(`${VIEW_PREFIX}.${viewId}.focus`);
 };
-
-export default config;

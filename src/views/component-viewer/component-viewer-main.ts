@@ -19,9 +19,10 @@ import { GDBTargetDebugTracker, GDBTargetDebugSession } from '../../debug-sessio
 import { ComponentViewerInstance } from './component-viewer-instance';
 import { URI } from 'vscode-uri';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
-import { componentViewerLogger } from '../../logger';
+import { componentViewerLogger, logger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 import { perf, parsePerf } from './stats-config';
+import { vscodeViewExists } from '../../vscode-utils';
 
 export type UpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace' | 'stackItemChanged' | 'unlockingInstance';
 
@@ -35,7 +36,7 @@ export interface ComponentViewerInstancesWrapper {
 export class ComponentViewer {
     private _activeSession: GDBTargetDebugSession | undefined;
     private _instances: ComponentViewerInstancesWrapper[] = [];
-    private _componentViewerTreeDataProvider: ComponentViewerTreeDataProvider | undefined;
+    private _componentViewerTreeDataProvider: ComponentViewerTreeDataProvider;
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
     private _loadingCounter: number = 0;
@@ -45,20 +46,30 @@ export class ComponentViewer {
     private _refreshTimerEnabled: boolean = true;
     private static readonly pendingUpdateDelayMs = 150;
 
-    public constructor(context: vscode.ExtensionContext) {
+    public constructor(context: vscode.ExtensionContext, componentViewerTreeDataProvider: ComponentViewerTreeDataProvider) {
         this._context = context;
+        this._componentViewerTreeDataProvider = componentViewerTreeDataProvider;
     }
 
-    public activate(tracker: GDBTargetDebugTracker): void {
+    public async activate(tracker: GDBTargetDebugTracker): Promise<boolean> {
         // Register Component Viewer tree view
-        this.registerTreeView();
+        logger.debug('Activating Component Viewer Tree View and commands');
+        if (!await this.registerTreeView()) {
+            logger.error('Component Viewer: Component Viewer cannot be registered, abort activation');
+            return false;
+        }
         // Subscribe to debug tracker events to update active session
+        componentViewerLogger.debug('Subscribing to debug tracker events');
         this.subscribetoDebugTrackerEvents(tracker);
+        return true;
     }
 
-    protected registerTreeView(): void {
-        this._componentViewerTreeDataProvider = new ComponentViewerTreeDataProvider();
+    protected async registerTreeView(): Promise<boolean> {
+        if (!await vscodeViewExists('componentViewer')) {
+            return false;
+        }
         const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
+        componentViewerLogger.debug('Component Viewer: Registered tree data provider for Component Viewer Tree View id: cmsis-debugger.componentViewer');
         const lockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.lockComponent', async (node) => {
             this.handleLockInstance(node);
         });
@@ -80,6 +91,7 @@ export class ComponentViewer {
             enablePeriodicUpdateCommandDisposable,
             disablePeriodicUpdateCommandDisposable
         );
+        return true;
     }
 
     protected handleLockInstance(node: ScvdGuiInterface): void {
@@ -112,7 +124,7 @@ export class ComponentViewer {
             this.schedulePendingUpdate('unlockingInstance');
             instance.dirtyWhileLocked = false;
         }
-        this._componentViewerTreeDataProvider?.refresh();
+        this._componentViewerTreeDataProvider.refresh();
     }
 
     protected async readScvdFiles(tracker: GDBTargetDebugTracker,session?: GDBTargetDebugSession): Promise<void> {
@@ -305,7 +317,7 @@ export class ComponentViewer {
 
     private async updateInstances(updateReason: UpdateReason): Promise<void> {
         if (!this._activeSession) {
-            this._componentViewerTreeDataProvider?.clear();
+            this._componentViewerTreeDataProvider.clear();
             return;
         }
         componentViewerLogger.debug(`Component Viewer: Queuing update due to '${updateReason}'`);
@@ -345,6 +357,6 @@ export class ComponentViewer {
             }
         }
         perf?.logSummaries();
-        this._componentViewerTreeDataProvider?.setRoots(roots);
+        this._componentViewerTreeDataProvider.setRoots(roots);
     }
 }

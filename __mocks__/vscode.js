@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -73,9 +73,16 @@ module.exports = {
         })),
         registerTreeDataProvider: jest.fn(() => ({ dispose: jest.fn() })),
         showErrorMessage: jest.fn(),
-        showInformationMessage: jest.fn(),
+        showInformationMessage: jest.fn(() => Promise.resolve(undefined)),
         showWarningMessage: jest.fn(),
-        createStatusBarItem: jest.fn(),
+        createStatusBarItem: jest.fn(() => ({
+    		id: 'mockStatusBarItem',
+		    alignment: StatusBarAlignment.Left,
+            text: '',
+            show: jest.fn(),
+            hide: jest.fn(),
+            dispose: jest.fn(),
+        })),
         showQuickPick: jest.fn(),
     },
     env: {
@@ -107,6 +114,13 @@ module.exports = {
     },
     commands: {
         executeCommand: jest.fn(),
+        // Default to all views in extension having been correctly loaded
+        getCommands: jest.fn(() => Promise.resolve([
+            'cmsis-debugger.liveWatch.open',
+            'cmsis-debugger.liveWatch.focus',
+            'cmsis-debugger.componentViewer.open',
+            'cmsis-debugger.componentViewer.focus',
+        ])),
         registerCommand: jest.fn(),
     },
     debug: {

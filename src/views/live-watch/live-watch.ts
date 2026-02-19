@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 import * as vscode from 'vscode';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
+import { vscodeViewExists } from '../../vscode-utils';
+import { logger } from '../..';
 
 export interface LiveWatchNode {
   id: number;
@@ -75,7 +77,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             // We do not store children of nodes in the tree, as they are dynamic
             return childNodes;
         } catch (error) {
-            console.error('Error fetching children:', error);
+            logger.error('Error fetching children:', error);
             return [];
         }
     }
@@ -93,8 +95,11 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         return this._activeSession;
     }
 
-    public activate(tracker: GDBTargetDebugTracker): void {
-        this.addVSCodeCommands();
+    public async activate(tracker: GDBTargetDebugTracker): Promise<boolean> {
+        if (!await this.addVSCodeCommands()) {
+            logger.error('Live Watch: Live Watch window cannot be registered, abort activation');
+            return false;
+        }
         const onDidChangeActiveDebugSession = tracker.onDidChangeActiveDebugSession(async (session) => await this.handleOnDidChangeActiveDebugSession(session));
         const onWillStartSession =  tracker.onWillStartSession(async (session) => await this.handleOnWillStartSession(session));
         // Using this event because this is when the threadId is available for evaluations
@@ -116,6 +121,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             onWillStartSession,
             onStackTrace,
             onWillStopSession);
+        return true;
     }
 
     public async deactivate(): Promise<void> {
@@ -135,7 +141,10 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         });
     }
 
-    private addVSCodeCommands() {
+    private async addVSCodeCommands(): Promise<boolean> {
+        if (!await vscodeViewExists('liveWatch')) {
+            return false;
+        }
         const registerLiveWatchView = vscode.window.registerTreeDataProvider('cmsis-debugger.liveWatch', this);
         const addCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.add', async () => await this.handleAddCommand());
         const deleteAllCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.deleteAll', async () => await this.handleDeleteAllCommand());
@@ -170,6 +179,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             addToLiveWatchFromVariablesViewCommand,
             showInMemoryInspectorCommand
         );
+        return true;
     }
 
     private async handleAddCommand() {

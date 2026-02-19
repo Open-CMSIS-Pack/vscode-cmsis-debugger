@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,28 +14,20 @@
  * limitations under the License.
  */
 
-import type { Config } from 'jest';
+import {
+    vscodeViewExists
+} from './vscode-utils';
 
-const config: Config = {  
-  testEnvironment: "node",
-  preset: "ts-jest",
-  transform: {
-    "^.+\\.tsx?$": [
-      "ts-jest", {
-      }
-    ],
-  },
-  setupFiles: ["<rootDir>/jest.setup.ts"],
-  clearMocks: true,
-  collectCoverage: true,
-  collectCoverageFrom: [
-    "src/**/*.{ts,tsx}",
-    "!**/*.d.ts",
-    "!**/*.factories.{ts,tsx}",
-    "!**/__test__/**/*"
-  ],
-  coverageDirectory: "./coverage",
-  coverageReporters: ["lcov", "text"],
-};
+describe('vscodeViewExists', () => {
+    // See _mocks_/vscode.ts for registered commands.
 
-export default config;
+    it('returns true if a view and its commands exist', async () => {
+        const result = await vscodeViewExists('liveWatch');
+        expect(result).toBe(true);
+    });
+
+    it('returns false if a view and its commands do not exist', async () => {
+        const result = await vscodeViewExists('missingView');
+        expect(result).toBe(false);
+    });
+});
