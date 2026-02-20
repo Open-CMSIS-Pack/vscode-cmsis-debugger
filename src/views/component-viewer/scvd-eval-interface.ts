@@ -112,14 +112,6 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         const scalar = this.normalizeScalarType(rawType);
         const kind = scalar?.kind ?? 'unknown';
 
-<<<<<<< whenToSkipNamelessItem
-        // Derive element width and array-ness
-        const arrayCount = currentRef ? await currentRef.getArraySize() : undefined;
-        if (currentRef?.name === '_addr') {
-            return { kind, bits: 32, widthBytes: 4 };
-        }
-=======
->>>>>>> main
         if (arrayCount && arrayCount > 1) {
             return { kind, bits: 32, widthBytes: 4 };
         }
