@@ -9,7 +9,6 @@ on:
       - '.github/workflows/markdown.yml'
       - '.github/markdownlint.json'
       - '.github/markdownlint.jsonc'
-      - '.github/workflows/nightly.yml'
   pull_request:
     branches:
       - main
@@ -18,7 +17,6 @@ on:
       - '.github/workflows/markdown.yml'
       - '.github/markdownlint.json'
       - '.github/markdownlint.jsonc'
-      - '.github/workflows/nightly.yml'
   workflow_dispatch:
   merge_group:
   release:
@@ -50,22 +48,23 @@ jobs:
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
         with:
           egress-policy: audit
 
       - run: git config --global core.autocrlf false
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           fetch-depth: 0
           submodules: true
 
-      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           node-version-file: package.json
           registry-url: https://npm.pkg.github.com
+          always-auth: true
           package-manager-cache: false
 
       - name: Set version
@@ -98,6 +97,7 @@ jobs:
         run: |
           sed -i "/https:\/\/qlty\.sh\/gh/d" README.md
           sed -i "/https:\/\/securityscorecards\.dev\/viewer/d" README.md
+          sed -i "/https:\/\/img.shields.io\//d" README.md
 
       - name: Install dependencies
         env:
@@ -120,7 +120,7 @@ jobs:
 
       - name: Upload dist
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: dist
           path: |
@@ -141,13 +141,13 @@ jobs:
           git commit -m "Update CHANGELOG.md after release [skip ci]"
           git push
 
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: runner.os == 'Linux'
         with:
           name: test-coverage
           path: ./coverage
 
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: test-report-${{ matrix.target }}
           path: ./test-report.html
@@ -176,22 +176,23 @@ jobs:
       packages: read
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
 
-      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           node-version-file: package.json
           registry-url: https://npm.pkg.github.com
+          always-auth: true
           package-manager-cache: false
 
       - name: Download dist
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: dist
           path: .
@@ -206,90 +207,38 @@ jobs:
           yarn package --target ${{ matrix.target }}
 
       - name: Upload package
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: vsix-package-${{ matrix.target }}
           path: ./*.vsix
           retention-days: 1
 
-  validate:
-    name: Validate package (${{ matrix.target }})
-    runs-on: ${{ matrix.platform }}
-    needs: package
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: win32-x64
-            platform: windows-2022
-          - target: win32-arm64
-            platform: windows-2022
-          - target: linux-x64
-            platform: ubuntu-24.04
-          - target: linux-arm64
-            platform: ubuntu-24.04
-          - target: darwin-arm64
-            platform: macos-14
-    permissions:
-      packages: read
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          node-version-file: package.json
-          registry-url: https://npm.pkg.github.com
-          package-manager-cache: false
-
-      - name: Install dependencies
-        run: |
-          yarn --frozen-lockfile --ignore-scripts --prefer-offline
-
-      - name: Download vsix package
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          pattern: vsix-package-${{ matrix.target }}
-
-      - name: Validate VSIX contents
-        shell: bash
-        run: |
-          VSIX_FILE=$(ls *.vsix)
-          echo "Validating VSIX: $VSIX_FILE"
-          yarn validate-tools --target ${{ matrix.target }} --vsix "$VSIX_FILE"
-
   publish:
     name: Publish release
     runs-on: [ubuntu-latest]
     if: github.event_name == 'release'
-    needs: [ package, validate ]
+    needs: package
     permissions:
       contents: write  # for softprops/action-gh-release to create a GitHub release
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
         with:
           egress-policy: audit
 
       - name: Download packages
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           pattern: vsix-package-*
 
       - name: Download coverage report
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           pattern: test-coverage
           path: test-coverage # Required for single-match patterns by actions/download-artifact >= v5
 
       - name: Download test report
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           pattern: test-report-linux
           path: test-report-linux # Required for single-match patterns by actions/download-artifact >= v5

@@ -1,6 +1,12 @@
+[![License Apache-2.0 AND GPL-3.0-or-later](https://img.shields.io/badge/License-Apache--2.0%20AND%20GPL--3.0--or--later-green?label=LICENSE)](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/blob/main/LICENSE)
 [![Maintainability](https://qlty.sh/badges/2170b449-4b4b-43e8-8bba-18665ed21a08/maintainability.png)](https://qlty.sh/gh/Open-CMSIS-Pack/projects/vscode-cmsis-debugger)
 [![Test Coverage](https://qlty.sh/badges/2170b449-4b4b-43e8-8bba-18665ed21a08/coverage.png)](https://qlty.sh/gh/Open-CMSIS-Pack/projects/vscode-cmsis-debugger)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/badge)](https://securityscorecards.dev/viewer/?uri=github.com/Open-CMSIS-Pack/vscode-cmsis-debugger)
+[![CI Build and Test](https://img.shields.io/github/actions/workflow/status/Open-CMSIS-Pack/vscode-cmsis-debugger/ci.yml?logo=arm&logoColor=0091bd&label=CI%20Build%20and%20Test)](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/tree/main/.github/workflows/ci.yml)
+[![Nightly Build and Test](https://img.shields.io/github/actions/workflow/status/Open-CMSIS-Pack/vscode-cmsis-debugger/nightly.yml?logo=arm&logoColor=0091bd&label=Nightly%20Build%20and%20Test)](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/tree/main/.github/workflows/nightly.yml)
+[![Markdown Lint](https://img.shields.io/github/actions/workflow/status/Open-CMSIS-Pack/vscode-cmsis-debugger/markdown.yml?logo=arm&logoColor=0091bd&label=Markdown%20Lint)](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/tree/main/.github/workflows/markdown.yml)
+[![CodeQL Analysis](https://img.shields.io/github/actions/workflow/status/Open-CMSIS-Pack/vscode-cmsis-debugger/codeql.yml?logo=arm&logoColor=0091bd&label=CodeQL%20Analysis)](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/tree/main/.github/workflows/codeql.yml)
+[![Dependency Review](https://img.shields.io/github/actions/workflow/status/Open-CMSIS-Pack/vscode-cmsis-debugger/dependency-review.yml?logo=arm&logoColor=0091bd&label=Dependency%20Review)](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/tree/main/.github/workflows/dependency-review.yml)
 
 # Arm CMSIS Debugger
 
@@ -271,32 +277,15 @@ Most Arm Cortex-M processors (except Cortex-M0/M0+/M23) include a `DWT->CYCCNT` 
 
 The **Trace and Live View**
 ![Trace and Live view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/TraceLiveView.png)
-(available from the VS Code Activity Bar) currently contains the [**LIVE WATCH**](#live-watch) and the
-[**COMPONENT VIEWER**](#component-viewer) views.
+(available from the VS Code Activity Bar) currently shows the **LIVE WATCH**. You can add expressions to this view that
+are updated while the application is running on your target.
 
-#### LIVE WATCH
-
-You can add expressions to this view that are updated while the application is running on your target by:
+You can add expressions to the **LIVE WATCH** by:
 
 1. Pressing the `+` sign and entering an expression.
 2. Using the context menu item **Add to Live Watch** in the editor or the the **Run and Debug** view.
 
 ![Displaying a variable in the LIVE WATCH](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main//images/lw-counter.gif)
-
-#### COMPONENT VIEWER
-
-This view shows static information and helps to analyze the operation of software components. The required
-infrastructure can be easily added to user applications.
-
-Refer to the [Component Viewer documentation](https://arm-software.github.io/CMSIS-View/latest/cmp_viewer.html) for
-detailed advice on how to show information from user software using an SCVD file.
-
-The Component Viewer shows information about:
-
-- Information from software components that is provided in memory for example by static variables or structures.
-- Objects that are addressed by handles or dynamic arrays.
-
-![Showing software component properties in the COMPONENT VIEWER](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/component-viewer.png)
 
 ### PERIPHERALS
 
