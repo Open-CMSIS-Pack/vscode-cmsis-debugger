@@ -265,4 +265,26 @@ describe('StatementItem', () => {
         // Item should be detached because it has no value and no GUI children
         expect(guiTree.children).toHaveLength(0);
     });
+
+    it('hides items with no name and no value even when they have GUI children', async () => {
+        // This tests the empty Drive scenario from FileSystem.scvd:
+        // <item property="Drive %t[Vol_EFS[i].drvLet]">  <!-- drvLet is empty "" -->
+        //   <out property="Status" value="Uninitialized">
+        // </item>
+        // Expected: Empty Drive (no name, no value) should NOT appear even though it has "Status" child
+        const node = new TestNode(undefined); // No name, no value
+        const stmt = new StatementItem(node, undefined);
+
+        // Add an out child that will create a GUI child
+        const outNode = new TestNode(node, { guiName: 'Status', guiValue: 'Uninitialized' });
+        new StatementOut(outNode, stmt);
+
+        const ctx = createExecutionContext(node);
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        // Item should be detached because it has no name and no value (even though it has GUI children)
+        expect(guiTree.children).toHaveLength(0);
+    });
 });
