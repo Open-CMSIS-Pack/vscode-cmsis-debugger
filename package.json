@@ -57,13 +57,13 @@
     "views": {
       "cmsis-debugger": [
         {
-          "id": "cmsis-debugger.componentViewer",
-          "name": "Component Viewer",
+          "id": "cmsis-debugger.liveWatch",
+          "name": "Live Watch",
           "icon": "media/trace-and-live-light.svg"
         },
         {
-          "id": "cmsis-debugger.liveWatch",
-          "name": "Live Watch",
+          "id": "cmsis-debugger.componentViewer",
+          "name": "Component Viewer",
           "icon": "media/trace-and-live-light.svg"
         }
       ]
