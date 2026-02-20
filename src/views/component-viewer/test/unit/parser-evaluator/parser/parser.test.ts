@@ -288,6 +288,22 @@ describe('parser', () => {
         expect(asPrintf(pr.ast).segments).toHaveLength(1);
     });
 
+    it('preserves quotes in printf literal text between format specifiers', () => {
+        const pr = parseExpression('id: %x[addr] "%S[name]"', true);
+        const segs = asPrintf(pr.ast).segments;
+        expect(segs).toHaveLength(5); // "id: ", %x[addr], ' "', %S[name], '"'
+        expect(segs[0].kind).toBe('TextSegment');
+        expect((segs[0] as TextSegment).text).toBe('id: ');
+        expect(segs[1].kind).toBe('FormatSegment');
+        expect((segs[1] as FormatSegment).spec).toBe('x');
+        expect(segs[2].kind).toBe('TextSegment');
+        expect((segs[2] as TextSegment).text).toBe(' "');
+        expect(segs[3].kind).toBe('FormatSegment');
+        expect((segs[3] as FormatSegment).spec).toBe('S');
+        expect(segs[4].kind).toBe('TextSegment');
+        expect((segs[4] as TextSegment).text).toBe('"');
+    });
+
     it('reports malformed conditionals and invalid assignment targets', () => {
         const missingColon = parseExpression('a ? b', false);
         expect(missingColon.diagnostics.some(d => d.message.includes('Expected ":"'))).toBe(true);

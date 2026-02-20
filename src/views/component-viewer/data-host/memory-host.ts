@@ -199,6 +199,15 @@ export class MemoryHost {
             // TOIMPL: add BE support if needed
         }
 
+        // Check if widthBytes exceeds the natural type size
+        // This indicates a multi-byte value (e.g., uint8_t with size="4" for IP address)
+        // that should remain as raw bytes rather than being converted to a number
+        const typeSize = ref.valueType?.bits ? ref.valueType.bits / 8 : undefined;
+        if (typeSize && widthBytes > typeSize && ref.valueType?.kind !== 'float') {
+            componentViewerLogger.trace(`[MemoryHost.readValue] → raw bytes (width=${widthBytes} > typeSize=${typeSize})`);
+            return raw.slice();
+        }
+
         // Interpret the bytes:
         //  - float kinds decode as float32/float64
         //  - ≤4 bytes: JS number (uint32)
