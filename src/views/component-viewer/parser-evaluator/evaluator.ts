@@ -87,17 +87,33 @@ export class Evaluator {
     private containerStack: RefContainer[] = [];
     private containerPool: RefContainer[] = [];
     private _model: IntegerModel;
+    private _scalarTypeCache = new Map<string, ScalarType>();
+    private _commonTypeCache = {
+        float64: { kind: 'float' as const, bits: 64 },
+        float32: { kind: 'float' as const, bits: 32 },
+    };
+    private _modelTypeCache: { intType?: CType; uintType?: CType; longLongType?: CType } = {};
 
     constructor(model: IntegerModel = DEFAULT_INTEGER_MODEL) {
         this._model = model;
+        this._updateModelTypeCache();
     }
 
     public setIntegerModel(model: IntegerModel): void {
         this._model = model;
+        this._modelTypeCache = {};
+        this._updateModelTypeCache();
+    }
+
+    private _updateModelTypeCache(): void {
+        this._modelTypeCache.intType = { kind: 'int', bits: this._model.intBits, name: 'int' };
+        this._modelTypeCache.uintType = { kind: 'uint', bits: this._model.intBits, name: 'unsigned int' };
+        this._modelTypeCache.longLongType = { kind: 'int', bits: this._model.longLongBits, name: 'long long' };
     }
 
     public resetEvalCaches(): void {
         this.caches.resetAll();
+        this._scalarTypeCache.clear();
     }
 
     private async getByteWidthCached(ctx: EvalContext, ref: ScvdNode): Promise<number | undefined> {
@@ -349,6 +365,11 @@ export class Evaluator {
     }
 
     private normalizeScalarTypeFromName(name: string): ScalarType {
+        const cached = this._scalarTypeCache.get(name);
+        if (cached !== undefined) {
+            return cached;
+        }
+
         const trimmed = name.trim();
         const lower = trimmed.toLowerCase();
         let kind: ScalarKind = 'int';
@@ -366,6 +387,7 @@ export class Evaluator {
             out.bits = parseInt(m[1], 10);
         }
 
+        this._scalarTypeCache.set(name, out);
         return out;
     }
 
@@ -389,13 +411,21 @@ export class Evaluator {
         const name = type.name;
         if (type.kind === 'float') {
             const bits = type.bits ?? 64;
+            if (!name && bits === 64) {
+                return this._commonTypeCache.float64;
+            }
+            if (!name && bits === 32) {
+                return this._commonTypeCache.float32;
+            }
             return name ? { kind: 'float', bits, name } : { kind: 'float', bits };
         }
         if (type.kind === 'uint') {
             const bits = type.bits ?? this._model.intBits;
+            // Only use cache if no name AND bits match model
             return name ? { kind: 'uint', bits, name } : { kind: 'uint', bits };
         }
         const bits = type.bits ?? this._model.intBits;
+        // Only use cache if no name AND bits match model
         return name ? { kind: 'int', bits, name } : { kind: 'int', bits };
     }
 
@@ -405,7 +435,7 @@ export class Evaluator {
         }
         const cType = this.toCTypeFromScalarType(type);
         if (typeof value === 'bigint') {
-            const outType = cType ?? { kind: 'int', bits: this._model.longLongBits, name: 'long long' };
+            const outType = cType ?? this._modelTypeCache.longLongType!;
             return { type: outType, value };
         }
         if (typeof value === 'number') {
@@ -417,12 +447,12 @@ export class Evaluator {
                 return { type: cType, value: cType.kind === 'float' ? value : BigInt(Math.trunc(value)) };
             }
             if (isInt) {
-                return { type: { kind: 'int', bits: this._model.intBits, name: 'int' }, value: BigInt(Math.trunc(value)) };
+                return { type: this._modelTypeCache.intType!, value: BigInt(Math.trunc(value)) };
             }
-            return { type: { kind: 'float', bits: 64, name: 'double' }, value };
+            return { type: this._commonTypeCache.float64, value };
         }
         if (typeof value === 'boolean') {
-            return { type: { kind: 'int', bits: this._model.intBits, name: 'int' }, value: value ? 1n : 0n };
+            return { type: this._modelTypeCache.intType!, value: value ? 1n : 0n };
         }
         return undefined;
     }
@@ -482,7 +512,9 @@ export class Evaluator {
         if (typeof b === 'number' && (!Number.isFinite(b) || !Number.isInteger(b))) {
             return undefined;
         }
-        const type: ScalarType = { kind: unsigned ? 'uint' : 'int', bits: this._model.intBits, name: unsigned ? 'unsigned int' : 'int' };
+        const type: ScalarType = unsigned
+            ? { kind: 'uint', bits: this._model.intBits, name: 'unsigned int' }
+            : { kind: 'int', bits: this._model.intBits, name: 'int' };
         const cA = this.toCValueFromEval(a as EvalValue, type);
         const cB = this.toCValueFromEval(b as EvalValue, type);
         if (!cA || !cB) {
@@ -502,7 +534,9 @@ export class Evaluator {
         if (typeof b === 'number' && (!Number.isFinite(b) || !Number.isInteger(b))) {
             return undefined;
         }
-        const type: ScalarType = { kind: unsigned ? 'uint' : 'int', bits: this._model.intBits, name: unsigned ? 'unsigned int' : 'int' };
+        const type: ScalarType = unsigned
+            ? { kind: 'uint', bits: this._model.intBits, name: 'unsigned int' }
+            : { kind: 'int', bits: this._model.intBits, name: 'int' };
         const cA = this.toCValueFromEval(a as EvalValue, type);
         const cB = this.toCValueFromEval(b as EvalValue, type);
         if (!cA || !cB) {
