@@ -98,11 +98,12 @@ class FakeDebugTarget implements Pick<ScvdDebugTarget,
     'findSymbolNameAtAddress' | 'findSymbolContextAtAddress' | 'readUint8ArrayStrFromPointer' | 'readMemory'> {
     constructor(
         private readonly symbolMap: Map<number, string>,
-        private readonly memoryMap: Map<number, Uint8Array>
+        private readonly memoryMap: Map<number, Uint8Array>,
+        private readonly contextMap: Map<number, string> = new Map()
     ) {}
 
-    public async findSymbolContextAtAddress(_addr: number): Promise<string | undefined> {
-        return undefined;
+    public async findSymbolContextAtAddress(addr: number): Promise<string | undefined> {
+        return this.contextMap.get(addr);
     }
 
     public async findSymbolNameAtAddress(addr: number): Promise<string | undefined> {
@@ -135,10 +136,10 @@ function makeContainer(typeName?: string, current?: ScvdNode): RefContainer {
     };
 }
 
-function makeEvalInterface(symbolMap: Map<number, string>, memoryMap: Map<number, Uint8Array>) {
+function makeEvalInterface(symbolMap: Map<number, string>, memoryMap: Map<number, Uint8Array>, contextMap?: Map<number, string>) {
     const memHost = {} as unknown as MemoryHost;
     const regHost = {} as unknown as RegisterHost;
-    const debugTarget = new FakeDebugTarget(symbolMap, memoryMap) as unknown as ScvdDebugTarget;
+    const debugTarget = new FakeDebugTarget(symbolMap, memoryMap, contextMap) as unknown as ScvdDebugTarget;
     const formatter = new ScvdFormatSpecifier();
     return new ScvdEvalInterface(memHost, regHost, debugTarget, formatter);
 }
@@ -289,6 +290,13 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
     it('formats %C as symbol name when available', async () => {
         const out = await scvd.formatPrintf('C', 0x1000, makeContainer());
         expect(out).toBe('MySym');
+    });
+
+    it('formats %C with context when available', async () => {
+        const contextMap = new Map([[0x2000, 'main.c:42']]);
+        const scvdWithContext = makeEvalInterface(new Map([[0x2000, 'MySym']]), new Map(), contextMap);
+        const out = await scvdWithContext.formatPrintf('C', 0x2000, makeContainer());
+        expect(out).toBe('main.c:42');
     });
 
     it('formats %S as symbol name when available', async () => {

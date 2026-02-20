@@ -35,6 +35,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     private _debugTarget: ScvdDebugTarget;
     private _formatSpecifier: ScvdFormatSpecifier;
     private _caches = new ScvdEvalInterfaceCache();
+    private _scalarTypeCache = new Map<string, ScalarType>();
 
     constructor(
         memHost: MemoryHost,
@@ -46,22 +47,6 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         this._registerCache = regHost;
         this._debugTarget = debugTarget;
         this._formatSpecifier = formatterSpecifier;
-    }
-
-    private get registerHost(): RegisterHost {
-        return this._registerCache;
-    }
-
-    private get memHost(): MemoryHost {
-        return this._memHost;
-    }
-
-    private get debugTarget(): ScvdDebugTarget {
-        return this._debugTarget;
-    }
-
-    private get formatSpecifier(): ScvdFormatSpecifier {
-        return this._formatSpecifier;
     }
 
     public resetPrintfCache(): void {
@@ -82,6 +67,12 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
             return raw;
         }
 
+        // Check cache first
+        const cached = this._scalarTypeCache.get(raw);
+        if (cached) {
+            return cached;
+        }
+
         const trimmed = raw.trim();
         const lower = trimmed.toLowerCase();
         let kind: ScalarType['kind'] = 'int';
@@ -96,22 +87,29 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         if (bits) {
             out.bits = parseInt(bits[1], 10);
         }
+
+        // Cache result
+        this._scalarTypeCache.set(raw, out);
         return out;
     }
 
     private async getScalarInfo(container: RefContainer): Promise<FormatTypeInfo & { widthBytes?: number }> {
         const currentRef = container.current ?? container.base;
 
-        // Prefer explicit scalar type
-        const rawType = await this.getValueType(container);
+        // Early returns for known cases
+        if (currentRef?.name === '_addr') {
+            return { kind: 'unknown', bits: 32, widthBytes: 4 };
+        }
+
+        // Parallelize async operations
+        const [rawType, arrayCount] = await Promise.all([
+            this.getValueType(container),
+            typeof currentRef?.getArraySize === 'function' ? currentRef.getArraySize() : Promise.resolve(undefined)
+        ]);
+
         const scalar = this.normalizeScalarType(rawType);
         const kind = scalar?.kind ?? 'unknown';
 
-        // Derive element width and array-ness
-        const arrayCount = typeof currentRef?.getArraySize === 'function' ? await currentRef.getArraySize() : undefined;
-        if (currentRef?.name === '_addr') {
-            return { kind, bits: 32, widthBytes: 4 };
-        }
         if (arrayCount && arrayCount > 1) {
             return { kind, bits: 32, widthBytes: 4 };
         }
@@ -161,7 +159,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         if (address === 0 || address >= ScvdEvalInterface.INVALID_ADDR_MIN) {
             return undefined;
         }
-        return this.debugTarget.readMemory(address >>> 0, length);
+        return this._debugTarget.readMemory(address >>> 0, length);
     }
 
     private normalizeName(name: string | undefined): string | undefined {
@@ -174,7 +172,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         if (!normalized) {
             return undefined;
         }
-        return this.debugTarget.findSymbolAddress(normalized, existCheck);
+        return this._debugTarget.findSymbolAddress(normalized, existCheck);
     }
 
     // ---------------- Host Interface: model + data access ----------------
@@ -290,7 +288,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         const width = container.widthBytes ?? 0;
         componentViewerLogger.trace(`[ScvdEvalInterface.readValue] container: var="${varName}" offset=${offset} width=${width}`);
         try {
-            const value = await this.memHost.readValue(container);
+            const value = await this._memHost.readValue(container);
             componentViewerLogger.trace(`[ScvdEvalInterface.readValue] → ${value}`);
             return value as EvalValue;
         } catch (e) {
@@ -308,7 +306,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         const width = container.widthBytes ?? 0;
         componentViewerLogger.trace(`[ScvdEvalInterface.writeValue] container: var="${varName}" offset=${offset} width=${width} value=${value}`);
         try {
-            await this.memHost.writeValue(container, value);
+            await this._memHost.writeValue(container, value);
             return value;
         } catch (e) {
             componentViewerLogger.error(`ScvdEvalInterface.writeValue: exception for container with base=${container.base.getDisplayLabel()}: ${e}`);
@@ -334,13 +332,13 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         if (!normalized) {
             return undefined;
         }
-        const cachedRegVal = this.registerHost.read(normalized);
+        const cachedRegVal = this._registerCache.read(normalized);
         if (cachedRegVal === undefined) {
-            const value = await this.debugTarget.readRegister(normalized);
+            const value = await this._debugTarget.readRegister(normalized);
             if (value === undefined) {
                 return undefined;
             }
-            this.registerHost.write(normalized, value);
+            this._registerCache.write(normalized, value);
             return value;
         }
         return cachedRegVal;
@@ -358,7 +356,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     Bit 31 Memory overflow (MagicValue is overwritten)
     */
     public async __CalcMemUsed(stackAddress: number, stackSize: number, fillPattern: number, magicValue: number): Promise<number | undefined> {
-        const memUsed = await this.debugTarget.calculateMemoryUsage(
+        const memUsed = await this._debugTarget.calculateMemoryUsage(
             stackAddress,
             stackSize,
             fillPattern,
@@ -371,12 +369,12 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     public async __size_of(symbol: string): Promise<number | undefined> {
         const perfStartTime = perf?.start() ?? 0;
         try {
-            const sizeBytes = await this.debugTarget.getSymbolSize(symbol);
+            const sizeBytes = await this._debugTarget.getSymbolSize(symbol);
             if (sizeBytes !== undefined) {
                 return sizeBytes;
             }
             // Legacy fallback: try array element count if size is unavailable
-            const arrayElements = await this.debugTarget.getNumArrayElements(symbol);
+            const arrayElements = await this._debugTarget.getNumArrayElements(symbol);
             if (arrayElements !== undefined) {
                 return arrayElements;
             }
@@ -401,7 +399,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     }
 
     public async __Running(): Promise<number | undefined> {
-        const isRunning = await this.debugTarget.getTargetIsRunning();
+        const isRunning = await this._debugTarget.getTargetIsRunning();
         return isRunning ? 1 : 0;
     }
 
@@ -409,7 +407,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         const base = container.current;
         const name = base?.name;
         if (name !== undefined) {
-            const count = this.memHost.getArrayElementCount(name);  // TOIMPL: this works only for <readlist>, must add for <read>
+            const count = this._memHost.getArrayElementCount(name);  // TOIMPL: this works only for <readlist>, must add for <read>
             componentViewerLogger.trace(`[ScvdEvalInterface._count] var="${name}" → ${count}`);
             return count;
         }
@@ -421,7 +419,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         const name = base?.name;
         const index = container.index ?? 0;
         if (name !== undefined) {
-            const addr = this.memHost.getElementTargetBase(name, index);
+            const addr = this._memHost.getElementTargetBase(name, index);
             componentViewerLogger.trace(`[ScvdEvalInterface._addr] var="${name}" index=${index} → 0x${addr?.toString(16)}`);
             return addr;
         }
@@ -437,85 +435,19 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
             const formatRef = container.origin ?? base;
             const typeInfo = await this.getScalarInfo(container);
 
-            const toNumeric = (v: unknown): number | bigint => {
-                if (typeof v === 'number' || typeof v === 'bigint') {
-                    return v;
-                }
-                if (typeof v === 'boolean') {
-                    return v ? 1 : 0;
-                }
-                if (typeof v === 'string') {
-                    const n = Number(v);
-                    return Number.isFinite(n) ? n : NaN;
-                }
-                // Convert Uint8Array to number (little-endian)
-                if (v instanceof Uint8Array) {
-                    if (v.length === 0) {
-                        return 0;
-                    }
-                    if (v.length <= 4) {
-                        let out = 0;
-                        for (const b of Array.from(v).reverse()) {
-                            out = (out << 8) | (b & 0xff);
-                        }
-                        return out >>> 0;
-                    }
-                    if (v.length === 8) {
-                        let out = 0n;
-                        for (let i = 0; i < 8; i++) {
-                            // eslint-disable-next-line security/detect-object-injection
-                            out |= BigInt(v[i]) << BigInt(8 * i);
-                        }
-                        return out;
-                    }
-                }
-                return NaN;
-            };
-
-            const cacheableNumber =
-            (spec === 'd' || spec === 'u' || spec === 'x') &&
-            (typeof value === 'number' ? Number.isFinite(value) : typeof value === 'bigint');
-            const cacheableText = spec === 't' && typeof value === 'string';
-            if (cacheableNumber) {
-                const numericValue = value as number | bigint;
-                const key = this.makePrintfCacheKey(spec, numericValue, typeInfo);
-                const cached = this._caches.getPrintf(key);
-                if (cached !== undefined) {
-                    perf?.recordPrintfCacheHit();
-                    return cached;
-                }
-                perf?.recordPrintfCacheMiss();
-            } else if (cacheableText) {
-                const key = this.makePrintfTextCacheKey(spec, value);
-                const cached = this._caches.getPrintf(key);
-                if (cached !== undefined) {
-                    perf?.recordPrintfCacheHit();
-                    return cached;
-                }
-                perf?.recordPrintfCacheMiss();
+            // Try cache lookup for cacheable formats
+            const cached = this.tryGetCachedPrintf(spec, value, typeInfo);
+            if (cached !== undefined) {
+                return cached;
             }
 
             switch (spec) {
                 case 'C': {
-                // TOIMPL: include file/line context when targetAccess exposes it (e.g., GDB "info line *addr").
-                    const addr = typeof value === 'number' ? value : undefined;
-                    if (addr === undefined) {
-                        return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
-                    }
-                    const context = await this.debugTarget.findSymbolContextAtAddress(addr);
-                    if (context !== undefined) {
-                        return this.formatSpecifier.format(spec, context, { typeInfo, allowUnknownSpec: true });
-                    }
-                    const name = await this.debugTarget.findSymbolNameAtAddress(addr);
-                    return this.formatSpecifier.format(spec, name ?? addr, { typeInfo, allowUnknownSpec: true });
+                    // TOIMPL: include file/line context when targetAccess exposes it (e.g., GDB "info line *addr").
+                    return this.formatSymbolFromAddress(spec, value, typeInfo, true);
                 }
                 case 'S': {
-                    const addr = typeof value === 'number' ? value : undefined;
-                    if (addr === undefined) {
-                        return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
-                    }
-                    const name = await this.debugTarget.findSymbolNameAtAddress(addr);
-                    return this.formatSpecifier.format(spec, name ?? addr, { typeInfo, allowUnknownSpec: true });
+                    return this.formatSymbolFromAddress(spec, value, typeInfo, false);
                 }
                 case 'E': {
                     const memberItem = formatRef?.castToDerived(ScvdMember);
@@ -537,162 +469,61 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                     if (enumStr !== undefined) {
                         opts.enumText = enumStr;
                     }
-                    const formatted = this.formatSpecifier.format(spec, value, opts);
+                    const formatted = this._formatSpecifier.format(spec, value, opts);
                     if (typeof value === 'number' && enumStr !== undefined) {
                         this._caches.setPrintf(this.makePrintfCacheKey('E', value, typeInfo, enumStr), formatted);
                     }
                     return formatted;
                 }
-                case 'I': {
-                    if (value instanceof Uint8Array) {
-                        return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
-                    }
-                    if (typeof value === 'number') {
-                        // Legacy compatibility: for members without size attribute, compute the full address
-                        // from the container's anchor base + offset to read all 4 bytes for the IP address
-                        let addressToRead: number | undefined;
-
-                        if (container.anchor?.name && container.offsetBytes !== undefined) {
-                            const baseAddr = this.memHost.getElementTargetBase(container.anchor.name, container.index ?? 0);
-                            if (baseAddr !== undefined) {
-                                addressToRead = baseAddr + container.offsetBytes;
-                            }
-                        }
-
-                        if (addressToRead !== undefined && Number.isFinite(addressToRead)) {
-                            const buf = await this.readBytesFromPointer(addressToRead, 4);
-                            if (buf) {
-                                return this.formatSpecifier.format(spec, buf, { typeInfo, allowUnknownSpec: true });
-                            }
-                        }
-
-                        // Compatibility fallback: treat value as a pointer to read from
-                        const buf = await this.readBytesFromPointer(value, 4);
-                        return this.formatSpecifier.format(spec, buf ?? value, { typeInfo, allowUnknownSpec: true });
-                    }
-                    return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
-                }
+                case 'I':
                 case 'J': {
-                    if (value instanceof Uint8Array) {
-                        return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
-                    }
-                    if (typeof value === 'number') {
-                        // Legacy compatibility: for members without size attribute, compute the full address
-                        // from the container's anchor base + offset to read all 16 bytes for the IPv6 address
-                        let addressToRead: number | undefined;
-
-                        if (container.anchor?.name && container.offsetBytes !== undefined) {
-                            const baseAddr = this.memHost.getElementTargetBase(container.anchor.name, container.index ?? 0);
-                            if (baseAddr !== undefined) {
-                                addressToRead = baseAddr + container.offsetBytes;
-                            }
-                        }
-
-                        if (addressToRead !== undefined && Number.isFinite(addressToRead)) {
-                            const buf = await this.readBytesFromPointer(addressToRead, 16);
-                            if (buf) {
-                                return this.formatSpecifier.format(spec, buf, { typeInfo, allowUnknownSpec: true });
-                            }
-                        }
-
-                        // Compatibility fallback: treat value as a pointer to read from
-                        const buf = await this.readBytesFromPointer(value, 16);
-                        return this.formatSpecifier.format(spec, buf ?? value, { typeInfo, allowUnknownSpec: true });
-                    }
-                    return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+                    return this.formatIpAddress(spec, value, container, typeInfo, spec === 'I' ? 4 : 16);
                 }
                 case 'x': {
-                    let n = toNumeric(value);
+                    let n = this.toNumeric(value);
                     if (typeof n === 'number') {
                         n = Math.trunc(n);
                     }
-                    const formatted = this.formatSpecifier.format(spec, n, { typeInfo, allowUnknownSpec: true });
+                    const formatted = this._formatSpecifier.format(spec, n, { typeInfo, allowUnknownSpec: true });
                     this.storePrintfCache(spec, value, typeInfo, formatted);
                     return formatted;
                 }
-                case 'N': {
-                    if (typeof value === 'number' && Number.isInteger(value)) {
-                        const data = await this.debugTarget.readUint8ArrayStrFromPointer(value, 1, 260 - 4);
-                        if (data !== undefined) {
-                            return this.formatSpecifier.format(spec, data, { typeInfo, allowUnknownSpec: true });
-                        }
-                    }
-                    return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+                case 'N':
+                case 'U': {
+                    return this.formatStringFromPointer(spec, value, typeInfo, spec === 'N' ? 1 : 2);
                 }
                 case 't': {
-                    const ensureNullTerminated = (bytes: Uint8Array): Uint8Array => {
-                        if (bytes.length === 0 || bytes[bytes.length - 1] === 0) {
-                            return bytes;
-                        }
-                        const next = new Uint8Array(bytes.length + 1);
-                        next.set(bytes, 0);
-                        next[bytes.length] = 0;
-                        return next;
-                    };
                     if (typeof value === 'string') {
-                        const formatted = this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+                        const formatted = this._formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
                         this.storePrintfTextCache(spec, value, formatted);
                         return formatted;
                     }
                     if (value instanceof Uint8Array) {
-                        return this.formatSpecifier.format(spec, ensureNullTerminated(value), { typeInfo, allowUnknownSpec: true });
+                        return this._formatSpecifier.format(spec, this.ensureNullTerminated(value), { typeInfo, allowUnknownSpec: true });
                     }
-                    const anchor = container.anchor ?? base;
-                    const width = container.widthBytes ?? (formatRef ? await this.getByteWidth(formatRef) : undefined);
-                    if (anchor?.name !== undefined && width !== undefined && width > 0) {
-                        const cacheRef: RefContainer = {
-                            ...container,
-                            anchor,
-                            widthBytes: width
-                        };
-                        const raw = await this.memHost.readRaw(cacheRef, width);
-                        if (raw !== undefined) {
-                            return this.formatSpecifier.format(spec, ensureNullTerminated(raw), { typeInfo, allowUnknownSpec: true });
-                        }
+                    const raw = await this.readRawBytesFromContainer(container, base, formatRef);
+                    if (raw !== undefined) {
+                        return this._formatSpecifier.format(spec, this.ensureNullTerminated(raw), { typeInfo, allowUnknownSpec: true });
                     }
-                    return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+                    return this._formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
                 }
                 case 'M': {
                     if (value instanceof Uint8Array) {
-                        return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+                        return this._formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
                     }
-                    const anchor = container.anchor ?? base;
-                    let width = container.widthBytes;
-                    if (width === undefined) {
-                        width = formatRef ? await this.getByteWidth(formatRef) : undefined;
-                    }
-                    if (width === undefined) {
-                        width = 6;
-                    }
-                    if (anchor?.name !== undefined && width > 0) {
-                        const cacheRef: RefContainer = {
-                            ...container,
-                            anchor,
-                            widthBytes: width
-                        };
-                        const raw = await this.memHost.readRaw(cacheRef, width);
-                        if (raw !== undefined) {
-                            return this.formatSpecifier.format(spec, raw, { typeInfo, allowUnknownSpec: true });
-                        }
+                    const raw = await this.readRawBytesFromContainer(container, base, formatRef, 6);
+                    if (raw !== undefined) {
+                        return this._formatSpecifier.format(spec, raw, { typeInfo, allowUnknownSpec: true });
                     }
                     const isPointer = formatRef?.getIsPointer?.() ?? false;
                     if (isPointer && typeof value === 'number') {
                         const buf = await this.readBytesFromPointer(value, 6);
-                        return this.formatSpecifier.format(spec, buf ?? value, { typeInfo, allowUnknownSpec: true });
+                        return this._formatSpecifier.format(spec, buf ?? value, { typeInfo, allowUnknownSpec: true });
                     }
-                    return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
-                }
-                case 'U': {
-                    if (typeof value === 'number' && Number.isInteger(value)) {
-                        const data = await this.debugTarget.readUint8ArrayStrFromPointer(value, 2, 260 - 4);
-                        if (data !== undefined) {
-                            return this.formatSpecifier.format(spec, data, { typeInfo, allowUnknownSpec: true });
-                        }
-                    }
-                    return this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+                    return this._formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
                 }
                 default: {
-                    const formatted = this.formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+                    const formatted = this._formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
                     this.storePrintfCache(spec, value, typeInfo, formatted);
                     return formatted;
                 }
@@ -700,6 +531,210 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         } finally {
             perf?.end(perfStartTime, 'printfMs', 'printfCalls');
         }
+    }
+
+    /**
+     * Try to get a cached formatted value for cacheable format specifiers.
+     * Returns undefined if not cacheable or not in cache.
+     */
+    private tryGetCachedPrintf(spec: FormatSegment['spec'], value: EvalValue, typeInfo: FormatTypeInfo): string | undefined {
+        const cacheableNumber =
+            (spec === 'd' || spec === 'u' || spec === 'x') &&
+            (typeof value === 'number' ? Number.isFinite(value) : typeof value === 'bigint');
+        const cacheableText = spec === 't' && typeof value === 'string';
+
+        if (cacheableNumber) {
+            const numericValue = value as number | bigint;
+            const key = this.makePrintfCacheKey(spec, numericValue, typeInfo);
+            const cached = this._caches.getPrintf(key);
+            if (cached !== undefined) {
+                perf?.recordPrintfCacheHit();
+                return cached;
+            }
+            perf?.recordPrintfCacheMiss();
+        } else if (cacheableText) {
+            const key = this.makePrintfTextCacheKey(spec, value);
+            const cached = this._caches.getPrintf(key);
+            if (cached !== undefined) {
+                perf?.recordPrintfCacheHit();
+                return cached;
+            }
+            perf?.recordPrintfCacheMiss();
+        }
+        return undefined;
+    }
+
+    /**
+     * Format IP address (%I for IPv4, %J for IPv6).
+     */
+    private async formatIpAddress(
+        spec: FormatSegment['spec'],
+        value: EvalValue,
+        container: RefContainer,
+        typeInfo: FormatTypeInfo,
+        byteCount: number
+    ): Promise<string | undefined> {
+        if (value instanceof Uint8Array) {
+            return this._formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+        }
+        if (typeof value === 'number') {
+            const buf = await this.readBytesFromAnchorOrPointer(container, value, byteCount);
+            return this._formatSpecifier.format(spec, buf ?? value, { typeInfo, allowUnknownSpec: true });
+        }
+        return this._formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+    }
+
+    /**
+     * Format string from pointer (%N for ASCII, %U for UTF-16).
+     */
+    private async formatStringFromPointer(
+        spec: FormatSegment['spec'],
+        value: EvalValue,
+        typeInfo: FormatTypeInfo,
+        bytesPerChar: number
+    ): Promise<string | undefined> {
+        if (typeof value === 'number' && Number.isInteger(value)) {
+            const data = await this._debugTarget.readUint8ArrayStrFromPointer(value, bytesPerChar, 260 - 4);
+            if (data !== undefined) {
+                return this._formatSpecifier.format(spec, data, { typeInfo, allowUnknownSpec: true });
+            }
+        }
+        return this._formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+    }
+
+    /**
+     * Format a symbol name or context from an address.
+     * Used by %C (with context) and %S (name only) format specifiers.
+     */
+    private async formatSymbolFromAddress(
+        spec: FormatSegment['spec'],
+        value: EvalValue,
+        typeInfo: FormatTypeInfo,
+        includeContext: boolean
+    ): Promise<string | undefined> {
+        const addr = typeof value === 'number' ? value : undefined;
+        if (addr === undefined) {
+            return this._formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
+        }
+
+        if (includeContext) {
+            const context = await this._debugTarget.findSymbolContextAtAddress(addr);
+            if (context !== undefined) {
+                return this._formatSpecifier.format(spec, context, { typeInfo, allowUnknownSpec: true });
+            }
+        }
+
+        const name = await this._debugTarget.findSymbolNameAtAddress(addr);
+        return this._formatSpecifier.format(spec, name ?? addr, { typeInfo, allowUnknownSpec: true });
+    }
+
+    /**
+     * Convert various value types to numeric (number or bigint) for formatting.
+     * Handles Uint8Array conversion using little-endian byte order.
+     */
+    private toNumeric(v: unknown): number | bigint {
+        if (typeof v === 'number' || typeof v === 'bigint') {
+            return v;
+        }
+        if (typeof v === 'boolean') {
+            return v ? 1 : 0;
+        }
+        if (typeof v === 'string') {
+            const n = Number(v);
+            return Number.isFinite(n) ? n : NaN;
+        }
+        // Convert Uint8Array to number (little-endian)
+        if (v instanceof Uint8Array) {
+            if (v.length === 0) {
+                return 0;
+            }
+            if (v.length <= 4) {
+                let out = 0;
+                for (const b of Array.from(v).reverse()) {
+                    out = (out << 8) | (b & 0xff);
+                }
+                return out >>> 0;
+            }
+            if (v.length === 8) {
+                let out = 0n;
+                for (let i = 0; i < 8; i++) {
+                    // eslint-disable-next-line security/detect-object-injection
+                    out |= BigInt(v[i]) << BigInt(8 * i);
+                }
+                return out;
+            }
+        }
+        return NaN;
+    }
+
+    /**
+     * Read bytes from container's anchor+offset if available (for legacy SCVD without size attribute),
+     * otherwise treat the value as a pointer and read from that address.
+     * Used by %I and %J format specifiers for IP addresses.
+     */
+    private async readBytesFromAnchorOrPointer(container: RefContainer, value: number, byteCount: number): Promise<Uint8Array | undefined> {
+        // Legacy compatibility: for members without size attribute, compute the full address
+        // from the container's anchor base + offset to read the required bytes
+        let addressToRead: number | undefined;
+
+        if (container.anchor?.name && container.offsetBytes !== undefined) {
+            const baseAddr = this._memHost.getElementTargetBase(container.anchor.name, container.index ?? 0);
+            if (baseAddr !== undefined) {
+                addressToRead = baseAddr + container.offsetBytes;
+            }
+        }
+
+        if (addressToRead !== undefined && Number.isFinite(addressToRead)) {
+            const buf = await this.readBytesFromPointer(addressToRead, byteCount);
+            if (buf) {
+                return buf;
+            }
+        }
+
+        // Compatibility fallback: treat value as a pointer to read from
+        return await this.readBytesFromPointer(value, byteCount);
+    }
+
+    /**
+     * Read raw bytes from container using anchor and width information.
+     * Used by %t and %M format specifiers for text and MAC addresses.
+     */
+    private async readRawBytesFromContainer(
+        container: RefContainer,
+        base: ScvdNode | undefined,
+        formatRef: ScvdNode | undefined,
+        defaultWidth?: number
+    ): Promise<Uint8Array | undefined> {
+        const anchor = container.anchor ?? base;
+        let width = container.widthBytes;
+        if (width === undefined) {
+            width = formatRef ? await this.getByteWidth(formatRef) : undefined;
+        }
+        if (width === undefined && defaultWidth !== undefined) {
+            width = defaultWidth;
+        }
+        if (anchor?.name !== undefined && width !== undefined && width > 0) {
+            const cacheRef: RefContainer = {
+                ...container,
+                anchor,
+                widthBytes: width
+            };
+            return await this._memHost.readRaw(cacheRef, width);
+        }
+        return undefined;
+    }
+
+    /**
+     * Ensure a byte array is null-terminated for string formatting.
+     */
+    private ensureNullTerminated(bytes: Uint8Array): Uint8Array {
+        if (bytes.length === 0 || bytes[bytes.length - 1] === 0) {
+            return bytes;
+        }
+        const next = new Uint8Array(bytes.length + 1);
+        next.set(bytes, 0);
+        next[bytes.length] = 0;
+        return next;
     }
 
     private makePrintfCacheKey(spec: string, value: number | bigint, typeInfo: FormatTypeInfo, suffix?: string): string {
