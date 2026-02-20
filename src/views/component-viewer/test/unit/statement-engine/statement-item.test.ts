@@ -21,6 +21,7 @@
 
 import { ScvdGuiTree } from '../../../scvd-gui-tree';
 import { StatementItem } from '../../../statement-engine/statement-item';
+import { StatementList } from '../../../statement-engine/statement-list';
 import { StatementOut } from '../../../statement-engine/statement-out';
 import { StatementPrint } from '../../../statement-engine/statement-print';
 import { createExecutionContext, TestNode } from '../helpers/statement-engine-helpers';
@@ -89,8 +90,9 @@ describe('StatementItem', () => {
         await stmt.executeStatement(ctx, guiTree);
 
         const child = getOnlyChild(guiTree);
-        expect(child.getGuiName()).toBeUndefined();
-        expect(child.getGuiValue()).toBeUndefined();
+        // When no property is specified, it should be displayed with empty string (matching C++ behavior)
+        expect(child.getGuiName()).toBe('');
+        expect(child.getGuiValue()).toBe('');
     });
 
     it('keeps print-only items and uses the print name/value', async () => {
@@ -154,5 +156,135 @@ describe('StatementItem', () => {
         await stmt.executeStatement(ctx, guiTree);
 
         expect(guiTree.children).toHaveLength(1);
+    });
+
+    it('handles undefined print name/value by using empty strings', async () => {
+        const node = new TestNode(undefined);
+        const stmt = new StatementItem(node, undefined);
+        // Create a print node that returns undefined for name and value
+        const printNode = new TestNode(node);
+        printNode.guiName = undefined;
+        printNode.guiValue = undefined;
+        new StatementPrint(printNode, stmt);
+
+        const ctx = createExecutionContext(node);
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        const child = getOnlyChild(guiTree);
+        // Undefined should be converted to empty string (matching C++ AddProperty("", value) behavior)
+        expect(child.getGuiName()).toBe('');
+        expect(child.getGuiValue()).toBe('');
+    });
+
+    it('displays item with value but no property name', async () => {
+        const node = new TestNode(undefined, { guiValue: 'SomeValue' });
+        const stmt = new StatementItem(node, undefined);
+        const ctx = createExecutionContext(node);
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        const child = getOnlyChild(guiTree);
+        // No property name (undefined) should become empty string, value should be preserved
+        expect(child.getGuiName()).toBe('');
+        expect(child.getGuiValue()).toBe('SomeValue');
+    });
+
+    it('skips item when all multiple print children are suppressed', async () => {
+        const node = new TestNode(undefined);
+        const stmt = new StatementItem(node, undefined);
+
+        // Add multiple print children, all suppressed
+        const printNode1 = new TestNode(node, { guiName: 'Print1', guiValue: 'Value1' });
+        printNode1.conditionResult = false;
+        new StatementPrint(printNode1, stmt);
+
+        const printNode2 = new TestNode(node, { guiName: 'Print2', guiValue: 'Value2' });
+        printNode2.conditionResult = false;
+        new StatementPrint(printNode2, stmt);
+
+        const ctx = createExecutionContext(node);
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        // Item should be completely skipped when no print matches
+        expect(guiTree.children).toHaveLength(0);
+    });
+
+    it('uses first matching print when multiple prints exist', async () => {
+        const node = new TestNode(undefined);
+        const stmt = new StatementItem(node, undefined);
+
+        // First print is suppressed
+        const printNode1 = new TestNode(node, { guiName: 'Print1', guiValue: 'Value1' });
+        printNode1.conditionResult = false;
+        new StatementPrint(printNode1, stmt);
+
+        // Second print should match
+        const printNode2 = new TestNode(node, { guiName: 'Print2', guiValue: 'Value2' });
+        new StatementPrint(printNode2, stmt);
+
+        // Third print should not be evaluated
+        const printNode3 = new TestNode(node, { guiName: 'Print3', guiValue: 'Value3' });
+        new StatementPrint(printNode3, stmt);
+
+        const ctx = createExecutionContext(node);
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        const child = getOnlyChild(guiTree);
+        // Should use second print (first matching one)
+        expect(child.getGuiName()).toBe('Print2');
+        expect(child.getGuiValue()).toBe('Value2');
+    });
+
+    it('hides items with no value that contain only empty lists', async () => {
+        // This tests the FileSystem.scvd scenario:
+        // <item property="Drives">
+        //   <list name="i" start="0" limit="Vol_EFS._count">  <!-- _count = 0, so no iterations -->
+        //     <item property="Drive ...">
+        //   </list>
+        // </item>
+        // Expected: "Drives" item should NOT appear when list is empty
+        const node = new TestNode(undefined, { guiName: 'Drives' }); // Has name, no value
+        const stmt = new StatementItem(node, undefined);
+
+        // Add a list child that produces no GUI children (simulates empty list)
+        const listNode = new TestNode(node);
+        new StatementList(listNode, stmt);
+
+        const ctx = createExecutionContext(node);
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        // Item should be detached because it has no value and no GUI children
+        expect(guiTree.children).toHaveLength(0);
+    });
+
+    it('hides items with no name and no value even when they have GUI children', async () => {
+        // This tests the empty Drive scenario from FileSystem.scvd:
+        // <item property="Drive %t[Vol_EFS[i].drvLet]">  <!-- drvLet is empty "" -->
+        //   <out property="Status" value="Uninitialized">
+        // </item>
+        // Expected: Empty Drive (no name, no value) should NOT appear even though it has "Status" child
+        const node = new TestNode(undefined); // No name, no value
+        const stmt = new StatementItem(node, undefined);
+
+        // Add an out child that will create a GUI child
+        const outNode = new TestNode(node, { guiName: 'Status', guiValue: 'Uninitialized' });
+        new StatementOut(outNode, stmt);
+
+        const ctx = createExecutionContext(node);
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        // Item should be detached because it has no name and no value (even though it has GUI children)
+        expect(guiTree.children).toHaveLength(0);
     });
 });

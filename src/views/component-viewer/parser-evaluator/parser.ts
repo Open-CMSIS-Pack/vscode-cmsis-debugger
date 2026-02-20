@@ -275,6 +275,26 @@ function constValueFromCValue(value: { type: { kind: string }, value: bigint | n
     return Number(bigintValue);
 }
 
+/**
+ * Validates that a string doesn't contain leftover XML entity references.
+ * Returns undefined if valid, or an error message if XML entities are detected.
+ *
+ * Common XML entities that should be decoded before parsing:
+ * - &amp;  → &
+ * - &lt;   → <
+ * - &gt;   → >
+ * - &quot; → "
+ * - &apos; → '
+ */
+export function validateNoXmlEntities(expr: string): string | undefined {
+    const xmlEntityPattern = /&(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);/;
+    const match = xmlEntityPattern.exec(expr);
+    if (match) {
+        return `Expression contains undecoded XML entity '${match[0]}'. XML attributes should be decoded before parsing.`;
+    }
+    return undefined;
+}
+
 function unescapeString(rawWithQuotes: string): string {
     const s = rawWithQuotes.slice(1, -1);
     let out = '';
@@ -417,6 +437,13 @@ export class Parser {
 
     public parse(input: string, isPrintExpression: boolean): ParseResult {
         this.reinit(input);
+
+        // Check for leftover XML entities before parsing
+        const xmlError = validateNoXmlEntities(input);
+        if (xmlError) {
+            this.warn(xmlError, 0, input.length);
+        }
+
         let ast: ASTNode;
         let isPrintf = false;
 

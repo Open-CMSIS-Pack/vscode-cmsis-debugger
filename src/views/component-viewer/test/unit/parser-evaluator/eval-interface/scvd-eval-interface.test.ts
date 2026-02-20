@@ -29,8 +29,12 @@ import type { FormatSegment } from '../../../../parser-evaluator/parser';
 import { ScvdFormatSpecifier } from '../../../../model/scvd-format-specifier';
 import { ScvdNode } from '../../../../model/scvd-node';
 import { ScvdMember } from '../../../../model/scvd-member';
+import { ScvdComponentViewer } from '../../../../model/scvd-component-viewer';
+import { ScvdTypedef } from '../../../../model/scvd-typedef';
 
 class DummyNode extends ScvdNode {
+    private _testParent: ScvdNode | undefined;
+
     constructor(
         name: string | undefined,
         private readonly opts: Partial<{
@@ -46,6 +50,16 @@ class DummyNode extends ScvdNode {
         super(undefined);
         this.name = name;
     }
+
+    // Override parent to allow setting for tests
+    public override get parent(): ScvdNode | undefined {
+        return this._testParent ?? super.parent;
+    }
+
+    public setTestParent(parent: ScvdNode | undefined): void {
+        this._testParent = parent;
+    }
+
     public override async getTargetSize(): Promise<number | undefined> { return this.opts.targetSize; }
     public override async getVirtualSize(): Promise<number | undefined> { return this.opts.virtualSize; }
     public override async getArraySize(): Promise<number | undefined> { return this.opts.arraySize; }
@@ -152,6 +166,89 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         expect(debugTarget.getTargetIsRunning).toHaveBeenCalled();
     });
 
+    it('__Offset_of handles typedef:member format - root not ScvdComponentViewer', async () => {
+        const base = new DummyNode('base');
+        const container: RefContainer = { base, current: undefined, valueType: undefined };
+        const { evalIf } = makeEval();
+        jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
+        await expect(evalIf.__Offset_of(container, 'MyType:field')).resolves.toBeUndefined();
+        expect(componentViewerLogger.error).toHaveBeenCalledWith(expect.stringContaining('Root is not ScvdComponentViewer'));
+        (componentViewerLogger.error as unknown as jest.Mock).mockRestore();
+    });
+
+    it('__Offset_of handles typedef:member format - no typedefs found', async () => {
+        const root = new ScvdComponentViewer(undefined);
+        const base = new DummyNode('base');
+        base.setTestParent(root);
+        const container: RefContainer = { base, current: undefined, valueType: undefined };
+        const { evalIf } = makeEval();
+        jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
+        await expect(evalIf.__Offset_of(container, 'MyType:field')).resolves.toBeUndefined();
+        expect(componentViewerLogger.error).toHaveBeenCalledWith(expect.stringContaining('No typedefs found'));
+        (componentViewerLogger.error as unknown as jest.Mock).mockRestore();
+    });
+
+    it('__Offset_of handles typedef:member format - typedef not found', async () => {
+        const root = new ScvdComponentViewer(undefined);
+        const typedef1 = new ScvdTypedef(root);
+        typedef1.name = 'OtherType';
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (root as any)._typedefs = { typedef: [typedef1] };
+        const base = new DummyNode('base');
+        base.setTestParent(root);
+        const container: RefContainer = { base, current: undefined, valueType: undefined };
+        const { evalIf } = makeEval();
+        jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
+        await expect(evalIf.__Offset_of(container, 'MyType:field')).resolves.toBeUndefined();
+        expect(componentViewerLogger.error).toHaveBeenCalledWith(expect.stringContaining('Typedef "MyType" not found'));
+        (componentViewerLogger.error as unknown as jest.Mock).mockRestore();
+    });
+
+    it('__Offset_of handles typedef:member format - member not found', async () => {
+        const root = new ScvdComponentViewer(undefined);
+        const typedef1 = new ScvdTypedef(root);
+        typedef1.name = 'MyType';
+        typedef1.getMember = jest.fn().mockReturnValue(undefined);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (root as any)._typedefs = { typedef: [typedef1] };
+        const base = new DummyNode('base');
+        base.setTestParent(root);
+        const container: RefContainer = { base, current: undefined, valueType: undefined };
+        const { evalIf } = makeEval();
+        jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
+        await expect(evalIf.__Offset_of(container, 'MyType:field')).resolves.toBeUndefined();
+        expect(componentViewerLogger.error).toHaveBeenCalledWith(expect.stringContaining('Member "field" not found'));
+        (componentViewerLogger.error as unknown as jest.Mock).mockRestore();
+    });
+
+    it('__Offset_of handles typedef:member format - undefined offset warning', async () => {
+        const root = new ScvdComponentViewer(undefined);
+        const typedef1 = new ScvdTypedef(root);
+        typedef1.name = 'MyType';
+        const member = new DummyNode('field');
+        typedef1.getMember = jest.fn().mockReturnValue(member);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (root as any)._typedefs = { typedef: [typedef1] };
+        const base = new DummyNode('base');
+        base.setTestParent(root);
+        const container: RefContainer = { base, current: undefined, valueType: undefined };
+        const { evalIf } = makeEval();
+        jest.spyOn(componentViewerLogger, 'warn').mockImplementation(() => {});
+        await expect(evalIf.__Offset_of(container, 'MyType:field')).resolves.toBeUndefined();
+        expect(componentViewerLogger.warn).toHaveBeenCalledWith(expect.stringContaining('has undefined offset'));
+        (componentViewerLogger.warn as unknown as jest.Mock).mockRestore();
+    });
+
+    it('__Offset_of handles invalid format with colons', async () => {
+        const base = new DummyNode('base');
+        const container: RefContainer = { base, current: undefined, valueType: undefined };
+        const { evalIf } = makeEval();
+        jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
+        await expect(evalIf.__Offset_of(container, 'invalid:format:extra')).resolves.toBeUndefined();
+        expect(componentViewerLogger.error).toHaveBeenCalledWith(expect.stringContaining('Invalid format'));
+        (componentViewerLogger.error as unknown as jest.Mock).mockRestore();
+    });
+
     it('_count and _addr defer to MemoryHost', async () => {
         const base = new DummyNode('arr');
         const container: RefContainer = { base, current: base, valueType: undefined };
@@ -205,6 +302,16 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         const { evalIf } = makeEval();
         await expect(evalIf.resolveColonPath(container, ['a', 'b'])).resolves.toBeUndefined();
         await expect(evalIf.getElementRef(base)).resolves.toBeUndefined();
+    });
+
+    it('resolveColonPath warns on unsupported path format with more than 2 parts', async () => {
+        const base = new DummyNode('base');
+        const container: RefContainer = { base, current: base, valueType: undefined };
+        const { evalIf } = makeEval();
+        jest.spyOn(componentViewerLogger, 'warn').mockImplementation(() => {});
+        await expect(evalIf.resolveColonPath(container, ['a', 'b', 'c'])).resolves.toBeUndefined();
+        expect(componentViewerLogger.warn).toHaveBeenCalledWith(expect.stringContaining('Unsupported colon path format with 3 parts'));
+        (componentViewerLogger.warn as unknown as jest.Mock).mockRestore();
     });
 
     it('read/write value wrap host errors', async () => {

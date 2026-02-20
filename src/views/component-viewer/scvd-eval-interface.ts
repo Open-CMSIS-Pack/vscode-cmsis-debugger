@@ -27,6 +27,8 @@ import { ScvdMember } from './model/scvd-member';
 import { ScvdVar } from './model/scvd-var';
 import { perf } from './stats-config';
 import { ScvdEvalInterfaceCache } from './scvd-eval-interface-cache';
+import { ScvdComponentViewer } from './model/scvd-component-viewer';
+import { ScvdTypedef } from './model/scvd-typedef';
 
 export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicProvider {
     private static readonly INVALID_ADDR_MIN = 0xFFFFFFF0;
@@ -115,11 +117,16 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         }
 
         // Determine element width: prefer target size, then container hint, then byte-width helper.
-        let widthBytes: number | undefined = currentRef?.getTargetSize ? await currentRef.getTargetSize() : undefined;
+        // Only query target size if we have a resolved reference (not just the base container)
+        let widthBytes: number | undefined;
+        if (container.current && currentRef?.getTargetSize) {
+            widthBytes = await currentRef.getTargetSize();
+        }
         if ((!widthBytes || widthBytes <= 0) && container.widthBytes) {
             widthBytes = container.widthBytes;
         }
-        if ((!widthBytes || widthBytes <= 0) && typeof this.getByteWidth === 'function' && currentRef) {
+        // Only call getByteWidth if we have a resolved reference (not just the base container)
+        if ((!widthBytes || widthBytes <= 0) && currentRef && container.current) {
             const w = await this.getByteWidth(currentRef);
             if (typeof w === 'number' && w > 0) {
                 widthBytes = w;
@@ -202,7 +209,21 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         return ref;
     }
 
-    public async resolveColonPath(_container: RefContainer, _parts: string[]): Promise<EvalValue> {
+    public async resolveColonPath(_container: RefContainer, parts: string[]): Promise<EvalValue> {
+        // ColonPath in general expression context (not inside __Offset_of)
+        // Example: typedef:member evaluates to the offset value itself
+        // This matches C++ behavior where type:member expressions can be used directly
+
+        if (parts.length === 2) {
+            const [typedefName, memberName] = parts;
+            const colonPath = `${typedefName}:${memberName}`;
+
+            // Reuse __Offset_of logic which handles typedef:member resolution
+            const offset = await this.__Offset_of(_container, colonPath);
+            return offset;
+        }
+
+        componentViewerLogger.warn(`[resolveColonPath] Unsupported colon path format with ${parts.length} parts: ${parts.join(':')}`);
         return undefined;
     }
 
@@ -387,11 +408,62 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     public async __Offset_of(container: RefContainer, typedefMember: string): Promise<number | undefined> {
         const perfStartTime = perf?.start() ?? 0;
         try {
-            const memberRef = container.base.getMember(typedefMember);
-            if (memberRef) {
+            // Handle both "member" and "typedef:member" formats
+            const parts = typedefMember.split(':');
+
+            if (parts.length === 1) {
+                // Simple member lookup from current container
+                const memberRef = container.base.getMember(typedefMember);
+                if (memberRef) {
+                    const offset = await memberRef.getMemberOffset();
+                    return offset;
+                }
+                return undefined;
+            }
+
+            if (parts.length === 2) {
+                // ColonPath format: "TypedefName:MemberName"
+                const [typedefName, memberName] = parts;
+
+                // Find the root ScvdComponentViewer to access typedefs
+                let root: ScvdNode = container.base;
+                while (root.parent !== undefined) {
+                    root = root.parent;
+                }
+
+                // Navigate to typedefs and find the specified typedef
+                if (!(root instanceof ScvdComponentViewer)) {
+                    componentViewerLogger.error('[__Offset_of] Root is not ScvdComponentViewer');
+                    return undefined;
+                }
+
+                const typedefs = root.typedefs;
+                if (!typedefs || !typedefs.typedef) {
+                    componentViewerLogger.error('[__Offset_of] No typedefs found in component viewer');
+                    return undefined;
+                }
+
+                const typedef = typedefs.typedef.find((td: ScvdTypedef) => td.name === typedefName);
+                if (!typedef) {
+                    componentViewerLogger.error(`[__Offset_of] Typedef "${typedefName}" not found`);
+                    return undefined;
+                }
+
+                // Get the member from the typedef
+                const memberRef = typedef.getMember(memberName);
+                if (!memberRef) {
+                    componentViewerLogger.error(`[__Offset_of] Member "${memberName}" not found in typedef "${typedefName}"`);
+                    return undefined;
+                }
+
                 const offset = await memberRef.getMemberOffset();
+                if (offset === undefined) {
+                    componentViewerLogger.warn(`[__Offset_of] Member "${memberName}" in typedef "${typedefName}" has undefined offset`);
+                }
                 return offset;
             }
+
+            componentViewerLogger.error(`[__Offset_of] Invalid format: "${typedefMember}". Expected "member" or "typedef:member"`);
             return undefined;
         } finally {
             perf?.end(perfStartTime, 'symbolOffsetMs', 'symbolOffsetCalls');
