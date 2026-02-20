@@ -24,7 +24,8 @@ import type { GDBTargetDebugTracker } from '../../../../debug-session';
 import type { TargetState } from '../../../../debug-session/gdbtarget-debug-session';
 import { componentViewerLogger } from '../../../../logger';
 import { extensionContextFactory } from '../../../../__test__/vscode.factory';
-import { ComponentViewerBase, ComponentViewerInstancesWrapper, UpdateReason } from '../../component-viewer-base';
+import { ComponentViewerInstancesWrapper, UpdateReason } from '../../component-viewer-base';
+import { ComponentViewer } from '../../component-viewer';
 import { ComponentViewerTreeDataProvider } from '../../component-viewer-tree-view';
 import type { ScvdGuiInterface } from '../../model/scvd-gui-interface';
 
@@ -76,13 +77,13 @@ function asMockedFunction<Args extends unknown[], Return>(
     return fn as unknown as jest.MockedFunction<(...args: Args) => Return>;
 }
 
-const getUpdateInstances = (controller: ComponentViewerBase) =>
+const getUpdateInstances = (controller: ComponentViewer) =>
     (controller as unknown as { updateInstances: (reason: UpdateReason) => Promise<void> }).updateInstances.bind(controller);
 
-const getSchedulePendingUpdate = (controller: ComponentViewerBase) =>
+const getSchedulePendingUpdate = (controller: ComponentViewer) =>
     (controller as unknown as { schedulePendingUpdate: (reason: UpdateReason) => void }).schedulePendingUpdate.bind(controller);
 
-const getRunUpdate = (controller: ComponentViewerBase) =>
+const getRunUpdate = (controller: ComponentViewer) =>
     (controller as unknown as { runUpdate: (reason: UpdateReason) => Promise<void> }).runUpdate.bind(controller);
 
 // Local test mocks
@@ -119,11 +120,9 @@ type TrackerCallbacks = {
 const createController = (
     context: vscode.ExtensionContext = extensionContextFactory(),
     provider: ComponentViewerTreeDataProvider | ReturnType<typeof treeProviderFactory> = treeProviderFactory()
-): ComponentViewerBase => new ComponentViewerBase(
+): ComponentViewer => new ComponentViewer(
     context,
-    provider as ComponentViewerTreeDataProvider,
-    'Component Viewer',
-    'componentViewer'
+    provider as ComponentViewerTreeDataProvider
 );
 
 describe('ComponentViewer', () => {
@@ -318,8 +317,8 @@ describe('ComponentViewer', () => {
         (controller as unknown as { readScvdFiles: typeof readScvdFiles }).readScvdFiles = readScvdFiles;
 
         const load = (controller as unknown as {
-            loadCbuildRunInstances: (s: Session, t: TrackerCallbacks) => Promise<void | undefined>;
-        }).loadCbuildRunInstances.bind(controller);
+            loadScvdFiles: (s: Session, t: TrackerCallbacks) => Promise<void | undefined>;
+        }).loadScvdFiles.bind(controller);
 
         const result = await load(session, tracker);
         expect(result).toBeUndefined();
