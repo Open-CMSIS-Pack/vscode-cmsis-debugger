@@ -61,6 +61,10 @@ export default [
             // Security rules
             ...eslintPluginSecurity.configs.recommended.rules,
 
+            // Backwards compatibility since move from ESLint 9 to 10
+            "no-useless-assignment": "off",
+            "preserve-caught-error": "off",
+
             // Code style rules
             "block-spacing": ["error", "always"],
             "brace-style": ["error", "1tbs", { allowSingleLine: true }],
