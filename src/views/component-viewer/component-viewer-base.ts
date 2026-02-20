@@ -23,6 +23,7 @@ import { componentViewerLogger, logger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 import { perf, parsePerf } from './stats-config';
 import { vscodeViewExists } from '../../vscode-utils';
+import { EXTENSION_NAME, VIEW_PREFIX } from '../../manifest';
 
 export type UpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace' | 'stackItemChanged' | 'unlockingInstance';
 
@@ -33,7 +34,7 @@ export interface ComponentViewerInstancesWrapper {
     dirtyWhileLocked: boolean; // Flag to indicate if an update was attempted while instance was locked, used to trigger an update when instance is unlocked
 }
 
-export class ComponentViewer {
+export class ComponentViewerBase {
     private _activeSession: GDBTargetDebugSession | undefined;
     private _instances: ComponentViewerInstancesWrapper[] = [];
     private _componentViewerTreeDataProvider: ComponentViewerTreeDataProvider;
@@ -46,7 +47,12 @@ export class ComponentViewer {
     private _refreshTimerEnabled: boolean = true;
     private static readonly pendingUpdateDelayMs = 150;
 
-    public constructor(context: vscode.ExtensionContext, componentViewerTreeDataProvider: ComponentViewerTreeDataProvider) {
+    public constructor(
+        context: vscode.ExtensionContext,
+        componentViewerTreeDataProvider: ComponentViewerTreeDataProvider,
+        protected readonly _viewName: string,
+        protected readonly _viewId: string
+    ) {
         this._context = context;
         this._componentViewerTreeDataProvider = componentViewerTreeDataProvider;
     }
@@ -65,24 +71,26 @@ export class ComponentViewer {
     }
 
     protected async registerTreeView(): Promise<boolean> {
-        if (!await vscodeViewExists('componentViewer')) {
+        if (!await vscodeViewExists(this._viewId)) {
             return false;
         }
-        const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
-        componentViewerLogger.debug('Component Viewer: Registered tree data provider for Component Viewer Tree View id: cmsis-debugger.componentViewer');
-        const lockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.lockComponent', async (node) => {
+        const fullViewId = `${VIEW_PREFIX}.${this._viewId}`;
+        const commandPrefix = `${EXTENSION_NAME}.${this._viewId}`;
+        const treeProviderDisposable = vscode.window.registerTreeDataProvider(fullViewId, this._componentViewerTreeDataProvider);
+        componentViewerLogger.debug(`${this._viewName}: Registered tree data provider for ${this._viewName} Tree View id: ${fullViewId}}`);
+        const lockInstanceCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.lockComponent`, async (node) => {
             this.handleLockInstance(node);
         });
-        const unlockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.unlockComponent', async (node) => {
+        const unlockInstanceCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.unlockComponent`, async (node) => {
             this.handleLockInstance(node);
         });
-        const enablePeriodicUpdateCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate', async () => {
+        const enablePeriodicUpdateCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.enablePeriodicUpdate`, async () => {
             this._refreshTimerEnabled = true;
-            componentViewerLogger.info('Component Viewer: Auto refresh enabled');
+            componentViewerLogger.info(`${this._viewName}: Auto refresh enabled`);
         });
-        const disablePeriodicUpdateCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate', async () => {
+        const disablePeriodicUpdateCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.disablePeriodicUpdate`, async () => {
             this._refreshTimerEnabled = false;
-            componentViewerLogger.info('Component Viewer: Auto refresh disabled');
+            componentViewerLogger.info(`${this._viewName}: Auto refresh disabled`);
         });
         this._context.subscriptions.push(
             treeProviderDisposable,
@@ -112,7 +120,7 @@ export class ComponentViewer {
             shouldTriggerUpdate = true;
         }
         instance.lockState = !instance.lockState;
-        componentViewerLogger.info(`Component Viewer: Instance lock state changed to ${instance.lockState}`);
+        componentViewerLogger.info(`${this._viewName}: Instance lock state changed to ${instance.lockState}`);
         // If instance is locked, set isLocked flag to true for root nodes
         const guiTree = instance.componentViewerInstance.getGuiTree();
         if (!guiTree || guiTree.length === 0) {
@@ -127,19 +135,24 @@ export class ComponentViewer {
         this._componentViewerTreeDataProvider.refresh();
     }
 
-    protected async readScvdFiles(tracker: GDBTargetDebugTracker,session?: GDBTargetDebugSession): Promise<void> {
+    /**
+     * Get SCVF file paths for a given debug session. Derived class implements to get SCVD files as needed
+     * for specific component viewer flavor.
+     *
+     * @param _session GDB target session to get SCVD Files for
+     * @returns promise to an array of SCVD file paths, or empty array if no SCVD files found
+     */
+    protected async getScvdFilePaths(_session: GDBTargetDebugSession): Promise<string[]> {
+        return [];
+    }
+
+    protected async readScvdFiles(tracker: GDBTargetDebugTracker, session?: GDBTargetDebugSession): Promise<void> {
         if (!session) {
             return;
         }
-        const cbuildRunReader = await session.getCbuildRun();
-        const pname = await session.getPname();
-        if (!cbuildRunReader) {
-            return;
-        }
-        // Get SCVD file paths from cbuild-run reader
-        const scvdFilesPaths: string [] = cbuildRunReader.getScvdFilePaths(undefined, pname);
+        const scvdFilesPaths = await this.getScvdFilePaths(session);
         if (scvdFilesPaths.length === 0) {
-            return undefined;
+            return;
         }
         parsePerf?.reset();
         const cbuildRunInstances: ComponentViewerInstance[] = [];
@@ -149,9 +162,9 @@ export class ComponentViewer {
                 try {
                     await instance.readModel(URI.file(scvdFilePath), this._activeSession, tracker);
                 } catch (error) {
-                    componentViewerLogger.error(`Component Viewer: Failed to read SCVD file at ${scvdFilePath} - ${(error as Error).message}`);
+                    componentViewerLogger.error(`${this._viewName}: Failed to read SCVD file at ${scvdFilePath} - ${(error as Error).message}`);
                     // Show error message in a pop up to the user, but continue loading other instances if there are multiple SCVD files
-                    vscode.window.showErrorMessage(`Component Viewer: cannot read SCVD file at ${scvdFilePath}`);
+                    vscode.window.showErrorMessage(`${this._viewName}: cannot read SCVD file at ${scvdFilePath}`);
                     continue;
                 }
 
@@ -168,12 +181,12 @@ export class ComponentViewer {
         })));
     }
 
-    private async loadCbuildRunInstances(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker) : Promise<void | undefined> {
+    private async loadScvdFiles(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker) : Promise<void | undefined> {
         this._loadingCounter++;
-        componentViewerLogger.debug(`Loading SCVD files from cbuild-run, attempt #${this._loadingCounter}`);
-        // Try to read SCVD files from cbuild-run file first
+        componentViewerLogger.debug(`Loading SCVD files, attempt #${this._loadingCounter}`);
+        // Try to read SCVD files
         await this.readScvdFiles(tracker, session);
-        // Are there any SCVD files found in cbuild-run?
+        // Are there any SCVD files found and loaded?
         if (this._instances.length === 0) {
             return undefined;
         }
@@ -212,7 +225,7 @@ export class ComponentViewer {
     private async handleOnStackTrace(session: GDBTargetDebugSession): Promise<void> {
         // Clear active session if it is NOT the one being stopped
         if (this._activeSession?.session.id !== session.session.id) {
-            throw new Error(`Component Viewer: Received stack trace event for session ${session.session.id} while active session is ${this._activeSession?.session.id}`);
+            throw new Error(`${this._viewName}: Received stack trace event for session ${session.session.id} while active session is ${this._activeSession?.session.id}`);
         }
         // Update component viewer instance(s) if active session is stopped
         this.schedulePendingUpdate('stackTrace');
@@ -222,7 +235,7 @@ export class ComponentViewer {
         // If the active session is not the one being updated, update it.
         // This can happen when a session is started and stack trace/item events are emitted before the session is set as active in the component viewer.
         if (this._activeSession?.session.id !== session.session.id) {
-            throw new Error(`Component Viewer: Received stack item changed event for session ${session.session.id} while active session is ${this._activeSession?.session.id}`);
+            throw new Error(`${this._viewName}: Received stack item changed event for session ${session.session.id} while active session is ${this._activeSession?.session.id}`);
         }
         this.schedulePendingUpdate('stackItemChanged');
     }
@@ -251,12 +264,12 @@ export class ComponentViewer {
         // Update debug session
         this._activeSession = session;
         // Load SCVD files from cbuild-run
-        await this.loadCbuildRunInstances(session, tracker);
+        await this.loadScvdFiles(session, tracker);
     }
 
     private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
         if(this._activeSession?.session.id !== session.session.id) {
-            throw new Error(`Component Viewer: Received refresh timer event for session ${session.session.id} while active session is ${this._activeSession?.session.id}`);
+            throw new Error(`${this._viewName}: Received refresh timer event for session ${session.session.id} while active session is ${this._activeSession?.session.id}`);
         }
         if (this._refreshTimerEnabled) {
             // Update component viewer instance(s)
@@ -277,7 +290,7 @@ export class ComponentViewer {
         this._pendingUpdateTimer = setTimeout(() => {
             this._pendingUpdateTimer = undefined;
             void this.runUpdate(updateReason);
-        }, ComponentViewer.pendingUpdateDelayMs);
+        }, ComponentViewerBase.pendingUpdateDelayMs);
     }
 
     private async runUpdate(updateReason: UpdateReason): Promise<void> {
@@ -290,7 +303,7 @@ export class ComponentViewer {
             try {
                 await this.updateInstances(updateReason);
             } catch (error) {
-                componentViewerLogger.error(`Component Viewer: Error during update - ${(error as Error).message}`);
+                componentViewerLogger.error(`${this._viewName}: Error during update - ${(error as Error).message}`);
             }
         }
         this._runningUpdate = false;
@@ -320,11 +333,11 @@ export class ComponentViewer {
             this._componentViewerTreeDataProvider.clear();
             return;
         }
-        componentViewerLogger.debug(`Component Viewer: Queuing update due to '${updateReason}'`);
+        componentViewerLogger.debug(`${this._viewName}: Queuing update due to '${updateReason}'`);
         this._instanceUpdateCounter = 0;
 
         if (!this.shouldUpdateInstances(this._activeSession)) {
-            componentViewerLogger.debug(`Component Viewer: Skipping update due to '${updateReason}' - conditions not met`);
+            componentViewerLogger.debug(`${this._viewName}: Skipping update due to '${updateReason}' - conditions not met`);
             return;
         }
 
@@ -340,7 +353,7 @@ export class ComponentViewer {
                 continue;
             }
             this._instanceUpdateCounter++;
-            componentViewerLogger.debug(`Updating Component Viewer Instance #${this._instanceUpdateCounter} due to '${updateReason}'`);
+            componentViewerLogger.debug(`${this._viewName}: Updating ${this._viewName} Instance #${this._instanceUpdateCounter} due to '${updateReason}'`);
 
             // Check instance's lock state, skip update if locked
             if (!instance.lockState) {
