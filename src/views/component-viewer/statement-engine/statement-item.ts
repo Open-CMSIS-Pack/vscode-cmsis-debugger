@@ -52,68 +52,64 @@ export class StatementItem extends StatementBase {
         componentViewerLogger.debug(`Line: ${this.line}: Executing <${this.scvdItem.tag}> : ${await this.getLogName()}`);
 
         const printChildren = this.children.filter((child): child is StatementPrint => child instanceof StatementPrint);
+
+        // Determine the name and value for this item
+        let guiName = '';
+        let guiValue = '';
+
         if (printChildren.length > 0) {
-            // When <item> has <print> children, first check if any print condition matches
-            // If no print matches, skip creating the item entirely (don't display incomplete item)
+            // Item uses print children for name/value - check if any print condition matches
             let matched = false;
-            let guiNamePrint = '';
-            let guiValuePrint = '';
             for (const printChild of printChildren) {
                 const shouldPrint = await printChild.scvdItem.getConditionResult();
                 if (shouldPrint !== false) {
-                    guiNamePrint = await printChild.scvdItem.getGuiName() ?? '';
-                    guiValuePrint = await printChild.scvdItem.getGuiValue() ?? '';
+                    guiName = await printChild.scvdItem.getGuiName() ?? '';
+                    guiValue = await printChild.scvdItem.getGuiValue() ?? '';
                     matched = true;
                     break;
                 }
             }
             if (!matched) {
-                // No print statement evaluated to true, so skip execution of item and nested statements
+                // No print matched - skip this entire item and its subtree
                 return;
             }
-            // A print matched, create the item with the print's name/value
-            const childGuiTree = this.getOrCreateGuiChild(guiTree, guiNamePrint);
-            perf?.recordGuiItemNode();
-            childGuiTree.setGuiName(guiNamePrint);
-            childGuiTree.setGuiValue(guiValuePrint);
-            // Execute non-print children
-            const hasNonPrintChildren = this.children.some(child => !(child instanceof StatementPrint));
-            for (const child of this.children) {
-                if (!(child instanceof StatementPrint)) {
-                    await child.executeStatement(executionContext, childGuiTree);
-                }
-            }
-
-            // If the item has non-print children but no GUI children and no value after execution, remove it
-            // Only applies to items that had non-print statement children (lists, etc.)
-            const hasValue = guiValuePrint && guiValuePrint.trim() !== '';
-            if (hasNonPrintChildren && !childGuiTree.hasGuiChildren() && !hasValue) {
-                childGuiTree.detach();
-            }
-            return;
+        } else {
+            // Item uses its own property/value attributes
+            const guiNameStart = perf?.start() ?? 0;
+            guiName = await this.getGuiName() ?? '';
+            perf?.end(guiNameStart, 'guiNameMs', 'guiNameCalls');
+            const guiValueStart = perf?.start() ?? 0;
+            guiValue = await this.getGuiValue() ?? '';
+            perf?.end(guiValueStart, 'guiValueMs', 'guiValueCalls');
         }
 
-        // No print children, display item with its own name/value (even if incomplete/empty)
-        const guiNameStart = perf?.start() ?? 0;
-        const guiName = await this.getGuiName() ?? '';
-        perf?.end(guiNameStart, 'guiNameMs', 'guiNameCalls');
+        // Create the GUI node
         const childGuiTree = this.getOrCreateGuiChild(guiTree, guiName);
         perf?.recordGuiItemNode();
-        const guiValueStart = perf?.start() ?? 0;
-        const guiValue = await this.getGuiValue() ?? '';
-        perf?.end(guiValueStart, 'guiValueMs', 'guiValueCalls');
         childGuiTree.setGuiName(guiName);
         childGuiTree.setGuiValue(guiValue);
 
-        if (this.children.length > 0) {
-            for (const child of this.children) {
+        // Execute non-print children
+        for (const child of this.children) {
+            if (!(child instanceof StatementPrint)) {
                 await child.executeStatement(executionContext, childGuiTree);
             }
+        }
 
-            // If the item has no GUI children and no value after execution (e.g., container with empty list), remove it
-            // Only apply this to items that had statement children (lists, etc.) - not standalone empty items
-            const hasValue = guiValue && guiValue.trim() !== '';
-            if (!childGuiTree.hasGuiChildren() && !hasValue) {
+        // Remove item if it has statement children but no meaningful result:
+        // - No value AND no GUI children after execution (e.g., "Drives" container with empty list)
+        // - OR no name, no value, AND has children (e.g., empty Drive with Status child)
+        const hasNonPrintChildren = this.children.some(child => !(child instanceof StatementPrint));
+        const hasName = guiName.trim() !== '';
+        const hasValue = guiValue.trim() !== '';
+
+        if (hasNonPrintChildren) {
+            // For containers: remove if no value and no GUI children
+            if (!hasValue && !childGuiTree.hasGuiChildren()) {
+                childGuiTree.detach();
+            }
+            // Also remove if no name, no value (even if it has GUI children that will display)
+            else if (!hasName && !hasValue) {
                 childGuiTree.detach();
             }
         }
