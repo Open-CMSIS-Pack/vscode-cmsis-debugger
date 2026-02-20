@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Copyright 2026 Arm Limited
+  
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+-->
+<component_viewer schemaVersion="0.1" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="Component_Viewer.xsd">
+  <component name="SystemControlConfigComponent" version="1.0.0"/>
+  <objects>
+    <object name="SystemControlConfigObject">
+      <read name="SCR_value" type="uint32_t" offset="0xE000ED10"/> 
+      <read name="CCR_value" type="uint32_t" offset="0xE000ED14"/> 
+      <out name="System Config and Control">
+        <item property="System Config (SCR)" value="%x[SCR_value]">
+          <item property="SEVONPEND" value="%d[(SCR_value&gt;&gt;4)&amp;0x1]"/>
+          <item property="SLEEPDEEPS" value="%d[(SCR_value&gt;&gt;3)&amp;0x1]"/>
+          <item property="SLEEPDEEP" value="%d[(SCR_value&gt;&gt;2)&amp;0x1]"/>
+          <item property="SLEEPONEXIT" value="%d[(SCR_value&gt;&gt;1)&amp;0x1]"/>
+        </item>
+        <item property="Configuration and Control (CCR)" value="%x[CCR_value]">
+          <item property="TRD" value="%d[(CCR_value&gt;&gt;20)&amp;0x1]"/>
+          <item property="LOB" value="%d[(CCR_value&gt;&gt;19)&amp;0x1]"/>
+          <item property="BP" value="%d[(CCR_value&gt;&gt;18)&amp;0x1]"/>
+          <item property="IC" value="%d[(CCR_value&gt;&gt;17)&amp;0x1]"/>
+          <item property="DC" value="%d[(CCR_value&gt;&gt;16)&amp;0x1]"/>
+          <item property="STKOFHFNMIGN" value="%d[(CCR_value&gt;&gt;10)&amp;0x1]"/>
+          <item property="BFHFNMIGN" value="%d[(CCR_value&gt;&gt;8)&amp;0x1]"/>
+          <item property="DIV_0_TRP" value="%d[(CCR_value&gt;&gt;4)&amp;0x1]"/>
+          <item property="UNALIGN_TRP" value="%d[(CCR_value&gt;&gt;3)&amp;0x1]"/>
+          <item property="USERSETMPEND" value="%d[(CCR_value&gt;&gt;1)&amp;0x1]"/>
+        </item>
+      </out>
+    </object>
+  </objects>
+</component_viewer>

@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Copyright 2026 Arm Limited
+  
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+-->
+<component_viewer schemaVersion="0.1" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="Component_Viewer.xsd">
+  <component name="MemoryProtectionUnitComponent" version="1.0.0"/>
+  <typedefs>
+    <typedef name="MPU_Attributes_t" size="8">
+      <member name="MPU_MAIR_values" type="uint32_t" size="2" offset="0"/>
+      <var name="Attr_Outer" type="uint8_t" size="8">
+        <enum name="Write-through transient (RW='01')" value="0x1"/>
+        <enum name="Write-through transient (RW='10')" value="0x2"/>
+        <enum name="Write-through transient (RW='11')" value="0x3"/>
+        <enum name="Non-Cacheable" value="0x4"/>
+        <enum name="Write-back transient (RW='01')" value="0x5"/>
+        <enum name="Write-back transient (RW='10')" value="0x6"/>
+        <enum name="Write-back transient (RW='11')" value="0x7"/>
+        <enum name="Write-through non-transient (RW='00')" value="0x8"/>
+        <enum name="Write-through non-transient (RW='01')" value="0x9"/>
+        <enum name="Write-through non-transient (RW='10')" value="0xA"/>
+        <enum name="Write-through non-transient (RW='11')" value="0xB"/>
+        <enum name="Write-back non-transient (RW='00')" value="0xC"/>
+        <enum name="Write-back non-transient (RW='01')" value="0xD"/>
+        <enum name="Write-back non-transient (RW='10')" value="0xE"/>
+        <enum name="Write-back non-transient (RW='11')" value="0xF"/>
+      </var>
+      <var name="Attr_Inner" type="uint8_t" size="8">
+        <enum name="Write-through transient (RW='01')" value="0x1"/>
+        <enum name="Write-through transient (RW='10')" value="0x2"/>
+        <enum name="Write-through transient (RW='11')" value="0x3"/>
+        <enum name="Non-Cacheable" value="0x4"/>
+        <enum name="Write-back transient (RW='01')" value="0x5"/>
+        <enum name="Write-back transient (RW='10')" value="0x6"/>
+        <enum name="Write-back transient (RW='11')" value="0x7"/>
+        <enum name="Write-through non-transient (RW='00')" value="0x8"/>
+        <enum name="Write-through non-transient (RW='01')" value="0x9"/>
+        <enum name="Write-through non-transient (RW='10')" value="0xA"/>
+        <enum name="Write-through non-transient (RW='11')" value="0xB"/>
+        <enum name="Write-back non-transient (RW='00')" value="0xC"/>
+        <enum name="Write-back non-transient (RW='01')" value="0xD"/>
+        <enum name="Write-back non-transient (RW='10')" value="0xE"/>
+        <enum name="Write-back non-transient (RW='11')" value="0xF"/>
+      </var>
+      <var name="Attr_Device" type="uint8_t" size="8">
+        <enum name="nGnRnE memory" value="0x0"/>
+        <enum name="nGnRE memory" value="0x4"/>
+        <enum name="nGRE memory" value="0x8"/>
+        <enum name="GRE memory" value="0xC"/>
+      </var>
+    </typedef>
+    <typedef name="MPU_Region_t" size="8">
+      <member name="MPU_RBAR_value" type="uint32_t" size="1" offset="0"/>
+      <member name="MPU_RLAR_value" type="uint32_t" size="1" offset="4"/>
+      <var name="Number" type="uint8_t" size="1"/>
+      <var name="Enable" type="uint8_t" size="1"/>
+      <var name="StartAddress" type="uint32_t" size="1"/>
+      <var name="EndAddress" type="uint32_t" size="1"/>
+      <var name="ExecuteNever" type="uint8_t" size="1"/>
+      <var name="AccessPermissions" type="uint8_t" size="1">
+        <enum name="Read/write by privileged code only" value="0x0"/>
+        <enum name="Read/write by any privilege level" value="0x1"/>
+        <enum name="Read-only by privileged code only" value="0x2"/>
+        <enum name="Read-only by any privilege level" value="0x3"/>
+      </var>
+      <var name="Shareability" type="uint8_t" size="1">
+        <enum name="Non-shareable" value="0x0"/>
+        <enum name="UNPREDICTABLE" value="0x1"/>
+        <enum name="Outer shareable" value="0x2"/>
+        <enum name="Inner Shareable" value="0x3"/>
+      </var>
+      <var name="AttributeIndex" type="uint8_t" size="1"/>
+      <var name="PrivilegedExecuteNever" type="uint8_t" size="1"/>
+    </typedef>
+  </typedefs>
+  <objects>
+    <object name="MemoryProtectionUnitObject">
+      <read name="MPU_TYPE_value" type="uint32_t" offset="0xE000ED90"/> 
+      <read name="MPU_CTRL_value" type="uint32_t" offset="0xE000ED94"/> 
+      <read name="MPU_RNR_value" type="uint32_t" offset="0xE000ED98"/> 
+<!--
+      <read name="MPU_RBAR_value" type="uint32_t" offset="0xE000ED9C"/> 
+      <read name="MPU_RLAR_value" type="uint32_t" offset="0xE000EDA0"/> 
+      <read name="MPU_MAIR_values" type="uint32_t" size="2" offset="0xE000EDC0"/>
+-->
+      <read name="MPU_Region" type="MPU_Region_t" offset="0xE000ED9C"/>
+      <read name="MPU_Attributes" type="MPU_Attributes_t" offset="0xE000EDC0"/>
+      <var name="Count" type="uint32_t" value="0"/>
+      
+      <calc cond="1">
+        MPU_Region.Number=(MPU_RNR_value&gt;&gt;0)&amp;0xFF;
+        MPU_Region.Enable=(MPU_Region.MPU_RLAR_value&gt;&gt;0)&amp;0x1;
+        MPU_Region.StartAddress=(MPU_Region.MPU_RBAR_value&amp;0xFFFFFFE0);
+        MPU_Region.EndAddress=(MPU_Region.MPU_RLAR_value|0x1F);
+        MPU_Region.ExecuteNever=(MPU_Region.MPU_RBAR_value&gt;&gt;0)&amp;0x1;
+        MPU_Region.AccessPermissions=(MPU_Region.MPU_RBAR_value&gt;&gt;1)&amp;0x3;
+        MPU_Region.Shareability=(MPU_Region.MPU_RBAR_value&gt;&gt;3)&amp;0x3;
+        MPU_Region.AttributeIndex=(MPU_Region.MPU_RLAR_value&gt;&gt;1)&amp;0x7;
+        MPU_Region.PrivilegedExecuteNever=(MPU_Region.MPU_RLAR_value&gt;&gt;4)&amp;0x1;
+      </calc>
+ 
+      <list name="Count" start="0" limit="8">
+        <calc cond="1">
+          MPU_Attributes.Attr_Outer[Count]=((((MPU_Attributes.MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;4)&amp;0xF);
+          MPU_Attributes.Attr_Inner[Count]=((((MPU_Attributes.MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;0)&amp;0xF);
+          MPU_Attributes.Attr_Device[Count]=MPU_Attributes.Attr_Inner[Count];
+        </calc>
+      </list>
+      <out name="Memory Protection Unit">
+        <item property="MPU Type (MPU_TYPE)" value="%x[MPU_TYPE_value]">
+          <item property="DREGION" value="%d[(MPU_TYPE_value&gt;&gt;8)&amp;0xFF]" info="Number of regions supported by the MPU."/>
+          <item property="SEPARATE" value="%d[(MPU_TYPE_value&gt;&gt;0)&amp;0x1]"/>
+        </item>
+        <item property="MPU Control (MPU_CTRL)" value="%x[MPU_CTRL_value]">
+          <item property="PRIVDEFENA" value="%d[(MPU_CTRL_value&gt;&gt;2)&amp;0x1]"/>
+          <item property="HFNMIENA" value="%d[(MPU_CTRL_value&gt;&gt;1)&amp;0x1]"/>
+          <item property="ENABLE" value="%d[(MPU_CTRL_value&gt;&gt;0)&amp;0x1]"/>
+        </item>
+         <item property="MPU Region Number (MPU_RNR)" value="%x[MPU_RNR_value]">
+          <item property="REGION" value="%d[(MPU_RNR_value&gt;&gt;0)&amp;0xFF]"/>
+        </item>
+<!--
+        <item property="MPU Region Base Address (MPU_RBAR) [%d[(MPU_RNR_value&gt;&gt;0)&amp;0xFF]]" value="%x[MPU_RBAR_value]">
+          <item property="BASE" value="%x[(MPU_RBAR_value&amp;0xFFFFFFE0)]"/>
+          <item property="SH" value="%x[(MPU_RBAR_value&gt;&gt;3)&amp;0x3]"/>
+          <item property="AP" value="%x[(MPU_RBAR_value&gt;&gt;1)&amp;0x3]"/>
+          <item property="XN" value="%d[(MPU_RBAR_value&gt;&gt;0)&amp;0x1]"/>
+        </item>
+        <item property="MPU Region Limit Address (MPU_RLAR) [%d[(MPU_RNR_value&gt;&gt;0)&amp;0xFF]]" value="%x[MPU_RLAR_value]">
+          <item property="LIMIT" value="%x[(MPU_RLAR_value|0x1F)]"/>
+          <item property="PXN" value="%d[(MPU_RLAR_value&gt;&gt;4)&amp;0x1]"/>
+          <item property="AttrIndx" value="%x[(MPU_RLAR_value&gt;&gt;1)&amp;0x7]"/>
+          <item property="EN" value="%d[(MPU_RLAR_value&gt;&gt;0)&amp;0x1]"/>
+        </item>
+        <item property="Attributes" value="">
+          <list name="Count" start="0" limit="8">
+            <item>
+              <print property="%d[Count]" value="%x[(MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF]" cond="1"/>
+              <item cond="(((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;4)&amp;0xF)==0)">
+                <print property="Device" value="nGnRnE memory" cond="(((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;0)&amp;0xF)==0x0)" />
+                <print property="Device" value="nGnRE memory" cond="(((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;0)&amp;0xF)==0x4)" />
+                <print property="Device" value="nGRE memory" cond="(((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;0)&amp;0xF)==0x8)" />
+                <print property="Device" value="GRE memory" cond="(((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;0)&amp;0xF)==0xC)" />
+                <print property="Device" value="UNPREDICTABLE" cond="(((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;0)&amp;0x3)!=0x0)" />
+              </item>
+              <item cond="(((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;4)&amp;0xF)!=0)">
+                <print property="Outer" value="Write-through transient RW=%x[((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;4)&amp;0x3)]" cond="(((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;4)&amp;0xC)==0x0) &amp;&amp; (((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;4)&amp;0x3)!=0x0)" />
+                <print property="Outer" value="Non-Cacheable" cond="(((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;4)&amp;0xC)==0x4) &amp;&amp; (((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;4)&amp;0x3)==0x0)" />
+                <print property="Outer" value="Write-back transient RW=%x[((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;4)&amp;0x3)]" cond="(((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;4)&amp;0xC)==0x4) &amp;&amp; (((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;4)&amp;0x3)!=0x0)" />
+                <print property="Outer" value="Write-through non-transient RW=%x[((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;4)&amp;0x3)]" cond="(((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;4)&amp;0xC)==0x8)" />
+                <print property="Outer" value="Write-back non-transient RW=%x[((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;4)&amp;0x3)]" cond="(((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;4)&amp;0xC)==0xC)" />
+              </item>
+              <item cond="(((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;4)&amp;0xF)!=0)">
+                <print property="Inner" value="UNPREDICTABLE" cond="(((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;0)&amp;0xC)==0x0) &amp;&amp; (((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;0)&amp;0x3)==0x0)" />
+                <print property="Inner" value="Write-through transient RW=%x[((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;0)&amp;0x3)]" cond="(((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;0)&amp;0xC)==0x0) &amp;&amp; (((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;0)&amp;0x3)!=0x0)" />
+                <print property="Inner" value="Non-Cacheable" cond="(((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;0)&amp;0xC)==0x4) &amp;&amp; (((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;0)&amp;0x3)==0x0)" />
+                <print property="Inner" value="Write-back transient RW=%x[((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;0)&amp;0x3)]" cond="(((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;0)&amp;0xC)==0x4) &amp;&amp; (((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;0)&amp;0x3)!=0x0)" />
+                <print property="Inner" value="Write-through non-transient RW=%x[((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;0)&amp;0x3)]" cond="(((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;0)&amp;0xC)==0x8)" />
+                <print property="Inner" value="Write-back non-transient RW=%x[((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;0)&amp;0x3)]" cond="(((((MPU_MAIR_values[Count/4]&gt;&gt;(((Count)&amp;3)*8))&amp;0xFF)&gt;&gt;0)&amp;0xC)==0xC)" />
+              </item>
+           </item>
+         </list>
+        </item>
+-->
+        <item property="Current Region" value="">
+          <item property="Number" value="%d[MPU_Region.Number]"/>
+          <item property="Enable" value="%t[MPU_Region.Enable ? &quot;yes&quot; : &quot;no&quot;]"/>
+          <item property="Start Address" value="%x[MPU_Region.StartAddress]"/>
+          <item property="End Address" value="%x[MPU_Region.EndAddress]"/>
+          <item property="Execute Never" value="%t[MPU_Region.ExecuteNever ? &quot;yes&quot; : &quot;no&quot;]"/>
+          <item property="Access permissions" value="%E[MPU_Region.AccessPermissions]"/>
+          <item property="Shareability" value="%E[MPU_Region.Shareability]"/>
+          <item>
+            <print property="Attribute index" value="%d[MPU_Region.AttributeIndex] (Device: %E[MPU_Attributes.Attr_Device[MPU_Region.AttributeIndex]])" cond="(MPU_Attributes.Attr_Outer[MPU_Region.AttributeIndex]==0) &amp;&amp; ((MPU_Attributes.Attr_Device[MPU_Region.AttributeIndex]&amp;3)==0)"/>
+            <print property="Attribute index" value="%d[MPU_Region.AttributeIndex] (Device: UNPREDICTABLE)" cond="(MPU_Attributes.Attr_Outer[MPU_Region.AttributeIndex]==0) &amp;&amp; ((MPU_Attributes.Attr_Device[MPU_Region.AttributeIndex]&amp;3)!=0)"/>
+            <print property="Attribute index" value="%d[MPU_Region.AttributeIndex] (Outer:%E[MPU_Attributes.Attr_Outer[MPU_Region.AttributeIndex]], Inner: %E[MPU_Attributes.Attr_Inner[MPU_Region.AttributeIndex]])" cond="(MPU_Attributes.Attr_Outer[MPU_Region.AttributeIndex]!=0) &amp;&amp; (MPU_Attributes.Attr_Inner[MPU_Region.AttributeIndex]!=0)"/>
+            <print property="Attribute index" value="%d[MPU_Region.AttributeIndex] (Outer:%E[MPU_Attributes.Attr_Outer[MPU_Region.AttributeIndex]], Inner: UNPREDICTABLE)" cond="(MPU_Attributes.Attr_Outer[MPU_Region.AttributeIndex]!=0) &amp;&amp; (MPU_Attributes.Attr_Inner[MPU_Region.AttributeIndex]==0)"/>
+          </item>
+          <item property="Privileged execute never" value="%t[MPU_Region.PrivilegedExecuteNever ? &quot;yes&quot; : &quot;no&quot;]"/>
+        </item>
+        
+        <item property="Attributes" value="">
+          <list name="Count" start="0" limit="8">
+            <item>
+              <print property="%d[Count]" value="Device: %E[MPU_Attributes.Attr_Device[Count]]" cond="(MPU_Attributes.Attr_Outer[Count]==0) &amp;&amp; ((MPU_Attributes.Attr_Device[Count]&amp;3)==0)"/>
+              <print property="%d[Count]" value="Device: UNPREDICTABLE" cond="(MPU_Attributes.Attr_Outer[Count]==0) &amp;&amp; ((MPU_Attributes.Attr_Device[Count]&amp;3)!=0)"/>
+              <print property="%d[Count]" value="Outer:%E[MPU_Attributes.Attr_Outer[Count]], Inner: %E[MPU_Attributes.Attr_Inner[Count]]" cond="(MPU_Attributes.Attr_Outer[Count]!=0) &amp;&amp; (MPU_Attributes.Attr_Inner[Count]!=0)"/>
+              <print property="%d[Count]" value="Outer:%E[MPU_Attributes.Attr_Outer[Count]], Inner: UNPREDICTABLE" cond="(MPU_Attributes.Attr_Outer[Count]!=0) &amp;&amp; (MPU_Attributes.Attr_Inner[Count]==0)"/>
+              <item property="Attr&lt;%d[Count]&gt;[7:4]" value="%x[MPU_Attributes.Attr_Outer[Count]]" cond="1"/>
+              <item property="Attr&lt;%d[Count]&gt;[3:0]" value="%x[MPU_Attributes.Attr_Inner[Count]]" cond="1"/>
+            </item>
+          </list>
+        </item>
+      </out>
+    </object>
+  </objects>
+</component_viewer>
