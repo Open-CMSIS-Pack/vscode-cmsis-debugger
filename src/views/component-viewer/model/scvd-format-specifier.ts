@@ -139,6 +139,27 @@ export class ScvdFormatSpecifier {
                     const n = Number(v);
                     return Number.isFinite(n) ? n : NaN;
                 }
+                // Convert Uint8Array to number (little-endian)
+                if (v instanceof Uint8Array) {
+                    if (v.length === 0) {
+                        return 0;
+                    }
+                    if (v.length <= 4) {
+                        let out = 0;
+                        for (const b of Array.from(v).reverse()) {
+                            out = (out << 8) | (b & 0xff);
+                        }
+                        return out >>> 0;
+                    }
+                    if (v.length === 8) {
+                        let out = 0n;
+                        for (let i = 0; i < 8; i++) {
+                            // eslint-disable-next-line security/detect-object-injection
+                            out |= BigInt(v[i]) << BigInt(8 * i);
+                        }
+                        return out;
+                    }
+                }
                 return NaN;
             };
 
@@ -158,7 +179,9 @@ export class ScvdFormatSpecifier {
                     if (typeof n === 'number') {
                         n = Math.trunc(n);
                     }
-                    return this.formatNumberByType(n, numOpts('int'));
+                    // Legacy compatibility: if type is unsigned (uint8/uint16/uint32), format as unsigned
+                    const isUnsigned = typeInfo?.kind === 'uint';
+                    return this.formatNumberByType(n, numOpts(isUnsigned ? 'uint' : 'int'));
                 }
                 case 'u': {
                     let n = toNumber(value);
@@ -168,11 +191,15 @@ export class ScvdFormatSpecifier {
                     return this.formatNumberByType(n, numOpts('uint'));
                 }
                 case 'x': {
+                    const isStringValue = typeof value === 'string';
                     let n = toNumeric(value);
                     if (typeof n === 'number' && (typeInfo?.kind ?? 'unknown') !== 'float') {
                         n = Math.trunc(n);
                     }
-                    return this.format_x(n, typeInfo, padHex);
+                    // Always pad hex values when type info is available OR when value is a string (8-bit→2, 16-bit→4, 32-bit→8 hex digits)
+                    const shouldPad = padHex || (typeInfo?.bits !== undefined) || isStringValue;
+                    const effectiveType = typeInfo ?? (isStringValue ? { kind: 'int' as const, bits: 32 } : undefined);
+                    return this.format_x(n, effectiveType, shouldPad);
                 }
                 case 't': {
                     if (typeof value === 'string') {
@@ -258,7 +285,13 @@ export class ScvdFormatSpecifier {
         if (typeof value === 'bigint') {
             const widthRaw = bits ? Math.ceil(bits / 4) : 0;
             const width = padZeroes && widthRaw > 0 ? Math.min(widthRaw, 16) : 0;
-            const hex = value.toString(16);
+            // Mask to bit width if specified
+            let maskedValue = value;
+            if (bits && bits > 0 && bits < 64) {
+                const mask = (BigInt(1) << BigInt(bits)) - BigInt(1);
+                maskedValue = value & mask;
+            }
+            const hex = maskedValue.toString(16).toUpperCase();
             const padded = width > 0 ? hex.padStart(width, '0') : hex;
             return '0x' + padded;
         }
@@ -266,9 +299,28 @@ export class ScvdFormatSpecifier {
         if (!Number.isFinite(n)) {
             return `${value}`;
         }
+
+        // For 64-bit values, convert to bigint to properly handle the full range
+        if (bits && bits === 64) {
+            const bi = BigInt(Math.trunc(n));
+            const mask = (BigInt(1) << BigInt(64)) - BigInt(1);
+            const maskedValue = bi & mask;
+            const widthRaw = Math.ceil(bits / 4);
+            const width = padZeroes && widthRaw > 0 ? Math.min(widthRaw, 16) : 0;
+            const hex = maskedValue.toString(16).toUpperCase();
+            const padded = width > 0 ? hex.padStart(width, '0') : hex;
+            return '0x' + padded;
+        }
+
         const widthRaw = bits ? Math.ceil(bits / 4) : 0;
         const width = padZeroes && widthRaw > 0 ? Math.min(widthRaw, 16) : 0; // cap padding to 64-bit to avoid runaway zeros
-        const hex = (n >>> 0).toString(16);
+        // Mask to bit width if specified, otherwise use 32-bit unsigned
+        let maskedValue = n >>> 0;
+        if (bits && bits > 0 && bits < 32) {
+            const mask = (1 << bits) - 1;
+            maskedValue = (n >>> 0) & mask;
+        }
+        const hex = maskedValue.toString(16).toUpperCase();
         const padded = width > 0 ? hex.padStart(width, '0') : hex;
         return '0x' + padded;
     }
@@ -331,7 +383,11 @@ export class ScvdFormatSpecifier {
         if (!Number.isFinite(n)) {
             return `${value}`;
         }
-        return this.formatHex(n, typeInfo, padZeroes);
+        // When value is a string and no typeInfo provided, default to 32-bit for padding
+        const isStringValue = typeof value === 'string';
+        const effectiveType = typeInfo ?? (isStringValue ? { kind: 'int' as const, bits: 32 } : undefined);
+        const effectivePadding = padZeroes || isStringValue; // Always pad string values
+        return this.formatHex(n, effectiveType, effectivePadding);
     }
 
     public format_address_like(value: number | string): string {

@@ -358,4 +358,15 @@ describe('MemoryHost', () => {
         host.clearVariable('empty');
         expect(await host.readRaw(ref, 2)).toBeUndefined();
     });
+
+    it('returns raw bytes when widthBytes exceeds natural type size for non-float', async () => {
+        const host = new MemoryHost();
+        // IPv4 address: uint8_t with size="4" should return raw bytes instead of being converted to number
+        host.setVariable('ipv4', 4, new Uint8Array([192, 168, 1, 1]), 0);
+        const ref = makeRef('ipv4', 4, 0, { kind: 'uint', bits: 8 });
+
+        const out = await host.readValue(ref);
+        expect(out).toEqual(new Uint8Array([192, 168, 1, 1]));
+        expect(out).not.toBe(0xC0A80101); // Should not be converted to number
+    });
 });

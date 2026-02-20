@@ -705,6 +705,30 @@ describe('Evaluator coverage branches', () => {
         await expect(evalNodeChild.call(evaluator, divZero, memoCtx)).resolves.toBeUndefined();
     });
 
+    it('preserves literal text including quotes in printf expressions', async () => {
+        const evaluator = new TestEvaluator();
+        const host = makeHost({}, { addr: new TestNode('addr', 0x1234), name: new TestNode('name', 'MyFunc') });
+        const ctx = makeCtx(host);
+
+        // Test case: id: %x[addr] "%S[name]"
+        // Should evaluate to: id: 0x1234 "MyFunc"
+        const printfWithQuotes = printfExpr([
+            textSeg('id: '),
+            formatSeg('x', id('addr')),
+            textSeg(' "'),
+            formatSeg('S', id('name')),
+            textSeg('"')
+        ]);
+
+        const result = await evaluator.evalNodePublic(printfWithQuotes, ctx);
+        expect(result).toBe('id: 0x1234 "MyFunc"');
+
+        // Test with just text segments containing quotes
+        const justQuotes = printfExpr([textSeg('"Hello"')]);
+        const result2 = await evaluator.evalNodePublic(justQuotes, ctx);
+        expect(result2).toBe('"Hello"');
+    });
+
     it('accumulates child timing when evaluating nested nodes', async () => {
         const evaluator = new TestEvaluator();
         const ctx = makeCtx(makeHost());
