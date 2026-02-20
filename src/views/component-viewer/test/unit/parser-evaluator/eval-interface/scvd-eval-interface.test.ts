@@ -552,20 +552,20 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
     it('covers toNumeric with Uint8Array edge cases', async () => {
         const { evalIf } = makeEval();
         const container: RefContainer = { base: new DummyNode('b'), current: new DummyNode('b'), valueType: undefined };
-        
+
         // Empty array → 0 (default typeInfo.bits=32 so gets 8 hex digits)
         expect(await evalIf.formatPrintf('x', new Uint8Array([]) as unknown as number, container)).toBe('0x00000000');
-        
+
         // 1 byte (still padded to 32 bits)
         expect(await evalIf.formatPrintf('x', new Uint8Array([0x42]) as unknown as number, container)).toBe('0x00000042');
-        
+
         // 4 bytes (little-endian) → converted to uint32
         expect(await evalIf.formatPrintf('x', new Uint8Array([0x01, 0x02, 0x03, 0x04]) as unknown as number, container)).toBe('0x04030201');
-        
+
         // 8 bytes → BigInt, but masked to 32 bits due to typeInfo.bits=32
         const bytes8 = new Uint8Array([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]);
         expect(await evalIf.formatPrintf('x', bytes8 as unknown as number, container)).toBe('0x04030201');
-        
+
         // More than 8 bytes → NaN
         expect(await evalIf.formatPrintf('x', new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9]) as unknown as number, container)).toBe('NaN');
     });
@@ -580,7 +580,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
             })
         } as unknown as MemoryHost;
         const dbg = {
-            readMemory: jest.fn(async (addr: number, len: number) => {
+            readMemory: jest.fn(async (addr: number, _len: number) => {
                 if (addr === 0x1004) {
                     return new Uint8Array([1, 2, 3, 4]);
                 }
@@ -605,7 +605,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
 
         // Fallback case: readMemory returns undefined for anchor+offset, should try value as pointer
         const dbg2 = {
-            readMemory: jest.fn(async (addr: number, len: number) => {
+            readMemory: jest.fn(async (addr: number, _len: number) => {
                 if (addr === 0x2000) {
                     return new Uint8Array([10, 20, 30, 40]);
                 }
