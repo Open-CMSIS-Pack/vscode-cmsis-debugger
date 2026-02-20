@@ -77,10 +77,18 @@ export class StatementItem extends StatementBase {
             childGuiTree.setGuiName(guiNamePrint);
             childGuiTree.setGuiValue(guiValuePrint);
             // Execute non-print children
+            const hasNonPrintChildren = this.children.some(child => !(child instanceof StatementPrint));
             for (const child of this.children) {
                 if (!(child instanceof StatementPrint)) {
                     await child.executeStatement(executionContext, childGuiTree);
                 }
+            }
+
+            // If the item has non-print children but no GUI children and no value after execution, remove it
+            // Only applies to items that had non-print statement children (lists, etc.)
+            const hasValue = guiValuePrint && guiValuePrint.trim() !== '';
+            if (hasNonPrintChildren && !childGuiTree.hasGuiChildren() && !hasValue) {
+                childGuiTree.detach();
             }
             return;
         }
@@ -104,7 +112,8 @@ export class StatementItem extends StatementBase {
 
             // If the item has no GUI children and no value after execution (e.g., container with empty list), remove it
             // Only apply this to items that had statement children (lists, etc.) - not standalone empty items
-            if (!childGuiTree.hasGuiChildren() && !guiValue) {
+            const hasValue = guiValue && guiValue.trim() !== '';
+            if (!childGuiTree.hasGuiChildren() && !hasValue) {
                 childGuiTree.detach();
             }
         }
