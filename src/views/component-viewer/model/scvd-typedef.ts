@@ -281,7 +281,7 @@ export class ScvdTypedef extends ScvdNode {
                     }
                 } else {
                     member.offset = currentNextOffset.toString();  // set current offset
-                    componentViewerLogger.error(`ScvdTypedef.calculateOffsets: no offset defined for member: ${member.name} in typedef: ${this.getDisplayLabel()}`);
+                    componentViewerLogger.warn(`ScvdTypedef.calculateOffsets: no offset defined for member: ${member.name} in typedef: ${this.getDisplayLabel()}`);
                 }
                 member.offset?.configure();
             }
@@ -299,7 +299,7 @@ export class ScvdTypedef extends ScvdNode {
             this.targetSize = size;
 
             if (currentNextOffset > size) {
-                componentViewerLogger.error(`ScvdTypedef.calculateOffsets: typedef size (${size}) smaller than members size (${currentNextOffset}) for ${this.getDisplayLabel()}`);
+                componentViewerLogger.warn(`ScvdTypedef.calculateOffsets: typedef size (${size}) smaller than members size (${currentNextOffset}) for ${this.getDisplayLabel()}`);
             } else if (currentNextOffset < size) {   // adjust to typedef size if padding is included
                 currentNextOffset = size;
             }

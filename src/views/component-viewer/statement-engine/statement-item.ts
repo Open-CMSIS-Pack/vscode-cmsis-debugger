@@ -51,35 +51,32 @@ export class StatementItem extends StatementBase {
     protected override async onExecute(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
         componentViewerLogger.debug(`Line: ${this.line}: Executing <${this.scvdItem.tag}> : ${await this.getLogName()}`);
 
-        const guiNameStart = perf?.start() ?? 0;
-        const guiName = await this.getGuiName();
-        perf?.end(guiNameStart, 'guiNameMs', 'guiNameCalls');
-        const childGuiTree = this.getOrCreateGuiChild(guiTree, guiName);
-        perf?.recordGuiItemNode();
-        const guiValueStart = perf?.start() ?? 0;
-        const guiValue = await this.getGuiValue();
-        perf?.end(guiValueStart, 'guiValueMs', 'guiValueCalls');
-        childGuiTree.setGuiName(guiName);
-        childGuiTree.setGuiValue(guiValue);
-
         const printChildren = this.children.filter((child): child is StatementPrint => child instanceof StatementPrint);
         if (printChildren.length > 0) {
+            // When <item> has <print> children, first check if any print condition matches
+            // If no print matches, skip creating the item entirely (don't display incomplete item)
             let matched = false;
+            let guiNamePrint = '';
+            let guiValuePrint = '';
             for (const printChild of printChildren) {
                 const shouldPrint = await printChild.scvdItem.getConditionResult();
                 if (shouldPrint !== false) {
-                    const guiNamePrint = await printChild.scvdItem.getGuiName();
-                    const guiValuePrint = await printChild.scvdItem.getGuiValue();
-                    childGuiTree.setGuiName(guiNamePrint);
-                    childGuiTree.setGuiValue(guiValuePrint);
+                    guiNamePrint = await printChild.scvdItem.getGuiName() ?? '';
+                    guiValuePrint = await printChild.scvdItem.getGuiValue() ?? '';
                     matched = true;
                     break;
                 }
             }
             if (!matched) {
-                childGuiTree.detach();
+                // No print statement evaluated to true, so skip execution of item and nested statements
                 return;
             }
+            // A print matched, create the item with the print's name/value
+            const childGuiTree = this.getOrCreateGuiChild(guiTree, guiNamePrint);
+            perf?.recordGuiItemNode();
+            childGuiTree.setGuiName(guiNamePrint);
+            childGuiTree.setGuiValue(guiValuePrint);
+            // Execute non-print children
             for (const child of this.children) {
                 if (!(child instanceof StatementPrint)) {
                     await child.executeStatement(executionContext, childGuiTree);
@@ -87,6 +84,18 @@ export class StatementItem extends StatementBase {
             }
             return;
         }
+
+        // No print children, display item with its own name/value (even if incomplete/empty)
+        const guiNameStart = perf?.start() ?? 0;
+        const guiName = await this.getGuiName() ?? '';
+        perf?.end(guiNameStart, 'guiNameMs', 'guiNameCalls');
+        const childGuiTree = this.getOrCreateGuiChild(guiTree, guiName);
+        perf?.recordGuiItemNode();
+        const guiValueStart = perf?.start() ?? 0;
+        const guiValue = await this.getGuiValue() ?? '';
+        perf?.end(guiValueStart, 'guiValueMs', 'guiValueCalls');
+        childGuiTree.setGuiName(guiName);
+        childGuiTree.setGuiValue(guiValue);
 
         if (this.children.length > 0) {
             for (const child of this.children) {

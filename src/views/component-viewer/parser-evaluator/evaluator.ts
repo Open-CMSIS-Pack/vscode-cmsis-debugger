@@ -250,6 +250,8 @@ export class Evaluator {
                 return this.findReferenceNode(c.callee);
             }
             case 'EvalPointCall': {
+                // For intrinsic calls, the callee is metadata (intrinsic name), not a reference to evaluate.
+                // Only search the arguments for references.
                 const c = node as EvalPointCall;
                 if (c.args.length) {
                     for (const arg of c.args) {
@@ -259,7 +261,8 @@ export class Evaluator {
                         }
                     }
                 }
-                return this.findReferenceNode(c.callee);
+                // Don't descend into callee - it's just the intrinsic name
+                return undefined;
             }
             case 'PrintfExpression': {
                 for (const seg of (node as PrintfExpression).segments) {
@@ -549,6 +552,13 @@ export class Evaluator {
                 resolved.push((arg as StringLiteral).value);
                 continue;
             }
+            // __Offset_of accepts ColonPath (type:member) as in C++ implementation
+            if (name === '__Offset_of' && arg.kind === 'ColonPath') {
+                const cp = arg as ColonPath;
+                // Convert ColonPath parts to "type:member" string format
+                resolved.push(cp.parts.join(':'));
+                continue;
+            }
             // Make the failure explicit; this avoids silently passing evaluated values like 0.
             this.diagnostics.record(`${name} expects identifier/string for argument ${idx + 1}, got ${arg.kind}`);
             perf?.end(perfStartTime, 'evalIntrinsicArgsMs', 'evalIntrinsicArgsCalls');
@@ -602,7 +612,12 @@ export class Evaluator {
                     }
                     if (!ref) {
                         perf?.end(perfStartKind, 'evalMustRefIdentifierMs', 'evalMustRefIdentifierCalls');
-                        this.diagnostics.record(`Unknown symbol '${id.name}' in ${this.diagnostics.formatNodeForMessage(node)}`);
+                        // Check if this is an intrinsic function name being used as an identifier
+                        if (isIntrinsicName(id.name)) {
+                            this.diagnostics.record(`Intrinsic function '${id.name}' cannot be used as an identifier. Use it as a function call: ${id.name}(...)`);
+                        } else {
+                            this.diagnostics.record(`Unknown symbol '${id.name}' in ${this.diagnostics.formatNodeForMessage(node)}`);
+                        }
                         return undefined;
                     }
                     // Start a new anchor chain at this identifier

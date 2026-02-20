@@ -89,8 +89,9 @@ describe('StatementItem', () => {
         await stmt.executeStatement(ctx, guiTree);
 
         const child = getOnlyChild(guiTree);
-        expect(child.getGuiName()).toBeUndefined();
-        expect(child.getGuiValue()).toBeUndefined();
+        // When no property is specified, it should be displayed with empty string (matching C++ behavior)
+        expect(child.getGuiName()).toBe('');
+        expect(child.getGuiValue()).toBe('');
     });
 
     it('keeps print-only items and uses the print name/value', async () => {
@@ -154,5 +155,89 @@ describe('StatementItem', () => {
         await stmt.executeStatement(ctx, guiTree);
 
         expect(guiTree.children).toHaveLength(1);
+    });
+
+    it('handles undefined print name/value by using empty strings', async () => {
+        const node = new TestNode(undefined);
+        const stmt = new StatementItem(node, undefined);
+        // Create a print node that returns undefined for name and value
+        const printNode = new TestNode(node);
+        printNode.guiName = undefined;
+        printNode.guiValue = undefined;
+        new StatementPrint(printNode, stmt);
+
+        const ctx = createExecutionContext(node);
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        const child = getOnlyChild(guiTree);
+        // Undefined should be converted to empty string (matching C++ AddProperty("", value) behavior)
+        expect(child.getGuiName()).toBe('');
+        expect(child.getGuiValue()).toBe('');
+    });
+
+    it('displays item with value but no property name', async () => {
+        const node = new TestNode(undefined, { guiValue: 'SomeValue' });
+        const stmt = new StatementItem(node, undefined);
+        const ctx = createExecutionContext(node);
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        const child = getOnlyChild(guiTree);
+        // No property name (undefined) should become empty string, value should be preserved
+        expect(child.getGuiName()).toBe('');
+        expect(child.getGuiValue()).toBe('SomeValue');
+    });
+
+    it('skips item when all multiple print children are suppressed', async () => {
+        const node = new TestNode(undefined);
+        const stmt = new StatementItem(node, undefined);
+        
+        // Add multiple print children, all suppressed
+        const printNode1 = new TestNode(node, { guiName: 'Print1', guiValue: 'Value1' });
+        printNode1.conditionResult = false;
+        new StatementPrint(printNode1, stmt);
+
+        const printNode2 = new TestNode(node, { guiName: 'Print2', guiValue: 'Value2' });
+        printNode2.conditionResult = false;
+        new StatementPrint(printNode2, stmt);
+
+        const ctx = createExecutionContext(node);
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        // Item should be completely skipped when no print matches
+        expect(guiTree.children).toHaveLength(0);
+    });
+
+    it('uses first matching print when multiple prints exist', async () => {
+        const node = new TestNode(undefined);
+        const stmt = new StatementItem(node, undefined);
+
+        // First print is suppressed
+        const printNode1 = new TestNode(node, { guiName: 'Print1', guiValue: 'Value1' });
+        printNode1.conditionResult = false;
+        new StatementPrint(printNode1, stmt);
+
+        // Second print should match
+        const printNode2 = new TestNode(node, { guiName: 'Print2', guiValue: 'Value2' });
+        new StatementPrint(printNode2, stmt);
+
+        // Third print should not be evaluated
+        const printNode3 = new TestNode(node, { guiName: 'Print3', guiValue: 'Value3' });
+        new StatementPrint(printNode3, stmt);
+
+        const ctx = createExecutionContext(node);
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        const child = getOnlyChild(guiTree);
+        // Should use second print (first matching one)
+        expect(child.getGuiName()).toBe('Print2');
+        expect(child.getGuiValue()).toBe('Value2');
     });
 });
