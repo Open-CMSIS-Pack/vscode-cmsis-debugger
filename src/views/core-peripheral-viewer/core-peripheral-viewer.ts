@@ -14,10 +14,16 @@
  * limitations under the License.
  */
 
+import * as fs from 'fs';
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { ComponentViewerBase } from '../component-viewer/component-viewer-base';
 import { ComponentViewerTreeDataProvider } from '../component-viewer/component-viewer-tree-view';
 import { GDBTargetDebugSession } from '../../debug-session';
+import { promisify } from 'util';
+
+// Relative to dist folder at runtime
+const CORE_PERIPHERAL_SCVD_BASE = path.join(__dirname, '..', 'configs', 'core-peripheral-viewer');
 
 export class CorePeripheralViewer extends ComponentViewerBase {
     public constructor(
@@ -28,7 +34,14 @@ export class CorePeripheralViewer extends ComponentViewerBase {
     }
 
     protected override async getScvdFilePaths(_session: GDBTargetDebugSession): Promise<string[]> {
-        return [];
+        const filePaths = await promisify(fs.readdir)(CORE_PERIPHERAL_SCVD_BASE, {
+            encoding: 'buffer',
+            withFileTypes: true
+        });
+        const scvdFilePaths = filePaths
+            .filter((file) => file.isFile() && file.name.toString().toLowerCase().endsWith('.scvd'))
+            .map((file) => path.join(CORE_PERIPHERAL_SCVD_BASE, file.name.toString()));
+        return scvdFilePaths;
     }
 
 }
