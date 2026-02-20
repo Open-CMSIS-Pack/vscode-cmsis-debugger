@@ -261,8 +261,8 @@ export class Evaluator {
                         }
                     }
                 }
-                // Don't descend into callee - it's just the intrinsic name
-                return undefined;
+                // If no args, fall back to callee (it's still an identifier node)
+                return this.findReferenceNode(c.callee);
             }
             case 'PrintfExpression': {
                 for (const seg of (node as PrintfExpression).segments) {

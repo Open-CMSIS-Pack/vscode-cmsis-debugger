@@ -33,6 +33,7 @@ const makeStubBase = (name: string): ScvdNode => ({
     getMember: jest.fn(),
     getDisplayLabel: jest.fn().mockReturnValue(name),
     getValueType: jest.fn(),
+    getArraySize: jest.fn().mockResolvedValue(undefined),
 } as unknown as ScvdNode);
 
 const makeContainer = (name: string, widthBytes: number, offsetBytes = 0): RefContainer => ({
