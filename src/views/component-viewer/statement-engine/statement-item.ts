@@ -101,6 +101,12 @@ export class StatementItem extends StatementBase {
             for (const child of this.children) {
                 await child.executeStatement(executionContext, childGuiTree);
             }
+
+            // If the item has no GUI children and no value after execution (e.g., container with empty list), remove it
+            // Only apply this to items that had statement children (lists, etc.) - not standalone empty items
+            if (!childGuiTree.hasGuiChildren() && !guiValue) {
+                childGuiTree.detach();
+            }
         }
     }
 }

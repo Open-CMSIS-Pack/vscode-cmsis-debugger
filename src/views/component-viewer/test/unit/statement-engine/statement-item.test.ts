@@ -21,6 +21,7 @@
 
 import { ScvdGuiTree } from '../../../scvd-gui-tree';
 import { StatementItem } from '../../../statement-engine/statement-item';
+import { StatementList } from '../../../statement-engine/statement-list';
 import { StatementOut } from '../../../statement-engine/statement-out';
 import { StatementPrint } from '../../../statement-engine/statement-print';
 import { createExecutionContext, TestNode } from '../helpers/statement-engine-helpers';
@@ -239,5 +240,29 @@ describe('StatementItem', () => {
         // Should use second print (first matching one)
         expect(child.getGuiName()).toBe('Print2');
         expect(child.getGuiValue()).toBe('Value2');
+    });
+
+    it('hides items with no value that contain only empty lists', async () => {
+        // This tests the FileSystem.scvd scenario:
+        // <item property="Drives">
+        //   <list name="i" start="0" limit="Vol_EFS._count">  <!-- _count = 0, so no iterations -->
+        //     <item property="Drive ...">
+        //   </list>
+        // </item>
+        // Expected: "Drives" item should NOT appear when list is empty
+        const node = new TestNode(undefined, { guiName: 'Drives' }); // Has name, no value
+        const stmt = new StatementItem(node, undefined);
+        
+        // Add a list child that produces no GUI children (simulates empty list)
+        const listNode = new TestNode(node);
+        new StatementList(listNode, stmt);
+        
+        const ctx = createExecutionContext(node);
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        // Item should be detached because it has no value and no GUI children
+        expect(guiTree.children).toHaveLength(0);
     });
 });
