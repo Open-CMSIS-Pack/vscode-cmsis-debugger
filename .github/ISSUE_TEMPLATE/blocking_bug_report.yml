@@ -14,7 +14,7 @@ body:
   - type: textarea
     attributes:
       label: Unusable feature
-      description: Which feature(s) of CMSIS-Toolbox becomes unusable due to this bug?
+      description: Which feature(s) of Debugger Extension become unusable due to this bug?
     validations:
       required: true
   - type: textarea
