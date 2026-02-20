@@ -107,9 +107,8 @@ export class StatementItem extends StatementBase {
             // For containers: remove if no value and no GUI children
             if (!hasValue && !childGuiTree.hasGuiChildren()) {
                 childGuiTree.detach();
-            }
             // Also remove if no name, no value (even if it has GUI children that will display)
-            else if (!hasName && !hasValue) {
+            } else if (!hasName && !hasValue) {
                 childGuiTree.detach();
             }
         }

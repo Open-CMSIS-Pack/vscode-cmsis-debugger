@@ -195,7 +195,7 @@ describe('StatementItem', () => {
     it('skips item when all multiple print children are suppressed', async () => {
         const node = new TestNode(undefined);
         const stmt = new StatementItem(node, undefined);
-        
+
         // Add multiple print children, all suppressed
         const printNode1 = new TestNode(node, { guiName: 'Print1', guiValue: 'Value1' });
         printNode1.conditionResult = false;
@@ -252,11 +252,11 @@ describe('StatementItem', () => {
         // Expected: "Drives" item should NOT appear when list is empty
         const node = new TestNode(undefined, { guiName: 'Drives' }); // Has name, no value
         const stmt = new StatementItem(node, undefined);
-        
+
         // Add a list child that produces no GUI children (simulates empty list)
         const listNode = new TestNode(node);
         new StatementList(listNode, stmt);
-        
+
         const ctx = createExecutionContext(node);
         const guiTree = new ScvdGuiTree(undefined);
 
