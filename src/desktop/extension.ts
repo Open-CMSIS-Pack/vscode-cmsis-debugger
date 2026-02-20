@@ -26,6 +26,7 @@ import { LiveWatchTreeDataProvider } from '../views/live-watch/live-watch';
 import { GenericCommands } from '../features/generic-commands';
 import { ComponentViewer } from '../views/component-viewer/component-viewer';
 import { ComponentViewerTreeDataProvider } from '../views/component-viewer/component-viewer-tree-view';
+import { CorePeripheralViewer } from '../views/core-peripheral-viewer/core-peripheral-viewer';
 
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
@@ -34,6 +35,7 @@ const BUILTIN_TOOLS_PATHS = [
 
 let liveWatchTreeDataProvider: LiveWatchTreeDataProvider;
 let componentViewerTreeDataProvider: ComponentViewerTreeDataProvider;
+let corePeripheralViewerTreeDataProvider: ComponentViewerTreeDataProvider;
 
 const askForReload = async (): Promise<void> => {
     const result = await vscode.window.showWarningMessage('Cannot activate all Arm CMSIS Debugger views. Please reload the window.', 'Reload Window');
@@ -53,7 +55,9 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     // Register the Tree View under the id from package.json
     liveWatchTreeDataProvider = new LiveWatchTreeDataProvider(context);
     componentViewerTreeDataProvider = new ComponentViewerTreeDataProvider();
+    corePeripheralViewerTreeDataProvider = new ComponentViewerTreeDataProvider();
     const componentViewer = new ComponentViewer(context, componentViewerTreeDataProvider);
+    const corePeripheralViewer = new CorePeripheralViewer(context, corePeripheralViewerTreeDataProvider);
 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);
     // Activate generic commands
@@ -73,6 +77,11 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     // Component Viewer
     logger.debug('Activating Component Viewer');
     if (!await componentViewer.activate(gdbtargetDebugTracker)) {
+        canCompleteActivation = false;
+    }
+    // Core Peripheral Viewer
+    logger.debug('Activating Core Peripheral Viewer');
+    if (!await corePeripheralViewer.activate(gdbtargetDebugTracker)) {
         canCompleteActivation = false;
     }
 
