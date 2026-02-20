@@ -24,7 +24,7 @@ import { CpuStates } from '../features/cpu-states/cpu-states';
 import { CpuStatesCommands } from '../features/cpu-states/cpu-states-commands';
 import { LiveWatchTreeDataProvider } from '../views/live-watch/live-watch';
 import { GenericCommands } from '../features/generic-commands';
-import { ComponentViewer } from '../views/component-viewer/component-viewer-main';
+import { ComponentViewer } from '../views/component-viewer/component-viewer';
 import { ComponentViewerTreeDataProvider } from '../views/component-viewer/component-viewer-tree-view';
 
 const BUILTIN_TOOLS_PATHS = [
