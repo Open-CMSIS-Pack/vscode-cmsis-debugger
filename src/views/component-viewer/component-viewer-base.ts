@@ -135,19 +135,24 @@ export class ComponentViewerBase {
         this._componentViewerTreeDataProvider.refresh();
     }
 
-    protected async readScvdFiles(tracker: GDBTargetDebugTracker,session?: GDBTargetDebugSession): Promise<void> {
+    /**
+     * Get SCVF file paths for a given debug session. Derived class implements to get SCVD files as needed
+     * for specific component viewer flavor.
+     *
+     * @param _session GDB target session to get SCVD Files for
+     * @returns promise to an array of SCVD file paths, or empty array if no SCVD files found
+     */
+    protected async getScvdFilePaths(_session: GDBTargetDebugSession): Promise<string[]> {
+        return [];
+    }
+
+    protected async readScvdFiles(tracker: GDBTargetDebugTracker, session?: GDBTargetDebugSession): Promise<void> {
         if (!session) {
             return;
         }
-        const cbuildRunReader = await session.getCbuildRun();
-        const pname = await session.getPname();
-        if (!cbuildRunReader) {
-            return;
-        }
-        // Get SCVD file paths from cbuild-run reader
-        const scvdFilesPaths: string [] = cbuildRunReader.getScvdFilePaths(undefined, pname);
+        const scvdFilesPaths = await this.getScvdFilePaths(session);
         if (scvdFilesPaths.length === 0) {
-            return undefined;
+            return;
         }
         parsePerf?.reset();
         const cbuildRunInstances: ComponentViewerInstance[] = [];
@@ -176,12 +181,12 @@ export class ComponentViewerBase {
         })));
     }
 
-    private async loadCbuildRunInstances(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker) : Promise<void | undefined> {
+    private async loadScvdFiles(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker) : Promise<void | undefined> {
         this._loadingCounter++;
-        componentViewerLogger.debug(`Loading SCVD files from cbuild-run, attempt #${this._loadingCounter}`);
-        // Try to read SCVD files from cbuild-run file first
+        componentViewerLogger.debug(`Loading SCVD files, attempt #${this._loadingCounter}`);
+        // Try to read SCVD files
         await this.readScvdFiles(tracker, session);
-        // Are there any SCVD files found in cbuild-run?
+        // Are there any SCVD files found and loaded?
         if (this._instances.length === 0) {
             return undefined;
         }
@@ -259,7 +264,7 @@ export class ComponentViewerBase {
         // Update debug session
         this._activeSession = session;
         // Load SCVD files from cbuild-run
-        await this.loadCbuildRunInstances(session, tracker);
+        await this.loadScvdFiles(session, tracker);
     }
 
     private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
