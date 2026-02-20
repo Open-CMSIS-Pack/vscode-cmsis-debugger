@@ -24,7 +24,7 @@ import type { GDBTargetDebugTracker } from '../../../../debug-session';
 import type { TargetState } from '../../../../debug-session/gdbtarget-debug-session';
 import { componentViewerLogger } from '../../../../logger';
 import { extensionContextFactory } from '../../../../__test__/vscode.factory';
-import { ComponentViewer, ComponentViewerInstancesWrapper, UpdateReason } from '../../component-viewer-main';
+import { ComponentViewerBase, ComponentViewerInstancesWrapper, UpdateReason } from '../../component-viewer-base';
 import { ComponentViewerTreeDataProvider } from '../../component-viewer-tree-view';
 import type { ScvdGuiInterface } from '../../model/scvd-gui-interface';
 
@@ -76,13 +76,13 @@ function asMockedFunction<Args extends unknown[], Return>(
     return fn as unknown as jest.MockedFunction<(...args: Args) => Return>;
 }
 
-const getUpdateInstances = (controller: ComponentViewer) =>
+const getUpdateInstances = (controller: ComponentViewerBase) =>
     (controller as unknown as { updateInstances: (reason: UpdateReason) => Promise<void> }).updateInstances.bind(controller);
 
-const getSchedulePendingUpdate = (controller: ComponentViewer) =>
+const getSchedulePendingUpdate = (controller: ComponentViewerBase) =>
     (controller as unknown as { schedulePendingUpdate: (reason: UpdateReason) => void }).schedulePendingUpdate.bind(controller);
 
-const getRunUpdate = (controller: ComponentViewer) =>
+const getRunUpdate = (controller: ComponentViewerBase) =>
     (controller as unknown as { runUpdate: (reason: UpdateReason) => Promise<void> }).runUpdate.bind(controller);
 
 // Local test mocks
@@ -119,7 +119,12 @@ type TrackerCallbacks = {
 const createController = (
     context: vscode.ExtensionContext = extensionContextFactory(),
     provider: ComponentViewerTreeDataProvider | ReturnType<typeof treeProviderFactory> = treeProviderFactory()
-): ComponentViewer => new ComponentViewer(context, provider as ComponentViewerTreeDataProvider);
+): ComponentViewerBase => new ComponentViewerBase(
+    context,
+    provider as ComponentViewerTreeDataProvider,
+    'Component Viewer',
+    'componentViewer'
+);
 
 describe('ComponentViewer', () => {
     beforeEach(() => {
