@@ -271,4 +271,25 @@ describe('ScvdFormatSpecifier', () => {
         expect(formatter.format_x(Number.NaN)).toBe('NaN');
         expect(formatter.format_u('bad')).toBe('bad');
     });
+
+    it('covers toNumeric with Uint8Array edge cases', () => {
+        // Empty array → 0
+        expect(formatter.format('d', new Uint8Array([]))).toBe('0');
+        
+        // 1 byte
+        expect(formatter.format('d', new Uint8Array([0x42]))).toBe('66');
+        
+        // 2 bytes (little-endian)
+        expect(formatter.format('d', new Uint8Array([0x01, 0x02]))).toBe('513');
+        
+        // 4 bytes (little-endian)
+        expect(formatter.format('d', new Uint8Array([0x01, 0x02, 0x03, 0x04]))).toBe('67305985');
+        
+        // 8 bytes (BigInt)
+        const bytes8 = new Uint8Array([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]);
+        expect(formatter.format('d', bytes8)).toBe('578437695752307201');
+        
+        // More than 8 bytes → NaN
+        expect(formatter.format('d', new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9]))).toBe('NaN');
+    });
 });

@@ -548,4 +548,128 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         helpers.storePrintfTextCache('x', 'hello', 'NOPE');
         expect(helpers._caches.getPrintf('x:text:hello')).toBeUndefined();
     });
+
+    it('covers toNumeric with Uint8Array edge cases', async () => {
+        const { evalIf } = makeEval();
+        const container: RefContainer = { base: new DummyNode('b'), current: new DummyNode('b'), valueType: undefined };
+        
+        // Empty array → 0 (default typeInfo.bits=32 so gets 8 hex digits)
+        expect(await evalIf.formatPrintf('x', new Uint8Array([]) as unknown as number, container)).toBe('0x00000000');
+        
+        // 1 byte (still padded to 32 bits)
+        expect(await evalIf.formatPrintf('x', new Uint8Array([0x42]) as unknown as number, container)).toBe('0x00000042');
+        
+        // 4 bytes (little-endian) → converted to uint32
+        expect(await evalIf.formatPrintf('x', new Uint8Array([0x01, 0x02, 0x03, 0x04]) as unknown as number, container)).toBe('0x04030201');
+        
+        // 8 bytes → BigInt, but masked to 32 bits due to typeInfo.bits=32
+        const bytes8 = new Uint8Array([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]);
+        expect(await evalIf.formatPrintf('x', bytes8 as unknown as number, container)).toBe('0x04030201');
+        
+        // More than 8 bytes → NaN
+        expect(await evalIf.formatPrintf('x', new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9]) as unknown as number, container)).toBe('NaN');
+    });
+
+    it('covers readBytesFromAnchorOrPointer with anchor path and fallback', async () => {
+        const memHost = {
+            getElementTargetBase: jest.fn((name: string, index: number) => {
+                if (name === 'hasBase' && index === 0) {
+                    return 0x1000;
+                }
+                return undefined;
+            })
+        } as unknown as MemoryHost;
+        const dbg = {
+            readMemory: jest.fn(async (addr: number, len: number) => {
+                if (addr === 0x1004) {
+                    return new Uint8Array([1, 2, 3, 4]);
+                }
+                return undefined;
+            })
+        } as unknown as ScvdDebugTarget;
+        const evalIf = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier());
+
+        const anchor = new DummyNode('hasBase');
+        const containerWithAnchor: RefContainer = {
+            base: anchor,
+            current: anchor,
+            anchor,
+            offsetBytes: 4,
+            index: 0,
+            valueType: undefined
+        };
+
+        // Should read from anchor.base (0x1000) + offsetBytes (4) = 0x1004
+        const result = await evalIf.formatPrintf('I', 0x9999, containerWithAnchor);
+        expect(result).toBe('1.2.3.4');
+
+        // Fallback case: readMemory returns undefined for anchor+offset, should try value as pointer
+        const dbg2 = {
+            readMemory: jest.fn(async (addr: number, len: number) => {
+                if (addr === 0x2000) {
+                    return new Uint8Array([10, 20, 30, 40]);
+                }
+                return undefined;
+            })
+        } as unknown as ScvdDebugTarget;
+        const evalIf2 = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg2, new ScvdFormatSpecifier());
+
+        // readMemory returns undefined for 0x1004, so should fall back to reading from value (0x2000)
+        const result2 = await evalIf2.formatPrintf('I', 0x2000, containerWithAnchor);
+        expect(result2).toBe('10.20.30.40');
+    });
+
+    it('covers %M MAC format with pointer dereference', async () => {
+        const memHost = {
+            readRaw: jest.fn(async () => undefined)
+        } as unknown as MemoryHost;
+        const dbg = {
+            readMemory: jest.fn(async (addr: number, len: number) => {
+                if (addr === 0x3000 && len === 6) {
+                    return new Uint8Array([0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]);
+                }
+                return undefined;
+            })
+        } as unknown as ScvdDebugTarget;
+        const evalIf = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier());
+
+        class PointerNode extends DummyNode {
+            public override getIsPointer(): boolean {
+                return true;
+            }
+        }
+
+        const pointerBase = new PointerNode('macPtr');
+        const container: RefContainer = {
+            base: pointerBase,
+            current: pointerBase,
+            origin: pointerBase,
+            valueType: undefined
+        };
+
+        const result = await evalIf.formatPrintf('M', 0x3000, container);
+        expect(result).toBe('AA-BB-CC-DD-EE-FF');
+    });
+
+    it('covers ensureNullTerminated adding null byte', async () => {
+        const dbg = {
+            readUint8ArrayStrFromPointer: jest.fn(async (addr: number) => {
+                if (addr === 0x4000) {
+                    // Return string without null terminator
+                    return new Uint8Array([65, 66, 67]);
+                }
+                return undefined;
+            })
+        } as unknown as ScvdDebugTarget;
+        const evalIf = new ScvdEvalInterface({} as MemoryHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier());
+
+        const container: RefContainer = {
+            base: new DummyNode('str'),
+            current: new DummyNode('str'),
+            valueType: undefined
+        };
+
+        const result = await evalIf.formatPrintf('N', 0x4000, container);
+        expect(result).toBe('ABC');
+    });
 });
