@@ -69,7 +69,8 @@ export class ComponentViewer {
             return false;
         }
         const treeView = vscode.window.createTreeView('cmsis-debugger.componentViewer', {
-            treeDataProvider: this._componentViewerTreeDataProvider
+            treeDataProvider: this._componentViewerTreeDataProvider,
+            showCollapseAll: true
         });
         componentViewerLogger.debug('Component Viewer: Created Component Viewer tree view: cmsis-debugger.componentViewer');
         const lockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.lockComponent', async (node) => {
