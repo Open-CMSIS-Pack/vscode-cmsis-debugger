@@ -291,6 +291,12 @@ describe('scvd-debug-target', () => {
         accessMock.evaluateRegisterValue.mockResolvedValue(undefined);
         await expect(target.readRegister('r0')).resolves.toBeUndefined();
 
+        // NaN from unparseable response should return undefined, not 0
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
+        accessMock.evaluateRegisterValue.mockResolvedValue('not_a_number');
+        await expect(target.readRegister('r0')).resolves.toBeUndefined();
+        errorSpy.mockRestore();
+
         // Bigint toUint32 helper
         expect(__test__.toUint32(0x1_0000_0000n)).toBe(0n);
 

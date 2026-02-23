@@ -546,6 +546,10 @@ export class ScvdDebugTarget {
         }
         // Convert to number or bigint and return as uint32
         const numericValue = Number(value);
+        if (Number.isNaN(numericValue)) {
+            componentViewerLogger.error(`read Register: could not parse value for register ${name} (GDB name: ${gdbName}): '${value}'`);
+            return undefined;
+        }
         componentViewerLogger.debug(`read Register: raw value for register ${name} (GDB name: ${gdbName}) is ${value} (numeric: ${numericValue})`);
         return toUint32(numericValue);
     }
