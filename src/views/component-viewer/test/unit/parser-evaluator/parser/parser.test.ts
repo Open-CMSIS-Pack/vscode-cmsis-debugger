@@ -571,4 +571,18 @@ describe('parser', () => {
         expect(callAst.kind).toBe('CallExpression');
         expect(callAst.args && callAst.args.length).toBe(3);
     });
+
+    it('warns about undecoded XML entities in expressions', () => {
+        const ampersand = parseExpression('value &amp; 0xFF', false);
+        expect(ampersand.diagnostics.some(d => d.message.includes('XML entity'))).toBe(true);
+
+        const lessThan = parseExpression('x &lt; 5', false);
+        expect(lessThan.diagnostics.some(d => d.message.includes('XML entity'))).toBe(true);
+    });
+
+    it('warns about XML entities in printf expressions', () => {
+        const parser = new Parser(DEFAULT_INTEGER_MODEL);
+        const result = parser.parseWithDiagnostics('value=%x &gt; 0', true);
+        expect(result.diagnostics.some(d => d.message.includes('XML entity'))).toBe(true);
+    });
 });

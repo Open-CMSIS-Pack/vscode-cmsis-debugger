@@ -1340,4 +1340,30 @@ describe('Evaluator coverage branches', () => {
         const evalNodeChild = (evaluator as unknown as { evalNodeChild: (node: ASTNode, ctx: EvalContext) => Promise<EvalValue> }).evalNodeChild;
         await expect(evalNodeChild.call(evaluator, unary('-', num(2)), ctx)).resolves.toBe(-2);
     });
+
+    it('handles __Offset_of with ColonPath argument', async () => {
+        const evaluator = new TestEvaluator();
+        const host = makeHost({ __Offset_of: jest.fn(async (_container, typedefMember) => {
+            // Verify the colon path was converted to "typedef:member" string
+            if (typedefMember === 'MyType:field') {
+                return 16;
+            }
+            return undefined;
+        }) });
+        const ctx = makeCtx(host);
+        const colonNode: ColonPath = { kind: 'ColonPath', parts: ['MyType', 'field'], ...span } as ColonPath;
+        await expect(evaluator.evalNodePublic(evalPoint('__Offset_of', [colonNode]), ctx)).resolves.toBe(16);
+    });
+
+    it('records error when using intrinsic name as identifier', async () => {
+        const evaluator = new TestEvaluator();
+        // The intrinsic error is recorded when mustRef is called for an identifier that doesn't exist
+        // This happens when trying to read/write an identifier that is an intrinsic name
+        const host = makeHost({ getSymbolRef: jest.fn(async () => undefined) });
+        const ctx = makeCtx(host);
+        // Use an assignment to trigger mustRef  for the identifier
+        const assignNode = assign('=', id('__CalcMemUsed'), num(1));
+        await expect(evaluator.evalNodePublic(assignNode, ctx)).resolves.toBeUndefined();
+        expect(evaluator.getMessagesPublic()).toContain('Intrinsic function \'__CalcMemUsed\' cannot be used as an identifier. Use it as a function call: __CalcMemUsed(...)');
+    });
 });
