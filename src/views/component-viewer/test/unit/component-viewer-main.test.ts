@@ -44,6 +44,7 @@ const instanceFactory = jest.fn(() => ({
     update: jest.fn().mockResolvedValue(undefined),
     getGuiTree: jest.fn<ScvdGuiInterface[] | undefined, []>(() => []),
     updateActiveSession: jest.fn(),
+    cancelExecution: jest.fn(),
 }));
 
 jest.mock('../../component-viewer-instance', () => ({
@@ -278,6 +279,7 @@ describe('ComponentViewer', () => {
             update: jest.fn(),
             getGuiTree: jest.fn(() => []),
             updateActiveSession: jest.fn(),
+            cancelExecution: jest.fn(),
         }));
         const showErrorSpy = jest.spyOn(vscode.window, 'showErrorMessage').mockResolvedValue(undefined);
         const errorSpy = jest.spyOn(componentViewerLogger, 'error');

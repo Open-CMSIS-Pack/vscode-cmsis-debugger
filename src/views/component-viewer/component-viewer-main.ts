@@ -228,6 +228,15 @@ export class ComponentViewer {
     }
 
     private async handleOnWillStopSession(session: GDBTargetDebugSession): Promise<void> {
+        // Cancel any in-progress executeAll for the session being stopped.
+        // JS is single-threaded, so this flag will be picked up at the next
+        // await point (i.e. the next GDB read) inside any running loop.
+        for (const instance of this._instances) {
+            if (instance.sessionId === session.session.id) {
+                instance.componentViewerInstance.cancelExecution('debug session ended');
+            }
+        }
+
         // Clear active session if it is the one being stopped
         if (this._activeSession?.session.id === session.session.id) {
             this._activeSession = undefined;

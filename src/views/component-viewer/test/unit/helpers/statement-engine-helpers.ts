@@ -21,6 +21,7 @@
 
 import { EvalContext, Evaluator } from '../../../parser-evaluator/evaluator';
 import { ScvdExpressionParser } from '../../../scvd-eval-context';
+import { ExecutionCancellation } from '../../../execution-cancellation';
 import { DEFAULT_INTEGER_MODEL } from '../../../parser-evaluator/c-numeric';
 import type { ExecutionContext } from '../../../scvd-eval-context';
 import { MemoryHost } from '../../../data-host/memory-host';
@@ -101,6 +102,7 @@ export function createExecutionContext(
         debugTarget,
         evaluator,
         parser,
+        cancellation: new ExecutionCancellation(),
     };
 }
 
