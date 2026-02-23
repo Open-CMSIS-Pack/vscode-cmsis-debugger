@@ -279,6 +279,7 @@ describe('ComponentViewer', () => {
             update: jest.fn(),
             getGuiTree: jest.fn(() => []),
             updateActiveSession: jest.fn(),
+            cancelExecution: jest.fn(),
         }));
         const showErrorSpy = jest.spyOn(vscode.window, 'showErrorMessage').mockResolvedValue(undefined);
         const errorSpy = jest.spyOn(componentViewerLogger, 'error');
