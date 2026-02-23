@@ -105,6 +105,7 @@ export class ComponentViewer {
         const expandStateString = expand ? 'expanded' : 'collapsed';
         const elementName = expansionEvent.element.getGuiName() ?? 'unknown';
         componentViewerLogger.debug(`Component Viewer: Tree item ${expandStateString} - ${elementName}`);
+        this._componentViewerTreeDataProvider.setElementExpanded(expansionEvent.element, expand);
     }
 
     protected handleLockInstance(node: ScvdGuiInterface): void {
@@ -262,6 +263,7 @@ export class ComponentViewer {
             return true;
         });
         this.schedulePendingUpdate('sessionChanged');
+        this._componentViewerTreeDataProvider.onWillStopSession(session.session.id);
     }
 
     private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
