@@ -189,7 +189,7 @@ export class ComponentViewerTargetAccess {
                 return undefined;
             }
             const args: DebugProtocol.EvaluateArguments = {
-                expression: `$${register}`,
+                expression: `(void*)$${register}`,
                 frameId, // Currently required by CDT GDB Adapter
                 context: 'hover'
             };
