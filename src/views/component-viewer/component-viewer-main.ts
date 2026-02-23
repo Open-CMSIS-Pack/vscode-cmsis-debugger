@@ -73,6 +73,8 @@ export class ComponentViewer {
             showCollapseAll: true
         });
         componentViewerLogger.debug('Component Viewer: Created Component Viewer tree view: cmsis-debugger.componentViewer');
+        const onDidExpandElementDisposable = treeView.onDidExpandElement(event => this.handleOnDidToggleExpand(event, true));
+        const onDidCollapseElementDisposable = treeView.onDidCollapseElement(event => this.handleOnDidToggleExpand(event, false));
         const lockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.lockComponent', async (node) => {
             this.handleLockInstance(node);
         });
@@ -89,12 +91,20 @@ export class ComponentViewer {
         });
         this._context.subscriptions.push(
             treeView,
+            onDidExpandElementDisposable,
+            onDidCollapseElementDisposable,
             lockInstanceCommandDisposable,
             unlockInstanceCommandDisposable,
             enablePeriodicUpdateCommandDisposable,
             disablePeriodicUpdateCommandDisposable
         );
         return true;
+    }
+
+    protected handleOnDidToggleExpand(expansionEvent: vscode.TreeViewExpansionEvent<ScvdGuiInterface>, expand: boolean): void {
+        const expandStateString = expand ? 'expanded' : 'collapsed';
+        const elementName = expansionEvent.element.getGuiName() ?? 'unknown';
+        componentViewerLogger.debug(`Component Viewer: Tree item ${expandStateString} - ${elementName}`);
     }
 
     protected handleLockInstance(node: ScvdGuiInterface): void {
