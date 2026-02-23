@@ -391,11 +391,12 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     public async __size_of(symbol: string): Promise<number | undefined> {
         const perfStartTime = perf?.start() ?? 0;
         try {
-            const sizeBytes = await this._debugTarget.getSymbolSize(symbol);
-            if (sizeBytes !== undefined) {
-                return sizeBytes;
-            }
-            // Legacy fallback: try array element count if size is unavailable
+            // __size_of must return the number of elements, not byte count:
+            //   - arrays:  element count  (sizeof(x) / sizeof(x[0]))
+            //   - scalars: 1              (sizeof(x) / sizeof(x[0]) == 1)
+            // getNumArrayElements evaluates sizeof(x)/sizeof(x[0]) in GDB, which
+            // is correct for both cases.  getSymbolSize evaluates sizeof(x) which
+            // returns total byte size and must NOT be used here.
             const arrayElements = await this._debugTarget.getNumArrayElements(symbol);
             if (arrayElements !== undefined) {
                 return arrayElements;

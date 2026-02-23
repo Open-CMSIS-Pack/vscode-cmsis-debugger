@@ -222,6 +222,11 @@ export class ComponentViewerInstance {
         return this._statementEngine;
     }
 
+    /** Cancel any in-progress executeAll run (e.g. when the debug session ends). */
+    public cancelExecution(reason: string): void {
+        this._scvdEvalContext?.cancellation.cancel(reason);
+    }
+
     private set statementEngine(value: StatementEngine | undefined) {
         this._statementEngine = value;
     }

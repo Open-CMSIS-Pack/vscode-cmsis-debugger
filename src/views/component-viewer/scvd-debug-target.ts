@@ -46,6 +46,24 @@ function normalize(name: string): string {
     return name.trim().toUpperCase();
 }
 
+/**
+ * Convert a symbol path notation to GDB qualified symbol syntax.
+ * Input:  "tasks.c/xSchedulerRunning"  →  Output: "'tasks.c'::xSchedulerRunning"
+ * Input:  "xSchedulerRunning"          →  Output: "xSchedulerRunning" (unchanged)
+ */
+export function toGdbSymbol(symbol: string): string {
+    const slashIndex = symbol.indexOf('/');
+    if (slashIndex < 0) {
+        return symbol;
+    }
+    const file = symbol.substring(0, slashIndex);
+    const name = symbol.substring(slashIndex + 1);
+    if (!file || !name) {
+        return symbol;
+    }
+    return `'${file}'::${name}`;
+}
+
 function toUint32(value: number | bigint): number | bigint {
     if (typeof value === 'bigint') {
         return value & 0xFFFFFFFFn;
@@ -157,7 +175,8 @@ export class ScvdDebugTarget {
         }
 
         const addressInfo = await this.symbolCaches.getAddressWithName(symbol, async (symbolName) => {
-            const symbolAddressStr = await this.targetAccess.evaluateSymbolAddress(symbolName, 'hover', existCheck);
+            const gdbSymbol = toGdbSymbol(symbolName);
+            const symbolAddressStr = await this.targetAccess.evaluateSymbolAddress(gdbSymbol, 'hover', existCheck);
             if (symbolAddressStr !== undefined) {
                 const parsed = parseInt(symbolAddressStr as unknown as string, 16);
                 if (Number.isFinite(parsed)) {
@@ -228,7 +247,8 @@ export class ScvdDebugTarget {
             return undefined;
         }
         return this.symbolCaches.getArrayCount(symbol, async (symbolName) => {
-            const result = await this.targetAccess.evaluateNumberOfArrayElements(symbolName);
+            const gdbSymbol = toGdbSymbol(symbolName);
+            const result = await this.targetAccess.evaluateNumberOfArrayElements(gdbSymbol);
             componentViewerLogger.debug(`get Num Array Elements: ${symbolName} resolved to ${result}`);
             return result;
         });
@@ -260,7 +280,8 @@ export class ScvdDebugTarget {
         }
 
         return this.symbolCaches.getSize(symbol, async (symbolName) => {
-            const size = await this.targetAccess.evaluateSymbolSize(symbolName);
+            const gdbSymbol = toGdbSymbol(symbolName);
+            const size = await this.targetAccess.evaluateSymbolSize(gdbSymbol);
             if (typeof size === 'number' && size >= 0) {
                 componentViewerLogger.debug(`get Symbol Size: ${symbolName} resolved to ${size}`);
                 return size;

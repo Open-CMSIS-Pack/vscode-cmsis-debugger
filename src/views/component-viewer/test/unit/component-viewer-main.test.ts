@@ -44,6 +44,7 @@ const instanceFactory = jest.fn(() => ({
     update: jest.fn().mockResolvedValue(undefined),
     getGuiTree: jest.fn<ScvdGuiInterface[] | undefined, []>(() => []),
     updateActiveSession: jest.fn(),
+    cancelExecution: jest.fn(),
 }));
 
 jest.mock('../../component-viewer-instance', () => ({

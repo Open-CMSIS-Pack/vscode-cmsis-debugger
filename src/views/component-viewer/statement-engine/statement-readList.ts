@@ -295,6 +295,12 @@ export class StatementReadList extends StatementBase {
             let readIdx = 0;
             const visitedAddresses = new Set<number | bigint>();
             while (nextPtrAddr !== undefined) {
+                // Check for external cancellation (session ended) or global timeout
+                if (executionContext.cancellation.checkDeadline()) {
+                    componentViewerLogger.warn(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name} aborted: ${executionContext.cancellation.reason}`);
+                    break;
+                }
+
                 const itemAddress: number | bigint | undefined = typeof nextPtrAddr === 'bigint' ? nextPtrAddr : (nextPtrAddr >>> 0);
 
                 // Detect cycles: check if we've visited this address before

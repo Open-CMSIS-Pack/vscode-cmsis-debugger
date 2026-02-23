@@ -147,14 +147,13 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         expect(calculateMemoryUsage).toHaveBeenCalledWith(1, 2, 3, 4);
     });
 
-    it('__size_of prefers size then falls back to element count', async () => {
+    it('__size_of returns element count from getNumArrayElements', async () => {
         const debugTarget: Partial<ScvdDebugTarget> = {
-            getSymbolSize: jest.fn().mockResolvedValueOnce(16).mockResolvedValueOnce(undefined),
-            getNumArrayElements: jest.fn().mockResolvedValue(5)
+            getNumArrayElements: jest.fn().mockResolvedValueOnce(5).mockResolvedValueOnce(undefined)
         };
         const { evalIf } = makeEval(debugTarget);
-        await expect(evalIf.__size_of('sym')).resolves.toBe(16);
         await expect(evalIf.__size_of('sym')).resolves.toBe(5);
+        await expect(evalIf.__size_of('sym')).resolves.toBeUndefined();
     });
 
     it('__Offset_of and __Running', async () => {

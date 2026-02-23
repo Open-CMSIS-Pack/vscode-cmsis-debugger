@@ -20,7 +20,7 @@
  */
 
 import { componentViewerLogger } from '../../../../logger';
-import { ScvdDebugTarget, gdbNameFor, __test__ } from '../../scvd-debug-target';
+import { ScvdDebugTarget, gdbNameFor, toGdbSymbol, __test__ } from '../../scvd-debug-target';
 import { TargetReadCache } from '../../target-read-cache';
 import type { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../../../debug-session';
 
@@ -72,6 +72,15 @@ describe('scvd-debug-target', () => {
         expect(gdbNameFor(' r0 ')).toBe('r0');
         expect(gdbNameFor('MSP_s')).toBe('msp_s');
         expect(gdbNameFor('unknown')).toBeUndefined();
+    });
+
+    it('converts symbol path notation to GDB qualified syntax', () => {
+        expect(toGdbSymbol('tasks.c/xSchedulerRunning')).toBe('\'tasks.c\'::xSchedulerRunning');
+        expect(toGdbSymbol('main.c/myGlobal')).toBe('\'main.c\'::myGlobal');
+        expect(toGdbSymbol('xSchedulerRunning')).toBe('xSchedulerRunning');
+        expect(toGdbSymbol('/noFile')).toBe('/noFile');
+        expect(toGdbSymbol('noSymbol/')).toBe('noSymbol/');
+        expect(toGdbSymbol('')).toBe('');
     });
 
     it('resolves symbol info when session is active', async () => {
