@@ -58,6 +58,7 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
 
     public resetEvalCaches(): void {
         this._caches.clearAll();
+        this._registerCache.clear();
         componentViewerLogger.trace('[ScvdEvalInterface] Reset all caches');
     }
 

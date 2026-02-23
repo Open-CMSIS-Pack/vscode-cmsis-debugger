@@ -96,6 +96,7 @@ function makeEval(overrides: Partial<ScvdDebugTarget> & Partial<MemoryHost> & Pa
     const regHost: Partial<RegisterHost> = {
         read: jest.fn().mockReturnValue(undefined),
         write: jest.fn(),
+        clear: jest.fn(),
         ...merged
     };
     const debugTarget: Partial<ScvdDebugTarget> = {
