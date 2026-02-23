@@ -68,8 +68,10 @@ export class ComponentViewer {
         if (!await vscodeViewExists('componentViewer')) {
             return false;
         }
-        const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
-        componentViewerLogger.debug('Component Viewer: Registered tree data provider for Component Viewer Tree View id: cmsis-debugger.componentViewer');
+        const treeView = vscode.window.createTreeView('cmsis-debugger.componentViewer', {
+            treeDataProvider: this._componentViewerTreeDataProvider
+        });
+        componentViewerLogger.debug('Component Viewer: Created Component Viewer tree view: cmsis-debugger.componentViewer');
         const lockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.lockComponent', async (node) => {
             this.handleLockInstance(node);
         });
@@ -85,7 +87,7 @@ export class ComponentViewer {
             componentViewerLogger.info('Component Viewer: Auto refresh disabled');
         });
         this._context.subscriptions.push(
-            treeProviderDisposable,
+            treeView,
             lockInstanceCommandDisposable,
             unlockInstanceCommandDisposable,
             enablePeriodicUpdateCommandDisposable,
