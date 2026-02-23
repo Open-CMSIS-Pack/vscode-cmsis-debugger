@@ -1,24 +1,30 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - '**/*.md'
-      - '.github/workflows/markdown.yml'
-      - '.github/markdownlint.json'
-      - '.github/markdownlint.jsonc'
-      - '.github/workflows/nightly.yml'
   pull_request:
     branches:
       - main
-    paths-ignore:
-      - '**/*.md'
-      - '.github/workflows/markdown.yml'
-      - '.github/markdownlint.json'
-      - '.github/markdownlint.jsonc'
-      - '.github/workflows/nightly.yml'
+    paths:
+      - '**/*'
+      - '!**/*.md'
+      - '!LICENSE*'
+      - '!.github/Issue_Template/*'
+      - '!.github/workflows/markdown.yml'
+      - '!.github/markdownlint.json'
+      - '!.github/markdownlint.jsonc'
+      - '!.github/workflows/nightly.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - '**/*'
+      - '!**/*.md'
+      - '!LICENSE*'
+      - '!.github/Issue_Template/*'
+      - '!.github/workflows/markdown.yml'
+      - '!.github/markdownlint.json'
+      - '!.github/markdownlint.jsonc'
+      - '!.github/workflows/nightly.yml'
   workflow_dispatch:
   merge_group:
   release:
