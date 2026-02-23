@@ -213,7 +213,6 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     public async resolveColonPath(_container: RefContainer, parts: string[]): Promise<EvalValue> {
         // ColonPath in general expression context (not inside __Offset_of)
         // Example: typedef:member evaluates to the offset value itself
-        // This matches C++ behavior where type:member expressions can be used directly
 
         if (parts.length === 2) {
             const [typedefName, memberName] = parts;

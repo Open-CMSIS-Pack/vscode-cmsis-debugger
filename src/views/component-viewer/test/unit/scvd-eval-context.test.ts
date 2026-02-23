@@ -19,7 +19,8 @@
  * Unit test for ScvdEvalContext happy-path and failure branches.
  */
 
-import { ScvdEvalContext, ExecutionCancellation } from '../../scvd-eval-context';
+import { ScvdEvalContext } from '../../scvd-eval-context';
+import { ExecutionCancellation } from '../../execution-cancellation';
 import { ScvdComponentViewer } from '../../model/scvd-component-viewer';
 import { ScvdObjects } from '../../model/scvd-object';
 import type { ScvdNode } from '../../model/scvd-node';
@@ -151,52 +152,6 @@ describe('ScvdEvalContext', () => {
         const { viewer } = buildViewerWithObject();
         const ctx = new ScvdEvalContext(viewer);
         expect(ctx.cancellation).toBeInstanceOf(ExecutionCancellation);
-    });
-});
-
-describe('ExecutionCancellation', () => {
-    it('starts in non-cancelled state', () => {
-        const ec = new ExecutionCancellation();
-        expect(ec.isCancelled).toBe(false);
-        expect(ec.reason).toBeUndefined();
-        expect(ec.checkDeadline()).toBe(false);
-    });
-
-    it('cancel sets isCancelled and reason', () => {
-        const ec = new ExecutionCancellation();
-        ec.cancel('session ended');
-        expect(ec.isCancelled).toBe(true);
-        expect(ec.reason).toBe('session ended');
-    });
-
-    it('cancel is idempotent – first reason wins', () => {
-        const ec = new ExecutionCancellation();
-        ec.cancel('first');
-        ec.cancel('second');
-        expect(ec.reason).toBe('first');
-        expect(ec.isCancelled).toBe(true);
-    });
-
-    it('checkDeadline returns true when already cancelled', () => {
-        const ec = new ExecutionCancellation();
-        ec.cancel('test');
-        expect(ec.checkDeadline()).toBe(true);
-    });
-
-    it('checkDeadline auto-cancels when deadline is in the past', () => {
-        const ec = new ExecutionCancellation();
-        ec.reset(-1); // deadline already expired
-        expect(ec.checkDeadline()).toBe(true);
-        expect(ec.reason).toBe('executeAll timeout exceeded');
-    });
-
-    it('reset clears a previous cancellation', () => {
-        const ec = new ExecutionCancellation();
-        ec.cancel('old reason');
-        ec.reset(10_000);
-        expect(ec.isCancelled).toBe(false);
-        expect(ec.reason).toBeUndefined();
-        expect(ec.checkDeadline()).toBe(false);
     });
 });
 

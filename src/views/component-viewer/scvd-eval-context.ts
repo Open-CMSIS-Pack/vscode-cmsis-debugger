@@ -27,47 +27,8 @@ import { ScvdFormatSpecifier } from './model/scvd-format-specifier';
 import { ScvdDebugTarget } from './scvd-debug-target';
 import { ScvdEvalInterface } from './scvd-eval-interface';
 import { parsePerf } from './stats-config';
-
-/**
- * Shared cancellation signal for a single `executeAll` run.
- *
- * Checked at every loop iteration in `StatementList` and `StatementReadList`
- * (after each `await` point) so the engine can be stopped promptly both by
- * an external caller (e.g. debug-session end) and by a per-run wall-clock
- * timeout (mirrors the C++ `MAX_LTIME` / `CheckTimeOut` mechanism).
- */
-export class ExecutionCancellation {
-    private _isCancelled = false;
-    private _reason: string | undefined;
-    private _deadline = Number.MAX_SAFE_INTEGER;
-
-    public get isCancelled(): boolean { return this._isCancelled; }
-    public get reason(): string | undefined { return this._reason; }
-
-    /** Prepare for a new `executeAll` run. Clears any previous cancellation and
-     *  sets a fresh wall-clock deadline. */
-    public reset(timeoutMs?: number): void {
-        this._isCancelled = false;
-        this._reason = undefined;
-        this._deadline = timeoutMs !== undefined ? Date.now() + timeoutMs : Number.MAX_SAFE_INTEGER;
-    }
-
-    /** Cancel immediately (e.g. session ended). Safe to call from an event handler. */
-    public cancel(reason: string): void {
-        if (!this._isCancelled) {
-            this._isCancelled = true;
-            this._reason = reason;
-        }
-    }
-
-    /** Check deadline and auto-cancel on expiry.  Returns `true` when cancelled. */
-    public checkDeadline(): boolean {
-        if (!this._isCancelled && Date.now() > this._deadline) {
-            this.cancel('executeAll timeout exceeded');
-        }
-        return this._isCancelled;
-    }
-}
+import { ExecutionCancellation } from './execution-cancellation';
+export { ExecutionCancellation } from './execution-cancellation';
 
 export interface ExecutionContext {
     memoryHost: MemoryHost;
