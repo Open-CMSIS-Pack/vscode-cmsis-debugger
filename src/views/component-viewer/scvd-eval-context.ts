@@ -28,7 +28,6 @@ import { ScvdDebugTarget } from './scvd-debug-target';
 import { ScvdEvalInterface } from './scvd-eval-interface';
 import { parsePerf } from './stats-config';
 import { ExecutionCancellation } from './execution-cancellation';
-export { ExecutionCancellation } from './execution-cancellation';
 
 export interface ExecutionContext {
     memoryHost: MemoryHost;
