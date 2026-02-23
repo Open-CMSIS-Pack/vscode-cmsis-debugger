@@ -280,7 +280,8 @@ export class ComponentViewer {
 
     private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
         if(this._activeSession?.session.id !== session.session.id) {
-            throw new Error(`Component Viewer: Received refresh timer event for session ${session.session.id} while active session is ${this._activeSession?.session.id}`);
+            // Don't throw an error here, just return. Refresh timer events don't know about currently active session.
+            return;
         }
         if (this._refreshTimerEnabled) {
             // Update component viewer instance(s)
