@@ -164,7 +164,7 @@ jobs:
 
       - name: Create vsix package
         run: |
-          yarn package --target ${{ matrix.target }}
+          yarn run package --target ${{ matrix.target }} --yarn
 
       - name: Upload package
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
