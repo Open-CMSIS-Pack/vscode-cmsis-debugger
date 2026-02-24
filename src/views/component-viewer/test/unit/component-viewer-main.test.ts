@@ -25,7 +25,7 @@ import type { TargetState } from '../../../../debug-session/gdbtarget-debug-sess
 import { componentViewerLogger } from '../../../../logger';
 import { extensionContextFactory } from '../../../../__test__/vscode.factory';
 import { ComponentViewer, ComponentViewerInstancesWrapper, UpdateReason } from '../../component-viewer-main';
-import type { ComponentViewerTreeDataProvider } from '../../component-viewer-tree-view';
+import { ComponentViewerTreeDataProvider } from '../../component-viewer-tree-view';
 import type { ScvdGuiInterface } from '../../model/scvd-gui-interface';
 
 
@@ -33,6 +33,8 @@ const treeProviderFactory = jest.fn(() => ({
     setRoots: jest.fn(),
     clear: jest.fn(),
     refresh: jest.fn(),
+    onWillStopSession: jest.fn(),
+    setElementExpanded: jest.fn(),
 }));
 
 jest.mock('../../component-viewer-tree-view', () => ({
@@ -186,11 +188,14 @@ describe('ComponentViewer', () => {
         const activationResult = await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         expect(activationResult).toBe(true);
-        expect(vscode.window.registerTreeDataProvider).toHaveBeenCalledWith('cmsis-debugger.componentViewer', expect.any(Object));
+        expect(vscode.window.createTreeView).toHaveBeenCalledWith('cmsis-debugger.componentViewer', {
+            treeDataProvider: expect.any(Object),
+            showCollapseAll: true
+        });
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.lockComponent', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.unlockComponent', expect.any(Function));
-        // tree provider + 2 commands + 5 tracker disposables
-        expect(context.subscriptions.length).toBe(11);
+        // 1 tree view + 2 event listeners + 4 commands + 6 tracker disposables
+        expect(context.subscriptions.length).toBe(13);
     });
 
     it('should fail to activate the component viewer tree data provider if view is not correctly loaded', async () => {
