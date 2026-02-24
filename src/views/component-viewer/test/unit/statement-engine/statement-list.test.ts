@@ -297,4 +297,33 @@ describe('StatementList', () => {
 
         expect(child.executed).toBe(2);
     });
+
+    it('aborts a limit loop immediately when cancellation is active', async () => {
+        const base = new BaseContainer(undefined);
+        const variable = new ScvdVar(base);
+        variable.name = 'loop';
+        jest.spyOn(variable, 'getTargetSize').mockResolvedValue(4);
+        base.addSymbol('loop', variable);
+
+        const list = new ScvdList(undefined);
+        list.name = 'loop';
+        list.start = 'start';
+        list.limit = 'limit';
+        jest.spyOn(list.start!, 'getValue').mockResolvedValue(0);
+        jest.spyOn(list.limit!, 'getValue').mockResolvedValue(10);
+
+        const stmt = new StatementList(list, undefined);
+        const child = new CountingStatement(new TestNode(undefined), stmt);
+        const ctx = createExecutionContext(base);
+        ctx.cancellation.cancel('session ended');
+
+        const guiTree = new ScvdGuiTree(undefined);
+        const warnSpy = jest.spyOn(componentViewerLogger, 'warn').mockImplementation(() => undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        expect(child.executed).toBe(0);
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('aborted'));
+        warnSpy.mockRestore();
+    });
 });
