@@ -118,12 +118,13 @@ const makeGui = (options: TestGuiOptions): TestGui => ({
 });
 
 describe('ComponentViewerTreeDataProvider', () => {
+    let provider: ComponentViewerTreeDataProvider;
     beforeEach(() => {
         mockFire.mockClear();
+        provider = new ComponentViewerTreeDataProvider();
     });
 
     it('builds tree items with fallbacks and collapsible state', () => {
-        const provider = new ComponentViewerTreeDataProvider();
         const withChildren = makeGui({
             hasGuiChildren: () => true,
         });
@@ -155,7 +156,6 @@ describe('ComponentViewerTreeDataProvider', () => {
     });
 
     it('formats tooltip for name-only, value-only, and empty values', () => {
-        const provider = new ComponentViewerTreeDataProvider();
         const nameOnly = makeGui({ getGuiValue: () => undefined });
         const valueOnly = makeGui({ getGuiName: () => undefined });
         const emptyBoth = makeGui({ getGuiName: () => undefined, getGuiValue: () => undefined });
@@ -174,7 +174,6 @@ describe('ComponentViewerTreeDataProvider', () => {
     });
 
     it('assigns locked context values for root and child nodes', () => {
-        const provider = new ComponentViewerTreeDataProvider();
         const rootLocked = makeGui({ isRootInstance: true, isLocked: true });
         const childUnlocked = makeGui({ isRootInstance: false, isLocked: false });
 
@@ -186,7 +185,6 @@ describe('ComponentViewerTreeDataProvider', () => {
     });
 
     it('assigns lock icon for locked root nodes', () => {
-        const provider = new ComponentViewerTreeDataProvider();
         const rootLocked = makeGui({ isRootInstance: true, isLocked: true });
         const rootUnLocked = makeGui({ isRootInstance: true, isLocked: false });
 
@@ -200,7 +198,6 @@ describe('ComponentViewerTreeDataProvider', () => {
     });
 
     it('returns root children when no element is provided', async () => {
-        const provider = new ComponentViewerTreeDataProvider();
         const root = makeGui({});
         provider.setRoots([root]);
 
@@ -209,7 +206,6 @@ describe('ComponentViewerTreeDataProvider', () => {
     });
 
     it('defaults to empty roots when none are provided', async () => {
-        const provider = new ComponentViewerTreeDataProvider();
         provider.setRoots();
 
         expect(provider.getChildren()).toEqual([]);
@@ -217,7 +213,6 @@ describe('ComponentViewerTreeDataProvider', () => {
     });
 
     it('returns element children in order', async () => {
-        const provider = new ComponentViewerTreeDataProvider();
         const childA = makeGui({});
         const childB = makeGui({});
         const parent = makeGui({
@@ -228,7 +223,6 @@ describe('ComponentViewerTreeDataProvider', () => {
     });
 
     it('returns empty children when element has none', async () => {
-        const provider = new ComponentViewerTreeDataProvider();
         const parent = makeGui({
             getGuiChildren: () => undefined as unknown as ScvdGuiInterface[],
         });
@@ -237,8 +231,6 @@ describe('ComponentViewerTreeDataProvider', () => {
     });
 
     it('handles empty caches and no gui output', async () => {
-        const provider = new ComponentViewerTreeDataProvider();
-
         provider.setRoots([]);
         expect(mockFire).toHaveBeenCalledTimes(1);
         expect(provider.getChildren()).toEqual([]);
@@ -248,7 +240,6 @@ describe('ComponentViewerTreeDataProvider', () => {
     });
 
     it('clears models and refreshes', async () => {
-        const provider = new ComponentViewerTreeDataProvider();
         const root = makeGui({});
         provider.setRoots([root]);
         expect(mockFire).toHaveBeenCalledTimes(1);
@@ -256,5 +247,102 @@ describe('ComponentViewerTreeDataProvider', () => {
         provider.clear();
         expect(mockFire).toHaveBeenCalledTimes(2);
         expect(provider.getChildren()).toEqual([]);
+    });
+
+    it('updates expanded state for GUI element with children and gets the correct tree item', () => {
+        const root = makeGui({
+            getGuiId: () => 'session1/root',
+            hasGuiChildren: () => true,
+        });
+        provider.setRoots([root]);
+
+        let treeItem: vscode.TreeItem;
+
+        // Initially collapsed
+        treeItem = provider.getTreeItem(root);
+        expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
+
+        // Expand element
+        provider.setElementExpanded(root, true);
+        treeItem = provider.getTreeItem(root);
+        expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+
+        // Collapse element again
+        provider.setElementExpanded(root, false);
+        treeItem = provider.getTreeItem(root);
+        expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
+    });
+
+    it('keeps non state for GUI element without children and gets the correct tree item', () => {
+        const root = makeGui({
+            getGuiId: () => 'session1/root',
+            hasGuiChildren: () => false,
+        });
+        provider.setRoots([root]);
+
+        let treeItem: vscode.TreeItem;
+
+        // Initially collapsed
+        treeItem = provider.getTreeItem(root);
+        expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.None);
+
+        // Send expand element
+        provider.setElementExpanded(root, true);
+        treeItem = provider.getTreeItem(root);
+        expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.None);
+
+        // Collapse element again
+        provider.setElementExpanded(root, false);
+        treeItem = provider.getTreeItem(root);
+        expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.None);
+    });
+
+    it('clears expand state on session end', () => {
+        const root = makeGui({
+            getGuiId: () => 'session1/root',
+            hasGuiChildren: () => true,
+        });
+        provider.setRoots([root]);
+
+        let treeItem: vscode.TreeItem;
+
+        // Initially collapsed
+        treeItem = provider.getTreeItem(root);
+        expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
+
+        // Send expand element
+        provider.setElementExpanded(root, true);
+        treeItem = provider.getTreeItem(root);
+        expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+
+        // End session, item should be removed from expanded state list and hence "show" as collapsed
+        provider.onWillStopSession('session1');
+        treeItem = provider.getTreeItem(root);
+        expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
+    });
+
+    it('removes expand state if element loses children and gets them back (e.g. in a dynamic thread list)', () => {
+        const root = makeGui({
+            getGuiId: () => 'session1/root',
+            hasGuiChildren: () => true,
+        });
+        provider.setRoots([root]);
+
+        let treeItem: vscode.TreeItem;
+
+        // Send expand element
+        provider.setElementExpanded(root, true);
+        treeItem = provider.getTreeItem(root);
+        expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+
+        // Simulate element lost children
+        root.hasGuiChildren = () => false;
+        treeItem = provider.getTreeItem(root);
+        expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.None);
+
+        // Simulate element gets new children, state is back to collapsed
+        root.hasGuiChildren = () => true;
+        treeItem = provider.getTreeItem(root);
+        expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
     });
 });

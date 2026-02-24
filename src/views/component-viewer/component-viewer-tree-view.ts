@@ -24,17 +24,46 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     private readonly _onDidChangeTreeData = new vscode.EventEmitter<ScvdGuiInterface | void>();
     public readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
     private _roots: ScvdGuiInterface[] = [];
+    private _expandedIds: string[] = [];
 
     constructor () {
+    }
+
+    public onWillStopSession(sessionId: string): void {
+        // Filter expanded elements by session ID encoded into unique GUI ID.
+        this._expandedIds = this._expandedIds.filter(expandedId => !expandedId.startsWith(sessionId + '/'));
+    }
+
+    public setElementExpanded(element: ScvdGuiInterface, expanded: boolean): void {
+        const hasChildren = element.hasGuiChildren();
+        const elementId = element.getGuiId();
+        if (elementId === undefined) {
+            return;
+        }
+        const wasExpanded = this._expandedIds.find(expandedId => expandedId === elementId);
+        if (hasChildren && expanded && wasExpanded === undefined) {
+            this._expandedIds.push(elementId);
+            return;
+        } else if (wasExpanded) {
+            this._expandedIds = this._expandedIds.filter(expandedId => expandedId !== elementId);
+        }
     }
 
     public getTreeItem(element: ScvdGuiInterface): vscode.TreeItem {
         const perfStartTime = perf?.startUi() ?? 0;
         const treeItemLabel = element.getGuiName() ?? 'UNKNOWN';
+        const guiId = element.getGuiId();
         const treeItem = new vscode.TreeItem(treeItemLabel);
-        treeItem.collapsibleState = element.hasGuiChildren()
-            ? vscode.TreeItemCollapsibleState.Collapsed
-            : vscode.TreeItemCollapsibleState.None;
+        const hasChildren = element.hasGuiChildren();
+        const wasExpanded = this._expandedIds.find(expandedId => expandedId === guiId);
+        if (hasChildren) {
+            treeItem.collapsibleState = wasExpanded ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
+        } else {
+            treeItem.collapsibleState = vscode.TreeItemCollapsibleState.None;
+            if (wasExpanded) {
+                this._expandedIds = this._expandedIds.filter(expandedId => expandedId !== guiId);
+            }
+        }
         // Needs fixing, getGuiValue() for ScvdNode returns 0 when undefined
         treeItem.description = element.getGuiValue() ?? '';
         let intermediateContextValue = '';
@@ -46,7 +75,6 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         }
 
         treeItem.contextValue = element.isLocked ? `locked.${intermediateContextValue}` : intermediateContextValue;
-        const guiId = element.getGuiId();
         if (guiId !== undefined) {
             treeItem.id = guiId;
         }

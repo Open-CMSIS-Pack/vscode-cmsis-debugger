@@ -25,7 +25,7 @@ import type { TargetState } from '../../../../debug-session/gdbtarget-debug-sess
 import { componentViewerLogger } from '../../../../logger';
 import { extensionContextFactory } from '../../../../__test__/vscode.factory';
 import { ComponentViewer, ComponentViewerInstancesWrapper, UpdateReason } from '../../component-viewer-main';
-import type { ComponentViewerTreeDataProvider } from '../../component-viewer-tree-view';
+import { ComponentViewerTreeDataProvider } from '../../component-viewer-tree-view';
 import type { ScvdGuiInterface } from '../../model/scvd-gui-interface';
 
 
@@ -33,6 +33,8 @@ const treeProviderFactory = jest.fn(() => ({
     setRoots: jest.fn(),
     clear: jest.fn(),
     refresh: jest.fn(),
+    onWillStopSession: jest.fn(),
+    setElementExpanded: jest.fn(),
 }));
 
 jest.mock('../../component-viewer-tree-view', () => ({
@@ -85,11 +87,14 @@ const getRunUpdate = (controller: ComponentViewer) =>
 
 // Local test mocks
 
+type OnRefreshCallback = (session: Session) => void;
+type ExpansionEventCallback = (event: vscode.TreeViewExpansionEvent<ScvdGuiInterface>) => void;
+
 type Session = {
     session: { id: string };
     getCbuildRun: () => Promise<{ getScvdFilePaths: () => string[] } | undefined>;
     getPname: () => Promise<string | undefined>;
-    refreshTimer: { onRefresh: (cb: (session: Session) => void) => void };
+    refreshTimer: { onRefresh: (cb: OnRefreshCallback) => void };
     targetState?: TargetState;
     canAccessWhileRunning?: boolean;
 };
@@ -186,11 +191,14 @@ describe('ComponentViewer', () => {
         const activationResult = await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         expect(activationResult).toBe(true);
-        expect(vscode.window.registerTreeDataProvider).toHaveBeenCalledWith('cmsis-debugger.componentViewer', expect.any(Object));
+        expect(vscode.window.createTreeView).toHaveBeenCalledWith('cmsis-debugger.componentViewer', {
+            treeDataProvider: expect.any(Object),
+            showCollapseAll: true
+        });
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.lockComponent', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.unlockComponent', expect.any(Function));
-        // tree provider + 2 commands + 5 tracker disposables
-        expect(context.subscriptions.length).toBe(11);
+        // 1 tree view + 2 event listeners + 4 commands + 6 tracker disposables
+        expect(context.subscriptions.length).toBe(13);
     });
 
     it('should fail to activate the component viewer tree data provider if view is not correctly loaded', async () => {
@@ -827,4 +835,72 @@ describe('ComponentViewer', () => {
         expect(shouldUpdateInstances(session)).toBe(true);
     });
 
+    it('silently skips periodic refresh if event comes for session not in front', async () => {
+        // Set up component viewer parts
+        const controller = createController();
+        const tracker = makeTracker();
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        // Set up two sessions
+        const sessionFront = makeSession('s1', [], 'running');
+        const sessionOther = makeSession('s2', [], 'running');
+        (sessionFront as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = true;
+        (sessionOther as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = true;
+
+        //Set up spy on schedulePendingUpdate to verify whether updates are scheduled from the refresh callbacks
+        const schedulePendingUpdateSpy = jest.spyOn((controller as unknown as { schedulePendingUpdate: (reason: UpdateReason) => void }), 'schedulePendingUpdate');
+
+        // Capture refresh callbacks for both sessions to fire refreshs manually in the test
+        let sessionFrontRefreshCallback: OnRefreshCallback;
+        let sessionOtherRefreshCallback: OnRefreshCallback;
+        sessionFront.refreshTimer.onRefresh = (callback => sessionFrontRefreshCallback = callback);
+        sessionOther.refreshTimer.onRefresh = (callback => sessionOtherRefreshCallback = callback);
+
+        await tracker.callbacks.willStart?.(sessionFront);
+        await tracker.callbacks.willStart?.(sessionOther);
+        expect(sessionFrontRefreshCallback!).toBeDefined();
+        expect(sessionOtherRefreshCallback!).toBeDefined();
+
+        // Bring sessionFront to the front, fire refresh on other session.
+        tracker.callbacks.activeSession?.(sessionFront);
+        sessionOtherRefreshCallback!(sessionOther);
+        // No update gets scheduled
+        expect(schedulePendingUpdateSpy).not.toHaveBeenCalled();
+        // Fire refresh on front session, update gets scheduled
+        sessionFrontRefreshCallback!(sessionFront);
+        expect(schedulePendingUpdateSpy).toHaveBeenCalledWith('refreshTimer');
+
+    });
+
+    it('handles onDidExpandElement and onDidCollapseElement correctly', async () => {
+        // Capture callbacks for onDidExpandElement and onDidCollapseElement to invoke them manually in the test
+        let expandCallback: ExpansionEventCallback;
+        let collapseCallback: ExpansionEventCallback;
+        (vscode.window.createTreeView as jest.Mock).mockReturnValueOnce({
+            onDidExpandElement: jest.fn(callback => expandCallback = callback),
+            onDidCollapseElement: jest.fn(callback => collapseCallback = callback),
+        });
+
+        // Set up component viewer parts
+        const controller = createController();
+        const tracker = makeTracker();
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        // Ensure callbacks are set
+        expect(expandCallback!).toBeDefined();
+        expect(collapseCallback!).toBeDefined();
+
+        // Setup spy on expected method calls when elements are expanded/collapsed
+        const provider = controller as unknown as { _componentViewerTreeDataProvider: ComponentViewerTreeDataProvider };
+        const setElementExpandedSpy = jest.spyOn(provider._componentViewerTreeDataProvider, 'setElementExpanded');
+
+        // Simulate expanding an element
+        const element = makeGuiNode('element');
+        expandCallback!({ element });
+        expect(setElementExpandedSpy).toHaveBeenCalledWith(element, true);
+
+        // Simulate collapsing the same element
+        collapseCallback!({ element });
+        expect(setElementExpandedSpy).toHaveBeenCalledWith(element, false);
+    });
 });
