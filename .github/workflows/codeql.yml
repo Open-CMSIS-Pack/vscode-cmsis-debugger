@@ -4,27 +4,23 @@ on:
   pull_request:
     branches:
       - main
-    paths:
-      - '**/*'
-      - '!**/*.md'
-      - '!LICENSE*'
-      - '!.github/Issue_Template/*'
-      - '!.github/workflows/markdown.yml'
-      - '!.github/markdownlint.json'
-      - '!.github/markdownlint.jsonc'
-      - '!.github/workflows/nightly.yml'
+    paths-ignore:
+      - '**/*.md'
+      - '.github/workflows/markdown.yml'
+      - '.github/markdownlint.json'
+      - '.github/markdownlint.jsonc'
+      - '.github/workflows/nightly.yml'
+      - '.github/ISSUE_TEMPLATE/**'
   push:
     branches:
       - main
-    paths:
-      - '**/*'
-      - '!**/*.md'
-      - '!LICENSE*'
-      - '!.github/Issue_Template/*'
-      - '!.github/workflows/markdown.yml'
-      - '!.github/markdownlint.json'
-      - '!.github/markdownlint.jsonc'
-      - '!.github/workflows/nightly.yml'
+    paths-ignore:
+      - '**/*.md'
+      - '.github/workflows/markdown.yml'
+      - '.github/markdownlint.json'
+      - '.github/markdownlint.jsonc'
+      - '.github/workflows/nightly.yml'
+      - '.github/ISSUE_TEMPLATE/**'
 
 permissions:
   contents: read
