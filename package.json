@@ -67,8 +67,8 @@
           "icon": "media/trace-and-live-light.svg"
         },
         {
-          "id": "cmsis-debugger.corePeripheralViewer",
-          "name": "Core Peripheral Viewer",
+          "id": "cmsis-debugger.corePeripherals",
+          "name": "Core Peripherals",
           "icon": "media/trace-and-live-light.svg"
         }
       ]
@@ -172,26 +172,26 @@
         "category": "Component Viewer"
       },
       {
-        "command": "vscode-cmsis-debugger.corePeripheralViewer.lockComponent",
+        "command": "vscode-cmsis-debugger.corePeripherals.lockComponent",
         "title": "Lock Component",
         "icon": "$(unlock)",
-        "category": "Core Peripheral Viewer"
+        "category": "Core Peripherals"
       },
       {
-        "command": "vscode-cmsis-debugger.corePeripheralViewer.unlockComponent",
+        "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
         "title": "Unlock Component",
         "icon": "$(lock)",
-        "category": "Core Peripheral Viewer"
+        "category": "Core Peripherals"
       },
       {
-        "command": "vscode-cmsis-debugger.corePeripheralViewer.enablePeriodicUpdate",
+        "command": "vscode-cmsis-debugger.corePeripherals.enablePeriodicUpdate",
         "title": "Enable Periodic Update",
-        "category": "Core Peripheral Viewer"
+        "category": "Core Peripherals"
       },
       {
-        "command": "vscode-cmsis-debugger.corePeripheralViewer.disablePeriodicUpdate",
+        "command": "vscode-cmsis-debugger.corePeripherals.disablePeriodicUpdate",
         "title": "Disable Periodic Update",
-        "category": "Core Peripheral Viewer"
+        "category": "Core Peripherals"
       }
     ],
     "menus": {
@@ -293,19 +293,19 @@
           "when": "true"
         },
         {
-          "command": "vscode-cmsis-debugger.corePeripheralViewer.lockComponent",
+          "command": "vscode-cmsis-debugger.corePeripherals.lockComponent",
           "when": "false"
         },
         {
-          "command": "vscode-cmsis-debugger.corePeripheralViewer.unlockComponent",
+          "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
           "when": "false"
         },
         {
-          "command": "vscode-cmsis-debugger.corePeripheralViewer.enablePeriodicUpdate",
+          "command": "vscode-cmsis-debugger.corePeripherals.enablePeriodicUpdate",
           "when": "true"
         },
         {
-          "command": "vscode-cmsis-debugger.corePeripheralViewer.disablePeriodicUpdate",
+          "command": "vscode-cmsis-debugger.corePeripherals.disablePeriodicUpdate",
           "when": "true"
         }
       ],
@@ -395,13 +395,13 @@
           "group": "inline@2"
         },
         {
-          "command": "vscode-cmsis-debugger.corePeripheralViewer.lockComponent",
-          "when": "view == cmsis-debugger.corePeripheralViewer && viewItem == parentInstance",
+          "command": "vscode-cmsis-debugger.corePeripherals.lockComponent",
+          "when": "view == cmsis-debugger.corePeripherals && viewItem == parentInstance",
           "group": "inline@1"
         },
         {
-          "command": "vscode-cmsis-debugger.corePeripheralViewer.unlockComponent",
-          "when": "view == cmsis-debugger.corePeripheralViewer && viewItem == locked.parentInstance",
+          "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
+          "when": "view == cmsis-debugger.corePeripherals && viewItem == locked.parentInstance",
           "group": "inline@2"
         }
       ]

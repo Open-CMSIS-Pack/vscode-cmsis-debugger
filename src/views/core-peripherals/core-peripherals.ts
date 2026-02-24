@@ -23,14 +23,14 @@ import { GDBTargetDebugSession } from '../../debug-session';
 import { promisify } from 'util';
 
 // Relative to dist folder at runtime
-const CORE_PERIPHERAL_SCVD_BASE = path.join(__dirname, '..', 'configs', 'core-peripheral-viewer');
+const CORE_PERIPHERAL_SCVD_BASE = path.join(__dirname, '..', 'configs', 'core-peripherals');
 
-export class CorePeripheralViewer extends ComponentViewerBase {
+export class CorePeripherals extends ComponentViewerBase {
     public constructor(
         context: vscode.ExtensionContext,
         componentViewerTreeDataProvider: ComponentViewerTreeDataProvider
     ) {
-        super(context, componentViewerTreeDataProvider, 'Core Peripheral Viewer', 'corePeripheralViewer');
+        super(context, componentViewerTreeDataProvider, 'Core Peripherals', 'corePeripherals');
     }
 
     protected override async getScvdFilePaths(_session: GDBTargetDebugSession): Promise<string[]> {
