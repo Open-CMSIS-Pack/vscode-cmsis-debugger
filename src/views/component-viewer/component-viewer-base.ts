@@ -59,13 +59,13 @@ export class ComponentViewerBase {
 
     public async activate(tracker: GDBTargetDebugTracker): Promise<boolean> {
         // Register Component Viewer tree view
-        logger.debug('Activating Component Viewer Tree View and commands');
+        logger.debug(`Activating ${this._viewName} Tree View and commands`);
         if (!await this.registerTreeView()) {
-            logger.error('Component Viewer: Component Viewer cannot be registered, abort activation');
+            logger.error(`${this._viewName}: ${this._viewName} cannot be registered, abort activation`);
             return false;
         }
         // Subscribe to debug tracker events to update active session
-        componentViewerLogger.debug('Subscribing to debug tracker events');
+        componentViewerLogger.debug(`${this._viewName}: Subscribing to debug tracker events`);
         this.subscribetoDebugTrackerEvents(tracker);
         return true;
     }
@@ -83,7 +83,7 @@ export class ComponentViewerBase {
         componentViewerLogger.debug(`${this._viewName}: Created ${this._viewName} tree view with id: ${fullViewId}`);
         const onDidExpandElementDisposable = treeView.onDidExpandElement(event => this.handleOnDidToggleExpand(event, true));
         const onDidCollapseElementDisposable = treeView.onDidCollapseElement(event => this.handleOnDidToggleExpand(event, false));
-        const lockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.lockComponent', async (node) => {
+        const lockInstanceCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.lockComponent`, async (node) => {
             this.handleLockInstance(node);
         });
         const unlockInstanceCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.unlockComponent`, async (node) => {
@@ -112,7 +112,7 @@ export class ComponentViewerBase {
     protected handleOnDidToggleExpand(expansionEvent: vscode.TreeViewExpansionEvent<ScvdGuiInterface>, expand: boolean): void {
         const expandStateString = expand ? 'expanded' : 'collapsed';
         const elementName = expansionEvent.element.getGuiName() ?? 'unknown';
-        componentViewerLogger.debug(`Component Viewer: Tree item ${expandStateString} - ${elementName}`);
+        componentViewerLogger.debug(`${this._viewName}: Tree item ${expandStateString} - ${elementName}`);
         this._componentViewerTreeDataProvider.setElementExpanded(expansionEvent.element, expand);
     }
 
@@ -197,7 +197,7 @@ export class ComponentViewerBase {
 
     private async loadScvdFiles(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker) : Promise<void | undefined> {
         this._loadingCounter++;
-        componentViewerLogger.debug(`Loading SCVD files, attempt #${this._loadingCounter}`);
+        componentViewerLogger.debug(`${this._viewName}: Loading SCVD files, attempt #${this._loadingCounter}`);
         // Try to read SCVD files
         await this.readScvdFiles(tracker, session);
         // Are there any SCVD files found and loaded?
