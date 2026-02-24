@@ -68,8 +68,13 @@ export class ComponentViewer {
         if (!await vscodeViewExists('componentViewer')) {
             return false;
         }
-        const treeProviderDisposable = vscode.window.registerTreeDataProvider('cmsis-debugger.componentViewer', this._componentViewerTreeDataProvider);
-        componentViewerLogger.debug('Component Viewer: Registered tree data provider for Component Viewer Tree View id: cmsis-debugger.componentViewer');
+        const treeView = vscode.window.createTreeView('cmsis-debugger.componentViewer', {
+            treeDataProvider: this._componentViewerTreeDataProvider,
+            showCollapseAll: true
+        });
+        componentViewerLogger.debug('Component Viewer: Created Component Viewer tree view: cmsis-debugger.componentViewer');
+        const onDidExpandElementDisposable = treeView.onDidExpandElement(event => this.handleOnDidToggleExpand(event, true));
+        const onDidCollapseElementDisposable = treeView.onDidCollapseElement(event => this.handleOnDidToggleExpand(event, false));
         const lockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.lockComponent', async (node) => {
             this.handleLockInstance(node);
         });
@@ -85,13 +90,22 @@ export class ComponentViewer {
             componentViewerLogger.info('Component Viewer: Auto refresh disabled');
         });
         this._context.subscriptions.push(
-            treeProviderDisposable,
+            treeView,
+            onDidExpandElementDisposable,
+            onDidCollapseElementDisposable,
             lockInstanceCommandDisposable,
             unlockInstanceCommandDisposable,
             enablePeriodicUpdateCommandDisposable,
             disablePeriodicUpdateCommandDisposable
         );
         return true;
+    }
+
+    protected handleOnDidToggleExpand(expansionEvent: vscode.TreeViewExpansionEvent<ScvdGuiInterface>, expand: boolean): void {
+        const expandStateString = expand ? 'expanded' : 'collapsed';
+        const elementName = expansionEvent.element.getGuiName() ?? 'unknown';
+        componentViewerLogger.debug(`Component Viewer: Tree item ${expandStateString} - ${elementName}`);
+        this._componentViewerTreeDataProvider.setElementExpanded(expansionEvent.element, expand);
     }
 
     protected handleLockInstance(node: ScvdGuiInterface): void {
@@ -249,6 +263,7 @@ export class ComponentViewer {
             return true;
         });
         this.schedulePendingUpdate('sessionChanged');
+        this._componentViewerTreeDataProvider.onWillStopSession(session.session.id);
     }
 
     private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
@@ -265,7 +280,8 @@ export class ComponentViewer {
 
     private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
         if(this._activeSession?.session.id !== session.session.id) {
-            throw new Error(`Component Viewer: Received refresh timer event for session ${session.session.id} while active session is ${this._activeSession?.session.id}`);
+            // Don't throw an error here, just return. Refresh timer events don't know about currently active session.
+            return;
         }
         if (this._refreshTimerEnabled) {
             // Update component viewer instance(s)
