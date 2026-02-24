@@ -35,10 +35,12 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     }
 
     public setElementExpanded(element: ScvdGuiInterface, expanded: boolean): void {
+        const hasChildren = element.hasGuiChildren();
         const wasExpanded = this._expanded.find(expandedElement => expandedElement.getGuiId() === element.getGuiId());
-        if (expanded && !wasExpanded) {
+        if (hasChildren && expanded && !wasExpanded) {
             this._expanded.push(element);
-        } else if (!expanded && wasExpanded) {
+            return;
+        } else if (wasExpanded) {
             this._expanded = this._expanded.filter(expandedElement => expandedElement.getGuiId() !== element.getGuiId());
         }
     }
