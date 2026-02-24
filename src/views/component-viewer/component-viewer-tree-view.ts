@@ -29,6 +29,11 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     constructor () {
     }
 
+    public onWillStopSession(sessionId: string): void {
+        // Filter expanded elements by session ID encoded into unique GUI ID.
+        this._expanded = this._expanded.filter(expandedElement => !expandedElement.getGuiId()?.startsWith(sessionId));
+    }
+
     public setElementExpanded(element: ScvdGuiInterface, expanded: boolean): void {
         const wasExpanded = this._expanded.find(expandedElement => expandedElement.getGuiId() === element.getGuiId());
         if (expanded && !wasExpanded) {
@@ -36,11 +41,6 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         } else if (!expanded && wasExpanded) {
             this._expanded = this._expanded.filter(expandedElement => expandedElement.getGuiId() !== element.getGuiId());
         }
-    }
-
-    public onWillStopSession(sessionId: string): void {
-        // Filter expanded elements by session ID encoded into unique GUI ID.
-        this._expanded = this._expanded.filter(expandedElement => !expandedElement.getGuiId()?.startsWith(sessionId));
     }
 
     public getTreeItem(element: ScvdGuiInterface): vscode.TreeItem {
