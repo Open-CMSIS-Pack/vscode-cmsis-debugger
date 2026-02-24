@@ -58,6 +58,25 @@ Supported `<target>`s are:
     > yarn package [--target <target>]
     ```
 
+## Release versioning
+
+This repository follows the VS Code Marketplace pre-release recommendation:
+
+- **Odd** minor versions (`x.1.z`, `x.3.z`, ...) are pre-releases.
+- **Even** minor versions (`x.0.z`, `x.2.z`, ...) are full releases.
+
+To enforce this consistently, both packaging and publishing use `scripts/vsce-release.js`, which:
+
+- checks the current `package.json` version minor value.
+- automatically adds `--pre-release` to `vsce package` and `vsce publish` for odd minor versions.
+
+Use the following commands:
+
+```sh
+> yarn package [--target <target>]
+> yarn publish [--target <target>]
+```
+
 ## Developing
 
 1. If you are developing and debugging this extension, we recommend you run the following command
