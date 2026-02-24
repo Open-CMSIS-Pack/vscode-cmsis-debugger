@@ -29,26 +29,10 @@ import { Resolver } from '../../resolver';
 import { ScvdEvalContext } from '../../scvd-eval-context';
 import { StatementEngine } from '../../statement-engine/statement-engine';
 import { ScvdGuiTree } from '../../scvd-gui-tree';
-import type { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../../../debug-session';
+import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../../../debug-session';
 import { componentViewerLogger } from '../../../../logger';
-
-jest.mock('vscode', () => ({
-    workspace: {
-        fs: {
-            readFile: jest.fn(),
-        },
-    },
-    window: {
-        createOutputChannel: jest.fn(() => ({
-            appendLine: jest.fn(),
-            trace: jest.fn(),
-            debug: jest.fn(),
-            info: jest.fn(),
-            warn: jest.fn(),
-            error: jest.fn(),
-        })),
-    },
-}));
+import { debugSessionFactory } from '../../../../__test__/vscode.factory';
+import { gdbTargetConfiguration } from '../../../../debug-configuration/debug-configuration.factory';
 
 jest.mock('xml2js', () => ({
     parseStringPromise: jest.fn(),
@@ -75,8 +59,15 @@ jest.mock('../../scvd-gui-tree', () => ({
 }));
 
 describe('ComponentViewerInstance', () => {
+    let debugSession: GDBTargetDebugSession;
+    let debugTracker: GDBTargetDebugTracker;
+    let instance: ComponentViewerInstance;
+
     beforeEach(() => {
         jest.clearAllMocks();
+        debugSession = new GDBTargetDebugSession(debugSessionFactory(gdbTargetConfiguration(), 'test-session-id'));
+        debugTracker = new GDBTargetDebugTracker();
+        instance = new ComponentViewerInstance();
     });
 
     it('reads a model, initializes the engine, and updates', async () => {
@@ -130,9 +121,6 @@ describe('ComponentViewerInstance', () => {
             setGuiName,
         }));
 
-        const instance = new ComponentViewerInstance();
-        const debugSession = {} as unknown as GDBTargetDebugSession;
-        const debugTracker = {} as unknown as GDBTargetDebugTracker;
         await instance.readModel(URI.file('/tmp/example.scvd'), debugSession, debugTracker);
 
         expect(readXml).toHaveBeenCalled();
@@ -160,7 +148,6 @@ describe('ComponentViewerInstance', () => {
 
     it('skips update and executeStatements when dependencies are missing', async () => {
         const consoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
-        const instance = new ComponentViewerInstance();
 
         expect(instance.getGuiTree()).toBeUndefined();
         await instance.update();
@@ -177,8 +164,7 @@ describe('ComponentViewerInstance', () => {
         readFileMock.mockResolvedValue(Buffer.from('<root/>'));
         parseStringMock.mockRejectedValue(new Error('parse failed'));
 
-        const instance = new ComponentViewerInstance();
-        await instance.readModel(URI.file('/tmp/invalid.scvd'), {} as unknown as GDBTargetDebugSession, {} as unknown as GDBTargetDebugTracker);
+        await instance.readModel(URI.file('/tmp/invalid.scvd'), debugSession, debugTracker);
 
         expect(consoleError).toHaveBeenCalled();
         consoleError.mockRestore();
@@ -199,12 +185,11 @@ describe('ComponentViewerInstance', () => {
             calculateTypedefs: jest.fn(),
         }));
 
-        const instance = new ComponentViewerInstance();
         const modelGetter = jest
             .spyOn(instance as unknown as { model: ScvdComponentViewer | undefined }, 'model', 'get')
             .mockReturnValue(undefined);
 
-        await instance.readModel(URI.file('/tmp/model.scvd'), {} as unknown as GDBTargetDebugSession, {} as unknown as GDBTargetDebugTracker);
+        await instance.readModel(URI.file('/tmp/model.scvd'), debugSession, debugTracker);
 
         expect(consoleError).toHaveBeenCalledWith('Failed to create SCVD model');
 
@@ -233,8 +218,7 @@ describe('ComponentViewerInstance', () => {
             getExecutionContext: jest.fn().mockReturnValue(undefined),
         }));
 
-        const instance = new ComponentViewerInstance();
-        await instance.readModel(URI.file('/tmp/no-exec.scvd'), {} as unknown as GDBTargetDebugSession, {} as unknown as GDBTargetDebugTracker);
+        await instance.readModel(URI.file('/tmp/no-exec.scvd'), debugSession, debugTracker);
 
         expect(consoleError).toHaveBeenCalledWith('Failed to get execution context from SCVD EvalContext');
         consoleError.mockRestore();
@@ -245,7 +229,6 @@ describe('ComponentViewerInstance', () => {
         const consoleError = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
 
         readFileMock.mockRejectedValue(new Error('read failed'));
-        const instance = new ComponentViewerInstance();
         const instanceWithReader = instance as unknown as { readFileToBuffer: (filePath: URI) => Promise<Buffer> };
         await expect(instanceWithReader.readFileToBuffer(URI.file('/tmp/missing'))).rejects.toThrow('read failed');
 
@@ -254,7 +237,6 @@ describe('ComponentViewerInstance', () => {
     });
 
     it('injects line numbers and reports stats twice', () => {
-        const instance = new ComponentViewerInstance();
         const injectLineNumbers = (instance as unknown as { injectLineNumbers: (xml: string) => string }).injectLineNumbers;
         const tagged = injectLineNumbers('<root>\n<child/>\n</root>');
 
@@ -306,13 +288,11 @@ describe('ComponentViewerInstance', () => {
     });
 
     it('cancelExecution is a no-op when the context is not initialised', () => {
-        const instance = new ComponentViewerInstance();
         expect(() => instance.cancelExecution('test')).not.toThrow();
     });
 
     it('cancelExecution delegates to scvdEvalContext cancellation', () => {
         const cancelMock = jest.fn();
-        const instance = new ComponentViewerInstance();
         (instance as unknown as { _scvdEvalContext: { cancellation: { cancel: jest.Mock } } | undefined })._scvdEvalContext = {
             cancellation: { cancel: cancelMock },
         };

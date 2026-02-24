@@ -51,6 +51,7 @@ export class ComponentViewerInstance {
     private _statementEngine: StatementEngine | undefined;
     private _guiTree: ScvdGuiTree | undefined;
     private _fileKey: string | undefined;
+    private _instanceKey: string | undefined;
     private _scvdEvalContext: ScvdEvalContext | undefined;
 
     public constructor(
@@ -107,6 +108,7 @@ export class ComponentViewerInstance {
     public async readModel(filename: URI, debugSession: GDBTargetDebugSession, debugTracker: GDBTargetDebugTracker): Promise<void> {
         const stats: string[] = [];
         this._fileKey = ComponentViewerInstance.getFileKey(filename);
+        this._instanceKey = `${debugSession.session.id}/${this._fileKey}`;
 
         stats.push(this.getStats(`  Start reading SCVD file ${filename}`));
         const buf = (await this.readFileToBuffer(filename)).toString('utf-8');
@@ -158,7 +160,7 @@ export class ComponentViewerInstance {
         this.statementEngine.initialize();
         stats.push(this.getStats('  statementEngine.initialize'));
         this._guiTree = new ScvdGuiTree(undefined);
-        this._guiTree.setId(this._fileKey);
+        this._guiTree.setId(this._instanceKey);
         this._guiTree.setGuiName('component-viewer-root');
 
         componentViewerLogger.info(`ComponentViewerInstance readModel stats:\n  ${stats.join('\n  ')}`);
