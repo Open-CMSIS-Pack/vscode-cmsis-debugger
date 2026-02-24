@@ -32,7 +32,7 @@ if (!allowedCommands.has(command)) {
 }
 
 const passthroughArgs = process.argv.slice(3);
-const args = [command, '--yarn', ...passthroughArgs];
+const args = [command, ...passthroughArgs];
 
 if (isPreReleaseChannel) {
   args.push('--pre-release');

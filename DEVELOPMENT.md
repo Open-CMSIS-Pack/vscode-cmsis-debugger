@@ -73,8 +73,8 @@ To enforce this consistently, both packaging and publishing use `scripts/vsce-re
 Use the following commands:
 
 ```sh
-> yarn package [--target <target>]
-> yarn publish [--target <target>]
+> yarn run package [--target <target>]
+> yarn run publish [--target <target>]
 ```
 
 ## Developing
