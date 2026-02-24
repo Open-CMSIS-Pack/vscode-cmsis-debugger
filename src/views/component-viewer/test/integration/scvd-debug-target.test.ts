@@ -20,7 +20,7 @@
  */
 
 import { componentViewerLogger } from '../../../../logger';
-import { ScvdDebugTarget, gdbNameFor, __test__ } from '../../scvd-debug-target';
+import { ScvdDebugTarget, gdbNameFor, toGdbSymbol, __test__ } from '../../scvd-debug-target';
 import { TargetReadCache } from '../../target-read-cache';
 import type { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../../../debug-session';
 
@@ -72,6 +72,15 @@ describe('scvd-debug-target', () => {
         expect(gdbNameFor(' r0 ')).toBe('r0');
         expect(gdbNameFor('MSP_s')).toBe('msp_s');
         expect(gdbNameFor('unknown')).toBeUndefined();
+    });
+
+    it('converts symbol path notation to GDB qualified syntax', () => {
+        expect(toGdbSymbol('tasks.c/xSchedulerRunning')).toBe('\'tasks.c\'::xSchedulerRunning');
+        expect(toGdbSymbol('main.c/myGlobal')).toBe('\'main.c\'::myGlobal');
+        expect(toGdbSymbol('xSchedulerRunning')).toBe('xSchedulerRunning');
+        expect(toGdbSymbol('/noFile')).toBe('/noFile');
+        expect(toGdbSymbol('noSymbol/')).toBe('noSymbol/');
+        expect(toGdbSymbol('')).toBe('');
     });
 
     it('resolves symbol info when session is active', async () => {
@@ -290,6 +299,12 @@ describe('scvd-debug-target', () => {
 
         accessMock.evaluateRegisterValue.mockResolvedValue(undefined);
         await expect(target.readRegister('r0')).resolves.toBeUndefined();
+
+        // NaN from unparseable response should return undefined, not 0
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
+        accessMock.evaluateRegisterValue.mockResolvedValue('not_a_number');
+        await expect(target.readRegister('r0')).resolves.toBeUndefined();
+        errorSpy.mockRestore();
 
         // Bigint toUint32 helper
         expect(__test__.toUint32(0x1_0000_0000n)).toBe(0n);

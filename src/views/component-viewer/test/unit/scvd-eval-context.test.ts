@@ -20,6 +20,7 @@
  */
 
 import { ScvdEvalContext } from '../../scvd-eval-context';
+import { ExecutionCancellation } from '../../execution-cancellation';
 import { ScvdComponentViewer } from '../../model/scvd-component-viewer';
 import { ScvdObjects } from '../../model/scvd-object';
 import type { ScvdNode } from '../../model/scvd-node';
@@ -145,6 +146,12 @@ describe('ScvdEvalContext', () => {
         expect(ctxAny._integerModelKind).toBe(prevKind);
         expect(parserSpy).not.toHaveBeenCalled();
         expect(evaluatorSpy).not.toHaveBeenCalled();
+    });
+
+    it('exposes cancellation instance', () => {
+        const { viewer } = buildViewerWithObject();
+        const ctx = new ScvdEvalContext(viewer);
+        expect(ctx.cancellation).toBeInstanceOf(ExecutionCancellation);
     });
 });
 

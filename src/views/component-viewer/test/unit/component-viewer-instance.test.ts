@@ -304,4 +304,19 @@ describe('ComponentViewerInstance', () => {
         const fakeHash = createHash('sha1').update(fakePath).digest('hex').slice(0, 16);
         expect(key2).toBe(fakeHash);
     });
+
+    it('cancelExecution is a no-op when the context is not initialised', () => {
+        const instance = new ComponentViewerInstance();
+        expect(() => instance.cancelExecution('test')).not.toThrow();
+    });
+
+    it('cancelExecution delegates to scvdEvalContext cancellation', () => {
+        const cancelMock = jest.fn();
+        const instance = new ComponentViewerInstance();
+        (instance as unknown as { _scvdEvalContext: { cancellation: { cancel: jest.Mock } } | undefined })._scvdEvalContext = {
+            cancellation: { cancel: cancelMock },
+        };
+        instance.cancelExecution('session ended');
+        expect(cancelMock).toHaveBeenCalledWith('session ended');
+    });
 });

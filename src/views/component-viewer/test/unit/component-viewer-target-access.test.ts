@@ -230,6 +230,11 @@ describe('ComponentViewerTargetAccess', () => {
         );
     });
 
+    it('strips GDB symbol annotations from register values', async () => {
+        (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({ result: '0x20000420 <os_mem+424>' });
+        await expect(targetAccess.evaluateRegisterValue('psp')).resolves.toBe('0x20000420');
+    });
+
     it('returns undefined when no frameId is available', async () => {
         setActiveStackItem(debugSession, undefined);
 

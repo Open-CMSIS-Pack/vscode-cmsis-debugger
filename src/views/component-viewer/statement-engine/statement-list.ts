@@ -99,7 +99,14 @@ export class StatementList extends StatementBase {
 
         let loopValue = Number(startValue);
         let maximumCount = 100000;   // prevent infinite loops
+
         while (maximumCount-- > 0) {
+            // Check for external cancellation (session ended) or global timeout
+            if (executionContext.cancellation.checkDeadline()) {
+                componentViewerLogger.warn(`Line: ${this.line}: <list> "${name}" aborted: ${executionContext.cancellation.reason}`);
+                break;
+            }
+
             executionContext.memoryHost.setVariable(name, varTargetSize, loopValue, 0, undefined, varTargetSize);    // update loop variable in memory
 
             // while-loop
