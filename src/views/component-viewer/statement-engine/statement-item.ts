@@ -51,46 +51,65 @@ export class StatementItem extends StatementBase {
     protected override async onExecute(executionContext: ExecutionContext, guiTree: ScvdGuiTree): Promise<void> {
         componentViewerLogger.debug(`Line: ${this.line}: Executing <${this.scvdItem.tag}> : ${await this.getLogName()}`);
 
-        const guiNameStart = perf?.start() ?? 0;
-        const guiName = await this.getGuiName();
-        perf?.end(guiNameStart, 'guiNameMs', 'guiNameCalls');
-        const childGuiTree = this.getOrCreateGuiChild(guiTree, guiName);
-        perf?.recordGuiItemNode();
-        const guiValueStart = perf?.start() ?? 0;
-        const guiValue = await this.getGuiValue();
-        perf?.end(guiValueStart, 'guiValueMs', 'guiValueCalls');
-        childGuiTree.setGuiName(guiName);
-        childGuiTree.setGuiValue(guiValue);
-
         const printChildren = this.children.filter((child): child is StatementPrint => child instanceof StatementPrint);
+
+        // Determine the name and value for this item
+        let guiName = '';
+        let guiValue = '';
+
         if (printChildren.length > 0) {
+            // Item uses print children for name/value - check if any print condition matches
             let matched = false;
             for (const printChild of printChildren) {
                 const shouldPrint = await printChild.scvdItem.getConditionResult();
                 if (shouldPrint !== false) {
-                    const guiNamePrint = await printChild.scvdItem.getGuiName();
-                    const guiValuePrint = await printChild.scvdItem.getGuiValue();
-                    childGuiTree.setGuiName(guiNamePrint);
-                    childGuiTree.setGuiValue(guiValuePrint);
+                    guiName = await printChild.scvdItem.getGuiName() ?? '';
+                    guiValue = await printChild.scvdItem.getGuiValue() ?? '';
                     matched = true;
                     break;
                 }
             }
             if (!matched) {
-                childGuiTree.detach();
+                // No print matched - skip this entire item and its subtree
                 return;
             }
-            for (const child of this.children) {
-                if (!(child instanceof StatementPrint)) {
-                    await child.executeStatement(executionContext, childGuiTree);
-                }
-            }
-            return;
+        } else {
+            // Item uses its own property/value attributes
+            const guiNameStart = perf?.start() ?? 0;
+            guiName = await this.getGuiName() ?? '';
+            perf?.end(guiNameStart, 'guiNameMs', 'guiNameCalls');
+            const guiValueStart = perf?.start() ?? 0;
+            guiValue = await this.getGuiValue() ?? '';
+            perf?.end(guiValueStart, 'guiValueMs', 'guiValueCalls');
         }
 
-        if (this.children.length > 0) {
-            for (const child of this.children) {
+        // Create the GUI node
+        const childGuiTree = this.getOrCreateGuiChild(guiTree, guiName);
+        perf?.recordGuiItemNode();
+        childGuiTree.setGuiName(guiName);
+        childGuiTree.setGuiValue(guiValue);
+
+        // Execute non-print children
+        for (const child of this.children) {
+            if (!(child instanceof StatementPrint)) {
                 await child.executeStatement(executionContext, childGuiTree);
+            }
+        }
+
+        // Remove item if it has statement children but no meaningful result:
+        // - No value AND no GUI children after execution (e.g., "Drives" container with empty list)
+        // - OR no name, no value, AND has children (e.g., empty Drive with Status child)
+        const hasNonPrintChildren = this.children.some(child => !(child instanceof StatementPrint));
+        const hasName = guiName.trim() !== '';
+        const hasValue = guiValue.trim() !== '';
+
+        if (hasNonPrintChildren) {
+            // For containers: remove if no value and no GUI children
+            if (!hasValue && !childGuiTree.hasGuiChildren()) {
+                childGuiTree.detach();
+            // Also remove if no name, no value (even if it has GUI children that will display)
+            } else if (!hasName && !hasValue) {
+                childGuiTree.detach();
             }
         }
     }

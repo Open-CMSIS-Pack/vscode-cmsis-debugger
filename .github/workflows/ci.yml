@@ -10,6 +10,7 @@ on:
       - '.github/markdownlint.json'
       - '.github/markdownlint.jsonc'
       - '.github/workflows/nightly.yml'
+      - '.github/ISSUE_TEMPLATE/**'
   pull_request:
     branches:
       - main
@@ -19,6 +20,7 @@ on:
       - '.github/markdownlint.json'
       - '.github/markdownlint.jsonc'
       - '.github/workflows/nightly.yml'
+      - '.github/ISSUE_TEMPLATE/**'
   workflow_dispatch:
   merge_group:
   release:
@@ -98,6 +100,7 @@ jobs:
         run: |
           sed -i "/https:\/\/qlty\.sh\/gh/d" README.md
           sed -i "/https:\/\/securityscorecards\.dev\/viewer/d" README.md
+          sed -i "/https:\/\/img.shields.io\//d" README.md
 
       - name: Install dependencies
         env:
@@ -203,7 +206,7 @@ jobs:
 
       - name: Create vsix package
         run: |
-          yarn package --target ${{ matrix.target }}
+          yarn run package --target ${{ matrix.target }} --yarn
 
       - name: Upload package
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0

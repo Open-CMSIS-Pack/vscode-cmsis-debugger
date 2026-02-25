@@ -973,4 +973,29 @@ describe('StatementReadList', () => {
 
         expect(readMemory).toHaveBeenCalledWith(0x2004n, 4);
     });
+
+    it('aborts the non-batch loop immediately when the deadline is cancelled', async () => {
+        const readList = createReadList();
+        // count=undefined → shouldBatchRead=false → non-batch while loop
+        (readList.getCount as jest.Mock).mockResolvedValue(undefined);
+
+        const readMemory = jest.fn().mockResolvedValue(undefined);
+        const ctx = createContext(readList, {
+            findSymbolAddress: jest.fn().mockResolvedValue(0x20000000),
+            readMemory,
+        });
+
+        // Pre-cancel so that the very first checkDeadline() call returns true.
+        ctx.cancellation.cancel('session ended');
+
+        const stmt = new StatementReadList(readList, undefined);
+        const warnSpy = jest.spyOn(componentViewerLogger, 'warn').mockImplementation(() => undefined);
+
+        await stmt.executeStatement(ctx, new ScvdGuiTree(undefined));
+
+        // The loop must break before ever calling readMemory.
+        expect(readMemory).not.toHaveBeenCalled();
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('aborted'));
+        warnSpy.mockRestore();
+    });
 });

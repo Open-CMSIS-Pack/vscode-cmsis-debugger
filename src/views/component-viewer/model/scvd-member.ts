@@ -24,7 +24,7 @@ import { Json } from './scvd-base';
 import { ScvdNode } from './scvd-node';
 import { getArrayFromJson, getStringFromJson } from './scvd-utils';
 
-// Offset to base address in [Bytes]. Use the uVision debug dialog Symbols to find the offset. You can use Expressions.
+// Offset to base address in bytes. You can use expressions to compute the offset dynamically.
 // For imported members, the offset is recalculated. Refer to the description of attribute import in typedef.
 export class ScvdMember extends ScvdNode {
     private _type: ScvdDataType | undefined;

@@ -189,12 +189,13 @@ export class ComponentViewerTargetAccess {
                 return undefined;
             }
             const args: DebugProtocol.EvaluateArguments = {
-                expression: `$${register}`,
+                expression: `(void*)$${register}`,
                 frameId, // Currently required by CDT GDB Adapter
                 context: 'hover'
             };
             const response = await this._activeSession?.session.customRequest('evaluate', args) as DebugProtocol.EvaluateResponse['body'];
-            return response.result;
+            // Strip GDB symbol annotations, e.g. '0x20000420 <os_mem+424>' → '0x20000420'
+            return response.result.split(' ')[0];
         } catch (error: unknown) {
             const errorMessage = (error as Error)?.message;
             componentViewerLogger.debug(`Session '${this._activeSession?.session.name}': Failed to evaluate register value for '${register}' - '${errorMessage}'`);

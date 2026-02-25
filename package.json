@@ -2,7 +2,7 @@
   "name": "vscode-cmsis-debugger",
   "displayName": "Arm CMSIS Debugger",
   "description": "Run and debug embedded and Edge AI projects on Arm Cortex-M single or multi core devices. Connects via pyOCD to CMSIS-DAP or other GDB servers.",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "preview": false,
   "publisher": "Arm",
   "author": "Jens Reinecke <jens.reinecke@arm.com>",
@@ -57,13 +57,13 @@
     "views": {
       "cmsis-debugger": [
         {
-          "id": "cmsis-debugger.componentViewer",
-          "name": "Component Viewer",
+          "id": "cmsis-debugger.liveWatch",
+          "name": "Live Watch",
           "icon": "media/trace-and-live-light.svg"
         },
         {
-          "id": "cmsis-debugger.liveWatch",
-          "name": "Live Watch",
+          "id": "cmsis-debugger.componentViewer",
+          "name": "Component Viewer",
           "icon": "media/trace-and-live-light.svg"
         }
       ]
@@ -403,7 +403,7 @@
     "lint": "eslint .",
     "test": "jest --reporters=default --reporters=./node_modules/jest-html-reporter",
     "all": "yarn && yarn download-tools && yarn test",
-    "package": "vsce package --yarn",
+    "package": "node ./scripts/vsce-release.js --yarn",
     "tpip:report": "tsx scripts/tpip-reporter --header docs/tpip-header.md docs/third-party-licenses.json TPIP.md",
     "lint:md": "markdownlint **/*.md -c ./.github/markdownlint.jsonc -i ./node_modules -i ./dist -i ./coverage -i ./tools",
     "check:links": "tsx scripts/check-links.ts -i ./node_modules/** -i ./.github/** -c ./.github/markdown-link-check.jsonc",
@@ -437,13 +437,13 @@
     "@vscode/debugprotocol": "^1.68.0",
     "@vscode/vsce": "^3.7.1",
     "@yarnpkg/lockfile": "^1.1.0",
-    "eslint": "^10.0.0",
+    "eslint": "^10.0.1",
     "eslint-plugin-security": "^4.0.0",
     "extract-zip": "^2.0.1",
     "fast-extract": "^1.14.2",
     "file-type": "^21.3.0",
     "fs-extra": "^11.3.3",
-    "glob": "^13.0.5",
+    "glob": "^13.0.6",
     "globby": "^16.1.1",
     "jest": "^30.2.0",
     "jest-html-reporter": "^4.3.0",
@@ -467,7 +467,7 @@
     "yargs": "^18.0.0"
   },
   "cmsis": {
-    "pyocd": "pyocd/pyOCD@0.42.0",
+    "pyocd": "pyocd/pyOCD@0.43.0",
     "pyocdNightly": "pyocd/pyOCD@nightly",
     "gdb": "15.2.1"
   }

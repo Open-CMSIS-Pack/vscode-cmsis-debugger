@@ -44,9 +44,9 @@ describe('ScvdFormatSpecifier', () => {
     });
 
     it('formats hex with padding and finite checks', () => {
-        expect(formatter.formatHex(15, 8, true)).toBe('0x0f');
+        expect(formatter.formatHex(15, 8, true)).toBe('0x0F');
         expect(formatter.formatHex(9, 8)).toBe('0x9');
-        expect(formatter.formatHex(15n, 8, true)).toBe('0x0f');
+        expect(formatter.formatHex(15n, 8, true)).toBe('0x0F');
         expect(formatter.formatHex(1, 128, true)).toBe('0x0000000000000001');
         expect(formatter.formatHex(1n, { kind: 'int', bits: 16 }, false)).toBe('0x1');
         expect(formatter.formatHex(1, undefined, false)).toBe('0x1');
@@ -65,10 +65,10 @@ describe('ScvdFormatSpecifier', () => {
         expect(formatter.format('u', -1.9)).toBe('4294967295');
         expect(formatter.format('u', false)).toBe('0');
         expect(formatter.format('u', 5n)).toBe('5');
-        expect(formatter.format('x', 15, { typeInfo: { kind: 'int', bits: 8 }, padHex: true })).toBe('0x0f');
-        expect(formatter.format('x', '5')).toBe('0x5');
+        expect(formatter.format('x', 15, { typeInfo: { kind: 'int', bits: 8 }, padHex: true })).toBe('0x0F');
+        expect(formatter.format('x', '5')).toBe('0x00000005');
         expect(formatter.format('x', 'bad')).toBe('NaN');
-        expect(formatter.format('x', 10n)).toBe('0xa');
+        expect(formatter.format('x', 10n)).toBe('0xA');
         expect(formatter.format('t', 'ok %% text')).toBe('ok %% text');
         expect(formatter.format('t', 'bad %s')).toBe('bad literal - %t: text with embedded %format specifier(s)');
         expect(formatter.format('t', 5n)).toBe('5');
@@ -171,11 +171,11 @@ describe('ScvdFormatSpecifier', () => {
         expect(formatter.format_T(5.9, { kind: 'unknown' }, true)).toBe('5.90000');
         expect(formatter.format_T('bad', { kind: 'int' })).toBe('bad');
         expect(formatter.format_T(5, { kind: 'int', bits: 8 }, true)).toBe('0x05');
-        expect(formatter.format_T(10, { kind: 'unknown' })).toBe('0xa');
+        expect(formatter.format_T(10, { kind: 'unknown' })).toBe('0xA');
         expect(formatter.format_T(5n, { kind: 'float', bits: 32 })).toBe('5.000');
-        expect(formatter.format_T(10n, { kind: 'int', bits: 8 }, true)).toBe('0x0a');
+        expect(formatter.format_T(10n, { kind: 'int', bits: 8 }, true)).toBe('0x0A');
         expect(formatter.format_T({ bad: 'value' })).toBe('[object Object]');
-        expect(formatter.format('T', 255, { typeInfo: { kind: 'int', bits: 8 }, padHex: true })).toBe('0xff');
+        expect(formatter.format('T', 255, { typeInfo: { kind: 'int', bits: 8 }, padHex: true })).toBe('0xFF');
     });
 
     it('sanitizes literals and escapes non-printable characters', () => {
@@ -270,5 +270,26 @@ describe('ScvdFormatSpecifier', () => {
         }
         expect(formatter.format_x(Number.NaN)).toBe('NaN');
         expect(formatter.format_u('bad')).toBe('bad');
+    });
+
+    it('covers toNumeric with Uint8Array edge cases', () => {
+        // Empty array → 0
+        expect(formatter.format('d', new Uint8Array([]))).toBe('0');
+
+        // 1 byte
+        expect(formatter.format('d', new Uint8Array([0x42]))).toBe('66');
+
+        // 2 bytes (little-endian)
+        expect(formatter.format('d', new Uint8Array([0x01, 0x02]))).toBe('513');
+
+        // 4 bytes (little-endian)
+        expect(formatter.format('d', new Uint8Array([0x01, 0x02, 0x03, 0x04]))).toBe('67305985');
+
+        // 8 bytes (BigInt)
+        const bytes8 = new Uint8Array([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]);
+        expect(formatter.format('d', bytes8)).toBe('578437695752307201');
+
+        // More than 8 bytes → NaN
+        expect(formatter.format('d', new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9]))).toBe('NaN');
     });
 });
