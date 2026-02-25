@@ -18,6 +18,17 @@
 
 // generated with AI
 
+/**
+ * CLI usage:
+ * - Preferred: npm run package
+ * - With extra vsce flags: npm run package -- <vsce-args>
+ * - Direct invocation: node ./scripts/vsce-release.js [package] [vsce-args]
+ *
+ * Notes:
+ * - This helper only supports the `package` command.
+ * - `--pre-release` is appended automatically for odd minor versions.
+ */
+
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -40,16 +51,17 @@ if (!match) {
 const minor = Number(match[2]);
 const isPreReleaseChannel = minor % 2 === 1;
 
-const allowedCommands = new Set(['package', 'publish']);
-const command = process.argv[2] ?? 'package';
+const allowedCommands = new Set(['package']);
+const firstArg = process.argv[2];
+const command = firstArg && !firstArg.startsWith('-') ? firstArg : 'package';
 
 if (!allowedCommands.has(command)) {
   console.error(`Unsupported vsce command: ${command}`);
-  console.error('Supported commands: package, publish');
+  console.error('Supported commands: package');
   process.exit(1);
 }
 
-const passthroughArgs = process.argv.slice(3);
+const passthroughArgs = command === firstArg ? process.argv.slice(3) : process.argv.slice(2);
 const args = [command, ...passthroughArgs];
 
 if (isPreReleaseChannel) {

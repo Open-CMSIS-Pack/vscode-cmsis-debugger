@@ -68,13 +68,12 @@ This repository follows the VS Code Marketplace pre-release recommendation:
 To enforce this consistently, both packaging and publishing use `scripts/vsce-release.js`, which:
 
 - checks the current `package.json` version minor value.
-- automatically adds `--pre-release` to `vsce package` and `vsce publish` for odd minor versions.
+- automatically adds `--pre-release` to `vsce package` for odd minor versions.
 
 Use the following commands:
 
 ```sh
 > yarn run package [--target <target>]
-> yarn run publish [--target <target>]
 ```
 
 ## Developing
