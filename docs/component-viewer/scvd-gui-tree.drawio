@@ -1,0 +1,88 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.3.6 Chrome/140.0.7339.249 Electron/38.8.0 Safari/537.36" version="29.3.6">
+  <diagram name="SCVD GUI Tree" id="d6">
+    <mxGraphModel dx="4178" dy="1953" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="4200" pageHeight="2800" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;fontSize=22;fontStyle=1;align=center;verticalAlign=middle;fillColor=none;strokeColor=none;fontColor=#333333;" value="SCVD GUI Tree — Tree Model, Interface and VS Code Tree View" vertex="1">
+          <mxGeometry height="50" width="1400" x="800" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_title" parent="1" style="text;html=1;fontSize=13;fontStyle=1;align=left;fillColor=none;strokeColor=none;" value="Legend" vertex="1">
+          <mxGeometry height="24" width="80" x="50" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1c" parent="1" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Core tree model" vertex="1">
+          <mxGeometry height="18" width="140" x="76" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2c" parent="1" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="136" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="VS Code integration" vertex="1">
+          <mxGeometry height="18" width="160" x="76" y="136" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3c" parent="1" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="162" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Interface definition" vertex="1">
+          <mxGeometry height="18" width="140" x="76" y="162" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4c" parent="1" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="188" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="External subsystem" vertex="1">
+          <mxGeometry height="18" width="150" x="76" y="188" as="geometry" />
+        </mxCell>
+        <mxCell id="g_guitree" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;strokeWidth=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:15px;&quot;&gt;&lt;b&gt;ScvdGuiTree&lt;/b&gt;&lt;/p&gt;&lt;p style=&quot;margin:0;text-align:center;font-size:11px;color:#666;&quot;&gt;implements ScvdGuiInterface&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;_parent: ScvdGuiTree | undefined&lt;br/&gt;_id: string (unique hierarchical ID)&lt;br/&gt;_name: string (display name)&lt;br/&gt;_value: string (display value)&lt;br/&gt;_lineInfo: string (source line ref)&lt;br/&gt;_children: ScvdGuiTree[]&lt;br/&gt;_isPrint: boolean&lt;br/&gt;_idCursor: Map&amp;lt;string, number&amp;gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;createChild(key, idSegmentBase?) — add child node&lt;br/&gt;nextIdSegment() / buildChildId() — ID generation&lt;br/&gt;clear() — remove all children&lt;br/&gt;detach() — remove from parent&lt;br/&gt;setGuiName(n) / setGuiValue(v) / setGuiLineInfo(l)&lt;br/&gt;getGuiEntry() / getGuiChildren() / getGuiName()&lt;br/&gt;getGuiValue() / getGuiConditionResult()&lt;br/&gt;hasGuiChildren()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="440" width="480" x="300" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="g_interface" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;strokeWidth=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:14px;&quot;&gt;&lt;b&gt;ScvdGuiInterface&lt;/b&gt; &lt;i&gt;(interface)&lt;/i&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;getGuiEntry(): ScvdGuiInterface&lt;br/&gt;getGuiChildren(): ScvdGuiInterface[]&lt;br/&gt;getGuiName(): string&lt;br/&gt;getGuiValue(): string&lt;br/&gt;getGuiConditionResult(): boolean | undefined&lt;br/&gt;getGuiLineInfo(): string&lt;br/&gt;hasGuiChildren(): boolean&lt;/p&gt;" vertex="1">
+          <mxGeometry height="240" width="400" x="300" y="700" as="geometry" />
+        </mxCell>
+        <mxCell id="g_provider" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;strokeWidth=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:15px;&quot;&gt;&lt;b&gt;ComponentViewerTreeDataProvider&lt;/b&gt;&lt;/p&gt;&lt;p style=&quot;margin:0;text-align:center;font-size:11px;color:#666;&quot;&gt;implements vscode.TreeDataProvider&amp;lt;ScvdGuiInterface&amp;gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;_onDidChangeTreeData: EventEmitter&lt;br/&gt;_roots: ScvdGuiInterface[]&lt;br/&gt;_expandedIds: string[]&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;getTreeItem(element) — create vscode.TreeItem&lt;br/&gt;  — Sets label, description, icon, collapsibleState&lt;br/&gt;  — contextValue = &#39;scvdNode&#39;&lt;br/&gt;resolveTreeItem(item, element) — lazy tooltip&lt;br/&gt;  — MarkdownString with line info&lt;br/&gt;getChildren(element?) — root or children&lt;br/&gt;setRoots(roots) — set tree root nodes&lt;br/&gt;clear() / refresh()&lt;br/&gt;setElementExpanded(id, expanded)&lt;br/&gt;onWillStopSession() — track expansion state&lt;/p&gt;" vertex="1">
+          <mxGeometry height="400" width="520" x="1290" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="g_treeitem" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;vscode.TreeItem&lt;/b&gt; &lt;i&gt;(VS Code API)&lt;/i&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;label: getGuiName() — display name&lt;br/&gt;description: getGuiValue() — shown to the right&lt;br/&gt;collapsibleState: based on hasGuiChildren()&lt;br/&gt;  — Collapsed by default, Expanded if in expandedIds&lt;br/&gt;iconPath: small circle icon&lt;br/&gt;contextValue: &#39;scvdNode&#39;&lt;br/&gt;tooltip: lazy MarkdownString (resolveTreeItem)&lt;br/&gt;  — Shows SCVD source line info&lt;/p&gt;" vertex="1">
+          <mxGeometry height="240" width="480" x="980" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="g_id_scheme" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;Hierarchical ID Scheme&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;Root: instanceKey (e.g. &#39;MyViewer_1&#39;)&lt;br/&gt;Children: parentId + &#39;/&#39; + idSegment&lt;br/&gt;&lt;br/&gt;idSegment = idSegmentBase + &#39;:&#39; + counter&lt;br/&gt;counter managed per parent via _idCursor Map&lt;br/&gt;&lt;br/&gt;Example path:&lt;br/&gt;  MyViewer_1/L10:StatementObject:0/L25:StatementOut:0&lt;br/&gt;&lt;br/&gt;IDs are stable across updates (same structure ➜ same IDs)&lt;br/&gt;This preserves tree expansion state between refreshes&lt;/p&gt;" vertex="1">
+          <mxGeometry height="280" width="500" x="300" y="1100" as="geometry" />
+        </mxCell>
+        <mxCell id="g_tree_visual" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;Visual Tree Example&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:12px;text-align:left;font-family:monospace;&quot;&gt;[root] ScvdGuiTree (instanceKey)&lt;br/&gt;  +-- [Out] &quot;RTOS Info&quot;&lt;br/&gt;  |   +-- [Item] &quot;State&quot; = &quot;Running&quot;&lt;br/&gt;  |   +-- [Item] &quot;Priority&quot; = &quot;5&quot;&lt;br/&gt;  |   +-- [Print] &quot;Tick: 42&quot;&lt;br/&gt;  +-- [Out] &quot;Thread List&quot;&lt;br/&gt;      +-- [ListOut] &quot;Thread 0&quot;&lt;br/&gt;      |   +-- [Item] &quot;Name&quot; = &quot;main&quot;&lt;br/&gt;      |   +-- [Item] &quot;Stack&quot; = &quot;0x2000&quot;&lt;br/&gt;      +-- [ListOut] &quot;Thread 1&quot;&lt;br/&gt;          +-- [Item] &quot;Name&quot; = &quot;idle&quot;&lt;br/&gt;          +-- [Item] &quot;Stack&quot; = &quot;0x3000&quot;&lt;/p&gt;" vertex="1">
+          <mxGeometry height="340" width="500" x="970" y="1050" as="geometry" />
+        </mxCell>
+        <mxCell id="g_refresh_flow" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;Refresh Flow&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;1. Debug session stops (breakpoint hit)&lt;br/&gt;2. ComponentViewerInstance.update() called&lt;br/&gt;3. guiTree.clear() — removes children&lt;br/&gt;4. statementEngine.executeAll(guiTree)&lt;br/&gt;   — Repopulates tree with fresh values&lt;br/&gt;5. TreeDataProvider.setRoots([guiTree, ...])&lt;br/&gt;6. TreeDataProvider.refresh()&lt;br/&gt;   — Fires onDidChangeTreeData event&lt;br/&gt;7. VS Code re-renders tree view&lt;br/&gt;   — Calls getChildren() / getTreeItem()&lt;br/&gt;   — Preserves expansion via expandedIds&lt;/p&gt;" vertex="1">
+          <mxGeometry height="280" width="440" x="1550" y="1080" as="geometry" />
+        </mxCell>
+        <mxCell id="g_ext_se" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;StatementEngine&lt;/i&gt;&lt;br/&gt;(populates tree during executeAll)" vertex="1">
+          <mxGeometry height="60" width="340" x="880" y="141" as="geometry" />
+        </mxCell>
+        <mxCell id="g_ext_cvi" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;ComponentViewerInstance&lt;/i&gt;&lt;br/&gt;(owns ScvdGuiTree)" vertex="1">
+          <mxGeometry height="60" width="340" x="900" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="g_ext_vscode" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;VS Code TreeView API&lt;/i&gt;&lt;br/&gt;(renders the tree in sidebar)" vertex="1">
+          <mxGeometry height="60" width="340" x="1580" y="570" as="geometry" />
+        </mxCell>
+        <mxCell id="ge1" edge="1" parent="1" source="g_guitree" style="endArrow=block;endFill=0;endSize=16;strokeWidth=2;strokeColor=#d6b656;dashed=1;" target="g_interface" value="implements">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ge2" edge="1" parent="1" source="g_provider" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="g_interface" value="reads">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ge3" edge="1" parent="1" source="g_provider" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="g_treeitem" value="creates">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ge10" edge="1" parent="1" source="g_ext_se" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="g_guitree" value="populates">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ge11" edge="1" parent="1" source="g_ext_cvi" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="g_guitree" value="owns">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ge12" edge="1" parent="1" source="g_provider" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="g_ext_vscode" value="renders via">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

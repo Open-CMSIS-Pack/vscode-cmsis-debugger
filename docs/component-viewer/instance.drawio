@@ -1,0 +1,154 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.3.6 Chrome/140.0.7339.249 Electron/38.8.0 Safari/537.36" version="29.3.6">
+  <diagram name="ComponentViewer Instance" id="d5">
+    <mxGraphModel dx="4178" dy="1953" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="4200" pageHeight="3400" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;fontSize=22;fontStyle=1;align=center;verticalAlign=middle;fillColor=none;strokeColor=none;fontColor=#333333;" value="ComponentViewer Instance — Orchestrator, Init Pipeline and Update" vertex="1">
+          <mxGeometry height="50" width="1400" x="160" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_title" parent="1" style="text;html=1;fontSize=13;fontStyle=1;align=left;fillColor=none;strokeColor=none;" value="Legend" vertex="1">
+          <mxGeometry height="24" width="80" x="50" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1c" parent="1" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Main class" vertex="1">
+          <mxGeometry height="18" width="120" x="76" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2c" parent="1" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="136" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Pipeline step" vertex="1">
+          <mxGeometry height="18" width="120" x="76" y="136" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3c" parent="1" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="162" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Flow description" vertex="1">
+          <mxGeometry height="18" width="140" x="76" y="162" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4c" parent="1" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="188" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Owned subsystem" vertex="1">
+          <mxGeometry height="18" width="150" x="76" y="188" as="geometry" />
+        </mxCell>
+        <mxCell id="i_cvi" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;strokeWidth=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:15px;&quot;&gt;&lt;b&gt;ComponentViewerInstance&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;&lt;b&gt;Static:&lt;/b&gt;&lt;br/&gt;_fileKeysByPath: Map&amp;lt;string, string&amp;gt;&lt;br/&gt;_fileKeyCounts: Map&amp;lt;string, number&amp;gt;&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Instance:&lt;/b&gt;&lt;br/&gt;_model: ScvdComponentViewer&lt;br/&gt;_statementEngine: StatementEngine&lt;br/&gt;_guiTree: ScvdGuiTree&lt;br/&gt;_fileKey: string (derived from file path)&lt;br/&gt;_instanceKey: string (fileKey + counter)&lt;br/&gt;_scvdEvalContext: ScvdEvalContext&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;readModel(scvdFilePath, session, tracker)&lt;br/&gt;update() — refresh all values&lt;br/&gt;get model / statementEngine / guiTree&lt;/p&gt;" vertex="1">
+          <mxGeometry height="380" width="460" x="216" y="104" as="geometry" />
+        </mxCell>
+        <mxCell id="i_step1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;align=center;verticalAlign=middle;" value="&lt;b&gt;Step 1: Read File&lt;/b&gt;&lt;br/&gt;readFile(scvdFilePath)&lt;br/&gt;Read raw SCVD XML content" vertex="1">
+          <mxGeometry height="80" width="300" x="200" y="640" as="geometry" />
+        </mxCell>
+        <mxCell id="i_step2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;align=center;verticalAlign=middle;" value="&lt;b&gt;Step 2: Inject Line Numbers&lt;/b&gt;&lt;br/&gt;injectLineNumbers(xmlContent)&lt;br/&gt;Add line tracking attributes" vertex="1">
+          <mxGeometry height="80" width="340" x="620" y="640" as="geometry" />
+        </mxCell>
+        <mxCell id="i_step3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;align=center;verticalAlign=middle;" value="&lt;b&gt;Step 3: Parse XML&lt;/b&gt;&lt;br/&gt;parseStringPromise(xml) via xml2js&lt;br/&gt;Convert to JSON structure" vertex="1">
+          <mxGeometry height="80" width="340" x="1080" y="640" as="geometry" />
+        </mxCell>
+        <mxCell id="i_step4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;align=center;verticalAlign=middle;" value="&lt;b&gt;Step 4: Build Model&lt;/b&gt;&lt;br/&gt;new ScvdComponentViewer()&lt;br/&gt;model.readXml(json)" vertex="1">
+          <mxGeometry height="80" width="300" x="196" y="780" as="geometry" />
+        </mxCell>
+        <mxCell id="i_step5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;align=center;verticalAlign=middle;" value="&lt;b&gt;Step 5: Create EvalContext&lt;/b&gt;&lt;br/&gt;new ScvdEvalContext()&lt;br/&gt;evalContext.init(session, tracker)" vertex="1">
+          <mxGeometry height="80" width="340" x="620" y="780" as="geometry" />
+        </mxCell>
+        <mxCell id="i_step6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;align=center;verticalAlign=middle;" value="&lt;b&gt;Step 6: Wire Execution Context&lt;/b&gt;&lt;br/&gt;model.setExecutionContextAll(ctx)" vertex="1">
+          <mxGeometry height="80" width="340" x="1080" y="780" as="geometry" />
+        </mxCell>
+        <mxCell id="i_step7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;align=center;verticalAlign=middle;" value="&lt;b&gt;Step 7: Configure&lt;/b&gt;&lt;br/&gt;model.configureAll()&lt;br/&gt;Recursive configure + clear caches" vertex="1">
+          <mxGeometry height="80" width="300" x="200" y="910" as="geometry" />
+        </mxCell>
+        <mxCell id="i_step8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;align=center;verticalAlign=middle;" value="&lt;b&gt;Step 8: Validate&lt;/b&gt;&lt;br/&gt;model.validateAll()&lt;br/&gt;Recursive validation" vertex="1">
+          <mxGeometry height="80" width="300" x="660" y="910" as="geometry" />
+        </mxCell>
+        <mxCell id="i_step9" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;align=center;verticalAlign=middle;" value="&lt;b&gt;Step 9: Resolve Types&lt;/b&gt;&lt;br/&gt;new Resolver(model)&lt;br/&gt;resolver.resolve()" vertex="1">
+          <mxGeometry height="80" width="300" x="1080" y="920" as="geometry" />
+        </mxCell>
+        <mxCell id="i_step10" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;align=center;verticalAlign=middle;" value="&lt;b&gt;Step 10: Calculate Typedefs&lt;/b&gt;&lt;br/&gt;model.calculateTypedefs()&lt;br/&gt;Compute sizes for all types" vertex="1">
+          <mxGeometry height="80" width="340" x="196" y="1030" as="geometry" />
+        </mxCell>
+        <mxCell id="i_step11" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;align=center;verticalAlign=middle;" value="&lt;b&gt;Step 11: Build Statement Engine&lt;/b&gt;&lt;br/&gt;new StatementEngine(model, ctx)&lt;br/&gt;statementEngine.initialize()" vertex="1">
+          <mxGeometry height="80" width="380" x="630" y="1040" as="geometry" />
+        </mxCell>
+        <mxCell id="i_step12" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;align=center;verticalAlign=middle;" value="&lt;b&gt;Step 12: Create GUI Tree&lt;/b&gt;&lt;br/&gt;new ScvdGuiTree(instanceKey)&lt;br/&gt;Root node for tree view" vertex="1">
+          <mxGeometry height="80" width="340" x="1070" y="1040" as="geometry" />
+        </mxCell>
+        <mxCell id="i_update_flow" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;strokeWidth=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:14px;&quot;&gt;&lt;b&gt;update() Flow&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:12px;text-align:left;&quot;&gt;1. guiTree.clear() — remove all children&lt;br/&gt;&lt;br/&gt;2. statementEngine.executeAll(guiTree)&lt;br/&gt;   — Resets caches (memory, eval, printf)&lt;br/&gt;   — Primes target read cache (prefetch)&lt;br/&gt;   — Walks statement tree depth-first&lt;br/&gt;   — Each statement reads target data + populates GUI nodes&lt;br/&gt;&lt;br/&gt;3. GUI tree now contains fresh name/value pairs&lt;br/&gt;   ready for ComponentViewerTreeDataProvider&lt;/p&gt;" vertex="1">
+          <mxGeometry height="280" width="360" x="1250" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="i_owned_model" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;SCVD Model&lt;/i&gt;&lt;br/&gt;(ScvdComponentViewer)" vertex="1">
+          <mxGeometry height="60" width="300" x="860" y="104" as="geometry" />
+        </mxCell>
+        <mxCell id="i_owned_eval" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;Evaluation Layer&lt;/i&gt;&lt;br/&gt;(ScvdEvalContext)" vertex="1">
+          <mxGeometry height="60" width="300" x="860" y="188" as="geometry" />
+        </mxCell>
+        <mxCell id="i_owned_engine" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;Statement Engine&lt;/i&gt;&lt;br/&gt;(StatementEngine)" vertex="1">
+          <mxGeometry height="60" width="300" x="860" y="264" as="geometry" />
+        </mxCell>
+        <mxCell id="i_owned_gui" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;GUI Tree&lt;/i&gt;&lt;br/&gt;(ScvdGuiTree)" vertex="1">
+          <mxGeometry height="60" width="300" x="860" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="i_owned_resolver" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;Resolver&lt;/i&gt;&lt;br/&gt;(used during init, not stored)" vertex="1">
+          <mxGeometry height="60" width="300" x="860" y="420" as="geometry" />
+        </mxCell>
+        <mxCell id="i_owned_datahosts" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;Data Hosts and Caches&lt;/i&gt;&lt;br/&gt;(inside ScvdEvalContext)" vertex="1">
+          <mxGeometry height="60" width="300" x="860" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="ie_arrow1" edge="1" parent="1" source="i_step1" style="endArrow=open;endFill=0;endSize=12;strokeWidth=2;strokeColor=#82b366;" target="i_step2" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ie_arrow2" edge="1" parent="1" source="i_step2" style="endArrow=open;endFill=0;endSize=12;strokeWidth=2;strokeColor=#82b366;" target="i_step3" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ie_arrow3" edge="1" parent="1" source="i_step3" style="endArrow=open;endFill=0;endSize=12;strokeWidth=2;strokeColor=#82b366;" target="i_step4" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ie_arrow4" edge="1" parent="1" source="i_step4" style="endArrow=open;endFill=0;endSize=12;strokeWidth=2;strokeColor=#82b366;" target="i_step5" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ie_arrow5" edge="1" parent="1" source="i_step5" style="endArrow=open;endFill=0;endSize=12;strokeWidth=2;strokeColor=#82b366;" target="i_step6" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ie_arrow6" edge="1" parent="1" source="i_step6" style="endArrow=open;endFill=0;endSize=12;strokeWidth=2;strokeColor=#82b366;" target="i_step7" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ie_arrow7" edge="1" parent="1" source="i_step7" style="endArrow=open;endFill=0;endSize=12;strokeWidth=2;strokeColor=#82b366;" target="i_step8" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ie_arrow8" edge="1" parent="1" source="i_step8" style="endArrow=open;endFill=0;endSize=12;strokeWidth=2;strokeColor=#82b366;" target="i_step9" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ie_arrow9" edge="1" parent="1" source="i_step9" style="endArrow=open;endFill=0;endSize=12;strokeWidth=2;strokeColor=#82b366;" target="i_step10" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ie_arrow10" edge="1" parent="1" source="i_step10" style="endArrow=open;endFill=0;endSize=12;strokeWidth=2;strokeColor=#82b366;" target="i_step11" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ie_arrow11" edge="1" parent="1" source="i_step11" style="endArrow=open;endFill=0;endSize=12;strokeWidth=2;strokeColor=#82b366;" target="i_step12" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ie_own1" edge="1" parent="1" source="i_cvi" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="i_owned_model" value="_model">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ie_own2" edge="1" parent="1" source="i_cvi" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="i_owned_eval" value="_scvdEvalContext">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ie_own3" edge="1" parent="1" source="i_cvi" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="i_owned_engine" value="_statementEngine">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ie_own4" edge="1" parent="1" source="i_cvi" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="i_owned_gui" value="_guiTree">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ie_own5" edge="1" parent="1" source="i_cvi" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="i_owned_resolver" value="transient">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ie_own6" edge="1" parent="1" source="i_cvi" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="i_owned_datahosts" value="inside evalCtx">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="i_pipeline_label" parent="1" style="text;html=1;fontSize=16;fontStyle=1;align=center;fillColor=none;strokeColor=none;fontColor=#82b366;" value="readModel() Pipeline (Steps 1-12)" vertex="1">
+          <mxGeometry height="40" width="500" x="400" y="560" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

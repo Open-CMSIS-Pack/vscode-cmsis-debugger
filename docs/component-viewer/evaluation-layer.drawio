@@ -1,0 +1,133 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.3.6 Chrome/140.0.7339.249 Electron/38.8.0 Safari/537.36" version="29.3.6">
+  <diagram name="Evaluation Layer" id="d3">
+    <mxGraphModel dx="6566" dy="3069" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="4200" pageHeight="3000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;fontSize=22;fontStyle=1;align=center;verticalAlign=middle;fillColor=none;strokeColor=none;fontColor=#333333;" value="Evaluation Layer — Expression Parsing, Evaluation and Context" vertex="1">
+          <mxGeometry height="50" width="1400" x="800" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_title" parent="1" style="text;html=1;fontSize=13;fontStyle=1;align=left;fillColor=none;strokeColor=none;" value="Legend" vertex="1">
+          <mxGeometry height="24" width="80" x="50" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1c" parent="1" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Context / orchestrator" vertex="1">
+          <mxGeometry height="18" width="160" x="76" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2c" parent="1" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="136" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Parser / evaluator" vertex="1">
+          <mxGeometry height="18" width="140" x="76" y="136" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3c" parent="1" style="rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="162" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Interface / bridge" vertex="1">
+          <mxGeometry height="18" width="140" x="76" y="162" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4c" parent="1" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="188" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Interface definition" vertex="1">
+          <mxGeometry height="18" width="140" x="76" y="188" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5c" parent="1" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="214" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="External subsystem" vertex="1">
+          <mxGeometry height="18" width="150" x="76" y="214" as="geometry" />
+        </mxCell>
+        <mxCell id="ev_ctx" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;strokeWidth=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:15px;&quot;&gt;&lt;b&gt;ScvdEvalContext&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;_ctx: EvalContext&lt;br/&gt;_evalHost: ScvdEvalInterface&lt;br/&gt;_evaluator: Evaluator&lt;br/&gt;_integerModel: IntegerModel&lt;br/&gt;_memoryHost: MemoryHost&lt;br/&gt;_registerHost: RegisterHost&lt;br/&gt;_debugTarget: ScvdDebugTarget&lt;br/&gt;_parserInterface: ScvdExpressionParser&lt;br/&gt;_cancellation: ExecutionCancellation&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;constructor() — creates all components&lt;br/&gt;init(session, tracker) — configureIntegerModel + debugTarget.init&lt;br/&gt;get executionContext(): ExecutionContext&lt;/p&gt;" vertex="1">
+          <mxGeometry height="360" width="460" x="890" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="ev_iface" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;strokeWidth=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;ExecutionContext&lt;/b&gt; &lt;i&gt;(interface)&lt;/i&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;memoryHost: MemoryHost&lt;br/&gt;registerHost: RegisterHost&lt;br/&gt;evalContext: EvalContext&lt;br/&gt;debugTarget: ScvdDebugTarget&lt;br/&gt;evaluator: Evaluator&lt;br/&gt;parser: ScvdExpressionParser&lt;br/&gt;cancellation: ExecutionCancellation&lt;/p&gt;" vertex="1">
+          <mxGeometry height="240" width="400" x="290" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="ev_parser" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;ScvdExpressionParser&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;_parser: Parser&lt;br/&gt;_optimizer: ExpressionOptimizer&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;parseExpression(expr, isPrint)&lt;br/&gt;Returns: ParseResult (AST + format segments)&lt;/p&gt;" vertex="1">
+          <mxGeometry height="200" width="380" x="290" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="ev_evalinterface" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;strokeWidth=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;ScvdEvalInterface&lt;/b&gt;&lt;/p&gt;&lt;p style=&quot;margin:0;text-align:center;font-size:11px;color:#666;&quot;&gt;implements ModelHost, DataAccessHost, IntrinsicProvider&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;_registerCache: RegisterHost&lt;br/&gt;_memHost: MemoryHost&lt;br/&gt;_debugTarget: ScvdDebugTarget&lt;br/&gt;_formatSpecifier: ScvdFormatSpecifier&lt;br/&gt;_caches: ScvdEvalInterfaceCache&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;getSymbolRef() / getMemberRef() — model navigation&lt;br/&gt;readValue() / writeValue() — memory access&lt;br/&gt;readRegister() / writeRegister() — register access&lt;br/&gt;findSymbolAddress() — debug symbol lookup&lt;br/&gt;formatValue() — printf-style formatting&lt;br/&gt;resetEvalCaches() / resetPrintfCache()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="340" width="440" x="900" y="580" as="geometry" />
+        </mxCell>
+        <mxCell id="ev_evaluator" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;Evaluator&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;Evaluates parsed AST expressions&lt;br/&gt;Walks expression tree nodes&lt;br/&gt;Calls into ModelHost / DataAccessHost&lt;br/&gt;Handles arithmetic, comparisons, etc.&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;evaluate(ast, context)&lt;br/&gt;resetEvalCaches()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="220" width="380" x="1430" y="610" as="geometry" />
+        </mxCell>
+        <mxCell id="ev_evalctx" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;EvalContext&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;Runtime context for expression evaluation&lt;br/&gt;Holds current scope / reference container&lt;br/&gt;Bridges Evaluator with EvalInterface&lt;/p&gt;" vertex="1">
+          <mxGeometry height="140" width="380" x="1440" y="870" as="geometry" />
+        </mxCell>
+        <mxCell id="ev_cache" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;ScvdEvalInterfaceCache&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;printfCache: Map&amp;lt;string, string&amp;gt;&lt;br/&gt;symbolRefCache: Map&amp;lt;ScvdNode, Map&amp;lt;string, ScvdNode&amp;gt;&amp;gt;&lt;br/&gt;memberRefCache: Map&amp;lt;ScvdNode, Map&amp;lt;string, ScvdNode&amp;gt;&amp;gt;&lt;br/&gt;byteWidthCache: Map&amp;lt;ScvdNode, number&amp;gt;&lt;br/&gt;memberOffsetCache: Map&amp;lt;ScvdNode, number&amp;gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;clearAll() / clearPrintf()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="230" width="440" x="900" y="970" as="geometry" />
+        </mxCell>
+        <mxCell id="ev_intmodel" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;IntegerModel&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;Configures integer bit widths (32/64)&lt;br/&gt;Set during init() from target info&lt;/p&gt;" vertex="1">
+          <mxGeometry height="120" width="340" x="1430" y="1070" as="geometry" />
+        </mxCell>
+        <mxCell id="ev_cancel" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;ExecutionCancellation&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;Timeout-based cancellation token&lt;br/&gt;reset(timeoutMs) / isCancelled&lt;br/&gt;Used to abort long-running evaluations&lt;/p&gt;" vertex="1">
+          <mxGeometry height="130" width="380" x="1450" y="1250" as="geometry" />
+        </mxCell>
+        <mxCell id="ev_format" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;ScvdFormatSpecifier&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;Resolves format type info (kind, bits)&lt;br/&gt;Used by ScvdEvalInterface for printf&lt;/p&gt;" vertex="1">
+          <mxGeometry height="120" width="380" x="290" y="670" as="geometry" />
+        </mxCell>
+        <mxCell id="ev_host_ifaces" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;Host Interfaces (implemented by ScvdEvalInterface)&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;&lt;b&gt;ModelHost&lt;/b&gt;: getSymbolRef(), getMemberRef(), getElementRef()&lt;br/&gt;— Navigate the SCVD model tree by name&lt;br/&gt;&lt;br/&gt;&lt;b&gt;DataAccessHost&lt;/b&gt;: readValue(), writeValue(), readRegister(), writeRegister()&lt;br/&gt;— Read/write target memory and registers&lt;br/&gt;&lt;br/&gt;&lt;b&gt;IntrinsicProvider&lt;/b&gt;: callIntrinsic()&lt;br/&gt;— Built-in functions (e.g. __size, __addr)&lt;/p&gt;" vertex="1">
+          <mxGeometry height="260" width="560" x="270" y="930" as="geometry" />
+        </mxCell>
+        <mxCell id="ev_data_flow" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;Data Flow During Evaluation&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;1. StatementEngine calls Evaluator.evaluate(ast, ctx)&lt;br/&gt;2. Evaluator walks AST, resolves symbols via ModelHost&lt;br/&gt;3. For data reads: Evaluator calls DataAccessHost.readValue()&lt;br/&gt;4. ScvdEvalInterface delegates to MemoryHost / RegisterHost&lt;br/&gt;5. MemoryHost reads from ValidatingCache (MemoryContainer)&lt;br/&gt;6. If cache miss: ScvdDebugTarget.readMemory() via DAP&lt;br/&gt;7. Results flow back through Evaluator to Statement&lt;br/&gt;8. Statement sets GUI name/value on ScvdGuiTree node&lt;/p&gt;" vertex="1">
+          <mxGeometry height="240" width="540" x="290" y="1250" as="geometry" />
+        </mxCell>
+        <mxCell id="ev_ext_se" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;StatementEngine&lt;/i&gt;&lt;br/&gt;(uses ExecutionContext)" vertex="1">
+          <mxGeometry height="60" width="320" x="1510" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="ev_ext_data" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;Data Hosts (MemoryHost, RegisterHost)&lt;/i&gt;&lt;br/&gt;(delegated to by ScvdEvalInterface)" vertex="1">
+          <mxGeometry height="60" width="330" x="1510" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="ev_ext_model" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;SCVD Model (ScvdNode tree)&lt;/i&gt;&lt;br/&gt;(navigated by ModelHost methods)" vertex="1">
+          <mxGeometry height="60" width="330" x="1510" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="ev_ext_target" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;ScvdDebugTarget&lt;/i&gt;&lt;br/&gt;(accessed for symbol resolution)" vertex="1">
+          <mxGeometry height="60" width="340" x="1510" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="ee1" edge="1" parent="1" source="ev_ctx" style="endArrow=open;endFill=0;endSize=10;startArrow=diamondThin;startFill=1;startSize=14;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="ev_parser" value="creates all">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee2" edge="1" parent="1" source="ev_ctx" style="endArrow=open;endFill=0;endSize=10;startArrow=diamondThin;startFill=1;startSize=14;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="ev_evalinterface" value="creates">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee3" edge="1" parent="1" source="ev_ctx" style="endArrow=open;endFill=0;endSize=10;startArrow=diamondThin;startFill=1;startSize=14;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="ev_evaluator" value="creates">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee4" edge="1" parent="1" source="ev_ctx" style="endArrow=open;endFill=0;endSize=10;startArrow=diamondThin;startFill=1;startSize=14;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="ev_evalctx" value="creates">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee5" edge="1" parent="1" source="ev_ctx" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;fontSize=10;labelBackgroundColor=#FFFFFF;" target="ev_iface" value="exposes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee6" edge="1" parent="1" source="ev_evalinterface" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="ev_cache" value="owns">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee7" edge="1" parent="1" source="ev_evalinterface" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="ev_format" value="uses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee8" edge="1" parent="1" source="ev_evalinterface" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;fontSize=10;labelBackgroundColor=#FFFFFF;" target="ev_host_ifaces" value="implements">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee9" edge="1" parent="1" source="ev_evaluator" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="ev_evalinterface" value="calls into">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee20" edge="1" parent="1" source="ev_ext_se" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="ev_ctx" value="uses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee21" edge="1" parent="1" source="ev_evalinterface" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="ev_ext_data" value="delegates to">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee22" edge="1" parent="1" source="ev_evalinterface" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="ev_ext_model" value="navigates">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ee23" edge="1" parent="1" source="ev_evalinterface" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="ev_ext_target" value="queries">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
