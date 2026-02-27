@@ -44,6 +44,7 @@ export class ComponentViewer {
     private _pendingUpdate: boolean = false;
     private _runningUpdate: boolean = false;
     private _refreshTimerEnabled: boolean = true;
+    private _treeView: vscode.TreeView<ScvdGuiInterface> | undefined;
     private static readonly pendingUpdateDelayMs = 150;
 
     public constructor(context: vscode.ExtensionContext, componentViewerTreeDataProvider: ComponentViewerTreeDataProvider) {
@@ -68,16 +69,15 @@ export class ComponentViewer {
         if (!await vscodeViewExists('componentViewer')) {
             return false;
         }
-        const treeView = vscode.window.createTreeView('cmsis-debugger.componentViewer', {
+        this._treeView = vscode.window.createTreeView('cmsis-debugger.componentViewer', {
             treeDataProvider: this._componentViewerTreeDataProvider,
             showCollapseAll: true
         });
         componentViewerLogger.debug('Component Viewer: Created Component Viewer tree view: cmsis-debugger.componentViewer');
-        const onDidExpandElementDisposable = treeView.onDidExpandElement(event => this.handleOnDidToggleExpand(event, true));
-        const onDidCollapseElementDisposable = treeView.onDidCollapseElement(event => this.handleOnDidToggleExpand(event, false));
-        const expandAllCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.expandAll', () => {
-            this._componentViewerTreeDataProvider.setAllExpanded();
-            componentViewerLogger.info('Component Viewer: Expand all triggered');
+        const onDidExpandElementDisposable = this._treeView.onDidExpandElement(event => this.handleOnDidToggleExpand(event, true));
+        const onDidCollapseElementDisposable = this._treeView.onDidCollapseElement(event => this.handleOnDidToggleExpand(event, false));
+        const expandAllCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.expandAll', async () => {
+            await this.handleExpandAll();
         });
         const lockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.lockComponent', async (node) => {
             this.handleLockInstance(node);
@@ -94,7 +94,7 @@ export class ComponentViewer {
             componentViewerLogger.info('Component Viewer: Auto refresh disabled');
         });
         this._context.subscriptions.push(
-            treeView,
+            this._treeView,
             onDidExpandElementDisposable,
             onDidCollapseElementDisposable,
             expandAllCommandDisposable,
@@ -111,6 +111,17 @@ export class ComponentViewer {
         const elementName = expansionEvent.element.getGuiName() ?? 'unknown';
         componentViewerLogger.debug(`Component Viewer: Tree item ${expandStateString} - ${elementName}`);
         this._componentViewerTreeDataProvider.setElementExpanded(expansionEvent.element, expand);
+    }
+
+    protected async handleExpandAll(): Promise<void> {
+        if (!this._treeView) {
+            return;
+        }
+        const roots = this._componentViewerTreeDataProvider.getRoots();
+        for (const root of roots) {
+            await this._treeView.reveal(root, { select: false, expand: 3 });
+        }
+        componentViewerLogger.info('Component Viewer: Expand all triggered');
     }
 
     protected handleLockInstance(node: ScvdGuiInterface): void {

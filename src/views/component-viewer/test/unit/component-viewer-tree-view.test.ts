@@ -347,47 +347,25 @@ describe('ComponentViewerTreeDataProvider', () => {
         });
         provider.setRoots([root]);
 
-        // Initially all collapsed
-        expect(provider.getTreeItem(root).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
-        expect(provider.getTreeItem(child).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
-        expect(provider.getTreeItem(grandchild).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
-        expect(provider.getTreeItem(leaf).collapsibleState).toBe(vscode.TreeItemCollapsibleState.None);
+        // getRoots returns the current roots
+        expect(provider.getRoots()).toEqual([root]);
 
-        // Expand all
-        provider.setAllExpanded();
+        // getParent returns undefined for roots after getChildren is called
+        provider.getChildren(); // populate parent map for roots
+        expect(provider.getParent(root)).toBeUndefined();
 
-        // All collapsible nodes should be expanded
-        expect(provider.getTreeItem(root).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
-        expect(provider.getTreeItem(child).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
-        expect(provider.getTreeItem(grandchild).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
-        // Leaf remains None
-        expect(provider.getTreeItem(leaf).collapsibleState).toBe(vscode.TreeItemCollapsibleState.None);
+        // getParent returns parent for children after getChildren is called
+        provider.getChildren(root); // populate parent map for root's children
+        expect(provider.getParent(child)).toBe(root);
+        expect(provider.getParent(leaf)).toBe(root);
+
+        provider.getChildren(child); // populate parent map for child's children
+        expect(provider.getParent(grandchild)).toBe(child);
     });
 
-    it('setAllExpanded on empty roots does not throw', () => {
+    it('getRoots returns empty array when no roots are set', () => {
         provider.setRoots([]);
-        expect(() => provider.setAllExpanded()).not.toThrow();
-        expect(provider.getChildren()).toEqual([]);
-    });
-
-    it('setAllExpanded skips elements with undefined GUI ID', () => {
-        const noIdChild = makeGui({
-            getGuiId: () => undefined,
-            hasGuiChildren: () => true,
-            getGuiChildren: () => [],
-        });
-        const root = makeGui({
-            getGuiId: () => 'session1/root',
-            hasGuiChildren: () => true,
-            getGuiChildren: () => [noIdChild],
-        });
-        provider.setRoots([root]);
-
-        provider.setAllExpanded();
-
-        expect(provider.getTreeItem(root).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
-        // Element without ID should not crash and stays collapsed
-        expect(provider.getTreeItem(noIdChild).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
+        expect(provider.getRoots()).toEqual([]);
     });
 
     it('removes expand state if element loses children and gets them back (e.g. in a dynamic thread list)', () => {

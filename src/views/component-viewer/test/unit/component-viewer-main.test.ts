@@ -35,7 +35,8 @@ const treeProviderFactory = jest.fn(() => ({
     refresh: jest.fn(),
     onWillStopSession: jest.fn(),
     setElementExpanded: jest.fn(),
-    setAllExpanded: jest.fn(),
+    getRoots: jest.fn(() => []),
+    getParent: jest.fn(),
 }));
 
 jest.mock('../../component-viewer-tree-view', () => ({

@@ -25,6 +25,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     public readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
     private _roots: ScvdGuiInterface[] = [];
     private _expandedIds: string[] = [];
+    private _parentMap: Map<ScvdGuiInterface, ScvdGuiInterface | undefined> = new Map();
 
     constructor () {
     }
@@ -49,22 +50,12 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         }
     }
 
-    public setAllExpanded(): void {
-        this._expandedIds = [];
-        this.collectExpandableIds(this._roots);
-        this.refresh();
+    public getRoots(): ScvdGuiInterface[] {
+        return this._roots;
     }
 
-    private collectExpandableIds(elements: ScvdGuiInterface[]): void {
-        for (const element of elements) {
-            if (element.hasGuiChildren()) {
-                const id = element.getGuiId();
-                if (id !== undefined) {
-                    this._expandedIds.push(id);
-                }
-                this.collectExpandableIds(element.getGuiChildren());
-            }
-        }
+    public getParent(element: ScvdGuiInterface): ScvdGuiInterface | undefined {
+        return this._parentMap.get(element);
     }
 
     public getTreeItem(element: ScvdGuiInterface): vscode.TreeItem {
@@ -126,11 +117,17 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         const perfStartTime = perf?.startUi() ?? 0;
         if (!element) {
             const roots = this._roots;
+            for (const root of roots) {
+                this._parentMap.set(root, undefined);
+            }
             perf?.endUi(perfStartTime, 'treeViewGetChildrenMs', 'treeViewGetChildrenCalls');
             return roots;
         }
 
         const children = element.getGuiChildren() || [];
+        for (const child of children) {
+            this._parentMap.set(child, element);
+        }
         perf?.endUi(perfStartTime, 'treeViewGetChildrenMs', 'treeViewGetChildrenCalls');
         return children;
     }
@@ -145,7 +142,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     public clear(): void {
         this.logUiPerf();
         this._roots = [];
-        void vscode.commands.executeCommand('setContext', 'cmsis-debugger.componentViewerHasEntries', false);
+        void vscode.commands.executeCommand('setContext', 'cmsis-debugger.componentViewerHasEntries', this._roots.length > 0);
         this.refresh();
     }
 
