@@ -321,6 +321,72 @@ describe('ComponentViewerTreeDataProvider', () => {
         expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
     });
 
+    it('sets all collapsible elements to expanded recursively with setAllExpanded', () => {
+        const grandchild = makeGui({
+            getGuiId: () => 'session1/grandchild',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [],
+        });
+        const child = makeGui({
+            getGuiId: () => 'session1/child',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [grandchild],
+        });
+        const leaf = makeGui({
+            getGuiId: () => 'session1/leaf',
+            hasGuiChildren: () => false,
+            getGuiChildren: () => [],
+        });
+        const root = makeGui({
+            getGuiId: () => 'session1/root',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [child, leaf],
+        });
+        provider.setRoots([root]);
+
+        // Initially all collapsed
+        expect(provider.getTreeItem(root).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
+        expect(provider.getTreeItem(child).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
+        expect(provider.getTreeItem(grandchild).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
+        expect(provider.getTreeItem(leaf).collapsibleState).toBe(vscode.TreeItemCollapsibleState.None);
+
+        // Expand all
+        provider.setAllExpanded();
+
+        // All collapsible nodes should be expanded
+        expect(provider.getTreeItem(root).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+        expect(provider.getTreeItem(child).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+        expect(provider.getTreeItem(grandchild).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+        // Leaf remains None
+        expect(provider.getTreeItem(leaf).collapsibleState).toBe(vscode.TreeItemCollapsibleState.None);
+    });
+
+    it('setAllExpanded on empty roots does not throw', () => {
+        provider.setRoots([]);
+        expect(() => provider.setAllExpanded()).not.toThrow();
+        expect(provider.getChildren()).toEqual([]);
+    });
+
+    it('setAllExpanded skips elements with undefined GUI ID', () => {
+        const noIdChild = makeGui({
+            getGuiId: () => undefined,
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [],
+        });
+        const root = makeGui({
+            getGuiId: () => 'session1/root',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [noIdChild],
+        });
+        provider.setRoots([root]);
+
+        provider.setAllExpanded();
+
+        expect(provider.getTreeItem(root).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+        // Element without ID should not crash and stays collapsed
+        expect(provider.getTreeItem(noIdChild).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
+    });
+
     it('removes expand state if element loses children and gets them back (e.g. in a dynamic thread list)', () => {
         const root = makeGui({
             getGuiId: () => 'session1/root',

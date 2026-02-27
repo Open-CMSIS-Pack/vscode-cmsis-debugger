@@ -49,6 +49,24 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         }
     }
 
+    public setAllExpanded(): void {
+        this._expandedIds = [];
+        this.collectExpandableIds(this._roots);
+        this.refresh();
+    }
+
+    private collectExpandableIds(elements: ScvdGuiInterface[]): void {
+        for (const element of elements) {
+            if (element.hasGuiChildren()) {
+                const id = element.getGuiId();
+                if (id !== undefined) {
+                    this._expandedIds.push(id);
+                }
+                this.collectExpandableIds(element.getGuiChildren());
+            }
+        }
+    }
+
     public getTreeItem(element: ScvdGuiInterface): vscode.TreeItem {
         const perfStartTime = perf?.startUi() ?? 0;
         const treeItemLabel = element.getGuiName() ?? 'UNKNOWN';

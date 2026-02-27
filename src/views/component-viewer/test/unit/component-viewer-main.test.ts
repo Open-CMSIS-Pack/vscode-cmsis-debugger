@@ -35,6 +35,7 @@ const treeProviderFactory = jest.fn(() => ({
     refresh: jest.fn(),
     onWillStopSession: jest.fn(),
     setElementExpanded: jest.fn(),
+    setAllExpanded: jest.fn(),
 }));
 
 jest.mock('../../component-viewer-tree-view', () => ({
@@ -197,8 +198,9 @@ describe('ComponentViewer', () => {
         });
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.lockComponent', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.unlockComponent', expect.any(Function));
-        // 1 tree view + 2 event listeners + 4 commands + 6 tracker disposables
-        expect(context.subscriptions.length).toBe(13);
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.expandAll', expect.any(Function));
+        // 1 tree view + 2 event listeners + 5 commands + 6 tracker disposables
+        expect(context.subscriptions.length).toBe(14);
     });
 
     it('should fail to activate the component viewer tree data provider if view is not correctly loaded', async () => {

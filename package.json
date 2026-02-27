@@ -157,6 +157,12 @@
         "category": "Component Viewer"
       },
       {
+        "command": "vscode-cmsis-debugger.componentViewer.expandAll",
+        "title": "Expand All",
+        "icon": "$(expand-all)",
+        "category": "Component Viewer"
+      },
+      {
         "command": "vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate",
         "title": "Enable Periodic Update",
         "category": "Component Viewer"
@@ -258,6 +264,10 @@
           "when": "false"
         },
         {
+          "command": "vscode-cmsis-debugger.componentViewer.expandAll",
+          "when": "false"
+        },
+        {
           "command": "vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate",
           "when": "true"
         },
@@ -293,6 +303,11 @@
           "command": "vscode-cmsis-debugger.liveWatch.refresh",
           "when": "view == cmsis-debugger.liveWatch",
           "group": "navigation@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.expandAll",
+          "when": "view == cmsis-debugger.componentViewer",
+          "group": "navigation"
         }
       ],
       "view/item/context": [

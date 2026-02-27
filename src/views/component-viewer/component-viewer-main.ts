@@ -75,6 +75,10 @@ export class ComponentViewer {
         componentViewerLogger.debug('Component Viewer: Created Component Viewer tree view: cmsis-debugger.componentViewer');
         const onDidExpandElementDisposable = treeView.onDidExpandElement(event => this.handleOnDidToggleExpand(event, true));
         const onDidCollapseElementDisposable = treeView.onDidCollapseElement(event => this.handleOnDidToggleExpand(event, false));
+        const expandAllCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.expandAll', () => {
+            this._componentViewerTreeDataProvider.setAllExpanded();
+            componentViewerLogger.info('Component Viewer: Expand all triggered');
+        });
         const lockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.lockComponent', async (node) => {
             this.handleLockInstance(node);
         });
@@ -93,6 +97,7 @@ export class ComponentViewer {
             treeView,
             onDidExpandElementDisposable,
             onDidCollapseElementDisposable,
+            expandAllCommandDisposable,
             lockInstanceCommandDisposable,
             unlockInstanceCommandDisposable,
             enablePeriodicUpdateCommandDisposable,
