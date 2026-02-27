@@ -121,7 +121,7 @@ export class ComponentViewer {
         for (const root of roots) {
             await this._treeView.reveal(root, { select: false, expand: 3 });
         }
-        componentViewerLogger.info('Component Viewer: Expand all triggered');
+        componentViewerLogger.debug('Component Viewer: Expand all triggered');
     }
 
     protected handleLockInstance(node: ScvdGuiInterface): void {

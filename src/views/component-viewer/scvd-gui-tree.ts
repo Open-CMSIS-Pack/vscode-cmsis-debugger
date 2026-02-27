@@ -128,6 +128,10 @@ export class ScvdGuiTree implements ScvdGuiInterface {
         return this.children;
     }
 
+    public getGuiParent(): ScvdGuiInterface | undefined {
+        return this._parent;
+    }
+
     public getGuiName(): string | undefined {
         return this.name;
     }

@@ -30,6 +30,10 @@ class DummyGui implements ScvdGuiInterface {
         return [];
     }
 
+    public getGuiParent(): ScvdGuiInterface | undefined {
+        return undefined;
+    }
+
     public getGuiName(): string | undefined {
         return 'name';
     }

@@ -135,6 +135,7 @@ describe('ComponentViewer', () => {
         isRootInstance: false,
         getGuiEntry: () => ({ name: id, value: undefined }),
         getGuiChildren: () => children,
+        getGuiParent: () => undefined,
         getGuiName: () => id,
         getGuiValue: () => undefined,
         getGuiId: () => id,

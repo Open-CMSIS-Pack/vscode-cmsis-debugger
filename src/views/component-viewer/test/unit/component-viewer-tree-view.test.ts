@@ -95,6 +95,7 @@ type TestGui = ScvdGuiInterface & {
     getGuiValue: () => string | undefined;
     getGuiId: () => string | undefined;
     getGuiLineInfo: () => string | undefined;
+    getGuiParent: () => ScvdGuiInterface | undefined;
     hasGuiChildren: () => boolean;
     getGuiChildren: () => ScvdGuiInterface[];
     getGuiEntry: () => { name: string | undefined; value: string | undefined };
@@ -112,6 +113,7 @@ const makeGui = (options: TestGuiOptions): TestGui => ({
     getGuiValue: options.getGuiValue ?? (() => 'Value'),
     getGuiId: options.getGuiId ?? (() => 'id-1'),
     getGuiLineInfo: options.getGuiLineInfo ?? (() => 'Line 1'),
+    getGuiParent: options.getGuiParent ?? (() => undefined),
     hasGuiChildren: options.hasGuiChildren ?? (() => false),
     getGuiChildren: options.getGuiChildren ?? (() => [] as ScvdGuiInterface[]),
     getGuiEntry: options.getGuiEntry ?? (() => ({ name: 'Node', value: 'Value' })),
@@ -334,32 +336,35 @@ describe('ComponentViewerTreeDataProvider', () => {
             getGuiId: () => 'session1/child',
             hasGuiChildren: () => true,
             getGuiChildren: () => [grandchild],
+            getGuiParent: () => undefined,
         });
         const leaf = makeGui({
             getGuiId: () => 'session1/leaf',
             hasGuiChildren: () => false,
             getGuiChildren: () => [],
+            getGuiParent: () => undefined,
         });
         const root = makeGui({
             getGuiId: () => 'session1/root',
             hasGuiChildren: () => true,
             getGuiChildren: () => [child, leaf],
+            getGuiParent: () => undefined,
         });
+
+        // Wire up parent references
+        grandchild.getGuiParent = () => child;
+        child.getGuiParent = () => root;
+        leaf.getGuiParent = () => root;
+
         provider.setRoots([root]);
 
         // getRoots returns the current roots
         expect(provider.getRoots()).toEqual([root]);
 
-        // getParent returns undefined for roots after getChildren is called
-        provider.getChildren(); // populate parent map for roots
+        // getParent delegates directly to getGuiParent()
         expect(provider.getParent(root)).toBeUndefined();
-
-        // getParent returns parent for children after getChildren is called
-        provider.getChildren(root); // populate parent map for root's children
         expect(provider.getParent(child)).toBe(root);
         expect(provider.getParent(leaf)).toBe(root);
-
-        provider.getChildren(child); // populate parent map for child's children
         expect(provider.getParent(grandchild)).toBe(child);
     });
 
