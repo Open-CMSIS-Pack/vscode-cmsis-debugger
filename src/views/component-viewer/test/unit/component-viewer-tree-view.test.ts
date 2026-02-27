@@ -69,6 +69,9 @@ jest.mock('vscode', () => {
             Collapsed: 1,
             None: 0,
         },
+        commands: {
+            executeCommand: jest.fn(),
+        },
     };
 });
 

@@ -160,7 +160,8 @@
         "command": "vscode-cmsis-debugger.componentViewer.expandAll",
         "title": "Expand All",
         "icon": "$(expand-all)",
-        "category": "Component Viewer"
+        "category": "Component Viewer",
+        "enablement": "cmsis-debugger.componentViewerHasEntries"
       },
       {
         "command": "vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate",

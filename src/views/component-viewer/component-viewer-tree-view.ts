@@ -138,12 +138,14 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     public setRoots(roots: ScvdGuiInterface[] = []): void {
         this.logUiPerf();
         this._roots = roots;
+        void vscode.commands.executeCommand('setContext', 'cmsis-debugger.componentViewerHasEntries', this._roots.length > 0);
         this.refresh();
     }
 
     public clear(): void {
         this.logUiPerf();
         this._roots = [];
+        void vscode.commands.executeCommand('setContext', 'cmsis-debugger.componentViewerHasEntries', false);
         this.refresh();
     }
 
