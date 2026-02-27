@@ -24,23 +24,12 @@ import type { GDBTargetDebugTracker } from '../../../../debug-session';
 import type { GDBTargetDebugSession, TargetState } from '../../../../debug-session/gdbtarget-debug-session';
 import { componentViewerLogger } from '../../../../logger';
 import { extensionContextFactory } from '../../../../__test__/vscode.factory';
+import { treeDataProviderFactory } from '../../__test__/component-viewer-parts.factory';
 import { ComponentViewerInstancesWrapper, UpdateReason } from '../../component-viewer-base';
 import { ComponentViewerBase } from '../../component-viewer-base';
 import { ComponentViewerTreeDataProvider } from '../../component-viewer-tree-view';
 import type { ScvdGuiInterface } from '../../model/scvd-gui-interface';
 
-
-const treeProviderFactory = jest.fn(() => ({
-    setRoots: jest.fn(),
-    clear: jest.fn(),
-    refresh: jest.fn(),
-    onWillStopSession: jest.fn(),
-    setElementExpanded: jest.fn(),
-}));
-
-jest.mock('../../component-viewer-tree-view', () => ({
-    ComponentViewerTreeDataProvider: jest.fn(() => treeProviderFactory()),
-}));
 
 const instanceFactory = jest.fn(() => ({
     readModel: jest.fn().mockResolvedValue(undefined),
@@ -68,8 +57,6 @@ jest.mock('../../../../logger', () => ({
         trace: jest.fn(),
     },
 }));
-
-jest.mock('../../../../debug-session', () => ({}));
 
 function asMockedFunction<Args extends unknown[], Return>(
     fn: (...args: Args) => Return
@@ -137,7 +124,7 @@ type TrackerCallbacks = {
 
 const createController = (
     context: vscode.ExtensionContext = extensionContextFactory(),
-    provider: ComponentViewerTreeDataProvider | ReturnType<typeof treeProviderFactory> = treeProviderFactory()
+    provider: ComponentViewerTreeDataProvider = treeDataProviderFactory()
 ): TestClass => new TestClass(
     context,
     provider as ComponentViewerTreeDataProvider
@@ -470,7 +457,7 @@ describe('ComponentViewerBase', () => {
 
     it('updates instances when active session and instances are present', async () => {
         const context = extensionContextFactory();
-        const provider = treeProviderFactory();
+        const provider = treeDataProviderFactory();
         const controller = createController(context, provider);
         const debugSpy = jest.spyOn(componentViewerLogger, 'debug');
 
@@ -507,7 +494,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('skips gui tree updates when an instance returns no gui tree', async () => {
-        const provider = treeProviderFactory();
+        const provider = treeDataProviderFactory();
         const controller = createController(extensionContextFactory(), provider);
 
         const updateInstances = getUpdateInstances(controller);
@@ -523,7 +510,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('updates only instances for the active session', async () => {
-        const provider = treeProviderFactory();
+        const provider = treeDataProviderFactory();
         const controller = createController(extensionContextFactory(), provider);
 
         const sessionA = makeSession('s1', [], 'stopped');
@@ -556,7 +543,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('skips updating a locked instance and marks root as locked', async () => {
-        const provider = treeProviderFactory();
+        const provider = treeDataProviderFactory();
         const controller = createController(extensionContextFactory(), provider);
 
         (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1', [], 'stopped');
@@ -619,7 +606,7 @@ describe('ComponentViewerBase', () => {
 
     it('schedules an update when unlocking a locked instance', () => {
         const controller = createController(extensionContextFactory());
-        const provider = treeProviderFactory();
+        const provider = treeDataProviderFactory();
         (controller as unknown as { _componentViewerTreeDataProvider: typeof provider })._componentViewerTreeDataProvider = provider;
 
         const root = makeGuiNode('root');
@@ -641,7 +628,7 @@ describe('ComponentViewerBase', () => {
 
     it('does not schedule an update when locking an unlocked instance', () => {
         const controller = createController(extensionContextFactory());
-        const provider = treeProviderFactory();
+        const provider = treeDataProviderFactory();
         (controller as unknown as { _componentViewerTreeDataProvider: typeof provider })._componentViewerTreeDataProvider = provider;
 
         const root = makeGuiNode('root');
@@ -703,7 +690,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('skips lock operations when gui trees are missing', () => {
-        const provider = treeProviderFactory();
+        const provider = treeDataProviderFactory();
         const controller = createController(extensionContextFactory(), provider);
 
         const instMissingTree = instanceFactory();
@@ -716,7 +703,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('returns early when gui tree disappears after toggling lock', () => {
-        const provider = treeProviderFactory();
+        const provider = treeDataProviderFactory();
         const controller = createController(extensionContextFactory(), provider);
 
         const root = makeGuiNode('root');
@@ -919,8 +906,7 @@ describe('ComponentViewerBase', () => {
         expect(collapseCallback!).toBeDefined();
 
         // Setup spy on expected method calls when elements are expanded/collapsed
-        const provider = controller as unknown as { _componentViewerTreeDataProvider: ComponentViewerTreeDataProvider };
-        const setElementExpandedSpy = jest.spyOn(provider._componentViewerTreeDataProvider, 'setElementExpanded');
+        const setElementExpandedSpy = jest.spyOn(controller['_componentViewerTreeDataProvider'], 'setElementExpanded');
 
         // Simulate expanding an element
         const element = makeGuiNode('element');
