@@ -104,5 +104,8 @@ export const deactivate = async (): Promise<void> => {
     if (componentViewerTreeDataProvider) {
         componentViewerTreeDataProvider.clear();
     }
+    if (corePeripheralsTreeDataProvider) {
+        corePeripheralsTreeDataProvider.clear();
+    }
     logger.debug('CMSIS Debugger deactivated');
 };
