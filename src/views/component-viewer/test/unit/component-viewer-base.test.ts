@@ -131,8 +131,17 @@ const createController = (
 );
 
 describe('ComponentViewerBase', () => {
+    let context: vscode.ExtensionContext;
+    let tracker: TrackerCallbacks;
+    let provider: ComponentViewerTreeDataProvider;
+    let controller: TestClass;
+
     beforeEach(async () => {
         jest.clearAllMocks();
+        context = extensionContextFactory();
+        provider = treeDataProviderFactory();
+        tracker = makeTracker();
+        controller = createController(context, provider);
         // Extend registered commands for test class.
         const defaultMockedCommands = await vscode.commands.getCommands();
         asMockedFunction(vscode.commands.getCommands).mockResolvedValue([
@@ -200,10 +209,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('activates tree provider and registers tracker events', async () => {
-        const context = extensionContextFactory();
-        const tracker = makeTracker();
-        const controller = createController(context);
-
         const activationResult = await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         expect(activationResult).toBe(true);
@@ -218,10 +223,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('should fail to activate the test class tree data provider if view is not correctly loaded', async () => {
-        const context = extensionContextFactory();
-        const tracker = makeTracker();
-        const controller = createController(context);
-
         // Clear test class commands to simulate view not correctly loaded.
         // Ensure to override the mock only once to not permanently change the global mock implementation for other tests.
         (vscode.commands.getCommands as jest.Mock).mockResolvedValueOnce([
@@ -233,9 +234,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('skips reading scvd files when session or cbuild-run is missing', async () => {
-        const controller = createController();
-        const tracker = makeTracker();
-
         const readScvdFiles = getReadScvdFiles(controller);
         await readScvdFiles(tracker, undefined);
 
@@ -252,8 +250,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('skips reading when no scvd files are listed', async () => {
-        const controller = createController();
-        const tracker = makeTracker();
         const session = makeSession('s1', []);
         const readScvdFiles = getReadScvdFiles(controller);
 
@@ -263,9 +259,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('reads scvd files when active session is set', async () => {
-        const context = extensionContextFactory();
-        const controller = createController(context);
-        const tracker = makeTracker();
         const session = makeSession('s1', ['a.scvd', 'b.scvd']);
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
 
@@ -278,8 +271,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('skips reading scvd files when no active session is set', async () => {
-        const controller = createController();
-        const tracker = makeTracker();
         const session = makeSession('s1', ['a.scvd']);
         const readScvdFiles = getReadScvdFiles(controller);
 
@@ -290,8 +281,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('logs and shows error when scvd read fails', async () => {
-        const controller = createController(extensionContextFactory());
-        const tracker = makeTracker();
         const session = makeSession('s1', ['a.scvd']);
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
 
@@ -320,8 +309,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('returns undefined when cbuild run contains no scvd instances', async () => {
-        const controller = createController();
-        const tracker = makeTracker();
         const session = makeSession('s1', []);
 
         const readScvdFiles = jest.fn().mockResolvedValue(undefined);
@@ -338,13 +325,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('handles tracker events and updates sessions', async () => {
-        const context = extensionContextFactory();
-        const tracker = makeTracker();
-        const controller = createController(context);
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
-
-        // Bypass 'private' qualifier for test purposes. Do NOT do this in production code!
-        const provider = controller['_componentViewerTreeDataProvider'];
 
         const session = makeSession('s1', ['a.scvd']);
         const otherSession = makeSession('s2', []);
@@ -376,13 +357,8 @@ describe('ComponentViewerBase', () => {
     });
 
     it('does not reset instances when the same session reconnects', async () => {
-        const context = extensionContextFactory();
-        const tracker = makeTracker();
-        const controller = createController(context);
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
-        // Bypass 'private' qualifier for test purposes. Do NOT do this in production code!
-        const provider = controller['_componentViewerTreeDataProvider'];
         const session: Session = {
             session: { id: 's1' },
             getCbuildRun: async () => undefined,
@@ -399,7 +375,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('clears all instances after all sessions stop', async () => {
-        const controller = createController();
         const sessionA = makeSession('s1', [], 'stopped');
         const sessionB = makeSession('s2', [], 'stopped');
 
@@ -418,7 +393,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('updates instances on stack item change', async () => {
-        const controller = createController();
         const sessionA = makeSession('s1', [], 'stopped');
 
         (controller as unknown as { _activeSession?: Session })._activeSession = sessionA;
@@ -435,7 +409,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('does not update active session when stack item matches the active session', async () => {
-        const controller = createController();
         const sessionA = makeSession('s1');
         const updateSpy = jest.fn();
 
@@ -456,9 +429,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('updates instances when active session and instances are present', async () => {
-        const context = extensionContextFactory();
-        const provider = treeDataProviderFactory();
-        const controller = createController(context, provider);
         const debugSpy = jest.spyOn(componentViewerLogger, 'debug');
 
         const updateInstances = getUpdateInstances(controller);
@@ -466,7 +436,7 @@ describe('ComponentViewerBase', () => {
         (controller as unknown as { _activeSession?: Session | undefined })._activeSession = undefined;
         await updateInstances('stackTrace');
         expect(provider.clear).toHaveBeenCalledTimes(1);
-        provider.clear.mockClear();
+        (provider.clear as jest.Mock).mockClear();
 
         (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1', [], 'stopped');
         (controller as unknown as { _instances: unknown[] })._instances = [];
@@ -494,9 +464,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('skips gui tree updates when an instance returns no gui tree', async () => {
-        const provider = treeDataProviderFactory();
-        const controller = createController(extensionContextFactory(), provider);
-
         const updateInstances = getUpdateInstances(controller);
         (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1', [], 'stopped');
         const instance = instanceFactory();
@@ -510,9 +477,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('updates only instances for the active session', async () => {
-        const provider = treeDataProviderFactory();
-        const controller = createController(extensionContextFactory(), provider);
-
         const sessionA = makeSession('s1', [], 'stopped');
         (controller as unknown as { _activeSession?: Session | undefined })._activeSession = sessionA;
 
@@ -543,9 +507,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('skips updating a locked instance and marks root as locked', async () => {
-        const provider = treeDataProviderFactory();
-        const controller = createController(extensionContextFactory(), provider);
-
         (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1', [], 'stopped');
 
         const rootUnlocked = makeGuiNode('u');
@@ -574,14 +535,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('toggles lock state when lock command is invoked for a node in an instance tree', async () => {
-        const context = extensionContextFactory();
-        const tracker = makeTracker();
-        const controller = createController(context);
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
-
-        // Bypass 'private' qualifier for test purposes. Do NOT do this in production code!
-        const provider = controller['_componentViewerTreeDataProvider'];
-
         const root = makeGuiNode('root', [makeGuiNode('child')]);
         const inst = instanceFactory();
         inst.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => [root]);
@@ -605,8 +559,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('schedules an update when unlocking a locked instance', () => {
-        const controller = createController(extensionContextFactory());
-        const provider = treeDataProviderFactory();
         (controller as unknown as { _componentViewerTreeDataProvider: typeof provider })._componentViewerTreeDataProvider = provider;
 
         const root = makeGuiNode('root');
@@ -627,8 +579,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('does not schedule an update when locking an unlocked instance', () => {
-        const controller = createController(extensionContextFactory());
-        const provider = treeDataProviderFactory();
         (controller as unknown as { _componentViewerTreeDataProvider: typeof provider })._componentViewerTreeDataProvider = provider;
 
         const root = makeGuiNode('root');
@@ -648,9 +598,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('toggles periodic updates via commands', async () => {
-        const context = extensionContextFactory();
-        const tracker = makeTracker();
-        const controller = createController(context);
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
@@ -674,9 +621,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('invokes unlock handler and skips lock when no matching instance exists', async () => {
-        const context = extensionContextFactory();
-        const tracker = makeTracker();
-        const controller = createController(context);
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
@@ -690,9 +634,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('skips lock operations when gui trees are missing', () => {
-        const provider = treeDataProviderFactory();
-        const controller = createController(extensionContextFactory(), provider);
-
         const instMissingTree = instanceFactory();
         instMissingTree.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => undefined);
         (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: instMissingTree, lockState: false, sessionId: 's1', dirtyWhileLocked: false }];
@@ -703,9 +644,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('returns early when gui tree disappears after toggling lock', () => {
-        const provider = treeDataProviderFactory();
-        const controller = createController(extensionContextFactory(), provider);
-
         const root = makeGuiNode('root');
         const inst = instanceFactory();
         inst.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>()
@@ -721,7 +659,6 @@ describe('ComponentViewerBase', () => {
 
     it('runs a debounced update when scheduling multiple times', async () => {
         jest.useFakeTimers();
-        const controller = createController();
         const runUpdate = jest
             .spyOn(controller as unknown as { runUpdate: (reason: UpdateReason) => Promise<void> }, 'runUpdate')
             .mockResolvedValue(undefined);
@@ -737,7 +674,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('does nothing when an update is already running', async () => {
-        const controller = createController();
         (controller as unknown as { _runningUpdate: boolean })._runningUpdate = true;
         const updateInstances = jest.spyOn(controller as unknown as { updateInstances: (reason: UpdateReason) => Promise<void> }, 'updateInstances');
         const runUpdate = getRunUpdate(controller);
@@ -748,7 +684,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('runs update immediately when idle', async () => {
-        const controller = createController();
         (controller as unknown as { _pendingUpdate: boolean })._pendingUpdate = true;
         (controller as unknown as { _runningUpdate: boolean })._runningUpdate = false;
         const updateInstances = jest
@@ -761,7 +696,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('swallows errors during a coalescing update', async () => {
-        const controller = createController();
         (controller as unknown as { _pendingUpdate: boolean })._pendingUpdate = true;
         (controller as unknown as { _runningUpdate: boolean })._runningUpdate = false;
         const updateInstances = jest.spyOn(controller as unknown as { updateInstances: (reason: UpdateReason) => Promise<void> }, 'updateInstances')
@@ -775,7 +709,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('shouldUpdateInstances returns false when no instances', () => {
-        const controller = createController();
         const session = makeSession('s1', [], 'stopped');
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [];
@@ -785,7 +718,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('shouldUpdateInstances returns false when target state is unknown', () => {
-        const controller = createController();
         const session = makeSession('s1', [], 'unknown');
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
@@ -797,7 +729,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('shouldUpdateInstances returns false when running and refresh disabled', () => {
-        const controller = createController();
         const session = makeSession('s1', [], 'running');
         (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = true;
 
@@ -811,7 +742,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('shouldUpdateInstances returns false when running without access', () => {
-        const controller = createController();
         const session = makeSession('s1', [], 'running');
         (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = false;
 
@@ -825,7 +755,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('shouldUpdateInstances returns true when running with refresh and access', () => {
-        const controller = createController();
         const session = makeSession('s1', [], 'running');
         (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = true;
 
@@ -839,7 +768,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('shouldUpdateInstances returns true when stopped', () => {
-        const controller = createController();
         const session = makeSession('s1', [], 'stopped');
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
@@ -851,9 +779,6 @@ describe('ComponentViewerBase', () => {
     });
 
     it('silently skips periodic refresh if event comes for session not in front', async () => {
-        // Set up test class parts
-        const controller = createController();
-        const tracker = makeTracker();
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         // Set up two sessions
@@ -896,9 +821,6 @@ describe('ComponentViewerBase', () => {
             onDidCollapseElement: jest.fn(callback => collapseCallback = callback),
         });
 
-        // Set up test class parts
-        const controller = createController();
-        const tracker = makeTracker();
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         // Ensure callbacks are set
@@ -906,7 +828,7 @@ describe('ComponentViewerBase', () => {
         expect(collapseCallback!).toBeDefined();
 
         // Setup spy on expected method calls when elements are expanded/collapsed
-        const setElementExpandedSpy = jest.spyOn(controller['_componentViewerTreeDataProvider'], 'setElementExpanded');
+        const setElementExpandedSpy = jest.spyOn(provider, 'setElementExpanded');
 
         // Simulate expanding an element
         const element = makeGuiNode('element');
