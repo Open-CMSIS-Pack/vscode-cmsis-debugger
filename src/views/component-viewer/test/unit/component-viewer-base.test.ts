@@ -21,7 +21,7 @@
 
 import * as vscode from 'vscode';
 import type { GDBTargetDebugTracker } from '../../../../debug-session';
-import type { GDBTargetDebugSession, TargetState } from '../../../../debug-session/gdbtarget-debug-session';
+import type { GDBTargetDebugSession } from '../../../../debug-session/gdbtarget-debug-session';
 import { componentViewerLogger } from '../../../../logger';
 import { extensionContextFactory } from '../../../../__test__/vscode.factory';
 import { treeDataProviderFactory } from '../../__test__/component-viewer-parts.factory';
@@ -29,6 +29,7 @@ import { ComponentViewerInstancesWrapper, UpdateReason } from '../../component-v
 import { ComponentViewerBase } from '../../component-viewer-base';
 import { ComponentViewerTreeDataProvider } from '../../component-viewer-tree-view';
 import type { ScvdGuiInterface } from '../../model/scvd-gui-interface';
+import { debugSessionFactory, trackerFactory, OnRefreshCallback, Session, TrackerCallbacks } from '../../__test__/debug-session.factory';
 
 
 const instanceFactory = jest.fn(() => ({
@@ -92,35 +93,7 @@ const getReadScvdFiles = (controller: TestClass) =>
     (controller as unknown as { readScvdFiles: (t: TrackerCallbacks, s?: Session) => Promise<void> }).readScvdFiles.bind(controller);
 
 // Local test mocks
-
-type OnRefreshCallback = (session: Session) => void;
 type ExpansionEventCallback = (event: vscode.TreeViewExpansionEvent<ScvdGuiInterface>) => void;
-
-type Session = {
-    session: { id: string };
-    getCbuildRun: () => Promise<{ getScvdFilePaths: () => string[] } | undefined>;
-    getPname: () => Promise<string | undefined>;
-    refreshTimer: { onRefresh: (cb: OnRefreshCallback) => void };
-    targetState?: TargetState;
-    canAccessWhileRunning?: boolean;
-};
-
-type TrackerCallbacks = {
-    onWillStopSession: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
-    onConnected: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
-    onDidChangeActiveDebugSession: (cb: (session: Session | undefined) => Promise<void>) => { dispose: jest.Mock };
-    onStackTrace: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
-    onDidChangeActiveStackItem: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
-    onWillStartSession: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
-    callbacks: Partial<{
-        willStop: (session: Session) => Promise<void>;
-        connected: (session: Session) => Promise<void>;
-        activeSession: (session: Session | undefined) => Promise<void>;
-        stackTrace: (session: { session: Session }) => Promise<void>;
-        activeStackItem: (session: { session: Session }) => Promise<void>;
-        willStart: (session: Session) => Promise<void>;
-    }>;
-};
 
 const createController = (
     context: vscode.ExtensionContext = extensionContextFactory(),
@@ -140,7 +113,7 @@ describe('ComponentViewerBase', () => {
         jest.clearAllMocks();
         context = extensionContextFactory();
         provider = treeDataProviderFactory();
-        tracker = makeTracker();
+        tracker = trackerFactory();
         controller = createController(context, provider);
         // Extend registered commands for test class.
         const defaultMockedCommands = await vscode.commands.getCommands();
@@ -164,48 +137,6 @@ describe('ComponentViewerBase', () => {
         getGuiConditionResult: () => true,
         getGuiLineInfo: () => undefined,
         hasGuiChildren: () => children.length > 0,
-    });
-
-
-    const makeTracker = (): TrackerCallbacks => {
-        const callbacks: TrackerCallbacks['callbacks'] = {};
-        return {
-            callbacks,
-            onWillStopSession: (cb) => {
-                callbacks.willStop = cb;
-                return { dispose: jest.fn() };
-            },
-            onConnected: (cb) => {
-                callbacks.connected = cb;
-                return { dispose: jest.fn() };
-            },
-            onDidChangeActiveDebugSession: (cb) => {
-                callbacks.activeSession = cb;
-                return { dispose: jest.fn() };
-            },
-            onStackTrace: (cb) => {
-                callbacks.stackTrace = cb;
-                return { dispose: jest.fn() };
-            },
-            onDidChangeActiveStackItem: (cb) => {
-                callbacks.activeStackItem = cb;
-                return { dispose: jest.fn() };
-            },
-            onWillStartSession: (cb) => {
-                callbacks.willStart = cb;
-                return { dispose: jest.fn() };
-            },
-        };
-    };
-
-    const makeSession = (id: string, paths: string[] = [], targetState: Session['targetState'] = 'unknown'): Session => ({
-        session: { id },
-        getCbuildRun: async () => ({ getScvdFilePaths: () => paths }),
-        getPname: async () => undefined,
-        refreshTimer: {
-            onRefresh: jest.fn(),
-        },
-        targetState,
     });
 
     it('activates tree provider and registers tracker events', async () => {
@@ -250,7 +181,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('skips reading when no scvd files are listed', async () => {
-        const session = makeSession('s1', []);
+        const session = debugSessionFactory('s1', []);
         const readScvdFiles = getReadScvdFiles(controller);
 
         await readScvdFiles(tracker, session);
@@ -259,7 +190,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('reads scvd files when active session is set', async () => {
-        const session = makeSession('s1', ['a.scvd', 'b.scvd']);
+        const session = debugSessionFactory('s1', ['a.scvd', 'b.scvd']);
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
 
         const readScvdFiles = getReadScvdFiles(controller);
@@ -271,7 +202,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('skips reading scvd files when no active session is set', async () => {
-        const session = makeSession('s1', ['a.scvd']);
+        const session = debugSessionFactory('s1', ['a.scvd']);
         const readScvdFiles = getReadScvdFiles(controller);
 
         await readScvdFiles(tracker, session);
@@ -281,7 +212,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('logs and shows error when scvd read fails', async () => {
-        const session = makeSession('s1', ['a.scvd']);
+        const session = debugSessionFactory('s1', ['a.scvd']);
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
 
         const readModelError = new Error('boom');
@@ -309,7 +240,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('returns undefined when cbuild run contains no scvd instances', async () => {
-        const session = makeSession('s1', []);
+        const session = debugSessionFactory('s1', []);
 
         const readScvdFiles = jest.fn().mockResolvedValue(undefined);
         (controller as unknown as { readScvdFiles: typeof readScvdFiles }).readScvdFiles = readScvdFiles;
@@ -327,8 +258,8 @@ describe('ComponentViewerBase', () => {
     it('handles tracker events and updates sessions', async () => {
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
-        const session = makeSession('s1', ['a.scvd']);
-        const otherSession = makeSession('s2', []);
+        const session = debugSessionFactory('s1', ['a.scvd']);
+        const otherSession = debugSessionFactory('s2', []);
 
         await tracker.callbacks.willStart?.(session);
         await tracker.callbacks.connected?.(session);
@@ -375,8 +306,8 @@ describe('ComponentViewerBase', () => {
     });
 
     it('clears all instances after all sessions stop', async () => {
-        const sessionA = makeSession('s1', [], 'stopped');
-        const sessionB = makeSession('s2', [], 'stopped');
+        const sessionA = debugSessionFactory('s1', [], 'stopped');
+        const sessionB = debugSessionFactory('s2', [], 'stopped');
 
         (controller as unknown as { _instances: unknown[] })._instances = [
             { componentViewerInstance: instanceFactory(), lockState: false, sessionId: 's1', dirtyWhileLocked: false },
@@ -393,7 +324,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('updates instances on stack item change', async () => {
-        const sessionA = makeSession('s1', [], 'stopped');
+        const sessionA = debugSessionFactory('s1', [], 'stopped');
 
         (controller as unknown as { _activeSession?: Session })._activeSession = sessionA;
 
@@ -409,7 +340,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('does not update active session when stack item matches the active session', async () => {
-        const sessionA = makeSession('s1');
+        const sessionA = debugSessionFactory('s1');
         const updateSpy = jest.fn();
 
         (controller as unknown as { _activeSession?: Session })._activeSession = sessionA;
@@ -438,7 +369,7 @@ describe('ComponentViewerBase', () => {
         expect(provider.clear).toHaveBeenCalledTimes(1);
         (provider.clear as jest.Mock).mockClear();
 
-        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1', [], 'stopped');
+        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = debugSessionFactory('s1', [], 'stopped');
         (controller as unknown as { _instances: unknown[] })._instances = [];
         await updateInstances('stackTrace');
         expect(provider.clear).not.toHaveBeenCalled();
@@ -465,7 +396,7 @@ describe('ComponentViewerBase', () => {
 
     it('skips gui tree updates when an instance returns no gui tree', async () => {
         const updateInstances = getUpdateInstances(controller);
-        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1', [], 'stopped');
+        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = debugSessionFactory('s1', [], 'stopped');
         const instance = instanceFactory();
         instance.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => undefined);
         (controller as unknown as { _instances: unknown[] })._instances = [
@@ -477,7 +408,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('updates only instances for the active session', async () => {
-        const sessionA = makeSession('s1', [], 'stopped');
+        const sessionA = debugSessionFactory('s1', [], 'stopped');
         (controller as unknown as { _activeSession?: Session | undefined })._activeSession = sessionA;
 
         const rootA = { ...makeGuiNode('rootA'), clear: jest.fn() } as ScvdGuiInterface & { clear: jest.Mock };
@@ -507,7 +438,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('skips updating a locked instance and marks root as locked', async () => {
-        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = makeSession('s1', [], 'stopped');
+        (controller as unknown as { _activeSession?: Session | undefined })._activeSession = debugSessionFactory('s1', [], 'stopped');
 
         const rootUnlocked = makeGuiNode('u');
         const rootLocked = makeGuiNode('l');
@@ -709,7 +640,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('shouldUpdateInstances returns false when no instances', () => {
-        const session = makeSession('s1', [], 'stopped');
+        const session = debugSessionFactory('s1', [], 'stopped');
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [];
 
@@ -718,7 +649,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('shouldUpdateInstances returns false when target state is unknown', () => {
-        const session = makeSession('s1', [], 'unknown');
+        const session = debugSessionFactory('s1', [], 'unknown');
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
             { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1', dirtyWhileLocked: false },
@@ -729,7 +660,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('shouldUpdateInstances returns false when running and refresh disabled', () => {
-        const session = makeSession('s1', [], 'running');
+        const session = debugSessionFactory('s1', [], 'running');
         (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = true;
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
@@ -742,7 +673,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('shouldUpdateInstances returns false when running without access', () => {
-        const session = makeSession('s1', [], 'running');
+        const session = debugSessionFactory('s1', [], 'running');
         (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = false;
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
@@ -755,7 +686,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('shouldUpdateInstances returns true when running with refresh and access', () => {
-        const session = makeSession('s1', [], 'running');
+        const session = debugSessionFactory('s1', [], 'running');
         (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = true;
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
@@ -768,7 +699,7 @@ describe('ComponentViewerBase', () => {
     });
 
     it('shouldUpdateInstances returns true when stopped', () => {
-        const session = makeSession('s1', [], 'stopped');
+        const session = debugSessionFactory('s1', [], 'stopped');
 
         (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [
             { componentViewerInstance: instanceFactory() as unknown as ComponentViewerInstancesWrapper['componentViewerInstance'], lockState: false, sessionId: 's1', dirtyWhileLocked: false },
@@ -782,8 +713,8 @@ describe('ComponentViewerBase', () => {
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         // Set up two sessions
-        const sessionFront = makeSession('s1', [], 'running');
-        const sessionOther = makeSession('s2', [], 'running');
+        const sessionFront = debugSessionFactory('s1', [], 'running');
+        const sessionOther = debugSessionFactory('s2', [], 'running');
         (sessionFront as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = true;
         (sessionOther as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = true;
 
