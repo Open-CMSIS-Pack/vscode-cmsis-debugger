@@ -34,7 +34,7 @@ export interface ComponentViewerInstancesWrapper {
     dirtyWhileLocked: boolean; // Flag to indicate if an update was attempted while instance was locked, used to trigger an update when instance is unlocked
 }
 
-export class ComponentViewerBase {
+export abstract class ComponentViewerBase {
     private _activeSession: GDBTargetDebugSession | undefined;
     private _instances: ComponentViewerInstancesWrapper[] = [];
     private _componentViewerTreeDataProvider: ComponentViewerTreeDataProvider;
@@ -46,6 +46,15 @@ export class ComponentViewerBase {
     private _runningUpdate: boolean = false;
     private _refreshTimerEnabled: boolean = true;
     private static readonly pendingUpdateDelayMs = 150;
+
+    /**
+     * Get SCVF file paths for a given debug session. Derived class implements to get SCVD files as needed
+     * for specific component viewer flavor.
+     *
+     * @param _session GDB target session to get SCVD Files for
+     * @returns promise to an array of SCVD file paths, or empty array if no SCVD files found
+     */
+    protected abstract getScvdFilePaths(_session: GDBTargetDebugSession): Promise<string[]>;
 
     public constructor(
         context: vscode.ExtensionContext,
@@ -147,17 +156,6 @@ export class ComponentViewerBase {
             instance.dirtyWhileLocked = false;
         }
         this._componentViewerTreeDataProvider.refresh();
-    }
-
-    /**
-     * Get SCVF file paths for a given debug session. Derived class implements to get SCVD files as needed
-     * for specific component viewer flavor.
-     *
-     * @param _session GDB target session to get SCVD Files for
-     * @returns promise to an array of SCVD file paths, or empty array if no SCVD files found
-     */
-    protected async getScvdFilePaths(_session: GDBTargetDebugSession): Promise<string[]> {
-        return [];
     }
 
     protected async readScvdFiles(tracker: GDBTargetDebugTracker, session?: GDBTargetDebugSession): Promise<void> {
