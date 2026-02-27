@@ -25,7 +25,7 @@ import type { GDBTargetDebugSession } from '../../../../debug-session/gdbtarget-
 import { componentViewerLogger } from '../../../../logger';
 import { extensionContextFactory } from '../../../../__test__/vscode.factory';
 import { treeDataProviderFactory } from '../../__test__/component-viewer-parts.factory';
-import { ComponentViewerInstancesWrapper, UpdateReason } from '../../component-viewer-base';
+import { ComponentViewerInstancesWrapper, ScvdCollector, UpdateReason } from '../../component-viewer-base';
 import { ComponentViewerBase } from '../../component-viewer-base';
 import { ComponentViewerTreeDataProvider } from '../../component-viewer-tree-view';
 import type { ScvdGuiInterface } from '../../model/scvd-gui-interface';
@@ -65,18 +65,25 @@ function asMockedFunction<Args extends unknown[], Return>(
     return fn as unknown as jest.MockedFunction<(...args: Args) => Return>;
 }
 
+class TestClassScvdCollector implements ScvdCollector {
+    public async getScvdFilePaths(session: GDBTargetDebugSession): Promise<string[]> {
+        // Lightweight implementation based on session logic
+        const cbuildRunReader = await session.getCbuildRun();
+        return cbuildRunReader?.getScvdFilePaths() ?? [];
+    }
+}
+
 class TestClass extends ComponentViewerBase {
     public constructor(
         context: vscode.ExtensionContext,
         componentViewerTreeDataProvider: ComponentViewerTreeDataProvider,
     ) {
-        super(context, componentViewerTreeDataProvider, 'Test Class', 'testClass');
-    }
-
-    protected override async getScvdFilePaths(session: GDBTargetDebugSession): Promise<string[]> {
-        // Lightweight implementation based on session logic
-        const cbuildRunReader = await session.getCbuildRun();
-        return cbuildRunReader?.getScvdFilePaths() ?? [];
+        super(
+            context,
+            componentViewerTreeDataProvider,
+            new TestClassScvdCollector(),
+            'Test Class',
+            'testClass');
     }
 };
 

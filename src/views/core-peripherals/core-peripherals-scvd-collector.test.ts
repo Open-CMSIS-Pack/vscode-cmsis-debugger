@@ -14,22 +14,17 @@
  * limitations under the License.
  */
 
-import * as vscode from 'vscode';
-import { ComponentViewerBase } from '../component-viewer/component-viewer-base';
-import { ComponentViewerTreeDataProvider } from '../component-viewer/component-viewer-tree-view';
 import { CorePeripheralsScvdCollector } from './core-peripherals-scvd-collector';
 
-export class CorePeripherals extends ComponentViewerBase {
-    public constructor(
-        context: vscode.ExtensionContext,
-        componentViewerTreeDataProvider: ComponentViewerTreeDataProvider
-    ) {
-        super(
-            context,
-            componentViewerTreeDataProvider,
-            new CorePeripheralsScvdCollector(),
-            'Core Peripherals',
-            'corePeripherals'
-        );
-    }
-}
+describe('CorePeripheralsScvdCollector', () => {
+    let corePeripheralsScvdCollector: CorePeripheralsScvdCollector;
+
+    beforeEach(() => {
+        corePeripheralsScvdCollector = new CorePeripheralsScvdCollector();
+    });
+
+    it('exists', () => {
+        expect(corePeripheralsScvdCollector).toBeDefined();
+    });
+
+});

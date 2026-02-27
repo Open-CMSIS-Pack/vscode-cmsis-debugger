@@ -17,28 +17,19 @@
 import * as vscode from 'vscode';
 import { ComponentViewerBase } from './component-viewer-base';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
-import { GDBTargetDebugSession } from '../../debug-session';
+import { ComponentViewerScvdCollector } from './component-viewer-scvd-collector';
 
 export class ComponentViewer extends ComponentViewerBase {
     public constructor(
         context: vscode.ExtensionContext,
         componentViewerTreeDataProvider: ComponentViewerTreeDataProvider
     ) {
-        super(context, componentViewerTreeDataProvider, 'Component Viewer', 'componentViewer');
+        super(
+            context,
+            componentViewerTreeDataProvider,
+            new ComponentViewerScvdCollector(),
+            'Component Viewer',
+            'componentViewer'
+        );
     }
-
-    protected override async getScvdFilePaths(session: GDBTargetDebugSession): Promise<string[]> {
-        const cbuildRunReader = await session.getCbuildRun();
-        const pname = await session.getPname();
-        if (!cbuildRunReader) {
-            return [];
-        }
-        // Get SCVD file paths from cbuild-run reader
-        const scvdFilesPaths: string [] = cbuildRunReader.getScvdFilePaths(undefined, pname);
-        if (scvdFilesPaths.length === 0) {
-            return [];
-        }
-        return scvdFilesPaths;
-    }
-
 }
