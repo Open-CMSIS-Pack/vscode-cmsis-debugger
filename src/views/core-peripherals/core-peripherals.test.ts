@@ -16,7 +16,7 @@
 
 import { extensionContextFactory } from '../../__test__/vscode.factory';
 import { treeDataProviderFactory } from '../component-viewer/__test__/component-viewer-parts.factory';
-import { debugTrackerFactory } from '../component-viewer/__test__/debug-session.factory';
+import { debugTrackerFactory } from '../../debug-session/__test__/debug-session.factory';
 import { CorePeripherals } from './core-peripherals';
 
 describe('CorePeripherals', () => {

@@ -16,7 +16,7 @@
 
 import { extensionContextFactory } from '../../../../__test__/vscode.factory';
 import { treeDataProviderFactory } from '../../__test__/component-viewer-parts.factory';
-import { debugTrackerFactory } from '../../__test__/debug-session.factory';
+import { debugTrackerFactory } from '../../../../debug-session/__test__/debug-session.factory';
 import { ComponentViewer } from '../../component-viewer';
 
 /**

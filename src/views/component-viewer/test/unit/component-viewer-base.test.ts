@@ -29,7 +29,7 @@ import { ComponentViewerInstancesWrapper, ScvdCollector, UpdateReason } from '..
 import { ComponentViewerBase } from '../../component-viewer-base';
 import { ComponentViewerTreeDataProvider } from '../../component-viewer-tree-view';
 import type { ScvdGuiInterface } from '../../model/scvd-gui-interface';
-import { debugSessionFactory, trackerFactory, OnRefreshCallback, Session, TrackerCallbacks } from '../../__test__/debug-session.factory';
+import { debugSessionFactory, trackerFactory, OnRefreshCallback, Session, TrackerCallbacks } from '../../../../debug-session/__test__/debug-session.factory';
 
 
 const instanceFactory = jest.fn(() => ({

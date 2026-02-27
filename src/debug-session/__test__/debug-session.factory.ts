@@ -15,7 +15,7 @@
  */
 // generated with AI
 
-import { GDBTargetDebugTracker, TargetState } from '../../../debug-session';
+import { GDBTargetDebugTracker, TargetState } from '..';
 
 export type OnRefreshCallback = (session: Session) => void;
 
