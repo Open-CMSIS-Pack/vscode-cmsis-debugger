@@ -14,17 +14,32 @@
  * limitations under the License.
  */
 
+import * as path from 'path';
 import { CorePeripheralsScvdCollector } from './core-peripherals-scvd-collector';
+import { gdbTargetDebugSessionFactory } from '../../debug-session/__test__/debug-session.factory';
+
+const TEST_BASE_PATH = path.resolve(__dirname, '../../../configs/core-peripherals');
+const EXPECTED_CORE_PERIPHERAL_FILES = [
+    'Memory_Protection_Unit.scvd',
+    'Nested_Vectored_Interrupt_Controller.scvd',
+    'System_Config_and_Control.scvd',
+    'System_Tick_Timer.scvd',
+];
+const EXPECTED_CORE_PERIPHERAL_FILE_PATHS = EXPECTED_CORE_PERIPHERAL_FILES.map(
+    file => path.resolve(TEST_BASE_PATH, file)
+);
+
 
 describe('CorePeripheralsScvdCollector', () => {
-    let corePeripheralsScvdCollector: CorePeripheralsScvdCollector;
 
-    beforeEach(() => {
-        corePeripheralsScvdCollector = new CorePeripheralsScvdCollector();
-    });
-
-    it('exists', () => {
-        expect(corePeripheralsScvdCollector).toBeDefined();
+    it('finds all expected SCVD files', async () => {
+        const corePeripheralsScvdCollector = new CorePeripheralsScvdCollector(TEST_BASE_PATH);
+        const debugSession = gdbTargetDebugSessionFactory('TestSession', [], 'unknown');
+        const scvdFilePaths = await corePeripheralsScvdCollector.getScvdFilePaths(debugSession);
+        expect(scvdFilePaths.length).toBe(EXPECTED_CORE_PERIPHERAL_FILE_PATHS.length);
+        EXPECTED_CORE_PERIPHERAL_FILE_PATHS.forEach(filePath => {
+            expect(scvdFilePaths.includes(filePath)).toBe(true);
+        });
     });
 
 });

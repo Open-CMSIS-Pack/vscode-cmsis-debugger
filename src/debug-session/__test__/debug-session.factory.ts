@@ -15,7 +15,7 @@
  */
 // generated with AI
 
-import { GDBTargetDebugTracker, TargetState } from '..';
+import { GDBTargetDebugSession, GDBTargetDebugTracker, TargetState } from '..';
 
 export type OnRefreshCallback = (session: Session) => void;
 
@@ -87,3 +87,7 @@ export const debugSessionFactory = (id: string, paths: string[] = [], targetStat
     },
     targetState,
 });
+
+export const gdbTargetDebugSessionFactory = (id: string, paths: string[] = [], targetState: Session['targetState'] = 'unknown'): GDBTargetDebugSession => (
+    debugSessionFactory(id, paths, targetState) as unknown as GDBTargetDebugSession
+);

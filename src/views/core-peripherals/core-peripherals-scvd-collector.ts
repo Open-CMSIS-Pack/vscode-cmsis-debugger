@@ -24,14 +24,17 @@ import { ScvdCollector } from '../component-viewer/component-viewer-base';
 const CORE_PERIPHERAL_SCVD_BASE = path.join(__dirname, '..', 'configs', 'core-peripherals');
 
 export class CorePeripheralsScvdCollector implements ScvdCollector {
+    public constructor(private readonly basePath: string = CORE_PERIPHERAL_SCVD_BASE) {}
+
     public async getScvdFilePaths(_session: GDBTargetDebugSession): Promise<string[]> {
-        const filePaths = await promisify(fs.readdir)(CORE_PERIPHERAL_SCVD_BASE, {
+        const resolvedBasePath = path.resolve(this.basePath);
+        const filePaths = await promisify(fs.readdir)(resolvedBasePath, {
             encoding: 'buffer',
             withFileTypes: true
         });
         const scvdFilePaths = filePaths
             .filter((file) => file.isFile() && file.name.toString().toLowerCase().endsWith('.scvd'))
-            .map((file) => path.join(CORE_PERIPHERAL_SCVD_BASE, file.name.toString()));
+            .map((file) => path.join(resolvedBasePath, file.name.toString()));
         return scvdFilePaths;
     }
 }
