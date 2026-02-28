@@ -26,9 +26,6 @@ export class ComponentViewerScvdCollector implements ScvdCollector {
         }
         // Get SCVD file paths from cbuild-run reader
         const scvdFilesPaths: string [] = cbuildRunReader.getScvdFilePaths(undefined, pname);
-        if (scvdFilesPaths.length === 0) {
-            return [];
-        }
         return scvdFilesPaths;
     }
 }
