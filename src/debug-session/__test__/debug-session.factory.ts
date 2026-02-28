@@ -78,16 +78,32 @@ export const trackerFactory = (): TrackerCallbacks => {
 
 export const debugTrackerFactory = () => trackerFactory() as unknown as GDBTargetDebugTracker;
 
-export const debugSessionFactory = (id: string, paths: string[] = [], targetState: Session['targetState'] = 'unknown'): Session => ({
-    session: { id },
-    getCbuildRun: async () => ({ getScvdFilePaths: () => paths }),
-    getPname: async () => undefined,
-    refreshTimer: {
-        onRefresh: jest.fn(),
-    },
-    targetState,
-});
+export const debugSessionFactory = (
+    id: string,
+    paths: string[] = [],
+    targetState: Session['targetState'] = 'unknown',
+    pname: string | undefined = undefined,
+    hasCbuildRun = true
+): Session => {
+    // Ensure same object returned for multiple calls to getCbuildRun.
+    const cbuildRunMock = hasCbuildRun ? { getScvdFilePaths: () => paths } : undefined;
+    return {
+        session: { id },
+        getCbuildRun: async () => cbuildRunMock,
+        getPname: async () => pname,
+        refreshTimer: {
+            onRefresh: jest.fn(),
+        },
+        targetState,
+    };
+};
 
-export const gdbTargetDebugSessionFactory = (id: string, paths: string[] = [], targetState: Session['targetState'] = 'unknown'): GDBTargetDebugSession => (
-    debugSessionFactory(id, paths, targetState) as unknown as GDBTargetDebugSession
+export const gdbTargetDebugSessionFactory = (
+    id: string,
+    paths: string[] = [],
+    targetState: Session['targetState'] = 'unknown',
+    pname: string | undefined = undefined,
+    hasCbuildRun = true
+): GDBTargetDebugSession => (
+    debugSessionFactory(id, paths, targetState, pname, hasCbuildRun) as unknown as GDBTargetDebugSession
 );
