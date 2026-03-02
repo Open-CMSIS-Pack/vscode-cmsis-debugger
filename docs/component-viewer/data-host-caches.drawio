@@ -1,0 +1,118 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.3.6 Chrome/140.0.7339.249 Electron/38.8.0 Safari/537.36" version="29.3.6">
+  <diagram name="Data Host and Caches" id="d4">
+    <mxGraphModel dx="6566" dy="3069" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="4200" pageHeight="3200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;fontSize=22;fontStyle=1;align=center;verticalAlign=middle;fillColor=none;strokeColor=none;fontColor=#333333;" value="Data Hosts and Caches — Target Memory, Registers and Caching" vertex="1">
+          <mxGeometry height="50" width="1400" x="800" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_title" parent="1" style="text;html=1;fontSize=13;fontStyle=1;align=left;fillColor=none;strokeColor=none;" value="Legend" vertex="1">
+          <mxGeometry height="24" width="80" x="50" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1c" parent="1" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Data host" vertex="1">
+          <mxGeometry height="18" width="100" x="76" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2c" parent="1" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="136" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Cache layer" vertex="1">
+          <mxGeometry height="18" width="100" x="76" y="136" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3c" parent="1" style="rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="162" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Target access / bridge" vertex="1">
+          <mxGeometry height="18" width="160" x="76" y="162" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4c" parent="1" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="188" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Data structure" vertex="1">
+          <mxGeometry height="18" width="120" x="76" y="188" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5c" parent="1" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="214" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="External subsystem" vertex="1">
+          <mxGeometry height="18" width="150" x="76" y="214" as="geometry" />
+        </mxCell>
+        <mxCell id="d_memhost" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;strokeWidth=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:15px;&quot;&gt;&lt;b&gt;MemoryHost&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;cache: ValidatingCache&amp;lt;MemoryContainer&amp;gt;&lt;br/&gt;endianness: Endianness (little)&lt;br/&gt;elementMeta: Map&amp;lt;string, ElementMeta&amp;gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;readValue(ref) — read from cache by RefContainer&lt;br/&gt;writeValue(ref, data) — write to container + meta&lt;br/&gt;appendValue(name, data, base, actualSize, virtualSize)&lt;br/&gt;clearNonConst() — invalidate non-const entries&lt;br/&gt;getContainer(varName) — ensure cache entry&lt;/p&gt;" vertex="1">
+          <mxGeometry height="300" width="480" x="200" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="d_reghost" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;strokeWidth=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:15px;&quot;&gt;&lt;b&gt;RegisterHost&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;cache: ValidatingCache&amp;lt;number | bigint&amp;gt;&lt;br/&gt;normalize: name ➜ uppercase&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;read(name) — get cached register value&lt;br/&gt;write(name, value) — store as uint32&lt;br/&gt;invalidate(name) / clear()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="240" width="420" x="780" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="d_memcontainer" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;MemoryContainer&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;symbolName: string&lt;br/&gt;store: Uint8Array (growable)&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;readExact(off, size) — exact byte read&lt;br/&gt;readPartial(off, size) — partial read OK&lt;br/&gt;write(off, data, virtualSize?) — grow + pad&lt;br/&gt;clear() / byteLength&lt;/p&gt;" vertex="1">
+          <mxGeometry height="230" width="400" x="200" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="d_vcache" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;strokeWidth=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;ValidatingCache&amp;lt;T&amp;gt;&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;map: Map&amp;lt;string, ValidatingEntry&amp;lt;T&amp;gt;&amp;gt;&lt;br/&gt;normalize: (key) ➜ normalized key&lt;br/&gt;ValidatingEntry: { value: T, valid: boolean, isConst?: boolean }&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;get(key) — returns value only if valid&lt;br/&gt;set(key, value, valid, isConst?)&lt;br/&gt;ensure(key, factory) — lazy init&lt;br/&gt;invalidate(key) — mark entry invalid&lt;br/&gt;clear() / delete(key)&lt;/p&gt;" vertex="1">
+          <mxGeometry height="260" width="460" x="750" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="d_debugtarget" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;strokeWidth=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:15px;&quot;&gt;&lt;b&gt;ScvdDebugTarget&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;activeSession: GDBTargetDebugSession&lt;br/&gt;targetAccess: ComponentViewerTargetAccess&lt;br/&gt;debugTracker: GDBTargetDebugTracker&lt;br/&gt;isTargetRunning: boolean&lt;br/&gt;symbolCaches: SymbolCaches&lt;br/&gt;targetReadCache: TargetReadCache | undefined&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;init(session, tracker) — set up target access&lt;br/&gt;beginUpdateCycle() — prefetch cache priming&lt;br/&gt;readMemory(addr, length) — with cache check&lt;br/&gt;findSymbolAddress(name) — cached symbol lookup&lt;br/&gt;getSymbolInfo(symbol) — address resolution&lt;br/&gt;readRegister(name) — via evaluate request&lt;br/&gt;readMemoryFromTarget(addr, length) — raw DAP read&lt;/p&gt;" vertex="1">
+          <mxGeometry height="360" width="480" x="1380" y="104" as="geometry" />
+        </mxCell>
+        <mxCell id="d_trcache" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;TargetReadCache&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;segments: TargetReadSegment[] (fetched data)&lt;br/&gt;requestedRanges: TargetReadRange[]&lt;br/&gt;MAX_BATCH_BYTES = 4096&lt;br/&gt;MAX_BATCH_GAP_BYTES = 0&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;beginUpdateCycle(fetcher) — merge + prefetch ranges&lt;br/&gt;read(start, size) — hit from prefetched segments&lt;br/&gt;write(start, data) — merge into segments&lt;br/&gt;getMissingRanges(start, size) — gap analysis&lt;br/&gt;recordRequestRange(start, size) — track for next cycle&lt;/p&gt;" vertex="1">
+          <mxGeometry height="300" width="460" x="1400" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="d_symcaches" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;SymbolCaches&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;addressCache: StringNumberCache&lt;br/&gt;sizeCache: StringNumberCache&lt;br/&gt;arrayCountCache: StringNumberCache&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;getAddress(symbol, compute) — cached&lt;br/&gt;getSize(symbol, compute) — cached&lt;br/&gt;getArrayCount(symbol, compute) — cached&lt;br/&gt;clearAll()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="240" width="400" x="1990" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="d_targetaccess" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;ComponentViewerTargetAccess&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;_activeSession: GDBTargetDebugSession&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;setActiveSession(session)&lt;br/&gt;evaluateSymbolAddress(addr, ctx) — DAP evaluate &amp;amp;symbol&lt;br/&gt;evaluateSymbolName(addr) — reverse lookup&lt;br/&gt;evaluateSymbolContext(addr) — context info&lt;br/&gt;readMemory(addr, length) — DAP readMemory&lt;br/&gt;readRegister(name) — DAP evaluate $reg&lt;/p&gt;" vertex="1">
+          <mxGeometry height="280" width="460" x="1980" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="d_gdb_map" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=11;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;Register GDB Mapping&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;REGISTER_GDB_MAP: Map&amp;lt;string, string&amp;gt;&lt;br/&gt;Maps register names to GDB names:&lt;br/&gt;R0..R15, PSP, MSP, XPSR, PRIMASK, etc.&lt;br/&gt;Plus Armv8-M Secure/Non-secure variants&lt;br/&gt;&lt;br/&gt;toGdbSymbol(path):&lt;br/&gt;  &quot;tasks.c/xSchedulerRunning&quot;&lt;br/&gt;  ➜ &quot;&#39;tasks.c&#39;::xSchedulerRunning&quot;&lt;/p&gt;" vertex="1">
+          <mxGeometry height="240" width="380" x="2440" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="d_cache_flow" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;Memory Read Flow (with cache)&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;1. ScvdDebugTarget.readMemory(addr, len)&lt;br/&gt;2. Check TargetReadCache.read() for hit&lt;br/&gt;3. If miss: getMissingRanges()&lt;br/&gt;4. Batch missing reads into MAX_BATCH_BYTES chunks&lt;br/&gt;5. readMemoryFromTarget() ➜ ComponentViewerTargetAccess&lt;br/&gt;6. Write results to TargetReadCache&lt;br/&gt;7. recordRequestRange() for next prefetch cycle&lt;br/&gt;8. Return assembled data&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;&lt;b&gt;Prefetch cycle (beginUpdateCycle):&lt;/b&gt;&lt;br/&gt;1. Merge previous requestedRanges&lt;br/&gt;2. Prefetch merged ranges from target&lt;br/&gt;3. Populate segments for fast reads&lt;br/&gt;4. Clear requestedRanges for next cycle&lt;/p&gt;" vertex="1">
+          <mxGeometry height="380" width="500" x="190" y="900" as="geometry" />
+        </mxCell>
+        <mxCell id="d_ext_eval" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;ScvdEvalInterface&lt;/i&gt;&lt;br/&gt;(reads/writes via MemoryHost + RegisterHost)" vertex="1">
+          <mxGeometry height="60" width="380" x="800" y="880" as="geometry" />
+        </mxCell>
+        <mxCell id="d_ext_gdb" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;GDB / Debug Adapter Protocol (DAP)&lt;/i&gt;&lt;br/&gt;(actual target communication)" vertex="1">
+          <mxGeometry height="60" width="380" x="2540" y="214" as="geometry" />
+        </mxCell>
+        <mxCell id="d_ext_cvi" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;ComponentViewerInstance&lt;/i&gt;&lt;br/&gt;(creates ScvdEvalContext which creates hosts)" vertex="1">
+          <mxGeometry height="60" width="380" x="2450" y="890" as="geometry" />
+        </mxCell>
+        <mxCell id="de1" edge="1" parent="1" source="d_memhost" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="d_memcontainer" value="stores in">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de2" edge="1" parent="1" source="d_memhost" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="d_vcache" value="backed by">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de3" edge="1" parent="1" source="d_reghost" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="d_vcache" value="backed by">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de4" edge="1" parent="1" source="d_debugtarget" style="endArrow=open;endFill=0;endSize=10;startArrow=diamondThin;startFill=1;startSize=14;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="d_trcache" value="owns">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de5" edge="1" parent="1" source="d_debugtarget" style="endArrow=open;endFill=0;endSize=10;startArrow=diamondThin;startFill=1;startSize=14;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="d_symcaches" value="owns">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de6" edge="1" parent="1" source="d_debugtarget" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="d_targetaccess" value="delegates to">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de7" edge="1" parent="1" source="d_targetaccess" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="d_ext_gdb" value="DAP requests">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de8" edge="1" parent="1" source="d_ext_eval" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="d_memhost" value="uses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de9" edge="1" parent="1" source="d_ext_eval" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="d_reghost" value="uses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de10" edge="1" parent="1" source="d_ext_eval" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="d_debugtarget" value="uses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="de11" edge="1" parent="1" source="d_debugtarget" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="d_gdb_map" value="uses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
