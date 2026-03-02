@@ -79,9 +79,11 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     if (!await componentViewer.activate(gdbtargetDebugTracker)) {
         canCompleteActivation = false;
     }
+    // Temporary guard: enable once solution is ready
+    const corePeripheralsEnabled = vscode.workspace.getConfiguration().get<boolean>('cmsis-debugger.corePeripherals.enabled', false);
     // Core Peripherals
     logger.debug('Activating Core Peripherals');
-    if (!await corePeripherals.activate(gdbtargetDebugTracker)) {
+    if (corePeripheralsEnabled && !await corePeripherals.activate(gdbtargetDebugTracker)) {
         canCompleteActivation = false;
     }
 
