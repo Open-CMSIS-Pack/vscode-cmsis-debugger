@@ -42,12 +42,11 @@ ComponentViewer  (component-viewer-main.ts)
 
 ## Diagrams
 
-The remaining draw.io files cover individual subsystems in more detail:
+The remaining draw.io files cover individual subsystems in more detail.
 
 | Diagram | Description |
 |---------|-------------|
 | [architecture.drawio](architecture.png) | High level overview. |
-| [architecture.png](architecture.png) | Rendered architecture overview image for quick viewing in Markdown. |
 | [all-subsystems.drawio](all-subsystems.drawio) | Single-canvas overview of all subsystems and their connections. |
 | [instance.drawio](instance.drawio) | Detail of `ComponentViewerInstance`: `readModel()` and `update()` call paths. |
 | [scvd-model.drawio](scvd-model.drawio) | Class hierarchy of the SCVD model (`model/`). |
@@ -55,3 +54,5 @@ The remaining draw.io files cover individual subsystems in more detail:
 | [evaluation-layer.drawio](evaluation-layer.drawio) | Evaluation layer: eval context, eval interface, parser/evaluator pipeline. |
 | [data-host-caches.drawio](data-host-caches.drawio) | Data hosts and caching strategy (memory, registers, symbols). |
 | [scvd-gui-tree.drawio](scvd-gui-tree.drawio) | `ScvdGuiTree` node structure and `ScvdGuiInterface` contract. |
+
+*Note: Program is avaliable here: https://www.drawio.com/ or as vscode extension.*
