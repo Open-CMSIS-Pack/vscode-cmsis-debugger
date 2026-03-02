@@ -11,7 +11,7 @@ At a high level, the Component Viewer consists of five layered subsystems:
         ▼
 ComponentViewer  (component-viewer-main.ts)
   ├─ creates/manages ──▶  ComponentViewerInstance  (per SCVD file)
-  │                         ├─ readModel()   XML → SCVD model → StatementEngine
+  │                         ├─ readModel()   XML → SCVD model  → StatementEngine
   │                         └─ update()      executeStatements → ScvdGuiTree
   └─ setRoots() ──────────▶  ComponentViewerTreeDataProvider
                                └─ reads ──▶  ScvdGuiTree  (ScvdGuiInterface)
