@@ -19,6 +19,7 @@ import * as path from 'path';
 import { promisify } from 'util';
 import { GDBTargetDebugSession } from '../../debug-session';
 import { ScvdCollector } from '../component-viewer/component-viewer-base';
+import { componentViewerLogger } from '../../logger';
 
 // Relative to dist folder at runtime
 const CORE_PERIPHERAL_SCVD_BASE = path.join(__dirname, '..', 'configs', 'core-peripherals');
@@ -28,10 +29,18 @@ export class CorePeripheralsScvdCollector implements ScvdCollector {
 
     public async getScvdFilePaths(_session: GDBTargetDebugSession): Promise<string[]> {
         const resolvedBasePath = path.resolve(this.basePath);
-        const filePaths = await promisify(fs.readdir)(resolvedBasePath, {
-            encoding: 'buffer',
-            withFileTypes: true
-        });
+        const filePaths = [];
+        try {
+            const readFilePaths = await promisify(fs.readdir)(resolvedBasePath, {
+                encoding: 'buffer',
+                withFileTypes: true
+            });
+            filePaths.push(...readFilePaths);
+        } catch (err) {
+            // Log error and return empty list if directory cannot be read, e.g. because it does not exist
+            componentViewerLogger.error(`Core Peripherals: Error reading SCVD files from ${resolvedBasePath}:`, err);
+            return [];
+        }
         const scvdFilePaths = filePaths
             .filter((file) => file.isFile() && file.name.toString().toLowerCase().endsWith('.scvd'))
             .map((file) => path.join(resolvedBasePath, file.name.toString()));
