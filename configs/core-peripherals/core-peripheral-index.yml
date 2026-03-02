@@ -1,0 +1,11 @@
+core-peripherals:
+  - file: Memory_Protection_Unit.scvd
+    cpu-type: "*"
+    cpu-features:
+      mpu: present
+  - file: Nested_Vectored_Interrupt_Controller.scvd
+    cpu-type: "*"
+  - file: System_Config_and_Control.scvd
+    cpu-type: "*"
+  - file: System_Tick_Timer.scvd
+    cpu-type: "*"
