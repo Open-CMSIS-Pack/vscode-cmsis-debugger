@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -114,7 +114,7 @@ const pyocdNightly : Downloadable = new Downloadable(
         }
         // Here, reference is expected to be the name of the workflow yaml file without file ending
         const { repo, owner, reference } = splitGitReference(workflow, 'pyocd', 'pyOCD');
-        const assetPattern = (`pyocd-${os}${arch}-*`);
+        const assetPattern = (`pyocd-${os}${arch}-\\d+\\.\\d+\\.\\d+.*`);
         const asset = new ExtractZipGitHubWorkflowAsset(
             owner, repo, `${reference}.yaml`,
             assetPattern, 
