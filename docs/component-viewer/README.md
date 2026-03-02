@@ -6,8 +6,7 @@ The Component Viewer is a VS Code tree view that reads [SCVD](https://arm-softwa
 
 At a high level, the Component Viewer consists of five layered subsystems:
 
-```
-GDBTargetDebugTracker / GDBTargetDebugSession
+```GDBTargetDebugTracker / GDBTargetDebugSession
         │  debug events & session state
         ▼
 ComponentViewer  (component-viewer-main.ts)
