@@ -55,4 +55,4 @@ The remaining draw.io files cover individual subsystems in more detail.
 | [data-host-caches.drawio](data-host-caches.drawio) | Data hosts and caching strategy (memory, registers, symbols). |
 | [scvd-gui-tree.drawio](scvd-gui-tree.drawio) | `ScvdGuiTree` node structure and `ScvdGuiInterface` contract. |
 
-*Note: Program is avaliable here: https://www.drawio.com/ or as vscode extension.*
+*Note: Program is avaliable here: https://www.drawio.com/ or as VS Code extension.*
