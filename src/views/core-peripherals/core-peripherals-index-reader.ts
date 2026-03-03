@@ -18,7 +18,7 @@
 import * as path from 'path';
 import * as yaml from 'yaml';
 import { FileReader, VscodeFileReader } from '../../desktop/file-reader';
-import { CorePeripheralsType } from './core-peripherals-index-types';
+import { CorePeripheralEntryType, CorePeripheralsType } from './core-peripherals-index-types';
 
 export class CorePeripheralsIndexReader {
     private isParsed = false;
@@ -50,10 +50,17 @@ export class CorePeripheralsIndexReader {
         }
     }
 
-    public getScvdFilePaths(): string[] {
-        const resolveFilePaths = this.contents?.['core-peripherals'].map(
-            entry => this.directory ? path.resolve(this.directory, entry.file) : entry.file
+    public getCorePeripherals(): CorePeripheralEntryType[] {
+        const corePeripherals = this.contents?.['core-peripherals'];
+        if (!corePeripherals) {
+            return [];
+        }
+        const resolvedPeripherals = corePeripherals.map(
+            entry => ({
+                ...entry,
+                file: this.directory ? path.resolve(this.directory, entry.file) : entry.file
+            })
         );
-        return resolveFilePaths ?? [];
+        return resolvedPeripherals ?? [];
     }
 }

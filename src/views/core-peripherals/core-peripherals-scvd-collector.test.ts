@@ -16,7 +16,9 @@
 
 import * as path from 'path';
 import { CorePeripheralsScvdCollector } from './core-peripherals-scvd-collector';
-import { gdbTargetDebugSessionFactory } from '../../debug-session/__test__/debug-session.factory';
+import { GDBTargetDebugSession } from '../../debug-session';
+import { debugSessionFactory } from '../../__test__/vscode.factory';
+import { debugConfigurationFactory } from '../../debug-configuration/debug-configuration.factory';
 
 const TEST_BASE_PATH = path.resolve(__dirname, '../../../configs/core-peripherals');
 const EXPECTED_CORE_PERIPHERAL_FILES = [
@@ -34,7 +36,8 @@ describe('CorePeripheralsScvdCollector', () => {
 
     it('finds all expected SCVD files', async () => {
         const corePeripheralsScvdCollector = new CorePeripheralsScvdCollector(TEST_BASE_PATH);
-        const debugSession = gdbTargetDebugSessionFactory('TestSession', [], 'unknown');
+        // Use real session implementation for this test
+        const debugSession = new GDBTargetDebugSession(debugSessionFactory(debugConfigurationFactory()));
         const scvdFilePaths = await corePeripheralsScvdCollector.getScvdFilePaths(debugSession);
         expect(scvdFilePaths.length).toBe(EXPECTED_CORE_PERIPHERAL_FILE_PATHS.length);
         EXPECTED_CORE_PERIPHERAL_FILE_PATHS.forEach(filePath => {
