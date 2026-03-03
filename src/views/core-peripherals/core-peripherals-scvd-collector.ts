@@ -40,7 +40,8 @@ export class CorePeripheralsScvdCollector implements ScvdCollector {
             // No pname info available, return first processor in list as best effort
             return processors[0];
         }
-        return processors.find(processor => processor.pname === pname);
+        const result = processors.find(processor => processor.pname === pname);
+        return result ?? processors[0]; // If no exact match found, return first processor as fallback
     }
 
     private filterCpuType(entry: CorePeripheralEntryType, processorType: string): boolean {
@@ -73,11 +74,15 @@ export class CorePeripheralsScvdCollector implements ScvdCollector {
             const processorFeature = processorFeatures.find(([processorFeatureKey]) => processorFeatureKey === entryFeatureKey);
             if (!processorFeature) {
                 // Required feature not found in processor info
-                // NOTE: All features that are not available mean not supported. Only (optional) exceptions are: punit and endian.
+                // NOTE: All features that are not available mean not supported. Only (optional) exceptions are: punits and endian.
                 //       But these are currently not relevant for filtering core peripherals, so we can ignore them for now.
                 return false;
             }
             const [, processorFeatureValue] = processorFeature;
+            if (processorFeatureValue === undefined || processorFeatureValue === null) {
+                // No valid value for processor feature, treat as not supported
+                return false;
+            }
             return processorFeatureValue.toString().toLowerCase() === entryFeatureValue.toLowerCase();
         });
     }
@@ -94,8 +99,12 @@ export class CorePeripheralsScvdCollector implements ScvdCollector {
     }
 
     public async getScvdFilePaths(session: GDBTargetDebugSession): Promise<string[]> {
-        // Only parsed the first time
-        await this.indexReader.parse(this.indexFilePath);
+        try {
+            await this.indexReader.parse(this.indexFilePath);
+        } catch (error) {
+            componentViewerLogger.error(`Core Peripherals: Failed to parse index file ${this.indexFilePath}: ${error}`);
+            return [];
+        }
         const corePeripherals = this.indexReader.getCorePeripherals();
         if (corePeripherals.length === 0) {
             componentViewerLogger.warn(`Core Peripherals: No core peripherals found in index file ${this.indexFilePath}`);

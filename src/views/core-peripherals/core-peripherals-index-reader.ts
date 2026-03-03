@@ -42,12 +42,12 @@ export class CorePeripheralsIndexReader {
         }
         this.filePath = filePath;
         this.directory = path.dirname(this.filePath);
-        this.isParsed = true; // Mark as parsed regardless of success or failure to avoid repeated parsing attempts
         const fileContents = await this.reader.readFileToString(this.filePath);
         this.contents = yaml.parse(fileContents) as CorePeripheralsType;
         if (!this.contents) {
             throw new Error(`Invalid 'core-peripherals-index' file: ${this.filePath}`);
         }
+        this.isParsed = true;
     }
 
     public getCorePeripherals(): CorePeripheralEntryType[] {
