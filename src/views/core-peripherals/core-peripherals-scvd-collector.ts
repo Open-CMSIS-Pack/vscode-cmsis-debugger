@@ -74,8 +74,8 @@ export class CorePeripheralsScvdCollector implements ScvdCollector {
             const processorFeature = processorFeatures.find(([processorFeatureKey]) => processorFeatureKey === entryFeatureKey);
             if (!processorFeature) {
                 // Required feature not found in processor info
-                // NOTE: All features that are not available mean not supported. Only (optional) exceptions are: punits and endian.
-                //       But these are currently not relevant for filtering core peripherals, so we can ignore them for now.
+                // All features that are not available mean not supported. Only (optional) exceptions are: punits and endian.
+                // But these are currently not relevant for filtering core peripherals, so we can ignore them for now.
                 return false;
             }
             const [, processorFeatureValue] = processorFeature;
