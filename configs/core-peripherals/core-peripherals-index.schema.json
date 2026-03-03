@@ -36,7 +36,7 @@
         "cpu-features": {
           "$ref": "#/definitions/CpuFeatures"
         },
-        "description": {
+        "info": {
           "type": "string",
           "description": "Optional human-readable description."
         }
