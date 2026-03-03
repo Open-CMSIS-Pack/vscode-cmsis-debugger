@@ -14,36 +14,32 @@
  * limitations under the License.
  */
 
-import * as fs from 'fs';
 import * as path from 'path';
 import { GDBTargetDebugSession } from '../../debug-session';
 import { ScvdCollector } from '../component-viewer/component-viewer-base';
 import { componentViewerLogger } from '../../logger';
+import { CorePeripheralsIndexReader } from './core-peripherals-index-reader';
 
 // Relative to dist folder at runtime
-const CORE_PERIPHERAL_SCVD_BASE = path.join(__dirname, '..', 'configs', 'core-peripherals');
+const CORE_PERIPHERAL_SCVD_BASE = path.resolve(__dirname, '..', 'configs', 'core-peripherals');
 
 export class CorePeripheralsScvdCollector implements ScvdCollector {
-    public constructor(private readonly basePath: string = CORE_PERIPHERAL_SCVD_BASE) {}
+    private indexFilePath: string;
+    private indexReader: CorePeripheralsIndexReader;
+
+    public constructor(private readonly basePath: string = CORE_PERIPHERAL_SCVD_BASE) {
+        this.indexFilePath = path.resolve(this.basePath, 'core-peripherals-index.yml');
+        this.indexReader = new CorePeripheralsIndexReader();
+    }
 
     public async getScvdFilePaths(_session: GDBTargetDebugSession): Promise<string[]> {
-        const resolvedBasePath = path.resolve(this.basePath);
-        const filePaths = [];
-        try {
-            // eslint-disable-next-line security/detect-non-literal-fs-filename
-            const readFilePaths = await fs.promises.readdir(resolvedBasePath, {
-                encoding: 'buffer',
-                withFileTypes: true
-            });
-            filePaths.push(...readFilePaths);
-        } catch (err) {
-            // Log error and return empty list if directory cannot be read, e.g. because it does not exist
-            componentViewerLogger.error(`Core Peripherals: Error reading SCVD files from ${resolvedBasePath}:`, err);
+        // Only parsed the first time
+        await this.indexReader.parse(this.indexFilePath);
+        if (!this.indexReader.hasContents()) {
+            componentViewerLogger.warn(`Core Peripherals: No contents found in index file ${this.indexFilePath}`);
             return [];
         }
-        const scvdFilePaths = filePaths
-            .filter((file) => file.isFile() && file.name.toString().toLowerCase().endsWith('.scvd'))
-            .map((file) => path.join(resolvedBasePath, file.name.toString()));
-        return scvdFilePaths;
+        const filePaths = this.indexReader.getScvdFilePaths();
+        return filePaths;
     }
 }
