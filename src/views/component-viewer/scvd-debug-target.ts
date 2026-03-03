@@ -176,7 +176,7 @@ export class ScvdDebugTarget {
 
         const addressInfo = await this.symbolCaches.getAddressWithName(symbol, async (symbolName) => {
             const gdbSymbol = toGdbSymbol(symbolName);
-            const symbolAddressStr = await this.targetAccess.evaluateSymbolAddress(gdbSymbol, 'hover', existCheck);
+            const symbolAddressStr = await this.targetAccess.evaluateSymbolAddress(gdbSymbol, existCheck);
             if (symbolAddressStr !== undefined) {
                 const parsed = parseInt(symbolAddressStr as unknown as string, 16);
                 if (Number.isFinite(parsed)) {

@@ -46,66 +46,44 @@ describe('ComponentViewerTargetAccess', () => {
     });
 
     describe('evaluateSymbolAddress', () => {
-        it('should evaluate symbol address successfully with default context', async () => {
+        it('should resolve symbol address via expression (no frameId, hover context)', async () => {
             (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({
                 result: '0x20000000',
                 variablesReference: 0
             });
-            (vscode.debug.activeStackItem as unknown) = { session: debugSession, threadId: 1, frameId: 5 };
 
             const result = await targetAccess.evaluateSymbolAddress('myVariable');
 
             expect(result).toBe('0x20000000');
             expect(debugSession.customRequest).toHaveBeenCalledWith('evaluate', {
                 expression: '&myVariable',
-                frameId: 5,
                 context: 'hover'
             });
-
-            // Cleanup
-            (vscode.debug.activeStackItem as unknown) = undefined;
         });
 
-        it('should evaluate symbol address with custom context', async () => {
+        it('should return only the address part when GDB adds annotations', async () => {
             (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({
-                result: '0x40001000',
+                result: '0x8000100 <myFunc>',
                 variablesReference: 0
             });
-            (vscode.debug.activeStackItem as unknown) = { session: debugSession, threadId: 1, frameId: 3 };
 
-            const result = await targetAccess.evaluateSymbolAddress('myStruct', 'watch');
+            const result = await targetAccess.evaluateSymbolAddress('myFunc');
 
-            expect(result).toBe('0x40001000');
-            expect(debugSession.customRequest).toHaveBeenCalledWith('evaluate', {
-                expression: '&myStruct',
-                frameId: 3,
-                context: 'watch'
-            });
-
-            // Cleanup
-            (vscode.debug.activeStackItem as unknown) = undefined;
+            expect(result).toBe('0x8000100');
         });
 
-        it('should evaluate symbol address when no active stack frame exists', async () => {
+        it('should return undefined when GDB returns an Error', async () => {
             (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({
-                result: '0x30000000',
+                result: 'Error: No symbol "globalVar" in current context.',
                 variablesReference: 0
             });
-            (vscode.debug.activeStackItem as unknown) = undefined;
 
             const result = await targetAccess.evaluateSymbolAddress('globalVar');
-
-            expect(result).toBe('0x30000000');
-            expect(debugSession.customRequest).toHaveBeenCalledWith('evaluate', {
-                expression: '&globalVar',
-                frameId: undefined,
-                context: 'hover'
-            });
+            expect(result).toBeUndefined();
         });
 
         it('should log when evaluation fails', async () => {
             const debugSpy = jest.spyOn(componentViewerLogger, 'debug');
-            (vscode.debug.activeStackItem as unknown) = { session: debugSession, threadId: 1, frameId: 1 };
             (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('Variable not found'));
 
             const result = await targetAccess.evaluateSymbolAddress('unknownVar');
@@ -116,17 +94,14 @@ describe('ComponentViewerTargetAccess', () => {
             );
         });
 
-        it('should log when custom request fails', async () => {
+        it('should silently return undefined on existCheck failure', async () => {
             const debugSpy = jest.spyOn(componentViewerLogger, 'debug');
-            (vscode.debug.activeStackItem as unknown) = { session: debugSession, threadId: 1, frameId: 1 };
             (debugSession.customRequest as jest.Mock).mockRejectedValueOnce(new Error('custom request failed'));
 
-            const result = await targetAccess.evaluateSymbolAddress('myVar');
+            const result = await targetAccess.evaluateSymbolAddress('myVar', true);
 
             expect(result).toBeUndefined();
-            expect(debugSpy).toHaveBeenCalledWith(
-                'Session \'test-session\': Failed to evaluate address \'myVar\' - \'custom request failed\''
-            );
+            expect(debugSpy).not.toHaveBeenCalled();
         });
     });
 
