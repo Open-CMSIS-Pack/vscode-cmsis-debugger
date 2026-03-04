@@ -1051,7 +1051,7 @@ describe('Evaluator coverage branches', () => {
         expect(helpers.findReferenceNode(callExpr(id('fn'), [num(1), id('arg')]))?.kind).toBe('Identifier');
         expect(helpers.findReferenceNode(callExpr(id('fn'), [num(1), num(2)]))?.kind).toBe('Identifier');
         expect(helpers.findReferenceNode(callExpr(id('fn'), []))?.kind).toBe('Identifier');
-        expect(helpers.findReferenceNode(evalPoint('__Running', []))?.kind).toBe('Identifier');
+        expect(helpers.findReferenceNode(evalPoint('__Running', []))).toBeUndefined();
         expect(helpers.findReferenceNode(evalPoint('__size_of', [num(1), id('sym')]))?.kind).toBe('Identifier');
         expect(helpers.findReferenceNode(evalPoint('__size_of', [id('sym')]))?.kind).toBe('Identifier');
         expect(helpers.findReferenceNode({ kind: 'ConditionalExpression', test: num(0), consequent: id('c'), alternate: num(2), ...span } as ConditionalExpression)?.kind).toBe('Identifier');

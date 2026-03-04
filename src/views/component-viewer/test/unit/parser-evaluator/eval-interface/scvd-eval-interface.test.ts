@@ -304,13 +304,24 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         await expect(evalIf.getElementRef(base)).resolves.toBeUndefined();
     });
 
-    it('resolveColonPath warns on unsupported path format with more than 2 parts', async () => {
+    it('resolveColonPath attempts enum lookup for 3-part path (falls back gracefully)', async () => {
+        const base = new DummyNode('base');
+        const container: RefContainer = { base, current: base, valueType: undefined };
+        const { evalIf } = makeEval();
+        jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
+        // 3-part path now tries enum resolution; DummyNode root is not ScvdComponentViewer so it fails gracefully
+        await expect(evalIf.resolveColonPath(container, ['a', 'b', 'c'])).resolves.toBeUndefined();
+        expect(componentViewerLogger.error).toHaveBeenCalledWith(expect.stringContaining('Root is not ScvdComponentViewer'));
+        (componentViewerLogger.error as unknown as jest.Mock).mockRestore();
+    });
+
+    it('resolveColonPath warns on unsupported path format with more than 3 parts', async () => {
         const base = new DummyNode('base');
         const container: RefContainer = { base, current: base, valueType: undefined };
         const { evalIf } = makeEval();
         jest.spyOn(componentViewerLogger, 'warn').mockImplementation(() => {});
-        await expect(evalIf.resolveColonPath(container, ['a', 'b', 'c'])).resolves.toBeUndefined();
-        expect(componentViewerLogger.warn).toHaveBeenCalledWith(expect.stringContaining('Unsupported colon path format with 3 parts'));
+        await expect(evalIf.resolveColonPath(container, ['a', 'b', 'c', 'd'])).resolves.toBeUndefined();
+        expect(componentViewerLogger.warn).toHaveBeenCalledWith(expect.stringContaining('Unsupported colon path format with 4 parts'));
         (componentViewerLogger.warn as unknown as jest.Mock).mockRestore();
     });
 

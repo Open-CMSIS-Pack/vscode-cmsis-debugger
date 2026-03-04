@@ -223,8 +223,64 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
             return offset;
         }
 
+        // 3-part colon path: typedef:member:enumName → numeric enum value
+        if (parts.length === 3) {
+            const [typedefName, memberName, enumName] = parts;
+            return this.resolveEnumValue(_container, typedefName, memberName, enumName);
+        }
+
         componentViewerLogger.warn(`[resolveColonPath] Unsupported colon path format with ${parts.length} parts: ${parts.join(':')}`);
         return undefined;
+    }
+
+    /**
+     * Resolve a 3-part colon path `typedef:member:enumName` to the numeric enum value.
+     * E.g. `TCP_INFO4:State:Closed` → 1
+     */
+    private async resolveEnumValue(_container: RefContainer, typedefName: string, memberName: string, enumName: string): Promise<EvalValue> {
+        // Navigate to the root ScvdComponentViewer
+        let root: ScvdNode = _container.base;
+        while (root.parent !== undefined) {
+            root = root.parent;
+        }
+
+        if (!(root instanceof ScvdComponentViewer)) {
+            componentViewerLogger.error('[resolveEnumValue] Root is not ScvdComponentViewer');
+            return undefined;
+        }
+
+        const typedefs = root.typedefs;
+        if (!typedefs || !typedefs.typedef) {
+            componentViewerLogger.error('[resolveEnumValue] No typedefs found in component viewer');
+            return undefined;
+        }
+
+        const typedef = typedefs.typedef.find((td: ScvdTypedef) => td.name === typedefName);
+        if (!typedef) {
+            componentViewerLogger.error(`[resolveEnumValue] Typedef "${typedefName}" not found`);
+            return undefined;
+        }
+
+        const memberRef = typedef.getMember(memberName);
+        if (!memberRef || !(memberRef instanceof ScvdMember)) {
+            componentViewerLogger.error(`[resolveEnumValue] Member "${memberName}" not found in typedef "${typedefName}"`);
+            return undefined;
+        }
+
+        // Find the enum by name within the member
+        const enumItem = memberRef.enum.find(e => e.name === enumName);
+        if (!enumItem) {
+            componentViewerLogger.error(`[resolveEnumValue] Enum "${enumName}" not found in member "${memberName}" of typedef "${typedefName}"`);
+            return undefined;
+        }
+
+        const value = await enumItem.value?.getValue();
+        if (typeof value !== 'number') {
+            componentViewerLogger.warn(`[resolveEnumValue] Enum "${enumName}" value is not a number: ${value}`);
+            return undefined;
+        }
+
+        return value;
     }
 
     public async getElementRef(ref: ScvdNode): Promise<ScvdNode | undefined> {
