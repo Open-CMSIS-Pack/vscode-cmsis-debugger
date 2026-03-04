@@ -31,15 +31,35 @@ class StringNumberCache {
     }
 }
 
+class StringValueCache {
+    private cache = new Map<string, string>();
+
+    public get(key: string): string | undefined {
+        return this.cache.get(key);
+    }
+
+    public set(key: string, value: string): void {
+        this.cache.set(key, value);
+    }
+
+    public clear(): void {
+        this.cache.clear();
+    }
+}
+
 export class SymbolCaches {
     private addressCache = new StringNumberCache();
     private sizeCache = new StringNumberCache();
     private arrayCountCache = new StringNumberCache();
+    private symbolNameByAddressCache = new StringValueCache();
+    private symbolContextByAddressCache = new StringValueCache();
 
     public clearAll(): void {
         this.addressCache.clear();
         this.sizeCache.clear();
         this.arrayCountCache.clear();
+        this.symbolNameByAddressCache.clear();
+        this.symbolContextByAddressCache.clear();
     }
 
     public async getAddress(
@@ -72,6 +92,22 @@ export class SymbolCaches {
         return this.getCached(this.arrayCountCache, symbol, compute);
     }
 
+    public getSymbolNameByAddress(address: string): string | undefined {
+        return this.symbolNameByAddressCache.get(this.normalizeAddressKey(address));
+    }
+
+    public setSymbolNameByAddress(address: string, symbolName: string): void {
+        this.symbolNameByAddressCache.set(this.normalizeAddressKey(address), symbolName);
+    }
+
+    public getSymbolContextByAddress(address: string): string | undefined {
+        return this.symbolContextByAddressCache.get(this.normalizeAddressKey(address));
+    }
+
+    public setSymbolContextByAddress(address: string, symbolContext: string): void {
+        this.symbolContextByAddressCache.set(this.normalizeAddressKey(address), symbolContext);
+    }
+
     private async getCached(
         cache: StringNumberCache,
         symbol: string,
@@ -99,5 +135,9 @@ export class SymbolCaches {
 
     private normalizeKey(symbol: string): string {
         return symbol.trim();
+    }
+
+    private normalizeAddressKey(address: string): string {
+        return address.trim().toLowerCase();
     }
 }

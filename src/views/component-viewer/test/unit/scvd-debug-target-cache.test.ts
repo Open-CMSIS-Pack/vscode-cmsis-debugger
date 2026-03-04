@@ -47,10 +47,23 @@ describe('SymbolCaches', () => {
         await caches.getAddress('foo', async () => 1);
         await caches.getSize('foo', async () => 2);
         await caches.getArrayCount('foo', async () => 3);
+        caches.setSymbolNameByAddress('0x200', 'foo');
+        caches.setSymbolContextByAddress('0x200', 'main.c:10');
         caches.clearAll();
 
         await expect(caches.getAddress('foo', async () => 4)).resolves.toBe(4);
         await expect(caches.getSize('foo', async () => 5)).resolves.toBe(5);
         await expect(caches.getArrayCount('foo', async () => 6)).resolves.toBe(6);
+        expect(caches.getSymbolNameByAddress('0x200')).toBeUndefined();
+        expect(caches.getSymbolContextByAddress('0x200')).toBeUndefined();
+    });
+
+    it('stores and normalizes address-keyed symbol metadata', () => {
+        const caches = new SymbolCaches();
+        caches.setSymbolNameByAddress(' 0X200 ', 'main');
+        caches.setSymbolContextByAddress(' 0X200 ', 'main.c:10');
+
+        expect(caches.getSymbolNameByAddress('0x200')).toBe('main');
+        expect(caches.getSymbolContextByAddress('0x200')).toBe('main.c:10');
     });
 });

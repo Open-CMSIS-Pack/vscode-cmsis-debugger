@@ -111,8 +111,6 @@ export class ScvdDebugTarget {
     private debugTracker: GDBTargetDebugTracker | undefined;
     private isTargetRunning: boolean = false;
     private symbolCaches = new SymbolCaches();
-    private symbolNameByAddressCache = new Map<string, string>();
-    private symbolContextByAddressCache = new Map<string, string>();
     private targetReadCache: TargetReadCache | undefined = TARGET_READ_CACHE_ENABLED ? new TargetReadCache() : undefined;
 
     // -------------  Interface to debugger  -----------------
@@ -124,8 +122,6 @@ export class ScvdDebugTarget {
         this.subscribeToTargetRunningState(this.debugTracker);
         this.isTargetRunning = session.targetState === 'running';
         this.symbolCaches.clearAll();
-        this.symbolNameByAddressCache.clear();
-        this.symbolContextByAddressCache.clear();
     }
 
     public async beginUpdateCycle(): Promise<void> {
@@ -226,7 +222,7 @@ export class ScvdDebugTarget {
 
         const cacheKey = this.symbolAddressCacheKey(address);
         if (this.isRunningMode()) {
-            const cached = this.symbolNameByAddressCache.get(cacheKey);
+            const cached = this.symbolCaches.getSymbolNameByAddress(cacheKey);
             if (cached === undefined) {
                 componentViewerLogger.debug(`find Symbol Name at Address: target running, cache miss for ${this.formatAddress(address)}`);
             }
@@ -236,7 +232,7 @@ export class ScvdDebugTarget {
         try {
             const result = await this.targetAccess.evaluateSymbolName(address.toString());
             if (result !== undefined) {
-                this.symbolNameByAddressCache.set(cacheKey, result);
+                this.symbolCaches.setSymbolNameByAddress(cacheKey, result);
             }
             componentViewerLogger.debug(`find Symbol Name at Address: ${this.formatAddress(address)} resolved to ${result}`);
             return result;
@@ -256,7 +252,7 @@ export class ScvdDebugTarget {
 
         const cacheKey = this.symbolAddressCacheKey(address);
         if (this.isRunningMode()) {
-            const cached = this.symbolContextByAddressCache.get(cacheKey);
+            const cached = this.symbolCaches.getSymbolContextByAddress(cacheKey);
             if (cached === undefined) {
                 componentViewerLogger.debug(`find Symbol Context at Address: target running, cache miss for ${this.formatAddress(address)}`);
             }
@@ -266,7 +262,7 @@ export class ScvdDebugTarget {
         try {
             const result = await this.targetAccess.evaluateSymbolContext(address.toString());
             if (result !== undefined) {
-                this.symbolContextByAddressCache.set(cacheKey, result);
+                this.symbolCaches.setSymbolContextByAddress(cacheKey, result);
             }
             componentViewerLogger.debug(`find Symbol Context at Address: ${this.formatAddress(address)} resolved to ${result}`);
             return result;
