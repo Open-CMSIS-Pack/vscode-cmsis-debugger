@@ -35,6 +35,21 @@ type AccessMock = {
     evaluateRegisterValue: jest.Mock;
 };
 
+type TrackerWithCallbacks = {
+    onContinued: (cb: (event: { session: GDBTargetDebugSession }) => void) => void;
+    onStopped: (cb: (event: { session: GDBTargetDebugSession }) => void) => void;
+    _continued?: (event: { session: GDBTargetDebugSession }) => void;
+    _stopped?: (event: { session: GDBTargetDebugSession }) => void;
+};
+
+const createTrackerWithCallbacks = (): TrackerWithCallbacks => {
+    const tracker: TrackerWithCallbacks = {
+        onContinued: (cb) => { tracker._continued = cb; },
+        onStopped: (cb) => { tracker._stopped = cb; },
+    };
+    return tracker;
+};
+
 let accessMock: AccessMock;
 jest.mock('../../component-viewer-target-access', () => ({
     ComponentViewerTargetAccess: jest.fn(() => accessMock),
@@ -130,16 +145,7 @@ describe('scvd-debug-target', () => {
     });
 
     it('handles array length and running state tracking', async () => {
-        type TrackerWithCallbacks = {
-            onContinued: (cb: (event: { session: GDBTargetDebugSession }) => void) => void;
-            onStopped: (cb: (event: { session: GDBTargetDebugSession }) => void) => void;
-            _continued?: (event: { session: GDBTargetDebugSession }) => void;
-            _stopped?: (event: { session: GDBTargetDebugSession }) => void;
-        };
-        const tracker: TrackerWithCallbacks = {
-            onContinued: (cb) => { tracker._continued = cb; },
-            onStopped: (cb) => { tracker._stopped = cb; },
-        };
+        const tracker = createTrackerWithCallbacks();
 
         const target = new ScvdDebugTarget();
         target.init(session, tracker as unknown as GDBTargetDebugTracker);
@@ -159,6 +165,75 @@ describe('scvd-debug-target', () => {
         expect(await target.getTargetIsRunning()).toBe(false);
         await tracker._stopped?.({ session: { session: { id: 'other' } } as unknown as GDBTargetDebugSession });
         expect(await target.getTargetIsRunning()).toBe(false);
+    });
+
+    it('uses cached symbol metadata while running and skips new symbol evaluations', async () => {
+        const tracker = createTrackerWithCallbacks();
+        const target = new ScvdDebugTarget();
+        target.init(session, tracker as unknown as GDBTargetDebugTracker);
+
+        accessMock.evaluateSymbolAddress.mockResolvedValue('0x200');
+        accessMock.evaluateNumberOfArrayElements.mockResolvedValue(8);
+        accessMock.evaluateSymbolSize.mockResolvedValue(32);
+        accessMock.evaluateSymbolName.mockResolvedValue('main');
+        accessMock.evaluateSymbolContext.mockResolvedValue('main.c:10');
+
+        await expect(target.findSymbolAddress('foo')).resolves.toBe(0x200);
+        await expect(target.getNumArrayElements('foo')).resolves.toBe(8);
+        await expect(target.getSymbolSize('foo')).resolves.toBe(32);
+        await expect(target.findSymbolNameAtAddress(0x200)).resolves.toBe('main');
+        await expect(target.findSymbolContextAtAddress(0x200)).resolves.toBe('main.c:10');
+
+        accessMock.evaluateSymbolAddress.mockClear();
+        accessMock.evaluateNumberOfArrayElements.mockClear();
+        accessMock.evaluateSymbolSize.mockClear();
+        accessMock.evaluateSymbolName.mockClear();
+        accessMock.evaluateSymbolContext.mockClear();
+        await tracker._continued?.({ session });
+
+        await expect(target.findSymbolAddress('foo')).resolves.toBe(0x200);
+        await expect(target.getNumArrayElements('foo')).resolves.toBe(8);
+        await expect(target.getSymbolSize('foo')).resolves.toBe(32);
+        await expect(target.findSymbolNameAtAddress(0x200)).resolves.toBe('main');
+        await expect(target.findSymbolContextAtAddress(0x200)).resolves.toBe('main.c:10');
+
+        await expect(target.findSymbolAddress('bar')).resolves.toBeUndefined();
+        await expect(target.getNumArrayElements('bar')).resolves.toBeUndefined();
+        await expect(target.getSymbolSize('bar')).resolves.toBeUndefined();
+        await expect(target.findSymbolNameAtAddress(0x201)).resolves.toBeUndefined();
+        await expect(target.findSymbolContextAtAddress(0x201)).resolves.toBeUndefined();
+
+        expect(accessMock.evaluateSymbolAddress).not.toHaveBeenCalled();
+        expect(accessMock.evaluateNumberOfArrayElements).not.toHaveBeenCalled();
+        expect(accessMock.evaluateSymbolSize).not.toHaveBeenCalled();
+        expect(accessMock.evaluateSymbolName).not.toHaveBeenCalled();
+        expect(accessMock.evaluateSymbolContext).not.toHaveBeenCalled();
+
+        await tracker._stopped?.({ session });
+    });
+
+    it('treats unknown target state as unsafe and skips symbol evaluation on cache miss', async () => {
+        const unknownSession = {
+            session: { id: 'sess-unknown' },
+            targetState: 'unknown'
+        } as unknown as GDBTargetDebugSession;
+        const tracker = { onContinued: jest.fn(), onStopped: jest.fn() } as unknown as GDBTargetDebugTracker;
+        const target = new ScvdDebugTarget();
+        target.init(unknownSession, tracker);
+
+        await expect(target.getTargetIsRunning()).resolves.toBe(true);
+
+        accessMock.evaluateSymbolAddress.mockResolvedValue('0x200');
+        accessMock.evaluateSymbolName.mockResolvedValue('main');
+        accessMock.evaluateSymbolContext.mockResolvedValue('main.c:10');
+
+        await expect(target.findSymbolAddress('foo')).resolves.toBeUndefined();
+        await expect(target.findSymbolNameAtAddress(0x200)).resolves.toBeUndefined();
+        await expect(target.findSymbolContextAtAddress(0x200)).resolves.toBeUndefined();
+
+        expect(accessMock.evaluateSymbolAddress).not.toHaveBeenCalled();
+        expect(accessMock.evaluateSymbolName).not.toHaveBeenCalled();
+        expect(accessMock.evaluateSymbolContext).not.toHaveBeenCalled();
     });
 
     it('finds symbol address and size', async () => {
@@ -310,6 +385,17 @@ describe('scvd-debug-target', () => {
         expect(__test__.toUint32(0x1_0000_0000n)).toBe(0n);
 
         await expect(target.readRegister(undefined as unknown as string)).resolves.toBeUndefined();
+    });
+
+    it('skips register reads while running', async () => {
+        const tracker = createTrackerWithCallbacks();
+        const target = new ScvdDebugTarget();
+        target.init(session, tracker as unknown as GDBTargetDebugTracker);
+        await tracker._continued?.({ session });
+
+        accessMock.evaluateRegisterValue.mockResolvedValue(1);
+        await expect(target.readRegister('r0')).resolves.toBeUndefined();
+        expect(accessMock.evaluateRegisterValue).not.toHaveBeenCalled();
     });
 
     it('covers cache hits, misses, and normalization paths', async () => {
