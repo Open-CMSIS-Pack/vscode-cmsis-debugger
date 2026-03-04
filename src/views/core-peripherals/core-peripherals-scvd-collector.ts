@@ -41,7 +41,7 @@ export class CorePeripheralsScvdCollector implements ScvdCollector {
             return processors[0];
         }
         const result = processors.find(processor => processor.pname === pname);
-        return result ?? processors[0]; // If no exact match found, return first processor as fallback
+        return result; // If pname requested but not found in cbuild-run processors, then we fail.
     }
 
     private filterCpuType(entry: CorePeripheralEntryType, processorType: string): boolean {
@@ -59,14 +59,16 @@ export class CorePeripheralsScvdCollector implements ScvdCollector {
         return cpuType.includes('*') || cpuType.some(type => type.toLowerCase() === processorTypeLowerCase);
     }
 
-    private filterCpuFeatures(entry: CorePeripheralEntryType, processor: ProcessorType): boolean {
+    private filterCpuFeatures(entry: CorePeripheralEntryType, processor?: ProcessorType): boolean {
         const cpuFeatures = entry['cpu-features'];
         if (!cpuFeatures) {
             // No specific CPU features required
             return true;
         }
         const entryFeatures = Object.entries(cpuFeatures);
-        const processorFeatures = Object.entries(processor);
+        // If no processor, then use empty object as reference. This let's only pass entries without
+        // required features, or features with wildcard value.
+        const processorFeatures = Object.entries(processor ?? {});
         return entryFeatures.every(([entryFeatureKey, entryFeatureValue]) => {
             if (entryFeatureValue === '*') {
                 return true;
@@ -87,9 +89,9 @@ export class CorePeripheralsScvdCollector implements ScvdCollector {
         });
     }
 
-    private filterCorePeripheralEntry(entry: CorePeripheralEntryType, processor: ProcessorType): boolean {
+    private filterCorePeripheralEntry(entry: CorePeripheralEntryType, processor?: ProcessorType): boolean {
         // Test if CPU type is included
-        if (!this.filterCpuType(entry, processor.core)) {
+        if (!this.filterCpuType(entry, processor?.core ?? '*')) {
             return false;
         }
         if (!this.filterCpuFeatures(entry, processor)) {
@@ -111,11 +113,11 @@ export class CorePeripheralsScvdCollector implements ScvdCollector {
             return [];
         }
         const cbuildRunReader = await session.getCbuildRun();
-        const processors = cbuildRunReader?.getContents()?.['system-resources']?.processors;
+        const contents = cbuildRunReader?.getContents();
+        const systemResources = contents?.['system-resources'];
+        const processors = systemResources?.processors;
         const activeProcessor = processors ? await this.getActiveProcessor(session, processors) : undefined;
-        const filteredCorePeripherals = activeProcessor
-            ? corePeripherals.filter(entry => this.filterCorePeripheralEntry(entry, activeProcessor))
-            : corePeripherals;
+        const filteredCorePeripherals = corePeripherals.filter(entry => this.filterCorePeripheralEntry(entry, activeProcessor));
         return filteredCorePeripherals.map(entry => entry.file);
     }
 }
