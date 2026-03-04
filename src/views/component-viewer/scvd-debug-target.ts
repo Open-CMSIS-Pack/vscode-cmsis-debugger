@@ -120,7 +120,7 @@ export class ScvdDebugTarget {
         this.targetAccess.setActiveSession(session);
         this.debugTracker = tracker;
         this.subscribeToTargetRunningState(this.debugTracker);
-        this.isTargetRunning = session.targetState === 'running';
+        this.isTargetRunning = this.isUnsafeTargetState(session.targetState);
         this.symbolCaches.clearAll();
     }
 
@@ -164,8 +164,12 @@ export class ScvdDebugTarget {
         });
     }
 
+    private isUnsafeTargetState(state: GDBTargetDebugSession['targetState'] | undefined): boolean {
+        return state === 'running' || state === 'unknown';
+    }
+
     private isRunningMode(): boolean {
-        return this.isTargetRunning || this.activeSession?.targetState === 'running';
+        return this.isTargetRunning || this.isUnsafeTargetState(this.activeSession?.targetState);
     }
 
     private symbolAddressCacheKey(address: number | bigint): string {
@@ -300,7 +304,7 @@ export class ScvdDebugTarget {
         if (!this.activeSession) {
             return false;
         }
-        return this.isTargetRunning;
+        return this.isRunningMode();
     }
 
     public async findSymbolAddress(symbol: string, existCheck: boolean = false): Promise<number | undefined> {

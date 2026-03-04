@@ -13,46 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// generated with AI
+// generated with AI, refactored
 
-class StringNumberCache {
-    private cache = new Map<string, number>();
-
-    public get(key: string): number | undefined {
-        return this.cache.get(key);
-    }
-
-    public set(key: string, value: number): void {
-        this.cache.set(key, value);
-    }
-
-    public clear(): void {
-        this.cache.clear();
-    }
-}
-
-class StringValueCache {
-    private cache = new Map<string, string>();
-
-    public get(key: string): string | undefined {
-        return this.cache.get(key);
-    }
-
-    public set(key: string, value: string): void {
-        this.cache.set(key, value);
-    }
-
-    public clear(): void {
-        this.cache.clear();
-    }
-}
+type StringNumberCache = Map<string, number>;
+type StringValueCache = Map<string, string>;
 
 export class SymbolCaches {
-    private addressCache = new StringNumberCache();
-    private sizeCache = new StringNumberCache();
-    private arrayCountCache = new StringNumberCache();
-    private symbolNameByAddressCache = new StringValueCache();
-    private symbolContextByAddressCache = new StringValueCache();
+    private addressCache: StringNumberCache = new Map();
+    private sizeCache: StringNumberCache = new Map();
+    private arrayCountCache: StringNumberCache = new Map();
+    private symbolNameByAddressCache: StringValueCache = new Map();
+    private symbolContextByAddressCache: StringValueCache = new Map();
 
     public clearAll(): void {
         this.addressCache.clear();
