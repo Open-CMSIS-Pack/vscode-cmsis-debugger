@@ -14,14 +14,33 @@
  * limitations under the License.
  */
 
+import * as fs from 'fs';
 import * as path from 'path';
 import { CorePeripheralsIndexReader } from './core-peripherals-index-reader';
+import { promisify } from 'util';
 
 // Tests are executed with different working directory, so different input path needed.
-const TEST_INDEX_PATH = path.resolve(__dirname, '../../../configs/core-peripherals/core-peripherals-index.yml');
-const EMPTY_INDEX_PATH = path.resolve(__dirname, '../../../test-data/core-peripherals-index/empty-index.yml');
+const TEST_INDEX_BASE_PATH = path.resolve(__dirname, '../../../configs/core-peripherals');
+const TEST_INDEX_PATH = path.resolve(TEST_INDEX_BASE_PATH, 'core-peripherals-index.yml');
+const EMPTY_INDEX_PATH = path.resolve(__dirname, '../../../test-data/core-peripherals/empty-index/core-peripherals-index.yml');
 
 describe('CorePeripheralsIndexReader', () => {
+
+    it('finds all core peripherals entries of index file in folder', async () => {
+        const filesInDir = await promisify(fs.readdir)(TEST_INDEX_BASE_PATH, {
+            encoding: 'buffer',
+            withFileTypes: true
+        });
+        const scvdFilesInDir = filesInDir.filter(entry => entry.isFile() && entry.name.toString().toLowerCase().endsWith('.scvd'));
+        const scvdFilePathsInDir = scvdFilesInDir.map(file => path.resolve(TEST_INDEX_BASE_PATH, file.name.toString()));
+        const indexReader = new CorePeripheralsIndexReader();
+        await expect(indexReader.parse(TEST_INDEX_PATH)).resolves.not.toThrow();
+        const indexEntries = indexReader.getCorePeripherals().map(entry => path.resolve(TEST_INDEX_BASE_PATH, entry.file));
+        expect(indexEntries.length).toBe(scvdFilePathsInDir.length);
+        scvdFilePathsInDir.forEach(filePath => {
+            expect(indexEntries.includes(filePath)).toBe(true);
+        });
+    });
 
     it('can read index file', async () => {
         const indexReader = new CorePeripheralsIndexReader();
@@ -50,4 +69,5 @@ describe('CorePeripheralsIndexReader', () => {
         // Clear spy calls and parse an empty file. It should not throw because it should not attempt to parse the file again.
         await expect(indexReader.parse(EMPTY_INDEX_PATH)).resolves.not.toThrow();
     });
+
 });
