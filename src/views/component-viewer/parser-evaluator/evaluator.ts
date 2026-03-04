@@ -253,16 +253,14 @@ export class Evaluator {
                 // For intrinsic calls, the callee is metadata (intrinsic name), not a reference to evaluate.
                 // Only search the arguments for references.
                 const c = node as EvalPointCall;
-                if (c.args.length) {
-                    for (const arg of c.args) {
-                        const r = this.findReferenceNode(arg);
-                        if (r) {
-                            return r;
-                        }
+                for (const arg of c.args) {
+                    const r = this.findReferenceNode(arg);
+                    if (r) {
+                        return r;
                     }
                 }
-                // If no args, fall back to callee (it's still an identifier node)
-                return this.findReferenceNode(c.callee);
+                // Never fall back to callee – intrinsic names are not data references.
+                return undefined;
             }
             case 'PrintfExpression': {
                 for (const seg of (node as PrintfExpression).segments) {
