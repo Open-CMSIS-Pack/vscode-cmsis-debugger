@@ -19,6 +19,7 @@ import { CorePeripheralsIndexReader } from './core-peripherals-index-reader';
 
 // Tests are executed with different working directory, so different input path needed.
 const TEST_INDEX_PATH = path.resolve(__dirname, '../../../configs/core-peripherals/core-peripherals-index.yml');
+const EMPTY_INDEX_PATH = path.resolve(__dirname, '../../../test-data/core-peripherals-index/empty-index.yml');
 
 describe('CorePeripheralsIndexReader', () => {
 
@@ -30,4 +31,23 @@ describe('CorePeripheralsIndexReader', () => {
         expect(contents).toMatchSnapshot();
     });
 
+    it('returns empty array if no core peripherals parsed', async () => {
+        const indexReader = new CorePeripheralsIndexReader();
+        // Get peripherals without parsing file first, should return empty array.
+        expect(indexReader.hasContents()).toBe(false);
+        expect(indexReader.getContents()).toBeUndefined();
+        expect(indexReader.getCorePeripherals()).toEqual([]);
+    });
+
+    it('throws for an empty index file', async () => {
+        const indexReader = new CorePeripheralsIndexReader();
+        await expect(indexReader.parse(EMPTY_INDEX_PATH)).rejects.toThrow('Invalid \'core-peripherals-index\' file');
+    });
+
+    it('parses only once', async () => {
+        const indexReader = new CorePeripheralsIndexReader();
+        await expect(indexReader.parse(TEST_INDEX_PATH)).resolves.not.toThrow();
+        // Clear spy calls and parse an empty file. It should not throw because it should not attempt to parse the file again.
+        await expect(indexReader.parse(EMPTY_INDEX_PATH)).resolves.not.toThrow();
+    });
 });
