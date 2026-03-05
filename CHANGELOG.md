@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.4.1
+
+- Fixes intermittent debugger run control issues when [Component Viewer](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#component-viewer) is active.
+
 ## 1.4.0
 
 - Adds the [Component Viewer](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#component-viewer) which shows detailed information to help analyze the operation of software components based on [CMSIS-View](https://arm-software.github.io/CMSIS-View/latest/cmp_viewer.html) descriptions.
