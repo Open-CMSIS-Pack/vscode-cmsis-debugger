@@ -119,7 +119,7 @@ describe('CorePeripheralsScvdCollector', () => {
         { pname: 'core2', expected: [ 'M55_M85_Nested_Vectored_Interrupt_Controller.scvd', 'FPU_SP.scvd', 'FPU_All.scvd', 'System_Tick_Timer.scvd'] },
         { pname: 'core3', expected: [ 'M55_M85_Nested_Vectored_Interrupt_Controller.scvd', 'FPU_SP.scvd', 'FPU_All.scvd', 'System_Tick_Timer.scvd'] },
         // No matching processor, load defaults without restrictions.
-        { pname: 'no-match', expected: [ 'FPU_All.scvd', 'System_Tick_Timer.scvd'] },
+        { pname: 'no-match', expected: [ 'System_Tick_Timer.scvd'] },
         // No pname info, should fallback to first entry which is M33 with TZ and DP
         { pname: undefined, expected: [ 'TZ_MPU_Cortex-M33.scvd', 'FPU_All.scvd', 'System_Tick_Timer.scvd'] },
     ])('filters SCVD files as expected for complex index file and multi-core setup (pname: $pname)', async ({ pname, expected }) => {
@@ -135,8 +135,8 @@ describe('CorePeripheralsScvdCollector', () => {
 
     it.each([
         // No matching processor, load defaults without restrictions.
-        { pname: 'no-match', expected: [ 'FPU_All.scvd', 'System_Tick_Timer.scvd'] },
-        { pname: undefined, expected: [ 'M0_M23_Nested_Vectored_Interrupt_Controller.scvd', 'FPU_All.scvd', 'System_Tick_Timer.scvd' ] },
+        { pname: 'no-match', expected: [ 'System_Tick_Timer.scvd'] },
+        { pname: undefined, expected: [ 'M0_M23_Nested_Vectored_Interrupt_Controller.scvd', 'System_Tick_Timer.scvd' ] },
     ])('filters SCVD files as expected for complex index file and single-core setup (pname: $pname)', async ({ pname, expected }) => {
         const resolvedExpected = expected.map(file => path.resolve(COMPLEX_INDEX_PATH, file));
         const corePeripheralsScvdCollector = new CorePeripheralsScvdCollector(COMPLEX_INDEX_PATH);

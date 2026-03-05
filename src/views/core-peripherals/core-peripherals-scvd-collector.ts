@@ -24,6 +24,7 @@ import { ProcessorType } from '../../cbuild-run';
 
 // Relative to dist folder at runtime
 const CORE_PERIPHERAL_SCVD_BASE = path.resolve(__dirname, '..', 'configs', 'core-peripherals');
+const FEATURE_NOT_PRESENT_VALUE = 'none';
 
 export class CorePeripheralsScvdCollector implements ScvdCollector {
     private indexFilePath: string;
@@ -76,9 +77,10 @@ export class CorePeripheralsScvdCollector implements ScvdCollector {
             const processorFeature = processorFeatures.find(([processorFeatureKey]) => processorFeatureKey === entryFeatureKey);
             if (!processorFeature) {
                 // Required feature not found in processor info
-                // All features that are not available mean not supported. Only (optional) exceptions are: punits and endian.
-                // But these are currently not relevant for filtering core peripherals, so we can ignore them for now.
-                return false;
+                // All features that are not available mean not supported.
+                // Only (optional) exceptions are: punits and endian. But these are currently not relevant for filtering core
+                // peripherals, so we can ignore them for now.
+                return entryFeatureValue === FEATURE_NOT_PRESENT_VALUE;
             }
             const [, processorFeatureValue] = processorFeature;
             if (processorFeatureValue === undefined || processorFeatureValue === null) {
