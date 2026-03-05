@@ -17,6 +17,7 @@
 export interface ScvdGuiInterface {
     getGuiEntry(): { name: string | undefined, value: string | undefined };
     getGuiChildren(): ScvdGuiInterface[];
+    getGuiParent(): ScvdGuiInterface | undefined;
     getGuiName(): string | undefined ;
     getGuiValue(): string | undefined;
     getGuiId(): string | undefined;

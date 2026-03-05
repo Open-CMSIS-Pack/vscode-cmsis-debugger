@@ -69,6 +69,9 @@ jest.mock('vscode', () => {
             Collapsed: 1,
             None: 0,
         },
+        commands: {
+            executeCommand: jest.fn(),
+        },
     };
 });
 
@@ -92,6 +95,7 @@ type TestGui = ScvdGuiInterface & {
     getGuiValue: () => string | undefined;
     getGuiId: () => string | undefined;
     getGuiLineInfo: () => string | undefined;
+    getGuiParent: () => ScvdGuiInterface | undefined;
     hasGuiChildren: () => boolean;
     getGuiChildren: () => ScvdGuiInterface[];
     getGuiEntry: () => { name: string | undefined; value: string | undefined };
@@ -109,6 +113,7 @@ const makeGui = (options: TestGuiOptions): TestGui => ({
     getGuiValue: options.getGuiValue ?? (() => 'Value'),
     getGuiId: options.getGuiId ?? (() => 'id-1'),
     getGuiLineInfo: options.getGuiLineInfo ?? (() => 'Line 1'),
+    getGuiParent: options.getGuiParent ?? (() => undefined),
     hasGuiChildren: options.hasGuiChildren ?? (() => false),
     getGuiChildren: options.getGuiChildren ?? (() => [] as ScvdGuiInterface[]),
     getGuiEntry: options.getGuiEntry ?? (() => ({ name: 'Node', value: 'Value' })),
@@ -319,6 +324,53 @@ describe('ComponentViewerTreeDataProvider', () => {
         provider.onWillStopSession('session1');
         treeItem = provider.getTreeItem(root);
         expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
+    });
+
+    it('sets all collapsible elements to expanded recursively with setAllExpanded', () => {
+        const grandchild = makeGui({
+            getGuiId: () => 'session1/grandchild',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [],
+        });
+        const child = makeGui({
+            getGuiId: () => 'session1/child',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [grandchild],
+            getGuiParent: () => undefined,
+        });
+        const leaf = makeGui({
+            getGuiId: () => 'session1/leaf',
+            hasGuiChildren: () => false,
+            getGuiChildren: () => [],
+            getGuiParent: () => undefined,
+        });
+        const root = makeGui({
+            getGuiId: () => 'session1/root',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [child, leaf],
+            getGuiParent: () => undefined,
+        });
+
+        // Wire up parent references
+        grandchild.getGuiParent = () => child;
+        child.getGuiParent = () => root;
+        leaf.getGuiParent = () => root;
+
+        provider.setRoots([root]);
+
+        // getRoots returns the current roots
+        expect(provider.getRoots()).toEqual([root]);
+
+        // getParent delegates directly to getGuiParent()
+        expect(provider.getParent(root)).toBeUndefined();
+        expect(provider.getParent(child)).toBe(root);
+        expect(provider.getParent(leaf)).toBe(root);
+        expect(provider.getParent(grandchild)).toBe(child);
+    });
+
+    it('getRoots returns empty array when no roots are set', () => {
+        provider.setRoots([]);
+        expect(provider.getRoots()).toEqual([]);
     });
 
     it('removes expand state if element loses children and gets them back (e.g. in a dynamic thread list)', () => {

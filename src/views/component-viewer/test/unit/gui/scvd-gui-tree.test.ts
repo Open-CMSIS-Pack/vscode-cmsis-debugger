@@ -91,4 +91,13 @@ describe('ScvdGuiTree', () => {
         root.name = 'Hidden';
         expect(root.getGuiName()).toBe('Hidden');
     });
+
+    it('returns undefined from getGuiParent for root and returns parent for child', () => {
+        const root = new ScvdGuiTree(undefined);
+        root.setId('file');
+        const child = root.createChild('child', 'L1:Test');
+
+        expect(root.getGuiParent()).toBeUndefined();
+        expect(child.getGuiParent()).toBe(root);
+    });
 });

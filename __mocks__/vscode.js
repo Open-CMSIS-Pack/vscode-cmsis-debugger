@@ -83,6 +83,7 @@ module.exports = {
             dispose: jest.fn(),
             onDidExpandElement: jest.fn(),
             onDidCollapseElement: jest.fn(),
+            reveal: jest.fn(),
         })),
         registerTreeDataProvider: jest.fn(() => ({ dispose: jest.fn() })),
         showErrorMessage: jest.fn(),

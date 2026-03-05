@@ -35,6 +35,8 @@ const treeProviderFactory = jest.fn(() => ({
     refresh: jest.fn(),
     onWillStopSession: jest.fn(),
     setElementExpanded: jest.fn(),
+    getRoots: jest.fn(() => []),
+    getParent: jest.fn(),
 }));
 
 jest.mock('../../component-viewer-tree-view', () => ({
@@ -133,6 +135,7 @@ describe('ComponentViewer', () => {
         isRootInstance: false,
         getGuiEntry: () => ({ name: id, value: undefined }),
         getGuiChildren: () => children,
+        getGuiParent: () => undefined,
         getGuiName: () => id,
         getGuiValue: () => undefined,
         getGuiId: () => id,
@@ -197,8 +200,9 @@ describe('ComponentViewer', () => {
         });
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.lockComponent', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.unlockComponent', expect.any(Function));
-        // 1 tree view + 2 event listeners + 4 commands + 6 tracker disposables
-        expect(context.subscriptions.length).toBe(13);
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.componentViewer.expandAll', expect.any(Function));
+        // 1 tree view + 2 event listeners + 5 commands + 6 tracker disposables
+        expect(context.subscriptions.length).toBe(14);
     });
 
     it('should fail to activate the component viewer tree data provider if view is not correctly loaded', async () => {
@@ -556,6 +560,78 @@ describe('ComponentViewer', () => {
         expect(rootUnlocked.isLocked).toBe(false);
         expect(rootUnlocked.isRootInstance).toBe(true);
         expect(rootLocked.isRootInstance).toBe(true);
+    });
+
+    it('calls reveal for each root when expand all is triggered', async () => {
+        const context = extensionContextFactory();
+        const tracker = makeTracker();
+        const controller = createController(context);
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const mockTreeView = (vscode.window.createTreeView as jest.Mock).mock.results[0].value;
+
+        const root1 = makeGuiNode('root1');
+        const root2 = makeGuiNode('root2');
+        const provider = (controller as unknown as { _componentViewerTreeDataProvider: ReturnType<typeof treeProviderFactory> })._componentViewerTreeDataProvider;
+        provider.getRoots = jest.fn(() => [root1, root2]);
+
+        const handleExpandAll = (controller as unknown as { handleExpandAll: () => Promise<void> }).handleExpandAll.bind(controller);
+        await handleExpandAll();
+
+        expect(mockTreeView.reveal).toHaveBeenCalledTimes(2);
+        expect(mockTreeView.reveal).toHaveBeenCalledWith(root1, { select: false, expand: 3 });
+        expect(mockTreeView.reveal).toHaveBeenCalledWith(root2, { select: false, expand: 3 });
+        expect(componentViewerLogger.debug).toHaveBeenCalledWith('Component Viewer: Expand all triggered');
+    });
+
+    it('does not call reveal when there are no roots', async () => {
+        const context = extensionContextFactory();
+        const tracker = makeTracker();
+        const controller = createController(context);
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const mockTreeView = (vscode.window.createTreeView as jest.Mock).mock.results[0].value;
+
+        const provider = (controller as unknown as { _componentViewerTreeDataProvider: ReturnType<typeof treeProviderFactory> })._componentViewerTreeDataProvider;
+        provider.getRoots = jest.fn(() => []);
+
+        const handleExpandAll = (controller as unknown as { handleExpandAll: () => Promise<void> }).handleExpandAll.bind(controller);
+        await handleExpandAll();
+
+        expect(mockTreeView.reveal).not.toHaveBeenCalled();
+    });
+
+    it('returns early from handleExpandAll when treeView is not set', async () => {
+        const controller = createController(extensionContextFactory());
+        (controller as unknown as { _treeView: undefined })._treeView = undefined;
+
+        const handleExpandAll = (controller as unknown as { handleExpandAll: () => Promise<void> }).handleExpandAll.bind(controller);
+        await handleExpandAll();
+
+        expect(componentViewerLogger.debug).not.toHaveBeenCalledWith('Component Viewer: Expand all triggered');
+    });
+
+    it('invokes handleExpandAll via the registered expandAll command', async () => {
+        const context = extensionContextFactory();
+        const tracker = makeTracker();
+        const controller = createController(context);
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const mockTreeView = (vscode.window.createTreeView as jest.Mock).mock.results[0].value;
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const expandAllHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.componentViewer.expandAll')?.[1] as
+            | (() => Promise<void>)
+            | undefined;
+
+        expect(expandAllHandler).toBeDefined();
+
+        const root = makeGuiNode('root');
+        const provider = (controller as unknown as { _componentViewerTreeDataProvider: ReturnType<typeof treeProviderFactory> })._componentViewerTreeDataProvider;
+        provider.getRoots = jest.fn(() => [root]);
+
+        await expandAllHandler?.();
+
+        expect(mockTreeView.reveal).toHaveBeenCalledWith(root, { select: false, expand: 3 });
     });
 
     it('toggles lock state when lock command is invoked for a node in an instance tree', async () => {

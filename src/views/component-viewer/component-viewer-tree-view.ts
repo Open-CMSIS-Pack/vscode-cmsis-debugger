@@ -49,6 +49,14 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         }
     }
 
+    public getRoots(): ScvdGuiInterface[] {
+        return this._roots;
+    }
+
+    public getParent(element: ScvdGuiInterface): ScvdGuiInterface | undefined {
+        return element.getGuiParent();
+    }
+
     public getTreeItem(element: ScvdGuiInterface): vscode.TreeItem {
         const perfStartTime = perf?.startUi() ?? 0;
         const treeItemLabel = element.getGuiName() ?? 'UNKNOWN';
@@ -120,12 +128,14 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     public setRoots(roots: ScvdGuiInterface[] = []): void {
         this.logUiPerf();
         this._roots = roots;
+        void vscode.commands.executeCommand('setContext', 'cmsis-debugger.componentViewerHasEntries', this._roots.length > 0);
         this.refresh();
     }
 
     public clear(): void {
         this.logUiPerf();
         this._roots = [];
+        void vscode.commands.executeCommand('setContext', 'cmsis-debugger.componentViewerHasEntries', this._roots.length > 0);
         this.refresh();
     }
 
