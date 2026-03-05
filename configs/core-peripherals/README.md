@@ -43,7 +43,8 @@ core-peripherals:
 
 - If the core connection's `pname` matches a child node of `system-resources`>`processors`, then that processor is used.
 - If `pname` is missing, then a single-core system is assumed. Hence, the first processor in the list is used.
-- If no processors are available, no filtering is applied and all SCVD files are loaded.
+- If no processors are available, the collector treats the processor as unknown. In this case only entries without `cpu-type`/`cpu-features`
+constraints or those using the "*" wildcard will match; entries requiring a specific `cpu-type` or specific feature values are excluded.
 
 ### `cpu-type` matching
 
