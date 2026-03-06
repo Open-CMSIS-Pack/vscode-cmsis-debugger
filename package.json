@@ -421,7 +421,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@open-cmsis-pack/vsce-helper": "^0.2.2",
+    "@soumeh01/vsce-helper": "0.6.0",
     "@types/extract-zip": "^2.0.3",
     "@types/fs-extra": "^11.0.4",
     "@types/jest": "^30.0.0",
