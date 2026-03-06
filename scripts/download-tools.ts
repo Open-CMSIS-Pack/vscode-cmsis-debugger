@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { ArchiveFileAsset, Downloadable, Downloader, GitHubReleaseAsset, GitHubWorkflowAsset, WebFileAsset  } from '@open-cmsis-pack/vsce-helper';
+import { ArchiveFileAsset, Downloadable, Downloader, GitHubReleaseAsset, GitHubWorkflowAsset, WebFileAsset  } from '@soumeh01/vsce-helper';
 import { PackageJson } from 'type-fest';
 import process from 'node:process';
 

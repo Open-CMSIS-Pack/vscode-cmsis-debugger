@@ -1597,21 +1597,6 @@
   resolved "https://registry.yarnpkg.com/@oozcitak/util/-/util-10.0.0.tgz#f6b40472d96c210094a556ee5ccb8e77f1bd30af"
   integrity sha512-hAX0pT/73190NLqBPPWSdBVGtbY6VOhWYK3qqHqtXQ1gK7kS2yz4+ivsN07hpJ6I3aeMtKP6J6npsEKOAzuTLA==
 
-"@open-cmsis-pack/vsce-helper@^0.2.4":
-  version "0.2.4"
-  resolved "https://npm.pkg.github.com/download/@open-cmsis-pack/vsce-helper/0.2.4/9a674ea3d2d16f9141100aa0d44752d739d9c35a#9a674ea3d2d16f9141100aa0d44752d739d9c35a"
-  integrity sha512-WynZtqOo9IM0mCkSKLhSXvD9RpY87t0KUm0hEewASFVTZZyGJut7FRfeYr7Ffo8UCZBIq2LxTshLvNZst0Sy3g==
-  dependencies:
-    extract-zip "^2.0.1"
-    node-fetch "^3.3.2"
-    octokit "^5.0.3"
-    tar "^7.5.8"
-    tempfile "^6.0.1"
-    type-fest "^5.4.4"
-    yargs "^18.0.0"
-  optionalDependencies:
-    tar-fs "^3.0.8"
-
 "@pkgjs/parseargs@^0.11.0":
   version "0.11.0"
   resolved "https://registry.yarnpkg.com/@pkgjs/parseargs/-/parseargs-0.11.0.tgz#a77ea742fab25775145434eb1d2328cf5013ac33"
@@ -1752,6 +1737,21 @@
   integrity sha512-36/hTbH2uaWuGVERyC6da9YwGWnzUZXuPro/F2LfsdOsLnCojz/iSH8MxUt/FD2S5XBSVPhmArFUXcpCQ2Hkiw==
   dependencies:
     "@sinonjs/commons" "^3.0.1"
+
+"@soumeh01/vsce-helper@0.6.0":
+  version "0.6.0"
+  resolved "https://npm.pkg.github.com/download/@soumeh01/vsce-helper/0.6.0/d669782de403601775ef3120b4c81306e9f11055#d669782de403601775ef3120b4c81306e9f11055"
+  integrity sha512-iFcC/O3ZwXqoo7AQpSlFCjtquyQFQuONlnGt59rVg9OxzryCt/RFWNF/QPnIlDhCI+kpraoFKyeBwSpoAYczCw==
+  dependencies:
+    extract-zip "^2.0.1"
+    node-fetch "^3.3.2"
+    octokit "^5.0.3"
+    tar "^7.5.8"
+    tempfile "^6.0.1"
+    type-fest "^5.4.4"
+    yargs "^18.0.0"
+  optionalDependencies:
+    tar-fs "^3.0.8"
 
 "@textlint/ast-node-types@15.3.0":
   version "15.3.0"
