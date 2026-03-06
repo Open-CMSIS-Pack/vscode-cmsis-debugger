@@ -1,10 +1,10 @@
 [
     {
         "name": "arm-none-eabi-gdb",
-        "version": "14.3.1",
+        "version": "15.2.1",
         "spdx": "GPL-3.0-or-later",
-        "url": "https://artifacts.tools.arm.com/arm-none-eabi-gdb/14.3.1/",
-        "license": "https://developer.arm.com/GetEula?Id=15d9660a-2059-4985-85e9-c01cdd4b1ba0"
+        "url": "https://artifacts.tools.arm.com/arm-none-eabi-gdb/15.2.1/",
+        "license": "https://developer.arm.com/GetEula?Id=a162e8bb-8565-45a5-bdf6-7249bf3afe43"
     },
     {
         "name": "pyocd",
