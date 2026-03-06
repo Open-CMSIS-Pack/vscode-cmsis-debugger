@@ -17,7 +17,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { CorePeripheralsIndexReader } from './core-peripherals-index-reader';
-import { promisify } from 'util';
 
 // Tests are executed with different working directory, so different input path needed.
 const TEST_INDEX_BASE_PATH = path.resolve(__dirname, '../../../configs/core-peripherals');
@@ -27,7 +26,8 @@ const EMPTY_INDEX_PATH = path.resolve(__dirname, '../../../test-data/core-periph
 describe('CorePeripheralsIndexReader', () => {
 
     it('finds all core peripherals entries of index file in folder', async () => {
-        const filesInDir = await promisify(fs.readdir)(TEST_INDEX_BASE_PATH, {
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
+        const filesInDir = await fs.promises.readdir(TEST_INDEX_BASE_PATH, {
             encoding: 'buffer',
             withFileTypes: true
         });
