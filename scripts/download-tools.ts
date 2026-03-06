@@ -88,11 +88,7 @@ const pyocdNightly : Downloadable = new Downloadable(
         // Here, reference is expected to be the name of the workflow yaml file without file ending
         const { repo, owner, reference } = splitGitReference(workflow, 'pyocd', 'pyOCD');
         const assetPattern = (`pyocd-${os}${arch}-\\d+\\.\\d+\\.\\d+.*`);
-<<<<<<< vsce-helper-update
         const asset = new GitHubWorkflowAsset(
-=======
-        const asset = new ExtractZipGitHubWorkflowAsset(
->>>>>>> main
             owner, repo, `${reference}.yaml`,
             assetPattern, 
             { token: process.env.GITHUB_TOKEN });
