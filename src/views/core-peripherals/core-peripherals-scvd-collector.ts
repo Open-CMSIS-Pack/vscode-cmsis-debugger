@@ -16,7 +16,6 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { promisify } from 'util';
 import { GDBTargetDebugSession } from '../../debug-session';
 import { ScvdCollector } from '../component-viewer/component-viewer-base';
 import { componentViewerLogger } from '../../logger';
@@ -31,7 +30,8 @@ export class CorePeripheralsScvdCollector implements ScvdCollector {
         const resolvedBasePath = path.resolve(this.basePath);
         const filePaths = [];
         try {
-            const readFilePaths = await promisify(fs.readdir)(resolvedBasePath, {
+            // eslint-disable-next-line security/detect-non-literal-fs-filename
+            const readFilePaths = await fs.promises.readdir(resolvedBasePath, {
                 encoding: 'buffer',
                 withFileTypes: true
             });
