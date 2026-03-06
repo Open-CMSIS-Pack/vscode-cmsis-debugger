@@ -23,6 +23,11 @@ import { componentViewerLogger, logger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 import { perf, parsePerf } from './stats-config';
 import { vscodeViewExists } from '../../vscode-utils';
+import { EXTENSION_NAME, VIEW_PREFIX } from '../../manifest';
+
+export interface ScvdCollector {
+    getScvdFilePaths(session: GDBTargetDebugSession): Promise<string[]>;
+}
 
 export type UpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace' | 'stackItemChanged' | 'unlockingInstance';
 
@@ -33,7 +38,7 @@ export interface ComponentViewerInstancesWrapper {
     dirtyWhileLocked: boolean; // Flag to indicate if an update was attempted while instance was locked, used to trigger an update when instance is unlocked
 }
 
-export class ComponentViewer {
+export class ComponentViewerBase {
     private _activeSession: GDBTargetDebugSession | undefined;
     private _instances: ComponentViewerInstancesWrapper[] = [];
     private _componentViewerTreeDataProvider: ComponentViewerTreeDataProvider;
@@ -46,48 +51,56 @@ export class ComponentViewer {
     private _refreshTimerEnabled: boolean = true;
     private static readonly pendingUpdateDelayMs = 150;
 
-    public constructor(context: vscode.ExtensionContext, componentViewerTreeDataProvider: ComponentViewerTreeDataProvider) {
+    public constructor(
+        context: vscode.ExtensionContext,
+        componentViewerTreeDataProvider: ComponentViewerTreeDataProvider,
+        protected readonly _scvdCollector: ScvdCollector,
+        protected readonly _viewName: string,
+        protected readonly _viewId: string
+    ) {
         this._context = context;
         this._componentViewerTreeDataProvider = componentViewerTreeDataProvider;
     }
 
     public async activate(tracker: GDBTargetDebugTracker): Promise<boolean> {
         // Register Component Viewer tree view
-        logger.debug('Activating Component Viewer Tree View and commands');
+        logger.debug(`Activating ${this._viewName} Tree View and commands`);
         if (!await this.registerTreeView()) {
-            logger.error('Component Viewer: Component Viewer cannot be registered, abort activation');
+            logger.error(`${this._viewName}: ${this._viewName} cannot be registered, abort activation`);
             return false;
         }
         // Subscribe to debug tracker events to update active session
-        componentViewerLogger.debug('Subscribing to debug tracker events');
+        componentViewerLogger.debug(`${this._viewName}: Subscribing to debug tracker events`);
         this.subscribetoDebugTrackerEvents(tracker);
         return true;
     }
 
     protected async registerTreeView(): Promise<boolean> {
-        if (!await vscodeViewExists('componentViewer')) {
+        if (!await vscodeViewExists(this._viewId)) {
             return false;
         }
-        const treeView = vscode.window.createTreeView('cmsis-debugger.componentViewer', {
+        const fullViewId = `${VIEW_PREFIX}.${this._viewId}`;
+        const commandPrefix = `${EXTENSION_NAME}.${this._viewId}`;
+        const treeView = vscode.window.createTreeView(fullViewId, {
             treeDataProvider: this._componentViewerTreeDataProvider,
             showCollapseAll: true
         });
-        componentViewerLogger.debug('Component Viewer: Created Component Viewer tree view: cmsis-debugger.componentViewer');
+        componentViewerLogger.debug(`${this._viewName}: Created ${this._viewName} tree view with id: ${fullViewId}`);
         const onDidExpandElementDisposable = treeView.onDidExpandElement(event => this.handleOnDidToggleExpand(event, true));
         const onDidCollapseElementDisposable = treeView.onDidCollapseElement(event => this.handleOnDidToggleExpand(event, false));
-        const lockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.lockComponent', async (node) => {
+        const lockInstanceCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.lockComponent`, async (node) => {
             this.handleLockInstance(node);
         });
-        const unlockInstanceCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.unlockComponent', async (node) => {
+        const unlockInstanceCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.unlockComponent`, async (node) => {
             this.handleLockInstance(node);
         });
-        const enablePeriodicUpdateCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate', async () => {
+        const enablePeriodicUpdateCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.enablePeriodicUpdate`, async () => {
             this._refreshTimerEnabled = true;
-            componentViewerLogger.info('Component Viewer: Auto refresh enabled');
+            componentViewerLogger.info(`${this._viewName}: Auto refresh enabled`);
         });
-        const disablePeriodicUpdateCommandDisposable = vscode.commands.registerCommand('vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate', async () => {
+        const disablePeriodicUpdateCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.disablePeriodicUpdate`, async () => {
             this._refreshTimerEnabled = false;
-            componentViewerLogger.info('Component Viewer: Auto refresh disabled');
+            componentViewerLogger.info(`${this._viewName}: Auto refresh disabled`);
         });
         this._context.subscriptions.push(
             treeView,
@@ -104,7 +117,7 @@ export class ComponentViewer {
     protected handleOnDidToggleExpand(expansionEvent: vscode.TreeViewExpansionEvent<ScvdGuiInterface>, expand: boolean): void {
         const expandStateString = expand ? 'expanded' : 'collapsed';
         const elementName = expansionEvent.element.getGuiName() ?? 'unknown';
-        componentViewerLogger.debug(`Component Viewer: Tree item ${expandStateString} - ${elementName}`);
+        componentViewerLogger.debug(`${this._viewName}: Tree item ${expandStateString} - ${elementName}`);
         this._componentViewerTreeDataProvider.setElementExpanded(expansionEvent.element, expand);
     }
 
@@ -126,7 +139,7 @@ export class ComponentViewer {
             shouldTriggerUpdate = true;
         }
         instance.lockState = !instance.lockState;
-        componentViewerLogger.info(`Component Viewer: Instance lock state changed to ${instance.lockState}`);
+        componentViewerLogger.info(`${this._viewName}: Instance lock state changed to ${instance.lockState}`);
         // If instance is locked, set isLocked flag to true for root nodes
         const guiTree = instance.componentViewerInstance.getGuiTree();
         if (!guiTree || guiTree.length === 0) {
@@ -141,19 +154,13 @@ export class ComponentViewer {
         this._componentViewerTreeDataProvider.refresh();
     }
 
-    protected async readScvdFiles(tracker: GDBTargetDebugTracker,session?: GDBTargetDebugSession): Promise<void> {
+    protected async readScvdFiles(tracker: GDBTargetDebugTracker, session?: GDBTargetDebugSession): Promise<void> {
         if (!session) {
             return;
         }
-        const cbuildRunReader = await session.getCbuildRun();
-        const pname = await session.getPname();
-        if (!cbuildRunReader) {
-            return;
-        }
-        // Get SCVD file paths from cbuild-run reader
-        const scvdFilesPaths: string [] = cbuildRunReader.getScvdFilePaths(undefined, pname);
+        const scvdFilesPaths = await this._scvdCollector.getScvdFilePaths(session);
         if (scvdFilesPaths.length === 0) {
-            return undefined;
+            return;
         }
         parsePerf?.reset();
         const cbuildRunInstances: ComponentViewerInstance[] = [];
@@ -163,9 +170,9 @@ export class ComponentViewer {
                 try {
                     await instance.readModel(URI.file(scvdFilePath), this._activeSession, tracker);
                 } catch (error) {
-                    componentViewerLogger.error(`Component Viewer: Failed to read SCVD file at ${scvdFilePath} - ${(error as Error).message}`);
+                    componentViewerLogger.error(`${this._viewName}: Failed to read SCVD file at ${scvdFilePath} - ${(error as Error).message}`);
                     // Show error message in a pop up to the user, but continue loading other instances if there are multiple SCVD files
-                    vscode.window.showErrorMessage(`Component Viewer: cannot read SCVD file at ${scvdFilePath}`);
+                    vscode.window.showErrorMessage(`${this._viewName}: cannot read SCVD file at ${scvdFilePath}`);
                     continue;
                 }
 
@@ -182,12 +189,12 @@ export class ComponentViewer {
         })));
     }
 
-    private async loadCbuildRunInstances(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker) : Promise<void | undefined> {
+    private async loadScvdFiles(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker) : Promise<void | undefined> {
         this._loadingCounter++;
-        componentViewerLogger.debug(`Loading SCVD files from cbuild-run, attempt #${this._loadingCounter}`);
-        // Try to read SCVD files from cbuild-run file first
+        componentViewerLogger.debug(`${this._viewName}: Loading SCVD files, attempt #${this._loadingCounter}`);
+        // Try to read SCVD files
         await this.readScvdFiles(tracker, session);
-        // Are there any SCVD files found in cbuild-run?
+        // Are there any SCVD files found and loaded?
         if (this._instances.length === 0) {
             return undefined;
         }
@@ -226,7 +233,7 @@ export class ComponentViewer {
     private async handleOnStackTrace(session: GDBTargetDebugSession): Promise<void> {
         // Clear active session if it is NOT the one being stopped
         if (this._activeSession?.session.id !== session.session.id) {
-            throw new Error(`Component Viewer: Received stack trace event for session ${session.session.id} while active session is ${this._activeSession?.session.id}`);
+            throw new Error(`${this._viewName}: Received stack trace event for session ${session.session.id} while active session is ${this._activeSession?.session.id}`);
         }
         // Update component viewer instance(s) if active session is stopped
         this.schedulePendingUpdate('stackTrace');
@@ -236,7 +243,7 @@ export class ComponentViewer {
         // If the active session is not the one being updated, update it.
         // This can happen when a session is started and stack trace/item events are emitted before the session is set as active in the component viewer.
         if (this._activeSession?.session.id !== session.session.id) {
-            throw new Error(`Component Viewer: Received stack item changed event for session ${session.session.id} while active session is ${this._activeSession?.session.id}`);
+            throw new Error(`${this._viewName}: Received stack item changed event for session ${session.session.id} while active session is ${this._activeSession?.session.id}`);
         }
         this.schedulePendingUpdate('stackItemChanged');
     }
@@ -275,7 +282,7 @@ export class ComponentViewer {
         // Update debug session
         this._activeSession = session;
         // Load SCVD files from cbuild-run
-        await this.loadCbuildRunInstances(session, tracker);
+        await this.loadScvdFiles(session, tracker);
     }
 
     private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
@@ -302,7 +309,7 @@ export class ComponentViewer {
         this._pendingUpdateTimer = setTimeout(() => {
             this._pendingUpdateTimer = undefined;
             void this.runUpdate(updateReason);
-        }, ComponentViewer.pendingUpdateDelayMs);
+        }, ComponentViewerBase.pendingUpdateDelayMs);
     }
 
     private async runUpdate(updateReason: UpdateReason): Promise<void> {
@@ -315,7 +322,7 @@ export class ComponentViewer {
             try {
                 await this.updateInstances(updateReason);
             } catch (error) {
-                componentViewerLogger.error(`Component Viewer: Error during update - ${(error as Error).message}`);
+                componentViewerLogger.error(`${this._viewName}: Error during update - ${(error as Error).message}`);
             }
         }
         this._runningUpdate = false;
@@ -345,11 +352,11 @@ export class ComponentViewer {
             this._componentViewerTreeDataProvider.clear();
             return;
         }
-        componentViewerLogger.debug(`Component Viewer: Queuing update due to '${updateReason}'`);
+        componentViewerLogger.debug(`${this._viewName}: Queuing update due to '${updateReason}'`);
         this._instanceUpdateCounter = 0;
 
         if (!this.shouldUpdateInstances(this._activeSession)) {
-            componentViewerLogger.debug(`Component Viewer: Skipping update due to '${updateReason}' - conditions not met`);
+            componentViewerLogger.debug(`${this._viewName}: Skipping update due to '${updateReason}' - conditions not met`);
             return;
         }
 
@@ -365,7 +372,7 @@ export class ComponentViewer {
                 continue;
             }
             this._instanceUpdateCounter++;
-            componentViewerLogger.debug(`Updating Component Viewer Instance #${this._instanceUpdateCounter} due to '${updateReason}'`);
+            componentViewerLogger.debug(`${this._viewName}: Updating ${this._viewName} Instance #${this._instanceUpdateCounter} due to '${updateReason}'`);
 
             // Check instance's lock state, skip update if locked
             if (!instance.lockState) {

@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Copyright 2026 Arm Limited
+  
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+-->
+<component_viewer schemaVersion="0.1" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="Component_Viewer.xsd">
+  <component name="NestedVectoredInterruptControllerComponent" version="1.0.0"/>
+  <typedefs>
+    <typedef name="Vector_t" size="4">
+      <member name="INTLINESNUM" type="uint32_t" offset="0"/>
+      <var name="Enable" type="uint8_t" size="256">
+        <enum name="not enabled" value="0"/>
+        <enum name="enabled" value="1"/>
+      </var>
+      <var name="Pending" type="uint8_t" size="256">
+        <enum name="not pending" value="0"/>
+        <enum name="pending" value="1"/>
+      </var>
+      <var name="Active" type="uint8_t" size="256">
+        <enum name="not active" value="0"/>
+        <enum name="active" value="1"/>
+      </var>
+      <var name="Priority" type="uint8_t"  size="256"/>
+      <var name="Displayed" type="uint8_t"  size="256"/>
+      <var name="Index" type="uint8_t" size="256">
+        <enum name="Thread Mode" value="0"/>
+        <enum name="Non-maskable Interrupt (NMI)" value="2"/>
+        <enum name="Hard Fault (HARDFAULT)" value="3" />
+        <enum name="Memory Management (MEMFAULT)" value="4" />
+        <enum name="Bus Fault (BUSFAULT)" value="5" />
+        <enum name="Usage Fault (USGFAULT)" value="6" />
+        <enum name="Secure Fault (SECUREFAULT)" value="7" />
+        <enum name="System Service Call (SVCALL)" value="11" />
+        <enum name="Debug Monitor (MONITOR)" value="12" />
+        <enum name="Pend System Service (PENDSV)" value="14" />
+        <enum name="System Tick Timer (SYSTICK)" value="15" />
+      </var>
+    </typedef>
+  </typedefs>
+   <objects>
+    <object name="NestedVectoredInterruptControllerObject">
+      <var name="WithSecureExtension" type="uint8_t" value="1"/>
+      <read name="SHCSR_value" type="uint32_t" offset="0xE000ED24"/>
+      <read name="SHPR_values" type="uint32_t" size="3" offset="0xE000ED18"/>
+      <read name="ICSR_value" type="uint32_t" offset="0xE000ED04"/>
+      <read name="AIRCR_value" type="uint32_t" offset="0xE000ED0C"/>
+      <read name="VTOR_value" type="uint32_t" offset="0xE000ED08"/>
+      <read name="DEMCR_value" type="uint32_t" offset="0xE000EDFC"/>
+      <read name="SYST_CSR_value" type="uint32_t" offset="0xE000E010"/>
+      <read name="NVIC_ISER_values" type="uint32_t" size="8" offset="0xE000E100"/>
+      <read name="NVIC_ISPR_values" type="uint32_t" size="8" offset="0xE000E200"/>
+      <read name="NVIC_IABR_values" type="uint32_t" size="8" offset="0xE000E300"/>
+      <read name="NVIC_IPR_values" type="uint32_t" size="60" offset="0xE000E400"/>
+      <read name="Vectors" type="Vector_t" offset="0xE000E004"/>
+      <var name="Count" type="uint32_t" value="0"/>
+      <list name="Count" start="0" limit="Vectors.INTLINESNUM*32">
+        <calc cond="1">
+          Vectors.Index[Count]=Count;
+        </calc>
+
+        <calc cond="0==( (Count==0) || (Count==1) || ( (Count==7) &amp;&amp; (0==WithSecureExtension) ) || (Count==8) || (Count==9) || (Count==10) || (Count==13) )">
+          Vectors.Displayed[Count]=1;
+        </calc>
+
+        <calc cond="(Count==2)" info="values for NMI">
+          Vectors.Enable[Count]=1;
+          Vectors.Pending[Count]=((ICSR_value&gt;&gt;31)&amp;0x1);
+          Vectors.Active[Count]=((ICSR_value&gt;&gt;0)&amp;0x1F)==2;
+          Vectors.Priority[Count]=-2;
+        </calc>
+<!--
+-->
+        <calc cond="( Count==3 )" info="values for HARDFAULT">
+          Vectors.Enable[Count]=1;
+          Vectors.Active[Count]=((ICSR_value&gt;&gt;0)&amp;0x1F)==3;
+          Vectors.Pending[Count]=0;
+          Vectors.Priority[Count]=-1;
+        </calc>
+        <calc cond="( Count==4 )" info="values for MEMFAULT">
+          Vectors.Enable[Count]=((SHCSR_value&gt;&gt;16)&amp;0x1);
+          Vectors.Active[Count]=((SHCSR_value&gt;&gt;0)&amp;0x1);
+          Vectors.Pending[Count]=((SHCSR_value&gt;&gt;13)&amp;0x1);
+          Vectors.Priority[Count]=((SHPR_values[0]&gt;&gt;0)&amp;0xFF);
+        </calc>
+        <calc cond="( Count==5 )" info="values for BUSFAULT">
+          Vectors.Enable[Count]=((SHCSR_value&gt;&gt;17)&amp;0x1);
+          Vectors.Active[Count]=((SHCSR_value&gt;&gt;1)&amp;0x1);
+          Vectors.Pending[Count]=((SHCSR_value&gt;&gt;14)&amp;0x1);
+          Vectors.Priority[Count]=((SHPR_values[0]&gt;&gt;8)&amp;0xFF);
+        </calc>
+        <calc cond="( Count==6 )" info="values for USGFAULT">
+          Vectors.Enable[Count]=((SHCSR_value&gt;&gt;18)&amp;0x1);
+          Vectors.Active[Count]=((SHCSR_value&gt;&gt;3)&amp;0x1);
+          Vectors.Pending[Count]=((SHCSR_value&gt;&gt;12)&amp;0x1);
+          Vectors.Priority[Count]=((SHPR_values[0]&gt;&gt;16)&amp;0xFF);
+        </calc>
+        <calc cond="( (Count==7) &amp;&amp; WithSecureExtension )" info="values for SECUREFAULT">
+          Vectors.Enable[Count]=((SHCSR_value&gt;&gt;19)&amp;0x1);
+          Vectors.Active[Count]=((SHCSR_value&gt;&gt;4)&amp;0x1);
+          Vectors.Pending[Count]=((SHCSR_value&gt;&gt;20)&amp;0x1);
+          Vectors.Priority[Count]=((SHPR_values[0]&gt;&gt;24)&amp;0xFF);
+        </calc>
+        <calc cond="( Count==11 )" info="values for SVCALL">
+          Vectors.Enable[Count]=1;
+          Vectors.Active[Count]=((SHCSR_value&gt;&gt;7)&amp;0x1);
+          Vectors.Pending[Count]=((SHCSR_value&gt;&gt;15)&amp;0x1);
+          Vectors.Priority[Count]=((SHPR_values[1]&gt;&gt;24)&amp;0xFF);
+        </calc>
+        <calc cond="( Count==12 )" info="values for MONITOR">
+          Vectors.Enable[Count]=((DEMCR_value&gt;&gt;16)&amp;0x1);
+          Vectors.Active[Count]=((SHCSR_value&gt;&gt;8)&amp;0x1);
+          Vectors.Pending[Count]=((DEMCR_value&gt;&gt;17)&amp;0x1);
+          Vectors.Priority[Count]=((SHPR_values[2]&gt;&gt;0)&amp;0xFF);
+        </calc>
+        <calc cond="( Count==14 )" info="values for PENDSV">
+          Vectors.Enable[Count]=1;
+          Vectors.Active[Count]=((SHCSR_value&gt;&gt;10)&amp;0x1);
+          Vectors.Pending[Count]=((ICSR_value&gt;&gt;28)&amp;0x1);
+          Vectors.Priority[Count]=((SHPR_values[2]&gt;&gt;16)&amp;0xFF);
+        </calc>
+        <calc cond="( Count==15 )" info="values for SYSTICK">
+          Vectors.Enable[Count]=((SYST_CSR_value&gt;&gt;1)&amp;0x1);
+          Vectors.Active[Count]=((SHCSR_value&gt;&gt;11)&amp;0x1);
+          Vectors.Pending[Count]=((ICSR_value&gt;&gt;26)&amp;0x1);
+          Vectors.Priority[Count]=((SHPR_values[2]&gt;&gt;24)&amp;0xFF);
+        </calc>
+          <!--Vectors.Priority[Count]=((SHPR_values[((Count-4)/4)]&gt;&gt;(((Count-4)&amp;3)*8))&amp;0xFF);-->
+
+        <calc cond="( Count&gt;15 )" info="values for EXTIRQn">
+          Vectors.Enable[Count]=((NVIC_ISER_values[((Count-16)/32)]&gt;&gt;(((Count-16)&amp;0x1F)))&amp;0x1);
+          Vectors.Active[Count]=((NVIC_IABR_values[((Count-16)/32)]&gt;&gt;(((Count-16)&amp;0x1F)))&amp;0x1);
+          Vectors.Pending[Count]=((NVIC_ISPR_values[((Count-16)/32)]&gt;&gt;(((Count-16)&amp;0x1F)))&amp;0x1);
+          Vectors.Priority[Count]=((NVIC_IPR_values[((Count-16)/4)]&gt;&gt;(((Count-16)&amp;0x3)*8))&amp;0xFF);
+        </calc>
+      </list>      
+      <out name="Nested Vectored Interrupt Controller">
+<!--
+        <item property="values for debugging" value="">
+          <item property="SHCSR_value&gt;&gt;16" value="%x[(SHCSR_value&gt;&gt;16)]"/>
+          <item property="SHCSR_value" value="%x[(SHCSR_value)]"/>
+          <item property="NVIC_ISER_values[0]" value="%x[NVIC_ISER_values[0]]"/>
+        </item>
+-->
+        <item property="INTLINESNUM" value="%d[Vectors.INTLINESNUM]"/>
+        <item property="Interrupt Control and Status (ICSR)" value="%x[ICSR_value]">
+          <item property="ISRPENDING" value="%d[(ICSR_value&gt;&gt;22)&amp;0x1]"/>
+          <item property="VECTPENDING" value="%d[(ICSR_value&gt;&gt;12)&amp;0x1F]"/>
+          <item property="RETTOBASE" value="%d[(ICSR_value&gt;&gt;11)&amp;0x1]"/>
+          <item property="VECTACTIVE" value="%d[(ICSR_value&gt;&gt;0)&amp;0x1F]"/>
+        </item>
+        <item property="Application Interrupt and Reset Control (AIRCR)" value="%x[AIRCR_value]">
+          <item property="ENDIANNESS" value="%d[(AIRCR_value&gt;&gt;15)&amp;0x1]"/>
+          <item property="PRIGROUP" value="%d[(AIRCR_value&gt;&gt;8)&amp;0x7]"/>
+        </item>
+        <item property="Vector Table Offset (VTOR)" value="%x[VTOR_value]">
+          <item property="TBLOFF" value="%x[(VTOR_value&gt;&gt;7)&amp;0x1FFFFFF]"/>
+        </item>
+        <item property="Vector Handlers" value="">
+          <list name="Count" start="0" limit="Vectors.INTLINESNUM*32">
+            <item>
+              <print property="%E[Vectors.Index[Count]]" value="%E[Vectors.Enable[Count]], %E[Vectors.Pending[Count]], %E[Vectors.Active[Count]]" cond="Vectors.Displayed[Count]==1 &amp;&amp; Count&lt;16"/>
+              <print property="External Interrupt %d[Count-16] (EXTIRQ%d[Count-16])" value="%E[Vectors.Enable[Count]], %E[Vectors.Pending[Count]], %E[Vectors.Active[Count]]" cond="Vectors.Displayed[Count]==1 &amp;&amp; Count&gt;15"/>
+              <item property="Index" value="%d[Vectors.Index[Count]]"/>
+              <item property="Enable" value="%d[Vectors.Enable[Count]]"/>
+              <item property="Pending" value="%d[Vectors.Pending[Count]]"/>
+              <item property="Active" value="%d[Vectors.Active[Count]]"/>
+              <item property="Priority" value="%d[Vectors.Priority[Count]]"/>
+            </item>
+         </list>
+        </item>
+      </out>
+    </object>
+  </objects>
+</component_viewer>
