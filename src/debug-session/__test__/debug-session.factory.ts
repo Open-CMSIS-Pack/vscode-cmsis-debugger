@@ -86,7 +86,10 @@ export const debugSessionFactory = (
     hasCbuildRun = true
 ): Session => {
     // Ensure same object returned for multiple calls to getCbuildRun.
-    const cbuildRunMock = hasCbuildRun ? { getScvdFilePaths: () => paths } : undefined;
+    const cbuildRunMock = hasCbuildRun ? {
+        getContents: jest.fn(),
+        getScvdFilePaths: () => paths
+    } : undefined;
     return {
         session: { id },
         getCbuildRun: async () => cbuildRunMock,
