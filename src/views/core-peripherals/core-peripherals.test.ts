@@ -1,0 +1,37 @@
+/**
+ * Copyright 2026 Arm Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { extensionContextFactory } from '../../__test__/vscode.factory';
+import { treeDataProviderFactory } from '../component-viewer/__test__/component-viewer-parts.factory';
+import { debugTrackerFactory } from '../../debug-session/__test__/debug-session.factory';
+import { CorePeripherals } from './core-peripherals';
+
+describe('CorePeripherals', () => {
+    let corePeripherals: CorePeripherals;
+
+    beforeEach(() => {
+        const context = extensionContextFactory();
+        const componentViewerTreeDataProvider = treeDataProviderFactory();
+        corePeripherals = new CorePeripherals(context, componentViewerTreeDataProvider);
+    });
+
+    it('correctly activates', async () => {
+        const tracker = debugTrackerFactory();
+        expect(corePeripherals).toBeDefined();
+        await corePeripherals.activate(tracker);
+    });
+
+});

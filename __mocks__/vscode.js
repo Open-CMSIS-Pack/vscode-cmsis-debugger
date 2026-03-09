@@ -121,10 +121,13 @@ module.exports = {
         executeCommand: jest.fn(),
         // Default to all views in extension having been correctly loaded
         getCommands: jest.fn(() => Promise.resolve([
+            // Real views in extension
             'cmsis-debugger.liveWatch.open',
             'cmsis-debugger.liveWatch.focus',
             'cmsis-debugger.componentViewer.open',
             'cmsis-debugger.componentViewer.focus',
+            'cmsis-debugger.corePeripherals.open',
+            'cmsis-debugger.corePeripherals.focus',
         ])),
         registerCommand: jest.fn(),
     },

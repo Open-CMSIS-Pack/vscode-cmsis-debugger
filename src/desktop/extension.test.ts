@@ -24,6 +24,14 @@ import { LiveWatchTreeDataProvider } from '../views/live-watch/live-watch';
 describe('extension', () => {
 
     describe('activate', () => {
+        const liveWatchCommands = [ 'cmsis-debugger.liveWatch.open', 'cmsis-debugger.liveWatch.focus' ];
+        const componentViewerCommands = [ 'cmsis-debugger.componentViewer.open', 'cmsis-debugger.componentViewer.focus' ];
+        const corePeripheralsCommands = [ 'cmsis-debugger.corePeripherals.open', 'cmsis-debugger.corePeripherals.focus' ];
+
+        beforeEach(() => {
+            // Temporary mock for config.cmsis-debugger.corePeripherals.enabled until removed again
+            (vscode.workspace.getConfiguration as jest.Mock).mockReturnValueOnce({ get: (command: string) => command === 'cmsis-debugger.corePeripherals.enabled' });
+        });
 
         it('activates extension without asking to reload', async () => {
             const loggerSpy = jest.spyOn(logger, 'debug');
@@ -33,12 +41,15 @@ describe('extension', () => {
         });
 
         it.each([
-            { missingView: 'live watch view', availableCommands: [ 'cmsis-debugger.componentViewer.open', 'cmsis-debugger.componentViewer.focus'] },
-            { missingView: 'component viewer', availableCommands: [ 'cmsis-debugger.liveWatch.open', 'cmsis-debugger.liveWatch.focus'] }
+            { missingView: 'Live Watch view', availableCommands: [ ...componentViewerCommands, ...corePeripheralsCommands ] },
+            { missingView: 'Component Viewer', availableCommands: [ ...liveWatchCommands, ...corePeripheralsCommands ] },
+            { missingView: 'Core Peripherals', availableCommands: [ ...liveWatchCommands, ...componentViewerCommands ] }
         ])('activates extension and asks to reload because $missingView is not loaded', async ({ availableCommands }) => {
             const loggerSpy = jest.spyOn(logger, 'debug');
             // Resolve once per each view in extension, do not permanently overload global mock
             (vscode.commands.getCommands as jest.Mock)
+                // Extend with each new view to match number of getCommands calls in activate function
+                .mockResolvedValueOnce(availableCommands)
                 .mockResolvedValueOnce(availableCommands)
                 .mockResolvedValueOnce(availableCommands);
             await activate(extensionContextFactory());
@@ -64,12 +75,12 @@ describe('extension', () => {
 
     describe('deactivate', () => {
         const loggerSpy = jest.spyOn(logger, 'debug');
-        const componentViewerClearSpy = jest.spyOn(ComponentViewerTreeDataProvider.prototype, 'clear');
+        const treeDataProviderClearSpy = jest.spyOn(ComponentViewerTreeDataProvider.prototype, 'clear');
         const liveWatchDeactivateSpy = jest.spyOn(LiveWatchTreeDataProvider.prototype, 'deactivate');
 
         beforeEach(() => {
             loggerSpy.mockClear();
-            componentViewerClearSpy.mockClear();
+            treeDataProviderClearSpy.mockClear();
             liveWatchDeactivateSpy.mockClear();
         });
 
@@ -77,7 +88,7 @@ describe('extension', () => {
             await activate(extensionContextFactory());
             await deactivate();
             expect(loggerSpy).toHaveBeenCalledWith('CMSIS Debugger deactivated');
-            expect(componentViewerClearSpy).toHaveBeenCalled();
+            expect(treeDataProviderClearSpy).toHaveBeenCalledTimes(2); // Component Viewer and Core Peripherals
             expect(liveWatchDeactivateSpy).toHaveBeenCalled();
         });
 
