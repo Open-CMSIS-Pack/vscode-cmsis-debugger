@@ -31,7 +31,6 @@ import { ScvdNode } from '../../../../model/scvd-node';
 import { ScvdMember } from '../../../../model/scvd-member';
 import { ScvdComponentViewer } from '../../../../model/scvd-component-viewer';
 import { ScvdTypedef, ScvdTypedefs } from '../../../../model/scvd-typedef';
-import { ScvdEnum } from '../../../../model/scvd-enum';
 
 class DummyNode extends ScvdNode {
     private _testParent: ScvdNode | undefined;
