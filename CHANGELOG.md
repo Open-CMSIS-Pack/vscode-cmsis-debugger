@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.4.1
+
+- Fixes debugger run control intermittently becoming unresponsive when [Component Viewer](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#component-viewer) is active.
+- Includes updated pyOCD distribution ([pyOCD v0.43.1](https://github.com/pyocd/pyOCD/releases/tag/v0.43.1))
+    - Fixes [Segger RTT](https://www.segger.com/products/debug-probes/j-link/technology/about-real-time-transfer/) control block detection for single-core devices.
+
 ## 1.4.0
 
 - Adds the [Component Viewer](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#component-viewer) which shows detailed information to help analyze the operation of software components based on [CMSIS-View](https://arm-software.github.io/CMSIS-View/latest/cmp_viewer.html) descriptions.
