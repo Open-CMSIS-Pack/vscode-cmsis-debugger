@@ -55,7 +55,7 @@ describe('ScvdListOut', () => {
         expect(listOut.while).toBeDefined();
         expect(listOut.cond).toBeDefined();
         expect(listOut.item).toHaveLength(1);
-        expect(listOut.list).toHaveLength(2);
+        expect(listOut.list).toHaveLength(1);
         expect(listOut.calc).toHaveLength(1);
 
         expect(listOut.listOut).toHaveLength(0);
