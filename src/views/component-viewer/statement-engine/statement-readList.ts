@@ -293,7 +293,7 @@ export class StatementReadList extends StatementBase {
         if (!didBatchRead) {
             const loopStart = perf?.start() ?? 0;
             let readIdx = 0;
-            const visitedAddresses = new Set<number | bigint>();
+            const visitedAddresses = new Set<number>();
             while (nextPtrAddr !== undefined) {
                 // Check for external cancellation (session ended) or global timeout
                 if (executionContext.cancellation.checkDeadline()) {
@@ -303,12 +303,24 @@ export class StatementReadList extends StatementBase {
 
                 const itemAddress: number | bigint | undefined = typeof nextPtrAddr === 'bigint' ? nextPtrAddr : (nextPtrAddr >>> 0);
 
+                // Normalize to number for consistent Set lookups (bigint and number
+                // are different types in Set — 42n !== 42 — so always use number).
+                const addressKey = typeof itemAddress === 'bigint' ? Number(itemAddress) : itemAddress;
+
                 // Detect cycles: check if we've visited this address before
-                if (visitedAddresses.has(itemAddress)) {
-                    componentViewerLogger.error(`${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, detected cycle in linked list at address: ${itemAddress.toString(16)}`);
+                if (visitedAddresses.has(addressKey)) {
+                    const message = `${this.scvdItem.getLineNoStr()}: Executing "readlist": ${scvdReadList.name}, symbol: ${symbol?.name}, detected cycle in linked list at address: ${itemAddress.toString(16)}`;
+                    if (await executionContext.debugTarget.getTargetIsRunning()) {
+                        // While the target is running, cycles may be caused by the RTOS
+                        // updating linked-list pointers concurrently — this is transient
+                        // and not necessarily an error in the SCVD definition.
+                        componentViewerLogger.warn(message);
+                    } else {
+                        componentViewerLogger.error(message);
+                    }
                     break;
                 }
-                visitedAddresses.add(itemAddress);
+                visitedAddresses.add(addressKey);
 
                 // Read data from target
                 const readData = await executionContext.debugTarget.readMemory(itemAddress, readBytes);
