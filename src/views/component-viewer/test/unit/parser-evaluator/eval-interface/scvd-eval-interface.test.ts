@@ -30,7 +30,7 @@ import { ScvdFormatSpecifier } from '../../../../model/scvd-format-specifier';
 import { ScvdNode } from '../../../../model/scvd-node';
 import { ScvdMember } from '../../../../model/scvd-member';
 import { ScvdComponentViewer } from '../../../../model/scvd-component-viewer';
-import { ScvdTypedef } from '../../../../model/scvd-typedef';
+import { ScvdTypedef, ScvdTypedefs } from '../../../../model/scvd-typedef';
 
 class DummyNode extends ScvdNode {
     private _testParent: ScvdNode | undefined;
@@ -304,14 +304,134 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         await expect(evalIf.getElementRef(base)).resolves.toBeUndefined();
     });
 
-    it('resolveColonPath warns on unsupported path format with more than 2 parts', async () => {
+    it('resolveColonPath attempts enum lookup for 3-part path (falls back gracefully)', async () => {
+        const base = new DummyNode('base');
+        const container: RefContainer = { base, current: base, valueType: undefined };
+        const { evalIf } = makeEval();
+        jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
+        // 3-part path now tries enum resolution; DummyNode root is not ScvdComponentViewer so it fails gracefully
+        await expect(evalIf.resolveColonPath(container, ['a', 'b', 'c'])).resolves.toBeUndefined();
+        expect(componentViewerLogger.error).toHaveBeenCalledWith(expect.stringContaining('Root is not ScvdComponentViewer'));
+        (componentViewerLogger.error as unknown as jest.Mock).mockRestore();
+    });
+
+    it('resolveColonPath warns on unsupported path format with more than 3 parts', async () => {
         const base = new DummyNode('base');
         const container: RefContainer = { base, current: base, valueType: undefined };
         const { evalIf } = makeEval();
         jest.spyOn(componentViewerLogger, 'warn').mockImplementation(() => {});
-        await expect(evalIf.resolveColonPath(container, ['a', 'b', 'c'])).resolves.toBeUndefined();
-        expect(componentViewerLogger.warn).toHaveBeenCalledWith(expect.stringContaining('Unsupported colon path format with 3 parts'));
+        await expect(evalIf.resolveColonPath(container, ['a', 'b', 'c', 'd'])).resolves.toBeUndefined();
+        expect(componentViewerLogger.warn).toHaveBeenCalledWith(expect.stringContaining('Unsupported colon path format with 4 parts'));
         (componentViewerLogger.warn as unknown as jest.Mock).mockRestore();
+    });
+
+    describe('resolveEnumValue (3-part colon path)', () => {
+        function buildComponentViewerWithEnum(opts?: {
+            typedefName?: string;
+            memberName?: string;
+            enumName?: string;
+            enumValue?: number | string;
+            skipTypedefs?: boolean;
+            skipTypedef?: boolean;
+            skipMember?: boolean;
+            skipEnum?: boolean;
+        }): { root: ScvdComponentViewer; container: RefContainer } {
+            const root = new ScvdComponentViewer(undefined);
+
+            if (!opts?.skipTypedefs) {
+                const typedefs = new ScvdTypedefs(root);
+                (root as unknown as { _typedefs: ScvdTypedefs })._typedefs = typedefs;
+
+                if (!opts?.skipTypedef) {
+                    const typedef = new ScvdTypedef(typedefs);
+                    typedef.name = opts?.typedefName ?? 'MyType';
+                    typedefs.typedef.push(typedef);
+
+                    if (!opts?.skipMember) {
+                        const member = typedef.addMember();
+                        member.name = opts?.memberName ?? 'State';
+
+                        if (!opts?.skipEnum) {
+                            const enumItem = member.addEnum();
+                            enumItem.name = opts?.enumName ?? 'Active';
+                            // Mock getValue on the enum's value expression
+                            const mockValue = opts?.enumValue ?? 42;
+                            jest.spyOn(enumItem.value, 'getValue').mockResolvedValue(
+                                typeof mockValue === 'number' ? mockValue : mockValue
+                            );
+                        }
+                    }
+                }
+            }
+
+            // Create a DummyNode whose parent chain leads to root
+            const base = new DummyNode('child');
+            base.setTestParent(root);
+            const container: RefContainer = { base, current: base, valueType: undefined };
+            return { root, container };
+        }
+
+        it('resolves enum value for valid 3-part colon path', async () => {
+            const { container } = buildComponentViewerWithEnum({
+                typedefName: 'TCP_INFO4',
+                memberName: 'State',
+                enumName: 'Closed',
+                enumValue: 1,
+            });
+            const { evalIf } = makeEval();
+            await expect(evalIf.resolveColonPath(container, ['TCP_INFO4', 'State', 'Closed'])).resolves.toBe(1);
+        });
+
+        it('returns undefined when typedefs are missing', async () => {
+            const { container } = buildComponentViewerWithEnum({ skipTypedefs: true });
+            const { evalIf } = makeEval();
+            jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
+            await expect(evalIf.resolveColonPath(container, ['a', 'b', 'c'])).resolves.toBeUndefined();
+            expect(componentViewerLogger.error).toHaveBeenCalledWith(expect.stringContaining('No typedefs found'));
+            (componentViewerLogger.error as unknown as jest.Mock).mockRestore();
+        });
+
+        it('returns undefined when typedef not found', async () => {
+            const { container } = buildComponentViewerWithEnum({ typedefName: 'Existing' });
+            const { evalIf } = makeEval();
+            jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
+            await expect(evalIf.resolveColonPath(container, ['NonExistent', 'State', 'Active'])).resolves.toBeUndefined();
+            expect(componentViewerLogger.error).toHaveBeenCalledWith(expect.stringContaining('Typedef "NonExistent" not found'));
+            (componentViewerLogger.error as unknown as jest.Mock).mockRestore();
+        });
+
+        it('returns undefined when member not found in typedef', async () => {
+            const { container } = buildComponentViewerWithEnum({ typedefName: 'MyType', memberName: 'State' });
+            const { evalIf } = makeEval();
+            jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
+            await expect(evalIf.resolveColonPath(container, ['MyType', 'WrongMember', 'Active'])).resolves.toBeUndefined();
+            expect(componentViewerLogger.error).toHaveBeenCalledWith(expect.stringContaining('Member "WrongMember" not found'));
+            (componentViewerLogger.error as unknown as jest.Mock).mockRestore();
+        });
+
+        it('returns undefined when enum not found in member', async () => {
+            const { container } = buildComponentViewerWithEnum({ enumName: 'Active' });
+            const { evalIf } = makeEval();
+            jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
+            await expect(evalIf.resolveColonPath(container, ['MyType', 'State', 'WrongEnum'])).resolves.toBeUndefined();
+            expect(componentViewerLogger.error).toHaveBeenCalledWith(expect.stringContaining('Enum "WrongEnum" not found'));
+            (componentViewerLogger.error as unknown as jest.Mock).mockRestore();
+        });
+
+        it('returns undefined when enum value is not a number', async () => {
+            const { container } = buildComponentViewerWithEnum({ enumValue: 'not-a-number' as unknown as number });
+            const { evalIf } = makeEval();
+            jest.spyOn(componentViewerLogger, 'warn').mockImplementation(() => {});
+            await expect(evalIf.resolveColonPath(container, ['MyType', 'State', 'Active'])).resolves.toBeUndefined();
+            expect(componentViewerLogger.warn).toHaveBeenCalledWith(expect.stringContaining('value is not a number'));
+            (componentViewerLogger.warn as unknown as jest.Mock).mockRestore();
+        });
+
+        it('returns enum value 0 correctly (falsy but valid)', async () => {
+            const { container } = buildComponentViewerWithEnum({ enumValue: 0 });
+            const { evalIf } = makeEval();
+            await expect(evalIf.resolveColonPath(container, ['MyType', 'State', 'Active'])).resolves.toBe(0);
+        });
     });
 
     it('read/write value wrap host errors', async () => {

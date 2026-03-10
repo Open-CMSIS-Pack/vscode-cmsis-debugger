@@ -90,6 +90,7 @@ export function createExecutionContext(
         readMemory: async () => undefined,
         readMemoryBatch: async () => new Map(),
         beginUpdateCycle: async () => {},
+        getTargetIsRunning: async () => false,
     };
     const debugTarget = { ...debugTargetDefaults, ...debugTargetOverrides } as ScvdDebugTarget;
 
