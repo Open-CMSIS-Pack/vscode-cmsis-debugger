@@ -21,10 +21,12 @@ import { ScvdNode } from './scvd-node';
 import { ScvdItem } from './scvd-item';
 import { ScvdList } from './scvd-list';
 import { getArrayFromJson, getStringFromJson } from './scvd-utils';
+import { ScvdCalc } from './scvd-calc';
 
 export class ScvdListOut extends ScvdList {
     private _item: ScvdItem[] = [];
     private _listOut: ScvdListOut[] = []; // Array of child lists
+    private _calcOut: ScvdCalc[] = [];
 
     constructor(
         parent: ScvdNode | undefined,
@@ -60,7 +62,15 @@ export class ScvdListOut extends ScvdList {
             listItem.readXml(list);
         });
 
-        return super.readXml(xml);
+        const calcs = getArrayFromJson<Json>(xml.calc);
+        calcs?.forEach(calc => {
+            const calcItem = this.addCalc();
+            calcItem.readXml(calc);
+        });
+
+        const xmlWithoutCalc: Json = { ...xml };
+        delete xmlWithoutCalc.calc;
+        return super.readXml(xmlWithoutCalc);
     }
 
     public get item(): ScvdItem[] {
@@ -80,6 +90,15 @@ export class ScvdListOut extends ScvdList {
         const newItem = new ScvdListOut(this);
         this._listOut.push(newItem);
         return newItem;
+    }
+
+    public override get calc(): ScvdCalc[] {
+        return this._calcOut;
+    }
+    public override addCalc(): ScvdCalc {
+        const calcItem = new ScvdCalc(this);
+        this._calcOut.push(calcItem);
+        return calcItem;
     }
 
     public override getGuiName(): Promise<string | undefined> {

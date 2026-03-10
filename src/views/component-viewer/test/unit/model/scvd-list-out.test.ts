@@ -44,6 +44,9 @@ describe('ScvdListOut', () => {
             list: {
                 name: 'child',
                 start: '0'
+            },
+            calc: {
+                expression: '1'
             }
         };
         expect(listOut.readXml(xml)).toBe(true);
@@ -53,10 +56,13 @@ describe('ScvdListOut', () => {
         expect(listOut.cond).toBeDefined();
         expect(listOut.item).toHaveLength(1);
         expect(listOut.list).toHaveLength(2);
+        expect(listOut.calc).toHaveLength(1);
 
         expect(listOut.listOut).toHaveLength(0);
         listOut.addListOut();
+        listOut.addCalc();
         expect(listOut.listOut).toHaveLength(1);
+        expect(listOut.calc).toHaveLength(2);
 
         await expect(listOut.getGuiName()).resolves.toBeUndefined();
     });
