@@ -32,45 +32,22 @@ describe('ScvdListOut', () => {
         const xml: Json = {
             '#Name': 'listout',
             name: 'root',
-            start: '1',
-            limit: '2',
-            while: '3',
-            cond: '1',
             item: {
                 name: 'item0',
                 property: 'prop',
                 value: 'val'
-            },
-            list: {
-                name: 'child',
-                start: '0'
-            },
-            calc: {
-                expression: '1'
             }
         };
         expect(listOut.readXml(xml)).toBe(true);
-        expect(listOut.start).toBeDefined();
-        expect(listOut.limit).toBeDefined();
-        expect(listOut.while).toBeDefined();
-        expect(listOut.cond).toBeDefined();
+        // start, limit, while, cond, list, calc are inherited from ScvdList and tested there
         expect(listOut.item).toHaveLength(1);
-        expect(listOut.list).toHaveLength(1);
-        expect(listOut.calc).toHaveLength(1);
 
         expect(listOut.listOut).toHaveLength(0);
         listOut.addListOut();
-        listOut.addCalc();
         expect(listOut.listOut).toHaveLength(1);
-        expect(listOut.calc).toHaveLength(2);
 
         await expect(listOut.getGuiName()).resolves.toBeUndefined();
     });
 
-    it('verifies limit/while conflicts via base implementation', () => {
-        const listOut = new ScvdListOut(undefined);
-        listOut.limit = '1';
-        listOut.while = '1';
-        expect(listOut.verify()).toBe(false);
-    });
+    // verify() is inherited from ScvdList and tested there
 });
