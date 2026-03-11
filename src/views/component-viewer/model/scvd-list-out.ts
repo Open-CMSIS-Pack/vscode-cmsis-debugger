@@ -21,12 +21,10 @@ import { ScvdNode } from './scvd-node';
 import { ScvdItem } from './scvd-item';
 import { ScvdList } from './scvd-list';
 import { getArrayFromJson } from './scvd-utils';
-import { ScvdCalc } from './scvd-calc';
 
 export class ScvdListOut extends ScvdList {
     private _item: ScvdItem[] = [];
     private _listOut: ScvdListOut[] = []; // Array of child lists
-    private _calcOut: ScvdCalc[] = [];
 
     constructor(
         parent: ScvdNode | undefined,
@@ -38,8 +36,6 @@ export class ScvdListOut extends ScvdList {
         return 'ScvdListOut';
     }
 
-    // ScvdListOut delegates start, limit, while, cond, list, and calc parsing to ScvdList.
-    // addCalc() is overridden so the base class populates _calcOut via polymorphism.
     public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
@@ -71,15 +67,6 @@ export class ScvdListOut extends ScvdList {
         const newItem = new ScvdListOut(this);
         this._listOut.push(newItem);
         return newItem;
-    }
-
-    public override get calc(): ScvdCalc[] {
-        return this._calcOut;
-    }
-    public override addCalc(): ScvdCalc {
-        const calcItem = new ScvdCalc(this);
-        this._calcOut.push(calcItem);
-        return calcItem;
     }
 
     public override getGuiName(): Promise<string | undefined> {
