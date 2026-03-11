@@ -39,7 +39,6 @@ describe('ScvdListOut', () => {
             }
         };
         expect(listOut.readXml(xml)).toBe(true);
-        // start, limit, while, cond, list, calc are inherited from ScvdList and tested there
         expect(listOut.item).toHaveLength(1);
 
         expect(listOut.listOut).toHaveLength(0);
@@ -48,6 +47,4 @@ describe('ScvdListOut', () => {
 
         await expect(listOut.getGuiName()).resolves.toBeUndefined();
     });
-
-    // verify() is inherited from ScvdList and tested there
 });
