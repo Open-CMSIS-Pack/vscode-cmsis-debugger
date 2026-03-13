@@ -19,8 +19,11 @@
 import { ArchiveFileAsset, Downloadable, Downloader, GitHubReleaseAsset, GitHubWorkflowAsset, WebFileAsset  } from '@open-cmsis-pack/vsce-helper';
 import { PackageJson } from 'type-fest';
 import process from 'node:process';
+<<<<<<< HEAD
 import fs from 'node:fs/promises';
 import path from 'node:path';
+=======
+>>>>>>> 1a327d506f613983f4f5011e82a48027ae2c58f4
 import { execFile as execFileCallback } from 'node:child_process';
 import { promisify } from 'node:util';
 
