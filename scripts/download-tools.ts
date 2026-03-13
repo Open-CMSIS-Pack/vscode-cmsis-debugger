@@ -16,18 +16,9 @@
  * limitations under the License.
  */
 
-import { ArchiveFileAsset, Downloadable, Downloader, GitHubReleaseAsset, GitHubWorkflowAsset, WebFileAsset  } from '@open-cmsis-pack/vsce-helper';
+import { ArchiveFileAsset, Downloadable, Downloader, GitHubReleaseAsset, GitHubWorkflowAsset, WebFileAsset  } from '@soumeh01/vsce-helper';
 import { PackageJson } from 'type-fest';
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import process from 'node:process';
-// Temporary solution until we have fixed vsce-helper
-import extract from 'extract-zip';
-import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 type CmsisPackageJson = PackageJson & {
     cmsis: {
@@ -46,15 +37,6 @@ function splitGitReference(reference: string, owner: string, repo: string) {
         owner = repoAndOwner[0];
     }
     return { repo, owner, reference };
-}
-
-// Temporary solution until we have fixed vsce-helper
-class ExtractZipArchiveFileAsset extends ArchiveFileAsset {
-    protected async extractArchive(archiveFile: string, dest?: string): Promise<string> {
-        const effDest = dest ?? path.join(__dirname, 'tools', 'pyocd');
-        await extract(archiveFile, { dir: effDest });
-        return effDest;
-    }
 }
 
 const pyocd : Downloadable = new Downloadable(
@@ -80,19 +62,10 @@ const pyocd : Downloadable = new Downloadable(
             owner, repo, reference,
             `pyocd-${os}${arch}-${reference}.zip`, 
             { token: process.env.GITHUB_TOKEN });
-        const asset = new ExtractZipArchiveFileAsset(releaseAsset);
+        const asset = new ArchiveFileAsset(releaseAsset);
         return asset;
     },
 )
-
-// Temporary solution until we have fixed vsce-helper
-class ExtractZipGitHubWorkflowAsset extends GitHubWorkflowAsset {
-    protected async extractArchive(archiveFile: string, dest?: string): Promise<string> {
-        const effDest = dest ?? path.join(__dirname, 'tools', 'pyocd');
-        await extract(archiveFile, { dir: effDest });
-        return effDest;
-    }
-}
 
 
 const pyocdNightly : Downloadable = new Downloadable(
@@ -115,23 +88,13 @@ const pyocdNightly : Downloadable = new Downloadable(
         // Here, reference is expected to be the name of the workflow yaml file without file ending
         const { repo, owner, reference } = splitGitReference(workflow, 'pyocd', 'pyOCD');
         const assetPattern = (`pyocd-${os}${arch}-\\d+\\.\\d+\\.\\d+.*`);
-        const asset = new ExtractZipGitHubWorkflowAsset(
+        const asset = new GitHubWorkflowAsset(
             owner, repo, `${reference}.yaml`,
             assetPattern, 
             { token: process.env.GITHUB_TOKEN });
         return asset;
     },
 )
-
-class GDBArchiveFileAsset extends ArchiveFileAsset {
-    public async copyTo(dest?: string) {
-        dest = await super.copyTo(dest);
-        // Remove doc directory as it contains duplicate files (names differ only in case)
-        // which are not supported by ZIP (VSIX) archives
-        await fs.rm(path.join(dest, 'share', 'doc'), { recursive: true, force: true });
-        return dest;
-    }
-}
 
 const gdb : Downloadable = new Downloadable(
     'GNU Debugger for Arm', 'gdb',
@@ -150,7 +113,7 @@ const gdb : Downloadable = new Downloadable(
         const asset_name = `arm-gnu-toolchain-${build}-arm-none-eabi-gdb.${ext}`;
         const url = new URL(`https://artifacts.tools.arm.com/arm-none-eabi-gdb/${version}/${asset_name}`);
         const dlAsset = new WebFileAsset(url, asset_name, version);
-        const asset = new GDBArchiveFileAsset(dlAsset, strip);
+        const asset = new ArchiveFileAsset(dlAsset, strip);
         return asset;
     },
 );
