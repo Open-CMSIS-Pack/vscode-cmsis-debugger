@@ -135,7 +135,7 @@ describe('CorePeripheralsScvdCollector', () => {
 
     it.each([
         // No matching processor, load defaults without restrictions.
-        { pname: 'no-match', expected: [ 'System_Tick_Timer.scvd'] },
+        { pname: 'no-match', expected: [ 'System_Tick_Timer.scvd' ] },
         { pname: undefined, expected: [ 'M0_M23_Nested_Vectored_Interrupt_Controller.scvd', 'System_Tick_Timer.scvd' ] },
     ])('filters SCVD files as expected for complex index file and single-core setup (pname: $pname)', async ({ pname, expected }) => {
         const resolvedExpected = expected.map(file => path.resolve(COMPLEX_INDEX_PATH, file));

@@ -57,7 +57,7 @@ Matching is case-insensitive.
 - If omitted, no feature constraints are applied.
 - All listed feature conditions must match (`AND` logic).
 - Feature must exist in the selected processor object and values must match (case-insensitive).
-- Feature value `"*"` matches any value for that key.
+- Feature value `"*"` matches any value for that key that indicates presence of the feature.
 
 ## Feature keys and allowed values
 
@@ -75,6 +75,6 @@ Additional notes for filter behavior:
 
 - `cpu-features` keys are matched exactly by key name (for example `mpu`, not `MPU`).
 - Feature value comparison is case-insensitive after converting values to strings.
-- If a key is listed in `cpu-features` but missing on the selected processor, the entry does not match.
+- If a key is listed in `cpu-features` but missing on the selected processor, the entry only matches if it has the value `none`.
 This is to reflect that a missing processor feature usually means it is not implemented.
-- Use `"*"` as a feature value to accept any value for that key.
+- Use `"*"` as a feature value to accept any value for that key that indicates presence of the feature.

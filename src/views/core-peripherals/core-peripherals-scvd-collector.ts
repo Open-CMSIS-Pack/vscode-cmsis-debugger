@@ -71,19 +71,30 @@ export class CorePeripheralsScvdCollector implements ScvdCollector {
         // required features, or features with wildcard value.
         const processorFeatures = Object.entries(processor ?? {});
         return entryFeatures.every(([entryFeatureKey, entryFeatureValue]) => {
+            const processorFeature = processorFeatures.find(([processorFeatureKey]) => processorFeatureKey === entryFeatureKey);
+            const [, processorFeatureValue] = processorFeature ?? [];
+            const featureUndefined = processorFeatureValue === undefined || processorFeatureValue === null;
+            const featureNotPresent = featureUndefined || processorFeatureValue === FEATURE_NOT_PRESENT_VALUE;
             if (entryFeatureValue === '*') {
+                // Wildcard value
+                if (featureNotPresent) {
+                    // Required feature not found in processor info
+                    return false;
+                }
+                // Wildcard value matches any value as long as the feature is present in processor info.
                 return true;
             }
-            const processorFeature = processorFeatures.find(([processorFeatureKey]) => processorFeatureKey === entryFeatureKey);
-            if (!processorFeature) {
-                // Required feature not found in processor info
-                // All features that are not available mean not supported.
-                // Only (optional) exceptions are: punits and endian. But these are currently not relevant for filtering core
-                // peripherals, so we can ignore them for now.
-                return entryFeatureValue === FEATURE_NOT_PRESENT_VALUE;
+            if (entryFeatureValue === FEATURE_NOT_PRESENT_VALUE) {
+                // Explicit "not present" value
+                if (featureNotPresent) {
+                    // Required feature not found in processor info
+                    return true;
+                }
+                // Processor has feature.
+                return false;
             }
-            const [, processorFeatureValue] = processorFeature;
-            if (processorFeatureValue === undefined || processorFeatureValue === null) {
+            // Explicit value to match
+            if (featureUndefined) {
                 // No valid value for processor feature, treat as not supported
                 return false;
             }
