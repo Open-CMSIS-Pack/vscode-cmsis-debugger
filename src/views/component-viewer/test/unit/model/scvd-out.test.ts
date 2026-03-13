@@ -22,6 +22,7 @@
 import { Json } from '../../../model/scvd-base';
 import { ScvdOut } from '../../../model/scvd-out';
 import { ScvdCondition } from '../../../model/scvd-condition';
+import { ScvdCalc } from '../../../model/scvd-calc';
 
 describe('ScvdOut', () => {
     it('reads XML and manages child collections', () => {
@@ -33,7 +34,8 @@ describe('ScvdOut', () => {
             type: 'uint8_t',
             cond: '1',
             item: { name: 'item', value: '2' },
-            list: { name: 'list', value: '3' }
+            list: { name: 'list', value: '3' },
+            calc: { expression: '1' }
         };
         expect(out.readXml(xml)).toBe(true);
         expect(out.value).toBeDefined();
@@ -41,12 +43,15 @@ describe('ScvdOut', () => {
         expect(out.cond).toBeDefined();
         expect(out.item).toHaveLength(1);
         expect(out.list).toHaveLength(1);
+        expect(out.calc).toHaveLength(1);
         expect(out.getValueType()).toBe('uint8_t');
 
         out.addItem();
         out.addList();
+        expect(out.addCalc()).toBeInstanceOf(ScvdCalc);
         expect(out.item.length).toBe(2);
         expect(out.list.length).toBe(2);
+        expect(out.calc.length).toBe(2);
 
         out.type = 'uint16_t';
         expect(out.getValueType()).toBe('uint16_t');
