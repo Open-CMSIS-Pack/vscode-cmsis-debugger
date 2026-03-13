@@ -18,16 +18,13 @@
 
 import { ArchiveFileAsset, Downloadable, Downloader, GitHubReleaseAsset, GitHubWorkflowAsset, WebFileAsset  } from '@open-cmsis-pack/vsce-helper';
 import { PackageJson } from 'type-fest';
+import process from 'node:process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import process from 'node:process';
-// Temporary solution until we have fixed vsce-helper
-import extract from 'extract-zip';
-import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
+import { execFile as execFileCallback } from 'node:child_process';
+import { promisify } from 'node:util';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const execFile = promisify(execFileCallback);
 
 type CmsisPackageJson = PackageJson & {
     cmsis: {
@@ -46,15 +43,6 @@ function splitGitReference(reference: string, owner: string, repo: string) {
         owner = repoAndOwner[0];
     }
     return { repo, owner, reference };
-}
-
-// Temporary solution until we have fixed vsce-helper
-class ExtractZipArchiveFileAsset extends ArchiveFileAsset {
-    protected async extractArchive(archiveFile: string, dest?: string): Promise<string> {
-        const effDest = dest ?? path.join(__dirname, 'tools', 'pyocd');
-        await extract(archiveFile, { dir: effDest });
-        return effDest;
-    }
 }
 
 const pyocd : Downloadable = new Downloadable(
@@ -80,19 +68,10 @@ const pyocd : Downloadable = new Downloadable(
             owner, repo, reference,
             `pyocd-${os}${arch}-${reference}.zip`, 
             { token: process.env.GITHUB_TOKEN });
-        const asset = new ExtractZipArchiveFileAsset(releaseAsset);
+        const asset = new ArchiveFileAsset(releaseAsset);
         return asset;
     },
 )
-
-// Temporary solution until we have fixed vsce-helper
-class ExtractZipGitHubWorkflowAsset extends GitHubWorkflowAsset {
-    protected async extractArchive(archiveFile: string, dest?: string): Promise<string> {
-        const effDest = dest ?? path.join(__dirname, 'tools', 'pyocd');
-        await extract(archiveFile, { dir: effDest });
-        return effDest;
-    }
-}
 
 
 const pyocdNightly : Downloadable = new Downloadable(
@@ -115,7 +94,7 @@ const pyocdNightly : Downloadable = new Downloadable(
         // Here, reference is expected to be the name of the workflow yaml file without file ending
         const { repo, owner, reference } = splitGitReference(workflow, 'pyocd', 'pyOCD');
         const assetPattern = (`pyocd-${os}${arch}-\\d+\\.\\d+\\.\\d+.*`);
-        const asset = new ExtractZipGitHubWorkflowAsset(
+        const asset = new GitHubWorkflowAsset(
             owner, repo, `${reference}.yaml`,
             assetPattern, 
             { token: process.env.GITHUB_TOKEN });
@@ -124,10 +103,32 @@ const pyocdNightly : Downloadable = new Downloadable(
 )
 
 class GDBArchiveFileAsset extends ArchiveFileAsset {
+    protected async extractArchive(archiveFile: string, dest?: string, options: { strip?: number; force?: boolean } = {}): Promise<string> {
+        if (!archiveFile.toLowerCase().endsWith('.tar.xz')) {
+            return super.extractArchive(archiveFile, dest, options);
+        }
+
+        const effDest = await this.mkDest(dest);
+        const strip = options.strip ?? this.strip;
+        const args = ['-xJf', archiveFile, '-C', effDest];
+        if (strip > 0) {
+            args.push(`--strip-components=${strip}`);
+        }
+
+        try {
+            // Some GNU Arm tarballs include large numeric headers the JS tar parser rejects.
+            await execFile('tar', args);
+            return effDest;
+        } catch {
+            console.warn('System tar extraction failed, falling back to built-in archive extractor.');
+            return super.extractArchive(archiveFile, effDest, options);
+        }
+    }
+
     public async copyTo(dest?: string) {
         dest = await super.copyTo(dest);
         // Remove doc directory as it contains duplicate files (names differ only in case)
-        // which are not supported by ZIP (VSIX) archives
+        // which are not supported by ZIP (VSIX) archives.
         await fs.rm(path.join(dest, 'share', 'doc'), { recursive: true, force: true });
         return dest;
     }
