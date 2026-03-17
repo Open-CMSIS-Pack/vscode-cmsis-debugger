@@ -86,7 +86,7 @@ describe('evaluator guards', () => {
         expect(fn(assignNode)).toBe(assignNode.right);
 
         const evalPoint: ASTNode = { kind: 'EvalPointCall', intrinsic: '__Running', callee: { kind: 'Identifier', name: '__Running', start: 0, end: 0 }, args: [], start: 0, end: 0 } as unknown as ASTNode;
-        expect(fn(evalPoint)).toBe((evalPoint as CallExpression).callee);
+        expect(fn(evalPoint)).toBeUndefined();
 
         const evalPointWithArg: ASTNode = {
             kind: 'EvalPointCall',

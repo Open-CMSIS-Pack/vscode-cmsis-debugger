@@ -1,0 +1,27 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`CorePeripheralsIndexReader can read index file 1`] = `
+{
+  "core-peripherals": [
+    {
+      "cpu-features": {
+        "mpu": "present",
+      },
+      "cpu-type": "*",
+      "file": "Memory_Protection_Unit.scvd",
+    },
+    {
+      "cpu-type": "*",
+      "file": "Nested_Vectored_Interrupt_Controller.scvd",
+    },
+    {
+      "cpu-type": "*",
+      "file": "System_Config_and_Control.scvd",
+    },
+    {
+      "cpu-type": "*",
+      "file": "System_Tick_Timer.scvd",
+    },
+  ],
+}
+`;

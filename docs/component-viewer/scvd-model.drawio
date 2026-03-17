@@ -1,0 +1,202 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.3.6 Chrome/140.0.7339.249 Electron/38.8.0 Safari/537.36" version="29.3.6">
+  <diagram name="SCVD Model" id="d1">
+    <mxGraphModel dx="5745" dy="2685" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="4200" pageHeight="3000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;fontSize=22;fontStyle=1;align=center;verticalAlign=middle;fillColor=none;strokeColor=none;fontColor=#333333;" value="SCVD Model — Class Hierarchy and Structure" vertex="1">
+          <mxGeometry height="50" width="1000" x="1200" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_title" parent="1" style="text;html=1;fontSize=13;fontStyle=1;align=left;fillColor=none;strokeColor=none;" value="Legend" vertex="1">
+          <mxGeometry height="24" width="80" x="50" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1c" parent="1" style="rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Abstract base class" vertex="1">
+          <mxGeometry height="18" width="150" x="76" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2c" parent="1" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="136" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Concrete model class" vertex="1">
+          <mxGeometry height="18" width="160" x="76" y="136" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3c" parent="1" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="162" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Container class" vertex="1">
+          <mxGeometry height="18" width="130" x="76" y="162" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4c" parent="1" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="188" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Value type" vertex="1">
+          <mxGeometry height="18" width="100" x="76" y="188" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5c" parent="1" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="214" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="External subsystem" vertex="1">
+          <mxGeometry height="18" width="150" x="76" y="214" as="geometry" />
+        </mxCell>
+        <mxCell id="leg6c" parent="1" style="rounded=1;fillColor=#f5f5f5;strokeColor=#666666;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="leg6t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Utility / Resolver" vertex="1">
+          <mxGeometry height="18" width="130" x="76" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="m_base" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:14px;&quot;&gt;&lt;b&gt;ScvdBase&lt;/b&gt; &lt;i&gt;(abstract)&lt;/i&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;_parent: ScvdBase | undefined&lt;br/&gt;_children: ScvdBase[]&lt;br/&gt;_tag / _lineNo / _name / _info&lt;br/&gt;_isModified / _valid / _mustRead&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;configure() / validate() / reset()&lt;br/&gt;sortByLine() / getDisplayLabel()&lt;br/&gt;map() / forEach() / filter()&lt;br/&gt;addToSymbolContext() / getSymbol()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="220" width="380" x="1680" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="m_node" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:14px;&quot;&gt;&lt;b&gt;ScvdNode&lt;/b&gt; &lt;i&gt;(extends ScvdBase)&lt;/i&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;_symbolsCache: ScvdNodeSymbolCache&lt;br/&gt;_executionContext: ExecutionContext&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;readXml(json) / setExecutionContext()&lt;br/&gt;getConditionResult() / resolveAndLink()&lt;br/&gt;getValue() / getTargetSize() / getTypeSize()&lt;br/&gt;getGuiName() / getGuiValue()&lt;br/&gt;clearSymbolCachesRecursive()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="260" width="420" x="1640" y="420" as="geometry" />
+        </mxCell>
+        <mxCell id="m_cv" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;strokeWidth=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:14px;&quot;&gt;&lt;b&gt;ScvdComponentViewer&lt;/b&gt; &lt;i&gt;(ROOT)&lt;/i&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;_componentIdentifier: ScvdComponentIdentifier&lt;br/&gt;_typedefs: ScvdTypedefs&lt;br/&gt;_objects: ScvdObjects&lt;br/&gt;_events: ScvdEvents / _breaks: ScvdBreaks&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;readXml() / configureAll() / validateAll()&lt;br/&gt;calculateTypedefs() / setExecutionContextAll()&lt;br/&gt;collectBreakStatements()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="240" width="520" x="1480" y="820" as="geometry" />
+        </mxCell>
+        <mxCell id="m_typedefs" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=6;spacingTop=4;" value="&lt;b&gt;ScvdTypedefs&lt;/b&gt; &lt;i&gt;(container)&lt;/i&gt;&lt;br/&gt;_typedef: ScvdTypedef[]&lt;br/&gt;calculateTypedefs()" vertex="1">
+          <mxGeometry height="80" width="300" x="260" y="1200" as="geometry" />
+        </mxCell>
+        <mxCell id="m_objects" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=6;spacingTop=4;" value="&lt;b&gt;ScvdObjects&lt;/b&gt; &lt;i&gt;(container)&lt;/i&gt;&lt;br/&gt;_objects: ScvdObject[]&lt;br/&gt;addObject()" vertex="1">
+          <mxGeometry height="80" width="300" x="860" y="1200" as="geometry" />
+        </mxCell>
+        <mxCell id="m_events" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;align=center;" value="&lt;b&gt;ScvdEvents&lt;/b&gt;&lt;br/&gt;&lt;i&gt;(container)&lt;/i&gt;" vertex="1">
+          <mxGeometry height="60" width="200" x="1480" y="1210" as="geometry" />
+        </mxCell>
+        <mxCell id="m_typedef" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;ScvdTypedef&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;_size: ScvdExpression&lt;br/&gt;_import: ScvdSymbol&lt;br/&gt;_member[]: ScvdMember[]&lt;br/&gt;_var[]: ScvdVar[]&lt;br/&gt;_virtualSize / _targetSize&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;calculateTypedef()&lt;br/&gt;getTypeSize() / getTargetSize()&lt;br/&gt;getMember()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="240" width="400" x="80" y="1420" as="geometry" />
+        </mxCell>
+        <mxCell id="m_object" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;ScvdObject&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;_var[] / _calc[] / _list[]&lt;br/&gt;_read[] / _readList[] / _out[]&lt;br/&gt;_symbolContext: Map&amp;lt;string, ScvdNode&amp;gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;readXml() / addToSymbolContext()&lt;br/&gt;getSymbol() / getVar() / getRead()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="240" width="460" x="700" y="1420" as="geometry" />
+        </mxCell>
+        <mxCell id="m_member" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;ScvdMember&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;_type: ScvdDataType&lt;br/&gt;_offset / _size: ScvdExpression&lt;br/&gt;_enum[]: ScvdEnum[]&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;getTargetSize() / getArraySize()&lt;br/&gt;addEnum() / getEnum()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="200" width="380" x="80" y="1800" as="geometry" />
+        </mxCell>
+        <mxCell id="m_read" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;ScvdRead&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;_type: ScvdDataType&lt;br/&gt;_size / _offset: ScvdExpression&lt;br/&gt;_symbol: ScvdSymbol&lt;br/&gt;_const / _cond / _endian&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;getTargetSize() / getArraySize()&lt;br/&gt;getConditionResult()&lt;br/&gt;getMember()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="220" width="310" x="560" y="1840" as="geometry" />
+        </mxCell>
+        <mxCell id="m_var" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;ScvdVar&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;_expression: ScvdExpression&lt;br/&gt;_type: ScvdDataType&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;getValue()&lt;br/&gt;getGuiName() / getGuiValue()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="170" width="270" x="960" y="1840" as="geometry" />
+        </mxCell>
+        <mxCell id="m_calc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;ScvdCalc&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;_expression: ScvdExpression&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;getValue()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="130" width="260" x="1320" y="1840" as="geometry" />
+        </mxCell>
+        <mxCell id="m_list" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;ScvdList&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;_count: ScvdExpression&lt;br/&gt;_read[] / _var[] / _calc[]&lt;br/&gt;_listOut[]&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;getArraySize()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="170" width="280" x="1670" y="1840" as="geometry" />
+        </mxCell>
+        <mxCell id="m_readlist" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;ScvdReadList&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;_type / _count&lt;br/&gt;_symbol / _offset&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;getTargetSize() / getArraySize()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="160" width="280" x="2040" y="1840" as="geometry" />
+        </mxCell>
+        <mxCell id="m_out" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;ScvdOut&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;_item[] / _print[]&lt;br/&gt;_name: string&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;getGuiName()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="160" width="280" x="2410" y="1840" as="geometry" />
+        </mxCell>
+        <mxCell id="m_items" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=11;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;Output Nodes&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;&lt;b&gt;ScvdItem&lt;/b&gt;: _expression, _format — displays a value&lt;br/&gt;&lt;b&gt;ScvdPrint&lt;/b&gt;: _format — printf-style output&lt;br/&gt;&lt;b&gt;ScvdBreak&lt;/b&gt;: _condition — conditional breakpoint&lt;br/&gt;&lt;b&gt;ScvdListOut&lt;/b&gt;: output node inside a list context&lt;/p&gt;" vertex="1">
+          <mxGeometry height="140" width="650" x="1820" y="2120" as="geometry" />
+        </mxCell>
+        <mxCell id="m_enum" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#fff2cc;strokeColor=#d6b656;align=center;" value="&lt;b&gt;ScvdEnum&lt;/b&gt;&lt;br/&gt;name: string / value: string" vertex="1">
+          <mxGeometry height="60" width="220" x="120" y="2140" as="geometry" />
+        </mxCell>
+        <mxCell id="m_vtypes" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#fff2cc;strokeColor=#d6b656;align=center;verticalAlign=middle;" value="&lt;b&gt;Value Types:&lt;/b&gt;  ScvdDataType (type reference)  |  ScvdSymbol (debug symbol)  |  ScvdExpression (evaluatable expression)  |  ScvdCondition (boolean condition)  |  ScvdEndian (byte order)" vertex="1">
+          <mxGeometry height="70" width="1200" x="480" y="2170" as="geometry" />
+        </mxCell>
+        <mxCell id="m_resolver" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;Resolver&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;_model: ScvdComponentViewer&lt;br/&gt;_typesCache: ScvdTypesCache&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;resolve() / resolveTypes()&lt;br/&gt;resolveRecursive()&lt;br/&gt;resolveLocalType() / resolveLocalMember()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="200" width="380" x="2240" y="850" as="geometry" />
+        </mxCell>
+        <mxCell id="m_tcache" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f5f5f5;strokeColor=#666666;align=center;" value="&lt;b&gt;ScvdTypesCache&lt;/b&gt;&lt;br/&gt;Caches resolved type information" vertex="1">
+          <mxGeometry height="60" width="320" x="2240" y="1210" as="geometry" />
+        </mxCell>
+        <mxCell id="m_ext_cvi" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;ComponentViewerInstance&lt;/i&gt;&lt;br/&gt;(creates model via readModel)" vertex="1">
+          <mxGeometry height="60" width="340" x="2230" y="490" as="geometry" />
+        </mxCell>
+        <mxCell id="m_ext_se" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;StatementEngine&lt;/i&gt;&lt;br/&gt;(reads model nodes for execution)" vertex="1">
+          <mxGeometry height="60" width="320" x="1380" y="1510" as="geometry" />
+        </mxCell>
+        <mxCell id="m_ext_eval" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;ScvdEvalContext&lt;/i&gt;&lt;br/&gt;(provides ExecutionContext to nodes)" vertex="1">
+          <mxGeometry height="60" width="320" x="1850" y="1510" as="geometry" />
+        </mxCell>
+        <mxCell id="m_note1" parent="1" style="text;html=1;fontSize=12;fontStyle=2;align=center;fillColor=none;strokeColor=none;fontColor=#666666;" value="All concrete model classes extend ScvdNode" vertex="1">
+          <mxGeometry height="30" width="340" x="800" y="1760" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="m_node" style="endArrow=block;endFill=0;endSize=16;strokeWidth=2;strokeColor=#9673a6;" target="m_base" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="m_cv" style="endArrow=block;endFill=0;endSize=16;strokeWidth=2;strokeColor=#9673a6;" target="m_node" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="m_cv" style="endArrow=open;endFill=0;endSize=10;startArrow=diamondThin;startFill=1;startSize=14;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="m_typedefs" value="_typedefs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="m_cv" style="endArrow=open;endFill=0;endSize=10;startArrow=diamondThin;startFill=1;startSize=14;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="m_objects" value="_objects">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="m_cv" style="endArrow=open;endFill=0;endSize=10;startArrow=diamondThin;startFill=1;startSize=14;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="m_events" value="_events">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="m_cv" style="endArrow=open;endFill=0;endSize=10;startArrow=diamondThin;startFill=1;startSize=14;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="m_breaks" value="_breaks">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="m_typedefs" style="endArrow=open;endFill=0;endSize=10;startArrow=diamondThin;startFill=1;startSize=14;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="m_typedef" value="_typedef[]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="m_objects" style="endArrow=open;endFill=0;endSize=10;startArrow=diamondThin;startFill=1;startSize=14;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="m_object" value="_objects[]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="m_object" style="endArrow=open;endFill=0;endSize=10;startArrow=diamondThin;startFill=1;startSize=14;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="m_read" value="_read[]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="m_object" style="endArrow=open;endFill=0;endSize=10;startArrow=diamondThin;startFill=1;startSize=14;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="m_var" value="_var[]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="m_object" style="endArrow=open;endFill=0;endSize=10;startArrow=diamondThin;startFill=1;startSize=14;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="m_calc" value="_calc[]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="m_object" style="endArrow=open;endFill=0;endSize=10;startArrow=diamondThin;startFill=1;startSize=14;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="m_list" value="_list[]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="1" source="m_object" style="endArrow=open;endFill=0;endSize=10;startArrow=diamondThin;startFill=1;startSize=14;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="m_readlist" value="_readList[]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" edge="1" parent="1" source="m_object" style="endArrow=open;endFill=0;endSize=10;startArrow=diamondThin;startFill=1;startSize=14;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="m_out" value="_out[]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" edge="1" parent="1" source="m_out" style="endArrow=open;endFill=0;endSize=10;startArrow=diamondThin;startFill=1;startSize=14;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="m_items" value="children">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" edge="1" parent="1" source="m_typedef" style="endArrow=open;endFill=0;endSize=10;startArrow=diamondThin;startFill=1;startSize=14;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="m_member" value="_member[]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" edge="1" parent="1" source="m_member" style="endArrow=open;endFill=0;endSize=10;startArrow=diamondThin;startFill=1;startSize=14;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="m_enum" value="_enum[]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e18" edge="1" parent="1" source="m_read" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1;dashed=1;strokeColor=#d6b656;fontSize=10;labelBackgroundColor=#FFFFFF;" target="m_vtypes" value="uses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e19" edge="1" parent="1" source="m_resolver" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#666666;fontSize=10;labelBackgroundColor=#FFFFFF;" target="m_cv" value="resolves types in">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e20" edge="1" parent="1" source="m_resolver" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;strokeColor=#666666;fontSize=10;labelBackgroundColor=#FFFFFF;" target="m_tcache" value="uses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e21" edge="1" parent="1" source="m_ext_cvi" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="m_cv" value="creates">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e22" edge="1" parent="1" source="m_ext_se" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="m_object" value="reads nodes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e23" edge="1" parent="1" source="m_breaks" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="m_node" value="provides ExecutionContext">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eTb_jgC1KiSHFrF5-_JS-1" edge="1" parent="1" source="m_ext_eval" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="m_breaks" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="2005" y="1510" as="sourcePoint" />
+            <mxPoint x="1871" y="680" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m_breaks" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;align=center;" value="&lt;b&gt;ScvdBreaks&lt;/b&gt;&lt;br/&gt;&lt;i&gt;(container)&lt;/i&gt;" vertex="1">
+          <mxGeometry height="60" width="200" x="1860" y="1200" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -71,10 +71,6 @@ module.exports = {
             warn: jest.fn(),
             error: jest.fn(),
         })),
-        registerTreeDataProvider: jest.fn(() => ({ dispose: jest.fn() })),
-        showErrorMessage: jest.fn(),
-        showInformationMessage: jest.fn(() => Promise.resolve(undefined)),
-        showWarningMessage: jest.fn(),
         createStatusBarItem: jest.fn(() => ({
     		id: 'mockStatusBarItem',
 		    alignment: StatusBarAlignment.Left,
@@ -83,6 +79,15 @@ module.exports = {
             hide: jest.fn(),
             dispose: jest.fn(),
         })),
+        createTreeView: jest.fn(() => ({
+            dispose: jest.fn(),
+            onDidExpandElement: jest.fn(),
+            onDidCollapseElement: jest.fn(),
+        })),
+        registerTreeDataProvider: jest.fn(() => ({ dispose: jest.fn() })),
+        showErrorMessage: jest.fn(),
+        showInformationMessage: jest.fn(() => Promise.resolve(undefined)),
+        showWarningMessage: jest.fn(),
         showQuickPick: jest.fn(),
     },
     env: {
@@ -116,10 +121,13 @@ module.exports = {
         executeCommand: jest.fn(),
         // Default to all views in extension having been correctly loaded
         getCommands: jest.fn(() => Promise.resolve([
+            // Real views in extension
             'cmsis-debugger.liveWatch.open',
             'cmsis-debugger.liveWatch.focus',
             'cmsis-debugger.componentViewer.open',
             'cmsis-debugger.componentViewer.focus',
+            'cmsis-debugger.corePeripherals.open',
+            'cmsis-debugger.corePeripherals.focus',
         ])),
         registerCommand: jest.fn(),
     },

@@ -1,0 +1,157 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.3.6 Chrome/140.0.7339.249 Electron/38.8.0 Safari/537.36" version="29.3.6">
+  <diagram name="Statement Engine" id="d2">
+    <mxGraphModel dx="3283" dy="1534" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="4000" pageHeight="3200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;fontSize=22;fontStyle=1;align=center;verticalAlign=middle;fillColor=none;strokeColor=none;fontColor=#333333;" value="Statement Engine — Execution Tree and Flow" vertex="1">
+          <mxGeometry height="50" width="520" x="650" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_title" parent="1" style="text;html=1;fontSize=13;fontStyle=1;align=left;fillColor=none;strokeColor=none;" value="Legend" vertex="1">
+          <mxGeometry height="24" width="80" x="50" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1c" parent="1" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Engine / orchestrator" vertex="1">
+          <mxGeometry height="18" width="160" x="76" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2c" parent="1" style="rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="136" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Base statement class" vertex="1">
+          <mxGeometry height="18" width="160" x="76" y="136" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3c" parent="1" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="162" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Concrete statement type" vertex="1">
+          <mxGeometry height="18" width="170" x="76" y="162" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4c" parent="1" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="188" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="Mapping / flow" vertex="1">
+          <mxGeometry height="18" width="120" x="76" y="188" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5c" parent="1" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;" value="" vertex="1">
+          <mxGeometry height="18" width="18" x="50" y="214" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5t" parent="1" style="text;html=1;fontSize=11;align=left;fillColor=none;strokeColor=none;" value="External subsystem" vertex="1">
+          <mxGeometry height="18" width="150" x="76" y="214" as="geometry" />
+        </mxCell>
+        <mxCell id="s_engine" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;strokeWidth=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:15px;&quot;&gt;&lt;b&gt;StatementEngine&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;_model: ScvdComponentViewer&lt;br/&gt;_statementTree: StatementBase (root)&lt;br/&gt;_executionContext: ExecutionContext&lt;br/&gt;EXECUTE_ALL_TIMEOUT_MS = 10,000&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;initialize() — build tree from model&lt;br/&gt;executeAll(guiTree) — run full tree&lt;br/&gt;buildStatement(scvdNode) — factory method&lt;br/&gt;addChildrenFromScvd() — recursive build&lt;/p&gt;" vertex="1">
+          <mxGeometry height="270" width="420" x="280" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="s_base" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:14px;&quot;&gt;&lt;b&gt;StatementBase&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;_parent: StatementBase | undefined&lt;br/&gt;_children: StatementBase[]&lt;br/&gt;_scvdItem: ScvdNode (model reference)&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;addChild() / sortChildren()&lt;br/&gt;executeStatement(ctx, guiTree)&lt;br/&gt;shouldExecute(ctx) — check mustRead + condition&lt;br/&gt;onExecute(ctx, guiTree) — override in subclasses&lt;br/&gt;getOrCreateGuiChild(guiTree, name)&lt;br/&gt;getGuiName() / getGuiValue()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="280" width="400" x="280" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="s_object" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;StatementObject&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;Maps to: ScvdObject&lt;br/&gt;Top-level container statement&lt;br/&gt;Children built from object arrays&lt;/p&gt;" vertex="1">
+          <mxGeometry height="120" width="300" x="30" y="720" as="geometry" />
+        </mxCell>
+        <mxCell id="s_read" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;StatementRead&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;Maps to: ScvdRead&lt;br/&gt;Reads target memory into MemoryHost&lt;br/&gt;Evaluates address/size expressions&lt;br/&gt;Handles _const optimization&lt;/p&gt;" vertex="1">
+          <mxGeometry height="140" width="320" x="390" y="720" as="geometry" />
+        </mxCell>
+        <mxCell id="s_readlist" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;StatementReadList&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;Maps to: ScvdReadList&lt;br/&gt;Bulk memory read for arrays&lt;/p&gt;" vertex="1">
+          <mxGeometry height="110" width="280" x="1160" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="s_var" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;StatementVar&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;Maps to: ScvdVar&lt;br/&gt;Evaluates expression, stores result&lt;br/&gt;Used for computed values&lt;/p&gt;" vertex="1">
+          <mxGeometry height="120" width="280" x="830" y="610" as="geometry" />
+        </mxCell>
+        <mxCell id="s_calc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;StatementCalc&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;Maps to: ScvdCalc&lt;br/&gt;Calculates derived values&lt;/p&gt;" vertex="1">
+          <mxGeometry height="100" width="260" x="1160" y="640" as="geometry" />
+        </mxCell>
+        <mxCell id="s_list" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;StatementList&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;Maps to: ScvdList&lt;br/&gt;Iterates over array elements&lt;br/&gt;Repeats child statements per element&lt;/p&gt;" vertex="1">
+          <mxGeometry height="120" width="300" x="1160" y="490" as="geometry" />
+        </mxCell>
+        <mxCell id="s_out" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;StatementOut&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;Maps to: ScvdOut&lt;br/&gt;Creates GUI tree output node&lt;br/&gt;Hosts Item and Print children&lt;/p&gt;" vertex="1">
+          <mxGeometry height="120" width="280" x="830" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="s_listout" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;StatementListOut&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;Maps to: ScvdListOut&lt;br/&gt;Output node inside list iteration&lt;/p&gt;" vertex="1">
+          <mxGeometry height="100" width="280" x="30" y="900" as="geometry" />
+        </mxCell>
+        <mxCell id="s_item" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;StatementItem&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;Maps to: ScvdItem&lt;br/&gt;Evaluates expression + format&lt;br/&gt;Sets GUI name and value&lt;/p&gt;" vertex="1">
+          <mxGeometry height="120" width="280" x="380" y="890" as="geometry" />
+        </mxCell>
+        <mxCell id="s_print" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;StatementPrint&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;Maps to: ScvdPrint&lt;br/&gt;Printf-style formatted output&lt;br/&gt;Creates GUI node with formatted text&lt;/p&gt;" vertex="1">
+          <mxGeometry height="120" width="300" x="830" y="760" as="geometry" />
+        </mxCell>
+        <mxCell id="s_break" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;StatementBreak&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;Maps to: ScvdBreak&lt;br/&gt;Conditional execution break&lt;br/&gt;Inserted at sorted positions&lt;/p&gt;" vertex="1">
+          <mxGeometry height="120" width="280" x="1160" y="770" as="geometry" />
+        </mxCell>
+        <mxCell id="s_mapping" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;buildStatement() Mapping&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;ScvdObject  ➜  StatementObject&lt;br/&gt;ScvdRead  ➜  StatementRead&lt;br/&gt;ScvdReadList  ➜  StatementReadList&lt;br/&gt;ScvdVar  ➜  StatementVar&lt;br/&gt;ScvdCalc  ➜  StatementCalc&lt;br/&gt;ScvdList  ➜  StatementList&lt;br/&gt;ScvdListOut  ➜  StatementListOut&lt;br/&gt;ScvdOut  ➜  StatementOut&lt;br/&gt;ScvdItem  ➜  StatementItem&lt;br/&gt;ScvdPrint  ➜  StatementPrint&lt;br/&gt;ScvdBreak  ➜  StatementBreak&lt;/p&gt;" vertex="1">
+          <mxGeometry height="200" width="220" x="30" y="1060" as="geometry" />
+        </mxCell>
+        <mxCell id="s_init_flow" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;initialize() Flow&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;1. Build root StatementObject from model.objects[0]&lt;br/&gt;2. addChildrenFromScvd() — recursive tree build&lt;br/&gt;3. sortChildren() — stable sort by line number&lt;br/&gt;4. Insert break statements (collectBreakStatements)&lt;br/&gt;5. Sort again to interleave breaks correctly&lt;/p&gt;" vertex="1">
+          <mxGeometry height="180" width="290" x="290" y="1060" as="geometry" />
+        </mxCell>
+        <mxCell id="s_exec_flow" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;executeAll() Flow&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;1. cancellation.reset(10s timeout)&lt;br/&gt;2. memoryHost.clearNonConst()&lt;br/&gt;3. evalInterface.resetEvalCaches()&lt;br/&gt;4. evalInterface.resetPrintfCache()&lt;br/&gt;5. evaluator.resetEvalCaches()&lt;br/&gt;6. debugTarget.beginUpdateCycle() — prefetch cache&lt;br/&gt;7. resetReadTimingStats()&lt;br/&gt;8. statementTree.executeStatement(ctx, guiTree)&lt;br/&gt;    — depth-first walk of entire tree&lt;/p&gt;" vertex="1">
+          <mxGeometry height="170" width="290" x="640" y="1060" as="geometry" />
+        </mxCell>
+        <mxCell id="s_exec_detail" parent="1" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;align=left;spacingLeft=4;spacingTop=2;" value="&lt;p style=&quot;margin:0;text-align:center;font-size:13px;&quot;&gt;&lt;b&gt;executeStatement() per Node&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:4px 8px;font-size:11px;text-align:left;&quot;&gt;1. shouldExecute(ctx):&lt;br/&gt;   — Check mustRead flag (skip if false)&lt;br/&gt;   — Check condition (skip if false)&lt;br/&gt;2. onExecute(ctx, guiTree):&lt;br/&gt;   — Statement-specific logic&lt;br/&gt;3. For each child:&lt;br/&gt;   — child.executeStatement(ctx, guiTree)&lt;/p&gt;" vertex="1">
+          <mxGeometry height="140" width="240" x="980" y="1060" as="geometry" />
+        </mxCell>
+        <mxCell id="s_ext_cvi" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;ComponentViewerInstance&lt;/i&gt;&lt;br/&gt;(owns StatementEngine)" vertex="1">
+          <mxGeometry height="60" width="320" x="820" y="89" as="geometry" />
+        </mxCell>
+        <mxCell id="s_ext_model" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;SCVD Model&lt;/i&gt;&lt;br/&gt;(provides ScvdNode tree)" vertex="1">
+          <mxGeometry height="60" width="300" x="820" y="172" as="geometry" />
+        </mxCell>
+        <mxCell id="s_ext_gui" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;ScvdGuiTree&lt;/i&gt;&lt;br/&gt;(populated during execution)" vertex="1">
+          <mxGeometry height="60" width="300" x="820" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="s_ext_eval" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;align=center;" value="&lt;i&gt;ExecutionContext&lt;/i&gt;&lt;br/&gt;(used for evaluation)" vertex="1">
+          <mxGeometry height="60" width="300" x="820" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="se1" edge="1" parent="1" source="s_engine" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;" target="s_base" value="builds tree from">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se2" edge="1" parent="1" source="s_object" style="endArrow=block;endFill=0;endSize=16;strokeWidth=2;strokeColor=#9673a6;" target="s_base" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se3" edge="1" parent="1" source="s_read" style="endArrow=block;endFill=0;endSize=16;strokeWidth=2;strokeColor=#9673a6;" target="s_base" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se4" edge="1" parent="1" source="s_readlist" style="endArrow=block;endFill=0;endSize=16;strokeWidth=2;strokeColor=#9673a6;" target="s_base" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se5" edge="1" parent="1" source="s_var" style="endArrow=block;endFill=0;endSize=16;strokeWidth=2;strokeColor=#9673a6;" target="s_base" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se6" edge="1" parent="1" source="s_calc" style="endArrow=block;endFill=0;endSize=16;strokeWidth=2;strokeColor=#9673a6;" target="s_base" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se7" edge="1" parent="1" source="s_list" style="endArrow=block;endFill=0;endSize=16;strokeWidth=2;strokeColor=#9673a6;" target="s_base" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se8" edge="1" parent="1" source="s_out" style="endArrow=block;endFill=0;endSize=16;strokeWidth=2;strokeColor=#9673a6;" target="s_base" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se9" edge="1" parent="1" source="s_listout" style="endArrow=block;endFill=0;endSize=16;strokeWidth=2;strokeColor=#9673a6;" target="s_base" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se10" edge="1" parent="1" source="s_item" style="endArrow=block;endFill=0;endSize=16;strokeWidth=2;strokeColor=#9673a6;" target="s_base" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se11" edge="1" parent="1" source="s_print" style="endArrow=block;endFill=0;endSize=16;strokeWidth=2;strokeColor=#9673a6;" target="s_base" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se12" edge="1" parent="1" source="s_break" style="endArrow=block;endFill=0;endSize=16;strokeWidth=2;strokeColor=#9673a6;" target="s_base" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se20" edge="1" parent="1" source="s_ext_cvi" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="s_engine" value="owns">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se21" edge="1" parent="1" source="s_ext_model" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="s_engine" value="provides nodes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se22" edge="1" parent="1" source="s_base" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="s_ext_gui" value="populates">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se23" edge="1" parent="1" source="s_base" style="endArrow=open;endFill=0;endSize=10;strokeWidth=1.5;dashed=1;strokeColor=#b85450;fontSize=10;fontStyle=2;labelBackgroundColor=#FFFFFF;" target="s_ext_eval" value="uses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

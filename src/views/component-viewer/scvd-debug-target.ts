@@ -46,6 +46,24 @@ function normalize(name: string): string {
     return name.trim().toUpperCase();
 }
 
+/**
+ * Convert a symbol path notation to GDB qualified symbol syntax.
+ * Input:  "tasks.c/xSchedulerRunning"  →  Output: "'tasks.c'::xSchedulerRunning"
+ * Input:  "xSchedulerRunning"          →  Output: "xSchedulerRunning" (unchanged)
+ */
+export function toGdbSymbol(symbol: string): string {
+    const slashIndex = symbol.indexOf('/');
+    if (slashIndex < 0) {
+        return symbol;
+    }
+    const file = symbol.substring(0, slashIndex);
+    const name = symbol.substring(slashIndex + 1);
+    if (!file || !name) {
+        return symbol;
+    }
+    return `'${file}'::${name}`;
+}
+
 function toUint32(value: number | bigint): number | bigint {
     if (typeof value === 'bigint') {
         return value & 0xFFFFFFFFn;
@@ -102,6 +120,7 @@ export class ScvdDebugTarget {
         this.targetAccess.setActiveSession(session);
         this.debugTracker = tracker;
         this.subscribeToTargetRunningState(this.debugTracker);
+        this.isTargetRunning = this.isUnsafeTargetState(session.targetState);
         this.symbolCaches.clearAll();
     }
 
@@ -145,6 +164,18 @@ export class ScvdDebugTarget {
         });
     }
 
+    private isUnsafeTargetState(state: GDBTargetDebugSession['targetState'] | undefined): boolean {
+        return state === 'running' || state === 'unknown';
+    }
+
+    private isRunningMode(): boolean {
+        return this.isTargetRunning || this.isUnsafeTargetState(this.activeSession?.targetState);
+    }
+
+    private symbolAddressCacheKey(address: number | bigint): string {
+        return this.formatAddress(address).toLowerCase();
+    }
+
     public async getSymbolInfo(symbol: string, existCheck: boolean = false): Promise<SymbolInfo | undefined> {
         componentViewerLogger.debug(`get Symbol Info: resolving ${symbol}`);
         if (symbol === undefined) {
@@ -157,7 +188,12 @@ export class ScvdDebugTarget {
         }
 
         const addressInfo = await this.symbolCaches.getAddressWithName(symbol, async (symbolName) => {
-            const symbolAddressStr = await this.targetAccess.evaluateSymbolAddress(symbolName, 'hover', existCheck);
+            if (this.isRunningMode()) {
+                componentViewerLogger.debug(`get Symbol Info: target running, cache miss for symbol ${symbolName}`);
+                return undefined;
+            }
+            const gdbSymbol = toGdbSymbol(symbolName);
+            const symbolAddressStr = await this.targetAccess.evaluateSymbolAddress(gdbSymbol, 'hover', existCheck);
             if (symbolAddressStr !== undefined) {
                 const parsed = parseInt(symbolAddressStr as unknown as string, 16);
                 if (Number.isFinite(parsed)) {
@@ -188,8 +224,20 @@ export class ScvdDebugTarget {
             return Promise.resolve(undefined);
         }
 
+        const cacheKey = this.symbolAddressCacheKey(address);
+        if (this.isRunningMode()) {
+            const cached = this.symbolCaches.getSymbolNameByAddress(cacheKey);
+            if (cached === undefined) {
+                componentViewerLogger.debug(`find Symbol Name at Address: target running, cache miss for ${this.formatAddress(address)}`);
+            }
+            return cached;
+        }
+
         try {
             const result = await this.targetAccess.evaluateSymbolName(address.toString());
+            if (result !== undefined) {
+                this.symbolCaches.setSymbolNameByAddress(cacheKey, result);
+            }
             componentViewerLogger.debug(`find Symbol Name at Address: ${this.formatAddress(address)} resolved to ${result}`);
             return result;
         } catch (error: unknown) {
@@ -206,8 +254,20 @@ export class ScvdDebugTarget {
             return Promise.resolve(undefined);
         }
 
+        const cacheKey = this.symbolAddressCacheKey(address);
+        if (this.isRunningMode()) {
+            const cached = this.symbolCaches.getSymbolContextByAddress(cacheKey);
+            if (cached === undefined) {
+                componentViewerLogger.debug(`find Symbol Context at Address: target running, cache miss for ${this.formatAddress(address)}`);
+            }
+            return cached;
+        }
+
         try {
             const result = await this.targetAccess.evaluateSymbolContext(address.toString());
+            if (result !== undefined) {
+                this.symbolCaches.setSymbolContextByAddress(cacheKey, result);
+            }
             componentViewerLogger.debug(`find Symbol Context at Address: ${this.formatAddress(address)} resolved to ${result}`);
             return result;
         } catch (error: unknown) {
@@ -228,7 +288,12 @@ export class ScvdDebugTarget {
             return undefined;
         }
         return this.symbolCaches.getArrayCount(symbol, async (symbolName) => {
-            const result = await this.targetAccess.evaluateNumberOfArrayElements(symbolName);
+            if (this.isRunningMode()) {
+                componentViewerLogger.debug(`get Num Array Elements: target running, cache miss for ${symbolName}`);
+                return undefined;
+            }
+            const gdbSymbol = toGdbSymbol(symbolName);
+            const result = await this.targetAccess.evaluateNumberOfArrayElements(gdbSymbol);
             componentViewerLogger.debug(`get Num Array Elements: ${symbolName} resolved to ${result}`);
             return result;
         });
@@ -239,7 +304,7 @@ export class ScvdDebugTarget {
         if (!this.activeSession) {
             return false;
         }
-        return this.isTargetRunning;
+        return this.isRunningMode();
     }
 
     public async findSymbolAddress(symbol: string, existCheck: boolean = false): Promise<number | undefined> {
@@ -260,7 +325,12 @@ export class ScvdDebugTarget {
         }
 
         return this.symbolCaches.getSize(symbol, async (symbolName) => {
-            const size = await this.targetAccess.evaluateSymbolSize(symbolName);
+            if (this.isRunningMode()) {
+                componentViewerLogger.debug(`get Symbol Size: target running, cache miss for ${symbolName}`);
+                return undefined;
+            }
+            const gdbSymbol = toGdbSymbol(symbolName);
+            const size = await this.targetAccess.evaluateSymbolSize(gdbSymbol);
             if (typeof size === 'number' && size >= 0) {
                 componentViewerLogger.debug(`get Symbol Size: ${symbolName} resolved to ${size}`);
                 return size;
@@ -532,6 +602,10 @@ export class ScvdDebugTarget {
             componentViewerLogger.debug('read Register: name is undefined');
             return undefined;
         }
+        if (this.isRunningMode()) {
+            componentViewerLogger.debug(`read Register: skipping register read while target is running (${name})`);
+            return undefined;
+        }
 
         const gdbName = gdbNameFor(name);
         if (gdbName === undefined) {
@@ -546,6 +620,10 @@ export class ScvdDebugTarget {
         }
         // Convert to number or bigint and return as uint32
         const numericValue = Number(value);
+        if (Number.isNaN(numericValue)) {
+            componentViewerLogger.error(`read Register: could not parse value for register ${name} (GDB name: ${gdbName}): '${value}'`);
+            return undefined;
+        }
         componentViewerLogger.debug(`read Register: raw value for register ${name} (GDB name: ${gdbName}) is ${value} (numeric: ${numericValue})`);
         return toUint32(numericValue);
     }

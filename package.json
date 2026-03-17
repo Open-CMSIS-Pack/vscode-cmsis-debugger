@@ -2,7 +2,7 @@
   "name": "vscode-cmsis-debugger",
   "displayName": "Arm CMSIS Debugger",
   "description": "Run and debug embedded and Edge AI projects on Arm Cortex-M single or multi core devices. Connects via pyOCD to CMSIS-DAP or other GDB servers.",
-  "version": "1.3.0",
+  "version": "1.4.1",
   "preview": false,
   "publisher": "Arm",
   "author": "Jens Reinecke <jens.reinecke@arm.com>",
@@ -19,7 +19,7 @@
     "theme": "dark"
   },
   "engines": {
-    "node": "^20.18.0",
+    "node": "^22.22.0",
     "yarn": "^1.22.0",
     "vscode": "^1.108.1"
   },
@@ -57,14 +57,20 @@
     "views": {
       "cmsis-debugger": [
         {
+          "id": "cmsis-debugger.liveWatch",
+          "name": "Live Watch",
+          "icon": "media/trace-and-live-light.svg"
+        },
+        {
           "id": "cmsis-debugger.componentViewer",
           "name": "Component Viewer",
           "icon": "media/trace-and-live-light.svg"
         },
         {
-          "id": "cmsis-debugger.liveWatch",
-          "name": "Live Watch",
-          "icon": "media/trace-and-live-light.svg"
+          "id": "cmsis-debugger.corePeripherals",
+          "name": "Core Peripherals",
+          "icon": "media/trace-and-live-light.svg",
+          "when": "config.cmsis-debugger.corePeripherals.enabled"
         }
       ]
     },
@@ -165,6 +171,32 @@
         "command": "vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate",
         "title": "Disable Periodic Update",
         "category": "Component Viewer"
+      },
+      {
+        "command": "vscode-cmsis-debugger.corePeripherals.lockComponent",
+        "title": "Lock Component",
+        "icon": "$(unlock)",
+        "category": "Core Peripherals",
+        "when": "config.cmsis-debugger.corePeripherals.enabled"
+      },
+      {
+        "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
+        "title": "Unlock Component",
+        "icon": "$(lock)",
+        "category": "Core Peripherals",
+        "when": "config.cmsis-debugger.corePeripherals.enabled"
+      },
+      {
+        "command": "vscode-cmsis-debugger.corePeripherals.enablePeriodicUpdate",
+        "title": "Enable Periodic Update",
+        "category": "Core Peripherals",
+        "when": "config.cmsis-debugger.corePeripherals.enabled"
+      },
+      {
+        "command": "vscode-cmsis-debugger.corePeripherals.disablePeriodicUpdate",
+        "title": "Disable Periodic Update",
+        "category": "Core Peripherals",
+        "when": "config.cmsis-debugger.corePeripherals.enabled"
       }
     ],
     "menus": {
@@ -264,6 +296,22 @@
         {
           "command": "vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate",
           "when": "true"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.lockComponent",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.enablePeriodicUpdate",
+          "when": "true"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.disablePeriodicUpdate",
+          "when": "true"
         }
       ],
       "view/title": [
@@ -350,6 +398,16 @@
           "command": "vscode-cmsis-debugger.componentViewer.unlockComponent",
           "when": "view == cmsis-debugger.componentViewer && viewItem == locked.parentInstance",
           "group": "inline@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.lockComponent",
+          "when": "config.cmsis-debugger.corePeripherals.enabled && view == cmsis-debugger.corePeripherals && viewItem == parentInstance",
+          "group": "inline@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
+          "when": "config.cmsis-debugger.corePeripherals.enabled && view == cmsis-debugger.corePeripherals && viewItem == locked.parentInstance",
+          "group": "inline@2"
         }
       ]
     },
@@ -403,7 +461,7 @@
     "lint": "eslint .",
     "test": "jest --reporters=default --reporters=./node_modules/jest-html-reporter",
     "all": "yarn && yarn download-tools && yarn test",
-    "package": "vsce package --yarn",
+    "package": "node ./scripts/vsce-release.js --yarn",
     "tpip:report": "tsx scripts/tpip-reporter --header docs/tpip-header.md docs/third-party-licenses.json TPIP.md",
     "lint:md": "markdownlint **/*.md -c ./.github/markdownlint.jsonc -i ./node_modules -i ./dist -i ./coverage -i ./tools",
     "check:links": "tsx scripts/check-links.ts -i ./node_modules/** -i ./.github/** -c ./.github/markdown-link-check.jsonc",
@@ -421,29 +479,29 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@open-cmsis-pack/vsce-helper": "^0.2.2",
+    "@open-cmsis-pack/vsce-helper": "^0.3.0",
     "@types/extract-zip": "^2.0.3",
     "@types/fs-extra": "^11.0.4",
     "@types/jest": "^30.0.0",
     "@types/minimist": "^1.2.5",
-    "@types/node": "^20.19.33",
+    "@types/node": "^20.19.35",
     "@types/node-fetch": "^2.6.13",
     "@types/vscode": "^1.108.1",
     "@types/xml2js": "^0.4.14",
     "@types/yargs": "^17.0.35",
     "@types/yarnpkg__lockfile": "^1.1.9",
-    "@typescript-eslint/eslint-plugin": "8.56.0",
-    "@typescript-eslint/parser": "8.56.0",
+    "@typescript-eslint/eslint-plugin": "8.56.1",
+    "@typescript-eslint/parser": "8.56.1",
     "@vscode/debugprotocol": "^1.68.0",
     "@vscode/vsce": "^3.7.1",
     "@yarnpkg/lockfile": "^1.1.0",
-    "eslint": "^10.0.0",
+    "eslint": "^10.0.2",
     "eslint-plugin-security": "^4.0.0",
     "extract-zip": "^2.0.1",
     "fast-extract": "^1.14.2",
-    "file-type": "^21.3.0",
+    "file-type": "^21.3.2",
     "fs-extra": "^11.3.3",
-    "glob": "^13.0.5",
+    "glob": "^13.0.6",
     "globby": "^16.1.1",
     "jest": "^30.2.0",
     "jest-html-reporter": "^4.3.0",
@@ -461,13 +519,13 @@
     "tsx": "^4.21.0",
     "type-fest": "^5.4.4",
     "typescript": "^5.9.3",
-    "typescript-eslint": "8.56.0",
+    "typescript-eslint": "8.56.1",
     "webpack": "^5.105.2",
     "webpack-cli": "^6.0.1",
     "yargs": "^18.0.0"
   },
   "cmsis": {
-    "pyocd": "pyocd/pyOCD@0.42.0",
+    "pyocd": "pyocd/pyOCD@0.43.1",
     "pyocdNightly": "pyocd/pyOCD@nightly",
     "gdb": "14.3.1"
   }

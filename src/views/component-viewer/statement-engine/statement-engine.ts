@@ -49,6 +49,9 @@ export class StatementEngine {
     private _statementTree: StatementBase | undefined;
     private _executionContext: ExecutionContext;
 
+    /** Wall-clock budget for a single executeAll run (ms). */
+    public static readonly EXECUTE_ALL_TIMEOUT_MS = 10_000;
+
     constructor(
         model: ScvdComponentViewer,
         executionContext: ExecutionContext
@@ -162,6 +165,7 @@ export class StatementEngine {
         // Execute all statements in the statement tree.
         // This is a placeholder implementation.
 
+        this._executionContext.cancellation.reset(StatementEngine.EXECUTE_ALL_TIMEOUT_MS);
         this._executionContext.memoryHost.clearNonConst();
         const evalHost = this._executionContext.evalContext.data as {
             resetEvalCaches?: () => void;

@@ -27,6 +27,7 @@ import { ScvdFormatSpecifier } from './model/scvd-format-specifier';
 import { ScvdDebugTarget } from './scvd-debug-target';
 import { ScvdEvalInterface } from './scvd-eval-interface';
 import { parsePerf } from './stats-config';
+import { ExecutionCancellation } from './execution-cancellation';
 
 export interface ExecutionContext {
     memoryHost: MemoryHost;
@@ -35,6 +36,7 @@ export interface ExecutionContext {
     debugTarget: ScvdDebugTarget;
     evaluator: Evaluator;
     parser: ScvdExpressionParser;
+    cancellation: ExecutionCancellation;
 }
 
 export class ScvdExpressionParser {
@@ -76,6 +78,7 @@ export class ScvdEvalContext {
     private _model: ScvdComponentViewer;
     private _integerModelKind: IntegerModelKind;
     private _parserInterface: ScvdExpressionParser;
+    private _cancellation = new ExecutionCancellation();
 
     constructor(
         model: ScvdComponentViewer
@@ -134,6 +137,10 @@ export class ScvdEvalContext {
         this.applyIntegerModel();
     }
 
+    public get cancellation(): ExecutionCancellation {
+        return this._cancellation;
+    }
+
     public getExecutionContext(): ExecutionContext {
         return {
             memoryHost: this.memoryHost,
@@ -144,6 +151,7 @@ export class ScvdEvalContext {
                 throw new Error('SCVD EvalContext: DebugTarget not initialized');
             })(),
             parser: this._parserInterface,
+            cancellation: this._cancellation,
         };
     }
 

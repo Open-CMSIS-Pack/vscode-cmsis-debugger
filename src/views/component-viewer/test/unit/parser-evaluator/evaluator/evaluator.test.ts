@@ -705,6 +705,30 @@ describe('Evaluator coverage branches', () => {
         await expect(evalNodeChild.call(evaluator, divZero, memoCtx)).resolves.toBeUndefined();
     });
 
+    it('preserves literal text including quotes in printf expressions', async () => {
+        const evaluator = new TestEvaluator();
+        const host = makeHost({}, { addr: new TestNode('addr', 0x1234), name: new TestNode('name', 'MyFunc') });
+        const ctx = makeCtx(host);
+
+        // Test case: id: %x[addr] "%S[name]"
+        // Should evaluate to: id: 0x1234 "MyFunc"
+        const printfWithQuotes = printfExpr([
+            textSeg('id: '),
+            formatSeg('x', id('addr')),
+            textSeg(' "'),
+            formatSeg('S', id('name')),
+            textSeg('"')
+        ]);
+
+        const result = await evaluator.evalNodePublic(printfWithQuotes, ctx);
+        expect(result).toBe('id: 0x1234 "MyFunc"');
+
+        // Test with just text segments containing quotes
+        const justQuotes = printfExpr([textSeg('"Hello"')]);
+        const result2 = await evaluator.evalNodePublic(justQuotes, ctx);
+        expect(result2).toBe('"Hello"');
+    });
+
     it('accumulates child timing when evaluating nested nodes', async () => {
         const evaluator = new TestEvaluator();
         const ctx = makeCtx(makeHost());
@@ -1027,7 +1051,7 @@ describe('Evaluator coverage branches', () => {
         expect(helpers.findReferenceNode(callExpr(id('fn'), [num(1), id('arg')]))?.kind).toBe('Identifier');
         expect(helpers.findReferenceNode(callExpr(id('fn'), [num(1), num(2)]))?.kind).toBe('Identifier');
         expect(helpers.findReferenceNode(callExpr(id('fn'), []))?.kind).toBe('Identifier');
-        expect(helpers.findReferenceNode(evalPoint('__Running', []))?.kind).toBe('Identifier');
+        expect(helpers.findReferenceNode(evalPoint('__Running', []))).toBeUndefined();
         expect(helpers.findReferenceNode(evalPoint('__size_of', [num(1), id('sym')]))?.kind).toBe('Identifier');
         expect(helpers.findReferenceNode(evalPoint('__size_of', [id('sym')]))?.kind).toBe('Identifier');
         expect(helpers.findReferenceNode({ kind: 'ConditionalExpression', test: num(0), consequent: id('c'), alternate: num(2), ...span } as ConditionalExpression)?.kind).toBe('Identifier');
@@ -1315,5 +1339,31 @@ describe('Evaluator coverage branches', () => {
         const ctx = makeCtx(makeHost());
         const evalNodeChild = (evaluator as unknown as { evalNodeChild: (node: ASTNode, ctx: EvalContext) => Promise<EvalValue> }).evalNodeChild;
         await expect(evalNodeChild.call(evaluator, unary('-', num(2)), ctx)).resolves.toBe(-2);
+    });
+
+    it('handles __Offset_of with ColonPath argument', async () => {
+        const evaluator = new TestEvaluator();
+        const host = makeHost({ __Offset_of: jest.fn(async (_container, typedefMember) => {
+            // Verify the colon path was converted to "typedef:member" string
+            if (typedefMember === 'MyType:field') {
+                return 16;
+            }
+            return undefined;
+        }) });
+        const ctx = makeCtx(host);
+        const colonNode: ColonPath = { kind: 'ColonPath', parts: ['MyType', 'field'], ...span } as ColonPath;
+        await expect(evaluator.evalNodePublic(evalPoint('__Offset_of', [colonNode]), ctx)).resolves.toBe(16);
+    });
+
+    it('records error when using intrinsic name as identifier', async () => {
+        const evaluator = new TestEvaluator();
+        // The intrinsic error is recorded when mustRef is called for an identifier that doesn't exist
+        // This happens when trying to read/write an identifier that is an intrinsic name
+        const host = makeHost({ getSymbolRef: jest.fn(async () => undefined) });
+        const ctx = makeCtx(host);
+        // Use an assignment to trigger mustRef  for the identifier
+        const assignNode = assign('=', id('__CalcMemUsed'), num(1));
+        await expect(evaluator.evalNodePublic(assignNode, ctx)).resolves.toBeUndefined();
+        expect(evaluator.getMessagesPublic()).toContain('Intrinsic function \'__CalcMemUsed\' cannot be used as an identifier. Use it as a function call: __CalcMemUsed(...)');
     });
 });
