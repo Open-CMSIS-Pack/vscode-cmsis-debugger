@@ -81,7 +81,7 @@ export function encodeToLeBytes(value: number | bigint | Uint8Array, size: numbe
 export function leToNumber(bytes: Uint8Array): number {
     if (bytes.length > 4) {
         // Only the low 4 bytes are meaningful in 32-bit arithmetic.
-        // eslint-disable-next-line no-param-reassign
+
         bytes = bytes.subarray(0, 4);
     }
     let out = 0;

@@ -42,6 +42,17 @@ describe('byte-encoding', () => {
         it('encodes a single byte', () => {
             expect(leIntToBytes(0xFF, 1)).toEqual(new Uint8Array([0xFF]));
         });
+
+        it('delegates to bigint path for size > 4', () => {
+            // -1 as a 64-bit LE integer should be all 0xFF bytes
+            const out = leIntToBytes(-1, 8);
+            expect(out).toEqual(new Uint8Array([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]));
+        });
+
+        it('preserves positive values for size > 4', () => {
+            const out = leIntToBytes(0x12, 6);
+            expect(out).toEqual(new Uint8Array([0x12, 0x00, 0x00, 0x00, 0x00, 0x00]));
+        });
     });
 
     describe('leBigIntToBytes', () => {
@@ -90,6 +101,11 @@ describe('byte-encoding', () => {
 
         it('wraps to unsigned', () => {
             expect(leToNumber(new Uint8Array([0xFF, 0xFF, 0xFF, 0xFF]))).toBe(0xFFFFFFFF);
+        });
+
+        it('clamps to low 4 bytes when input exceeds 4 bytes', () => {
+            // 5-byte input: only the first 4 bytes should be decoded
+            expect(leToNumber(new Uint8Array([0x78, 0x56, 0x34, 0x12, 0xFF]))).toBe(0x12345678);
         });
     });
 

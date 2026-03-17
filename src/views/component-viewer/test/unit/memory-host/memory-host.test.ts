@@ -119,6 +119,16 @@ describe('MemoryHost', () => {
         expect(out).toEqual(new Uint8Array([1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0]));
     });
 
+    it('zero-pads partial reads when container is shorter than requested size', () => {
+        const host = new MemoryHost();
+        // Write only 6 bytes but request 10 (> 8 triggers readPartial path)
+        host.setVariable('partial', 6, new Uint8Array([10, 20, 30, 40, 50, 60]), 0);
+
+        const out = host.read('partial', 0, 10);
+        expect(out).toEqual(new Uint8Array([10, 20, 30, 40, 50, 60, 0, 0, 0, 0]));
+        expect(out?.length).toBe(10);
+    });
+
     it('returns undefined for missing or invalid reads', () => {
         const host = new MemoryHost();
         expect(host.read('missing', 0, 4)).toBeUndefined();

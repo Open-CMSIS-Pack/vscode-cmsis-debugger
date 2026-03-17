@@ -439,6 +439,59 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         });
     });
 
+    it('readValue returns undefined when width is zero or name is missing', async () => {
+        const { evalIf } = makeEval();
+        const noWidth: RefContainer = { base: new DummyNode('b'), anchor: new DummyNode('b'), current: new DummyNode('b'), widthBytes: 0, valueType: undefined };
+        expect(await evalIf.readValue(noWidth)).toBeUndefined();
+        const noAnchor: RefContainer = { base: new DummyNode('b'), current: new DummyNode('b'), widthBytes: 4, valueType: undefined };
+        expect(await evalIf.readValue(noAnchor)).toBeUndefined();
+    });
+
+    it('readValue returns undefined when memHost.read returns undefined', async () => {
+        const { evalIf } = makeEval({ mem: { read: jest.fn().mockReturnValue(undefined) } });
+        const container: RefContainer = { base: new DummyNode('v'), anchor: new DummyNode('v'), current: new DummyNode('v'), widthBytes: 4, valueType: undefined };
+        expect(await evalIf.readValue(container)).toBeUndefined();
+    });
+
+    it('writeValue returns undefined when width is zero', async () => {
+        const { evalIf } = makeEval();
+        const noWidth: RefContainer = { base: new DummyNode('b'), anchor: new DummyNode('b'), current: new DummyNode('b'), widthBytes: 0, valueType: undefined };
+        expect(await evalIf.writeValue(noWidth, 42)).toBeUndefined();
+    });
+
+    it('writeValue handles Uint8Array values (same size and truncated)', async () => {
+        const writeMock = jest.fn();
+        const { evalIf } = makeEval({ mem: { write: writeMock } });
+        const container: RefContainer = { base: new DummyNode('v'), anchor: new DummyNode('v'), current: new DummyNode('v'), widthBytes: 4, valueType: undefined };
+
+        // Uint8Array with same size as width
+        const exact = new Uint8Array([1, 2, 3, 4]);
+        expect(await evalIf.writeValue(container, exact)).toBe(exact);
+
+        // Uint8Array longer than width → truncated
+        const longer = new Uint8Array([5, 6, 7, 8, 9, 10]);
+        expect(await evalIf.writeValue(container, longer)).toBe(longer);
+        expect(writeMock).toHaveBeenCalledWith('v', 0, new Uint8Array([5, 6, 7, 8]), 4);
+    });
+
+    it('writeValue handles boolean and bigint values', async () => {
+        const writeMock = jest.fn();
+        const { evalIf } = makeEval({ mem: { write: writeMock } });
+        const container: RefContainer = { base: new DummyNode('v'), anchor: new DummyNode('v'), current: new DummyNode('v'), widthBytes: 4, valueType: undefined };
+
+        expect(await evalIf.writeValue(container, true)).toBe(true);
+        expect(await evalIf.writeValue(container, false)).toBe(false);
+        expect(await evalIf.writeValue(container, 0x12345678n)).toBe(0x12345678n);
+    });
+
+    it('writeValue returns undefined for unsupported value types', async () => {
+        const { evalIf } = makeEval();
+        jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
+        const container: RefContainer = { base: new DummyNode('v'), anchor: new DummyNode('v'), current: new DummyNode('v'), widthBytes: 4, valueType: undefined };
+        expect(await evalIf.writeValue(container, 'string' as unknown as number)).toBeUndefined();
+        (componentViewerLogger.error as unknown as jest.Mock).mockRestore();
+    });
+
     it('read/write value wrap host errors', async () => {
         const memOverride: Partial<MemoryHost> = {
             read: jest.fn(() => { throw new Error('boom'); }),
