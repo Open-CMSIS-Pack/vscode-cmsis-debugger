@@ -238,14 +238,33 @@ export async function handlePseudoMember(
     container.member = baseRef;
     container.current = baseRef;
     container.valueType = undefined;
-    const fn = property === '_count' ? data._count : data._addr;
-    if (typeof fn !== 'function') {
-        onError?.(`Missing pseudo-member ${property}`);
-        return undefined;
+
+    if (property === '_count') {
+        const fn = data._count;
+        if (typeof fn !== 'function') {
+            onError?.('Missing pseudo-member _count');
+            return undefined;
+        }
+        const out = await fn.call(data, container);
+        if (out === undefined) {
+            onError?.('Pseudo-member _count returned undefined');
+        }
+        return out;
     }
-    const out = await fn.call(data, container);
-    if (out === undefined) {
-        onError?.(`Pseudo-member ${property} returned undefined`);
+
+    if (property === '_addr') {
+        const fn = data._addr;
+        if (typeof fn !== 'function') {
+            onError?.('Missing pseudo-member _addr');
+            return undefined;
+        }
+        const out = await fn.call(data, container);
+        if (out === undefined) {
+            onError?.('Pseudo-member _addr returned undefined');
+        }
+        return out;
     }
-    return out;
+
+    onError?.(`Unknown pseudo-member ${property}`);
+    return undefined;
 }

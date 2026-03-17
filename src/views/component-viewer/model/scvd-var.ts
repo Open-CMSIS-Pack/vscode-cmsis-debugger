@@ -23,6 +23,7 @@ import { ScvdExpression } from './scvd-expression';
 import { Json } from './scvd-base';
 import { ScvdNode } from './scvd-node';
 import { getArrayFromJson, getStringFromJson } from './scvd-utils';
+import { encodeStringToBytes } from '../parser-evaluator/string-ops';
 
 export class ScvdVar extends ScvdNode {
     private _value: ScvdExpression | undefined;
@@ -88,13 +89,16 @@ export class ScvdVar extends ScvdNode {
         }
     }
 
-    public override async getValue(): Promise<number | bigint | undefined> {
+    public override async getValue(): Promise<number | bigint | Uint8Array | undefined> {
         if (this._value === undefined) {
             return undefined;
         }
         const val = await this._value.getValue();
         if (typeof val === 'number' || typeof val === 'bigint') {
             return val;
+        }
+        if (typeof val === 'string') {
+            return encodeStringToBytes(val, this.getTypeSize() ?? 1);
         }
         return undefined;
     }

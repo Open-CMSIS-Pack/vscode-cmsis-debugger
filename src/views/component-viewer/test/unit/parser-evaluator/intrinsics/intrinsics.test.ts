@@ -46,6 +46,7 @@ describe('intrinsics', () => {
         onError.mockClear();
         await expect(handleIntrinsic(host, container(), '__CalcMemUsed', [1, 2, 3, 4, 5], onError)).resolves.toBeUndefined();
         expect(onError).toHaveBeenCalledWith('Intrinsic __CalcMemUsed expects at most 4 argument(s)');
+
     });
 
     it('runs numeric intrinsics and coercions', async () => {
