@@ -1,0 +1,24 @@
+core-peripherals:
+  - file: TZ_MPU_Cortex-M33.scvd
+    cpu-type: Cortex-M33
+    cpu-features:
+      mpu: present
+      trustzone: present
+  - file: M0_M23_Nested_Vectored_Interrupt_Controller.scvd
+    cpu-type:
+      - Cortex-M0+
+      - Cortex-M23
+  - file: M55_M85_Nested_Vectored_Interrupt_Controller.scvd
+    cpu-type:
+      - Cortex-M55
+      - Cortex-M85
+  - file: FPU_SP.scvd
+    cpu-type: "*"
+    cpu-features:
+      fpu: sp
+  - file: FPU_All.scvd
+    cpu-type: "*"
+    cpu-features:
+      fpu: "*"
+  - file: System_Tick_Timer.scvd
+    cpu-type: "*"
