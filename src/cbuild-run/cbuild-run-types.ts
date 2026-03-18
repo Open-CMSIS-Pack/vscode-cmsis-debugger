@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *     https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -36,8 +36,26 @@ export interface MemoryType {
     'from-pack'?: string;
 };
 
+// Preliminary type, to be implemented in CMSIS Toolbox first.
+export interface ProcessorType {
+    core: string;
+    revision: string;
+    'max-clock': number;
+    pname?: string;
+    punits?: number;
+    endian?: 'little' | 'big' | 'configurable';
+    fpu?: 'sp' | 'dp' | 'none';
+    mpu?: 'present' | 'none';
+    dsp?: 'present' | 'none';
+    trustzone?: 'present' | 'none';
+    mve?: 'int' | 'fp' | 'none';
+    cdecp?: number;
+    pacbti?: 'present' | 'none';
+}
+
 export interface SystemResourcesType {
     memory?: MemoryType[];
+    processors?: ProcessorType[];
 };
 
 export type SystemDescriptionTypeType = 'svd'|'scvd';
@@ -139,7 +157,7 @@ export interface PunitType {
     address: number;
 };
 
-export interface ProcessorType {
+export interface TopologyProcessorType {
     pname?: string;
     punits?: PunitType[];
     apid?: number;
@@ -148,7 +166,7 @@ export interface ProcessorType {
 
 export interface DebugTopologyType {
     debugports?: DebugPortType[];
-    processors?: ProcessorType[];
+    processors?: TopologyProcessorType[];
     swj?: boolean;
     dormant?: boolean;
     sdf?: string;
