@@ -469,7 +469,6 @@
     "copyright:fix": "tsx scripts/copyright-manager.ts --mode=fix --include=src/**/*.ts,scripts/**/*.ts --exclude=**/node_modules/**,coverage/**,dist/**,tools/**"
   },
   "vsce": {
-    "npm": true,
     "baseContentUrl": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/blob/main/README.md"
   },
   "dependencies": {

@@ -73,22 +73,27 @@ jobs:
       - name: Set version
         if: runner.os == 'Linux' && github.repository_owner == 'Open-CMSIS-Pack'
         run: |
+          BASE_TAG=$(git describe --tags --match 'v[0-9]*.[0-9]*.[0-9]*' --abbrev=0 2>/dev/null || true)
+          if [ -z "${BASE_TAG}" ]; then
+            echo "No semver tag matching vX.Y.Z found."
+            exit 1
+          fi
+          QUALIFIER=$(git describe --tags --long 2>/dev/null | grep -Eo '\-g[0-9a-f]+$' || true)
+          SAFE_REF_NAME="${{ github.ref_name }}"
+          SAFE_REF_NAME="${SAFE_REF_NAME//[^0-9A-Za-z-]/-}"
+
           case ${{ github.event_name }} in
             release)
               TAG="${{ github.event.release.tag_name }}"
-              npm version --no-git-tag-version --new-version "${TAG#v}"
+              npm version --allow-same-version --no-git-tag-version --new-version "${TAG#v}"
               ;;
             pull_request)
-              DESCRIBE=$(git describe --tags | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+')
-              QUALIFIER=$(git describe --tags | grep -Eo '\-g[0-9a-f]+$' || true)
-              npm version -s --no-git-tag-version --new-version "${DESCRIBE#v}"
+              npm version -s --allow-same-version --no-git-tag-version --new-version "${BASE_TAG#v}"
               npm version --no-git-tag-version --prepatch --preid "pr${{ github.event.number }}${QUALIFIER}"
               ;;
             *)
-              DESCRIBE=$(git describe --tags | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+')
-              QUALIFIER=$(git describe --tags | grep -Eo '[0-9]+\-g[0-9a-f]+$' || true)
-              npm version -s --no-git-tag-version --new-version "${DESCRIBE#v}"
-              npm version --no-git-tag-version --prepatch --preid "${{ github.ref_name }}${QUALIFIER}"
+              npm version -s --allow-same-version --no-git-tag-version --new-version "${BASE_TAG#v}"
+              npm version --no-git-tag-version --prepatch --preid "${SAFE_REF_NAME}${QUALIFIER}"
               ;;
           esac
           VERSION="$(jq -r ".version" < package.json)"
@@ -183,6 +188,9 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Configure git settings
+        run: git config --global core.autocrlf false
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
@@ -240,6 +248,9 @@ jobs:
         uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
+
+      - name: Configure git settings
+        run: git config --global core.autocrlf false
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
