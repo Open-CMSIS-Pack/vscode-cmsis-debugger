@@ -30,6 +30,7 @@ import { ScvdFormatSpecifier } from '../../../../model/scvd-format-specifier';
 import { RegisterHost } from '../../../../data-host/register-host';
 import { ScvdDebugTarget } from '../../../../scvd-debug-target';
 import { TargetReadCache } from '../../../../target-read-cache';
+import { InterruptHost } from '../../../../data-host/interrupt-host';
 
 class BasicRef extends ScvdNode {
     constructor(parent?: ScvdNode) {
@@ -347,7 +348,8 @@ describe('evaluator data host hooks', () => {
             memHost,
             {} as RegisterHost,
             debugTarget,
-            new ScvdFormatSpecifier()
+            new ScvdFormatSpecifier(),
+            new InterruptHost()
         );
         const root = new MacRoot();
         const ctx = new EvalContext({ data: scvd, container: root });
@@ -412,7 +414,8 @@ describe('evaluator data host hooks', () => {
                 new MemoryHost(),
                 {} as RegisterHost,
                 debugTarget,
-                new ScvdFormatSpecifier()
+                new ScvdFormatSpecifier(),
+                new InterruptHost()
             );
             const ctx = new EvalContext({ data: evalIf, container: new BasicRef() });
             const pr = parseExpression(
@@ -439,7 +442,8 @@ describe('evaluator data host hooks', () => {
             new MemoryHost(),
             {} as RegisterHost,
             debugTarget,
-            new ScvdFormatSpecifier()
+            new ScvdFormatSpecifier(),
+            new InterruptHost()
         );
         const ctx = new EvalContext({ data: evalIf, container: new BasicRef() });
         const addrZero = parseExpression(
