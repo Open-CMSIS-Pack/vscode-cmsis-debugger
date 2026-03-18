@@ -88,7 +88,7 @@ export class InterruptHost {
         if (!this._svdPath || !this._extension) {
             return undefined;
         }
-        
+
         // Activate the Peripheral Inspector extension if not yet active
         if (!this._extension.isActive) {
             try {
