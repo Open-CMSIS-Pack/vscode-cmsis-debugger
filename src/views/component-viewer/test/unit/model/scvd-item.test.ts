@@ -24,6 +24,7 @@ import { ScvdItem } from '../../../model/scvd-item';
 import { ScvdListOut } from '../../../model/scvd-list-out';
 import { ScvdPrint } from '../../../model/scvd-print';
 import { Json } from '../../../model/scvd-base';
+import { ScvdCalc } from '../../../model/scvd-calc';
 
 describe('ScvdItem', () => {
     it('returns false when XML is undefined', () => {
@@ -45,7 +46,8 @@ describe('ScvdItem', () => {
             alert: '0',
             item: [{}],
             list: [{}],
-            print: [{}]
+            print: [{}],
+            calc: [{ expression: '1' }]
         };
 
         expect(item.readXml(xml)).toBe(true);
@@ -57,10 +59,12 @@ describe('ScvdItem', () => {
         expect(item.item).toHaveLength(1);
         expect(item.listOut).toHaveLength(1);
         expect(item.print).toHaveLength(1);
+        expect(item.calc).toHaveLength(1);
 
         expect(item.addItem()).toBeInstanceOf(ScvdItem);
         expect(item.addListOut()).toBeInstanceOf(ScvdListOut);
         expect(item.addPrint()).toBeInstanceOf(ScvdPrint);
+        expect(item.addCalc()).toBeInstanceOf(ScvdCalc);
         expect(item.hasGuiChildren()).toBe(true);
 
         listSpy.mockRestore();
