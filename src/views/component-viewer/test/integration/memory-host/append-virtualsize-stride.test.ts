@@ -42,29 +42,9 @@
  */
 
 import { MemoryHost, MemoryContainer } from '../../../data-host/memory-host';
-import { RefContainer } from '../../../parser-evaluator/model-host';
-import { ScvdNode } from '../../../model/scvd-node';
+import { leToNumber } from '../../../data-host/byte-encoding';
 
 // ---------- helpers ----------
-
-class NamedStub extends ScvdNode {
-    constructor(name: string) {
-        super(undefined);
-        this.name = name;
-    }
-}
-
-const makeRef = (name: string, widthBytes: number, offsetBytes = 0): RefContainer => {
-    const node = new NamedStub(name);
-    return {
-        base: node,
-        anchor: node,
-        current: node,
-        offsetBytes,
-        widthBytes,
-        valueType: undefined,
-    };
-};
 
 /** Build a 9-byte mem_block_t: [next:4][len:4][id:1] in little-endian. */
 function makeBlock9(nextAddr: number, len: number, id: number): Uint8Array {
@@ -122,7 +102,7 @@ describe('Append (-1): 9-byte items with virtualSize=9 (mem_block_t)', () => {
         expect(host.getArrayElementCount('bl')).toBe(5);
     });
 
-    it('stride-based readback: element[i] at offset i*9 returns correct data', async () => {
+    it('stride-based readback: element[i] at offset i*9 returns correct data', () => {
         const stride = 9;
         const ids = [0xA1, 0xB2, 0xC3, 0xD4, 0xE5];
         for (let i = 0; i < ids.length; i++) {
@@ -136,52 +116,52 @@ describe('Append (-1): 9-byte items with virtualSize=9 (mem_block_t)', () => {
             const base = i * stride;
 
             // next (offset 0, 4 bytes)
-            const next = await host.readValue(makeRef('bl', 4, base + 0));
+            const next = leToNumber(host.read('bl', base + 0, 4)!);
             expect(next).toBe(0x100 * (i + 1));
 
             // len (offset 4, 4 bytes)
-            const len = await host.readValue(makeRef('bl', 4, base + 4));
+            const len = leToNumber(host.read('bl', base + 4, 4)!);
             expect(len).toBe(41);
 
             // id (offset 8, 1 byte)
-            const id = await host.readValue(makeRef('bl', 1, base + 8));
+            const id = host.read('bl', base + 8, 1)![0];
             expect(id).toBe(ids.at(i));
         }
     });
 
-    it('reading one byte BEFORE an element boundary returns previous element tail', async () => {
+    it('reading one byte BEFORE an element boundary returns previous element tail', () => {
         // Element 0: bytes [0..8], Element 1: bytes [9..17]
         host.setVariable('bl', 9, makeBlock9(0, 0, 0xAA), -1, 0x1000, 9);
         host.setVariable('bl', 9, makeBlock9(0, 0, 0xBB), -1, 0x2000, 9);
 
         // Byte 8 = last byte of element 0 = id byte = 0xAA
-        const atBoundaryMinus1 = await host.readValue(makeRef('bl', 1, 8));
+        const atBoundaryMinus1 = host.read('bl', 8, 1)![0];
         expect(atBoundaryMinus1).toBe(0xAA);
 
         // Byte 9 = first byte of element 1 = low byte of next field = 0x00
-        const atBoundary = await host.readValue(makeRef('bl', 1, 9));
+        const atBoundary = host.read('bl', 9, 1)![0];
         expect(atBoundary).toBe(0x00);
     });
 
-    it('reading one byte AFTER an element boundary returns next element head', async () => {
+    it('reading one byte AFTER an element boundary returns next element head', () => {
         host.setVariable('bl', 9, makeBlock9(0xDEADBEEF, 0, 0), -1, 0x1000, 9);
         host.setVariable('bl', 9, makeBlock9(0xCAFEBABE, 0, 0), -1, 0x2000, 9);
 
         // Byte 9 = first byte of element 1 next field = 0xBE (LE of 0xCAFEBABE)
-        const firstByteEl1 = await host.readValue(makeRef('bl', 1, 9));
+        const firstByteEl1 = host.read('bl', 9, 1)![0];
         expect(firstByteEl1).toBe(0xBE);
 
         // Byte 10 = second byte of element 1 next field = 0xBA
-        const secondByteEl1 = await host.readValue(makeRef('bl', 1, 10));
+        const secondByteEl1 = host.read('bl', 10, 1)![0];
         expect(secondByteEl1).toBe(0xBA);
     });
 
-    it('readRaw spanning an element boundary returns contiguous bytes', async () => {
+    it('readRaw spanning an element boundary returns contiguous bytes', () => {
         host.setVariable('bl', 9, makeBlock9(0x11223344, 0x55667788, 0x99), -1, 0x1000, 9);
         host.setVariable('bl', 9, makeBlock9(0xAABBCCDD, 0xEEFF0011, 0x22), -1, 0x2000, 9);
 
         // Read 4 bytes from offset 7 → last 2 bytes of el0 (len high) + first 2 of el1 (next low)
-        const raw = await host.readRaw(makeRef('bl', 4, 7), 4);
+        const raw = host.read('bl', 7, 4);
         expect(raw).toBeDefined();
         // Byte 7 = len byte[3] of el0 = 0x55 (LE of 0x55667788 → [0x88, 0x77, 0x66, 0x55])
         // Wait: LE of 0x55667788 = [0x88, 0x77, 0x66, 0x55]
@@ -209,7 +189,7 @@ describe('Append (-1): 80-byte data with virtualSize=129 (osRtxThread_t)', () =>
         host = new MemoryHost();
     });
 
-    it('container grows by virtualSize (129) per append, not targetSize (80)', async () => {
+    it('container grows by virtualSize (129) per append, not targetSize (80)', () => {
         // After 3 appends: 3 * 129 = 387 bytes total
         for (let i = 0; i < 3; i++) {
             host.setVariable('TCB', TARGET_SIZE, makeTCB80(0x1000 + i), -1, 0x20000 + i * 80, VIRTUAL_SIZE);
@@ -217,11 +197,11 @@ describe('Append (-1): 80-byte data with virtualSize=129 (osRtxThread_t)', () =>
         expect(host.getArrayElementCount('TCB')).toBe(3);
 
         // Verify we can read the start of element 2 at offset 2*129 = 258
-        const marker2 = await host.readValue(makeRef('TCB', 4, 2 * VIRTUAL_SIZE));
+        const marker2 = leToNumber(host.read('TCB', 2 * VIRTUAL_SIZE, 4)!);
         expect(marker2).toBe(0x1002);
     });
 
-    it('stride-based indexing: TCB[i] at offset i*129 returns correct marker', async () => {
+    it('stride-based indexing: TCB[i] at offset i*129 returns correct marker', () => {
         const markers = [0xDEAD0001, 0xDEAD0002, 0xDEAD0003, 0xDEAD0004, 0xDEAD0005];
         for (const m of markers) {
             host.setVariable('TCB', TARGET_SIZE, makeTCB80(m), -1, 0x20000, VIRTUAL_SIZE);
@@ -229,12 +209,12 @@ describe('Append (-1): 80-byte data with virtualSize=129 (osRtxThread_t)', () =>
 
         for (let i = 0; i < markers.length; i++) {
             const offset = i * VIRTUAL_SIZE;
-            const val = await host.readValue(makeRef('TCB', 4, offset));
+            const val = leToNumber(host.read('TCB', offset, 4)!);
             expect(val).toBe(markers.at(i));
         }
     });
 
-    it('zero padding between targetSize and virtualSize is correct', async () => {
+    it('zero padding between targetSize and virtualSize is correct', () => {
         host.setVariable('TCB', TARGET_SIZE, makeTCB80(0x42), -1, 0x20000, VIRTUAL_SIZE);
 
         // Bytes 0..79 contain the 80-byte TCB data
@@ -243,7 +223,7 @@ describe('Append (-1): 80-byte data with virtualSize=129 (osRtxThread_t)', () =>
         const padEnd = VIRTUAL_SIZE;    // 129
         const padSize = padEnd - padStart; // 49
 
-        const raw = await host.readRaw(makeRef('TCB', padSize, padStart), padSize);
+        const raw = host.read('TCB', padStart, padSize);
         expect(raw).toBeDefined();
         expect(raw!.length).toBe(padSize);
         // All padding bytes must be zero
@@ -252,53 +232,53 @@ describe('Append (-1): 80-byte data with virtualSize=129 (osRtxThread_t)', () =>
         }
     });
 
-    it('element 1 data starts at EXACTLY byte 129, not 128 or 130', async () => {
+    it('element 1 data starts at EXACTLY byte 129, not 128 or 130', () => {
         host.setVariable('TCB', TARGET_SIZE, makeTCB80(0xAAAA), -1, 0x20000, VIRTUAL_SIZE);
         host.setVariable('TCB', TARGET_SIZE, makeTCB80(0xBBBB), -1, 0x20050, VIRTUAL_SIZE);
 
         // Byte 128 (= virtualSize - 1) should be zero (padding of element 0)
-        const at128 = await host.readValue(makeRef('TCB', 1, 128));
+        const at128 = host.read('TCB', 128, 1)![0];
         expect(at128).toBe(0);
 
         // Byte 129 (= virtualSize) should be low byte of element 1's marker
         // 0xBBBB in LE = [0xBB, 0xBB, 0x00, 0x00]
-        const at129 = await host.readValue(makeRef('TCB', 1, 129));
+        const at129 = host.read('TCB', 129, 1)![0];
         expect(at129).toBe(0xBB);
 
         // Byte 130 should be second byte of element 1's marker
-        const at130 = await host.readValue(makeRef('TCB', 1, 130));
+        const at130 = host.read('TCB', 130, 1)![0];
         expect(at130).toBe(0xBB);
 
         // Read full u32 at byte 129 = element 1 marker
-        const marker1 = await host.readValue(makeRef('TCB', 4, 129));
+        const marker1 = leToNumber(host.read('TCB', 129, 4)!);
         expect(marker1).toBe(0xBBBB);
     });
 
-    it('element 2 data starts at byte 258 (2*129), not 256 or 260', async () => {
+    it('element 2 data starts at byte 258 (2*129), not 256 or 260', () => {
         host.setVariable('TCB', TARGET_SIZE, makeTCB80(0x1111), -1, 0x20000, VIRTUAL_SIZE);
         host.setVariable('TCB', TARGET_SIZE, makeTCB80(0x2222), -1, 0x20050, VIRTUAL_SIZE);
         host.setVariable('TCB', TARGET_SIZE, makeTCB80(0x3333), -1, 0x200A0, VIRTUAL_SIZE);
 
         // Byte 257 = virtualSize*2 - 1 = zero padding of element 1
-        const at257 = await host.readValue(makeRef('TCB', 1, 257));
+        const at257 = host.read('TCB', 257, 1)![0];
         expect(at257).toBe(0);
 
         // Byte 258 = element 2 starts here
-        const at258 = await host.readValue(makeRef('TCB', 1, 258));
+        const at258 = host.read('TCB', 258, 1)![0];
         expect(at258).toBe(0x33);
 
         // Full u32 at 258
-        const marker2 = await host.readValue(makeRef('TCB', 4, 258));
+        const marker2 = leToNumber(host.read('TCB', 258, 4)!);
         expect(marker2).toBe(0x3333);
 
         // WRONG offsets for reference (should NOT match marker):
-        const at256 = await host.readValue(makeRef('TCB', 4, 256));
+        const at256 = leToNumber(host.read('TCB', 256, 4)!);
         expect(at256).not.toBe(0x3333);
-        const at260 = await host.readValue(makeRef('TCB', 4, 260));
+        const at260 = leToNumber(host.read('TCB', 260, 4)!);
         expect(at260).not.toBe(0x3333);
     });
 
-    it('member access: TCB[i].field4 at stride*i + memberOffset reads correctly', async () => {
+    it('member access: TCB[i].field4 at stride*i + memberOffset reads correctly', () => {
         // Simulate reading TCB[i].field_at_offset_4 (bytes 4-7 of each 80-byte block)
         const markers = [0xF0F0F0F0, 0xA0A0A0A0, 0xC0C0C0C0];
         const blocks: Uint8Array[] = [];
@@ -318,13 +298,13 @@ describe('Append (-1): 80-byte data with virtualSize=129 (osRtxThread_t)', () =>
         const MEMBER_OFFSET = 4;
         for (let i = 0; i < markers.length; i++) {
             const byteOff = i * VIRTUAL_SIZE + MEMBER_OFFSET;
-            const val = await host.readValue(makeRef('TCB', 4, byteOff));
+            const val = leToNumber(host.read('TCB', byteOff, 4)!);
             const marker = markers.at(i);
             expect(val).toBe(marker !== undefined ? (~marker) >>> 0 : undefined);
         }
     });
 
-    it('member access: TCB[i].byte8 at stride*i + 8 reads the single-byte marker', async () => {
+    it('member access: TCB[i].byte8 at stride*i + 8 reads the single-byte marker', () => {
         const markers = [0x10, 0x20, 0x30, 0x40, 0x50];
         for (const m of markers) {
             const tcb = makeTCB80(m);
@@ -334,7 +314,7 @@ describe('Append (-1): 80-byte data with virtualSize=129 (osRtxThread_t)', () =>
 
         for (let i = 0; i < markers.length; i++) {
             const byteOff = i * VIRTUAL_SIZE + 8;
-            const val = await host.readValue(makeRef('TCB', 1, byteOff));
+            const val = host.read('TCB', byteOff, 1)![0];
             expect(val).toBe(markers.at(i));
         }
     });
@@ -358,7 +338,7 @@ describe('Append (-1): odd and prime virtualSize values', () => {
         { targetSize: 13, virtualSize: 17 },  // twin primes
         { targetSize: 9, virtualSize: 16 },   // 9-byte data, DWORD-aligned stride
         { targetSize: 80, virtualSize: 129 }, // real RTX TCB
-    ])('targetSize=$targetSize, virtualSize=$virtualSize: 4 appends and stride readback', async ({ targetSize, virtualSize }) => {
+    ])('targetSize=$targetSize, virtualSize=$virtualSize: 4 appends and stride readback', ({ targetSize, virtualSize }) => {
         const elements: Uint8Array[] = [];
         for (let i = 0; i < 4; i++) {
             const data = new Uint8Array(targetSize);
@@ -376,7 +356,7 @@ describe('Append (-1): odd and prime virtualSize values', () => {
         // Verify stride-based read of each element's first byte
         for (let i = 0; i < 4; i++) {
             const offset = i * virtualSize;
-            const val = await host.readValue(makeRef('arr', 1, offset));
+            const val = host.read('arr', offset, 1)![0];
             const elem = elements.at(i);
             expect(val).toBe(elem?.at(0));
         }
@@ -384,7 +364,7 @@ describe('Append (-1): odd and prime virtualSize values', () => {
         // Verify stride-based read of each element's LAST data byte
         for (let i = 0; i < 4; i++) {
             const offset = i * virtualSize + (targetSize - 1);
-            const val = await host.readValue(makeRef('arr', 1, offset));
+            const val = host.read('arr', offset, 1)![0];
             const elem = elements.at(i);
             expect(val).toBe(elem?.at(targetSize - 1));
         }
@@ -393,7 +373,7 @@ describe('Append (-1): odd and prime virtualSize values', () => {
         if (virtualSize > targetSize) {
             for (let i = 0; i < 4; i++) {
                 const paddingOffset = i * virtualSize + targetSize;
-                const val = await host.readValue(makeRef('arr', 1, paddingOffset));
+                const val = host.read('arr', paddingOffset, 1)![0];
                 expect(val).toBe(0);
             }
         }
@@ -411,7 +391,7 @@ describe('Append (-1): boundary probes ±1 byte', () => {
         host = new MemoryHost();
     });
 
-    it('probes ±1 around each element boundary with virtualSize=9', async () => {
+    it('probes ±1 around each element boundary with virtualSize=9', () => {
         // 3 elements with distinct data patterns
         const data = [
             new Uint8Array([0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19]),
@@ -424,18 +404,18 @@ describe('Append (-1): boundary probes ±1 byte', () => {
 
         // Boundary between element 0 and 1 is at byte 9
         // byte 8 = last byte of el0 = 0x19
-        expect(await host.readValue(makeRef('blk', 1, 8))).toBe(0x19);
+        expect(host.read('blk', 8, 1)![0]).toBe(0x19);
         // byte 9 = first byte of el1 = 0x21
-        expect(await host.readValue(makeRef('blk', 1, 9))).toBe(0x21);
+        expect(host.read('blk', 9, 1)![0]).toBe(0x21);
 
         // Boundary between element 1 and 2 is at byte 18
         // byte 17 = last byte of el1 = 0x29
-        expect(await host.readValue(makeRef('blk', 1, 17))).toBe(0x29);
+        expect(host.read('blk', 17, 1)![0]).toBe(0x29);
         // byte 18 = first byte of el2 = 0x31
-        expect(await host.readValue(makeRef('blk', 1, 18))).toBe(0x31);
+        expect(host.read('blk', 18, 1)![0]).toBe(0x31);
     });
 
-    it('probes ±1 around each element boundary with virtualSize=129 (49-byte padding)', async () => {
+    it('probes ±1 around each element boundary with virtualSize=129 (49-byte padding)', () => {
         const stride = 129;
         // Use identifiable first bytes
         const el0 = new Uint8Array(80); el0[0] = 0xAA; el0[79] = 0x0A;
@@ -448,26 +428,26 @@ describe('Append (-1): boundary probes ±1 byte', () => {
 
         // --- Element 0 → 1 boundary at byte 129 ---
         // Byte 79 = last data byte of el0 = 0x0A
-        expect(await host.readValue(makeRef('TCB', 1, 79))).toBe(0x0A);
+        expect(host.read('TCB', 79, 1)![0]).toBe(0x0A);
         // Byte 80 = first padding byte of el0 = 0
-        expect(await host.readValue(makeRef('TCB', 1, 80))).toBe(0);
+        expect(host.read('TCB', 80, 1)![0]).toBe(0);
         // Byte 128 = last padding byte of el0 = 0
-        expect(await host.readValue(makeRef('TCB', 1, 128))).toBe(0);
+        expect(host.read('TCB', 128, 1)![0]).toBe(0);
         // Byte 129 = first data byte of el1 = 0xBB
-        expect(await host.readValue(makeRef('TCB', 1, 129))).toBe(0xBB);
+        expect(host.read('TCB', 129, 1)![0]).toBe(0xBB);
         // Byte 130 = second data byte of el1 = 0 (default fill)
-        expect(await host.readValue(makeRef('TCB', 1, 130))).toBe(0);
+        expect(host.read('TCB', 130, 1)![0]).toBe(0);
 
         // --- Element 1 → 2 boundary at byte 258 ---
         // Byte 208 = last data byte of el1 = el1[79] = 0x0B
         //   (el1 starts at 129, data 0..79 → byte 129+79 = 208)
-        expect(await host.readValue(makeRef('TCB', 1, 129 + 79))).toBe(0x0B);
+        expect(host.read('TCB', 129 + 79, 1)![0]).toBe(0x0B);
         // Byte 209 = first padding of el1 = 0
-        expect(await host.readValue(makeRef('TCB', 1, 209))).toBe(0);
+        expect(host.read('TCB', 209, 1)![0]).toBe(0);
         // Byte 257 = last padding of el1 = 0
-        expect(await host.readValue(makeRef('TCB', 1, 257))).toBe(0);
+        expect(host.read('TCB', 257, 1)![0]).toBe(0);
         // Byte 258 = first data byte of el2 = 0xCC
-        expect(await host.readValue(makeRef('TCB', 1, 258))).toBe(0xCC);
+        expect(host.read('TCB', 258, 1)![0]).toBe(0xCC);
     });
 });
 
@@ -584,7 +564,7 @@ describe('Append (-1): off-by-one virtualSize sensitivity', () => {
         host = new MemoryHost();
     });
 
-    it('virtualSize = targetSize + 1: element[1] at offset targetSize+1 is correct', async () => {
+    it('virtualSize = targetSize + 1: element[1] at offset targetSize+1 is correct', () => {
         const targetSize = 9;
         const virtualSize = 10; // one extra padding byte
 
@@ -595,17 +575,17 @@ describe('Append (-1): off-by-one virtualSize sensitivity', () => {
         // Element 1: bytes [10..19], data [10..18], pad [19]
 
         // The padding byte at offset 9 must be 0
-        expect(await host.readValue(makeRef('v', 1, 9))).toBe(0);
+        expect(host.read('v', 9, 1)![0]).toBe(0);
 
         // Element 1 starts at offset 10
-        const next1 = await host.readValue(makeRef('v', 4, 10));
+        const next1 = leToNumber(host.read('v', 10, 4)!);
         expect(next1).toBe(0x200);
 
-        const id1 = await host.readValue(makeRef('v', 1, 18));
+        const id1 = host.read('v', 18, 1)![0];
         expect(id1).toBe(0xBB);
     });
 
-    it('virtualSize = targetSize - 1 is rejected (logged error, data still written)', async () => {
+    it('virtualSize = targetSize - 1 is rejected (logged error, data still written)', () => {
         const targetSize = 9;
         const virtualSize = 8; // LESS than target — should be rejected by validation
 
@@ -617,7 +597,7 @@ describe('Append (-1): off-by-one virtualSize sensitivity', () => {
         expect(host.getArrayElementCount('v')).toBe(1); // defaults to 1 when unknown
     });
 
-    it('consistent stride across 5 elements: no drift with virtualSize=129', async () => {
+    it('consistent stride across 5 elements: no drift with virtualSize=129', () => {
         const TARGET = 80;
         const VIRTUAL = 129;
         const COUNT = 5;
@@ -634,14 +614,14 @@ describe('Append (-1): off-by-one virtualSize sensitivity', () => {
         // Verify each element's marker using stride indexing (the evaluator's method)
         for (let i = 0; i < COUNT; i++) {
             const byteOffset = i * VIRTUAL;
-            const val = await host.readValue(makeRef('TCB', 4, byteOffset));
+            const val = leToNumber(host.read('TCB', byteOffset, 4)!);
             expect(val).toBe(markers.at(i));
         }
 
         // Also check the LAST data byte (offset 79 within each element)
         for (let i = 0; i < COUNT; i++) {
             const byteOffset = i * VIRTUAL + 79;
-            const lastByte = await host.readValue(makeRef('TCB', 1, byteOffset));
+            const lastByte = host.read('TCB', byteOffset, 1)![0];
             // makeTCB80 fills [9..79] with (marker & 0xFF) ^ 0xAA
             const marker = markers.at(i);
             const expected = marker !== undefined ? (marker & 0xFF) ^ 0xAA : undefined;
@@ -649,7 +629,7 @@ describe('Append (-1): off-by-one virtualSize sensitivity', () => {
         }
     });
 
-    it('verifies cumulative byteLength after N appends does not drift', async () => {
+    it('verifies cumulative byteLength after N appends does not drift', () => {
         const TARGET = 9;
         const VIRTUAL = 9;
         const COUNT = 100; // push many elements to detect any cumulative drift
@@ -662,11 +642,11 @@ describe('Append (-1): off-by-one virtualSize sensitivity', () => {
 
         // Spot-check element 99
         const off99 = 99 * VIRTUAL;
-        const val = await host.readValue(makeRef('many', 4, off99));
+        const val = leToNumber(host.read('many', off99, 4)!);
         expect(val).toBe(99);
 
         // id byte of element 50
-        const id50 = await host.readValue(makeRef('many', 1, 50 * VIRTUAL + 8));
+        const id50 = host.read('many', 50 * VIRTUAL + 8, 1)![0];
         expect(id50).toBe(50);
     });
 });
@@ -697,22 +677,22 @@ describe('Append (-1): unaligned target base addresses', () => {
         }
     });
 
-    it('target base address does not affect in-host byte offsets', async () => {
+    it('target base address does not affect in-host byte offsets', () => {
         // Two elements with very different (unaligned) target addresses
         // but both should be stored contiguously in the container
         host.setVariable('bl', 9, makeBlock9(0xAAAA, 41, 0x11), -1, 0x20010D29, 9);
         host.setVariable('bl', 9, makeBlock9(0xBBBB, 42, 0x22), -1, 0x20010D52, 9);
 
         // Element 0 at offset 0
-        expect(await host.readValue(makeRef('bl', 4, 0))).toBe(0xAAAA);
-        expect(await host.readValue(makeRef('bl', 1, 8))).toBe(0x11);
+        expect(leToNumber(host.read('bl', 0, 4)!)).toBe(0xAAAA);
+        expect(host.read('bl', 8, 1)![0]).toBe(0x11);
 
         // Element 1 at offset 9 (= 1 * stride)
-        expect(await host.readValue(makeRef('bl', 4, 9))).toBe(0xBBBB);
-        expect(await host.readValue(makeRef('bl', 1, 17))).toBe(0x22);
+        expect(leToNumber(host.read('bl', 9, 4)!)).toBe(0xBBBB);
+        expect(host.read('bl', 17, 1)![0]).toBe(0x22);
     });
 
-    it('non-DWORD-aligned addresses with virtualSize=129 store and read correctly', async () => {
+    it('non-DWORD-aligned addresses with virtualSize=129 store and read correctly', () => {
         // Addresses that are 1, 2, 3 bytes off from DWORD alignment
         const addrs = [0x20010001, 0x20010052, 0x200100A3];
         const markers = [0x111, 0x222, 0x333];
@@ -725,7 +705,7 @@ describe('Append (-1): unaligned target base addresses', () => {
 
         for (let i = 0; i < 3; i++) {
             expect(host.getElementTargetBase('TCB', i)).toBe(addrs.at(i));
-            const val = await host.readValue(makeRef('TCB', 4, i * 129));
+            const val = leToNumber(host.read('TCB', i * 129, 4)!);
             expect(val).toBe(markers.at(i));
         }
     });
@@ -742,7 +722,7 @@ describe('Append (-1): multiple variables with different strides', () => {
         host = new MemoryHost();
     });
 
-    it('mem_list_com (9/9) and TCB (80/129) coexist without interference', async () => {
+    it('mem_list_com (9/9) and TCB (80/129) coexist without interference', () => {
         // Append 3 blocks to mem_list_com
         host.setVariable('mem_list_com', 9, makeBlock9(0x100, 41, 0xF1), -1, 0x1000, 9);
         host.setVariable('mem_list_com', 9, makeBlock9(0x200, 41, 0xF5), -1, 0x2000, 9);
@@ -754,16 +734,16 @@ describe('Append (-1): multiple variables with different strides', () => {
 
         // Verify mem_list_com
         expect(host.getArrayElementCount('mem_list_com')).toBe(3);
-        expect(await host.readValue(makeRef('mem_list_com', 1, 8))).toBe(0xF1);
-        expect(await host.readValue(makeRef('mem_list_com', 1, 17))).toBe(0xF5);
+        expect(host.read('mem_list_com', 8, 1)![0]).toBe(0xF1);
+        expect(host.read('mem_list_com', 17, 1)![0]).toBe(0xF5);
 
         // Verify TCB — should not be affected by mem_list_com writes
         expect(host.getArrayElementCount('TCB')).toBe(2);
-        expect(await host.readValue(makeRef('TCB', 4, 0))).toBe(0xAABB);
-        expect(await host.readValue(makeRef('TCB', 4, 129))).toBe(0xCCDD);
+        expect(leToNumber(host.read('TCB', 0, 4)!)).toBe(0xAABB);
+        expect(leToNumber(host.read('TCB', 129, 4)!)).toBe(0xCCDD);
     });
 
-    it('clearNonConst wipes both variables, re-append produces fresh layout', async () => {
+    it('clearNonConst wipes both variables, re-append produces fresh layout', () => {
         host.setVariable('bl', 9, makeBlock9(0x100, 41, 0xF1), -1, 0x1000, 9);
         host.setVariable('TCB', 80, makeTCB80(0xAAAA), -1, 0x20000, 129);
 
@@ -777,8 +757,8 @@ describe('Append (-1): multiple variables with different strides', () => {
         host.setVariable('bl', 9, makeBlock9(0x999, 99, 0xEE), -1, 0x5000, 9);
         host.setVariable('TCB', 80, makeTCB80(0xDDDD), -1, 0x30000, 129);
 
-        expect(await host.readValue(makeRef('bl', 1, 8))).toBe(0xEE);
-        expect(await host.readValue(makeRef('TCB', 4, 0))).toBe(0xDDDD);
+        expect(host.read('bl', 8, 1)![0]).toBe(0xEE);
+        expect(leToNumber(host.read('TCB', 0, 4)!)).toBe(0xDDDD);
     });
 });
 
@@ -793,7 +773,7 @@ describe('Append (-1): simulated RTX readList → TCB[i].sp (end-to-end stride)'
         host = new MemoryHost();
     });
 
-    it('5 TCBs appended with 80/129, then TCB[i].sp accessed via stride*i + offset', async () => {
+    it('5 TCBs appended with 80/129, then TCB[i].sp accessed via stride*i + offset', () => {
         // The SCVD osRtxThread_t has sp at member offset 56 (byte 56 within the 80-byte struct)
         const SP_MEMBER_OFFSET = 56;
         const TARGET_SIZE = 80;
@@ -820,7 +800,7 @@ describe('Append (-1): simulated RTX readList → TCB[i].sp (end-to-end stride)'
         //   = i * 129 + 56
         for (let i = 0; i < 5; i++) {
             const byteOff = i * VIRTUAL_SIZE + SP_MEMBER_OFFSET;
-            const sp = await host.readValue(makeRef('TCB', 4, byteOff));
+            const sp = leToNumber(host.read('TCB', byteOff, 4)!);
             expect(sp).toBe(spValues.at(i));
         }
 
@@ -828,7 +808,7 @@ describe('Append (-1): simulated RTX readList → TCB[i].sp (end-to-end stride)'
         // (which would happen if stride were off by even 1 byte)
         for (let i = 0; i < 5; i++) {
             const byteOff = i * VIRTUAL_SIZE + SP_MEMBER_OFFSET;
-            const sp = await host.readValue(makeRef('TCB', 4, byteOff)) as number;
+            const sp = leToNumber(host.read('TCB', byteOff, 4)!);
             // Must not equal any OTHER thread's sp
             for (let j = 0; j < 5; j++) {
                 if (j !== i) {
@@ -851,7 +831,7 @@ describe('Append (-1): simulated RTX readList → TCB[i].sp (end-to-end stride)'
         }
     });
 
-    it('2x same TCB address would require setVariable to be called twice for same addr', async () => {
+    it('2x same TCB address would require setVariable to be called twice for same addr', () => {
         // This simulates the "2x app_main" bug scenario:
         // If the readList produces the same target address twice, both
         // appends store the same data but at different stride indices.
@@ -868,8 +848,8 @@ describe('Append (-1): simulated RTX readList → TCB[i].sp (end-to-end stride)'
         expect(host.getElementTargetBase('TCB', 0)).toBe(sameAddr);
         expect(host.getElementTargetBase('TCB', 1)).toBe(sameAddr);
 
-        const marker0 = await host.readValue(makeRef('TCB', 4, 0));
-        const marker1 = await host.readValue(makeRef('TCB', 4, 129));
+        const marker0 = leToNumber(host.read('TCB', 0, 4)!);
+        const marker1 = leToNumber(host.read('TCB', 129, 4)!);
         expect(marker0).toBe(marker1); // same data → same marker → "2x app_main"
     });
 });

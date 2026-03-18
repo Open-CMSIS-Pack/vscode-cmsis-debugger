@@ -120,4 +120,38 @@ describe('StatementVar', () => {
 
         expect(spy).not.toHaveBeenCalled();
     });
+
+    it('passes Uint8Array value through when it fits in targetSize', async () => {
+        const item = new ScvdVar(undefined);
+        item.name = 'strVar';
+        jest.spyOn(item, 'getTargetSize').mockResolvedValue(8);
+        jest.spyOn(item, 'getValue').mockResolvedValue(new Uint8Array([72, 101, 108, 108, 111])); // "Hello"
+
+        const stmt = new StatementVar(item, undefined);
+        const ctx = createExecutionContext(item);
+        const spy = jest.spyOn(ctx.memoryHost, 'setVariable');
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        // Uint8Array fits in targetSize=8 so passed as-is
+        expect(spy).toHaveBeenCalledWith('strVar', 8, new Uint8Array([72, 101, 108, 108, 111]), -1, 0);
+    });
+
+    it('truncates Uint8Array value when it exceeds targetSize', async () => {
+        const item = new ScvdVar(undefined);
+        item.name = 'strTrunc';
+        jest.spyOn(item, 'getTargetSize').mockResolvedValue(3);
+        jest.spyOn(item, 'getValue').mockResolvedValue(new Uint8Array([72, 101, 108, 108, 111])); // "Hello"
+
+        const stmt = new StatementVar(item, undefined);
+        const ctx = createExecutionContext(item);
+        const spy = jest.spyOn(ctx.memoryHost, 'setVariable');
+        const guiTree = new ScvdGuiTree(undefined);
+
+        await stmt.executeStatement(ctx, guiTree);
+
+        // Uint8Array truncated to targetSize=3
+        expect(spy).toHaveBeenCalledWith('strTrunc', 3, new Uint8Array([72, 101, 108]), -1, 0);
+    });
 });

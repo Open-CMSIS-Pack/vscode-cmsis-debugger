@@ -16,53 +16,32 @@
 // generated with AI
 
 /**
- * Integration test for MemoryHost.
+ * Integration test for MemoryHost (pure byte store).
  */
 
 import { MemoryHost } from '../../../data-host/memory-host';
-import { RefContainer } from '../../../parser-evaluator/model-host';
-import { ScvdNode } from '../../../model/scvd-node';
-
-class NamedStubBase extends ScvdNode {
-    constructor(name: string) {
-        super(undefined);
-        this.name = name;
-    }
-}
-
-const makeContainer = (name: string, widthBytes: number, offsetBytes = 0): RefContainer => {
-    const ref = new NamedStubBase(name);
-    return {
-        base: ref,
-        anchor: ref,
-        current: ref,
-        offsetBytes,
-        widthBytes,
-        valueType: undefined,
-    };
-};
 
 describe('MemoryHost', () => {
-    it('stores and retrieves numeric values with explicit offsets', async () => {
+    it('stores and retrieves numeric values with explicit offsets', () => {
         const host = new MemoryHost();
 
         host.setVariable('foo', 4, 0x12345678, 0);
-        expect(await host.readRaw(makeContainer('foo', 4, 0), 4)).toEqual(new Uint8Array([0x78, 0x56, 0x34, 0x12]));
+        expect(host.read('foo', 0, 4)).toEqual(new Uint8Array([0x78, 0x56, 0x34, 0x12]));
 
         host.setVariable('foo', 2, 0xabcd, 4);
-        expect(await host.readRaw(makeContainer('foo', 2, 4), 2)).toEqual(new Uint8Array([0xcd, 0xab]));
+        expect(host.read('foo', 4, 2)).toEqual(new Uint8Array([0xcd, 0xab]));
     });
 
-    it('appends when offset is -1 and tracks element count', async () => {
+    it('appends when offset is -1 and tracks element count', () => {
         const host = new MemoryHost();
         host.setVariable('arr', 4, 1, -1);
         host.setVariable('arr', 4, 2, -1);
         host.setVariable('arr', 4, 3, -1);
 
         expect(host.getArrayElementCount('arr')).toBe(3);
-        expect(await host.readRaw(makeContainer('arr', 4, 0), 4)).toEqual(new Uint8Array([1, 0, 0, 0]));
-        expect(await host.readRaw(makeContainer('arr', 4, 4), 4)).toEqual(new Uint8Array([2, 0, 0, 0]));
-        expect(await host.readRaw(makeContainer('arr', 4, 8), 4)).toEqual(new Uint8Array([3, 0, 0, 0]));
+        expect(host.read('arr', 0, 4)).toEqual(new Uint8Array([1, 0, 0, 0]));
+        expect(host.read('arr', 4, 4)).toEqual(new Uint8Array([2, 0, 0, 0]));
+        expect(host.read('arr', 8, 4)).toEqual(new Uint8Array([3, 0, 0, 0]));
     });
 
     it('tracks target bases per element', () => {
@@ -74,114 +53,94 @@ describe('MemoryHost', () => {
         expect(host.getElementTargetBase('sym', 1)).toBe(0x2000);
     });
 
-    it('supports readValue/writeValue round-trips for numbers', async () => {
-        const host = new MemoryHost();
-        const container = makeContainer('num', 4);
-
-        await host.writeValue(container, 0xdeadbeef);
-        const out = await host.readValue(container);
-        expect(out).toBe(0xdeadbeef >>> 0);
-    });
-
-    it('supports readValue/writeValue for byte arrays', async () => {
+    it('stores and reads byte arrays', () => {
         const host = new MemoryHost();
         const bytes = new Uint8Array([1, 2, 3, 4, 5, 6]);
-        const container = makeContainer('blob', bytes.length);
 
-        await host.writeValue(container, bytes);
-        const out = await host.readValue(container);
+        host.setVariable('blob', bytes.length, bytes, 0);
+        const out = host.read('blob', 0, bytes.length);
         expect(out).toEqual(bytes);
     });
 
-    it('writes and reads raw bytes at offsets', async () => {
+    it('writes and reads raw bytes at offsets', () => {
         const host = new MemoryHost();
-        const container = makeContainer('raw', 4, 2);
 
-        await host.writeValue(container, new Uint8Array([9, 8, 7, 6]));
-        const out = await host.readRaw(container, 4);
+        host.write('raw', 2, new Uint8Array([9, 8, 7, 6]));
+        const out = host.read('raw', 2, 4);
 
         expect(out).toEqual(new Uint8Array([9, 8, 7, 6]));
     });
 
-    it('round-trips via setVariable for a simple read', async () => {
+    it('round-trips via setVariable for a simple store', () => {
         const host = new MemoryHost();
         host.setVariable('simple', 2, 0x1234, 0);
 
-        expect(await host.readValue(makeContainer('simple', 2, 0))).toBe(0x1234);
+        expect(host.read('simple', 0, 2)).toEqual(new Uint8Array([0x34, 0x12]));
     });
 
-    it('preserves untouched bytes on partial overwrites', async () => {
+    it('preserves untouched bytes on partial overwrites', () => {
         const host = new MemoryHost();
-        const base = makeContainer('overlap', 4, 0);
-        const tail = makeContainer('overlap', 2, 2);
 
-        await host.writeValue(base, new Uint8Array([1, 2, 3, 4]));
-        await host.writeValue(tail, new Uint8Array([9, 8]));
+        host.write('overlap', 0, new Uint8Array([1, 2, 3, 4]));
+        host.write('overlap', 2, new Uint8Array([9, 8]));
 
-        const out = await host.readRaw(base, 4);
+        const out = host.read('overlap', 0, 4);
         expect(out).toEqual(new Uint8Array([1, 2, 9, 8]));
     });
 
-    it('partial setVariable writes only affect the specified range', async () => {
+    it('partial setVariable writes only affect the specified range', () => {
         const host = new MemoryHost();
 
         host.setVariable('window', 4, new Uint8Array([1, 2, 3, 4]), 0);
         host.setVariable('window', 2, new Uint8Array([9, 8]), 2);
 
-        expect(await host.readRaw(makeContainer('window', 2, 0), 2)).toEqual(new Uint8Array([1, 2]));
-        expect(await host.readRaw(makeContainer('window', 2, 2), 2)).toEqual(new Uint8Array([9, 8]));
+        expect(host.read('window', 0, 2)).toEqual(new Uint8Array([1, 2]));
+        expect(host.read('window', 2, 2)).toEqual(new Uint8Array([9, 8]));
     });
 
-    it('zero-fills virtual size and supports writes into virtual space', async () => {
+    it('zero-fills virtual size and supports writes into virtual space', () => {
         const host = new MemoryHost();
 
         host.setVariable('struct', 2, new Uint8Array([0xAA, 0xBB]), 0, undefined, 6);
 
-        const base = makeContainer('struct', 2, 0);
-        const mid = makeContainer('struct', 2, 2);
-        const tail = makeContainer('struct', 2, 4);
+        expect(host.read('struct', 0, 2)).toEqual(new Uint8Array([0xAA, 0xBB]));
+        expect(host.read('struct', 2, 2)).toEqual(new Uint8Array([0x00, 0x00]));
+        expect(host.read('struct', 4, 2)).toEqual(new Uint8Array([0x00, 0x00]));
 
-        expect(await host.readRaw(base, 2)).toEqual(new Uint8Array([0xAA, 0xBB]));
-        expect(await host.readRaw(mid, 2)).toEqual(new Uint8Array([0x00, 0x00]));
-        expect(await host.readRaw(tail, 2)).toEqual(new Uint8Array([0x00, 0x00]));
+        host.write('struct', 2, new Uint8Array([0x11, 0x22]));
 
-        await host.writeValue(mid, new Uint8Array([0x11, 0x22]));
+        expect(host.read('struct', 0, 2)).toEqual(new Uint8Array([0xAA, 0xBB]));
+        expect(host.read('struct', 2, 2)).toEqual(new Uint8Array([0x11, 0x22]));
+        expect(host.read('struct', 4, 2)).toEqual(new Uint8Array([0x00, 0x00]));
 
-        expect(await host.readRaw(base, 2)).toEqual(new Uint8Array([0xAA, 0xBB]));
-        expect(await host.readRaw(mid, 2)).toEqual(new Uint8Array([0x11, 0x22]));
-        expect(await host.readRaw(tail, 2)).toEqual(new Uint8Array([0x00, 0x00]));
+        host.write('struct', 4, new Uint8Array([0x33, 0x44]));
 
-        await host.writeValue(tail, new Uint8Array([0x33, 0x44]));
-
-        expect(await host.readRaw(base, 2)).toEqual(new Uint8Array([0xAA, 0xBB]));
-        expect(await host.readRaw(mid, 2)).toEqual(new Uint8Array([0x11, 0x22]));
-        expect(await host.readRaw(tail, 2)).toEqual(new Uint8Array([0x33, 0x44]));
+        expect(host.read('struct', 0, 2)).toEqual(new Uint8Array([0xAA, 0xBB]));
+        expect(host.read('struct', 2, 2)).toEqual(new Uint8Array([0x11, 0x22]));
+        expect(host.read('struct', 4, 2)).toEqual(new Uint8Array([0x33, 0x44]));
     });
 
-    it('expands the backing buffer when writing beyond current size', async () => {
+    it('expands the backing buffer when writing beyond current size', () => {
         const host = new MemoryHost();
-        const head = makeContainer('grow', 2, 0);
-        const tail = makeContainer('grow', 2, 6);
 
-        await host.writeValue(head, new Uint8Array([1, 2]));
-        await host.writeValue(tail, new Uint8Array([9, 8]));
+        host.write('grow', 0, new Uint8Array([1, 2]));
+        host.write('grow', 6, new Uint8Array([9, 8]));
 
-        expect(await host.readRaw(head, 2)).toEqual(new Uint8Array([1, 2]));
-        expect(await host.readRaw(tail, 2)).toEqual(new Uint8Array([9, 8]));
+        expect(host.read('grow', 0, 2)).toEqual(new Uint8Array([1, 2]));
+        expect(host.read('grow', 6, 2)).toEqual(new Uint8Array([9, 8]));
     });
 
-    it('appends when offset is -1 and later writes can expand via the interface', async () => {
+    it('appends when offset is -1 and later writes can expand via the interface', () => {
         const host = new MemoryHost();
 
         host.setVariable('arr', 2, new Uint8Array([1, 2]), -1);
         host.setVariable('arr', 2, new Uint8Array([3, 4]), -1);
 
-        const appended = makeContainer('arr', 2, 4);
-        await host.writeValue(appended, new Uint8Array([5, 6]));
+        host.write('arr', 4, new Uint8Array([5, 6]));
 
         expect(host.getArrayElementCount('arr')).toBe(2);
-        expect(await host.readRaw(makeContainer('arr', 2, 0), 2)).toEqual(new Uint8Array([1, 2]));
-        expect(await host.readRaw(makeContainer('arr', 2, 2), 2)).toEqual(new Uint8Array([3, 4]));
-        expect(await host.readRaw(makeContainer('arr', 2, 4), 2)).toEqual(new Uint8Array([5, 6]));
+        expect(host.read('arr', 0, 2)).toEqual(new Uint8Array([1, 2]));
+        expect(host.read('arr', 2, 2)).toEqual(new Uint8Array([3, 4]));
+        expect(host.read('arr', 4, 2)).toEqual(new Uint8Array([5, 6]));
     });
 });
