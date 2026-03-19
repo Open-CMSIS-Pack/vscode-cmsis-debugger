@@ -16,7 +16,11 @@
 
 import * as vscode from 'vscode';
 import { componentViewerLogger } from '../../../logger';
-import { IPeripheralInspectorAPI, InterruptTable, InterruptEntry } from '../../../peripheral-inspector-api-types';
+import {
+    IPeripheralInspectorAPI,
+    InterruptTable,
+    InterruptEntry
+} from '@eclipse-cdt-cloud/vscode-peripheral-inspector/api';
 
 const PERIPHERAL_INSPECTOR_EXTENSION_ID = 'eclipse-cdt.peripheral-inspector';
 const ACTIVATION_TIMEOUT_MS = 5000;
