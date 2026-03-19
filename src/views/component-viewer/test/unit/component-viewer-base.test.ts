@@ -792,6 +792,7 @@ describe('ComponentViewerBase', () => {
 
         // getAllCollapsibleElements returns all nodes with children
         (provider.getAllCollapsibleElements as jest.Mock).mockReturnValue([rootA]);
+        (provider.getChildren as jest.Mock).mockReturnValue([rootA]);
 
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
@@ -804,8 +805,9 @@ describe('ComponentViewerBase', () => {
         await expandAllHandler?.();
 
         expect(provider.getAllCollapsibleElements).toHaveBeenCalled();
-        expect(revealMock).toHaveBeenCalledTimes(1);
-        expect(revealMock).toHaveBeenCalledWith(rootA, { select: false, focus: false, expand: true });
+        expect(revealMock).toHaveBeenCalledTimes(2);
+        expect(revealMock).toHaveBeenNthCalledWith(1, rootA, { select: false, focus: false, expand: true });
+        expect(revealMock).toHaveBeenNthCalledWith(2, rootA, { select: false, focus: false, expand: false });
     });
 
     it('expandAll command does nothing when tree has no collapsible elements', async () => {
@@ -818,6 +820,7 @@ describe('ComponentViewerBase', () => {
         });
 
         (provider.getAllCollapsibleElements as jest.Mock).mockReturnValue([]);
+        (provider.getChildren as jest.Mock).mockReturnValue([]);
 
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
@@ -846,6 +849,7 @@ describe('ComponentViewerBase', () => {
         });
 
         (provider.getAllCollapsibleElements as jest.Mock).mockReturnValue([rootA, rootB]);
+        (provider.getChildren as jest.Mock).mockReturnValue([rootA, rootB]);
 
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
@@ -856,9 +860,10 @@ describe('ComponentViewerBase', () => {
 
         // Should not throw despite first reveal failing
         await expect(expandAllHandler?.()).resolves.toBeUndefined();
-        expect(revealMock).toHaveBeenCalledTimes(2);
-        expect(revealMock).toHaveBeenCalledWith(rootA, { select: false, focus: false, expand: true });
-        expect(revealMock).toHaveBeenCalledWith(rootB, { select: false, focus: false, expand: true });
+        expect(revealMock).toHaveBeenCalledTimes(3);
+        expect(revealMock).toHaveBeenNthCalledWith(1, rootA, { select: false, focus: false, expand: true });
+        expect(revealMock).toHaveBeenNthCalledWith(2, rootB, { select: false, focus: false, expand: true });
+        expect(revealMock).toHaveBeenNthCalledWith(3, rootA, { select: false, focus: false, expand: false });
     });
 
     it('handleExpandAll returns early when treeView is not set', async () => {
