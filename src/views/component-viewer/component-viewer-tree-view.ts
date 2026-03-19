@@ -117,6 +117,28 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         return children;
     }
 
+    /**
+     * Required by {@link vscode.TreeView.reveal} to resolve the tree path to an element.
+     * Performs a recursive search from the roots.
+     */
+    public getParent(element: ScvdGuiInterface): ScvdGuiInterface | undefined {
+        const targetId = element.getGuiId();
+        if (targetId === undefined) {
+            return undefined;
+        }
+        return this.findParentInTree(this._roots, targetId);
+    }
+
+    /**
+     * Recursively collects all elements that have children, for use with
+     * {@link vscode.TreeView.reveal} to expand the whole tree.
+     */
+    public getAllCollapsibleElements(): ScvdGuiInterface[] {
+        const result: ScvdGuiInterface[] = [];
+        this.collectCollapsibleElements(this._roots, result);
+        return result;
+    }
+
     public setRoots(roots: ScvdGuiInterface[] = []): void {
         this.logUiPerf();
         this._roots = roots;
@@ -131,6 +153,34 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
 
     public refresh(): void {
         this._onDidChangeTreeData.fire();
+    }
+
+    private collectCollapsibleElements(elements: ScvdGuiInterface[], result: ScvdGuiInterface[]): void {
+        for (const element of elements) {
+            if (element.hasGuiChildren()) {
+                result.push(element);
+                const children = element.getGuiChildren() || [];
+                this.collectCollapsibleElements(children, result);
+            }
+        }
+    }
+
+    private findParentInTree(elements: ScvdGuiInterface[], targetId: string): ScvdGuiInterface | undefined {
+        for (const element of elements) {
+            if (element.hasGuiChildren()) {
+                const children = element.getGuiChildren();
+                for (const child of children) {
+                    if (child.getGuiId() === targetId) {
+                        return element;
+                    }
+                }
+                const found = this.findParentInTree(children, targetId);
+                if (found !== undefined) {
+                    return found;
+                }
+            }
+        }
+        return undefined;
     }
 
     private logUiPerf(): void {

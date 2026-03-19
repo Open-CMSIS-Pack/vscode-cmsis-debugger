@@ -42,6 +42,7 @@ export class ComponentViewerBase {
     private _activeSession: GDBTargetDebugSession | undefined;
     private _instances: ComponentViewerInstancesWrapper[] = [];
     private _componentViewerTreeDataProvider: ComponentViewerTreeDataProvider;
+    private _treeView: vscode.TreeView<ScvdGuiInterface> | undefined;
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
     private _loadingCounter: number = 0;
@@ -85,6 +86,7 @@ export class ComponentViewerBase {
             treeDataProvider: this._componentViewerTreeDataProvider,
             showCollapseAll: true
         });
+        this._treeView = treeView;
         componentViewerLogger.debug(`${this._viewName}: Created ${this._viewName} tree view with id: ${fullViewId}`);
         const onDidExpandElementDisposable = treeView.onDidExpandElement(event => this.handleOnDidToggleExpand(event, true));
         const onDidCollapseElementDisposable = treeView.onDidCollapseElement(event => this.handleOnDidToggleExpand(event, false));
@@ -102,6 +104,10 @@ export class ComponentViewerBase {
             this._refreshTimerEnabled = false;
             componentViewerLogger.info(`${this._viewName}: Auto refresh disabled`);
         });
+        const expandAllCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.expandAll`, async () => {
+            componentViewerLogger.debug(`${this._viewName}: Expand all tree items`);
+            await this.handleExpandAll();
+        });
         this._context.subscriptions.push(
             treeView,
             onDidExpandElementDisposable,
@@ -109,9 +115,33 @@ export class ComponentViewerBase {
             lockInstanceCommandDisposable,
             unlockInstanceCommandDisposable,
             enablePeriodicUpdateCommandDisposable,
-            disablePeriodicUpdateCommandDisposable
+            disablePeriodicUpdateCommandDisposable,
+            expandAllCommandDisposable
         );
         return true;
+    }
+
+    protected async handleExpandAll(): Promise<void> {
+        if (!this._treeView) {
+            return;
+        }
+        const collapsibleElements = this._componentViewerTreeDataProvider.getAllCollapsibleElements();
+        for (const element of collapsibleElements) {
+            try {
+                await this._treeView.reveal(element, { select: false, focus: false, expand: true });
+            } catch {
+                // Element may not be accessible in the tree view
+            }
+        }
+        // Scroll back to the top of the tree after expanding
+        const roots = this._componentViewerTreeDataProvider.getChildren();
+        if (roots.length > 0) {
+            try {
+                await this._treeView.reveal(roots[0], { select: false, focus: false, expand: false });
+            } catch {
+                // Root may not be accessible
+            }
+        }
     }
 
     protected handleOnDidToggleExpand(expansionEvent: vscode.TreeViewExpansionEvent<ScvdGuiInterface>, expand: boolean): void {

@@ -67,6 +67,7 @@ jest.mock('vscode', () => {
         ThemeIcon,
         TreeItemCollapsibleState: {
             Collapsed: 1,
+            Expanded: 2,
             None: 0,
         },
     };
@@ -345,4 +346,129 @@ describe('ComponentViewerTreeDataProvider', () => {
         treeItem = provider.getTreeItem(root);
         expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
     });
+
+    it('getParent returns undefined for root elements', () => {
+        const root = makeGui({
+            getGuiId: () => 'session1/root',
+            hasGuiChildren: () => true,
+        });
+        provider.setRoots([root]);
+
+        expect(provider.getParent(root)).toBeUndefined();
+    });
+
+    it('getParent returns correct parent for child elements', () => {
+        const child = makeGui({
+            getGuiId: () => 'session1/child',
+            hasGuiChildren: () => false,
+        });
+        const root = makeGui({
+            getGuiId: () => 'session1/root',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [child],
+        });
+        provider.setRoots([root]);
+
+        expect(provider.getParent(child)).toBe(root);
+    });
+
+    it('getParent returns undefined for element with no id', () => {
+        const noId = makeGui({ getGuiId: () => undefined });
+        expect(provider.getParent(noId)).toBeUndefined();
+    });
+
+    it('getParent returns correct parent for deeply nested grandchild', () => {
+        const grandchild = makeGui({
+            getGuiId: () => 'session1/grandchild',
+            hasGuiChildren: () => false,
+        });
+        const child = makeGui({
+            getGuiId: () => 'session1/child',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [grandchild],
+        });
+        const root = makeGui({
+            getGuiId: () => 'session1/root',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [child],
+        });
+        provider.setRoots([root]);
+
+        expect(provider.getParent(grandchild)).toBe(child);
+    });
+
+    it('getParent returns undefined for element not in the tree', () => {
+        const root = makeGui({
+            getGuiId: () => 'session1/root',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [],
+        });
+        const orphan = makeGui({ getGuiId: () => 'session1/orphan' });
+        provider.setRoots([root]);
+
+        expect(provider.getParent(orphan)).toBeUndefined();
+    });
+
+    it('getAllCollapsibleElements returns empty array for empty tree', () => {
+        provider.setRoots([]);
+        expect(provider.getAllCollapsibleElements()).toEqual([]);
+    });
+
+    it('getAllCollapsibleElements returns only elements with children', () => {
+        const leaf = makeGui({
+            getGuiId: () => 'leaf',
+            hasGuiChildren: () => false,
+        });
+        const parent = makeGui({
+            getGuiId: () => 'parent',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [leaf],
+        });
+        provider.setRoots([parent, leaf]);
+
+        const result = provider.getAllCollapsibleElements();
+        expect(result).toEqual([parent]);
+    });
+
+    it('getAllCollapsibleElements collects nested collapsible elements in top-down order', () => {
+        const grandchild = makeGui({
+            getGuiId: () => 'grandchild',
+            hasGuiChildren: () => false,
+        });
+        const child = makeGui({
+            getGuiId: () => 'child',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [grandchild],
+        });
+        const root = makeGui({
+            getGuiId: () => 'root',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [child],
+        });
+        provider.setRoots([root]);
+
+        const result = provider.getAllCollapsibleElements();
+        expect(result).toEqual([root, child]);
+    });
+
+    it('getAllCollapsibleElements handles multiple roots with mixed children', () => {
+        const childA = makeGui({
+            getGuiId: () => 'childA',
+            hasGuiChildren: () => false,
+        });
+        const rootA = makeGui({
+            getGuiId: () => 'rootA',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [childA],
+        });
+        const rootB = makeGui({
+            getGuiId: () => 'rootB',
+            hasGuiChildren: () => false,
+        });
+        provider.setRoots([rootA, rootB]);
+
+        const result = provider.getAllCollapsibleElements();
+        expect(result).toEqual([rootA]);
+    });
+
 });
