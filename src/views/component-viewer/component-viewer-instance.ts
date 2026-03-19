@@ -54,6 +54,14 @@ export class ComponentViewerInstance {
     private _instanceKey: string | undefined;
     private _scvdEvalContext: ScvdEvalContext | undefined;
 
+    /**
+     * Set the SVD file path for interrupt table lookups via %Q format specifier.
+     * Routed directly to the InterruptHost on the ScvdEvalContext.
+     */
+    public setSvdPath(path: string | undefined): void {
+        this._scvdEvalContext?.interruptHost.setSvdPath(path);
+    }
+
     public constructor(
     ) {
     }

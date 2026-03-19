@@ -26,6 +26,7 @@ import { ScvdFormatSpecifier } from '../../../../model/scvd-format-specifier';
 import { ScvdDebugTarget } from '../../../../scvd-debug-target';
 import { RefContainer } from '../../../../parser-evaluator/model-host';
 import { ScvdNode } from '../../../../model/scvd-node';
+import { InterruptHost } from '../../../../data-host/interrupt-host';
 
 const makeStubBase = (name: string): ScvdNode => ({
     name,
@@ -59,7 +60,7 @@ describe('ScvdEvalInterface', () => {
             readUint8ArrayStrFromPointer: jest.fn().mockResolvedValue(new Uint8Array([65, 66])),
         } as unknown as ScvdDebugTarget;
         const fmt = new ScvdFormatSpecifier();
-        const host = new ScvdEvalInterface(memHost, regCache, debugTarget, fmt);
+        const host = new ScvdEvalInterface(memHost, regCache, debugTarget, fmt, new InterruptHost());
 
         expect(await host.__FindSymbol('foo')).toBe(0x1234);
         expect(await host.__GetRegVal('r0')).toBe(7);
@@ -81,7 +82,7 @@ describe('ScvdEvalInterface', () => {
             readUint8ArrayStrFromPointer: jest.fn(),
         } as unknown as ScvdDebugTarget;
         const fmt = new ScvdFormatSpecifier();
-        const host = new ScvdEvalInterface(memHost, regCache, debugTarget, fmt);
+        const host = new ScvdEvalInterface(memHost, regCache, debugTarget, fmt, new InterruptHost());
 
         const container = makeContainer('v', 4);
 
@@ -95,7 +96,7 @@ describe('ScvdEvalInterface', () => {
         const regCache = { read: jest.fn() } as unknown as RegisterHost;
         const debugTarget = { getSymbolSize: jest.fn(), getNumArrayElements: jest.fn() } as unknown as ScvdDebugTarget;
         const fmt = new ScvdFormatSpecifier();
-        const host = new ScvdEvalInterface(memHost, regCache, debugTarget, fmt);
+        const host = new ScvdEvalInterface(memHost, regCache, debugTarget, fmt, new InterruptHost());
 
         const container = makeContainer('num', 4);
         await host.writeValue(container, 0xdeadbeef);
