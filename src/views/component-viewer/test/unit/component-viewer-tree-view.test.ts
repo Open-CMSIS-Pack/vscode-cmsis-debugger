@@ -67,6 +67,7 @@ jest.mock('vscode', () => {
         ThemeIcon,
         TreeItemCollapsibleState: {
             Collapsed: 1,
+            Expanded: 2,
             None: 0,
         },
     };
@@ -345,4 +346,35 @@ describe('ComponentViewerTreeDataProvider', () => {
         treeItem = provider.getTreeItem(root);
         expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
     });
+
+    it('getParent returns undefined for root elements', () => {
+        const root = makeGui({
+            getGuiId: () => 'session1/root',
+            hasGuiChildren: () => true,
+        });
+        provider.setRoots([root]);
+
+        expect(provider.getParent(root)).toBeUndefined();
+    });
+
+    it('getParent returns correct parent for child elements', () => {
+        const child = makeGui({
+            getGuiId: () => 'session1/child',
+            hasGuiChildren: () => false,
+        });
+        const root = makeGui({
+            getGuiId: () => 'session1/root',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [child],
+        });
+        provider.setRoots([root]);
+
+        expect(provider.getParent(child)).toBe(root);
+    });
+
+    it('getParent returns undefined for element with no id', () => {
+        const noId = makeGui({ getGuiId: () => undefined });
+        expect(provider.getParent(noId)).toBeUndefined();
+    });
+
 });
