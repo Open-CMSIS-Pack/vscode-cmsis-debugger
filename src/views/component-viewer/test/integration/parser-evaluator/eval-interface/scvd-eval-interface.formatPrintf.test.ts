@@ -31,7 +31,7 @@ import { ScvdMember } from '../../../../model/scvd-member';
 import { ScvdVar } from '../../../../model/scvd-var';
 import { ScvdDebugTarget } from '../../../../scvd-debug-target';
 import { InterruptHost } from '../../../../data-host/interrupt-host';
-import type { InterruptTable } from '../../../../../../peripheral-inspector-api-types';
+import type { InterruptTable } from '@eclipse-cdt-cloud/vscode-peripheral-inspector/api';
 
 class FakeBase extends ScvdNode {
     constructor(typeName?: string) {

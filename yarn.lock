@@ -543,9 +543,9 @@
   resolved "https://registry.yarnpkg.com/@discoveryjs/json-ext/-/json-ext-0.6.3.tgz"
   integrity sha512-4B4OijXeVNOPZlYA2oEwWOTkzyltLao+xbotHQeqN++Rv27Y6s818+n2Qkp8q+Fxhn0t/5lA5X1Mxktud8eayQ==
 
-"@eclipse-cdt-cloud/vscode-peripheral-inspector@github:jreineckearm/vscode-peripheral-inspector#interrupt-tables":
+"@eclipse-cdt-cloud/vscode-peripheral-inspector@github:eclipse-cdt-cloud/vscode-peripheral-inspector#main":
   version "1.8.1"
-  resolved "https://codeload.github.com/jreineckearm/vscode-peripheral-inspector/tar.gz/ba54da023972385be201db262ba6dbb47ecbb59c"
+  resolved "https://codeload.github.com/eclipse-cdt-cloud/vscode-peripheral-inspector/tar.gz/46d29da9fb6f99488b63b28ba8ed33be45bf9855"
   dependencies:
     "@eclipse-cdt-cloud/vscode-ui-components" "^0.1.0"
     "@vscode/codicons" "0.0.45"
