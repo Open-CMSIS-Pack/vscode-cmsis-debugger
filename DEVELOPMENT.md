@@ -5,12 +5,6 @@
 - Install **Visual Studio Code®**.
 - Install **Node.js®** on your machine and ensure it is on your path.
     - The currently minimum required version is 20.19.x (LTS).
-- Install **Yarn** which is used to build and execute scripts in this repository:
-
-  ```sh
-  > npm install -g yarn
-  ```
-
 - Point npm to GitHub Package registry via `~/npmrc`:
   
   ```txt
@@ -39,23 +33,23 @@ Supported `<target>`s are:
    to build the TypeScript code:
 
     ```sh
-    > yarn
+    > npm install
     ```
 
 2. Download binary tools
 
     ```sh
-    > yarn download-tools [--target <target>] [--no-cache]
+    > npm run download-tools [--target <target>] [--no-cache]
     ```
 
     If no `<target>` is specified the local system's architecture is used by default.
-    By default, tool downloads are cached in the yarn cache (see `yarn cache dir`) to prevent
+    By default, tool downloads are cached in the npm cache (see `npm cache dir`) to prevent
     recurring downloads of exact same archives on clean builds.
 
 3. Package the extension as a locally installable VSIX file:
 
     ```sh
-    > yarn package [--target <target>]
+    > npm run package [--target <target>]
     ```
 
 ## Release versioning
@@ -73,7 +67,7 @@ To enforce this consistently, both packaging and publishing use `scripts/vsce-re
 Use the following commands:
 
 ```sh
-> yarn run package [--target <target>]
+> npm run package [--target <target>]
 ```
 
 ## Developing
@@ -82,10 +76,10 @@ Use the following commands:
    after an initial build:
 
     ```sh
-    > yarn watch
+    > npm run watch
     ```
 
-    While just calling `yarn` creates a production build of the extension, running the above
+    While just calling `npm install` creates a production build of the extension, running the above
     creates a build dedicated for debug. Additionally, it sets up a watch which detects code
     changes and rebuilds them incrementally.
 
@@ -98,7 +92,7 @@ Use the following commands:
 1. Run the following command to execute all test locally:
 
     ```sh
-    > yarn test
+    > npm run test
     ```
 
     **Note**: At this point, no tests have been added to this repository.
@@ -109,7 +103,7 @@ To simplify setup of you environment, an `all` script exists which runs build, t
 and unit tests. Run:
 
 ```sh
-> yarn all
+> npm run all
 ```
 
 ## Updating tool dependencies
@@ -132,7 +126,7 @@ Markdown linter to ensure consistency and adherence to the project's formatting 
 Run the following command from the project root:
 
 ```bash
-    yarn lint:md
+    npm run lint:md
 ````
 
 This command checks Markdown files against the linting rules defined in the
@@ -144,14 +138,14 @@ maintain high-quality, readable, and standardized documentation across the proje
 > Tip: Simple rule violations can be fixed by the linter itself. Try running the following before manually going through all warnings/errors:
 >
 > ```bash
->     yarn lint:md --fix
+>     npm run lint:md --fix
 > ````
 
 Additionally, if your changes involve updating or adding links within the documentation, you can verify the validity
 of all links by running:
 
 ```bash
-    yarn check:links
+    npm run check:links
 ````
 
 This will check each link to ensure it is reachable (i.e., returns a 200 OK status). Identifying and correcting broken
