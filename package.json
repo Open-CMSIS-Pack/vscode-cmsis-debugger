@@ -349,7 +349,7 @@
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.filterTree",
-          "when": "true"
+          "when": "false"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.clearFilter",
