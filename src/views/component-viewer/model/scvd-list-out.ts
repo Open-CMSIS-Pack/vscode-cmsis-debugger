@@ -20,7 +20,7 @@ import { Json } from './scvd-base';
 import { ScvdNode } from './scvd-node';
 import { ScvdItem } from './scvd-item';
 import { ScvdList } from './scvd-list';
-import { getArrayFromJson, getStringFromJson } from './scvd-utils';
+import { getArrayFromJson } from './scvd-utils';
 
 export class ScvdListOut extends ScvdList {
     private _item: ScvdItem[] = [];
@@ -36,28 +36,15 @@ export class ScvdListOut extends ScvdList {
         return 'ScvdListOut';
     }
 
-    // class is derived from ScvdList, but we do not want all properties of ScvdList to be settable from XML
     public override readXml(xml: Json): boolean {
         if (xml === undefined ) {
             return super.readXml(xml);
         }
 
-        this.start = getStringFromJson(xml.start);
-        this.limit = getStringFromJson(xml.limit);
-        this.while = getStringFromJson(xml.while);
-        this.cond = getStringFromJson(xml.cond);
-
-
         const items = getArrayFromJson<Json>(xml.item);
         items?.forEach(item => {
             const itemObj = this.addItem();
             itemObj.readXml(item);
-        });
-
-        const lists = getArrayFromJson<Json>(xml.list);
-        lists?.forEach(list => {
-            const listItem = this.addList();
-            listItem.readXml(list);
         });
 
         return super.readXml(xml);
