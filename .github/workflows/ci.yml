@@ -92,13 +92,13 @@ jobs:
               ;;
             pull_request)
               npm version -s --allow-same-version --no-git-tag-version --new-version "${BASE_TAG#v}"
-              PRERELEASE_VERSION="${BASE_TAG#v}-pr${{ github.event.number }}${PR_QUALIFIER}"
-              npm version --no-git-tag-version --new-version "${PRERELEASE_VERSION}" && echo "Prerelease version set succeeded" || echo "Prerelease version set FAILED with exit code $?"
+              PR_VERSION="${BASE_TAG#v}-pr${{ github.event.number }}${PR_QUALIFIER}"
+              npm version --no-git-tag-version --new-version "${PR_VERSION}" && echo "Prerelease version set succeeded" || echo "Prerelease version set FAILED with exit code $?"
               ;;
             *)
               npm version -s --allow-same-version --no-git-tag-version --new-version "${BASE_TAG#v}"
-              PRERELEASE_VERSION="${BASE_TAG#v}-${SAFE_REF_NAME}${BRANCH_QUALIFIER}"
-              npm version --no-git-tag-version --new-version "${PRERELEASE_VERSION}" && echo "Prerelease version set succeeded" || echo "Prerelease version set FAILED with exit code $?"
+              PR_VERSION="${BASE_TAG#v}-${SAFE_REF_NAME}${BRANCH_QUALIFIER}"
+              npm version --no-git-tag-version --new-version "${PR_VERSION}" && echo "Prerelease version set succeeded" || echo "Prerelease version set FAILED with exit code $?"
               ;;
           esac
           VERSION="$(jq -r ".version" < package.json)"

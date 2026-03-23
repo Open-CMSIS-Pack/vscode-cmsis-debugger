@@ -58,8 +58,8 @@ jobs:
           BRANCH=$(echo "${{ github.ref_name }}" | sed 's/[^0-9A-Za-z-]/-/g')
           BASE="${DESCRIBE#v}"
           IFS='.' read -r MAJ MIN PAT <<< "$BASE"
-          PRERELEASE_VERSION="${MAJ}.${MIN}.$((PAT + 1))-${BRANCH}${QUALIFIER:+-${QUALIFIER}}"
-          npm version --no-git-tag-version --new-version "${PRERELEASE_VERSION}"
+          PR_VERSION="${MAJ}.${MIN}.$((PAT + 1))-${BRANCH}${QUALIFIER:+-${QUALIFIER}}"
+          npm version --no-git-tag-version --new-version "${PR_VERSION}"
           VERSION="$(jq -r ".version" < package.json)"
           sed -i "s/## Unreleased/## ${VERSION}/" CHANGELOG.md
           echo "Version is ${VERSION}"
