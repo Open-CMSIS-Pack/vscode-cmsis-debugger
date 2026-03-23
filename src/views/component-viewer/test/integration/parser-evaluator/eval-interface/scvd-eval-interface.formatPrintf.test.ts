@@ -270,9 +270,9 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
     });
 
     it('formats %t when cached bytes are unavailable', async () => {
-        const memHost = { readRaw: jest.fn().mockResolvedValue(undefined) } as unknown as MemoryHost;
+        const memHost = new MemoryHost();
         const debugTarget = new FakeDebugTarget(new Map(), new Map()) as unknown as ScvdDebugTarget;
-        const scvdWithMock = new ScvdEvalInterface(
+        const scvdWithMem = new ScvdEvalInterface(
             memHost,
             {} as RegisterHost,
             debugTarget,
@@ -288,7 +288,7 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
             widthBytes: 4,
             valueType: undefined
         };
-        const out = await scvdWithMock.formatPrintf('t', 0, container);
+        const out = await scvdWithMem.formatPrintf('t', 0, container);
         expect(out).toBe('0');
     });
 

@@ -61,7 +61,10 @@ export class InterruptHost {
      */
     public async getEntry(irqNumber: number): Promise<InterruptEntry | undefined> {
         const table = await this.ensureTable();
-        return table?.interrupts[irqNumber];
+        const key = String(irqNumber);
+        return table && Object.hasOwn(table.interrupts, key)
+            ? table.interrupts[key as unknown as number]
+            : undefined;
     }
 
     /**
