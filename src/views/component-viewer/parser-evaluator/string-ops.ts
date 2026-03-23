@@ -45,8 +45,8 @@ export function encodeStringToBytes(text: string, typeSize = 1): Uint8Array {
         const codePoints = [...text].map(ch => ch.codePointAt(0) ?? 0);
         const buf = new Uint8Array(codePoints.length * 4);
         const view = new DataView(buf.buffer);
-        for (let i = 0; i < codePoints.length; i++) {
-            view.setUint32(i * 4, codePoints[i], true);
+        for (const [i, cp] of codePoints.entries()) {
+            view.setUint32(i * 4, cp, true);
         }
         return buf;
     }
