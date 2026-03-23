@@ -49,10 +49,10 @@ jobs:
           package-manager-cache: false
 
       - name: Install dependencies
-        run: yarn --frozen-lockfile --prefer-offline
+        run: npm ci
 
       - name: Generate third-party licenses report
-        run: yarn run tpip:report
+        run: npm run tpip:report
 
       - name: Commit changes
         if: false
