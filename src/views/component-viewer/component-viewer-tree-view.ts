@@ -69,6 +69,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
 
     /**
      * Returns true if the node's name or value matches the current filter regex.
+     * Returns true when no filter is active (no match restriction).
      */
     private nodeMatchesFilter(node: ScvdGuiInterface): boolean {
         if (!this._filterRegex) {

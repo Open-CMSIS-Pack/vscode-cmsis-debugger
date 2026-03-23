@@ -369,6 +369,13 @@ describe('ComponentViewerTreeDataProvider', () => {
             expect(provider.isFilterActive).toBe(false);
         });
 
+        it('nodeMatchesFilter returns true for any node when no filter is active', () => {
+            const node = makeGui({ getGuiName: () => 'Anything', getGuiId: () => 'n1' });
+            // Access private method to exercise the guard branch
+            const nodeMatchesFilter = (provider as unknown as { nodeMatchesFilter: (n: ScvdGuiInterface) => boolean }).nodeMatchesFilter.bind(provider);
+            expect(nodeMatchesFilter(node)).toBe(true);
+        });
+
         it('filters root nodes by name', () => {
             const matchRoot = makeGui({ getGuiName: () => 'MatchingNode', getGuiId: () => 'r1' });
             const noMatchRoot = makeGui({ getGuiName: () => 'Other', getGuiId: () => 'r2' });
