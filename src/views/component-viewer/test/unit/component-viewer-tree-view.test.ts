@@ -347,6 +347,19 @@ describe('ComponentViewerTreeDataProvider', () => {
         expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
     });
 
+    it('ignores setElementExpanded when element has undefined id', () => {
+        const noId = makeGui({
+            getGuiId: () => undefined,
+            hasGuiChildren: () => true,
+        });
+        provider.setRoots([noId]);
+
+        // Should not throw and should not affect expanded state
+        provider.setElementExpanded(noId, true);
+        const treeItem = provider.getTreeItem(noId);
+        expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
+    });
+
     describe('filter', () => {
         it('isFilterActive returns false by default', () => {
             expect(provider.isFilterActive).toBe(false);

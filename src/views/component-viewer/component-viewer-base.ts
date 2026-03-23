@@ -189,12 +189,7 @@ export class ComponentViewerBase {
         });
 
         inputBox.onDidAccept(() => {
-            const value = inputBox.value;
-            if (value === '') {
-                this.handleClearFilter();
-            } else {
-                applyFilter(value);
-            }
+            applyFilter(inputBox.value);
             inputBox.hide();
         });
 
