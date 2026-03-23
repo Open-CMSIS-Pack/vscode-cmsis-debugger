@@ -25,6 +25,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     public readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
     private _roots: ScvdGuiInterface[] = [];
     private _expandedIds: string[] = [];
+    private readonly _parentById: Map<string, ScvdGuiInterface> = new Map();
 
     constructor () {
     }
@@ -119,12 +120,16 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
 
     /**
      * Required by {@link vscode.TreeView.reveal} to resolve the tree path to an element.
-     * Performs a recursive search from the roots.
+     * Uses a cached childId → parent index for fast lookup, with a recursive fallback.
      */
     public getParent(element: ScvdGuiInterface): ScvdGuiInterface | undefined {
         const targetId = element.getGuiId();
         if (targetId === undefined) {
             return undefined;
+        }
+        const cachedParent = this._parentById.get(targetId);
+        if (cachedParent !== undefined) {
+            return cachedParent;
         }
         return this.findParentInTree(this._roots, targetId);
     }
@@ -142,12 +147,14 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     public setRoots(roots: ScvdGuiInterface[] = []): void {
         this.logUiPerf();
         this._roots = roots;
+        this.rebuildParentIndex();
         this.refresh();
     }
 
     public clear(): void {
         this.logUiPerf();
         this._roots = [];
+        this._parentById.clear();
         this.refresh();
     }
 
@@ -161,6 +168,31 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
                 result.push(element);
                 const children = element.getGuiChildren() || [];
                 this.collectCollapsibleElements(children, result);
+            }
+        }
+    }
+
+    private rebuildParentIndex(): void {
+        this._parentById.clear();
+        const roots = this._roots;
+        for (const root of roots) {
+            if (!root.hasGuiChildren()) {
+                continue;
+            }
+            const children = root.getGuiChildren() || [];
+            this.indexParentsRecursively(root, children);
+        }
+    }
+
+    private indexParentsRecursively(parent: ScvdGuiInterface, children: ScvdGuiInterface[]): void {
+        for (const child of children) {
+            const childId = child.getGuiId();
+            if (childId !== undefined) {
+                this._parentById.set(childId, parent);
+            }
+            if (child.hasGuiChildren()) {
+                const grandChildren = child.getGuiChildren() || [];
+                this.indexParentsRecursively(child, grandChildren);
             }
         }
     }
