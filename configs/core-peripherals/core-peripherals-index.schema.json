@@ -1,6 +1,6 @@
 {
   "$comment": "Index of core peripheral SCVD files and conditions when to use them.",
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft-07/schema#",
   "$id": "https://raw.githubusercontent.com/Open-CMSIS-Pack/vscode-cmsis-debugger/configs/core-peripherals/core-peripherals-index.schema.json",
   "title": "Core Peripherals index",
   "description": "Index listing core peripheral SCVD description files and CPU type/feature conditions under which each file is active.",
