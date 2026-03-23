@@ -325,7 +325,7 @@
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.filterTree",
-          "when": "true"
+          "when": "false"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.clearFilter",
