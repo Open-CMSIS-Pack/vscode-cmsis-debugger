@@ -56,8 +56,10 @@ jobs:
           DESCRIBE=$(git describe --tags | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+')
           QUALIFIER=$(git describe --tags | grep -Eo '[0-9]+\-g[0-9a-f]+$' || true)
           BRANCH=$(echo "${{ github.ref_name }}" | sed 's/[^0-9A-Za-z-]/-/g')
-          yarn version -s --no-git-tag-version --new-version "${DESCRIBE#v}"
-          yarn version -s --no-git-tag-version --prepatch --preid "${BRANCH}${QUALIFIER:+-${QUALIFIER}}"
+          BASE="${DESCRIBE#v}"
+          IFS='.' read -r MAJ MIN PAT <<< "$BASE"
+          PR_VERSION="${MAJ}.${MIN}.$((PAT + 1))-${BRANCH}${QUALIFIER:+-${QUALIFIER}}"
+          npm version --no-git-tag-version --new-version "${PR_VERSION}"
           VERSION="$(jq -r ".version" < package.json)"
           sed -i "s/## Unreleased/## ${VERSION}/" CHANGELOG.md
           echo "Version is ${VERSION}"
@@ -72,21 +74,21 @@ jobs:
       - name: Install dependencies
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: yarn --frozen-lockfile --prefer-offline --ignore-scripts
+        run: npm ci
 
       - name: Build on Windows or macOS
         if: runner.os != 'Linux'
-        run: yarn build:no-lint
+        run: npm run build:no-lint
 
       - name: Build on Linux
         if: runner.os == 'Linux'
-        run: yarn build
+        run: npm run build
 
       - name: Check copyright
-        run: yarn copyright:check
+        run: npm run copyright:check
 
       - name: Test
-        run: yarn test
+        run: npm run test
 
       - name: Upload dist
         if: runner.os == 'Linux'
@@ -140,6 +142,9 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Configure git settings
+        run: git config --global core.autocrlf false
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
@@ -160,12 +165,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          yarn --frozen-lockfile --ignore-scripts --prefer-offline
-          yarn download-tools:nightly --target ${{ matrix.target }} --no-cache
+          npm ci
+          npm run download-tools:nightly -- --target ${{ matrix.target }} --no-cache
 
       - name: Create vsix package
         run: |
-          yarn run package --target ${{ matrix.target }} --yarn
+          npm run package -- --target ${{ matrix.target }}
 
       - name: Upload package
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -200,6 +205,9 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Configure git settings
+        run: git config --global core.autocrlf false
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
@@ -211,8 +219,7 @@ jobs:
           package-manager-cache: false
 
       - name: Install dependencies
-        run: |
-          yarn --frozen-lockfile --ignore-scripts --prefer-offline
+        run: npm ci
 
       - name: Download vsix package
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -224,4 +231,4 @@ jobs:
         run: |
           VSIX_FILE=$(ls *.vsix)
           echo "Validating VSIX: $VSIX_FILE"
-          yarn validate-tools --target ${{ matrix.target }} --vsix "$VSIX_FILE"
+          npm run validate-tools -- --target ${{ matrix.target }} --vsix "$VSIX_FILE"
