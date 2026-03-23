@@ -50,6 +50,7 @@ export class ComponentViewerBase {
     private _runningUpdate: boolean = false;
     private _refreshTimerEnabled: boolean = true;
     private static readonly pendingUpdateDelayMs = 150;
+    private static readonly filterMinChars = 3;
 
     public constructor(
         context: vscode.ExtensionContext,
@@ -161,8 +162,6 @@ export class ComponentViewerBase {
         }
         this._componentViewerTreeDataProvider.refresh();
     }
-
-    private static readonly filterMinChars = 3;
 
     protected handleFilterTree(): void {
         const inputBox = vscode.window.createInputBox();

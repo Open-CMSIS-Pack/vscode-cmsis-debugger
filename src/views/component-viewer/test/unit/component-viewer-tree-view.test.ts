@@ -402,22 +402,49 @@ describe('ComponentViewerTreeDataProvider', () => {
             expect(provider.getChildren()).toEqual([root]);
         });
 
-        it('supports regex patterns', () => {
+        it('matches plain substring across multiple roots', () => {
             const root1 = makeGui({ getGuiName: () => 'Thread_1', getGuiId: () => 'r1' });
             const root2 = makeGui({ getGuiName: () => 'Thread_2', getGuiId: () => 'r2' });
             const root3 = makeGui({ getGuiName: () => 'Mutex_1', getGuiId: () => 'r3' });
             provider.setRoots([root1, root2, root3]);
 
-            provider.setFilter('Thread_\\d');
+            provider.setFilter('Thread_');
             expect(provider.getChildren()).toEqual([root1, root2]);
         });
 
-        it('handles invalid regex gracefully by treating as literal', () => {
+        it('matches special characters as literal substrings', () => {
             const root = makeGui({ getGuiName: () => 'some[value', getGuiId: () => 'r1' });
             const other = makeGui({ getGuiName: () => 'other', getGuiId: () => 'r2' });
             provider.setRoots([root, other]);
 
             provider.setFilter('some[value');
+            expect(provider.getChildren()).toEqual([root]);
+        });
+
+        it('matches fuzzy with multiple space-separated tokens', () => {
+            const root1 = makeGui({ getGuiName: () => 'External Interrupt', getGuiId: () => 'r1' });
+            const root2 = makeGui({ getGuiName: () => 'Internal Timer', getGuiId: () => 'r2' });
+            const root3 = makeGui({ getGuiName: () => 'External Timer', getGuiId: () => 'r3' });
+            provider.setRoots([root1, root2, root3]);
+
+            provider.setFilter('ext int');
+            expect(provider.getChildren()).toEqual([root1]);
+        });
+
+        it('matches tokens across name and value', () => {
+            const root = makeGui({ getGuiName: () => 'Counter', getGuiValue: () => '42 active', getGuiId: () => 'r1' });
+            const other = makeGui({ getGuiName: () => 'Counter', getGuiValue: () => '0 idle', getGuiId: () => 'r2' });
+            provider.setRoots([root, other]);
+
+            provider.setFilter('counter active');
+            expect(provider.getChildren()).toEqual([root]);
+        });
+
+        it('ignores extra whitespace in filter pattern', () => {
+            const root = makeGui({ getGuiName: () => 'External Interrupt', getGuiId: () => 'r1' });
+            provider.setRoots([root]);
+
+            provider.setFilter('  ext   int  ');
             expect(provider.getChildren()).toEqual([root]);
         });
 
