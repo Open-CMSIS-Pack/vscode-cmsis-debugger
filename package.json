@@ -20,7 +20,7 @@
   },
   "engines": {
     "node": "^22.22.0",
-    "yarn": "^1.22.0",
+    "npm": "^10.0.0",
     "vscode": "^1.108.1"
   },
   "categories": [
@@ -450,18 +450,18 @@
     ]
   },
   "scripts": {
-    "prepare": "yarn run build",
+    "prepare": "npm run build",
     "download-tools": "tsx scripts/download-tools.ts pyocd gdb",
     "download-tools:nightly": "tsx scripts/download-tools.ts pyocdNightly gdb",
     "validate-tools": "tsx scripts/validate-tools.ts",
     "clean": "git clean -f -x ./node_modules ./dist ./coverage ./tools",
-    "build": "webpack --mode production && yarn lint",
+    "build": "webpack --mode production && npm run lint",
     "build:no-lint": "webpack --mode production",
     "watch": "webpack -w",
     "lint": "eslint .",
     "test": "jest --reporters=default --reporters=./node_modules/jest-html-reporter",
-    "all": "yarn && yarn download-tools && yarn test",
-    "package": "node ./scripts/vsce-release.js --yarn",
+    "all": "npm install && npm run download-tools && npm run test",
+    "package": "node ./scripts/vsce-release.js",
     "tpip:report": "tsx scripts/tpip-reporter --header docs/tpip-header.md docs/third-party-licenses.json TPIP.md",
     "lint:md": "markdownlint **/*.md -c ./.github/markdownlint.jsonc -i ./node_modules -i ./dist -i ./coverage -i ./tools",
     "check:links": "tsx scripts/check-links.ts -i ./node_modules/** -i ./.github/** -c ./.github/markdown-link-check.jsonc",
@@ -469,7 +469,6 @@
     "copyright:fix": "tsx scripts/copyright-manager.ts --mode=fix --include=src/**/*.ts,scripts/**/*.ts --exclude=**/node_modules/**,coverage/**,dist/**,tools/**"
   },
   "vsce": {
-    "yarn": true,
     "baseContentUrl": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/blob/main/README.md"
   },
   "dependencies": {
@@ -489,12 +488,10 @@
     "@types/vscode": "^1.108.1",
     "@types/xml2js": "^0.4.14",
     "@types/yargs": "^17.0.35",
-    "@types/yarnpkg__lockfile": "^1.1.9",
     "@typescript-eslint/eslint-plugin": "8.56.1",
     "@typescript-eslint/parser": "8.56.1",
     "@vscode/debugprotocol": "^1.68.0",
     "@vscode/vsce": "^3.7.1",
-    "@yarnpkg/lockfile": "^1.1.0",
     "eslint": "^10.0.2",
     "eslint-plugin-security": "^4.0.0",
     "extract-zip": "^2.0.1",
