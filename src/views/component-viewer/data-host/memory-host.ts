@@ -16,7 +16,7 @@
 // generated with AI
 
 import { componentViewerLogger } from '../../../logger';
-import { EvalValue, RefContainer } from '../parser-evaluator/model-host';
+import { encodeToLeBytes } from './byte-encoding';
 import { ValidatingCache } from './validating-cache';
 
 export class MemoryContainer {
@@ -79,61 +79,6 @@ export class MemoryContainer {
     }
 }
 
-// --- helpers (LE encoding) ---
-function leToNumber(bytes: Uint8Array): number {
-    let out = 0;
-    for (const b of Array.from(bytes).reverse()) {
-        out = (out << 8) | (b & 0xff);
-    }
-    return out >>> 0;
-}
-
-function leToSignedNumber(bytes: Uint8Array): number {
-    const unsigned = leToNumber(bytes);
-    const bits = bytes.length * 8;
-    if (bits <= 0 || bits >= 32) {
-        return unsigned | 0;
-    }
-    const signBit = 1 << (bits - 1);
-    return (unsigned & signBit) ? (unsigned | (~0 << bits)) : unsigned;
-}
-
-function leToFloat16(bytes: Uint8Array): number {
-    if (bytes.length < 2) {
-        return NaN;
-    }
-    const half = bytes[0] | (bytes[1] << 8);
-    const sign = (half & 0x8000) ? -1 : 1;
-    const exp = (half >> 10) & 0x1f;
-    const frac = half & 0x03ff;
-    if (exp === 0) {
-        if (frac === 0) {
-            return sign < 0 ? -0 : 0;
-        }
-        return sign * Math.pow(2, -14) * (frac / 1024);
-    }
-    if (exp === 0x1f) {
-        return frac === 0 ? (sign * Infinity) : NaN;
-    }
-    return sign * Math.pow(2, exp - 15) * (1 + frac / 1024);
-}
-
-export const __test__ = {
-    leToFloat16,
-};
-function leIntToBytes(v: number, size: number): Uint8Array {
-    const out = new Uint8Array(size);
-    let tmp = v >>> 0;
-    for (let i = 0; i < size; i++) {
-        out.set([tmp & 0xff], i);
-        tmp >>>= 8;
-    }
-    return out;
-}
-
-export type Endianness = 'little';
-export interface HostOptions { endianness?: Endianness; }
-
 type ElementMeta = {
   offsets: number[];              // append offsets within the symbol
   sizes: number[];                // logical size (actualSize) per append
@@ -141,10 +86,9 @@ type ElementMeta = {
   elementSize?: number;           // known uniform stride when consistent
 };
 
-// The piece your host delegates to for readValue/writeValue.
+// Pure byte store for SCVD variables.  No type interpretation — that lives in the evaluator.
 export class MemoryHost {
     private cache = new ValidatingCache<MemoryContainer>();
-    private endianness: Endianness;
     private elementMeta = new Map<string, ElementMeta>();
 
     private getOrInitMeta(name: string): ElementMeta {
@@ -168,160 +112,63 @@ export class MemoryHost {
     }
 
     constructor() {
-        this.endianness = 'little';
     }
 
     private getContainer(varName: string): MemoryContainer {
         return this.cache.ensure(varName, () => new MemoryContainer(varName), false);
     }
 
-    // Read a value, using byte-only offsets and widths.
-    public async readValue(ref: RefContainer): Promise<EvalValue> {
-        const variableName = ref.anchor?.name;
-        const widthBytes = ref.widthBytes ?? 0;
-        if (!variableName || widthBytes <= 0) {
+    /**
+     * Read raw bytes from a named variable at the given byte offset.
+     *
+     * For sizes ≤ 8 an exact match is required (returns undefined when the
+     * store is shorter than offset + size).  For sizes > 8 a partial read is
+     * allowed so that callers reading large buffers don't fail on undersized stores.
+     *
+     * Always returns a **copy** so callers never alias internal storage.
+     */
+    public read(name: string, offset: number, size: number): Uint8Array | undefined {
+        if (!name || size <= 0) {
             return undefined;
         }
-
-        const container = this.getContainer(variableName);
-        const byteOff = ref.offsetBytes ?? 0;
-
-        const raw = widthBytes > 8
-            ? container.readPartial(byteOff, widthBytes)
-            : container.readExact(byteOff, widthBytes);
+        const container = this.cache.get(name);
+        if (!container) {
+            return undefined;
+        }
+        const raw = size > 8
+            ? container.readPartial(offset, size)
+            : container.readExact(offset, size);
         if (!raw) {
-            componentViewerLogger.trace(`[MemoryHost.readValue] MISS: var="${variableName}" offset=${byteOff} width=${widthBytes}`);
+            componentViewerLogger.trace(`[MemoryHost.read] MISS: var="${name}" offset=${offset} size=${size}`);
             return undefined;
         }
-        componentViewerLogger.trace(`[MemoryHost.readValue] var="${variableName}" offset=${byteOff} width=${widthBytes} data=[${Array.from(raw).map(b => b.toString(16).padStart(2, '0')).join(' ')}]`);
-
-        if (this.endianness !== 'little') {
-            // TOIMPL: add BE support if needed
-        }
-
-        // Check if widthBytes exceeds the natural type size
-        // This indicates a multi-byte value (e.g., uint8_t with size="4" for IP address)
-        // that should remain as raw bytes rather than being converted to a number
-        const typeSize = ref.valueType?.bits ? ref.valueType.bits / 8 : undefined;
-        if (typeSize && widthBytes > typeSize && ref.valueType?.kind !== 'float') {
-            componentViewerLogger.trace(`[MemoryHost.readValue] → raw bytes (width=${widthBytes} > typeSize=${typeSize})`);
-            return raw.slice();
-        }
-
-        // Interpret the bytes:
-        //  - float kinds decode as float32/float64
-        //  - ≤4 bytes: JS number (uint32)
-        //  - 8 bytes: BigInt for full 64-bit integer fidelity
-        //  - >8 bytes: return a copy of the raw bytes
-        if (ref.valueType?.kind === 'float') {
-            if (widthBytes === 2) {
-                return leToFloat16(raw);
-            }
-            if (widthBytes === 4) {
-                const dv = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
-                return dv.getFloat32(0, true);
-            }
-            if (widthBytes === 8) {
-                const dv = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
-                return dv.getFloat64(0, true);
-            }
-        }
-        if (widthBytes <= 4) {
-            const value = ref.valueType?.kind === 'int' ? leToSignedNumber(raw) : leToNumber(raw);
-            componentViewerLogger.trace(`[MemoryHost.readValue] → decoded as ${ref.valueType?.kind === 'int' ? 'int' : 'uint'}: ${value}`);
-            return value;
-        }
-        if (widthBytes === 8) {
-            let out = 0n;
-            for (let i = 0; i < 8; i++) {
-                // raw is a Uint8Array; indexed access is safe here.
-                // eslint-disable-next-line security/detect-object-injection
-                out |= BigInt(raw[i]) << BigInt(8 * i);
-            }
-            componentViewerLogger.trace(`[MemoryHost.readValue] → decoded as bigint: ${out}`);
+        componentViewerLogger.trace(`[MemoryHost.read] var="${name}" offset=${offset} size=${size} data=[${Array.from(raw).map(b => b.toString(16).padStart(2, '0')).join(' ')}]`);
+        // For partial reads that returned fewer bytes than requested, zero-pad to the requested size
+        if (raw.length < size) {
+            const out = new Uint8Array(size);
+            out.set(raw, 0);
             return out;
         }
-        // for larger widths, return a copy of the bytes
-        componentViewerLogger.trace(`[MemoryHost.readValue] → raw bytes (len=${raw.length})`);
         return raw.slice();
     }
 
-    // Read raw bytes without interpretation.
-    public async readRaw(ref: RefContainer, size: number): Promise<Uint8Array | undefined> {
-        const variableName = ref.anchor?.name;
-        if (!variableName || size <= 0) {
-            return undefined;
-        }
-        const container = this.getContainer(variableName);
-        const byteOff = ref.offsetBytes ?? 0;
-        const raw = container.readPartial(byteOff, size);
-        if (!raw) {
-            return undefined;
-        }
-        if (raw.length === size) {
-            return raw.slice();
-        }
-        const out = new Uint8Array(size);
-        out.set(raw, 0);
-        return out;
+    /**
+     * Write raw bytes into a named variable's buffer at the given offset.
+     * The buffer is zero-filled to `totalSize` bytes when provided.
+     */
+    public write(name: string, offset: number, data: Uint8Array, totalSize?: number): void {
+        const container = this.getContainer(name);
+        container.write(offset, data, totalSize);
+        this.cache.set(name, container, true);
     }
 
-    // Write a value, using byte-only offsets and widths.
-    public async writeValue(ref: RefContainer, value: EvalValue, virtualSize?: number): Promise<void> {
-        const variableName = ref.anchor?.name;
-        const widthBytes = ref.widthBytes ?? 0;
-        if (!variableName || widthBytes <= 0) {
-            return;
-        }
-
-        const container = this.getContainer(variableName);
-        const byteOff = ref.offsetBytes ?? 0;
-
-        let buf: Uint8Array;
-
-        if (value instanceof Uint8Array) {
-            if (value.length === widthBytes) {
-                buf = value;
-            } else {
-                // truncate or pad to widthBytes
-                buf = new Uint8Array(widthBytes);
-                buf.set(value.subarray(0, widthBytes), 0);
-            }
-        } else {
-            // normalize value to number then to bytes
-            let valNum: number | bigint;
-            if (typeof value === 'boolean') {
-                valNum = value ? 1 : 0;
-            } else if (typeof value === 'number') {
-                valNum = Math.trunc(value);
-            } else if (typeof value === 'bigint') {
-                valNum = value;
-            } else {
-                componentViewerLogger.error('writeValue: unsupported value type');
-                return;
-            }
-
-            if (typeof valNum === 'bigint') {
-                buf = new Uint8Array(widthBytes);
-                let tmp = valNum;
-                for (let i = 0; i < widthBytes; i++) {
-                    // Indexing into a Uint8Array is safe here.
-                    // eslint-disable-next-line security/detect-object-injection
-                    buf[i] = Number(tmp & 0xFFn);
-                    tmp >>= 8n;
-                }
-            } else {
-                buf = leIntToBytes(valNum, widthBytes);
-            }
-        }
-
-        if (virtualSize !== undefined && virtualSize < widthBytes) {
-            componentViewerLogger.error(`writeValue: virtualSize (${virtualSize}) must be >= widthBytes (${widthBytes})`);
-            return;
-        }
-
-        const total = virtualSize ?? widthBytes;
-        container.write(byteOff, buf, total);
+    /**
+     * Return the total byte length of a named variable's backing buffer,
+     * or 0 if the variable does not exist.
+     */
+    public getByteLength(name: string): number {
+        const container = this.cache.get(name);
+        return container?.byteLength ?? 0;
     }
 
     public setVariable(
@@ -351,22 +198,8 @@ export class MemoryHost {
         }
 
         // normalize payload to exactly `size` bytes (numbers LE-encoded)
-        let buf: Uint8Array;
-        if (typeof value === 'number') {
-            buf = leIntToBytes(Math.trunc(value), size);
-        } else if (typeof value === 'bigint') {
-            buf = new Uint8Array(size);
-            let tmp = value;
-            for (let i = 0; i < size; i++) {
-                // Indexing into a Uint8Array is safe here.
-                // eslint-disable-next-line security/detect-object-injection
-                buf[i] = Number(tmp & 0xffn);
-                tmp >>= 8n;
-            }
-        } else if (value instanceof Uint8Array) {
-            // Avoid an extra allocation when already the right size
-            buf = value.length === size ? value : new Uint8Array(value.subarray(0, size));
-        } else {
+        const buf = encodeToLeBytes(value, size);
+        if (buf.length !== size) {
             componentViewerLogger.error('setVariable: unsupported value type');
             return;
         }
@@ -449,4 +282,5 @@ export class MemoryHost {
         componentViewerLogger.trace(`[MemoryHost.getElementTargetBase] var="${name}" index=${index} → targetBase=0x${targetBase?.toString(16)}`);
         return targetBase;
     }
+
 }

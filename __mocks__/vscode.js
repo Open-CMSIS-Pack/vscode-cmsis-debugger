@@ -83,12 +83,30 @@ module.exports = {
             dispose: jest.fn(),
             onDidExpandElement: jest.fn(),
             onDidCollapseElement: jest.fn(),
+            reveal: jest.fn().mockResolvedValue(undefined),
         })),
         registerTreeDataProvider: jest.fn(() => ({ dispose: jest.fn() })),
         showErrorMessage: jest.fn(),
         showInformationMessage: jest.fn(() => Promise.resolve(undefined)),
         showWarningMessage: jest.fn(),
         showQuickPick: jest.fn(),
+        createInputBox: jest.fn(() => {
+            const handlers = { onDidChangeValue: [], onDidAccept: [], onDidHide: [] };
+            return {
+                placeholder: '',
+                prompt: '',
+                value: '',
+                ignoreFocusOut: false,
+                onDidChangeValue: jest.fn(cb => { handlers.onDidChangeValue.push(cb); return { dispose: jest.fn() }; }),
+                onDidAccept: jest.fn(cb => { handlers.onDidAccept.push(cb); return { dispose: jest.fn() }; }),
+                onDidHide: jest.fn(cb => { handlers.onDidHide.push(cb); return { dispose: jest.fn() }; }),
+                show: jest.fn(),
+                hide: jest.fn(),
+                dispose: jest.fn(),
+                _handlers: handlers,
+            };
+        }),
+        withProgress: jest.fn((options, task) => task({ report: jest.fn() })),
     },
     env: {
         clipboard: {

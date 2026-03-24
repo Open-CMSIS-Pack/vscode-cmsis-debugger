@@ -139,7 +139,7 @@ function makeContainer(typeName?: string, current?: ScvdNode): RefContainer {
 }
 
 function makeEvalInterface(symbolMap: Map<number, string>, memoryMap: Map<number, Uint8Array>, contextMap?: Map<number, string>) {
-    const memHost = {} as unknown as MemoryHost;
+    const memHost = { read: jest.fn().mockReturnValue(undefined) } as unknown as MemoryHost;
     const regHost = {} as unknown as RegisterHost;
     const debugTarget = new FakeDebugTarget(symbolMap, memoryMap, contextMap) as unknown as ScvdDebugTarget;
     const formatter = new ScvdFormatSpecifier();
@@ -270,7 +270,7 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
     });
 
     it('formats %t when cached bytes are unavailable', async () => {
-        const memHost = new MemoryHost();
+        const memHost = { read: jest.fn().mockReturnValue(undefined) } as unknown as MemoryHost;
         const debugTarget = new FakeDebugTarget(new Map(), new Map()) as unknown as ScvdDebugTarget;
         const scvdWithMem = new ScvdEvalInterface(
             memHost,

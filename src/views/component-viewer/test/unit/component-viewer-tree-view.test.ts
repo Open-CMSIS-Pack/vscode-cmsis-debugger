@@ -67,6 +67,7 @@ jest.mock('vscode', () => {
         ThemeIcon,
         TreeItemCollapsibleState: {
             Collapsed: 1,
+            Expanded: 2,
             None: 0,
         },
     };
@@ -345,4 +346,561 @@ describe('ComponentViewerTreeDataProvider', () => {
         treeItem = provider.getTreeItem(root);
         expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
     });
+
+    it('getParent returns undefined for root elements', () => {
+        const root = makeGui({
+            getGuiId: () => 'session1/root',
+            hasGuiChildren: () => true,
+        });
+        provider.setRoots([root]);
+
+        expect(provider.getParent(root)).toBeUndefined();
+    });
+
+    it('getParent returns correct parent for child elements', () => {
+        const child = makeGui({
+            getGuiId: () => 'session1/child',
+            hasGuiChildren: () => false,
+        });
+        const root = makeGui({
+            getGuiId: () => 'session1/root',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [child],
+        });
+        provider.setRoots([root]);
+
+        expect(provider.getParent(child)).toBe(root);
+    });
+
+    it('getParent returns undefined for element with no id', () => {
+        const noId = makeGui({ getGuiId: () => undefined });
+        expect(provider.getParent(noId)).toBeUndefined();
+    });
+
+    it('getParent returns correct parent for deeply nested grandchild', () => {
+        const grandchild = makeGui({
+            getGuiId: () => 'session1/grandchild',
+            hasGuiChildren: () => false,
+        });
+        const child = makeGui({
+            getGuiId: () => 'session1/child',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [grandchild],
+        });
+        const root = makeGui({
+            getGuiId: () => 'session1/root',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [child],
+        });
+        provider.setRoots([root]);
+
+        expect(provider.getParent(grandchild)).toBe(child);
+    });
+
+    it('getParent returns undefined for element not in the tree', () => {
+        const root = makeGui({
+            getGuiId: () => 'session1/root',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [],
+        });
+        const orphan = makeGui({ getGuiId: () => 'session1/orphan' });
+        provider.setRoots([root]);
+
+        expect(provider.getParent(orphan)).toBeUndefined();
+    });
+
+    it('getAllCollapsibleElements returns empty array for empty tree', () => {
+        provider.setRoots([]);
+        expect(provider.getAllCollapsibleElements()).toEqual([]);
+    });
+
+    it('getAllCollapsibleElements returns only elements with children', () => {
+        const leaf = makeGui({
+            getGuiId: () => 'leaf',
+            hasGuiChildren: () => false,
+        });
+        const parent = makeGui({
+            getGuiId: () => 'parent',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [leaf],
+        });
+        provider.setRoots([parent, leaf]);
+
+        const result = provider.getAllCollapsibleElements();
+        expect(result).toEqual([parent]);
+    });
+
+    it('getAllCollapsibleElements collects nested collapsible elements in top-down order', () => {
+        const grandchild = makeGui({
+            getGuiId: () => 'grandchild',
+            hasGuiChildren: () => false,
+        });
+        const child = makeGui({
+            getGuiId: () => 'child',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [grandchild],
+        });
+        const root = makeGui({
+            getGuiId: () => 'root',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [child],
+        });
+        provider.setRoots([root]);
+
+        const result = provider.getAllCollapsibleElements();
+        expect(result).toEqual([root, child]);
+    });
+
+    it('getAllCollapsibleElements handles multiple roots with mixed children', () => {
+        const childA = makeGui({
+            getGuiId: () => 'childA',
+            hasGuiChildren: () => false,
+        });
+        const rootA = makeGui({
+            getGuiId: () => 'rootA',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [childA],
+        });
+        const rootB = makeGui({
+            getGuiId: () => 'rootB',
+            hasGuiChildren: () => false,
+        });
+        provider.setRoots([rootA, rootB]);
+
+        const result = provider.getAllCollapsibleElements();
+        expect(result).toEqual([rootA]);
+    });
+
+    it('ignores setElementExpanded when element has undefined id', () => {
+        const noId = makeGui({
+            getGuiId: () => undefined,
+            hasGuiChildren: () => true,
+        });
+        provider.setRoots([noId]);
+
+        // Should not throw and should not affect expanded state
+        provider.setElementExpanded(noId, true);
+        const treeItem = provider.getTreeItem(noId);
+        expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
+    });
+
+    it('expandAllElements marks all collapsible elements as expanded in one refresh', () => {
+        const grandchild = makeGui({
+            getGuiId: () => 'grandchild',
+            hasGuiChildren: () => false,
+        });
+        const child = makeGui({
+            getGuiId: () => 'child',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [grandchild],
+        });
+        const root = makeGui({
+            getGuiId: () => 'root',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [child],
+        });
+        provider.setRoots([root]);
+        mockFire.mockClear();
+
+        provider.expandAllElements();
+
+        // Both collapsible nodes should now be expanded
+        const rootItem = provider.getTreeItem(root);
+        expect(rootItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+        const childItem = provider.getTreeItem(child);
+        expect(childItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+        // Single refresh fired
+        expect(mockFire).toHaveBeenCalledTimes(1);
+    });
+
+    it('expandAllElements is idempotent', () => {
+        const child = makeGui({
+            getGuiId: () => 'child',
+            hasGuiChildren: () => false,
+        });
+        const root = makeGui({
+            getGuiId: () => 'root',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [child],
+        });
+        provider.setRoots([root]);
+        provider.setElementExpanded(root, true);
+        mockFire.mockClear();
+
+        provider.expandAllElements();
+
+        const rootItem = provider.getTreeItem(root);
+        expect(rootItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+        // Still only one refresh
+        expect(mockFire).toHaveBeenCalledTimes(1);
+    });
+
+    it('expandAllElements uses generation-tagged IDs so VS Code treats nodes as new', () => {
+        const child = makeGui({
+            getGuiId: () => 'child',
+            hasGuiChildren: () => false,
+        });
+        const root = makeGui({
+            getGuiId: () => 'root',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [child],
+        });
+        provider.setRoots([root]);
+
+        // Before expand-all, IDs are plain
+        expect(provider.getTreeItem(root).id).toBe('root');
+
+        // After expand-all, IDs are generation-tagged
+        provider.expandAllElements();
+        const id1 = provider.getTreeItem(root).id;
+        expect(id1).toMatch(/^\d+\/root$/);
+
+        // Calling expand-all again bumps the generation
+        provider.expandAllElements();
+        const id2 = provider.getTreeItem(root).id;
+        expect(id2).toMatch(/^\d+\/root$/);
+        expect(id2).not.toBe(id1);
+    });
+
+    it('expand-all and filter share a single generation counter', () => {
+        const root = makeGui({
+            getGuiName: () => 'Root',
+            getGuiId: () => 'r1',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [],
+        });
+        provider.setRoots([root]);
+
+        // Expand all bumps generation
+        provider.expandAllElements();
+        const idAfterExpand = provider.getTreeItem(root).id;
+        expect(idAfterExpand).toMatch(/^\d+\/r1$/);
+
+        // Apply filter bumps generation again
+        provider.setFilter('Root');
+        const idAfterFilter = provider.getTreeItem(root).id;
+        expect(idAfterFilter).toMatch(/^\d+\/r1$/);
+        expect(idAfterFilter).not.toBe(idAfterExpand);
+
+        // Clear filter bumps generation again
+        provider.setFilter(undefined);
+        const idAfterClear = provider.getTreeItem(root).id;
+        expect(idAfterClear).toMatch(/^\d+\/r1$/);
+        expect(idAfterClear).not.toBe(idAfterFilter);
+    });
+
+    it('expandAllElements bumps generation when filter is active', () => {
+        const child = makeGui({
+            getGuiName: () => 'Child',
+            getGuiId: () => 'c1',
+            hasGuiChildren: () => false,
+        });
+        const root = makeGui({
+            getGuiName: () => 'Root',
+            getGuiId: () => 'r1',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [child],
+        });
+        provider.setRoots([root]);
+
+        // Apply filter
+        provider.setFilter('Root');
+        const idBeforeExpand = provider.getTreeItem(root).id;
+        expect(idBeforeExpand).toMatch(/^\d+\/r1$/);
+
+        // Expand all while filter is active — bumps generation
+        provider.expandAllElements();
+        const idAfterExpand = provider.getTreeItem(root).id;
+        expect(idAfterExpand).toMatch(/^\d+\/r1$/);
+        expect(idAfterExpand).not.toBe(idBeforeExpand);
+    });
+
+    describe('filter', () => {
+        it('isFilterActive returns false by default', () => {
+            expect(provider.isFilterActive).toBe(false);
+        });
+
+        it('isFilterActive returns true after setFilter with a pattern', () => {
+            provider.setFilter('test');
+            expect(provider.isFilterActive).toBe(true);
+        });
+
+        it('isFilterActive returns false after clearing the filter', () => {
+            provider.setFilter('test');
+            provider.setFilter(undefined);
+            expect(provider.isFilterActive).toBe(false);
+        });
+
+        it('isFilterActive returns false when setFilter is called with empty string', () => {
+            provider.setFilter('test');
+            provider.setFilter('');
+            expect(provider.isFilterActive).toBe(false);
+        });
+
+        it('nodeMatchesFilter returns true for any node when no filter is active', () => {
+            const node = makeGui({ getGuiName: () => 'Anything', getGuiId: () => 'n1' });
+            // Access private method to exercise the guard branch
+            const nodeMatchesFilter = (provider as unknown as { nodeMatchesFilter: (n: ScvdGuiInterface) => boolean }).nodeMatchesFilter.bind(provider);
+            expect(nodeMatchesFilter(node)).toBe(true);
+        });
+
+        it('filters root nodes by name', () => {
+            const matchRoot = makeGui({ getGuiName: () => 'MatchingNode', getGuiId: () => 'r1' });
+            const noMatchRoot = makeGui({ getGuiName: () => 'Other', getGuiId: () => 'r2' });
+            provider.setRoots([matchRoot, noMatchRoot]);
+
+            provider.setFilter('Matching');
+            expect(provider.getChildren()).toEqual([matchRoot]);
+        });
+
+        it('filters root nodes by value', () => {
+            const matchRoot = makeGui({ getGuiName: () => 'A', getGuiValue: () => 'TargetValue', getGuiId: () => 'r1' });
+            const noMatchRoot = makeGui({ getGuiName: () => 'B', getGuiValue: () => 'Nope', getGuiId: () => 'r2' });
+            provider.setRoots([matchRoot, noMatchRoot]);
+
+            provider.setFilter('Target');
+            expect(provider.getChildren()).toEqual([matchRoot]);
+        });
+
+        it('filter is case-insensitive', () => {
+            const root = makeGui({ getGuiName: () => 'HelloWorld', getGuiId: () => 'r1' });
+            provider.setRoots([root]);
+
+            provider.setFilter('helloworld');
+            expect(provider.getChildren()).toEqual([root]);
+        });
+
+        it('matches plain substring across multiple roots', () => {
+            const root1 = makeGui({ getGuiName: () => 'Thread_1', getGuiId: () => 'r1' });
+            const root2 = makeGui({ getGuiName: () => 'Thread_2', getGuiId: () => 'r2' });
+            const root3 = makeGui({ getGuiName: () => 'Mutex_1', getGuiId: () => 'r3' });
+            provider.setRoots([root1, root2, root3]);
+
+            provider.setFilter('Thread_');
+            expect(provider.getChildren()).toEqual([root1, root2]);
+        });
+
+        it('matches special characters as literal substrings', () => {
+            const root = makeGui({ getGuiName: () => 'some[value', getGuiId: () => 'r1' });
+            const other = makeGui({ getGuiName: () => 'other', getGuiId: () => 'r2' });
+            provider.setRoots([root, other]);
+
+            provider.setFilter('some[value');
+            expect(provider.getChildren()).toEqual([root]);
+        });
+
+        it('matches fuzzy with multiple space-separated tokens', () => {
+            const root1 = makeGui({ getGuiName: () => 'External Interrupt', getGuiId: () => 'r1' });
+            const root2 = makeGui({ getGuiName: () => 'Internal Timer', getGuiId: () => 'r2' });
+            const root3 = makeGui({ getGuiName: () => 'External Timer', getGuiId: () => 'r3' });
+            provider.setRoots([root1, root2, root3]);
+
+            provider.setFilter('ext int');
+            expect(provider.getChildren()).toEqual([root1]);
+        });
+
+        it('matches tokens across name and value', () => {
+            const root = makeGui({ getGuiName: () => 'Counter', getGuiValue: () => '42 active', getGuiId: () => 'r1' });
+            const other = makeGui({ getGuiName: () => 'Counter', getGuiValue: () => '0 idle', getGuiId: () => 'r2' });
+            provider.setRoots([root, other]);
+
+            provider.setFilter('counter active');
+            expect(provider.getChildren()).toEqual([root]);
+        });
+
+        it('ignores extra whitespace in filter pattern', () => {
+            const root = makeGui({ getGuiName: () => 'External Interrupt', getGuiId: () => 'r1' });
+            provider.setRoots([root]);
+
+            provider.setFilter('  ext   int  ');
+            expect(provider.getChildren()).toEqual([root]);
+        });
+
+        it('shows parent if a child matches', () => {
+            const child = makeGui({ getGuiName: () => 'MatchChild', getGuiId: () => 'c1' });
+            const parent = makeGui({
+                getGuiName: () => 'Parent',
+                getGuiId: () => 'p1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [child],
+            });
+            const noMatchRoot = makeGui({ getGuiName: () => 'Unrelated', getGuiId: () => 'r2' });
+            provider.setRoots([parent, noMatchRoot]);
+
+            provider.setFilter('MatchChild');
+            // Parent should be included because it has a matching descendant
+            expect(provider.getChildren()).toEqual([parent]);
+        });
+
+        it('filters children of a node when filter is active', () => {
+            const matchChild = makeGui({ getGuiName: () => 'MatchChild', getGuiId: () => 'c1' });
+            const otherChild = makeGui({ getGuiName: () => 'OtherChild', getGuiId: () => 'c2' });
+            const parent = makeGui({
+                getGuiName: () => 'Parent',
+                getGuiId: () => 'p1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [matchChild, otherChild],
+            });
+            provider.setRoots([parent]);
+
+            provider.setFilter('MatchChild');
+            // getChildren for parent should only return matching children
+            expect(provider.getChildren(parent)).toEqual([matchChild]);
+        });
+
+        it('shows deeply nested matching node with full ancestor path', () => {
+            const deepChild = makeGui({ getGuiName: () => 'DeepMatch', getGuiId: () => 'd1' });
+            const midChild = makeGui({
+                getGuiName: () => 'MidLevel',
+                getGuiId: () => 'm1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [deepChild],
+            });
+            const root = makeGui({
+                getGuiName: () => 'Root',
+                getGuiId: () => 'r1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [midChild],
+            });
+            const unrelated = makeGui({ getGuiName: () => 'Unrelated', getGuiId: () => 'r2' });
+            provider.setRoots([root, unrelated]);
+
+            provider.setFilter('DeepMatch');
+            expect(provider.getChildren()).toEqual([root]);
+            expect(provider.getChildren(root)).toEqual([midChild]);
+            expect(provider.getChildren(midChild)).toEqual([deepChild]);
+        });
+
+        it('returns all nodes when filter is cleared', () => {
+            const root1 = makeGui({ getGuiName: () => 'Xylophone', getGuiValue: () => 'xval', getGuiId: () => 'r1' });
+            const root2 = makeGui({ getGuiName: () => 'Banana', getGuiValue: () => 'bval', getGuiId: () => 'r2' });
+            provider.setRoots([root1, root2]);
+
+            provider.setFilter('Xylophone');
+            expect(provider.getChildren()).toEqual([root1]);
+
+            provider.setFilter(undefined);
+            expect(provider.getChildren()).toEqual([root1, root2]);
+        });
+
+        it('calls refresh when setting filter', () => {
+            provider.setFilter('test');
+            // setRoots was not called, so the only fire is from setFilter
+            expect(mockFire).toHaveBeenCalledTimes(1);
+        });
+
+        it('calls refresh when clearing filter', () => {
+            provider.setFilter('test');
+            mockFire.mockClear();
+            provider.setFilter(undefined);
+            expect(mockFire).toHaveBeenCalledTimes(1);
+        });
+
+        it('auto-expands parent nodes when filter matches a descendant', () => {
+            const child = makeGui({ getGuiName: () => 'MatchChild', getGuiId: () => 'c1' });
+            const parent = makeGui({
+                getGuiName: () => 'Parent',
+                getGuiId: () => 'p1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [child],
+            });
+            provider.setRoots([parent]);
+
+            // Without filter, parent is collapsed (not manually expanded)
+            let treeItem = provider.getTreeItem(parent);
+            expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
+
+            // With filter matching the child, parent should auto-expand
+            provider.setFilter('MatchChild');
+            treeItem = provider.getTreeItem(parent);
+            expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+
+            // Clear filter, parent goes back to collapsed
+            provider.setFilter(undefined);
+            treeItem = provider.getTreeItem(parent);
+            expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
+        });
+
+        it('auto-expands deeply nested ancestor chain when filter matches a leaf', () => {
+            const leaf = makeGui({ getGuiName: () => 'DeepTarget', getGuiId: () => 'l1' });
+            const mid = makeGui({
+                getGuiName: () => 'Mid',
+                getGuiId: () => 'm1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [leaf],
+            });
+            const root = makeGui({
+                getGuiName: () => 'Root',
+                getGuiId: () => 'r1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [mid],
+            });
+            provider.setRoots([root]);
+
+            provider.setFilter('DeepTarget');
+            expect(provider.getTreeItem(root).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+            expect(provider.getTreeItem(mid).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+        });
+
+        it('uses generation-tagged IDs when filter is active so VS Code treats nodes as new', () => {
+            const root = makeGui({
+                getGuiName: () => 'Root',
+                getGuiId: () => 'r1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [],
+            });
+            provider.setRoots([root]);
+
+            // Without filter, ID is the original
+            expect(provider.getTreeItem(root).id).toBe('r1');
+
+            // With filter, ID is generation-tagged
+            provider.setFilter('Root');
+            const filteredId = provider.getTreeItem(root).id;
+            expect(filteredId).toMatch(/^\d+\/r1$/);
+
+            // Changing the filter bumps the generation
+            provider.setFilter('Roo');
+            const filteredId2 = provider.getTreeItem(root).id;
+            expect(filteredId2).toMatch(/^\d+\/r1$/);
+            expect(filteredId2).not.toBe(filteredId);
+
+            // Clearing the filter bumps generation again (IDs stay tagged)
+            provider.setFilter(undefined);
+            const clearedId = provider.getTreeItem(root).id;
+            expect(clearedId).toMatch(/^\d+\/r1$/);
+            expect(clearedId).not.toBe(filteredId2);
+        });
+
+        it('restores pre-filter expanded state when filter is cleared', () => {
+            const child = makeGui({ getGuiName: () => 'Child', getGuiId: () => 'c1' });
+            const root = makeGui({
+                getGuiName: () => 'Root',
+                getGuiId: () => 'session1/root',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [child],
+            });
+            provider.setRoots([root]);
+
+            // Manually expand root
+            provider.setElementExpanded(root, true);
+            let treeItem = provider.getTreeItem(root);
+            expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+
+            // Apply filter — expanded state is saved
+            provider.setFilter('Child');
+            treeItem = provider.getTreeItem(root);
+            expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+
+            // During filtering, simulate VS Code tracking expansion via setElementExpanded
+            // (which would normally happen from onDidExpandElement events)
+            provider.setElementExpanded(root, false); // user collapses during filter
+
+            // Clear filter — pre-filter expanded state is restored (root was expanded before filter)
+            provider.setFilter(undefined);
+            treeItem = provider.getTreeItem(root);
+            expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+        });
+    });
+
 });

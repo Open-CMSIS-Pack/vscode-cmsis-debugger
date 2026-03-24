@@ -43,6 +43,7 @@ export class ComponentViewerBase {
     private _activeSession: GDBTargetDebugSession | undefined;
     private _instances: ComponentViewerInstancesWrapper[] = [];
     private _componentViewerTreeDataProvider: ComponentViewerTreeDataProvider;
+    private _treeView: vscode.TreeView<ScvdGuiInterface> | undefined;
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
     private _loadingCounter: number = 0;
@@ -86,6 +87,7 @@ export class ComponentViewerBase {
             treeDataProvider: this._componentViewerTreeDataProvider,
             showCollapseAll: true
         });
+        this._treeView = treeView;
         componentViewerLogger.debug(`${this._viewName}: Created ${this._viewName} tree view with id: ${fullViewId}`);
         const onDidExpandElementDisposable = treeView.onDidExpandElement(event => this.handleOnDidToggleExpand(event, true));
         const onDidCollapseElementDisposable = treeView.onDidCollapseElement(event => this.handleOnDidToggleExpand(event, false));
@@ -103,6 +105,16 @@ export class ComponentViewerBase {
             this._refreshTimerEnabled = false;
             componentViewerLogger.info(`${this._viewName}: Auto refresh disabled`);
         });
+        const expandAllCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.expandAll`, async () => {
+            componentViewerLogger.debug(`${this._viewName}: Expand all tree items`);
+            await this.handleExpandAll();
+        });
+        const filterTreeCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.filterTree`, () => {
+            this.handleFilterTree();
+        });
+        const clearFilterCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.clearFilter`, async () => {
+            this.handleClearFilter();
+        });
         this._context.subscriptions.push(
             treeView,
             onDidExpandElementDisposable,
@@ -110,9 +122,48 @@ export class ComponentViewerBase {
             lockInstanceCommandDisposable,
             unlockInstanceCommandDisposable,
             enablePeriodicUpdateCommandDisposable,
-            disablePeriodicUpdateCommandDisposable
+            disablePeriodicUpdateCommandDisposable,
+            expandAllCommandDisposable,
+            filterTreeCommandDisposable,
+            clearFilterCommandDisposable
         );
         return true;
+    }
+
+    protected async handleExpandAll(): Promise<void> {
+        if (!this._treeView) {
+            return;
+        }
+
+        const fullViewId = `${VIEW_PREFIX}.${this._viewId}`;
+        await vscode.window.withProgress(
+            { location: { viewId: fullViewId } },
+            () => this.expandAllNodes()
+        );
+    }
+
+    private async expandAllNodes(): Promise<void> {
+        if (!this._treeView) {
+            return;
+        }
+
+        // Remember the current selection so we can keep it in view
+        const selectedElement = this._treeView.selection[0];
+
+        // Mark all elements as expanded and refresh the tree in one go.
+        this._componentViewerTreeDataProvider.expandAllElements();
+
+        // Reveal the previously selected element to keep it in focus,
+        // or scroll back to the root when nothing was selected.
+        const roots = this._componentViewerTreeDataProvider.getChildren();
+        const revealTarget = selectedElement ?? roots[0];
+        if (revealTarget) {
+            try {
+                await this._treeView.reveal(revealTarget, { select: !!selectedElement, focus: false, expand: false });
+            } catch {
+                // Element may not be accessible in the tree view
+            }
+        }
     }
 
     protected handleOnDidToggleExpand(expansionEvent: vscode.TreeViewExpansionEvent<ScvdGuiInterface>, expand: boolean): void {
@@ -153,6 +204,49 @@ export class ComponentViewerBase {
             instance.dirtyWhileLocked = false;
         }
         this._componentViewerTreeDataProvider.refresh();
+    }
+
+    protected handleFilterTree(): void {
+        const inputBox = vscode.window.createInputBox();
+        inputBox.placeholder = 'Type a text pattern to filter nodes...';
+        inputBox.prompt = `Filter ${this._viewName} tree`;
+        inputBox.value = '';
+        inputBox.ignoreFocusOut = false;
+
+        const applyFilter = (value: string): void => {
+            if (value === '') {
+                this.handleClearFilter();
+            } else {
+                componentViewerLogger.info(`${this._viewName}: Filter set to '${value}'`);
+                this._componentViewerTreeDataProvider.setFilter(value);
+                void vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, true);
+            }
+        };
+
+        inputBox.onDidChangeValue(value => {
+            if (value.length === 0) {
+                this.handleClearFilter();
+            } else {
+                applyFilter(value);
+            }
+        });
+
+        inputBox.onDidAccept(() => {
+            applyFilter(inputBox.value);
+            inputBox.hide();
+        });
+
+        inputBox.onDidHide(() => {
+            inputBox.dispose();
+        });
+
+        inputBox.show();
+    }
+
+    protected handleClearFilter(): void {
+        componentViewerLogger.info(`${this._viewName}: Filter cleared`);
+        this._componentViewerTreeDataProvider.setFilter(undefined);
+        void vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, false);
     }
 
     protected async readScvdFiles(tracker: GDBTargetDebugTracker, session?: GDBTargetDebugSession): Promise<void> {

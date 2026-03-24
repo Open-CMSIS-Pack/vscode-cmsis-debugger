@@ -71,10 +71,11 @@ describe('ScvdVar', () => {
         };
         await expect(item.getValue()).resolves.toBe(3);
 
+        // String values are now encoded to Uint8Array (UTF-8 by default)
         (item as unknown as { _value?: { getValue: () => Promise<unknown> } })._value = {
             getValue: async () => 'bad'
         };
-        await expect(item.getValue()).resolves.toBeUndefined();
+        await expect(item.getValue()).resolves.toEqual(new Uint8Array([98, 97, 100]));
     });
 
     it('computes sizes, member lookups, and offsets', async () => {

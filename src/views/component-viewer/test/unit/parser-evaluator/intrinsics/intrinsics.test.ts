@@ -46,6 +46,7 @@ describe('intrinsics', () => {
         onError.mockClear();
         await expect(handleIntrinsic(host, container(), '__CalcMemUsed', [1, 2, 3, 4, 5], onError)).resolves.toBeUndefined();
         expect(onError).toHaveBeenCalledWith('Intrinsic __CalcMemUsed expects at most 4 argument(s)');
+
     });
 
     it('runs numeric intrinsics and coercions', async () => {
@@ -222,13 +223,26 @@ describe('intrinsics', () => {
         await expect(handlePseudoMember(missing, container(), '_count', base, onError)).resolves.toBeUndefined();
         expect(onError).toHaveBeenCalledWith('Missing pseudo-member _count');
 
+        onError.mockClear();
+        await expect(handlePseudoMember(missing, container(), '_addr', base, onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Missing pseudo-member _addr');
+
         const undef = {
             _count: jest.fn(async () => undefined),
             _addr: jest.fn(async () => undefined),
         } as unknown as IntrinsicProvider;
         onError.mockClear();
+        await expect(handlePseudoMember(undef, container(), '_count', base, onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Pseudo-member _count returned undefined');
+
+        onError.mockClear();
         await expect(handlePseudoMember(undef, container(), '_addr', base, onError)).resolves.toBeUndefined();
         expect(onError).toHaveBeenCalledWith('Pseudo-member _addr returned undefined');
+
+        // Unknown pseudo-member should report error
+        onError.mockClear();
+        await expect(handlePseudoMember(host, container(), '_unknown' as '_count', base, onError)).resolves.toBeUndefined();
+        expect(onError).toHaveBeenCalledWith('Unknown pseudo-member _unknown');
     });
 
     it('keeps intrinsic definitions aligned', () => {
