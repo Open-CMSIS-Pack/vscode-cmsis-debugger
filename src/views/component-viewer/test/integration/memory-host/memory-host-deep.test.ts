@@ -25,33 +25,13 @@
  * Models the real RTX SCVD scenario where:
  *   · mem_list_com appends 9-byte mem_block_t items via setVariable(..., -1)
  *   · Each item has targetBase = the address where it was read from
- *   · Members are accessed via readRaw at offsets within each element
+ *   · Members are accessed via read() at offsets within each element
  */
 
 import { MemoryHost } from '../../../data-host/memory-host';
-import { RefContainer } from '../../../parser-evaluator/model-host';
-import { ScvdNode } from '../../../model/scvd-node';
+import { leToNumber } from '../../../data-host/byte-encoding';
 
 // ---------- helpers ----------
-
-class NamedStubBase extends ScvdNode {
-    constructor(name: string) {
-        super(undefined);
-        this.name = name;
-    }
-}
-
-const makeContainer = (name: string, widthBytes: number, offsetBytes = 0): RefContainer => {
-    const ref = new NamedStubBase(name);
-    return {
-        base: ref,
-        anchor: ref,
-        current: ref,
-        offsetBytes,
-        widthBytes,
-        valueType: undefined,
-    };
-};
 
 /** Build a 9-byte mem_block_t: [next:4][len:4][id:1] in little-endian. */
 function makeBlockBytes(nextAddr: number, len: number, id: number): Uint8Array {
@@ -66,7 +46,7 @@ function makeBlockBytes(nextAddr: number, len: number, id: number): Uint8Array {
 // ---------- tests ----------
 
 describe('MemoryHost – 9-byte append items', () => {
-    it('appends multiple 9-byte items and reads them back correctly', async () => {
+    it('appends multiple 9-byte items and reads them back correctly', () => {
         const host = new MemoryHost();
         const blocks = [
             makeBlockBytes(0x20010d50, 41, 0xF5),
@@ -85,14 +65,9 @@ describe('MemoryHost – 9-byte append items', () => {
         for (let i = 0; i < blocks.length; i++) {
             const offset = i * 9;
             // next (offset 0, 4 bytes)
-            const nextRef = makeContainer('mem_list_com', 4, offset);
-            const nextBytes = await host.readRaw(nextRef, 4);
+            const nextBytes = host.read('mem_list_com', offset, 4);
             expect(nextBytes).toBeDefined();
-            const b0 = nextBytes!.at(0) ?? 0;
-            const b1 = nextBytes!.at(1) ?? 0;
-            const b2 = nextBytes!.at(2) ?? 0;
-            const b3 = nextBytes!.at(3) ?? 0;
-            const nextVal = (b0 | (b1 << 8) | (b2 << 16) | (b3 << 24)) >>> 0;
+            const nextVal = leToNumber(nextBytes!);
             const blockData = blocks.at(i);
             if (blockData) {
                 const expectedNext = new DataView(blockData.buffer).getUint32(0, true);
@@ -100,21 +75,14 @@ describe('MemoryHost – 9-byte append items', () => {
             }
 
             // len (offset 4, 4 bytes)
-            const lenRef = makeContainer('mem_list_com', 4, offset + 4);
-            const lenBytes = await host.readRaw(lenRef, 4);
+            const lenBytes = host.read('mem_list_com', offset + 4, 4);
             expect(lenBytes).toBeDefined();
-            const lb0 = lenBytes!.at(0) ?? 0;
-            const lb1 = lenBytes!.at(1) ?? 0;
-            const lb2 = lenBytes!.at(2) ?? 0;
-            const lb3 = lenBytes!.at(3) ?? 0;
-            const lenVal = (lb0 | (lb1 << 8) | (lb2 << 16) | (lb3 << 24)) >>> 0;
-            expect(lenVal).toBe(41);
+            expect(leToNumber(lenBytes!)).toBe(41);
 
             // id (offset 8, 1 byte)
-            const idRef = makeContainer('mem_list_com', 1, offset + 8);
-            const idBytes = await host.readRaw(idRef, 1);
+            const idBytes = host.read('mem_list_com', offset + 8, 1);
             expect(idBytes).toBeDefined();
-            expect(idBytes!.at(0)).toBe(blockData?.at(8));
+            expect(idBytes![0]).toBe(blockData?.at(8));
         }
     });
 
@@ -131,7 +99,7 @@ describe('MemoryHost – 9-byte append items', () => {
         }
     });
 
-    it('clears non-const 9-byte items but preserves const ones', async () => {
+    it('clears non-const 9-byte items but preserves const ones', () => {
         const host = new MemoryHost();
 
         // Non-const items (like mem_list_com — re-read each cycle)
@@ -147,16 +115,14 @@ describe('MemoryHost – 9-byte append items', () => {
         host.clearNonConst();
 
         // mem_list_com should be gone
-        const ref = makeContainer('mem_list_com', 9, 0);
-        expect(await host.readRaw(ref, 9)).toBeUndefined();
+        expect(host.read('mem_list_com', 0, 9)).toBeUndefined();
         expect(host.getArrayElementCount('mem_list_com')).toBe(1); // defaults to 1 when unknown
 
         // cfg_const should survive
-        const constRef = makeContainer('cfg_const', 4, 0);
-        expect(await host.readRaw(constRef, 4)).toEqual(new Uint8Array([1, 2, 3, 4]));
+        expect(host.read('cfg_const', 0, 4)).toEqual(new Uint8Array([1, 2, 3, 4]));
     });
 
-    it('re-populates from scratch after clearNonConst', async () => {
+    it('re-populates from scratch after clearNonConst', () => {
         const host = new MemoryHost();
 
         // Cycle 1: 3 items
@@ -180,33 +146,33 @@ describe('MemoryHost – 9-byte append items', () => {
         expect(host.getElementTargetBase('items', 2)).toBe(0x3000);
 
         // Read id byte of 3rd element (index 2, offset = 2*9 + 8 = 26)
-        const idRef = makeContainer('items', 1, 26);
-        const id = await host.readRaw(idRef, 1);
+        const id = host.read('items', 26, 1);
         expect(id![0]).toBe(0xF1);
     });
 });
 
-describe('MemoryHost – readValue for mem_block_t members', () => {
-    it('reads uint32 len field and uint8 id field from appended 9-byte items', async () => {
+describe('MemoryHost – read for mem_block_t members', () => {
+    it('reads uint32 len field and uint8 id field from appended 9-byte items', () => {
         const host = new MemoryHost();
         const block = makeBlockBytes(0x20010d50, 0x29 | 1, 0xF1); // len=41, allocated
         host.setVariable('bl', 9, block, -1, 0x20010d28, 9);
 
         // Read len as uint32 (offset 4)
-        const lenRef = makeContainer('bl', 4, 4);
-        const lenVal = await host.readValue(lenRef);
+        const lenBytes = host.read('bl', 4, 4);
+        expect(lenBytes).toBeDefined();
+        const lenVal = leToNumber(lenBytes!);
         expect(lenVal).toBe(0x29 | 1);
 
         // Read id as uint8 (offset 8)
-        const idRef = makeContainer('bl', 1, 8);
-        const idVal = await host.readValue(idRef);
-        expect(idVal).toBe(0xF1);
+        const idBytes = host.read('bl', 8, 1);
+        expect(idBytes).toBeDefined();
+        expect(idBytes![0]).toBe(0xF1);
 
         // Check len & 1 (allocated flag)
-        expect(((lenVal as number) & 1)).toBe(1);
+        expect(lenVal & 1).toBe(1);
     });
 
-    it('reads the last element (sentinel) len correctly', async () => {
+    it('reads the last element (sentinel) len correctly', () => {
         const host = new MemoryHost();
         // Simulate appending: 2 allocated blocks + sentinel
         host.setVariable('bl', 9, makeBlockBytes(0x2000, 41 | 1, 0xF1), -1, 0x1000, 9);
@@ -218,22 +184,21 @@ describe('MemoryHost – readValue for mem_block_t members', () => {
 
         // The SCVD calc: mem_head_com.max_used = mem_list_com[_count-1].len
         // Last element (index 2) len at offset = 2*9 + 4 = 22
-        const lastLenRef = makeContainer('bl', 4, (count - 1) * 9 + 4);
-        const lastLen = await host.readValue(lastLenRef);
-        expect(lastLen).toBe(6552);
+        const lastLenBytes = host.read('bl', (count - 1) * 9 + 4, 4);
+        expect(lastLenBytes).toBeDefined();
+        expect(leToNumber(lastLenBytes!)).toBe(6552);
     });
 });
 
 describe('MemoryHost – virtual size with 9-byte items', () => {
-    it('pads 9-byte data to virtualSize when virtualSize > data size', async () => {
+    it('pads 9-byte data to virtualSize when virtualSize > data size', () => {
         const host = new MemoryHost();
         // virtualSize = 12 (pad 3 extra bytes)
         const block = makeBlockBytes(0x100, 41, 0xF5);
         host.setVariable('padded', 9, block, 0, undefined, 12);
 
         // Read 12 bytes: first 9 are data, last 3 are zero
-        const ref = makeContainer('padded', 12, 0);
-        const raw = await host.readRaw(ref, 12);
+        const raw = host.read('padded', 0, 12);
         expect(raw).toBeDefined();
         expect(raw!.subarray(0, 9)).toEqual(block);
         expect(raw!.subarray(9, 12)).toEqual(new Uint8Array([0, 0, 0]));
@@ -253,7 +218,7 @@ describe('MemoryHost – virtual size with 9-byte items', () => {
 });
 
 describe('MemoryHost – edge cases with the readlist _count-1 pattern', () => {
-    it('correctly handles _count and accessing last element in SCVD pattern', async () => {
+    it('correctly handles _count and accessing last element in SCVD pattern', () => {
         const host = new MemoryHost();
 
         // Simulate the exact RTX pattern: append blocks, then access [_count-1]
@@ -279,11 +244,11 @@ describe('MemoryHost – edge cases with the readlist _count-1 pattern', () => {
             const blockEntry = blocks.at(i);
             expect(addr).toBe(blockEntry?.addr);
 
-            // Read id byte to check condition (len & 1) && (id == 0xF1)
-            const lenRef = makeContainer('mem_list_com', 4, i * 9 + 4);
-            const len = await host.readValue(lenRef) as number;
-            const idRef = makeContainer('mem_list_com', 1, i * 9 + 8);
-            const id = await host.readValue(idRef) as number;
+            // Read len and id bytes to check condition (len & 1) && (id == 0xF1)
+            const lenBytes = host.read('mem_list_com', i * 9 + 4, 4);
+            const len = lenBytes ? leToNumber(lenBytes) : 0;
+            const idBytes = host.read('mem_list_com', i * 9 + 8, 1);
+            const id = idBytes ? idBytes[0] : 0;
 
             expect(len & 1).toBe(1); // all allocated
             expect(id).toBe(blockEntry?.data.at(8));
@@ -291,8 +256,8 @@ describe('MemoryHost – edge cases with the readlist _count-1 pattern', () => {
 
         // max_used = last element's len
         const lastIdx = count - 1;
-        const lastLenRef = makeContainer('mem_list_com', 4, lastIdx * 9 + 4);
-        const maxUsed = await host.readValue(lastLenRef);
-        expect(maxUsed).toBe(6552);
+        const lastLenBytes = host.read('mem_list_com', lastIdx * 9 + 4, 4);
+        expect(lastLenBytes).toBeDefined();
+        expect(leToNumber(lastLenBytes!)).toBe(6552);
     });
 });
