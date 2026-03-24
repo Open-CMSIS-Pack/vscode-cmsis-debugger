@@ -50,7 +50,6 @@ export class ComponentViewerBase {
     private _runningUpdate: boolean = false;
     private _refreshTimerEnabled: boolean = true;
     private static readonly pendingUpdateDelayMs = 150;
-    private static readonly filterMinChars = 3;
 
     public constructor(
         context: vscode.ExtensionContext,
@@ -165,8 +164,8 @@ export class ComponentViewerBase {
 
     protected handleFilterTree(): void {
         const inputBox = vscode.window.createInputBox();
-        inputBox.placeholder = 'Type a regex pattern to filter nodes...';
-        inputBox.prompt = `Filter ${this._viewName} tree (live after ${ComponentViewerBase.filterMinChars} chars, Enter to apply)`;
+        inputBox.placeholder = 'Type a text pattern to filter nodes...';
+        inputBox.prompt = `Filter ${this._viewName} tree`;
         inputBox.value = '';
         inputBox.ignoreFocusOut = false;
 
@@ -181,10 +180,10 @@ export class ComponentViewerBase {
         };
 
         inputBox.onDidChangeValue(value => {
-            if (value.length >= ComponentViewerBase.filterMinChars) {
-                applyFilter(value);
-            } else if (value.length === 0) {
+            if (value.length === 0) {
                 this.handleClearFilter();
+            } else {
+                applyFilter(value);
             }
         });
 
