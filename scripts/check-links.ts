@@ -53,6 +53,19 @@ async function getChangedFiles(): Promise<string[]> {
         .filter(Boolean)
         .forEach((f) => changedFiles.add(f));
 
+    // Explicitly include newly added files from the index.
+    const stagedAdded = await execFile("git", [
+        "diff",
+        "--name-only",
+        "--diff-filter=A",
+        "--cached"
+    ]);
+    stagedAdded.stdout
+        .split(/\r?\n/)
+        .map((f) => f.trim())
+        .filter(Boolean)
+        .forEach((f) => changedFiles.add(f));
+
     return Array.from(changedFiles);
 }
 
@@ -89,7 +102,8 @@ async function main() {
         .option("config", {
             alias: "c",
             type: "string",
-            description: "Path to markdown-link-check config file"
+            description: "Path to markdown-link-check config file",
+            default: ".github/markdown-link-check.jsonc",
         })
         .option("ignore", {
             alias: "i",
@@ -108,7 +122,7 @@ async function main() {
 
     const { globby } = await import("globby");
     const ignorePatterns = (argv.ignore as string[]).map((pattern) => `!${pattern}`);
-    const configPath = resolve(argv.config as string);
+    const configPath = resolve(argv.config);
     const mdFiles = await globby(["**/*.md", ...ignorePatterns]);
 
     if (mdFiles.length === 0) {
