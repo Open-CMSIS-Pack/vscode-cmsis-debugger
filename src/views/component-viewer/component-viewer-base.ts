@@ -102,6 +102,12 @@ export class ComponentViewerBase {
             this._refreshTimerEnabled = false;
             componentViewerLogger.info(`${this._viewName}: Auto refresh disabled`);
         });
+        const filterTreeCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.filterTree`, () => {
+            this.handleFilterTree();
+        });
+        const clearFilterCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.clearFilter`, async () => {
+            this.handleClearFilter();
+        });
         this._context.subscriptions.push(
             treeView,
             onDidExpandElementDisposable,
@@ -109,7 +115,9 @@ export class ComponentViewerBase {
             lockInstanceCommandDisposable,
             unlockInstanceCommandDisposable,
             enablePeriodicUpdateCommandDisposable,
-            disablePeriodicUpdateCommandDisposable
+            disablePeriodicUpdateCommandDisposable,
+            filterTreeCommandDisposable,
+            clearFilterCommandDisposable
         );
         return true;
     }
@@ -152,6 +160,49 @@ export class ComponentViewerBase {
             instance.dirtyWhileLocked = false;
         }
         this._componentViewerTreeDataProvider.refresh();
+    }
+
+    protected handleFilterTree(): void {
+        const inputBox = vscode.window.createInputBox();
+        inputBox.placeholder = 'Type a text pattern to filter nodes...';
+        inputBox.prompt = `Filter ${this._viewName} tree`;
+        inputBox.value = '';
+        inputBox.ignoreFocusOut = false;
+
+        const applyFilter = (value: string): void => {
+            if (value === '') {
+                this.handleClearFilter();
+            } else {
+                componentViewerLogger.info(`${this._viewName}: Filter set to '${value}'`);
+                this._componentViewerTreeDataProvider.setFilter(value);
+                void vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, true);
+            }
+        };
+
+        inputBox.onDidChangeValue(value => {
+            if (value.length === 0) {
+                this.handleClearFilter();
+            } else {
+                applyFilter(value);
+            }
+        });
+
+        inputBox.onDidAccept(() => {
+            applyFilter(inputBox.value);
+            inputBox.hide();
+        });
+
+        inputBox.onDidHide(() => {
+            inputBox.dispose();
+        });
+
+        inputBox.show();
+    }
+
+    protected handleClearFilter(): void {
+        componentViewerLogger.info(`${this._viewName}: Filter cleared`);
+        this._componentViewerTreeDataProvider.setFilter(undefined);
+        void vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, false);
     }
 
     protected async readScvdFiles(tracker: GDBTargetDebugTracker, session?: GDBTargetDebugSession): Promise<void> {

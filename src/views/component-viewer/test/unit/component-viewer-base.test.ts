@@ -156,8 +156,10 @@ describe('ComponentViewerBase', () => {
         });
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.lockComponent', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.unlockComponent', expect.any(Function));
-        // 1 tree view + 2 event listeners + 4 commands + 6 tracker disposables
-        expect(context.subscriptions.length).toBe(13);
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.filterTree', expect.any(Function));
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.clearFilter', expect.any(Function));
+        // 1 tree view + 2 event listeners + 6 commands + 6 tracker disposables
+        expect(context.subscriptions.length).toBe(15);
     });
 
     it('should fail to activate the test class tree data provider if view is not correctly loaded', async () => {
@@ -556,6 +558,108 @@ describe('ComponentViewerBase', () => {
         await disableHandler?.();
         expect((controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled).toBe(false);
         expect(componentViewerLogger.info).toHaveBeenCalledWith('Test Class: Auto refresh disabled');
+    });
+
+    it('filterTree command opens input box and applies filter live after 3 chars', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const filterHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.testClass.filterTree')?.[1] as
+            | (() => void)
+            | undefined;
+        expect(filterHandler).toBeDefined();
+
+        filterHandler?.();
+        const createInputBoxMock = asMockedFunction(vscode.window.createInputBox);
+        expect(createInputBoxMock).toHaveBeenCalledTimes(1);
+        const inputBox = createInputBoxMock.mock.results[0]?.value;
+        expect(inputBox).toBeDefined();
+        expect(inputBox.show).toHaveBeenCalled();
+
+        // Simulate typing 3 chars — should apply filter
+        const onChangeHandler = inputBox._handlers.onDidChangeValue[0];
+        inputBox.value = 'abc';
+        onChangeHandler('abc');
+        expect(provider.setFilter).toHaveBeenCalledWith('abc');
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', true);
+
+        // Simulate typing less than 3 chars — should still apply filter
+        jest.clearAllMocks();
+        inputBox.value = 'ab';
+        onChangeHandler('ab');
+        expect(provider.setFilter).toHaveBeenCalledWith('ab');
+
+        // Simulate clearing the input — should clear filter
+        jest.clearAllMocks();
+        inputBox.value = '';
+        onChangeHandler('');
+        expect(provider.setFilter).toHaveBeenCalledWith(undefined);
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', false);
+    });
+
+    it('filterTree command applies filter on Enter regardless of length', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const filterHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.testClass.filterTree')?.[1] as
+            | (() => void)
+            | undefined;
+        filterHandler?.();
+        const inputBox = asMockedFunction(vscode.window.createInputBox).mock.results[0]?.value;
+        const onAcceptHandler = inputBox._handlers.onDidAccept[0];
+
+        // Accept with short value (< 3 chars) still applies filter
+        inputBox.value = 'ab';
+        onAcceptHandler();
+        expect(provider.setFilter).toHaveBeenCalledWith('ab');
+        expect(inputBox.hide).toHaveBeenCalled();
+    });
+
+    it('filterTree command clears filter on Enter with empty value', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const filterHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.testClass.filterTree')?.[1] as
+            | (() => void)
+            | undefined;
+        filterHandler?.();
+        const inputBox = asMockedFunction(vscode.window.createInputBox).mock.results[0]?.value;
+        const onAcceptHandler = inputBox._handlers.onDidAccept[0];
+
+        inputBox.value = '';
+        onAcceptHandler();
+        expect(provider.setFilter).toHaveBeenCalledWith(undefined);
+        expect(inputBox.hide).toHaveBeenCalled();
+    });
+
+    it('filterTree command disposes input box on hide', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const filterHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.testClass.filterTree')?.[1] as
+            | (() => void)
+            | undefined;
+        filterHandler?.();
+        const inputBox = asMockedFunction(vscode.window.createInputBox).mock.results[0]?.value;
+        const onHideHandler = inputBox._handlers.onDidHide[0];
+
+        onHideHandler();
+        expect(inputBox.dispose).toHaveBeenCalled();
+    });
+
+    it('clearFilter command clears filter and resets context', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const clearHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.testClass.clearFilter')?.[1] as
+            | (() => Promise<void> | void)
+            | undefined;
+        expect(clearHandler).toBeDefined();
+
+        await clearHandler?.();
+        expect(provider.setFilter).toHaveBeenCalledWith(undefined);
+        expect(componentViewerLogger.info).toHaveBeenCalledWith('Test Class: Filter cleared');
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', false);
     });
 
     it('invokes unlock handler and skips lock when no matching instance exists', async () => {

@@ -173,6 +173,18 @@
         "category": "Component Viewer"
       },
       {
+        "command": "vscode-cmsis-debugger.componentViewer.filterTree",
+        "title": "Filter Tree",
+        "icon": "$(filter)",
+        "category": "Component Viewer"
+      },
+      {
+        "command": "vscode-cmsis-debugger.componentViewer.clearFilter",
+        "title": "Clear Filter",
+        "icon": "$(clear-all)",
+        "category": "Component Viewer"
+      },
+      {
         "command": "vscode-cmsis-debugger.corePeripherals.lockComponent",
         "title": "Lock Component",
         "icon": "$(unlock)",
@@ -195,6 +207,20 @@
       {
         "command": "vscode-cmsis-debugger.corePeripherals.disablePeriodicUpdate",
         "title": "Disable Periodic Update",
+        "category": "Core Peripherals",
+        "when": "config.cmsis-debugger.corePeripherals.enabled"
+      },
+      {
+        "command": "vscode-cmsis-debugger.corePeripherals.filterTree",
+        "title": "Filter Tree",
+        "icon": "$(filter)",
+        "category": "Core Peripherals",
+        "when": "config.cmsis-debugger.corePeripherals.enabled"
+      },
+      {
+        "command": "vscode-cmsis-debugger.corePeripherals.clearFilter",
+        "title": "Clear Filter",
+        "icon": "$(clear-all)",
         "category": "Core Peripherals",
         "when": "config.cmsis-debugger.corePeripherals.enabled"
       }
@@ -298,6 +324,14 @@
           "when": "true"
         },
         {
+          "command": "vscode-cmsis-debugger.componentViewer.filterTree",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.clearFilter",
+          "when": "false"
+        },
+        {
           "command": "vscode-cmsis-debugger.corePeripherals.lockComponent",
           "when": "false"
         },
@@ -312,6 +346,14 @@
         {
           "command": "vscode-cmsis-debugger.corePeripherals.disablePeriodicUpdate",
           "when": "true"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.filterTree",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.clearFilter",
+          "when": "false"
         }
       ],
       "view/title": [
@@ -340,6 +382,26 @@
         {
           "command": "vscode-cmsis-debugger.liveWatch.refresh",
           "when": "view == cmsis-debugger.liveWatch",
+          "group": "navigation@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.filterTree",
+          "when": "view == cmsis-debugger.componentViewer",
+          "group": "navigation@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.clearFilter",
+          "when": "view == cmsis-debugger.componentViewer && componentViewer.filterActive",
+          "group": "navigation@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.filterTree",
+          "when": "config.cmsis-debugger.corePeripherals.enabled && view == cmsis-debugger.corePeripherals",
+          "group": "navigation@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.clearFilter",
+          "when": "config.cmsis-debugger.corePeripherals.enabled && view == cmsis-debugger.corePeripherals && corePeripherals.filterActive",
           "group": "navigation@2"
         }
       ],

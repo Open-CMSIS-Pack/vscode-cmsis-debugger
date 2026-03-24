@@ -25,8 +25,67 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     public readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
     private _roots: ScvdGuiInterface[] = [];
     private _expandedIds: string[] = [];
+    private _filterTokens: string[] | undefined;
+    private _filterGeneration: number = 0;
+    private _savedExpandedIds: string[] | undefined;
 
     constructor () {
+    }
+
+    /**
+     * Set a filter pattern. When set, only nodes (and their ancestors)
+     * whose name or value contains the pattern (case-insensitive) are shown.
+     * Pass undefined or empty string to clear the filter.
+     */
+    public setFilter(pattern: string | undefined): void {
+        if (pattern === undefined || pattern === '') {
+            this._filterTokens = undefined;
+            // Restore pre-filter expanded state
+            if (this._savedExpandedIds !== undefined) {
+                this._expandedIds = this._savedExpandedIds;
+                this._savedExpandedIds = undefined;
+            }
+        } else {
+            // Save expanded state before first filter application
+            if (this._savedExpandedIds === undefined) {
+                this._savedExpandedIds = [...this._expandedIds];
+            }
+            // Increment generation so tree item IDs change, forcing VS Code to
+            // treat nodes as new and respect our Expanded collapsibleState.
+            this._filterGeneration++;
+            // Split into lowercase tokens for fuzzy word matching:
+            // e.g. "ext int" matches "External Interrupt".
+            this._filterTokens = pattern.toLowerCase().split(/\s+/).filter(Boolean);
+        }
+        this.refresh();
+    }
+
+    public get isFilterActive(): boolean {
+        return this._filterTokens !== undefined;
+    }
+
+    /**
+     * Returns true if every filter token appears somewhere in the node's
+     * combined name and value text (case-insensitive).
+     * Returns true when no filter is active (no match restriction).
+     */
+    private nodeMatchesFilter(node: ScvdGuiInterface): boolean {
+        if (!this._filterTokens) {
+            return true;
+        }
+        const text = `${node.getGuiName() ?? ''} ${node.getGuiValue() ?? ''}`.toLowerCase();
+        return this._filterTokens.every(token => text.includes(token));
+    }
+
+    /**
+     * Returns true if the node itself or any of its descendants match the filter.
+     */
+    private nodeOrDescendantMatchesFilter(node: ScvdGuiInterface): boolean {
+        if (this.nodeMatchesFilter(node)) {
+            return true;
+        }
+        const children = node.getGuiChildren() || [];
+        return children.some(child => this.nodeOrDescendantMatchesFilter(child));
     }
 
     public onWillStopSession(sessionId: string): void {
@@ -57,7 +116,12 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         const hasChildren = element.hasGuiChildren();
         const wasExpanded = this._expandedIds.find(expandedId => expandedId === guiId);
         if (hasChildren) {
-            treeItem.collapsibleState = wasExpanded ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
+            // When a filter is active, auto-expand nodes that have matching descendants
+            if (this._filterTokens && this.nodeOrDescendantMatchesFilter(element)) {
+                treeItem.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
+            } else {
+                treeItem.collapsibleState = wasExpanded ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
+            }
         } else {
             treeItem.collapsibleState = vscode.TreeItemCollapsibleState.None;
             if (wasExpanded) {
@@ -76,7 +140,10 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
 
         treeItem.contextValue = element.isLocked ? `locked.${intermediateContextValue}` : intermediateContextValue;
         if (guiId !== undefined) {
-            treeItem.id = guiId;
+            // When filter is active, use a generation-tagged ID so VS Code treats
+            // nodes as new and respects our Expanded collapsibleState instead of
+            // using its cached expansion state for the original ID.
+            treeItem.id = this._filterTokens ? `f${this._filterGeneration}/${guiId}` : guiId;
         }
         perf?.endUi(perfStartTime, 'treeViewGetTreeItemMs', 'treeViewGetTreeItemCalls');
         return treeItem;
@@ -107,14 +174,19 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     public getChildren(element?: ScvdGuiInterface): ScvdGuiInterface[] {
         const perfStartTime = perf?.startUi() ?? 0;
         if (!element) {
-            const roots = this._roots;
+            const roots = this._filterTokens
+                ? this._roots.filter(root => this.nodeOrDescendantMatchesFilter(root))
+                : this._roots;
             perf?.endUi(perfStartTime, 'treeViewGetChildrenMs', 'treeViewGetChildrenCalls');
             return roots;
         }
 
         const children = element.getGuiChildren() || [];
+        const filtered = this._filterTokens
+            ? children.filter(child => this.nodeOrDescendantMatchesFilter(child))
+            : children;
         perf?.endUi(perfStartTime, 'treeViewGetChildrenMs', 'treeViewGetChildrenCalls');
-        return children;
+        return filtered;
     }
 
     public setRoots(roots: ScvdGuiInterface[] = []): void {

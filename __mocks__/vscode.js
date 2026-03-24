@@ -89,6 +89,22 @@ module.exports = {
         showInformationMessage: jest.fn(() => Promise.resolve(undefined)),
         showWarningMessage: jest.fn(),
         showQuickPick: jest.fn(),
+        createInputBox: jest.fn(() => {
+            const handlers = { onDidChangeValue: [], onDidAccept: [], onDidHide: [] };
+            return {
+                placeholder: '',
+                prompt: '',
+                value: '',
+                ignoreFocusOut: false,
+                onDidChangeValue: jest.fn(cb => { handlers.onDidChangeValue.push(cb); return { dispose: jest.fn() }; }),
+                onDidAccept: jest.fn(cb => { handlers.onDidAccept.push(cb); return { dispose: jest.fn() }; }),
+                onDidHide: jest.fn(cb => { handlers.onDidHide.push(cb); return { dispose: jest.fn() }; }),
+                show: jest.fn(),
+                hide: jest.fn(),
+                dispose: jest.fn(),
+                _handlers: handlers,
+            };
+        }),
     },
     env: {
         clipboard: {

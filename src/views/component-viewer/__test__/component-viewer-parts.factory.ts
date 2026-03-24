@@ -31,6 +31,8 @@ export function treeDataProviderFactory(): jest.Mocked<ComponentViewerTreeDataPr
         setRoots: jest.fn(),
         clear: jest.fn(),
         refresh: jest.fn().mockImplementation(() => eventEmitter.fire()),
+        setFilter: jest.fn(),
+        isFilterActive: false,
     };
     return provider as unknown as jest.Mocked<ComponentViewerTreeDataProvider>;
 };
