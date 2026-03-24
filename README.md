@@ -30,13 +30,13 @@ For RTOS awareness, we recommend installing this extension manually:
 
 This extension is [free to use](https://marketplace.visualstudio.com/items/Arm.vscode-cmsis-debugger/license) and you can install it individually or as part of the [Arm Keil® Studio pack](https://marketplace.visualstudio.com/items?itemName=Arm.keil-studio-pack). For optimum debugger experience, use it with extensions from Arm (included in the Arm Keil Studio pack) and from other parties:
 
-- [Arm CMSIS Solution](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution) a user interface for _csolution projects_ that simplifies the [Run and Debug configuration](https://mdk-packs.github.io/vscode-cmsis-solution-docs/configuration.html#configure-run-and-debug).
+- [Arm CMSIS Solution](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution) a user interface for _csolution projects_ that simplifies the [Run and Debug configuration](https://mdk-packs.github.io/vscode-cmsis-solution-docs/debug.html#configure-run-and-debug).
 - [Arm Tools Environment Manager](https://marketplace.visualstudio.com/items?itemName=Arm.environment-manager) installs tools (compiler, simulation models, and utilities) for software development.
 - [RTOS Views](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views) provides insights into resources of popular RTOS implementations at runtime.
 
 ## Debugger Configuration
 
-VS Code uses the file `.vscode/launch.json` to configure target-specific debug parameters such as project files, device, and debug adapter. The Arm CMSIS Solution automatically generates this file based on the _csolution project_ with all [required settings](https://mdk-packs.github.io/vscode-cmsis-solution-docs/configuration.html#configure-run-and-debug), streamlining this setup. It provides both _launch_ and _attach_ configurations; for a multi-processor system, each core gets an _attach_ configuration, while the start core also gets a _launch_ configuration.
+VS Code uses the file `.vscode/launch.json` to configure target-specific debug parameters such as project files, device, and debug adapter. The Arm CMSIS Solution automatically generates this file based on the _csolution project_ with all [required settings](https://mdk-packs.github.io/vscode-cmsis-solution-docs/debug.html#configure-run-and-debug), streamlining this setup. It provides both _launch_ and _attach_ configurations; for a multi-processor system, each core gets an _attach_ configuration, while the start core also gets a _launch_ configuration.
 
 To start debugging, the CMSIS Solution offers action buttons and menu commands.
 

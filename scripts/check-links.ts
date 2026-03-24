@@ -16,19 +16,21 @@
  * limitations under the License.
  */
 
-import { execFile } from "child_process";
-import { promisify } from "util";
-import { readFile } from "fs/promises";
+import { execFile as execFileCallback } from "child_process";
+import { readFile as readFileCallback } from "fs";
 import { resolve } from "path";
+import { promisify } from "util";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
-const execFileAsync = promisify(execFile);
+const execFile = promisify(execFileCallback);
+const readFile = promisify(readFileCallback);
+
 
 async function getChangedFiles(): Promise<string[]> {
     const changedFiles = new Set<string>();
 
-    const unstaged = await execFileAsync("git", [
+    const unstaged = await execFile("git", [
         "diff",
         "--name-only",
         "--diff-filter=ACMR"
@@ -39,7 +41,7 @@ async function getChangedFiles(): Promise<string[]> {
         .filter(Boolean)
         .forEach((f) => changedFiles.add(f));
 
-    const staged = await execFileAsync("git", [
+    const staged = await execFile("git", [
         "diff",
         "--name-only",
         "--diff-filter=ACMR",
@@ -115,7 +117,7 @@ async function main() {
         console.log(`Checking ${mdFiles.length} markdown file(s)...`);
         for (const file of mdFiles) {
             try {
-                const { stdout } = await execFileAsync(
+                const { stdout } = await execFile(
                     "npx", ["markdown-link-check", "-v", "-c", configPath, file], { shell: true }
                 );
                 console.log(stdout);
@@ -127,7 +129,7 @@ async function main() {
         }
     }
 
-    if (argv.checkFilesHttp) {
+    if (argv.checkHttp) {
         const changedFiles = await getChangedFiles();
 
         if (changedFiles.length === 0) {
