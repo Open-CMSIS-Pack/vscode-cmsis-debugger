@@ -583,11 +583,11 @@ describe('ComponentViewerBase', () => {
         expect(provider.setFilter).toHaveBeenCalledWith('abc');
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', true);
 
-        // Simulate typing less than 3 chars — should not apply (but also not clear since not empty)
+        // Simulate typing less than 3 chars — should still apply filter
         jest.clearAllMocks();
         inputBox.value = 'ab';
         onChangeHandler('ab');
-        expect(provider.setFilter).not.toHaveBeenCalled();
+        expect(provider.setFilter).toHaveBeenCalledWith('ab');
 
         // Simulate clearing the input — should clear filter
         jest.clearAllMocks();
