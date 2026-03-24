@@ -83,6 +83,7 @@ module.exports = {
             dispose: jest.fn(),
             onDidExpandElement: jest.fn(),
             onDidCollapseElement: jest.fn(),
+            reveal: jest.fn().mockResolvedValue(undefined),
         })),
         registerTreeDataProvider: jest.fn(() => ({ dispose: jest.fn() })),
         showErrorMessage: jest.fn(),
@@ -105,6 +106,7 @@ module.exports = {
                 _handlers: handlers,
             };
         }),
+        withProgress: jest.fn((options, task) => task({ report: jest.fn() })),
     },
     env: {
         clipboard: {

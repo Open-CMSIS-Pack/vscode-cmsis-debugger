@@ -43,9 +43,21 @@ export class StatementVar extends StatementBase {
                 return;
             }
 
-            const initValue = value ?? 0;
+            let initValue: number | bigint | Uint8Array;
+            if (value instanceof Uint8Array) {
+                // String values arrive as encoded byte arrays from ScvdVar.
+                // Fit into the target buffer (truncate if necessary).
+                // No explicit \0 — MemoryContainer zero-fills unused space.
+                if (value.length > targetSize) {
+                    initValue = value.subarray(0, targetSize);
+                } else {
+                    initValue = value;
+                }
+            } else {
+                initValue = value ?? 0;
+            }
             executionContext.memoryHost.setVariable(name, targetSize, initValue, -1, 0);
-            componentViewerLogger.debug(`Line: ${this.line}: Variable "${name}" created with value: ${value}`);
+            componentViewerLogger.debug(`Line: ${this.line}: Variable "${name}" created with value: ${initValue}`);
         }
     }
 }
