@@ -477,7 +477,7 @@
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
-    "@eclipse-cdt-cloud/vscode-peripheral-inspector": "github:eclipse-cdt-cloud/vscode-peripheral-inspector#main",
+    "@eclipse-cdt-cloud/vscode-peripheral-inspector": "github:jreineckearm/vscode-peripheral-inspector#xmlbuilder-update",
     "@eslint/js": "^10.0.1",
     "@open-cmsis-pack/vsce-helper": "^0.3.0",
     "@types/extract-zip": "^2.0.3",
