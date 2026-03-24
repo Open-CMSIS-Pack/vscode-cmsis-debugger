@@ -640,7 +640,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
             readUint8ArrayStrFromPointer: jest.fn().mockResolvedValue(new Uint8Array([65, 0, 0, 0])),
             readMemory: jest.fn(async (addr: number, len: number) => (memoryMap.get(addr)?.subarray(0, len)))
         } as unknown as ScvdDebugTarget;
-        const formatterEval = new ScvdEvalInterface({ read: jest.fn() } as unknown as MemoryHost, {} as RegisterHost, debugTarget, new ScvdFormatSpecifier());
+        const formatterEval = new ScvdEvalInterface({ read: jest.fn() } as unknown as MemoryHost, {} as RegisterHost, debugTarget, new ScvdFormatSpecifier(), new InterruptHost());
         const member = new LocalFakeMember();
         const container: RefContainer = { base: member, current: member, valueType: undefined };
         expect(await formatterEval.formatPrintf('C', 0x2000, container)).toBe('CTX');
@@ -695,7 +695,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
             findSymbolNameAtAddress: jest.fn().mockResolvedValue(undefined)
         } as unknown as ScvdDebugTarget;
         const memHost = { read: jest.fn().mockReturnValue(undefined) } as unknown as MemoryHost;
-        const formatterEval = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier());
+        const formatterEval = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier(), new InterruptHost());
         const container: RefContainer = { base: new DummyNode('b'), current: new DummyNode('b'), valueType: undefined };
         expect(await formatterEval.formatPrintf('x', BigInt(5) as unknown as number, container)).toBe('0x00000005');
         expect(await formatterEval.formatPrintf('x', ({}) as unknown as number, container)).toBe('NaN');
