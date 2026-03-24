@@ -408,12 +408,12 @@
         {
           "command": "vscode-cmsis-debugger.componentViewer.expandAll",
           "when": "view == cmsis-debugger.componentViewer",
-          "group": "navigation"
+          "group": "navigation@3"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.expandAll",
           "when": "config.cmsis-debugger.corePeripherals.enabled && view == cmsis-debugger.corePeripherals",
-          "group": "navigation"
+          "group": "navigation@3"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.filterTree",

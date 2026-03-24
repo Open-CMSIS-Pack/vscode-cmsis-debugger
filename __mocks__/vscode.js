@@ -106,6 +106,7 @@ module.exports = {
                 _handlers: handlers,
             };
         }),
+        withProgress: jest.fn((options, task) => task({ report: jest.fn() })),
     },
     env: {
         clipboard: {

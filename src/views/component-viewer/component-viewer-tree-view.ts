@@ -24,11 +24,11 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     private readonly _onDidChangeTreeData = new vscode.EventEmitter<ScvdGuiInterface | void>();
     public readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
     private _roots: ScvdGuiInterface[] = [];
-    private _expandedIds: string[] = [];
+    private _expandedIds = new Set<string>();
     private readonly _parentById: Map<string, ScvdGuiInterface> = new Map();
     private _filterTokens: string[] | undefined;
-    private _filterGeneration: number = 0;
-    private _savedExpandedIds: string[] | undefined;
+    private _idGeneration: number = 0;
+    private _savedExpandedIds: Set<string> | undefined;
 
     constructor () {
     }
@@ -46,14 +46,17 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
                 this._expandedIds = this._savedExpandedIds;
                 this._savedExpandedIds = undefined;
             }
+            // Bump generation so VS Code sees new IDs and respects the
+            // restored collapsibleState instead of its cached filter state.
+            this._idGeneration++;
         } else {
             // Save expanded state before first filter application
             if (this._savedExpandedIds === undefined) {
-                this._savedExpandedIds = [...this._expandedIds];
+                this._savedExpandedIds = new Set(this._expandedIds);
             }
             // Increment generation so tree item IDs change, forcing VS Code to
             // treat nodes as new and respect our Expanded collapsibleState.
-            this._filterGeneration++;
+            this._idGeneration++;
             // Split into lowercase tokens for fuzzy word matching:
             // e.g. "ext int" matches "External Interrupt".
             this._filterTokens = pattern.toLowerCase().split(/\s+/).filter(Boolean);
@@ -90,22 +93,23 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     }
 
     public onWillStopSession(sessionId: string): void {
-        // Filter expanded elements by session ID encoded into unique GUI ID.
-        this._expandedIds = this._expandedIds.filter(expandedId => !expandedId.startsWith(sessionId + '/'));
+        const prefix = sessionId + '/';
+        for (const id of this._expandedIds) {
+            if (id.startsWith(prefix)) {
+                this._expandedIds.delete(id);
+            }
+        }
     }
 
     public setElementExpanded(element: ScvdGuiInterface, expanded: boolean): void {
-        const hasChildren = element.hasGuiChildren();
         const elementId = element.getGuiId();
         if (elementId === undefined) {
             return;
         }
-        const wasExpanded = this._expandedIds.find(expandedId => expandedId === elementId);
-        if (hasChildren && expanded && wasExpanded === undefined) {
-            this._expandedIds.push(elementId);
-            return;
-        } else if (wasExpanded) {
-            this._expandedIds = this._expandedIds.filter(expandedId => expandedId !== elementId);
+        if (expanded && element.hasGuiChildren()) {
+            this._expandedIds.add(elementId);
+        } else {
+            this._expandedIds.delete(elementId);
         }
     }
 
@@ -115,18 +119,17 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         const guiId = element.getGuiId();
         const treeItem = new vscode.TreeItem(treeItemLabel);
         const hasChildren = element.hasGuiChildren();
-        const wasExpanded = this._expandedIds.find(expandedId => expandedId === guiId);
         if (hasChildren) {
             // When a filter is active, auto-expand nodes that have matching descendants
-            if (this._filterTokens && this.nodeOrDescendantMatchesFilter(element)) {
-                treeItem.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
-            } else {
-                treeItem.collapsibleState = wasExpanded ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
-            }
+            const isExpanded = (this._filterTokens && this.nodeOrDescendantMatchesFilter(element))
+                || (guiId !== undefined && this._expandedIds.has(guiId));
+            treeItem.collapsibleState = isExpanded
+                ? vscode.TreeItemCollapsibleState.Expanded
+                : vscode.TreeItemCollapsibleState.Collapsed;
         } else {
             treeItem.collapsibleState = vscode.TreeItemCollapsibleState.None;
-            if (wasExpanded) {
-                this._expandedIds = this._expandedIds.filter(expandedId => expandedId !== guiId);
+            if (guiId !== undefined) {
+                this._expandedIds.delete(guiId);
             }
         }
         // Needs fixing, getGuiValue() for ScvdNode returns 0 when undefined
@@ -141,10 +144,11 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
 
         treeItem.contextValue = element.isLocked ? `locked.${intermediateContextValue}` : intermediateContextValue;
         if (guiId !== undefined) {
-            // When filter is active, use a generation-tagged ID so VS Code treats
-            // nodes as new and respects our Expanded collapsibleState instead of
-            // using its cached expansion state for the original ID.
-            treeItem.id = this._filterTokens ? `f${this._filterGeneration}/${guiId}` : guiId;
+            // Use a generation-tagged ID so VS Code treats nodes as new and
+            // respects our collapsibleState instead of using its cached state.
+            treeItem.id = this._idGeneration > 0
+                ? `${this._idGeneration}/${guiId}`
+                : guiId;
         }
         perf?.endUi(perfStartTime, 'treeViewGetTreeItemMs', 'treeViewGetTreeItemCalls');
         return treeItem;
@@ -214,6 +218,27 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         const result: ScvdGuiInterface[] = [];
         this.collectCollapsibleElements(this._roots, result);
         return result;
+    }
+
+    /**
+     * Marks every collapsible element as expanded and fires a single
+     * {@link refresh} so the tree re-renders once instead of per-node.
+     */
+    public expandAllElements(): void {
+        this.markAllExpanded();
+        // Increment generation so tree item IDs change, forcing VS Code to
+        // treat nodes as new and respect our Expanded collapsibleState.
+        this._idGeneration++;
+        this.refresh();
+    }
+
+    private markAllExpanded(): void {
+        for (const element of this.getAllCollapsibleElements()) {
+            const elementId = element.getGuiId();
+            if (elementId !== undefined) {
+                this._expandedIds.add(elementId);
+            }
+        }
     }
 
     public setRoots(roots: ScvdGuiInterface[] = []): void {

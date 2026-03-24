@@ -157,12 +157,12 @@ describe('ComponentViewerBase', () => {
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.lockComponent', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.unlockComponent', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.expandAll', expect.any(Function));
-        // 1 tree view + 2 event listeners + 5 commands + 6 tracker disposables
-        expect(context.subscriptions.length).toBe(14);
+        // 1 tree view + 2 event listeners + 7 commands + 6 tracker disposables
+        expect(context.subscriptions.length).toBe(16);
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.filterTree', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.clearFilter', expect.any(Function));
-        // 1 tree view + 2 event listeners + 6 commands + 6 tracker disposables
-        expect(context.subscriptions.length).toBe(15);
+        // 1 tree view + 2 event listeners + 7 commands + 6 tracker disposables
+        expect(context.subscriptions.length).toBe(16);
     });
 
     it('should fail to activate the test class tree data provider if view is not correctly loaded', async () => {
@@ -885,7 +885,7 @@ describe('ComponentViewerBase', () => {
         expect(setElementExpandedSpy).toHaveBeenCalledWith(element, false);
     });
 
-    it('expandAll command reveals each collapsible element', async () => {
+    it('expandAll command force-expands all elements and scrolls to root when nothing is selected', async () => {
         const childA = makeGuiNode('childA');
         const rootA = makeGuiNode('rootA', [childA]);
         const revealMock = jest.fn().mockResolvedValue(undefined);
@@ -894,10 +894,9 @@ describe('ComponentViewerBase', () => {
             onDidExpandElement: jest.fn(),
             onDidCollapseElement: jest.fn(),
             reveal: revealMock,
+            selection: [],
         });
 
-        // getAllCollapsibleElements returns all nodes with children
-        (provider.getAllCollapsibleElements as jest.Mock).mockReturnValue([rootA]);
         (provider.getChildren as jest.Mock).mockReturnValue([rootA]);
 
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
@@ -910,22 +909,51 @@ describe('ComponentViewerBase', () => {
         expect(expandAllHandler).toBeDefined();
         await expandAllHandler?.();
 
-        expect(provider.getAllCollapsibleElements).toHaveBeenCalled();
-        expect(revealMock).toHaveBeenCalledTimes(2);
-        expect(revealMock).toHaveBeenNthCalledWith(1, rootA, { select: false, focus: false, expand: true });
-        expect(revealMock).toHaveBeenNthCalledWith(2, rootA, { select: false, focus: false, expand: false });
+        expect(provider.expandAllElements).toHaveBeenCalled();
+        // Single reveal to scroll to root (no per-node expansion reveals)
+        expect(revealMock).toHaveBeenCalledTimes(1);
+        expect(revealMock).toHaveBeenCalledWith(rootA, { select: false, focus: false, expand: false });
     });
 
-    it('expandAll command does nothing when tree has no collapsible elements', async () => {
+    it('expandAll command reveals the selected element to keep it in focus', async () => {
+        const childA = makeGuiNode('childA');
+        const rootA = makeGuiNode('rootA', [childA]);
         const revealMock = jest.fn().mockResolvedValue(undefined);
 
         (vscode.window.createTreeView as jest.Mock).mockReturnValueOnce({
             onDidExpandElement: jest.fn(),
             onDidCollapseElement: jest.fn(),
             reveal: revealMock,
+            selection: [childA],
         });
 
-        (provider.getAllCollapsibleElements as jest.Mock).mockReturnValue([]);
+        (provider.getChildren as jest.Mock).mockReturnValue([rootA]);
+
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const expandAllHandler = registerCommandMock.mock.calls.find(
+            ([command]) => command === 'vscode-cmsis-debugger.testClass.expandAll'
+        )?.[1] as (() => Promise<void>) | undefined;
+
+        await expandAllHandler?.();
+
+        expect(provider.expandAllElements).toHaveBeenCalled();
+        // Single reveal to scroll to selected element
+        expect(revealMock).toHaveBeenCalledTimes(1);
+        expect(revealMock).toHaveBeenCalledWith(childA, { select: true, focus: false, expand: false });
+    });
+
+    it('expandAll command does not reveal when tree is empty', async () => {
+        const revealMock = jest.fn().mockResolvedValue(undefined);
+
+        (vscode.window.createTreeView as jest.Mock).mockReturnValueOnce({
+            onDidExpandElement: jest.fn(),
+            onDidCollapseElement: jest.fn(),
+            reveal: revealMock,
+            selection: [],
+        });
+
         (provider.getChildren as jest.Mock).mockReturnValue([]);
 
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
@@ -937,25 +965,23 @@ describe('ComponentViewerBase', () => {
 
         await expandAllHandler?.();
 
-        expect(provider.getAllCollapsibleElements).toHaveBeenCalled();
+        expect(provider.expandAllElements).toHaveBeenCalled();
         expect(revealMock).not.toHaveBeenCalled();
     });
 
     it('expandAll command gracefully handles reveal errors', async () => {
         const rootA = makeGuiNode('rootA', [makeGuiNode('childA1')]);
-        const rootB = makeGuiNode('rootB', [makeGuiNode('childB1')]);
         const revealMock = jest.fn()
-            .mockRejectedValueOnce(new Error('element not visible'))
-            .mockResolvedValueOnce(undefined);
+            .mockRejectedValueOnce(new Error('element not visible'));
 
         (vscode.window.createTreeView as jest.Mock).mockReturnValueOnce({
             onDidExpandElement: jest.fn(),
             onDidCollapseElement: jest.fn(),
             reveal: revealMock,
+            selection: [],
         });
 
-        (provider.getAllCollapsibleElements as jest.Mock).mockReturnValue([rootA, rootB]);
-        (provider.getChildren as jest.Mock).mockReturnValue([rootA, rootB]);
+        (provider.getChildren as jest.Mock).mockReturnValue([rootA]);
 
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
@@ -964,12 +990,11 @@ describe('ComponentViewerBase', () => {
             ([command]) => command === 'vscode-cmsis-debugger.testClass.expandAll'
         )?.[1] as (() => Promise<void>) | undefined;
 
-        // Should not throw despite first reveal failing
+        // Should not throw despite reveal failing
         await expect(expandAllHandler?.()).resolves.toBeUndefined();
-        expect(revealMock).toHaveBeenCalledTimes(3);
-        expect(revealMock).toHaveBeenNthCalledWith(1, rootA, { select: false, focus: false, expand: true });
-        expect(revealMock).toHaveBeenNthCalledWith(2, rootB, { select: false, focus: false, expand: true });
-        expect(revealMock).toHaveBeenNthCalledWith(3, rootA, { select: false, focus: false, expand: false });
+        expect(provider.expandAllElements).toHaveBeenCalled();
+        expect(revealMock).toHaveBeenCalledTimes(1);
+        expect(revealMock).toHaveBeenCalledWith(rootA, { select: false, focus: false, expand: false });
     });
 
     it('handleExpandAll returns early when treeView is not set', async () => {
@@ -977,6 +1002,6 @@ describe('ComponentViewerBase', () => {
         const handleExpandAll = (controller as unknown as { handleExpandAll: () => Promise<void> }).handleExpandAll.bind(controller);
 
         await expect(handleExpandAll()).resolves.toBeUndefined();
-        expect(provider.getAllCollapsibleElements).not.toHaveBeenCalled();
+        expect(provider.expandAllElements).not.toHaveBeenCalled();
     });
 });

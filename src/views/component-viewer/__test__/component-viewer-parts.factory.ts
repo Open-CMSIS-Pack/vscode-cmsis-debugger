@@ -30,6 +30,7 @@ export function treeDataProviderFactory(): jest.Mocked<ComponentViewerTreeDataPr
         getChildren: jest.fn(),
         getParent: jest.fn(),
         getAllCollapsibleElements: jest.fn().mockReturnValue([]),
+        expandAllElements: jest.fn(),
         setRoots: jest.fn(),
         clear: jest.fn(),
         refresh: jest.fn().mockImplementation(() => eventEmitter.fire()),

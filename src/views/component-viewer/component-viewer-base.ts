@@ -122,7 +122,7 @@ export class ComponentViewerBase {
             unlockInstanceCommandDisposable,
             enablePeriodicUpdateCommandDisposable,
             disablePeriodicUpdateCommandDisposable,
-            expandAllCommandDisposable
+            expandAllCommandDisposable,
             filterTreeCommandDisposable,
             clearFilterCommandDisposable
         );
@@ -133,21 +133,34 @@ export class ComponentViewerBase {
         if (!this._treeView) {
             return;
         }
-        const collapsibleElements = this._componentViewerTreeDataProvider.getAllCollapsibleElements();
-        for (const element of collapsibleElements) {
+
+        const fullViewId = `${VIEW_PREFIX}.${this._viewId}`;
+        await vscode.window.withProgress(
+            { location: { viewId: fullViewId } },
+            () => this.expandAllNodes()
+        );
+    }
+
+    private async expandAllNodes(): Promise<void> {
+        if (!this._treeView) {
+            return;
+        }
+
+        // Remember the current selection so we can keep it in view
+        const selectedElement = this._treeView.selection[0];
+
+        // Mark all elements as expanded and refresh the tree in one go.
+        this._componentViewerTreeDataProvider.expandAllElements();
+
+        // Reveal the previously selected element to keep it in focus,
+        // or scroll back to the root when nothing was selected.
+        const roots = this._componentViewerTreeDataProvider.getChildren();
+        const revealTarget = selectedElement ?? roots[0];
+        if (revealTarget) {
             try {
-                await this._treeView.reveal(element, { select: false, focus: false, expand: true });
+                await this._treeView.reveal(revealTarget, { select: !!selectedElement, focus: false, expand: false });
             } catch {
                 // Element may not be accessible in the tree view
-            }
-        }
-        // Scroll back to the top of the tree after expanding
-        const roots = this._componentViewerTreeDataProvider.getChildren();
-        if (roots.length > 0) {
-            try {
-                await this._treeView.reveal(roots[0], { select: false, focus: false, expand: false });
-            } catch {
-                // Root may not be accessible
             }
         }
     }
