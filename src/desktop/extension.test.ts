@@ -28,11 +28,6 @@ describe('extension', () => {
         const componentViewerCommands = [ 'cmsis-debugger.componentViewer.open', 'cmsis-debugger.componentViewer.focus' ];
         const corePeripheralsCommands = [ 'cmsis-debugger.corePeripherals.open', 'cmsis-debugger.corePeripherals.focus' ];
 
-        beforeEach(() => {
-            // Temporary mock for config.cmsis-debugger.corePeripherals.enabled until removed again
-            (vscode.workspace.getConfiguration as jest.Mock).mockReturnValueOnce({ get: (command: string) => command === 'cmsis-debugger.corePeripherals.enabled' });
-        });
-
         it('activates extension without asking to reload', async () => {
             const loggerSpy = jest.spyOn(logger, 'debug');
             await activate(extensionContextFactory());
