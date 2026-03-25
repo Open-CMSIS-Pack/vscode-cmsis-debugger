@@ -178,8 +178,8 @@
             </calc>
 
             <item cond="irqPresent" value="">
-              <print property="%E[Vectors.Index[Count]]" value="%d[Count]" cond="irqCore"/>
-              <print property="%Q[Count]" value="%d[Count]" cond="irqExt"/>
+              <print property="%E[Vectors.Index[Count]]" cond="irqCore" value="%E[Vectors.Enable[Count]], %E[Vectors.Pending[Count]], %E[Vectors.Active[Count]]"/>
+              <print property="%Q[Count]" cond="irqExt" value="%E[Vectors.Enable[Count]], %E[Vectors.Pending[Count]], %E[Vectors.Active[Count]]" />
               <item property="Index" value="%d[Vectors.Index[Count]]"/>
               <item property="Enable" value="%d[Vectors.Enable[Count]]"/>
               <item property="Pending" value="%d[Vectors.Pending[Count]]"/>

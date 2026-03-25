@@ -23,7 +23,6 @@ import {
 } from '@eclipse-cdt-cloud/vscode-peripheral-inspector/api';
 
 const PERIPHERAL_INSPECTOR_EXTENSION_ID = 'eclipse-cdt.peripheral-inspector';
-const ACTIVATION_TIMEOUT_MS = 5000;
 
 /**
  * Host for interrupt table data from the Peripheral Inspector API.
