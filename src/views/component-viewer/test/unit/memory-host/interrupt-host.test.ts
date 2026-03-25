@@ -167,7 +167,7 @@ describe('InterruptHost', () => {
         expect(getInterruptTable).toHaveBeenCalledTimes(1);
     });
 
-    it('activates the extension if not yet active', async () => {
+    it('returns undefined when extension is not yet active', async () => {
         const getInterruptTable = jest.fn().mockReturnValue(sampleTable);
         const ext = mockExtension({ isActive: false, exports: { getInterruptTable } });
 
@@ -175,8 +175,8 @@ describe('InterruptHost', () => {
         host.setSvdPath('/path/a.svd');
 
         const name = await host.getName(0);
-        expect(ext.activate).toHaveBeenCalledTimes(1);
-        expect(name).toBe('WWDG_IRQn');
+        expect(ext.activate).not.toHaveBeenCalled();
+        expect(name).toBeUndefined();
     });
 
     it('handles missing getInterruptTable method gracefully', async () => {
@@ -199,15 +199,15 @@ describe('InterruptHost', () => {
         expect(host.isFetched).toBe(true);
     });
 
-    it('handles activation failure gracefully', async () => {
+    it('returns undefined when extension is inactive without attempting activation', async () => {
         const ext = mockExtension({ isActive: false, exports: {} });
-        ext.activate.mockRejectedValue(new Error('activation failed'));
 
         const host = new InterruptHost();
         host.setSvdPath('/path/a.svd');
 
         expect(await host.getName(0)).toBeUndefined();
         expect(host.isFetched).toBe(true);
+        expect(ext.activate).not.toHaveBeenCalled();
     });
 
     it('one-shot: setting svdPath after first lookup is too late', async () => {
@@ -236,18 +236,17 @@ describe('InterruptHost', () => {
         expect(vscode.extensions.getExtension).toHaveBeenCalledTimes(1); // only in constructor
     });
 
-    it('one-shot: no retry after activation failure', async () => {
+    it('one-shot: no retry when extension is inactive', async () => {
         const ext = mockExtension({ isActive: false, exports: { getInterruptTable: jest.fn().mockReturnValue(sampleTable) } });
-        ext.activate.mockRejectedValue(new Error('activation failed'));
 
         const host = new InterruptHost();
         host.setSvdPath('/path/a.svd');
 
         expect(await host.getName(0)).toBeUndefined();
 
-        // Second call — should not retry activation
+        // Second call — still returns undefined, no activation attempted
         expect(await host.getName(0)).toBeUndefined();
-        expect(ext.activate).toHaveBeenCalledTimes(1);
+        expect(ext.activate).not.toHaveBeenCalled();
     });
 
     it('concurrent lookups only trigger a single fetch', async () => {
