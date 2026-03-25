@@ -113,6 +113,31 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         }
     }
 
+    /**
+     * Check whether a given element is currently in the "expanded" set.
+     * Used by the webview renderer to decide whether to recurse into children.
+     */
+    public isExpanded(element: ScvdGuiInterface): boolean {
+        const elementId = element.getGuiId();
+        if (elementId === undefined) {
+            return false;
+        }
+        return this._expandedIds.has(elementId);
+    }
+
+    /**
+     * Toggle a node's expanded state by its GUI ID and fire a change event.
+     * Used by the webview provider when the user clicks expand/collapse.
+     */
+    public toggleById(id: string, expanded: boolean): void {
+        if (expanded) {
+            this._expandedIds.add(id);
+        } else {
+            this._expandedIds.delete(id);
+        }
+        this.refresh();
+    }
+
     public getTreeItem(element: ScvdGuiInterface): vscode.TreeItem {
         const perfStartTime = perf?.startUi() ?? 0;
         const treeItemLabel = element.getGuiName() ?? 'UNKNOWN';
@@ -228,6 +253,12 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         this.markAllExpanded();
         // Increment generation so tree item IDs change, forcing VS Code to
         // treat nodes as new and respect our Expanded collapsibleState.
+        this._idGeneration++;
+        this.refresh();
+    }
+
+    public collapseAllElements(): void {
+        this._expandedIds.clear();
         this._idGeneration++;
         this.refresh();
     }

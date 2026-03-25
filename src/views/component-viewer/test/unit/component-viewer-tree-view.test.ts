@@ -903,4 +903,50 @@ describe('ComponentViewerTreeDataProvider', () => {
         });
     });
 
+    it('reports expansion state via isExpanded()', () => {
+        const root = makeGui({
+            getGuiId: () => 'session1/root',
+            hasGuiChildren: () => true,
+        });
+        provider.setRoots([root]);
+
+        expect(provider.isExpanded(root)).toBe(false);
+        provider.setElementExpanded(root, true);
+        expect(provider.isExpanded(root)).toBe(true);
+        provider.setElementExpanded(root, false);
+        expect(provider.isExpanded(root)).toBe(false);
+    });
+
+    it('isExpanded() returns false for undefined IDs', () => {
+        const noId = makeGui({ getGuiId: () => undefined });
+        expect(provider.isExpanded(noId)).toBe(false);
+    });
+
+    it('toggleById() expands and collapses by ID and fires change event', () => {
+        const root = makeGui({
+            getGuiId: () => 'session1/node',
+            hasGuiChildren: () => true,
+        });
+        provider.setRoots([root]);
+        mockFire.mockClear();
+
+        // Expand by ID
+        provider.toggleById('session1/node', true);
+        expect(provider.isExpanded(root)).toBe(true);
+        expect(mockFire).toHaveBeenCalledTimes(1);
+
+        // Collapse by ID
+        provider.toggleById('session1/node', false);
+        expect(provider.isExpanded(root)).toBe(false);
+        expect(mockFire).toHaveBeenCalledTimes(2);
+    });
+
+    it('toggleById() is idempotent for repeated expand/collapse', () => {
+        provider.toggleById('some-id', true);
+        provider.toggleById('some-id', true); // already expanded
+        // Should not duplicate the ID
+        provider.toggleById('some-id', false);
+        const root = makeGui({ getGuiId: () => 'some-id' });
+        expect(provider.isExpanded(root)).toBe(false);
+    });
 });

@@ -19,6 +19,7 @@ import { GDBTargetDebugTracker, GDBTargetDebugSession } from '../../debug-sessio
 import { ComponentViewerInstance } from './component-viewer-instance';
 import { URI } from 'vscode-uri';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
+import { ComponentViewerWebviewProvider } from './component-viewer-webview-provider';
 import { componentViewerLogger, logger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 import { perf, parsePerf } from './stats-config';
@@ -42,7 +43,6 @@ export class ComponentViewerBase {
     private _activeSession: GDBTargetDebugSession | undefined;
     private _instances: ComponentViewerInstancesWrapper[] = [];
     private _componentViewerTreeDataProvider: ComponentViewerTreeDataProvider;
-    private _treeView: vscode.TreeView<ScvdGuiInterface> | undefined;
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
     private _loadingCounter: number = 0;
@@ -82,14 +82,18 @@ export class ComponentViewerBase {
         }
         const fullViewId = `${VIEW_PREFIX}.${this._viewId}`;
         const commandPrefix = `${EXTENSION_NAME}.${this._viewId}`;
-        const treeView = vscode.window.createTreeView(fullViewId, {
-            treeDataProvider: this._componentViewerTreeDataProvider,
-            showCollapseAll: true
-        });
-        this._treeView = treeView;
-        componentViewerLogger.debug(`${this._viewName}: Created ${this._viewName} tree view with id: ${fullViewId}`);
-        const onDidExpandElementDisposable = treeView.onDidExpandElement(event => this.handleOnDidToggleExpand(event, true));
-        const onDidCollapseElementDisposable = treeView.onDidCollapseElement(event => this.handleOnDidToggleExpand(event, false));
+
+        // Register the webview-based view that renders a two-column table.
+        const webviewProvider = new ComponentViewerWebviewProvider(this._componentViewerTreeDataProvider, this._context.extensionUri);
+        webviewProvider.onToggle = (id, expanded) => {
+            this._componentViewerTreeDataProvider.toggleById(id, expanded);
+        };
+        webviewProvider.onLock = (id) => {
+            this.handleLockInstanceById(id);
+        };
+
+        const webviewRegistration = vscode.window.registerWebviewViewProvider(fullViewId, webviewProvider);
+        componentViewerLogger.debug(`${this._viewName}: Registered ${this._viewName} webview provider with id: ${fullViewId}`);
         const lockInstanceCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.lockComponent`, async (node) => {
             this.handleLockInstance(node);
         });
@@ -108,6 +112,10 @@ export class ComponentViewerBase {
             componentViewerLogger.debug(`${this._viewName}: Expand all tree items`);
             await this.handleExpandAll();
         });
+        const collapseAllCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.collapseAll`, () => {
+            componentViewerLogger.debug(`${this._viewName}: Collapse all tree items`);
+            this._componentViewerTreeDataProvider.collapseAllElements();
+        });
         const filterTreeCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.filterTree`, () => {
             this.handleFilterTree();
         });
@@ -115,14 +123,13 @@ export class ComponentViewerBase {
             this.handleClearFilter();
         });
         this._context.subscriptions.push(
-            treeView,
-            onDidExpandElementDisposable,
-            onDidCollapseElementDisposable,
+            webviewRegistration,
             lockInstanceCommandDisposable,
             unlockInstanceCommandDisposable,
             enablePeriodicUpdateCommandDisposable,
             disablePeriodicUpdateCommandDisposable,
             expandAllCommandDisposable,
+            collapseAllCommandDisposable,
             filterTreeCommandDisposable,
             clearFilterCommandDisposable
         );
@@ -130,46 +137,19 @@ export class ComponentViewerBase {
     }
 
     protected async handleExpandAll(): Promise<void> {
-        if (!this._treeView) {
-            return;
-        }
-
-        const fullViewId = `${VIEW_PREFIX}.${this._viewId}`;
-        await vscode.window.withProgress(
-            { location: { viewId: fullViewId } },
-            () => this.expandAllNodes()
-        );
-    }
-
-    private async expandAllNodes(): Promise<void> {
-        if (!this._treeView) {
-            return;
-        }
-
-        // Remember the current selection so we can keep it in view
-        const selectedElement = this._treeView.selection[0];
-
-        // Mark all elements as expanded and refresh the tree in one go.
         this._componentViewerTreeDataProvider.expandAllElements();
-
-        // Reveal the previously selected element to keep it in focus,
-        // or scroll back to the root when nothing was selected.
-        const roots = this._componentViewerTreeDataProvider.getChildren();
-        const revealTarget = selectedElement ?? roots[0];
-        if (revealTarget) {
-            try {
-                await this._treeView.reveal(revealTarget, { select: !!selectedElement, focus: false, expand: false });
-            } catch {
-                // Element may not be accessible in the tree view
-            }
-        }
     }
 
-    protected handleOnDidToggleExpand(expansionEvent: vscode.TreeViewExpansionEvent<ScvdGuiInterface>, expand: boolean): void {
-        const expandStateString = expand ? 'expanded' : 'collapsed';
-        const elementName = expansionEvent.element.getGuiName() ?? 'unknown';
-        componentViewerLogger.debug(`${this._viewName}: Tree item ${expandStateString} - ${elementName}`);
-        this._componentViewerTreeDataProvider.setElementExpanded(expansionEvent.element, expand);
+    /**
+     * Find a root GUI node by its ID (used by the webview lock callback).
+     */
+    protected handleLockInstanceById(id: string): void {
+        // Walk the current roots to find the matching node.
+        const roots = this._componentViewerTreeDataProvider.getChildren();
+        const node = roots.find(r => r.getGuiId() === id);
+        if (node) {
+            this.handleLockInstance(node);
+        }
     }
 
     protected handleLockInstance(node: ScvdGuiInterface): void {

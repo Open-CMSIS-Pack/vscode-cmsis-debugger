@@ -63,11 +63,13 @@
         },
         {
           "id": "cmsis-debugger.componentViewer",
+          "type": "webview",
           "name": "Component Viewer",
           "icon": "media/trace-and-live-light.svg"
         },
         {
           "id": "cmsis-debugger.corePeripherals",
+          "type": "webview",
           "name": "Core Peripherals",
           "icon": "media/trace-and-live-light.svg",
           "when": "config.cmsis-debugger.corePeripherals.enabled"
@@ -179,6 +181,12 @@
         "category": "Component Viewer"
       },
       {
+        "command": "vscode-cmsis-debugger.componentViewer.collapseAll",
+        "title": "Collapse All",
+        "icon": "$(collapse-all)",
+        "category": "Component Viewer"
+      },
+      {
         "command": "vscode-cmsis-debugger.componentViewer.filterTree",
         "title": "Filter Tree",
         "icon": "$(filter)",
@@ -220,6 +228,13 @@
         "command": "vscode-cmsis-debugger.corePeripherals.expandAll",
         "title": "Expand All",
         "icon": "$(expand-all)",
+        "category": "Core Peripherals",
+        "when": "config.cmsis-debugger.corePeripherals.enabled"
+      },
+      {
+        "command": "vscode-cmsis-debugger.corePeripherals.collapseAll",
+        "title": "Collapse All",
+        "icon": "$(collapse-all)",
         "category": "Core Peripherals",
         "when": "config.cmsis-debugger.corePeripherals.enabled"
       },
@@ -369,6 +384,10 @@
           "when": "false"
         },
         {
+          "command": "vscode-cmsis-debugger.corePeripherals.collapseAll",
+          "when": "false"
+        },
+        {
           "command": "vscode-cmsis-debugger.corePeripherals.filterTree",
           "when": "false"
         },
@@ -411,9 +430,19 @@
           "group": "navigation@3"
         },
         {
+          "command": "vscode-cmsis-debugger.componentViewer.collapseAll",
+          "when": "view == cmsis-debugger.componentViewer",
+          "group": "navigation@4"
+        },
+        {
           "command": "vscode-cmsis-debugger.corePeripherals.expandAll",
           "when": "config.cmsis-debugger.corePeripherals.enabled && view == cmsis-debugger.corePeripherals",
           "group": "navigation@3"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.collapseAll",
+          "when": "config.cmsis-debugger.corePeripherals.enabled && view == cmsis-debugger.corePeripherals",
+          "group": "navigation@4"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.filterTree",

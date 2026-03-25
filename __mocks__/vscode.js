@@ -86,6 +86,7 @@ module.exports = {
             reveal: jest.fn().mockResolvedValue(undefined),
         })),
         registerTreeDataProvider: jest.fn(() => ({ dispose: jest.fn() })),
+        registerWebviewViewProvider: jest.fn(() => ({ dispose: jest.fn() })),
         showErrorMessage: jest.fn(),
         showInformationMessage: jest.fn(() => Promise.resolve(undefined)),
         showWarningMessage: jest.fn(),

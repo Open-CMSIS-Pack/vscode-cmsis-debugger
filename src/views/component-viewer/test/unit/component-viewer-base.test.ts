@@ -99,9 +99,6 @@ const getRunUpdate = (controller: TestClass) =>
 const getReadScvdFiles = (controller: TestClass) =>
     (controller as unknown as { readScvdFiles: (t: TrackerCallbacks, s?: Session) => Promise<void> }).readScvdFiles.bind(controller);
 
-// Local test mocks
-type ExpansionEventCallback = (event: vscode.TreeViewExpansionEvent<ScvdGuiInterface>) => void;
-
 const createController = (
     context: vscode.ExtensionContext = extensionContextFactory(),
     provider: ComponentViewerTreeDataProvider = treeDataProviderFactory()
@@ -150,19 +147,15 @@ describe('ComponentViewerBase', () => {
         const activationResult = await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         expect(activationResult).toBe(true);
-        expect(vscode.window.createTreeView).toHaveBeenCalledWith('cmsis-debugger.testClass', {
-            treeDataProvider: expect.any(Object),
-            showCollapseAll: true
-        });
+        expect(vscode.window.registerWebviewViewProvider).toHaveBeenCalledWith('cmsis-debugger.testClass', expect.any(Object));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.lockComponent', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.unlockComponent', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.expandAll', expect.any(Function));
-        // 1 tree view + 2 event listeners + 7 commands + 6 tracker disposables
-        expect(context.subscriptions.length).toBe(16);
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.collapseAll', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.filterTree', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.clearFilter', expect.any(Function));
-        // 1 tree view + 2 event listeners + 7 commands + 6 tracker disposables
-        expect(context.subscriptions.length).toBe(16);
+        // 1 webview registration + 8 commands + 6 tracker disposables
+        expect(context.subscriptions.length).toBe(15);
     });
 
     it('should fail to activate the test class tree data provider if view is not correctly loaded', async () => {
@@ -857,32 +850,17 @@ describe('ComponentViewerBase', () => {
 
     });
 
-    it('handles onDidExpandElement and onDidCollapseElement correctly', async () => {
-        // Capture callbacks for onDidExpandElement and onDidCollapseElement to invoke them manually in the test
-        let expandCallback: ExpansionEventCallback;
-        let collapseCallback: ExpansionEventCallback;
-        (vscode.window.createTreeView as jest.Mock).mockReturnValueOnce({
-            onDidExpandElement: jest.fn(callback => expandCallback = callback),
-            onDidCollapseElement: jest.fn(callback => collapseCallback = callback),
-        });
-
+    it('handles expand/collapse via toggleById on the tree data provider', async () => {
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
-        // Ensure callbacks are set
-        expect(expandCallback!).toBeDefined();
-        expect(collapseCallback!).toBeDefined();
+        // toggleById is how the webview provider triggers expand/collapse
+        const toggleByIdSpy = jest.spyOn(provider, 'toggleById');
 
-        // Setup spy on expected method calls when elements are expanded/collapsed
-        const setElementExpandedSpy = jest.spyOn(provider, 'setElementExpanded');
+        provider.toggleById('element', true);
+        expect(toggleByIdSpy).toHaveBeenCalledWith('element', true);
 
-        // Simulate expanding an element
-        const element = makeGuiNode('element');
-        expandCallback!({ element });
-        expect(setElementExpandedSpy).toHaveBeenCalledWith(element, true);
-
-        // Simulate collapsing the same element
-        collapseCallback!({ element });
-        expect(setElementExpandedSpy).toHaveBeenCalledWith(element, false);
+        provider.toggleById('element', false);
+        expect(toggleByIdSpy).toHaveBeenCalledWith('element', false);
     });
 
     it('expandAll command force-expands all elements and scrolls to root when nothing is selected', async () => {

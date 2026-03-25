@@ -25,6 +25,8 @@ export function treeDataProviderFactory(): jest.Mocked<ComponentViewerTreeDataPr
         onDidChangeTreeData: jest.fn().mockReturnValue(eventEmitter.event),
         onWillStopSession: jest.fn(),
         setElementExpanded: jest.fn(),
+        isExpanded: jest.fn().mockReturnValue(false),
+        toggleById: jest.fn(),
         getTreeItem: jest.fn(),
         resolveTreeItem: jest.fn(),
         getChildren: jest.fn(),
