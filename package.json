@@ -69,8 +69,7 @@
         {
           "id": "cmsis-debugger.corePeripherals",
           "name": "Core Peripherals",
-          "icon": "media/trace-and-live-light.svg",
-          "when": "config.cmsis-debugger.corePeripherals.enabled"
+          "icon": "media/trace-and-live-light.svg"
         }
       ]
     },
@@ -194,48 +193,41 @@
         "command": "vscode-cmsis-debugger.corePeripherals.lockComponent",
         "title": "Lock Component",
         "icon": "$(unlock)",
-        "category": "Core Peripherals",
-        "when": "config.cmsis-debugger.corePeripherals.enabled"
+        "category": "Core Peripherals"
       },
       {
         "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
         "title": "Unlock Component",
         "icon": "$(lock)",
-        "category": "Core Peripherals",
-        "when": "config.cmsis-debugger.corePeripherals.enabled"
+        "category": "Core Peripherals"
       },
       {
         "command": "vscode-cmsis-debugger.corePeripherals.enablePeriodicUpdate",
         "title": "Enable Periodic Update",
-        "category": "Core Peripherals",
-        "when": "config.cmsis-debugger.corePeripherals.enabled"
+        "category": "Core Peripherals"
       },
       {
         "command": "vscode-cmsis-debugger.corePeripherals.disablePeriodicUpdate",
         "title": "Disable Periodic Update",
-        "category": "Core Peripherals",
-        "when": "config.cmsis-debugger.corePeripherals.enabled"
+        "category": "Core Peripherals"
       },
       {
         "command": "vscode-cmsis-debugger.corePeripherals.expandAll",
         "title": "Expand All",
         "icon": "$(expand-all)",
-        "category": "Core Peripherals",
-        "when": "config.cmsis-debugger.corePeripherals.enabled"
+        "category": "Core Peripherals"
       },
       {
         "command": "vscode-cmsis-debugger.corePeripherals.filterTree",
         "title": "Filter Tree",
         "icon": "$(filter)",
-        "category": "Core Peripherals",
-        "when": "config.cmsis-debugger.corePeripherals.enabled"
+        "category": "Core Peripherals"
       },
       {
         "command": "vscode-cmsis-debugger.corePeripherals.clearFilter",
         "title": "Clear Filter",
         "icon": "$(clear-all)",
-        "category": "Core Peripherals",
-        "when": "config.cmsis-debugger.corePeripherals.enabled"
+        "category": "Core Peripherals"
       }
     ],
     "menus": {
@@ -412,7 +404,7 @@
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.expandAll",
-          "when": "config.cmsis-debugger.corePeripherals.enabled && view == cmsis-debugger.corePeripherals",
+          "when": "view == cmsis-debugger.corePeripherals",
           "group": "navigation@3"
         },
         {
@@ -427,12 +419,12 @@
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.filterTree",
-          "when": "config.cmsis-debugger.corePeripherals.enabled && view == cmsis-debugger.corePeripherals",
+          "when": "view == cmsis-debugger.corePeripherals",
           "group": "navigation@1"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.clearFilter",
-          "when": "config.cmsis-debugger.corePeripherals.enabled && view == cmsis-debugger.corePeripherals && corePeripherals.filterActive",
+          "when": "view == cmsis-debugger.corePeripherals && corePeripherals.filterActive",
           "group": "navigation@2"
         }
       ],
@@ -494,12 +486,12 @@
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.lockComponent",
-          "when": "config.cmsis-debugger.corePeripherals.enabled && view == cmsis-debugger.corePeripherals && viewItem == parentInstance",
+          "when": "view == cmsis-debugger.corePeripherals && viewItem == parentInstance",
           "group": "inline@1"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
-          "when": "config.cmsis-debugger.corePeripherals.enabled && view == cmsis-debugger.corePeripherals && viewItem == locked.parentInstance",
+          "when": "view == cmsis-debugger.corePeripherals && viewItem == locked.parentInstance",
           "group": "inline@2"
         }
       ]
