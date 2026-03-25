@@ -98,15 +98,7 @@ export class InterruptHost {
 
         // Activate the Peripheral Inspector extension if not yet active
         if (!this._extension.isActive) {
-            try {
-                const activationTimeout = new Promise<never>((_, reject) =>
-                    setTimeout(() => reject(new Error(`Peripheral Inspector activation timed out after ${ACTIVATION_TIMEOUT_MS}ms`)), ACTIVATION_TIMEOUT_MS)
-                );
-                await Promise.race([this._extension.activate(), activationTimeout]);
-            } catch (error) {
-                componentViewerLogger.debug(`[InterruptHost] Failed to activate Peripheral Inspector: ${error instanceof Error ? error.message : error}`);
-                return undefined;
-            }
+            return undefined;
         }
 
         const api = this._extension.exports;
