@@ -28,6 +28,7 @@ import { ScvdDebugTarget } from './scvd-debug-target';
 import { ScvdEvalInterface } from './scvd-eval-interface';
 import { parsePerf } from './stats-config';
 import { ExecutionCancellation } from './execution-cancellation';
+import { InterruptHost } from './data-host/interrupt-host';
 
 export interface ExecutionContext {
     memoryHost: MemoryHost;
@@ -79,6 +80,7 @@ export class ScvdEvalContext {
     private _integerModelKind: IntegerModelKind;
     private _parserInterface: ScvdExpressionParser;
     private _cancellation = new ExecutionCancellation();
+    private _interruptHost: InterruptHost;
 
     constructor(
         model: ScvdComponentViewer
@@ -90,7 +92,8 @@ export class ScvdEvalContext {
         this._registerHost = new RegisterHost();
         this._debugTarget = new ScvdDebugTarget();
         this._formatSpecifier = new ScvdFormatSpecifier();
-        this._evalHost = new ScvdEvalInterface(this._memoryHost, this._registerHost, this._debugTarget, this._formatSpecifier);
+        this._interruptHost = new InterruptHost();
+        this._evalHost = new ScvdEvalInterface(this._memoryHost, this._registerHost, this._debugTarget, this._formatSpecifier, this._interruptHost);
         this._parserInterface = new ScvdExpressionParser(this._integerModel);
         this._evaluator = new Evaluator(this._integerModel);
         const outItem = this.getOutItem();
@@ -126,6 +129,10 @@ export class ScvdEvalContext {
         return this._ctx !== undefined ? this._ctx : (() => {
             throw new Error('SCVD EvalContext: EvalContext not initialized');
         })();
+    }
+
+    public get interruptHost(): InterruptHost {
+        return this._interruptHost;
     }
 
     public setIntegerModelKind(kind: IntegerModelKind | undefined): void {
