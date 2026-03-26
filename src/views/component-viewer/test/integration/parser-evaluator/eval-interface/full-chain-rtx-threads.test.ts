@@ -45,6 +45,7 @@ import { RegisterHost } from '../../../../data-host/register-host';
 import { ScvdFormatSpecifier } from '../../../../model/scvd-format-specifier';
 import { ScvdDebugTarget } from '../../../../scvd-debug-target';
 import { ScvdNode } from '../../../../model/scvd-node';
+import { InterruptHost } from '../../../../data-host/interrupt-host';
 import { parseExpressionForTest as parseExpression } from '../../../unit/helpers/parse-expression';
 
 // =============================================================================
@@ -427,7 +428,7 @@ function setupTestEnvironment() {
         readRegister: jest.fn(),
     } as unknown as ScvdDebugTarget;
 
-    const host = new ScvdEvalInterface(memHost, regCache, debugTarget, new ScvdFormatSpecifier());
+    const host = new ScvdEvalInterface(memHost, regCache, debugTarget, new ScvdFormatSpecifier(), new InterruptHost());
     const ctx = new EvalContext({ data: host, container: root });
 
     return { root, memHost, host, ctx, debugTarget };

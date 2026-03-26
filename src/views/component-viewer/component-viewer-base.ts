@@ -24,6 +24,7 @@ import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 import { perf, parsePerf } from './stats-config';
 import { vscodeViewExists } from '../../vscode-utils';
 import { EXTENSION_NAME, VIEW_PREFIX } from '../../manifest';
+import { ExtendedGDBTargetConfiguration } from '../../debug-configuration/gdbtarget-configuration';
 
 export interface ScvdCollector {
     getScvdFilePaths(session: GDBTargetDebugSession): Promise<string[]>;
@@ -256,6 +257,10 @@ export class ComponentViewerBase {
         if (scvdFilesPaths.length === 0) {
             return;
         }
+
+        // Get SVD file path from session configuration
+        const svdPath = (session.session.configuration as ExtendedGDBTargetConfiguration | undefined)?.definitionPath;
+
         parsePerf?.reset();
         const cbuildRunInstances: ComponentViewerInstance[] = [];
         for (const scvdFilePath of scvdFilesPaths) {
@@ -270,6 +275,10 @@ export class ComponentViewerBase {
                     continue;
                 }
 
+                // Set SVD path on instance for lazy interrupt table loading via printf "%Q" format specifier
+                if (svdPath) {
+                    instance.setSvdPath(svdPath);
+                }
                 cbuildRunInstances.push(instance);
             }
         }

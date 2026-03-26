@@ -28,6 +28,7 @@ import type { ScvdDebugTarget } from '../../../../scvd-debug-target';
 import type { FormatSegment } from '../../../../parser-evaluator/parser';
 import { ScvdFormatSpecifier } from '../../../../model/scvd-format-specifier';
 import { ScvdNode } from '../../../../model/scvd-node';
+import { InterruptHost } from '../../../../data-host/interrupt-host';
 import { ScvdMember } from '../../../../model/scvd-member';
 import { ScvdComponentViewer } from '../../../../model/scvd-component-viewer';
 import { ScvdTypedef, ScvdTypedefs } from '../../../../model/scvd-typedef';
@@ -114,11 +115,13 @@ function makeEval({ mem = {}, reg = {}, debug = {} }: MakeEvalOptions = {}) {
         ...debug,
     };
     const formatter = new ScvdFormatSpecifier();
+    const interruptHost = new InterruptHost();
     const evalIf = new ScvdEvalInterface(
         memHost as MemoryHost,
         regHost as RegisterHost,
         debugTarget as ScvdDebugTarget,
-        formatter
+        formatter,
+        interruptHost
     );
     return { evalIf, memHost: memHost as MemoryHost, regHost: regHost as RegisterHost, debugTarget: debugTarget as ScvdDebugTarget };
 }
@@ -637,7 +640,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
             readUint8ArrayStrFromPointer: jest.fn().mockResolvedValue(new Uint8Array([65, 0, 0, 0])),
             readMemory: jest.fn(async (addr: number, len: number) => (memoryMap.get(addr)?.subarray(0, len)))
         } as unknown as ScvdDebugTarget;
-        const formatterEval = new ScvdEvalInterface({ read: jest.fn() } as unknown as MemoryHost, {} as RegisterHost, debugTarget, new ScvdFormatSpecifier());
+        const formatterEval = new ScvdEvalInterface({ read: jest.fn() } as unknown as MemoryHost, {} as RegisterHost, debugTarget, new ScvdFormatSpecifier(), new InterruptHost());
         const member = new LocalFakeMember();
         const container: RefContainer = { base: member, current: member, valueType: undefined };
         expect(await formatterEval.formatPrintf('C', 0x2000, container)).toBe('CTX');
@@ -650,6 +653,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
         expect(await formatterEval.formatPrintf('M', 0x30, container)).toBeDefined();
         expect(await formatterEval.formatPrintf('M', new Uint8Array([1, 2, 3, 4, 5, 6]), container)).toBeDefined();
         expect(await formatterEval.formatPrintf('U', 0x9999, container)).toBeDefined();
+        expect(await formatterEval.formatPrintf('Q', 42, container)).toBe('IRQ_42');
         expect(await formatterEval.formatPrintf('x', true as unknown as number, container)).toBe('0x00000001');
         expect(await formatterEval.formatPrintf('x', '7' as unknown as number, container)).toBe('0x00000007');
 
@@ -659,7 +663,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
             readUint8ArrayStrFromPointer: jest.fn().mockResolvedValue(undefined),
             readMemory: jest.fn().mockResolvedValue(undefined)
         } as unknown as ScvdDebugTarget;
-        const formatterEval2 = new ScvdEvalInterface({} as MemoryHost, {} as RegisterHost, noContextDebug, new ScvdFormatSpecifier());
+        const formatterEval2 = new ScvdEvalInterface({} as MemoryHost, {} as RegisterHost, noContextDebug, new ScvdFormatSpecifier(), new InterruptHost());
         expect(await formatterEval2.formatPrintf('C', 0x1234, container)).toBe('0x00001234');
     });
 
@@ -691,7 +695,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
             findSymbolNameAtAddress: jest.fn().mockResolvedValue(undefined)
         } as unknown as ScvdDebugTarget;
         const memHost = { read: jest.fn().mockReturnValue(undefined) } as unknown as MemoryHost;
-        const formatterEval = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier());
+        const formatterEval = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier(), new InterruptHost());
         const container: RefContainer = { base: new DummyNode('b'), current: new DummyNode('b'), valueType: undefined };
         expect(await formatterEval.formatPrintf('x', BigInt(5) as unknown as number, container)).toBe('0x00000005');
         expect(await formatterEval.formatPrintf('x', ({}) as unknown as number, container)).toBe('NaN');
@@ -709,7 +713,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
     it('formats %M using cached bytes with inferred width', async () => {
         const memHost = { read: jest.fn().mockReturnValue(new Uint8Array([0x1E, 0x30, 0x6C, 0xA2, 0x45, 0x5F])) } as unknown as MemoryHost;
         const dbg = { readMemory: jest.fn().mockResolvedValue(undefined) } as unknown as ScvdDebugTarget;
-        const evalIf = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier());
+        const evalIf = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier(), new InterruptHost());
         const node = new DummyNode('mac', { targetSize: 6 });
         const container: RefContainer = { base: node, current: node, anchor: node, valueType: undefined };
 
@@ -723,7 +727,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
     it('falls back to default MAC width when container has no base', async () => {
         const memHost = { read: jest.fn().mockReturnValue(undefined) } as unknown as MemoryHost;
         const dbg = { readMemory: jest.fn().mockResolvedValue(undefined) } as unknown as ScvdDebugTarget;
-        const evalIf = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier());
+        const evalIf = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier(), new InterruptHost());
         const container = { base: undefined, current: undefined, valueType: undefined } as unknown as RefContainer;
 
         await expect(evalIf.formatPrintf('M', 0, container)).resolves.toBe('0');
@@ -732,7 +736,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
     it('uses existing widthBytes for cached MAC reads', async () => {
         const memHost = { read: jest.fn().mockReturnValue(new Uint8Array([0x1E, 0x30, 0x6C, 0xA2, 0x45, 0x5F])) } as unknown as MemoryHost;
         const dbg = { readMemory: jest.fn().mockResolvedValue(undefined) } as unknown as ScvdDebugTarget;
-        const evalIf = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier());
+        const evalIf = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier(), new InterruptHost());
         const node = new DummyNode('mac', { targetSize: 6 });
         const container: RefContainer = { base: node, current: node, anchor: node, widthBytes: 6, valueType: undefined };
 
@@ -791,7 +795,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
             readUint8ArrayStrFromPointer: jest.fn().mockResolvedValue(undefined),
             readMemory: jest.fn().mockResolvedValue(undefined),
         } as unknown as ScvdDebugTarget;
-        const evalIf = new ScvdEvalInterface({} as MemoryHost, {} as RegisterHost, debugTarget, new ScvdFormatSpecifier());
+        const evalIf = new ScvdEvalInterface({} as MemoryHost, {} as RegisterHost, debugTarget, new ScvdFormatSpecifier(), new InterruptHost());
         const member = new LocalFakeMember();
         const container: RefContainer = { base: member, current: member, valueType: undefined };
 
@@ -816,7 +820,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
 
     it('builds printf cache keys with defaults and stores text cache for t spec', () => {
         const debugTarget = {} as unknown as ScvdDebugTarget;
-        const evalIf = new ScvdEvalInterface({} as MemoryHost, {} as RegisterHost, debugTarget, new ScvdFormatSpecifier());
+        const evalIf = new ScvdEvalInterface({} as MemoryHost, {} as RegisterHost, debugTarget, new ScvdFormatSpecifier(), new InterruptHost());
         const helpers = evalIf as unknown as {
             makePrintfCacheKey: (spec: string, value: number | bigint, typeInfo: { bits?: number; kind?: string }, suffix?: string) => string;
             makePrintfTextCacheKey: (spec: string, value: string) => string;
@@ -873,7 +877,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
                 return undefined;
             })
         } as unknown as ScvdDebugTarget;
-        const evalIf = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier());
+        const evalIf = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier(), new InterruptHost());
 
         const anchor = new DummyNode('hasBase');
         const containerWithAnchor: RefContainer = {
@@ -898,7 +902,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
                 return undefined;
             })
         } as unknown as ScvdDebugTarget;
-        const evalIf2 = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg2, new ScvdFormatSpecifier());
+        const evalIf2 = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg2, new ScvdFormatSpecifier(), new InterruptHost());
 
         // readMemory returns undefined for 0x1004, so should fall back to reading from value (0x2000)
         const result2 = await evalIf2.formatPrintf('I', 0x2000, containerWithAnchor);
@@ -917,7 +921,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
                 return undefined;
             })
         } as unknown as ScvdDebugTarget;
-        const evalIf = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier());
+        const evalIf = new ScvdEvalInterface(memHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier(), new InterruptHost());
 
         class PointerNode extends DummyNode {
             public override getIsPointer(): boolean {
@@ -947,7 +951,7 @@ describe('ScvdEvalInterface intrinsics and helpers', () => {
                 return undefined;
             })
         } as unknown as ScvdDebugTarget;
-        const evalIf = new ScvdEvalInterface({} as MemoryHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier());
+        const evalIf = new ScvdEvalInterface({} as MemoryHost, {} as RegisterHost, dbg, new ScvdFormatSpecifier(), new InterruptHost());
 
         const container: RefContainer = {
             base: new DummyNode('str'),

@@ -30,6 +30,8 @@ import { ScvdNode } from '../../../../model/scvd-node';
 import { ScvdMember } from '../../../../model/scvd-member';
 import { ScvdVar } from '../../../../model/scvd-var';
 import { ScvdDebugTarget } from '../../../../scvd-debug-target';
+import { InterruptHost } from '../../../../data-host/interrupt-host';
+import type { InterruptTable } from '@eclipse-cdt-cloud/vscode-peripheral-inspector/api';
 
 class FakeBase extends ScvdNode {
     constructor(typeName?: string) {
@@ -141,7 +143,7 @@ function makeEvalInterface(symbolMap: Map<number, string>, memoryMap: Map<number
     const regHost = {} as unknown as RegisterHost;
     const debugTarget = new FakeDebugTarget(symbolMap, memoryMap, contextMap) as unknown as ScvdDebugTarget;
     const formatter = new ScvdFormatSpecifier();
-    return new ScvdEvalInterface(memHost, regHost, debugTarget, formatter);
+    return new ScvdEvalInterface(memHost, regHost, debugTarget, formatter, new InterruptHost());
 }
 
 describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
@@ -221,7 +223,8 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
             memHost,
             {} as RegisterHost,
             debugTarget,
-            new ScvdFormatSpecifier()
+            new ScvdFormatSpecifier(),
+            new InterruptHost()
         );
         const node = new FakeBase();
         node.name = 'buf';
@@ -242,7 +245,8 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
             memHost,
             {} as RegisterHost,
             debugTarget,
-            new ScvdFormatSpecifier()
+            new ScvdFormatSpecifier(),
+            new InterruptHost()
         );
         const node = new FakeBase();
         node.name = 'buf';
@@ -268,11 +272,12 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
     it('formats %t when cached bytes are unavailable', async () => {
         const memHost = { read: jest.fn().mockReturnValue(undefined) } as unknown as MemoryHost;
         const debugTarget = new FakeDebugTarget(new Map(), new Map()) as unknown as ScvdDebugTarget;
-        const scvdWithMock = new ScvdEvalInterface(
+        const scvdWithMem = new ScvdEvalInterface(
             memHost,
             {} as RegisterHost,
             debugTarget,
-            new ScvdFormatSpecifier()
+            new ScvdFormatSpecifier(),
+            new InterruptHost()
         );
         const node = new FakeBase();
         node.name = 'buf';
@@ -283,7 +288,7 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
             widthBytes: 4,
             valueType: undefined
         };
-        const out = await scvdWithMock.formatPrintf('t', 0, container);
+        const out = await scvdWithMem.formatPrintf('t', 0, container);
         expect(out).toBe('0');
     });
 
@@ -360,7 +365,8 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
             memHost,
             {} as RegisterHost,
             debugTarget,
-            new ScvdFormatSpecifier()
+            new ScvdFormatSpecifier(),
+            new InterruptHost()
         );
         const node = new FakeBase();
         node.name = 'mac';
@@ -383,7 +389,8 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
             memHost,
             {} as RegisterHost,
             debugTarget,
-            new ScvdFormatSpecifier()
+            new ScvdFormatSpecifier(),
+            new InterruptHost()
         );
         const node = new FakeBase();
         node.name = 'mac2';
@@ -460,6 +467,54 @@ describe('ScvdEvalInterface.formatPrintf (CMSIS-View value_output)', () => {
         addrLike.getTargetSize = async () => 1;
         const out = await scvd.formatPrintf('x', 0x1, makeContainer(undefined, addrLike));
         expect(out).toBe('0x00000001');
+    });
+
+    it('formats %Q as interrupt name when InterruptHost finds it', async () => {
+        const irqHost = new InterruptHost();
+        // Mock the internal table to return known interrupt names
+        (irqHost as unknown as { _table: InterruptTable; _fetched: boolean })._table = {
+            interrupts: {
+                0: { name: 'WWDG_IRQn', value: 0 },
+                16: { name: 'SysTick_IRQn', value: 16 },
+            }
+        };
+        (irqHost as unknown as { _fetched: boolean })._fetched = true;
+
+        const evalIf = new ScvdEvalInterface(
+            {} as MemoryHost, {} as RegisterHost, {} as ScvdDebugTarget,
+            new ScvdFormatSpecifier(), irqHost
+        );
+        const container = makeContainer();
+
+        expect(await evalIf.formatPrintf('Q', 0, container)).toBe('WWDG_IRQn');
+        expect(await evalIf.formatPrintf('Q', 16, container)).toBe('SysTick_IRQn');
+    });
+
+    it('formats %Q as IRQ_<n> fallback when interrupt not found', async () => {
+        const irqHost = new InterruptHost();
+        (irqHost as unknown as { _table: InterruptTable; _fetched: boolean })._table = { interrupts: {} };
+        (irqHost as unknown as { _fetched: boolean })._fetched = true;
+
+        const evalIf = new ScvdEvalInterface(
+            {} as MemoryHost, {} as RegisterHost, {} as ScvdDebugTarget,
+            new ScvdFormatSpecifier(), irqHost
+        );
+        const container = makeContainer();
+
+        expect(await evalIf.formatPrintf('Q', 42, container)).toBe('IRQ_42');
+    });
+
+    it('formats %Q with string fallback for non-numeric values', async () => {
+        const irqHost = new InterruptHost();
+        (irqHost as unknown as { _fetched: boolean })._fetched = true;
+
+        const evalIf = new ScvdEvalInterface(
+            {} as MemoryHost, {} as RegisterHost, {} as ScvdDebugTarget,
+            new ScvdFormatSpecifier(), irqHost
+        );
+        const container = makeContainer();
+
+        expect(await evalIf.formatPrintf('Q', 'text' as unknown as number, container)).toBe('text');
     });
 });
 
