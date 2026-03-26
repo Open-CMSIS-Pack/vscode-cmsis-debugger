@@ -61,7 +61,6 @@ export class InterruptHost {
     public async getEntry(irqNumber: number): Promise<InterruptEntry | undefined> {
         const table = await this.ensureTable();
         return table?.interrupts?.[`${irqNumber}`];
-            : undefined;
     }
 
     /**
