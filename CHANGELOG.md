@@ -2,7 +2,9 @@
 
 ## 1.5.0
 
-- Pre-release with early access to the new `Core Peripherals` view.
+- Pre-release with a preview of the new [Core Peripherals](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#core-peripherals) view that lives under
+  [Trace and Live View](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-and-live-view).
+  - Early feedback is welcomed, please use [GitHub issues](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/new/choose) to share enhancement requests or defects.
 - Fixes [Component Viewer](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#component-viewer) display and stability issues.
 - Included in this extension pre-release:
     - [pyOCD v0.43.1](https://github.com/pyocd/pyOCD/releases/tag/v0.43.1)
