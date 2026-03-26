@@ -151,6 +151,7 @@
           <item property="SHCSR_value" value="%x[(SHCSR_value)]"/>
           <item property="NVIC_ISER_values[0]" value="%x[NVIC_ISER_values[0]]"/>
         </item>
+        
 -->
         <item property="INTLINESNUM" value="%d[Vectors.INTLINESNUM]"/>
         <item property="Interrupt Control and Status (ICSR)" value="%x[ICSR_value]">
