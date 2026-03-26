@@ -30,6 +30,7 @@ import { perf } from './stats-config';
 import { ScvdEvalInterfaceCache } from './scvd-eval-interface-cache';
 import { ScvdComponentViewer } from './model/scvd-component-viewer';
 import { ScvdTypedef } from './model/scvd-typedef';
+import { InterruptHost } from './data-host/interrupt-host';
 
 export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicProvider {
     private static readonly INVALID_ADDR_MIN = 0xFFFFFFF0;
@@ -39,17 +40,20 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     private _formatSpecifier: ScvdFormatSpecifier;
     private _caches = new ScvdEvalInterfaceCache();
     private _scalarTypeCache = new Map<string, ScalarType>();
+    private _interruptHost: InterruptHost;
 
     constructor(
         memHost: MemoryHost,
         regHost: RegisterHost,
         debugTarget: ScvdDebugTarget,
-        formatterSpecifier: ScvdFormatSpecifier
+        formatterSpecifier: ScvdFormatSpecifier,
+        interruptHost: InterruptHost
     ) {
         this._memHost = memHost;
         this._registerCache = regHost;
         this._debugTarget = debugTarget;
         this._formatSpecifier = formatterSpecifier;
+        this._interruptHost = interruptHost;
     }
 
     public resetPrintfCache(): void {
@@ -645,6 +649,17 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                 case 'I':
                 case 'J': {
                     return this.formatIpAddress(spec, value, container, typeInfo, spec === 'I' ? 4 : 16);
+                }
+                case 'Q': {
+                    // Interrupt number → name lookup (lazy-loaded from Peripheral Inspector API)
+                    if (typeof value === 'number') {
+                        const name = await this._interruptHost.getName(value);
+                        if (name) {
+                            return name;
+                        }
+                    }
+                    // Fallback: show IRQ_<number> or the raw value
+                    return typeof value === 'number' ? `IRQ_${value}` : String(value);
                 }
                 case 'x': {
                     let n = this.toNumeric(value);

@@ -28,6 +28,7 @@ import { MemoryHost } from '../../../../data-host/memory-host';
 import { RegisterHost } from '../../../../data-host/register-host';
 import { ScvdDebugTarget } from '../../../../scvd-debug-target';
 import { ScvdNode } from '../../../../model/scvd-node';
+import { InterruptHost } from '../../../../data-host/interrupt-host';
 
 class ScalarBase extends ScvdNode {
     constructor(private readonly typeName?: string, private readonly size?: number, private readonly arrayCount?: number) {
@@ -49,7 +50,7 @@ function makeEval() {
     const regHost = {} as unknown as RegisterHost;
     const debugTarget = {} as unknown as ScvdDebugTarget;
     const formatter = new ScvdFormatSpecifier();
-    return new ScvdEvalInterface(memHost, regHost, debugTarget, formatter);
+    return new ScvdEvalInterface(memHost, regHost, debugTarget, formatter, new InterruptHost());
 }
 
 describe('ScvdEvalInterface.getScalarInfo padding rules', () => {
