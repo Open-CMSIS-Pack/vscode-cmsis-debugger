@@ -115,7 +115,7 @@ jobs:
       - name: Install dependencies
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: npm install --prefer-offline --include=optional --no-audit --no-fund
+        run: npm install --prefer-offline --no-audit --no-fund --include=optional
 
       - name: Build on Windows or macOS
         if: runner.os != 'Linux'
