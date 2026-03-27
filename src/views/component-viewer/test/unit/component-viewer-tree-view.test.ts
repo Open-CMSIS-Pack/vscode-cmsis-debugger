@@ -748,6 +748,65 @@ describe('ComponentViewerTreeDataProvider', () => {
             expect(provider.getChildren(parent)).toEqual([matchChild]);
         });
 
+        it('shows all children of a directly-matched node unfiltered', () => {
+            const matchChild = makeGui({ getGuiName: () => 'MatchChild', getGuiId: () => 'c1' });
+            const otherChild = makeGui({ getGuiName: () => 'OtherChild', getGuiId: () => 'c2' });
+            const parent = makeGui({
+                getGuiName: () => 'Parent',
+                getGuiId: () => 'p1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [matchChild, otherChild],
+            });
+            provider.setRoots([parent]);
+
+            // 'Parent' directly matches the filter → all children must be shown
+            provider.setFilter('Parent');
+            expect(provider.getChildren()).toEqual([parent]);
+            expect(provider.getChildren(parent)).toEqual([matchChild, otherChild]);
+        });
+
+        it('propagates unfiltered state to all descendants of a matched node', () => {
+            const grandchild = makeGui({ getGuiName: () => 'Grandchild', getGuiId: () => 'g1' });
+            const child = makeGui({
+                getGuiName: () => 'Child',
+                getGuiId: () => 'c1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [grandchild],
+            });
+            const parent = makeGui({
+                getGuiName: () => 'Parent',
+                getGuiId: () => 'p1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [child],
+            });
+            provider.setRoots([parent]);
+
+            // 'Parent' matches; child and grandchild do not
+            provider.setFilter('Parent');
+            // Parent is visible
+            expect(provider.getChildren()).toEqual([parent]);
+            // All of parent's children shown unfiltered
+            expect(provider.getChildren(parent)).toEqual([child]);
+            // All of child's children also shown unfiltered (transitive)
+            expect(provider.getChildren(child)).toEqual([grandchild]);
+        });
+
+        it('still filters children when only a descendant (not the node itself) matches', () => {
+            const matchChild = makeGui({ getGuiName: () => 'MatchChild', getGuiId: () => 'c1' });
+            const otherChild = makeGui({ getGuiName: () => 'OtherChild', getGuiId: () => 'c2' });
+            const parent = makeGui({
+                getGuiName: () => 'Parent',
+                getGuiId: () => 'p1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [matchChild, otherChild],
+            });
+            provider.setRoots([parent]);
+
+            // 'Parent' does NOT match; 'MatchChild' does → parent's children still filtered
+            provider.setFilter('MatchChild');
+            expect(provider.getChildren(parent)).toEqual([matchChild]);
+        });
+
         it('shows deeply nested matching node with full ancestor path', () => {
             const deepChild = makeGui({ getGuiName: () => 'DeepMatch', getGuiId: () => 'd1' });
             const midChild = makeGui({
@@ -796,7 +855,7 @@ describe('ComponentViewerTreeDataProvider', () => {
             expect(mockFire).toHaveBeenCalledTimes(1);
         });
 
-        it('auto-expands parent nodes when filter matches a descendant', () => {
+        it('auto-expands ancestor when filter matches a descendant', () => {
             const child = makeGui({ getGuiName: () => 'MatchChild', getGuiId: () => 'c1' });
             const parent = makeGui({
                 getGuiName: () => 'Parent',
@@ -806,11 +865,11 @@ describe('ComponentViewerTreeDataProvider', () => {
             });
             provider.setRoots([parent]);
 
-            // Without filter, parent is collapsed (not manually expanded)
+            // Without filter, parent is collapsed
             let treeItem = provider.getTreeItem(parent);
             expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
 
-            // With filter matching the child, parent should auto-expand
+            // With filter matching the child, parent auto-expands to reveal match
             provider.setFilter('MatchChild');
             treeItem = provider.getTreeItem(parent);
             expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
@@ -821,7 +880,7 @@ describe('ComponentViewerTreeDataProvider', () => {
             expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
         });
 
-        it('auto-expands deeply nested ancestor chain when filter matches a leaf', () => {
+        it('auto-expands ancestor chain but keeps matched leaf collapsed', () => {
             const leaf = makeGui({ getGuiName: () => 'DeepTarget', getGuiId: () => 'l1' });
             const mid = makeGui({
                 getGuiName: () => 'Mid',
@@ -838,8 +897,35 @@ describe('ComponentViewerTreeDataProvider', () => {
             provider.setRoots([root]);
 
             provider.setFilter('DeepTarget');
+            // Ancestors are auto-expanded to reveal the match
             expect(provider.getTreeItem(root).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
             expect(provider.getTreeItem(mid).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+        });
+
+        it('keeps directly matched expandable node collapsed (user decides)', () => {
+            const grandchild = makeGui({ getGuiName: () => 'GC', getGuiId: () => 'gc1' });
+            const matchNode = makeGui({
+                getGuiName: () => 'MatchMe',
+                getGuiId: () => 'm1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [grandchild],
+            });
+            const root = makeGui({
+                getGuiName: () => 'Root',
+                getGuiId: () => 'r1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [matchNode],
+            });
+            provider.setRoots([root]);
+
+            provider.setFilter('MatchMe');
+            // Root is expanded (ancestor), matched node stays collapsed
+            expect(provider.getTreeItem(root).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+            expect(provider.getTreeItem(matchNode).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
+
+            // When user expands matched node, all children shown unfiltered
+            provider.setElementExpanded(matchNode, true);
+            expect(provider.getChildren(matchNode)).toEqual([grandchild]);
         });
 
         it('uses generation-tagged IDs when filter is active so VS Code treats nodes as new', () => {
