@@ -277,8 +277,8 @@ Most Arm Cortex-M processors (except Cortex-M0/M0+/M23) include a `DWT->CYCCNT` 
 
 The **Trace and Live View**
 ![Trace and Live view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/TraceLiveView.png)
-(available from the VS Code Activity Bar) currently contains the [**LIVE WATCH**](#live-watch) and the
-[**COMPONENT VIEWER**](#component-viewer) views.
+(available from the VS Code Activity Bar) currently contains the [**LIVE WATCH**](#live-watch), the
+[**COMPONENT VIEWER**](#component-viewer), and the [**CORE PERIPHERALS**](#core-peripherals) views.
 
 #### LIVE WATCH
 
@@ -303,6 +303,17 @@ The Component Viewer shows information about:
 - Objects that are addressed by handles or dynamic arrays.
 
 ![Showing software component properties in the COMPONENT VIEWER](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/component-viewer.png)
+
+#### CORE PERIPHERALS
+
+The **CORE PERIPHERALS** view gives insight into the programming of CPU specific core peripherals.
+
+The Core Peripherals view shows information about the following components if implemented by the CPU:
+
+- Memory Protection Unit
+- Nested Vectored Interrupt Controller
+- System Config and Control
+- System Tick Timer
 
 ### PERIPHERALS
 

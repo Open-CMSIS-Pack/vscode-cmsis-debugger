@@ -64,6 +64,9 @@
       <read name="NVIC_IPR_values" type="uint32_t" size="60" offset="0xE000E400"/>
       <read name="Vectors" type="Vector_t" offset="0xE000E004"/>
       <var name="Count" type="uint32_t" value="0"/>
+      <var name="irqPresent" type="uint32_t" value="0"/>
+      <var name="irqCore" type="uint32_t" value="0"/>
+      <var name="irqExt" type="uint32_t" value="0"/>
       <list name="Count" start="0" limit="Vectors.INTLINESNUM*32">
         <calc cond="1">
           Vectors.Index[Count]=Count;
@@ -168,9 +171,15 @@
         </item>
         <item property="Vector Handlers" value="">
           <list name="Count" start="0" limit="Vectors.INTLINESNUM*32">
-            <item>
-              <print property="%E[Vectors.Index[Count]]" value="%E[Vectors.Enable[Count]], %E[Vectors.Pending[Count]], %E[Vectors.Active[Count]]" cond="Vectors.Displayed[Count]==1 &amp;&amp; Count&lt;16"/>
-              <print property="External Interrupt %d[Count-16] (EXTIRQ%d[Count-16])" value="%E[Vectors.Enable[Count]], %E[Vectors.Pending[Count]], %E[Vectors.Active[Count]]" cond="Vectors.Displayed[Count]==1 &amp;&amp; Count&gt;15"/>
+            <calc>
+              irqPresent = Vectors.Displayed[Count]==1;
+              irqCore = Count&lt;16;
+              irqExt = Count&gt;15;
+            </calc>
+
+            <item cond="irqPresent" value="">
+              <print property="%E[Vectors.Index[Count]]" cond="irqCore" value="%E[Vectors.Enable[Count]], %E[Vectors.Pending[Count]], %E[Vectors.Active[Count]]"/>
+              <print property="%Q[Count]" cond="irqExt" value="%E[Vectors.Enable[Count]], %E[Vectors.Pending[Count]], %E[Vectors.Active[Count]]" />
               <item property="Index" value="%d[Vectors.Index[Count]]"/>
               <item property="Enable" value="%d[Vectors.Enable[Count]]"/>
               <item property="Pending" value="%d[Vectors.Pending[Count]]"/>
