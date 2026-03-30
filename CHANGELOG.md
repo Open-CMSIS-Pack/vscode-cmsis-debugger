@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.5.1
+
+- Includes updated pyOCD distribution ([pyOCD v0.44.0](https://github.com/pyocd/pyOCD/releases/tag/v0.44.0))
+
 ## 1.5.0
 
 - Pre-release with a preview of the new [Core Peripherals](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#core-peripherals) view that lives under
