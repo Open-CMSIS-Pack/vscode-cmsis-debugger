@@ -1288,7 +1288,7 @@ describe('ComponentViewerTreeDataProvider', () => {
             });
             provider.setRoots([root]);
             // Clear _parentById to force findParentInTree fallback
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
             (provider as unknown as { _parentById: Map<string, unknown> })._parentById.clear();
             expect(provider.getParent(grandchild)).toBe(child);
         });
@@ -1302,7 +1302,7 @@ describe('ComponentViewerTreeDataProvider', () => {
             });
             const orphan = makeGui({ getGuiName: () => 'Orphan', getGuiId: () => 'o1' });
             provider.setRoots([root]);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
             (provider as unknown as { _parentById: Map<string, unknown> })._parentById.clear();
             expect(provider.getParent(orphan)).toBeUndefined();
         });
@@ -1311,7 +1311,7 @@ describe('ComponentViewerTreeDataProvider', () => {
             const leaf = makeGui({ getGuiName: () => 'Leaf', getGuiId: () => 'l1' });
             const orphan = makeGui({ getGuiName: () => 'Orphan', getGuiId: () => 'o1' });
             provider.setRoots([leaf]);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
             (provider as unknown as { _parentById: Map<string, unknown> })._parentById.clear();
             expect(provider.getParent(orphan)).toBeUndefined();
         });
