@@ -27,10 +27,16 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     private _expandedIds = new Set<string>();
     private readonly _parentById: Map<string, ScvdGuiInterface> = new Map();
     private _filterTokens: string[] | undefined;
+    private _filterPattern: string | undefined;
     private _idGeneration: number = 0;
     private _savedExpandedIds: Set<string> | undefined;
+    private _collapsedDuringFilter = new Set<string>();
 
     constructor () {
+    }
+
+    public get filterPattern(): string | undefined {
+        return this._filterPattern;
     }
 
     /**
@@ -39,6 +45,8 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
      * Pass undefined or empty string to clear the filter.
      */
     public setFilter(pattern: string | undefined): void {
+        this._filterPattern = pattern || undefined;
+        this._collapsedDuringFilter.clear();
         if (pattern === undefined || pattern === '') {
             this._filterTokens = undefined;
             // Restore pre-filter expanded state
@@ -103,19 +111,14 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     }
 
     /**
-     * Returns true if the node itself or any of its ancestors directly match
-     * the filter. Used to implement "filtering stops at a matched node":
-     * all descendants of a directly-matched node are shown without further filtering.
+     * Returns true if this specific node was manually collapsed by the user
+     * during filtering. Only the directly toggled node bypasses filtering;
+     * its descendants keep their filtered state (auto-expansion, filtered
+     * children) intact.
      */
-    private isUnfilteredSubtree(node: ScvdGuiInterface): boolean {
-        if (this.nodeMatchesFilter(node)) {
-            return true;
-        }
-        const parent = this.getParent(node);
-        if (parent !== undefined) {
-            return this.isUnfilteredSubtree(parent);
-        }
-        return false;
+    private isManuallyExpandedZone(node: ScvdGuiInterface): boolean {
+        const nodeId = node.getGuiId();
+        return nodeId !== undefined && this._collapsedDuringFilter.has(nodeId);
     }
 
     public onWillStopSession(sessionId: string): void {
@@ -132,6 +135,16 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         if (elementId === undefined) {
             return;
         }
+        if (this._filterTokens && !expanded) {
+            // User collapsed this node: next expansion will bypass filtering.
+            // Child expanded state is preserved — isManuallyExpandedZone()
+            // in getTreeItem already prevents filter auto-expansion for the
+            // whole subtree, so _expandedIds just keeps each child's state.
+            this._collapsedDuringFilter.add(elementId);
+            // Fire a targeted tree-data-change so VS Code invalidates its
+            // cached children and re-calls getChildren() on re-expansion.
+            this._onDidChangeTreeData.fire(element);
+        }
         if (expanded && element.hasGuiChildren()) {
             this._expandedIds.add(elementId);
         } else {
@@ -146,10 +159,14 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         const treeItem = new vscode.TreeItem(treeItemLabel);
         const hasChildren = element.hasGuiChildren();
         if (hasChildren) {
-            // When a filter is active, auto-expand nodes that have matching
+            // When a filter is active, auto-expand any node that has matching
             // descendants so the user can see the path to the matches.
-            // The directly-matched node itself stays collapsed (user decides).
-            const isExpanded = (this._filterTokens && this.hasMatchingDescendant(element))
+            // Skip auto-expansion for nodes the user has manually collapsed
+            // and for their descendants (the whole subtree is now unfiltered).
+            const isFilterAutoExpanded = this._filterTokens
+                && this.hasMatchingDescendant(element)
+                && !this.isManuallyExpandedZone(element);
+            const isExpanded = isFilterAutoExpanded
                 || (guiId !== undefined && this._expandedIds.has(guiId));
             treeItem.collapsibleState = isExpanded
                 ? vscode.TreeItemCollapsibleState.Expanded
@@ -215,10 +232,9 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         }
 
         const children = element.getGuiChildren() || [];
-        // When the element itself (or any ancestor) directly matches the filter,
-        // filtering stops here: show all children without restriction so the user
-        // can explore the full subtree of a matched node.
-        const filtered = (this._filterTokens && !this.isUnfilteredSubtree(element))
+        // Always apply filtering unless the user manually expanded this node
+        // (or an ancestor) during the current filter session.
+        const filtered = (this._filterTokens && !this.isManuallyExpandedZone(element))
             ? children.filter(child => this.nodeOrDescendantMatchesFilter(child))
             : children;
         perf?.endUi(perfStartTime, 'treeViewGetChildrenMs', 'treeViewGetChildrenCalls');
