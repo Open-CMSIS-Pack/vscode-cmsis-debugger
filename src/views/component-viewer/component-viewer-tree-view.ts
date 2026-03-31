@@ -162,9 +162,6 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         let intermediateContextValue = '';
         if (element.isRootInstance) {
             intermediateContextValue = 'parentInstance';
-            if (element.isLocked) {
-                treeItem.iconPath = new vscode.ThemeIcon('lock');
-            }
         }
 
         treeItem.contextValue = element.isLocked ? `locked.${intermediateContextValue}` : intermediateContextValue;

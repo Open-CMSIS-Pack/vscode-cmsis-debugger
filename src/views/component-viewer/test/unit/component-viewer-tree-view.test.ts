@@ -185,14 +185,12 @@ describe('ComponentViewerTreeDataProvider', () => {
         expect(childItem.contextValue).toBe('');
     });
 
-    it('assigns lock icon for locked root nodes', () => {
+    it('does not assign icon for root nodes regardless of lock state', () => {
         const rootLocked = makeGui({ isRootInstance: true, isLocked: true });
         const rootUnLocked = makeGui({ isRootInstance: true, isLocked: false });
 
-        const rootItem = provider.getTreeItem(rootLocked);
-        expect(rootItem.iconPath).toBeInstanceOf(vscode.ThemeIcon);
-        const rootIcon = rootItem.iconPath as { id: string };
-        expect(rootIcon.id).toBe('lock');
+        const rootLockedItem = provider.getTreeItem(rootLocked);
+        expect(rootLockedItem.iconPath).toBeUndefined();
 
         const rootUnLockedItem = provider.getTreeItem(rootUnLocked);
         expect(rootUnLockedItem.iconPath).toBeUndefined();

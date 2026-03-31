@@ -248,10 +248,10 @@ describe('ComponentViewerWebviewProvider', () => {
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
 
         expect(getHtml()).toContain('lock-btn');
-        expect(getHtml()).toContain('🔓');
+        expect(getHtml()).toContain('codicon-lock');
     });
 
-    it('shows locked icon for locked root instances', () => {
+    it('shows lock icon with hover-unlock for locked root instances', () => {
         const root = makeGui({
             getGuiName: () => 'RTX',
             isRootInstance: true,
@@ -262,7 +262,11 @@ describe('ComponentViewerWebviewProvider', () => {
         const { view, getHtml } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
 
-        expect(getHtml()).toContain('🔒');
+        // Lock icon shown by default, unlock icon revealed on hover
+        expect(getHtml()).toContain('lock-icon-default');
+        expect(getHtml()).toContain('lock-icon-hover');
+        expect(getHtml()).toContain('codicon-lock');
+        expect(getHtml()).toContain('codicon-unlock');
     });
 
     it('escapes HTML entities in names and values', () => {

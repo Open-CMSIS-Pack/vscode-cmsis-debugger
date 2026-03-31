@@ -147,7 +147,11 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
     private renderRow(node: ScvdGuiInterface, depth: number): string {
         const name = this.escapeHtml(node.getGuiName() ?? '');
         const value = this.escapeHtml(node.getGuiValue() ?? '');
-        const id = this.escapeHtml(node.getGuiId() ?? '');
+        const rawId = node.getGuiId();
+        if (!rawId) {
+            return '';
+        }
+        const id = this.escapeHtml(rawId);
         const hasChildren = node.hasGuiChildren();
         const expanded = hasChildren && this._dataProvider.isExpanded(node);
         const indent = depth * 16; // px per nesting level
@@ -155,24 +159,27 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
         // Expand/collapse toggle or leaf placeholder.
         let toggle: string;
         if (hasChildren) {
-            const arrow = expanded ? '▾' : '▸';
-            toggle = `<span class="toggle" data-id="${id}" data-expanded="${expanded}">${arrow}</span>`;
+            const chevronClass = expanded ? 'codicon-chevron-down' : 'codicon-chevron-right';
+            toggle = `<span class="toggle" data-id="${id}" data-expanded="${expanded}"><i class="codicon ${chevronClass}"></i></span>`;
         } else {
             toggle = '<span class="toggle-placeholder"></span>';
         }
 
-        // Lock button for root instances.
+        // Lock button for root instances (rendered right-aligned).
         let lockBtn = '';
         if (node.isRootInstance) {
-            const iconClass = node.isLocked ? 'codicon-lock' : 'codicon-unlock';
-            lockBtn = `<span class="lock-btn" data-id="${id}" title="${node.isLocked ? 'Unlock' : 'Lock'}"><i class="codicon ${iconClass}"></i></span>`;
+            if (node.isLocked) {
+                lockBtn = `<span class="lock-btn" data-id="${id}" title="Include in updates"><i class="codicon codicon-lock lock-icon-default"></i><i class="codicon codicon-unlock lock-icon-hover"></i></span>`;
+            } else {
+                lockBtn = `<span class="lock-btn" data-id="${id}" title="Exclude from updates"><i class="codicon codicon-lock"></i></span>`;
+            }
         }
 
         const tooltip = name && value ? `${name}\n${value}` : name || value;
 
         return `<tr class="row${expanded ? ' expanded' : ''}${node.isLocked ? ' locked' : ''}" data-row-id="${id}" title="${tooltip}">
             <td class="cell-name" style="padding-left:${indent + 4}px">
-                ${toggle}${lockBtn}<span class="name">${name}</span>
+                ${toggle}<span class="name">${name}</span>${lockBtn}
             </td>
             <td class="cell-value">${value}</td>
         </tr>\n`;
@@ -188,6 +195,7 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${this._view?.webview.cspSource} 'unsafe-inline'; script-src 'unsafe-inline'; font-src ${this._view?.webview.cspSource};">
 <link rel="stylesheet" href="${this._codiconCssUri}">
 <style>
     :root {
@@ -261,20 +269,57 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
         background: var(--vscode-list-inactiveSelectionBackground, rgba(255,255,255,0.08));
     }
     .toggle, .toggle-placeholder {
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         width: 16px;
         text-align: center;
         cursor: pointer;
         user-select: none;
+    }
+    .toggle .codicon {
+        font-size: 16px;
     }
     .toggle-placeholder { cursor: default; }
+    .cell-name {
+        position: relative;
+    }
     .lock-btn {
-        display: inline-block;
-        width: 16px;
-        text-align: center;
+        position: absolute;
+        right: 4px;
+        top: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: var(--row-height);
         cursor: pointer;
         user-select: none;
+        visibility: hidden;
+        /* Opaque background so the icon covers text underneath */
+        background: var(--vscode-sideBar-background, var(--vscode-editor-background));
     }
+    /* Unlocked: show lock icon only on row hover */
+    tr.row:hover .lock-btn {
+        visibility: visible;
+        background: var(--vscode-list-hoverBackground, rgba(255,255,255,0.04));
+    }
+    /* Locked: always show the lock button */
+    tr.row.locked .lock-btn {
+        visibility: visible;
+    }
+    /* Selected row: match selection background */
+    tr.row.selected .lock-btn {
+        background: var(--vscode-list-inactiveSelectionBackground, rgba(255,255,255,0.08));
+    }
+    tr.row.selected:hover .lock-btn {
+        background: var(--vscode-list-inactiveSelectionBackground, rgba(255,255,255,0.08));
+    }
+    /* Locked rows: dual icons — lock shown by default, unlock shown on hover */
+    .lock-btn .lock-icon-hover { display: none !important; }
+    .lock-btn .lock-icon-default { display: inline !important; }
+    tr.row.locked:hover .lock-btn .lock-icon-default { display: none !important; }
+    tr.row.locked:hover .lock-btn .lock-icon-hover { display: inline !important; }
     .lock-btn .codicon {
         font-size: 14px;
         line-height: var(--row-height);
@@ -308,7 +353,10 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
         const state = vscode.getState();
         if (!state) return;
         const sc = document.querySelector('.scroll-container');
-
+        // Restore column width
+        if (state.nameColWidth) {
+            document.documentElement.style.setProperty('--name-col-width', state.nameColWidth);
+        }
         // Restore selection highlight
         let anchorRow = null;
         if (state.selectedId) {
@@ -383,6 +431,9 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
         }
     });
 
+    /* Clean up stale resize state that may survive a re-render */
+    document.body.classList.remove('resizing');
+
     /* Column resize logic */
     (function initColumnResize() {
         const handle = document.getElementById('resizeHandle');
@@ -409,7 +460,10 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
             const newWidth = Math.max(40, startWidth + delta);
             const tableWidth = table.offsetWidth;
             const pct = Math.min(90, Math.max(10, (newWidth / tableWidth) * 100));
-            document.documentElement.style.setProperty('--name-col-width', pct + '%');
+            const widthValue = pct + '%';
+            document.documentElement.style.setProperty('--name-col-width', widthValue);
+            const state = vscode.getState() || {};
+            vscode.setState({ ...state, nameColWidth: widthValue });
         }
 
         function onMouseUp() {
@@ -452,6 +506,7 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 }

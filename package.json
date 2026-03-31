@@ -154,13 +154,13 @@
       {
         "command": "vscode-cmsis-debugger.componentViewer.lockComponent",
         "title": "Lock Component",
-        "icon": "$(unlock)",
+        "icon": "$(lock)",
         "category": "Component Viewer"
       },
       {
         "command": "vscode-cmsis-debugger.componentViewer.unlockComponent",
         "title": "Unlock Component",
-        "icon": "$(lock)",
+        "icon": "$(unlock)",
         "category": "Component Viewer"
       },
       {
@@ -200,13 +200,13 @@
       {
         "command": "vscode-cmsis-debugger.corePeripherals.lockComponent",
         "title": "Lock Component",
-        "icon": "$(unlock)",
+        "icon": "$(lock)",
         "category": "Core Peripherals"
       },
       {
         "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
         "title": "Unlock Component",
-        "icon": "$(lock)",
+        "icon": "$(unlock)",
         "category": "Core Peripherals"
       },
       {
