@@ -96,7 +96,7 @@ For single-core targets the core level is omitted and the tree stays flat.
 
 ### Component Viewer (Multi-Core)
 
-The Component Viewer displays user-provided SCVD files (e.g. RTX5, Network stack). In multi-core targets the same core-level grouping applies:
+The Component Viewer displays CMSIS-Pack (or user) -provided SCVD files (e.g. RTX5, Network stack). In multi-core targets the same core-level grouping applies:
 
 ```text
 Component Viewer
