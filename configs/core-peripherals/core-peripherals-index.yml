@@ -9,3 +9,5 @@ core-peripherals:
     cpu-type: "*"
   - file: System_Tick_Timer.scvd
     cpu-type: "*"
+  - file: Fault_Reports.scvd
+    cpu-type: "*"
