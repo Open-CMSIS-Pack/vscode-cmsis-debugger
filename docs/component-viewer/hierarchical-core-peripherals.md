@@ -1,10 +1,12 @@
 # Hierarchical Core Peripherals
 
-This document describes the planned hierarchical grouping of core peripherals in the Core Peripherals tree view.
+This document describes the planned hierarchical grouping for the Core Peripherals and Component Viewer tree views.
 
 ## Motivation
 
-Some core peripherals (e.g. SysTick, NVIC) exist in multiple security variants on processors with TrustZone. Currently each SCVD file produces a flat root node in the tree. This PR introduces intermediate **category nodes** that group related SCVD content under a single peripheral name, with security-zone sub-nodes beneath it.
+Some core peripherals (e.g. SysTick, NVIC) exist in multiple security variants on processors with TrustZone. In multi-core systems (e.g. M7/M4, M4/M0+) each core has its own set of peripherals. Currently each SCVD file produces a flat root node in the tree. This PR introduces a **hierarchy layer** that groups SCVD content by core and peripheral name, with optional security-zone sub-nodes.
+
+The same hierarchy layer applies to both the **Core Peripherals** view and the **Component Viewer** view, since both share the same base class (`ComponentViewerBase`) and instance management.
 
 ## Target Tree Structure
 
@@ -90,11 +92,104 @@ Core Peripherals
     └── …
 ```
 
-For single-core targets the core level is omitted and the tree stays as shown above.
+For single-core targets the core level is omitted and the tree stays flat.
 
-## Index Schema Changes
+### Component Viewer (Multi-Core)
 
-The `core-peripherals-index.yml` needs a `group` field (and optionally a `variant` label) per entry so that multiple SCVD files can be grouped under one peripheral name:
+The Component Viewer displays user-provided SCVD files (e.g. RTX5, Network stack). In multi-core targets the same core-level grouping applies:
+
+```text
+Component Viewer
+├── Cortex-M7
+│   ├── RTX5
+│   │   └── (SCVD file content)
+│   └── …
+└── Cortex-M4
+    ├── Network
+    │   └── (SCVD file content)
+    └── …
+```
+
+For single-core targets the core level is omitted (current behaviour preserved).
+
+## Architecture — Shared Hierarchy Layer
+
+### Current Architecture
+
+```text
+ScvdCollector.getScvdFilePaths() → string[]
+        ↓
+ComponentViewerBase.readScvdFiles() → flat instances
+        ↓
+ComponentViewerBase.updateInstances() → flat roots → setRoots()
+```
+
+Both views (`ComponentViewer` and `CorePeripherals`) are thin wrappers around `ComponentViewerBase`. They differ only in which `ScvdCollector` they provide:
+
+| View | Collector | Source |
+|------|-----------|--------|
+| Core Peripherals | `CorePeripheralsScvdCollector` | Built-in index YAML, filtered by CPU type/features |
+| Component Viewer | `ComponentViewerScvdCollector` | `cbuild-run.yml` system-descriptions |
+
+### New Architecture
+
+A `HierarchyBuilder` is inserted between instance collection and `setRoots()`:
+
+```text
+ScvdCollector.getScvdFilePaths() → ScvdFileInfo[]
+        ↓
+ComponentViewerBase.readScvdFiles() → flat instances (with metadata)
+        ↓
+ComponentViewerBase.updateInstances()
+        ↓
+HierarchyBuilder.build(instances, processorCount)
+        ↓
+category nodes wrapping instances → setRoots()
+```
+
+The `HierarchyBuilder` lives in `ComponentViewerBase` and is used by **both** views automatically.
+
+### Transparency for Single-Core
+
+The `HierarchyBuilder` decides at runtime how much hierarchy to apply:
+
+| Condition | Result |
+|-----------|--------|
+| 1 processor, no groups | Returns flat roots unchanged (= current behaviour) |
+| 1 processor, with groups | Inserts peripheral-group level only (S/NS) |
+| N processors, no groups | Inserts core level only |
+| N processors, with groups | Inserts core level + peripheral-group level |
+
+When no grouping is needed, the builder passes roots through unmodified — zero overhead, fully transparent.
+
+## ScvdCollector Interface Change
+
+The `ScvdCollector` interface is extended to return metadata alongside file paths:
+
+```ts
+export interface ScvdFileInfo {
+    filePath: string;
+    processorName?: string;  // Multi-core grouping (from pname)
+    group?: string;          // Peripheral grouping key (e.g. "System Tick Timer")
+    variant?: string;        // Variant label (e.g. "Secure")
+}
+
+export interface ScvdCollector {
+    getScvdFilePaths(session: GDBTargetDebugSession): Promise<ScvdFileInfo[]>;
+}
+```
+
+### CorePeripheralsScvdCollector
+
+Populates `processorName`, `group`, and `variant` from the core-peripherals index YAML and the active processor info.
+
+### ComponentViewerScvdCollector
+
+Populates `processorName` from the `pname` field in `cbuild-run.yml` system-descriptions. The `group` and `variant` fields remain `undefined` (user SCVD files typically have no S/NS variants).
+
+## Index Schema Changes (Core Peripherals)
+
+The `core-peripherals-index.yml` gains `group` and `variant` fields:
 
 ```yaml
 core-peripherals:
@@ -128,9 +223,27 @@ export interface CorePeripheralEntryType {
 }
 ```
 
+## Lock/Unlock Behaviour
+
+The lock button is driven by `isRootInstance` and `isLocked` flags on `ScvdGuiInterface`. These are depth-agnostic — any node at any level can receive the lock button.
+
+| Scenario | Lock button on |
+|----------|---------------|
+| Single-core, no groups | SCVD root node (current behaviour) |
+| Single-core, with groups (S/NS) | Variant sub-nodes (Secure / Non-Secure) |
+| Multi-core | SCVD root nodes within each core group |
+
+Category nodes (core nodes, peripheral group nodes) are **never** lockable. They have no statement engine and no update cycle.
+
 ## Required Code Changes
 
-### 1. Index types & schema (`core-peripherals/`)
+### 1. Shared types
+
+| File | Change |
+|------|--------|
+| `component-viewer-base.ts` | Define `ScvdFileInfo` interface. Update `ScvdCollector` to return `ScvdFileInfo[]`. |
+
+### 2. Index types & schema (`core-peripherals/`)
 
 | File | Change |
 |------|--------|
@@ -138,30 +251,30 @@ export interface CorePeripheralEntryType {
 | `core-peripherals-index.schema.json` | Add `group` and `variant` as optional string properties. |
 | `core-peripherals-index.yml` | Add entries with `group`/`variant` for TrustZone-aware peripherals. Create NS-variant SCVD files where needed. |
 
-### 2. Collector returns metadata (`CorePeripheralsScvdCollector`)
+### 3. Collectors return metadata
 
 | File | Change |
 |------|--------|
-| `core-peripherals-scvd-collector.ts` | `getScvdFilePaths()` currently returns `string[]`. Change to return an enriched type (e.g. `CorePeripheralFileInfo[]`) that carries `filePath`, `group`, and `variant` alongside the path. |
+| `core-peripherals-scvd-collector.ts` | Return `ScvdFileInfo[]` with `filePath`, `group`, `variant`, and `processorName`. |
+| `component-viewer-scvd-collector.ts` | Return `ScvdFileInfo[]` with `filePath` and `processorName` (from `pname` in cbuild-run system-descriptions). |
 
-### 3. Category node (`ScvdGuiInterface` / new class)
-
-| File | Change |
-|------|--------|
-| **New:** `core-peripheral-category-node.ts` | A lightweight class implementing `ScvdGuiInterface` that acts as a synthetic grouping node. It holds children (the actual SCVD roots or variant sub-nodes) but has no statement engine or lock/unlock behaviour. |
-
-### 4. Build hierarchy in controller (`component-viewer-base.ts`)
+### 4. Category node
 
 | File | Change |
 |------|--------|
-| `component-viewer-base.ts` | In `updateInstances()`, after collecting SCVD roots, build a hierarchy: **core → group → variant**. In multi-core targets (more than one processor in `cbuild-run.yml`), create a top-level core node per processor. Within each core (or at root level for single-core), group entries by `group` key. For groups with a single entry, keep the flat root. For groups with multiple entries, wrap them in a category node and insert variant sub-nodes. Pass the resulting hierarchy to `setRoots()`. |
+| **New:** `category-node.ts` | A lightweight class implementing `ScvdGuiInterface` that acts as a synthetic grouping node. Holds children but has no statement engine or lock/unlock behaviour. Used for both core-level and peripheral-group-level nodes. |
 
-### 5. Tree view (`component-viewer-tree-view.ts`)
+### 5. HierarchyBuilder in controller (`component-viewer-base.ts`)
 
-No structural changes expected — the `TreeDataProvider` already renders arbitrary `ScvdGuiInterface` hierarchies. Category nodes will simply appear as collapsible parents. Minor adjustments may be needed for:
+| File | Change |
+|------|--------|
+| `component-viewer-base.ts` | Add `HierarchyBuilder` (or inline logic) in `updateInstances()`. After collecting SCVD roots, build hierarchy: **core → group → variant**. For single-core without groups, pass roots through unchanged. Adjust `handleLockInstance()` to resolve the correct `ManagedInstance` from deeper nodes. |
+
+### 6. Tree view (`component-viewer-tree-view.ts`)
+
+No structural changes expected — the `TreeDataProvider` already renders arbitrary `ScvdGuiInterface` hierarchies. Minor adjustments may be needed for:
 
 - **Icons**: category nodes could use a distinct icon to differentiate from SCVD roots.
-- **Lock/unlock**: category nodes are not lockable (only leaf instances are).
 - **Filter**: the existing fuzzy-match filter already walks descendants, so category nodes will be included automatically.
 
 ## Open Questions
