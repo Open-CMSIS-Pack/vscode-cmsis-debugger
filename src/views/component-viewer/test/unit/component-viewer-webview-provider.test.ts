@@ -324,4 +324,89 @@ describe('ComponentViewerWebviewProvider', () => {
         expect(html).toContain('padding-left:20px');
         expect(html).toContain('padding-left:36px');
     });
+
+    it('re-renders when the data provider fires onDidChangeTreeData', () => {
+        // Override onDidChangeTreeData to capture the listener
+        let changeListener: (() => void) | undefined;
+        Object.defineProperty(dataProvider, 'onDidChangeTreeData', {
+            value: (listener: () => void) => {
+                changeListener = listener;
+                return { dispose: jest.fn() };
+            },
+            configurable: true,
+        });
+
+        const { view, getHtml } = makeMockWebviewView();
+        webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+        expect(getHtml()).toContain('No component data available');
+
+        // Mutate data and fire change event
+        dataProvider.setRoots([makeGui({ getGuiName: () => 'Dynamic' })]);
+        changeListener?.();
+
+        expect(getHtml()).toContain('Dynamic');
+    });
+
+    it('skips rendering a node whose getGuiId returns undefined', () => {
+        const good = makeGui({ getGuiName: () => 'Good', getGuiId: () => 'ok' });
+        const bad = makeGui({ getGuiName: () => 'Bad', getGuiId: () => undefined });
+        dataProvider.setRoots([good, bad]);
+
+        const { view, getHtml } = makeMockWebviewView();
+        webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+
+        const html = getHtml();
+        expect(html).toContain('Good');
+        expect(html).not.toContain('Bad');
+    });
+
+    it('handles undefined name and value gracefully', () => {
+        const nodeNameOnly = makeGui({
+            getGuiName: () => 'OnlyName',
+            getGuiValue: () => undefined,
+            getGuiId: () => 'n1',
+        });
+        const nodeValueOnly = makeGui({
+            getGuiName: () => undefined,
+            getGuiValue: () => 'OnlyValue',
+            getGuiId: () => 'v1',
+        });
+        const nodeNeither = makeGui({
+            getGuiName: () => undefined,
+            getGuiValue: () => undefined,
+            getGuiId: () => 'e1',
+        });
+        dataProvider.setRoots([nodeNameOnly, nodeValueOnly, nodeNeither]);
+
+        const { view, getHtml } = makeMockWebviewView();
+        webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+
+        const html = getHtml();
+        expect(html).toContain('OnlyName');
+        expect(html).toContain('OnlyValue');
+        // Node with neither name nor value should still render (with empty tooltip)
+        expect(html).toContain('data-row-id="e1"');
+    });
+
+    it('includes CSP meta tag in rendered HTML', () => {
+        const { view, getHtml } = makeMockWebviewView();
+        webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+        expect(getHtml()).toContain('Content-Security-Policy');
+    });
+
+    it('escapes single quotes in HTML output', () => {
+        const node = makeGui({
+            getGuiName: () => 'it\'s',
+            getGuiValue: () => 'it\'s',
+            getGuiId: () => 'sq1',
+        });
+        dataProvider.setRoots([node]);
+
+        const { view, getHtml } = makeMockWebviewView();
+        webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+
+        const html = getHtml();
+        expect(html).toContain('it&#39;s');
+        expect(html).not.toContain('it\'s');
+    });
 });
