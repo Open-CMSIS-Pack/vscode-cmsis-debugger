@@ -339,7 +339,7 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
     ${bodyRows.length > 0
         ? `<div class="scroll-container"><table><thead><tr><th class="cell-name">Name<div class="resize-handle" id="resizeHandle"></div></th><th class="cell-value">Value</th></tr></thead><tbody>${bodyRows}</tbody></table></div>`
         : '<div class="empty-state">No component data available</div>'
-    }
+}
 <script>
     const vscode = acquireVsCodeApi();
 
