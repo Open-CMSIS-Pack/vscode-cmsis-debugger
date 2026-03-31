@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Copyright 2026 Arm Limited
+  
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       https://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+-->
+<component_viewer schemaVersion="0.1" xmlns:xs="https://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="Component_Viewer.xsd">
+  <component name="FaultReportsComponent" version="1.0.0"/>
+  <typedefs>
+    <typedef name="StandardFaultRegisters_t" size="0x18">
+      <member name="MMFSR" type="uint8_t" offset="0x00"/>
+      <member name="BFSR" type="uint8_t" offset="0x01"/>
+      <member name="UFSR" type="uint16_t" offset="0x02"/>
+      <member name="HFSR" type="uint32_t" offset="0x04"/>
+      <member name="DFSR" type="uint32_t" offset="0x08"/>
+      <member name="MMFAR" type="uint32_t" offset="0x0C"/>
+      <member name="BFAR" type="uint32_t" offset="0x10"/>
+      <member name="AFSR" type="uint32_t" offset="0x14"/>
+    </typedef>
+    <typedef name="SecureFaultRegisters_t" size="0x08">
+      <member name="SFSR" type="uint32_t" offset="0x00"/>
+      <member name="SFAR" type="uint32_t" offset="0x04"/>
+    </typedef>
+  </typedefs>
+  <objects>
+    <object name="FaultReportsObject">
+      <read name="StandardFaultRegisters" type="StandardFaultRegisters_t" offset="0xE000ED28"/>
+      <read name="ID_PFR1" type="uint32_t" offset="0xE000ED44"/>
+      <var name="ShowSecureFaults" type="uint8_t" value="0"/>
+      <calc>
+        ShowSecureFaults=1&amp;&amp;(ID_PFR1&amp;0xF0);
+      </calc>
+      <read name="SecureFaultRegisters" cond="ShowSecureFaults" type="SecureFaultRegisters_t" offset="0xE000EDE4"/>
+      <out name="Fault Reports">
+       <item property="ID_PFR1" value="%x[ID_PFR1]"/>
+       <item property="Memory Manage Faults" value="">
+         <item property="Address (SCB->MMFAR)" value="%x[StandardFaultRegisters.MMFAR]">    
+         </item>       
+         <item property="Status (SCB->CFSR->MMFSR)" value="%x[StandardFaultRegisters.MMFSR]">    
+           <item property="IACCVIOL" value="%d[(StandardFaultRegisters.MMFSR&gt;&gt;0)&amp;0x1]"/>
+           <item property="DACCVIOL" value="%d[(StandardFaultRegisters.MMFSR&gt;&gt;1)&amp;0x1]"/>
+           <item property="MUNSTKERR" value="%d[(StandardFaultRegisters.MMFSR&gt;&gt;3)&amp;0x1]"/>
+           <item property="MSTKERR" value="%d[(StandardFaultRegisters.MMFSR&gt;&gt;4)&amp;0x1]"/>
+           <item property="MLSPERR" value="%d[(StandardFaultRegisters.MMFSR&gt;&gt;5)&amp;0x1]"/>
+           <item property="MMFARVALID" value="%d[(StandardFaultRegisters.MMFSR&gt;&gt;7)&amp;0x1]"/>
+         </item>       
+       </item>
+       <item property="Bus Faults" value="">
+         <item property="Address (SCB->BFAR)" value="%x[StandardFaultRegisters.BFAR]">    
+         </item>       
+         <item property="Status (SCB->CFSR->BFSR)" value="%x[StandardFaultRegisters.BFSR]">    
+           <item property="IBUSERR" value="%d[(StandardFaultRegisters.BFSR&gt;&gt;0)&amp;0x1]"/>
+           <item property="PRECISERR" value="%d[(StandardFaultRegisters.BFSR&gt;&gt;1)&amp;0x1]"/>
+           <item property="IMPRECISERR" value="%d[(StandardFaultRegisters.BFSR&gt;&gt;2)&amp;0x1]"/>
+           <item property="UNSTKERR" value="%d[(StandardFaultRegisters.BFSR&gt;&gt;3)&amp;0x1]"/>
+           <item property="STKERR" value="%d[(StandardFaultRegisters.BFSR&gt;&gt;4)&amp;0x1]"/>
+           <item property="LSPERR" value="%d[(StandardFaultRegisters.BFSR&gt;&gt;5)&amp;0x1]"/>
+           <item property="BFARVALID" value="%d[(StandardFaultRegisters.BFSR&gt;&gt;7)&amp;0x1]"/>
+         </item>       
+       </item>
+       <item property="Usage Faults" value="">
+         <item property="Status (SCB->CFSR->UFSR)" value="%x[StandardFaultRegisters.UFSR]">    
+           <item property="UNDEFINSTR" value="%d[(StandardFaultRegisters.UFSR&gt;&gt;0)&amp;0x1]"/>
+           <item property="INVSTATE" value="%d[(StandardFaultRegisters.UFSR&gt;&gt;1)&amp;0x1]"/>
+           <item property="INVPC" value="%d[(StandardFaultRegisters.UFSR&gt;&gt;2)&amp;0x1]"/>
+           <item property="NOCP" value="%d[(StandardFaultRegisters.UFSR&gt;&gt;3)&amp;0x1]"/>
+           <item property="STKOF" value="%d[(StandardFaultRegisters.UFSR&gt;&gt;4)&amp;0x1]"/>
+           <item property="UNALIGNED" value="%d[(StandardFaultRegisters.UFSR&gt;&gt;8)&amp;0x1]"/>
+           <item property="DIVBYZERO" value="%d[(StandardFaultRegisters.UFSR&gt;&gt;9)&amp;0x1]"/>
+         </item>       
+       </item>
+       <item property="Hard Faults" value="">
+         <item property="Status (SCB->HFSR)" value="%x[StandardFaultRegisters.HFSR]">    
+           <item property="VECTTBL" value="%d[(StandardFaultRegisters.HFSR&gt;&gt;1)&amp;0x1]"/>
+           <item property="FORCED" value="%d[(StandardFaultRegisters.HFSR&gt;&gt;30)&amp;0x1]"/>
+           <item property="DEBUGEVT" value="%d[(StandardFaultRegisters.HFSR&gt;&gt;31)&amp;0x1]"/>
+        </item>       
+       </item>
+       <item property="Debug Faults" value="">
+         <item property="Status (SCB->DFSR)" value="%x[StandardFaultRegisters.DFSR]">    
+           <item property="HALTED" value="%d[(StandardFaultRegisters.DFSR&gt;&gt;0)&amp;0x1]"/>
+           <item property="BKPT" value="%d[(StandardFaultRegisters.DFSR&gt;&gt;1)&amp;0x1]"/>
+           <item property="DWTTRAP" value="%d[(StandardFaultRegisters.DFSR&gt;&gt;2)&amp;0x1]"/>
+           <item property="VCATCH" value="%d[(StandardFaultRegisters.DFSR&gt;&gt;3)&amp;0x1]"/>
+           <item property="EXTERNAL" value="%d[(StandardFaultRegisters.DFSR&gt;&gt;4)&amp;0x1]"/>
+           <item property="PMU" value="%d[(StandardFaultRegisters.DFSR&gt;&gt;5)&amp;0x1]"/>
+        </item>       
+       </item>
+       <item property="Auxiliary Faults" value="">
+         <item property="Status (SCB->AFSR)" value="%x[StandardFaultRegisters.AFSR]">    
+         </item>       
+       </item>
+       <item property="Secure Faults" cond="ShowSecureFaults" value="">
+         <item property="Address (SCB->SFAR)" value="%x[SecureFaultRegisters.SFAR]">    
+         </item>       
+         <item property="Status (SCB->CFSR->BFSR)" value="%x[SecureFaultRegisters.SFSR]">    
+           <item property="INVEP" value="%d[(SecureFaultRegisters.SFSR&gt;&gt;0)&amp;0x1]"/>
+           <item property="INVIS" value="%d[(SecureFaultRegisters.SFSR&gt;&gt;1)&amp;0x1]"/>
+           <item property="INVER" value="%d[(SecureFaultRegisters.SFSR&gt;&gt;2)&amp;0x1]"/>
+           <item property="AUVIOL" value="%d[(SecureFaultRegisters.SFSR&gt;&gt;3)&amp;0x1]"/>
+           <item property="INVTRAN" value="%d[(SecureFaultRegisters.SFSR&gt;&gt;4)&amp;0x1]"/>
+           <item property="LSPERR" value="%d[(SecureFaultRegisters.SFSR&gt;&gt;5)&amp;0x1]"/>
+           <item property="SFARVALID" value="%d[(SecureFaultRegisters.SFSR&gt;&gt;6)&amp;0x1]"/>
+           <item property="LSERR" value="%d[(SecureFaultRegisters.SFSR&gt;&gt;7)&amp;0x1]"/>
+         </item>       
+       </item>
+     </out>
+   </object>
+  </objects>
+</component_viewer>
