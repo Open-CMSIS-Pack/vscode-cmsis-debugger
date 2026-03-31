@@ -12,7 +12,7 @@ Some core peripherals (e.g. SysTick, NVIC) exist in multiple security variants o
 
 The simplest case — no grouping needed, flat list of peripherals (current behaviour):
 
-```
+```text
 Core Peripherals
 ├── Memory Protection Unit
 │   └── (SCVD file content)
@@ -30,7 +30,7 @@ Core Peripherals
 
 Peripherals with security variants are grouped under one name with Secure/Non-Secure sub-nodes:
 
-```
+```text
 Core Peripherals
 ├── Memory Protection Unit
 │   └── (SCVD file content)
@@ -54,7 +54,7 @@ Core Peripherals
 
 In multi-core systems the **processor core** becomes the highest grouping level. Each core has its own set of core peripherals, which in turn may have TrustZone variants:
 
-```
+```text
 Core Peripherals
 ├── Cortex-M7
 │   ├── System Tick Timer
@@ -72,7 +72,7 @@ Core Peripherals
 
 With both multi-core **and** TrustZone the full hierarchy is three levels deep:
 
-```
+```text
 Core Peripherals
 ├── Cortex-M33 (Core 0)
 │   ├── System Tick Timer
