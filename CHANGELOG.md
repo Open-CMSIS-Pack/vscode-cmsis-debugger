@@ -11,7 +11,7 @@
     - Adds missing sequence support for flash programming and holding hardware reset.
     - Changes strategy of programming multiple flash memories from multiple erase-program-verify sequences per flash memory to a single
     erase-program-verify sequence spannig all targeted flash memories.
-    - Changes name of RTT channel `telnet` to `server`.
+    - Renames RTT channel mode `telnet` to `server`.
     - Adds Segger [SystemView](https://www.segger.com/products/development-tools/systemview/) server mode to support direct recording
     from pyOCD via IP (TCP/IP connection) for [`run`](https://open-cmsis-pack.github.io/cmsis-toolbox/pyOCD-Debugger/#command-line-invocation)
     subcommand.
