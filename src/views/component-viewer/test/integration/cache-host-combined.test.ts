@@ -37,26 +37,9 @@
 
 import { TargetReadCache } from '../../target-read-cache';
 import { MemoryHost } from '../../data-host/memory-host';
-import { RefContainer } from '../../parser-evaluator/model-host';
-import { ScvdNode } from '../../model/scvd-node';
+import { leToNumber } from '../../data-host/byte-encoding';
 
 // ---------- helpers ----------
-
-class NamedStubBase extends ScvdNode {
-    constructor(name: string) {
-        super(undefined);
-        this.name = name;
-    }
-}
-
-const makeContainer = (name: string, widthBytes: number, offsetBytes = 0): RefContainer => ({
-    base: new NamedStubBase(name),
-    anchor: new NamedStubBase(name),
-    current: new NamedStubBase(name),
-    offsetBytes,
-    widthBytes,
-    valueType: undefined,
-});
 
 function makeBlock(nextAddr: number, len: number, id: number): Uint8Array {
     const buf = new Uint8Array(9);
@@ -206,8 +189,9 @@ describe('Combined: TargetReadCache + MemoryHost – RTX linked-list walk', () =
         }
 
         // Verify sentinel's len (max_used pattern)
-        const lastLenRef = makeContainer('mem_list_com', 4, (result.count - 1) * 9 + 4);
-        expect(await memHost.readValue(lastLenRef)).toBe(30000);
+        const lastLenBytes = memHost.read('mem_list_com', (result.count - 1) * 9 + 4, 4);
+        expect(lastLenBytes).toBeDefined();
+        expect(leToNumber(lastLenBytes!)).toBe(30000);
     });
 
     it('cycle 2: clearNonConst + prefetch + walk sees updated target memory', async () => {
@@ -264,13 +248,14 @@ describe('Combined: TargetReadCache + MemoryHost – RTX linked-list walk', () =
         expect(result.count).toBe(6);
 
         // Verify updated block at 0x1050 now points to 0x1078 (not sentinel)
-        const block3NextRef = makeContainer('mem_list_com', 4, 2 * 9); // 3rd element, offset 0
-        const block3Next = await memHost.readValue(block3NextRef);
-        expect(block3Next).toBe(0x1078);
+        const block3NextBytes = memHost.read('mem_list_com', 2 * 9, 4); // 3rd element, offset 0
+        expect(block3NextBytes).toBeDefined();
+        expect(leToNumber(block3NextBytes!)).toBe(0x1078);
 
         // Verify sentinel len updated
-        const lastLenRef = makeContainer('mem_list_com', 4, (result.count - 1) * 9 + 4);
-        expect(await memHost.readValue(lastLenRef)).toBe(29000);
+        const lastLenBytes = memHost.read('mem_list_com', (result.count - 1) * 9 + 4, 4);
+        expect(lastLenBytes).toBeDefined();
+        expect(leToNumber(lastLenBytes!)).toBe(29000);
     });
 
     it('cycle 2 prefetch correctly updates data for blocks seen in cycle 1', async () => {
@@ -333,8 +318,8 @@ describe('Combined: TargetReadCache + MemoryHost – RTX linked-list walk', () =
         let tcbCount = 0;
         for (let i = 0; i < result.count - 1; i++) {
             const addr = memHost.getElementTargetBase('mem_list_com', i)!;
-            const idRef = makeContainer('mem_list_com', 1, i * 9 + 8);
-            const id = await memHost.readValue(idRef);
+            const idBytes = memHost.read('mem_list_com', i * 9 + 8, 1);
+            const id = idBytes ? leToNumber(idBytes) : undefined;
 
             if (id === 0xF1) {
                 tcbCount++;
@@ -477,7 +462,7 @@ describe('Combined: TargetReadCache + MemoryHost – RTX linked-list walk', () =
 
         // Both should exist
         expect(memHost.getArrayElementCount('mem_list_com')).toBe(2);
-        expect(await memHost.readRaw(makeContainer('os_Config', 4), 4)).toEqual(
+        expect(memHost.read('os_Config', 0, 4)).toEqual(
             new Uint8Array([0x20, 0x0D, 0x01, 0x20])
         );
 
@@ -485,8 +470,8 @@ describe('Combined: TargetReadCache + MemoryHost – RTX linked-list walk', () =
         memHost.clearNonConst();
 
         // mem_list_com gone, os_Config survives
-        expect(await memHost.readRaw(makeContainer('mem_list_com', 9), 9)).toBeUndefined();
-        expect(await memHost.readRaw(makeContainer('os_Config', 4), 4)).toEqual(
+        expect(memHost.read('mem_list_com', 0, 9)).toBeUndefined();
+        expect(memHost.read('os_Config', 0, 4)).toEqual(
             new Uint8Array([0x20, 0x0D, 0x01, 0x20])
         );
     });

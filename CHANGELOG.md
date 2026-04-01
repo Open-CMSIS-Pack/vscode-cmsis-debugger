@@ -1,5 +1,24 @@
 # Change Log
 
+## 1.5.0
+
+- Pre-release with a preview of the new [Core Peripherals](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#core-peripherals) view that lives under
+  [Trace and Live View](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-and-live-view).
+    - Early feedback is welcomed, please use [GitHub issues](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/new/choose) to raise enhancement requests or defects.
+- Fixes [Component Viewer](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#component-viewer) display and stability issues.
+- Included in this extension pre-release:
+    - [pyOCD v0.43.1](https://github.com/pyocd/pyOCD/releases/tag/v0.43.1)
+    - [arm-none-eabi-gdb v14.3.1](https://artifacts.tools.arm.com/arm-none-eabi-gdb/14.3.1/)
+- Full list of required minimum versions for correct functionality of the CMSIS Debugger v1.5.0 pre-release:
+    - [Arm CMSIS Solution extension v1.66.0](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution)
+    - [CDT GDB Adapter extension v2.7.0](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode)
+    - [Memory Inspector v1.2.0](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector)
+    - [Peripheral Inspector v1.9.0](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector)
+    - [Serial Monitor v0.13.1](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor)
+    - [RTOS Views v0.0.14](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views)
+- See [v1.4.1...v1.5.0](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/compare/v1.4.1...v1.5.0) for a full list
+of changes that went into this pre-release.
+
 ## 1.4.1
 
 - Fixes debugger run control intermittently becoming unresponsive when [Component Viewer](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#component-viewer) is active.

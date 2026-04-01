@@ -156,8 +156,13 @@ describe('ComponentViewerBase', () => {
         });
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.lockComponent', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.unlockComponent', expect.any(Function));
-        // 1 tree view + 2 event listeners + 4 commands + 6 tracker disposables
-        expect(context.subscriptions.length).toBe(13);
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.expandAll', expect.any(Function));
+        // 1 tree view + 2 event listeners + 7 commands + 6 tracker disposables
+        expect(context.subscriptions.length).toBe(16);
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.filterTree', expect.any(Function));
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.clearFilter', expect.any(Function));
+        // 1 tree view + 2 event listeners + 7 commands + 6 tracker disposables
+        expect(context.subscriptions.length).toBe(16);
     });
 
     it('should fail to activate the test class tree data provider if view is not correctly loaded', async () => {
@@ -558,6 +563,108 @@ describe('ComponentViewerBase', () => {
         expect(componentViewerLogger.info).toHaveBeenCalledWith('Test Class: Auto refresh disabled');
     });
 
+    it('filterTree command opens input box and applies filter live after 3 chars', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const filterHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.testClass.filterTree')?.[1] as
+            | (() => void)
+            | undefined;
+        expect(filterHandler).toBeDefined();
+
+        filterHandler?.();
+        const createInputBoxMock = asMockedFunction(vscode.window.createInputBox);
+        expect(createInputBoxMock).toHaveBeenCalledTimes(1);
+        const inputBox = createInputBoxMock.mock.results[0]?.value;
+        expect(inputBox).toBeDefined();
+        expect(inputBox.show).toHaveBeenCalled();
+
+        // Simulate typing 3 chars — should apply filter
+        const onChangeHandler = inputBox._handlers.onDidChangeValue[0];
+        inputBox.value = 'abc';
+        onChangeHandler('abc');
+        expect(provider.setFilter).toHaveBeenCalledWith('abc');
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', true);
+
+        // Simulate typing less than 3 chars — should still apply filter
+        jest.clearAllMocks();
+        inputBox.value = 'ab';
+        onChangeHandler('ab');
+        expect(provider.setFilter).toHaveBeenCalledWith('ab');
+
+        // Simulate clearing the input — should clear filter
+        jest.clearAllMocks();
+        inputBox.value = '';
+        onChangeHandler('');
+        expect(provider.setFilter).toHaveBeenCalledWith(undefined);
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', false);
+    });
+
+    it('filterTree command applies filter on Enter regardless of length', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const filterHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.testClass.filterTree')?.[1] as
+            | (() => void)
+            | undefined;
+        filterHandler?.();
+        const inputBox = asMockedFunction(vscode.window.createInputBox).mock.results[0]?.value;
+        const onAcceptHandler = inputBox._handlers.onDidAccept[0];
+
+        // Accept with short value (< 3 chars) still applies filter
+        inputBox.value = 'ab';
+        onAcceptHandler();
+        expect(provider.setFilter).toHaveBeenCalledWith('ab');
+        expect(inputBox.hide).toHaveBeenCalled();
+    });
+
+    it('filterTree command clears filter on Enter with empty value', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const filterHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.testClass.filterTree')?.[1] as
+            | (() => void)
+            | undefined;
+        filterHandler?.();
+        const inputBox = asMockedFunction(vscode.window.createInputBox).mock.results[0]?.value;
+        const onAcceptHandler = inputBox._handlers.onDidAccept[0];
+
+        inputBox.value = '';
+        onAcceptHandler();
+        expect(provider.setFilter).toHaveBeenCalledWith(undefined);
+        expect(inputBox.hide).toHaveBeenCalled();
+    });
+
+    it('filterTree command disposes input box on hide', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const filterHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.testClass.filterTree')?.[1] as
+            | (() => void)
+            | undefined;
+        filterHandler?.();
+        const inputBox = asMockedFunction(vscode.window.createInputBox).mock.results[0]?.value;
+        const onHideHandler = inputBox._handlers.onDidHide[0];
+
+        onHideHandler();
+        expect(inputBox.dispose).toHaveBeenCalled();
+    });
+
+    it('clearFilter command clears filter and resets context', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const clearHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.testClass.clearFilter')?.[1] as
+            | (() => Promise<void> | void)
+            | undefined;
+        expect(clearHandler).toBeDefined();
+
+        await clearHandler?.();
+        expect(provider.setFilter).toHaveBeenCalledWith(undefined);
+        expect(componentViewerLogger.info).toHaveBeenCalledWith('Test Class: Filter cleared');
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', false);
+    });
+
     it('invokes unlock handler and skips lock when no matching instance exists', async () => {
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
@@ -776,5 +883,125 @@ describe('ComponentViewerBase', () => {
         // Simulate collapsing the same element
         collapseCallback!({ element });
         expect(setElementExpandedSpy).toHaveBeenCalledWith(element, false);
+    });
+
+    it('expandAll command force-expands all elements and scrolls to root when nothing is selected', async () => {
+        const childA = makeGuiNode('childA');
+        const rootA = makeGuiNode('rootA', [childA]);
+        const revealMock = jest.fn().mockResolvedValue(undefined);
+
+        (vscode.window.createTreeView as jest.Mock).mockReturnValueOnce({
+            onDidExpandElement: jest.fn(),
+            onDidCollapseElement: jest.fn(),
+            reveal: revealMock,
+            selection: [],
+        });
+
+        (provider.getChildren as jest.Mock).mockReturnValue([rootA]);
+
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const expandAllHandler = registerCommandMock.mock.calls.find(
+            ([command]) => command === 'vscode-cmsis-debugger.testClass.expandAll'
+        )?.[1] as (() => Promise<void>) | undefined;
+
+        expect(expandAllHandler).toBeDefined();
+        await expandAllHandler?.();
+
+        expect(provider.expandAllElements).toHaveBeenCalled();
+        // Single reveal to scroll to root (no per-node expansion reveals)
+        expect(revealMock).toHaveBeenCalledTimes(1);
+        expect(revealMock).toHaveBeenCalledWith(rootA, { select: false, focus: false, expand: false });
+    });
+
+    it('expandAll command reveals the selected element to keep it in focus', async () => {
+        const childA = makeGuiNode('childA');
+        const rootA = makeGuiNode('rootA', [childA]);
+        const revealMock = jest.fn().mockResolvedValue(undefined);
+
+        (vscode.window.createTreeView as jest.Mock).mockReturnValueOnce({
+            onDidExpandElement: jest.fn(),
+            onDidCollapseElement: jest.fn(),
+            reveal: revealMock,
+            selection: [childA],
+        });
+
+        (provider.getChildren as jest.Mock).mockReturnValue([rootA]);
+
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const expandAllHandler = registerCommandMock.mock.calls.find(
+            ([command]) => command === 'vscode-cmsis-debugger.testClass.expandAll'
+        )?.[1] as (() => Promise<void>) | undefined;
+
+        await expandAllHandler?.();
+
+        expect(provider.expandAllElements).toHaveBeenCalled();
+        // Single reveal to scroll to selected element
+        expect(revealMock).toHaveBeenCalledTimes(1);
+        expect(revealMock).toHaveBeenCalledWith(childA, { select: true, focus: false, expand: false });
+    });
+
+    it('expandAll command does not reveal when tree is empty', async () => {
+        const revealMock = jest.fn().mockResolvedValue(undefined);
+
+        (vscode.window.createTreeView as jest.Mock).mockReturnValueOnce({
+            onDidExpandElement: jest.fn(),
+            onDidCollapseElement: jest.fn(),
+            reveal: revealMock,
+            selection: [],
+        });
+
+        (provider.getChildren as jest.Mock).mockReturnValue([]);
+
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const expandAllHandler = registerCommandMock.mock.calls.find(
+            ([command]) => command === 'vscode-cmsis-debugger.testClass.expandAll'
+        )?.[1] as (() => Promise<void>) | undefined;
+
+        await expandAllHandler?.();
+
+        expect(provider.expandAllElements).toHaveBeenCalled();
+        expect(revealMock).not.toHaveBeenCalled();
+    });
+
+    it('expandAll command gracefully handles reveal errors', async () => {
+        const rootA = makeGuiNode('rootA', [makeGuiNode('childA1')]);
+        const revealMock = jest.fn()
+            .mockRejectedValueOnce(new Error('element not visible'));
+
+        (vscode.window.createTreeView as jest.Mock).mockReturnValueOnce({
+            onDidExpandElement: jest.fn(),
+            onDidCollapseElement: jest.fn(),
+            reveal: revealMock,
+            selection: [],
+        });
+
+        (provider.getChildren as jest.Mock).mockReturnValue([rootA]);
+
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const expandAllHandler = registerCommandMock.mock.calls.find(
+            ([command]) => command === 'vscode-cmsis-debugger.testClass.expandAll'
+        )?.[1] as (() => Promise<void>) | undefined;
+
+        // Should not throw despite reveal failing
+        await expect(expandAllHandler?.()).resolves.toBeUndefined();
+        expect(provider.expandAllElements).toHaveBeenCalled();
+        expect(revealMock).toHaveBeenCalledTimes(1);
+        expect(revealMock).toHaveBeenCalledWith(rootA, { select: false, focus: false, expand: false });
+    });
+
+    it('handleExpandAll returns early when treeView is not set', async () => {
+        // Do not activate (so _treeView is undefined)
+        const handleExpandAll = (controller as unknown as { handleExpandAll: () => Promise<void> }).handleExpandAll.bind(controller);
+
+        await expect(handleExpandAll()).resolves.toBeUndefined();
+        expect(provider.expandAllElements).not.toHaveBeenCalled();
     });
 });

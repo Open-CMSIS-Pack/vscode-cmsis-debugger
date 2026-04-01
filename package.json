@@ -2,7 +2,7 @@
   "name": "vscode-cmsis-debugger",
   "displayName": "Arm CMSIS Debugger",
   "description": "Run and debug embedded and Edge AI projects on Arm Cortex-M single or multi core devices. Connects via pyOCD to CMSIS-DAP or other GDB servers.",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "preview": false,
   "publisher": "Arm",
   "author": "Jens Reinecke <jens.reinecke@arm.com>",
@@ -69,8 +69,7 @@
         {
           "id": "cmsis-debugger.corePeripherals",
           "name": "Core Peripherals",
-          "icon": "media/trace-and-live-light.svg",
-          "when": "config.cmsis-debugger.corePeripherals.enabled"
+          "icon": "media/trace-and-live-light.svg"
         }
       ]
     },
@@ -173,30 +172,62 @@
         "category": "Component Viewer"
       },
       {
+        "command": "vscode-cmsis-debugger.componentViewer.expandAll",
+        "title": "Expand All",
+        "icon": "$(expand-all)",
+        "category": "Component Viewer"
+      },
+      {
+        "command": "vscode-cmsis-debugger.componentViewer.filterTree",
+        "title": "Filter Tree",
+        "icon": "$(filter)",
+        "category": "Component Viewer"
+      },
+      {
+        "command": "vscode-cmsis-debugger.componentViewer.clearFilter",
+        "title": "Clear Filter",
+        "icon": "$(clear-all)",
+        "category": "Component Viewer"
+      },
+      {
         "command": "vscode-cmsis-debugger.corePeripherals.lockComponent",
         "title": "Lock Component",
         "icon": "$(unlock)",
-        "category": "Core Peripherals",
-        "when": "config.cmsis-debugger.corePeripherals.enabled"
+        "category": "Core Peripherals"
       },
       {
         "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
         "title": "Unlock Component",
         "icon": "$(lock)",
-        "category": "Core Peripherals",
-        "when": "config.cmsis-debugger.corePeripherals.enabled"
+        "category": "Core Peripherals"
       },
       {
         "command": "vscode-cmsis-debugger.corePeripherals.enablePeriodicUpdate",
         "title": "Enable Periodic Update",
-        "category": "Core Peripherals",
-        "when": "config.cmsis-debugger.corePeripherals.enabled"
+        "category": "Core Peripherals"
       },
       {
         "command": "vscode-cmsis-debugger.corePeripherals.disablePeriodicUpdate",
         "title": "Disable Periodic Update",
-        "category": "Core Peripherals",
-        "when": "config.cmsis-debugger.corePeripherals.enabled"
+        "category": "Core Peripherals"
+      },
+      {
+        "command": "vscode-cmsis-debugger.corePeripherals.expandAll",
+        "title": "Expand All",
+        "icon": "$(expand-all)",
+        "category": "Core Peripherals"
+      },
+      {
+        "command": "vscode-cmsis-debugger.corePeripherals.filterTree",
+        "title": "Filter Tree",
+        "icon": "$(filter)",
+        "category": "Core Peripherals"
+      },
+      {
+        "command": "vscode-cmsis-debugger.corePeripherals.clearFilter",
+        "title": "Clear Filter",
+        "icon": "$(clear-all)",
+        "category": "Core Peripherals"
       }
     ],
     "menus": {
@@ -298,6 +329,18 @@
           "when": "true"
         },
         {
+          "command": "vscode-cmsis-debugger.componentViewer.expandAll",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.filterTree",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.clearFilter",
+          "when": "false"
+        },
+        {
           "command": "vscode-cmsis-debugger.corePeripherals.lockComponent",
           "when": "false"
         },
@@ -312,6 +355,18 @@
         {
           "command": "vscode-cmsis-debugger.corePeripherals.disablePeriodicUpdate",
           "when": "true"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.expandAll",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.filterTree",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.clearFilter",
+          "when": "false"
         }
       ],
       "view/title": [
@@ -340,6 +395,36 @@
         {
           "command": "vscode-cmsis-debugger.liveWatch.refresh",
           "when": "view == cmsis-debugger.liveWatch",
+          "group": "navigation@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.expandAll",
+          "when": "view == cmsis-debugger.componentViewer",
+          "group": "navigation@3"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.expandAll",
+          "when": "view == cmsis-debugger.corePeripherals",
+          "group": "navigation@3"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.filterTree",
+          "when": "view == cmsis-debugger.componentViewer",
+          "group": "navigation@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.clearFilter",
+          "when": "view == cmsis-debugger.componentViewer && componentViewer.filterActive",
+          "group": "navigation@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.filterTree",
+          "when": "view == cmsis-debugger.corePeripherals",
+          "group": "navigation@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.clearFilter",
+          "when": "view == cmsis-debugger.corePeripherals && corePeripherals.filterActive",
           "group": "navigation@2"
         }
       ],
@@ -401,12 +486,12 @@
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.lockComponent",
-          "when": "config.cmsis-debugger.corePeripherals.enabled && view == cmsis-debugger.corePeripherals && viewItem == parentInstance",
+          "when": "view == cmsis-debugger.corePeripherals && viewItem == parentInstance",
           "group": "inline@1"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
-          "when": "config.cmsis-debugger.corePeripherals.enabled && view == cmsis-debugger.corePeripherals && viewItem == locked.parentInstance",
+          "when": "view == cmsis-debugger.corePeripherals && viewItem == locked.parentInstance",
           "group": "inline@2"
         }
       ]
@@ -473,10 +558,11 @@
   },
   "dependencies": {
     "vscode-uri": "^3.1.0",
-    "yaml": "^2.8.2",
+    "yaml": "^2.8.3",
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
+    "@eclipse-cdt-cloud/vscode-peripheral-inspector": "github:eclipse-cdt-cloud/vscode-peripheral-inspector#v1.9.0",
     "@eslint/js": "^10.0.1",
     "@open-cmsis-pack/vsce-helper": "^0.3.0",
     "@types/extract-zip": "^2.0.3",
@@ -504,7 +590,7 @@
     "jest-html-reporter": "^4.3.0",
     "lzma-native": "8.0.6",
     "markdown-link-check": "^3.14.2",
-    "markdownlint-cli": "^0.47.0",
+    "markdownlint-cli": "^0.48.0",
     "minimist": "^1.2.8",
     "node-fetch": "^3.3.2",
     "octokit": "^5.0.5",
@@ -517,7 +603,7 @@
     "type-fest": "^5.4.4",
     "typescript": "^5.9.3",
     "typescript-eslint": "8.56.1",
-    "webpack": "^5.105.2",
+    "webpack": "^5.105.4",
     "webpack-cli": "^6.0.1",
     "yargs": "^18.0.0"
   },

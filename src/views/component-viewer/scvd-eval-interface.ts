@@ -17,6 +17,7 @@
 import { componentViewerLogger } from '../../logger';
 import { DataAccessHost, EvalValue, ModelHost, RefContainer, ScalarType } from './parser-evaluator/model-host';
 import type { IntrinsicProvider } from './parser-evaluator/intrinsics';
+import { decodeBytesToValue, leBigIntToBytes, leIntToBytes } from './data-host/byte-encoding';
 import { ScvdNode } from './model/scvd-node';
 import { MemoryHost } from './data-host/memory-host';
 import { RegisterHost } from './data-host/register-host';
@@ -29,6 +30,7 @@ import { perf } from './stats-config';
 import { ScvdEvalInterfaceCache } from './scvd-eval-interface-cache';
 import { ScvdComponentViewer } from './model/scvd-component-viewer';
 import { ScvdTypedef } from './model/scvd-typedef';
+import { InterruptHost } from './data-host/interrupt-host';
 
 export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicProvider {
     private static readonly INVALID_ADDR_MIN = 0xFFFFFFF0;
@@ -38,17 +40,20 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
     private _formatSpecifier: ScvdFormatSpecifier;
     private _caches = new ScvdEvalInterfaceCache();
     private _scalarTypeCache = new Map<string, ScalarType>();
+    private _interruptHost: InterruptHost;
 
     constructor(
         memHost: MemoryHost,
         regHost: RegisterHost,
         debugTarget: ScvdDebugTarget,
-        formatterSpecifier: ScvdFormatSpecifier
+        formatterSpecifier: ScvdFormatSpecifier,
+        interruptHost: InterruptHost
     ) {
         this._memHost = memHost;
         this._registerCache = regHost;
         this._debugTarget = debugTarget;
         this._formatSpecifier = formatterSpecifier;
+        this._interruptHost = interruptHost;
     }
 
     public resetPrintfCache(): void {
@@ -365,9 +370,16 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         const width = container.widthBytes ?? 0;
         componentViewerLogger.trace(`[ScvdEvalInterface.readValue] container: var="${varName}" offset=${offset} width=${width}`);
         try {
-            const value = await this._memHost.readValue(container);
+            if (!varName || varName === '?' || width <= 0) {
+                return undefined;
+            }
+            const raw = this._memHost.read(varName, offset, width);
+            if (!raw) {
+                return undefined;
+            }
+            const value = decodeBytesToValue(raw, width, container.valueType);
             componentViewerLogger.trace(`[ScvdEvalInterface.readValue] → ${value}`);
-            return value as EvalValue;
+            return value;
         } catch (e) {
             componentViewerLogger.error(`ScvdEvalInterface.readValue: exception for container with base=${container.base.getDisplayLabel()}: ${e}`);
             return undefined;
@@ -383,7 +395,15 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         const width = container.widthBytes ?? 0;
         componentViewerLogger.trace(`[ScvdEvalInterface.writeValue] container: var="${varName}" offset=${offset} width=${width} value=${value}`);
         try {
-            await this._memHost.writeValue(container, value);
+            if (!varName || varName === '?' || width <= 0) {
+                return undefined;
+            }
+            const buf = this.encodeEvalValue(value, width);
+            if (!buf) {
+                componentViewerLogger.error('writeValue: unsupported value type');
+                return undefined;
+            }
+            this._memHost.write(varName, offset, buf, width);
             return value;
         } catch (e) {
             componentViewerLogger.error(`ScvdEvalInterface.writeValue: exception for container with base=${container.base.getDisplayLabel()}: ${e}`);
@@ -391,6 +411,28 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
         } finally {
             perf?.end(perfStartTime, 'evalWriteMs', 'evalWriteCalls');
         }
+    }
+
+    /** Encode an EvalValue to exactly `widthBytes` LE bytes for writing. */
+    private encodeEvalValue(value: EvalValue, widthBytes: number): Uint8Array | undefined {
+        if (value instanceof Uint8Array) {
+            if (value.length === widthBytes) {
+                return value;
+            }
+            const buf = new Uint8Array(widthBytes);
+            buf.set(value.subarray(0, widthBytes), 0);
+            return buf;
+        }
+        if (typeof value === 'boolean') {
+            return leIntToBytes(value ? 1 : 0, widthBytes);
+        }
+        if (typeof value === 'number') {
+            return leIntToBytes(Math.trunc(value), widthBytes);
+        }
+        if (typeof value === 'bigint') {
+            return leBigIntToBytes(value, widthBytes);
+        }
+        return undefined;
     }
 
     /* ---------------- Intrinsics ---------------- */
@@ -608,6 +650,17 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                 case 'J': {
                     return this.formatIpAddress(spec, value, container, typeInfo, spec === 'I' ? 4 : 16);
                 }
+                case 'Q': {
+                    // Interrupt number → name lookup (lazy-loaded from Peripheral Inspector API)
+                    if (typeof value === 'number') {
+                        const name = await this._interruptHost.getName(value);
+                        if (name) {
+                            return name;
+                        }
+                    }
+                    // Fallback: show IRQ_<number> or the raw value
+                    return typeof value === 'number' ? `IRQ_${value}` : String(value);
+                }
                 case 'x': {
                     let n = this.toNumeric(value);
                     if (typeof n === 'number') {
@@ -630,9 +683,13 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                     if (value instanceof Uint8Array) {
                         return this._formatSpecifier.format(spec, this.ensureNullTerminated(value), { typeInfo, allowUnknownSpec: true });
                     }
-                    const raw = await this.readRawBytesFromContainer(container, base, formatRef);
-                    if (raw !== undefined) {
-                        return this._formatSpecifier.format(spec, this.ensureNullTerminated(raw), { typeInfo, allowUnknownSpec: true });
+                    const tAnchor = container.anchor ?? base;
+                    const tWidth = container.widthBytes ?? typeInfo.widthBytes;
+                    if (tAnchor?.name && tWidth && tWidth > 0) {
+                        const raw = this._memHost.read(tAnchor.name, container.offsetBytes ?? 0, tWidth);
+                        if (raw) {
+                            return this._formatSpecifier.format(spec, this.ensureNullTerminated(raw), { typeInfo, allowUnknownSpec: true });
+                        }
                     }
                     return this._formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
                 }
@@ -640,9 +697,13 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
                     if (value instanceof Uint8Array) {
                         return this._formatSpecifier.format(spec, value, { typeInfo, allowUnknownSpec: true });
                     }
-                    const raw = await this.readRawBytesFromContainer(container, base, formatRef, 6);
-                    if (raw !== undefined) {
-                        return this._formatSpecifier.format(spec, raw, { typeInfo, allowUnknownSpec: true });
+                    const mAnchor = container.anchor ?? base;
+                    const mWidth = container.widthBytes ?? typeInfo.widthBytes ?? 6;
+                    if (mAnchor?.name && mWidth > 0) {
+                        const raw = this._memHost.read(mAnchor.name, container.offsetBytes ?? 0, mWidth);
+                        if (raw) {
+                            return this._formatSpecifier.format(spec, raw, { typeInfo, allowUnknownSpec: true });
+                        }
                     }
                     const isPointer = formatRef?.getIsPointer?.() ?? false;
                     if (isPointer && typeof value === 'number') {
@@ -822,35 +883,6 @@ export class ScvdEvalInterface implements ModelHost, DataAccessHost, IntrinsicPr
 
         // Compatibility fallback: treat value as a pointer to read from
         return await this.readBytesFromPointer(value, byteCount);
-    }
-
-    /**
-     * Read raw bytes from container using anchor and width information.
-     * Used by %t and %M format specifiers for text and MAC addresses.
-     */
-    private async readRawBytesFromContainer(
-        container: RefContainer,
-        base: ScvdNode | undefined,
-        formatRef: ScvdNode | undefined,
-        defaultWidth?: number
-    ): Promise<Uint8Array | undefined> {
-        const anchor = container.anchor ?? base;
-        let width = container.widthBytes;
-        if (width === undefined) {
-            width = formatRef ? await this.getByteWidth(formatRef) : undefined;
-        }
-        if (width === undefined && defaultWidth !== undefined) {
-            width = defaultWidth;
-        }
-        if (anchor?.name !== undefined && width !== undefined && width > 0) {
-            const cacheRef: RefContainer = {
-                ...container,
-                anchor,
-                widthBytes: width
-            };
-            return await this._memHost.readRaw(cacheRef, width);
-        }
-        return undefined;
     }
 
     /**
