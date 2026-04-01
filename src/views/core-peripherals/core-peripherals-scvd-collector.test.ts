@@ -23,6 +23,7 @@ const EXPECTED_DEFAULT_CORE_PERIPHERAL_FILES = [
     'Nested_Vectored_Interrupt_Controller.scvd',
     'System_Config_and_Control.scvd',
     'System_Tick_Timer.scvd',
+    'Fault_Reports.scvd',
 ];
 const EXPECTED_DEFAULT_CORE_PERIPHERAL_FILE_PATHS = EXPECTED_DEFAULT_CORE_PERIPHERAL_FILES.map(
     file => path.resolve(TEST_BASE_PATH, file)

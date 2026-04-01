@@ -51,6 +51,7 @@ export class ComponentViewerBase {
     private _pendingUpdate: boolean = false;
     private _runningUpdate: boolean = false;
     private _refreshTimerEnabled: boolean = true;
+    private _activeInputBox: vscode.InputBox | undefined;
     private static readonly pendingUpdateDelayMs = 150;
 
     public constructor(
@@ -210,8 +211,9 @@ export class ComponentViewerBase {
         const inputBox = vscode.window.createInputBox();
         inputBox.placeholder = 'Type a text pattern to filter nodes...';
         inputBox.prompt = `Filter ${this._viewName} tree`;
-        inputBox.value = '';
+        inputBox.value = this._componentViewerTreeDataProvider.filterPattern ?? '';
         inputBox.ignoreFocusOut = false;
+        this._activeInputBox = inputBox;
 
         const applyFilter = (value: string): void => {
             if (value === '') {
@@ -237,6 +239,7 @@ export class ComponentViewerBase {
         });
 
         inputBox.onDidHide(() => {
+            this._activeInputBox = undefined;
             inputBox.dispose();
         });
 
@@ -247,6 +250,9 @@ export class ComponentViewerBase {
         componentViewerLogger.info(`${this._viewName}: Filter cleared`);
         this._componentViewerTreeDataProvider.setFilter(undefined);
         void vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, false);
+        if (this._activeInputBox) {
+            this._activeInputBox.hide();
+        }
     }
 
     protected async readScvdFiles(tracker: GDBTargetDebugTracker, session?: GDBTargetDebugSession): Promise<void> {
