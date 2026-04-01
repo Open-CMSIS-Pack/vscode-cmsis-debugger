@@ -314,6 +314,7 @@ The Core Peripherals view shows information about the following components if im
 - Nested Vectored Interrupt Controller
 - System Config and Control
 - System Tick Timer
+- Fault Reports
 
 ### PERIPHERALS
 
