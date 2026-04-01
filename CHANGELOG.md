@@ -8,7 +8,7 @@
 - Includes updated pyOCD distribution ([pyOCD v0.44.0](https://github.com/pyocd/pyOCD/releases/tag/v0.44.0))
     - Uses default debug sequences as defined in the
     [Open-CMSIS-Pack specification](https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec/main/html/debug_description.html#autotoc_md2).
-    Adds missing sequence support for flash programming and holding hardware reset.
+    - Adds missing sequence support for flash programming and holding hardware reset.
     - Changes strategy of programming multiple flash memories from multiple erase-program-verify sequences per flash memory to a single
     erase-program-verify sequence spannig all targeted flash memories.
     - Changes name of RTT channel `telnet` to `server`.
