@@ -21,6 +21,7 @@ Note: `npm run build` already runs lint.
 
 Compiler and tooling settings are defined in `tsconfig.json` and `package.json`. Key conventions to follow:
 
+* Generated code must comply with the project's ESLint and TypeScript rules from the start — do not rely on the linter or formatter to fix style after the fact
 * Prefer explicit types and avoid `any` in production code
 * Keep compliance with `noImplicitAny`, `noImplicitReturns`, `noUnusedLocals`, and `noUnusedParameters`
 * Respect `exactOptionalPropertyTypes`
@@ -30,6 +31,7 @@ Compiler and tooling settings are defined in `tsconfig.json` and `package.json`.
 * Keep the existing project copyright/license header at the top of TypeScript files under `src` and `scripts`.
 * For new source files under `src` or `scripts`, add the same copyright/license header format used by nearby files.
 * When editing a file, update the copyright header year or year range if it is outdated.
+  A single year becomes a range (e.g. `2025` -> `2025-2026`); an existing range extends to the current year.
 * Do not remove or reformat license text unless intentionally updating headers repository-wide.
 * If a new source file is completely AI-generated, add `// generated with AI` directly after the header.
 
@@ -37,7 +39,7 @@ Compiler and tooling settings are defined in `tsconfig.json` and `package.json`.
 
 * Variables and functions: `camelCase`
 * Classes, interfaces, and types: `PascalCase`
-* Constants: `UPPER_SNAKE_CASE` for stable constants
+* Constants: `UPPER_SNAKE_CASE` for module-level or static readonly values that act as fixed configuration (analogous to `#define` in C/C++)
 * File names should match exported functionality where applicable
 
 ## Architecture & Patterns
@@ -70,7 +72,6 @@ Compiler and tooling settings are defined in `tsconfig.json` and `package.json`.
   2. Internal modules
 * Avoid unused imports
 * Use consistent import style across the codebase
-* Follow lint-enforced style: 4-space indentation, single quotes, semicolons
 * Keep `eslint-disable` usage minimal, narrowly scoped, and justified when non-obvious
 
 ## Testing
@@ -96,7 +97,6 @@ Run the smallest relevant set first, then broaden when touching shared code:
 
 ## General Guidelines
 
-* Follow existing patterns in the codebase
 * Maintain consistency with surrounding code
 * Do not introduce new libraries unless necessary
 * Keep changes focused on the task; avoid unrelated changes, but do not shy away from refactoring internal APIs when it leads to a cleaner design
@@ -114,5 +114,7 @@ When guidelines conflict, apply this priority order:
 ## Notes for Copilot
 
 * Align with existing project structure and patterns, but flag and fix poor patterns rather than reproducing them
+* When unsure, prioritize correctness and type safety over consistency
 * Ensure all generated code builds, typechecks, and passes tests
 * Prefer existing helpers/factories/utilities over duplicating logic
+* When a fix touches shared or upstream code, prefer improving the shared API over patching around it locally
