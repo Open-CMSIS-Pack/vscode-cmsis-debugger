@@ -49,6 +49,7 @@ Compiler and tooling settings are defined in `tsconfig.json` and `package.json`.
 * Prefer code reuse and refactoring over code duplication
 * Keep utility modules free of `vscode` dependencies where practical; isolate `vscode` access at boundaries
 * Reuse existing readers/parsers/helpers before introducing new abstractions
+* Always consider the larger project context before making a change; prefer refactoring shared code or internal APIs over introducing local workarounds that add complexity
 
 ## Logging & Diagnostics
 
@@ -58,9 +59,8 @@ Compiler and tooling settings are defined in `tsconfig.json` and `package.json`.
 ## Validation & Error Handling
 
 * Validate external inputs at boundaries (especially workspace/debug configuration inputs)
-* Reuse existing parser/reader patterns in the surrounding module
 * Provide meaningful error and log messages that help troubleshooting
-* Preserve existing behavior unless a change is intentional and covered by tests
+* Preserve existing behavior unless a change is intentional; cover behavior changes with tests
 
 ## Imports
 
@@ -80,7 +80,7 @@ Compiler and tooling settings are defined in `tsconfig.json` and `package.json`.
 * Keep tests isolated and deterministic
 * Use descriptive test names
 * Prefer testing behavior over implementation details
-* Prefer code reuse and refactoring over code duplication
+* Extract and generalize shared test logic into helpers or factories when similar patterns appear across tests
 * Follow existing test patterns (`jest.mock`, factory helpers under `src/__test__`, and local feature test factories)
 * Use snapshots when output is structured and stable
 * Keep `any` usage in tests rare; when needed, localize it with explicit lint suppression
@@ -99,13 +99,20 @@ Run the smallest relevant set first, then broaden when touching shared code:
 * Follow existing patterns in the codebase
 * Maintain consistency with surrounding code
 * Do not introduce new libraries unless necessary
-* Keep changes minimal and focused
-* If a new source file is completely AI-generated, add `// generated with AI` at the top (per contribution guide)
-* Maintain backward compatibility unless the change intent explicitly requires behavior change
+* Keep changes focused on the task; avoid unrelated changes, but do not shy away from refactoring internal APIs when it leads to a cleaner design
+* Maintain backward compatibility of public APIs unless the change intent explicitly requires it
+
+## Priorities
+
+When guidelines conflict, apply this priority order:
+
+1. Correctness and type safety
+2. Code reuse and clean design (DRY, refactoring over duplication)
+3. Consistency with existing patterns
+4. Minimizing change scope
 
 ## Notes for Copilot
 
-* Always align with existing project structure and patterns
-* When unsure, prioritize consistency over creativity
+* Align with existing project structure and patterns, but flag and fix poor patterns rather than reproducing them
 * Ensure all generated code builds, typechecks, and passes tests
 * Prefer existing helpers/factories/utilities over duplicating logic
