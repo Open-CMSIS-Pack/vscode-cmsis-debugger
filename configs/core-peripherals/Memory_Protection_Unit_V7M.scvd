@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Copyright 2026 Arm Limited
+  
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       https://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+-->
+<component_viewer schemaVersion="0.1" xmlns:xs="https://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="Component_Viewer.xsd">
+  <component name="MemoryProtectionUnitV7MComponent" version="1.0.0"/>
+  <typedefs>
+    <typedef name="MPU_Registers_t" size="20">
+      <member name="MPU_TYPE" type="uint32_t" offset="0x00"/>
+      <member name="MPU_CTRL" type="uint32_t" offset="0x04"/>
+      <member name="MPU_RNR" type="uint32_t" offset="0x08"/>
+      <member name="MPU_RBAR" type="uint32_t" offset="0x0C"/>
+      <member name="MPU_RASR" type="uint32_t" offset="0x10"/>
+    </typedef>
+    <typedef name="MPU_Region_t">
+      <var name="Number" type="uint8_t" size="1"/>
+      <var name="Enable" type="uint8_t" size="1"/>
+      <var name="StartAddress" type="uint32_t" size="1"/>
+      <var name="RegionSize" type="uint8_t" size="1">
+        <enum name="Reserved" value="0x00"/>
+        <enum name="Reserved" value="0x01"/>
+        <enum name="Reserved" value="0x02"/>
+        <enum name="Reserved" value="0x03"/>
+        <enum name="32B" value="0x04"/>
+        <enum name="64B" value="0x05"/>
+        <enum name="128B" value="0x06"/>
+        <enum name="256B" value="0x07"/>
+        <enum name="512B" value="0x08"/>
+        <enum name="1KB" value="0x09"/>
+        <enum name="2KB" value="0x0A"/>
+        <enum name="4KB" value="0x0B"/>
+        <enum name="8KB" value="0x0C"/>
+        <enum name="16KB" value="0x0D"/>
+        <enum name="32KB" value="0x0E"/>
+        <enum name="64KB" value="0x0F"/>
+        <enum name="128KB" value="0x10"/>
+        <enum name="256KB" value="0x11"/>
+        <enum name="512KB" value="0x12"/>
+        <enum name="1MB" value="0x13"/>
+        <enum name="2MB" value="0x14"/>
+        <enum name="4MB" value="0x15"/>
+        <enum name="8MB" value="0x16"/>
+        <enum name="16MB" value="0x17"/>
+        <enum name="32MB" value="0x18"/>
+        <enum name="64MB" value="0x19"/>
+        <enum name="128MB" value="0x1A"/>
+        <enum name="256MB" value="0x1B"/>
+        <enum name="512MB" value="0x1C"/>
+        <enum name="1GB" value="0x1D"/>
+        <enum name="2GB" value="0x1E"/>
+        <enum name="4GB" value="0x1F"/>
+      </var>
+      <var name="SubregionDisable" type="uint8_t" size="1"/>
+      <var name="ExecuteNever" type="uint8_t" size="1">
+        <enum name="X" value="0x0"/>
+        <enum name="XN" value="0x1"/>
+      </var>
+      <var name="AccessPermissions" type="uint8_t" size="1">
+        <enum name="Any access generates a permission fault" value="0x0"/>
+        <enum name="Privileged access only" value="0x1"/>
+        <enum name="Any unprivileged write generates a permission fault" value="0x2"/>
+        <enum name="Full access" value="0x3"/>
+        <enum name="Reserved" value="0x4"/>
+        <enum name="Privileged read-only" value="0x5"/>
+        <enum name="Privileged and unprivileged read-only" value="0x6"/>
+        <enum name="Privileged and unprivileged read-only" value="0x7"/>
+      </var>
+      <var name="Shareability" type="uint8_t" size="1">
+        <enum name="Non-shareable" value="0x0"/>
+        <enum name="Shareable" value="0x1"/>
+        <enum name="Reserved" value="0x2"/>
+        <enum name="IMPLEMENTATION DEFINED" value="0x3"/>
+      </var>
+      <var name="Memorytype" type="uint8_t">
+        <enum name="Strongly-ordered" value="0x0"/>
+        <enum name="Device" value="0x1"/>
+        <enum name="Normal" value="0x2"/>
+        <enum name="Reserved" value="0x3"/>
+        <enum name="IMPLEMENTATION DEFINED" value="0x4"/>
+      </var>      
+      <var name="OuterPolicy" type="uint8_t">
+        <enum name="Outer Non-cacheable" value="0x0"/>
+        <enum name="Outer Write-Back, write and read allocate" value="0x1"/>
+        <enum name="Outer Write-Through, no write allocate" value="0x2"/>
+        <enum name="Outer Write-Back, no write allocate" value="0x3"/>
+      </var>      
+      <var name="InnerPolicy" type="uint8_t">
+        <enum name="Inner Non-cacheable" value="0x0"/>
+        <enum name="Inner Write-Back, write and read allocate" value="0x1"/>
+        <enum name="Inner Write-Through, no write allocate" value="0x2"/>
+        <enum name="Inner Write-Back, no write allocate" value="0x3"/>
+      </var>      
+    </typedef>
+  </typedefs>
+  <objects>
+    <object name="MemoryProtectionUnitV7MObject">
+      <read name="MPU_Registers" type="MPU_Registers_t" offset="0xE000ED90"/> 
+      <var name="MPU_Region" type="MPU_Region_t" value="0"/>
+      <var name="TEXCB_Bits" type="uint8_t" value="0"/>
+      <var name="S_Bit" type="uint8_t" value="0"/>
+      <calc>
+        MPU_Region.Number=(MPU_Registers.MPU_RNR&gt;&gt;0)&amp;0xFF;
+        MPU_Region.Enable=(MPU_Registers.MPU_RASR&gt;&gt;0)&amp;0x1;
+        MPU_Region.StartAddress=(MPU_Registers.MPU_RBAR&amp;0xFFFFFFE0);
+        MPU_Region.RegionSize=(MPU_Registers.MPU_RASR&gt;&gt;1)&amp;0x1F;
+        MPU_Region.SubregionDisable=(MPU_Registers.MPU_RASR&gt;&gt;8)&amp;0xFF;
+        MPU_Region.ExecuteNever=(MPU_Registers.MPU_RASR&gt;&gt;28)&amp;0x1;
+        MPU_Region.AccessPermissions=(MPU_Registers.MPU_RASR&gt;&gt;24)&amp;0x7;
+        TEXCB_Bits=((MPU_Registers.MPU_RASR&gt;&gt;17)&amp;0x1C)|((MPU_Registers.MPU_RASR&gt;&gt;16)&amp;0x2)|((MPU_Registers.MPU_RASR&gt;&gt;16)&amp;0x1);
+        S_Bit=(MPU_Registers.MPU_RASR&gt;&gt;18)&amp;0x1;
+      </calc>
+      <!-- Strongly ordered memory -->
+      <calc cond="TEXCB_Bits==0x00">
+        MPU_Region.Memorytype=0x0;
+        MPU_Region.Shareability=0x1;
+        MPU_Region.OuterPolicy=0x4;
+        MPU_Region.InnerPolicy=0x4;
+      </calc>
+      <!-- Shared device memory -->
+      <calc cond="TEXCB_Bits==0x01">
+        MPU_Region.Memorytype=0x1;
+        MPU_Region.Shareability=0x1;
+        MPU_Region.OuterPolicy=0x4;
+        MPU_Region.InnerPolicy=0x4;
+      </calc>
+      <!-- Normal memory -->
+      <calc cond="(TEXCB_Bits&gt;0x01)&amp;&amp;(TEXCB_Bits&lt;0x05)">
+        MPU_Region.Memorytype=0x2;
+        MPU_Region.Shareability=S_Bit;
+        MPU_Region.OuterPolicy=TEXCB_Bits&amp;0x3;
+        MPU_Region.InnerPolicy=TEXCB_Bits&amp;0x3;
+      </calc>
+      <!-- Reserved memory -->
+      <calc cond="TEXCB_Bits==0x05">
+        MPU_Region.Memorytype=0x3;
+        MPU_Region.Shareability=0x2;
+        MPU_Region.OuterPolicy=0x4;
+        MPU_Region.InnerPolicy=0x4;
+      </calc>
+      <!-- IMPLEMENTATION DEFINED memory -->
+      <calc cond="TEXCB_Bits==0x06">
+        MPU_Region.Memorytype=0x4;
+        MPU_Region.Shareability=0x3;
+        MPU_Region.OuterPolicy=0x4;
+        MPU_Region.InnerPolicy=0x4;
+      </calc>
+      <!-- Normal memory -->
+      <calc cond="TEXCB_Bits==0x07">
+        MPU_Region.Memorytype=0x2;
+        MPU_Region.Shareability=S_Bit;
+        MPU_Region.OuterPolicy=0x1;
+        MPU_Region.InnerPolicy=0x1;
+      </calc>
+      <!-- Non-shared device memory -->
+      <calc cond="TEXCB_Bits==0x08" info="">
+        MPU_Region.Memorytype=0x1;
+        MPU_Region.Shareability=0x0;
+        MPU_Region.OuterPolicy=0x4;
+        MPU_Region.InnerPolicy=0x4;
+      </calc>
+      <!-- Reserved memory -->
+      <calc cond="(TEXCB_Bits&gt;0x08)&amp;&amp;(TEXCB_Bits&lt;0x10)">
+        MPU_Region.Memorytype=0x3;
+        MPU_Region.Shareability=0x2;
+        MPU_Region.OuterPolicy=0x4;
+        MPU_Region.InnerPolicy=0x4;
+      </calc>
+      <!-- Normal memory -->
+      <calc cond="(TEXCB_Bits&gt;0x09)">
+        MPU_Region.Memorytype=0x2;
+        MPU_Region.Shareability=S_Bit;
+        MPU_Region.OuterPolicy=(TEXCB_Bits&gt;&gt;2)&amp;0x3;
+        MPU_Region.InnerPolicy=TEXCB_Bits&amp;0x3;
+      </calc>
+      <out name="Memory Protection Unit">
+        <item property="MPU Type (MPU_TYPE)" value="%x[MPU_Registers.MPU_TYPE]">
+          <item property="DREGION" value="%d[(MPU_Registers.MPU_TYPE&gt;&gt;8)&amp;0xFF]" info="Number of regions supported by the MPU."/>
+        </item>
+        <item property="MPU Control (MPU_CTRL)" value="%x[MPU_Registers.MPU_CTRL]">
+          <item property="ENABLE" value="%d[(MPU_Registers.MPU_CTRL&gt;&gt;0)&amp;0x1]"/>
+          <item property="HFNMIENA" value="%d[(MPU_Registers.MPU_CTRL&gt;&gt;1)&amp;0x1]"/>
+          <item property="PRIVDEFENA" value="%d[(MPU_Registers.MPU_CTRL&gt;&gt;2)&amp;0x1]"/>
+        </item>
+          <item property="MPU Region Number (MPU_RNR)" value="%x[MPU_Registers.MPU_RNR]">
+          <item property="REGION" value="%d[(MPU_Registers.MPU_RNR&gt;&gt;0)&amp;0xFF]"/>
+        </item>
+        <item property="Current Region" value="">
+          <item property="Number" value="%d[MPU_Region.Number]"/>
+          <item property="Enable" value="%t[MPU_Region.Enable ? &quot;yes&quot; : &quot;no&quot;]"/>
+          <item property="Start Address" value="%x[MPU_Region.StartAddress]"/>
+          <item property="Region Size" value="%E[MPU_Region.RegionSize]"/>
+          <item property="Subregion Disable" value="%x[MPU_Region.SubregionDisable]"/>
+          <item property="Execute Never" value="%E[MPU_Region.ExecuteNever]"/>
+          <item property="Access permissions" value="%E[MPU_Region.AccessPermissions]"/>
+          <item property="Shareability" value="%E[MPU_Region.Shareability]"/>
+          <item property="Memory Type" value="%E[MPU_Region.Memorytype]"/>
+          <item property="Cacheability" cond="MPU_Region.Memorytype==2" value="%E[MPU_Region.OuterPolicy]; %E[MPU_Region.InnerPolicy]"/>
+        </item>
+      </out>
+    </object>
+  </objects>
+</component_viewer>

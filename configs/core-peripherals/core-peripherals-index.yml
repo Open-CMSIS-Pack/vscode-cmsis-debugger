@@ -1,6 +1,16 @@
 core-peripherals:
   - file: Memory_Protection_Unit.scvd
-    cpu-type: "*"
+    cpu-type:
+      - Cortex-M33
+      - Cortex-M55
+      - Cortex-M85
+    cpu-features:
+      mpu: present
+  - file: Memory_Protection_Unit_V7M.scvd
+    cpu-type:
+      - Cortex-M3
+      - Cortex-M4
+      - Cortex-M7
     cpu-features:
       mpu: present
   - file: Nested_Vectored_Interrupt_Controller.scvd
