@@ -24,9 +24,30 @@ Compiler and tooling settings are defined in `tsconfig.json` and `package.json`.
 * Generated code must comply with the project's ESLint and TypeScript rules from the start — do not rely on the linter or formatter to fix style after the fact
 * Prefer explicit types and avoid `any` in production code
 * Keep compliance with `noImplicitAny`, `noImplicitReturns`, `noUnusedLocals`, and `noUnusedParameters`
-* Respect `exactOptionalPropertyTypes`
+* Respect `exactOptionalPropertyTypes`: omit optional properties instead of setting them to `undefined` (use `= {}` or leave out the key)
+* Avoid unnecessary type assertions (`as`) and redundant runtime checks for properties or methods that are guaranteed by the type system; use them only when types are genuinely uncertain (e.g. external data, untyped APIs)
 
 ## Source File Header
+
+Every TypeScript file under `src` and `scripts` must start with this header (adjust the year):
+
+```ts
+/**
+ * Copyright <year or year-range> Arm Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+```
 
 * Keep the existing project copyright/license header at the top of TypeScript files under `src` and `scripts`.
 * For new source files under `src` or `scripts`, add the same copyright/license header format used by nearby files.
@@ -39,7 +60,7 @@ Compiler and tooling settings are defined in `tsconfig.json` and `package.json`.
 
 * Variables and functions: `camelCase`
 * Classes, interfaces, and types: `PascalCase`
-* Constants: `UPPER_SNAKE_CASE` for module-level or static readonly values that act as fixed configuration (analogous to `#define` in C/C++)
+* Constants: `UPPER_SNAKE_CASE` for module-level or static readonly values that act as fixed configuration
 * File names should match exported functionality where applicable
 
 ## Architecture & Patterns
@@ -61,6 +82,7 @@ Compiler and tooling settings are defined in `tsconfig.json` and `package.json`.
 ## Validation & Error Handling
 
 * Validate external inputs at boundaries (especially workspace/debug configuration inputs)
+* Don't add error handling for scenarios that can't happen; only validate at system boundaries
 * Provide meaningful error and log messages that help troubleshooting
 * Preserve existing behavior unless a change is intentional; cover behavior changes with tests
 
@@ -97,7 +119,6 @@ Run the smallest relevant set first, then broaden when touching shared code:
 
 ## General Guidelines
 
-* Maintain consistency with surrounding code
 * Do not introduce new libraries unless necessary
 * Keep changes focused on the task; avoid unrelated changes, but do not shy away from refactoring internal APIs when it leads to a cleaner design
 * Maintain backward compatibility of public APIs unless the change intent explicitly requires it
@@ -117,4 +138,5 @@ When guidelines conflict, apply this priority order:
 * When unsure, prioritize correctness and type safety over consistency
 * Ensure all generated code builds, typechecks, and passes tests
 * Prefer existing helpers/factories/utilities over duplicating logic
+* When a fix touches shared or upstream code, prefer improving the shared API over patching around it locally
 * When a fix touches shared or upstream code, prefer improving the shared API over patching around it locally
