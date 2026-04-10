@@ -185,15 +185,15 @@
         MPU_Region.InnerPolicy=TEXCB_Bits&amp;0x3;
       </calc>
       <out name="Memory Protection Unit">
-        <item property="MPU Type (MPU_TYPE)" value="%x[MPU_Registers.MPU_TYPE]">
+        <item property="Type (MPU_TYPE)" value="%x[MPU_Registers.MPU_TYPE]">
           <item property="DREGION" value="%d[(MPU_Registers.MPU_TYPE&gt;&gt;8)&amp;0xFF]" info="Number of regions supported by the MPU."/>
         </item>
-        <item property="MPU Control (MPU_CTRL)" value="%x[MPU_Registers.MPU_CTRL]">
+        <item property="Control (MPU_CTRL)" value="%x[MPU_Registers.MPU_CTRL]">
           <item property="ENABLE" value="%d[(MPU_Registers.MPU_CTRL&gt;&gt;0)&amp;0x1]"/>
           <item property="HFNMIENA" value="%d[(MPU_Registers.MPU_CTRL&gt;&gt;1)&amp;0x1]"/>
           <item property="PRIVDEFENA" value="%d[(MPU_Registers.MPU_CTRL&gt;&gt;2)&amp;0x1]"/>
         </item>
-          <item property="MPU Region Number (MPU_RNR)" value="%x[MPU_Registers.MPU_RNR]">
+          <item property="Region Number (MPU_RNR)" value="%x[MPU_Registers.MPU_RNR]">
           <item property="REGION" value="%d[(MPU_Registers.MPU_RNR&gt;&gt;0)&amp;0xFF]"/>
         </item>
         <item property="Current Region" value="">

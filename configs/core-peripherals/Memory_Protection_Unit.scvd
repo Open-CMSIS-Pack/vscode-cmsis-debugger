@@ -67,7 +67,10 @@
       <var name="Enable" type="uint8_t" size="1"/>
       <var name="StartAddress" type="uint32_t" size="1"/>
       <var name="EndAddress" type="uint32_t" size="1"/>
-      <var name="ExecuteNever" type="uint8_t" size="1"/>
+      <var name="ExecuteNever" type="uint8_t" size="1">
+        <enum name="X" value="0x0"/>
+        <enum name="XN" value="0x1"/>
+      </var>
       <var name="AccessPermissions" type="uint8_t" size="1">
         <enum name="Read/write by privileged code only" value="0x0"/>
         <enum name="Read/write by any privilege level" value="0x1"/>
@@ -81,7 +84,10 @@
         <enum name="Inner Shareable" value="0x3"/>
       </var>
       <var name="AttributeIndex" type="uint8_t" size="1"/>
-      <var name="PrivilegedExecuteNever" type="uint8_t" size="1"/>
+      <var name="PrivilegedExecuteNever" type="uint8_t" size="1">
+        <enum name="X" value="0x0"/>
+        <enum name="XN" value="0x1"/>
+      </var>
     </typedef>
   </typedefs>
   <objects>
@@ -97,7 +103,10 @@
       <read name="MPU_Region" type="MPU_Region_t" offset="0xE000ED9C"/>
       <read name="MPU_Attributes" type="MPU_Attributes_t" offset="0xE000EDC0"/>
       <var name="Count" type="uint32_t" value="0"/>
-      
+      <var name="InnerVal" type="uint32_t" value="0"/>
+      <var name="OuterVal" type="uint32_t" value="0"/>
+      <var name="DeviceVal" type="uint32_t" value="0"/>
+
       <calc cond="1">
         MPU_Region.Number=(MPU_RNR_value&gt;&gt;0)&amp;0xFF;
         MPU_Region.Enable=(MPU_Region.MPU_RLAR_value&gt;&gt;0)&amp;0x1;
@@ -118,16 +127,16 @@
         </calc>
       </list>
       <out name="Memory Protection Unit">
-        <item property="MPU Type (MPU_TYPE)" value="%x[MPU_TYPE_value]">
+        <item property="Type (MPU_TYPE)" value="%x[MPU_TYPE_value]">
           <item property="DREGION" value="%d[(MPU_TYPE_value&gt;&gt;8)&amp;0xFF]" info="Number of regions supported by the MPU."/>
           <item property="SEPARATE" value="%d[(MPU_TYPE_value&gt;&gt;0)&amp;0x1]"/>
         </item>
-        <item property="MPU Control (MPU_CTRL)" value="%x[MPU_CTRL_value]">
+        <item property="Control (MPU_CTRL)" value="%x[MPU_CTRL_value]">
           <item property="PRIVDEFENA" value="%d[(MPU_CTRL_value&gt;&gt;2)&amp;0x1]"/>
           <item property="HFNMIENA" value="%d[(MPU_CTRL_value&gt;&gt;1)&amp;0x1]"/>
           <item property="ENABLE" value="%d[(MPU_CTRL_value&gt;&gt;0)&amp;0x1]"/>
         </item>
-         <item property="MPU Region Number (MPU_RNR)" value="%x[MPU_RNR_value]">
+         <item property="Region Number (MPU_RNR)" value="%x[MPU_RNR_value]">
           <item property="REGION" value="%d[(MPU_RNR_value&gt;&gt;0)&amp;0xFF]"/>
         </item>
 <!--
@@ -178,7 +187,7 @@
           <item property="Enable" value="%t[MPU_Region.Enable ? &quot;yes&quot; : &quot;no&quot;]"/>
           <item property="Start Address" value="%x[MPU_Region.StartAddress]"/>
           <item property="End Address" value="%x[MPU_Region.EndAddress]"/>
-          <item property="Execute Never" value="%t[MPU_Region.ExecuteNever ? &quot;yes&quot; : &quot;no&quot;]"/>
+          <item property="Execute Never" value="%E[MPU_Region.ExecuteNever]"/>
           <item property="Access permissions" value="%E[MPU_Region.AccessPermissions]"/>
           <item property="Shareability" value="%E[MPU_Region.Shareability]"/>
           <item>
@@ -187,18 +196,23 @@
             <print property="Attribute index" value="%d[MPU_Region.AttributeIndex] (Outer:%E[MPU_Attributes.Attr_Outer[MPU_Region.AttributeIndex]], Inner: %E[MPU_Attributes.Attr_Inner[MPU_Region.AttributeIndex]])" cond="(MPU_Attributes.Attr_Outer[MPU_Region.AttributeIndex]!=0) &amp;&amp; (MPU_Attributes.Attr_Inner[MPU_Region.AttributeIndex]!=0)"/>
             <print property="Attribute index" value="%d[MPU_Region.AttributeIndex] (Outer:%E[MPU_Attributes.Attr_Outer[MPU_Region.AttributeIndex]], Inner: UNPREDICTABLE)" cond="(MPU_Attributes.Attr_Outer[MPU_Region.AttributeIndex]!=0) &amp;&amp; (MPU_Attributes.Attr_Inner[MPU_Region.AttributeIndex]==0)"/>
           </item>
-          <item property="Privileged execute never" value="%t[MPU_Region.PrivilegedExecuteNever ? &quot;yes&quot; : &quot;no&quot;]"/>
+          <item property="Privileged execute never" value="%E[MPU_Region.PrivilegedExecuteNever]"/>
         </item>
         
         <item property="Attributes" value="">
           <list name="Count" start="0" limit="8">
+            <calc>
+              InnerVal=MPU_Attributes.Attr_Inner[Count];
+              OuterVal=MPU_Attributes.Attr_Outer[Count];
+              DeviceVal=MPU_Attributes.Attr_Device[Count];
+            </calc>
             <item>
-              <print property="%d[Count]" value="Device: %E[MPU_Attributes.Attr_Device[Count]]" cond="(MPU_Attributes.Attr_Outer[Count]==0) &amp;&amp; ((MPU_Attributes.Attr_Device[Count]&amp;3)==0)"/>
-              <print property="%d[Count]" value="Device: UNPREDICTABLE" cond="(MPU_Attributes.Attr_Outer[Count]==0) &amp;&amp; ((MPU_Attributes.Attr_Device[Count]&amp;3)!=0)"/>
-              <print property="%d[Count]" value="Outer:%E[MPU_Attributes.Attr_Outer[Count]], Inner: %E[MPU_Attributes.Attr_Inner[Count]]" cond="(MPU_Attributes.Attr_Outer[Count]!=0) &amp;&amp; (MPU_Attributes.Attr_Inner[Count]!=0)"/>
-              <print property="%d[Count]" value="Outer:%E[MPU_Attributes.Attr_Outer[Count]], Inner: UNPREDICTABLE" cond="(MPU_Attributes.Attr_Outer[Count]!=0) &amp;&amp; (MPU_Attributes.Attr_Inner[Count]==0)"/>
-              <item property="Attr&lt;%d[Count]&gt;[7:4]" value="%x[MPU_Attributes.Attr_Outer[Count]]" cond="1"/>
-              <item property="Attr&lt;%d[Count]&gt;[3:0]" value="%x[MPU_Attributes.Attr_Inner[Count]]" cond="1"/>
+              <print property="%d[Count]" value="Device: %E[MPU_Attributes.Attr_Device[Count]]" cond="(OuterVal==0) &amp;&amp; ((DeviceVal&amp;3)==0)"/>
+              <print property="%d[Count]" value="Device: UNPREDICTABLE" cond="(OuterVal==0) &amp;&amp; ((DeviceVal&amp;3)!=0)"/>
+              <print property="%d[Count]" value="Outer:%E[MPU_Attributes.Attr_Outer[Count]], Inner: %E[MPU_Attributes.Attr_Inner[Count]]" cond="(OuterVal!=0) &amp;&amp; (InnerVal!=0)"/>
+              <print property="%d[Count]" value="Outer:%E[MPU_Attributes.Attr_Outer[Count]], Inner: UNPREDICTABLE" cond="(OuterVal!=0) &amp;&amp; (InnerVal==0)"/>
+              <item property="Attr&lt;%d[Count]&gt;[7:4]" value="%x[OuterVal]" cond="1"/>
+              <item property="Attr&lt;%d[Count]&gt;[3:0]" value="%x[InnerVal]" cond="1"/>
             </item>
           </list>
         </item>
