@@ -7,8 +7,23 @@ exports[`CorePeripheralsIndexReader can read index file 1`] = `
       "cpu-features": {
         "mpu": "present",
       },
-      "cpu-type": "*",
+      "cpu-type": [
+        "Cortex-M33",
+        "Cortex-M55",
+        "Cortex-M85",
+      ],
       "file": "Memory_Protection_Unit.scvd",
+    },
+    {
+      "cpu-features": {
+        "mpu": "present",
+      },
+      "cpu-type": [
+        "Cortex-M3",
+        "Cortex-M4",
+        "Cortex-M7",
+      ],
+      "file": "Memory_Protection_Unit_V7M.scvd",
     },
     {
       "cpu-type": "*",
