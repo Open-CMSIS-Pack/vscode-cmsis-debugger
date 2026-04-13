@@ -22,6 +22,10 @@ exports[`CorePeripheralsIndexReader can read index file 1`] = `
       "cpu-type": "*",
       "file": "System_Tick_Timer.scvd",
     },
+    {
+      "cpu-type": "*",
+      "file": "Fault_Reports.scvd",
+    },
   ],
 }
 `;
