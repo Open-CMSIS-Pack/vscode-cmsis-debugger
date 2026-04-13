@@ -139,4 +139,3 @@ When guidelines conflict, apply this priority order:
 * Ensure all generated code builds, typechecks, and passes tests
 * Prefer existing helpers/factories/utilities over duplicating logic
 * When a fix touches shared or upstream code, prefer improving the shared API over patching around it locally
-* When a fix touches shared or upstream code, prefer improving the shared API over patching around it locally
