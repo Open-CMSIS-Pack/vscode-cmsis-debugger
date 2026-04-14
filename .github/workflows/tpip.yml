@@ -49,7 +49,7 @@ jobs:
           package-manager-cache: false
 
       - name: Install dependencies
-        run: npm install --prefer-offline --include=optional --no-audit --no-fund
+        run: npm ci
 
       - name: Generate third-party licenses report
         run: npm run tpip:report
