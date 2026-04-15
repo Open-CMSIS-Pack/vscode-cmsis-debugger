@@ -59,6 +59,8 @@ export class CpuStates {
         }
         return this.sessionCpuStates.get(this.activeSession?.session.id);
     }
+    
+    public constructor(private context: vscode.ExtensionContext) {}
 
     public activate(tracker: GDBTargetDebugTracker): void {
         tracker.onWillStartSession(session => this.handleOnWillStartSession(session));
@@ -320,4 +322,21 @@ export class CpuStates {
         states.skipFrequencyUpdate = false;
         this._onRefresh.fire(0);
     }
+
+    public async enableCpuStates(): Promise<void> {
+        await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', true);
+        const states = this.activeCpuStates;
+        if (states) {
+            states.skipFrequencyUpdate = false;
+        }
+    }
+
+    public async disableCpuStates(): Promise<void> {
+        await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', false);
+        const states = this.activeCpuStates;
+        if (states) {
+            states.skipFrequencyUpdate = true;
+        }
+    }
+
 };

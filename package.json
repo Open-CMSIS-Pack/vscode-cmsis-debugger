@@ -95,6 +95,18 @@
         "when": "inDebugMode"
       },
       {
+        "title": "Enable CPU Time",
+        "command": "vscode-cmsis-debugger.enableCpuTimer",
+        "category": "Run and Debug",
+        "when": "inDebugMode && !vscode-cmsis-debugger.cpuTimerEnabled"
+      },
+      {
+        "title": "Disable CPU Time",
+        "command": "vscode-cmsis-debugger.disableCpuTimer",
+        "category": "Run and Debug",
+        "when": "inDebugMode && vscode-cmsis-debugger.cpuTimerEnabled"
+      },
+      {
         "command": "vscode-cmsis-debugger.liveWatch.add",
         "title": "Add Expression",
         "icon": "$(add)",
