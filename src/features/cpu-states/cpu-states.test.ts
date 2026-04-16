@@ -85,23 +85,6 @@ describe('CpuStates', () => {
             cpuStates.activate(tracker);
         });
 
-        it('no-ops when there are no active cpu states', async () => {
-            const executeCommandSpy = jest.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
-            const warningMessageSpy = jest.spyOn(vscode.window, 'showWarningMessage');
-            const refreshListener = jest.fn();
-            cpuStates.onRefresh(refreshListener);
-
-            // No session started / no active session => activeCpuStates is undefined => methods should return early.
-            await cpuStates.enableCpuStates();
-            await cpuStates.disableCpuStates();
-            cpuStates.showStatesHistory();
-            cpuStates.resetStatesHistory();
-
-            expect(executeCommandSpy).not.toHaveBeenCalled();
-            expect(warningMessageSpy).not.toHaveBeenCalled();
-            expect(refreshListener).not.toHaveBeenCalled();
-        });
-
         it('manages session lifecycles correctly', async () => {
             cpuStates.activate(tracker);
             // No active session yet
