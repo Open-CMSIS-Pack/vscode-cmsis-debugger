@@ -196,6 +196,22 @@
           <item property="Region Number (MPU_RNR)" value="%x[MPU_Registers.MPU_RNR]">
           <item property="REGION" value="%d[(MPU_Registers.MPU_RNR&gt;&gt;0)&amp;0xFF]"/>
         </item>
+        <item property="Region Base Address (MPU_RBAR)" value="%x[MPU_Registers.MPU_RBAR]">
+          <item property="REGION" value="%d[(MPU_Registers.MPU_RBAR&gt;&gt;0)&amp;0xF]"/>
+          <item property="VALID" value="%x[(MPU_Registers.MPU_RBAR&gt;&gt;4)&amp;0x1]"/>
+          <item property="ADDR" value="%x[(MPU_Registers.MPU_RBAR&gt;&gt;5)&amp;0x7FFFFFF]"/>
+        </item>
+        <item property="Region Attribute and Size (MPU_RASR)" value="%x[MPU_Registers.MPU_RASR]">
+          <item property="ENABLE" value="%d[(MPU_Registers.MPU_RASR&gt;&gt;0)&amp;0x1]"/>
+          <item property="SIZE" value="%d[(MPU_Registers.MPU_RASR&gt;&gt;1)&amp;0x1F]"/>
+          <item property="SRD" value="%d[(MPU_Registers.MPU_RASR&gt;&gt;8)&amp;0xFF]"/>
+          <item property="B" value="%d[(MPU_Registers.MPU_RASR&gt;&gt;16)&amp;0x1]"/>
+          <item property="C" value="%d[(MPU_Registers.MPU_RASR&gt;&gt;17)&amp;0x1]"/>
+          <item property="S" value="%d[(MPU_Registers.MPU_RASR&gt;&gt;18)&amp;0x1]"/>
+          <item property="TEX" value="%x[(MPU_Registers.MPU_RASR&gt;&gt;19)&amp;0x7]"/>
+          <item property="AP" value="%x[(MPU_Registers.MPU_RASR&gt;&gt;24)&amp;0x7]"/>
+          <item property="XN" value="%d[(MPU_Registers.MPU_RASR&gt;&gt;28)&amp;0x1]"/>
+        </item>
         <item property="Current Region" value="">
           <item property="Number" value="%d[MPU_Region.Number]"/>
           <item property="Enable" value="%t[MPU_Region.Enable ? &quot;yes&quot; : &quot;no&quot;]"/>

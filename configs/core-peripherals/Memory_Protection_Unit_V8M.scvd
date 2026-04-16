@@ -128,16 +128,28 @@
       </list>
       <out name="Memory Protection Unit">
         <item property="Type (MPU_TYPE)" value="%x[MPU_TYPE_value]">
-          <item property="DREGION" value="%d[(MPU_TYPE_value&gt;&gt;8)&amp;0xFF]" info="Number of regions supported by the MPU."/>
           <item property="SEPARATE" value="%d[(MPU_TYPE_value&gt;&gt;0)&amp;0x1]"/>
+          <item property="DREGION" value="%d[(MPU_TYPE_value&gt;&gt;8)&amp;0xFF]" info="Number of regions supported by the MPU."/>
         </item>
         <item property="Control (MPU_CTRL)" value="%x[MPU_CTRL_value]">
-          <item property="PRIVDEFENA" value="%d[(MPU_CTRL_value&gt;&gt;2)&amp;0x1]"/>
-          <item property="HFNMIENA" value="%d[(MPU_CTRL_value&gt;&gt;1)&amp;0x1]"/>
           <item property="ENABLE" value="%d[(MPU_CTRL_value&gt;&gt;0)&amp;0x1]"/>
+          <item property="HFNMIENA" value="%d[(MPU_CTRL_value&gt;&gt;1)&amp;0x1]"/>
+          <item property="PRIVDEFENA" value="%d[(MPU_CTRL_value&gt;&gt;2)&amp;0x1]"/>
         </item>
-         <item property="Region Number (MPU_RNR)" value="%x[MPU_RNR_value]">
+        <item property="Region Number (MPU_RNR)" value="%x[MPU_RNR_value]">
           <item property="REGION" value="%d[(MPU_RNR_value&gt;&gt;0)&amp;0xFF]"/>
+        </item>
+        <item property="Region Base Address (MPU_RBAR)" value="%x[MPU_Region.MPU_RBAR_value]">
+          <item property="XN" value="%d[(MPU_Region.MPU_RBAR_value&gt;&gt;0)&amp;0x1]"/>
+          <item property="AP" value="%x[(MPU_Region.MPU_RBAR_value&gt;&gt;1)&amp;0x3]"/>
+          <item property="SH" value="%x[(MPU_Region.MPU_RBAR_value&gt;&gt;3)&amp;0x3]"/>
+          <item property="BASE" value="%x[(MPU_Region.MPU_RBAR_value&gt;&gt;5)&amp;0x7FFFFFF]"/>
+        </item>
+        <item property="Region Limit Address (MPU_RLAR)" value="%x[MPU_Region.MPU_RLAR_value]">
+          <item property="EN" value="%d[(MPU_Region.MPU_RLAR_value&gt;&gt;0)&amp;0x1]"/>
+          <item property="AttrIndx" value="%d[(MPU_Region.MPU_RLAR_value&gt;&gt;1)&amp;0x7]"/>
+          <item property="PXN" value="%d[(MPU_Region.MPU_RLAR_value&gt;&gt;4)&amp;0x1]"/>
+          <item property="LIMIT" value="%x[(MPU_Region.MPU_RLAR_value&gt;&gt;5)&amp;0x7FFFFFF]"/>
         </item>
 <!--
         <item property="MPU Region Base Address (MPU_RBAR) [%d[(MPU_RNR_value&gt;&gt;0)&amp;0xFF]]" value="%x[MPU_RBAR_value]">
