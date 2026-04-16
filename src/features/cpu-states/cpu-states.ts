@@ -81,7 +81,6 @@ export class CpuStates {
             isRunning: true,
             hasStates: undefined,
             skipFrequencyUpdate: false
-
         };
         this.sessionCpuStates.set(session.session.id, states);
         session.refreshTimer.onRefresh(async (refreshSession) => this.handlePeriodicRefresh(refreshSession));
