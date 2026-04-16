@@ -49,7 +49,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     const genericCommands = new GenericCommands();
     const gdbtargetDebugTracker = new GDBTargetDebugTracker();
     const gdbtargetConfigurationProvider = new GDBTargetConfigurationProvider();
-    const cpuStates = new CpuStates(context);
+    const cpuStates = new CpuStates();
     const cpuStatesCommands = new CpuStatesCommands();
     const cpuStatesStatusBarItem = new CpuStatesStatusBarItem();
     // Register the Tree View under the id from package.json

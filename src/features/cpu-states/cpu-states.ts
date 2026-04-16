@@ -59,8 +59,6 @@ export class CpuStates {
         }
         return this.sessionCpuStates.get(this.activeSession?.session.id);
     }
-    
-    public constructor(private context: vscode.ExtensionContext) {}
 
     public activate(tracker: GDBTargetDebugTracker): void {
         tracker.onWillStartSession(session => this.handleOnWillStartSession(session));

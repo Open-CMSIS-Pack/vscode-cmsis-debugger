@@ -48,6 +48,8 @@ describe('CpuStatesCommands', () => {
         cpuStatesCommands.activate(context, cpuStatesMock);
         expect(vscode.commands.registerCommand as jest.Mock).toHaveBeenCalledWith(CpuStatesCommands.showCpuTimeHistoryID, expect.any(Function));
         expect(vscode.commands.registerCommand as jest.Mock).toHaveBeenCalledWith(CpuStatesCommands.resetCpuTimeHistoryID, expect.any(Function));
+        expect(vscode.commands.registerCommand as jest.Mock).toHaveBeenCalledWith(CpuStatesCommands.enableCpuTimer, expect.any(Function));
+        expect(vscode.commands.registerCommand as jest.Mock).toHaveBeenCalledWith(CpuStatesCommands.disableCpuTimer, expect.any(Function));
     });
 
     it('calls updateFrequyency and showStatesHistory for showCpuTimeHistory command', async () => {
@@ -71,4 +73,15 @@ describe('CpuStatesCommands', () => {
         expect(cpuStatesMock.resetStatesHistory).not.toHaveBeenCalled();
     });
 
+    it('calls enableCpuStates for enableCpuTimer command', async () => {
+        cpuStatesCommands.activate(context, cpuStatesMock);
+        await vscode.commands.executeCommand(CpuStatesCommands.enableCpuTimer);
+        expect(cpuStatesMock.enableCpuStates).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls disableCpuStates for disableCpuTimer command', async () => {
+        cpuStatesCommands.activate(context, cpuStatesMock);
+        await vscode.commands.executeCommand(CpuStatesCommands.disableCpuTimer);
+        expect(cpuStatesMock.disableCpuStates).toHaveBeenCalledTimes(1);
+    });
 });

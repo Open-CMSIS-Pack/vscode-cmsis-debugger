@@ -169,6 +169,20 @@ describe('CpuStates', () => {
             expect(cpuStates.activeHasStates()).toEqual(expected);
         });
 
+        it('enable cpu states command sets context key to true', async () => {
+            const executeCommandSpy = jest.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
+            cpuStates.activate(tracker);
+            await cpuStates.enableCpuStates();
+            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', true);
+        });
+
+        it('disable cpu states command sets context key to false', async () => {
+            const executeCommandSpy = jest.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
+            cpuStates.activate(tracker);
+            await cpuStates.disableCpuStates();
+            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', false);
+        });
+
     });
 
     describe('tests with established connection and CPU states supported', () => {
@@ -409,6 +423,17 @@ describe('CpuStates', () => {
             expect(debugConsoleOutput.find(line => line.includes('(PC=0x08000396 <myframe>, myfunction::2)'))).toBeDefined();
         });
 
+        it('enable cpu states sets skipFrequencyUpdate flag to false', async () => {
+            cpuStates.activate(tracker);
+            await cpuStates.enableCpuStates();
+            expect(cpuStates.activeCpuStates?.skipFrequencyUpdate).toEqual(false);
+        });
+
+        it('disable cpu states sets skipFrequencyUpdate flag to true', async () => {
+            cpuStates.activate(tracker);
+            await cpuStates.disableCpuStates();
+            expect(cpuStates.activeCpuStates?.skipFrequencyUpdate).toEqual(true);
+        });
     });
 
     describe('tests with established connection and CPU states not supported', () => {
