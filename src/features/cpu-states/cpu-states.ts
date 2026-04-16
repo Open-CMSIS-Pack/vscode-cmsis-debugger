@@ -52,7 +52,7 @@ export class CpuStates {
 
     public activeSession: GDBTargetDebugSession | undefined;
     private sessionCpuStates: Map<string, SessionCpuStates> = new Map();
-    public readonly enableCpuStatesFlag: boolean = true;
+    private enableCpuStatesFlag: boolean = true;
 
     public get activeCpuStates(): SessionCpuStates|undefined {
         if (!this.activeSession) {
