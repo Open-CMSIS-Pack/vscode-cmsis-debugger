@@ -86,7 +86,7 @@
       <var name="irqExt" type="uint32_t" value="0"/>
       <var name="irqNumber" type="uint32_t" value="0"/>
       <calc>
-        irqLines=ICB_Registers.ICTR*32;
+        irqLines=(ICB_Registers.ICTR+1)*32;
         WithSecureExtension=1&amp;&amp;(SCB_Registers.ID_PFR1&amp;0xF0);
       </calc>
       <list name="Count" start="0" limit="irqLines">
@@ -221,7 +221,7 @@
 
             <item cond="irqPresent" value="">
               <print property="%E[Vectors.Index[Count]]" cond="irqCore" value="%E[Vectors.Enable[Count]], %E[Vectors.Pending[Count]], %E[Vectors.Active[Count]]"/>
-              <print property="%Q[Count]" cond="irqExt" value="%E[Vectors.Enable[Count]], %E[Vectors.Pending[Count]], %E[Vectors.Active[Count]]"/>
+              <print property="%Q[Count-16]" cond="irqExt" value="%E[Vectors.Enable[Count]], %E[Vectors.Pending[Count]], %E[Vectors.Active[Count]]"/>
               <item property="Index" value="%d[Vectors.Index[Count]]"/>
               <item property="Enable" value="%d[Vectors.Enable[Count]]"/>
               <item property="Pending" value="%d[Vectors.Pending[Count]]"/>
