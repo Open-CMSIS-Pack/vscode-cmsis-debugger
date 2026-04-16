@@ -42,11 +42,10 @@
       </calc>
       <read name="SecureFaultRegisters" cond="ShowSecureFaults" type="SecureFaultRegisters_t" offset="0xE000EDE4"/>
       <out name="Fault Reports">
-       <item property="ID_PFR1" value="%x[ID_PFR1]"/>
        <item property="Memory Manage Faults" value="">
-         <item property="Address (SCB->MMFAR)" value="%x[StandardFaultRegisters.MMFAR]">    
+         <item property="Address (MMFAR)" value="%x[StandardFaultRegisters.MMFAR]">    
          </item>       
-         <item property="Status (SCB->CFSR->MMFSR)" value="%x[StandardFaultRegisters.MMFSR]">    
+         <item property="Status (MMFSR)" value="%x[StandardFaultRegisters.MMFSR]">    
            <item property="IACCVIOL" value="%d[(StandardFaultRegisters.MMFSR&gt;&gt;0)&amp;0x1]"/>
            <item property="DACCVIOL" value="%d[(StandardFaultRegisters.MMFSR&gt;&gt;1)&amp;0x1]"/>
            <item property="MUNSTKERR" value="%d[(StandardFaultRegisters.MMFSR&gt;&gt;3)&amp;0x1]"/>
@@ -56,9 +55,9 @@
          </item>       
        </item>
        <item property="Bus Faults" value="">
-         <item property="Address (SCB->BFAR)" value="%x[StandardFaultRegisters.BFAR]">    
+         <item property="Address (BFAR)" value="%x[StandardFaultRegisters.BFAR]">    
          </item>       
-         <item property="Status (SCB->CFSR->BFSR)" value="%x[StandardFaultRegisters.BFSR]">    
+         <item property="Status (BFSR)" value="%x[StandardFaultRegisters.BFSR]">    
            <item property="IBUSERR" value="%d[(StandardFaultRegisters.BFSR&gt;&gt;0)&amp;0x1]"/>
            <item property="PRECISERR" value="%d[(StandardFaultRegisters.BFSR&gt;&gt;1)&amp;0x1]"/>
            <item property="IMPRECISERR" value="%d[(StandardFaultRegisters.BFSR&gt;&gt;2)&amp;0x1]"/>
@@ -69,7 +68,7 @@
          </item>       
        </item>
        <item property="Usage Faults" value="">
-         <item property="Status (SCB->CFSR->UFSR)" value="%x[StandardFaultRegisters.UFSR]">    
+         <item property="Status (UFSR)" value="%x[StandardFaultRegisters.UFSR]">    
            <item property="UNDEFINSTR" value="%d[(StandardFaultRegisters.UFSR&gt;&gt;0)&amp;0x1]"/>
            <item property="INVSTATE" value="%d[(StandardFaultRegisters.UFSR&gt;&gt;1)&amp;0x1]"/>
            <item property="INVPC" value="%d[(StandardFaultRegisters.UFSR&gt;&gt;2)&amp;0x1]"/>
@@ -80,14 +79,14 @@
          </item>       
        </item>
        <item property="Hard Faults" value="">
-         <item property="Status (SCB->HFSR)" value="%x[StandardFaultRegisters.HFSR]">    
+         <item property="Status (HFSR)" value="%x[StandardFaultRegisters.HFSR]">    
            <item property="VECTTBL" value="%d[(StandardFaultRegisters.HFSR&gt;&gt;1)&amp;0x1]"/>
            <item property="FORCED" value="%d[(StandardFaultRegisters.HFSR&gt;&gt;30)&amp;0x1]"/>
            <item property="DEBUGEVT" value="%d[(StandardFaultRegisters.HFSR&gt;&gt;31)&amp;0x1]"/>
         </item>       
        </item>
        <item property="Debug Faults" value="">
-         <item property="Status (SCB->DFSR)" value="%x[StandardFaultRegisters.DFSR]">    
+         <item property="Status (DFSR)" value="%x[StandardFaultRegisters.DFSR]">    
            <item property="HALTED" value="%d[(StandardFaultRegisters.DFSR&gt;&gt;0)&amp;0x1]"/>
            <item property="BKPT" value="%d[(StandardFaultRegisters.DFSR&gt;&gt;1)&amp;0x1]"/>
            <item property="DWTTRAP" value="%d[(StandardFaultRegisters.DFSR&gt;&gt;2)&amp;0x1]"/>
@@ -97,13 +96,13 @@
         </item>       
        </item>
        <item property="Auxiliary Faults" value="">
-         <item property="Status (SCB->AFSR)" value="%x[StandardFaultRegisters.AFSR]">    
+         <item property="Status (AFSR)" value="%x[StandardFaultRegisters.AFSR]">    
          </item>       
        </item>
-       <item property="Secure Faults" cond="ShowSecureFaults" value="">
-         <item property="Address (SCB->SFAR)" value="%x[SecureFaultRegisters.SFAR]">    
+       <item property="Secure Faults" cond="ShowSecureFaults">
+         <item property="Address (SFAR)" value="%x[SecureFaultRegisters.SFAR]">    
          </item>       
-         <item property="Status (SCB->CFSR->BFSR)" value="%x[SecureFaultRegisters.SFSR]">    
+         <item property="Status (SFSR)" value="%x[SecureFaultRegisters.SFSR]">    
            <item property="INVEP" value="%d[(SecureFaultRegisters.SFSR&gt;&gt;0)&amp;0x1]"/>
            <item property="INVIS" value="%d[(SecureFaultRegisters.SFSR&gt;&gt;1)&amp;0x1]"/>
            <item property="INVER" value="%d[(SecureFaultRegisters.SFSR&gt;&gt;2)&amp;0x1]"/>
