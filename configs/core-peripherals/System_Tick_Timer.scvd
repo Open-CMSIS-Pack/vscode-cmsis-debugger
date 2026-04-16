@@ -17,32 +17,33 @@
 <component_viewer schemaVersion="0.1" xmlns:xs="https://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="Component_Viewer.xsd">
   <component name="SystemTickTimerComponent" version="1.0.0"/>
   <typedefs>
-    <typedef name="SysTick_t" size="0x10">
-      <member name="CTRL" type="uint32_t" offset="0x00"/>
-      <member name="LOAD" type="uint32_t" offset="0x04"/>
-      <member name="VAL" type="uint32_t" offset="0x08"/>
-      <member name="CALIB" type="uint32_t" offset="0x0C"/>
+    <typedef name="SYST_Registers_t" size="0x10">
+      <member name="SYST_CSR" type="uint32_t" offset="0x00"/>
+      <member name="SYST_RVR" type="uint32_t" offset="0x04"/>
+      <member name="SYST_CVR" type="uint32_t" offset="0x08"/>
+      <member name="SYST_CALIB" type="uint32_t" offset="0x0C"/>
     </typedef>
   </typedefs>
   <objects>
     <object name="SystemTickTimerObject">
-      <var name="SysTickBase" type="uint32_t" value="0xE000E010"/>
-      <read name="SysTick" type="SysTick_t" offset="SysTickBase"/> 
+      <read name="SYST_Registers" type="SYST_Registers_t" offset="0xE000E010"/> 
       <out name="System Tick Timer">
-       <item property="SysTick" value="">
-         <item property="CTRL" value="%x[SysTick.CTRL]">
-           <item property="ENABLE" value="%d[(SysTick.CTRL&gt;&gt;0)&amp;0x1]"/>
-           <item property="TICKINT" value="%d[(SysTick.CTRL&gt;&gt;1)&amp;0x1]"/>
-           <item property="CLKSOURCE" value="%d[(SysTick.CTRL&gt;&gt;2)&amp;0x1]"/>
-           <item property="COUNTFLAG" value="%d[(SysTick.CTRL&gt;&gt;16)&amp;0x1]"/>
-         </item>
-         <item property="LOAD"  value="%x[SysTick.LOAD]"/>
-         <item property="VAL"  value="%x[SysTick.VAL]"/>
-         <item property="CALIB"  value="%x[SysTick.CALIB]">
-           <item property="TENMS" value="%x[(SysTick.CALIB&gt;&gt;0)&amp;0xFFFFFF]"/>
-           <item property="SKEW" value="%d[(SysTick.CALIB&gt;&gt;30)&amp;0x1]"/>
-           <item property="NOREF" value="%d[(SysTick.CALIB&gt;&gt;31)&amp;0x1]"/>
-         </item>
+       <item property="Control and Status (SYST_CSR)" value="%x[SYST_Registers.SYST_CSR]">
+         <item property="ENABLE" value="%d[(SYST_Registers.SYST_CSR&gt;&gt;0)&amp;0x1]"/>
+         <item property="TICKINT" value="%d[(SYST_Registers.SYST_CSR&gt;&gt;1)&amp;0x1]"/>
+         <item property="CLKSOURCE" value="%d[(SYST_Registers.SYST_CSR&gt;&gt;2)&amp;0x1]"/>
+         <item property="COUNTFLAG" value="%d[(SYST_Registers.SYST_CSR&gt;&gt;16)&amp;0x1]"/>
+       </item>
+       <item property="Reload Value (SYST_RVR)"  value="%x[SYST_Registers.SYST_RVR]">
+         <item property="RELOAD" value="%x[(SYST_Registers.SYST_RVR&gt;&gt;0)&amp;0xFFFFFF]"/>
+       </item>
+       <item property="Current Value (SYST_CVR)"  value="%x[SYST_Registers.SYST_CVR]">
+         <item property="CURRENT" value="%x[(SYST_Registers.SYST_CVR&gt;&gt;0)&amp;0xFFFFFF]"/>
+       </item>
+       <item property="Calibration Value (SYST_CALIB)" value="%x[SYST_Registers.SYST_CALIB]">
+         <item property="TENMS" value="%x[(SYST_Registers.SYST_CALIB&gt;&gt;0)&amp;0xFFFFFF]"/>
+         <item property="SKEW" value="%d[(SYST_Registers.SYST_CALIB&gt;&gt;30)&amp;0x1]"/>
+         <item property="NOREF" value="%d[(SYST_Registers.SYST_CALIB&gt;&gt;31)&amp;0x1]"/>
        </item>
      </out>
    </object>
