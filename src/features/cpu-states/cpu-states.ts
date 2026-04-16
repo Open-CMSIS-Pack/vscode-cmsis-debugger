@@ -328,19 +328,11 @@ export class CpuStates {
     }
 
     public async enableCpuStates(): Promise<void> {
-        const states = this.activeCpuStates;
-        if (!states) {
-            return;
-        }
         this.enableCpuStatesFlag = true;
         await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', this.enableCpuStatesFlag);
     }
 
     public async disableCpuStates(): Promise<void> {
-        const states = this.activeCpuStates;
-        if (!states) {
-            return;
-        }
         this.enableCpuStatesFlag = false;
         await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', this.enableCpuStatesFlag);
     }

@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -83,6 +83,23 @@ describe('CpuStates', () => {
 
         it('activates', () => {
             cpuStates.activate(tracker);
+        });
+
+        it('no-ops when there are no active cpu states', async () => {
+            const executeCommandSpy = jest.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
+            const warningMessageSpy = jest.spyOn(vscode.window, 'showWarningMessage');
+            const refreshListener = jest.fn();
+            cpuStates.onRefresh(refreshListener);
+
+            // No session started / no active session => activeCpuStates is undefined => methods should return early.
+            await cpuStates.enableCpuStates();
+            await cpuStates.disableCpuStates();
+            cpuStates.showStatesHistory();
+            cpuStates.resetStatesHistory();
+
+            expect(executeCommandSpy).not.toHaveBeenCalled();
+            expect(warningMessageSpy).not.toHaveBeenCalled();
+            expect(refreshListener).not.toHaveBeenCalled();
         });
 
         it('manages session lifecycles correctly', async () => {
