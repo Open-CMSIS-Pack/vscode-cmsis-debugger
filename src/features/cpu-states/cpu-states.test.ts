@@ -169,20 +169,6 @@ describe('CpuStates', () => {
             expect(cpuStates.activeHasStates()).toEqual(expected);
         });
 
-        it('enable cpu states command sets context key to true', async () => {
-            const executeCommandSpy = jest.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
-            cpuStates.activate(tracker);
-            await cpuStates.enableCpuStates();
-            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', true);
-        });
-
-        it('disable cpu states command sets context key to false', async () => {
-            const executeCommandSpy = jest.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
-            cpuStates.activate(tracker);
-            await cpuStates.disableCpuStates();
-            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', false);
-        });
-
     });
 
     describe('tests with established connection and CPU states supported', () => {
@@ -226,6 +212,7 @@ describe('CpuStates', () => {
         });
 
         it('captures states for multiple continued/stopped events and shows history', async () => {
+            cpuStates.activeCpuStates!.enableCpuStates = true;
             const debugConsoleOutput: string[] = [];
             (vscode.debug.activeDebugConsole.appendLine as jest.Mock).mockImplementation(line => debugConsoleOutput.push(line));
             const stopPoints = 5;
@@ -249,6 +236,7 @@ describe('CpuStates', () => {
         });
 
         it('captures states with overflow for multiple continued/stopped events', async () => {
+            cpuStates.activeCpuStates!.enableCpuStates = true;
             (debugSession.customRequest as jest.Mock)
                 .mockResolvedValueOnce({
                     address: '0xE0001004',
@@ -276,6 +264,7 @@ describe('CpuStates', () => {
         });
 
         it('captures states for multiple continued/stopped events and resets correctly', async () => {
+            cpuStates.activeCpuStates!.enableCpuStates = true;
             for (let i = 0; i < 3; i++) {
                 (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({
                     address: '0xE0001004',
@@ -296,6 +285,7 @@ describe('CpuStates', () => {
         });
 
         it('captures states for periodic refreshes but does not add to history', async () => {
+            cpuStates.activeCpuStates!.enableCpuStates = true;
             const debugConsoleOutput: string[] = [];
             (vscode.debug.activeDebugConsole.appendLine as jest.Mock).mockImplementation(line => debugConsoleOutput.push(line));
 
@@ -407,6 +397,7 @@ describe('CpuStates', () => {
         });
 
         it('assigns frame location to captured stop point based on threadId match', async () => {
+            cpuStates.activeCpuStates!.enableCpuStates = true;
             const debugConsoleOutput: string[] = [];
             (vscode.debug.activeDebugConsole.appendLine as jest.Mock).mockImplementation(line => debugConsoleOutput.push(line));
             (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({
@@ -423,16 +414,30 @@ describe('CpuStates', () => {
             expect(debugConsoleOutput.find(line => line.includes('(PC=0x08000396 <myframe>, myfunction::2)'))).toBeDefined();
         });
 
-        it('enable cpu states sets skipFrequencyUpdate flag to false', async () => {
+        it('enable cpu states command sets context key to true', async () => {
+            const executeCommandSpy = jest.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
             cpuStates.activate(tracker);
             await cpuStates.enableCpuStates();
-            expect(cpuStates.activeCpuStates?.skipFrequencyUpdate).toEqual(false);
+            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', true);
         });
 
-        it('disable cpu states sets skipFrequencyUpdate flag to true', async () => {
+        it('disable cpu states command sets context key to false', async () => {
+            const executeCommandSpy = jest.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
             cpuStates.activate(tracker);
             await cpuStates.disableCpuStates();
-            expect(cpuStates.activeCpuStates?.skipFrequencyUpdate).toEqual(true);
+            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', false);
+        });
+
+        it('enable cpu states sets enableCpuStates flag to true', async () => {
+            cpuStates.activate(tracker);
+            await cpuStates.enableCpuStates();
+            expect(cpuStates.activeCpuStates?.enableCpuStates).toEqual(true);
+        });
+
+        it('disable cpu states sets enableCpuStates flag to false', async () => {
+            cpuStates.activate(tracker);
+            await cpuStates.disableCpuStates();
+            expect(cpuStates.activeCpuStates?.enableCpuStates).toEqual(false);
         });
     });
 
