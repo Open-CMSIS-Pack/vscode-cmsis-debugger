@@ -212,7 +212,6 @@ describe('CpuStates', () => {
         });
 
         it('captures states for multiple continued/stopped events and shows history', async () => {
-            cpuStates.activeCpuStates!.enableCpuStates = true;
             const debugConsoleOutput: string[] = [];
             (vscode.debug.activeDebugConsole.appendLine as jest.Mock).mockImplementation(line => debugConsoleOutput.push(line));
             const stopPoints = 5;
@@ -236,7 +235,6 @@ describe('CpuStates', () => {
         });
 
         it('captures states with overflow for multiple continued/stopped events', async () => {
-            cpuStates.activeCpuStates!.enableCpuStates = true;
             (debugSession.customRequest as jest.Mock)
                 .mockResolvedValueOnce({
                     address: '0xE0001004',
@@ -264,7 +262,6 @@ describe('CpuStates', () => {
         });
 
         it('captures states for multiple continued/stopped events and resets correctly', async () => {
-            cpuStates.activeCpuStates!.enableCpuStates = true;
             for (let i = 0; i < 3; i++) {
                 (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({
                     address: '0xE0001004',
@@ -285,7 +282,6 @@ describe('CpuStates', () => {
         });
 
         it('captures states for periodic refreshes but does not add to history', async () => {
-            cpuStates.activeCpuStates!.enableCpuStates = true;
             const debugConsoleOutput: string[] = [];
             (vscode.debug.activeDebugConsole.appendLine as jest.Mock).mockImplementation(line => debugConsoleOutput.push(line));
 
@@ -397,7 +393,6 @@ describe('CpuStates', () => {
         });
 
         it('assigns frame location to captured stop point based on threadId match', async () => {
-            cpuStates.activeCpuStates!.enableCpuStates = true;
             const debugConsoleOutput: string[] = [];
             (vscode.debug.activeDebugConsole.appendLine as jest.Mock).mockImplementation(line => debugConsoleOutput.push(line));
             (debugSession.customRequest as jest.Mock).mockResolvedValueOnce({
@@ -431,13 +426,13 @@ describe('CpuStates', () => {
         it('enable cpu states sets enableCpuStates flag to true', async () => {
             cpuStates.activate(tracker);
             await cpuStates.enableCpuStates();
-            expect(cpuStates.activeCpuStates?.enableCpuStates).toEqual(true);
+            expect(cpuStates.enableCpuStatesFlag).toEqual(true);
         });
 
         it('disable cpu states sets enableCpuStates flag to false', async () => {
             cpuStates.activate(tracker);
             await cpuStates.disableCpuStates();
-            expect(cpuStates.activeCpuStates?.enableCpuStates).toEqual(false);
+            expect(cpuStates.enableCpuStatesFlag).toEqual(false);
         });
     });
 
