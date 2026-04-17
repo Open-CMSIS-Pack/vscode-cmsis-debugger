@@ -21,13 +21,18 @@ import { CpuStates } from './cpu-states';
 export class CpuStatesCommands {
     public static readonly showCpuTimeHistoryID = `${EXTENSION_NAME}.showCpuTimeHistory`;
     public static readonly resetCpuTimeHistoryID = `${EXTENSION_NAME}.resetCpuTimeHistory`;
+    public static readonly enableCpuTimer = `${EXTENSION_NAME}.enableCpuTimer`;
+    public static readonly disableCpuTimer = `${EXTENSION_NAME}.disableCpuTimer`;
     private cpuStates?: CpuStates;
 
     public activate(context: vscode.ExtensionContext, cpuStates: CpuStates): void {
         // Register item and command
         context.subscriptions.push(
             vscode.commands.registerCommand(CpuStatesCommands.showCpuTimeHistoryID, () => this.handleShowHistory()),
-            vscode.commands.registerCommand(CpuStatesCommands.resetCpuTimeHistoryID, () => this.handleResetHistory())
+            vscode.commands.registerCommand(CpuStatesCommands.resetCpuTimeHistoryID, () => this.handleResetHistory()),
+            vscode.commands.registerCommand(CpuStatesCommands.enableCpuTimer, () => this.handleEnableCpuTimer()),
+            vscode.commands.registerCommand(CpuStatesCommands.disableCpuTimer, () => this.handleDisableCpuTimer())
+
         );
         this.cpuStates = cpuStates;
     }
@@ -45,5 +50,19 @@ export class CpuStatesCommands {
             return;
         }
         this.cpuStates.resetStatesHistory();
+    }
+
+    protected async handleEnableCpuTimer(): Promise<void> {
+        if (!this.cpuStates) {
+            return;
+        }
+        this.cpuStates.enableCpuStates();
+    }
+
+    protected async handleDisableCpuTimer(): Promise<void> {
+        if (!this.cpuStates) {
+            return;
+        }
+        this.cpuStates.disableCpuStates();
     }
 };
