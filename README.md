@@ -316,6 +316,8 @@ The Core Peripherals view shows information about the following components if im
 - System Tick Timer
 - Fault Reports
 
+![Showing core peripheral contents in the COMPONENT PERIPHERALS view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/core-peripherals.png)
+
 ### PERIPHERALS
 
 The **PERIPHERALS** view shows the device peripheral registers and allows to change their values. It uses the CMSIS-SVD files that are provided by silicon vendors and distributed as part of the CMSIS Device Family Packs (DFP).
