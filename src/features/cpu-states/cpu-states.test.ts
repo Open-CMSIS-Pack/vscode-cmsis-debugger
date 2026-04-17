@@ -85,6 +85,23 @@ describe('CpuStates', () => {
             cpuStates.activate(tracker);
         });
 
+        it('returns early from showStatesHistory when there are no active cpu states', () => {
+            const warningMessageSpy = jest.spyOn(vscode.window, 'showWarningMessage');
+            // No session started => activeCpuStates is undefined
+            cpuStates.showStatesHistory();
+            expect(warningMessageSpy).not.toHaveBeenCalled();
+        });
+
+        it('returns early from resetStatesHistory when there are no active cpu states', () => {
+            const warningMessageSpy = jest.spyOn(vscode.window, 'showWarningMessage');
+            const refreshListener = jest.fn();
+            cpuStates.onRefresh(refreshListener);
+            // No session started => activeCpuStates is undefined
+            cpuStates.resetStatesHistory();
+            expect(warningMessageSpy).not.toHaveBeenCalled();
+            expect(refreshListener).not.toHaveBeenCalled();
+        });
+
         it('manages session lifecycles correctly', async () => {
             cpuStates.activate(tracker);
             // No active session yet
