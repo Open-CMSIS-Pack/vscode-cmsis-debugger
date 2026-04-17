@@ -2,7 +2,8 @@
 
 ## 1.6.0
 
-- The extension now maintains a *pre-release channel*. This comes with a change in the versioning scheme that skips odd minor version numbers for full releases starting with 1.6.0.
+- The extension now has a *pre-release channel* for early access to upcoming features.  
+As part of this, the versioning scheme has changed: stable releases use even minor versions (starting with 1.6.0), while odd minor versions are reserved for pre-releases.
 - Adds the [Core Peripherals](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#core-peripherals) view which gives insight into the programming of CPU specific core peripherals.
 - Adds commands to enable/disable [CPU Time](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#cpu-time) updates.
 - Fixes [Component Viewer](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#component-viewer) display and stability issues.
