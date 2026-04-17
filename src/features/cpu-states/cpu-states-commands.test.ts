@@ -84,4 +84,13 @@ describe('CpuStatesCommands', () => {
         await vscode.commands.executeCommand(CpuStatesCommands.disableCpuTimer);
         expect(cpuStatesMock.disableCpuStates).toHaveBeenCalledTimes(1);
     });
+
+    it('should fail early if cpuStates is not set', async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const commands: any = new CpuStatesCommands();
+        await expect(commands.handleShowHistory()).resolves.toBeUndefined();
+        await expect(commands.handleResetHistory()).resolves.toBeUndefined();
+        await expect(commands.handleEnableCpuTimer()).resolves.toBeUndefined();
+        await expect(commands.handleDisableCpuTimer()).resolves.toBeUndefined();
+    });
 });
