@@ -1,42 +1,35 @@
 # Change Log
 
-## 1.5.1
+## 1.6.0
 
-- Adds `Fault Reports` to the [Core Peripherals](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#core-peripherals) view.
-- Improves expand/collapse behavior with active filter in [Component Viewer](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#component-viewer) and
-[Core Peripherals](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#core-peripherals) views.
+- The extension now has a *pre-release channel* for early access to upcoming features.  
+As part of this, the versioning scheme has changed: stable releases use even minor versions (starting with 1.6.0), while odd minor versions are reserved for pre-releases.
+- Adds the [Core Peripherals](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#core-peripherals) view which gives insight into the programming of CPU specific core peripherals.
+- Adds commands to enable/disable [CPU Time](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#cpu-time) updates.
+- Fixes [Component Viewer](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#component-viewer) display and stability issues.
 - Includes updated pyOCD distribution ([pyOCD v0.44.0](https://github.com/pyocd/pyOCD/releases/tag/v0.44.0))
     - Uses default debug sequences as defined in the
     [Open-CMSIS-Pack specification](https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec/main/html/debug_description.html#autotoc_md2).
     - Adds missing sequence support for flash programming and holding hardware reset.
     - Changes strategy of programming multiple flash memories from multiple erase-program-verify sequences per flash memory to a single
-    erase-program-verify sequence spannig all targeted flash memories.
+    erase-program-verify sequence spanning all targeted flash memories.
     - Renames RTT channel mode `telnet` to `server`.
     - Adds Segger [SystemView](https://www.segger.com/products/development-tools/systemview/) server mode to support direct recording
     from pyOCD via IP (TCP/IP connection) for [`run`](https://open-cmsis-pack.github.io/cmsis-toolbox/pyOCD-Debugger/#command-line-invocation)
     subcommand.
     - Improves robustness and logging of [Segger RTT](https://www.segger.com/products/debug-probes/j-link/technology/about-real-time-transfer/)
     support.
-    - See [pyOCD v0.44.0](https://github.com/pyocd/pyOCD/releases/tag/v0.44.0) for a full list of ehancements and bug fixes.
-
-## 1.5.0
-
-- Pre-release with a preview of the new [Core Peripherals](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#core-peripherals) view that lives under
-  [Trace and Live View](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-and-live-view).
-    - Early feedback is welcomed, please use [GitHub issues](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/new/choose) to raise enhancement requests or defects.
-- Fixes [Component Viewer](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#component-viewer) display and stability issues.
-- Included in this extension pre-release:
-    - [pyOCD v0.43.1](https://github.com/pyocd/pyOCD/releases/tag/v0.43.1)
+- Also included in this extension release:
     - [arm-none-eabi-gdb v14.3.1](https://artifacts.tools.arm.com/arm-none-eabi-gdb/14.3.1/)
-- Full list of required minimum versions for correct functionality of the CMSIS Debugger v1.5.0 pre-release:
+- Full list of required minimum versions for correct functionality of the CMSIS Debugger v1.6.0 release:
     - [Arm CMSIS Solution extension v1.66.0](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution)
     - [CDT GDB Adapter extension v2.7.0](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode)
     - [Memory Inspector v1.2.0](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector)
     - [Peripheral Inspector v1.9.0](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector)
     - [Serial Monitor v0.13.1](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor)
-    - [RTOS Views v0.0.14](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views)
-- See [v1.4.1...v1.5.0](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/compare/v1.4.1...v1.5.0) for a full list
-of changes that went into this pre-release.
+    - [RTOS Views v0.0.15](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views)
+- See [CMSIS Debugger 1.6.0 project board](https://github.com/orgs/Open-CMSIS-Pack/projects/21/views/10) for a full list
+of enhancement requests and defects addressed in this release.
 
 ## 1.4.1
 

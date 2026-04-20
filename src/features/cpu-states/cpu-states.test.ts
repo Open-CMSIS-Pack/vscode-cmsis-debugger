@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -83,6 +83,23 @@ describe('CpuStates', () => {
 
         it('activates', () => {
             cpuStates.activate(tracker);
+        });
+
+        it('returns early from showStatesHistory when there are no active cpu states', () => {
+            const warningMessageSpy = jest.spyOn(vscode.window, 'showWarningMessage');
+            // No session started => activeCpuStates is undefined
+            cpuStates.showStatesHistory();
+            expect(warningMessageSpy).not.toHaveBeenCalled();
+        });
+
+        it('returns early from resetStatesHistory when there are no active cpu states', () => {
+            const warningMessageSpy = jest.spyOn(vscode.window, 'showWarningMessage');
+            const refreshListener = jest.fn();
+            cpuStates.onRefresh(refreshListener);
+            // No session started => activeCpuStates is undefined
+            cpuStates.resetStatesHistory();
+            expect(warningMessageSpy).not.toHaveBeenCalled();
+            expect(refreshListener).not.toHaveBeenCalled();
         });
 
         it('manages session lifecycles correctly', async () => {
@@ -409,6 +426,31 @@ describe('CpuStates', () => {
             expect(debugConsoleOutput.find(line => line.includes('(PC=0x08000396 <myframe>, myfunction::2)'))).toBeDefined();
         });
 
+        it('enable cpu states command sets context key to true', async () => {
+            const executeCommandSpy = jest.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
+            cpuStates.activate(tracker);
+            await cpuStates.enableCpuStates();
+            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', true);
+        });
+
+        it('disable cpu states command sets context key to false', async () => {
+            const executeCommandSpy = jest.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
+            cpuStates.activate(tracker);
+            await cpuStates.disableCpuStates();
+            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', false);
+        });
+
+        it('enable cpu states sets enableCpuStates flag to true', async () => {
+            cpuStates.activate(tracker);
+            await cpuStates.enableCpuStates();
+            expect((cpuStates as unknown as { enableCpuStatesFlag: boolean }).enableCpuStatesFlag).toEqual(true);
+        });
+
+        it('disable cpu states sets enableCpuStates flag to false', async () => {
+            cpuStates.activate(tracker);
+            await cpuStates.disableCpuStates();
+            expect((cpuStates as unknown as { enableCpuStatesFlag: boolean }).enableCpuStatesFlag).toEqual(false);
+        });
     });
 
     describe('tests with established connection and CPU states not supported', () => {
