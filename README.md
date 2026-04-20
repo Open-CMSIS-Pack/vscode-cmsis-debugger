@@ -314,6 +314,9 @@ The Core Peripherals view shows information about the following components if im
 - Nested Vectored Interrupt Controller
 - System Config and Control
 - System Tick Timer
+- Fault Reports
+
+![Showing core peripheral contents in the COMPONENT PERIPHERALS view](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/core-peripherals.png)
 
 ### PERIPHERALS
 

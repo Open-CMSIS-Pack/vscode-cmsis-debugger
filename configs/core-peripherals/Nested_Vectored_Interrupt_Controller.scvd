@@ -17,23 +17,45 @@
 <component_viewer schemaVersion="0.1" xmlns:xs="https://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="Component_Viewer.xsd">
   <component name="NestedVectoredInterruptControllerComponent" version="1.0.0"/>
   <typedefs>
-    <typedef name="Vector_t" size="4">
-      <member name="INTLINESNUM" type="uint32_t" offset="0"/>
-      <var name="Enable" type="uint8_t" size="256">
-        <enum name="not enabled" value="0"/>
-        <enum name="enabled" value="1"/>
+    <typedef name="ICB_Registers_t" size="0x04">
+      <member name="ICTR" type="uint32_t" offset="0x00"/>
+    </typedef>
+    <typedef name="SYST_Registers_t" size="0x04">
+      <member name="CSR" type="uint32_t" offset="0x00"/>
+    </typedef>
+    <typedef name="SCB_Registers_t" size="0x48">
+      <member name="ICSR" type="uint32_t" offset="0x04"/>
+      <member name="VTOR" type="uint32_t" offset="0x08"/>
+      <member name="AIRCR" type="uint32_t" offset="0x0C"/>
+      <member name="SHPR" type="uint8_t" size="12" offset="0x18"/>
+      <member name="SHCSR" type="uint32_t" offset="0x24"/>
+      <member name="ID_PFR1" type="uint32_t" offset="0x44"/>
+    </typedef>
+    <typedef name="NVIC_Registers_t" size="0x4F0">
+      <member name="ISER" type="uint32_t" size="16" offset="0x000"/>
+      <member name="ISPR" type="uint32_t" size="16" offset="0x100"/>
+      <member name="IABR" type="uint32_t" size="16" offset="0x200"/>
+      <member name="IPR" type="uint8_t" size="496" offset="0x300"/>
+    </typedef>
+    <typedef name="DBG_Registers_t" size="0x04">
+      <member name="DEMCR" type="uint32_t" offset="0x00"/>
+    </typedef>
+    <typedef name="Vector_t">
+      <var name="Enable" type="uint8_t" size="512">
+        <enum name="enabled: no" value="0"/>
+        <enum name="enabled: yes" value="1"/>
       </var>
-      <var name="Pending" type="uint8_t" size="256">
-        <enum name="not pending" value="0"/>
-        <enum name="pending" value="1"/>
+      <var name="Pending" type="uint8_t" size="512">
+        <enum name="pending: no" value="0"/>
+        <enum name="pending: yes" value="1"/>
       </var>
-      <var name="Active" type="uint8_t" size="256">
-        <enum name="not active" value="0"/>
-        <enum name="active" value="1"/>
+      <var name="Active" type="uint8_t" size="512">
+        <enum name="active: no" value="0"/>
+        <enum name="active: yes" value="1"/>
       </var>
-      <var name="Priority" type="uint8_t"  size="256"/>
-      <var name="Displayed" type="uint8_t"  size="256"/>
-      <var name="Index" type="uint8_t" size="256">
+      <var name="Priority" type="uint8_t"  size="512"/>
+      <var name="Displayed" type="uint8_t"  size="512"/>
+      <var name="Index" type="uint16_t" size="512">
         <enum name="Thread Mode" value="0"/>
         <enum name="Non-maskable Interrupt (NMI)" value="2"/>
         <enum name="Hard Fault (HARDFAULT)" value="3" />
@@ -48,129 +70,149 @@
       </var>
     </typedef>
   </typedefs>
-   <objects>
+  <objects>
     <object name="NestedVectoredInterruptControllerObject">
-      <var name="WithSecureExtension" type="uint8_t" value="1"/>
-      <read name="SHCSR_value" type="uint32_t" offset="0xE000ED24"/>
-      <read name="SHPR_values" type="uint32_t" size="3" offset="0xE000ED18"/>
-      <read name="ICSR_value" type="uint32_t" offset="0xE000ED04"/>
-      <read name="AIRCR_value" type="uint32_t" offset="0xE000ED0C"/>
-      <read name="VTOR_value" type="uint32_t" offset="0xE000ED08"/>
-      <read name="DEMCR_value" type="uint32_t" offset="0xE000EDFC"/>
-      <read name="SYST_CSR_value" type="uint32_t" offset="0xE000E010"/>
-      <read name="NVIC_ISER_values" type="uint32_t" size="8" offset="0xE000E100"/>
-      <read name="NVIC_ISPR_values" type="uint32_t" size="8" offset="0xE000E200"/>
-      <read name="NVIC_IABR_values" type="uint32_t" size="8" offset="0xE000E300"/>
-      <read name="NVIC_IPR_values" type="uint32_t" size="60" offset="0xE000E400"/>
-      <read name="Vectors" type="Vector_t" offset="0xE000E004"/>
+      <read name="ICB_Registers" type="ICB_Registers_t" offset="0xE000E004"/>
+      <read name="SYST_Registers" type="SYST_Registers_t" offset="0xE000E010"/>
+      <read name="NVIC_Registers" type="NVIC_Registers_t" offset="0xE000E100"/>
+      <read name="SCB_Registers" type="SCB_Registers_t" offset="0xE000ED00"/>
+      <read name="DBG_Registers" type="DBG_Registers_t" offset="0xE000EDFC"/>
+      <var name="WithSecureExtension" type="uint8_t" value="0"/>
+      <var name="Vectors" type="Vector_t"/>
       <var name="Count" type="uint32_t" value="0"/>
+      <var name="irqLines" type="uint32_t" value="0"/>
       <var name="irqPresent" type="uint32_t" value="0"/>
       <var name="irqCore" type="uint32_t" value="0"/>
       <var name="irqExt" type="uint32_t" value="0"/>
-      <list name="Count" start="0" limit="Vectors.INTLINESNUM*32">
+      <var name="irqNumber" type="uint32_t" value="0"/>
+      <calc>
+        irqLines=(ICB_Registers.ICTR+1)*32;
+        WithSecureExtension=1&amp;&amp;(SCB_Registers.ID_PFR1&amp;0xF0);
+      </calc>
+      <list name="Count" start="0" limit="irqLines">
         <calc cond="1">
           Vectors.Index[Count]=Count;
         </calc>
-
-        <calc cond="0==( (Count==0) || (Count==1) || ( (Count==7) &amp;&amp; (0==WithSecureExtension) ) || (Count==8) || (Count==9) || (Count==10) || (Count==13) )">
-          Vectors.Displayed[Count]=1;
-        </calc>
-
-        <calc cond="(Count==2)" info="values for NMI">
-          Vectors.Enable[Count]=1;
-          Vectors.Pending[Count]=((ICSR_value&gt;&gt;31)&amp;0x1);
-          Vectors.Active[Count]=((ICSR_value&gt;&gt;0)&amp;0x1F)==2;
-          Vectors.Priority[Count]=-2;
-        </calc>
-<!--
--->
-        <calc cond="( Count==3 )" info="values for HARDFAULT">
-          Vectors.Enable[Count]=1;
-          Vectors.Active[Count]=((ICSR_value&gt;&gt;0)&amp;0x1F)==3;
-          Vectors.Pending[Count]=0;
-          Vectors.Priority[Count]=-1;
-        </calc>
-        <calc cond="( Count==4 )" info="values for MEMFAULT">
-          Vectors.Enable[Count]=((SHCSR_value&gt;&gt;16)&amp;0x1);
-          Vectors.Active[Count]=((SHCSR_value&gt;&gt;0)&amp;0x1);
-          Vectors.Pending[Count]=((SHCSR_value&gt;&gt;13)&amp;0x1);
-          Vectors.Priority[Count]=((SHPR_values[0]&gt;&gt;0)&amp;0xFF);
-        </calc>
-        <calc cond="( Count==5 )" info="values for BUSFAULT">
-          Vectors.Enable[Count]=((SHCSR_value&gt;&gt;17)&amp;0x1);
-          Vectors.Active[Count]=((SHCSR_value&gt;&gt;1)&amp;0x1);
-          Vectors.Pending[Count]=((SHCSR_value&gt;&gt;14)&amp;0x1);
-          Vectors.Priority[Count]=((SHPR_values[0]&gt;&gt;8)&amp;0xFF);
-        </calc>
-        <calc cond="( Count==6 )" info="values for USGFAULT">
-          Vectors.Enable[Count]=((SHCSR_value&gt;&gt;18)&amp;0x1);
-          Vectors.Active[Count]=((SHCSR_value&gt;&gt;3)&amp;0x1);
-          Vectors.Pending[Count]=((SHCSR_value&gt;&gt;12)&amp;0x1);
-          Vectors.Priority[Count]=((SHPR_values[0]&gt;&gt;16)&amp;0xFF);
-        </calc>
-        <calc cond="( (Count==7) &amp;&amp; WithSecureExtension )" info="values for SECUREFAULT">
-          Vectors.Enable[Count]=((SHCSR_value&gt;&gt;19)&amp;0x1);
-          Vectors.Active[Count]=((SHCSR_value&gt;&gt;4)&amp;0x1);
-          Vectors.Pending[Count]=((SHCSR_value&gt;&gt;20)&amp;0x1);
-          Vectors.Priority[Count]=((SHPR_values[0]&gt;&gt;24)&amp;0xFF);
-        </calc>
-        <calc cond="( Count==11 )" info="values for SVCALL">
-          Vectors.Enable[Count]=1;
-          Vectors.Active[Count]=((SHCSR_value&gt;&gt;7)&amp;0x1);
-          Vectors.Pending[Count]=((SHCSR_value&gt;&gt;15)&amp;0x1);
-          Vectors.Priority[Count]=((SHPR_values[1]&gt;&gt;24)&amp;0xFF);
-        </calc>
-        <calc cond="( Count==12 )" info="values for MONITOR">
-          Vectors.Enable[Count]=((DEMCR_value&gt;&gt;16)&amp;0x1);
-          Vectors.Active[Count]=((SHCSR_value&gt;&gt;8)&amp;0x1);
-          Vectors.Pending[Count]=((DEMCR_value&gt;&gt;17)&amp;0x1);
-          Vectors.Priority[Count]=((SHPR_values[2]&gt;&gt;0)&amp;0xFF);
-        </calc>
-        <calc cond="( Count==14 )" info="values for PENDSV">
-          Vectors.Enable[Count]=1;
-          Vectors.Active[Count]=((SHCSR_value&gt;&gt;10)&amp;0x1);
-          Vectors.Pending[Count]=((ICSR_value&gt;&gt;28)&amp;0x1);
-          Vectors.Priority[Count]=((SHPR_values[2]&gt;&gt;16)&amp;0xFF);
-        </calc>
-        <calc cond="( Count==15 )" info="values for SYSTICK">
-          Vectors.Enable[Count]=((SYST_CSR_value&gt;&gt;1)&amp;0x1);
-          Vectors.Active[Count]=((SHCSR_value&gt;&gt;11)&amp;0x1);
-          Vectors.Pending[Count]=((ICSR_value&gt;&gt;26)&amp;0x1);
-          Vectors.Priority[Count]=((SHPR_values[2]&gt;&gt;24)&amp;0xFF);
-        </calc>
-          <!--Vectors.Priority[Count]=((SHPR_values[((Count-4)/4)]&gt;&gt;(((Count-4)&amp;3)*8))&amp;0xFF);-->
-
-        <calc cond="( Count&gt;15 )" info="values for EXTIRQn">
-          Vectors.Enable[Count]=((NVIC_ISER_values[((Count-16)/32)]&gt;&gt;(((Count-16)&amp;0x1F)))&amp;0x1);
-          Vectors.Active[Count]=((NVIC_IABR_values[((Count-16)/32)]&gt;&gt;(((Count-16)&amp;0x1F)))&amp;0x1);
-          Vectors.Pending[Count]=((NVIC_ISPR_values[((Count-16)/32)]&gt;&gt;(((Count-16)&amp;0x1F)))&amp;0x1);
-          Vectors.Priority[Count]=((NVIC_IPR_values[((Count-16)/4)]&gt;&gt;(((Count-16)&amp;0x3)*8))&amp;0xFF);
-        </calc>
       </list>      
+      <!-- values for NMI -->
+      <calc>
+        Vectors.Displayed[2]=1;
+        Vectors.Enable[2]=1;
+        Vectors.Pending[2]=((SCB_Registers.ICSR&gt;&gt;31)&amp;0x1);
+        Vectors.Active[2]=((SCB_Registers.ICSR&gt;&gt;0)&amp;0x1F)==2;
+        Vectors.Priority[2]=-2;
+      </calc>
+      <!-- values for HARDFAULT -->
+      <calc>
+        Vectors.Displayed[3]=1;
+        Vectors.Enable[3]=1;
+        Vectors.Active[3]=((SCB_Registers.ICSR&gt;&gt;0)&amp;0x1F)==3;
+        Vectors.Pending[3]=0;
+        Vectors.Priority[3]=-1;
+      </calc>
+      <!-- values for MEMFAULT -->
+      <calc>
+        Vectors.Displayed[4]=1;
+        Vectors.Enable[4]=((SCB_Registers.SHCSR&gt;&gt;16)&amp;0x1);
+        Vectors.Active[4]=((SCB_Registers.SHCSR&gt;&gt;0)&amp;0x1);
+        Vectors.Pending[4]=((SCB_Registers.SHCSR&gt;&gt;13)&amp;0x1);
+        Vectors.Priority[4]=SCB_Registers.SHPR[0];
+      </calc>
+      <!-- values for BUSFAULT -->
+      <calc>
+        Vectors.Displayed[5]=1;
+        Vectors.Enable[5]=((SCB_Registers.SHCSR&gt;&gt;17)&amp;0x1);
+        Vectors.Active[5]=((SCB_Registers.SHCSR&gt;&gt;1)&amp;0x1);
+        Vectors.Pending[5]=((SCB_Registers.SHCSR&gt;&gt;14)&amp;0x1);
+        Vectors.Priority[5]=SCB_Registers.SHPR[1];
+      </calc>
+      <!-- values for USGFAULT -->
+      <calc>
+        Vectors.Displayed[6]=1;
+        Vectors.Enable[6]=((SCB_Registers.SHCSR&gt;&gt;18)&amp;0x1);
+        Vectors.Active[6]=((SCB_Registers.SHCSR&gt;&gt;3)&amp;0x1);
+        Vectors.Pending[6]=((SCB_Registers.SHCSR&gt;&gt;12)&amp;0x1);
+        Vectors.Priority[6]=SCB_Registers.SHPR[2];
+      </calc>
+      <!-- values for SECUREFAULT -->
+      <calc cond="WithSecureExtension">
+        Vectors.Displayed[7]=1;
+        Vectors.Enable[7]=((SCB_Registers.SHCSR&gt;&gt;19)&amp;0x1);
+        Vectors.Active[7]=((SCB_Registers.SHCSR&gt;&gt;4)&amp;0x1);
+        Vectors.Pending[7]=((SCB_Registers.SHCSR&gt;&gt;20)&amp;0x1);
+        Vectors.Priority[7]=SCB_Registers.SHPR[3];
+      </calc>
+      <!-- values for SVCALL -->
+      <calc>
+        Vectors.Displayed[11]=1;
+        Vectors.Enable[11]=1;
+        Vectors.Active[11]=((SCB_Registers.SHCSR&gt;&gt;7)&amp;0x1);
+        Vectors.Pending[11]=((SCB_Registers.SHCSR&gt;&gt;15)&amp;0x1);
+        Vectors.Priority[11]=SCB_Registers.SHPR[7];
+      </calc>
+      <!-- values for MONITOR -->
+      <calc>
+        Vectors.Displayed[12]=1;
+        Vectors.Enable[12]=((DBG_Registers.DEMCR&gt;&gt;16)&amp;0x1);
+        Vectors.Active[12]=((SCB_Registers.SHCSR&gt;&gt;8)&amp;0x1);
+        Vectors.Pending[12]=((DBG_Registers.DEMCR&gt;&gt;17)&amp;0x1);
+        Vectors.Priority[12]=SCB_Registers.SHPR[8];
+      </calc>
+      <!-- values for PENDSV -->
+      <calc>
+        Vectors.Displayed[14]=1;
+        Vectors.Enable[14]=1;
+        Vectors.Active[14]=((SCB_Registers.SHCSR&gt;&gt;10)&amp;0x1);
+        Vectors.Pending[14]=((SCB_Registers.ICSR&gt;&gt;28)&amp;0x1);
+        Vectors.Priority[14]=SCB_Registers.SHPR[10];
+      </calc>
+      <!-- values for SYSTICK -->
+      <calc>
+        Vectors.Displayed[15]=1;
+        Vectors.Enable[15]=((SYST_Registers.CSR&gt;&gt;1)&amp;0x1);
+        Vectors.Active[15]=((SCB_Registers.SHCSR&gt;&gt;11)&amp;0x1);
+        Vectors.Pending[15]=((SCB_Registers.ICSR&gt;&gt;26)&amp;0x1);
+        Vectors.Priority[15]=SCB_Registers.SHPR[11];
+      </calc>
+      <!-- values for EXTIRQn -->
+      <list name="Count" start="16" limit="irqLines">
+        <calc>
+          irqNumber=Count-16;
+          Vectors.Displayed[Count]=1;
+          Vectors.Enable[Count]=((NVIC_Registers.ISER[((irqNumber)/32)]&gt;&gt;(((irqNumber)&amp;0x1F)))&amp;0x1);
+          Vectors.Active[Count]=((NVIC_Registers.IABR[((irqNumber)/32)]&gt;&gt;(((irqNumber)&amp;0x1F)))&amp;0x1);
+          Vectors.Pending[Count]=((NVIC_Registers.ISPR[((irqNumber)/32)]&gt;&gt;(((irqNumber)&amp;0x1F)))&amp;0x1);
+          Vectors.Priority[Count]=NVIC_Registers.IPR[(irqNumber)];
+        </calc>
+      </list>
+<!--
+          Vectors.Priority[Count]=((NVIC_Registers.IPR[((Count-16)/4)]&gt;&gt;(((Count-16)&amp;0x3)*8))&amp;0xFF);
+-->
+
       <out name="Nested Vectored Interrupt Controller">
 <!--
+
         <item property="values for debugging" value="">
           <item property="SHCSR_value&gt;&gt;16" value="%x[(SHCSR_value&gt;&gt;16)]"/>
           <item property="SHCSR_value" value="%x[(SHCSR_value)]"/>
           <item property="NVIC_ISER_values[0]" value="%x[NVIC_ISER_values[0]]"/>
         </item>
 -->
-        <item property="INTLINESNUM" value="%d[Vectors.INTLINESNUM]"/>
-        <item property="Interrupt Control and Status (ICSR)" value="%x[ICSR_value]">
-          <item property="ISRPENDING" value="%d[(ICSR_value&gt;&gt;22)&amp;0x1]"/>
-          <item property="VECTPENDING" value="%d[(ICSR_value&gt;&gt;12)&amp;0x1F]"/>
-          <item property="RETTOBASE" value="%d[(ICSR_value&gt;&gt;11)&amp;0x1]"/>
-          <item property="VECTACTIVE" value="%d[(ICSR_value&gt;&gt;0)&amp;0x1F]"/>
+        <item property="Interrupt Control and Status (ICSR)" value="%x[SCB_Registers.ICSR]">
+          <item property="ISRPENDING" value="%d[(SCB_Registers.ICSR&gt;&gt;22)&amp;0x1]"/>
+          <item property="VECTPENDING" value="%d[(SCB_Registers.ICSR&gt;&gt;12)&amp;0x1F]"/>
+          <item property="RETTOBASE" value="%d[(SCB_Registers.ICSR&gt;&gt;11)&amp;0x1]"/>
+          <item property="VECTACTIVE" value="%d[(SCB_Registers.ICSR&gt;&gt;0)&amp;0x1F]"/>
         </item>
-        <item property="Application Interrupt and Reset Control (AIRCR)" value="%x[AIRCR_value]">
-          <item property="ENDIANNESS" value="%d[(AIRCR_value&gt;&gt;15)&amp;0x1]"/>
-          <item property="PRIGROUP" value="%d[(AIRCR_value&gt;&gt;8)&amp;0x7]"/>
+        <item property="Application Interrupt and Reset Control (AIRCR)" value="%x[SCB_Registers.AIRCR]">
+          <item property="ENDIANNESS" value="%d[(SCB_Registers.AIRCR&gt;&gt;15)&amp;0x1]"/>
+          <item property="PRIGROUP" value="%d[(SCB_Registers.AIRCR&gt;&gt;8)&amp;0x7]"/>
         </item>
-        <item property="Vector Table Offset (VTOR)" value="%x[VTOR_value]">
-          <item property="TBLOFF" value="%x[(VTOR_value&gt;&gt;7)&amp;0x1FFFFFF]"/>
+        <item property="Vector Table Offset (VTOR)" value="%x[SCB_Registers.VTOR]">
+          <item property="TBLOFF" value="%x[(SCB_Registers.VTOR&gt;&gt;7)&amp;0x1FFFFFF]"/>
         </item>
         <item property="Vector Handlers" value="">
-          <list name="Count" start="0" limit="Vectors.INTLINESNUM*32">
+          <list name="Count" start="0" limit="irqLines">
             <calc>
               irqPresent = Vectors.Displayed[Count]==1;
               irqCore = Count&lt;16;
@@ -179,14 +221,14 @@
 
             <item cond="irqPresent" value="">
               <print property="%E[Vectors.Index[Count]]" cond="irqCore" value="%E[Vectors.Enable[Count]], %E[Vectors.Pending[Count]], %E[Vectors.Active[Count]]"/>
-              <print property="%Q[Count]" cond="irqExt" value="%E[Vectors.Enable[Count]], %E[Vectors.Pending[Count]], %E[Vectors.Active[Count]]" />
+              <print property="%Q[Count-16]" cond="irqExt" value="%E[Vectors.Enable[Count]], %E[Vectors.Pending[Count]], %E[Vectors.Active[Count]]"/>
               <item property="Index" value="%d[Vectors.Index[Count]]"/>
               <item property="Enable" value="%d[Vectors.Enable[Count]]"/>
               <item property="Pending" value="%d[Vectors.Pending[Count]]"/>
               <item property="Active" value="%d[Vectors.Active[Count]]"/>
               <item property="Priority" value="%d[Vectors.Priority[Count]]"/>
             </item>
-         </list>
+          </list>
         </item>
       </out>
     </object>
