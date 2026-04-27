@@ -601,8 +601,8 @@
   },
   "dependencies": {
     "vscode-uri": "^3.1.0",
-    "yaml": "^2.8.3",
-    "xml2js": "^0.6.2"
+    "xml2js": "^0.6.2",
+    "yaml": "^2.8.3"
   },
   "devDependencies": {
     "@eclipse-cdt-cloud/vscode-peripheral-inspector": "github:eclipse-cdt-cloud/vscode-peripheral-inspector#v1.9.0",
@@ -614,6 +614,8 @@
     "@types/minimist": "^1.2.5",
     "@types/node": "^22.19.15",
     "@types/node-fetch": "^2.6.13",
+    "@types/react": "18.3.23",
+    "@types/react-dom": "18.3.7",
     "@types/vscode": "^1.108.1",
     "@types/xml2js": "^0.4.14",
     "@types/yargs": "^17.0.35",
@@ -621,6 +623,7 @@
     "@typescript-eslint/parser": "8.56.1",
     "@vscode/debugprotocol": "^1.68.0",
     "@vscode/vsce": "^3.7.1",
+    "css-loader": "^7.1.4",
     "eslint": "^10.0.2",
     "eslint-plugin-security": "^4.0.0",
     "extract-zip": "^2.0.1",
@@ -637,6 +640,9 @@
     "minimist": "^1.2.8",
     "node-fetch": "^3.3.2",
     "octokit": "^5.0.5",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "style-loader": "^4.0.0",
     "tempfile": "^6.0.1",
     "ts-command-line-args": "^2.5.1",
     "ts-jest": "29.4.6",

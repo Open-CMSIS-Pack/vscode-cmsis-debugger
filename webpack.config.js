@@ -22,7 +22,7 @@ const webpack = require('webpack');
 
 /** @typedef {import('webpack').Configuration} WebpackConfig **/
 /** @type WebpackConfig */
-const common = {
+const commonNode = {
     mode: 'development',
     devtool: 'source-map',
     module: {
@@ -42,10 +42,46 @@ const common = {
     }
 };
 
+/** @type WebpackConfig */
+const webviewConfig = {
+    mode: 'development',
+    devtool: 'source-map',
+    target: 'web',
+    entry: {
+        'webviews/tree-table': './webviews/tree-table/src/index.tsx'
+    },
+    output: {
+        filename: '[name].js',
+        path: path.resolve(__dirname, 'dist')
+    },
+    module: {
+        rules: [
+            {
+                test: /\.tsx?$/,
+                use: {
+                    loader: 'ts-loader',
+                    options: {
+                        configFile: path.resolve(__dirname, 'webviews/tree-table/tsconfig.json')
+                    }
+                },
+                exclude: /node_modules/
+            },
+            {
+                test: /\.css$/,
+                use: ['style-loader', 'css-loader']
+            }
+        ]
+    },
+    resolve: {
+        extensions: ['.tsx', '.ts', '.js']
+    }
+    // No vscode external — webviews run in the browser sandbox
+};
+
 /** @type WebpackConfig[] */
 module.exports = [
     {
-        ...common,
+        ...commonNode,
         target: 'node',
         entry: {
             main: './src/desktop/extension.ts'
@@ -57,5 +93,6 @@ module.exports = [
         },
         plugins: [
         ]
-    }
+    },
+    webviewConfig
 ];

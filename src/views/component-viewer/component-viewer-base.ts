@@ -44,6 +44,7 @@ export class ComponentViewerBase {
     private _activeSession: GDBTargetDebugSession | undefined;
     private _instances: ComponentViewerInstancesWrapper[] = [];
     private _componentViewerTreeDataProvider: ComponentViewerTreeDataProvider;
+    private _webviewProvider: ComponentViewerWebviewProvider | undefined;
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
     private _loadingCounter: number = 0;
@@ -87,6 +88,7 @@ export class ComponentViewerBase {
 
         // Register the webview-based view that renders a two-column table.
         const webviewProvider = new ComponentViewerWebviewProvider(this._componentViewerTreeDataProvider, this._context.extensionUri);
+        this._webviewProvider = webviewProvider;
         webviewProvider.onToggle = (id, expanded) => {
             this._componentViewerTreeDataProvider.toggleById(id, expanded);
         };
@@ -370,6 +372,8 @@ export class ComponentViewerBase {
     private async handleOnConnected(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker): Promise<void> {
         // Update debug session
         this._activeSession = session;
+        // Show the loading indicator while SCVD files are read and the first update runs.
+        this._webviewProvider?.setLoading(true);
         // Load SCVD files from cbuild-run
         await this.loadScvdFiles(session, tracker);
     }
@@ -479,5 +483,6 @@ export class ComponentViewerBase {
         }
         perf?.logSummaries();
         this._componentViewerTreeDataProvider.setRoots(roots);
+        this._webviewProvider?.setLoading(false);
     }
 }

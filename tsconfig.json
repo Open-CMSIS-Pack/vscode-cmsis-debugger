@@ -20,6 +20,7 @@
         ]
     },
     "include": [
-        "src"
+        "src",
+        "webviews/tree-table/src/types.ts"
     ]
 }

@@ -19,6 +19,7 @@
  */
 
 import type { ScvdGuiInterface } from '../../model/scvd-gui-interface';
+import type { HostToWebviewMessage, FlatRow } from '../../tree-view/tree-table-protocol';
 
 const mockFire = jest.fn();
 
@@ -103,18 +104,24 @@ const makeGui = (opts: Partial<TestGui> & { getGuiChildren?: () => ScvdGuiInterf
     isLocked: opts.isLocked ?? false,
 });
 
-/** Create a mock WebviewView with a writable `html` and message capture. */
+/** Create a mock WebviewView with message capture. */
 function makeMockWebviewView() {
     let messageHandler: ((msg: unknown) => void) | undefined;
     const disposeHandlers: (() => void)[] = [];
+    const postedMessages: unknown[] = [];
     const webview = {
         options: {} as Record<string, unknown>,
         html: '',
+        cspSource: 'https://test-csp-source',
         onDidReceiveMessage: jest.fn((handler: (msg: unknown) => void) => {
             messageHandler = handler;
             return { dispose: jest.fn() };
         }),
         asWebviewUri: jest.fn((uri: { path: string }) => uri),
+        postMessage: jest.fn((msg: unknown) => {
+            postedMessages.push(msg);
+            return Promise.resolve(true);
+        }),
     };
     const view = {
         webview,
@@ -126,6 +133,11 @@ function makeMockWebviewView() {
     return {
         view: view as unknown as import('vscode').WebviewView,
         getHtml: () => webview.html,
+        getPostedMessages: () => postedMessages as HostToWebviewMessage[],
+        getLastUpdateMessage: () => {
+            const msgs = postedMessages as HostToWebviewMessage[];
+            return msgs.filter(m => m.type === 'update').at(-1);
+        },
         sendMessage: (msg: unknown) => messageHandler?.(msg),
         triggerDispose: () => disposeHandlers.forEach(fn => fn()),
     };
@@ -142,28 +154,42 @@ describe('ComponentViewerWebviewProvider', () => {
         webviewProvider = new ComponentViewerWebviewProvider(dataProvider, vscode.Uri.file('/test-extension') as never);
     });
 
-    it('renders empty state when no roots are set', () => {
+    it('sets an HTML shell with a #root element on resolveWebviewView', () => {
         const { view, getHtml } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
-        expect(getHtml()).toContain('No component data available');
-        expect(getHtml()).not.toContain('<table');
+        expect(getHtml()).toContain('<div id="root">');
+        expect(getHtml()).toContain('Content-Security-Policy');
     });
 
-    it('renders a table with Name and Value columns', () => {
-        const root = makeGui({ getGuiName: () => 'MyName', getGuiValue: () => 'MyVal' });
+    it('sends an update message with empty rows when no roots are set', () => {
+        const { view, getLastUpdateMessage } = makeMockWebviewView();
+        webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+        const msg = getLastUpdateMessage();
+        expect(msg).toBeDefined();
+        expect(msg?.rows).toHaveLength(0);
+    });
+
+    it('sends correct header defaults', () => {
+        const { view, getLastUpdateMessage } = makeMockWebviewView();
+        webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+        const msg = getLastUpdateMessage();
+        expect(msg?.nameHeader ?? 'Name').toBe('Name');
+        expect(msg?.valueHeader ?? 'Value').toBe('Value');
+    });
+
+    it('sends a row for each root node with correct cell data', () => {
+        const root = makeGui({ getGuiName: () => 'MyName', getGuiValue: () => 'MyVal', getGuiId: () => 'r1' });
         dataProvider.setRoots([root]);
-        const { view, getHtml } = makeMockWebviewView();
+        const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
-
-        const html = getHtml();
-        expect(html).toContain('<table');
-        expect(html).toContain('Name');
-        expect(html).toContain('Value');
-        expect(html).toContain('MyName');
-        expect(html).toContain('MyVal');
+        const msg = getLastUpdateMessage();
+        expect(msg?.rows).toHaveLength(1);
+        expect(msg?.rows[0].name).toBe('MyName');
+        expect(msg?.rows[0].value).toBe('MyVal');
+        expect(msg?.rows[0].id).toBe('r1');
     });
 
-    it('renders children of expanded nodes', () => {
+    it('includes children of expanded nodes', () => {
         const child = makeGui({ getGuiName: () => 'Child', getGuiId: () => 'c1' });
         const parent = makeGui({
             getGuiName: () => 'Parent',
@@ -174,15 +200,14 @@ describe('ComponentViewerWebviewProvider', () => {
         dataProvider.setRoots([parent]);
         dataProvider.setElementExpanded(parent, true);
 
-        const { view, getHtml } = makeMockWebviewView();
+        const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
-
-        const html = getHtml();
-        expect(html).toContain('Parent');
-        expect(html).toContain('Child');
+        const rows = getLastUpdateMessage()?.rows ?? [];
+        expect(rows.some(r => r.name === 'Parent')).toBe(true);
+        expect(rows.some(r => r.name === 'Child')).toBe(true);
     });
 
-    it('does not render children of collapsed nodes', () => {
+    it('does not include children of collapsed nodes', () => {
         const child = makeGui({ getGuiName: () => 'HiddenChild', getGuiId: () => 'c1' });
         const parent = makeGui({
             getGuiName: () => 'Parent',
@@ -191,27 +216,27 @@ describe('ComponentViewerWebviewProvider', () => {
             getGuiChildren: () => [child],
         });
         dataProvider.setRoots([parent]);
-        // Not expanded → children should not appear
+        // Not expanded
 
-        const { view, getHtml } = makeMockWebviewView();
+        const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
-
-        expect(getHtml()).toContain('Parent');
-        expect(getHtml()).not.toContain('HiddenChild');
+        const rows = getLastUpdateMessage()?.rows ?? [];
+        expect(rows.some(r => r.name === 'Parent')).toBe(true);
+        expect(rows.some(r => r.name === 'HiddenChild')).toBe(false);
     });
 
-    it('re-renders when refresh() is called', () => {
-        const { view, getHtml } = makeMockWebviewView();
+    it('sends a new update message when refresh() is called', () => {
+        const { view, getPostedMessages } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
-        expect(getHtml()).toContain('No component data available');
+        expect(getPostedMessages().filter(m => (m as HostToWebviewMessage).type === 'update')).toHaveLength(1);
 
-        const root = makeGui({ getGuiName: () => 'Added' });
+        const root = makeGui({ getGuiName: () => 'Added', getGuiId: () => 'a1' });
         dataProvider.setRoots([root]);
-        // The mock EventEmitter doesn't wire up real subscriptions,
-        // so call refresh() explicitly to simulate what happens in production.
         webviewProvider.refresh();
 
-        expect(getHtml()).toContain('Added');
+        const updates = getPostedMessages().filter(m => (m as HostToWebviewMessage).type === 'update');
+        expect(updates).toHaveLength(2);
+        expect((updates[1] as HostToWebviewMessage & { rows: FlatRow[] }).rows[0].name).toBe('Added');
     });
 
     it('forwards toggle messages to onToggle callback', () => {
@@ -236,68 +261,67 @@ describe('ComponentViewerWebviewProvider', () => {
         expect(lock).toHaveBeenCalledWith('root-1');
     });
 
-    it('shows lock/unlock button for root instances', () => {
+    it('marks root instances with lockEnabled=true in the row', () => {
         const root = makeGui({
             getGuiName: () => 'RTX',
             isRootInstance: true,
             isLocked: false,
+            getGuiId: () => 'r1',
         });
         dataProvider.setRoots([root]);
 
-        const { view, getHtml } = makeMockWebviewView();
+        const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
 
-        expect(getHtml()).toContain('lock-btn');
-        expect(getHtml()).toContain('codicon-lock');
+        const row = getLastUpdateMessage()?.rows[0];
+        expect(row?.lockEnabled).toBe(true);
+        expect(row?.locked).toBe(false);
     });
 
-    it('shows lock icon with hover-unlock for locked root instances', () => {
+    it('marks locked root instances with locked=true in the row', () => {
         const root = makeGui({
             getGuiName: () => 'RTX',
             isRootInstance: true,
             isLocked: true,
+            getGuiId: () => 'r1',
         });
         dataProvider.setRoots([root]);
 
-        const { view, getHtml } = makeMockWebviewView();
+        const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
 
-        // Lock icon shown by default, unlock icon revealed on hover
-        expect(getHtml()).toContain('lock-icon-default');
-        expect(getHtml()).toContain('lock-icon-hover');
-        expect(getHtml()).toContain('codicon-lock');
-        expect(getHtml()).toContain('codicon-unlock');
+        const row = getLastUpdateMessage()?.rows[0];
+        expect(row?.lockEnabled).toBe(true);
+        expect(row?.locked).toBe(true);
     });
 
-    it('escapes HTML entities in names and values', () => {
+    it('passes raw name and value strings without HTML escaping', () => {
         const node = makeGui({
             getGuiName: () => '<b>bold</b>',
             getGuiValue: () => 'a & b',
+            getGuiId: () => 'n1',
         });
         dataProvider.setRoots([node]);
 
-        const { view, getHtml } = makeMockWebviewView();
+        const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
 
-        const html = getHtml();
-        // The node name must be escaped, not rendered as raw HTML.
-        expect(html).toContain('&lt;b&gt;bold&lt;/b&gt;');
-        expect(html).not.toContain('<b>bold</b>');
-        expect(html).toContain('a &amp; b');
+        const row = getLastUpdateMessage()?.rows[0];
+        // Raw strings go into name/value — React handles escaping
+        expect(row?.name).toBe('<b>bold</b>');
+        expect(row?.value).toBe('a & b');
     });
 
     it('cleans up on dispose', () => {
-        const { view, triggerDispose, getHtml } = makeMockWebviewView();
+        const { view, triggerDispose } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
         triggerDispose();
 
-        // After dispose, refresh should not throw (no-op since _view is cleared).
-        webviewProvider.refresh();
-        // HTML should remain from last render but provider is detached.
-        expect(getHtml()).toBeDefined();
+        // After dispose, refresh should be a no-op (no-op since _view is cleared).
+        expect(() => webviewProvider.refresh()).not.toThrow();
     });
 
-    it('indents nested children with increasing padding', () => {
+    it('sets correct depth values for nested children', () => {
         const grandchild = makeGui({ getGuiName: () => 'GC', getGuiId: () => 'gc1' });
         const child = makeGui({
             getGuiName: () => 'Child',
@@ -315,18 +339,20 @@ describe('ComponentViewerWebviewProvider', () => {
         dataProvider.setElementExpanded(root, true);
         dataProvider.setElementExpanded(child, true);
 
-        const { view, getHtml } = makeMockWebviewView();
+        const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
 
-        const html = getHtml();
-        // Root at depth 0: padding-left:4px, child at depth 1: 20px, grandchild at depth 2: 36px
-        expect(html).toContain('padding-left:4px');
-        expect(html).toContain('padding-left:20px');
-        expect(html).toContain('padding-left:36px');
+        const rows = getLastUpdateMessage()?.rows ?? [];
+        const rootRow = rows.find(r => r.name === 'Root');
+        const childRow = rows.find(r => r.name === 'Child');
+        const gcRow = rows.find(r => r.name === 'GC');
+
+        expect(rootRow?.depth).toBe(0);
+        expect(childRow?.depth).toBe(1);
+        expect(gcRow?.depth).toBe(2);
     });
 
-    it('re-renders when the data provider fires onDidChangeTreeData', () => {
-        // Override onDidChangeTreeData to capture the listener
+    it('sends updated data when the data provider fires onDidChangeTreeData', () => {
         let changeListener: (() => void) | undefined;
         Object.defineProperty(dataProvider, 'onDidChangeTreeData', {
             value: (listener: () => void) => {
@@ -336,31 +362,31 @@ describe('ComponentViewerWebviewProvider', () => {
             configurable: true,
         });
 
-        const { view, getHtml } = makeMockWebviewView();
+        const { view, getPostedMessages } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
-        expect(getHtml()).toContain('No component data available');
 
-        // Mutate data and fire change event
-        dataProvider.setRoots([makeGui({ getGuiName: () => 'Dynamic' })]);
+        dataProvider.setRoots([makeGui({ getGuiName: () => 'Dynamic', getGuiId: () => 'd1' })]);
         changeListener?.();
 
-        expect(getHtml()).toContain('Dynamic');
+        const updates = getPostedMessages().filter(m => (m as HostToWebviewMessage).type === 'update');
+        expect(updates).toHaveLength(2);
+        expect(((updates[1] as HostToWebviewMessage & { rows: FlatRow[] }).rows[0].name)).toBe('Dynamic');
     });
 
-    it('skips rendering a node whose getGuiId returns undefined', () => {
+    it('skips a node whose getGuiId returns undefined', () => {
         const good = makeGui({ getGuiName: () => 'Good', getGuiId: () => 'ok' });
         const bad = makeGui({ getGuiName: () => 'Bad', getGuiId: () => undefined });
         dataProvider.setRoots([good, bad]);
 
-        const { view, getHtml } = makeMockWebviewView();
+        const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
 
-        const html = getHtml();
-        expect(html).toContain('Good');
-        expect(html).not.toContain('Bad');
+        const rows = getLastUpdateMessage()?.rows ?? [];
+        expect(rows.some(r => r.name === 'Good')).toBe(true);
+        expect(rows.some(r => r.name === 'Bad')).toBe(false);
     });
 
-    it('handles undefined name and value gracefully', () => {
+    it('uses empty string for missing name or value', () => {
         const nodeNameOnly = makeGui({
             getGuiName: () => 'OnlyName',
             getGuiValue: () => undefined,
@@ -371,42 +397,60 @@ describe('ComponentViewerWebviewProvider', () => {
             getGuiValue: () => 'OnlyValue',
             getGuiId: () => 'v1',
         });
+
+        dataProvider.setRoots([nodeNameOnly, nodeValueOnly]);
+
+        const { view, getLastUpdateMessage } = makeMockWebviewView();
+        webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+
+        const rows = getLastUpdateMessage()?.rows ?? [];
+        const nameOnlyRow = rows.find(r => r.id === 'n1');
+        const valueOnlyRow = rows.find(r => r.id === 'v1');
+
+        expect(nameOnlyRow?.name).toBe('OnlyName');
+        expect(nameOnlyRow?.value).toBe('');
+        expect(valueOnlyRow?.name).toBe('');
+        expect(valueOnlyRow?.value).toBe('OnlyValue');
+    });
+
+    it('includes a node with neither name nor value using its id', () => {
         const nodeNeither = makeGui({
             getGuiName: () => undefined,
             getGuiValue: () => undefined,
             getGuiId: () => 'e1',
         });
-        dataProvider.setRoots([nodeNameOnly, nodeValueOnly, nodeNeither]);
+        dataProvider.setRoots([nodeNeither]);
 
-        const { view, getHtml } = makeMockWebviewView();
+        const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
 
-        const html = getHtml();
-        expect(html).toContain('OnlyName');
-        expect(html).toContain('OnlyValue');
-        // Node with neither name nor value should still render (with empty tooltip)
-        expect(html).toContain('data-row-id="e1"');
+        const rows = getLastUpdateMessage()?.rows ?? [];
+        expect(rows.some(r => r.id === 'e1')).toBe(true);
     });
 
-    it('includes CSP meta tag in rendered HTML', () => {
+    it('includes the CSP meta tag in the HTML shell', () => {
         const { view, getHtml } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
         expect(getHtml()).toContain('Content-Security-Policy');
     });
 
-    it('escapes single quotes in HTML output', () => {
-        const node = makeGui({
-            getGuiName: () => 'it\'s',
-            getGuiValue: () => 'it\'s',
-            getGuiId: () => 'sq1',
+    it('marks expanded rows with expanded=true', () => {
+        const child = makeGui({ getGuiName: () => 'Child', getGuiId: () => 'c1' });
+        const parent = makeGui({
+            getGuiName: () => 'Parent',
+            getGuiId: () => 'p1',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [child],
         });
-        dataProvider.setRoots([node]);
+        dataProvider.setRoots([parent]);
+        dataProvider.setElementExpanded(parent, true);
 
-        const { view, getHtml } = makeMockWebviewView();
+        const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
 
-        const html = getHtml();
-        expect(html).toContain('it&#39;s');
-        expect(html).not.toContain('it\'s');
+        const rows = getLastUpdateMessage()?.rows ?? [];
+        const parentRow = rows.find(r => r.id === 'p1');
+        expect(parentRow?.expanded).toBe(true);
+        expect(parentRow?.hasChildren).toBe(true);
     });
 });
