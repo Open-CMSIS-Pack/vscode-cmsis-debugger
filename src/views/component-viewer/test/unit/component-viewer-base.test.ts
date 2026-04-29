@@ -883,4 +883,91 @@ describe('ComponentViewerBase', () => {
         await expect(handleExpandAll()).resolves.toBeUndefined();
         expect(provider.expandAllElements).toHaveBeenCalled();
     });
+
+    it('collapseAll command collapses all tree elements', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const collapseHandler = registerCommandMock.mock.calls.find(
+            ([command]) => command === 'vscode-cmsis-debugger.testClass.collapseAll'
+        )?.[1] as (() => void) | undefined;
+        expect(collapseHandler).toBeDefined();
+        collapseHandler?.();
+        expect(provider.collapseAllElements).toHaveBeenCalled();
+    });
+
+    it('webviewProvider onToggle callback calls toggleById on the tree data provider', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        const webviewProvider = (controller as unknown as { _webviewProvider: { onToggle: ((id: string, expanded: boolean) => void) | undefined } })._webviewProvider;
+        expect(webviewProvider).toBeDefined();
+        const toggleSpy = jest.spyOn(provider, 'toggleById');
+        webviewProvider!.onToggle?.('node-1', true);
+        expect(toggleSpy).toHaveBeenCalledWith('node-1', true);
+    });
+
+    it('webviewProvider onLock callback delegates to handleLockInstanceById', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        const webviewProvider = (controller as unknown as { _webviewProvider: { onLock: ((id: string) => void) | undefined } })._webviewProvider;
+        expect(webviewProvider).toBeDefined();
+        const root = makeGuiNode('my-node');
+        asMockedFunction(provider.getChildren as () => ScvdGuiInterface[]).mockReturnValue([root]);
+        const lockSpy = jest.spyOn(controller as unknown as { handleLockInstance: (node: ScvdGuiInterface) => void }, 'handleLockInstance');
+        webviewProvider!.onLock?.('my-node');
+        expect(lockSpy).toHaveBeenCalledWith(root);
+    });
+
+    it('handleOnWillStartSession registers a refresh callback on the session timer', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        const session = debugSessionFactory('s1', []);
+        await tracker.callbacks.willStart?.(session);
+        expect(session.refreshTimer.onRefresh).toHaveBeenCalled();
+    });
+
+    it('setSvdPath is called on instance when svdPath is provided', async () => {
+        const session = debugSessionFactory('s1', ['a.scvd'], 'stopped');
+        // Set definitionPath on the debug session configuration
+        (session.session as unknown as { configuration: { definitionPath: string } }).configuration = { definitionPath: '/path/to/device.svd' };
+        (controller as unknown as { _activeSession?: typeof session })._activeSession = session;
+
+        const setSvdPathSpy = jest.fn();
+        instanceFactory.mockImplementationOnce(() => ({
+            readModel: jest.fn().mockResolvedValue(undefined),
+            update: jest.fn().mockResolvedValue(undefined),
+            getGuiTree: jest.fn<ScvdGuiInterface[] | undefined, []>(() => []),
+            updateActiveSession: jest.fn(),
+            cancelExecution: jest.fn(),
+            setSvdPath: setSvdPathSpy,
+        }));
+
+        const readScvdFiles = getReadScvdFiles(controller);
+        await readScvdFiles(tracker, session);
+
+        expect(setSvdPathSpy).toHaveBeenCalledWith('/path/to/device.svd');
+    });
+
+    it('handleOnStackTrace throws when session id does not match active session', async () => {
+        const sessionA = debugSessionFactory('s1', [], 'stopped');
+        const sessionB = debugSessionFactory('s2', [], 'stopped');
+        (controller as unknown as { _activeSession?: typeof sessionA })._activeSession = sessionA;
+        const handleOnStackTrace = (controller as unknown as { handleOnStackTrace: (s: typeof sessionA) => Promise<void> }).handleOnStackTrace.bind(controller);
+        await expect(handleOnStackTrace(sessionB)).rejects.toThrow('Received stack trace event');
+    });
+
+    it('handleOnStackItemChanged throws when session id does not match active session', async () => {
+        const sessionA = debugSessionFactory('s1', [], 'stopped');
+        const sessionB = debugSessionFactory('s2', [], 'stopped');
+        (controller as unknown as { _activeSession?: typeof sessionA })._activeSession = sessionA;
+        const handleOnStackItemChanged = (controller as unknown as { handleOnStackItemChanged: (s: typeof sessionA) => Promise<void> }).handleOnStackItemChanged.bind(controller);
+        await expect(handleOnStackItemChanged(sessionB)).rejects.toThrow('Received stack item changed event');
+    });
+
+    it('onDidChangeActiveStackItem tracker callback delegates to handleOnStackItemChanged', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        const sessionA = debugSessionFactory('s1', [], 'stopped');
+        (controller as unknown as { _activeSession?: typeof sessionA })._activeSession = sessionA;
+        const scheduleSpy = jest
+            .spyOn(controller as unknown as { schedulePendingUpdate: (reason: UpdateReason) => void }, 'schedulePendingUpdate')
+            .mockImplementation(() => undefined);
+        await tracker.callbacks.activeStackItem?.({ session: sessionA });
+        expect(scheduleSpy).toHaveBeenCalledWith('stackItemChanged');
+    });
 });
