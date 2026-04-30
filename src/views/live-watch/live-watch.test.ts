@@ -240,6 +240,37 @@ describe('LiveWatchTreeDataProvider', () => {
             expect(vscode.env.clipboard.writeText).toHaveBeenCalledWith('myExpression');
         });
 
+        it('set root value and send a setExpression request to session and calls refresh right after', async () => {
+            const node = makeNode('myVar', { result: '1', variablesReference: 0 }, 1);
+            const refreshSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'refresh').mockResolvedValue('');
+            (liveWatchTreeDataProvider as any)._activeSession = {
+                session: {
+                    customRequest: jest.fn().mockResolvedValue({ result: '2', variablesReference: 0 })
+                },
+                evaluateGlobalExpression: jest.fn()
+            };
+            (vscode.window as any).showInputBox = jest.fn().mockResolvedValue('2');
+            await (liveWatchTreeDataProvider as any).handleSetValueCommand(node);
+            expect((liveWatchTreeDataProvider as any)._activeSession.session.customRequest).toHaveBeenCalledWith('setExpression', { expression: 'myVar', frameId: 0, value: '2' });
+            expect(refreshSpy).toHaveBeenCalled();
+        });
+
+        it('set child node value and send a setVariable request to session', async () => {
+            const parent = makeNode('parentVar', { result: '1', variablesReference: 123 }, 1);
+            const child = makeNode('childVar', { result: '1', variablesReference: 0 }, 2, parent);
+            const refreshSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'refresh').mockResolvedValue('');
+            (liveWatchTreeDataProvider as any)._activeSession = {
+                session: {
+                    customRequest: jest.fn().mockResolvedValue({ result: '2', variablesReference: 0 })
+                },
+                evaluateGlobalExpression: jest.fn()
+            };
+            (vscode.window as any).showInputBox = jest.fn().mockResolvedValue('2');
+            await (liveWatchTreeDataProvider as any).handleSetValueCommand(child);
+            expect((liveWatchTreeDataProvider as any)._activeSession.session.customRequest).toHaveBeenCalledWith('setVariable', { name: 'childVar', value: '2', variablesReference: 123 });
+            expect(refreshSpy).toHaveBeenCalled();
+        });
+
         it('AddFromSelection adds selected text as new live watch expression to roots', async () => {
             jest.spyOn(liveWatchTreeDataProvider as any, 'evaluate').mockResolvedValue({ result: '5678', variablesReference: 0 });
             // Mock the active text editor with fake range
@@ -333,18 +364,19 @@ describe('LiveWatchTreeDataProvider', () => {
         it('registers all live watch commands on activate', async () => {
             await liveWatchTreeDataProvider.activate(tracker);
             const calls = (vscode.commands.registerCommand as jest.Mock).mock.calls.map(call => call[0]);
-            expect(calls).toEqual(expect.arrayContaining([
+            expect(calls).toEqual([
                 'vscode-cmsis-debugger.liveWatch.add',
                 'vscode-cmsis-debugger.liveWatch.deleteAll',
                 'vscode-cmsis-debugger.liveWatch.delete',
                 'vscode-cmsis-debugger.liveWatch.refresh',
                 'vscode-cmsis-debugger.liveWatch.modify',
                 'vscode-cmsis-debugger.liveWatch.copy',
+                'vscode-cmsis-debugger.liveWatch.setValue',
                 'vscode-cmsis-debugger.liveWatch.addToLiveWatchFromTextEditor',
                 'vscode-cmsis-debugger.liveWatch.addToLiveWatchFromWatchWindow',
                 'vscode-cmsis-debugger.liveWatch.addToLiveWatchFromVariablesView',
                 'vscode-cmsis-debugger.liveWatch.showInMemoryInspector'
-            ]));
+            ]);
         });
 
         it('add command adds a node when expression provided', async () => {
