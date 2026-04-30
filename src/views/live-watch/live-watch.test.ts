@@ -490,6 +490,37 @@ describe('LiveWatchTreeDataProvider', () => {
             expect((liveWatchTreeDataProvider as any).roots.length).toBe(0);
         });
 
+        it('set value command calls handleSetValueCommand with node', async () => {
+            const node = makeNode('node', { result: '1', variablesReference: 0 }, 1);
+            const handleSetValueSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'handleSetValueCommand').mockResolvedValue('');
+            await liveWatchTreeDataProvider.activate(tracker);
+            // Simulate command invocation with node argument
+            const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.setValue');
+            expect(handler).toBeDefined();
+            await handler(node);
+            expect(handleSetValueSpy).toHaveBeenCalledWith(node);
+        });
+
+        it('set value command does nothing when node is undefined', async () => {
+            const handleSetValueSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'handleSetValueCommand').mockResolvedValue('');
+            await liveWatchTreeDataProvider.activate(tracker);
+            const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.setValue');
+            expect(handler).toBeDefined();
+            await handler(undefined);
+            expect(handleSetValueSpy).not.toHaveBeenCalled();
+        });
+
+        it('set value command does nothing when no new value provided', async () => {
+            const node = makeNode('node', { result: '1', variablesReference: 0 }, 1);
+            const handleSetValueSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'handleSetValueCommand').mockResolvedValue('');
+            (vscode.window as any).showInputBox = jest.fn().mockResolvedValue(undefined);
+            await liveWatchTreeDataProvider.activate(tracker);
+            const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.setValue');
+            expect(handler).toBeDefined();
+            await handler(node);
+            expect(handleSetValueSpy).not.toHaveBeenCalled();
+        });
+
         it('showInMemoryInspector command does nothing when node is undefined', async () => {
             await liveWatchTreeDataProvider.activate(tracker);
             const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.showInMemoryInspector');
