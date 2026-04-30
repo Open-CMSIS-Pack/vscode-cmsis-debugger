@@ -311,7 +311,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
                 frameId: frameId
             });
         }
-        await this.refresh(node);
+        this.refresh();
     }
 
     private async addToRoots(expression: string, parent?: LiveWatchNode) {
