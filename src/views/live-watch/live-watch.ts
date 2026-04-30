@@ -292,6 +292,10 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         if (!node) {
             return;
         }
+        if (!this._activeSession) {
+            vscode.window.showErrorMessage('No active debug session');
+            return;
+        }
         const newValue = await vscode.window.showInputBox({ prompt: 'New Value', value: node.value.result });
         if (newValue === undefined) {
             return;
@@ -311,7 +315,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
                 frameId: frameId
             });
         }
-        this.refresh();
+        await this.refresh();
     }
 
     private async addToRoots(expression: string, parent?: LiveWatchNode) {

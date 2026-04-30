@@ -271,6 +271,14 @@ describe('LiveWatchTreeDataProvider', () => {
             expect(refreshSpy).toHaveBeenCalled();
         });
 
+        it('should show error message when trying to set value with no active session', async () => {
+            const node = makeNode('node', { result: '1', variablesReference: 0 }, 1);
+            (liveWatchTreeDataProvider as any)._activeSession = undefined;
+            const showErrorMessageSpy = jest.spyOn(vscode.window, 'showErrorMessage').mockImplementation(undefined);
+            await (liveWatchTreeDataProvider as any).handleSetValueCommand(node);
+            expect(showErrorMessageSpy).toHaveBeenCalledWith('No active debug session');
+        });
+
         it('AddFromSelection adds selected text as new live watch expression to roots', async () => {
             jest.spyOn(liveWatchTreeDataProvider as any, 'evaluate').mockResolvedValue({ result: '5678', variablesReference: 0 });
             // Mock the active text editor with fake range
@@ -507,7 +515,7 @@ describe('LiveWatchTreeDataProvider', () => {
             const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.setValue');
             expect(handler).toBeDefined();
             await handler(undefined);
-            expect(handleSetValueSpy).not.toHaveBeenCalled();
+            expect(handleSetValueSpy).toHaveBeenCalled();
         });
 
         it('set value command does nothing when no new value provided', async () => {
@@ -518,7 +526,7 @@ describe('LiveWatchTreeDataProvider', () => {
             const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.setValue');
             expect(handler).toBeDefined();
             await handler(node);
-            expect(handleSetValueSpy).not.toHaveBeenCalled();
+            expect(handleSetValueSpy).toHaveBeenCalled();
         });
 
         it('showInMemoryInspector command does nothing when node is undefined', async () => {

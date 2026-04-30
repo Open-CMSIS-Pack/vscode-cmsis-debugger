@@ -484,7 +484,7 @@
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.setValue",
-          "when": "view == cmsis-debugger.liveWatch",
+          "when": "view == cmsis-debugger.liveWatch && inDebugMode",
           "group": "contextMenuG1@5"
         },
         {
