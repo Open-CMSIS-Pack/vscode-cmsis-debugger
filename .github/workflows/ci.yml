@@ -133,7 +133,7 @@ jobs:
 
       - name: Upload dist
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dist
           path: |
@@ -154,13 +154,13 @@ jobs:
           git commit -m "Update CHANGELOG.md after release [skip ci]"
           git push
 
-      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: runner.os == 'Linux'
         with:
           name: test-coverage
           path: ./coverage
 
-      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-report-${{ matrix.target }}
           path: ./test-report.html
@@ -222,7 +222,7 @@ jobs:
           npm run package -- --target ${{ matrix.target }}
 
       - name: Upload package
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: vscode-cmsis-debugger-${{ matrix.target }}
           path: ./*.vsix
