@@ -624,6 +624,6 @@
   "cmsis": {
     "pyocd": "pyocd/pyOCD@0.44.0",
     "pyocdNightly": "pyocd/pyOCD@nightly",
-    "gdb": "14.3.1"
+    "gdb": "15.2.1"
   }
 }
