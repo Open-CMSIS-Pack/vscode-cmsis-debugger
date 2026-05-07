@@ -7,7 +7,6 @@
     - Improves reset handling robustness for debug sequences.
     - Fixes error if additional access port is added to *.cbuild-run.yml [#972](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/972)
     - Fixes potential name clashes between default debug sequences and user-defined debug vars [#967](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/967)
-    - Cortex-M targets are no longer implicitly resumed after reset.
 
 ## 1.6.0
 
