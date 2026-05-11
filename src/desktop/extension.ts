@@ -85,6 +85,14 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
         canCompleteActivation = false;
     }
 
+    // Register reset dynamic view state command
+    context.subscriptions.push( vscode.commands.registerCommand("vscode-cmsis-debugger.resetDynamicViewState", async () => {
+            await Promise.all([
+                cpuStates.resetViewState(),
+            ]);
+        })
+    );
+
     if (!canCompleteActivation) {
         logger.debug('CMSIS Debugger activation incomplete');
         // Let promise float, we reload the window.

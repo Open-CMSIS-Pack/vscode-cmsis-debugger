@@ -43,16 +43,19 @@ interface SessionCpuStates {
     isRunning: boolean;
     hasStates: boolean|undefined;
     skipFrequencyUpdate: boolean;
+    enableCpuStatesFlag: boolean;
+    configStateKey: string;
 }
 
 export class CpuStates {
+    private static readonly SETTINGS_KEY = 'vscode-cmsis-debugger.cpuStates.viewState';
+
     // onRefresh event to notify GUI components of the cpu states updates (This is different than that of the periodic refresh timer)
     private readonly _onRefresh: vscode.EventEmitter<number> = new vscode.EventEmitter<number>();
     public readonly onRefresh: vscode.Event<number> = this._onRefresh.event;
 
     public activeSession: GDBTargetDebugSession | undefined;
     private sessionCpuStates: Map<string, SessionCpuStates> = new Map();
-    private enableCpuStatesFlag: boolean = true;
 
     public get activeCpuStates(): SessionCpuStates|undefined {
         if (!this.activeSession) {
@@ -80,7 +83,9 @@ export class CpuStates {
             statesHistory: new CpuStatesHistory(extractPname(session.session.name)),
             isRunning: true,
             hasStates: undefined,
-            skipFrequencyUpdate: false
+            skipFrequencyUpdate: false,
+            enableCpuStatesFlag: true,
+            configStateKey: session.session.configuration.name
         };
         this.sessionCpuStates.set(session.session.id, states);
         session.refreshTimer.onRefresh(async (refreshSession) => this.handlePeriodicRefresh(refreshSession));
@@ -95,6 +100,9 @@ export class CpuStates {
 
     protected handleActiveSessionChanged(session?: GDBTargetDebugSession): void {
         this.activeSession = session;
+        // Restore enabled/disabled state of CPU Time commands based on persisted settings
+        const enabled = session ? (this.sessionCpuStates.get(session.session.id)?.enableCpuStatesFlag ?? true) : false;
+        vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', enabled);
         this._onRefresh.fire(0);
     }
 
@@ -103,6 +111,13 @@ export class CpuStates {
         if (!cpuStates) {
             return;
         }
+        // cbuild-run is now parsed. Refine the key with the target-type prefix and restore the enabled/disabled state from settings.json
+        const cbuildRun = await session.getCbuildRun();
+        const targetType = cbuildRun?.getTargetType();
+        const configStateKey = targetType ? `${targetType}::${session.session.configuration.name}` : session.session.configuration.name;
+        const existingSettings = vscode.workspace.getConfiguration().get<Record<string, boolean>>(CpuStates.SETTINGS_KEY) ?? {};
+        cpuStates.configStateKey = configStateKey;
+        cpuStates.enableCpuStatesFlag = existingSettings[configStateKey] ?? true;
         // Following call might fail if target not stopped on connect, returns undefined
         // Retry on first Stopped Event.
         cpuStates.hasStates = await this.supportsCpuStates(session);
@@ -199,7 +214,7 @@ export class CpuStates {
         if (!states) {
             return;
         }
-        if (!this.enableCpuStatesFlag) {
+        if (!this.activeCpuStates?.enableCpuStatesFlag) {
             return;
         }
         const newCycles = await session.readMemoryU32(DWT_CYCCNT_ADDRESS);
@@ -326,14 +341,45 @@ export class CpuStates {
         this._onRefresh.fire(0);
     }
 
+    public get isEnabled(): boolean {
+        return this.activeCpuStates?.enableCpuStatesFlag ?? true;
+    }
+
     public async enableCpuStates(): Promise<void> {
-        this.enableCpuStatesFlag = true;
-        await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', this.enableCpuStatesFlag);
+        const cpuStates = this.activeCpuStates;
+        if (!cpuStates) {
+            return;
+        }
+        cpuStates.enableCpuStatesFlag = true;
+        const originalSettings = { ...(vscode.workspace.getConfiguration().get<Record<string, boolean>>(CpuStates.SETTINGS_KEY) ?? {}) };
+        delete originalSettings[cpuStates.configStateKey];
+        const valueToStore = Object.keys(originalSettings).length === 0 ? undefined : originalSettings;
+        await vscode.workspace.getConfiguration().update(CpuStates.SETTINGS_KEY, valueToStore, vscode.ConfigurationTarget.Workspace);
+        await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', cpuStates.enableCpuStatesFlag);
     }
 
     public async disableCpuStates(): Promise<void> {
-        this.enableCpuStatesFlag = false;
-        await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', this.enableCpuStatesFlag);
+        const cpuStates = this.activeCpuStates;
+        if (!cpuStates) {
+            return;
+        }
+        cpuStates.enableCpuStatesFlag = false;
+        const existingSettings = { ...(vscode.workspace.getConfiguration().get<Record<string, boolean>>(CpuStates.SETTINGS_KEY) ?? {}) };
+        existingSettings[cpuStates.configStateKey] = false;
+        await vscode.workspace.getConfiguration().update(CpuStates.SETTINGS_KEY, existingSettings, vscode.ConfigurationTarget.Workspace);
+        await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', cpuStates.enableCpuStatesFlag);
     }
 
+    public async resetViewState(): Promise<void> {
+        // Clear all persisted cpu states settings from both workspace/user settings.json
+        await Promise.all([
+            vscode.workspace.getConfiguration().update(CpuStates.SETTINGS_KEY, undefined, vscode.ConfigurationTarget.Workspace),
+            vscode.workspace.getConfiguration().update(CpuStates.SETTINGS_KEY, undefined, vscode.ConfigurationTarget.Global),
+        ]);
+        // Re-enable all active sessions in memory
+        for (const states of this.sessionCpuStates.values()) {
+            states.enableCpuStatesFlag = true;
+        }
+        vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', true);
+    }
 };

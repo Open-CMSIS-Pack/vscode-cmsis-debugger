@@ -75,6 +75,11 @@
     },
     "commands": [
       {
+        "command": "vscode-cmsis-debugger.resetDynamicViewState",
+        "title": "Reset All Dynamic View States",
+        "category": "CMSIS Debugger"
+      },
+      {
         "command": "vscode-cmsis-debugger.openDisassemblyView",
         "title": "Open Disassembly View",
         "category": "Run and Debug",
@@ -274,6 +279,10 @@
         }
       ],
       "commandPalette": [
+        {
+          "command": "vscode-cmsis-debugger.resetDynamicViewState",
+          "when": "true"
+        },
         {
           "command": "vscode-cmsis-debugger.openDisassemblyView",
           "when": "false"
@@ -546,7 +555,19 @@
           }
         }
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Arm CMSIS Debugger",
+      "properties": {
+        "vscode-cmsis-debugger.cpuStates.viewState": {
+          "type": "object",
+          "markdownDescription": "Persisted CPU time enable/disable state per debug configuration.",
+          "additionalProperties": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
   },
   "scripts": {
     "prepare": "npm run build",
