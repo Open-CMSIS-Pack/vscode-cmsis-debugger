@@ -443,13 +443,13 @@ describe('CpuStates', () => {
         it('enable cpu states sets enableCpuStates flag to true', async () => {
             cpuStates.activate(tracker);
             await cpuStates.enableCpuStates();
-            expect((cpuStates as unknown as { enableCpuStatesFlag: boolean }).enableCpuStatesFlag).toEqual(true);
+            expect(cpuStates.activeCpuStates?.enableCpuStatesFlag).toEqual(true);
         });
 
         it('disable cpu states sets enableCpuStates flag to false', async () => {
             cpuStates.activate(tracker);
             await cpuStates.disableCpuStates();
-            expect((cpuStates as unknown as { enableCpuStatesFlag: boolean }).enableCpuStatesFlag).toEqual(false);
+            expect(cpuStates.activeCpuStates?.enableCpuStatesFlag).toEqual(false);
         });
     });
 

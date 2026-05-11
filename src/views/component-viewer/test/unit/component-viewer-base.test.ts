@@ -303,7 +303,7 @@ describe('ComponentViewerBase', () => {
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         const session: Session = {
-            session: { id: 's1' },
+            session: { id: 's1', configuration: { name: 's1' } },
             getCbuildRun: async () => undefined,
             getPname: async () => undefined,
             refreshTimer: { onRefresh: jest.fn() },

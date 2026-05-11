@@ -30,6 +30,12 @@ const StatusBarAlignment = {
     Right: 2
 };
 
+const ConfigurationTarget = {
+    Global: 1,
+    Workspace: 2,
+    WorkspaceFolder: 3,
+};
+
 const MockTreeItemCollapsibleState = { 
     None: 0, 
     Collapsed: 1, 
@@ -117,6 +123,8 @@ module.exports = {
     workspace: {
         getConfiguration: jest.fn(() => ({
             get: jest.fn(),
+            update: jest.fn().mockResolvedValue(undefined),
+            inspect: jest.fn().mockReturnValue(undefined),
         })),
         fs: {
             readFile: jest.fn(uri => {
@@ -162,4 +170,5 @@ module.exports = {
     },
     EnvironmentVariableMutatorType,
     StatusBarAlignment,
+    ConfigurationTarget,
 };
