@@ -89,6 +89,8 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     context.subscriptions.push( vscode.commands.registerCommand("vscode-cmsis-debugger.resetDynamicViewState", async () => {
             await Promise.all([
                 cpuStates.resetViewState(),
+                componentViewer.resetViewState(),
+                corePeripherals.resetViewState(),
             ]);
         })
     );

@@ -115,9 +115,9 @@ export class CpuStates {
         const cbuildRun = await session.getCbuildRun();
         const targetType = cbuildRun?.getTargetType();
         const configStateKey = targetType ? `${targetType}::${session.session.configuration.name}` : session.session.configuration.name;
-        const existingSettings = vscode.workspace.getConfiguration().get<Record<string, boolean>>(CpuStates.SETTINGS_KEY) ?? {};
+        const storedStates = vscode.workspace.getConfiguration().get<Record<string, boolean>>(CpuStates.SETTINGS_KEY) ?? {};
         cpuStates.configStateKey = configStateKey;
-        cpuStates.enableCpuStatesFlag = existingSettings[configStateKey] ?? true;
+        cpuStates.enableCpuStatesFlag = storedStates[configStateKey] ?? true;
         // Following call might fail if target not stopped on connect, returns undefined
         // Retry on first Stopped Event.
         cpuStates.hasStates = await this.supportsCpuStates(session);
@@ -351,9 +351,9 @@ export class CpuStates {
             return;
         }
         cpuStates.enableCpuStatesFlag = true;
-        const originalSettings = { ...(vscode.workspace.getConfiguration().get<Record<string, boolean>>(CpuStates.SETTINGS_KEY) ?? {}) };
-        delete originalSettings[cpuStates.configStateKey];
-        const valueToStore = Object.keys(originalSettings).length === 0 ? undefined : originalSettings;
+        const statesToStore = { ...(vscode.workspace.getConfiguration().get<Record<string, boolean>>(CpuStates.SETTINGS_KEY) ?? {}) };
+        delete statesToStore[cpuStates.configStateKey];
+        const valueToStore = Object.keys(statesToStore).length === 0 ? undefined : statesToStore;
         await vscode.workspace.getConfiguration().update(CpuStates.SETTINGS_KEY, valueToStore, vscode.ConfigurationTarget.Workspace);
         await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', cpuStates.enableCpuStatesFlag);
     }
@@ -364,9 +364,9 @@ export class CpuStates {
             return;
         }
         cpuStates.enableCpuStatesFlag = false;
-        const existingSettings = { ...(vscode.workspace.getConfiguration().get<Record<string, boolean>>(CpuStates.SETTINGS_KEY) ?? {}) };
-        existingSettings[cpuStates.configStateKey] = false;
-        await vscode.workspace.getConfiguration().update(CpuStates.SETTINGS_KEY, existingSettings, vscode.ConfigurationTarget.Workspace);
+        const storedStates = { ...(vscode.workspace.getConfiguration().get<Record<string, boolean>>(CpuStates.SETTINGS_KEY) ?? {}) };
+        storedStates[cpuStates.configStateKey] = false;
+        await vscode.workspace.getConfiguration().update(CpuStates.SETTINGS_KEY, storedStates, vscode.ConfigurationTarget.Workspace);
         await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', cpuStates.enableCpuStatesFlag);
     }
 
@@ -381,5 +381,6 @@ export class CpuStates {
             states.enableCpuStatesFlag = true;
         }
         vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', true);
+        logger.info("CPU States: CPU Timer reset");
     }
 };
