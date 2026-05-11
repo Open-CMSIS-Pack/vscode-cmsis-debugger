@@ -351,8 +351,18 @@ export class CpuStates {
             return;
         }
         cpuStates.enableCpuStatesFlag = true;
-        const statesToStore = { ...(vscode.workspace.getConfiguration().get<Record<string, boolean>>(CpuStates.SETTINGS_KEY) ?? {}) };
-        delete statesToStore[cpuStates.configStateKey];
+
+        const inspection = vscode.workspace.getConfiguration().inspect<Record<string, boolean>>(CpuStates.SETTINGS_KEY);
+        const userState = inspection?.globalValue?.[cpuStates.configStateKey];
+        const statesToStore = { ...(inspection?.workspaceValue ?? {}) };
+        // If User settings disable CPU states but this Workspace/session enables them,
+        // write true explicitly so the User value does not bleed through.
+        if (userState === false) {
+            statesToStore[cpuStates.configStateKey] = true;
+        } else {
+            delete statesToStore[cpuStates.configStateKey];
+        }
+        
         const valueToStore = Object.keys(statesToStore).length === 0 ? undefined : statesToStore;
         await vscode.workspace.getConfiguration().update(CpuStates.SETTINGS_KEY, valueToStore, vscode.ConfigurationTarget.Workspace);
         await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', cpuStates.enableCpuStatesFlag);
