@@ -30,12 +30,13 @@ export function readDynamicViewState(settingsKey: string, configStateKey: string
     if (globalState === undefined && workspaceState === undefined) {
         return undefined;
     }
-    // User state provides defaults; Workspace state overrides only the properties it defines.
+    // 'User' state provides defaults; 'Workspace' state overrides only the properties it defines.
     return { ...globalState, ...workspaceState, };
 }
 
 export async function writeDynamicViewState(settingsKey: string, configStateKey: string, state: DynamicViewState): Promise<void> {
-    const statesToStore = { ...(vscode.workspace.getConfiguration().get<DynamicViewStateByConfig>(settingsKey) ?? {}) };
+    const inspection = vscode.workspace.getConfiguration().inspect<DynamicViewStateByConfig>(settingsKey);
+    const statesToStore = { ...(inspection?.workspaceValue ?? {}) };
     if (Object.keys(state).length === 0) {
         delete statesToStore[configStateKey];
     } else {

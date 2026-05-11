@@ -115,9 +115,11 @@ export class CpuStates {
         const cbuildRun = await session.getCbuildRun();
         const targetType = cbuildRun?.getTargetType();
         const configStateKey = targetType ? `${targetType}::${session.session.configuration.name}` : session.session.configuration.name;
-        const storedStates = vscode.workspace.getConfiguration().get<Record<string, boolean>>(CpuStates.SETTINGS_KEY) ?? {};
+        const inspection = vscode.workspace.getConfiguration().inspect<Record<string, boolean>>(CpuStates.SETTINGS_KEY);
+        // Merge 'User' and 'Workspace' levels — workspace takes precedence.
+        const mergedStates = { ...(inspection?.globalValue ?? {}), ...(inspection?.workspaceValue ?? {}) };
         cpuStates.configStateKey = configStateKey;
-        cpuStates.enableCpuStatesFlag = storedStates[configStateKey] ?? true;
+        cpuStates.enableCpuStatesFlag = mergedStates[configStateKey] ?? true;
         // Following call might fail if target not stopped on connect, returns undefined
         // Retry on first Stopped Event.
         cpuStates.hasStates = await this.supportsCpuStates(session);
@@ -374,7 +376,8 @@ export class CpuStates {
             return;
         }
         cpuStates.enableCpuStatesFlag = false;
-        const storedStates = { ...(vscode.workspace.getConfiguration().get<Record<string, boolean>>(CpuStates.SETTINGS_KEY) ?? {}) };
+        const inspection = vscode.workspace.getConfiguration().inspect<Record<string, boolean>>(CpuStates.SETTINGS_KEY);
+        const storedStates = { ...(inspection?.workspaceValue ?? {}) };
         storedStates[cpuStates.configStateKey] = false;
         await vscode.workspace.getConfiguration().update(CpuStates.SETTINGS_KEY, storedStates, vscode.ConfigurationTarget.Workspace);
         await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', cpuStates.enableCpuStatesFlag);
