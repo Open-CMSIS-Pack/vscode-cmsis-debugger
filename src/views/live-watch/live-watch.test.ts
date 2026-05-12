@@ -112,6 +112,23 @@ describe('LiveWatchTreeDataProvider', () => {
             expect(saveSpy).toHaveBeenCalled();
         });
 
+        it('clears highlighted labels before saving on session stop', async () => {
+            await liveWatchTreeDataProvider.activate(tracker);
+            // Activate session and set up nodes with highlights
+            (tracker as any)._onDidChangeActiveDebugSession.fire(gdbtargetDebugSession);
+            const node = makeNode('myVar', {
+                result: 'value',
+                variablesReference: 0,
+                highlightedLabel: { label: 'myVar = ', highlights: [[0, 5]] }
+            }, 1);
+            (liveWatchTreeDataProvider as any).roots = [node];
+            // Stop session triggers save
+            (tracker as any)._onWillStopSession.fire(gdbtargetDebugSession);
+            // Allow async handlers to complete
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(node.value.highlightedLabel).toEqual({ label: 'myVar = ' });
+        });
+
         it('reassigns IDs sequentially for restored nodes on construction', () => {
             const storedNodes = [
                 { id: 5, expression: 'expression1', value: 'some-value', parent: undefined },

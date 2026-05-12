@@ -358,6 +358,10 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
     }
 
     private async save() {
+        // Clear highlighted labels before saving, as they are only relevant for the current state of the tree and can cause confusion when reloading
+        for (const node of this.roots) {
+            node.value.highlightedLabel = { label: node.expression + ' = ' };
+        }
         await this.context.workspaceState.update(this.STORAGE_KEY, this.roots);
     }
 }
