@@ -490,12 +490,12 @@
         },
         {
           "command": "cdt.debug.setOutputRadixToDecimal",
-          "when": "(view == cmsis-debugger.liveWatch) && inDebugMode && cdt.debug.outputRadix != 'decimal' && (debugType == gdb || debugType == gdbtarget)",
+          "when": "(view == cmsis-debugger.liveWatch) && inDebugMode && cdt.debug.outputRadix && cdt.debug.outputRadix != 'decimal' && (debugType == 'gdb' || debugType == 'gdbtarget')",
           "group": "contextMenuG4@1"
         },
         {
           "command": "cdt.debug.setOutputRadixToHex",
-          "when": "(view == cmsis-debugger.liveWatch) && inDebugMode && cdt.debug.outputRadix != 'hexadecimal' && (debugType == gdb || debugType == gdbtarget)",
+          "when": "(view == cmsis-debugger.liveWatch) && inDebugMode && cdt.debug.outputRadix && cdt.debug.outputRadix != 'hexadecimal' && (debugType == 'gdb' || debugType == 'gdbtarget')",
           "group": "contextMenuG4@2"
         },
         {
