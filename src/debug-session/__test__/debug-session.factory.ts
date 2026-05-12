@@ -93,7 +93,7 @@ export const debugSessionFactory = (
     } : undefined;
     return {
         session: { id, configuration: { name: id } },
-        getCbuildRun: async () => cbuildRunMock,
+        getCbuildRun: jest.fn().mockResolvedValue(cbuildRunMock),
         getPname: async () => pname,
         refreshTimer: {
             onRefresh: jest.fn(),
