@@ -33,6 +33,7 @@ export interface LiveWatchValue {
     variablesReference: number;
     type?: string;
     evaluateName?: string;
+    highlightedLabel?: vscode.TreeItemLabel;
 }
 
 export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWatchNode> {
@@ -83,7 +84,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
     }
 
     public getTreeItem(element: LiveWatchNode): vscode.TreeItem {
-        const item = new vscode.TreeItem(element.expression + ' = ');
+        const item = new vscode.TreeItem(element.value.highlightedLabel ?? element.expression + ' = ');
         item.description = element.value.result;
         item.tooltip = element.value.type ?? '';
         item.collapsibleState = element.value.variablesReference !== 0 ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None;
@@ -267,7 +268,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         await vscode.commands.executeCommand('memory-inspector.show-variable', args);
     }
 
-    private async evaluate(expression: string): Promise<LiveWatchValue> {
+    private async evaluateInitialExpression(expression: string): Promise<LiveWatchValue> {
         const response: LiveWatchValue = { result: '', variablesReference: 0 };
         if (!this._activeSession) {
             response.result = 'No active session';
@@ -284,6 +285,29 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         return response;
     }
 
+    private async evaluateNodeExpression(node: LiveWatchNode): Promise<LiveWatchValue> {
+        if (!this._activeSession) {
+            node.value.result = 'No active session';
+            return node.value;
+        }
+        const result = await this._activeSession.evaluateGlobalExpression(node.expression, 'watch');
+        if (typeof result == 'string') {
+            node.value.result = result;
+            node.value.highlightedLabel = {label: node.expression + ' = ', highlights: [[0, node.expression.length]]};
+            return node.value;
+        }
+        // Highlight label if value has changed
+        if (node.value.result !== result.result) {
+            node.value.highlightedLabel = {label: node.expression + ' = ', highlights: [[0, node.expression.length]]};
+        } else {
+            node.value.highlightedLabel = {label: node.expression + ' = '};
+        }
+        node.value.result = result.result;
+        node.value.variablesReference = result.variablesReference;
+        node.value.type = result.type ?? '';
+        return node.value;
+    }
+
     private async addToRoots(expression: string, parent?: LiveWatchNode) {
         // Create a new node with a unique ID and evaluate its value
         const newNode: LiveWatchNode = {
@@ -291,7 +315,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             children: [],
             expression,
             parent: parent ?? undefined,
-            value: await this.evaluate(expression)
+            value: await this.evaluateInitialExpression(expression)
         };
 
         if (!parent) {
@@ -323,12 +347,12 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
 
     private async refresh(node?: LiveWatchNode) {
         if (node) {
-            node.value = await this.evaluate(node.expression);
+            node.value = await this.evaluateNodeExpression(node);
             this._onDidChangeTreeData.fire(node);
             return;
         }
         for (const node of this.roots) {
-            node.value = await this.evaluate(node.expression);
+            node.value = await this.evaluateNodeExpression(node);
         }
         this._onDidChangeTreeData.fire();
     }
