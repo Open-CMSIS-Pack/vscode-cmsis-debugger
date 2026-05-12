@@ -293,14 +293,14 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const result = await this._activeSession.evaluateGlobalExpression(node.expression, 'watch');
         if (typeof result == 'string') {
             node.value.result = result;
-            node.value.highlightedLabel = {label: node.expression + ' = ', highlights: [[0, node.expression.length]]};
+            node.value.highlightedLabel = { label: node.expression + ' = ', highlights: [[0, node.expression.length]] };
             return node.value;
         }
         // Highlight label if value has changed
         if (node.value.result !== result.result) {
-            node.value.highlightedLabel = {label: node.expression + ' = ', highlights: [[0, node.expression.length]]};
+            node.value.highlightedLabel = { label: node.expression + ' = ', highlights: [[0, node.expression.length]] };
         } else {
-            node.value.highlightedLabel = {label: node.expression + ' = '};
+            node.value.highlightedLabel = { label: node.expression + ' = ' };
         }
         node.value.result = result.result;
         node.value.variablesReference = result.variablesReference;
