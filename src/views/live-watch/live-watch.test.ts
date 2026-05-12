@@ -378,8 +378,14 @@ describe('LiveWatchTreeDataProvider', () => {
 
         it('add command adds a node when expression provided', async () => {
             (vscode.window as any).showInputBox = jest.fn().mockResolvedValue('expression');
-            const evaluateSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'evaluateInitialExpression').mockResolvedValue('someValue');
-            jest.spyOn(liveWatchTreeDataProvider as any, 'evaluateNodeExpression').mockResolvedValue('someValue');
+            const evaluatedValue = {
+                result: 'someValue',
+                variablesReference: 0
+            } as LiveWatchValue;
+            const evaluateSpy = jest
+                .spyOn(liveWatchTreeDataProvider as any, 'evaluateInitialExpression')
+                .mockResolvedValue(evaluatedValue);
+            jest.spyOn(liveWatchTreeDataProvider as any, 'evaluateNodeExpression').mockResolvedValue(evaluatedValue);
             await liveWatchTreeDataProvider.activate(tracker);
             const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.add');
             expect(handler).toBeDefined();
