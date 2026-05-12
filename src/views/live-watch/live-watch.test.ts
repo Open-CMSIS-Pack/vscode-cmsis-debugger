@@ -562,5 +562,21 @@ describe('LiveWatchTreeDataProvider', () => {
             expect(evalResult.variablesReference).toBe(1234);
         });
     });
+
+    describe('evaluateNodeExpression', () => {
+        it('highlights and returns node value when session returns a string error', async () => {
+            const node = makeNode('myVar', { result: 'prev', variablesReference: 0 }, 1);
+            (liveWatchTreeDataProvider as any)._activeSession = {
+                evaluateGlobalExpression: jest.fn().mockResolvedValue('error-message'),
+                session: {}
+            };
+            const evalResult = await (liveWatchTreeDataProvider as any).evaluateNodeExpression(node);
+            expect(evalResult.result).toBe('error-message');
+            expect(evalResult.highlightedLabel).toEqual({
+                label: 'myVar = ',
+                highlights: [[0, 5]]
+            });
+        });
+    });
 });
 /* eslint-enable @typescript-eslint/no-explicit-any */
