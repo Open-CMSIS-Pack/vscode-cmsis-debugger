@@ -22,6 +22,7 @@ export type OnRefreshCallback = (session: Session) => void;
 export type Session = {
     session: { id: string; configuration?: { name: string } };
     getCbuildRun: () => Promise<{ getScvdFilePaths: () => string[]; getTargetType: () => string | undefined } | undefined>;
+    getConfigStateKey: () => Promise<string>;
     getPname: () => Promise<string | undefined>;
     refreshTimer: { onRefresh: (cb: OnRefreshCallback) => void };
     targetState?: TargetState;
@@ -94,6 +95,7 @@ export const debugSessionFactory = (
     return {
         session: { id, configuration: { name: id } },
         getCbuildRun: jest.fn().mockResolvedValue(cbuildRunMock),
+        getConfigStateKey: jest.fn().mockResolvedValue(id),
         getPname: async () => pname,
         refreshTimer: {
             onRefresh: jest.fn(),

@@ -183,6 +183,7 @@ describe('ComponentViewerBase', () => {
         const sessionNoReader: Session = {
             session: { id: 's1' },
             getCbuildRun: async () => undefined,
+            getConfigStateKey: async () => 's1',
             getPname: async () => undefined,
             refreshTimer: { onRefresh: jest.fn() },
         };
@@ -305,6 +306,7 @@ describe('ComponentViewerBase', () => {
         const session: Session = {
             session: { id: 's1', configuration: { name: 's1' } },
             getCbuildRun: async () => undefined,
+            getConfigStateKey: async () => 's1',
             getPname: async () => undefined,
             refreshTimer: { onRefresh: jest.fn() },
         };
@@ -1077,10 +1079,7 @@ describe('ComponentViewerBase', () => {
 
         it('saveCurrentState uses target-type prefix in the configStateKey', async () => {
             const session = debugSessionFactory('s1');
-            (session.getCbuildRun as jest.Mock).mockResolvedValue({
-                getTargetType: () => 'My-Target',
-                getScvdFilePaths: () => [],
-            });
+            (session.getConfigStateKey as jest.Mock).mockResolvedValue('My-Target::s1');
             (controller as unknown as { _activeSession?: Session })._activeSession = session;
             (controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled = false;
             const updateMock = jest.fn().mockResolvedValue(undefined);

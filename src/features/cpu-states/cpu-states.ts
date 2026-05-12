@@ -27,6 +27,7 @@ import { CpuStatesHistory } from './cpu-states-history';
 import { calculateTime, extractPname } from '../../utils';
 import { GDBTargetConfiguration } from '../../debug-configuration';
 import { logger } from '../../logger';
+import {clearAllCpuStatesState, readCpuStatesEnabled, writeCpuStatesEnabled} from '../../views/dynamic-view-states';
 
 // Architecturally defined registers (M-profile)
 const DWT_CTRL_ADDRESS = 0xE0001000;
@@ -111,15 +112,10 @@ export class CpuStates {
         if (!cpuStates) {
             return;
         }
-        // cbuild-run is now parsed. Refine the key with the target-type prefix and restore the enabled/disabled state from settings.json
-        const cbuildRun = await session.getCbuildRun();
-        const targetType = cbuildRun?.getTargetType();
-        const configStateKey = targetType ? `${targetType}::${session.session.configuration.name}` : session.session.configuration.name;
-        const inspection = vscode.workspace.getConfiguration().inspect<Record<string, boolean>>(CpuStates.SETTINGS_KEY);
-        // Merge 'User' and 'Workspace' levels — workspace takes precedence.
-        const mergedStates = { ...(inspection?.globalValue ?? {}), ...(inspection?.workspaceValue ?? {}) };
+        // Refine the key with the target-type prefix and restore the enabled/disabled state from settings.json
+        const configStateKey = await session.getConfigStateKey();
         cpuStates.configStateKey = configStateKey;
-        cpuStates.enableCpuStatesFlag = mergedStates[configStateKey] ?? true;
+        cpuStates.enableCpuStatesFlag = readCpuStatesEnabled(CpuStates.SETTINGS_KEY, configStateKey) ?? true;
         // Following call might fail if target not stopped on connect, returns undefined
         // Retry on first Stopped Event.
         cpuStates.hasStates = await this.supportsCpuStates(session);
@@ -353,20 +349,7 @@ export class CpuStates {
             return;
         }
         cpuStates.enableCpuStatesFlag = true;
-
-        const inspection = vscode.workspace.getConfiguration().inspect<Record<string, boolean>>(CpuStates.SETTINGS_KEY);
-        const userState = inspection?.globalValue?.[cpuStates.configStateKey];
-        const statesToStore = { ...(inspection?.workspaceValue ?? {}) };
-        // If User settings disable CPU states but this Workspace/session enables them,
-        // write true explicitly so the User value does not bleed through.
-        if (userState === false) {
-            statesToStore[cpuStates.configStateKey] = true;
-        } else {
-            delete statesToStore[cpuStates.configStateKey];
-        }
-        
-        const valueToStore = Object.keys(statesToStore).length === 0 ? undefined : statesToStore;
-        await vscode.workspace.getConfiguration().update(CpuStates.SETTINGS_KEY, valueToStore, vscode.ConfigurationTarget.Workspace);
+        await writeCpuStatesEnabled(CpuStates.SETTINGS_KEY, cpuStates.configStateKey, cpuStates.enableCpuStatesFlag);
         await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', cpuStates.enableCpuStatesFlag);
     }
 
@@ -376,19 +359,13 @@ export class CpuStates {
             return;
         }
         cpuStates.enableCpuStatesFlag = false;
-        const inspection = vscode.workspace.getConfiguration().inspect<Record<string, boolean>>(CpuStates.SETTINGS_KEY);
-        const storedStates = { ...(inspection?.workspaceValue ?? {}) };
-        storedStates[cpuStates.configStateKey] = false;
-        await vscode.workspace.getConfiguration().update(CpuStates.SETTINGS_KEY, storedStates, vscode.ConfigurationTarget.Workspace);
+        await writeCpuStatesEnabled(CpuStates.SETTINGS_KEY, cpuStates.configStateKey, cpuStates.enableCpuStatesFlag);
         await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', cpuStates.enableCpuStatesFlag);
     }
 
     public async resetViewState(): Promise<void> {
         // Clear all persisted cpu states settings from both workspace/user settings.json
-        await Promise.all([
-            vscode.workspace.getConfiguration().update(CpuStates.SETTINGS_KEY, undefined, vscode.ConfigurationTarget.Workspace),
-            vscode.workspace.getConfiguration().update(CpuStates.SETTINGS_KEY, undefined, vscode.ConfigurationTarget.Global),
-        ]);
+        await clearAllCpuStatesState([CpuStates.SETTINGS_KEY]);
         // Re-enable all active sessions in memory
         for (const states of this.sessionCpuStates.values()) {
             states.enableCpuStatesFlag = true;

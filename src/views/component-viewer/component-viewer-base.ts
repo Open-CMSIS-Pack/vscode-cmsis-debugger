@@ -25,7 +25,7 @@ import { perf, parsePerf } from './stats-config';
 import { vscodeViewExists } from '../../vscode-utils';
 import { EXTENSION_NAME, VIEW_PREFIX } from '../../manifest';
 import { ExtendedGDBTargetConfiguration } from '../../debug-configuration/gdbtarget-configuration';
-import { readDynamicViewState, writeDynamicViewState, clearAllDynamicViewState, DynamicViewState, DynamicViewStateByConfig } from './dynamic-view-settings';
+import { readComponentViewerState, writeComponentViewerState, clearAllComponentViewerState } from '../dynamic-view-states';
 
 export interface ScvdCollector {
     getScvdFilePaths(session: GDBTargetDebugSession): Promise<string[]>;
@@ -534,39 +534,23 @@ export class ComponentViewerBase {
         return `${EXTENSION_NAME}.${this._viewId}.viewState`;
     }
 
-    private async sessionStateKey(session: GDBTargetDebugSession): Promise<string> {
-        const cbuildRun = await session.getCbuildRun();
-        const targetType = cbuildRun?.getTargetType();
-        const configName = session.session.configuration.name;
-        return targetType ? `${targetType}::${configName}` : configName;
-    }
-
     private async saveCurrentState(): Promise<void> {
         if (!this._activeSession) {
             return;
         }
-        const configStateKey = await this.sessionStateKey(this._activeSession);
+        const configStateKey = await this._activeSession.getConfigStateKey();
         const filterPattern = this._componentViewerTreeDataProvider.filterPattern;
-        // If User settings disable periodicUpdate update but this Workspace/session enables it,
-        // write true explicitly so the User value does not bleed through.
-        const inspection = vscode.workspace.getConfiguration().inspect<DynamicViewStateByConfig>(this._settingsKey);
-        const userState = inspection?.globalValue?.[configStateKey];
-        const needsExplicitPeriodicUpdate = this._refreshTimerEnabled && userState?.periodicUpdateEnabled === false;
-        const state: DynamicViewState = {
-            ...(!this._refreshTimerEnabled || needsExplicitPeriodicUpdate ? { periodicUpdateEnabled: this._refreshTimerEnabled } : {}),
-            ...(filterPattern !== undefined ? { filterPattern } : {}),
-        };
-        await writeDynamicViewState(this._settingsKey, configStateKey, state);
+        await writeComponentViewerState( this._settingsKey, configStateKey, this._refreshTimerEnabled, filterPattern);
     }
 
     private async restorePeriodicUpdateAndFilter(session: GDBTargetDebugSession): Promise<void> {
-        // Always reset to defaults before applying saved state to prevent state leaking between sessions
+        // Always reset to defaults before applying saved state to prevent state leaking while switching sessions
         this._refreshTimerEnabled = true;
         vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
         this._componentViewerTreeDataProvider.setFilter(undefined);
         vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, false);
 
-        const state = readDynamicViewState(this._settingsKey, await this.sessionStateKey(session));
+        const state = readComponentViewerState(this._settingsKey, await session.getConfigStateKey());
         if (!state) {
             return;
         }
@@ -584,7 +568,7 @@ export class ComponentViewerBase {
 
     public async resetViewState(): Promise<void> {
         // Clear persisted settings
-        await clearAllDynamicViewState([this._settingsKey]);
+        await clearAllComponentViewerState([this._settingsKey]);
         // Reset in-memory state to defaults
         this._refreshTimerEnabled = true;
         vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
