@@ -47,6 +47,15 @@ class MockTreeItem {
     }
 }
 
+class MockRange {
+    start;
+    end;
+    constructor(startLine, startCharacter, endLine, endCharacter) {
+        this.start = { line: startLine, character: startCharacter };
+        this.end = { line: endLine, character: endCharacter };
+    }
+}
+
 module.exports = {
     EventEmitter: jest.fn(() => {
         const callbacks = [];
@@ -60,6 +69,7 @@ module.exports = {
         };
     }),
     Uri: URI,
+    Range: MockRange,
     TreeItem: MockTreeItem,
     TreeItemCollapsibleState: MockTreeItemCollapsibleState,
     window: {
@@ -86,6 +96,8 @@ module.exports = {
             reveal: jest.fn().mockResolvedValue(undefined),
         })),
         registerTreeDataProvider: jest.fn(() => ({ dispose: jest.fn() })),
+        createTextEditorDecorationType: jest.fn(() => ({ dispose: jest.fn() })),
+        onDidChangeActiveTextEditor: jest.fn(() => ({ dispose: jest.fn() })),
         showErrorMessage: jest.fn(),
         showInformationMessage: jest.fn(() => Promise.resolve(undefined)),
         showWarningMessage: jest.fn(),

@@ -27,6 +27,7 @@ import { GenericCommands } from '../features/generic-commands';
 import { ComponentViewer } from '../views/component-viewer/component-viewer';
 import { ComponentViewerTreeDataProvider } from '../views/component-viewer/component-viewer-tree-view';
 import { CorePeripherals } from '../views/core-peripherals/core-peripherals';
+import { SourceFileHighlighting } from '../features/source-file-highlighting/source-file-highlighting';
 
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
@@ -58,6 +59,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     corePeripheralsTreeDataProvider = new ComponentViewerTreeDataProvider();
     const componentViewer = new ComponentViewer(context, componentViewerTreeDataProvider);
     const corePeripherals = new CorePeripherals(context, corePeripheralsTreeDataProvider);
+    const sourceFileHighlighting = new SourceFileHighlighting(context);
 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);
     // Activate generic commands
@@ -69,6 +71,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     cpuStates.activate(gdbtargetDebugTracker);
     cpuStatesCommands.activate(context, cpuStates);
     cpuStatesStatusBarItem.activate(context, cpuStates);
+    sourceFileHighlighting.activate();
     // Live Watch view
     logger.debug('Activating Live Watch Tree Data Provider');
     if (!await liveWatchTreeDataProvider.activate(gdbtargetDebugTracker)) {
