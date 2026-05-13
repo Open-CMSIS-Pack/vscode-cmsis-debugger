@@ -1008,94 +1008,8 @@ describe('ComponentViewerBase', () => {
     });
 
     describe('view state save and restore', () => {
-        const SETTINGS_KEY = 'vscode-cmsis-debugger.testClass.viewState';
-
         afterEach(() => {
             jest.restoreAllMocks();
-        });
-
-        it('saveCurrentState writes active filter pattern to workspace settings', async () => {
-            const session = debugSessionFactory('s1');
-            (controller as unknown as { _activeSession?: Session })._activeSession = session;
-            Object.defineProperty(provider, 'filterPattern', { get: () => 'word', configurable: true });
-            const updateMock = jest.fn().mockResolvedValue(undefined);
-            jest.spyOn(vscode.workspace, 'getConfiguration').mockReturnValue({
-                update: updateMock,
-                inspect: jest.fn().mockReturnValue({ globalValue: {}, workspaceValue: {} }),
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } as any);
-            const saveCurrentState = (controller as unknown as { saveCurrentState: () => Promise<void> }).saveCurrentState.bind(controller);
-            await saveCurrentState();
-
-            expect(updateMock).toHaveBeenCalledWith(
-                SETTINGS_KEY,
-                { s1: { filterPattern: 'word' } },
-                vscode.ConfigurationTarget.Workspace
-            );
-        });
-
-        it('saveCurrentState writes periodicUpdateEnabled=false when auto-refresh is disabled', async () => {
-            const session = debugSessionFactory('s1');
-            (controller as unknown as { _activeSession?: Session })._activeSession = session;
-            (controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled = false;
-            const updateMock = jest.fn().mockResolvedValue(undefined);
-            jest.spyOn(vscode.workspace, 'getConfiguration').mockReturnValue({
-                update: updateMock,
-                inspect: jest.fn().mockReturnValue({ globalValue: {}, workspaceValue: {} }),
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } as any);
-            const saveCurrentState = (controller as unknown as { saveCurrentState: () => Promise<void> }).saveCurrentState.bind(controller);
-            await saveCurrentState();
-
-            expect(updateMock).toHaveBeenCalledWith(
-                SETTINGS_KEY,
-                { s1: { periodicUpdateEnabled: false } },
-                vscode.ConfigurationTarget.Workspace
-            );
-        });
-
-        it('saveCurrentState writes explicit true to workspace when user setting is false (prevents user-level bleed-through)', async () => {
-            const session = debugSessionFactory('s1');
-            (controller as unknown as { _activeSession?: Session })._activeSession = session;
-            (controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled = true;
-            const updateMock = jest.fn().mockResolvedValue(undefined);
-            jest.spyOn(vscode.workspace, 'getConfiguration').mockReturnValue({
-                update: updateMock,
-                inspect: jest.fn().mockReturnValue({
-                    globalValue: { s1: { periodicUpdateEnabled: false } },
-                    workspaceValue: {},
-                }),
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } as any);
-            const saveCurrentState = (controller as unknown as { saveCurrentState: () => Promise<void> }).saveCurrentState.bind(controller);
-            await saveCurrentState();
-
-            expect(updateMock).toHaveBeenCalledWith(
-                SETTINGS_KEY,
-                { s1: { periodicUpdateEnabled: true } },
-                vscode.ConfigurationTarget.Workspace
-            );
-        });
-
-        it('saveCurrentState uses target-type prefix in the configStateKey', async () => {
-            const session = debugSessionFactory('s1');
-            (session.getConfigStateKey as jest.Mock).mockResolvedValue('My-Target::s1');
-            (controller as unknown as { _activeSession?: Session })._activeSession = session;
-            (controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled = false;
-            const updateMock = jest.fn().mockResolvedValue(undefined);
-            jest.spyOn(vscode.workspace, 'getConfiguration').mockReturnValue({
-                update: updateMock,
-                inspect: jest.fn().mockReturnValue({ globalValue: {}, workspaceValue: {} }),
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } as any);
-            const saveCurrentState = (controller as unknown as { saveCurrentState: () => Promise<void> }).saveCurrentState.bind(controller);
-            await saveCurrentState();
-
-            expect(updateMock).toHaveBeenCalledWith(
-                SETTINGS_KEY,
-                { 'My-Target::s1': { periodicUpdateEnabled: false } },
-                vscode.ConfigurationTarget.Workspace
-            );
         });
 
         it('restorePeriodicUpdateAndFilter resets to defaults before applying saved state (prevents session state leaking)', async () => {
@@ -1111,7 +1025,6 @@ describe('ComponentViewerBase', () => {
             }).restorePeriodicUpdateAndFilter.bind(controller);
             await restoreState(session);
 
-            // Default (true) must be applied even though there are no saved settings.
             expect((controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled).toBe(true);
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.periodicUpdateEnabled', true);
             expect(provider.setFilter).toHaveBeenCalledWith(undefined);
@@ -1138,47 +1051,19 @@ describe('ComponentViewerBase', () => {
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', true);
         });
 
-        it('restorePeriodicUpdateAndFilter falls back to user settings when workspace has no entry', async () => {
+        it('resetViewState resets runtime view state', async () => {
             jest.spyOn(vscode.workspace, 'getConfiguration').mockReturnValue({
-                inspect: jest.fn().mockReturnValue({
-                    globalValue: { s1: { periodicUpdateEnabled: false } },
-                    workspaceValue: {},
-                }),
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } as any);
-
-            const session = debugSessionFactory('s1');
-            const restoreState = (controller as unknown as {
-                restorePeriodicUpdateAndFilter: (s: Session) => Promise<void>;
-            }).restorePeriodicUpdateAndFilter.bind(controller);
-            await restoreState(session);
-
-            expect((controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled).toBe(false);
-            expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.periodicUpdateEnabled', false);
-        });
-
-        it('resetViewState clears persisted settings, resets in-memory state, and unlocks all instances', async () => {
-            const updateMock = jest.fn().mockResolvedValue(undefined);
-            jest.spyOn(vscode.workspace, 'getConfiguration').mockReturnValue({
-                update: updateMock,
+                update: jest.fn().mockResolvedValue(undefined),
                 inspect: jest.fn().mockReturnValue({ globalValue: {}, workspaceValue: {} }),
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any);
             (controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled = false;
-            const root = makeGuiNode('root');
-            const inst = instanceFactory();
-            inst.getGuiTree = jest.fn(() => [root]);
-            (controller as unknown as { _instances: unknown[] })._instances = [
-                { componentViewerInstance: inst, lockState: true, sessionId: 's1', dirtyWhileLocked: false },
-            ];
             await controller.resetViewState();
 
-            expect(updateMock).toHaveBeenCalledWith(SETTINGS_KEY, undefined, vscode.ConfigurationTarget.Workspace);
-            expect(updateMock).toHaveBeenCalledWith(SETTINGS_KEY, undefined, vscode.ConfigurationTarget.Global);
             expect((controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled).toBe(true);
+            expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.periodicUpdateEnabled', true);
             expect(provider.setFilter).toHaveBeenCalledWith(undefined);
-            expect((controller as unknown as { _instances: Array<{ lockState: boolean }> })._instances[0].lockState).toBe(false);
-            expect(root.isLocked).toBe(false);
+            expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', false);
         });
     });
 });

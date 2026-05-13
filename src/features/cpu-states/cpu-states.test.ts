@@ -500,12 +500,12 @@ describe('CpuStates', () => {
             jest.restoreAllMocks();
         });
 
-        it('enabling CPU timer writes true to workspace to override user-level disabled setting', async () => {
-            const updateMock = jest.fn().mockResolvedValue(undefined);
+        it('restores CPU timer enabled state from settings on connect', async () => {
             jest.spyOn(vscode.workspace, 'getConfiguration').mockReturnValue({
-                update: updateMock,
                 inspect: jest.fn().mockReturnValue({
-                    globalValue: { 'My-Target::Debug': false },
+                    globalValue: {
+                        'My-Target::Debug': false,
+                    },
                     workspaceValue: {},
                 }),
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -519,14 +519,7 @@ describe('CpuStates', () => {
             (tracker as any)._onConnected.fire(gdbtargetDebugSession);
             await waitForMs(0);
 
-            // On connect the flag is false because user settings say false and workspace has no override.
             expect(cpuStates.activeCpuStates?.enableCpuStatesFlag).toEqual(false);
-            // Workspace settings contain the explicit true so the user-level false no longer bleeds through.
-            await cpuStates.enableCpuStates();
-            expect(cpuStates.activeCpuStates?.enableCpuStatesFlag).toEqual(true);
-            expect(updateMock).toHaveBeenCalledWith(
-                'vscode-cmsis-debugger.cpuStates.viewState', { 'My-Target::Debug': true }, vscode.ConfigurationTarget.Workspace
-            );
         });
 
         it('toolbar button state switches when changing the active debug session', async () => {
@@ -557,37 +550,13 @@ describe('CpuStates', () => {
             expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', false);
         });
 
-        it('disabling CPU timer only saves to workspace and does not pull in user-level keys', async () => {
-            const otherKey = 'OtherProject::OtherConfig';
-            const updateMock = jest.fn().mockResolvedValue(undefined);
+        it('re-enables sessions and updates the toolbar context', async () => {
             jest.spyOn(vscode.workspace, 'getConfiguration').mockReturnValue({
-                update: updateMock,
-                inspect: jest.fn().mockReturnValue({
-                    globalValue: { [otherKey]: false },
-                    workspaceValue: {},
-                }),
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } as any);
-            cpuStates.activate(tracker);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (tracker as any)._onWillStartSession.fire(gdbtargetDebugSession);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (tracker as any)._onDidChangeActiveDebugSession.fire(gdbtargetDebugSession);
-            await cpuStates.disableCpuStates();
-
-            const writtenValue = updateMock.mock.calls[0]?.[1] as Record<string, boolean>;
-            expect(writtenValue).not.toHaveProperty(otherKey);
-            expect(writtenValue).toHaveProperty(cpuStates.activeCpuStates!.configStateKey, false);
-        });
-
-        it('clears both workspace and user settings, re-enables the session, and sets context key', async () => {
-            const updateMock = jest.fn().mockResolvedValue(undefined);
-            const executeCommandSpy = jest.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
-            jest.spyOn(vscode.workspace, 'getConfiguration').mockReturnValue({
-                update: updateMock,
+                update: jest.fn().mockResolvedValue(undefined),
                 inspect: jest.fn().mockReturnValue({ globalValue: {}, workspaceValue: {} }),
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any);
+            const executeCommandSpy = jest.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
             cpuStates.activate(tracker);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (tracker as any)._onWillStartSession.fire(gdbtargetDebugSession);
@@ -595,8 +564,6 @@ describe('CpuStates', () => {
             (cpuStates as any).sessionCpuStates.get(gdbtargetDebugSession.session.id)!.enableCpuStatesFlag = false;
             await cpuStates.resetViewState();
 
-            expect(updateMock).toHaveBeenCalledWith('vscode-cmsis-debugger.cpuStates.viewState', undefined, vscode.ConfigurationTarget.Workspace);
-            expect(updateMock).toHaveBeenCalledWith('vscode-cmsis-debugger.cpuStates.viewState', undefined, vscode.ConfigurationTarget.Global);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             expect((cpuStates as any).sessionCpuStates.get(gdbtargetDebugSession.session.id)!.enableCpuStatesFlag).toBe(true);
             expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', true);

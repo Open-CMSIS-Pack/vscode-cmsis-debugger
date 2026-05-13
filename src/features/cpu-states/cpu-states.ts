@@ -212,7 +212,7 @@ export class CpuStates {
         if (!states) {
             return;
         }
-        if (!this.activeCpuStates?.enableCpuStatesFlag) {
+        if (!states.enableCpuStatesFlag) {
             return;
         }
         const newCycles = await session.readMemoryU32(DWT_CYCCNT_ADDRESS);

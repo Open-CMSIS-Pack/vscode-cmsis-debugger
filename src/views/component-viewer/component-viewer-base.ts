@@ -530,17 +530,13 @@ export class ComponentViewerBase {
         this._componentViewerTreeDataProvider.setRoots(roots);
     }
 
-    private get _settingsKey(): string {
-        return `${EXTENSION_NAME}.${this._viewId}.viewState`;
-    }
-
     private async saveCurrentState(): Promise<void> {
         if (!this._activeSession) {
             return;
         }
         const configStateKey = await this._activeSession.getConfigStateKey();
         const filterPattern = this._componentViewerTreeDataProvider.filterPattern;
-        await writeComponentViewerState( this._settingsKey, configStateKey, this._refreshTimerEnabled, filterPattern);
+        await writeComponentViewerState( `${EXTENSION_NAME}.${this._viewId}.viewState`, configStateKey, this._refreshTimerEnabled, filterPattern);
     }
 
     private async restorePeriodicUpdateAndFilter(session: GDBTargetDebugSession): Promise<void> {
@@ -550,7 +546,7 @@ export class ComponentViewerBase {
         this._componentViewerTreeDataProvider.setFilter(undefined);
         vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, false);
 
-        const state = readComponentViewerState(this._settingsKey, await session.getConfigStateKey());
+        const state = readComponentViewerState(`${EXTENSION_NAME}.${this._viewId}.viewState`, await session.getConfigStateKey());
         if (!state) {
             return;
         }
@@ -568,7 +564,7 @@ export class ComponentViewerBase {
 
     public async resetViewState(): Promise<void> {
         // Clear persisted settings
-        await clearAllComponentViewerState([this._settingsKey]);
+        await clearAllComponentViewerState([`${EXTENSION_NAME}.${this._viewId}.viewState`]);
         // Reset in-memory state to defaults
         this._refreshTimerEnabled = true;
         vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);

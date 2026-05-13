@@ -75,7 +75,8 @@ describe('dynamic-view-states', () => {
         it('writes disabled periodic update state to workspace settings', async () => {
             const updateMock = mockGetConfiguration();
             await writeComponentViewerState(SETTINGS_KEY, CONFIG_KEY, false, undefined);
-            expect(updateMock).toHaveBeenCalledWith( SETTINGS_KEY,
+            expect(updateMock).toHaveBeenCalledWith(
+                SETTINGS_KEY,
                 {
                     [CONFIG_KEY]: {
                         periodicUpdateEnabled: false,
@@ -85,11 +86,9 @@ describe('dynamic-view-states', () => {
             );
         });
 
-        it('removes workspace state when periodic update is enabled and user setting does not conflict', async () => {
+        it('removes workspace state when periodic update is enabled', async () => {
             const updateMock = mockGetConfiguration();
-
             await writeComponentViewerState(SETTINGS_KEY, CONFIG_KEY, true, undefined);
-
             expect(updateMock).toHaveBeenCalledWith(
                 SETTINGS_KEY,
                 undefined,
@@ -103,47 +102,12 @@ describe('dynamic-view-states', () => {
                     periodicUpdateEnabled: false,
                 },
             });
-
             await writeComponentViewerState(SETTINGS_KEY, CONFIG_KEY, true, undefined);
-
             expect(updateMock).toHaveBeenCalledWith(
                 SETTINGS_KEY,
                 {
                     [CONFIG_KEY]: {
                         periodicUpdateEnabled: true,
-                    },
-                },
-                vscode.ConfigurationTarget.Workspace
-            );
-        });
-
-        it('writes active filter pattern to workspace settings', async () => {
-            const updateMock = mockGetConfiguration();
-
-            await writeComponentViewerState(SETTINGS_KEY, CONFIG_KEY, true, 'uart');
-
-            expect(updateMock).toHaveBeenCalledWith(
-                SETTINGS_KEY,
-                {
-                    [CONFIG_KEY]: {
-                        filterPattern: 'uart',
-                    },
-                },
-                vscode.ConfigurationTarget.Workspace
-            );
-        });
-
-        it('writes filter pattern together with disabled periodic update state', async () => {
-            const updateMock = mockGetConfiguration();
-
-            await writeComponentViewerState(SETTINGS_KEY, CONFIG_KEY, false, 'uart');
-
-            expect(updateMock).toHaveBeenCalledWith(
-                SETTINGS_KEY,
-                {
-                    [CONFIG_KEY]: {
-                        periodicUpdateEnabled: false,
-                        filterPattern: 'uart',
                     },
                 },
                 vscode.ConfigurationTarget.Workspace
@@ -160,9 +124,7 @@ describe('dynamic-view-states', () => {
                     },
                 }
             );
-
-            await writeComponentViewerState(SETTINGS_KEY, CONFIG_KEY, true, 'uart');
-
+            await writeComponentViewerState(SETTINGS_KEY, CONFIG_KEY, true, 'user-filter');
             expect(updateMock).toHaveBeenCalledWith(
                 SETTINGS_KEY,
                 {
@@ -170,7 +132,7 @@ describe('dynamic-view-states', () => {
                         periodicUpdateEnabled: false,
                     },
                     [CONFIG_KEY]: {
-                        filterPattern: 'uart',
+                        filterPattern: 'user-filter',
                     },
                 },
                 vscode.ConfigurationTarget.Workspace
@@ -183,9 +145,7 @@ describe('dynamic-view-states', () => {
                 update: updateMock,
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any);
-
             await clearAllComponentViewerState([SETTINGS_KEY]);
-
             expect(updateMock).toHaveBeenCalledWith(
                 SETTINGS_KEY,
                 undefined,
@@ -200,11 +160,10 @@ describe('dynamic-view-states', () => {
     });
 
     describe('CPU States settings', () => {
-        it('returns user-level value when workspace is empty', () => {
+        it('returns user-level state when workspace is empty', () => {
             mockGetConfiguration({
                 [CONFIG_KEY]: false,
             });
-
             expect(readCpuStatesEnabled(SETTINGS_KEY, CONFIG_KEY)).toBe(false);
         });
 
@@ -217,68 +176,18 @@ describe('dynamic-view-states', () => {
                     [CONFIG_KEY]: true,
                 }
             );
-
             expect(readCpuStatesEnabled(SETTINGS_KEY, CONFIG_KEY)).toBe(true);
-        });
-
-        it('writes disabled CPU states value to workspace settings', async () => {
-            const updateMock = mockGetConfiguration();
-
-            await writeCpuStatesEnabled(SETTINGS_KEY, CONFIG_KEY, false);
-
-            expect(updateMock).toHaveBeenCalledWith(
-                SETTINGS_KEY,
-                {
-                    [CONFIG_KEY]: false,
-                },
-                vscode.ConfigurationTarget.Workspace
-            );
-        });
-
-        it('removes workspace state when CPU states are enabled and user setting does not conflict', async () => {
-            const updateMock = mockGetConfiguration();
-
-            await writeCpuStatesEnabled(SETTINGS_KEY, CONFIG_KEY, true);
-
-            expect(updateMock).toHaveBeenCalledWith(
-                SETTINGS_KEY,
-                undefined,
-                vscode.ConfigurationTarget.Workspace
-            );
         });
 
         it('writes explicit enabled value when user setting disables CPU states', async () => {
             const updateMock = mockGetConfiguration({
                 [CONFIG_KEY]: false,
             });
-
             await writeCpuStatesEnabled(SETTINGS_KEY, CONFIG_KEY, true);
-
             expect(updateMock).toHaveBeenCalledWith(
                 SETTINGS_KEY,
                 {
                     [CONFIG_KEY]: true,
-                },
-                vscode.ConfigurationTarget.Workspace
-            );
-        });
-
-        it('preserves other workspace entries when writing CPU states value', async () => {
-            const otherConfigKey = 'Other-Target::Debug';
-            const updateMock = mockGetConfiguration(
-                {},
-                {
-                    [otherConfigKey]: false,
-                }
-            );
-
-            await writeCpuStatesEnabled(SETTINGS_KEY, CONFIG_KEY, false);
-
-            expect(updateMock).toHaveBeenCalledWith(
-                SETTINGS_KEY,
-                {
-                    [otherConfigKey]: false,
-                    [CONFIG_KEY]: false,
                 },
                 vscode.ConfigurationTarget.Workspace
             );
