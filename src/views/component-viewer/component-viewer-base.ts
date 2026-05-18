@@ -410,11 +410,11 @@ export class ComponentViewerBase {
     }
 
     private async handleOnConnected(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker): Promise<void> {
-        // Update debug session
-        this._activeSession = session;
-        vscode.commands.executeCommand('setContext', `${this._viewId}.sessionActive`, true);
-        // Restore persisted view state (filter + periodic update)
-        await this.restorePeriodicUpdateAndFilter(session);
+        if (!this._activeSession) {
+            // Update debug session during launch connection but not during attach
+            this._activeSession = session;
+            vscode.commands.executeCommand('setContext', `${this._viewId}.sessionActive`, true);
+        }
         // Load SCVD files from cbuild-run
         await this.loadScvdFiles(session, tracker);
     }
