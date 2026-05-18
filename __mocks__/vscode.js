@@ -98,6 +98,7 @@ module.exports = {
         registerTreeDataProvider: jest.fn(() => ({ dispose: jest.fn() })),
         createTextEditorDecorationType: jest.fn(() => ({ dispose: jest.fn() })),
         onDidChangeActiveTextEditor: jest.fn(() => ({ dispose: jest.fn() })),
+        visibleTextEditors: [],
         showErrorMessage: jest.fn(),
         showInformationMessage: jest.fn(() => Promise.resolve(undefined)),
         showWarningMessage: jest.fn(),

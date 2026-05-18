@@ -58,6 +58,7 @@ describe('SourceFileHighlighting', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        (vscode.window.visibleTextEditors as unknown as vscode.TextEditor[]) = [];
         debugSessionDisposable = { dispose: jest.fn() };
         editorDisposable = { dispose: jest.fn() };
         (vscode.debug.onDidChangeActiveDebugSession as jest.Mock).mockImplementation((listener: ActiveDebugSessionListener) => {
@@ -78,7 +79,7 @@ describe('SourceFileHighlighting', () => {
 
         expect(vscode.debug.onDidChangeActiveDebugSession).toHaveBeenCalledWith(expect.any(Function));
         expect(vscode.window.onDidChangeActiveTextEditor).toHaveBeenCalledWith(expect.any(Function));
-        expect(context.subscriptions).toContain(debugSessionDisposable);
+        expect(context.subscriptions).toEqual([debugSessionDisposable, editorDisposable]);
     });
 
     it('requests breakpoint locations for the active file and highlights unique executable lines', async () => {
@@ -114,7 +115,7 @@ describe('SourceFileHighlighting', () => {
         );
     });
 
-    it('does not request breakpoint locations before an active debug session exists', async () => {
+    it('clears executable line decorations before an active debug session exists', async () => {
         const context = extensionContextFactory();
         const sourceFileHighlighting = new SourceFileHighlighting(context);
         const debugSession = debugSessionFactory({ name: 'test-session', type: 'gdbtarget', request: 'launch' });
@@ -125,10 +126,13 @@ describe('SourceFileHighlighting', () => {
         await waitForAsyncCallbacks();
 
         expect(debugSession.customRequest).not.toHaveBeenCalled();
-        expect(editor.setDecorations).not.toHaveBeenCalled();
+        expect(editor.setDecorations).toHaveBeenCalledWith(
+            (vscode.window.createTextEditorDecorationType as jest.Mock).mock.results[0].value,
+            []
+        );
     });
 
-    it('does not request breakpoint locations for non-file editors', async () => {
+    it('clears executable line decorations for non-file editors', async () => {
         const context = extensionContextFactory();
         const sourceFileHighlighting = new SourceFileHighlighting(context);
         const debugSession = debugSessionFactory({ name: 'test-session', type: 'gdbtarget', request: 'launch' });
@@ -140,10 +144,13 @@ describe('SourceFileHighlighting', () => {
         await waitForAsyncCallbacks();
 
         expect(debugSession.customRequest).not.toHaveBeenCalled();
-        expect(editor.setDecorations).not.toHaveBeenCalled();
+        expect(editor.setDecorations).toHaveBeenCalledWith(
+            (vscode.window.createTextEditorDecorationType as jest.Mock).mock.results[0].value,
+            []
+        );
     });
 
-    it('does not decorate when the adapter returns no breakpoint locations', async () => {
+    it('clears executable line decorations when the adapter returns no breakpoint locations', async () => {
         const context = extensionContextFactory();
         const sourceFileHighlighting = new SourceFileHighlighting(context);
         const debugSession = debugSessionFactory({ name: 'test-session', type: 'gdbtarget', request: 'launch' });
@@ -160,6 +167,25 @@ describe('SourceFileHighlighting', () => {
             line: 1,
             endLine: 12
         });
-        expect(editor.setDecorations).not.toHaveBeenCalled();
+        expect(editor.setDecorations).toHaveBeenCalledWith(
+            (vscode.window.createTextEditorDecorationType as jest.Mock).mock.results[0].value,
+            []
+        );
+    });
+
+    it('clears visible editors when the active debug session is cleared', async () => {
+        const context = extensionContextFactory();
+        const sourceFileHighlighting = new SourceFileHighlighting(context);
+        const editor = makeEditor();
+        (vscode.window.visibleTextEditors as unknown as vscode.TextEditor[]) = [editor];
+
+        sourceFileHighlighting.activate();
+        activeDebugSessionListener(undefined);
+        await waitForAsyncCallbacks();
+
+        expect(editor.setDecorations).toHaveBeenCalledWith(
+            (vscode.window.createTextEditorDecorationType as jest.Mock).mock.results[0].value,
+            []
+        );
     });
 });

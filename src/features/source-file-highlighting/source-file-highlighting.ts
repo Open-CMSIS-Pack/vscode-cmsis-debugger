@@ -19,6 +19,7 @@ import { DebugProtocol } from '@vscode/debugprotocol';
 
 export class SourceFileHighlighting {
     private activeDebugSession: vscode.DebugSession | undefined;
+    private activeTextEditor: vscode.TextEditor | undefined;
     private context: vscode.ExtensionContext;
     private executableLineDecorator = vscode.window.createTextEditorDecorationType({
         // turn it red for testing
@@ -32,25 +33,42 @@ export class SourceFileHighlighting {
     }
 
     public activate(): void {
-        this.registerToTrackerEvents();
-        vscode.window.onDidChangeActiveTextEditor(editor => {
-            this.handleOnDidChangeActiveTextEditor(editor);
-        });
+        this.registerToEvents();
     }
 
-    private registerToTrackerEvents(): void {
+    private registerToEvents(): void {
         const onDidChangeActiveDebugSessionDisposable = vscode.debug.onDidChangeActiveDebugSession(session => {
+            if(!session) {
+                this.clearExecutableLineDecorations(vscode.window.visibleTextEditors);
+            }
             this.activeDebugSession = session;
+            this.handleOnDidChangeActiveTextEditor(this.activeTextEditor);
         });
-        this.context.subscriptions.push(onDidChangeActiveDebugSessionDisposable);
+        const onDidChangeActiveTextEditorDisposable = vscode.window.onDidChangeActiveTextEditor(editor => {
+            this.activeTextEditor = editor;
+            this.handleOnDidChangeActiveTextEditor(editor);
+        });
+
+        this.context.subscriptions.push(onDidChangeActiveDebugSessionDisposable, onDidChangeActiveTextEditorDisposable);
+    }
+
+    private clearExecutableLineDecorations(editors: readonly vscode.TextEditor[]): void {
+        for (const editor of editors) {
+            editor.setDecorations(this.executableLineDecorator, []);
+        }
     }
 
     private async handleOnDidChangeActiveTextEditor(editor: vscode.TextEditor | undefined): Promise<void> {
-        if (!editor || !this.activeDebugSession) {
+        if (!editor) {
+            return;
+        }
+        if (!this.activeDebugSession) {
+            this.clearExecutableLineDecorations([editor]);
             return;
         }
         const breakpointLocations = await this.getBreakpointLocations(editor);
         if (!breakpointLocations) {
+            this.clearExecutableLineDecorations([editor]);
             return;
         }
         const executableLines = new Set(breakpointLocations.breakpoints.map((bp: DebugProtocol.BreakpointLocation) => bp.line));
