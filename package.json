@@ -426,12 +426,12 @@
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.expandAll",
-          "when": "view == cmsis-debugger.componentViewer && componentViewer.sessionActive",
+          "when": "view == cmsis-debugger.componentViewer",
           "group": "navigation@4"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.expandAll",
-          "when": "view == cmsis-debugger.corePeripherals && corePeripherals.sessionActive",
+          "when": "view == cmsis-debugger.corePeripherals",
           "group": "navigation@4"
         },
         {
@@ -456,22 +456,22 @@
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate",
-          "when": "view == cmsis-debugger.componentViewer && componentViewer.periodicUpdateEnabled && componentViewer.sessionActive",
+          "when": "view == cmsis-debugger.componentViewer && componentViewer.periodicUpdateEnabled",
           "group": "navigation@3"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate",
-          "when": "view == cmsis-debugger.componentViewer && !componentViewer.periodicUpdateEnabled && componentViewer.sessionActive",
+          "when": "view == cmsis-debugger.componentViewer && !componentViewer.periodicUpdateEnabled",
           "group": "navigation@3"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.disablePeriodicUpdate",
-          "when": "view == cmsis-debugger.corePeripherals && corePeripherals.periodicUpdateEnabled && corePeripherals.sessionActive",
+          "when": "view == cmsis-debugger.corePeripherals && corePeripherals.periodicUpdateEnabled",
           "group": "navigation@3"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.enablePeriodicUpdate",
-          "when": "view == cmsis-debugger.corePeripherals && !corePeripherals.periodicUpdateEnabled && corePeripherals.sessionActive",
+          "when": "view == cmsis-debugger.corePeripherals && !corePeripherals.periodicUpdateEnabled",
           "group": "navigation@3"
         }
       ],

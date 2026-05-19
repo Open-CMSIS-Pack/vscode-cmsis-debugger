@@ -413,7 +413,6 @@ export class ComponentViewerBase {
         if (!this._activeSession) {
             // Update debug session during launch connection but not during attach
             this._activeSession = session;
-            vscode.commands.executeCommand('setContext', `${this._viewId}.sessionActive`, true);
         }
         // Load SCVD files from cbuild-run
         await this.loadScvdFiles(session, tracker);
@@ -433,7 +432,6 @@ export class ComponentViewerBase {
     private async handleOnDidChangeActiveDebugSession(session: GDBTargetDebugSession | undefined): Promise<void> {
         // Update debug session
         this._activeSession = session;
-        vscode.commands.executeCommand('setContext', `${this._viewId}.sessionActive`, !!session);
         if (session) {
             await this.restorePeriodicUpdateAndFilter(session);
         }
