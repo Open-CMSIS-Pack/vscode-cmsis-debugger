@@ -22,10 +22,10 @@ export class SourceFileHighlighting {
     private activeTextEditor: vscode.TextEditor | undefined;
     private context: vscode.ExtensionContext;
     private executableLineDecorator = vscode.window.createTextEditorDecorationType({
-        // turn it red for testing
-        backgroundColor: 'rgba(222, 199, 199, 0.3)',
-        // only highlight the margin of the line to avoid obscuring code
-        isWholeLine: true,
+        borderWidth: '0 0 0 2px',
+        borderStyle: 'solid',
+        borderColor: 'rgba(102, 145, 255, 0.85)',
+        isWholeLine: true
     });
 
     constructor(context: vscode.ExtensionContext) {
@@ -38,7 +38,7 @@ export class SourceFileHighlighting {
 
     private registerToEvents(): void {
         const onDidChangeActiveDebugSessionDisposable = vscode.debug.onDidChangeActiveDebugSession(session => {
-            if(!session) {
+            if (!session) {
                 this.clearExecutableLineDecorations(vscode.window.visibleTextEditors);
             }
             this.activeDebugSession = session;
@@ -82,11 +82,11 @@ export class SourceFileHighlighting {
     }
 
     private async getBreakpointLocations(editor: vscode.TextEditor): Promise<DebugProtocol.BreakpointLocationsResponse['body'] | void> {
-        if(editor.document.uri.scheme !== 'file') {
+        if (editor.document.uri.scheme !== 'file') {
             return;
         }
         const currentSourceFile = editor.document.fileName;
-        const args : DebugProtocol.BreakpointLocationsArguments = {
+        const args: DebugProtocol.BreakpointLocationsArguments = {
             source: { path: currentSourceFile },
             line: 1,
             endLine: editor.document.lineCount, // Requesting breakpoint locations for the whole file
