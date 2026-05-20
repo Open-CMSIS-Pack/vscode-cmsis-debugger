@@ -25,6 +25,7 @@ type ViewStateEntry = {
 };
 type ViewStateByConfigKey = Record<string, Partial<ViewStateEntry>>;
 
+/* eslint-disable security/detect-object-injection */
 function readDynamicViewState<T extends keyof ViewStateEntry>(configStateKey: string, dynamicView: T, mode: 'global' | 'merged' = 'merged'): ViewStateEntry[T] | undefined {
     const inspection = vscode.workspace.getConfiguration().inspect<ViewStateByConfigKey>(SETTINGS_KEY);
     const globalEntry = inspection?.globalValue?.[configStateKey];
@@ -60,6 +61,7 @@ async function writeWorkspaceDynamicViewState<T extends keyof ViewStateEntry>(co
     const valueToStore = Object.keys(entriesToStore).length === 0 ? undefined : entriesToStore;
     await vscode.workspace.getConfiguration().update(SETTINGS_KEY, valueToStore, vscode.ConfigurationTarget.Workspace);
 }
+/* eslint-enable security/detect-object-injection */
 
 export async function clearAllViewState(): Promise<void> {
     await Promise.all([
