@@ -65,6 +65,11 @@ jest.mock('../../../dynamic-view-states', () => ({
     writeComponentViewerState: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('../../../dynamic-view-states', () => ({
+    readComponentViewerState: jest.fn(),
+    writeComponentViewerState: jest.fn().mockResolvedValue(undefined),
+}));
+
 function asMockedFunction<Args extends unknown[], Return>(
     fn: (...args: Args) => Return
 ): jest.MockedFunction<(...args: Args) => Return> {
@@ -128,6 +133,7 @@ describe('ComponentViewerBase', () => {
         provider = treeDataProviderFactory();
         tracker = trackerFactory();
         controller = createController(context, provider);
+        asMockedFunction(readComponentViewerState).mockReturnValue(undefined);
         asMockedFunction(readComponentViewerState).mockReturnValue(undefined);
         // Extend registered commands for test class.
         const defaultMockedCommands = await vscode.commands.getCommands();
@@ -1043,6 +1049,10 @@ describe('ComponentViewerBase', () => {
                 periodicUpdateEnabled: false,
                 filterPattern: 'word',
             });
+            asMockedFunction(readComponentViewerState).mockReturnValue({
+                periodicUpdateEnabled: false,
+                filterPattern: 'word',
+            });
             const session = debugSessionFactory('s1');
             const restoreState = (controller as unknown as {
                 restorePeriodicUpdateAndFilter: (s: Session) => Promise<void>;
@@ -1050,8 +1060,10 @@ describe('ComponentViewerBase', () => {
             await restoreState(session);
 
             expect(readComponentViewerState).toHaveBeenCalledWith('testClass', 's1');
+            expect(readComponentViewerState).toHaveBeenCalledWith('testClass', 's1');
             expect((controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled).toBe(false);
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.periodicUpdateEnabled', false);
+            expect(provider.setFilter).toHaveBeenCalledWith('word');
             expect(provider.setFilter).toHaveBeenCalledWith('word');
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', true);
         });
