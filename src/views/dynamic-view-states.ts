@@ -16,64 +16,79 @@
 
 import * as vscode from 'vscode';
 
-type ConfigStateByKey<T> = Record<string, T>;
+const SETTINGS_KEY = 'vscode-cmsis-debugger.viewState';
 
-function readConfigState<T>(settingsKey: string, configStateKey: string): T | undefined {
-    const inspection = vscode.workspace.getConfiguration().inspect<ConfigStateByKey<T>>(settingsKey);
-    const globalState = inspection?.globalValue?.[configStateKey];
-    const workspaceState = inspection?.workspaceValue?.[configStateKey];
-    return workspaceState ?? globalState;
-}
+type ViewStateEntry = {
+    componentViewer: ComponentViewerState;
+    corePeripherals: ComponentViewerState;
+    cpuStates: boolean;
+};
+type ViewStateByConfigKey = Record<string, Partial<ViewStateEntry>>;
 
-function readMergedConfigState<T extends object>(settingsKey: string, configStateKey: string): T | undefined {
-    const inspection = vscode.workspace.getConfiguration().inspect<ConfigStateByKey<Partial<T>>>(settingsKey);
-    const globalState = inspection?.globalValue?.[configStateKey];
-    const workspaceState = inspection?.workspaceValue?.[configStateKey];
-    if (globalState === undefined && workspaceState === undefined) {
-        return undefined;
-    }
+function readDynamicViewState<T extends keyof ViewStateEntry>(configStateKey: string, dynamicView: T, mode: 'global' | 'merged' = 'merged'): ViewStateEntry[T] | undefined {
+    const inspection = vscode.workspace.getConfiguration().inspect<ViewStateByConfigKey>(SETTINGS_KEY);
+    const globalEntry = inspection?.globalValue?.[configStateKey];
+    const workspaceEntry = inspection?.workspaceValue?.[configStateKey];
+    const globalViewState = globalEntry?.[dynamicView] as ViewStateEntry[T] | undefined;
+    const workspaceViewState = workspaceEntry?.[dynamicView] as ViewStateEntry[T] | undefined;
+
+    if (mode === 'global') return globalViewState;
     // 'User' state provides defaults; 'Workspace' state overrides only the properties it defines.
-    return { ...(globalState ?? {}), ...(workspaceState ?? {}) } as T;
-}
-
-async function writeConfigState<T>(settingsKey: string, configStateKey: string, state: T | undefined): Promise<void> {
-    const inspection = vscode.workspace.getConfiguration().inspect<ConfigStateByKey<T>>(settingsKey);
-    const statesToStore = { ...(inspection?.workspaceValue ?? {}) };
-    if (state === undefined) {
-        delete statesToStore[configStateKey];
-    } else {
-        statesToStore[configStateKey] = state;
+    if (typeof globalViewState === 'object' && globalViewState !== null && typeof workspaceViewState === 'object' && workspaceViewState !== null) {
+        return { ...globalViewState, ...workspaceViewState } as ViewStateEntry[T];
     }
-    const valueToStore = Object.keys(statesToStore).length === 0 ? undefined : statesToStore;
-    await vscode.workspace.getConfiguration().update(settingsKey, valueToStore, vscode.ConfigurationTarget.Workspace);
+    return workspaceViewState ?? globalViewState;
 }
 
-async function clearAllConfigState(settingsKeys: string[]): Promise<void> {
-    await Promise.all(settingsKeys.flatMap(key => [
-        vscode.workspace.getConfiguration().update(key, undefined, vscode.ConfigurationTarget.Workspace),
-        vscode.workspace.getConfiguration().update(key, undefined, vscode.ConfigurationTarget.Global),
-    ]));
+async function writeWorkspaceDynamicViewState<T extends keyof ViewStateEntry>(configStateKey: string, dynamicView: T, state: ViewStateEntry[T] | undefined): Promise<void> {
+    const inspection = vscode.workspace.getConfiguration().inspect<ViewStateByConfigKey>(SETTINGS_KEY);
+    const entriesToStore: ViewStateByConfigKey = { ...(inspection?.workspaceValue ?? {}) };
+    const entryToStore: Partial<ViewStateEntry> = { ...(entriesToStore[configStateKey] ?? {}) };
+    if (state === undefined) {
+        // Undefined means this dynamic view has no workspace override, so remove it from the stored entry.
+        delete entryToStore[dynamicView];
+    } else {
+        entryToStore[dynamicView] = state;
+    }
+    if (Object.keys(entryToStore).length === 0) {
+        // Drop empty debug configuration entries instead of leaving empty objects in settings.json.
+        delete entriesToStore[configStateKey];
+    } else {
+        entriesToStore[configStateKey] = entryToStore;
+    }
+    // VS Code removes the entire setting when the updated value is undefined.
+    const valueToStore = Object.keys(entriesToStore).length === 0 ? undefined : entriesToStore;
+    await vscode.workspace.getConfiguration().update(SETTINGS_KEY, valueToStore, vscode.ConfigurationTarget.Workspace);
+}
+
+export async function clearAllViewState(): Promise<void> {
+    await Promise.all([
+        vscode.workspace.getConfiguration().update(SETTINGS_KEY, undefined, vscode.ConfigurationTarget.Workspace),
+        vscode.workspace.getConfiguration().update(SETTINGS_KEY, undefined, vscode.ConfigurationTarget.Global),
+    ]);
 }
 
 // -------------------------------------------------------------------------------------------------
-// Component Viewer settings
+// Component Viewer and Core Peripherals
 // -------------------------------------------------------------------------------------------------
 
-export interface ComponentViewerState {
+interface ComponentViewerState {
     periodicUpdateEnabled?: boolean;
     filterPattern?: string;
 }
 
-type ComponentViewerStateByConfig = ConfigStateByKey<ComponentViewerState>;
-
-export function readComponentViewerState(settingsKey: string, configStateKey: string): ComponentViewerState | undefined {
-    return readMergedConfigState<ComponentViewerState>(settingsKey, configStateKey);
+export function readComponentViewerState(viewId: string, configStateKey: string): ComponentViewerState | undefined {
+    if (viewId !== 'componentViewer' && viewId !== 'corePeripherals') {
+        return undefined;
+    }
+    return readDynamicViewState(configStateKey, viewId, 'merged');
 }
 
-export async function writeComponentViewerState(settingsKey: string, configStateKey: string, refreshTimerEnabled: boolean, filterPattern: string | undefined
-): Promise<void> {
-    const inspection = vscode.workspace.getConfiguration().inspect<ComponentViewerStateByConfig>(settingsKey);
-    const userState = inspection?.globalValue?.[configStateKey];
+export async function writeComponentViewerState(viewId: string, configStateKey: string, refreshTimerEnabled: boolean, filterPattern: string | undefined): Promise<void> {
+    if (viewId !== 'componentViewer' && viewId !== 'corePeripherals') {
+        return;
+    }
+    const userState = readDynamicViewState(configStateKey, viewId, 'global');
     // If 'User' settings disable periodicUpdate but this 'Workspace' enables it,
     // write true explicitly so the 'User' value does not bleed through.
     const needsExplicitPeriodicUpdate = refreshTimerEnabled && userState?.periodicUpdateEnabled === false;
@@ -81,30 +96,21 @@ export async function writeComponentViewerState(settingsKey: string, configState
         ...(!refreshTimerEnabled || needsExplicitPeriodicUpdate ? { periodicUpdateEnabled: refreshTimerEnabled } : {}),
         ...(filterPattern !== undefined ? { filterPattern } : {}),
     };
-    await writeConfigState(settingsKey, configStateKey, Object.keys(state).length === 0 ? undefined : state);
-}
-
-export async function clearAllComponentViewerState(settingsKeys: string[]): Promise<void> {
-    await clearAllConfigState(settingsKeys);
+    await writeWorkspaceDynamicViewState(configStateKey, viewId, Object.keys(state).length === 0 ? undefined : state);
 }
 
 // -------------------------------------------------------------------------------------------------
-// CPU States settings
+// CPU States
 // -------------------------------------------------------------------------------------------------
 
-export function readCpuStatesEnabled(settingsKey: string, configStateKey: string): boolean | undefined {
-    return readConfigState<boolean>(settingsKey, configStateKey);
+export function readCpuStatesEnabled(configStateKey: string): boolean | undefined {
+    return readDynamicViewState(configStateKey, 'cpuStates', 'merged');
 }
 
-export async function writeCpuStatesEnabled(settingsKey: string, configStateKey: string, enabled: boolean): Promise<void> {
-    const inspection = vscode.workspace.getConfiguration().inspect<ConfigStateByKey<boolean>>(settingsKey);
-    const userState = inspection?.globalValue?.[configStateKey];
-    // If 'User' settings disable periodicUpdate but this 'Workspace' enables it,
+export async function writeCpuStatesEnabled(configStateKey: string, enabled: boolean): Promise<void> {
+    const userState = readDynamicViewState(configStateKey, 'cpuStates', 'global');
+    // If 'User' settings disable cpuStates but this 'Workspace' enables it,
     // write true explicitly so the 'User' value does not bleed through.
     const stateToStore = enabled ? userState === false ? true : undefined : false;
-    await writeConfigState(settingsKey, configStateKey, stateToStore);
-}
-
-export async function clearAllCpuStatesState(settingsKeys: string[]): Promise<void> {
-    await clearAllConfigState(settingsKeys);
+    await writeWorkspaceDynamicViewState(configStateKey, 'cpuStates', stateToStore);
 }

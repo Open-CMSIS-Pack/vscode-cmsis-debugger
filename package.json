@@ -581,38 +581,37 @@
       }
     ],
     "configuration": {
-      "title": "Arm CMSIS Debugger",
+      "title": "CMSIS Debugger",
       "properties": {
-        "vscode-cmsis-debugger.cpuStates.viewState": {
+        "vscode-cmsis-debugger.viewState": {
           "type": "object",
-          "markdownDescription": "Persisted CPU time enable/disable state per debug configuration.",
-          "additionalProperties": {
-            "type": "boolean"
-          }
-        },
-        "vscode-cmsis-debugger.componentViewer.viewState": {
-          "type": "object",
-          "markdownDescription": "Persisted dynamic view state for the Component Viewer.",
+          "markdownDescription": "Persisted dynamic view state per debug configuration.",
           "additionalProperties": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "periodicUpdateEnabled": { "type": "boolean" },
-              "filterPattern":         { "type": "string" },
-              "lockedComponents":      { "type": "array", "items": { "type": "string" } }
-            }
-          }
-        },
-        "vscode-cmsis-debugger.corePeripherals.viewState": {
-          "type": "object",
-          "markdownDescription": "Persisted dynamic view state for the Core Peripherals view.",
-          "additionalProperties": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-                "periodicUpdateEnabled": { "type": "boolean" },
-                "filterPattern":         { "type": "string" },
-                "lockedComponents":      { "type": "array", "items": { "type": "string" } }
+              "componentViewer": {
+                "type": "object",
+                "markdownDescription": "Persisted dynamic view state for the Component Viewer.",
+                "additionalProperties": false,
+                "properties": {
+                  "periodicUpdateEnabled": { "type": "boolean" },
+                  "filterPattern": { "type": "string" }
+                }
+              },
+              "corePeripherals": {
+                "type": "object",
+                "markdownDescription": "Persisted dynamic view state for the Core Peripherals view.",
+                "additionalProperties": false,
+                "properties": {
+                  "periodicUpdateEnabled": { "type": "boolean" },
+                  "filterPattern": { "type": "string" }
+                }
+              },
+              "cpuStates": {
+                "type": "boolean",
+                "markdownDescription": "Persisted CPU time enable/disable state."
+              }
             }
           }
         }

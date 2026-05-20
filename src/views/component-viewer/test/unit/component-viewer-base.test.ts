@@ -30,6 +30,7 @@ import { ComponentViewerBase } from '../../component-viewer-base';
 import { ComponentViewerTreeDataProvider } from '../../component-viewer-tree-view';
 import type { ScvdGuiInterface } from '../../model/scvd-gui-interface';
 import { debugSessionFactory, trackerFactory, OnRefreshCallback, Session, TrackerCallbacks } from '../../../../debug-session/__test__/debug-session.factory';
+import { readComponentViewerState } from '../../../dynamic-view-states';
 
 
 const instanceFactory = jest.fn(() => ({
@@ -57,6 +58,11 @@ jest.mock('../../../../logger', () => ({
         warn: jest.fn(),
         trace: jest.fn(),
     },
+}));
+
+jest.mock('../../../dynamic-view-states', () => ({
+    readComponentViewerState: jest.fn(),
+    writeComponentViewerState: jest.fn().mockResolvedValue(undefined),
 }));
 
 function asMockedFunction<Args extends unknown[], Return>(
@@ -122,6 +128,7 @@ describe('ComponentViewerBase', () => {
         provider = treeDataProviderFactory();
         tracker = trackerFactory();
         controller = createController(context, provider);
+        asMockedFunction(readComponentViewerState).mockReturnValue(undefined);
         // Extend registered commands for test class.
         const defaultMockedCommands = await vscode.commands.getCommands();
         asMockedFunction(vscode.commands.getCommands).mockResolvedValue([
@@ -1032,22 +1039,20 @@ describe('ComponentViewerBase', () => {
         });
 
         it('restorePeriodicUpdateAndFilter restores periodicUpdateEnabled and filter from workspace settings', async () => {
-            jest.spyOn(vscode.workspace, 'getConfiguration').mockReturnValue({
-                inspect: jest.fn().mockReturnValue({
-                    globalValue: {},
-                    workspaceValue: { s1: { periodicUpdateEnabled: false, filterPattern: 'uart' } },
-                }),
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } as any);
+            asMockedFunction(readComponentViewerState).mockReturnValue({
+                periodicUpdateEnabled: false,
+                filterPattern: 'word',
+            });
             const session = debugSessionFactory('s1');
             const restoreState = (controller as unknown as {
                 restorePeriodicUpdateAndFilter: (s: Session) => Promise<void>;
             }).restorePeriodicUpdateAndFilter.bind(controller);
             await restoreState(session);
 
+            expect(readComponentViewerState).toHaveBeenCalledWith('testClass', 's1');
             expect((controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled).toBe(false);
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.periodicUpdateEnabled', false);
-            expect(provider.setFilter).toHaveBeenCalledWith('uart');
+            expect(provider.setFilter).toHaveBeenCalledWith('word');
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', true);
         });
 
