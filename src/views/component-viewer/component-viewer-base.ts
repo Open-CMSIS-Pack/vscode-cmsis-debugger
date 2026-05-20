@@ -112,7 +112,6 @@ export class ComponentViewerBase {
             await this.saveCurrentState();
             await vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, false);
             componentViewerLogger.info(`${this._viewName}: Auto refresh disabled`);
-            
         });
         const expandAllCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.expandAll`, async () => {
             componentViewerLogger.debug(`${this._viewName}: Expand all tree items`);
