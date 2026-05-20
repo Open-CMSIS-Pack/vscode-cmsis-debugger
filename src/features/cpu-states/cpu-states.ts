@@ -114,6 +114,9 @@ export class CpuStates {
         const configStateKey = await session.getConfigStateKey();
         cpuStates.configStateKey = configStateKey;
         cpuStates.enableCpuStatesFlag = readCpuStatesEnabled(configStateKey) ?? true;
+        if (this.activeSession?.session.id === session.session.id) {
+            void vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', cpuStates.enableCpuStatesFlag);
+        }
         // Following call might fail if target not stopped on connect, returns undefined
         // Retry on first Stopped Event.
         cpuStates.hasStates = await this.supportsCpuStates(session);
@@ -367,6 +370,6 @@ export class CpuStates {
             states.enableCpuStatesFlag = true;
         }
         vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', true);
-        logger.info("CPU States: CPU Timer reset");
+        logger.info('CPU States: CPU Timer reset');
     }
 };

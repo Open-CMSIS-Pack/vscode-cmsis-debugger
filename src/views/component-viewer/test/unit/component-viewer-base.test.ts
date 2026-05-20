@@ -65,11 +65,6 @@ jest.mock('../../../dynamic-view-states', () => ({
     writeComponentViewerState: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock('../../../dynamic-view-states', () => ({
-    readComponentViewerState: jest.fn(),
-    writeComponentViewerState: jest.fn().mockResolvedValue(undefined),
-}));
-
 function asMockedFunction<Args extends unknown[], Return>(
     fn: (...args: Args) => Return
 ): jest.MockedFunction<(...args: Args) => Return> {

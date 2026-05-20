@@ -103,15 +103,16 @@ export class ComponentViewerBase {
         });
         const enablePeriodicUpdateCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.enablePeriodicUpdate`, async () => {
             this._refreshTimerEnabled = true;
-            componentViewerLogger.info(`${this._viewName}: Auto refresh enabled`);
-            await vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
             await this.saveCurrentState();
+            await vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
+            componentViewerLogger.info(`${this._viewName}: Auto refresh enabled`);
         });
         const disablePeriodicUpdateCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.disablePeriodicUpdate`, async () => {
             this._refreshTimerEnabled = false;
-            componentViewerLogger.info(`${this._viewName}: Auto refresh disabled`);
-            await vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, false);
             await this.saveCurrentState();
+            await vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, false);
+            componentViewerLogger.info(`${this._viewName}: Auto refresh disabled`);
+            
         });
         const expandAllCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.expandAll`, async () => {
             componentViewerLogger.debug(`${this._viewName}: Expand all tree items`);
@@ -135,7 +136,7 @@ export class ComponentViewerBase {
             filterTreeCommandDisposable,
             clearFilterCommandDisposable
         );
-        vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true)
+        vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
         return true;
     }
 
@@ -237,7 +238,7 @@ export class ComponentViewerBase {
             }
             this._filterDebounceTimer = setTimeout(() => {
                 this._filterDebounceTimer = undefined;
-                this.saveCurrentState();
+                void this.saveCurrentState();
             }, ComponentViewerBase.filterDebounceMs);
         };
 
@@ -274,7 +275,7 @@ export class ComponentViewerBase {
             clearTimeout(this._filterDebounceTimer);
             this._filterDebounceTimer = undefined;
         }
-        this.saveCurrentState();
+        void this.saveCurrentState();
     }
 
     protected async readScvdFiles(tracker: GDBTargetDebugTracker, session?: GDBTargetDebugSession): Promise<void> {

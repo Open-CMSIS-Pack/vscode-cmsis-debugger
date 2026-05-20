@@ -265,4 +265,4 @@ describe('dynamic-view-states', () => {
             );
         });
     });
-})
+});
