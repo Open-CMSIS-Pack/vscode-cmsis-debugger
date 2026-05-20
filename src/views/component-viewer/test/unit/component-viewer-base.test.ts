@@ -129,7 +129,6 @@ describe('ComponentViewerBase', () => {
         tracker = trackerFactory();
         controller = createController(context, provider);
         asMockedFunction(readComponentViewerState).mockReturnValue(undefined);
-        asMockedFunction(readComponentViewerState).mockReturnValue(undefined);
         // Extend registered commands for test class.
         const defaultMockedCommands = await vscode.commands.getCommands();
         asMockedFunction(vscode.commands.getCommands).mockResolvedValue([

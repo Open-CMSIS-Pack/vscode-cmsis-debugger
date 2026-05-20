@@ -72,7 +72,7 @@ export class CpuStates {
         tracker.onContinued(event => this.handleContinuedEvent(event));
         tracker.onStopped(event => this.handleStoppedEvent(event));
         tracker.onStackTrace(stackTrace => this.handleStackTrace(stackTrace));
-        vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', true);
+        void vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', true);
     }
 
     protected handleOnWillStartSession(session: GDBTargetDebugSession): void {
@@ -101,7 +101,7 @@ export class CpuStates {
         this.activeSession = session;
         // Restore enabled/disabled state of CPU Time commands based on persisted settings
         const enabled = session ? (this.sessionCpuStates.get(session.session.id)?.enableCpuStatesFlag ?? true) : false;
-        vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', enabled);
+        void vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', enabled);
         this._onRefresh.fire(0);
     }
 
@@ -369,7 +369,7 @@ export class CpuStates {
         for (const states of this.sessionCpuStates.values()) {
             states.enableCpuStatesFlag = true;
         }
-        vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', true);
+        void vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', true);
         logger.info('CPU States: CPU Timer reset');
     }
 };
