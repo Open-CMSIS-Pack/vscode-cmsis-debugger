@@ -16,14 +16,13 @@
 
 import * as vscode from 'vscode';
 import {
-    clearAllComponentViewerState,
+    clearAllViewState,
     readComponentViewerState,
     readCpuStatesEnabled,
     writeComponentViewerState,
     writeCpuStatesEnabled,
 } from './dynamic-view-states';
 
-const SETTINGS_KEY = 'test.viewState';
 const CONFIG_KEY = 'My-Target::Debug';
 
 function mockGetConfiguration(globalValue: Record<string, unknown> = {}, workspaceValue: Record<string, unknown> = {}): jest.Mock {
@@ -45,10 +44,12 @@ describe('dynamic-view-states', () => {
         it('returns user-level state when workspace is empty', () => {
             mockGetConfiguration({
                 [CONFIG_KEY]: {
-                    periodicUpdateEnabled: false,
+                    componentViewer: {
+                        periodicUpdateEnabled: false,
+                    },
                 },
             });
-            expect(readComponentViewerState(SETTINGS_KEY, CONFIG_KEY)).toEqual({
+            expect(readComponentViewerState('componentViewer', CONFIG_KEY)).toEqual({
                 periodicUpdateEnabled: false,
             });
         });
@@ -57,16 +58,21 @@ describe('dynamic-view-states', () => {
             mockGetConfiguration(
                 {
                     [CONFIG_KEY]: {
-                        periodicUpdateEnabled: false,
-                        filterPattern: 'user-filter',
+                        componentViewer: {
+                            periodicUpdateEnabled: false,
+                            filterPattern: 'user-filter',
+                        },
                     },
-                }, {
+                },
+                {
                     [CONFIG_KEY]: {
-                        periodicUpdateEnabled: true,
+                        componentViewer: {
+                            periodicUpdateEnabled: true,
+                        },
                     },
                 }
             );
-            expect(readComponentViewerState(SETTINGS_KEY, CONFIG_KEY)).toEqual({
+            expect(readComponentViewerState('componentViewer', CONFIG_KEY)).toEqual({
                 periodicUpdateEnabled: true,
                 filterPattern: 'user-filter',
             });
@@ -74,12 +80,14 @@ describe('dynamic-view-states', () => {
 
         it('writes disabled periodic update state to workspace settings', async () => {
             const updateMock = mockGetConfiguration();
-            await writeComponentViewerState(SETTINGS_KEY, CONFIG_KEY, false, undefined);
+            await writeComponentViewerState('componentViewer', CONFIG_KEY, false, undefined);
             expect(updateMock).toHaveBeenCalledWith(
-                SETTINGS_KEY,
+                'vscode-cmsis-debugger.viewState',
                 {
                     [CONFIG_KEY]: {
-                        periodicUpdateEnabled: false,
+                        componentViewer: {
+                            periodicUpdateEnabled: false,
+                        },
                     },
                 },
                 vscode.ConfigurationTarget.Workspace
@@ -88,9 +96,9 @@ describe('dynamic-view-states', () => {
 
         it('removes workspace state when periodic update is enabled', async () => {
             const updateMock = mockGetConfiguration();
-            await writeComponentViewerState(SETTINGS_KEY, CONFIG_KEY, true, undefined);
+            await writeComponentViewerState('componentViewer', CONFIG_KEY, true, undefined);
             expect(updateMock).toHaveBeenCalledWith(
-                SETTINGS_KEY,
+                'vscode-cmsis-debugger.viewState',
                 undefined,
                 vscode.ConfigurationTarget.Workspace
             );
@@ -99,17 +107,40 @@ describe('dynamic-view-states', () => {
         it('writes explicit enabled state when user setting disables periodic update', async () => {
             const updateMock = mockGetConfiguration({
                 [CONFIG_KEY]: {
-                    periodicUpdateEnabled: false,
-                },
-            });
-            await writeComponentViewerState(SETTINGS_KEY, CONFIG_KEY, true, undefined);
-            expect(updateMock).toHaveBeenCalledWith(
-                SETTINGS_KEY,
-                {
-                    [CONFIG_KEY]: {
-                        periodicUpdateEnabled: true,
+                    componentViewer: {
+                        periodicUpdateEnabled: false,
                     },
                 },
+            });
+            await writeComponentViewerState('componentViewer', CONFIG_KEY, true, undefined);
+            expect(updateMock).toHaveBeenCalledWith(
+                'vscode-cmsis-debugger.viewState',
+                {
+                    [CONFIG_KEY]: {
+                        componentViewer: {
+                            periodicUpdateEnabled: true,
+                        },
+                    },
+                },
+                vscode.ConfigurationTarget.Workspace
+            );
+        });
+
+        it('does not write explicit enabled state when only workspace disables periodic update', async () => {
+            const updateMock = mockGetConfiguration(
+                {},
+                {
+                    [CONFIG_KEY]: {
+                        componentViewer: {
+                            periodicUpdateEnabled: false,
+                        },
+                    },
+                }
+            );
+            await writeComponentViewerState('componentViewer', CONFIG_KEY, true, undefined);
+            expect(updateMock).toHaveBeenCalledWith(
+                'vscode-cmsis-debugger.viewState',
+                undefined,
                 vscode.ConfigurationTarget.Workspace
             );
         });
@@ -120,23 +151,37 @@ describe('dynamic-view-states', () => {
                 {},
                 {
                     [otherConfigKey]: {
-                        periodicUpdateEnabled: false,
+                        componentViewer: {
+                            periodicUpdateEnabled: false,
+                        },
                     },
                 }
             );
-            await writeComponentViewerState(SETTINGS_KEY, CONFIG_KEY, true, 'user-filter');
+            await writeComponentViewerState('componentViewer', CONFIG_KEY, true, 'user-filter');
             expect(updateMock).toHaveBeenCalledWith(
-                SETTINGS_KEY,
+                'vscode-cmsis-debugger.viewState',
                 {
                     [otherConfigKey]: {
-                        periodicUpdateEnabled: false,
+                        componentViewer: {
+                            periodicUpdateEnabled: false,
+                        },
                     },
                     [CONFIG_KEY]: {
-                        filterPattern: 'user-filter',
+                        componentViewer: {
+                            filterPattern: 'user-filter',
+                        },
                     },
                 },
                 vscode.ConfigurationTarget.Workspace
             );
+        });
+
+        it('ignores unsupported component viewer ids', async () => {
+            const updateMock = mockGetConfiguration();
+            expect(readComponentViewerState('wrongId', CONFIG_KEY)).toBeUndefined();
+
+            await writeComponentViewerState('wrongId', CONFIG_KEY, false, undefined);
+            expect(updateMock).not.toHaveBeenCalled();
         });
 
         it('clears both workspace and global levels', async () => {
@@ -145,14 +190,14 @@ describe('dynamic-view-states', () => {
                 update: updateMock,
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any);
-            await clearAllComponentViewerState([SETTINGS_KEY]);
+            await clearAllViewState();
             expect(updateMock).toHaveBeenCalledWith(
-                SETTINGS_KEY,
+                'vscode-cmsis-debugger.viewState',
                 undefined,
                 vscode.ConfigurationTarget.Workspace
             );
             expect(updateMock).toHaveBeenCalledWith(
-                SETTINGS_KEY,
+                'vscode-cmsis-debugger.viewState',
                 undefined,
                 vscode.ConfigurationTarget.Global
             );
@@ -162,35 +207,62 @@ describe('dynamic-view-states', () => {
     describe('CPU States settings', () => {
         it('returns user-level state when workspace is empty', () => {
             mockGetConfiguration({
-                [CONFIG_KEY]: false,
+                [CONFIG_KEY]: {
+                    cpuStates: false,
+                },
             });
-            expect(readCpuStatesEnabled(SETTINGS_KEY, CONFIG_KEY)).toBe(false);
+            expect(readCpuStatesEnabled(CONFIG_KEY)).toBe(false);
         });
 
         it('uses workspace value before user value when reading', () => {
             mockGetConfiguration(
                 {
-                    [CONFIG_KEY]: false,
+                    [CONFIG_KEY]: {
+                        cpuStates: false,
+                    },
                 },
                 {
-                    [CONFIG_KEY]: true,
+                    [CONFIG_KEY]: {
+                        cpuStates: true,
+                    },
                 }
             );
-            expect(readCpuStatesEnabled(SETTINGS_KEY, CONFIG_KEY)).toBe(true);
+            expect(readCpuStatesEnabled(CONFIG_KEY)).toBe(true);
         });
 
         it('writes explicit enabled value when user setting disables CPU states', async () => {
             const updateMock = mockGetConfiguration({
-                [CONFIG_KEY]: false,
+                [CONFIG_KEY]: {
+                    cpuStates: false,
+                },
             });
-            await writeCpuStatesEnabled(SETTINGS_KEY, CONFIG_KEY, true);
+            await writeCpuStatesEnabled(CONFIG_KEY, true);
             expect(updateMock).toHaveBeenCalledWith(
-                SETTINGS_KEY,
+                'vscode-cmsis-debugger.viewState',
                 {
-                    [CONFIG_KEY]: true,
+                    [CONFIG_KEY]: {
+                        cpuStates: true,
+                    },
                 },
                 vscode.ConfigurationTarget.Workspace
             );
         });
+
+        it('does not write explicit enabled value when only workspace disables CPU states', async () => {
+            const updateMock = mockGetConfiguration(
+                {},
+                {
+                    [CONFIG_KEY]: {
+                        cpuStates: false,
+                    },
+                }
+            );
+            await writeCpuStatesEnabled(CONFIG_KEY, true);
+            expect(updateMock).toHaveBeenCalledWith(
+                'vscode-cmsis-debugger.viewState',
+                undefined,
+                vscode.ConfigurationTarget.Workspace
+            );
+        });
     });
-});
+})

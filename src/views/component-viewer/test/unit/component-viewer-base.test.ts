@@ -77,13 +77,14 @@ class TestClass extends ComponentViewerBase {
     public constructor(
         context: vscode.ExtensionContext,
         componentViewerTreeDataProvider: ComponentViewerTreeDataProvider,
+        viewId = 'testClass',
     ) {
         super(
             context,
             componentViewerTreeDataProvider,
             new TestClassScvdCollector(),
             'Test Class',
-            'testClass');
+            viewId);
     }
 };
 
@@ -104,10 +105,12 @@ type ExpansionEventCallback = (event: vscode.TreeViewExpansionEvent<ScvdGuiInter
 
 const createController = (
     context: vscode.ExtensionContext = extensionContextFactory(),
-    provider: ComponentViewerTreeDataProvider = treeDataProviderFactory()
+    provider: ComponentViewerTreeDataProvider = treeDataProviderFactory(),
+    viewId = 'testClass'
 ): TestClass => new TestClass(
     context,
-    provider as ComponentViewerTreeDataProvider
+    provider as ComponentViewerTreeDataProvider,
+    viewId
 );
 
 describe('ComponentViewerBase', () => {
@@ -1032,10 +1035,18 @@ describe('ComponentViewerBase', () => {
         });
 
         it('restorePeriodicUpdateAndFilter restores periodicUpdateEnabled and filter from workspace settings', async () => {
+            controller = createController(context, provider, 'componentViewer');
             jest.spyOn(vscode.workspace, 'getConfiguration').mockReturnValue({
                 inspect: jest.fn().mockReturnValue({
                     globalValue: {},
-                    workspaceValue: { s1: { periodicUpdateEnabled: false, filterPattern: 'uart' } },
+                    workspaceValue: {
+                        s1: {
+                            componentViewer: {
+                                periodicUpdateEnabled: false,
+                                filterPattern: 'uart',
+                            },
+                        },
+                    },
                 }),
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any);
@@ -1046,9 +1057,9 @@ describe('ComponentViewerBase', () => {
             await restoreState(session);
 
             expect((controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled).toBe(false);
-            expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.periodicUpdateEnabled', false);
+            expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'componentViewer.periodicUpdateEnabled', false);
             expect(provider.setFilter).toHaveBeenCalledWith('uart');
-            expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', true);
+            expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'componentViewer.filterActive', true);
         });
 
         it('resetViewState resets runtime view state', async () => {

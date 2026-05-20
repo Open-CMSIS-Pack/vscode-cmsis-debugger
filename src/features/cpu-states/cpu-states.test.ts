@@ -504,7 +504,9 @@ describe('CpuStates', () => {
             jest.spyOn(vscode.workspace, 'getConfiguration').mockReturnValue({
                 inspect: jest.fn().mockReturnValue({
                     globalValue: {
-                        'My-Target::Debug': false,
+                        'My-Target::Debug': {
+                            cpuStates: false,
+                        },
                     },
                     workspaceValue: {},
                 }),
