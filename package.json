@@ -2,7 +2,7 @@
   "name": "vscode-cmsis-debugger",
   "displayName": "Arm CMSIS Debugger",
   "description": "Run and debug embedded and Edge AI projects on Arm Cortex-M single or multi core devices. Connects via pyOCD to CMSIS-DAP or other GDB servers.",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "preview": false,
   "publisher": "Arm",
   "author": "Jens Reinecke <jens.reinecke@arm.com>",
@@ -522,6 +522,16 @@
           "group": "contextMenuG3@1"
         },
         {
+          "command": "cdt.debug.setOutputRadixToDecimal",
+          "when": "(view == cmsis-debugger.liveWatch) && inDebugMode && cdt.debug.outputRadix && cdt.debug.outputRadix != 'decimal' && (debugType == 'gdb' || debugType == 'gdbtarget')",
+          "group": "contextMenuG4@1"
+        },
+        {
+          "command": "cdt.debug.setOutputRadixToHex",
+          "when": "(view == cmsis-debugger.liveWatch) && inDebugMode && cdt.debug.outputRadix && cdt.debug.outputRadix != 'hexadecimal' && (debugType == 'gdb' || debugType == 'gdbtarget')",
+          "group": "contextMenuG4@2"
+        },
+        {
           "command": "vscode-cmsis-debugger.componentViewer.lockComponent",
           "when": "view == cmsis-debugger.componentViewer && viewItem == parentInstance",
           "group": "inline@1"
@@ -692,8 +702,8 @@
     "yargs": "^18.0.0"
   },
   "cmsis": {
-    "pyocd": "pyocd/pyOCD@0.44.0",
+    "pyocd": "pyocd/pyOCD@0.44.1",
     "pyocdNightly": "pyocd/pyOCD@nightly",
-    "gdb": "14.3.1"
+    "gdb": "15.2.1"
   }
 }
