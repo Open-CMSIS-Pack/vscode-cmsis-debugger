@@ -27,6 +27,7 @@ import { GenericCommands } from '../features/generic-commands';
 import { ComponentViewer } from '../views/component-viewer/component-viewer';
 import { ComponentViewerTreeDataProvider } from '../views/component-viewer/component-viewer-tree-view';
 import { CorePeripherals } from '../views/core-peripherals/core-peripherals';
+import { clearAllViewState } from '../views/dynamic-view-states';
 
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
@@ -86,7 +87,9 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     }
 
     // Register reset dynamic view state command
-    context.subscriptions.push( vscode.commands.registerCommand("vscode-cmsis-debugger.resetDynamicViewState", async () => {
+    context.subscriptions.push(
+        vscode.commands.registerCommand('vscode-cmsis-debugger.resetDynamicViewState', async () => {
+            await clearAllViewState();
             await Promise.all([
                 cpuStates.resetViewState(),
                 componentViewer.resetViewState(),

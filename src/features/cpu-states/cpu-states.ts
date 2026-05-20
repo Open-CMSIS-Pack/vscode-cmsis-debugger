@@ -27,7 +27,7 @@ import { CpuStatesHistory } from './cpu-states-history';
 import { calculateTime, extractPname } from '../../utils';
 import { GDBTargetConfiguration } from '../../debug-configuration';
 import { logger } from '../../logger';
-import { clearAllViewState, readCpuStatesEnabled, writeCpuStatesEnabled } from '../../views/dynamic-view-states';
+import { readCpuStatesEnabled, writeCpuStatesEnabled } from '../../views/dynamic-view-states';
 
 // Architecturally defined registers (M-profile)
 const DWT_CTRL_ADDRESS = 0xE0001000;
@@ -362,9 +362,7 @@ export class CpuStates {
     }
 
     public async resetViewState(): Promise<void> {
-        // Clear persisted settings
-        await clearAllViewState();
-        // Re-enable all active sessions in memory
+        // Re-enable all active sessions in memory.
         for (const states of this.sessionCpuStates.values()) {
             states.enableCpuStatesFlag = true;
         }

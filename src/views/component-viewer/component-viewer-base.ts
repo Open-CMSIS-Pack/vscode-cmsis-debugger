@@ -25,7 +25,7 @@ import { perf, parsePerf } from './stats-config';
 import { vscodeViewExists } from '../../vscode-utils';
 import { EXTENSION_NAME, VIEW_PREFIX } from '../../manifest';
 import { ExtendedGDBTargetConfiguration } from '../../debug-configuration/gdbtarget-configuration';
-import { clearAllViewState, readComponentViewerState, writeComponentViewerState } from '../dynamic-view-states';
+import { readComponentViewerState, writeComponentViewerState } from '../dynamic-view-states';
 
 export interface ScvdCollector {
     getScvdFilePaths(session: GDBTargetDebugSession): Promise<string[]>;
@@ -561,9 +561,7 @@ export class ComponentViewerBase {
     }
 
     public async resetViewState(): Promise<void> {
-        // Clear persisted settings
-        await clearAllViewState();
-        // Reset in-memory state to defaults
+        // Reset in-memory state to defaults.
         this._refreshTimerEnabled = true;
         vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
         this._componentViewerTreeDataProvider.setFilter(undefined);

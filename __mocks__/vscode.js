@@ -33,7 +33,6 @@ const StatusBarAlignment = {
 const ConfigurationTarget = {
     Global: 1,
     Workspace: 2,
-    WorkspaceFolder: 3,
 };
 
 const MockTreeItemCollapsibleState = { 
