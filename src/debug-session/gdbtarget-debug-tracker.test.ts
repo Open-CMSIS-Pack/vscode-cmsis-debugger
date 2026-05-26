@@ -255,12 +255,23 @@ describe('GDBTargetDebugTracker', () => {
             debugTracker.onStackTrace(event => result = event);
             const tracker = await adapterFactory!.createDebugAdapterTracker(debugSessionFactory(debugConfigurationFactory()));
             tracker!.onWillStartSession!();
-            const invalidatedEvent: DebugProtocol.InvalidatedEvent = {
-                event: 'invalidated',
+            const stoppedEvent: DebugProtocol.StoppedEvent = {
+                event: 'stopped',
                 type: 'event',
                 seq: 1,
                 body: {
-                    areas: ['stack']
+                    reason: 'step',
+                    threadId: 1
+                }
+            };
+            tracker!.onDidSendMessage!(stoppedEvent);
+            const invalidatedEvent: DebugProtocol.InvalidatedEvent = {
+                event: 'invalidated',
+                type: 'event',
+                seq: 2,
+                body: {
+                    areas: ['stack'],
+                    threadId: 1
                 }
             };
             tracker!.onDidSendMessage!(invalidatedEvent);
