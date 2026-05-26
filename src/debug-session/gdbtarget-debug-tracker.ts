@@ -157,8 +157,8 @@ export class GDBTargetDebugTracker {
                 gdbTargetSession?.filterOutputEvent(event as DebugProtocol.OutputEvent);
                 break;
             case 'invalidated':
-                if (gdbTargetSession && gdbTargetSession.targetState === 'stopped' && event.body && event.body.threadId) {
-                    this._onStackTrace.fire({ session: gdbTargetSession, threadId: event.body.threadId, stackFrames: event.body.stackFrameId ?? [], totalFrames: 0 });
+                if (gdbTargetSession && gdbTargetSession.targetState === 'stopped') {
+                    this._onStackTrace.fire({ session: gdbTargetSession } as SessionStackTrace);
                 }
                 break;
             case 'memory':
