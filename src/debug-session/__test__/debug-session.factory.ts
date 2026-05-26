@@ -15,9 +15,15 @@
  */
 // generated with AI
 
+import type { DebugProtocol } from '@vscode/debugprotocol';
 import { GDBTargetDebugSession, GDBTargetDebugTracker, TargetState } from '..';
 
 export type OnRefreshCallback = (session: Session) => void;
+
+export type TestMemoryEvent = {
+    session: Session;
+    event: DebugProtocol.MemoryEvent;
+};
 
 export type Session = {
     session: { id: string };
@@ -35,7 +41,7 @@ export type TrackerCallbacks = {
     onStackTrace: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
     onDidChangeActiveStackItem: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
     onWillStartSession: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
-    onMemory: (cb: (event: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
+    onMemory: (cb: (event: TestMemoryEvent) => Promise<void>) => { dispose: jest.Mock };
     callbacks: Partial<{
         willStop: (session: Session) => Promise<void>;
         connected: (session: Session) => Promise<void>;
@@ -43,7 +49,7 @@ export type TrackerCallbacks = {
         stackTrace: (session: { session: Session }) => Promise<void>;
         activeStackItem: (session: { session: Session }) => Promise<void>;
         willStart: (session: Session) => Promise<void>;
-        memory: (event: { session: Session }) => Promise<void>;
+        memory: (event: TestMemoryEvent) => Promise<void>;
     }>;
 };
 

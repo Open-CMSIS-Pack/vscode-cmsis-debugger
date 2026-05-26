@@ -20,6 +20,7 @@
  */
 
 import * as vscode from 'vscode';
+import type { DebugProtocol } from '@vscode/debugprotocol';
 import type { GDBTargetDebugTracker } from '../../../../debug-session';
 import type { GDBTargetDebugSession } from '../../../../debug-session/gdbtarget-debug-session';
 import { componentViewerLogger } from '../../../../logger';
@@ -102,6 +103,17 @@ const getReadScvdFiles = (controller: TestClass) =>
 
 // Local test mocks
 type ExpansionEventCallback = (event: vscode.TreeViewExpansionEvent<ScvdGuiInterface>) => void;
+
+const makeMemoryEvent = (): DebugProtocol.MemoryEvent => ({
+    event: 'memory',
+    type: 'event',
+    seq: 1,
+    body: {
+        memoryReference: '0x1234',
+        offset: 0,
+        count: 4,
+    },
+});
 
 const createController = (
     context: vscode.ExtensionContext = extensionContextFactory(),
@@ -310,7 +322,7 @@ describe('ComponentViewerBase', () => {
         await tracker.callbacks.stackTrace?.({ session });
         expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(session);
 
-        await tracker.callbacks.memory?.({ session });
+        await tracker.callbacks.memory?.({ session, event: makeMemoryEvent() });
 
 
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
