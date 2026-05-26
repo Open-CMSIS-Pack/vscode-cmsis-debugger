@@ -158,12 +158,12 @@ export class GDBTargetDebugTracker {
                 break;
             case 'invalidated':
                 if (gdbTargetSession && gdbTargetSession.targetState === 'stopped' && event.body && event.body.threadId) {
-                    this._onStackTrace.fire({session: gdbTargetSession, threadId: event.body.threadId, stackFrames: event.body.stackFrameId ?? [], totalFrames: 0});
+                    this._onStackTrace.fire({ session: gdbTargetSession, threadId: event.body.threadId, stackFrames: event.body.stackFrameId ?? [], totalFrames: 0 });
                 }
                 break;
             case 'memory':
                 if (gdbTargetSession) {
-                    this._onMemory.fire({session: gdbTargetSession, event: event as DebugProtocol.MemoryEvent});
+                    this._onMemory.fire({ session: gdbTargetSession, event: event as DebugProtocol.MemoryEvent });
                 }
                 break;
         }

@@ -331,7 +331,7 @@ export class ComponentViewerBase {
         const onMemoryDisposable = tracker.onMemory(async (event) => {
             const session = event.session;
             await this.handleOnMemoryEvent(session);
-         });
+        });
         // clear all disposables on extension deactivation
         this._context.subscriptions.push(
             onWillStopSessionDisposable,
