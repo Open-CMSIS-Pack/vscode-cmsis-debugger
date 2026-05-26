@@ -28,6 +28,7 @@ export interface SessionEvent<T extends DebugProtocol.Event> {
 
 export type ContinuedEvent = SessionEvent<DebugProtocol.ContinuedEvent>;
 export type StoppedEvent = SessionEvent<DebugProtocol.StoppedEvent>;
+export type MemoryEvent = SessionEvent<DebugProtocol.MemoryEvent>;
 
 export interface SessionCapabilities {
     session: GDBTargetDebugSession;
@@ -77,6 +78,10 @@ export class GDBTargetDebugTracker {
 
     private readonly _onStackTrace: vscode.EventEmitter<SessionStackTrace> = new vscode.EventEmitter<SessionStackTrace>();
     public readonly onStackTrace: vscode.Event<SessionStackTrace> = this._onStackTrace.event;
+
+    private readonly _onMemory: vscode.EventEmitter<MemoryEvent> = new vscode.EventEmitter<MemoryEvent>();
+    public readonly onMemory: vscode.Event<MemoryEvent> = this._onMemory.event;
+
 
     public activate(context: vscode.ExtensionContext) {
         const createDebugAdapterTracker = (session: vscode.DebugSession): vscode.ProviderResult<vscode.DebugAdapterTracker> => {
@@ -150,6 +155,16 @@ export class GDBTargetDebugTracker {
                 break;
             case 'output':
                 gdbTargetSession?.filterOutputEvent(event as DebugProtocol.OutputEvent);
+                break;
+            case 'invalidated':
+                if (gdbTargetSession && gdbTargetSession.targetState === 'stopped' && event.body && event.body.threadId) {
+                    this._onStackTrace.fire({session: gdbTargetSession, threadId: event.body.threadId, stackFrames: event.body.stackFrameId ?? [], totalFrames: 0});
+                }
+                break;
+            case 'memory':
+                if (gdbTargetSession) {
+                    this._onMemory.fire({session: gdbTargetSession, event: event as DebugProtocol.MemoryEvent});
+                }
                 break;
         }
     }

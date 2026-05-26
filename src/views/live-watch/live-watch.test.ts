@@ -90,7 +90,7 @@ describe('LiveWatchTreeDataProvider', () => {
             expect((liveWatchTreeDataProvider as any).activeSession).toBeUndefined();
         });
 
-        it('refreshes on stopped event and on onDidChangeActiveStackItem', async () => {
+        it('refreshes on stopped event and on onDidChangeActiveStackItem and onMemory event', async () => {
             const refreshSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'refresh').mockResolvedValue('');
             await liveWatchTreeDataProvider.activate(tracker);
             // Activate session
@@ -102,6 +102,10 @@ describe('LiveWatchTreeDataProvider', () => {
             refreshSpy.mockClear();
             // Fire onDidChangeActiveStackItem event
             (tracker as any)._onDidChangeActiveStackItem.fire({ item: { frameId: 1 } });
+            expect(refreshSpy).toHaveBeenCalled();
+            refreshSpy.mockClear();
+            // Fire onMemory event
+            (tracker as any)._onMemory.fire({ session: gdbtargetDebugSession, event: { memoryReference: '0x1234', offset: 0, count: 4 } });
             expect(refreshSpy).toHaveBeenCalled();
         });
 

@@ -328,6 +328,10 @@ export class ComponentViewerBase {
         const onWillStartSessionDisposable = tracker.onWillStartSession(async (session) => {
             await this.handleOnWillStartSession(session);
         });
+        const onMemoryDisposable = tracker.onMemory(async (event) => {
+            const session = event.session;
+            await this.handleOnMemoryEvent(session);
+         });
         // clear all disposables on extension deactivation
         this._context.subscriptions.push(
             onWillStopSessionDisposable,
@@ -335,7 +339,8 @@ export class ComponentViewerBase {
             onDidChangeActiveDebugSessionDisposable,
             onStackTraceDisposable,
             onDidChangeActiveStackItemDisposable,
-            onWillStartSessionDisposable
+            onWillStartSessionDisposable,
+            onMemoryDisposable
         );
     }
 
@@ -345,6 +350,13 @@ export class ComponentViewerBase {
             throw new Error(`${this._viewName}: Received stack trace event for session ${session.session.id} while active session is ${this._activeSession?.session.id}`);
         }
         // Update component viewer instance(s) if active session is stopped
+        this.schedulePendingUpdate('stackTrace');
+    }
+
+    protected async handleOnMemoryEvent(session: GDBTargetDebugSession): Promise<void> {
+        if (this._activeSession?.session.id !== session.session.id) {
+            throw new Error(`${this._viewName}: Received memory event for session ${session.session.id} while active session is ${this._activeSession?.session.id}`);
+        }
         this.schedulePendingUpdate('stackTrace');
     }
 

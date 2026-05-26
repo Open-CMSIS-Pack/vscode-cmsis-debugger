@@ -16,7 +16,7 @@
 
 import * as vscode from 'vscode';
 import { DebugProtocol } from '@vscode/debugprotocol';
-import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
+import { GDBTargetDebugSession, GDBTargetDebugTracker, SessionEvent } from '../../debug-session';
 import { vscodeViewExists } from '../../vscode-utils';
 import { logger } from '../..';
 
@@ -116,11 +116,15 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             await this.refresh();
             await this.save();
         });
+        const onMemory = tracker.onMemory(async (event) => {
+            await this.handleOnMemoryEvent(event);
+        });
         this._context.subscriptions.push(
             onDidChangeActiveDebugSession,
             onWillStartSession,
             onStackTrace,
-            onWillStopSession);
+            onWillStopSession,
+            onMemory);
         return true;
     }
 
@@ -139,6 +143,14 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
                 await this.refresh();
             }
         });
+    }
+
+    private async handleOnMemoryEvent(event: SessionEvent<DebugProtocol.MemoryEvent>): Promise<void> {
+        const gdbTargetSession = event.session;
+        if (this._activeSession?.session.id !== gdbTargetSession.session.id) {
+            return;
+        }
+        await this.refresh();
     }
 
     private async addVSCodeCommands(): Promise<boolean> {

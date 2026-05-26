@@ -35,6 +35,7 @@ export type TrackerCallbacks = {
     onStackTrace: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
     onDidChangeActiveStackItem: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
     onWillStartSession: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
+    onMemory: (cb: (event: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
     callbacks: Partial<{
         willStop: (session: Session) => Promise<void>;
         connected: (session: Session) => Promise<void>;
@@ -42,6 +43,7 @@ export type TrackerCallbacks = {
         stackTrace: (session: { session: Session }) => Promise<void>;
         activeStackItem: (session: { session: Session }) => Promise<void>;
         willStart: (session: Session) => Promise<void>;
+        memory: (event: { session: Session }) => Promise<void>;
     }>;
 };
 
@@ -71,6 +73,10 @@ export const trackerFactory = (): TrackerCallbacks => {
         },
         onWillStartSession: (cb) => {
             callbacks.willStart = cb;
+            return { dispose: jest.fn() };
+        },
+        onMemory: (cb) => {
+            callbacks.memory = cb;
             return { dispose: jest.fn() };
         },
     };

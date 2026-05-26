@@ -38,6 +38,7 @@ const instanceFactory = jest.fn(() => ({
     getGuiTree: jest.fn<ScvdGuiInterface[] | undefined, []>(() => []),
     updateActiveSession: jest.fn(),
     cancelExecution: jest.fn(),
+    setSvdPath: jest.fn(),
 }));
 
 jest.mock('../../component-viewer-instance', () => ({
@@ -157,12 +158,12 @@ describe('ComponentViewerBase', () => {
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.lockComponent', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.unlockComponent', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.expandAll', expect.any(Function));
-        // 1 tree view + 2 event listeners + 7 commands + 6 tracker disposables
-        expect(context.subscriptions.length).toBe(16);
+        // 1 tree view + 2 event listeners + 7 commands + 7 tracker disposables
+        expect(context.subscriptions.length).toBe(17);
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.filterTree', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.clearFilter', expect.any(Function));
-        // 1 tree view + 2 event listeners + 7 commands + 6 tracker disposables
-        expect(context.subscriptions.length).toBe(16);
+        // 1 tree view + 2 event listeners + 7 commands + 7 tracker disposables
+        expect(context.subscriptions.length).toBe(17);
     });
 
     it('should fail to activate the test class tree data provider if view is not correctly loaded', async () => {
@@ -213,6 +214,22 @@ describe('ComponentViewerBase', () => {
         expect(instanceFactory).toHaveBeenCalledTimes(2);
     });
 
+    it('sets svd path from debug configuration when reading scvd files', async () => {
+        const session = debugSessionFactory('s1', ['a.scvd']);
+        (session.session as unknown as { configuration: { definitionPath: string } }).configuration = {
+            definitionPath: '/device.svd',
+        };
+        (controller as unknown as { _activeSession?: Session })._activeSession = session;
+
+        const instance = instanceFactory();
+        instanceFactory.mockImplementationOnce(() => instance);
+
+        const readScvdFiles = getReadScvdFiles(controller);
+        await readScvdFiles(tracker, session);
+
+        expect(instance.setSvdPath).toHaveBeenCalledWith('/device.svd');
+    });
+
     it('skips reading scvd files when no active session is set', async () => {
         const session = debugSessionFactory('s1', ['a.scvd']);
         const readScvdFiles = getReadScvdFiles(controller);
@@ -235,6 +252,7 @@ describe('ComponentViewerBase', () => {
             getGuiTree: jest.fn(() => []),
             updateActiveSession: jest.fn(),
             cancelExecution: jest.fn(),
+            setSvdPath: jest.fn(),
         }));
         const showErrorSpy = jest.spyOn(vscode.window, 'showErrorMessage').mockResolvedValue(undefined);
         const errorSpy = jest.spyOn(componentViewerLogger, 'error');
@@ -291,6 +309,8 @@ describe('ComponentViewerBase', () => {
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
         await tracker.callbacks.stackTrace?.({ session });
         expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(session);
+
+        await tracker.callbacks.memory?.({ session });
 
 
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
@@ -349,6 +369,21 @@ describe('ComponentViewerBase', () => {
 
         expect(scheduleSpy).toHaveBeenCalledWith('stackItemChanged');
         expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(sessionA);
+    });
+
+    it('updates instances on memory event', async () => {
+        const sessionA = debugSessionFactory('s1', [], 'stopped');
+
+        (controller as unknown as { _activeSession?: Session })._activeSession = sessionA;
+
+        const scheduleSpy = jest
+            .spyOn(controller as unknown as { schedulePendingUpdate: (reason: UpdateReason) => void }, 'schedulePendingUpdate')
+            .mockImplementation(() => undefined);
+
+        const handleOnMemoryEvent = (controller as unknown as { handleOnMemoryEvent: (s: Session) => Promise<void> }).handleOnMemoryEvent.bind(controller);
+        await handleOnMemoryEvent(sessionA);
+
+        expect(scheduleSpy).toHaveBeenCalledWith('stackTrace');
     });
 
     it('does not update active session when stack item matches the active session', async () => {
