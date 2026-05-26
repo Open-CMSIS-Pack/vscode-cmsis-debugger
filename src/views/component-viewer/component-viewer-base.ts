@@ -355,7 +355,7 @@ export class ComponentViewerBase {
 
     protected async handleOnMemoryEvent(session: GDBTargetDebugSession): Promise<void> {
         if (this._activeSession?.session.id !== session.session.id) {
-            throw new Error(`${this._viewName}: Received memory event for session ${session.session.id} while active session is ${this._activeSession?.session.id}`);
+            return;
         }
         this.schedulePendingUpdate('stackTrace');
     }
