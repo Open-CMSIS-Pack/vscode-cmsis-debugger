@@ -176,6 +176,7 @@ export class GDBTargetDebugTracker {
     private handleInitializeResponse(gdbTargetSession: GDBTargetDebugSession, response: DebugProtocol.InitializeResponse): void {
         if (response.success && response.body) {
             gdbTargetSession.setCapabilities(response.body);
+            gdbTargetSession.setSetExpressionSupportedContext();
         }
     }
 
