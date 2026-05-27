@@ -89,6 +89,7 @@ Every TypeScript file under `src` and `scripts` must start with this header (adj
 ## Dependency Updates
 
 Check the following for dependency updates and involved versions. Do this for PRs from developers and Dependabot.
+
 * Known functional issues, API changes, or other incompatibilities
 * Known security vulnerabilities, malicious code, or supply chain attacks
 * Are the new versions at least 3 days old. Use NPM registry, GitHub releases, and GitHub tags to determine this (in the listed order)
