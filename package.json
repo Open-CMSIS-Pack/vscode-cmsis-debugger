@@ -349,11 +349,11 @@
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate",
-          "when": "true"
+          "when": "!componentViewer.periodicUpdateEnabled"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate",
-          "when": "true"
+          "when": "componentViewer.periodicUpdateEnabled"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.expandAll",
@@ -377,11 +377,11 @@
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.enablePeriodicUpdate",
-          "when": "true"
+          "when": "!corePeripherals.periodicUpdateEnabled"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.disablePeriodicUpdate",
-          "when": "true"
+          "when": "corePeripherals.periodicUpdateEnabled"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.expandAll",

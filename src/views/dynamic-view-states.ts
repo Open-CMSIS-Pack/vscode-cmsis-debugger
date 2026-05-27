@@ -25,6 +25,11 @@ type ViewStateEntry = {
 };
 type ViewStateByConfigKey = Record<string, Partial<ViewStateEntry>>;
 
+interface ComponentViewerState {
+    periodicUpdateEnabled?: boolean;
+    filterPattern?: string;
+}
+
 /* eslint-disable security/detect-object-injection */
 function readDynamicViewState<T extends keyof ViewStateEntry>(configStateKey: string, dynamicView: T, mode: 'global' | 'merged' = 'merged'): ViewStateEntry[T] | undefined {
     const inspection = vscode.workspace.getConfiguration().inspect<ViewStateByConfigKey>(SETTINGS_KEY);
@@ -73,11 +78,6 @@ export async function clearAllViewState(): Promise<void> {
 // -------------------------------------------------------------------------------------------------
 // Component Viewer and Core Peripherals
 // -------------------------------------------------------------------------------------------------
-
-interface ComponentViewerState {
-    periodicUpdateEnabled?: boolean;
-    filterPattern?: string;
-}
 
 export function readComponentViewerState(viewId: string, configStateKey: string): ComponentViewerState | undefined {
     if (viewId !== 'componentViewer' && viewId !== 'corePeripherals') {
