@@ -120,6 +120,11 @@ export class GDBTargetDebugSession {
         return this.session.configuration.request === 'launch' && this.capabilities?.supportsTerminateRequest === true;
     }
 
+    public async setSetExpressionSupportedContext(): Promise<void> {
+        const supported = this.capabilities?.supportsSetExpression ?? false;
+        await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.setExpressionSupported', supported);
+    }
+
     // Function returns string only in case of failure
     public async evaluateGlobalExpression(expression: string, context = 'hover'): Promise<DebugProtocol.EvaluateResponse['body'] | string> {
         try {

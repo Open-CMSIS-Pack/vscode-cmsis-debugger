@@ -120,13 +120,21 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const onMemory = tracker.onMemory(async (event) => {
             await this.handleOnMemoryEvent(event);
         });
+        const onContinued = tracker.onContinued(async (event) => {
+            await this.handleOnContinued(event.session);
+        });
+        const onStopped = tracker.onStopped(async (event) => {
+            await this.handleOnStopped(event.session);
+        });
         this._context.subscriptions.push(
             onDidChangeActiveDebugSession,
             onWillStartSession,
             onStackItem,
             onStackTrace,
             onWillStopSession,
-            onMemory);
+            onMemory,
+            onContinued,
+            onStopped);
         return true;
     }
 
@@ -154,6 +162,19 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         }
         await this.refresh();
     }
+    private async handleOnContinued(session: GDBTargetDebugSession): Promise<void> {
+        if (this._activeSession?.session.id != session.session.id) {
+            return;
+        }
+        await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.setExpressionSupported', false);
+    }
+
+    private async handleOnStopped(session: GDBTargetDebugSession): Promise<void> {
+        if (this._activeSession?.session.id != session.session.id) {
+            return;
+        }
+        await this._activeSession.setSetExpressionSupportedContext();
+    }
 
     private async addVSCodeCommands(): Promise<boolean> {
         if (!await vscodeViewExists('liveWatch')) {
@@ -166,6 +187,9 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const refreshCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.refresh', async () => await this.refresh());
         const modifyCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.modify', async (node) => await this.handleRenameCommand(node));
         const copyCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.copy', async (node) => await this.handleCopyCommand(node));
+        const setValueCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.setValue', async (node) => {
+            await this.handleSetValueCommand(node);
+        });
         const addToLiveWatchCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.addToLiveWatchFromTextEditor',
             async () => await this.handleAddFromSelectionCommand());
         /* omarArm: I am using the same callback function for both watch window and variables view, as they have the same payload structure for now.
@@ -188,6 +212,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             refreshCommand,
             modifyCommand,
             copyCommand,
+            setValueCommand,
             addToLiveWatchCommand,
             addToLiveWatchFromWatchWindowCommand,
             addToLiveWatchFromVariablesViewCommand,
@@ -296,6 +321,36 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         response.variablesReference = result.variablesReference;
         response.type = result.type ?? '';
         return response;
+    }
+
+    private async handleSetValueCommand(node: LiveWatchNode) {
+        if (!node) {
+            return;
+        }
+        if (!this._activeSession) {
+            vscode.window.showErrorMessage('No active debug session');
+            return;
+        }
+        const newValue = await vscode.window.showInputBox({ prompt: 'New Value', value: node.value.result });
+        if (newValue === undefined) {
+            return;
+        }
+        // VSCode sends setExpression requests for parent nodes, and setVariable requests for child nodes. We can use the presence of parent to determine which request to send.
+        if (node.parent) {
+            await this._activeSession?.session.customRequest('setVariable', {
+                name: node.expression,
+                value: newValue,
+                variablesReference: node.parent.value.variablesReference
+            });
+        } else {
+            const frameId = (vscode.debug.activeStackItem as vscode.DebugStackFrame)?.frameId ?? 0;
+            await this._activeSession?.session.customRequest('setExpression', {
+                expression: node.expression,
+                value: newValue,
+                frameId: frameId
+            });
+        }
+        await this.refresh();
     }
 
     private async addToRoots(expression: string, parent?: LiveWatchNode) {
