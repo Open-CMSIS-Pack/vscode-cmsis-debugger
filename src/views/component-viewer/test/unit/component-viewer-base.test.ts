@@ -115,6 +115,15 @@ const makeMemoryEvent = (): DebugProtocol.MemoryEvent => ({
     },
 });
 
+const makeInvalidatedEvent = (): DebugProtocol.InvalidatedEvent => ({
+    event: 'invalidated',
+    type: 'event',
+    seq: 1,
+    body: {
+        areas: ['variables'],
+    },
+});
+
 const createController = (
     context: vscode.ExtensionContext = extensionContextFactory(),
     provider: ComponentViewerTreeDataProvider = treeDataProviderFactory()
@@ -170,12 +179,12 @@ describe('ComponentViewerBase', () => {
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.lockComponent', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.unlockComponent', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.expandAll', expect.any(Function));
-        // 1 tree view + 2 event listeners + 7 commands + 7 tracker disposables
-        expect(context.subscriptions.length).toBe(17);
+        // 1 tree view + 2 event listeners + 7 commands + 8 tracker disposables
+        expect(context.subscriptions.length).toBe(18);
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.filterTree', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.clearFilter', expect.any(Function));
-        // 1 tree view + 2 event listeners + 7 commands + 7 tracker disposables
-        expect(context.subscriptions.length).toBe(17);
+        // 1 tree view + 2 event listeners + 7 commands + 8 tracker disposables
+        expect(context.subscriptions.length).toBe(18);
     });
 
     it('should fail to activate the test class tree data provider if view is not correctly loaded', async () => {
@@ -323,6 +332,7 @@ describe('ComponentViewerBase', () => {
         expect((controller as unknown as { _activeSession?: Session })._activeSession).toBe(session);
 
         await tracker.callbacks.memory?.({ session, event: makeMemoryEvent() });
+        await tracker.callbacks.invalidated?.({ session, event: makeInvalidatedEvent() });
 
 
         (controller as unknown as { _activeSession?: Session })._activeSession = session;
@@ -395,7 +405,22 @@ describe('ComponentViewerBase', () => {
         const handleOnMemoryEvent = (controller as unknown as { handleOnMemoryEvent: (s: Session) => Promise<void> }).handleOnMemoryEvent.bind(controller);
         await handleOnMemoryEvent(sessionA);
 
-        expect(scheduleSpy).toHaveBeenCalledWith('stackTrace');
+        expect(scheduleSpy).toHaveBeenCalledWith('memoryEvent');
+    });
+
+    it('updates instances on invalidated event', async () => {
+        const sessionA = debugSessionFactory('s1', [], 'stopped');
+
+        (controller as unknown as { _activeSession?: Session })._activeSession = sessionA;
+
+        const scheduleSpy = jest
+            .spyOn(controller as unknown as { schedulePendingUpdate: (reason: UpdateReason) => void }, 'schedulePendingUpdate')
+            .mockImplementation(() => undefined);
+
+        const handleOnInvalidated = (controller as unknown as { handleOnInvalidated: (s: Session) => Promise<void> }).handleOnInvalidated.bind(controller);
+        await handleOnInvalidated(sessionA);
+
+        expect(scheduleSpy).toHaveBeenCalledWith('invalidated');
     });
 
     it('does not update active session when stack item matches the active session', async () => {

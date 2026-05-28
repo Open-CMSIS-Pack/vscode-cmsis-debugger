@@ -25,6 +25,11 @@ export type TestMemoryEvent = {
     event: DebugProtocol.MemoryEvent;
 };
 
+export type TestInvalidatedEvent = {
+    session: Session;
+    event: DebugProtocol.InvalidatedEvent;
+};
+
 export type Session = {
     session: { id: string };
     getCbuildRun: () => Promise<{ getScvdFilePaths: () => string[] } | undefined>;
@@ -42,6 +47,7 @@ export type TrackerCallbacks = {
     onDidChangeActiveStackItem: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
     onWillStartSession: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
     onMemory: (cb: (event: TestMemoryEvent) => Promise<void>) => { dispose: jest.Mock };
+    onInvalidated: (cb: (event: TestInvalidatedEvent) => Promise<void>) => { dispose: jest.Mock };
     callbacks: Partial<{
         willStop: (session: Session) => Promise<void>;
         connected: (session: Session) => Promise<void>;
@@ -50,6 +56,7 @@ export type TrackerCallbacks = {
         activeStackItem: (session: { session: Session }) => Promise<void>;
         willStart: (session: Session) => Promise<void>;
         memory: (event: TestMemoryEvent) => Promise<void>;
+        invalidated: (event: TestInvalidatedEvent) => Promise<void>;
     }>;
 };
 
@@ -83,6 +90,10 @@ export const trackerFactory = (): TrackerCallbacks => {
         },
         onMemory: (cb) => {
             callbacks.memory = cb;
+            return { dispose: jest.fn() };
+        },
+        onInvalidated: (cb) => {
+            callbacks.invalidated = cb;
             return { dispose: jest.fn() };
         },
     };
