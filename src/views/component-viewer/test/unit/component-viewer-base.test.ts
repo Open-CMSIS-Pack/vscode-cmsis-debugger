@@ -30,7 +30,7 @@ import { ComponentViewerBase } from '../../component-viewer-base';
 import { ComponentViewerTreeDataProvider } from '../../component-viewer-tree-view';
 import type { ScvdGuiInterface } from '../../model/scvd-gui-interface';
 import { debugSessionFactory, trackerFactory, OnRefreshCallback, Session, TrackerCallbacks } from '../../../../debug-session/__test__/debug-session.factory';
-import { readComponentViewerState } from '../../../dynamic-view-states';
+import { readComponentViewerState, writeComponentViewerState } from '../../../dynamic-view-states';
 
 
 const instanceFactory = jest.fn(() => ({
@@ -609,6 +609,28 @@ describe('ComponentViewerBase', () => {
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', false);
     });
 
+    it('filterTree command debounces saving filter state', async () => {
+        jest.useFakeTimers();
+        try {
+            const saveSpy = jest.spyOn(controller as unknown as { saveCurrentState: () => Promise<void> }, 'saveCurrentState').mockResolvedValue(undefined);
+            await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+            const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+            const filterHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.testClass.filterTree')?.[1] as
+                | (() => void)
+                | undefined;
+            filterHandler?.();
+            const inputBox = asMockedFunction(vscode.window.createInputBox).mock.results[0]?.value;
+            const onChangeHandler = inputBox._handlers.onDidChangeValue[0];
+            onChangeHandler('abc');
+            expect(saveSpy).not.toHaveBeenCalled();
+
+            jest.advanceTimersByTime(1000);
+            expect(saveSpy).toHaveBeenCalled();
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
     it('filterTree command applies filter on Enter regardless of length', async () => {
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
@@ -1075,6 +1097,36 @@ describe('ComponentViewerBase', () => {
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.periodicUpdateEnabled', true);
             expect(provider.setFilter).toHaveBeenCalledWith(undefined);
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', false);
+        });
+
+        it('resetViewState unlocks loaded instances and root nodes', async () => {
+            const rootNode = makeGuiNode('root');
+            rootNode.isLocked = true;
+            const wrapper = {
+                componentViewerInstance: {
+                    getGuiTree: jest.fn().mockReturnValue([rootNode]),
+                },
+                lockState: true,
+                sessionId: 's1',
+                dirtyWhileLocked: false,
+            } as unknown as ComponentViewerInstancesWrapper;
+            (controller as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = [wrapper];
+            await controller.resetViewState();
+
+            expect(wrapper.lockState).toBe(false);
+            expect(rootNode.isLocked).toBe(false);
+        });
+
+        it('saveCurrentState writes the active session state', async () => {
+            (controller as unknown as { _activeSession: Session })._activeSession = {
+                session: { id: 's1', configuration: { name: 's1' } },
+                getConfigStateKey: async () => 'My-Target::Debug',
+            } as unknown as Session;
+            (provider as unknown as { filterPattern: string }).filterPattern = 'word';
+            (controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled = false;
+            await (controller as unknown as { saveCurrentState: () => Promise<void> }).saveCurrentState();
+
+            expect(writeComponentViewerState).toHaveBeenCalledWith('testClass', 'My-Target::Debug', false, 'word');
         });
     });
 });

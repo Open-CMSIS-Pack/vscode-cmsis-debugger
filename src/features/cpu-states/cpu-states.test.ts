@@ -85,6 +85,14 @@ describe('CpuStates', () => {
             cpuStates.activate(tracker);
         });
 
+        it('enable and disable commands return when there is no active session', async () => {
+            const executeCommandSpy = jest.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
+            await cpuStates.enableCpuStates();
+            await cpuStates.disableCpuStates();
+
+            expect(executeCommandSpy).not.toHaveBeenCalledWith('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', expect.any(Boolean));
+        });
+
         it('returns early from showStatesHistory when there are no active cpu states', () => {
             const warningMessageSpy = jest.spyOn(vscode.window, 'showWarningMessage');
             // No session started => activeCpuStates is undefined

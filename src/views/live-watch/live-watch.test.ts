@@ -495,6 +495,52 @@ describe('LiveWatchTreeDataProvider', () => {
             expect(args.variable.name).toBe('node');
             expect(args.variable.memoryReference).toBe('&(node)');
         });
+
+        it('enable and disable periodic update commands update active session state', async () => {
+            const updateMock = jest.fn().mockResolvedValue(undefined);
+            jest.spyOn(vscode.workspace, 'getConfiguration').mockReturnValue({
+                update: updateMock,
+                inspect: jest.fn().mockReturnValue({ globalValue: {}, workspaceValue: {} }),
+            } as any);
+            await liveWatchTreeDataProvider.activate(tracker);
+            (tracker as any)._onWillStartSession.fire(gdbtargetDebugSession);
+            (liveWatchTreeDataProvider as any)._activeSession = gdbtargetDebugSession;
+
+            await getRegisteredHandler('vscode-cmsis-debugger.liveWatch.disablePeriodicUpdate')();
+            const state = (liveWatchTreeDataProvider as any).sessionLiveWatchStates.get(gdbtargetDebugSession.session.id);
+            expect(state.periodicUpdateEnabled).toBe(false);
+            expect(updateMock).toHaveBeenCalledWith(
+                'vscode-cmsis-debugger.viewState',
+                {
+                    [debugSession.configuration.name]: {
+                        liveWatchPeriodicUpdateEnabled: false,
+                    },
+                },
+                vscode.ConfigurationTarget.Workspace
+            );
+
+            await getRegisteredHandler('vscode-cmsis-debugger.liveWatch.enablePeriodicUpdate')();
+            expect(state.periodicUpdateEnabled).toBe(true);
+            expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'liveWatch.periodicUpdateEnabled', true);
+        });
+
+        it('periodic refresh only refreshes when enabled for the active session', async () => {
+            const refreshSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'refresh').mockResolvedValue(undefined);
+            await liveWatchTreeDataProvider.activate(tracker);
+            (tracker as any)._onWillStartSession.fire(gdbtargetDebugSession);
+            (liveWatchTreeDataProvider as any)._activeSession = gdbtargetDebugSession;
+            const state = (liveWatchTreeDataProvider as any).sessionLiveWatchStates.get(gdbtargetDebugSession.session.id);
+
+            state.periodicUpdateEnabled = false;
+            (gdbtargetDebugSession.refreshTimer as any)._onRefresh.fire(gdbtargetDebugSession);
+            await Promise.resolve();
+            expect(refreshSpy).not.toHaveBeenCalled();
+
+            state.periodicUpdateEnabled = true;
+            (gdbtargetDebugSession.refreshTimer as any)._onRefresh.fire(gdbtargetDebugSession);
+            await Promise.resolve();
+            expect(refreshSpy).toHaveBeenCalled();
+        });
     });
 
     describe('Live Watch periodic update state persists to and restores from settings', () => {
