@@ -116,11 +116,19 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             await this.refresh();
             await this.save();
         });
+        const onContinued = tracker.onContinued(async (event) => {
+            await this.handleOnContinued(event.session);
+        });
+        const onStopped = tracker.onStopped(async (event) => {
+            await this.handleOnStopped(event.session);
+        });
         this._context.subscriptions.push(
             onDidChangeActiveDebugSession,
             onWillStartSession,
             onStackTrace,
-            onWillStopSession);
+            onWillStopSession,
+            onContinued,
+            onStopped);
         return true;
     }
 
@@ -139,6 +147,20 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
                 await this.refresh();
             }
         });
+    }
+
+    private async handleOnContinued(session: GDBTargetDebugSession): Promise<void> {
+        if (this._activeSession?.session.id != session.session.id) {
+            return;
+        }
+        await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.setExpressionSupported', false);
+    }
+
+    private async handleOnStopped(session: GDBTargetDebugSession): Promise<void> {
+        if (this._activeSession?.session.id != session.session.id) {
+            return;
+        }
+        await this._activeSession.setSetExpressionSupportedContext();
     }
 
     private async addVSCodeCommands(): Promise<boolean> {
