@@ -79,12 +79,6 @@ describe('LiveWatchTreeDataProvider', () => {
             (tracker as any)._onDidChangeActiveDebugSession.fire(gdbtargetDebugSession);
             expect((liveWatchTreeDataProvider as any).activeSession?.session.id).toEqual(gdbtargetDebugSession.session.id);
             expect((liveWatchTreeDataProvider as any).activeSession?.session.name).toEqual(gdbtargetDebugSession.session.name);
-            // Deactivate session
-            (tracker as any)._onDidChangeActiveDebugSession.fire(undefined);
-            expect((liveWatchTreeDataProvider as any).activeSession).toBeUndefined();
-            // Reactivate session
-            (tracker as any)._onDidChangeActiveDebugSession.fire(gdbtargetDebugSession);
-            expect((liveWatchTreeDataProvider as any).activeSession).toBeDefined();
             // Continue session should set context of vscode-cmsis-debugger.setExpressionSupported to false
             (tracker as any)._onContinued.fire({ session: gdbtargetDebugSession });
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'vscode-cmsis-debugger.setExpressionSupported', false);
@@ -92,6 +86,12 @@ describe('LiveWatchTreeDataProvider', () => {
             const setContextSpy = jest.spyOn(gdbtargetDebugSession, 'setSetExpressionSupportedContext').mockResolvedValue();
             (tracker as any)._onStopped.fire({ session: gdbtargetDebugSession });
             expect(setContextSpy).toHaveBeenCalled();
+            // Deactivate session
+            (tracker as any)._onDidChangeActiveDebugSession.fire(undefined);
+            expect((liveWatchTreeDataProvider as any).activeSession).toBeUndefined();
+            // Reactivate session
+            (tracker as any)._onDidChangeActiveDebugSession.fire(gdbtargetDebugSession);
+            expect((liveWatchTreeDataProvider as any).activeSession).toBeDefined();
             // Stop session should clear active session
             (tracker as any)._onWillStopSession.fire(gdbtargetDebugSession);
             expect((liveWatchTreeDataProvider as any).activeSession).toBeUndefined();
