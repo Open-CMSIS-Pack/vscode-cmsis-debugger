@@ -85,16 +85,16 @@ describe('LiveWatchTreeDataProvider', () => {
             // Reactivate session
             (tracker as any)._onDidChangeActiveDebugSession.fire(gdbtargetDebugSession);
             expect((liveWatchTreeDataProvider as any).activeSession).toBeDefined();
+            // Continue session should set context of vscode-cmsis-debugger.setExpressionSupported to false
+            (tracker as any)._onContinued.fire({ session: gdbtargetDebugSession });
+            expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'vscode-cmsis-debugger.setExpressionSupported', false);
+            // Stopped session should call setSetExpressionSupportedContext of active session
+            const setContextSpy = jest.spyOn(gdbtargetDebugSession, 'setSetExpressionSupportedContext').mockResolvedValue();
+            (tracker as any)._onStopped.fire({ session: gdbtargetDebugSession });
+            expect(setContextSpy).toHaveBeenCalled();
             // Stop session should clear active session
             (tracker as any)._onWillStopSession.fire(gdbtargetDebugSession);
             expect((liveWatchTreeDataProvider as any).activeSession).toBeUndefined();
-            // Continue session should set context of vscode-cmsis-debugger.setExpressionSupported to false
-            (tracker as any)._onContinued.fire(gdbtargetDebugSession);
-            expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'vscode-cmsis-debugger.setExpressionSupported', false);
-            // Stop session should call setSetExpressionSupportedContext of active session
-            const setContextSpy = jest.spyOn(gdbtargetDebugSession, 'setSetExpressionSupportedContext').mockResolvedValue();
-            (tracker as any)._onWillStopSession.fire(gdbtargetDebugSession);
-            expect(setContextSpy).toHaveBeenCalled();
         });
 
         it('refreshes on stopped event and on onDidChangeActiveStackItem', async () => {
