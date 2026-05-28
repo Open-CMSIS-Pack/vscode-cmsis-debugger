@@ -120,6 +120,9 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const onMemory = tracker.onMemory(async (event) => {
             await this.handleOnMemoryEvent(event);
         });
+        const onInvalidated = tracker.onInvalidated(async (event) => {
+            await this.handleOnInvalidated(event);
+        });
         const onContinued = tracker.onContinued(async (event) => {
             await this.handleOnContinued(event.session);
         });
@@ -133,6 +136,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             onStackTrace,
             onWillStopSession,
             onMemory,
+            onInvalidated,
             onContinued,
             onStopped);
         return true;
@@ -174,6 +178,14 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             return;
         }
         await this._activeSession.setSetExpressionSupportedContext();
+    }
+
+    private async handleOnInvalidated(event: SessionEvent<DebugProtocol.InvalidatedEvent>): Promise<void> {
+        const gdbTargetSession = event.session;
+        if (this._activeSession?.session.id !== gdbTargetSession.session.id) {
+            return;
+        }
+        await this.refresh();
     }
 
     private async addVSCodeCommands(): Promise<boolean> {

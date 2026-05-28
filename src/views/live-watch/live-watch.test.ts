@@ -114,6 +114,10 @@ describe('LiveWatchTreeDataProvider', () => {
             // Fire onMemory event
             (tracker as any)._onMemory.fire({ session: gdbtargetDebugSession, event: { memoryReference: '0x1234', offset: 0, count: 4 } });
             expect(refreshSpy).toHaveBeenCalled();
+            refreshSpy.mockClear();
+            // Fire onInvalidated event
+            (tracker as any)._onInvalidated.fire({ session: gdbtargetDebugSession, event: { memoryReference: '0x1234', offset: 0, count: 4 } });
+            expect(refreshSpy).toHaveBeenCalled();
         });
 
         it('calls save function when extension is deactivating', async () => {

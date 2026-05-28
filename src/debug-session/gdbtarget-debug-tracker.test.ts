@@ -21,7 +21,8 @@ import {
     SessionStackItem,
     SessionStackTrace,
     StoppedEvent,
-    MemoryEvent
+    MemoryEvent,
+    InvalidatedEvent
 } from './gdbtarget-debug-tracker';
 import { debugSessionFactory, extensionContextFactory } from '../__test__/vscode.factory';
 import { GDBTargetDebugSession } from './gdbtarget-debug-session';
@@ -248,11 +249,11 @@ describe('GDBTargetDebugTracker', () => {
             expect(result!.event).toEqual(memoryEvent);
         });
 
-        it('sends a stack trace event on receiving an invalidated event', async () => {
+        it('sends an Invalidated event on receiving an invalidated event', async () => {
             let gdbSession: GDBTargetDebugSession|undefined = undefined;
             debugTracker.onWillStartSession(session => gdbSession = session);
-            let result: SessionStackTrace|undefined = undefined;
-            debugTracker.onStackTrace(event => result = event);
+            let result: InvalidatedEvent|undefined = undefined;
+            debugTracker.onInvalidated(event => result = event);
             const tracker = await adapterFactory!.createDebugAdapterTracker(debugSessionFactory(debugConfigurationFactory()));
             tracker!.onWillStartSession!();
             const stoppedEvent: DebugProtocol.StoppedEvent = {
