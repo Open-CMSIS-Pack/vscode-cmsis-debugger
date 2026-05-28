@@ -21,7 +21,8 @@ const SETTINGS_KEY = 'vscode-cmsis-debugger.viewState';
 type ViewStateEntry = {
     componentViewer: ComponentViewerState;
     corePeripherals: ComponentViewerState;
-    cpuStates: boolean;
+    cpuStatesEnabled: boolean;
+    liveWatchPeriodicUpdateEnabled: boolean;
 };
 type ViewStateByConfigKey = Record<string, Partial<ViewStateEntry>>;
 
@@ -91,7 +92,7 @@ export async function writeComponentViewerState(viewId: string, configStateKey: 
         return;
     }
     const userState = readDynamicViewState(configStateKey, viewId, 'global');
-    // If 'User' settings disable periodicUpdate but this 'Workspace' enables it,
+    // If 'User' settings disable periodicUpdateEnabled but this 'Workspace' enables it,
     // write true explicitly so the 'User' value does not bleed through.
     const needsExplicitPeriodicUpdate = refreshTimerEnabled && userState?.periodicUpdateEnabled === false;
     const state: ComponentViewerState = {
@@ -105,14 +106,30 @@ export async function writeComponentViewerState(viewId: string, configStateKey: 
 // CPU States
 // -------------------------------------------------------------------------------------------------
 
-export function readCpuStatesEnabled(configStateKey: string): boolean | undefined {
-    return readDynamicViewState(configStateKey, 'cpuStates', 'merged');
+export function readCpuStates(configStateKey: string): boolean | undefined {
+    return readDynamicViewState(configStateKey, 'cpuStatesEnabled', 'merged');
 }
 
-export async function writeCpuStatesEnabled(configStateKey: string, enabled: boolean): Promise<void> {
-    const userState = readDynamicViewState(configStateKey, 'cpuStates', 'global');
-    // If 'User' settings disable cpuStates but this 'Workspace' enables it,
+export async function writeCpuStates(configStateKey: string, enabled: boolean): Promise<void> {
+    const userState = readDynamicViewState(configStateKey, 'cpuStatesEnabled', 'global');
+    // If 'User' settings disable cpuStatesEnabled but this 'Workspace' enables it,
     // write true explicitly so the 'User' value does not bleed through.
     const stateToStore = enabled ? userState === false ? true : undefined : false;
-    await writeWorkspaceDynamicViewState(configStateKey, 'cpuStates', stateToStore);
+    await writeWorkspaceDynamicViewState(configStateKey, 'cpuStatesEnabled', stateToStore);
+}
+
+// -------------------------------------------------------------------------------------------------
+// Live Watch
+// -------------------------------------------------------------------------------------------------
+
+export function readLiveWatchState(configStateKey: string): boolean | undefined {
+    return readDynamicViewState(configStateKey, 'liveWatchPeriodicUpdateEnabled', 'merged');
+}
+
+export async function writeLiveWatchState(configStateKey: string, periodicUpdateEnabled: boolean): Promise<void> {
+    const userState = readDynamicViewState(configStateKey, 'liveWatchPeriodicUpdateEnabled', 'global');
+    // If 'User' settings disable liveWatchPeriodicUpdateEnabled but this 'Workspace' enables it,
+    // write true explicitly so the 'User' value does not bleed through.
+    const stateToStore = periodicUpdateEnabled ? userState === false ? true : undefined : false;
+    await writeWorkspaceDynamicViewState(configStateKey, 'liveWatchPeriodicUpdateEnabled', stateToStore);
 }

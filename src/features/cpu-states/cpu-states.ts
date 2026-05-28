@@ -27,7 +27,7 @@ import { CpuStatesHistory } from './cpu-states-history';
 import { calculateTime, extractPname } from '../../utils';
 import { GDBTargetConfiguration } from '../../debug-configuration';
 import { logger } from '../../logger';
-import { readCpuStatesEnabled, writeCpuStatesEnabled } from '../../views/dynamic-view-states';
+import { readCpuStates, writeCpuStates } from '../../views/dynamic-view-states';
 
 // Architecturally defined registers (M-profile)
 const DWT_CTRL_ADDRESS = 0xE0001000;
@@ -113,7 +113,7 @@ export class CpuStates {
         // Refine the key with the target-type prefix and restore the enabled/disabled state from settings.json
         const configStateKey = await session.getConfigStateKey();
         cpuStates.configStateKey = configStateKey;
-        cpuStates.enableCpuStatesFlag = readCpuStatesEnabled(configStateKey) ?? true;
+        cpuStates.enableCpuStatesFlag = readCpuStates(configStateKey) ?? true;
         if (this.activeSession?.session.id === session.session.id) {
             void vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', cpuStates.enableCpuStatesFlag);
         }
@@ -350,7 +350,7 @@ export class CpuStates {
             return;
         }
         cpuStates.enableCpuStatesFlag = true;
-        await writeCpuStatesEnabled(cpuStates.configStateKey, cpuStates.enableCpuStatesFlag);
+        await writeCpuStates(cpuStates.configStateKey, cpuStates.enableCpuStatesFlag);
         await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', cpuStates.enableCpuStatesFlag);
     }
 
@@ -360,7 +360,7 @@ export class CpuStates {
             return;
         }
         cpuStates.enableCpuStatesFlag = false;
-        await writeCpuStatesEnabled(cpuStates.configStateKey, cpuStates.enableCpuStatesFlag);
+        await writeCpuStates(cpuStates.configStateKey, cpuStates.enableCpuStatesFlag);
         await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', cpuStates.enableCpuStatesFlag);
     }
 

@@ -169,6 +169,18 @@
         "category": "Live Watch"
       },
       {
+        "command": "vscode-cmsis-debugger.liveWatch.enablePeriodicUpdate",
+        "title": "Enable Periodic Update",
+        "icon": "$(sync)",
+        "category": "Live Watch"
+      },
+      {
+        "command": "vscode-cmsis-debugger.liveWatch.disablePeriodicUpdate",
+        "title": "Disable Periodic Update",
+        "icon": "$(sync-ignored)",
+        "category": "Live Watch"
+      },
+      {
         "command": "vscode-cmsis-debugger.componentViewer.lockComponent",
         "title": "Lock Component",
         "icon": "$(unlock)",
@@ -340,6 +352,14 @@
           "when": "false"
         },
         {
+          "command": "vscode-cmsis-debugger.liveWatch.enablePeriodicUpdate",
+          "when": "!liveWatch.periodicUpdateEnabled"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.disablePeriodicUpdate",
+          "when": "liveWatch.periodicUpdateEnabled"
+        },
+        {
           "command": "vscode-cmsis-debugger.componentViewer.lockComponent",
           "when": "false"
         },
@@ -417,12 +437,22 @@
         {
           "command": "vscode-cmsis-debugger.liveWatch.deleteAll",
           "when": "view == cmsis-debugger.liveWatch",
-          "group": "navigation@3"
+          "group": "navigation@4"
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.refresh",
           "when": "view == cmsis-debugger.liveWatch",
           "group": "navigation@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.disablePeriodicUpdate",
+          "when": "view == cmsis-debugger.liveWatch && liveWatch.periodicUpdateEnabled",
+          "group": "navigation@3"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.enablePeriodicUpdate",
+          "when": "view == cmsis-debugger.liveWatch && !liveWatch.periodicUpdateEnabled",
+          "group": "navigation@3"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.expandAll",
@@ -618,9 +648,13 @@
                   "filterPattern": { "type": "string" }
                 }
               },
-              "cpuStates": {
+              "cpuStatesEnabled": {
                 "type": "boolean",
                 "markdownDescription": "Persisted CPU time enable/disable state."
+              },
+              "liveWatchPeriodicUpdateEnabled": {
+                "type": "boolean",
+                "markdownDescription": "Persisted Live Watch periodic update enable/disable state."
               }
             }
           }

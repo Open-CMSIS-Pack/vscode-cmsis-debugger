@@ -505,7 +505,7 @@ describe('CpuStates', () => {
                 inspect: jest.fn().mockReturnValue({
                     globalValue: {
                         'My-Target::Debug': {
-                            cpuStates: false,
+                            cpuStatesEnabled: false,
                         },
                     },
                     workspaceValue: {},
@@ -573,4 +573,3 @@ describe('CpuStates', () => {
 
     });
 });
-
