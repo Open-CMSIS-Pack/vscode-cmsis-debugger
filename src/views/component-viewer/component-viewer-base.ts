@@ -31,7 +31,7 @@ export interface ScvdCollector {
     getScvdFilePaths(session: GDBTargetDebugSession): Promise<string[]>;
 }
 
-export type UpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace' | 'stackItemChanged' | 'unlockingInstance';
+export type UpdateReason = 'sessionChanged' | 'refreshTimer' | 'stackTrace' | 'stackItemChanged' | 'unlockingInstance' | 'invalidated' | 'memoryEvent';
 
 export interface ComponentViewerInstancesWrapper {
     componentViewerInstance: ComponentViewerInstance;
@@ -350,6 +350,14 @@ export class ComponentViewerBase {
         const onWillStartSessionDisposable = tracker.onWillStartSession(async (session) => {
             await this.handleOnWillStartSession(session);
         });
+        const onMemoryDisposable = tracker.onMemory(async (event) => {
+            const session = event.session;
+            await this.handleOnMemoryEvent(session);
+        });
+        const onInvalidatedDisposable = tracker.onInvalidated(async (event) => {
+            const session = event.session;
+            await this.handleOnInvalidated(session);
+        });
         // clear all disposables on extension deactivation
         this._context.subscriptions.push(
             onWillStopSessionDisposable,
@@ -357,7 +365,9 @@ export class ComponentViewerBase {
             onDidChangeActiveDebugSessionDisposable,
             onStackTraceDisposable,
             onDidChangeActiveStackItemDisposable,
-            onWillStartSessionDisposable
+            onWillStartSessionDisposable,
+            onMemoryDisposable,
+            onInvalidatedDisposable
         );
     }
 
@@ -368,6 +378,20 @@ export class ComponentViewerBase {
         }
         // Update component viewer instance(s) if active session is stopped
         this.schedulePendingUpdate('stackTrace');
+    }
+
+    protected async handleOnMemoryEvent(session: GDBTargetDebugSession): Promise<void> {
+        if (this._activeSession?.session.id !== session.session.id) {
+            return;
+        }
+        this.schedulePendingUpdate('memoryEvent');
+    }
+
+    protected async handleOnInvalidated(session: GDBTargetDebugSession): Promise<void> {
+        if (this._activeSession?.session.id !== session.session.id) {
+            return;
+        }
+        this.schedulePendingUpdate('invalidated');
     }
 
     protected async handleOnStackItemChanged(session: GDBTargetDebugSession): Promise<void> {

@@ -28,6 +28,8 @@ export interface SessionEvent<T extends DebugProtocol.Event> {
 
 export type ContinuedEvent = SessionEvent<DebugProtocol.ContinuedEvent>;
 export type StoppedEvent = SessionEvent<DebugProtocol.StoppedEvent>;
+export type MemoryEvent = SessionEvent<DebugProtocol.MemoryEvent>;
+export type InvalidatedEvent = SessionEvent<DebugProtocol.InvalidatedEvent>;
 
 export interface SessionCapabilities {
     session: GDBTargetDebugSession;
@@ -77,6 +79,12 @@ export class GDBTargetDebugTracker {
 
     private readonly _onStackTrace: vscode.EventEmitter<SessionStackTrace> = new vscode.EventEmitter<SessionStackTrace>();
     public readonly onStackTrace: vscode.Event<SessionStackTrace> = this._onStackTrace.event;
+
+    private readonly _onMemory: vscode.EventEmitter<MemoryEvent> = new vscode.EventEmitter<MemoryEvent>();
+    public readonly onMemory: vscode.Event<MemoryEvent> = this._onMemory.event;
+
+    private readonly _onInvalidated: vscode.EventEmitter<InvalidatedEvent> = new vscode.EventEmitter<InvalidatedEvent>();
+    public readonly onInvalidated: vscode.Event<InvalidatedEvent> = this._onInvalidated.event;
 
     public activate(context: vscode.ExtensionContext) {
         const createDebugAdapterTracker = (session: vscode.DebugSession): vscode.ProviderResult<vscode.DebugAdapterTracker> => {
@@ -151,6 +159,16 @@ export class GDBTargetDebugTracker {
             case 'output':
                 gdbTargetSession?.filterOutputEvent(event as DebugProtocol.OutputEvent);
                 break;
+            case 'invalidated':
+                if (gdbTargetSession) {
+                    this._onInvalidated.fire({ session: gdbTargetSession, event: event as DebugProtocol.InvalidatedEvent });
+                }
+                break;
+            case 'memory':
+                if (gdbTargetSession) {
+                    this._onMemory.fire({ session: gdbTargetSession, event: event as DebugProtocol.MemoryEvent });
+                }
+                break;
         }
     }
 
@@ -176,6 +194,7 @@ export class GDBTargetDebugTracker {
     private handleInitializeResponse(gdbTargetSession: GDBTargetDebugSession, response: DebugProtocol.InitializeResponse): void {
         if (response.success && response.body) {
             gdbTargetSession.setCapabilities(response.body);
+            gdbTargetSession.setSetExpressionSupportedContext();
         }
     }
 

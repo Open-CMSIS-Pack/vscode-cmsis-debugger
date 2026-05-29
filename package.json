@@ -181,6 +181,11 @@
         "category": "Live Watch"
       },
       {
+        "command": "vscode-cmsis-debugger.liveWatch.setValue",
+        "title": "Set Value",
+        "category": "Live Watch"
+      },
+      {
         "command": "vscode-cmsis-debugger.componentViewer.lockComponent",
         "title": "Lock Component",
         "icon": "$(unlock)",
@@ -360,6 +365,10 @@
           "when": "liveWatch.periodicUpdateEnabled"
         },
         {
+          "command": "vscode-cmsis-debugger.liveWatch.setValue",
+          "when": "false"
+        },
+        {
           "command": "vscode-cmsis-debugger.componentViewer.lockComponent",
           "when": "false"
         },
@@ -535,6 +544,11 @@
           "command": "vscode-cmsis-debugger.liveWatch.delete",
           "when": "view == cmsis-debugger.liveWatch && viewItem == parentExpression",
           "group": "contextMenuG1@4"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.setValue",
+          "when": "view == cmsis-debugger.liveWatch && inDebugMode && vscode-cmsis-debugger.setExpressionSupported",
+          "group": "contextMenuG1@5"
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.deleteAll",
