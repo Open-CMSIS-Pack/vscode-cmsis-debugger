@@ -243,8 +243,7 @@
         "command": "vscode-cmsis-debugger.corePeripherals.collapseAll",
         "title": "Collapse All",
         "icon": "$(collapse-all)",
-        "category": "Core Peripherals",
-        "when": "config.cmsis-debugger.corePeripherals.enabled"
+        "category": "Core Peripherals"
       },
       {
         "command": "vscode-cmsis-debugger.corePeripherals.filterTree",
@@ -447,7 +446,7 @@
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.collapseAll",
-          "when": "config.cmsis-debugger.corePeripherals.enabled && view == cmsis-debugger.corePeripherals",
+          "when": "view == cmsis-debugger.corePeripherals",
           "group": "navigation@4"
         },
         {
