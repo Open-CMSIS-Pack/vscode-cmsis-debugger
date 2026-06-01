@@ -68,5 +68,12 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: npm ci
 
+      # Automatically retry the link check if it fails
+      # This helps reduce false positives in CI caused by transient errors
       - name: Check Links
-        run: npm run check:links
+        if: runner.os == 'Linux'
+        uses: Wandalen/wretry.action@e68c23e6309f2871ca8ae4763e7629b9c258e1ea # v3.8.0
+        with:
+          attempt_delay: 2000
+          attempt_limit: 3
+          command: npm run check:links
