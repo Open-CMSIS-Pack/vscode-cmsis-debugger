@@ -1,5 +1,13 @@
 # Change Log
 
+## 1.6.1
+
+- Includes updated pyOCD distribution ([pyOCD v0.44.1](https://github.com/pyocd/pyOCD/releases/tag/v0.44.1))
+    - Improves flash programming post-reset robustness.
+    - Improves reset handling robustness for debug sequences.
+    - Fixes error if additional access port is added to *.cbuild-run.yml [#972](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/972)
+    - Fixes potential name clashes between default debug sequences and user-defined debug vars [#967](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/967)
+
 ## 1.6.0
 
 - The extension now has a *pre-release channel* for early access to upcoming features.  
