@@ -48,7 +48,7 @@ const webviewConfig = {
     devtool: 'source-map',
     target: 'web',
     entry: {
-        'webviews/tree-table': './webviews/tree-table/src/index.tsx'
+        'webviews/tree-table': './src/webviews/tree-table/src/index.tsx'
     },
     output: {
         filename: '[name].js',
@@ -61,7 +61,7 @@ const webviewConfig = {
                 use: {
                     loader: 'ts-loader',
                     options: {
-                        configFile: path.resolve(__dirname, 'webviews/tree-table/tsconfig.json')
+                        configFile: path.resolve(__dirname, 'src/webviews/tree-table/tsconfig.json')
                     }
                 },
                 exclude: /node_modules/

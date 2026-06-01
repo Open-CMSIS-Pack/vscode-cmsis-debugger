@@ -32,7 +32,8 @@ const config: Config = {
     "src/**/*.{ts,tsx}",
     "!**/*.d.ts",
     "!**/*.factories.{ts,tsx}",
-    "!**/__test__/**/*"
+    "!**/__test__/**/*",
+    "!src/webviews/**/*"
   ],
   coverageDirectory: "./coverage",
   coverageReporters: ["lcov", "text"],

@@ -20,7 +20,9 @@
         ]
     },
     "include": [
-        "src",
-        "webviews/tree-table/src/types.ts"
+        "src"
+    ],
+    "exclude": [
+        "src/webviews/tree-table/src/**/*.tsx"
     ]
 }

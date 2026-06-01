@@ -18,7 +18,7 @@
  * Re-export the shared tree-table protocol types so that extension-host code
  * can import them with a short project-local path.
  *
- * The canonical definitions live in `webviews/tree-table/src/protocol.ts`.
+ * The canonical definitions live in `src/webviews/tree-table/src/types.ts`.
  */
 export type {
     FlatRow,
@@ -29,4 +29,4 @@ export type {
     LockMessage,
     ReadyMessage,
     WebviewToHostMessage,
-} from '../../../../webviews/tree-table/src/types';
+} from '../../../webviews/tree-table/src/types';
