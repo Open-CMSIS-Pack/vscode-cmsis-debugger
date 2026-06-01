@@ -169,6 +169,26 @@ describe('ComponentViewerWebviewProvider', () => {
         expect(msg?.rows).toHaveLength(0);
     });
 
+    it('starts blank when no debug session has provided data yet', () => {
+        const { view, getLastUpdateMessage } = makeMockWebviewView();
+        webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+        const msg = getLastUpdateMessage();
+        expect(msg?.loading).toBe(false);
+        expect(msg?.emptyMessage).toBe('');
+    });
+
+    it('can show no-data text after a debug session starts loading data', () => {
+        const { view, getLastUpdateMessage } = makeMockWebviewView();
+        webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+
+        webviewProvider.setEmptyMessage('No component data available');
+        webviewProvider.setLoading(false);
+
+        const msg = getLastUpdateMessage();
+        expect(msg?.loading).toBe(false);
+        expect(msg?.emptyMessage).toBe('No component data available');
+    });
+
     it('sends a row for each root node with correct cell data', () => {
         const root = makeGui({ getGuiName: () => 'MyName', getGuiValue: () => 'MyVal', getGuiId: () => 'r1' });
         dataProvider.setRoots([root]);

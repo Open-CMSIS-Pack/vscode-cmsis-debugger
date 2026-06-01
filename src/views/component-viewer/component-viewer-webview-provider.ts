@@ -33,7 +33,8 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
     private _dataChangeDisposable: vscode.Disposable | undefined;
     private _codiconCssUri: vscode.Uri | undefined;
     private _scriptUri: vscode.Uri | undefined;
-    private _loading = true;
+    private _loading = false;
+    private _emptyMessage = '';
 
     /**
      * Callback invoked when a tree node is toggled (expanded/collapsed) in the
@@ -125,6 +126,12 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
         this.render();
     }
 
+    /** Set the text shown when the view has no rows and is not loading. */
+    public setEmptyMessage(message: string): void {
+        this._emptyMessage = message;
+        this.render();
+    }
+
     /* ------------------------------------------------------------------ */
     /*  Internal rendering                                                */
     /* ------------------------------------------------------------------ */
@@ -144,7 +151,7 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
                 lockTooltip: 'Exclude from updates',
                 unlockTooltip: 'Include in updates',
             },
-            emptyMessage: 'No component data available',
+            emptyMessage: this._emptyMessage,
         };
         void this._view.webview.postMessage(message);
     }

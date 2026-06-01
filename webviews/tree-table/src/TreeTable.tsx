@@ -32,12 +32,12 @@ interface TreeTableProps {
 
 export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
     const [rows, setRows] = useState<FlatRow[]>([]);
-    const [viewState, setViewState] = useState<ViewState>('loading');
+    const [viewState, setViewState] = useState<ViewState>('empty');
     const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
     const [lockable, setLockable] = useState(false);
     const [lockTooltip, setLockTooltip] = useState('Lock');
     const [unlockTooltip, setUnlockTooltip] = useState('Unlock');
-    const [emptyMessage, setEmptyMessage] = useState('No data available');
+    const [emptyMessage, setEmptyMessage] = useState('');
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const pendingScrollTop = useRef<number | undefined>(undefined);
@@ -85,7 +85,7 @@ export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
                 setLockable(msg.features?.lockable ?? false);
                 setLockTooltip(msg.features?.lockTooltip ?? 'Lock');
                 setUnlockTooltip(msg.features?.unlockTooltip ?? 'Unlock');
-                setEmptyMessage(msg.emptyMessage ?? 'No data available');
+                setEmptyMessage(msg.emptyMessage ?? '');
                 setViewState(msg.loading ? 'loading' : msg.rows.length > 0 ? 'data' : 'empty');
             }
         }
@@ -188,7 +188,7 @@ export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
             <div className="scroll-container" ref={scrollContainerRef} onScroll={handleScroll}>
                 {viewState === 'data' && <div className="column-resize-handle" onMouseDown={handleResizeStart} />}
                 {viewState === 'empty'
-                    ? <div className="empty-state">{emptyMessage}</div>
+                    ? emptyMessage ? <div className="empty-state">{emptyMessage}</div> : null
                     : (
                         <table>
                             <tbody>

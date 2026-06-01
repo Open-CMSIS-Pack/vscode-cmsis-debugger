@@ -350,8 +350,11 @@ export class ComponentViewerBase {
         }
 
         // Clear active session if it is the one being stopped
-        if (this._activeSession?.session.id === session.session.id) {
+        const isStoppingActiveSession = this._activeSession?.session.id === session.session.id;
+        if (isStoppingActiveSession) {
             this._activeSession = undefined;
+            this._webviewProvider?.setEmptyMessage('');
+            this._webviewProvider?.setLoading(false);
         }
         // Clear instances belonging to the stopped session and update tree view
         this._instances = this._instances.filter((instance) => {
@@ -373,9 +376,13 @@ export class ComponentViewerBase {
         // Update debug session
         this._activeSession = session;
         // Show the loading indicator while SCVD files are read and the first update runs.
+        this._webviewProvider?.setEmptyMessage('No component data available');
         this._webviewProvider?.setLoading(true);
         // Load SCVD files from cbuild-run
         await this.loadScvdFiles(session, tracker);
+        if (!this._instances.some(instance => instance.sessionId === session.session.id)) {
+            this._webviewProvider?.setLoading(false);
+        }
     }
 
     private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
