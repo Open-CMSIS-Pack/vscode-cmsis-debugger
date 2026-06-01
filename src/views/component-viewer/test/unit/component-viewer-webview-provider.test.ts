@@ -169,14 +169,6 @@ describe('ComponentViewerWebviewProvider', () => {
         expect(msg?.rows).toHaveLength(0);
     });
 
-    it('sends correct header defaults', () => {
-        const { view, getLastUpdateMessage } = makeMockWebviewView();
-        webviewProvider.resolveWebviewView(view, {} as never, {} as never);
-        const msg = getLastUpdateMessage();
-        expect(msg?.nameHeader ?? 'Name').toBe('Name');
-        expect(msg?.valueHeader ?? 'Value').toBe('Value');
-    });
-
     it('sends a row for each root node with correct cell data', () => {
         const root = makeGui({ getGuiName: () => 'MyName', getGuiValue: () => 'MyVal', getGuiId: () => 'r1' });
         dataProvider.setRoots([root]);

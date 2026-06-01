@@ -72,10 +72,6 @@ export interface TreeTableUpdateMessage {
     type: 'update';
     rows: FlatRow[];
     loading: boolean;
-    /** Header text for the name column. Defaults to `"Name"`. */
-    nameHeader?: string;
-    /** Header text for the value column. Defaults to `"Value"`. */
-    valueHeader?: string;
     /** Optional feature flags; omit to use defaults. */
     features?: TreeTableFeatures;
     /** Text shown when `rows` is empty and `loading` is false. */

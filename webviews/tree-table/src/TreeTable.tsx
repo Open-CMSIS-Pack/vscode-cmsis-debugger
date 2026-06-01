@@ -37,8 +37,6 @@ export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
     const [lockable, setLockable] = useState(false);
     const [lockTooltip, setLockTooltip] = useState('Lock');
     const [unlockTooltip, setUnlockTooltip] = useState('Unlock');
-    const [nameHeader, setNameHeader] = useState('Name');
-    const [valueHeader, setValueHeader] = useState('Value');
     const [emptyMessage, setEmptyMessage] = useState('No data available');
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -87,8 +85,6 @@ export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
                 setLockable(msg.features?.lockable ?? false);
                 setLockTooltip(msg.features?.lockTooltip ?? 'Lock');
                 setUnlockTooltip(msg.features?.unlockTooltip ?? 'Unlock');
-                setNameHeader(msg.nameHeader ?? 'Name');
-                setValueHeader(msg.valueHeader ?? 'Value');
                 setEmptyMessage(msg.emptyMessage ?? 'No data available');
                 setViewState(msg.loading ? 'loading' : msg.rows.length > 0 ? 'data' : 'empty');
             }
@@ -158,17 +154,16 @@ export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
         e.preventDefault();
         const container = tableContainerRef.current;
         if (!container) return;
-        const headerCell = (e.currentTarget as HTMLElement).parentElement as HTMLElement;
         const startX = e.clientX;
-        const startWidth = headerCell.offsetWidth;
         const containerWidth = container.offsetWidth;
+        const startWidth = (e.currentTarget as HTMLElement).offsetLeft;
         document.body.classList.add('resizing');
 
         function onMouseMove(ev: MouseEvent) {
             const delta = ev.clientX - startX;
             const newWidth = Math.max(40, startWidth + delta);
-            const pct = Math.min(90, Math.max(10, (newWidth / containerWidth) * 100));
-            const widthValue = `${pct}%`;
+            const clampedWidth = Math.round(Math.min(containerWidth * 0.9, Math.max(containerWidth * 0.1, newWidth)));
+            const widthValue = `${(clampedWidth / containerWidth) * 100}%`;
             document.documentElement.style.setProperty('--name-col-width', widthValue);
             const state = vscodeApi.getState() ?? {};
             vscodeApi.setState({ ...state, nameColWidth: widthValue });
@@ -190,14 +185,8 @@ export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
 
     return (
         <div className="tree-table" ref={tableContainerRef}>
-            <div className="table-header">
-                <div className="header-cell cell-name">
-                    {nameHeader}
-                    <div className="resize-handle" onMouseDown={handleResizeStart} />
-                </div>
-                <div className="header-cell cell-value">{valueHeader}</div>
-            </div>
             <div className="scroll-container" ref={scrollContainerRef} onScroll={handleScroll}>
+                {viewState === 'data' && <div className="column-resize-handle" onMouseDown={handleResizeStart} />}
                 {viewState === 'empty'
                     ? <div className="empty-state">{emptyMessage}</div>
                     : (

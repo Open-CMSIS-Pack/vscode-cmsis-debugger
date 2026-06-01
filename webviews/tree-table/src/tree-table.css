@@ -37,39 +37,13 @@ body {
     min-height: 0;
 }
 
-/* Outer layout: fixed header above scrollable content */
+/* Outer layout: scrollable tree table content */
 .tree-table {
     display: flex;
     flex-direction: column;
     flex: 1;
     min-height: 0;
-}
-
-/* Column header bar — stays fixed above the scroll area */
-.table-header {
-    display: flex;
-    flex-shrink: 0;
-    background: var(--vscode-sideBar-background, var(--vscode-editor-background));
-    color: var(--vscode-sideBarSectionHeader-foreground, var(--vscode-foreground));
-    font-weight: 600;
-    border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border, var(--vscode-panel-border, transparent));
-}
-.header-cell {
-    padding: 0 6px;
-    height: var(--row-height);
-    line-height: var(--row-height);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     position: relative;
-}
-.header-cell.cell-name {
-    width: var(--name-col-width);
-    flex-shrink: 0;
-}
-.header-cell.cell-value {
-    flex: 1;
-    min-width: 0;
 }
 
 /* Scrollable body container */
@@ -77,9 +51,11 @@ body {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
+    scrollbar-gutter: stable;
+    position: relative;
 }
 
-/* Table layout (body rows only — header is outside the table) */
+/* Table layout */
 table {
     width: 100%;
     border-collapse: separate;
@@ -104,19 +80,21 @@ td.cell-value {
     position: relative;
 }
 
-/* Column resize handle */
-.resize-handle {
+.column-resize-handle {
     position: absolute;
     top: 0;
-    right: 0;
+    left: var(--name-col-width);
     width: 5px;
     height: 100%;
+    border-left: 2px solid var(--vscode-sideBarSectionHeader-border, var(--vscode-panel-border, rgba(128, 128, 128, 0.35)));
     cursor: col-resize;
     z-index: 3;
+    background: transparent;
 }
-.resize-handle:hover,
-.resize-handle.active {
-    background: var(--vscode-focusBorder, #007fd4);
+.column-resize-handle:hover,
+.column-resize-handle.active,
+body.resizing .column-resize-handle {
+    border-left-color: var(--vscode-focusBorder, #007fd4);
 }
 
 /* Row hover / selection */
