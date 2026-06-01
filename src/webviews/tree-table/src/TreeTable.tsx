@@ -71,6 +71,7 @@ export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
             requestAnimationFrame(() => {
                 if (scrollContainerRef.current) {
                     scrollContainerRef.current.scrollTop = top;
+                    scrollContainerRef.current.style.setProperty('--scroll-top', `${top}px`);
                 }
             });
         }
@@ -145,24 +146,27 @@ export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
         scrollRafId.current = requestAnimationFrame(() => {
             if (!scrollContainerRef.current) return;
             const state = vscodeApi.getState() ?? {};
-            vscodeApi.setState({ ...state, scrollTop: scrollContainerRef.current.scrollTop });
+            const scrollTop = scrollContainerRef.current.scrollTop;
+            scrollContainerRef.current.style.setProperty('--scroll-top', `${scrollTop}px`);
+            vscodeApi.setState({ ...state, scrollTop });
         });
     }, [vscodeApi]);
 
     // Column resize
     const handleResizeStart = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
-        const container = tableContainerRef.current;
-        if (!container) return;
-        const startX = e.clientX;
-        const containerWidth = container.offsetWidth;
-        const startWidth = (e.currentTarget as HTMLElement).offsetLeft;
+        const scrollContainer = scrollContainerRef.current;
+        if (!scrollContainer) return;
+        const containerRect = scrollContainer.getBoundingClientRect();
+        const containerWidth = scrollContainer.clientWidth;
+        const dividerLeft = (e.currentTarget as HTMLElement).offsetLeft;
+        // Preserve the cursor-to-divider offset captured at mousedown.
+        const grabOffset = e.clientX - containerRect.left - dividerLeft;
         document.body.classList.add('resizing');
 
         function onMouseMove(ev: MouseEvent) {
-            const delta = ev.clientX - startX;
-            const newWidth = Math.max(40, startWidth + delta);
-            const clampedWidth = Math.round(Math.min(containerWidth * 0.9, Math.max(containerWidth * 0.1, newWidth)));
+            const newWidth = ev.clientX - containerRect.left - grabOffset;
+            const clampedWidth = Math.round(Math.min(containerWidth * 0.85, Math.max(containerWidth * 0.15, newWidth)));
             const widthValue = `${(clampedWidth / containerWidth) * 100}%`;
             document.documentElement.style.setProperty('--name-col-width', widthValue);
             const state = vscodeApi.getState() ?? {};

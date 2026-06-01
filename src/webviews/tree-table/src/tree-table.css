@@ -80,19 +80,30 @@ td.cell-value {
     position: relative;
 }
 
+/* Column resize */
 .column-resize-handle {
     position: absolute;
     top: 0;
     left: var(--name-col-width);
-    width: 5px;
+    width: 6px;
     height: 100%;
-    border-left: 2px solid var(--vscode-sideBarSectionHeader-border, var(--vscode-panel-border, rgba(128, 128, 128, 0.35)));
+    transform: translateY(var(--scroll-top, 0));
+    border-left: 2px solid transparent;
     cursor: col-resize;
     z-index: 3;
     background: transparent;
 }
+.column-resize-handle::after {
+    /* Extends the hit area to the left so the divider sits visually centered in it. */
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -6px;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+}
 .column-resize-handle:hover,
-.column-resize-handle.active,
 body.resizing .column-resize-handle {
     border-left-color: var(--vscode-focusBorder, #007fd4);
 }
