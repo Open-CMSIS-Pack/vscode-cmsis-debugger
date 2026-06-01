@@ -184,7 +184,7 @@ export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
     }
 
     return (
-        <div className="tree-table" ref={tableContainerRef}>
+        <div className="tree-table" ref={tableContainerRef} onContextMenu={e => e.preventDefault()}>
             <div className="scroll-container" ref={scrollContainerRef} onScroll={handleScroll}>
                 {viewState === 'data' && <div className="column-resize-handle" onMouseDown={handleResizeStart} />}
                 {viewState === 'empty'
