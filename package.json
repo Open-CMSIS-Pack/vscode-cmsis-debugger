@@ -609,6 +609,8 @@
     "baseContentUrl": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/blob/main/README.md"
   },
   "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
     "vscode-uri": "^3.1.0",
     "xml2js": "^0.6.2",
     "yaml": "^2.8.3"
@@ -649,8 +651,6 @@
     "minimist": "^1.2.8",
     "node-fetch": "^3.3.2",
     "octokit": "^5.0.5",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
     "style-loader": "^4.0.0",
     "tempfile": "^6.0.1",
     "ts-command-line-args": "^2.5.1",

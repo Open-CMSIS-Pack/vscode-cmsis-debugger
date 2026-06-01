@@ -29,9 +29,37 @@
     },
     {
         "name": "yaml",
-        "version": "2.8.2",
+        "version": "2.8.3",
         "spdx": "ISC",
         "url": "https://github.com/eemeli/yaml",
         "license": "https://github.com/eemeli/yaml/blob/main/LICENSE"
+    },
+    {
+        "name": "react",
+        "version": "18.3.1",
+        "spdx": "MIT",
+        "url": "https://github.com/facebook/react",
+        "license": "https://github.com/facebook/react/blob/main/LICENSE"
+    },
+    {
+        "name": "react-dom",
+        "version": "18.3.1",
+        "spdx": "MIT",
+        "url": "https://github.com/facebook/react",
+        "license": "https://github.com/facebook/react/blob/main/LICENSE"
+    },
+    {
+        "name": "css-loader",
+        "version": "7.1.4",
+        "spdx": "MIT",
+        "url": "https://github.com/webpack-contrib/css-loader",
+        "license": "https://github.com/webpack-contrib/css-loader/blob/master/LICENSE"
+    },
+    {
+        "name": "style-loader",
+        "version": "4.0.0",
+        "spdx": "MIT",
+        "url": "https://github.com/webpack-contrib/style-loader",
+        "license": "https://github.com/webpack-contrib/style-loader/blob/master/LICENSE"
     }
 ]
