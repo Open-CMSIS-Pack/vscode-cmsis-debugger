@@ -241,24 +241,10 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             async (payload: { container: DebugProtocol.Scope; variable: DebugProtocol.Variable; }) => await this.handleAddToLiveWatchFromVariablesView(payload));
         const showInMemoryInspectorCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.showInMemoryInspector',
             async (node: LiveWatchNode) => await this.handleShowInMemoryInspector(node));
-        const enablePeriodicUpdateCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.enablePeriodicUpdate', async () => {
-            const state = this._activeSession ? this.sessionLiveWatchStates.get(this._activeSession.session.id) : undefined;
-            if (state) {
-                state.periodicUpdateEnabled = true;
-                await writeLiveWatchState(state.configStateKey, true);
-            }
-            await vscode.commands.executeCommand('setContext', 'liveWatch.periodicUpdateEnabled', true);
-            logger.info('Live Watch: Periodic Update enabled');
-        });
-        const disablePeriodicUpdateCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.disablePeriodicUpdate', async () => {
-            const state = this._activeSession ? this.sessionLiveWatchStates.get(this._activeSession.session.id) : undefined;
-            if (state) {
-                state.periodicUpdateEnabled = false;
-                await writeLiveWatchState(state.configStateKey, false);
-            }
-            await vscode.commands.executeCommand('setContext', 'liveWatch.periodicUpdateEnabled', false);
-            logger.info('Live Watch: Periodic Update disabled');
-        });
+        const enablePeriodicUpdateCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.enablePeriodicUpdate',
+            async () => await this.handleEnablePeriodicUpdate());
+        const disablePeriodicUpdateCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.disablePeriodicUpdate',
+            async () => await this.handleDisablePeriodicUpdate());
         void vscode.commands.executeCommand('setContext', 'liveWatch.periodicUpdateEnabled', true);
         this._context.subscriptions.push(
             registerLiveWatchView,
@@ -362,6 +348,26 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             }
         };
         await vscode.commands.executeCommand('memory-inspector.show-variable', args);
+    }
+
+    private async handleEnablePeriodicUpdate(): Promise<void> {
+        const state = this._activeSession ? this.sessionLiveWatchStates.get(this._activeSession.session.id) : undefined;
+        if (state) {
+            state.periodicUpdateEnabled = true;
+            await writeLiveWatchState(state.configStateKey, true);
+        }
+        await vscode.commands.executeCommand('setContext', 'liveWatch.periodicUpdateEnabled', true);
+        logger.info('Live Watch: Periodic Update enabled');
+    }
+
+    private async handleDisablePeriodicUpdate(): Promise<void> {
+        const state = this._activeSession ? this.sessionLiveWatchStates.get(this._activeSession.session.id) : undefined;
+        if (state) {
+            state.periodicUpdateEnabled = false;
+            await writeLiveWatchState(state.configStateKey, false);
+        }
+        await vscode.commands.executeCommand('setContext', 'liveWatch.periodicUpdateEnabled', false);
+        logger.info('Live Watch: Periodic Update disabled');
     }
 
     private async evaluate(expression: string): Promise<LiveWatchValue> {
