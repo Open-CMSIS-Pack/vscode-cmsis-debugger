@@ -27,6 +27,7 @@ import { CpuStatesHistory } from './cpu-states-history';
 import { calculateTime, extractPname } from '../../utils';
 import { GDBTargetConfiguration } from '../../debug-configuration';
 import { logger } from '../../logger';
+import { readCpuStates, writeCpuStates } from '../../views/dynamic-view-states';
 
 // Architecturally defined registers (M-profile)
 const DWT_CTRL_ADDRESS = 0xE0001000;
@@ -43,6 +44,8 @@ interface SessionCpuStates {
     isRunning: boolean;
     hasStates: boolean|undefined;
     skipFrequencyUpdate: boolean;
+    enableCpuStatesFlag: boolean;
+    configStateKey: string;
 }
 
 export class CpuStates {
@@ -52,7 +55,6 @@ export class CpuStates {
 
     public activeSession: GDBTargetDebugSession | undefined;
     private sessionCpuStates: Map<string, SessionCpuStates> = new Map();
-    private enableCpuStatesFlag: boolean = true;
 
     public get activeCpuStates(): SessionCpuStates|undefined {
         if (!this.activeSession) {
@@ -70,7 +72,7 @@ export class CpuStates {
         tracker.onContinued(event => this.handleContinuedEvent(event));
         tracker.onStopped(event => this.handleStoppedEvent(event));
         tracker.onStackTrace(stackTrace => this.handleStackTrace(stackTrace));
-        vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', true);
+        void vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', true);
     }
 
     protected handleOnWillStartSession(session: GDBTargetDebugSession): void {
@@ -80,7 +82,9 @@ export class CpuStates {
             statesHistory: new CpuStatesHistory(extractPname(session.session.name)),
             isRunning: true,
             hasStates: undefined,
-            skipFrequencyUpdate: false
+            skipFrequencyUpdate: false,
+            enableCpuStatesFlag: true,
+            configStateKey: session.session.configuration.name
         };
         this.sessionCpuStates.set(session.session.id, states);
         session.refreshTimer.onRefresh(async (refreshSession) => this.handlePeriodicRefresh(refreshSession));
@@ -95,6 +99,9 @@ export class CpuStates {
 
     protected handleActiveSessionChanged(session?: GDBTargetDebugSession): void {
         this.activeSession = session;
+        // Restore enabled/disabled state of CPU Time commands based on persisted settings
+        const enabled = session ? (this.sessionCpuStates.get(session.session.id)?.enableCpuStatesFlag ?? true) : false;
+        void vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', enabled);
         this._onRefresh.fire(0);
     }
 
@@ -102,6 +109,13 @@ export class CpuStates {
         const cpuStates = this.sessionCpuStates.get(session.session.id);
         if (!cpuStates) {
             return;
+        }
+        // Refine the key with the target-type prefix and restore the enabled/disabled state from settings.json
+        const configStateKey = await session.getConfigStateKey();
+        cpuStates.configStateKey = configStateKey;
+        cpuStates.enableCpuStatesFlag = readCpuStates(configStateKey) ?? true;
+        if (this.activeSession?.session.id === session.session.id) {
+            void vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', cpuStates.enableCpuStatesFlag);
         }
         // Following call might fail if target not stopped on connect, returns undefined
         // Retry on first Stopped Event.
@@ -199,7 +213,7 @@ export class CpuStates {
         if (!states) {
             return;
         }
-        if (!this.enableCpuStatesFlag) {
+        if (!states.enableCpuStatesFlag) {
             return;
         }
         const newCycles = await session.readMemoryU32(DWT_CYCCNT_ADDRESS);
@@ -326,14 +340,36 @@ export class CpuStates {
         this._onRefresh.fire(0);
     }
 
+    public get isEnabled(): boolean {
+        return this.activeCpuStates?.enableCpuStatesFlag ?? true;
+    }
+
     public async enableCpuStates(): Promise<void> {
-        this.enableCpuStatesFlag = true;
-        await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', this.enableCpuStatesFlag);
+        const cpuStates = this.activeCpuStates;
+        if (!cpuStates) {
+            return;
+        }
+        cpuStates.enableCpuStatesFlag = true;
+        await writeCpuStates(cpuStates.configStateKey, cpuStates.enableCpuStatesFlag);
+        await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', cpuStates.enableCpuStatesFlag);
     }
 
     public async disableCpuStates(): Promise<void> {
-        this.enableCpuStatesFlag = false;
-        await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', this.enableCpuStatesFlag);
+        const cpuStates = this.activeCpuStates;
+        if (!cpuStates) {
+            return;
+        }
+        cpuStates.enableCpuStatesFlag = false;
+        await writeCpuStates(cpuStates.configStateKey, cpuStates.enableCpuStatesFlag);
+        await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', cpuStates.enableCpuStatesFlag);
     }
 
+    public async resetViewState(): Promise<void> {
+        // Re-enable all active sessions in memory.
+        for (const states of this.sessionCpuStates.values()) {
+            states.enableCpuStatesFlag = true;
+        }
+        void vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', true);
+        logger.info('CPU States: CPU Timer reset');
+    }
 };

@@ -77,6 +77,11 @@
     },
     "commands": [
       {
+        "command": "vscode-cmsis-debugger.resetDynamicViewState",
+        "title": "Reset All Dynamic View States",
+        "category": "CMSIS Debugger"
+      },
+      {
         "command": "vscode-cmsis-debugger.openDisassemblyView",
         "title": "Open Disassembly View",
         "category": "Run and Debug",
@@ -166,6 +171,18 @@
         "category": "Live Watch"
       },
       {
+        "command": "vscode-cmsis-debugger.liveWatch.enablePeriodicUpdate",
+        "title": "Enable Periodic Update",
+        "icon": "$(sync)",
+        "category": "Live Watch"
+      },
+      {
+        "command": "vscode-cmsis-debugger.liveWatch.disablePeriodicUpdate",
+        "title": "Disable Periodic Update",
+        "icon": "$(sync-ignored)",
+        "category": "Live Watch"
+      },
+      {
         "command": "vscode-cmsis-debugger.liveWatch.setValue",
         "title": "Set Value",
         "category": "Live Watch"
@@ -185,11 +202,13 @@
       {
         "command": "vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate",
         "title": "Enable Periodic Update",
+        "icon": "$(sync)",
         "category": "Component Viewer"
       },
       {
         "command": "vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate",
         "title": "Disable Periodic Update",
+        "icon": "$(sync-ignored)",
         "category": "Component Viewer"
       },
       {
@@ -231,11 +250,13 @@
       {
         "command": "vscode-cmsis-debugger.corePeripherals.enablePeriodicUpdate",
         "title": "Enable Periodic Update",
+        "icon": "$(sync)",
         "category": "Core Peripherals"
       },
       {
         "command": "vscode-cmsis-debugger.corePeripherals.disablePeriodicUpdate",
         "title": "Disable Periodic Update",
+        "icon": "$(sync-ignored)",
         "category": "Core Peripherals"
       },
       {
@@ -294,6 +315,10 @@
       ],
       "commandPalette": [
         {
+          "command": "vscode-cmsis-debugger.resetDynamicViewState",
+          "when": "true"
+        },
+        {
           "command": "vscode-cmsis-debugger.openDisassemblyView",
           "when": "false"
         },
@@ -346,6 +371,14 @@
           "when": "false"
         },
         {
+          "command": "vscode-cmsis-debugger.liveWatch.enablePeriodicUpdate",
+          "when": "!liveWatch.periodicUpdateEnabled"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.disablePeriodicUpdate",
+          "when": "liveWatch.periodicUpdateEnabled"
+        },
+        {
           "command": "vscode-cmsis-debugger.liveWatch.setValue",
           "when": "false"
         },
@@ -359,11 +392,11 @@
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate",
-          "when": "true"
+          "when": "!componentViewer.periodicUpdateEnabled"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate",
-          "when": "true"
+          "when": "componentViewer.periodicUpdateEnabled"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.expandAll",
@@ -387,11 +420,11 @@
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.enablePeriodicUpdate",
-          "when": "true"
+          "when": "!corePeripherals.periodicUpdateEnabled"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.disablePeriodicUpdate",
-          "when": "true"
+          "when": "corePeripherals.periodicUpdateEnabled"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.expandAll",
@@ -431,7 +464,7 @@
         {
           "command": "vscode-cmsis-debugger.liveWatch.deleteAll",
           "when": "view == cmsis-debugger.liveWatch",
-          "group": "navigation@3"
+          "group": "navigation@4"
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.refresh",
@@ -439,9 +472,19 @@
           "group": "navigation@2"
         },
         {
+          "command": "vscode-cmsis-debugger.liveWatch.disablePeriodicUpdate",
+          "when": "view == cmsis-debugger.liveWatch && liveWatch.periodicUpdateEnabled",
+          "group": "navigation@3"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.enablePeriodicUpdate",
+          "when": "view == cmsis-debugger.liveWatch && !liveWatch.periodicUpdateEnabled",
+          "group": "navigation@3"
+        },
+        {
           "command": "vscode-cmsis-debugger.componentViewer.expandAll",
           "when": "view == cmsis-debugger.componentViewer",
-          "group": "navigation@3"
+          "group": "navigation@4"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.collapseAll",
@@ -451,7 +494,7 @@
         {
           "command": "vscode-cmsis-debugger.corePeripherals.expandAll",
           "when": "view == cmsis-debugger.corePeripherals",
-          "group": "navigation@3"
+          "group": "navigation@4"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.collapseAll",
@@ -477,6 +520,26 @@
           "command": "vscode-cmsis-debugger.corePeripherals.clearFilter",
           "when": "view == cmsis-debugger.corePeripherals && corePeripherals.filterActive",
           "group": "navigation@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate",
+          "when": "view == cmsis-debugger.componentViewer && componentViewer.periodicUpdateEnabled",
+          "group": "navigation@3"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate",
+          "when": "view == cmsis-debugger.componentViewer && !componentViewer.periodicUpdateEnabled",
+          "group": "navigation@3"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.disablePeriodicUpdate",
+          "when": "view == cmsis-debugger.corePeripherals && corePeripherals.periodicUpdateEnabled",
+          "group": "navigation@3"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.enablePeriodicUpdate",
+          "when": "view == cmsis-debugger.corePeripherals && !corePeripherals.periodicUpdateEnabled",
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [
@@ -598,7 +661,48 @@
           }
         }
       }
-    ]
+    ],
+    "configuration": {
+      "title": "CMSIS Debugger",
+      "properties": {
+        "vscode-cmsis-debugger.viewState": {
+          "type": "object",
+          "markdownDescription": "Persisted dynamic view state per debug configuration.",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "componentViewer": {
+                "type": "object",
+                "markdownDescription": "Persisted dynamic view state for the Component Viewer.",
+                "additionalProperties": false,
+                "properties": {
+                  "periodicUpdateEnabled": { "type": "boolean" },
+                  "filterPattern": { "type": "string" }
+                }
+              },
+              "corePeripherals": {
+                "type": "object",
+                "markdownDescription": "Persisted dynamic view state for the Core Peripherals view.",
+                "additionalProperties": false,
+                "properties": {
+                  "periodicUpdateEnabled": { "type": "boolean" },
+                  "filterPattern": { "type": "string" }
+                }
+              },
+              "cpuStatesEnabled": {
+                "type": "boolean",
+                "markdownDescription": "Persisted CPU time enable/disable state."
+              },
+              "liveWatchPeriodicUpdateEnabled": {
+                "type": "boolean",
+                "markdownDescription": "Persisted Live Watch periodic update enable/disable state."
+              }
+            }
+          }
+        }
+      }
+    }
   },
   "scripts": {
     "prepare": "npm run build",

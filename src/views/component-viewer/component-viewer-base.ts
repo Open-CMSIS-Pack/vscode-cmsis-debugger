@@ -26,6 +26,7 @@ import { perf, parsePerf } from './stats-config';
 import { vscodeViewExists } from '../../vscode-utils';
 import { EXTENSION_NAME, VIEW_PREFIX } from '../../manifest';
 import { ExtendedGDBTargetConfiguration } from '../../debug-configuration/gdbtarget-configuration';
+import { readComponentViewerState, writeComponentViewerState } from '../dynamic-view-states';
 
 export interface ScvdCollector {
     getScvdFilePaths(session: GDBTargetDebugSession): Promise<string[]>;
@@ -53,6 +54,8 @@ export class ComponentViewerBase {
     private _runningUpdate: boolean = false;
     private _refreshTimerEnabled: boolean = true;
     private _activeInputBox: vscode.InputBox | undefined;
+    private _filterDebounceTimer: NodeJS.Timeout | undefined;
+    private static readonly filterDebounceMs = 1000;
     private static readonly pendingUpdateDelayMs = 150;
 
     public constructor(
@@ -106,10 +109,14 @@ export class ComponentViewerBase {
         });
         const enablePeriodicUpdateCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.enablePeriodicUpdate`, async () => {
             this._refreshTimerEnabled = true;
+            await this.saveCurrentState();
+            await vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
             componentViewerLogger.info(`${this._viewName}: Auto refresh enabled`);
         });
         const disablePeriodicUpdateCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.disablePeriodicUpdate`, async () => {
             this._refreshTimerEnabled = false;
+            await this.saveCurrentState();
+            await vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, false);
             componentViewerLogger.info(`${this._viewName}: Auto refresh disabled`);
         });
         const expandAllCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.expandAll`, async () => {
@@ -137,6 +144,7 @@ export class ComponentViewerBase {
             filterTreeCommandDisposable,
             clearFilterCommandDisposable
         );
+        vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
         return true;
     }
 
@@ -205,6 +213,14 @@ export class ComponentViewerBase {
                 this._componentViewerTreeDataProvider.setFilter(value);
                 void vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, true);
             }
+            // Reset the timer so the view state is saved only after the user stops typing for filterDebounceMs.
+            if (this._filterDebounceTimer) {
+                clearTimeout(this._filterDebounceTimer);
+            }
+            this._filterDebounceTimer = setTimeout(() => {
+                this._filterDebounceTimer = undefined;
+                void this.saveCurrentState();
+            }, ComponentViewerBase.filterDebounceMs);
         };
 
         inputBox.onDidChangeValue(value => {
@@ -235,6 +251,12 @@ export class ComponentViewerBase {
         if (this._activeInputBox) {
             this._activeInputBox.hide();
         }
+        // Cancel any pending debounced save and persist the cleared state immediately.
+        if (this._filterDebounceTimer) {
+            clearTimeout(this._filterDebounceTimer);
+            this._filterDebounceTimer = undefined;
+        }
+        void this.saveCurrentState();
     }
 
     protected async readScvdFiles(tracker: GDBTargetDebugTracker, session?: GDBTargetDebugSession): Promise<void> {
@@ -397,14 +419,19 @@ export class ComponentViewerBase {
     }
 
     private async handleOnConnected(session: GDBTargetDebugSession, tracker: GDBTargetDebugTracker): Promise<void> {
-        // Update debug session
-        this._activeSession = session;
-        // Show the loading indicator while SCVD files are read and the first update runs.
-        this._webviewProvider?.setEmptyMessage('No component data available');
-        this._webviewProvider?.setLoading(true);
+        if (!this._activeSession) {
+            // Update debug session during launch connection but not during attach
+            this._activeSession = session;
+        }
+
+        const isActiveSession = this._activeSession.session.id === session.session.id;
+        if (isActiveSession) {
+            this._webviewProvider?.setEmptyMessage('No component data available');
+            this._webviewProvider?.setLoading(true);
+        }
         // Load SCVD files from cbuild-run
         await this.loadScvdFiles(session, tracker);
-        if (!this._instances.some(instance => instance.sessionId === session.session.id)) {
+        if (isActiveSession) {
             this._webviewProvider?.setLoading(false);
         }
     }
@@ -423,6 +450,9 @@ export class ComponentViewerBase {
     private async handleOnDidChangeActiveDebugSession(session: GDBTargetDebugSession | undefined): Promise<void> {
         // Update debug session
         this._activeSession = session;
+        if (session) {
+            await this.restorePeriodicUpdateAndFilter(session);
+        }
     }
 
     private schedulePendingUpdate(updateReason: UpdateReason): void {
@@ -515,5 +545,56 @@ export class ComponentViewerBase {
         perf?.logSummaries();
         this._componentViewerTreeDataProvider.setRoots(roots);
         this._webviewProvider?.setLoading(false);
+    }
+
+    private async saveCurrentState(): Promise<void> {
+        if (!this._activeSession) {
+            return;
+        }
+        const configStateKey = await this._activeSession.getConfigStateKey();
+        const filterPattern = this._componentViewerTreeDataProvider.filterPattern;
+        await writeComponentViewerState(this._viewId, configStateKey, this._refreshTimerEnabled, filterPattern);
+    }
+
+    private async restorePeriodicUpdateAndFilter(session: GDBTargetDebugSession): Promise<void> {
+        // Always reset to defaults before applying saved state to prevent state leaking while switching sessions
+        this._refreshTimerEnabled = true;
+        vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
+        this._componentViewerTreeDataProvider.setFilter(undefined);
+        vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, false);
+
+        const state = readComponentViewerState(this._viewId, await session.getConfigStateKey());
+        if (!state) {
+            return;
+        }
+        if (state.periodicUpdateEnabled !== undefined) {
+            this._refreshTimerEnabled = state.periodicUpdateEnabled;
+            vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, state.periodicUpdateEnabled);
+            componentViewerLogger.info(`${this._viewName}: Restored periodicUpdateEnabled=${state.periodicUpdateEnabled}`);
+        }
+        if (state.filterPattern !== undefined) {
+            this._componentViewerTreeDataProvider.setFilter(state.filterPattern);
+            vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, true);
+            componentViewerLogger.info(`${this._viewName}: Restored filterPattern='${state.filterPattern}'`);
+        }
+    }
+
+    public async resetViewState(): Promise<void> {
+        // Reset in-memory state to defaults.
+        this._refreshTimerEnabled = true;
+        vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
+        this._componentViewerTreeDataProvider.setFilter(undefined);
+        vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, false);
+        // Unlock all locked instances
+        for (const wrapper of this._instances) {
+            wrapper.lockState = false;
+            const guiTree = wrapper.componentViewerInstance.getGuiTree();
+            if (guiTree?.length) {
+                const rootNode: ScvdGuiInterface = guiTree[0];
+                rootNode.isLocked = false;
+            }
+        }
+        this.schedulePendingUpdate('sessionChanged');
+        componentViewerLogger.info(`${this._viewName}: View state reset`);
     }
 }
