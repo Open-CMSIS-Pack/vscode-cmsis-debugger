@@ -161,7 +161,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         if (elementId === undefined) {
             return false;
         }
-        return this._expandedIds.has(elementId);
+        return this.isFilterAutoExpanded(element) || this._expandedIds.has(elementId);
     }
 
     /**
@@ -169,12 +169,21 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
      * Used by the webview provider when the user clicks expand/collapse.
      */
     public toggleById(id: string, expanded: boolean): void {
+        if (this._filterTokens && !expanded) {
+            this._collapsedDuringFilter.add(id);
+        }
         if (expanded) {
             this._expandedIds.add(id);
         } else {
             this._expandedIds.delete(id);
         }
         this.refresh();
+    }
+
+    private isFilterAutoExpanded(element: ScvdGuiInterface): boolean {
+        return this._filterTokens !== undefined
+            && this.hasMatchingDescendant(element)
+            && !this.isManuallyExpandedZone(element);
     }
 
     public getTreeItem(element: ScvdGuiInterface): vscode.TreeItem {
@@ -188,10 +197,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
             // descendants so the user can see the path to the matches.
             // Skip auto-expansion for nodes the user has manually collapsed
             // and for their descendants (the whole subtree is now unfiltered).
-            const isFilterAutoExpanded = this._filterTokens
-                && this.hasMatchingDescendant(element)
-                && !this.isManuallyExpandedZone(element);
-            const isExpanded = isFilterAutoExpanded
+            const isExpanded = this.isFilterAutoExpanded(element)
                 || (guiId !== undefined && this._expandedIds.has(guiId));
             treeItem.collapsibleState = isExpanded
                 ? vscode.TreeItemCollapsibleState.Expanded

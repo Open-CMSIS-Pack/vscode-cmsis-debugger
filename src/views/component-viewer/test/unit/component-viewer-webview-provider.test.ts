@@ -237,6 +237,24 @@ describe('ComponentViewerWebviewProvider', () => {
         expect(rows.some(r => r.name === 'HiddenChild')).toBe(false);
     });
 
+    it('auto-expands filtered terms in serialized rows', () => {
+        const child = makeGui({ getGuiName: () => 'MatchChild', getGuiId: () => 'c1' });
+        const parent = makeGui({
+            getGuiName: () => 'Parent',
+            getGuiId: () => 'p1',
+            hasGuiChildren: () => true,
+            getGuiChildren: () => [child],
+        });
+        dataProvider.setRoots([parent]);
+        dataProvider.setFilter('MatchChild');
+
+        const { view, getLastUpdateMessage } = makeMockWebviewView();
+        webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+        const rows = getLastUpdateMessage()?.rows ?? [];
+        expect(rows.find(r => r.name === 'Parent')?.expanded).toBe(true);
+        expect(rows.some(r => r.name === 'MatchChild')).toBe(true);
+    });
+
     it('sends a new update message when refresh() is called', () => {
         const { view, getPostedMessages } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
