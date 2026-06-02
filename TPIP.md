@@ -1,6 +1,6 @@
 # TPIP Report for vscode-cmsis-debugger
 
-Report prepared at: 01/06/2026, 14:14:27
+Report prepared at: 02/06/2026, 11:51:42
 
 | *Package* | *Version* | *Repository* | *License* |
 |---|---|---|---|
@@ -13,3 +13,4 @@ Report prepared at: 01/06/2026, 14:14:27
 | react-dom | 18.3.1 | https://github.com/facebook/react | [MIT](https://github.com/facebook/react/blob/main/LICENSE) |
 | css-loader | 7.1.4 | https://github.com/webpack-contrib/css-loader | [MIT](https://github.com/webpack-contrib/css-loader/blob/master/LICENSE) |
 | style-loader | 4.0.0 | https://github.com/webpack-contrib/style-loader | [MIT](https://github.com/webpack-contrib/style-loader/blob/master/LICENSE) |
+| @vscode/codicons | 0.0.45 | https://github.com/microsoft/vscode-codicons | [CC-BY-4.0](https://github.com/microsoft/vscode-codicons/blob/main/LICENSE) |

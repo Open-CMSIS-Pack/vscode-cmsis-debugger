@@ -61,5 +61,12 @@
         "spdx": "MIT",
         "url": "https://github.com/webpack-contrib/style-loader",
         "license": "https://github.com/webpack-contrib/style-loader/blob/master/LICENSE"
+    },
+    {
+        "name": "@vscode/codicons",
+        "version": "0.0.45",
+        "spdx": "CC-BY-4.0",
+        "url": "https://github.com/microsoft/vscode-codicons",
+        "license": "https://github.com/microsoft/vscode-codicons/blob/main/LICENSE"
     }
 ]

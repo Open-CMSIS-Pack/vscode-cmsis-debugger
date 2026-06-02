@@ -623,6 +623,7 @@
     "baseContentUrl": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/blob/main/README.md"
   },
   "dependencies": {
+    "@vscode/codicons": "^0.0.45",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "vscode-uri": "^3.1.0",
