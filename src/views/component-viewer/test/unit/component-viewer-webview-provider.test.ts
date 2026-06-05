@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
 /**
  * Unit tests for ComponentViewerWebviewProvider.
@@ -143,6 +144,9 @@ function makeMockWebviewView() {
     };
 }
 
+/** Flush the microtask queue so coalesced renders run and post their messages. */
+const flush = () => new Promise<void>(resolve => setImmediate(resolve));
+
 describe('ComponentViewerWebviewProvider', () => {
     let dataProvider: ComponentViewerTreeDataProvider;
     let webviewProvider: ComponentViewerWebviewProvider;
@@ -161,35 +165,58 @@ describe('ComponentViewerWebviewProvider', () => {
         expect(getHtml()).toContain('Content-Security-Policy');
     });
 
-    it('sends an update message with empty rows when no roots are set', () => {
+    it('sends an update message with empty rows when no roots are set', async () => {
         const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+        await flush();
         const msg = getLastUpdateMessage();
         expect(msg).toBeDefined();
         expect(msg?.rows).toHaveLength(0);
     });
 
-    it('starts blank when no debug session has provided data yet', () => {
+    it('starts blank when no debug session has provided data yet', async () => {
         const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+        await flush();
         const msg = getLastUpdateMessage();
         expect(msg?.loading).toBe(false);
         expect(msg?.emptyMessage).toBe('');
     });
 
-    it('can show no-data text after a debug session starts loading data', () => {
+    it('can show no-data text after a debug session starts loading data', async () => {
         const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
 
         webviewProvider.setEmptyMessage('No component data available');
         webviewProvider.setLoading(false);
 
+        await flush();
         const msg = getLastUpdateMessage();
         expect(msg?.loading).toBe(false);
         expect(msg?.emptyMessage).toBe('No component data available');
     });
 
-    it('shows a filter-specific empty message when an active filter has no matches', () => {
+    it('coalesces back-to-back state changes in the same tick into a single update', async () => {
+        const { view, getPostedMessages } = makeMockWebviewView();
+        webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+        await flush();
+        const baseline = getPostedMessages().filter(m => (m as HostToWebviewMessage).type === 'update').length;
+
+        webviewProvider.setLoading(true);
+        webviewProvider.setEmptyMessage('No component data available');
+        webviewProvider.setLoading(false);
+        // No flush yet — all three changes happen within the same tick.
+        expect(getPostedMessages().filter(m => (m as HostToWebviewMessage).type === 'update')).toHaveLength(baseline);
+
+        await flush();
+        const updates = getPostedMessages().filter(m => (m as HostToWebviewMessage).type === 'update');
+        expect(updates).toHaveLength(baseline + 1);
+        const last = updates.at(-1) as HostToWebviewMessage;
+        expect(last.loading).toBe(false);
+        expect(last.emptyMessage).toBe('No component data available');
+    });
+
+    it('shows a filter-specific empty message when an active filter has no matches', async () => {
         const root = makeGui({ getGuiName: () => 'VisibleName', getGuiId: () => 'r1' });
         dataProvider.setRoots([root]);
         dataProvider.setFilter('NoSuchNode');
@@ -197,16 +224,18 @@ describe('ComponentViewerWebviewProvider', () => {
         const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
 
+        await flush();
         const msg = getLastUpdateMessage();
         expect(msg?.rows).toHaveLength(0);
         expect(msg?.emptyMessage).toBe('No matching filter results');
     });
 
-    it('sends a row for each root node with correct cell data', () => {
+    it('sends a row for each root node with correct cell data', async () => {
         const root = makeGui({ getGuiName: () => 'MyName', getGuiValue: () => 'MyVal', getGuiId: () => 'r1' });
         dataProvider.setRoots([root]);
         const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+        await flush();
         const msg = getLastUpdateMessage();
         expect(msg?.rows).toHaveLength(1);
         expect(msg?.rows[0].name).toBe('MyName');
@@ -214,7 +243,7 @@ describe('ComponentViewerWebviewProvider', () => {
         expect(msg?.rows[0].id).toBe('r1');
     });
 
-    it('includes children of expanded nodes', () => {
+    it('includes children of expanded nodes', async () => {
         const child = makeGui({ getGuiName: () => 'Child', getGuiId: () => 'c1' });
         const parent = makeGui({
             getGuiName: () => 'Parent',
@@ -227,12 +256,13 @@ describe('ComponentViewerWebviewProvider', () => {
 
         const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+        await flush();
         const rows = getLastUpdateMessage()?.rows ?? [];
         expect(rows.some(r => r.name === 'Parent')).toBe(true);
         expect(rows.some(r => r.name === 'Child')).toBe(true);
     });
 
-    it('does not include children of collapsed nodes', () => {
+    it('does not include children of collapsed nodes', async () => {
         const child = makeGui({ getGuiName: () => 'HiddenChild', getGuiId: () => 'c1' });
         const parent = makeGui({
             getGuiName: () => 'Parent',
@@ -245,12 +275,13 @@ describe('ComponentViewerWebviewProvider', () => {
 
         const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+        await flush();
         const rows = getLastUpdateMessage()?.rows ?? [];
         expect(rows.some(r => r.name === 'Parent')).toBe(true);
         expect(rows.some(r => r.name === 'HiddenChild')).toBe(false);
     });
 
-    it('auto-expands filtered terms in serialized rows', () => {
+    it('auto-expands filtered terms in serialized rows', async () => {
         const child = makeGui({ getGuiName: () => 'MatchChild', getGuiId: () => 'c1' });
         const parent = makeGui({
             getGuiName: () => 'Parent',
@@ -263,19 +294,22 @@ describe('ComponentViewerWebviewProvider', () => {
 
         const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+        await flush();
         const rows = getLastUpdateMessage()?.rows ?? [];
         expect(rows.find(r => r.name === 'Parent')?.expanded).toBe(true);
         expect(rows.some(r => r.name === 'MatchChild')).toBe(true);
     });
 
-    it('sends a new update message when refresh() is called', () => {
+    it('sends a new update message when refresh() is called', async () => {
         const { view, getPostedMessages } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+        await flush();
         expect(getPostedMessages().filter(m => (m as HostToWebviewMessage).type === 'update')).toHaveLength(1);
 
         const root = makeGui({ getGuiName: () => 'Added', getGuiId: () => 'a1' });
         dataProvider.setRoots([root]);
         webviewProvider.refresh();
+        await flush();
 
         const updates = getPostedMessages().filter(m => (m as HostToWebviewMessage).type === 'update');
         expect(updates).toHaveLength(2);
@@ -304,7 +338,24 @@ describe('ComponentViewerWebviewProvider', () => {
         expect(lock).toHaveBeenCalledWith('root-1');
     });
 
-    it('marks root instances with lockEnabled=true in the row', () => {
+    it('re-sends the current data when the webview reports it is ready', async () => {
+        const root = makeGui({ getGuiName: () => 'Ready', getGuiId: () => 'r1' });
+        dataProvider.setRoots([root]);
+
+        const { view, getPostedMessages, sendMessage } = makeMockWebviewView();
+        webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+        await flush();
+        const baseline = getPostedMessages().filter(m => (m as HostToWebviewMessage).type === 'update').length;
+
+        sendMessage({ type: 'ready' });
+        await flush();
+
+        const updates = getPostedMessages().filter(m => (m as HostToWebviewMessage).type === 'update');
+        expect(updates.length).toBe(baseline + 1);
+        expect((updates.at(-1) as HostToWebviewMessage & { rows: FlatRow[] }).rows[0].name).toBe('Ready');
+    });
+
+    it('marks root instances with lockEnabled=true in the row', async () => {
         const root = makeGui({
             getGuiName: () => 'RTX',
             isRootInstance: true,
@@ -316,12 +367,13 @@ describe('ComponentViewerWebviewProvider', () => {
         const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
 
+        await flush();
         const row = getLastUpdateMessage()?.rows[0];
         expect(row?.lockEnabled).toBe(true);
         expect(row?.locked).toBe(false);
     });
 
-    it('marks locked root instances with locked=true in the row', () => {
+    it('marks locked root instances with locked=true in the row', async () => {
         const root = makeGui({
             getGuiName: () => 'RTX',
             isRootInstance: true,
@@ -333,12 +385,13 @@ describe('ComponentViewerWebviewProvider', () => {
         const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
 
+        await flush();
         const row = getLastUpdateMessage()?.rows[0];
         expect(row?.lockEnabled).toBe(true);
         expect(row?.locked).toBe(true);
     });
 
-    it('passes raw name and value strings without HTML escaping', () => {
+    it('passes raw name and value strings without HTML escaping', async () => {
         const node = makeGui({
             getGuiName: () => '<b>bold</b>',
             getGuiValue: () => 'a & b',
@@ -349,6 +402,7 @@ describe('ComponentViewerWebviewProvider', () => {
         const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
 
+        await flush();
         const row = getLastUpdateMessage()?.rows[0];
         // Raw strings go into name/value — React handles escaping
         expect(row?.name).toBe('<b>bold</b>');
@@ -364,7 +418,7 @@ describe('ComponentViewerWebviewProvider', () => {
         expect(() => webviewProvider.refresh()).not.toThrow();
     });
 
-    it('sets correct depth values for nested children', () => {
+    it('sets correct depth values for nested children', async () => {
         const grandchild = makeGui({ getGuiName: () => 'GC', getGuiId: () => 'gc1' });
         const child = makeGui({
             getGuiName: () => 'Child',
@@ -385,6 +439,7 @@ describe('ComponentViewerWebviewProvider', () => {
         const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
 
+        await flush();
         const rows = getLastUpdateMessage()?.rows ?? [];
         const rootRow = rows.find(r => r.name === 'Root');
         const childRow = rows.find(r => r.name === 'Child');
@@ -395,7 +450,7 @@ describe('ComponentViewerWebviewProvider', () => {
         expect(gcRow?.depth).toBe(2);
     });
 
-    it('sends updated data when the data provider fires onDidChangeTreeData', () => {
+    it('sends updated data when the data provider fires onDidChangeTreeData', async () => {
         let changeListener: (() => void) | undefined;
         Object.defineProperty(dataProvider, 'onDidChangeTreeData', {
             value: (listener: () => void) => {
@@ -407,16 +462,18 @@ describe('ComponentViewerWebviewProvider', () => {
 
         const { view, getPostedMessages } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+        await flush();
 
         dataProvider.setRoots([makeGui({ getGuiName: () => 'Dynamic', getGuiId: () => 'd1' })]);
         changeListener?.();
+        await flush();
 
         const updates = getPostedMessages().filter(m => (m as HostToWebviewMessage).type === 'update');
         expect(updates).toHaveLength(2);
         expect(((updates[1] as HostToWebviewMessage & { rows: FlatRow[] }).rows[0].name)).toBe('Dynamic');
     });
 
-    it('skips a node whose getGuiId returns undefined', () => {
+    it('skips a node whose getGuiId returns undefined', async () => {
         const good = makeGui({ getGuiName: () => 'Good', getGuiId: () => 'ok' });
         const bad = makeGui({ getGuiName: () => 'Bad', getGuiId: () => undefined });
         dataProvider.setRoots([good, bad]);
@@ -424,12 +481,13 @@ describe('ComponentViewerWebviewProvider', () => {
         const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
 
+        await flush();
         const rows = getLastUpdateMessage()?.rows ?? [];
         expect(rows.some(r => r.name === 'Good')).toBe(true);
         expect(rows.some(r => r.name === 'Bad')).toBe(false);
     });
 
-    it('uses empty string for missing name or value', () => {
+    it('uses empty string for missing name or value', async () => {
         const nodeNameOnly = makeGui({
             getGuiName: () => 'OnlyName',
             getGuiValue: () => undefined,
@@ -446,6 +504,7 @@ describe('ComponentViewerWebviewProvider', () => {
         const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
 
+        await flush();
         const rows = getLastUpdateMessage()?.rows ?? [];
         const nameOnlyRow = rows.find(r => r.id === 'n1');
         const valueOnlyRow = rows.find(r => r.id === 'v1');
@@ -456,7 +515,7 @@ describe('ComponentViewerWebviewProvider', () => {
         expect(valueOnlyRow?.value).toBe('OnlyValue');
     });
 
-    it('includes a node with neither name nor value using its id', () => {
+    it('includes a node with neither name nor value using its id', async () => {
         const nodeNeither = makeGui({
             getGuiName: () => undefined,
             getGuiValue: () => undefined,
@@ -467,6 +526,7 @@ describe('ComponentViewerWebviewProvider', () => {
         const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
 
+        await flush();
         const rows = getLastUpdateMessage()?.rows ?? [];
         expect(rows.some(r => r.id === 'e1')).toBe(true);
     });
@@ -477,7 +537,7 @@ describe('ComponentViewerWebviewProvider', () => {
         expect(getHtml()).toContain('Content-Security-Policy');
     });
 
-    it('marks expanded rows with expanded=true', () => {
+    it('marks expanded rows with expanded=true', async () => {
         const child = makeGui({ getGuiName: () => 'Child', getGuiId: () => 'c1' });
         const parent = makeGui({
             getGuiName: () => 'Parent',
@@ -491,6 +551,7 @@ describe('ComponentViewerWebviewProvider', () => {
         const { view, getLastUpdateMessage } = makeMockWebviewView();
         webviewProvider.resolveWebviewView(view, {} as never, {} as never);
 
+        await flush();
         const rows = getLastUpdateMessage()?.rows ?? [];
         const parentRow = rows.find(r => r.id === 'p1');
         expect(parentRow?.expanded).toBe(true);

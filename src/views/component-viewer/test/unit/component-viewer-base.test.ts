@@ -1168,4 +1168,58 @@ describe('ComponentViewerBase', () => {
             expect(writeComponentViewerState).toHaveBeenCalledWith('testClass', 'My-Target::Debug', false, 'word');
         });
     });
+
+    describe('emptyMessageForActiveSession', () => {
+        const getEmptyMessage = (c: TestClass) =>
+            (c as unknown as { emptyMessageForActiveSession: () => string }).emptyMessageForActiveSession.bind(c);
+        const setActiveSession = (c: TestClass, s: Session) =>
+            ((c as unknown as { _activeSession?: Session })._activeSession = s);
+        const setInstances = (c: TestClass, instances: ComponentViewerInstancesWrapper[]) =>
+            ((c as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = instances);
+        const setRefreshTimerEnabled = (c: TestClass, enabled: boolean) =>
+            ((c as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled = enabled);
+        const instanceForSession = (sessionId: string) =>
+            ({ sessionId } as unknown as ComponentViewerInstancesWrapper);
+        const sessionWithAccess = (id: string, targetState: Session['targetState'], canAccess: boolean): Session => {
+            const session = debugSessionFactory(id, [], targetState);
+            (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = canAccess;
+            return session;
+        };
+
+        it('returns empty string when there is no active session', () => {
+            expect(getEmptyMessage(controller)()).toBe('');
+        });
+
+        it('returns empty string while target state is unknown (keeps spinner during startup)', () => {
+            setActiveSession(controller, debugSessionFactory('s1', [], 'unknown'));
+            setInstances(controller, [instanceForSession('s1')]);
+            expect(getEmptyMessage(controller)()).toBe('');
+        });
+
+        it('returns no-data text when the active session has no loaded instances', () => {
+            setActiveSession(controller, debugSessionFactory('s1', [], 'stopped'));
+            setInstances(controller, []);
+            expect(getEmptyMessage(controller)()).toBe('No component data available');
+        });
+
+        it('prompts to pause when running and the auxiliary GDB is not off', () => {
+            setActiveSession(controller, sessionWithAccess('s1', 'running', false));
+            setInstances(controller, [instanceForSession('s1')]);
+            expect(getEmptyMessage(controller)()).toBe('Target is running...\nPause target to load data');
+        });
+
+        it('prompts to pause or enable periodic update when running with periodic update off', () => {
+            setActiveSession(controller, sessionWithAccess('s1', 'running', true));
+            setInstances(controller, [instanceForSession('s1')]);
+            setRefreshTimerEnabled(controller, false);
+            expect(getEmptyMessage(controller)()).toBe('Target is running...\nPause target or enable Periodic Update to load data');
+        });
+
+        it('returns empty string when running, accessible, and periodic update is on', () => {
+            setActiveSession(controller, sessionWithAccess('s1', 'running', true));
+            setInstances(controller, [instanceForSession('s1')]);
+            setRefreshTimerEnabled(controller, true);
+            expect(getEmptyMessage(controller)()).toBe('');
+        });
+    });
 });
