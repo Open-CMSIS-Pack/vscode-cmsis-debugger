@@ -143,6 +143,11 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
 
         const roots = this._dataProvider.getChildren();
         const rows = this.serializeNodes(roots, 0);
+        // Show the filter-specific message only when an active filter filtered
+        // out all rows from a non-empty underlying tree.
+        const emptyMessage = this._dataProvider.isFilterActive && this._dataProvider.hasRoots && rows.length === 0
+            ? 'No matching filter results'
+            : this._emptyMessage;
 
         const message: HostToWebviewMessage = {
             type: 'update', rows, loading: this._loading,
@@ -151,7 +156,7 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
                 lockTooltip: 'Exclude from updates',
                 unlockTooltip: 'Include in updates',
             },
-            emptyMessage: this._emptyMessage,
+            emptyMessage,
         };
         void this._view.webview.postMessage(message);
     }

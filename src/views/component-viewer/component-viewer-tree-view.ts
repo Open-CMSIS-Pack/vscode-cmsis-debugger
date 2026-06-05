@@ -76,6 +76,10 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         return this._filterTokens !== undefined;
     }
 
+    public get hasRoots(): boolean {
+        return this._roots.length > 0;
+    }
+
     /**
      * Returns true if every filter token appears somewhere in the node's
      * combined name and value text (case-insensitive).

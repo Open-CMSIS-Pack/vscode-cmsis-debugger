@@ -424,16 +424,14 @@ export class ComponentViewerBase {
             this._activeSession = session;
         }
 
-        const isActiveSession = this._activeSession.session.id === session.session.id;
-        if (isActiveSession) {
-            this._webviewProvider?.setEmptyMessage('No component data available');
+        if (this._activeSession.session.id === session.session.id) {
             this._webviewProvider?.setLoading(true);
         }
         // Load SCVD files from cbuild-run
         await this.loadScvdFiles(session, tracker);
-        if (isActiveSession) {
-            this._webviewProvider?.setLoading(false);
-        }
+        // Only show the empty-state text when there really is no data to render.
+        const hasInstances = this._instances.some(i => i.sessionId === session.session.id);
+        this._webviewProvider?.setEmptyMessage(hasInstances ? '' : 'No component data available');
     }
 
     private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
@@ -451,7 +449,11 @@ export class ComponentViewerBase {
         // Update debug session
         this._activeSession = session;
         if (session) {
+            this._webviewProvider?.setLoading(true);
+            const hasInstances = this._instances.some(i => i.sessionId === session.session.id);
+            this._webviewProvider?.setEmptyMessage(hasInstances ? '' : 'No component data available');
             await this.restorePeriodicUpdateAndFilter(session);
+            this.schedulePendingUpdate('sessionChanged');
         }
     }
 
@@ -491,7 +493,7 @@ export class ComponentViewerBase {
             return false;
         }
         if (session.targetState === 'running') {
-            if (this._refreshTimerEnabled === false ) {
+            if (this._refreshTimerEnabled === false) {
                 return false;
             }
             if (session.canAccessWhileRunning === false) {
@@ -511,6 +513,7 @@ export class ComponentViewerBase {
 
         if (!this.shouldUpdateInstances(this._activeSession)) {
             componentViewerLogger.debug(`${this._viewName}: Skipping update due to '${updateReason}' - conditions not met`);
+            this._webviewProvider?.setLoading(false);
             return;
         }
 

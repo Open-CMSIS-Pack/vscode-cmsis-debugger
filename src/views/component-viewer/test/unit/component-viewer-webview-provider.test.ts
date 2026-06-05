@@ -189,6 +189,19 @@ describe('ComponentViewerWebviewProvider', () => {
         expect(msg?.emptyMessage).toBe('No component data available');
     });
 
+    it('shows a filter-specific empty message when an active filter has no matches', () => {
+        const root = makeGui({ getGuiName: () => 'VisibleName', getGuiId: () => 'r1' });
+        dataProvider.setRoots([root]);
+        dataProvider.setFilter('NoSuchNode');
+
+        const { view, getLastUpdateMessage } = makeMockWebviewView();
+        webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+
+        const msg = getLastUpdateMessage();
+        expect(msg?.rows).toHaveLength(0);
+        expect(msg?.emptyMessage).toBe('No matching filter results');
+    });
+
     it('sends a row for each root node with correct cell data', () => {
         const root = makeGui({ getGuiName: () => 'MyName', getGuiValue: () => 'MyVal', getGuiId: () => 'r1' });
         dataProvider.setRoots([root]);
