@@ -35,6 +35,7 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
     private _scriptUri: vscode.Uri | undefined;
     private _loading = false;
     private _emptyMessage = '';
+    private _renderScheduled = false;
 
     /**
      * Callback invoked when a tree node is toggled (expanded/collapsed) in the
@@ -136,7 +137,19 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
     /*  Internal rendering                                                */
     /* ------------------------------------------------------------------ */
 
+    /** Coalesce back-to-back state changes in the same tick into one render. */
     private render(): void {
+        if (this._renderScheduled) {
+            return;
+        }
+        this._renderScheduled = true;
+        void Promise.resolve().then(() => {
+            this._renderScheduled = false;
+            this.flushRender();
+        });
+    }
+
+    private flushRender(): void {
         if (!this._view) {
             return;
         }

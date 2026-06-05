@@ -426,12 +426,12 @@ export class ComponentViewerBase {
 
         if (this._activeSession.session.id === session.session.id) {
             this._webviewProvider?.setLoading(true);
+            await this.restorePeriodicUpdateAndFilter(session);
         }
         // Load SCVD files from cbuild-run
         await this.loadScvdFiles(session, tracker);
-        // Only show the empty-state text when there really is no data to render.
-        const hasInstances = this._instances.some(i => i.sessionId === session.session.id);
-        this._webviewProvider?.setEmptyMessage(hasInstances ? '' : 'No component data available');
+        // updateInstances completes the loading lifecycle (spinner + empty message).
+        this.schedulePendingUpdate('sessionChanged');
     }
 
     private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
@@ -450,9 +450,10 @@ export class ComponentViewerBase {
         this._activeSession = session;
         if (session) {
             this._webviewProvider?.setLoading(true);
-            const hasInstances = this._instances.some(i => i.sessionId === session.session.id);
-            this._webviewProvider?.setEmptyMessage(hasInstances ? '' : 'No component data available');
             await this.restorePeriodicUpdateAndFilter(session);
+            // Render whatever we already have cached for this session.
+            this.renderCachedRoots(session.session.id);
+            // updateInstances completes the loading lifecycle (clears the spinner).
             this.schedulePendingUpdate('sessionChanged');
         }
     }
@@ -485,8 +486,7 @@ export class ComponentViewerBase {
     }
 
     private shouldUpdateInstances(session: GDBTargetDebugSession): boolean {
-        this._instanceUpdateCounter = 0;
-        if (this._instances.length === 0) {
+        if (!this._instances.some(i => i.sessionId === session.session.id)) {
             return false;
         }
         if (session.targetState === 'unknown') {
@@ -513,19 +513,27 @@ export class ComponentViewerBase {
 
         if (!this.shouldUpdateInstances(this._activeSession)) {
             componentViewerLogger.debug(`${this._viewName}: Skipping update due to '${updateReason}' - conditions not met`);
-            this._webviewProvider?.setLoading(false);
+            const emptyMessage = this.emptyMessageForActiveSession();
+            this._webviewProvider?.setEmptyMessage(emptyMessage);
+            // An empty message means a transient startup state. Keep the spinner until a definitive state arrives.
+            if (emptyMessage !== '') {
+                this._webviewProvider?.setLoading(false); // update conditions not met
+            }
             return;
         }
 
         perf?.resetBackendStats();
         perf?.resetUiStats();
         const activeSessionID = this._activeSession.session.id;
+        // A live read on a running core (Periodic Update on) can stall until the target stops. 
+        // Don't let the spinner wait on it.
+        if (this._activeSession.targetState === 'running') {
+            this._webviewProvider?.setLoading(false); // target running
+        }
         const roots: ScvdGuiInterface[] = [];
         for (const instance of this._instances) {
-            // Check if instance belongs to the active session, if not skip it and clear its data from the tree view.
-            // However, lockedState should be maintained.
+            // Skip instances that don't belong to the active session.
             if (instance.sessionId !== activeSessionID) {
-                instance.componentViewerInstance.getGuiTree()?.forEach(root => root.clear());
                 continue;
             }
             this._instanceUpdateCounter++;
@@ -538,7 +546,7 @@ export class ComponentViewerBase {
                 instance.dirtyWhileLocked = true;
             }
             const guiTree = instance.componentViewerInstance.getGuiTree();
-            if (guiTree) {
+            if (guiTree && guiTree.length > 0) {
                 roots.push(...guiTree);
                 // If instance is locked, set isLocked flag to true for root nodes
                 roots[roots.length - 1].isLocked = !!instance.lockState;
@@ -546,8 +554,53 @@ export class ComponentViewerBase {
             }
         }
         perf?.logSummaries();
+        // The active session may have changed while awaiting slow GDB reads above.
+        // Don't write this session's roots over whatever the new active session shows.
+        if (this._activeSession?.session.id !== activeSessionID) {
+            return;
+        }
+        this._webviewProvider?.setEmptyMessage(this.emptyMessageForActiveSession());
         this._componentViewerTreeDataProvider.setRoots(roots);
-        this._webviewProvider?.setLoading(false);
+        this._webviewProvider?.setLoading(false); // data ready (target stopped)
+    }
+
+    private emptyMessageForActiveSession(): string {
+        const session = this._activeSession;
+        if (!session) {
+            return '';
+        }
+        if (session.targetState === 'unknown') {
+            // Session just connected; target state not known yet.
+            return '';
+        }
+        if (!this._instances.some(i => i.sessionId === session.session.id)) {
+            return 'No component data available';
+        }
+        if (session.targetState === 'running') {
+            if (session.canAccessWhileRunning === false) {
+                return 'Target is running...\nPause target to load data';
+            }
+            if (this._refreshTimerEnabled === false) {
+                return 'Target is running...\nPause target or enable Periodic Update to load data';
+            }
+        }
+        return '';
+    }
+
+    private renderCachedRoots(sessionId: string): void {
+        const roots: ScvdGuiInterface[] = [];
+        for (const instance of this._instances) {
+            if (instance.sessionId !== sessionId) {
+                continue;
+            }
+            const guiTree = instance.componentViewerInstance.getGuiTree();
+            if (guiTree && guiTree.length > 0) {
+                roots.push(...guiTree);
+                roots[roots.length - 1].isLocked = !!instance.lockState;
+                roots[roots.length - 1].isRootInstance = true;
+            }
+        }
+        this._componentViewerTreeDataProvider.setRoots(roots);
     }
 
     private async saveCurrentState(): Promise<void> {

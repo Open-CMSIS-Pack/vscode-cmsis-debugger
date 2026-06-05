@@ -195,6 +195,7 @@ tr.row.locked:hover .lock-btn .lock-icon-hover { display: inline !important; }
     padding: 16px;
     text-align: center;
     color: var(--vscode-descriptionForeground, #888);
+    white-space: pre-line;
 }
 
 /* Resize cursor override */
