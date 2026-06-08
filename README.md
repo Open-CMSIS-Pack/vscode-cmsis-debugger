@@ -600,7 +600,7 @@ from [SEGGER](https://www.segger.com/). Ensure all required drivers and host pla
 
 Related open source projects are:
 
-- The [Open-CMSIS-Pack](https://www.open-cmsis-pack.org/) project includes the CMSIS Debugger extension.
+- The [Open-CMSIS-Pack](https://open-cmsis-pack.github.io/landing/) project includes the CMSIS Debugger extension.
 - [Eclipse® CDT.cloud™](https://eclipse.dev/cdt-cloud/) hosts a number of components and
   best practices for building customizable web-based C/C++ tools.
 - [pyOCD](https://pyocd.io/), a Python based tool and API for debugging, programming, and exploring Arm Cortex®
