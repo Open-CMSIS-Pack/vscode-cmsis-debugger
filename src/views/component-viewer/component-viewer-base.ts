@@ -396,8 +396,7 @@ export class ComponentViewerBase {
         }
 
         // Clear active session if it is the one being stopped
-        const isStoppingActiveSession = this._activeSession?.session.id === session.session.id;
-        if (isStoppingActiveSession) {
+        if (this._activeSession?.session.id === session.session.id) {
             this._activeSession = undefined;
             this._webviewProvider?.setEmptyMessage('');
             this._webviewProvider?.setLoading(false);
@@ -525,7 +524,7 @@ export class ComponentViewerBase {
         perf?.resetBackendStats();
         perf?.resetUiStats();
         const activeSessionID = this._activeSession.session.id;
-        // A live read on a running core (Periodic Update on) can stall until the target stops. 
+        // A live read on a running core (Periodic Update on) can stall until the target stops.
         // Don't let the spinner wait on it.
         if (this._activeSession.targetState === 'running') {
             this._webviewProvider?.setLoading(false); // target running

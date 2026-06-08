@@ -918,6 +918,62 @@ describe('ComponentViewerTreeDataProvider', () => {
             expect(provider.getTreeItem(mid).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
         });
 
+        it('collapseAllElements collapses auto-expanded filter results', () => {
+            const matchLeaf = makeGui({ getGuiName: () => 'Enable IRQ', getGuiId: () => 'leaf1' });
+            const otherLeaf = makeGui({ getGuiName: () => 'Status Register', getGuiId: () => 'leaf2' });
+            const parent = makeGui({
+                getGuiName: () => 'Interrupt Controller',
+                getGuiId: () => 'parent1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [matchLeaf, otherLeaf],
+            });
+            const root = makeGui({
+                getGuiName: () => 'Peripherals',
+                getGuiId: () => 'root1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [parent],
+            });
+            provider.setRoots([root]);
+            provider.setFilter('enable');
+
+            expect(provider.getTreeItem(root).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+            expect(provider.getTreeItem(parent).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+
+            provider.collapseAllElements();
+
+            expect(provider.getTreeItem(root).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
+            expect(provider.getTreeItem(parent).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
+            expect(provider.getChildren(root)).toEqual([parent]);
+            expect(provider.getChildren(parent)).toEqual([matchLeaf]);
+        });
+
+        it('expandAllElements expands filtered results without bypassing the filter', () => {
+            const matchLeaf = makeGui({ getGuiName: () => 'Enable IRQ', getGuiId: () => 'leaf1' });
+            const otherLeaf = makeGui({ getGuiName: () => 'Status Register', getGuiId: () => 'leaf2' });
+            const parent = makeGui({
+                getGuiName: () => 'Interrupt Controller',
+                getGuiId: () => 'parent1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [matchLeaf, otherLeaf],
+            });
+            const root = makeGui({
+                getGuiName: () => 'Peripherals',
+                getGuiId: () => 'root1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [parent],
+            });
+            provider.setRoots([root]);
+            provider.setFilter('enable');
+            provider.collapseAllElements();
+
+            provider.expandAllElements();
+
+            expect(provider.getTreeItem(root).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+            expect(provider.getTreeItem(parent).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+            expect(provider.getChildren(root)).toEqual([parent]);
+            expect(provider.getChildren(parent)).toEqual([matchLeaf]);
+        });
+
         it('shows unfiltered children when user manually expands a matched node', () => {
             const grandchild = makeGui({ getGuiName: () => 'GC', getGuiId: () => 'gc1' });
             const matchNode = makeGui({

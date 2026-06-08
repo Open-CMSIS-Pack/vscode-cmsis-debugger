@@ -31,6 +31,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     private _idGeneration: number = 0;
     private _savedExpandedIds: Set<string> | undefined;
     private _collapsedDuringFilter = new Set<string>();
+    private _filterAutoExpandSuppressed = false;
 
     constructor () {
     }
@@ -47,6 +48,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     public setFilter(pattern: string | undefined): void {
         this._filterPattern = pattern || undefined;
         this._collapsedDuringFilter.clear();
+        this._filterAutoExpandSuppressed = false;
         if (pattern === undefined || pattern === '') {
             this._filterTokens = undefined;
             // Restore pre-filter expanded state
@@ -186,6 +188,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
 
     private isFilterAutoExpanded(element: ScvdGuiInterface): boolean {
         return this._filterTokens !== undefined
+            && !this._filterAutoExpandSuppressed
             && this.hasMatchingDescendant(element)
             && !this.isManuallyExpandedZone(element);
     }
@@ -304,6 +307,8 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
      * {@link refresh} so the tree re-renders once instead of per-node.
      */
     public expandAllElements(): void {
+        this._filterAutoExpandSuppressed = false;
+        this._collapsedDuringFilter.clear();
         this.markAllExpanded();
         // Increment generation so tree item IDs change, forcing VS Code to
         // treat nodes as new and respect our Expanded collapsibleState.
@@ -313,6 +318,10 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
 
     public collapseAllElements(): void {
         this._expandedIds.clear();
+        if (this._filterTokens) {
+            this._filterAutoExpandSuppressed = true;
+            this._collapsedDuringFilter.clear();
+        }
         this._idGeneration++;
         this.refresh();
     }
