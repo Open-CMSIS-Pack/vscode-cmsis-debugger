@@ -36,6 +36,7 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
     private _loading = false;
     private _emptyMessage = '';
     private _renderScheduled = false;
+    private _pendingViewStateReset = false;
 
     /**
      * Callback invoked when a tree node is toggled (expanded/collapsed) in the
@@ -133,6 +134,12 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
         this.render();
     }
 
+    /** Reset webview-local UI state such as column width and scroll position. */
+    public resetViewState(): void {
+        this._pendingViewStateReset = true;
+        this.render();
+    }
+
     /* ------------------------------------------------------------------ */
     /*  Internal rendering                                                */
     /* ------------------------------------------------------------------ */
@@ -170,7 +177,9 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
                 unlockTooltip: 'Include in updates',
             },
             emptyMessage,
+            resetViewState: this._pendingViewStateReset,
         };
+        this._pendingViewStateReset = false;
         void this._view.webview.postMessage(message);
     }
 

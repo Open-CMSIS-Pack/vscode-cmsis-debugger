@@ -338,6 +338,17 @@ describe('ComponentViewerWebviewProvider', () => {
         expect(lock).toHaveBeenCalledWith('root-1');
     });
 
+    it('notifies the webview to reset local UI state on resetViewState', async () => {
+        const { view, getLastUpdateMessage } = makeMockWebviewView();
+        webviewProvider.resolveWebviewView(view, {} as never, {} as never);
+        await flush();
+
+        webviewProvider.resetViewState();
+        await flush();
+
+        expect(getLastUpdateMessage()?.resetViewState).toBe(true);
+    });
+
     it('re-sends the current data when the webview reports it is ready', async () => {
         const root = makeGui({ getGuiName: () => 'Ready', getGuiId: () => 'r1' });
         dataProvider.setRoots([root]);

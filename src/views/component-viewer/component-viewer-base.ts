@@ -639,6 +639,7 @@ export class ComponentViewerBase {
         this._refreshTimerEnabled = true;
         vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
         this._componentViewerTreeDataProvider.setFilter(undefined);
+        this._componentViewerTreeDataProvider.collapseAllElements();
         vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, false);
         // Unlock all locked instances
         for (const wrapper of this._instances) {
@@ -649,6 +650,9 @@ export class ComponentViewerBase {
                 rootNode.isLocked = false;
             }
         }
+        // Reset webview state (e.g. scroll and column positions)
+        this._webviewProvider?.resetViewState();
+
         this.schedulePendingUpdate('sessionChanged');
         componentViewerLogger.info(`${this._viewName}: View state reset`);
     }

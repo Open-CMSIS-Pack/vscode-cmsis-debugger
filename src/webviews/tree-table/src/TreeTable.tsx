@@ -48,6 +48,19 @@ export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
     const [tooltipVisible, setTooltipVisible] = useState(false);
     const tooltipRef = useRef<HTMLDivElement>(null);
 
+    const resetLocalViewState = useCallback(() => {
+        const firstRow = tableContainerRef.current?.querySelector('tr');
+        const columnCount = firstRow?.children.length ?? 2;
+        const nameColWidth = `${100 / Math.max(1, columnCount)}%`;
+        document.documentElement.style.setProperty('--name-col-width', nameColWidth);
+        setSelectedId(undefined);
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = 0;
+            scrollContainerRef.current.style.setProperty('--scroll-top', '0px');
+        }
+        vscodeApi.setState({ nameColWidth, scrollTop: 0 });
+    }, [vscodeApi]);
+
     // Restore state on mount and signal readiness to the extension host
     useEffect(() => {
         const state = vscodeApi.getState();
@@ -77,6 +90,31 @@ export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
         }
     }, [viewState]);
 
+    // Keep the resize handle aligned after expand/collapse/filter changes alter
+    // the scrollable height without necessarily firing a scroll event.
+    useEffect(() => {
+        if (viewState !== 'data') {
+            return;
+        }
+        const rafId = requestAnimationFrame(() => {
+            const scrollContainer = scrollContainerRef.current;
+            if (!scrollContainer) {
+                return;
+            }
+            const rowHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--row-height'));
+            const contentHeight = rows.length * (Number.isFinite(rowHeight) ? rowHeight : 22);
+            const maxScrollTop = Math.max(0, contentHeight - scrollContainer.clientHeight);
+            const scrollTop = Math.min(scrollContainer.scrollTop, maxScrollTop);
+            if (scrollContainer.scrollTop !== scrollTop) {
+                scrollContainer.scrollTop = scrollTop;
+            }
+            scrollContainer.style.setProperty('--scroll-top', `${scrollTop}px`);
+            const state = vscodeApi.getState() ?? {};
+            vscodeApi.setState({ ...state, scrollTop });
+        });
+        return () => cancelAnimationFrame(rafId);
+    }, [rows, viewState, vscodeApi]);
+
     // Listen for messages from the extension host
     useEffect(() => {
         function handleMessage(event: MessageEvent<HostToWebviewMessage>) {
@@ -88,11 +126,14 @@ export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
                 setUnlockTooltip(msg.features?.unlockTooltip ?? 'Unlock');
                 setEmptyMessage(msg.emptyMessage ?? '');
                 setViewState(msg.loading ? 'loading' : msg.rows.length > 0 ? 'data' : 'empty');
+                if (msg.resetViewState) {
+                    resetLocalViewState();
+                }
             }
         }
         window.addEventListener('message', handleMessage);
         return () => window.removeEventListener('message', handleMessage);
-    }, []);
+    }, [resetLocalViewState]);
 
     const handleToggle = useCallback((id: string, expanded: boolean) => {
         vscodeApi.postMessage({ type: 'toggle', id, expanded });

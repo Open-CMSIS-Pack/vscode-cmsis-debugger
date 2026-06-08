@@ -76,6 +76,8 @@ export interface TreeTableUpdateMessage {
     features?: TreeTableFeatures;
     /** Text shown when `rows` is empty and `loading` is false. */
     emptyMessage?: string;
+    /** Reset persisted table UI state such as column width and scroll position. */
+    resetViewState?: boolean;
 }
 
 export type HostToWebviewMessage = TreeTableUpdateMessage;
