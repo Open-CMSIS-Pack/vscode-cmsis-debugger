@@ -454,7 +454,7 @@
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.refresh",
-          "when": "view == cmsis-debugger.liveWatch"
+          "when": "view == cmsis-debugger.liveWatch && liveWatch.activeDebugSession"
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.add",
@@ -468,77 +468,77 @@
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.refresh",
-          "when": "view == cmsis-debugger.liveWatch",
+          "when": "view == cmsis-debugger.liveWatch && liveWatch.activeDebugSession",
           "group": "navigation@2"
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.disablePeriodicUpdate",
-          "when": "view == cmsis-debugger.liveWatch && liveWatch.periodicUpdateEnabled",
+          "when": "view == cmsis-debugger.liveWatch && liveWatch.activeDebugSession && liveWatch.periodicUpdateAvailable && liveWatch.periodicUpdateEnabled",
           "group": "navigation@3"
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.enablePeriodicUpdate",
-          "when": "view == cmsis-debugger.liveWatch && !liveWatch.periodicUpdateEnabled",
+          "when": "view == cmsis-debugger.liveWatch && liveWatch.activeDebugSession && liveWatch.periodicUpdateAvailable && !liveWatch.periodicUpdateEnabled",
           "group": "navigation@3"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.expandAll",
-          "when": "view == cmsis-debugger.componentViewer",
+          "when": "view == cmsis-debugger.componentViewer && componentViewer.activeDebugSession",
           "group": "navigation@4"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.collapseAll",
-          "when": "view == cmsis-debugger.componentViewer",
+          "when": "view == cmsis-debugger.componentViewer && componentViewer.activeDebugSession",
           "group": "navigation@4"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.expandAll",
-          "when": "view == cmsis-debugger.corePeripherals",
+          "when": "view == cmsis-debugger.corePeripherals && corePeripherals.activeDebugSession",
           "group": "navigation@4"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.collapseAll",
-          "when": "view == cmsis-debugger.corePeripherals",
+          "when": "view == cmsis-debugger.corePeripherals && corePeripherals.activeDebugSession",
           "group": "navigation@4"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.filterTree",
-          "when": "view == cmsis-debugger.componentViewer",
+          "when": "view == cmsis-debugger.componentViewer && componentViewer.activeDebugSession",
           "group": "navigation@1"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.clearFilter",
-          "when": "view == cmsis-debugger.componentViewer && componentViewer.filterActive",
+          "when": "view == cmsis-debugger.componentViewer && componentViewer.activeDebugSession && componentViewer.filterActive",
           "group": "navigation@2"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.filterTree",
-          "when": "view == cmsis-debugger.corePeripherals",
+          "when": "view == cmsis-debugger.corePeripherals && corePeripherals.activeDebugSession",
           "group": "navigation@1"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.clearFilter",
-          "when": "view == cmsis-debugger.corePeripherals && corePeripherals.filterActive",
+          "when": "view == cmsis-debugger.corePeripherals && corePeripherals.activeDebugSession && corePeripherals.filterActive",
           "group": "navigation@2"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate",
-          "when": "view == cmsis-debugger.componentViewer && componentViewer.periodicUpdateEnabled",
+          "when": "view == cmsis-debugger.componentViewer && componentViewer.activeDebugSession && componentViewer.periodicUpdateAvailable && componentViewer.periodicUpdateEnabled",
           "group": "navigation@3"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate",
-          "when": "view == cmsis-debugger.componentViewer && !componentViewer.periodicUpdateEnabled",
+          "when": "view == cmsis-debugger.componentViewer && componentViewer.activeDebugSession && componentViewer.periodicUpdateAvailable && !componentViewer.periodicUpdateEnabled",
           "group": "navigation@3"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.disablePeriodicUpdate",
-          "when": "view == cmsis-debugger.corePeripherals && corePeripherals.periodicUpdateEnabled",
+          "when": "view == cmsis-debugger.corePeripherals && corePeripherals.activeDebugSession && corePeripherals.periodicUpdateAvailable && corePeripherals.periodicUpdateEnabled",
           "group": "navigation@3"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.enablePeriodicUpdate",
-          "when": "view == cmsis-debugger.corePeripherals && !corePeripherals.periodicUpdateEnabled",
+          "when": "view == cmsis-debugger.corePeripherals && corePeripherals.activeDebugSession && corePeripherals.periodicUpdateAvailable && !corePeripherals.periodicUpdateEnabled",
           "group": "navigation@3"
         }
       ],

@@ -145,7 +145,13 @@ export class ComponentViewerBase {
             clearFilterCommandDisposable
         );
         vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
+        this.setSessionContext(undefined);
         return true;
+    }
+
+    private setSessionContext(session: GDBTargetDebugSession | undefined): void {
+        void vscode.commands.executeCommand('setContext', `${this._viewId}.activeDebugSession`, !!session);
+        void vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateAvailable`, session?.canAccessWhileRunning === true);
     }
 
     protected async handleExpandAll(): Promise<void> {
@@ -398,6 +404,7 @@ export class ComponentViewerBase {
         // Clear active session if it is the one being stopped
         if (this._activeSession?.session.id === session.session.id) {
             this._activeSession = undefined;
+            this.setSessionContext(undefined);
             this._webviewProvider?.setEmptyMessage('');
             this._webviewProvider?.setLoading(false);
         }
@@ -424,6 +431,7 @@ export class ComponentViewerBase {
         }
 
         if (this._activeSession.session.id === session.session.id) {
+            this.setSessionContext(this._activeSession);
             this._webviewProvider?.setLoading(true);
             await this.restorePeriodicUpdateAndFilter(session);
         }
@@ -447,6 +455,7 @@ export class ComponentViewerBase {
     private async handleOnDidChangeActiveDebugSession(session: GDBTargetDebugSession | undefined): Promise<void> {
         // Update debug session
         this._activeSession = session;
+        this.setSessionContext(session);
         if (session) {
             this._webviewProvider?.setLoading(true);
             await this.restorePeriodicUpdateAndFilter(session);
