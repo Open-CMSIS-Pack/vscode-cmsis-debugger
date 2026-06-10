@@ -340,7 +340,7 @@
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.refresh",
-          "when": "inDebugMode"
+          "when": "liveWatch.activeDebugSession"
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.modify",
@@ -372,11 +372,11 @@
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.enablePeriodicUpdate",
-          "when": "!liveWatch.periodicUpdateEnabled"
+          "when": "liveWatch.activeDebugSession && liveWatch.periodicUpdateAvailable && !liveWatch.periodicUpdateEnabled"
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.disablePeriodicUpdate",
-          "when": "liveWatch.periodicUpdateEnabled"
+          "when": "liveWatch.activeDebugSession && liveWatch.periodicUpdateAvailable && liveWatch.periodicUpdateEnabled"
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.setValue",
@@ -392,11 +392,11 @@
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate",
-          "when": "!componentViewer.periodicUpdateEnabled"
+          "when": "componentViewer.activeDebugSession && componentViewer.periodicUpdateAvailable && !componentViewer.periodicUpdateEnabled"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate",
-          "when": "componentViewer.periodicUpdateEnabled"
+          "when": "componentViewer.activeDebugSession && componentViewer.periodicUpdateAvailable && componentViewer.periodicUpdateEnabled"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.expandAll",
@@ -420,11 +420,11 @@
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.enablePeriodicUpdate",
-          "when": "!corePeripherals.periodicUpdateEnabled"
+          "when": "corePeripherals.activeDebugSession && corePeripherals.periodicUpdateAvailable && !corePeripherals.periodicUpdateEnabled"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.disablePeriodicUpdate",
-          "when": "corePeripherals.periodicUpdateEnabled"
+          "when": "corePeripherals.activeDebugSession && corePeripherals.periodicUpdateAvailable && corePeripherals.periodicUpdateEnabled"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.expandAll",
