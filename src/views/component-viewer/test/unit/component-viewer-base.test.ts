@@ -1123,23 +1123,26 @@ describe('ComponentViewerBase', () => {
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', false);
         });
 
-        it('updates toolbar visibility contexts with the active session', async () => {
+        it('updates running target access context when the session starts and changes', async () => {
             const executeCommandSpy = jest.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
             await controller.activate(tracker as unknown as GDBTargetDebugTracker);
             executeCommandSpy.mockClear();
 
             const session = debugSessionFactory('s1');
             (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = true;
+            await tracker.callbacks.willStart?.(session);
+
+            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'testClass.canAccessWhileRunning', true);
+            executeCommandSpy.mockClear();
+
             await tracker.callbacks.activeSession?.(session);
 
-            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'testClass.activeDebugSession', true);
-            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'testClass.periodicUpdateAvailable', true);
+            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'testClass.canAccessWhileRunning', true);
             executeCommandSpy.mockClear();
 
             await tracker.callbacks.activeSession?.(undefined);
 
-            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'testClass.activeDebugSession', false);
-            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'testClass.periodicUpdateAvailable', false);
+            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'testClass.canAccessWhileRunning', false);
         });
 
         it('restorePeriodicUpdateAndFilter restores periodicUpdateEnabled and filter from workspace settings', async () => {

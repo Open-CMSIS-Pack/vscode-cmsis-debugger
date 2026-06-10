@@ -676,25 +676,27 @@ describe('LiveWatchTreeDataProvider', () => {
             } as any);
             await liveWatchTreeDataProvider.activate(tracker);
             (tracker as any)._onWillStartSession.fire(gdbtargetDebugSession);
+            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'liveWatch.canAccessWhileRunning', false);
+            executeCommandSpy.mockClear();
+
             (tracker as any)._onWillStartSession.fire(gdbtargetDebugSession2);
+            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'liveWatch.canAccessWhileRunning', true);
+            executeCommandSpy.mockClear();
 
             (tracker as any)._onDidChangeActiveDebugSession.fire(gdbtargetDebugSession);
             await Promise.resolve();
-            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'liveWatch.activeDebugSession', true);
-            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'liveWatch.periodicUpdateAvailable', false);
+            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'liveWatch.canAccessWhileRunning', false);
             expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'liveWatch.periodicUpdateEnabled', true);
             executeCommandSpy.mockClear();
 
             (tracker as any)._onDidChangeActiveDebugSession.fire(gdbtargetDebugSession2);
             await Promise.resolve();
-            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'liveWatch.activeDebugSession', true);
-            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'liveWatch.periodicUpdateAvailable', true);
+            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'liveWatch.canAccessWhileRunning', true);
             expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'liveWatch.periodicUpdateEnabled', false);
             executeCommandSpy.mockClear();
 
             (tracker as any)._onDidChangeActiveDebugSession.fire(undefined);
-            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'liveWatch.activeDebugSession', false);
-            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'liveWatch.periodicUpdateAvailable', false);
+            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'liveWatch.canAccessWhileRunning', false);
             expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'liveWatch.periodicUpdateEnabled', true);
         });
 

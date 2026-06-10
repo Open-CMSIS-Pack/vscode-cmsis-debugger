@@ -121,7 +121,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             this.sessionLiveWatchStates.delete(session.session.id);
             if (this.activeSession?.session.id && this.activeSession?.session.id === session.session.id) {
                 this._activeSession = undefined;
-                this.setSessionContext(undefined);
+                void vscode.commands.executeCommand('setContext', 'liveWatch.canAccessWhileRunning', false);
             }
             await this.refresh();
             await this.save();
@@ -168,17 +168,13 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             }
         }
         const enabled = state?.periodicUpdateEnabled ?? true;
-        this.setSessionContext(session);
+        void vscode.commands.executeCommand('setContext', 'liveWatch.canAccessWhileRunning', session?.canAccessWhileRunning === true);
         void vscode.commands.executeCommand('setContext', 'liveWatch.periodicUpdateEnabled', enabled);
         await this.refresh();
     }
 
-    private setSessionContext(session: GDBTargetDebugSession | undefined): void {
-        void vscode.commands.executeCommand('setContext', 'liveWatch.activeDebugSession', !!session);
-        void vscode.commands.executeCommand('setContext', 'liveWatch.periodicUpdateAvailable', session?.canAccessWhileRunning === true);
-    }
-
     private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
+        void vscode.commands.executeCommand('setContext', 'liveWatch.canAccessWhileRunning', session.canAccessWhileRunning === true);
         this.sessionLiveWatchStates.set(session.session.id, {
             periodicUpdateEnabled: true,
             configStateKey: session.session.configuration.name
@@ -253,7 +249,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const disablePeriodicUpdateCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.disablePeriodicUpdate',
             async () => await this.handleDisablePeriodicUpdate());
         void vscode.commands.executeCommand('setContext', 'liveWatch.periodicUpdateEnabled', true);
-        this.setSessionContext(undefined);
+        void vscode.commands.executeCommand('setContext', 'liveWatch.canAccessWhileRunning', true);
         this._context.subscriptions.push(
             registerLiveWatchView,
             addCommand,
