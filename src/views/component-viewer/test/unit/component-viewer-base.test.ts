@@ -747,6 +747,30 @@ describe('ComponentViewerBase', () => {
         expect(inputBox.dispose).toHaveBeenCalled();
     });
 
+    it('filterTree command restores previous filter when hidden without accepting', async () => {
+        (provider as unknown as { filterPattern: string }).filterPattern = 'previous';
+        const saveSpy = jest.spyOn(controller as unknown as { saveCurrentState: () => Promise<void> }, 'saveCurrentState').mockResolvedValue(undefined);
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const filterHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.testClass.filterTree')?.[1] as
+            | (() => void)
+            | undefined;
+        filterHandler?.();
+        const inputBox = asMockedFunction(vscode.window.createInputBox).mock.results[0]?.value;
+        const onChangeHandler = inputBox._handlers.onDidChangeValue[0];
+        const onHideHandler = inputBox._handlers.onDidHide[0];
+
+        onChangeHandler('changed');
+        expect(provider.setFilter).toHaveBeenCalledWith('changed');
+
+        onHideHandler();
+
+        expect(provider.setFilter).toHaveBeenCalledWith('previous');
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', true);
+        expect(saveSpy).toHaveBeenCalled();
+    });
+
     it('clearFilter command clears filter and resets context', async () => {
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
