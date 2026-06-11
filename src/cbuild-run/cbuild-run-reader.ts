@@ -108,4 +108,7 @@ export class CbuildRunReader {
         return pnameProcessors.map(p => p.pname!);
     }
 
+    public getTargetType(): string | undefined {
+        return this.cbuildRun?.['target-type'];
+    }
 }

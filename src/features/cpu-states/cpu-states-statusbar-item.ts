@@ -66,6 +66,7 @@ export class CpuStatesStatusBarItem {
     }
 
     protected async handleItemCommand(): Promise<void> {
+        const cpuEnabled = this.cpuStates?.isEnabled ?? true;
         const items: QuickPickHandlerItem[] = [
             {
                 label: 'CPU Time',
@@ -76,7 +77,18 @@ export class CpuStatesStatusBarItem {
                 label: 'Reset CPU Time',
                 detail: 'Reset CPU execution time and history',
                 handler: () => vscode.commands.executeCommand(CpuStatesCommands.resetCpuTimeHistoryID)
-            }
+            },
+            cpuEnabled
+                ? {
+                    label: 'Disable CPU Timer',
+                    detail: 'Stop collecting CPU execution time',
+                    handler: () => vscode.commands.executeCommand(CpuStatesCommands.disableCpuTimer)
+                }
+                : {
+                    label: 'Enable CPU Timer',
+                    detail: 'Start collecting CPU execution time',
+                    handler: () => vscode.commands.executeCommand(CpuStatesCommands.enableCpuTimer)
+                }
         ];
         const selection = await vscode.window.showQuickPick(items);
         if (!selection) {

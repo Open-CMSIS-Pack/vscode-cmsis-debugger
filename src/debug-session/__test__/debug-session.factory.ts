@@ -31,8 +31,9 @@ export type TestInvalidatedEvent = {
 };
 
 export type Session = {
-    session: { id: string };
-    getCbuildRun: () => Promise<{ getScvdFilePaths: () => string[] } | undefined>;
+    session: { id: string; configuration?: { name: string } };
+    getCbuildRun: () => Promise<{ getScvdFilePaths: () => string[]; getTargetType: () => string | undefined } | undefined>;
+    getConfigStateKey: () => Promise<string>;
     getPname: () => Promise<string | undefined>;
     refreshTimer: { onRefresh: (cb: OnRefreshCallback) => void };
     targetState?: TargetState;
@@ -111,11 +112,13 @@ export const debugSessionFactory = (
     // Ensure same object returned for multiple calls to getCbuildRun.
     const cbuildRunMock = hasCbuildRun ? {
         getContents: jest.fn(),
-        getScvdFilePaths: () => paths
+        getScvdFilePaths: () => paths,
+        getTargetType: jest.fn<string | undefined, []>(() => undefined),
     } : undefined;
     return {
-        session: { id },
-        getCbuildRun: async () => cbuildRunMock,
+        session: { id, configuration: { name: id } },
+        getCbuildRun: jest.fn().mockResolvedValue(cbuildRunMock),
+        getConfigStateKey: jest.fn().mockResolvedValue(id),
         getPname: async () => pname,
         refreshTimer: {
             onRefresh: jest.fn(),
