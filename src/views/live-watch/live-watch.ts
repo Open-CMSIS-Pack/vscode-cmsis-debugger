@@ -351,7 +351,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         await vscode.commands.executeCommand('memory-inspector.show-variable', args);
     }
 
-        private async handleEnablePeriodicUpdate(): Promise<void> {
+    private async handleEnablePeriodicUpdate(): Promise<void> {
         const state = this._activeSession ? this.sessionLiveWatchStates.get(this._activeSession.session.id) : undefined;
         if (state) {
             state.periodicUpdateEnabled = true;
@@ -370,7 +370,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         await vscode.commands.executeCommand('setContext', 'liveWatch.periodicUpdateEnabled', false);
         logger.info('Live Watch: Periodic Update disabled');
     }
-    
+
     private async evaluateInitialExpression(expression: string): Promise<LiveWatchValue> {
         const response: LiveWatchValue = { result: '', variablesReference: 0 };
         if (!this._activeSession) {
@@ -410,7 +410,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         node.value.type = result.type ?? '';
         return node.value;
     }
-    
+
     private async handleSetValueCommand(node: LiveWatchNode) {
         if (!node) {
             return;
