@@ -89,6 +89,7 @@ module.exports = {
         showErrorMessage: jest.fn(),
         showInformationMessage: jest.fn(() => Promise.resolve(undefined)),
         showWarningMessage: jest.fn(),
+        showInputBox: jest.fn(),
         showQuickPick: jest.fn(),
         createInputBox: jest.fn(() => {
             const handlers = { onDidChangeValue: [], onDidAccept: [], onDidHide: [] };
