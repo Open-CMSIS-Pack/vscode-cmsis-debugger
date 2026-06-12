@@ -1,6 +1,6 @@
 # TPIP Report for vscode-cmsis-debugger
 
-Report prepared at: 06/05/2026, 17:17:17
+Generated for release: unknwon
 
 | *Package* | *Version* | *Repository* | *License* |
 |---|---|---|---|
