@@ -109,6 +109,13 @@ export class GDBTargetDebugSession {
         return pname;
     }
 
+    public async getConfigStateKey(): Promise<string> {
+        const cbuildRun = await this.getCbuildRun();
+        const targetType = cbuildRun?.getTargetType();
+        const configStateKey = targetType ? `${targetType}::${this.session.configuration.name}` : this.session.configuration.name;
+        return configStateKey;
+    }
+
     /**
      * Check if first stop attempt for session is done by 'terminate' request.
      * Notes:
