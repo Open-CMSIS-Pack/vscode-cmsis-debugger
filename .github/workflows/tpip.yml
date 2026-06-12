@@ -7,6 +7,7 @@ on:
       - docs/third-party-licenses.json
       - docs/tpip-header.md
       - scripts/tpip-reporter.ts
+      - package-lock.json
       - '!**/*.md'
       - '!.github/workflows/markdown.yml'
       - '!.github/markdownlint.json'
@@ -25,8 +26,9 @@ permissions:
 jobs:
   report:
     permissions:
-      # contents: write  # for Git to git push # disabled until resurrecting direct git push
+      contents: write
       packages: read
+      actions: read
 
     name: Generate report
     runs-on: ubuntu-latest
@@ -52,13 +54,20 @@ jobs:
         run: npm ci
 
       - name: Generate third-party licenses report
-        run: npm run tpip:report
+        id: report
+        run: |
+          npm run tpip:report
+          if git diff --exit-code TPIP.md > /dev/null; then
+            echo "update=0" >> $GITHUB_OUTPUT
+          else
+            echo "update=1" >> $GITHUB_OUTPUT
+          fi
 
       - name: Commit changes
-        if: false
-        run: |
-          git config --local user.email "git@github.com"
-          git config --local user.name "GitHub Action"
-          git add TPIP.md
-          git commit -m "Update third-party licenses report [skip ci]"
-          git push
+        if: ${{ steps.report.outputs.update == 1 }}
+        uses: EndBug/add-and-commit@290ea2c423ad77ca9c62ae0f5b224379612c0321
+        with:
+          message: "Update TPIP report [skip ci]"
+          add: |
+            docs/third-party-licenses.json
+            TPIP.md
