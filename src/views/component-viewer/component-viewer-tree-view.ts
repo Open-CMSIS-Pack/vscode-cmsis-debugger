@@ -45,17 +45,17 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
      * whose name or value contains the pattern (case-insensitive) are shown.
      * Pass undefined or empty string to clear the filter.
      */
-    public setFilter(pattern: string | undefined): void {
+    public setFilter(pattern: string | undefined, restoreExpandedState = true): void {
         this._filterPattern = pattern || undefined;
         this._collapsedDuringFilter.clear();
         this._filterAutoExpandSuppressed = false;
         if (pattern === undefined || pattern === '') {
             this._filterTokens = undefined;
             // Restore pre-filter expanded state
-            if (this._savedExpandedIds !== undefined) {
+            if (restoreExpandedState && this._savedExpandedIds !== undefined) {
                 this._expandedIds = this._savedExpandedIds;
-                this._savedExpandedIds = undefined;
             }
+            this._savedExpandedIds = undefined;
             // Bump generation so VS Code sees new IDs and respects the
             // restored collapsibleState instead of its cached filter state.
             this._idGeneration++;

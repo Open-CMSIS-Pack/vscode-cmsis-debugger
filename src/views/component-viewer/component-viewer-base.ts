@@ -277,7 +277,7 @@ export class ComponentViewerBase {
             const instance = new ComponentViewerInstance();
             if (this._activeSession !== undefined) {
                 try {
-                    await instance.readModel(URI.file(scvdFilePath), this._activeSession, tracker);
+                    await instance.readModel(URI.file(scvdFilePath), session, tracker);
                 } catch (error) {
                     componentViewerLogger.error(`${this._viewName}: Failed to read SCVD file at ${scvdFilePath} - ${(error as Error).message}`);
                     // Show error message in a pop up to the user, but continue loading other instances if there are multiple SCVD files
@@ -615,7 +615,7 @@ export class ComponentViewerBase {
         // Always reset to defaults before applying saved state to prevent state leaking while switching sessions
         this._refreshTimerEnabled = true;
         vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
-        this._componentViewerTreeDataProvider.setFilter(undefined);
+        this._componentViewerTreeDataProvider.setFilter(undefined, false);
         vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, false);
 
         const state = readComponentViewerState(this._viewId, await session.getConfigStateKey());

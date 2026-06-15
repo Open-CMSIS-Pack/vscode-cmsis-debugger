@@ -1065,6 +1065,33 @@ describe('ComponentViewerTreeDataProvider', () => {
             expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
         });
 
+        it('can clear filter without restoring the pre-filter expanded state', () => {
+            const child = makeGui({ getGuiName: () => 'Child', getGuiId: () => 'session1/child' });
+            const session1Root = makeGui({
+                getGuiName: () => 'Root',
+                getGuiId: () => 'session1/root',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [child],
+            });
+            const session2Root = makeGui({
+                getGuiName: () => 'OtherRoot',
+                getGuiId: () => 'session2/root',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [makeGui({ getGuiName: () => 'OtherChild', getGuiId: () => 'session2/child' })],
+            });
+            provider.setRoots([session1Root, session2Root]);
+
+            provider.setElementExpanded(session1Root, true);
+            provider.setFilter('Child');
+            provider.setElementExpanded(session1Root, false);
+            provider.setElementExpanded(session2Root, true);
+
+            provider.setFilter(undefined, false);
+
+            expect(provider.getTreeItem(session1Root).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
+            expect(provider.getTreeItem(session2Root).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+        });
+
         it('collapse-then-expand cycle bypasses filter and shows all children', () => {
             // Build a tree where a parent has 3 children but only 1 matches the filter
             const matchLeaf = makeGui({ getGuiName: () => 'Enable IRQ', getGuiId: () => 'leaf1' });
