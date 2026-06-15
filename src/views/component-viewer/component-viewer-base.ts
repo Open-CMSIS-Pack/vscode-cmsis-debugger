@@ -147,7 +147,7 @@ export class ComponentViewerBase {
             clearFilterCommandDisposable
         );
         vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
-        vscode.commands.executeCommand('setContext', `${this._viewId}.canAccessWhileRunning`, true);
+        vscode.commands.executeCommand('setContext', `${this._viewId}.canAccessWhileRunning`, false);
         return true;
     }
 
@@ -213,11 +213,11 @@ export class ComponentViewerBase {
         const applyFilter = (value: string): void => {
             if (value === '') {
                 this._componentViewerTreeDataProvider.setFilter(undefined);
-                void vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, false);
+                vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, false);
             } else {
                 componentViewerLogger.info(`${this._viewName}: Filter set to '${value}'`);
                 this._componentViewerTreeDataProvider.setFilter(value);
-                void vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, true);
+                vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, true);
             }
             // Reset the timer so the view state is saved only after the user stops typing for filterDebounceMs.
             if (this._filterDebounceTimer) {
@@ -225,7 +225,7 @@ export class ComponentViewerBase {
             }
             this._filterDebounceTimer = setTimeout(() => {
                 this._filterDebounceTimer = undefined;
-                void this.saveCurrentState();
+                this.saveCurrentState();
             }, ComponentViewerBase.filterDebounceMs);
         };
 
@@ -246,8 +246,8 @@ export class ComponentViewerBase {
                     this._filterDebounceTimer = undefined;
                 }
                 this._componentViewerTreeDataProvider.setFilter(originalFilter);
-                void vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, originalFilter !== undefined);
-                void this.saveCurrentState();
+                vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, originalFilter !== undefined);
+                this.saveCurrentState();
             }
             this._activeInputBox = undefined;
             inputBox.dispose();
@@ -259,7 +259,7 @@ export class ComponentViewerBase {
     protected handleClearFilter(): void {
         componentViewerLogger.info(`${this._viewName}: Filter cleared`);
         this._componentViewerTreeDataProvider.setFilter(undefined);
-        void vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, false);
+        vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, false);
         if (this._activeInputBox) {
             const activeInputBox = this._activeInputBox;
             this._activeInputBox = undefined;
@@ -270,7 +270,7 @@ export class ComponentViewerBase {
             clearTimeout(this._filterDebounceTimer);
             this._filterDebounceTimer = undefined;
         }
-        void this.saveCurrentState();
+        this.saveCurrentState();
     }
 
     protected async readScvdFiles(tracker: GDBTargetDebugTracker, session?: GDBTargetDebugSession): Promise<void> {
@@ -412,7 +412,7 @@ export class ComponentViewerBase {
         // Clear active session if it is the one being stopped
         if (this._activeSession?.session.id === session.session.id) {
             this._activeSession = undefined;
-            void vscode.commands.executeCommand('setContext', `${this._viewId}.canAccessWhileRunning`, false);
+            vscode.commands.executeCommand('setContext', `${this._viewId}.canAccessWhileRunning`, false);
             this._webviewProvider?.setEmptyMessage('');
             this._webviewProvider?.setLoading(false);
         }
@@ -428,7 +428,7 @@ export class ComponentViewerBase {
     }
 
     private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
-        void vscode.commands.executeCommand('setContext', `${this._viewId}.canAccessWhileRunning`, session.canAccessWhileRunning === true);
+        vscode.commands.executeCommand('setContext', `${this._viewId}.canAccessWhileRunning`, session.canAccessWhileRunning === true);
         // Subscribe to refresh events of the started session
         session.refreshTimer.onRefresh(async (refreshSession) => await this.handleRefreshTimerEvent(refreshSession));
     }
@@ -470,7 +470,7 @@ export class ComponentViewerBase {
     private async handleOnDidChangeActiveDebugSession(session: GDBTargetDebugSession | undefined): Promise<void> {
         // Update debug session
         this._activeSession = session;
-        void vscode.commands.executeCommand('setContext', `${this._viewId}.canAccessWhileRunning`, session?.canAccessWhileRunning === true);
+        vscode.commands.executeCommand('setContext', `${this._viewId}.canAccessWhileRunning`, session?.canAccessWhileRunning === true);
         if (session) {
             this._webviewProvider?.setLoading(true);
             await this.restorePeriodicUpdateAndFilter(session);
@@ -488,7 +488,7 @@ export class ComponentViewerBase {
         }
         this._pendingUpdateTimer = setTimeout(() => {
             this._pendingUpdateTimer = undefined;
-            void this.runUpdate(updateReason);
+            this.runUpdate(updateReason);
         }, ComponentViewerBase.pendingUpdateDelayMs);
     }
 

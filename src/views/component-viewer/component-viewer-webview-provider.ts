@@ -150,7 +150,7 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
             return;
         }
         this._renderScheduled = true;
-        void Promise.resolve().then(() => {
+        Promise.resolve().then(() => {
             this._renderScheduled = false;
             this.flushRender();
         });
@@ -180,7 +180,7 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
             resetViewState: this._pendingViewStateReset,
         };
         this._pendingViewStateReset = false;
-        void this._view.webview.postMessage(message);
+        this._view.webview.postMessage(message);
     }
 
     /**
