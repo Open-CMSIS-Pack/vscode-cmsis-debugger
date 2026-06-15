@@ -109,6 +109,7 @@ export class ComponentViewerBase {
         });
         const enablePeriodicUpdateCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.enablePeriodicUpdate`, async () => {
             this._refreshTimerEnabled = true;
+            this.schedulePendingUpdate('refreshTimer');
             await this.saveCurrentState();
             await vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
             componentViewerLogger.info(`${this._viewName}: Auto refresh enabled`);
