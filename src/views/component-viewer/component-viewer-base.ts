@@ -55,6 +55,7 @@ export class ComponentViewerBase {
     private _refreshTimerEnabled: boolean = true;
     private _activeInputBox: vscode.InputBox | undefined;
     private _filterDebounceTimer: NodeJS.Timeout | undefined;
+    private readonly _loadingScvdSessionIds = new Set<string>();
     private static readonly filterDebounceMs = 1000;
     private static readonly pendingUpdateDelayMs = 150;
 
@@ -428,8 +429,15 @@ export class ComponentViewerBase {
             this._webviewProvider?.setLoading(true);
             await this.restorePeriodicUpdateAndFilter(session);
         }
-        // Load SCVD files from cbuild-run
-        await this.loadScvdFiles(session, tracker);
+        // Load SCVD files from cbuild-run:
+        // Track SCVD discovery so an early active-session update does not
+        // briefly show "No component data available" before loading finishes.
+        this._loadingScvdSessionIds.add(session.session.id);
+        try {
+            await this.loadScvdFiles(session, tracker);
+        } finally {
+            this._loadingScvdSessionIds.delete(session.session.id);
+        }
         // updateInstances completes the loading lifecycle (spinner + empty message).
         this.schedulePendingUpdate('sessionChanged');
     }
@@ -517,7 +525,7 @@ export class ComponentViewerBase {
             this._webviewProvider?.setEmptyMessage(emptyMessage);
             // An empty message means a transient startup state. Keep the spinner until a definitive state arrives.
             if (emptyMessage !== '') {
-                this._webviewProvider?.setLoading(false); // update conditions not met
+                this._webviewProvider?.setLoading(false);
             }
             return;
         }
@@ -525,11 +533,6 @@ export class ComponentViewerBase {
         perf?.resetBackendStats();
         perf?.resetUiStats();
         const activeSessionID = this._activeSession.session.id;
-        // A live read on a running core (Periodic Update on) can stall until the target stops.
-        // Don't let the spinner wait on it.
-        if (this._activeSession.targetState === 'running') {
-            this._webviewProvider?.setLoading(false); // target running
-        }
         const roots: ScvdGuiInterface[] = [];
         for (const instance of this._instances) {
             // Skip instances that don't belong to the active session.
@@ -555,13 +558,13 @@ export class ComponentViewerBase {
         }
         perf?.logSummaries();
         // The active session may have changed while awaiting slow GDB reads above.
-        // Don't write this session's roots over whatever the new active session shows.
+        // Case: switching to a new session right before an update from the previous session completes.
         if (this._activeSession?.session.id !== activeSessionID) {
             return;
         }
-        this._webviewProvider?.setEmptyMessage(this.emptyMessageForActiveSession());
+        this._webviewProvider?.setEmptyMessage('');
         this._componentViewerTreeDataProvider.setRoots(roots);
-        this._webviewProvider?.setLoading(false); // data ready (target stopped)
+        this._webviewProvider?.setLoading(false);
     }
 
     private emptyMessageForActiveSession(): string {
@@ -571,6 +574,12 @@ export class ComponentViewerBase {
         }
         if (session.targetState === 'unknown') {
             // Session just connected; target state not known yet.
+            // Case: very beginning while "attaching" first session.
+            return '';
+        }
+        if (this._loadingScvdSessionIds.has(session.session.id)) {
+            // SCVD discovery is still in progress; keep the loading indicator.
+            // Case: too fast switching to a new attached session before loading SCVD completes.
             return '';
         }
         if (!this._instances.some(i => i.sessionId === session.session.id)) {
