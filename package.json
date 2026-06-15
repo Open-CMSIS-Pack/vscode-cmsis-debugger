@@ -483,8 +483,8 @@
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.expandAll",
-          "when": "inDebugMode && view == cmsis-debugger.componentViewer",
-          "group": "navigation@4"
+          "when": "view == cmsis-debugger.componentViewer",
+          "group": "navigation@3"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.collapseAll",
@@ -493,8 +493,8 @@
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.expandAll",
-          "when": "inDebugMode && view == cmsis-debugger.corePeripherals",
-          "group": "navigation@4"
+          "when": "view == cmsis-debugger.corePeripherals",
+          "group": "navigation@3"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.collapseAll",
