@@ -34,7 +34,7 @@ export interface LiveWatchValue {
     variablesReference: number;
     type?: string;
     evaluateName?: string;
-    highlightedLabel?: vscode.TreeItemLabel;
+    highlightedLabel?: vscode.TreeItemLabel | undefined;
 }
 
 interface SessionLiveWatchState {
@@ -403,7 +403,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         if (node.value.result !== result.result) {
             node.value.highlightedLabel = { label: node.expression + ' = ', highlights: [[0, node.expression.length]] };
         } else {
-            node.value.highlightedLabel = { label: node.expression + ' = ' };
+            node.value.highlightedLabel = undefined;
         }
         node.value.result = result.result;
         node.value.variablesReference = result.variablesReference;
@@ -493,7 +493,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
     private async save() {
         // Clear highlighted labels before saving, as they are only relevant for the current state of the tree and can cause confusion when reloading
         for (const node of this.roots) {
-            node.value.highlightedLabel = { label: node.expression + ' = ' };
+            node.value.highlightedLabel = undefined;
         }
         await this.context.workspaceState.update(this.STORAGE_KEY, this.roots);
     }

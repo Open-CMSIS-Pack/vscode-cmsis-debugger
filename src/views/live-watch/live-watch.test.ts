@@ -141,7 +141,7 @@ describe('LiveWatchTreeDataProvider', () => {
             (tracker as any)._onWillStopSession.fire(gdbtargetDebugSession);
             // Allow async handlers to complete
             await new Promise(resolve => setTimeout(resolve, 0));
-            expect(node.value.highlightedLabel).toEqual({ label: 'myVar = ' });
+            expect(node.value.highlightedLabel).toBeUndefined();
         });
 
         it('reassigns IDs sequentially for restored nodes on construction', () => {
@@ -413,9 +413,7 @@ describe('LiveWatchTreeDataProvider', () => {
                 session: {}
             };
             await (liveWatchTreeDataProvider as any).refresh();
-            expect(node.value.highlightedLabel).toEqual({
-                label: 'myVar = '
-            });
+            expect(node.value.highlightedLabel).toBeUndefined();
         });
     });
 
