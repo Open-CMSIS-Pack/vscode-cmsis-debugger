@@ -44,7 +44,13 @@ async function main() {
         .parseSync();
 
     const tpipJson = JSON.parse(fs.readFileSync(json as string, "utf8"));
-    
+
+    let release: string | undefined;
+    if (fs.existsSync('package.json')) {
+        const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+        release = packageJson.version;
+    }
+
     var data: string = '';
     if (header && fs.existsSync(header as string)) {
         data += fs.readFileSync(header as string, "utf8");
@@ -53,7 +59,7 @@ async function main() {
     }
 
     data += '\n';
-    data += `Report prepared at: ${new Date().toLocaleString('en-GB')}\n\n`;
+    data += `Generated for release: ${release ?? 'unknown'}\n\n`;
     data += '| *Package* | *Version* | *Repository* | *License* |\n';
     data += '|---|---|---|---|\n';
 
