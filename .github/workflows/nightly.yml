@@ -13,6 +13,24 @@ permissions:
   contents: read
 
 jobs:
+  validate-markdown-links:
+    name: Validate Markdown Links
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Validate Links
+        uses: lycheeverse/lychee-action@8646ba30535128ac92d33dfc9133794bfdd9b411 # v2.8.0
+        with:
+          args: --config .github/lychee.toml './**/*.md'
+          fail: true
+          jobSummary: false
+
   build:
     if: github.repository == 'Open-CMSIS-Pack/vscode-cmsis-debugger'
     strategy:
@@ -83,16 +101,6 @@ jobs:
       - name: Build on Linux
         if: runner.os == 'Linux'
         run: npm run build
-
-      # Automatically retry the link check if it fails
-      # This helps reduce false positives in CI caused by transient errors
-      - name: Check Links
-        if: runner.os == 'Linux'
-        uses: Wandalen/wretry.action@e68c23e6309f2871ca8ae4763e7629b9c258e1ea # v3.8.0
-        with:
-          attempt_delay: 2000
-          attempt_limit: 3
-          command: npm run check:links
 
       - name: Check copyright
         if: runner.os == 'Linux'
