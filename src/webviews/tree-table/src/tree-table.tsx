@@ -40,9 +40,9 @@ function buildVscodeContext(row: FlatRow, copyText: string): string {
     const rowCopyText = row.value ? `${row.name}\t${row.value}` : row.name;
     return JSON.stringify({
         componentViewerRowId: row.id,
-        componentViewerRow: row.lockEnabled ? 'root' : 'item',
+        componentViewerRowIsRoot: Boolean(row.lockEnabled),
         componentViewerRowHasValue: Boolean(row.value),
-        componentViewerLockState: row.locked ? 'locked' : 'unlocked',
+        componentViewerComponentLocked: Boolean(row.locked),
         componentViewerCopyText: copyText,
         componentViewerCopyRowText: rowCopyText,
         preventDefaultContextMenuItems: true,

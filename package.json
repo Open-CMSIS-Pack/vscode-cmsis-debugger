@@ -690,7 +690,7 @@
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.copyRow",
-          "when": "webviewId == 'cmsis-debugger.componentViewer' && componentViewerRow != 'root' && componentViewerRowHasValue",
+          "when": "webviewId == 'cmsis-debugger.componentViewer' && !componentViewerRowIsRoot && componentViewerRowHasValue",
           "group": "contextMenuG1@2"
         },
         {
@@ -705,12 +705,12 @@
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.lockComponent",
-          "when": "webviewId == 'cmsis-debugger.componentViewer' && componentViewerRow == 'root' && componentViewerLockState == 'unlocked'",
+          "when": "webviewId == 'cmsis-debugger.componentViewer' && componentViewerRowIsRoot && !componentViewerComponentLocked",
           "group": "contextMenuG2@2"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.unlockComponent",
-          "when": "webviewId == 'cmsis-debugger.componentViewer' && componentViewerRow == 'root' && componentViewerLockState == 'locked'",
+          "when": "webviewId == 'cmsis-debugger.componentViewer' && componentViewerRowIsRoot && componentViewerComponentLocked",
           "group": "contextMenuG2@2"
         },
         {
@@ -725,7 +725,7 @@
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.copyRow",
-          "when": "webviewId == 'cmsis-debugger.corePeripherals' && componentViewerRow != 'root' && componentViewerRowHasValue",
+          "when": "webviewId == 'cmsis-debugger.corePeripherals' && !componentViewerRowIsRoot && componentViewerRowHasValue",
           "group": "contextMenuG1@2"
         },
         {
@@ -740,12 +740,12 @@
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.lockComponent",
-          "when": "webviewId == 'cmsis-debugger.corePeripherals' && componentViewerRow == 'root' && componentViewerLockState == 'unlocked'",
+          "when": "webviewId == 'cmsis-debugger.corePeripherals' && componentViewerRowIsRoot && !componentViewerComponentLocked",
           "group": "contextMenuG2@2"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
-          "when": "webviewId == 'cmsis-debugger.corePeripherals' && componentViewerRow == 'root' && componentViewerLockState == 'locked'",
+          "when": "webviewId == 'cmsis-debugger.corePeripherals' && componentViewerRowIsRoot && componentViewerComponentLocked",
           "group": "contextMenuG2@2"
         },
         {
