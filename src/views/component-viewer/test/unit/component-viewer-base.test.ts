@@ -1123,7 +1123,7 @@ describe('ComponentViewerBase', () => {
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', false);
         });
 
-        it('updates running target access context when the session starts and changes', async () => {
+        it('updates running target access context only when the active session changes', async () => {
             const executeCommandSpy = jest.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
             await controller.activate(tracker as unknown as GDBTargetDebugTracker);
             executeCommandSpy.mockClear();
@@ -1132,7 +1132,7 @@ describe('ComponentViewerBase', () => {
             (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = true;
             await tracker.callbacks.willStart?.(session);
 
-            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'testClass.canAccessWhileRunning', true);
+            expect(executeCommandSpy).not.toHaveBeenCalledWith('setContext', 'testClass.canAccessWhileRunning', true);
             executeCommandSpy.mockClear();
 
             await tracker.callbacks.activeSession?.(session);

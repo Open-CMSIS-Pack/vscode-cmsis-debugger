@@ -675,12 +675,14 @@ describe('LiveWatchTreeDataProvider', () => {
                 }),
             } as any);
             await liveWatchTreeDataProvider.activate(tracker);
+            executeCommandSpy.mockClear();
+
             (tracker as any)._onWillStartSession.fire(gdbtargetDebugSession);
-            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'liveWatch.canAccessWhileRunning', false);
+            expect(executeCommandSpy).not.toHaveBeenCalledWith('setContext', 'liveWatch.canAccessWhileRunning', false);
             executeCommandSpy.mockClear();
 
             (tracker as any)._onWillStartSession.fire(gdbtargetDebugSession2);
-            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'liveWatch.canAccessWhileRunning', true);
+            expect(executeCommandSpy).not.toHaveBeenCalledWith('setContext', 'liveWatch.canAccessWhileRunning', true);
             executeCommandSpy.mockClear();
 
             (tracker as any)._onDidChangeActiveDebugSession.fire(gdbtargetDebugSession);

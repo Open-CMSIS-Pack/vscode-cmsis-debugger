@@ -174,7 +174,6 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
     }
 
     private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
-        vscode.commands.executeCommand('setContext', 'liveWatch.canAccessWhileRunning', session.canAccessWhileRunning === true);
         this.sessionLiveWatchStates.set(session.session.id, {
             periodicUpdateEnabled: true,
             configStateKey: session.session.configuration.name

@@ -428,7 +428,6 @@ export class ComponentViewerBase {
     }
 
     private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
-        vscode.commands.executeCommand('setContext', `${this._viewId}.canAccessWhileRunning`, session.canAccessWhileRunning === true);
         // Subscribe to refresh events of the started session
         session.refreshTimer.onRefresh(async (refreshSession) => await this.handleRefreshTimerEvent(refreshSession));
     }
