@@ -236,6 +236,11 @@
         "category": "Component Viewer"
       },
       {
+        "command": "vscode-cmsis-debugger.componentViewer.resetViewState",
+        "title": "Reset View State",
+        "category": "Component Viewer"
+      },
+      {
         "command": "vscode-cmsis-debugger.corePeripherals.lockComponent",
         "title": "Exclude from Updates",
         "icon": "$(lock)",
@@ -281,6 +286,11 @@
         "command": "vscode-cmsis-debugger.corePeripherals.clearFilter",
         "title": "Clear Filter",
         "icon": "$(clear-all)",
+        "category": "Core Peripherals"
+      },
+      {
+        "command": "vscode-cmsis-debugger.corePeripherals.resetViewState",
+        "title": "Reset View State",
         "category": "Core Peripherals"
       }
     ],
@@ -415,6 +425,10 @@
           "when": "false"
         },
         {
+          "command": "vscode-cmsis-debugger.componentViewer.resetViewState",
+          "when": "false"
+        },
+        {
           "command": "vscode-cmsis-debugger.corePeripherals.lockComponent",
           "when": "false"
         },
@@ -444,6 +458,10 @@
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.clearFilter",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.resetViewState",
           "when": "false"
         }
       ],
@@ -650,6 +668,11 @@
           "group": "contextMenuG2@2"
         },
         {
+          "command": "vscode-cmsis-debugger.componentViewer.resetViewState",
+          "when": "inDebugMode && webviewId == 'cmsis-debugger.componentViewer'",
+          "group": "contextMenuG3@1"
+        },
+        {
           "command": "vscode-cmsis-debugger.corePeripherals.enablePeriodicUpdate",
           "when": "webviewId == 'cmsis-debugger.corePeripherals' && corePeripherals.canAccessWhileRunning && !corePeripherals.periodicUpdateEnabled",
           "group": "contextMenuG2@1"
@@ -668,6 +691,11 @@
           "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
           "when": "webviewId == 'cmsis-debugger.corePeripherals' && componentViewerRow == 'root' && componentViewerLockState == 'locked'",
           "group": "contextMenuG2@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.resetViewState",
+          "when": "inDebugMode && webviewId == 'cmsis-debugger.corePeripherals'",
+          "group": "contextMenuG3@1"
         }
       ]
     },

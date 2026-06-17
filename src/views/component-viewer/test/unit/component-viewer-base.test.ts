@@ -31,7 +31,7 @@ import { ComponentViewerBase } from '../../component-viewer-base';
 import { ComponentViewerTreeDataProvider } from '../../component-viewer-tree-view';
 import type { ScvdGuiInterface } from '../../model/scvd-gui-interface';
 import { debugSessionFactory, trackerFactory, OnRefreshCallback, Session, TrackerCallbacks } from '../../../../debug-session/__test__/debug-session.factory';
-import { readComponentViewerState, writeComponentViewerState } from '../../../dynamic-view-states';
+import { clearComponentViewerState, readComponentViewerState, writeComponentViewerState } from '../../../dynamic-view-states';
 
 
 const instanceFactory = jest.fn(() => ({
@@ -64,6 +64,7 @@ jest.mock('../../../../logger', () => ({
 }));
 
 jest.mock('../../../dynamic-view-states', () => ({
+    clearComponentViewerState: jest.fn().mockResolvedValue(undefined),
     readComponentViewerState: jest.fn(),
     writeComponentViewerState: jest.fn().mockResolvedValue(undefined),
 }));
@@ -185,8 +186,9 @@ describe('ComponentViewerBase', () => {
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.collapseAll', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.filterTree', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.clearFilter', expect.any(Function));
-        // 1 webview registration + 8 commands + 8 tracker disposables
-        expect(context.subscriptions.length).toBe(17);
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.resetViewState', expect.any(Function));
+        // 1 webview registration + 9 commands + 8 tracker disposables
+        expect(context.subscriptions.length).toBe(18);
     });
 
     it('should fail to activate the test class tree data provider if view is not correctly loaded', async () => {
@@ -1200,6 +1202,7 @@ describe('ComponentViewerBase', () => {
             (controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled = false;
             await controller.resetViewState();
 
+            expect(clearComponentViewerState).toHaveBeenCalledWith('testClass');
             expect((controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled).toBe(true);
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.periodicUpdateEnabled', true);
             expect(provider.setFilter).toHaveBeenCalledWith(undefined);

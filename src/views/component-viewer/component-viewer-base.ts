@@ -26,7 +26,7 @@ import { perf, parsePerf } from './stats-config';
 import { vscodeViewExists } from '../../vscode-utils';
 import { EXTENSION_NAME, VIEW_PREFIX } from '../../manifest';
 import { ExtendedGDBTargetConfiguration } from '../../debug-configuration/gdbtarget-configuration';
-import { readComponentViewerState, writeComponentViewerState } from '../dynamic-view-states';
+import { clearComponentViewerState, readComponentViewerState, writeComponentViewerState } from '../dynamic-view-states';
 
 export interface ScvdCollector {
     getScvdFilePaths(session: GDBTargetDebugSession): Promise<string[]>;
@@ -139,6 +139,9 @@ export class ComponentViewerBase {
         const clearFilterCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.clearFilter`, async () => {
             this.handleClearFilter();
         });
+        const resetViewStateCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.resetViewState`, async () => {
+            await this.resetViewState();
+        });
         this._context.subscriptions.push(
             webviewRegistration,
             lockInstanceCommandDisposable,
@@ -148,7 +151,8 @@ export class ComponentViewerBase {
             expandAllCommandDisposable,
             collapseAllCommandDisposable,
             filterTreeCommandDisposable,
-            clearFilterCommandDisposable
+            clearFilterCommandDisposable,
+            resetViewStateCommandDisposable
         );
         vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
         vscode.commands.executeCommand('setContext', `${this._viewId}.canAccessWhileRunning`, false);
@@ -676,6 +680,7 @@ export class ComponentViewerBase {
     }
 
     public async resetViewState(): Promise<void> {
+        await clearComponentViewerState(this._viewId);
         // Reset in-memory state to defaults.
         this._refreshTimerEnabled = true;
         vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);

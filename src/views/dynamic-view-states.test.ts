@@ -17,6 +17,7 @@
 import * as vscode from 'vscode';
 import {
     clearAllViewState,
+    clearComponentViewerState,
     readComponentViewerState,
     readCpuStates,
     readLiveWatchState,
@@ -184,6 +185,57 @@ describe('dynamic-view-states', () => {
 
             await writeComponentViewerState('wrongId', CONFIG_KEY, false, undefined);
             expect(updateMock).not.toHaveBeenCalled();
+        });
+
+        it('clears only the requested component viewer state from settings', async () => {
+            const otherConfigKey = 'Other-Target::Debug';
+            const updateMock = mockGetConfiguration(
+                {
+                    [CONFIG_KEY]: {
+                        componentViewer: {
+                            filterPattern: 'global-filter',
+                        },
+                        corePeripherals: {
+                            periodicUpdateEnabled: false,
+                        },
+                    },
+                    [otherConfigKey]: {
+                        componentViewer: {
+                            periodicUpdateEnabled: false,
+                        },
+                    },
+                },
+                {
+                    [CONFIG_KEY]: {
+                        componentViewer: {
+                            filterPattern: 'workspace-filter',
+                        },
+                        liveWatchPeriodicUpdateEnabled: false,
+                    },
+                }
+            );
+            await clearComponentViewerState('componentViewer');
+
+            expect(updateMock).toHaveBeenCalledWith(
+                'vscode-cmsis-debugger.viewState',
+                {
+                    [CONFIG_KEY]: {
+                        liveWatchPeriodicUpdateEnabled: false,
+                    },
+                },
+                vscode.ConfigurationTarget.Workspace
+            );
+            expect(updateMock).toHaveBeenCalledWith(
+                'vscode-cmsis-debugger.viewState',
+                {
+                    [CONFIG_KEY]: {
+                        corePeripherals: {
+                            periodicUpdateEnabled: false,
+                        },
+                    },
+                },
+                vscode.ConfigurationTarget.Global
+            );
         });
 
         it('clears both workspace and global levels', async () => {
