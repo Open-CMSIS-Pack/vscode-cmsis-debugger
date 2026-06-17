@@ -249,7 +249,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const disablePeriodicUpdateCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.disablePeriodicUpdate',
             async () => await this.handleDisablePeriodicUpdate());
         vscode.commands.executeCommand('setContext', 'liveWatch.periodicUpdateEnabled', true);
-        vscode.commands.executeCommand('setContext', 'liveWatch.canAccessWhileRunning', true);
+        vscode.commands.executeCommand('setContext', 'liveWatch.canAccessWhileRunning', false);
         this._context.subscriptions.push(
             registerLiveWatchView,
             addCommand,
