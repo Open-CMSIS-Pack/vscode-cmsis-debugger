@@ -187,7 +187,7 @@ describe('dynamic-view-states', () => {
             expect(updateMock).not.toHaveBeenCalled();
         });
 
-        it('clears only the requested component viewer state from settings', async () => {
+        it('clears only the requested component viewer state and preserves other view state', async () => {
             const otherConfigKey = 'Other-Target::Debug';
             const updateMock = mockGetConfiguration(
                 {
@@ -210,7 +210,16 @@ describe('dynamic-view-states', () => {
                         componentViewer: {
                             filterPattern: 'workspace-filter',
                         },
+                        corePeripherals: {
+                            filterPattern: 'workspace-core-filter',
+                        },
                         liveWatchPeriodicUpdateEnabled: false,
+                    },
+                    [otherConfigKey]: {
+                        componentViewer: {
+                            filterPattern: 'other-workspace-filter',
+                        },
+                        cpuStatesEnabled: true,
                     },
                 }
             );
@@ -220,7 +229,13 @@ describe('dynamic-view-states', () => {
                 'vscode-cmsis-debugger.viewState',
                 {
                     [CONFIG_KEY]: {
+                        corePeripherals: {
+                            filterPattern: 'workspace-core-filter',
+                        },
                         liveWatchPeriodicUpdateEnabled: false,
+                    },
+                    [otherConfigKey]: {
+                        cpuStatesEnabled: true,
                     },
                 },
                 vscode.ConfigurationTarget.Workspace
