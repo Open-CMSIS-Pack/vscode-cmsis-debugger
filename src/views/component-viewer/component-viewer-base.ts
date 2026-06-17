@@ -43,6 +43,8 @@ export interface ComponentViewerInstancesWrapper {
 
 interface ComponentViewerWebviewContext {
     componentViewerRowId?: unknown;
+    componentViewerCopyText?: unknown;
+    componentViewerCopyRowText?: unknown;
 }
 
 export class ComponentViewerBase {
@@ -112,6 +114,12 @@ export class ComponentViewerBase {
         const unlockInstanceCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.unlockComponent`, async (webviewContext) => {
             this.handleLockInstanceFromWebviewContext(webviewContext);
         });
+        const copyCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.copy`, async (webviewContext) => {
+            await this.handleCopyFromWebviewContext(webviewContext);
+        });
+        const copyRowCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.copyRow`, async (webviewContext) => {
+            await this.handleCopyRowFromWebviewContext(webviewContext);
+        });
         const enablePeriodicUpdateCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.enablePeriodicUpdate`, async () => {
             this._refreshTimerEnabled = true;
             this.schedulePendingUpdate('refreshTimer');
@@ -146,6 +154,8 @@ export class ComponentViewerBase {
             webviewRegistration,
             lockInstanceCommandDisposable,
             unlockInstanceCommandDisposable,
+            copyCommandDisposable,
+            copyRowCommandDisposable,
             enablePeriodicUpdateCommandDisposable,
             disablePeriodicUpdateCommandDisposable,
             expandAllCommandDisposable,
@@ -292,6 +302,24 @@ export class ComponentViewerBase {
             this._filterDebounceTimer = undefined;
         }
         this.saveCurrentState();
+    }
+
+    protected async handleCopyFromWebviewContext(webviewContext?: unknown): Promise<void> {
+        const text = typeof webviewContext === 'object' && webviewContext !== null
+            ? (webviewContext as ComponentViewerWebviewContext).componentViewerCopyText
+            : undefined;
+        if (typeof text === 'string') {
+            await vscode.env.clipboard.writeText(text);
+        }
+    }
+
+    protected async handleCopyRowFromWebviewContext(webviewContext?: unknown): Promise<void> {
+        const text = typeof webviewContext === 'object' && webviewContext !== null
+            ? (webviewContext as ComponentViewerWebviewContext).componentViewerCopyRowText
+            : undefined;
+        if (typeof text === 'string') {
+            await vscode.env.clipboard.writeText(text);
+        }
     }
 
     protected async readScvdFiles(tracker: GDBTargetDebugTracker, session?: GDBTargetDebugSession): Promise<void> {

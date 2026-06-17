@@ -200,6 +200,16 @@
         "category": "Component Viewer"
       },
       {
+        "command": "vscode-cmsis-debugger.componentViewer.copy",
+        "title": "Copy",
+        "category": "Component Viewer"
+      },
+      {
+        "command": "vscode-cmsis-debugger.componentViewer.copyRow",
+        "title": "Copy Row",
+        "category": "Component Viewer"
+      },
+      {
         "command": "vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate",
         "title": "Enable Periodic Update",
         "icon": "$(sync)",
@@ -250,6 +260,16 @@
         "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
         "title": "Include in Updates",
         "icon": "$(unlock)",
+        "category": "Core Peripherals"
+      },
+      {
+        "command": "vscode-cmsis-debugger.corePeripherals.copy",
+        "title": "Copy",
+        "category": "Core Peripherals"
+      },
+      {
+        "command": "vscode-cmsis-debugger.corePeripherals.copyRow",
+        "title": "Copy Row",
         "category": "Core Peripherals"
       },
       {
@@ -401,6 +421,14 @@
           "when": "false"
         },
         {
+          "command": "vscode-cmsis-debugger.componentViewer.copy",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.copyRow",
+          "when": "false"
+        },
+        {
           "command": "vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate",
           "when": "inDebugMode && componentViewer.canAccessWhileRunning && !componentViewer.periodicUpdateEnabled"
         },
@@ -434,6 +462,14 @@
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.copy",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.copyRow",
           "when": "false"
         },
         {
@@ -648,6 +684,16 @@
       ],
       "webview/context": [
         {
+          "command": "vscode-cmsis-debugger.componentViewer.copy",
+          "when": "webviewId == 'cmsis-debugger.componentViewer' && componentViewerCopyText",
+          "group": "contextMenuG1@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.copyRow",
+          "when": "webviewId == 'cmsis-debugger.componentViewer' && componentViewerRow != 'root' && componentViewerRowHasValue",
+          "group": "contextMenuG1@2"
+        },
+        {
           "command": "vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate",
           "when": "inDebugMode && webviewId == 'cmsis-debugger.componentViewer' && componentViewer.canAccessWhileRunning && !componentViewer.periodicUpdateEnabled",
           "group": "contextMenuG2@1"
@@ -671,6 +717,16 @@
           "command": "vscode-cmsis-debugger.componentViewer.resetViewState",
           "when": "inDebugMode && webviewId == 'cmsis-debugger.componentViewer'",
           "group": "contextMenuG3@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.copy",
+          "when": "webviewId == 'cmsis-debugger.corePeripherals' && componentViewerCopyText",
+          "group": "contextMenuG1@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.copyRow",
+          "when": "webviewId == 'cmsis-debugger.corePeripherals' && componentViewerRow != 'root' && componentViewerRowHasValue",
+          "group": "contextMenuG1@2"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.enablePeriodicUpdate",

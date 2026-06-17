@@ -182,13 +182,15 @@ describe('ComponentViewerBase', () => {
         expect(vscode.window.registerWebviewViewProvider).toHaveBeenCalledWith('cmsis-debugger.testClass', expect.any(Object));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.lockComponent', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.unlockComponent', expect.any(Function));
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.copy', expect.any(Function));
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.copyRow', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.expandAll', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.collapseAll', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.filterTree', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.clearFilter', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.resetViewState', expect.any(Function));
-        // 1 webview registration + 9 commands + 8 tracker disposables
-        expect(context.subscriptions.length).toBe(18);
+        // 1 webview registration + 11 commands + 8 tracker disposables
+        expect(context.subscriptions.length).toBe(20);
     });
 
     it('should fail to activate the test class tree data provider if view is not correctly loaded', async () => {
@@ -593,6 +595,26 @@ describe('ComponentViewerBase', () => {
         await lockHandler?.({ componentViewerRowId: root.getGuiId()! });
         expect((controller as unknown as { _instances: Array<{ lockState: boolean }> })._instances[0].lockState).toBe(true);
         expect(root.isLocked).toBe(true);
+    });
+
+    it('copies webview context text to clipboard', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const copyHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.testClass.copy')?.[1] as
+            | ((context: { componentViewerCopyText: string }) => Promise<void> | void)
+            | undefined;
+        const copyRowHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.testClass.copyRow')?.[1] as
+            | ((context: { componentViewerCopyRowText: string }) => Promise<void> | void)
+            | undefined;
+        expect(copyHandler).toBeDefined();
+        expect(copyRowHandler).toBeDefined();
+
+        await copyHandler?.({ componentViewerCopyText: 'Thread 1' });
+        expect(vscode.env.clipboard.writeText).toHaveBeenCalledWith('Thread 1');
+
+        await copyRowHandler?.({ componentViewerCopyRowText: 'Thread 1\tRunning' });
+        expect(vscode.env.clipboard.writeText).toHaveBeenCalledWith('Thread 1\tRunning');
     });
 
     it('schedules an update when unlocking a locked instance', () => {
