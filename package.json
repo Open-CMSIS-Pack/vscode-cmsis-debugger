@@ -649,12 +649,12 @@
       "webview/context": [
         {
           "command": "vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate",
-          "when": "webviewId == 'cmsis-debugger.componentViewer' && componentViewer.canAccessWhileRunning && !componentViewer.periodicUpdateEnabled",
+          "when": "inDebugMode && webviewId == 'cmsis-debugger.componentViewer' && componentViewer.canAccessWhileRunning && !componentViewer.periodicUpdateEnabled",
           "group": "contextMenuG2@1"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate",
-          "when": "webviewId == 'cmsis-debugger.componentViewer' && componentViewer.canAccessWhileRunning && componentViewer.periodicUpdateEnabled",
+          "when": "inDebugMode && webviewId == 'cmsis-debugger.componentViewer' && componentViewer.canAccessWhileRunning && componentViewer.periodicUpdateEnabled",
           "group": "contextMenuG2@1"
         },
         {
@@ -674,12 +674,12 @@
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.enablePeriodicUpdate",
-          "when": "webviewId == 'cmsis-debugger.corePeripherals' && corePeripherals.canAccessWhileRunning && !corePeripherals.periodicUpdateEnabled",
+          "when": "inDebugMode && webviewId == 'cmsis-debugger.corePeripherals' && corePeripherals.canAccessWhileRunning && !corePeripherals.periodicUpdateEnabled",
           "group": "contextMenuG2@1"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.disablePeriodicUpdate",
-          "when": "webviewId == 'cmsis-debugger.corePeripherals' && corePeripherals.canAccessWhileRunning && corePeripherals.periodicUpdateEnabled",
+          "when": "inDebugMode && webviewId == 'cmsis-debugger.corePeripherals' && corePeripherals.canAccessWhileRunning && corePeripherals.periodicUpdateEnabled",
           "group": "contextMenuG2@1"
         },
         {
