@@ -98,6 +98,19 @@ export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
         vscodeApi.postMessage({ type: 'ready' });
     }, []);
 
+    useEffect(() => {
+        function handleCopy(e: ClipboardEvent) {
+            const selectedText = getSelectedText();
+            if (!selectedText || !e.clipboardData) {
+                return;
+            }
+            e.preventDefault();
+            e.clipboardData.setData('text/plain', selectedText);
+        }
+        window.addEventListener('copy', handleCopy);
+        return () => window.removeEventListener('copy', handleCopy);
+    }, [vscodeApi]);
+
     // Restore scroll position once rows are rendered
     useEffect(() => {
         if (viewState === 'data' && pendingScrollTop.current !== undefined) {
