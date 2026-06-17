@@ -41,6 +41,10 @@ export interface ComponentViewerInstancesWrapper {
     dirtyWhileLocked: boolean; // Flag to indicate if an update was attempted while instance was locked, used to trigger an update when instance is unlocked
 }
 
+interface ComponentViewerWebviewContext {
+    componentViewerRowId?: unknown;
+}
+
 export class ComponentViewerBase {
     private _activeSession: GDBTargetDebugSession | undefined;
     private _instances: ComponentViewerInstancesWrapper[] = [];
@@ -102,11 +106,11 @@ export class ComponentViewerBase {
 
         const webviewRegistration = vscode.window.registerWebviewViewProvider(fullViewId, webviewProvider);
         componentViewerLogger.debug(`${this._viewName}: Registered ${this._viewName} webview provider with id: ${fullViewId}`);
-        const lockInstanceCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.lockComponent`, async (node) => {
-            this.handleLockInstance(node);
+        const lockInstanceCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.lockComponent`, async (webviewContext) => {
+            this.handleLockInstanceFromWebviewContext(webviewContext);
         });
-        const unlockInstanceCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.unlockComponent`, async (node) => {
-            this.handleLockInstance(node);
+        const unlockInstanceCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.unlockComponent`, async (webviewContext) => {
+            this.handleLockInstanceFromWebviewContext(webviewContext);
         });
         const enablePeriodicUpdateCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.enablePeriodicUpdate`, async () => {
             this._refreshTimerEnabled = true;
@@ -155,20 +159,29 @@ export class ComponentViewerBase {
         this._componentViewerTreeDataProvider.expandAllElements();
     }
 
+    protected handleLockInstanceFromWebviewContext(webviewContext?: unknown): void {
+        const contextRowId = typeof webviewContext === 'object' && webviewContext !== null
+            ? (webviewContext as ComponentViewerWebviewContext).componentViewerRowId
+            : undefined;
+        if (typeof contextRowId === 'string') {
+            this.handleLockInstanceById(contextRowId);
+        }
+    }
+
     /**
-     * Find a root GUI node by its ID (used by the webview lock callback).
+     * Resolve by stable instance key because periodic updates can rebuild GUI nodes.
      */
     protected handleLockInstanceById(id: string): void {
-        // Walk the current roots to find the matching node.
-        const roots = this._componentViewerTreeDataProvider.getChildren();
-        const node = roots.find(r => r.getGuiId() === id);
-        if (node) {
-            this.handleLockInstance(node);
+        const instance = this._instances.find((inst) => {
+            const instanceKey = inst.componentViewerInstance.getInstanceKey();
+            return instanceKey !== undefined && (id === instanceKey || id.startsWith(`${instanceKey}/`));
+        });
+        if (instance) {
+            this.toggleInstanceLock(instance);
         }
     }
 
     protected handleLockInstance(node: ScvdGuiInterface): void {
-        let shouldTriggerUpdate: boolean = false; // Unlocking a node should trigger an update
         const instance = this._instances.find((inst) => {
             const guiTree = inst.componentViewerInstance.getGuiTree();
             if (!guiTree || guiTree.length === 0) {
@@ -178,9 +191,13 @@ export class ComponentViewerBase {
             // so we can skip checking the whole tree and just check if the node is one of the roots.
             return guiTree[0].getGuiId() === node.getGuiId();
         });
-        if (!instance) {
-            return;
+        if (instance) {
+            this.toggleInstanceLock(instance);
         }
+    }
+
+    private toggleInstanceLock(instance: ComponentViewerInstancesWrapper): void {
+        let shouldTriggerUpdate: boolean = false; // Unlocking a node should trigger an update
         if (instance.lockState === true) {
             shouldTriggerUpdate = true;
         }

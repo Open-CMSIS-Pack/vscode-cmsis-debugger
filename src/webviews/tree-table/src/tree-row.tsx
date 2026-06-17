@@ -61,6 +61,13 @@ function TreeRowInner({ row, lockable, lockTooltip, unlockTooltip, selected, onT
         row.tooltipBody ?? (row.value || undefined),
     );
 
+    const vscodeContext = JSON.stringify({
+        componentViewerRowId: row.id,
+        componentViewerRow: row.lockEnabled ? 'root' : 'item',
+        componentViewerLockState: row.locked ? 'locked' : 'unlocked',
+        preventDefaultContextMenuItems: true,
+    });
+
     function handleMouseEnter(e: React.MouseEvent) {
         if (tooltip) {
             onTooltipEnter(tooltip, e);
@@ -109,6 +116,7 @@ function TreeRowInner({ row, lockable, lockTooltip, unlockTooltip, selected, onT
         <tr
             className={rowClasses.join(' ')}
             data-row-id={row.id}
+            data-vscode-context={vscodeContext}
             onClick={handleRowClick}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={onTooltipLeave}

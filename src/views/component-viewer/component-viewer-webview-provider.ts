@@ -181,8 +181,8 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
             type: 'update', rows, loading: this._loading,
             features: {
                 lockable: true,
-                lockTooltip: 'Exclude from updates',
-                unlockTooltip: 'Include in updates',
+                lockTooltip: 'Exclude from Updates',
+                unlockTooltip: 'Include in Updates',
             },
             emptyMessage,
             resetViewState: this._pendingViewStateReset,

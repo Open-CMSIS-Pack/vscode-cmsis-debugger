@@ -41,6 +41,7 @@ const instanceFactory = jest.fn(() => ({
     updateActiveSession: jest.fn(),
     cancelExecution: jest.fn(),
     setSvdPath: jest.fn(),
+    getInstanceKey: jest.fn<string | undefined, []>(() => undefined),
 }));
 
 jest.mock('../../component-viewer-instance', () => ({
@@ -276,6 +277,7 @@ describe('ComponentViewerBase', () => {
             updateActiveSession: jest.fn(),
             cancelExecution: jest.fn(),
             setSvdPath: jest.fn(),
+            getInstanceKey: jest.fn<string | undefined, []>(() => undefined),
         }));
         const showErrorSpy = jest.spyOn(vscode.window, 'showErrorMessage').mockResolvedValue(undefined);
         const errorSpy = jest.spyOn(componentViewerLogger, 'error');
@@ -552,28 +554,43 @@ describe('ComponentViewerBase', () => {
         expect(rootLocked.isRootInstance).toBe(true);
     });
 
-    it('toggles lock state when lock command is invoked for a node in an instance tree', async () => {
-        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+    it('toggles lock state for a node in an instance tree', () => {
         const root = makeGuiNode('root', [makeGuiNode('child')]);
         const inst = instanceFactory();
         inst.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => [root]);
 
         (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: inst, lockState: false, sessionId: 's1', dirtyWhileLocked: false }];
 
-        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
-        const lockHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.testClass.lockComponent')?.[1] as
-            | ((node: ScvdGuiInterface) => Promise<void> | void)
-            | undefined;
-        expect(lockHandler).toBeDefined();
-
-        await lockHandler?.(root);
+        const handleLockInstance = (controller as unknown as { handleLockInstance: (node: ScvdGuiInterface) => void }).handleLockInstance.bind(controller);
+        handleLockInstance(root);
         expect((controller as unknown as { _instances: Array<{ lockState: boolean }> })._instances[0].lockState).toBe(true);
         expect(root.isLocked).toBe(true);
         expect(provider?.refresh).toHaveBeenCalled();
 
-        await lockHandler?.(root);
+        handleLockInstance(root);
         expect((controller as unknown as { _instances: Array<{ lockState: boolean }> })._instances[0].lockState).toBe(false);
         expect(root.isLocked).toBe(false);
+    });
+
+    it('toggles lock state when lock command receives a webview row id context argument', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        const root = makeGuiNode('root', [makeGuiNode('child')]);
+        const inst = instanceFactory();
+        inst.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => [root]);
+        inst.getInstanceKey.mockReturnValue(root.getGuiId());
+        (provider.getChildren as jest.MockedFunction<typeof provider.getChildren>).mockReturnValue([root]);
+
+        (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: inst, lockState: false, sessionId: 's1', dirtyWhileLocked: false }];
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const lockHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.testClass.lockComponent')?.[1] as
+            | ((context: { componentViewerRowId: string }) => Promise<void> | void)
+            | undefined;
+        expect(lockHandler).toBeDefined();
+
+        await lockHandler?.({ componentViewerRowId: root.getGuiId()! });
+        expect((controller as unknown as { _instances: Array<{ lockState: boolean }> })._instances[0].lockState).toBe(true);
+        expect(root.isLocked).toBe(true);
     });
 
     it('schedules an update when unlocking a locked instance', () => {
@@ -1037,10 +1054,14 @@ describe('ComponentViewerBase', () => {
         const webviewProvider = (controller as unknown as { _webviewProvider: { onLock: ((id: string) => void) | undefined } })._webviewProvider;
         expect(webviewProvider).toBeDefined();
         const root = makeGuiNode('my-node');
-        asMockedFunction(provider.getChildren as () => ScvdGuiInterface[]).mockReturnValue([root]);
-        const lockSpy = jest.spyOn(controller as unknown as { handleLockInstance: (node: ScvdGuiInterface) => void }, 'handleLockInstance');
+        const inst = instanceFactory();
+        inst.getGuiTree = jest.fn<ScvdGuiInterface[] | undefined, []>(() => [root]);
+        inst.getInstanceKey.mockReturnValue(root.getGuiId());
+        (controller as unknown as { _instances: unknown[] })._instances = [{ componentViewerInstance: inst, lockState: false, sessionId: 's1', dirtyWhileLocked: false }];
+
         webviewProvider!.onLock?.('my-node');
-        expect(lockSpy).toHaveBeenCalledWith(root);
+        expect((controller as unknown as { _instances: Array<{ lockState: boolean }> })._instances[0].lockState).toBe(true);
+        expect(root.isLocked).toBe(true);
     });
 
     it('handleOnWillStartSession registers a refresh callback on the session timer', async () => {
@@ -1064,6 +1085,7 @@ describe('ComponentViewerBase', () => {
             updateActiveSession: jest.fn(),
             cancelExecution: jest.fn(),
             setSvdPath: setSvdPathSpy,
+            getInstanceKey: jest.fn<string | undefined, []>(() => undefined),
         }));
 
         const readScvdFiles = getReadScvdFiles(controller);

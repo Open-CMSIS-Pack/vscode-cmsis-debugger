@@ -189,13 +189,13 @@
       },
       {
         "command": "vscode-cmsis-debugger.componentViewer.lockComponent",
-        "title": "Lock Component",
+        "title": "Exclude from Updates",
         "icon": "$(lock)",
         "category": "Component Viewer"
       },
       {
         "command": "vscode-cmsis-debugger.componentViewer.unlockComponent",
-        "title": "Unlock Component",
+        "title": "Include in Updates",
         "icon": "$(unlock)",
         "category": "Component Viewer"
       },
@@ -237,13 +237,13 @@
       },
       {
         "command": "vscode-cmsis-debugger.corePeripherals.lockComponent",
-        "title": "Lock Component",
+        "title": "Exclude from Updates",
         "icon": "$(lock)",
         "category": "Core Peripherals"
       },
       {
         "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
-        "title": "Unlock Component",
+        "title": "Include in Updates",
         "icon": "$(unlock)",
         "category": "Core Peripherals"
       },
@@ -626,6 +626,48 @@
           "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
           "when": "view == cmsis-debugger.corePeripherals && viewItem == locked.parentInstance",
           "group": "inline@2"
+        }
+      ],
+      "webview/context": [
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.enablePeriodicUpdate",
+          "when": "webviewId == 'cmsis-debugger.componentViewer' && componentViewer.canAccessWhileRunning && !componentViewer.periodicUpdateEnabled",
+          "group": "contextMenuG2@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.disablePeriodicUpdate",
+          "when": "webviewId == 'cmsis-debugger.componentViewer' && componentViewer.canAccessWhileRunning && componentViewer.periodicUpdateEnabled",
+          "group": "contextMenuG2@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.lockComponent",
+          "when": "webviewId == 'cmsis-debugger.componentViewer' && componentViewerRow == 'root' && componentViewerLockState == 'unlocked'",
+          "group": "contextMenuG2@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.unlockComponent",
+          "when": "webviewId == 'cmsis-debugger.componentViewer' && componentViewerRow == 'root' && componentViewerLockState == 'locked'",
+          "group": "contextMenuG2@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.enablePeriodicUpdate",
+          "when": "webviewId == 'cmsis-debugger.corePeripherals' && corePeripherals.canAccessWhileRunning && !corePeripherals.periodicUpdateEnabled",
+          "group": "contextMenuG2@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.disablePeriodicUpdate",
+          "when": "webviewId == 'cmsis-debugger.corePeripherals' && corePeripherals.canAccessWhileRunning && corePeripherals.periodicUpdateEnabled",
+          "group": "contextMenuG2@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.lockComponent",
+          "when": "webviewId == 'cmsis-debugger.corePeripherals' && componentViewerRow == 'root' && componentViewerLockState == 'unlocked'",
+          "group": "contextMenuG2@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
+          "when": "webviewId == 'cmsis-debugger.corePeripherals' && componentViewerRow == 'root' && componentViewerLockState == 'locked'",
+          "group": "contextMenuG2@2"
         }
       ]
     },
