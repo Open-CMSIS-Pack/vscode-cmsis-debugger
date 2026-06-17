@@ -208,7 +208,10 @@ export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
     }, [rows]);
 
     const handleTableContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
-        applyRowContext(e.target as HTMLElement);
+        if (!(e.target instanceof HTMLElement)) {
+            return;
+        }
+        applyRowContext(e.target);
     }, [applyRowContext]);
 
     const handleTooltipEnter = useCallback((content: string, e: React.MouseEvent) => {

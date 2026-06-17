@@ -709,6 +709,10 @@ export class ComponentViewerBase {
 
     public async resetViewState(): Promise<void> {
         await clearComponentViewerState(this._viewId);
+        this.resetRuntimeViewState();
+    }
+
+    public resetRuntimeViewState(): void {
         // Reset in-memory state to defaults.
         this._refreshTimerEnabled = true;
         vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);

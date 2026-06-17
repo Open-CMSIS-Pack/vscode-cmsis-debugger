@@ -92,8 +92,8 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
             await clearAllViewState();
             await Promise.all([
                 cpuStates.resetViewState(),
-                componentViewer.resetViewState(),
-                corePeripherals.resetViewState(),
+                componentViewer.resetRuntimeViewState(),
+                corePeripherals.resetRuntimeViewState(),
                 liveWatchTreeDataProvider.resetViewState(),
             ]);
         })
