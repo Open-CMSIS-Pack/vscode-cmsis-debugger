@@ -45,7 +45,6 @@ function buildVscodeContext(row: FlatRow, copyText: string): string {
         componentViewerComponentLocked: Boolean(row.locked),
         componentViewerCopyText: copyText,
         componentViewerCopyRowText: rowCopyText,
-        preventDefaultContextMenuItems: true,
     });
 }
 
