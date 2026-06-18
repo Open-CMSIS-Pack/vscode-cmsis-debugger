@@ -40,7 +40,7 @@ function buildVscodeContext(row: FlatRow, copyText: string): string {
     const rowCopyText = row.value ? `${row.name}\t${row.value}` : row.name;
     return JSON.stringify({
         componentViewerRowId: row.id,
-        componentViewerRowIsRoot: Boolean(row.lockEnabled),
+        componentViewerRowLockable: Boolean(row.lockEnabled),
         componentViewerRowHasValue: Boolean(row.value),
         componentViewerComponentLocked: Boolean(row.locked),
         componentViewerCopyText: copyText,
