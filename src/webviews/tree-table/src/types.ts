@@ -67,6 +67,14 @@ export interface TreeTableFeatures {
     unlockTooltip?: string;
 }
 
+/** Structured tooltip content rendered as React text nodes. */
+export interface TooltipContent {
+    /** Bold heading line. */
+    head?: string;
+    /** Body lines, each rendered on its own line. */
+    bodyLines?: string[];
+}
+
 /** Extension host → webview: replace entire table contents. */
 export interface TreeTableUpdateMessage {
     type: 'update';

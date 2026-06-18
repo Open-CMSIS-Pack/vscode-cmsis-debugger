@@ -15,7 +15,7 @@
  */
 
 import React from 'react';
-import type { FlatRow } from './types';
+import type { FlatRow, TooltipContent } from './types';
 
 interface TreeRowProps {
     row: FlatRow;
@@ -26,32 +26,18 @@ interface TreeRowProps {
     onToggle: (id: string, expanded: boolean) => void;
     onLock: (id: string) => void;
     onSelect: (id: string) => void;
-    onTooltipEnter: (content: string, e: React.MouseEvent) => void;
+    onTooltipEnter: (content: TooltipContent, e: React.MouseEvent) => void;
     onTooltipLeave: () => void;
 }
 
 const INDENT_PX = 16;
 
-function buildTooltip(head: string | undefined, body: string | undefined): string | undefined {
-    const escapedBody = body ? escapeHtml(body).replace(/,\s*/g, '<br>') : undefined;
-    if (head && escapedBody) {
-        return `<strong>${escapeHtml(head)}</strong><br>${escapedBody}`;
+function buildTooltip(head: string | undefined, body: string | undefined): TooltipContent | undefined {
+    const bodyLines = body ? body.split(/,\s*/) : undefined;
+    if (!head && !bodyLines) {
+        return undefined;
     }
-    if (head) {
-        return `<strong>${escapeHtml(head)}</strong>`;
-    }
-    if (escapedBody) {
-        return escapedBody;
-    }
-    return undefined;
-}
-
-function escapeHtml(text: string): string {
-    return text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+    return { head, bodyLines };
 }
 
 function TreeRowInner({ row, lockable, lockTooltip, unlockTooltip, selected, onToggle, onLock, onSelect, onTooltipEnter, onTooltipLeave }: TreeRowProps): React.ReactElement {
@@ -62,14 +48,14 @@ function TreeRowInner({ row, lockable, lockTooltip, unlockTooltip, selected, onT
     if (lockable && row.locked) { rowClasses.push('locked'); }
     if (selected) { rowClasses.push('selected'); }
 
-    const tooltipHtml = buildTooltip(
+    const tooltip = buildTooltip(
         row.tooltipHead ?? (row.name || undefined),
         row.tooltipBody ?? (row.value || undefined),
     );
 
     function handleMouseEnter(e: React.MouseEvent) {
-        if (tooltipHtml) {
-            onTooltipEnter(tooltipHtml, e);
+        if (tooltip) {
+            onTooltipEnter(tooltip, e);
         }
     }
 
