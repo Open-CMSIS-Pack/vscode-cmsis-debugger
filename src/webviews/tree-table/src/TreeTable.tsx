@@ -260,7 +260,6 @@ export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
                 <div
                     ref={tooltipRef}
                     className="custom-tooltip visible"
-                    style={{ left: tooltipPos.x + 12, top: tooltipPos.y + 16 }}
                 >
                     {tooltipContent.head && <strong>{tooltipContent.head}</strong>}
                     {tooltipContent.bodyLines?.map((line, i) => (

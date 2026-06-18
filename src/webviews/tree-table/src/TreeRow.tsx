@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import React from 'react';
+import React, { useLayoutEffect, useRef } from 'react';
 import type { FlatRow, TooltipContent } from './types';
 
 interface TreeRowProps {
@@ -42,6 +42,13 @@ function buildTooltip(head: string | undefined, body: string | undefined): Toolt
 
 function TreeRowInner({ row, lockable, lockTooltip, unlockTooltip, selected, onToggle, onLock, onSelect, onTooltipEnter, onTooltipLeave }: TreeRowProps): React.ReactElement {
     const indent = row.depth * INDENT_PX;
+    const cellNameRef = useRef<HTMLTableCellElement>(null);
+
+    useLayoutEffect(() => {
+        if (cellNameRef.current) {
+            cellNameRef.current.style.paddingLeft = `${indent + 4}px`;
+        }
+    }, [indent]);
 
     const rowClasses = ['row'];
     if (row.expanded) { rowClasses.push('expanded'); }
@@ -105,7 +112,7 @@ function TreeRowInner({ row, lockable, lockTooltip, unlockTooltip, selected, onT
             onMouseEnter={handleMouseEnter}
             onMouseLeave={onTooltipLeave}
         >
-            <td className="cell-name" style={{ paddingLeft: indent + 4 }}>
+            <td className="cell-name" ref={cellNameRef}>
                 {toggle}<span className="name">{row.name}</span>
             </td>
             <td className="cell-value">
