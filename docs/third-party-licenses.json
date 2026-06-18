@@ -56,11 +56,11 @@
         "license": "https://github.com/webpack-contrib/css-loader/blob/master/LICENSE"
     },
     {
-        "name": "style-loader",
-        "version": "4.0.0",
+        "name": "mini-css-extract-plugin",
+        "version": "2.10.2",
         "spdx": "MIT",
-        "url": "https://github.com/webpack-contrib/style-loader",
-        "license": "https://github.com/webpack-contrib/style-loader/blob/master/LICENSE"
+        "url": "https://github.com/webpack-contrib/mini-css-extract-plugin",
+        "license": "https://github.com/webpack-contrib/mini-css-extract-plugin/blob/master/LICENSE"
     },
     {
         "name": "@vscode/codicons",

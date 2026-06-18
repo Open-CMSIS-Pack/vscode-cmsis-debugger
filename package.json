@@ -771,7 +771,6 @@
     "minimist": "^1.2.8",
     "node-fetch": "^3.3.2",
     "octokit": "^5.0.5",
-    "style-loader": "^4.0.0",
     "tempfile": "^6.0.1",
     "ts-command-line-args": "^2.5.1",
     "ts-jest": "29.4.6",
