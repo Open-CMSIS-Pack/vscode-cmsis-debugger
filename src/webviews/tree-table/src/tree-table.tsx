@@ -49,7 +49,7 @@ function buildVscodeContext(row: FlatRow, copyText: string): string {
 }
 
 export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
-    const defaultVscodeContext = JSON.stringify({
+    const suppressDefaultContextMenu = JSON.stringify({
         preventDefaultContextMenuItems: true,
     });
     const [rows, setRows] = useState<FlatRow[]>([]);
@@ -96,19 +96,6 @@ export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
         }
         vscodeApi.postMessage({ type: 'ready' });
     }, []);
-
-    useEffect(() => {
-        function handleCopy(e: ClipboardEvent) {
-            const selectedText = getSelectedText();
-            if (!selectedText || !e.clipboardData) {
-                return;
-            }
-            e.preventDefault();
-            e.clipboardData.setData('text/plain', selectedText);
-        }
-        window.addEventListener('copy', handleCopy);
-        return () => window.removeEventListener('copy', handleCopy);
-    }, [vscodeApi]);
 
     // Restore scroll position once rows are rendered
     useEffect(() => {
@@ -287,11 +274,11 @@ export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
     }, [vscodeApi]);
 
     if (viewState === 'loading') {
-        return <div className="progress-container" data-vscode-context={defaultVscodeContext}><div className="progress-bar" /></div>;
+        return <div className="progress-container" data-vscode-context={suppressDefaultContextMenu}><div className="progress-bar" /></div>;
     }
 
     return (
-        <div className="tree-table" ref={tableContainerRef} data-vscode-context={defaultVscodeContext}>
+        <div className="tree-table" ref={tableContainerRef} data-vscode-context={suppressDefaultContextMenu}>
             <div className="scroll-container" ref={scrollContainerRef} onScroll={handleScroll}>
                 {viewState === 'data' && <div className="column-resize-handle" onMouseDown={handleResizeStart} />}
                 {viewState === 'empty'
