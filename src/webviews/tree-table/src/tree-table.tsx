@@ -173,16 +173,20 @@ export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
         });
     }, [vscodeApi]);
 
-    // Build the row's data-vscode-context lazily on right-click, just before VS Code
-    // reads it for the context menu.
-    const applyRowContext = useCallback((eventTarget: HTMLElement) => {
-        const rowElement = eventTarget.closest<HTMLElement>('tr[data-row-id]');
+    const handleTableContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
+        if (!(e.target instanceof HTMLElement)) {
+            return;
+        }
+
+        // Build the row's data-vscode-context lazily on right-click, just before VS Code
+        // reads it for the context menu.
+        const rowElement = e.target.closest<HTMLElement>('tr[data-row-id]');
         const rowId = rowElement?.dataset.rowId;
         const row = rowId !== undefined ? rows.find(row => row.id === rowId) : undefined;
         if (!rowElement || !row) {
             return;
         }
-        const cellElement = eventTarget.closest<HTMLElement>('td');
+        const cellElement = e.target.closest<HTMLElement>('td');
         if (!cellElement) {
             return;
         }
@@ -193,13 +197,6 @@ export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
         const copyText = getSelectedText() ?? cellFallbackText;
         cellElement.setAttribute('data-vscode-context', buildVscodeContext(row, copyText));
     }, [rows]);
-
-    const handleTableContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
-        if (!(e.target instanceof HTMLElement)) {
-            return;
-        }
-        applyRowContext(e.target);
-    }, [applyRowContext]);
 
     const handleTooltipEnter = useCallback((content: string, e: React.MouseEvent) => {
         clearTimeout(tooltipTimerId.current);
