@@ -747,6 +747,30 @@ describe('ComponentViewerBase', () => {
         expect(inputBox.dispose).toHaveBeenCalled();
     });
 
+    it('filterTree command restores previous filter when hidden without accepting', async () => {
+        (provider as unknown as { filterPattern: string }).filterPattern = 'previous';
+        const saveSpy = jest.spyOn(controller as unknown as { saveCurrentState: () => Promise<void> }, 'saveCurrentState').mockResolvedValue(undefined);
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const filterHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.testClass.filterTree')?.[1] as
+            | (() => void)
+            | undefined;
+        filterHandler?.();
+        const inputBox = asMockedFunction(vscode.window.createInputBox).mock.results[0]?.value;
+        const onChangeHandler = inputBox._handlers.onDidChangeValue[0];
+        const onHideHandler = inputBox._handlers.onDidHide[0];
+
+        onChangeHandler('changed');
+        expect(provider.setFilter).toHaveBeenCalledWith('changed');
+
+        onHideHandler();
+
+        expect(provider.setFilter).toHaveBeenCalledWith('previous');
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', true);
+        expect(saveSpy).toHaveBeenCalled();
+    });
+
     it('clearFilter command clears filter and resets context', async () => {
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
@@ -1097,6 +1121,28 @@ describe('ComponentViewerBase', () => {
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.periodicUpdateEnabled', true);
             expect(provider.setFilter).toHaveBeenCalledWith(undefined, false);
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', false);
+        });
+
+        it('updates running target access context only when the active session changes', async () => {
+            const executeCommandSpy = jest.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
+            await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+            executeCommandSpy.mockClear();
+
+            const session = debugSessionFactory('s1');
+            (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = true;
+            await tracker.callbacks.willStart?.(session);
+
+            expect(executeCommandSpy).not.toHaveBeenCalledWith('setContext', 'testClass.canAccessWhileRunning', true);
+            executeCommandSpy.mockClear();
+
+            await tracker.callbacks.activeSession?.(session);
+
+            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'testClass.canAccessWhileRunning', true);
+            executeCommandSpy.mockClear();
+
+            await tracker.callbacks.activeSession?.(undefined);
+
+            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'testClass.canAccessWhileRunning', false);
         });
 
         it('restorePeriodicUpdateAndFilter restores periodicUpdateEnabled and filter from workspace settings', async () => {
