@@ -199,7 +199,7 @@ export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
         cellElement.setAttribute('data-vscode-context', buildVscodeContext(row, copyText));
     }, [rows]);
 
-    const handleTooltipEnter = useCallback((content: string, e: React.MouseEvent) => {
+    const handleTooltipEnter = useCallback((content: TooltipContent, e: React.MouseEvent) => {
         clearTimeout(tooltipTimerId.current);
         setTooltipContent(content);
         setTooltipPos({ x: e.clientX, y: e.clientY });
