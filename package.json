@@ -188,6 +188,11 @@
         "category": "Live Watch"
       },
       {
+        "command": "vscode-cmsis-debugger.liveWatch.resetViewState",
+        "title": "Reset View State",
+        "category": "Live Watch"
+      },
+      {
         "command": "vscode-cmsis-debugger.componentViewer.lockComponent",
         "title": "Lock Component Display",
         "icon": "$(lock)",
@@ -410,6 +415,10 @@
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.setValue",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.resetViewState",
           "when": "false"
         },
         {
@@ -637,14 +646,19 @@
           "group": "contextMenuG1@5"
         },
         {
-          "command": "vscode-cmsis-debugger.liveWatch.deleteAll",
-          "when": "view == cmsis-debugger.liveWatch",
-          "group": "contextMenuG2@1"
-        },
-        {
           "command": "vscode-cmsis-debugger.liveWatch.refresh",
           "when": "view == cmsis-debugger.liveWatch",
           "group": "contextMenuG2@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.enablePeriodicUpdate",
+          "when": "inDebugMode && view == cmsis-debugger.liveWatch && liveWatch.canAccessWhileRunning && !liveWatch.periodicUpdateEnabled",
+          "group": "contextMenuG2@3"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.disablePeriodicUpdate",
+          "when": "inDebugMode && view == cmsis-debugger.liveWatch && liveWatch.canAccessWhileRunning && liveWatch.periodicUpdateEnabled",
+          "group": "contextMenuG2@3"
         },
         {
           "command": "vscode-cmsis-debugger.liveWatch.showInMemoryInspector",
@@ -660,6 +674,16 @@
           "command": "cdt.debug.setOutputRadixToHex",
           "when": "inDebugMode && (view == cmsis-debugger.liveWatch) && cdt.debug.outputRadix && cdt.debug.outputRadix != 'hexadecimal' && (debugType == 'gdb' || debugType == 'gdbtarget')",
           "group": "contextMenuG4@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.deleteAll",
+          "when": "view == cmsis-debugger.liveWatch",
+          "group": "contextMenuG5@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.liveWatch.resetViewState",
+          "when": "inDebugMode && view == cmsis-debugger.liveWatch",
+          "group": "contextMenuG5@2"
         },
         {
           "command": "vscode-cmsis-debugger.componentViewer.lockComponent",

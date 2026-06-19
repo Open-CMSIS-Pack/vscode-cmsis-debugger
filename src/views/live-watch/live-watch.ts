@@ -19,7 +19,7 @@ import { DebugProtocol } from '@vscode/debugprotocol';
 import { GDBTargetDebugSession, GDBTargetDebugTracker, SessionEvent } from '../../debug-session';
 import { vscodeViewExists } from '../../vscode-utils';
 import { logger } from '../..';
-import { readLiveWatchState, writeLiveWatchState } from '../dynamic-view-states';
+import { clearLiveWatchState, readLiveWatchState, writeLiveWatchState } from '../dynamic-view-states';
 
 export interface LiveWatchNode {
   id: number;
@@ -247,6 +247,8 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             async () => await this.handleEnablePeriodicUpdate());
         const disablePeriodicUpdateCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.disablePeriodicUpdate',
             async () => await this.handleDisablePeriodicUpdate());
+        const resetViewStateCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.resetViewState',
+            async () => await this.resetViewState());
         vscode.commands.executeCommand('setContext', 'liveWatch.periodicUpdateEnabled', true);
         vscode.commands.executeCommand('setContext', 'liveWatch.canAccessWhileRunning', false);
         this._context.subscriptions.push(
@@ -263,7 +265,8 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             addToLiveWatchFromVariablesViewCommand,
             showInMemoryInspectorCommand,
             enablePeriodicUpdateCommand,
-            disablePeriodicUpdateCommand
+            disablePeriodicUpdateCommand,
+            resetViewStateCommand
         );
         return true;
     }
@@ -474,6 +477,11 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
     }
 
     public async resetViewState(): Promise<void> {
+        await clearLiveWatchState();
+        this.resetRuntimeViewState();
+    }
+
+    public resetRuntimeViewState(): void {
         for (const state of this.sessionLiveWatchStates.values()) {
             state.periodicUpdateEnabled = true;
         }

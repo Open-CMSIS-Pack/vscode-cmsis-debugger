@@ -171,3 +171,10 @@ export async function writeLiveWatchState(configStateKey: string, periodicUpdate
     const stateToStore = periodicUpdateEnabled ? userState === false ? true : undefined : false;
     await writeWorkspaceDynamicViewState(configStateKey, 'liveWatchPeriodicUpdateEnabled', stateToStore);
 }
+
+export async function clearLiveWatchState(): Promise<void> {
+    await Promise.all([
+        clearDynamicViewState('liveWatchPeriodicUpdateEnabled', vscode.ConfigurationTarget.Workspace),
+        clearDynamicViewState('liveWatchPeriodicUpdateEnabled', vscode.ConfigurationTarget.Global),
+    ]);
+}

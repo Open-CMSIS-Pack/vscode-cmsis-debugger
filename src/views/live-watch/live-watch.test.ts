@@ -400,7 +400,8 @@ describe('LiveWatchTreeDataProvider', () => {
                 'vscode-cmsis-debugger.liveWatch.addToLiveWatchFromVariablesView',
                 'vscode-cmsis-debugger.liveWatch.showInMemoryInspector',
                 'vscode-cmsis-debugger.liveWatch.enablePeriodicUpdate',
-                'vscode-cmsis-debugger.liveWatch.disablePeriodicUpdate'
+                'vscode-cmsis-debugger.liveWatch.disablePeriodicUpdate',
+                'vscode-cmsis-debugger.liveWatch.resetViewState'
             ]);
         });
 
@@ -627,6 +628,16 @@ describe('LiveWatchTreeDataProvider', () => {
             await Promise.resolve();
             expect(refreshSpy).toHaveBeenCalled();
         });
+
+        it('reset view state command resets Live Watch view state', async () => {
+            const resetViewStateSpy = jest.spyOn(liveWatchTreeDataProvider, 'resetViewState').mockResolvedValue(undefined);
+            await liveWatchTreeDataProvider.activate(tracker);
+            const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.resetViewState');
+            expect(handler).toBeDefined();
+            await handler();
+
+            expect(resetViewStateSpy).toHaveBeenCalled();
+        });
     });
 
     describe('Live Watch periodic update state persists to and restores from settings', () => {
@@ -704,6 +715,23 @@ describe('LiveWatchTreeDataProvider', () => {
 
         it('re-enables sessions and updates the toolbar context on view state reset', async () => {
             const executeCommandSpy = jest.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
+            const updateMock = jest.fn().mockResolvedValue(undefined);
+            jest.spyOn(vscode.workspace, 'getConfiguration').mockReturnValue({
+                update: updateMock,
+                inspect: jest.fn().mockReturnValue({
+                    globalValue: {
+                        Debug: {
+                            liveWatchPeriodicUpdateEnabled: false,
+                        },
+                    },
+                    workspaceValue: {
+                        Debug: {
+                            liveWatchPeriodicUpdateEnabled: false,
+                            cpuStatesEnabled: true,
+                        },
+                    },
+                }),
+            } as any);
             await liveWatchTreeDataProvider.activate(tracker);
             (tracker as any)._onWillStartSession.fire(gdbtargetDebugSession);
             (liveWatchTreeDataProvider as any).sessionLiveWatchStates.get(gdbtargetDebugSession.session.id)!.periodicUpdateEnabled = false;
@@ -712,6 +740,49 @@ describe('LiveWatchTreeDataProvider', () => {
 
             expect((liveWatchTreeDataProvider as any).sessionLiveWatchStates.get(gdbtargetDebugSession.session.id)!.periodicUpdateEnabled).toBe(true);
             expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'liveWatch.periodicUpdateEnabled', true);
+            expect(updateMock).toHaveBeenCalledWith(
+                'vscode-cmsis-debugger.viewState',
+                {
+                    Debug: {
+                        cpuStatesEnabled: true,
+                    },
+                },
+                vscode.ConfigurationTarget.Workspace
+            );
+            expect(updateMock).toHaveBeenCalledWith(
+                'vscode-cmsis-debugger.viewState',
+                undefined,
+                vscode.ConfigurationTarget.Global
+            );
+        });
+
+        it('runtime view state reset does not clear persisted settings', async () => {
+            const executeCommandSpy = jest.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
+            const updateMock = jest.fn().mockResolvedValue(undefined);
+            jest.spyOn(vscode.workspace, 'getConfiguration').mockReturnValue({
+                update: updateMock,
+                inspect: jest.fn().mockReturnValue({
+                    globalValue: {
+                        Debug: {
+                            liveWatchPeriodicUpdateEnabled: false,
+                        },
+                    },
+                    workspaceValue: {
+                        Debug: {
+                            liveWatchPeriodicUpdateEnabled: false,
+                        },
+                    },
+                }),
+            } as any);
+            await liveWatchTreeDataProvider.activate(tracker);
+            (tracker as any)._onWillStartSession.fire(gdbtargetDebugSession);
+            (liveWatchTreeDataProvider as any).sessionLiveWatchStates.get(gdbtargetDebugSession.session.id)!.periodicUpdateEnabled = false;
+
+            liveWatchTreeDataProvider.resetRuntimeViewState();
+
+            expect((liveWatchTreeDataProvider as any).sessionLiveWatchStates.get(gdbtargetDebugSession.session.id)!.periodicUpdateEnabled).toBe(true);
+            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'liveWatch.periodicUpdateEnabled', true);
+            expect(updateMock).not.toHaveBeenCalled();
         });
     });
 
