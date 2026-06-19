@@ -12,5 +12,5 @@ Generated for release: 1.6.1
 | react | 18.3.1 | https://github.com/facebook/react | [MIT](https://github.com/facebook/react/blob/main/LICENSE) |
 | react-dom | 18.3.1 | https://github.com/facebook/react | [MIT](https://github.com/facebook/react/blob/main/LICENSE) |
 | css-loader | 7.1.4 | https://github.com/webpack-contrib/css-loader | [MIT](https://github.com/webpack-contrib/css-loader/blob/master/LICENSE) |
-| style-loader | 4.0.0 | https://github.com/webpack-contrib/style-loader | [MIT](https://github.com/webpack-contrib/style-loader/blob/master/LICENSE) |
+| mini-css-extract-plugin | 2.10.2 | https://github.com/webpack-contrib/mini-css-extract-plugin | [MIT](https://github.com/webpack-contrib/mini-css-extract-plugin/blob/master/LICENSE) |
 | @vscode/codicons | 0.0.45 | https://github.com/microsoft/vscode-codicons | [CC-BY-4.0](https://github.com/microsoft/vscode-codicons/blob/main/LICENSE) |

@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
 import './tree-table.css';
 import { createRoot } from 'react-dom/client';
 import React from 'react';
-import { TreeTable } from './TreeTable';
-import type { VsCodeApi } from './TreeTable';
+import { TreeTable } from './tree-table';
+import type { VsCodeApi } from './tree-table';
 
 declare function acquireVsCodeApi(): VsCodeApi;
 

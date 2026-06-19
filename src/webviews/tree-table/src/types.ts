@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
 /**
  * Shared protocol types for tree-table webview ↔ extension host communication.
@@ -65,6 +66,14 @@ export interface TreeTableFeatures {
     lockTooltip?: string;
     /** Tooltip shown on the lock button when the row is locked. Defaults to `"Unlock"`. */
     unlockTooltip?: string;
+}
+
+/** Structured tooltip content rendered as React text nodes. */
+export interface TooltipContent {
+    /** Bold heading line. */
+    head?: string;
+    /** Body lines, each rendered on its own line. */
+    bodyLines?: string[];
 }
 
 /** Extension host → webview: replace entire table contents. */

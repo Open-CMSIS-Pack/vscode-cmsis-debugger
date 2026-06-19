@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
 import * as vscode from 'vscode';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
@@ -32,6 +33,7 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
     private _view: vscode.WebviewView | undefined;
     private _dataChangeDisposable: vscode.Disposable | undefined;
     private _codiconCssUri: vscode.Uri | undefined;
+    private _styleUri: vscode.Uri | undefined;
     private _scriptUri: vscode.Uri | undefined;
     private _loading = false;
     private _emptyMessage = '';
@@ -76,6 +78,11 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
         );
         this._scriptUri = webviewView.webview.asWebviewUri(scriptPath);
 
+        const stylePath = vscode.Uri.joinPath(
+            this._extensionUri, 'dist', 'webviews', 'tree-table.css'
+        );
+        this._styleUri = webviewView.webview.asWebviewUri(stylePath);
+
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [this._extensionUri],
@@ -85,6 +92,7 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
         webviewView.webview.html = this.buildShell(
             webviewView.webview.cspSource ?? '',
             String(this._codiconCssUri),
+            String(this._styleUri),
             String(this._scriptUri),
         );
 
@@ -219,14 +227,15 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
     /*  HTML shell                                                        */
     /* ------------------------------------------------------------------ */
 
-    private buildShell(cspSource: string, codiconCssUri: string, scriptUri: string): string {
+    private buildShell(cspSource: string, codiconCssUri: string, styleUri: string, scriptUri: string): string {
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${cspSource} 'unsafe-inline'; script-src ${cspSource}; font-src ${cspSource};">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${cspSource}; script-src ${cspSource}; font-src ${cspSource};">
 <link rel="stylesheet" href="${codiconCssUri}">
+<link rel="stylesheet" href="${styleUri}">
 </head>
 <body>
 <div id="root"></div>

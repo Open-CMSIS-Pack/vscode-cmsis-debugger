@@ -771,6 +771,7 @@
     "lzma-native": "8.0.6",
     "markdown-link-check": "^3.14.2",
     "markdownlint-cli": "^0.48.0",
+    "mini-css-extract-plugin": "^2.10.2",
     "minimist": "^1.2.8",
     "node-fetch": "^3.3.2",
     "octokit": "^5.0.5",
