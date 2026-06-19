@@ -41,10 +41,10 @@ export interface ComponentViewerInstancesWrapper {
     dirtyWhileLocked: boolean; // Flag to indicate if an update was attempted while instance was locked, used to trigger an update when instance is unlocked
 }
 
-interface ComponentViewerWebviewContext {
-    componentViewerRowId?: unknown;
-    componentViewerCopyText?: unknown;
-    componentViewerCopyRowText?: unknown;
+interface ComponentViewerBaseWebviewContext {
+    rowId?: string;
+    copyText?: string;
+    copyRowText?: string;
 }
 
 export class ComponentViewerBase {
@@ -175,9 +175,9 @@ export class ComponentViewerBase {
 
     protected handleLockInstanceFromWebviewContext(webviewContext?: unknown): void {
         const contextRowId = typeof webviewContext === 'object' && webviewContext !== null
-            ? (webviewContext as ComponentViewerWebviewContext).componentViewerRowId
+            ? (webviewContext as ComponentViewerBaseWebviewContext).rowId
             : undefined;
-        if (typeof contextRowId === 'string') {
+        if (contextRowId !== undefined) {
             this.handleLockInstanceById(contextRowId);
         }
     }
@@ -306,18 +306,18 @@ export class ComponentViewerBase {
 
     protected async handleCopyFromWebviewContext(webviewContext?: unknown): Promise<void> {
         const text = typeof webviewContext === 'object' && webviewContext !== null
-            ? (webviewContext as ComponentViewerWebviewContext).componentViewerCopyText
+            ? (webviewContext as ComponentViewerBaseWebviewContext).copyText
             : undefined;
-        if (typeof text === 'string') {
+        if (text !== undefined) {
             await vscode.env.clipboard.writeText(text);
         }
     }
 
     protected async handleCopyRowFromWebviewContext(webviewContext?: unknown): Promise<void> {
         const text = typeof webviewContext === 'object' && webviewContext !== null
-            ? (webviewContext as ComponentViewerWebviewContext).componentViewerCopyRowText
+            ? (webviewContext as ComponentViewerBaseWebviewContext).copyRowText
             : undefined;
-        if (typeof text === 'string') {
+        if (text !== undefined) {
             await vscode.env.clipboard.writeText(text);
         }
     }

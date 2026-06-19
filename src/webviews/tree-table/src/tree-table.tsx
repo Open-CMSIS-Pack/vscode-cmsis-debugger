@@ -39,12 +39,13 @@ function getSelectedText(): string | undefined {
 function buildVscodeContext(row: FlatRow, copyText: string): string {
     const rowCopyText = row.value ? `${row.name}\t${row.value}` : row.name;
     return JSON.stringify({
-        componentViewerRowId: row.id,
-        componentViewerRowLockable: Boolean(row.lockEnabled),
-        componentViewerRowHasValue: Boolean(row.value),
-        componentViewerComponentLocked: Boolean(row.locked),
-        componentViewerCopyText: copyText,
-        componentViewerCopyRowText: rowCopyText,
+        rowId: row.id,
+        copyText,
+        copyRowText: rowCopyText,
+        hasCopyText: Boolean(copyText),
+        hasRowValue: Boolean(row.value),
+        isRowLockable: Boolean(row.lockEnabled),
+        isRowLocked: Boolean(row.locked),
     });
 }
 

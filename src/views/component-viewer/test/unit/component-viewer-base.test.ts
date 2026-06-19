@@ -588,11 +588,11 @@ describe('ComponentViewerBase', () => {
 
         const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
         const lockHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.testClass.lockComponent')?.[1] as
-            | ((context: { componentViewerRowId: string }) => Promise<void> | void)
+            | ((context: { rowId: string }) => Promise<void> | void)
             | undefined;
         expect(lockHandler).toBeDefined();
 
-        await lockHandler?.({ componentViewerRowId: root.getGuiId()! });
+        await lockHandler?.({ rowId: root.getGuiId()! });
         expect((controller as unknown as { _instances: Array<{ lockState: boolean }> })._instances[0].lockState).toBe(true);
         expect(root.isLocked).toBe(true);
     });
@@ -602,18 +602,18 @@ describe('ComponentViewerBase', () => {
 
         const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
         const copyHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.testClass.copy')?.[1] as
-            | ((context: { componentViewerCopyText: string }) => Promise<void> | void)
+            | ((context: { copyText: string }) => Promise<void> | void)
             | undefined;
         const copyRowHandler = registerCommandMock.mock.calls.find(([command]) => command === 'vscode-cmsis-debugger.testClass.copyRow')?.[1] as
-            | ((context: { componentViewerCopyRowText: string }) => Promise<void> | void)
+            | ((context: { copyRowText: string }) => Promise<void> | void)
             | undefined;
         expect(copyHandler).toBeDefined();
         expect(copyRowHandler).toBeDefined();
 
-        await copyHandler?.({ componentViewerCopyText: 'Thread 1' });
+        await copyHandler?.({ copyText: 'Thread 1' });
         expect(vscode.env.clipboard.writeText).toHaveBeenCalledWith('Thread 1');
 
-        await copyRowHandler?.({ componentViewerCopyRowText: 'Thread 1\tRunning' });
+        await copyRowHandler?.({ copyRowText: 'Thread 1\tRunning' });
         expect(vscode.env.clipboard.writeText).toHaveBeenCalledWith('Thread 1\tRunning');
     });
 
