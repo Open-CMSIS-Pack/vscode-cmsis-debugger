@@ -126,6 +126,7 @@ function makeMockWebviewView() {
     };
     const view = {
         webview,
+        viewType: 'cmsis-debugger.componentViewer',
         onDidDispose: jest.fn((fn: () => void) => {
             disposeHandlers.push(fn);
             return { dispose: jest.fn() };

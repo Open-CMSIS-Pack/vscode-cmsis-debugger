@@ -26,7 +26,7 @@ import { perf, parsePerf } from './stats-config';
 import { vscodeViewExists } from '../../vscode-utils';
 import { EXTENSION_NAME, VIEW_PREFIX } from '../../manifest';
 import { ExtendedGDBTargetConfiguration } from '../../debug-configuration/gdbtarget-configuration';
-import { readComponentViewerState, writeComponentViewerState } from '../dynamic-view-states';
+import { clearComponentViewerState, readComponentViewerState, writeComponentViewerState } from '../dynamic-view-states';
 
 export interface ScvdCollector {
     getScvdFilePaths(session: GDBTargetDebugSession): Promise<string[]>;
@@ -39,6 +39,12 @@ export interface ComponentViewerInstancesWrapper {
     lockState: boolean;
     sessionId: string; // ID of the debug session this instance belongs to, used to clear instances when session changes
     dirtyWhileLocked: boolean; // Flag to indicate if an update was attempted while instance was locked, used to trigger an update when instance is unlocked
+}
+
+interface ComponentViewerBaseWebviewContext {
+    rowId?: string;
+    copyText?: string;
+    copyRowText?: string;
 }
 
 export class ComponentViewerBase {
@@ -102,11 +108,17 @@ export class ComponentViewerBase {
 
         const webviewRegistration = vscode.window.registerWebviewViewProvider(fullViewId, webviewProvider);
         componentViewerLogger.debug(`${this._viewName}: Registered ${this._viewName} webview provider with id: ${fullViewId}`);
-        const lockInstanceCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.lockComponent`, async (node) => {
-            this.handleLockInstance(node);
+        const lockInstanceCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.lockComponent`, async (webviewContext) => {
+            this.handleLockInstanceFromWebviewContext(webviewContext);
         });
-        const unlockInstanceCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.unlockComponent`, async (node) => {
-            this.handleLockInstance(node);
+        const unlockInstanceCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.unlockComponent`, async (webviewContext) => {
+            this.handleLockInstanceFromWebviewContext(webviewContext);
+        });
+        const copyCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.copy`, async (webviewContext) => {
+            await this.handleCopyFromWebviewContext(webviewContext);
+        });
+        const copyRowCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.copyRow`, async (webviewContext) => {
+            await this.handleCopyRowFromWebviewContext(webviewContext);
         });
         const enablePeriodicUpdateCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.enablePeriodicUpdate`, async () => {
             this._refreshTimerEnabled = true;
@@ -135,16 +147,22 @@ export class ComponentViewerBase {
         const clearFilterCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.clearFilter`, async () => {
             this.handleClearFilter();
         });
+        const resetViewStateCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.resetViewState`, async () => {
+            await this.resetViewState();
+        });
         this._context.subscriptions.push(
             webviewRegistration,
             lockInstanceCommandDisposable,
             unlockInstanceCommandDisposable,
+            copyCommandDisposable,
+            copyRowCommandDisposable,
             enablePeriodicUpdateCommandDisposable,
             disablePeriodicUpdateCommandDisposable,
             expandAllCommandDisposable,
             collapseAllCommandDisposable,
             filterTreeCommandDisposable,
-            clearFilterCommandDisposable
+            clearFilterCommandDisposable,
+            resetViewStateCommandDisposable
         );
         vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
         vscode.commands.executeCommand('setContext', `${this._viewId}.canAccessWhileRunning`, false);
@@ -155,20 +173,29 @@ export class ComponentViewerBase {
         this._componentViewerTreeDataProvider.expandAllElements();
     }
 
+    protected handleLockInstanceFromWebviewContext(webviewContext?: unknown): void {
+        const contextRowId = typeof webviewContext === 'object' && webviewContext !== null
+            ? (webviewContext as ComponentViewerBaseWebviewContext).rowId
+            : undefined;
+        if (contextRowId !== undefined) {
+            this.handleLockInstanceById(contextRowId);
+        }
+    }
+
     /**
-     * Find a root GUI node by its ID (used by the webview lock callback).
+     * Resolve by stable instance key because periodic updates can rebuild GUI nodes.
      */
     protected handleLockInstanceById(id: string): void {
-        // Walk the current roots to find the matching node.
-        const roots = this._componentViewerTreeDataProvider.getChildren();
-        const node = roots.find(r => r.getGuiId() === id);
-        if (node) {
-            this.handleLockInstance(node);
+        const instance = this._instances.find((inst) => {
+            const instanceKey = inst.componentViewerInstance.getInstanceKey();
+            return instanceKey !== undefined && (id === instanceKey || id.startsWith(`${instanceKey}/`));
+        });
+        if (instance) {
+            this.toggleInstanceLock(instance);
         }
     }
 
     protected handleLockInstance(node: ScvdGuiInterface): void {
-        let shouldTriggerUpdate: boolean = false; // Unlocking a node should trigger an update
         const instance = this._instances.find((inst) => {
             const guiTree = inst.componentViewerInstance.getGuiTree();
             if (!guiTree || guiTree.length === 0) {
@@ -178,9 +205,13 @@ export class ComponentViewerBase {
             // so we can skip checking the whole tree and just check if the node is one of the roots.
             return guiTree[0].getGuiId() === node.getGuiId();
         });
-        if (!instance) {
-            return;
+        if (instance) {
+            this.toggleInstanceLock(instance);
         }
+    }
+
+    private toggleInstanceLock(instance: ComponentViewerInstancesWrapper): void {
+        let shouldTriggerUpdate: boolean = false; // Unlocking a node should trigger an update
         if (instance.lockState === true) {
             shouldTriggerUpdate = true;
         }
@@ -271,6 +302,24 @@ export class ComponentViewerBase {
             this._filterDebounceTimer = undefined;
         }
         this.saveCurrentState();
+    }
+
+    protected async handleCopyFromWebviewContext(webviewContext?: unknown): Promise<void> {
+        const text = typeof webviewContext === 'object' && webviewContext !== null
+            ? (webviewContext as ComponentViewerBaseWebviewContext).copyText
+            : undefined;
+        if (text !== undefined) {
+            await vscode.env.clipboard.writeText(text);
+        }
+    }
+
+    protected async handleCopyRowFromWebviewContext(webviewContext?: unknown): Promise<void> {
+        const text = typeof webviewContext === 'object' && webviewContext !== null
+            ? (webviewContext as ComponentViewerBaseWebviewContext).copyRowText
+            : undefined;
+        if (text !== undefined) {
+            await vscode.env.clipboard.writeText(text);
+        }
     }
 
     protected async readScvdFiles(tracker: GDBTargetDebugTracker, session?: GDBTargetDebugSession): Promise<void> {
@@ -659,11 +708,15 @@ export class ComponentViewerBase {
     }
 
     public async resetViewState(): Promise<void> {
+        await clearComponentViewerState(this._viewId);
+        this.resetRuntimeViewState();
+    }
+
+    public resetRuntimeViewState(): void {
         // Reset in-memory state to defaults.
         this._refreshTimerEnabled = true;
         vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
         this._componentViewerTreeDataProvider.setFilter(undefined);
-        this._componentViewerTreeDataProvider.collapseAllElements();
         vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, false);
         // Unlock all locked instances
         for (const wrapper of this._instances) {

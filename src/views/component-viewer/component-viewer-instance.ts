@@ -90,6 +90,10 @@ export class ComponentViewerInstance {
         return this._guiTree?.children;
     }
 
+    public getInstanceKey(): string | undefined {
+        return this._instanceKey;
+    }
+
     public getStats(text: string): string {
         const mem = process.memoryUsage();
         const memCurrent = Math.round(mem.heapUsed / 1024 / 1024);

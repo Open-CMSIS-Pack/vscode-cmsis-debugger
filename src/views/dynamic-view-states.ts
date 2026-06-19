@@ -32,6 +32,8 @@ interface ComponentViewerState {
 }
 
 /* eslint-disable security/detect-object-injection */
+// User settings are read for completeness, but are not expected in normal use.
+// If User state exists, it acts as a default and Workspace state overrides it.
 function readDynamicViewState<T extends keyof ViewStateEntry>(configStateKey: string, dynamicView: T, mode: 'global' | 'merged' = 'merged'): ViewStateEntry[T] | undefined {
     const inspection = vscode.workspace.getConfiguration().inspect<ViewStateByConfigKey>(SETTINGS_KEY);
     const globalEntry = inspection?.globalValue?.[configStateKey];
@@ -40,13 +42,14 @@ function readDynamicViewState<T extends keyof ViewStateEntry>(configStateKey: st
     const workspaceViewState = workspaceEntry?.[dynamicView] as ViewStateEntry[T] | undefined;
 
     if (mode === 'global') return globalViewState;
-    // 'User' state provides defaults; 'Workspace' state overrides only the properties it defines.
+    // User state provides defaults; Workspace state overrides only the properties it defines.
     if (typeof globalViewState === 'object' && globalViewState !== null && typeof workspaceViewState === 'object' && workspaceViewState !== null) {
         return { ...globalViewState, ...workspaceViewState } as ViewStateEntry[T];
     }
     return workspaceViewState ?? globalViewState;
 }
 
+// Writes view state only to Workspace settings.
 async function writeWorkspaceDynamicViewState<T extends keyof ViewStateEntry>(configStateKey: string, dynamicView: T, state: ViewStateEntry[T] | undefined): Promise<void> {
     const inspection = vscode.workspace.getConfiguration().inspect<ViewStateByConfigKey>(SETTINGS_KEY);
     const entriesToStore: ViewStateByConfigKey = { ...(inspection?.workspaceValue ?? {}) };
@@ -67,8 +70,33 @@ async function writeWorkspaceDynamicViewState<T extends keyof ViewStateEntry>(co
     const valueToStore = Object.keys(entriesToStore).length === 0 ? undefined : entriesToStore;
     await vscode.workspace.getConfiguration().update(SETTINGS_KEY, valueToStore, vscode.ConfigurationTarget.Workspace);
 }
+
+// Clears one view only, leaving the other view states untouched.
+// The state is cleared from either Workspace or User settings.
+async function clearDynamicViewState<T extends keyof ViewStateEntry>(dynamicView: T, target: vscode.ConfigurationTarget): Promise<void> {
+    const inspection = vscode.workspace.getConfiguration().inspect<ViewStateByConfigKey>(SETTINGS_KEY);
+    const storedEntries = target === vscode.ConfigurationTarget.Global
+        ? inspection?.globalValue
+        : inspection?.workspaceValue;
+    const entriesToStore: ViewStateByConfigKey = { ...(storedEntries ?? {}) };
+    for (const configStateKey of Object.keys(entriesToStore)) {
+        const entryToStore: Partial<ViewStateEntry> = { ...(entriesToStore[configStateKey] ?? {}) };
+        // Remove only this dynamic view while preserving other view state for the same debug configuration.
+        delete entryToStore[dynamicView];
+        if (Object.keys(entryToStore).length === 0) {
+            // Drop empty debug configuration entries instead of leaving empty objects in settings.json.
+            delete entriesToStore[configStateKey];
+        } else {
+            entriesToStore[configStateKey] = entryToStore;
+        }
+    }
+    // VS Code removes the entire setting when the updated value is undefined.
+    const valueToStore = Object.keys(entriesToStore).length === 0 ? undefined : entriesToStore;
+    await vscode.workspace.getConfiguration().update(SETTINGS_KEY, valueToStore, target);
+}
 /* eslint-enable security/detect-object-injection */
 
+// Full reset clears both Workspace state and any pre-existing User state for all views.
 export async function clearAllViewState(): Promise<void> {
     await Promise.all([
         vscode.workspace.getConfiguration().update(SETTINGS_KEY, undefined, vscode.ConfigurationTarget.Workspace),
@@ -100,6 +128,16 @@ export async function writeComponentViewerState(viewId: string, configStateKey: 
         ...(filterPattern !== undefined ? { filterPattern } : {}),
     };
     await writeWorkspaceDynamicViewState(configStateKey, viewId, Object.keys(state).length === 0 ? undefined : state);
+}
+
+export async function clearComponentViewerState(viewId: string): Promise<void> {
+    if (viewId !== 'componentViewer' && viewId !== 'corePeripherals') {
+        return;
+    }
+    await Promise.all([
+        clearDynamicViewState(viewId, vscode.ConfigurationTarget.Workspace),
+        clearDynamicViewState(viewId, vscode.ConfigurationTarget.Global),
+    ]);
 }
 
 // -------------------------------------------------------------------------------------------------
