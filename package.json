@@ -63,11 +63,13 @@
         },
         {
           "id": "cmsis-debugger.componentViewer",
+          "type": "webview",
           "name": "Component Viewer",
           "icon": "media/trace-and-live-light.svg"
         },
         {
           "id": "cmsis-debugger.corePeripherals",
+          "type": "webview",
           "name": "Core Peripherals",
           "icon": "media/trace-and-live-light.svg"
         }
@@ -188,13 +190,13 @@
       {
         "command": "vscode-cmsis-debugger.componentViewer.lockComponent",
         "title": "Lock Component",
-        "icon": "$(unlock)",
+        "icon": "$(lock)",
         "category": "Component Viewer"
       },
       {
         "command": "vscode-cmsis-debugger.componentViewer.unlockComponent",
         "title": "Unlock Component",
-        "icon": "$(lock)",
+        "icon": "$(unlock)",
         "category": "Component Viewer"
       },
       {
@@ -216,6 +218,12 @@
         "category": "Component Viewer"
       },
       {
+        "command": "vscode-cmsis-debugger.componentViewer.collapseAll",
+        "title": "Collapse All",
+        "icon": "$(collapse-all)",
+        "category": "Component Viewer"
+      },
+      {
         "command": "vscode-cmsis-debugger.componentViewer.filterTree",
         "title": "Filter Tree",
         "icon": "$(filter)",
@@ -230,13 +238,13 @@
       {
         "command": "vscode-cmsis-debugger.corePeripherals.lockComponent",
         "title": "Lock Component",
-        "icon": "$(unlock)",
+        "icon": "$(lock)",
         "category": "Core Peripherals"
       },
       {
         "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
         "title": "Unlock Component",
-        "icon": "$(lock)",
+        "icon": "$(unlock)",
         "category": "Core Peripherals"
       },
       {
@@ -255,6 +263,12 @@
         "command": "vscode-cmsis-debugger.corePeripherals.expandAll",
         "title": "Expand All",
         "icon": "$(expand-all)",
+        "category": "Core Peripherals"
+      },
+      {
+        "command": "vscode-cmsis-debugger.corePeripherals.collapseAll",
+        "title": "Collapse All",
+        "icon": "$(collapse-all)",
         "category": "Core Peripherals"
       },
       {
@@ -417,6 +431,10 @@
           "when": "false"
         },
         {
+          "command": "vscode-cmsis-debugger.corePeripherals.collapseAll",
+          "when": "false"
+        },
+        {
           "command": "vscode-cmsis-debugger.corePeripherals.filterTree",
           "when": "false"
         },
@@ -466,10 +484,20 @@
         {
           "command": "vscode-cmsis-debugger.componentViewer.expandAll",
           "when": "view == cmsis-debugger.componentViewer",
+          "group": "navigation@3"
+        },
+        {
+          "command": "vscode-cmsis-debugger.componentViewer.collapseAll",
+          "when": "view == cmsis-debugger.componentViewer",
           "group": "navigation@4"
         },
         {
           "command": "vscode-cmsis-debugger.corePeripherals.expandAll",
+          "when": "view == cmsis-debugger.corePeripherals",
+          "group": "navigation@3"
+        },
+        {
+          "command": "vscode-cmsis-debugger.corePeripherals.collapseAll",
           "when": "view == cmsis-debugger.corePeripherals",
           "group": "navigation@4"
         },
@@ -699,9 +727,12 @@
     "baseContentUrl": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/blob/main/README.md"
   },
   "dependencies": {
+    "@vscode/codicons": "^0.0.45",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
     "vscode-uri": "^3.1.0",
-    "yaml": "^2.8.3",
-    "xml2js": "^0.6.2"
+    "xml2js": "^0.6.2",
+    "yaml": "^2.8.3"
   },
   "devDependencies": {
     "@eclipse-cdt-cloud/vscode-peripheral-inspector": "github:eclipse-cdt-cloud/vscode-peripheral-inspector#v1.9.0",
@@ -713,6 +744,8 @@
     "@types/minimist": "^1.2.5",
     "@types/node": "^22.19.15",
     "@types/node-fetch": "^2.6.13",
+    "@types/react": "18.3.23",
+    "@types/react-dom": "18.3.7",
     "@types/vscode": "^1.108.1",
     "@types/xml2js": "^0.4.14",
     "@types/yargs": "^17.0.35",
@@ -720,6 +753,7 @@
     "@typescript-eslint/parser": "8.56.1",
     "@vscode/debugprotocol": "^1.68.0",
     "@vscode/vsce": "^3.7.1",
+    "css-loader": "^7.1.4",
     "eslint": "^10.0.2",
     "eslint-plugin-security": "^4.0.0",
     "extract-zip": "^2.0.1",
@@ -733,6 +767,7 @@
     "lzma-native": "8.0.6",
     "markdown-link-check": "^3.14.2",
     "markdownlint-cli": "^0.48.0",
+    "mini-css-extract-plugin": "^2.10.2",
     "minimist": "^1.2.8",
     "node-fetch": "^3.3.2",
     "octokit": "^5.0.5",

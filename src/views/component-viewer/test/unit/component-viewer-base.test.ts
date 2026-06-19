@@ -108,8 +108,6 @@ const getReadScvdFiles = (controller: TestClass) =>
     (controller as unknown as { readScvdFiles: (t: TrackerCallbacks, s?: Session) => Promise<void> }).readScvdFiles.bind(controller);
 
 // Local test mocks
-type ExpansionEventCallback = (event: vscode.TreeViewExpansionEvent<ScvdGuiInterface>) => void;
-
 const makeMemoryEvent = (): DebugProtocol.MemoryEvent => ({
     event: 'memory',
     type: 'event',
@@ -179,19 +177,15 @@ describe('ComponentViewerBase', () => {
         const activationResult = await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         expect(activationResult).toBe(true);
-        expect(vscode.window.createTreeView).toHaveBeenCalledWith('cmsis-debugger.testClass', {
-            treeDataProvider: expect.any(Object),
-            showCollapseAll: true
-        });
+        expect(vscode.window.registerWebviewViewProvider).toHaveBeenCalledWith('cmsis-debugger.testClass', expect.any(Object));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.lockComponent', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.unlockComponent', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.expandAll', expect.any(Function));
-        // 1 tree view + 2 event listeners + 7 commands + 8 tracker disposables
-        expect(context.subscriptions.length).toBe(18);
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.collapseAll', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.filterTree', expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith('vscode-cmsis-debugger.testClass.clearFilter', expect.any(Function));
-        // 1 tree view + 2 event listeners + 7 commands + 8 tracker disposables
-        expect(context.subscriptions.length).toBe(18);
+        // 1 webview registration + 8 commands + 8 tracker disposables
+        expect(context.subscriptions.length).toBe(17);
     });
 
     it('should fail to activate the test class tree data provider if view is not correctly loaded', async () => {
@@ -960,48 +954,20 @@ describe('ComponentViewerBase', () => {
 
     });
 
-    it('handles onDidExpandElement and onDidCollapseElement correctly', async () => {
-        // Capture callbacks for onDidExpandElement and onDidCollapseElement to invoke them manually in the test
-        let expandCallback: ExpansionEventCallback;
-        let collapseCallback: ExpansionEventCallback;
-        (vscode.window.createTreeView as jest.Mock).mockReturnValueOnce({
-            onDidExpandElement: jest.fn(callback => expandCallback = callback),
-            onDidCollapseElement: jest.fn(callback => collapseCallback = callback),
-        });
-
+    it('handles expand/collapse via toggleById on the tree data provider', async () => {
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
-        // Ensure callbacks are set
-        expect(expandCallback!).toBeDefined();
-        expect(collapseCallback!).toBeDefined();
+        // toggleById is how the webview provider triggers expand/collapse
+        const toggleByIdSpy = jest.spyOn(provider, 'toggleById');
 
-        // Setup spy on expected method calls when elements are expanded/collapsed
-        const setElementExpandedSpy = jest.spyOn(provider, 'setElementExpanded');
+        provider.toggleById('element', true);
+        expect(toggleByIdSpy).toHaveBeenCalledWith('element', true);
 
-        // Simulate expanding an element
-        const element = makeGuiNode('element');
-        expandCallback!({ element });
-        expect(setElementExpandedSpy).toHaveBeenCalledWith(element, true);
-
-        // Simulate collapsing the same element
-        collapseCallback!({ element });
-        expect(setElementExpandedSpy).toHaveBeenCalledWith(element, false);
+        provider.toggleById('element', false);
+        expect(toggleByIdSpy).toHaveBeenCalledWith('element', false);
     });
 
-    it('expandAll command force-expands all elements and scrolls to root when nothing is selected', async () => {
-        const childA = makeGuiNode('childA');
-        const rootA = makeGuiNode('rootA', [childA]);
-        const revealMock = jest.fn().mockResolvedValue(undefined);
-
-        (vscode.window.createTreeView as jest.Mock).mockReturnValueOnce({
-            onDidExpandElement: jest.fn(),
-            onDidCollapseElement: jest.fn(),
-            reveal: revealMock,
-            selection: [],
-        });
-
-        (provider.getChildren as jest.Mock).mockReturnValue([rootA]);
-
+    it('expandAll command force-expands all elements', async () => {
         await controller.activate(tracker as unknown as GDBTargetDebugTracker);
 
         const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
@@ -1013,99 +979,100 @@ describe('ComponentViewerBase', () => {
         await expandAllHandler?.();
 
         expect(provider.expandAllElements).toHaveBeenCalled();
-        // Single reveal to scroll to root (no per-node expansion reveals)
-        expect(revealMock).toHaveBeenCalledTimes(1);
-        expect(revealMock).toHaveBeenCalledWith(rootA, { select: false, focus: false, expand: false });
     });
 
-    it('expandAll command reveals the selected element to keep it in focus', async () => {
-        const childA = makeGuiNode('childA');
-        const rootA = makeGuiNode('rootA', [childA]);
-        const revealMock = jest.fn().mockResolvedValue(undefined);
-
-        (vscode.window.createTreeView as jest.Mock).mockReturnValueOnce({
-            onDidExpandElement: jest.fn(),
-            onDidCollapseElement: jest.fn(),
-            reveal: revealMock,
-            selection: [childA],
-        });
-
-        (provider.getChildren as jest.Mock).mockReturnValue([rootA]);
-
-        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
-
-        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
-        const expandAllHandler = registerCommandMock.mock.calls.find(
-            ([command]) => command === 'vscode-cmsis-debugger.testClass.expandAll'
-        )?.[1] as (() => Promise<void>) | undefined;
-
-        await expandAllHandler?.();
-
-        expect(provider.expandAllElements).toHaveBeenCalled();
-        // Single reveal to scroll to selected element
-        expect(revealMock).toHaveBeenCalledTimes(1);
-        expect(revealMock).toHaveBeenCalledWith(childA, { select: true, focus: false, expand: false });
-    });
-
-    it('expandAll command does not reveal when tree is empty', async () => {
-        const revealMock = jest.fn().mockResolvedValue(undefined);
-
-        (vscode.window.createTreeView as jest.Mock).mockReturnValueOnce({
-            onDidExpandElement: jest.fn(),
-            onDidCollapseElement: jest.fn(),
-            reveal: revealMock,
-            selection: [],
-        });
-
-        (provider.getChildren as jest.Mock).mockReturnValue([]);
-
-        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
-
-        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
-        const expandAllHandler = registerCommandMock.mock.calls.find(
-            ([command]) => command === 'vscode-cmsis-debugger.testClass.expandAll'
-        )?.[1] as (() => Promise<void>) | undefined;
-
-        await expandAllHandler?.();
-
-        expect(provider.expandAllElements).toHaveBeenCalled();
-        expect(revealMock).not.toHaveBeenCalled();
-    });
-
-    it('expandAll command gracefully handles reveal errors', async () => {
-        const rootA = makeGuiNode('rootA', [makeGuiNode('childA1')]);
-        const revealMock = jest.fn()
-            .mockRejectedValueOnce(new Error('element not visible'));
-
-        (vscode.window.createTreeView as jest.Mock).mockReturnValueOnce({
-            onDidExpandElement: jest.fn(),
-            onDidCollapseElement: jest.fn(),
-            reveal: revealMock,
-            selection: [],
-        });
-
-        (provider.getChildren as jest.Mock).mockReturnValue([rootA]);
-
-        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
-
-        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
-        const expandAllHandler = registerCommandMock.mock.calls.find(
-            ([command]) => command === 'vscode-cmsis-debugger.testClass.expandAll'
-        )?.[1] as (() => Promise<void>) | undefined;
-
-        // Should not throw despite reveal failing
-        await expect(expandAllHandler?.()).resolves.toBeUndefined();
-        expect(provider.expandAllElements).toHaveBeenCalled();
-        expect(revealMock).toHaveBeenCalledTimes(1);
-        expect(revealMock).toHaveBeenCalledWith(rootA, { select: false, focus: false, expand: false });
-    });
-
-    it('handleExpandAll returns early when treeView is not set', async () => {
-        // Do not activate (so _treeView is undefined)
+    it('handleExpandAll delegates to expandAllElements on the tree data provider', async () => {
         const handleExpandAll = (controller as unknown as { handleExpandAll: () => Promise<void> }).handleExpandAll.bind(controller);
 
         await expect(handleExpandAll()).resolves.toBeUndefined();
-        expect(provider.expandAllElements).not.toHaveBeenCalled();
+        expect(provider.expandAllElements).toHaveBeenCalled();
+    });
+
+    it('collapseAll command collapses all tree elements', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        const registerCommandMock = asMockedFunction(vscode.commands.registerCommand);
+        const collapseHandler = registerCommandMock.mock.calls.find(
+            ([command]) => command === 'vscode-cmsis-debugger.testClass.collapseAll'
+        )?.[1] as (() => void) | undefined;
+        expect(collapseHandler).toBeDefined();
+        collapseHandler?.();
+        expect(provider.collapseAllElements).toHaveBeenCalled();
+    });
+
+    it('webviewProvider onToggle callback calls toggleById on the tree data provider', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        const webviewProvider = (controller as unknown as { _webviewProvider: { onToggle: ((id: string, expanded: boolean) => void) | undefined } })._webviewProvider;
+        expect(webviewProvider).toBeDefined();
+        const toggleSpy = jest.spyOn(provider, 'toggleById');
+        webviewProvider!.onToggle?.('node-1', true);
+        expect(toggleSpy).toHaveBeenCalledWith('node-1', true);
+    });
+
+    it('webviewProvider onLock callback delegates to handleLockInstanceById', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        const webviewProvider = (controller as unknown as { _webviewProvider: { onLock: ((id: string) => void) | undefined } })._webviewProvider;
+        expect(webviewProvider).toBeDefined();
+        const root = makeGuiNode('my-node');
+        asMockedFunction(provider.getChildren as () => ScvdGuiInterface[]).mockReturnValue([root]);
+        const lockSpy = jest.spyOn(controller as unknown as { handleLockInstance: (node: ScvdGuiInterface) => void }, 'handleLockInstance');
+        webviewProvider!.onLock?.('my-node');
+        expect(lockSpy).toHaveBeenCalledWith(root);
+    });
+
+    it('handleOnWillStartSession registers a refresh callback on the session timer', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        const session = debugSessionFactory('s1', []);
+        await tracker.callbacks.willStart?.(session);
+        expect(session.refreshTimer.onRefresh).toHaveBeenCalled();
+    });
+
+    it('setSvdPath is called on instance when svdPath is provided', async () => {
+        const session = debugSessionFactory('s1', ['a.scvd'], 'stopped');
+        // Set definitionPath on the debug session configuration
+        (session.session as unknown as { configuration: { definitionPath: string } }).configuration = { definitionPath: '/path/to/device.svd' };
+        (controller as unknown as { _activeSession?: typeof session })._activeSession = session;
+
+        const setSvdPathSpy = jest.fn();
+        instanceFactory.mockImplementationOnce(() => ({
+            readModel: jest.fn().mockResolvedValue(undefined),
+            update: jest.fn().mockResolvedValue(undefined),
+            getGuiTree: jest.fn<ScvdGuiInterface[] | undefined, []>(() => []),
+            updateActiveSession: jest.fn(),
+            cancelExecution: jest.fn(),
+            setSvdPath: setSvdPathSpy,
+        }));
+
+        const readScvdFiles = getReadScvdFiles(controller);
+        await readScvdFiles(tracker, session);
+
+        expect(setSvdPathSpy).toHaveBeenCalledWith('/path/to/device.svd');
+    });
+
+    it('handleOnStackTrace throws when session id does not match active session', async () => {
+        const sessionA = debugSessionFactory('s1', [], 'stopped');
+        const sessionB = debugSessionFactory('s2', [], 'stopped');
+        (controller as unknown as { _activeSession?: typeof sessionA })._activeSession = sessionA;
+        const handleOnStackTrace = (controller as unknown as { handleOnStackTrace: (s: typeof sessionA) => Promise<void> }).handleOnStackTrace.bind(controller);
+        await expect(handleOnStackTrace(sessionB)).rejects.toThrow('Received stack trace event');
+    });
+
+    it('handleOnStackItemChanged throws when session id does not match active session', async () => {
+        const sessionA = debugSessionFactory('s1', [], 'stopped');
+        const sessionB = debugSessionFactory('s2', [], 'stopped');
+        (controller as unknown as { _activeSession?: typeof sessionA })._activeSession = sessionA;
+        const handleOnStackItemChanged = (controller as unknown as { handleOnStackItemChanged: (s: typeof sessionA) => Promise<void> }).handleOnStackItemChanged.bind(controller);
+        await expect(handleOnStackItemChanged(sessionB)).rejects.toThrow('Received stack item changed event');
+    });
+
+    it('onDidChangeActiveStackItem tracker callback delegates to handleOnStackItemChanged', async () => {
+        await controller.activate(tracker as unknown as GDBTargetDebugTracker);
+        const sessionA = debugSessionFactory('s1', [], 'stopped');
+        (controller as unknown as { _activeSession?: typeof sessionA })._activeSession = sessionA;
+        const scheduleSpy = jest
+            .spyOn(controller as unknown as { schedulePendingUpdate: (reason: UpdateReason) => void }, 'schedulePendingUpdate')
+            .mockImplementation(() => undefined);
+        await tracker.callbacks.activeStackItem?.({ session: sessionA });
+        expect(scheduleSpy).toHaveBeenCalledWith('stackItemChanged');
     });
 
     describe('view state save and restore', () => {
@@ -1128,7 +1095,7 @@ describe('ComponentViewerBase', () => {
 
             expect((controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled).toBe(true);
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.periodicUpdateEnabled', true);
-            expect(provider.setFilter).toHaveBeenCalledWith(undefined);
+            expect(provider.setFilter).toHaveBeenCalledWith(undefined, false);
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', false);
         });
 
@@ -1168,6 +1135,7 @@ describe('ComponentViewerBase', () => {
             expect((controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled).toBe(true);
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.periodicUpdateEnabled', true);
             expect(provider.setFilter).toHaveBeenCalledWith(undefined);
+            expect(provider.collapseAllElements).toHaveBeenCalled();
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', false);
         });
 
@@ -1199,6 +1167,60 @@ describe('ComponentViewerBase', () => {
             await (controller as unknown as { saveCurrentState: () => Promise<void> }).saveCurrentState();
 
             expect(writeComponentViewerState).toHaveBeenCalledWith('testClass', 'My-Target::Debug', false, 'word');
+        });
+    });
+
+    describe('emptyMessageForActiveSession', () => {
+        const getEmptyMessage = (c: TestClass) =>
+            (c as unknown as { emptyMessageForActiveSession: () => string }).emptyMessageForActiveSession.bind(c);
+        const setActiveSession = (c: TestClass, s: Session) =>
+            ((c as unknown as { _activeSession?: Session })._activeSession = s);
+        const setInstances = (c: TestClass, instances: ComponentViewerInstancesWrapper[]) =>
+            ((c as unknown as { _instances: ComponentViewerInstancesWrapper[] })._instances = instances);
+        const setRefreshTimerEnabled = (c: TestClass, enabled: boolean) =>
+            ((c as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled = enabled);
+        const instanceForSession = (sessionId: string) =>
+            ({ sessionId } as unknown as ComponentViewerInstancesWrapper);
+        const sessionWithAccess = (id: string, targetState: Session['targetState'], canAccess: boolean): Session => {
+            const session = debugSessionFactory(id, [], targetState);
+            (session as unknown as { canAccessWhileRunning: boolean }).canAccessWhileRunning = canAccess;
+            return session;
+        };
+
+        it('returns empty string when there is no active session', () => {
+            expect(getEmptyMessage(controller)()).toBe('');
+        });
+
+        it('returns empty string while target state is unknown (keeps spinner during startup)', () => {
+            setActiveSession(controller, debugSessionFactory('s1', [], 'unknown'));
+            setInstances(controller, [instanceForSession('s1')]);
+            expect(getEmptyMessage(controller)()).toBe('');
+        });
+
+        it('returns no-data text when the active session has no loaded instances', () => {
+            setActiveSession(controller, debugSessionFactory('s1', [], 'stopped'));
+            setInstances(controller, []);
+            expect(getEmptyMessage(controller)()).toBe('No component data available');
+        });
+
+        it('prompts to pause when running and the auxiliary GDB is not off', () => {
+            setActiveSession(controller, sessionWithAccess('s1', 'running', false));
+            setInstances(controller, [instanceForSession('s1')]);
+            expect(getEmptyMessage(controller)()).toBe('Target is running...\nPause target to load data');
+        });
+
+        it('prompts to pause or enable periodic update when running with periodic update off', () => {
+            setActiveSession(controller, sessionWithAccess('s1', 'running', true));
+            setInstances(controller, [instanceForSession('s1')]);
+            setRefreshTimerEnabled(controller, false);
+            expect(getEmptyMessage(controller)()).toBe('Target is running...\nPause target or enable Periodic Update to load data');
+        });
+
+        it('returns empty string when running, accessible, and periodic update is on', () => {
+            setActiveSession(controller, sessionWithAccess('s1', 'running', true));
+            setInstances(controller, [instanceForSession('s1')]);
+            setRefreshTimerEnabled(controller, true);
+            expect(getEmptyMessage(controller)()).toBe('');
         });
     });
 });
