@@ -280,7 +280,7 @@ The **Trace and Live View**
 (available from the VS Code Activity Bar) currently contains the [**LIVE WATCH**](#live-watch), the
 [**COMPONENT VIEWER**](#component-viewer), and the [**CORE PERIPHERALS**](#core-peripherals) views.
 
-The CMSIS Debugger stores dynamic view state per debug configuration in the `vscode-cmsis-debugger.viewState` VS Code workspace setting. The stored state includes view-specific configurations, e.g. the last filter text and periodic update options for the [**COMPONENT VIEWER**](#component-viewer), and the enabled/disabled state of the [CPU Time](#cpu-time) display.
+The CMSIS Debugger stores dynamic view state per debug configuration in the `vscode-cmsis-debugger.viewState` VS Code workspace setting. The stored state includes view-specific configurations, e.g. the last filter text and periodic update options for the [**COMPONENT VIEWER**](#component-viewer), and the `enabled`/`disabled` state of the [CPU Time](#cpu-time) display.
 
 When you start the same debug configuration again, its previous state is restored automatically. To clear the stored state, run the **CMSIS Debugger: Reset All Dynamic View States** command from the Command Palette.
 
