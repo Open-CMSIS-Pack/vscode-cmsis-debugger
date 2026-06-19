@@ -20,6 +20,7 @@
  *
  * The canonical definitions live in `src/webviews/tree-table/src/types.ts`.
  */
+// generated with AI
 export type {
     FlatRow,
     TreeTableFeatures,

@@ -13,10 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { FlatRow, HostToWebviewMessage, TooltipContent, WebviewToHostMessage } from './types';
-import { TreeRow } from './TreeRow';
+import { TreeRow } from './tree-row';
 
 export interface VsCodeApi {
     postMessage(msg: WebviewToHostMessage): void;
