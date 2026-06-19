@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
 /**
  * Re-export the shared tree-table protocol types so that extension-host code
@@ -20,7 +21,7 @@
  *
  * The canonical definitions live in `src/webviews/tree-table/src/types.ts`.
  */
-// generated with AI
+
 export type {
     FlatRow,
     TreeTableFeatures,
