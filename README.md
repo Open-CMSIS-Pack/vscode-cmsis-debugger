@@ -256,7 +256,7 @@ To add a logpoint, right-click in the editor left margin and select Add Logpoint
 Just like regular breakpoints, logpoints can be enabled or disabled and can also be controlled by a condition
 and/or hit count.
 
-### [CPU Time](#cpu-time)
+### CPU Time
 
 Most Arm Cortex-M processors (except Cortex-M0/M0+/M23) include a `DWT->CYCCNT` register that counts CPU states. In combination with the CMSIS variable [`SystemCoreClock`](https://arm-software.github.io/CMSIS_6/latest/Core/group__system__init__gr.html) the CMSIS Debugger calculates execution time and displays it along with the selected processor core in the CPU Time Status bar.  A click on the CPU Time Status bar opens the related [VS Code command palette](https://code.visualstudio.com/docs/getstarted/userinterface#_command-palette).
 
@@ -280,9 +280,10 @@ The **Trace and Live View**
 (available from the VS Code Activity Bar) currently contains the [**LIVE WATCH**](#live-watch), the
 [**COMPONENT VIEWER**](#component-viewer), and the [**CORE PERIPHERALS**](#core-peripherals) views.
 
-The CMSIS Debugger stores dynamic view state per debug configuration in the `vscode-cmsis-debugger.viewState` VS Code setting. Stored state includes filter text and periodic update options for supported views, and the enabled/disabled state of [CPU Time](#cpu-time).
+The CMSIS Debugger stores dynamic view state per debug configuration in the `vscode-cmsis-debugger.viewState` VS Code workspace setting. The stored state includes view-specific configurations, e.g. the last filter text and periodic update options for the [**COMPONENT VIEWER**](#component-viewer), and the enabled/disabled state of the [CPU Time](#cpu-time) display.
 
-When you start the same debug configuration again, the stored state is restored automatically. To clear the stored state, run the **CMSIS Debugger: Reset All Dynamic View States** command from the Command Palette.
+
+When you start the same debug configuration again, its previous state is restored automatically. To clear the stored state, run the **CMSIS Debugger: Reset All Dynamic View States** command from the Command Palette.
 
 #### LIVE WATCH
 
