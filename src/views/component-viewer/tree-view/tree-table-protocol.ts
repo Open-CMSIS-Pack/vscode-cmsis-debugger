@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,30 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
-import type { Config } from 'jest';
+/**
+ * Re-export the shared tree-table protocol types so that extension-host code
+ * can import them with a short project-local path.
+ *
+ * The canonical definitions live in `src/webviews/tree-table/src/types.ts`.
+ */
 
-const config: Config = {  
-  testEnvironment: "node",
-  preset: "ts-jest",
-  transform: {
-    "^.+\\.tsx?$": [
-      "ts-jest", {
-      }
-    ],
-  },
-  setupFiles: ["<rootDir>/jest.setup.ts"],
-  clearMocks: true,
-  collectCoverage: true,
-  collectCoverageFrom: [
-    "src/**/*.{ts,tsx}",
-    "!**/*.d.ts",
-    "!**/*.factories.{ts,tsx}",
-    "!**/__test__/**/*",
-    "!src/webviews/**/*"
-  ],
-  coverageDirectory: "./coverage",
-  coverageReporters: ["lcov", "text"],
-};
-
-export default config;
+export type {
+    FlatRow,
+    TreeTableFeatures,
+    TreeTableUpdateMessage,
+    HostToWebviewMessage,
+    ToggleMessage,
+    LockMessage,
+    ReadyMessage,
+    WebviewToHostMessage,
+} from '../../../webviews/tree-table/src/types';

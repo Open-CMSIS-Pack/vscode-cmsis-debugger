@@ -31,6 +31,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
     private _idGeneration: number = 0;
     private _savedExpandedIds: Set<string> | undefined;
     private _collapsedDuringFilter = new Set<string>();
+    private _filterAutoExpandSuppressed = false;
 
     constructor () {
     }
@@ -44,16 +45,17 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
      * whose name or value contains the pattern (case-insensitive) are shown.
      * Pass undefined or empty string to clear the filter.
      */
-    public setFilter(pattern: string | undefined): void {
+    public setFilter(pattern: string | undefined, restoreExpandedState = true): void {
         this._filterPattern = pattern || undefined;
         this._collapsedDuringFilter.clear();
+        this._filterAutoExpandSuppressed = false;
         if (pattern === undefined || pattern === '') {
             this._filterTokens = undefined;
             // Restore pre-filter expanded state
-            if (this._savedExpandedIds !== undefined) {
+            if (restoreExpandedState && this._savedExpandedIds !== undefined) {
                 this._expandedIds = this._savedExpandedIds;
-                this._savedExpandedIds = undefined;
             }
+            this._savedExpandedIds = undefined;
             // Bump generation so VS Code sees new IDs and respects the
             // restored collapsibleState instead of its cached filter state.
             this._idGeneration++;
@@ -74,6 +76,10 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
 
     public get isFilterActive(): boolean {
         return this._filterTokens !== undefined;
+    }
+
+    public get hasRoots(): boolean {
+        return this._roots.length > 0;
     }
 
     /**
@@ -152,6 +158,41 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         }
     }
 
+    /**
+     * Check whether a given element is currently in the "expanded" set.
+     * Used by the webview renderer to decide whether to recurse into children.
+     */
+    public isExpanded(element: ScvdGuiInterface): boolean {
+        const elementId = element.getGuiId();
+        if (elementId === undefined) {
+            return false;
+        }
+        return this.isFilterAutoExpanded(element) || this._expandedIds.has(elementId);
+    }
+
+    /**
+     * Toggle a node's expanded state by its GUI ID and fire a change event.
+     * Used by the webview provider when the user clicks expand/collapse.
+     */
+    public toggleById(id: string, expanded: boolean): void {
+        if (this._filterTokens && !expanded) {
+            this._collapsedDuringFilter.add(id);
+        }
+        if (expanded) {
+            this._expandedIds.add(id);
+        } else {
+            this._expandedIds.delete(id);
+        }
+        this.refresh();
+    }
+
+    private isFilterAutoExpanded(element: ScvdGuiInterface): boolean {
+        return this._filterTokens !== undefined
+            && !this._filterAutoExpandSuppressed
+            && this.hasMatchingDescendant(element)
+            && !this.isManuallyExpandedZone(element);
+    }
+
     public getTreeItem(element: ScvdGuiInterface): vscode.TreeItem {
         const perfStartTime = perf?.startUi() ?? 0;
         const treeItemLabel = element.getGuiName() ?? 'UNKNOWN';
@@ -163,10 +204,7 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
             // descendants so the user can see the path to the matches.
             // Skip auto-expansion for nodes the user has manually collapsed
             // and for their descendants (the whole subtree is now unfiltered).
-            const isFilterAutoExpanded = this._filterTokens
-                && this.hasMatchingDescendant(element)
-                && !this.isManuallyExpandedZone(element);
-            const isExpanded = isFilterAutoExpanded
+            const isExpanded = this.isFilterAutoExpanded(element)
                 || (guiId !== undefined && this._expandedIds.has(guiId));
             treeItem.collapsibleState = isExpanded
                 ? vscode.TreeItemCollapsibleState.Expanded
@@ -182,9 +220,6 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
         let intermediateContextValue = '';
         if (element.isRootInstance) {
             intermediateContextValue = 'parentInstance';
-            if (element.isLocked) {
-                treeItem.iconPath = new vscode.ThemeIcon('lock');
-            }
         }
 
         treeItem.contextValue = element.isLocked ? `locked.${intermediateContextValue}` : intermediateContextValue;
@@ -272,9 +307,21 @@ export class ComponentViewerTreeDataProvider implements vscode.TreeDataProvider<
      * {@link refresh} so the tree re-renders once instead of per-node.
      */
     public expandAllElements(): void {
+        this._filterAutoExpandSuppressed = false;
+        this._collapsedDuringFilter.clear();
         this.markAllExpanded();
         // Increment generation so tree item IDs change, forcing VS Code to
         // treat nodes as new and respect our Expanded collapsibleState.
+        this._idGeneration++;
+        this.refresh();
+    }
+
+    public collapseAllElements(): void {
+        this._expandedIds.clear();
+        if (this._filterTokens) {
+            this._filterAutoExpandSuppressed = true;
+            this._collapsedDuringFilter.clear();
+        }
         this._idGeneration++;
         this.refresh();
     }
