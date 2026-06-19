@@ -189,13 +189,13 @@
       },
       {
         "command": "vscode-cmsis-debugger.componentViewer.lockComponent",
-        "title": "Exclude from Updates",
+        "title": "Lock Component Display",
         "icon": "$(lock)",
         "category": "Component Viewer"
       },
       {
         "command": "vscode-cmsis-debugger.componentViewer.unlockComponent",
-        "title": "Include in Updates",
+        "title": "Unlock Component Display",
         "icon": "$(unlock)",
         "category": "Component Viewer"
       },
@@ -252,13 +252,13 @@
       },
       {
         "command": "vscode-cmsis-debugger.corePeripherals.lockComponent",
-        "title": "Exclude from Updates",
+        "title": "Lock Peripheral Display",
         "icon": "$(lock)",
         "category": "Core Peripherals"
       },
       {
         "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
-        "title": "Include in Updates",
+        "title": "Unlock Peripheral Display",
         "icon": "$(unlock)",
         "category": "Core Peripherals"
       },

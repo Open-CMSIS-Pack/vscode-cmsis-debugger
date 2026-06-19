@@ -1228,7 +1228,7 @@ describe('ComponentViewerBase', () => {
             expect((controller as unknown as { _refreshTimerEnabled: boolean })._refreshTimerEnabled).toBe(true);
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.periodicUpdateEnabled', true);
             expect(provider.setFilter).toHaveBeenCalledWith(undefined);
-            expect(provider.collapseAllElements).toHaveBeenCalled();
+            expect(provider.collapseAllElements).not.toHaveBeenCalled();
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('setContext', 'testClass.filterActive', false);
         });
 

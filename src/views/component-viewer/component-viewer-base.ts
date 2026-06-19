@@ -717,7 +717,6 @@ export class ComponentViewerBase {
         this._refreshTimerEnabled = true;
         vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
         this._componentViewerTreeDataProvider.setFilter(undefined);
-        this._componentViewerTreeDataProvider.collapseAllElements();
         vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, false);
         // Unlock all locked instances
         for (const wrapper of this._instances) {

@@ -177,12 +177,13 @@ export class ComponentViewerWebviewProvider implements vscode.WebviewViewProvide
             ? 'No matching filter results'
             : this._emptyMessage;
 
+        const noun = this._view.viewType.endsWith('componentViewer') ? 'Component' : 'Peripheral';
         const message: HostToWebviewMessage = {
             type: 'update', rows, loading: this._loading,
             features: {
                 lockable: true,
-                lockTooltip: 'Exclude from Updates',
-                unlockTooltip: 'Include in Updates',
+                lockTooltip: `Lock ${noun} Display`,
+                unlockTooltip: `Unlock ${noun} Display`,
             },
             emptyMessage,
             resetViewState: this._pendingViewStateReset,
