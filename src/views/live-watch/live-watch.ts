@@ -53,6 +53,9 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
     private _context: vscode.ExtensionContext;
     private _activeSession: GDBTargetDebugSession | undefined;
     private readonly sessionLiveWatchStates = new Map<string, SessionLiveWatchState>();
+    private _pendingRefresh: boolean = false;
+    private _pendingUpdateTimer: NodeJS.Timeout | undefined;
+    private _updateInProgress: boolean = false;
 
     constructor(private readonly context: vscode.ExtensionContext) {
         this.roots = this.context.workspaceState.get<LiveWatchNode[]>(this.STORAGE_KEY) ?? [];
@@ -113,17 +116,17 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         // Using this event because this is when the threadId is available for evaluations
         const onStackItem = tracker.onDidChangeActiveStackItem(async (item) => {
             if ((item.item as vscode.DebugStackFrame).frameId !== undefined) {
-                await this.refresh();
+                this.schedulePendingRefresh();
             }
         });
-        const onStackTrace = tracker.onStackTrace(async () => await this.refresh());
+        const onStackTrace = tracker.onStackTrace(async () => this.schedulePendingRefresh());
         // Clearing active session on closing the session
         const onWillStopSession = tracker.onWillStopSession(async (session) => {
             this.sessionLiveWatchStates.delete(session.session.id);
             if (this.activeSession?.session.id && this.activeSession?.session.id === session.session.id) {
                 this._activeSession = undefined;
             }
-            await this.refresh();
+            this.schedulePendingRefresh();
             await this.save();
         });
         const onMemory = tracker.onMemory(async (event) => {
@@ -169,7 +172,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         }
         const enabled = state?.periodicUpdateEnabled ?? true;
         void vscode.commands.executeCommand('setContext', 'liveWatch.periodicUpdateEnabled', enabled);
-        await this.refresh();
+        this.schedulePendingRefresh();
     }
 
     private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
@@ -180,7 +183,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         session.refreshTimer.onRefresh(async (refreshSession) => {
             const state = this.sessionLiveWatchStates.get(refreshSession.session.id);
             if (this._activeSession?.session.id === refreshSession.session.id && state?.periodicUpdateEnabled) {
-                await this.refresh();
+                this.schedulePendingRefresh();
             }
         });
     }
@@ -190,7 +193,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         if (this._activeSession?.session.id !== gdbTargetSession.session.id) {
             return;
         }
-        await this.refresh();
+        this.schedulePendingRefresh();
     }
     private async handleOnContinued(session: GDBTargetDebugSession): Promise<void> {
         if (this._activeSession?.session.id != session.session.id) {
@@ -211,7 +214,32 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         if (this._activeSession?.session.id !== gdbTargetSession.session.id) {
             return;
         }
-        await this.refresh();
+        this.schedulePendingRefresh();
+    }
+
+    private schedulePendingRefresh() {
+        this._pendingRefresh = true;
+        if (this._pendingUpdateTimer) {
+            clearTimeout(this._pendingUpdateTimer);
+        }
+        this._pendingUpdateTimer = setTimeout(async () => {
+            if (this._pendingRefresh) {
+                await this.runPendingRefresh();
+                this._pendingRefresh = false;
+            }
+        }, 50);
+    }
+
+    private async runPendingRefresh() {
+        if (this._updateInProgress) {
+            return;
+        }
+        this._updateInProgress = true;
+        while(this._pendingRefresh) {
+            this._pendingRefresh = false;
+            await this.refresh();
+        }
+        this._updateInProgress = false;
     }
 
     private async addVSCodeCommands(): Promise<boolean> {
