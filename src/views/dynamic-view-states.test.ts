@@ -18,6 +18,7 @@ import * as vscode from 'vscode';
 import {
     clearAllViewState,
     clearComponentViewerState,
+    clearLiveWatchState,
     readComponentViewerState,
     readCpuStates,
     readLiveWatchState,
@@ -407,6 +408,61 @@ describe('dynamic-view-states', () => {
                 'vscode-cmsis-debugger.viewState',
                 undefined,
                 vscode.ConfigurationTarget.Workspace
+            );
+        });
+
+        it('clears only Live Watch state and preserves other view state', async () => {
+            const otherConfigKey = 'Other-Target::Debug';
+            const updateMock = mockGetConfiguration(
+                {
+                    [CONFIG_KEY]: {
+                        componentViewer: {
+                            filterPattern: 'global-filter',
+                        },
+                        liveWatchPeriodicUpdateEnabled: false,
+                    },
+                    [otherConfigKey]: {
+                        liveWatchPeriodicUpdateEnabled: false,
+                    },
+                },
+                {
+                    [CONFIG_KEY]: {
+                        corePeripherals: {
+                            periodicUpdateEnabled: false,
+                        },
+                        liveWatchPeriodicUpdateEnabled: false,
+                    },
+                    [otherConfigKey]: {
+                        cpuStatesEnabled: true,
+                    },
+                }
+            );
+            await clearLiveWatchState();
+
+            expect(updateMock).toHaveBeenCalledWith(
+                'vscode-cmsis-debugger.viewState',
+                {
+                    [CONFIG_KEY]: {
+                        corePeripherals: {
+                            periodicUpdateEnabled: false,
+                        },
+                    },
+                    [otherConfigKey]: {
+                        cpuStatesEnabled: true,
+                    },
+                },
+                vscode.ConfigurationTarget.Workspace
+            );
+            expect(updateMock).toHaveBeenCalledWith(
+                'vscode-cmsis-debugger.viewState',
+                {
+                    [CONFIG_KEY]: {
+                        componentViewer: {
+                            filterPattern: 'global-filter',
+                        },
+                    },
+                },
+                vscode.ConfigurationTarget.Global
             );
         });
     });
