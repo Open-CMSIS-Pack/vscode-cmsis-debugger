@@ -417,6 +417,107 @@ describe('LiveWatchTreeDataProvider', () => {
         });
     });
 
+    describe('schedulePendingRefresh', () => {
+        beforeEach(() => {
+            jest.useFakeTimers();
+        });
+
+        afterEach(() => {
+            jest.useRealTimers();
+        });
+
+        it('sets _pendingRefresh to true', () => {
+            (liveWatchTreeDataProvider as any).schedulePendingRefresh();
+            expect((liveWatchTreeDataProvider as any)._pendingRefresh).toBe(true);
+        });
+
+        it('calls runPendingRefresh after 50ms debounce', async () => {
+            const runPendingRefreshSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'runPendingRefresh').mockResolvedValue(undefined);
+            (liveWatchTreeDataProvider as any).schedulePendingRefresh();
+            expect(runPendingRefreshSpy).not.toHaveBeenCalled();
+            jest.advanceTimersByTime(50);
+            await Promise.resolve();
+            expect(runPendingRefreshSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('debounces multiple rapid calls, running only once', async () => {
+            const runPendingRefreshSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'runPendingRefresh').mockResolvedValue(undefined);
+            (liveWatchTreeDataProvider as any).schedulePendingRefresh();
+            (liveWatchTreeDataProvider as any).schedulePendingRefresh();
+            (liveWatchTreeDataProvider as any).schedulePendingRefresh();
+            jest.advanceTimersByTime(50);
+            await Promise.resolve();
+            expect(runPendingRefreshSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('clears the existing timer before scheduling a new one', () => {
+            const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+            (liveWatchTreeDataProvider as any)._pendingUpdateTimer = setTimeout(() => { /* placeholder */ }, 100);
+            (liveWatchTreeDataProvider as any).schedulePendingRefresh();
+            expect(clearTimeoutSpy).toHaveBeenCalled();
+        });
+
+        it('does not call runPendingRefresh before 50ms have elapsed', async () => {
+            const runPendingRefreshSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'runPendingRefresh').mockResolvedValue(undefined);
+            (liveWatchTreeDataProvider as any).schedulePendingRefresh();
+            jest.advanceTimersByTime(49);
+            await Promise.resolve();
+            expect(runPendingRefreshSpy).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('runPendingRefresh', () => {
+        it('does nothing if _updateInProgress is true', async () => {
+            const refreshSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'refresh').mockResolvedValue(undefined);
+            (liveWatchTreeDataProvider as any)._updateInProgress = true;
+            (liveWatchTreeDataProvider as any)._pendingRefresh = true;
+            await (liveWatchTreeDataProvider as any).runPendingRefresh();
+            expect(refreshSpy).not.toHaveBeenCalled();
+            // _updateInProgress remains true since we returned early without modifying it
+            expect((liveWatchTreeDataProvider as any)._updateInProgress).toBe(true);
+        });
+
+        it('calls refresh once when there is a single pending refresh', async () => {
+            const refreshSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'refresh').mockResolvedValue(undefined);
+            (liveWatchTreeDataProvider as any)._pendingRefresh = true;
+            await (liveWatchTreeDataProvider as any).runPendingRefresh();
+            expect(refreshSpy).toHaveBeenCalledTimes(1);
+            expect((liveWatchTreeDataProvider as any)._pendingRefresh).toBe(false);
+            expect((liveWatchTreeDataProvider as any)._updateInProgress).toBe(false);
+        });
+
+        it('loops to handle a pending refresh set again during refresh execution', async () => {
+            let callCount = 0;
+            jest.spyOn(liveWatchTreeDataProvider as any, 'refresh').mockImplementation(async () => {
+                callCount++;
+                if (callCount === 1) {
+                    // Simulate another refresh being scheduled while one is in progress
+                    (liveWatchTreeDataProvider as any)._pendingRefresh = true;
+                }
+            });
+            (liveWatchTreeDataProvider as any)._pendingRefresh = true;
+            await (liveWatchTreeDataProvider as any).runPendingRefresh();
+            expect(callCount).toBe(2);
+            expect((liveWatchTreeDataProvider as any)._pendingRefresh).toBe(false);
+            expect((liveWatchTreeDataProvider as any)._updateInProgress).toBe(false);
+        });
+
+        it('resets _updateInProgress to false after completion', async () => {
+            jest.spyOn(liveWatchTreeDataProvider as any, 'refresh').mockResolvedValue(undefined);
+            (liveWatchTreeDataProvider as any)._pendingRefresh = true;
+            await (liveWatchTreeDataProvider as any).runPendingRefresh();
+            expect((liveWatchTreeDataProvider as any)._updateInProgress).toBe(false);
+        });
+
+        it('does not call refresh when _pendingRefresh is false', async () => {
+            const refreshSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'refresh').mockResolvedValue(undefined);
+            (liveWatchTreeDataProvider as any)._pendingRefresh = false;
+            await (liveWatchTreeDataProvider as any).runPendingRefresh();
+            expect(refreshSpy).not.toHaveBeenCalled();
+            expect((liveWatchTreeDataProvider as any)._updateInProgress).toBe(false);
+        });
+    });
+
     describe('command registration', () => {
         beforeEach(() => {
             (vscode.commands as any).registerCommand?.mockClear?.();

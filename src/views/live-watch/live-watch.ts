@@ -174,7 +174,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const enabled = state?.periodicUpdateEnabled ?? true;
         vscode.commands.executeCommand('setContext', 'liveWatch.canAccessWhileRunning', session?.canAccessWhileRunning === true);
         vscode.commands.executeCommand('setContext', 'liveWatch.periodicUpdateEnabled', enabled);
-        await this.refresh();
+        this.schedulePendingRefresh();
     }
 
     private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
