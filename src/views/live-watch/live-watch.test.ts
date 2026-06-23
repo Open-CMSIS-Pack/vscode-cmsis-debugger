@@ -97,27 +97,24 @@ describe('LiveWatchTreeDataProvider', () => {
             expect((liveWatchTreeDataProvider as any).activeSession).toBeUndefined();
         });
 
-        it('refreshes on stopped event and on onDidChangeActiveStackItem and onMemory event', async () => {
-            const refreshSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'refresh').mockResolvedValue('');
+        it('schedules a refresh on onDidChangeActiveStackItem, onMemory, and onInvalidated events', async () => {
+            const scheduleSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'schedulePendingRefresh');
             await liveWatchTreeDataProvider.activate(tracker);
             // Activate session
             (tracker as any)._onDidChangeActiveDebugSession.fire(gdbtargetDebugSession);
             expect((liveWatchTreeDataProvider as any).activeSession?.session.id).toEqual(gdbtargetDebugSession.session.id);
-            // Fire stopped event
-            (tracker as any)._onStopped.fire({ session: gdbtargetDebugSession });
-            expect(refreshSpy).toHaveBeenCalled();
-            refreshSpy.mockClear();
+            scheduleSpy.mockClear();
             // Fire onDidChangeActiveStackItem event
             (tracker as any)._onDidChangeActiveStackItem.fire({ item: { frameId: 1 } });
-            expect(refreshSpy).toHaveBeenCalled();
-            refreshSpy.mockClear();
+            expect(scheduleSpy).toHaveBeenCalled();
+            scheduleSpy.mockClear();
             // Fire onMemory event
             (tracker as any)._onMemory.fire({ session: gdbtargetDebugSession, event: { memoryReference: '0x1234', offset: 0, count: 4 } });
-            expect(refreshSpy).toHaveBeenCalled();
-            refreshSpy.mockClear();
+            expect(scheduleSpy).toHaveBeenCalled();
+            scheduleSpy.mockClear();
             // Fire onInvalidated event
             (tracker as any)._onInvalidated.fire({ session: gdbtargetDebugSession, event: { memoryReference: '0x1234', offset: 0, count: 4 } });
-            expect(refreshSpy).toHaveBeenCalled();
+            expect(scheduleSpy).toHaveBeenCalled();
         });
 
         it('calls save function when extension is deactivating', async () => {
@@ -431,23 +428,25 @@ describe('LiveWatchTreeDataProvider', () => {
             expect((liveWatchTreeDataProvider as any)._pendingRefresh).toBe(true);
         });
 
-        it('calls runPendingRefresh after 50ms debounce', async () => {
-            const runPendingRefreshSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'runPendingRefresh').mockResolvedValue(undefined);
+        it('triggers a refresh after the 50ms debounce', async () => {
+            const refreshSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'refresh').mockResolvedValue(undefined);
             (liveWatchTreeDataProvider as any).schedulePendingRefresh();
-            expect(runPendingRefreshSpy).not.toHaveBeenCalled();
+            expect(refreshSpy).not.toHaveBeenCalled();
             jest.advanceTimersByTime(50);
-            await Promise.resolve();
-            expect(runPendingRefreshSpy).toHaveBeenCalledTimes(1);
+            await Promise.resolve(); // flush setTimeout callback
+            await Promise.resolve(); // flush runPendingRefresh internals
+            expect(refreshSpy).toHaveBeenCalledTimes(1);
         });
 
-        it('debounces multiple rapid calls, running only once', async () => {
-            const runPendingRefreshSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'runPendingRefresh').mockResolvedValue(undefined);
+        it('debounces multiple rapid calls, triggering only one refresh', async () => {
+            const refreshSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'refresh').mockResolvedValue(undefined);
             (liveWatchTreeDataProvider as any).schedulePendingRefresh();
             (liveWatchTreeDataProvider as any).schedulePendingRefresh();
             (liveWatchTreeDataProvider as any).schedulePendingRefresh();
             jest.advanceTimersByTime(50);
             await Promise.resolve();
-            expect(runPendingRefreshSpy).toHaveBeenCalledTimes(1);
+            await Promise.resolve();
+            expect(refreshSpy).toHaveBeenCalledTimes(1);
         });
 
         it('clears the existing timer before scheduling a new one', () => {
@@ -457,12 +456,12 @@ describe('LiveWatchTreeDataProvider', () => {
             expect(clearTimeoutSpy).toHaveBeenCalled();
         });
 
-        it('does not call runPendingRefresh before 50ms have elapsed', async () => {
-            const runPendingRefreshSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'runPendingRefresh').mockResolvedValue(undefined);
+        it('does not trigger a refresh before 50ms have elapsed', async () => {
+            const refreshSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'refresh').mockResolvedValue(undefined);
             (liveWatchTreeDataProvider as any).schedulePendingRefresh();
             jest.advanceTimersByTime(49);
             await Promise.resolve();
-            expect(runPendingRefreshSpy).not.toHaveBeenCalled();
+            expect(refreshSpy).not.toHaveBeenCalled();
         });
     });
 
@@ -765,6 +764,7 @@ describe('LiveWatchTreeDataProvider', () => {
         });
 
         it('periodic refresh only refreshes when enabled for the active session', async () => {
+            jest.useFakeTimers();
             const refreshSpy = jest.spyOn(liveWatchTreeDataProvider as any, 'refresh').mockResolvedValue(undefined);
             await liveWatchTreeDataProvider.activate(tracker);
             (tracker as any)._onWillStartSession.fire(gdbtargetDebugSession);
@@ -773,13 +773,18 @@ describe('LiveWatchTreeDataProvider', () => {
 
             state.periodicUpdateEnabled = false;
             (gdbtargetDebugSession.refreshTimer as any)._onRefresh.fire(gdbtargetDebugSession);
+            jest.advanceTimersByTime(50);
+            await Promise.resolve();
             await Promise.resolve();
             expect(refreshSpy).not.toHaveBeenCalled();
 
             state.periodicUpdateEnabled = true;
             (gdbtargetDebugSession.refreshTimer as any)._onRefresh.fire(gdbtargetDebugSession);
+            jest.advanceTimersByTime(50);
+            await Promise.resolve();
             await Promise.resolve();
             expect(refreshSpy).toHaveBeenCalled();
+            jest.useRealTimers();
         });
     });
 
