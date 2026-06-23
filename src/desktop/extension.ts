@@ -94,7 +94,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
                 cpuStates.resetViewState(),
                 componentViewer.resetRuntimeViewState(),
                 corePeripherals.resetRuntimeViewState(),
-                liveWatchTreeDataProvider.resetViewState(),
+                liveWatchTreeDataProvider.resetRuntimeViewState(),
             ]);
         })
     );
