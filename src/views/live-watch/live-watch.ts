@@ -125,6 +125,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             this.sessionLiveWatchStates.delete(session.session.id);
             if (this.activeSession?.session.id && this.activeSession?.session.id === session.session.id) {
                 this._activeSession = undefined;
+                vscode.commands.executeCommand('setContext', 'liveWatch.canAccessWhileRunning', false);
             }
             this.schedulePendingRefresh();
             await this.save();
@@ -171,8 +172,9 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             }
         }
         const enabled = state?.periodicUpdateEnabled ?? true;
-        void vscode.commands.executeCommand('setContext', 'liveWatch.periodicUpdateEnabled', enabled);
-        this.schedulePendingRefresh();
+        vscode.commands.executeCommand('setContext', 'liveWatch.canAccessWhileRunning', session?.canAccessWhileRunning === true);
+        vscode.commands.executeCommand('setContext', 'liveWatch.periodicUpdateEnabled', enabled);
+        await this.refresh();
     }
 
     private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
@@ -274,7 +276,8 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             async () => await this.handleEnablePeriodicUpdate());
         const disablePeriodicUpdateCommand = vscode.commands.registerCommand('vscode-cmsis-debugger.liveWatch.disablePeriodicUpdate',
             async () => await this.handleDisablePeriodicUpdate());
-        void vscode.commands.executeCommand('setContext', 'liveWatch.periodicUpdateEnabled', true);
+        vscode.commands.executeCommand('setContext', 'liveWatch.periodicUpdateEnabled', true);
+        vscode.commands.executeCommand('setContext', 'liveWatch.canAccessWhileRunning', false);
         this._context.subscriptions.push(
             registerLiveWatchView,
             addCommand,
@@ -530,7 +533,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         for (const state of this.sessionLiveWatchStates.values()) {
             state.periodicUpdateEnabled = true;
         }
-        void vscode.commands.executeCommand('setContext', 'liveWatch.periodicUpdateEnabled', true);
+        vscode.commands.executeCommand('setContext', 'liveWatch.periodicUpdateEnabled', true);
         logger.info('Live Watch: View state reset');
     }
 }

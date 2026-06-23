@@ -19,13 +19,14 @@ import { GDBTargetDebugTracker, GDBTargetDebugSession } from '../../debug-sessio
 import { ComponentViewerInstance } from './component-viewer-instance';
 import { URI } from 'vscode-uri';
 import { ComponentViewerTreeDataProvider } from './component-viewer-tree-view';
+import { ComponentViewerWebviewProvider } from './component-viewer-webview-provider';
 import { componentViewerLogger, logger } from '../../logger';
 import type { ScvdGuiInterface } from './model/scvd-gui-interface';
 import { perf, parsePerf } from './stats-config';
 import { vscodeViewExists } from '../../vscode-utils';
 import { EXTENSION_NAME, VIEW_PREFIX } from '../../manifest';
 import { ExtendedGDBTargetConfiguration } from '../../debug-configuration/gdbtarget-configuration';
-import { readComponentViewerState, writeComponentViewerState } from '../dynamic-view-states';
+import { clearComponentViewerState, readComponentViewerState, writeComponentViewerState } from '../dynamic-view-states';
 
 export interface ScvdCollector {
     getScvdFilePaths(session: GDBTargetDebugSession): Promise<string[]>;
@@ -40,11 +41,17 @@ export interface ComponentViewerInstancesWrapper {
     dirtyWhileLocked: boolean; // Flag to indicate if an update was attempted while instance was locked, used to trigger an update when instance is unlocked
 }
 
+interface ComponentViewerBaseWebviewContext {
+    rowId?: string;
+    copyText?: string;
+    copyRowText?: string;
+}
+
 export class ComponentViewerBase {
     private _activeSession: GDBTargetDebugSession | undefined;
     private _instances: ComponentViewerInstancesWrapper[] = [];
     private _componentViewerTreeDataProvider: ComponentViewerTreeDataProvider;
-    private _treeView: vscode.TreeView<ScvdGuiInterface> | undefined;
+    private _webviewProvider: ComponentViewerWebviewProvider | undefined;
     private _context: vscode.ExtensionContext;
     private _instanceUpdateCounter: number = 0;
     private _loadingCounter: number = 0;
@@ -54,6 +61,7 @@ export class ComponentViewerBase {
     private _refreshTimerEnabled: boolean = true;
     private _activeInputBox: vscode.InputBox | undefined;
     private _filterDebounceTimer: NodeJS.Timeout | undefined;
+    private readonly _loadingScvdSessionIds = new Set<string>();
     private static readonly filterDebounceMs = 1000;
     private static readonly pendingUpdateDelayMs = 150;
 
@@ -87,22 +95,34 @@ export class ComponentViewerBase {
         }
         const fullViewId = `${VIEW_PREFIX}.${this._viewId}`;
         const commandPrefix = `${EXTENSION_NAME}.${this._viewId}`;
-        const treeView = vscode.window.createTreeView(fullViewId, {
-            treeDataProvider: this._componentViewerTreeDataProvider,
-            showCollapseAll: true
+
+        // Register the webview-based view that renders a two-column table.
+        const webviewProvider = new ComponentViewerWebviewProvider(this._componentViewerTreeDataProvider, this._context.extensionUri);
+        this._webviewProvider = webviewProvider;
+        webviewProvider.onToggle = (id, expanded) => {
+            this._componentViewerTreeDataProvider.toggleById(id, expanded);
+        };
+        webviewProvider.onLock = (id) => {
+            this.handleLockInstanceById(id);
+        };
+
+        const webviewRegistration = vscode.window.registerWebviewViewProvider(fullViewId, webviewProvider);
+        componentViewerLogger.debug(`${this._viewName}: Registered ${this._viewName} webview provider with id: ${fullViewId}`);
+        const lockInstanceCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.lockComponent`, async (webviewContext) => {
+            this.handleLockInstanceFromWebviewContext(webviewContext);
         });
-        this._treeView = treeView;
-        componentViewerLogger.debug(`${this._viewName}: Created ${this._viewName} tree view with id: ${fullViewId}`);
-        const onDidExpandElementDisposable = treeView.onDidExpandElement(event => this.handleOnDidToggleExpand(event, true));
-        const onDidCollapseElementDisposable = treeView.onDidCollapseElement(event => this.handleOnDidToggleExpand(event, false));
-        const lockInstanceCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.lockComponent`, async (node) => {
-            this.handleLockInstance(node);
+        const unlockInstanceCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.unlockComponent`, async (webviewContext) => {
+            this.handleLockInstanceFromWebviewContext(webviewContext);
         });
-        const unlockInstanceCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.unlockComponent`, async (node) => {
-            this.handleLockInstance(node);
+        const copyCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.copy`, async (webviewContext) => {
+            await this.handleCopyFromWebviewContext(webviewContext);
+        });
+        const copyRowCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.copyRow`, async (webviewContext) => {
+            await this.handleCopyRowFromWebviewContext(webviewContext);
         });
         const enablePeriodicUpdateCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.enablePeriodicUpdate`, async () => {
             this._refreshTimerEnabled = true;
+            this.schedulePendingUpdate('refreshTimer');
             await this.saveCurrentState();
             await vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
             componentViewerLogger.info(`${this._viewName}: Auto refresh enabled`);
@@ -117,73 +137,65 @@ export class ComponentViewerBase {
             componentViewerLogger.debug(`${this._viewName}: Expand all tree items`);
             await this.handleExpandAll();
         });
+        const collapseAllCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.collapseAll`, () => {
+            componentViewerLogger.debug(`${this._viewName}: Collapse all tree items`);
+            this._componentViewerTreeDataProvider.collapseAllElements();
+        });
         const filterTreeCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.filterTree`, () => {
             this.handleFilterTree();
         });
         const clearFilterCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.clearFilter`, async () => {
             this.handleClearFilter();
         });
+        const resetViewStateCommandDisposable = vscode.commands.registerCommand(`${commandPrefix}.resetViewState`, async () => {
+            await this.resetViewState();
+        });
         this._context.subscriptions.push(
-            treeView,
-            onDidExpandElementDisposable,
-            onDidCollapseElementDisposable,
+            webviewRegistration,
             lockInstanceCommandDisposable,
             unlockInstanceCommandDisposable,
+            copyCommandDisposable,
+            copyRowCommandDisposable,
             enablePeriodicUpdateCommandDisposable,
             disablePeriodicUpdateCommandDisposable,
             expandAllCommandDisposable,
+            collapseAllCommandDisposable,
             filterTreeCommandDisposable,
-            clearFilterCommandDisposable
+            clearFilterCommandDisposable,
+            resetViewStateCommandDisposable
         );
         vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
+        vscode.commands.executeCommand('setContext', `${this._viewId}.canAccessWhileRunning`, false);
         return true;
     }
 
     protected async handleExpandAll(): Promise<void> {
-        if (!this._treeView) {
-            return;
-        }
-
-        const fullViewId = `${VIEW_PREFIX}.${this._viewId}`;
-        await vscode.window.withProgress(
-            { location: { viewId: fullViewId } },
-            () => this.expandAllNodes()
-        );
-    }
-
-    private async expandAllNodes(): Promise<void> {
-        if (!this._treeView) {
-            return;
-        }
-
-        // Remember the current selection so we can keep it in view
-        const selectedElement = this._treeView.selection[0];
-
-        // Mark all elements as expanded and refresh the tree in one go.
         this._componentViewerTreeDataProvider.expandAllElements();
+    }
 
-        // Reveal the previously selected element to keep it in focus,
-        // or scroll back to the root when nothing was selected.
-        const roots = this._componentViewerTreeDataProvider.getChildren();
-        const revealTarget = selectedElement ?? roots[0];
-        if (revealTarget) {
-            try {
-                await this._treeView.reveal(revealTarget, { select: !!selectedElement, focus: false, expand: false });
-            } catch {
-                // Element may not be accessible in the tree view
-            }
+    protected handleLockInstanceFromWebviewContext(webviewContext?: unknown): void {
+        const contextRowId = typeof webviewContext === 'object' && webviewContext !== null
+            ? (webviewContext as ComponentViewerBaseWebviewContext).rowId
+            : undefined;
+        if (contextRowId !== undefined) {
+            this.handleLockInstanceById(contextRowId);
         }
     }
 
-    protected handleOnDidToggleExpand(expansionEvent: vscode.TreeViewExpansionEvent<ScvdGuiInterface>, expand: boolean): void {
-        const expandStateString = expand ? 'expanded' : 'collapsed';
-        const elementName = expansionEvent.element.getGuiName() ?? 'unknown';
-        componentViewerLogger.debug(`${this._viewName}: Tree item ${expandStateString} - ${elementName}`);
-        this._componentViewerTreeDataProvider.setElementExpanded(expansionEvent.element, expand);
+    /**
+     * Resolve by stable instance key because periodic updates can rebuild GUI nodes.
+     */
+    protected handleLockInstanceById(id: string): void {
+        const instance = this._instances.find((inst) => {
+            const instanceKey = inst.componentViewerInstance.getInstanceKey();
+            return instanceKey !== undefined && (id === instanceKey || id.startsWith(`${instanceKey}/`));
+        });
+        if (instance) {
+            this.toggleInstanceLock(instance);
+        }
     }
 
     protected handleLockInstance(node: ScvdGuiInterface): void {
-        let shouldTriggerUpdate: boolean = false; // Unlocking a node should trigger an update
         const instance = this._instances.find((inst) => {
             const guiTree = inst.componentViewerInstance.getGuiTree();
             if (!guiTree || guiTree.length === 0) {
@@ -193,9 +205,13 @@ export class ComponentViewerBase {
             // so we can skip checking the whole tree and just check if the node is one of the roots.
             return guiTree[0].getGuiId() === node.getGuiId();
         });
-        if (!instance) {
-            return;
+        if (instance) {
+            this.toggleInstanceLock(instance);
         }
+    }
+
+    private toggleInstanceLock(instance: ComponentViewerInstancesWrapper): void {
+        let shouldTriggerUpdate: boolean = false; // Unlocking a node should trigger an update
         if (instance.lockState === true) {
             shouldTriggerUpdate = true;
         }
@@ -217,19 +233,22 @@ export class ComponentViewerBase {
 
     protected handleFilterTree(): void {
         const inputBox = vscode.window.createInputBox();
+        const originalFilter = this._componentViewerTreeDataProvider.filterPattern;
+        let accepted = false;
         inputBox.placeholder = 'Type a text pattern to filter nodes...';
         inputBox.prompt = `Filter ${this._viewName} tree`;
-        inputBox.value = this._componentViewerTreeDataProvider.filterPattern ?? '';
+        inputBox.value = originalFilter ?? '';
         inputBox.ignoreFocusOut = false;
         this._activeInputBox = inputBox;
 
         const applyFilter = (value: string): void => {
             if (value === '') {
-                this.handleClearFilter();
+                this._componentViewerTreeDataProvider.setFilter(undefined);
+                vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, false);
             } else {
                 componentViewerLogger.info(`${this._viewName}: Filter set to '${value}'`);
                 this._componentViewerTreeDataProvider.setFilter(value);
-                void vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, true);
+                vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, true);
             }
             // Reset the timer so the view state is saved only after the user stops typing for filterDebounceMs.
             if (this._filterDebounceTimer) {
@@ -237,24 +256,30 @@ export class ComponentViewerBase {
             }
             this._filterDebounceTimer = setTimeout(() => {
                 this._filterDebounceTimer = undefined;
-                void this.saveCurrentState();
+                this.saveCurrentState();
             }, ComponentViewerBase.filterDebounceMs);
         };
 
         inputBox.onDidChangeValue(value => {
-            if (value.length === 0) {
-                this.handleClearFilter();
-            } else {
-                applyFilter(value);
-            }
+            applyFilter(value);
         });
 
         inputBox.onDidAccept(() => {
+            accepted = true;
             applyFilter(inputBox.value);
             inputBox.hide();
         });
 
         inputBox.onDidHide(() => {
+            if (!accepted && this._activeInputBox === inputBox) {
+                if (this._filterDebounceTimer) {
+                    clearTimeout(this._filterDebounceTimer);
+                    this._filterDebounceTimer = undefined;
+                }
+                this._componentViewerTreeDataProvider.setFilter(originalFilter);
+                vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, originalFilter !== undefined);
+                this.saveCurrentState();
+            }
             this._activeInputBox = undefined;
             inputBox.dispose();
         });
@@ -265,16 +290,36 @@ export class ComponentViewerBase {
     protected handleClearFilter(): void {
         componentViewerLogger.info(`${this._viewName}: Filter cleared`);
         this._componentViewerTreeDataProvider.setFilter(undefined);
-        void vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, false);
+        vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, false);
         if (this._activeInputBox) {
-            this._activeInputBox.hide();
+            const activeInputBox = this._activeInputBox;
+            this._activeInputBox = undefined;
+            activeInputBox.hide();
         }
         // Cancel any pending debounced save and persist the cleared state immediately.
         if (this._filterDebounceTimer) {
             clearTimeout(this._filterDebounceTimer);
             this._filterDebounceTimer = undefined;
         }
-        void this.saveCurrentState();
+        this.saveCurrentState();
+    }
+
+    protected async handleCopyFromWebviewContext(webviewContext?: unknown): Promise<void> {
+        const text = typeof webviewContext === 'object' && webviewContext !== null
+            ? (webviewContext as ComponentViewerBaseWebviewContext).copyText
+            : undefined;
+        if (text !== undefined) {
+            await vscode.env.clipboard.writeText(text);
+        }
+    }
+
+    protected async handleCopyRowFromWebviewContext(webviewContext?: unknown): Promise<void> {
+        const text = typeof webviewContext === 'object' && webviewContext !== null
+            ? (webviewContext as ComponentViewerBaseWebviewContext).copyRowText
+            : undefined;
+        if (text !== undefined) {
+            await vscode.env.clipboard.writeText(text);
+        }
     }
 
     protected async readScvdFiles(tracker: GDBTargetDebugTracker, session?: GDBTargetDebugSession): Promise<void> {
@@ -295,7 +340,7 @@ export class ComponentViewerBase {
             const instance = new ComponentViewerInstance();
             if (this._activeSession !== undefined) {
                 try {
-                    await instance.readModel(URI.file(scvdFilePath), this._activeSession, tracker);
+                    await instance.readModel(URI.file(scvdFilePath), session, tracker);
                 } catch (error) {
                     componentViewerLogger.error(`${this._viewName}: Failed to read SCVD file at ${scvdFilePath} - ${(error as Error).message}`);
                     // Show error message in a pop up to the user, but continue loading other instances if there are multiple SCVD files
@@ -416,6 +461,9 @@ export class ComponentViewerBase {
         // Clear active session if it is the one being stopped
         if (this._activeSession?.session.id === session.session.id) {
             this._activeSession = undefined;
+            vscode.commands.executeCommand('setContext', `${this._viewId}.canAccessWhileRunning`, false);
+            this._webviewProvider?.setEmptyMessage('');
+            this._webviewProvider?.setLoading(false);
         }
         // Clear instances belonging to the stopped session and update tree view
         this._instances = this._instances.filter((instance) => {
@@ -438,8 +486,22 @@ export class ComponentViewerBase {
             // Update debug session during launch connection but not during attach
             this._activeSession = session;
         }
-        // Load SCVD files from cbuild-run
-        await this.loadScvdFiles(session, tracker);
+
+        if (this._activeSession.session.id === session.session.id) {
+            this._webviewProvider?.setLoading(true);
+            await this.restorePeriodicUpdateAndFilter(session);
+        }
+        // Load SCVD files from cbuild-run:
+        // Track SCVD discovery so an early active-session update does not
+        // briefly show "No component data available" before loading finishes.
+        this._loadingScvdSessionIds.add(session.session.id);
+        try {
+            await this.loadScvdFiles(session, tracker);
+        } finally {
+            this._loadingScvdSessionIds.delete(session.session.id);
+        }
+        // updateInstances completes the loading lifecycle (spinner + empty message).
+        this.schedulePendingUpdate('sessionChanged');
     }
 
     private async handleRefreshTimerEvent(session: GDBTargetDebugSession): Promise<void> {
@@ -456,8 +518,14 @@ export class ComponentViewerBase {
     private async handleOnDidChangeActiveDebugSession(session: GDBTargetDebugSession | undefined): Promise<void> {
         // Update debug session
         this._activeSession = session;
+        vscode.commands.executeCommand('setContext', `${this._viewId}.canAccessWhileRunning`, session?.canAccessWhileRunning === true);
         if (session) {
+            this._webviewProvider?.setLoading(true);
             await this.restorePeriodicUpdateAndFilter(session);
+            // Render whatever we already have cached for this session.
+            this.renderCachedRoots(session.session.id);
+            // updateInstances completes the loading lifecycle (clears the spinner).
+            this.schedulePendingUpdate('sessionChanged');
         }
     }
 
@@ -468,7 +536,7 @@ export class ComponentViewerBase {
         }
         this._pendingUpdateTimer = setTimeout(() => {
             this._pendingUpdateTimer = undefined;
-            void this.runUpdate(updateReason);
+            this.runUpdate(updateReason);
         }, ComponentViewerBase.pendingUpdateDelayMs);
     }
 
@@ -489,15 +557,14 @@ export class ComponentViewerBase {
     }
 
     private shouldUpdateInstances(session: GDBTargetDebugSession): boolean {
-        this._instanceUpdateCounter = 0;
-        if (this._instances.length === 0) {
+        if (!this._instances.some(i => i.sessionId === session.session.id)) {
             return false;
         }
         if (session.targetState === 'unknown') {
             return false;
         }
         if (session.targetState === 'running') {
-            if (this._refreshTimerEnabled === false ) {
+            if (this._refreshTimerEnabled === false) {
                 return false;
             }
             if (session.canAccessWhileRunning === false) {
@@ -517,6 +584,12 @@ export class ComponentViewerBase {
 
         if (!this.shouldUpdateInstances(this._activeSession)) {
             componentViewerLogger.debug(`${this._viewName}: Skipping update due to '${updateReason}' - conditions not met`);
+            const emptyMessage = this.emptyMessageForActiveSession();
+            this._webviewProvider?.setEmptyMessage(emptyMessage);
+            // An empty message means a transient startup state. Keep the spinner until a definitive state arrives.
+            if (emptyMessage !== '') {
+                this._webviewProvider?.setLoading(false);
+            }
             return;
         }
 
@@ -525,10 +598,8 @@ export class ComponentViewerBase {
         const activeSessionID = this._activeSession.session.id;
         const roots: ScvdGuiInterface[] = [];
         for (const instance of this._instances) {
-            // Check if instance belongs to the active session, if not skip it and clear its data from the tree view.
-            // However, lockedState should be maintained.
+            // Skip instances that don't belong to the active session.
             if (instance.sessionId !== activeSessionID) {
-                instance.componentViewerInstance.getGuiTree()?.forEach(root => root.clear());
                 continue;
             }
             this._instanceUpdateCounter++;
@@ -541,7 +612,7 @@ export class ComponentViewerBase {
                 instance.dirtyWhileLocked = true;
             }
             const guiTree = instance.componentViewerInstance.getGuiTree();
-            if (guiTree) {
+            if (guiTree && guiTree.length > 0) {
                 roots.push(...guiTree);
                 // If instance is locked, set isLocked flag to true for root nodes
                 roots[roots.length - 1].isLocked = !!instance.lockState;
@@ -549,6 +620,58 @@ export class ComponentViewerBase {
             }
         }
         perf?.logSummaries();
+        // The active session may have changed while awaiting slow GDB reads above.
+        // Case: switching to a new session right before an update from the previous session completes.
+        if (this._activeSession?.session.id !== activeSessionID) {
+            return;
+        }
+        this._webviewProvider?.setEmptyMessage('');
+        this._componentViewerTreeDataProvider.setRoots(roots);
+        this._webviewProvider?.setLoading(false);
+    }
+
+    private emptyMessageForActiveSession(): string {
+        const session = this._activeSession;
+        if (!session) {
+            return '';
+        }
+        if (session.targetState === 'unknown') {
+            // Session just connected; target state not known yet.
+            // Case: very beginning while "attaching" first session.
+            return '';
+        }
+        if (this._loadingScvdSessionIds.has(session.session.id)) {
+            // SCVD discovery is still in progress; keep the loading indicator.
+            // Case: too fast switching to a new attached session before loading SCVD completes.
+            return '';
+        }
+        if (!this._instances.some(i => i.sessionId === session.session.id)) {
+            return 'No component data available';
+        }
+        if (session.targetState === 'running') {
+            if (session.canAccessWhileRunning === false) {
+                return 'Target is running...\nPause target to load data';
+            }
+            if (this._refreshTimerEnabled === false) {
+                return 'Target is running...\nPause target or enable Periodic Update to load data';
+            }
+        }
+        return '';
+    }
+
+    private renderCachedRoots(sessionId: string): void {
+        const roots: ScvdGuiInterface[] = [];
+        for (const instance of this._instances) {
+            if (instance.sessionId !== sessionId) {
+                continue;
+            }
+            const guiTree = instance.componentViewerInstance.getGuiTree();
+            if (guiTree && guiTree.length > 0) {
+                roots.push(...guiTree);
+                roots[roots.length - 1].isLocked = !!instance.lockState;
+                roots[roots.length - 1].isRootInstance = true;
+            }
+        }
         this._componentViewerTreeDataProvider.setRoots(roots);
     }
 
@@ -565,7 +688,7 @@ export class ComponentViewerBase {
         // Always reset to defaults before applying saved state to prevent state leaking while switching sessions
         this._refreshTimerEnabled = true;
         vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
-        this._componentViewerTreeDataProvider.setFilter(undefined);
+        this._componentViewerTreeDataProvider.setFilter(undefined, false);
         vscode.commands.executeCommand('setContext', `${this._viewId}.filterActive`, false);
 
         const state = readComponentViewerState(this._viewId, await session.getConfigStateKey());
@@ -585,6 +708,11 @@ export class ComponentViewerBase {
     }
 
     public async resetViewState(): Promise<void> {
+        await clearComponentViewerState(this._viewId);
+        this.resetRuntimeViewState();
+    }
+
+    public resetRuntimeViewState(): void {
         // Reset in-memory state to defaults.
         this._refreshTimerEnabled = true;
         vscode.commands.executeCommand('setContext', `${this._viewId}.periodicUpdateEnabled`, true);
@@ -599,6 +727,9 @@ export class ComponentViewerBase {
                 rootNode.isLocked = false;
             }
         }
+        // Reset webview state (e.g. scroll and column positions)
+        this._webviewProvider?.resetViewState();
+
         this.schedulePendingUpdate('sessionChanged');
         componentViewerLogger.info(`${this._viewName}: View state reset`);
     }
