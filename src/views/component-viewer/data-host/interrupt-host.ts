@@ -16,7 +16,7 @@
 
 import * as vscode from 'vscode';
 import { componentViewerLogger } from '../../../logger';
-import {
+import type {
     IPeripheralInspectorAPI,
     InterruptTable,
     InterruptEntry
