@@ -20,7 +20,7 @@ import {
     IPeripheralInspectorAPI,
     InterruptTable,
     InterruptEntry
-} from '@eclipse-cdt-cloud/vscode-peripheral-inspector/api';
+} from '@eclipse-cdt-cloud/vscode-peripheral-inspector';
 
 const PERIPHERAL_INSPECTOR_EXTENSION_ID = 'eclipse-cdt.peripheral-inspector';
 

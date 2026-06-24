@@ -20,7 +20,7 @@
 
 import * as vscode from 'vscode';
 import { InterruptHost } from '../../../data-host/interrupt-host';
-import type { IPeripheralInspectorAPI, InterruptTable } from '@eclipse-cdt-cloud/vscode-peripheral-inspector/api';
+import type { IPeripheralInspectorAPI, InterruptTable } from '@eclipse-cdt-cloud/vscode-peripheral-inspector';
 
 jest.mock('../../../../../logger', () => ({
     logger: {
