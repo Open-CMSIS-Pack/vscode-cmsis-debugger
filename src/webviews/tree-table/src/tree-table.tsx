@@ -140,6 +140,10 @@ export function TreeTable({ vscodeApi }: TreeTableProps): React.ReactElement {
     // Listen for messages from the extension host
     useEffect(() => {
         function handleMessage(event: MessageEvent<HostToWebviewMessage>) {
+            if (event.origin !== window.location.origin) {
+                return;
+            }
+
             const msg = event.data;
             if (msg.type === 'update') {
                 setRows(msg.rows);
