@@ -374,7 +374,7 @@ describe('LiveWatchTreeDataProvider', () => {
             const nodeB = makeNode('node-B', { result: 'value-B', variablesReference: 0 }, 2);
             (liveWatchTreeDataProvider as any).roots = [nodeA, nodeB];
             const evalMock = jest.spyOn(liveWatchTreeDataProvider as any, 'evaluateNodeExpression')
-                .mockImplementation(async (expression: string) => ({ result: expression + '-updated', variablesReference: 0 }));
+                .mockImplementation(async (...args: unknown[]) => ({ result: String(args[0]) + '-updated', variablesReference: 0 }));
             const fireSpy = jest.spyOn((liveWatchTreeDataProvider as any)._onDidChangeTreeData, 'fire');
             await (liveWatchTreeDataProvider as any).refresh();
             expect(evalMock).toHaveBeenCalledTimes(2);
