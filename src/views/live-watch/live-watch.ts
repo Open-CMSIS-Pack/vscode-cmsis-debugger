@@ -405,44 +405,38 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         logger.info('Live Watch: Periodic Update disabled');
     }
 
-    private async evaluateInitialExpression(expression: string): Promise<LiveWatchValue> {
-        const response: LiveWatchValue = { result: '', variablesReference: 0 };
+    private async evaluateNodeExpression(expression: string, firstTime: boolean, lastValue?: LiveWatchValue): Promise<LiveWatchValue> {
+        const response: LiveWatchValue = lastValue ?? {
+            result: '',
+            variablesReference: 0,
+        };
         if (!this._activeSession) {
             response.result = 'No active session';
             return response;
         }
         const result = await this._activeSession.evaluateGlobalExpression(expression, 'watch');
+        // Do not highlight first evaluation
+        if (firstTime) {
+            response.result = typeof result == 'string' ? result : result.result;
+            response.variablesReference = typeof result == 'string' ? 0 : result.variablesReference;
+            response.type = typeof result == 'string' ? '' : result.type ?? '';
+            return response;
+        }
         if (typeof result == 'string') {
             response.result = result;
+            response.highlightedLabel = { label: expression + ' = ', highlights: [[0, expression.length]] };
             return response;
+        }
+        // Highlight label if value has changed
+        if (response.result !== result.result && response.result !== '') {
+            response.highlightedLabel = { label: expression + ' = ', highlights: [[0, expression.length]] };
+        } else {
+            response.highlightedLabel = undefined;
         }
         response.result = result.result;
         response.variablesReference = result.variablesReference;
         response.type = result.type ?? '';
         return response;
-    }
-
-    private async evaluateNodeExpression(node: LiveWatchNode): Promise<LiveWatchValue> {
-        if (!this._activeSession) {
-            node.value.result = 'No active session';
-            return node.value;
-        }
-        const result = await this._activeSession.evaluateGlobalExpression(node.expression, 'watch');
-        if (typeof result == 'string') {
-            node.value.result = result;
-            node.value.highlightedLabel = { label: node.expression + ' = ', highlights: [[0, node.expression.length]] };
-            return node.value;
-        }
-        // Highlight label if value has changed
-        if (node.value.result !== result.result) {
-            node.value.highlightedLabel = { label: node.expression + ' = ', highlights: [[0, node.expression.length]] };
-        } else {
-            node.value.highlightedLabel = undefined;
-        }
-        node.value.result = result.result;
-        node.value.variablesReference = result.variablesReference;
-        node.value.type = result.type ?? '';
-        return node.value;
     }
 
     private async handleSetValueCommand(node: LiveWatchNode) {
@@ -482,7 +476,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             children: [],
             expression,
             parent: parent ?? undefined,
-            value: await this.evaluateInitialExpression(expression)
+            value: await this.evaluateNodeExpression(expression, true)
         };
 
         if (!parent) {
@@ -514,12 +508,12 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
 
     private async refresh(node?: LiveWatchNode) {
         if (node) {
-            node.value = await this.evaluateNodeExpression(node);
+            node.value = await this.evaluateNodeExpression(node.expression, false, node.value);
             this._onDidChangeTreeData.fire(node);
             return;
         }
         for (const node of this.roots) {
-            node.value = await this.evaluateNodeExpression(node);
+            node.value = await this.evaluateNodeExpression(node.expression, false, node.value);
         }
         this._onDidChangeTreeData.fire();
     }
