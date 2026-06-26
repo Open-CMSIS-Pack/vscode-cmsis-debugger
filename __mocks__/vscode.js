@@ -30,6 +30,11 @@ const StatusBarAlignment = {
     Right: 2
 };
 
+const ConfigurationTarget = {
+    Global: 1,
+    Workspace: 2,
+};
+
 const MockTreeItemCollapsibleState = { 
     None: 0, 
     Collapsed: 1, 
@@ -86,9 +91,11 @@ module.exports = {
             reveal: jest.fn().mockResolvedValue(undefined),
         })),
         registerTreeDataProvider: jest.fn(() => ({ dispose: jest.fn() })),
+        registerWebviewViewProvider: jest.fn(() => ({ dispose: jest.fn() })),
         showErrorMessage: jest.fn(),
         showInformationMessage: jest.fn(() => Promise.resolve(undefined)),
         showWarningMessage: jest.fn(),
+        showInputBox: jest.fn(),
         showQuickPick: jest.fn(),
         createInputBox: jest.fn(() => {
             const handlers = { onDidChangeValue: [], onDidAccept: [], onDidHide: [] };
@@ -117,6 +124,8 @@ module.exports = {
     workspace: {
         getConfiguration: jest.fn(() => ({
             get: jest.fn(),
+            update: jest.fn().mockResolvedValue(undefined),
+            inspect: jest.fn().mockReturnValue(undefined),
         })),
         fs: {
             readFile: jest.fn(uri => {
@@ -162,4 +171,5 @@ module.exports = {
     },
     EnvironmentVariableMutatorType,
     StatusBarAlignment,
+    ConfigurationTarget,
 };

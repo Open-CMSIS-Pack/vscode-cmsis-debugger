@@ -15,13 +15,25 @@
  */
 // generated with AI
 
+import type { DebugProtocol } from '@vscode/debugprotocol';
 import { GDBTargetDebugSession, GDBTargetDebugTracker, TargetState } from '..';
 
 export type OnRefreshCallback = (session: Session) => void;
 
+export type TestMemoryEvent = {
+    session: Session;
+    event: DebugProtocol.MemoryEvent;
+};
+
+export type TestInvalidatedEvent = {
+    session: Session;
+    event: DebugProtocol.InvalidatedEvent;
+};
+
 export type Session = {
-    session: { id: string };
-    getCbuildRun: () => Promise<{ getScvdFilePaths: () => string[] } | undefined>;
+    session: { id: string; configuration?: { name: string } };
+    getCbuildRun: () => Promise<{ getScvdFilePaths: () => string[]; getTargetType: () => string | undefined } | undefined>;
+    getConfigStateKey: () => Promise<string>;
     getPname: () => Promise<string | undefined>;
     refreshTimer: { onRefresh: (cb: OnRefreshCallback) => void };
     targetState?: TargetState;
@@ -35,6 +47,8 @@ export type TrackerCallbacks = {
     onStackTrace: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
     onDidChangeActiveStackItem: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
     onWillStartSession: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
+    onMemory: (cb: (event: TestMemoryEvent) => Promise<void>) => { dispose: jest.Mock };
+    onInvalidated: (cb: (event: TestInvalidatedEvent) => Promise<void>) => { dispose: jest.Mock };
     callbacks: Partial<{
         willStop: (session: Session) => Promise<void>;
         connected: (session: Session) => Promise<void>;
@@ -42,6 +56,8 @@ export type TrackerCallbacks = {
         stackTrace: (session: { session: Session }) => Promise<void>;
         activeStackItem: (session: { session: Session }) => Promise<void>;
         willStart: (session: Session) => Promise<void>;
+        memory: (event: TestMemoryEvent) => Promise<void>;
+        invalidated: (event: TestInvalidatedEvent) => Promise<void>;
     }>;
 };
 
@@ -73,6 +89,14 @@ export const trackerFactory = (): TrackerCallbacks => {
             callbacks.willStart = cb;
             return { dispose: jest.fn() };
         },
+        onMemory: (cb) => {
+            callbacks.memory = cb;
+            return { dispose: jest.fn() };
+        },
+        onInvalidated: (cb) => {
+            callbacks.invalidated = cb;
+            return { dispose: jest.fn() };
+        },
     };
 };
 
@@ -88,11 +112,13 @@ export const debugSessionFactory = (
     // Ensure same object returned for multiple calls to getCbuildRun.
     const cbuildRunMock = hasCbuildRun ? {
         getContents: jest.fn(),
-        getScvdFilePaths: () => paths
+        getScvdFilePaths: () => paths,
+        getTargetType: jest.fn<string | undefined, []>(() => undefined),
     } : undefined;
     return {
-        session: { id },
-        getCbuildRun: async () => cbuildRunMock,
+        session: { id, configuration: { name: id } },
+        getCbuildRun: jest.fn().mockResolvedValue(cbuildRunMock),
+        getConfigStateKey: jest.fn().mockResolvedValue(id),
         getPname: async () => pname,
         refreshTimer: {
             onRefresh: jest.fn(),

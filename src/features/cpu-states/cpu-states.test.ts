@@ -85,6 +85,14 @@ describe('CpuStates', () => {
             cpuStates.activate(tracker);
         });
 
+        it('enable and disable commands return when there is no active session', async () => {
+            const executeCommandSpy = jest.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
+            await cpuStates.enableCpuStates();
+            await cpuStates.disableCpuStates();
+
+            expect(executeCommandSpy).not.toHaveBeenCalledWith('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', expect.any(Boolean));
+        });
+
         it('returns early from showStatesHistory when there are no active cpu states', () => {
             const warningMessageSpy = jest.spyOn(vscode.window, 'showWarningMessage');
             // No session started => activeCpuStates is undefined
@@ -443,13 +451,13 @@ describe('CpuStates', () => {
         it('enable cpu states sets enableCpuStates flag to true', async () => {
             cpuStates.activate(tracker);
             await cpuStates.enableCpuStates();
-            expect((cpuStates as unknown as { enableCpuStatesFlag: boolean }).enableCpuStatesFlag).toEqual(true);
+            expect(cpuStates.activeCpuStates?.enableCpuStatesFlag).toEqual(true);
         });
 
         it('disable cpu states sets enableCpuStates flag to false', async () => {
             cpuStates.activate(tracker);
             await cpuStates.disableCpuStates();
-            expect((cpuStates as unknown as { enableCpuStatesFlag: boolean }).enableCpuStatesFlag).toEqual(false);
+            expect(cpuStates.activeCpuStates?.enableCpuStatesFlag).toEqual(false);
         });
     });
 
@@ -488,5 +496,88 @@ describe('CpuStates', () => {
 
     });
 
-});
+    describe('CPU timer enable/disable state persists to and restores from settings', () => {
+        beforeEach(() => {
+            jest.spyOn(gdbtargetDebugSession, 'getCbuildRun').mockResolvedValue({
+                getTargetType: () => 'My-Target',
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any);
+        });
 
+        afterEach(() => {
+            jest.restoreAllMocks();
+        });
+
+        it('restores CPU timer enabled state from settings on connect', async () => {
+            jest.spyOn(vscode.workspace, 'getConfiguration').mockReturnValue({
+                inspect: jest.fn().mockReturnValue({
+                    globalValue: {
+                        'My-Target::Debug': {
+                            cpuStatesEnabled: false,
+                        },
+                    },
+                    workspaceValue: {},
+                }),
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any);
+            cpuStates.activate(tracker);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (tracker as any)._onWillStartSession.fire(gdbtargetDebugSession);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (tracker as any)._onDidChangeActiveDebugSession.fire(gdbtargetDebugSession);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (tracker as any)._onConnected.fire(gdbtargetDebugSession);
+            await waitForMs(0);
+
+            expect(cpuStates.activeCpuStates?.enableCpuStatesFlag).toEqual(false);
+        });
+
+        it('toolbar button state switches when changing the active debug session', async () => {
+            const executeCommandSpy = jest.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
+            const debugConfig2 = gdbTargetConfiguration({ name: 'Debug2' });
+            const debugSession2 = debugSessionFactory(debugConfig2, '{session-id-2}');
+            const gdbtargetDebugSession2 = new GDBTargetDebugSession(debugSession2);
+            cpuStates.activate(tracker);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (tracker as any)._onWillStartSession.fire(gdbtargetDebugSession);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (tracker as any)._onWillStartSession.fire(gdbtargetDebugSession2);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (cpuStates as any).sessionCpuStates.get(gdbtargetDebugSession2.session.id)!.enableCpuStatesFlag = false;
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (tracker as any)._onDidChangeActiveDebugSession.fire(gdbtargetDebugSession);
+            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', true);
+            executeCommandSpy.mockClear();
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (tracker as any)._onDidChangeActiveDebugSession.fire(gdbtargetDebugSession2);
+            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', false);
+            executeCommandSpy.mockClear();
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (tracker as any)._onDidChangeActiveDebugSession.fire(undefined);
+            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', false);
+        });
+
+        it('re-enables sessions and updates the toolbar context', async () => {
+            jest.spyOn(vscode.workspace, 'getConfiguration').mockReturnValue({
+                update: jest.fn().mockResolvedValue(undefined),
+                inspect: jest.fn().mockReturnValue({ globalValue: {}, workspaceValue: {} }),
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any);
+            const executeCommandSpy = jest.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
+            cpuStates.activate(tracker);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (tracker as any)._onWillStartSession.fire(gdbtargetDebugSession);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (cpuStates as any).sessionCpuStates.get(gdbtargetDebugSession.session.id)!.enableCpuStatesFlag = false;
+            await cpuStates.resetViewState();
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            expect((cpuStates as any).sessionCpuStates.get(gdbtargetDebugSession.session.id)!.enableCpuStatesFlag).toBe(true);
+            expect(executeCommandSpy).toHaveBeenCalledWith('setContext', 'vscode-cmsis-debugger.cpuTimerEnabled', true);
+        });
+
+    });
+});

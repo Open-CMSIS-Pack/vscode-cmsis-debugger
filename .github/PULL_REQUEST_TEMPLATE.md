@@ -1,7 +1,6 @@
 ## Fixes
-<!-- List the GitHub issue this PR resolves -->
-
-- [#<Number>](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/<number>)
+<!-- List the GitHub issue(s) this PR resolves (e.g. #123) -->
+- #<issue-number>
 
 ## Changes
 <!-- List the changes this PR introduces -->

@@ -6,7 +6,8 @@ __mocks__/**/*
 coverage
 dist/**/*.js.map
 images/*.pptx
-node_modules
+node_modules/**
+!node_modules/@vscode/codicons/**
 scripts
 src
 test-data

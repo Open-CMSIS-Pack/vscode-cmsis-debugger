@@ -20,7 +20,9 @@ import {
     GDBTargetDebugTracker,
     SessionStackItem,
     SessionStackTrace,
-    StoppedEvent
+    StoppedEvent,
+    MemoryEvent,
+    InvalidatedEvent
 } from './gdbtarget-debug-tracker';
 import { debugSessionFactory, extensionContextFactory } from '../__test__/vscode.factory';
 import { GDBTargetDebugSession } from './gdbtarget-debug-session';
@@ -221,6 +223,62 @@ describe('GDBTargetDebugTracker', () => {
             expect(result).toBeDefined();
             expect(result!.session).toEqual(gdbSession);
             expect(result!.event).toEqual(continuedEvent);
+        });
+
+        it('sends a session memory event', async () => {
+            let gdbSession: GDBTargetDebugSession|undefined = undefined;
+            debugTracker.onWillStartSession(session => gdbSession = session);
+            let result: MemoryEvent|undefined = undefined;
+            debugTracker.onMemory(event => result = event);
+            const tracker = await adapterFactory!.createDebugAdapterTracker(debugSessionFactory(debugConfigurationFactory()));
+            tracker!.onWillStartSession!();
+            const memoryEvent: DebugProtocol.MemoryEvent = {
+                event: 'memory',
+                type: 'event',
+                seq: 1,
+                body: {
+                    memoryReference: '0x1234',
+                    offset: 0,
+                    count: 4
+                }
+            };
+            tracker!.onDidSendMessage!(memoryEvent);
+            expect(gdbSession).toBeDefined();
+            expect(result).toBeDefined();
+            expect(result!.session).toEqual(gdbSession);
+            expect(result!.event).toEqual(memoryEvent);
+        });
+
+        it('sends an Invalidated event on receiving an invalidated event', async () => {
+            let gdbSession: GDBTargetDebugSession|undefined = undefined;
+            debugTracker.onWillStartSession(session => gdbSession = session);
+            let result: InvalidatedEvent|undefined = undefined;
+            debugTracker.onInvalidated(event => result = event);
+            const tracker = await adapterFactory!.createDebugAdapterTracker(debugSessionFactory(debugConfigurationFactory()));
+            tracker!.onWillStartSession!();
+            const stoppedEvent: DebugProtocol.StoppedEvent = {
+                event: 'stopped',
+                type: 'event',
+                seq: 1,
+                body: {
+                    reason: 'step',
+                    threadId: 1
+                }
+            };
+            tracker!.onDidSendMessage!(stoppedEvent);
+            const invalidatedEvent: DebugProtocol.InvalidatedEvent = {
+                event: 'invalidated',
+                type: 'event',
+                seq: 2,
+                body: {
+                    areas: ['stack'],
+                    threadId: 1
+                }
+            };
+            tracker!.onDidSendMessage!(invalidatedEvent);
+            expect(gdbSession).toBeDefined();
+            expect(result).toBeDefined();
+            expect(result!.session).toEqual(gdbSession);
         });
 
         it('sends a session stopped event', async () => {

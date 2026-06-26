@@ -185,14 +185,12 @@ describe('ComponentViewerTreeDataProvider', () => {
         expect(childItem.contextValue).toBe('');
     });
 
-    it('assigns lock icon for locked root nodes', () => {
+    it('does not assign icon for root nodes regardless of lock state', () => {
         const rootLocked = makeGui({ isRootInstance: true, isLocked: true });
         const rootUnLocked = makeGui({ isRootInstance: true, isLocked: false });
 
-        const rootItem = provider.getTreeItem(rootLocked);
-        expect(rootItem.iconPath).toBeInstanceOf(vscode.ThemeIcon);
-        const rootIcon = rootItem.iconPath as { id: string };
-        expect(rootIcon.id).toBe('lock');
+        const rootLockedItem = provider.getTreeItem(rootLocked);
+        expect(rootLockedItem.iconPath).toBeUndefined();
 
         const rootUnLockedItem = provider.getTreeItem(rootUnLocked);
         expect(rootUnLockedItem.iconPath).toBeUndefined();
@@ -920,6 +918,62 @@ describe('ComponentViewerTreeDataProvider', () => {
             expect(provider.getTreeItem(mid).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
         });
 
+        it('collapseAllElements collapses auto-expanded filter results', () => {
+            const matchLeaf = makeGui({ getGuiName: () => 'Enable IRQ', getGuiId: () => 'leaf1' });
+            const otherLeaf = makeGui({ getGuiName: () => 'Status Register', getGuiId: () => 'leaf2' });
+            const parent = makeGui({
+                getGuiName: () => 'Interrupt Controller',
+                getGuiId: () => 'parent1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [matchLeaf, otherLeaf],
+            });
+            const root = makeGui({
+                getGuiName: () => 'Peripherals',
+                getGuiId: () => 'root1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [parent],
+            });
+            provider.setRoots([root]);
+            provider.setFilter('enable');
+
+            expect(provider.getTreeItem(root).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+            expect(provider.getTreeItem(parent).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+
+            provider.collapseAllElements();
+
+            expect(provider.getTreeItem(root).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
+            expect(provider.getTreeItem(parent).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
+            expect(provider.getChildren(root)).toEqual([parent]);
+            expect(provider.getChildren(parent)).toEqual([matchLeaf]);
+        });
+
+        it('expandAllElements expands filtered results without bypassing the filter', () => {
+            const matchLeaf = makeGui({ getGuiName: () => 'Enable IRQ', getGuiId: () => 'leaf1' });
+            const otherLeaf = makeGui({ getGuiName: () => 'Status Register', getGuiId: () => 'leaf2' });
+            const parent = makeGui({
+                getGuiName: () => 'Interrupt Controller',
+                getGuiId: () => 'parent1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [matchLeaf, otherLeaf],
+            });
+            const root = makeGui({
+                getGuiName: () => 'Peripherals',
+                getGuiId: () => 'root1',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [parent],
+            });
+            provider.setRoots([root]);
+            provider.setFilter('enable');
+            provider.collapseAllElements();
+
+            provider.expandAllElements();
+
+            expect(provider.getTreeItem(root).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+            expect(provider.getTreeItem(parent).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+            expect(provider.getChildren(root)).toEqual([parent]);
+            expect(provider.getChildren(parent)).toEqual([matchLeaf]);
+        });
+
         it('shows unfiltered children when user manually expands a matched node', () => {
             const grandchild = makeGui({ getGuiName: () => 'GC', getGuiId: () => 'gc1' });
             const matchNode = makeGui({
@@ -1009,6 +1063,33 @@ describe('ComponentViewerTreeDataProvider', () => {
             provider.setFilter(undefined);
             treeItem = provider.getTreeItem(root);
             expect(treeItem.collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
+        });
+
+        it('can clear filter without restoring the pre-filter expanded state', () => {
+            const child = makeGui({ getGuiName: () => 'Child', getGuiId: () => 'session1/child' });
+            const session1Root = makeGui({
+                getGuiName: () => 'Root',
+                getGuiId: () => 'session1/root',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [child],
+            });
+            const session2Root = makeGui({
+                getGuiName: () => 'OtherRoot',
+                getGuiId: () => 'session2/root',
+                hasGuiChildren: () => true,
+                getGuiChildren: () => [makeGui({ getGuiName: () => 'OtherChild', getGuiId: () => 'session2/child' })],
+            });
+            provider.setRoots([session1Root, session2Root]);
+
+            provider.setElementExpanded(session1Root, true);
+            provider.setFilter('Child');
+            provider.setElementExpanded(session1Root, false);
+            provider.setElementExpanded(session2Root, true);
+
+            provider.setFilter(undefined, false);
+
+            expect(provider.getTreeItem(session1Root).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Collapsed);
+            expect(provider.getTreeItem(session2Root).collapsibleState).toBe(vscode.TreeItemCollapsibleState.Expanded);
         });
 
         it('collapse-then-expand cycle bypasses filter and shows all children', () => {
@@ -1317,4 +1398,50 @@ describe('ComponentViewerTreeDataProvider', () => {
         });
     });
 
+    it('reports expansion state via isExpanded()', () => {
+        const root = makeGui({
+            getGuiId: () => 'session1/root',
+            hasGuiChildren: () => true,
+        });
+        provider.setRoots([root]);
+
+        expect(provider.isExpanded(root)).toBe(false);
+        provider.setElementExpanded(root, true);
+        expect(provider.isExpanded(root)).toBe(true);
+        provider.setElementExpanded(root, false);
+        expect(provider.isExpanded(root)).toBe(false);
+    });
+
+    it('isExpanded() returns false for undefined IDs', () => {
+        const noId = makeGui({ getGuiId: () => undefined });
+        expect(provider.isExpanded(noId)).toBe(false);
+    });
+
+    it('toggleById() expands and collapses by ID and fires change event', () => {
+        const root = makeGui({
+            getGuiId: () => 'session1/node',
+            hasGuiChildren: () => true,
+        });
+        provider.setRoots([root]);
+        mockFire.mockClear();
+
+        // Expand by ID
+        provider.toggleById('session1/node', true);
+        expect(provider.isExpanded(root)).toBe(true);
+        expect(mockFire).toHaveBeenCalledTimes(1);
+
+        // Collapse by ID
+        provider.toggleById('session1/node', false);
+        expect(provider.isExpanded(root)).toBe(false);
+        expect(mockFire).toHaveBeenCalledTimes(2);
+    });
+
+    it('toggleById() is idempotent for repeated expand/collapse', () => {
+        provider.toggleById('some-id', true);
+        provider.toggleById('some-id', true); // already expanded
+        // Should not duplicate the ID
+        provider.toggleById('some-id', false);
+        const root = makeGui({ getGuiId: () => 'some-id' });
+        expect(provider.isExpanded(root)).toBe(false);
+    });
 });

@@ -1,10 +1,10 @@
 [
     {
         "name": "arm-none-eabi-gdb",
-        "version": "14.3.1",
+        "version": "15.2.1",
         "spdx": "GPL-3.0-or-later",
-        "url": "https://artifacts.tools.arm.com/arm-none-eabi-gdb/14.3.1/",
-        "license": "https://developer.arm.com/GetEula?Id=15d9660a-2059-4985-85e9-c01cdd4b1ba0"
+        "url": "https://artifacts.tools.arm.com/arm-none-eabi-gdb/15.2.1/",
+        "license": "https://developer.arm.com/GetEula?Id=a162e8bb-8565-45a5-bdf6-7249bf3afe43"
     },
     {
         "name": "pyocd",
@@ -29,9 +29,44 @@
     },
     {
         "name": "yaml",
-        "version": "2.8.2",
+        "version": "2.8.3",
         "spdx": "ISC",
         "url": "https://github.com/eemeli/yaml",
         "license": "https://github.com/eemeli/yaml/blob/main/LICENSE"
+    },
+    {
+        "name": "react",
+        "version": "18.3.1",
+        "spdx": "MIT",
+        "url": "https://github.com/facebook/react",
+        "license": "https://github.com/facebook/react/blob/main/LICENSE"
+    },
+    {
+        "name": "react-dom",
+        "version": "18.3.1",
+        "spdx": "MIT",
+        "url": "https://github.com/facebook/react",
+        "license": "https://github.com/facebook/react/blob/main/LICENSE"
+    },
+    {
+        "name": "css-loader",
+        "version": "7.1.4",
+        "spdx": "MIT",
+        "url": "https://github.com/webpack-contrib/css-loader",
+        "license": "https://github.com/webpack-contrib/css-loader/blob/master/LICENSE"
+    },
+    {
+        "name": "mini-css-extract-plugin",
+        "version": "2.10.2",
+        "spdx": "MIT",
+        "url": "https://github.com/webpack-contrib/mini-css-extract-plugin",
+        "license": "https://github.com/webpack-contrib/mini-css-extract-plugin/blob/master/LICENSE"
+    },
+    {
+        "name": "@vscode/codicons",
+        "version": "0.0.45",
+        "spdx": "CC-BY-4.0",
+        "url": "https://github.com/microsoft/vscode-codicons",
+        "license": "https://github.com/microsoft/vscode-codicons/blob/main/LICENSE"
     }
 ]

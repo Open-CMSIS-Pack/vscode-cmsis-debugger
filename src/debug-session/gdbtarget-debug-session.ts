@@ -109,6 +109,13 @@ export class GDBTargetDebugSession {
         return pname;
     }
 
+    public async getConfigStateKey(): Promise<string> {
+        const cbuildRun = await this.getCbuildRun();
+        const targetType = cbuildRun?.getTargetType();
+        const configStateKey = targetType ? `${targetType}::${this.session.configuration.name}` : this.session.configuration.name;
+        return configStateKey;
+    }
+
     /**
      * Check if first stop attempt for session is done by 'terminate' request.
      * Notes:
@@ -118,6 +125,11 @@ export class GDBTargetDebugSession {
      */
     public canTerminate(): boolean {
         return this.session.configuration.request === 'launch' && this.capabilities?.supportsTerminateRequest === true;
+    }
+
+    public async setSetExpressionSupportedContext(): Promise<void> {
+        const supported = this.capabilities?.supportsSetExpression ?? false;
+        await vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.setExpressionSupported', supported);
     }
 
     // Function returns string only in case of failure

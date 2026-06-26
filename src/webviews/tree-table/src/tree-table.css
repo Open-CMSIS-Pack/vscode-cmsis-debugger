@@ -1,0 +1,233 @@
+/**
+ * Copyright 2026 Arm Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/* generated with AI */
+
+:root {
+    --row-height: 22px;
+    --font-size: var(--vscode-font-size, 13px);
+    --name-col-width: 50%;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; overflow: hidden; }
+body {
+    font-family: var(--vscode-font-family, sans-serif);
+    font-size: var(--font-size);
+    color: var(--vscode-foreground);
+    background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+    display: flex;
+    flex-direction: column;
+}
+#root {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Outer layout: scrollable tree table content */
+.tree-table {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    position: relative;
+}
+
+/* Scrollable body container */
+.scroll-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable;
+    position: relative;
+}
+
+/* Table layout */
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+}
+td {
+    text-align: left;
+    padding: 0 6px;
+    height: var(--row-height);
+    line-height: var(--row-height);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cell-name {
+    width: var(--name-col-width);
+    position: relative;
+}
+td.cell-value {
+    color: var(--vscode-descriptionForeground, #888);
+    position: relative;
+}
+
+/* Column resize */
+.column-resize-handle {
+    position: absolute;
+    top: 0;
+    left: var(--name-col-width);
+    width: 6px;
+    height: 100%;
+    transform: translateY(var(--scroll-top, 0));
+    border-left: 2px solid transparent;
+    cursor: col-resize;
+    z-index: 3;
+    background: transparent;
+}
+.column-resize-handle::after {
+    /* Extends the hit area to the left so the divider sits visually centered in it. */
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -6px;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+}
+.column-resize-handle:hover,
+body.resizing .column-resize-handle {
+    border-left-color: var(--vscode-focusBorder, #007fd4);
+}
+
+/* Row hover / selection */
+tr.row:hover {
+    background: var(--vscode-list-hoverBackground, rgba(255,255,255,0.04));
+}
+tr.row.selected {
+    background: var(--vscode-list-inactiveSelectionBackground, rgba(255,255,255,0.08));
+    color: var(--vscode-list-inactiveSelectionForeground, inherit);
+}
+tr.row.selected:hover {
+    background: var(--vscode-list-inactiveSelectionBackground, rgba(255,255,255,0.08));
+}
+
+/* Expand/collapse toggle */
+.toggle, .toggle-placeholder {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+}
+.toggle .codicon { font-size: 16px; }
+.toggle-placeholder { cursor: default; }
+.name { margin-left: 2px; }
+
+/* Lock/unlock button — pinned to the right edge of the value column */
+.lock-btn {
+    position: absolute;
+    right: 4px;
+    top: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: var(--row-height);
+    cursor: pointer;
+    user-select: none;
+    visibility: hidden;
+    background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+}
+tr.row:hover .lock-btn {
+    visibility: visible;
+    background: var(--vscode-list-hoverBackground, rgba(255,255,255,0.04));
+}
+tr.row.locked .lock-btn {
+    visibility: visible;
+}
+tr.row.selected .lock-btn {
+    background: var(--vscode-list-inactiveSelectionBackground, rgba(255,255,255,0.08));
+}
+tr.row.selected:hover .lock-btn {
+    background: var(--vscode-list-inactiveSelectionBackground, rgba(255,255,255,0.08));
+}
+.lock-btn .lock-icon-hover { display: none !important; }
+.lock-btn .lock-icon-default { display: inline !important; }
+tr.row.locked:hover .lock-btn .lock-icon-default { display: none !important; }
+tr.row.locked:hover .lock-btn .lock-icon-hover { display: inline !important; }
+.lock-btn .codicon {
+    font-size: 14px;
+    line-height: var(--row-height);
+}
+
+/* Loading progress bar */
+.progress-container {
+    width: 100%;
+    height: 2px;
+    overflow: hidden;
+}
+.progress-bar {
+    width: 100%;
+    height: 2px;
+    background: var(--vscode-progressBar-background, #007fd4);
+    animation: progress-indeterminate 1.5s cubic-bezier(0.65, 0.815, 0.735, 0.395) infinite;
+    transform-origin: left;
+}
+@keyframes progress-indeterminate {
+    0%   { transform: scaleX(0.25) translateX(-100%); }
+    50%  { transform: scaleX(0.5)  translateX(50%); }
+    100% { transform: scaleX(0.25) translateX(400%); }
+}
+
+/* Empty state */
+.empty-state {
+    padding: 16px;
+    text-align: center;
+    color: var(--vscode-descriptionForeground, #888);
+    white-space: pre-line;
+}
+
+/* Resize cursor override */
+body.resizing { cursor: col-resize; user-select: none; }
+body.resizing * { cursor: col-resize !important; }
+
+/* Custom tooltip */
+.custom-tooltip {
+    display: none;
+    position: fixed;
+    z-index: 100;
+    max-width: min(90vw, 600px);
+    width: max-content;
+    padding: 4px 8px;
+    background: var(--vscode-editorHoverWidget-background, #2d2d30);
+    color: var(--vscode-editorHoverWidget-foreground, #cccccc);
+    border: 1px solid var(--vscode-editorHoverWidget-border, #454545);
+    border-radius: 3px;
+    font-size: var(--font-size);
+    line-height: 1.4;
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.36);
+}
+
+.custom-tooltip.visible {
+    display: block;
+}
+
+.custom-tooltip strong {
+    white-space: nowrap;
+}
