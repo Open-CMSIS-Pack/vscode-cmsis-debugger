@@ -374,10 +374,12 @@ describe('LiveWatchTreeDataProvider', () => {
             const nodeB = makeNode('node-B', { result: 'value-B', variablesReference: 0 }, 2);
             (liveWatchTreeDataProvider as any).roots = [nodeA, nodeB];
             const evalMock = jest.spyOn(liveWatchTreeDataProvider as any, 'evaluateNodeExpression')
-                .mockImplementation(async (...args: unknown[]) => ({ result: String(args[0]) + '-updated', variablesReference: 0 }));
+                .mockImplementation(async (node: LiveWatchNode) => ({ result: node.expression + '-updated', variablesReference: 0 }));
             const fireSpy = jest.spyOn((liveWatchTreeDataProvider as any)._onDidChangeTreeData, 'fire');
             await (liveWatchTreeDataProvider as any).refresh();
             expect(evalMock).toHaveBeenCalledTimes(2);
+            expect(evalMock).toHaveBeenCalledWith(nodeA);
+            expect(evalMock).toHaveBeenCalledWith(nodeB);
             expect(nodeA.value.result).toBe('node-A-updated');
             expect(nodeB.value.result).toBe('node-B-updated');
             expect(fireSpy).toHaveBeenCalledTimes(1);
@@ -553,7 +555,7 @@ describe('LiveWatchTreeDataProvider', () => {
                 variablesReference: 0
             } as LiveWatchValue;
             const evaluateSpy = jest
-                .spyOn(liveWatchTreeDataProvider as any, 'evaluateNodeExpression')
+                .spyOn(liveWatchTreeDataProvider as any, 'evaluateInitialExpression')
                 .mockResolvedValue(evaluatedValue);
             await liveWatchTreeDataProvider.activate(tracker);
             const handler = getRegisteredHandler('vscode-cmsis-debugger.liveWatch.add');
@@ -562,7 +564,8 @@ describe('LiveWatchTreeDataProvider', () => {
             const roots = (liveWatchTreeDataProvider as any).roots;
             expect(roots.length).toBe(1);
             expect(roots[0].expression).toBe('expression');
-            expect(evaluateSpy).toHaveBeenCalledWith('expression', true);
+            expect(roots[0].value.result).toBe('someValue');
+            expect(evaluateSpy).toHaveBeenCalledWith('expression');
         });
 
         it('add command does nothing when expression undefined', async () => {
@@ -939,9 +942,9 @@ describe('LiveWatchTreeDataProvider', () => {
         });
     });
 
-    describe('evaluateNodeExpression', () => {
+    describe('evaluateInitialExpression and evaluateNodeExpression', () => {
         it('returns No active session when none set', async () => {
-            const result = await (liveWatchTreeDataProvider as any).evaluateNodeExpression('myExpression', true);
+            const result = await (liveWatchTreeDataProvider as any).evaluateInitialExpression('myExpression');
             expect(result.result).toBe('No active session');
             expect(result.variablesReference).toBe(0);
         });
@@ -952,7 +955,7 @@ describe('LiveWatchTreeDataProvider', () => {
                 evaluateGlobalExpression: jest.fn().mockResolvedValue('string-value'),
                 session: {}
             };
-            const evalResult = await (liveWatchTreeDataProvider as any).evaluateNodeExpression('myExpression', true);
+            const evalResult = await (liveWatchTreeDataProvider as any).evaluateInitialExpression('myExpression');
             expect(evalResult.result).toBe('string-value');
             expect(evalResult.variablesReference).toBe(0);
         });
@@ -963,7 +966,7 @@ describe('LiveWatchTreeDataProvider', () => {
                 evaluateGlobalExpression: jest.fn().mockResolvedValue(responseObj),
                 session: {}
             };
-            const evalResult = await (liveWatchTreeDataProvider as any).evaluateNodeExpression('myExpression', true);
+            const evalResult = await (liveWatchTreeDataProvider as any).evaluateInitialExpression('myExpression');
             expect(evalResult.result).toBe('value');
             expect(evalResult.variablesReference).toBe(1234);
         });
@@ -973,7 +976,8 @@ describe('LiveWatchTreeDataProvider', () => {
                 evaluateGlobalExpression: jest.fn().mockResolvedValue('error-message'),
                 session: {}
             };
-            const evalResult = await (liveWatchTreeDataProvider as any).evaluateNodeExpression('myVar', false, { result: 'prev', variablesReference: 0 });
+            const node = makeNode('myVar', { result: 'prev', variablesReference: 0 }, 1);
+            const evalResult = await (liveWatchTreeDataProvider as any).evaluateNodeExpression(node);
             expect(evalResult.result).toBe('error-message');
             expect(evalResult.highlightedLabel).toEqual({
                 label: 'myVar = ',
