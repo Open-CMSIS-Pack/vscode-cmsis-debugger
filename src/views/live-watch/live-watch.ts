@@ -34,6 +34,7 @@ export interface LiveWatchValue {
     variablesReference: number;
     type?: string;
     evaluateName?: string;
+    highlightedLabel?: vscode.TreeItemLabel | undefined;
 }
 
 interface SessionLiveWatchState {
@@ -52,6 +53,9 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
     private _context: vscode.ExtensionContext;
     private _activeSession: GDBTargetDebugSession | undefined;
     private readonly sessionLiveWatchStates = new Map<string, SessionLiveWatchState>();
+    private _pendingRefresh: boolean = false;
+    private _pendingUpdateTimer: NodeJS.Timeout | undefined;
+    private _updateInProgress: boolean = false;
 
     constructor(private readonly context: vscode.ExtensionContext) {
         this.roots = this.context.workspaceState.get<LiveWatchNode[]>(this.STORAGE_KEY) ?? [];
@@ -90,7 +94,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
     }
 
     public getTreeItem(element: LiveWatchNode): vscode.TreeItem {
-        const item = new vscode.TreeItem(element.expression + ' = ');
+        const item = new vscode.TreeItem(element.value.highlightedLabel ?? element.expression + ' = ');
         item.description = element.value.result;
         item.tooltip = element.value.type ?? '';
         item.collapsibleState = element.value.variablesReference !== 0 ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None;
@@ -112,10 +116,10 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         // Using this event because this is when the threadId is available for evaluations
         const onStackItem = tracker.onDidChangeActiveStackItem(async (item) => {
             if ((item.item as vscode.DebugStackFrame).frameId !== undefined) {
-                await this.refresh();
+                this.schedulePendingRefresh();
             }
         });
-        const onStackTrace = tracker.onStackTrace(async () => await this.refresh());
+        const onStackTrace = tracker.onStackTrace(async () => this.schedulePendingRefresh());
         // Clearing active session on closing the session
         const onWillStopSession = tracker.onWillStopSession(async (session) => {
             this.sessionLiveWatchStates.delete(session.session.id);
@@ -123,7 +127,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
                 this._activeSession = undefined;
                 vscode.commands.executeCommand('setContext', 'liveWatch.canAccessWhileRunning', false);
             }
-            await this.refresh();
+            this.schedulePendingRefresh();
             await this.save();
         });
         const onMemory = tracker.onMemory(async (event) => {
@@ -170,7 +174,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const enabled = state?.periodicUpdateEnabled ?? true;
         vscode.commands.executeCommand('setContext', 'liveWatch.canAccessWhileRunning', session?.canAccessWhileRunning === true);
         vscode.commands.executeCommand('setContext', 'liveWatch.periodicUpdateEnabled', enabled);
-        await this.refresh();
+        this.schedulePendingRefresh();
     }
 
     private async handleOnWillStartSession(session: GDBTargetDebugSession): Promise<void> {
@@ -181,7 +185,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         session.refreshTimer.onRefresh(async (refreshSession) => {
             const state = this.sessionLiveWatchStates.get(refreshSession.session.id);
             if (this._activeSession?.session.id === refreshSession.session.id && state?.periodicUpdateEnabled) {
-                await this.refresh();
+                this.schedulePendingRefresh();
             }
         });
     }
@@ -191,7 +195,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         if (this._activeSession?.session.id !== gdbTargetSession.session.id) {
             return;
         }
-        await this.refresh();
+        this.schedulePendingRefresh();
     }
     private async handleOnContinued(session: GDBTargetDebugSession): Promise<void> {
         if (this._activeSession?.session.id != session.session.id) {
@@ -212,7 +216,32 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         if (this._activeSession?.session.id !== gdbTargetSession.session.id) {
             return;
         }
-        await this.refresh();
+        this.schedulePendingRefresh();
+    }
+
+    private schedulePendingRefresh() {
+        this._pendingRefresh = true;
+        if (this._pendingUpdateTimer) {
+            clearTimeout(this._pendingUpdateTimer);
+        }
+        this._pendingUpdateTimer = setTimeout(async () => {
+            if (this._pendingRefresh) {
+                await this.runPendingRefresh();
+                this._pendingRefresh = false;
+            }
+        }, 50);
+    }
+
+    private async runPendingRefresh() {
+        if (this._updateInProgress) {
+            return;
+        }
+        this._updateInProgress = true;
+        while(this._pendingRefresh) {
+            this._pendingRefresh = false;
+            await this.refresh();
+        }
+        this._updateInProgress = false;
     }
 
     private async addVSCodeCommands(): Promise<boolean> {
@@ -376,7 +405,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         logger.info('Live Watch: Periodic Update disabled');
     }
 
-    private async evaluate(expression: string): Promise<LiveWatchValue> {
+    private async evaluateInitialExpression(expression: string): Promise<LiveWatchValue> {
         const response: LiveWatchValue = { result: '', variablesReference: 0 };
         if (!this._activeSession) {
             response.result = 'No active session';
@@ -391,6 +420,20 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         response.variablesReference = result.variablesReference;
         response.type = result.type ?? '';
         return response;
+    }
+
+    private async evaluateNodeExpression(node: LiveWatchNode): Promise<LiveWatchValue> {
+        const response = await this.evaluateInitialExpression(node.expression);
+        // Highlight label if value has changed
+        if (node.value.result !== response.result) {
+            node.value.highlightedLabel = { label: node.expression + ' = ', highlights: [[0, node.expression.length]] };
+        } else {
+            node.value.highlightedLabel = undefined;
+        }
+        node.value.result = response.result;
+        node.value.variablesReference = response.variablesReference;
+        node.value.type = response.type ?? '';
+        return node.value;
     }
 
     private async handleSetValueCommand(node: LiveWatchNode) {
@@ -430,7 +473,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
             children: [],
             expression,
             parent: parent ?? undefined,
-            value: await this.evaluate(expression)
+            value: await this.evaluateInitialExpression(expression)
         };
 
         if (!parent) {
@@ -462,17 +505,21 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
 
     private async refresh(node?: LiveWatchNode) {
         if (node) {
-            node.value = await this.evaluate(node.expression);
+            node.value = await this.evaluateNodeExpression(node);
             this._onDidChangeTreeData.fire(node);
             return;
         }
         for (const node of this.roots) {
-            node.value = await this.evaluate(node.expression);
+            node.value = await this.evaluateNodeExpression(node);
         }
         this._onDidChangeTreeData.fire();
     }
 
     private async save() {
+        // Clear highlighted labels before saving, as they are only relevant for the current state of the tree and can cause confusion when reloading
+        for (const node of this.roots) {
+            node.value.highlightedLabel = undefined;
+        }
         await this.context.workspaceState.update(this.STORAGE_KEY, this.roots);
     }
 
