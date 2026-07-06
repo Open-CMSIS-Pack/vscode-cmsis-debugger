@@ -5,7 +5,7 @@
 - Pre-release featuring early access to improved [Component Viewer](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#component-viewer) and
 [Core Peripherals](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#core-peripherals) views, plus an updated arm-none-eabi-gdb distribution ([arm-none-eabi-gdb v15.2.1](https://artifacts.tools.arm.com/arm-none-eabi-gdb/15.2.1/), see [Release Notes](https://gitlab.arm.com/tooling/gnu-toolchains-for-arm/-/blob/releases/15.2.rel1/release_notes.md)).
     - Feedback is welcome: use [GitHub issues](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/new/choose) to request enhancements or report defects.
-- The extension now preserves the state of its views, such as whether periodic updates are enabled, across debug sessions and IDE restarts. Non-default values are stored under `vscode-cmsis-debugger.viewState` in the workspace settings (`.vscode/settings.json`).
+- The extension now preserves the state of its views across debug sessions and IDE restarts (such as whether periodic updates are enabled). Non-default values are stored under `vscode-cmsis-debugger.viewState` in the workspace settings (`.vscode/settings.json`).
 - Enhances the [Live Watch](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-and-live-view) window with editable expression values and automatic highlighting when values change.
 - Also included in this extension release:
     - [pyOCD v0.44.1](https://github.com/pyocd/pyOCD/releases/tag/v0.44.1)
