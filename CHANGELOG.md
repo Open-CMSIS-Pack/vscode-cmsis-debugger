@@ -1,5 +1,10 @@
 # Change Log
 
+## 1.7.1
+
+- Includes updated pyOCD distribution ([pyOCD v0.45.0](https://github.com/pyocd/pyOCD/releases/tag/v0.45.0))
+    - TODO: TRANSFER CONDENSED CHANGELOG
+
 ## 1.7.0
 
 - Pre-release featuring early access to improved [Component Viewer](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#component-viewer) and
