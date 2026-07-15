@@ -15,10 +15,10 @@
     },
     {
         "name": "pyocd",
-        "version": "0.44.1",
+        "version": "0.45.0",
         "spdx": "Apache-2.0",
         "url": "https://github.com/pyocd/pyOCD",
-        "license": "https://github.com/pyocd/pyOCD/blob/v0.44.1/LICENSE"
+        "license": "https://github.com/pyocd/pyOCD/blob/v0.45.0/LICENSE"
     },
     {
         "name": "react",
