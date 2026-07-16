@@ -1,5 +1,22 @@
 # Change Log
 
+## 1.7.1
+
+- Includes updated pyOCD distribution ([pyOCD v0.45.0](https://github.com/pyocd/pyOCD/releases/tag/v0.45.0))
+    - Extends CMSIS debug sequence support with new functionality
+        - Adds support for `FlashEraseSetup` and `FlashProgramSetup` sequences to allow selection of flash programming approach at runtime (FLM algorithm vs debug sequences).
+        - Adds support for `RunPythonScript` debug access function to run Python scripts from debug sequences.
+        - Uses FLM algorithms for flash programming when `<flashinfo>` is present but no flash programming debug sequences are defined.
+        - Experimental: Adds `TraceCapture` and `TraceFlush` sequence hooks, and `__traceclockin` and `__traceclockout` debug access variables for enhanced trace support.
+    - Replaces the `telnet_*` session option names with `stdio_*`, reflecting that standard I/O is not limited to Telnet transport. `telnet_*` option names are kept as aliases for backwards compatibility.
+    - Adds `file-out` and `file-in` options to the RTT channel setup to enable file-based input and output in non-interactive use cases.
+    - Adds the `swv_raw_file` option to store the raw SWV trace stream in a file.
+    - Limits SWV console output to ITM channel 0.
+    - Fixes support for CMSIS-DAP probes with empty serial number.
+    - Fixes support for `<flashinfo>` subregions that span more than one defined `<memory>` region.
+    - Suppresses disconnect errors while closing a session after flash programming.
+    - Fixes discovery of debug and trace components in sub-systems without processors.
+
 ## 1.7.0
 
 - Pre-release featuring early access to improved [Component Viewer](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#component-viewer) and
