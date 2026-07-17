@@ -96,6 +96,7 @@ module.exports = {
         showInformationMessage: jest.fn(() => Promise.resolve(undefined)),
         showWarningMessage: jest.fn(),
         showInputBox: jest.fn(),
+        showOpenDialog: jest.fn(),
         showQuickPick: jest.fn(),
         createInputBox: jest.fn(() => {
             const handlers = { onDidChangeValue: [], onDidAccept: [], onDidHide: [] };
@@ -133,6 +134,7 @@ module.exports = {
                 return new Promise(resolve => resolve(new Uint8Array(buffer)));
             })
         },
+        findFiles: jest.fn(() => Promise.resolve([])),
         workspaceFolders: [
             {
                 uri: URI.file(path.join(__dirname, '..')),
@@ -155,6 +157,8 @@ module.exports = {
             'cmsis-debugger.componentViewer.focus',
             'cmsis-debugger.corePeripherals.open',
             'cmsis-debugger.corePeripherals.focus',
+            'cmsis-debugger.traceConfiguration.open',
+            'cmsis-debugger.traceConfiguration.focus',
         ])),
         registerCommand: jest.fn(),
     },

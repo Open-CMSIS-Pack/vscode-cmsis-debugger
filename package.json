@@ -72,6 +72,12 @@
           "type": "webview",
           "name": "Core Peripherals",
           "icon": "media/trace-and-live-light.svg"
+        },
+        {
+          "id": "cmsis-debugger.traceConfiguration",
+          "type": "webview",
+          "name": "CMSIS Trace Configuration",
+          "icon": "media/trace-and-live-light.svg"
         }
       ]
     },

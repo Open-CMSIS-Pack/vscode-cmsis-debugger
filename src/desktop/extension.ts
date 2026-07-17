@@ -28,6 +28,7 @@ import { ComponentViewer } from '../views/component-viewer/component-viewer';
 import { ComponentViewerTreeDataProvider } from '../views/component-viewer/component-viewer-tree-view';
 import { CorePeripherals } from '../views/core-peripherals/core-peripherals';
 import { clearAllViewState } from '../views/dynamic-view-states';
+import { TraceConfigurationWebviewProvider } from '../views/trace-configuration/trace-configuration-webview-provider';
 
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
@@ -59,6 +60,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     corePeripheralsTreeDataProvider = new ComponentViewerTreeDataProvider();
     const componentViewer = new ComponentViewer(context, componentViewerTreeDataProvider);
     const corePeripherals = new CorePeripherals(context, corePeripheralsTreeDataProvider);
+    const traceConfiguration = new TraceConfigurationWebviewProvider(context.extensionUri);
 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);
     // Activate generic commands
@@ -85,6 +87,9 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     if (!await corePeripherals.activate(gdbtargetDebugTracker)) {
         canCompleteActivation = false;
     }
+    // Trace Configuration
+    logger.debug('Activating CMSIS Trace Configuration');
+    traceConfiguration.activate(context);
 
     // Register reset dynamic view state command
     context.subscriptions.push(
