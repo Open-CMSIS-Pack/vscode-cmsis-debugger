@@ -1,5 +1,10 @@
 # Change Log
 
+## 1.7.2
+
+- Includes updated pyOCD distribution ([pyOCD v0.45.1](https://github.com/pyocd/pyOCD/releases/tag/v0.45.1))
+    - Fixes a regression in flash programming support introduced in pyOCD v0.45.0 that caused programming to abort when a DFP `<algorithm>` element's `RAMstart` and `RAMsize` attributes defined an address range not covered by a `<memory>` element.
+
 ## 1.7.1
 
 - Includes updated pyOCD distribution ([pyOCD v0.45.0](https://github.com/pyocd/pyOCD/releases/tag/v0.45.0))
