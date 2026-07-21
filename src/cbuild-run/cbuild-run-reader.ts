@@ -17,7 +17,7 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 import * as yaml from 'yaml';
-import { CbuildRunRootType, CbuildRunType } from './cbuild-run-types';
+import { CbuildRunRootType, CbuildRunType, ProcessorType } from './cbuild-run-types';
 import { FileReader, VscodeFileReader } from '../desktop/file-reader';
 import { getCmsisPackRootPath } from '../utils';
 
@@ -106,6 +106,15 @@ export class CbuildRunReader {
             return [];
         }
         return pnameProcessors.map(p => p.pname!);
+    }
+
+    /**
+     * Returns processor metadata from system-resources.processors. Consumers
+     * that only need the generated core names can use this helper instead of
+     * reaching through getContents() and duplicating the cbuild-run shape.
+     */
+    public getProcessors(): ProcessorType[] {
+        return this.cbuildRun?.['system-resources']?.processors ?? [];
     }
 
     public getTargetType(): string | undefined {
