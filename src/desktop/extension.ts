@@ -29,6 +29,7 @@ import { ComponentViewerTreeDataProvider } from '../views/component-viewer/compo
 import { CorePeripherals } from '../views/core-peripherals/core-peripherals';
 import { clearAllViewState } from '../views/dynamic-view-states';
 import { TraceConfigurationWebviewProvider } from '../views/trace-configuration/trace-configuration-webview-provider';
+import { TraceCommands } from '../features/trace/trace-commands';
 
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
@@ -49,6 +50,7 @@ const askForReload = async (): Promise<void> => {
 export const activate = async (context: vscode.ExtensionContext): Promise<void> => {
     let canCompleteActivation = true;
     const genericCommands = new GenericCommands();
+    const traceCommands = new TraceCommands();
     const gdbtargetDebugTracker = new GDBTargetDebugTracker();
     const gdbtargetConfigurationProvider = new GDBTargetConfigurationProvider();
     const cpuStates = new CpuStates();
@@ -65,6 +67,8 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);
     // Activate generic commands
     genericCommands.activate(context);
+    // Activate trace commands
+    traceCommands.activate(context);
     // Activate components
     gdbtargetDebugTracker.activate(context);
     gdbtargetConfigurationProvider.activate(context, gdbtargetDebugTracker);
