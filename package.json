@@ -939,7 +939,7 @@
     "yargs": "^18.0.0"
   },
   "cmsis": {
-    "pyocd": "pyocd/pyOCD@0.45.0",
+    "pyocd": "pyocd/pyOCD@0.45.1",
     "pyocdNightly": "pyocd/pyOCD@nightly",
     "gdb": "15.2.1"
   }
