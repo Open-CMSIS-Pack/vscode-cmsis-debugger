@@ -44,4 +44,8 @@ export class CTraceProcessManager {
     public launch(): void {
         this.processManager.launch();
     }
+
+    public waitForExit(): Promise<void> {
+        return this.processManager.waitForExit();
+    }
 }
