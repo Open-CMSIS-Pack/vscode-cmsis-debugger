@@ -33,7 +33,10 @@ import { TraceCommands } from '../features/trace/trace-commands';
 
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
-    'tools/gdb/bin/arm-none-eabi-gdb'
+    'tools/gdb/bin/arm-none-eabi-gdb',
+    // TODO: TEMPORARY, these tools will be shipped separately in future
+    'tools/ctrace/ctrace',
+    'tools/pyts/pyts'
 ];
 
 let liveWatchTreeDataProvider: LiveWatchTreeDataProvider;
