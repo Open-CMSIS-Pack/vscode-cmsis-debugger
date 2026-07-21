@@ -1,5 +1,10 @@
 # Change Log
 
+## 1.7.2
+
+- Includes updated pyOCD distribution ([pyOCD v0.45.1](https://github.com/pyocd/pyOCD/releases/tag/v0.45.1))
+    - TODO
+
 ## 1.7.1
 
 - Includes updated pyOCD distribution ([pyOCD v0.45.0](https://github.com/pyocd/pyOCD/releases/tag/v0.45.0))
