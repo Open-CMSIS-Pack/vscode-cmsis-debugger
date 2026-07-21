@@ -167,18 +167,24 @@ describe('CTraceYamlDocument', () => {
         expect(document.toString()).not.toContain('register-values');
     });
 
-    it('assigns ctrace-ref values to ctrace map nodes', () => {
+    it('assigns ctrace-ref values internally without writing them to YAML', () => {
         const document = CTraceYamlDocument.parse([
             'ctrace:',
+            '  ctrace-ref: stale-root',
             '  instructions:',
+            '    ctrace-ref: stale-instructions',
             '    start:',
             '      - location: main',
+            '        ctrace-ref: stale-start',
             '  setup:',
             '    - pname: Core0',
+            '      ctrace-ref: stale-core',
             '      data:',
             '        - location: watchMe',
+            '          ctrace-ref: stale-data',
             '          match:',
             '            value: 0x10',
+            '            ctrace-ref: stale-match',
             '    - pname: Core1',
             '      events:',
             '        - event: Exception',
@@ -187,13 +193,14 @@ describe('CTraceYamlDocument', () => {
 
         document.assignCTraceRefs();
 
-        expect(document.yaml.getString(['ctrace', 'ctrace-ref'])).toBe('ctrace');
-        expect(document.yaml.getString(['ctrace', 'instructions', 'ctrace-ref'])).toBe('instructions');
-        expect(document.yaml.getString(['ctrace', 'instructions', 'start', 0, 'ctrace-ref'])).toBe('instructions:start#0');
-        expect(document.yaml.getString(['ctrace', 'setup', 0, 'ctrace-ref'])).toBe('Core0');
-        expect(document.yaml.getString(['ctrace', 'setup', 0, 'data', 0, 'ctrace-ref'])).toBe('Core0/data#0');
-        expect(document.yaml.getString(['ctrace', 'setup', 0, 'data', 0, 'match', 'ctrace-ref'])).toBe('Core0/data#0/match');
-        expect(document.yaml.getString(['ctrace', 'setup', 1, 'events', 0, 'ctrace-ref'])).toBe('Core1/events#0');
+        expect(document.getCTraceRef(['ctrace'])).toBe('ctrace');
+        expect(document.getCTraceRef(['ctrace', 'instructions'])).toBe('instructions');
+        expect(document.getCTraceRef(['ctrace', 'instructions', 'start', 0])).toBe('instructions:start#0');
+        expect(document.getCTraceRef(['ctrace', 'setup', 0])).toBe('Core0');
+        expect(document.getCTraceRef(['ctrace', 'setup', 0, 'data', 0])).toBe('Core0/data#0');
+        expect(document.getCTraceRef(['ctrace', 'setup', 0, 'data', 0, 'match'])).toBe('Core0/data#0/match');
+        expect(document.getCTraceRef(['ctrace', 'setup', 1, 'events', 0])).toBe('Core1/events#0');
+        expect(document.toString()).not.toContain('ctrace-ref');
     });
 });
 

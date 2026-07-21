@@ -123,15 +123,13 @@ function mapScalarToString(map: YAML.YAMLMap, key: string): string | undefined {
     return value === undefined || value === null ? undefined : String(value);
 }
 
-function setCTraceRef(map: YAML.YAMLMap, reference: string): void {
-    map.set('ctrace-ref', new YAML.Scalar(reference));
-}
-
 function joinReference(prefix: string | undefined, suffix: string): string {
     return prefix ? `${prefix}/${suffix}` : suffix;
 }
 
 export class CTraceYamlDocument {
+    private readonly ctraceRefs = new Map<string, string>();
+
     constructor(private readonly yamlDomDocument: YamlDomDocument) {}
 
     public static parse(text: string, fileName?: string): CTraceYamlDocument {
@@ -255,12 +253,17 @@ export class CTraceYamlDocument {
     }
 
     public assignCTraceRefs(): void {
+        this.ctraceRefs.clear();
         const root = this.yamlDomDocument.getNode(CTRACE_PATH);
         if (!YAML.isMap(root)) {
             return;
         }
-        setCTraceRef(root, CTRACE_ROOT);
-        this.assignMapChildReferences(root);
+        this.setInternalCTraceRef(CTRACE_PATH, CTRACE_ROOT);
+        this.assignMapChildReferences(root, CTRACE_PATH);
+    }
+
+    public getCTraceRef(path: YamlPath): string | undefined {
+        return this.ctraceRefs.get(this.pathToReferenceKey(path));
     }
 
     public toObject(): CTraceRoot {
@@ -279,28 +282,34 @@ export class CTraceYamlDocument {
 
     private assignMapChildReferences(
         map: YAML.YAMLMap,
+        currentPath: YamlPath,
         currentReference?: string,
         currentSection?: string
     ): void {
         [...map.items].forEach(pair => {
             const key = mapKeyToString(pair.key);
-            if (!key || key === 'ctrace-ref' || !YAML.isNode(pair.value)) {
+            if (key === 'ctrace-ref') {
+                map.delete(key);
+                return;
+            }
+            if (!key || !YAML.isNode(pair.value)) {
                 return;
             }
             if (YAML.isSeq(pair.value)) {
-                this.assignSequenceReferences(pair.value, key, currentReference, currentSection);
+                this.assignSequenceReferences(pair.value, [...currentPath, key], key, currentReference, currentSection);
                 return;
             }
             if (YAML.isMap(pair.value)) {
                 const childReference = joinReference(currentReference, key);
-                setCTraceRef(pair.value, childReference);
-                this.assignMapChildReferences(pair.value, childReference, key);
+                this.setInternalCTraceRef([...currentPath, key], childReference);
+                this.assignMapChildReferences(pair.value, [...currentPath, key], childReference, key);
             }
         });
     }
 
     private assignSequenceReferences(
         sequence: YAML.YAMLSeq,
+        sequencePath: YamlPath,
         key: string,
         currentReference?: string,
         currentSection?: string
@@ -310,8 +319,9 @@ export class CTraceYamlDocument {
                 return;
             }
             const reference = this.createSequenceItemReference(item, key, index, currentReference, currentSection);
-            setCTraceRef(item, reference);
-            this.assignMapChildReferences(item, reference);
+            const itemPath = [...sequencePath, index];
+            this.setInternalCTraceRef(itemPath, reference);
+            this.assignMapChildReferences(item, itemPath, reference);
         });
     }
 
@@ -330,6 +340,14 @@ export class CTraceYamlDocument {
         }
         const reference = `${key}#${index}`;
         return joinReference(currentReference, reference);
+    }
+
+    private setInternalCTraceRef(path: YamlPath, reference: string): void {
+        this.ctraceRefs.set(this.pathToReferenceKey(path), reference);
+    }
+
+    private pathToReferenceKey(path: YamlPath): string {
+        return JSON.stringify([...path]);
     }
 
     private setOrDeleteSequence<T>(path: YamlPath, entries: T[]): void {
