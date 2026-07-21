@@ -17,7 +17,8 @@
 import * as path from 'node:path';
 import * as YAML from 'yaml';
 import * as vscode from 'vscode';
-import { CTraceYamlFile } from '../../generic';
+import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
+import { CTraceYamlFile, Disposable } from '../../generic';
 import { logger } from '../../logger';
 import {
     TraceConfigurationRow,
@@ -28,6 +29,7 @@ import {
 
 const VIEW_ID = 'cmsis-debugger.traceConfiguration';
 const CTRACE_FILE_GLOB = '{**/ctrace.yml,**/ctrace.yaml,**/*.ctrace.yml,**/*.ctrace.yaml}';
+const CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND = 'cmsis-csolution.getCbuildRunFile';
 const EVENT_COUNTER_OPTIONS = ['CYCCNT', 'CPICNT', 'EXCCNT', 'SLEEPCNT', 'LSUCNT', 'FOLDCNT', 'PMU'];
 const PRIVILEGED_RANGE_OPTIONS = ['0-7', '8-15', '16-23', '24-31'];
 const STREAM_SYNC_PERIOD_OPTIONS = ['off', '16M', '64M', '256M'];
@@ -71,6 +73,79 @@ interface RowBuildContext {
     collapsedRows: Set<string>;
 }
 
+interface ProcessorTraceCapabilities {
+    pname: string;
+    core?: string | undefined;
+    supportsTrace: boolean;
+    dwtComparators: number;
+    timestamps: boolean;
+    exceptions: boolean;
+    eventCounters: boolean;
+    pmuEvents: boolean;
+    instrumentationTrace: boolean;
+    instructionTrace: boolean;
+    pcSampling: boolean;
+    timeSynchronization: boolean;
+    streamSynchronization: boolean;
+}
+
+type ProcessorTraceCapabilityTemplate = Omit<ProcessorTraceCapabilities, 'pname' | 'core'>;
+
+const NO_TRACE_CAPABILITIES: ProcessorTraceCapabilityTemplate = {
+    supportsTrace: false,
+    dwtComparators: 0,
+    timestamps: false,
+    exceptions: false,
+    eventCounters: false,
+    pmuEvents: false,
+    instrumentationTrace: false,
+    instructionTrace: false,
+    pcSampling: false,
+    timeSynchronization: false,
+    streamSynchronization: false,
+};
+
+const TB_ONLY_TRACE_CAPABILITIES: ProcessorTraceCapabilityTemplate = {
+    ...NO_TRACE_CAPABILITIES,
+    supportsTrace: true,
+    instructionTrace: true,
+};
+
+const CORTEX_M_DWT_4_TRACE_CAPABILITIES: ProcessorTraceCapabilityTemplate = {
+    supportsTrace: true,
+    dwtComparators: 4,
+    timestamps: true,
+    exceptions: true,
+    eventCounters: true,
+    pmuEvents: false,
+    instrumentationTrace: true,
+    instructionTrace: true,
+    pcSampling: true,
+    timeSynchronization: true,
+    streamSynchronization: true,
+};
+
+const CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES: ProcessorTraceCapabilityTemplate = {
+    ...CORTEX_M_DWT_4_TRACE_CAPABILITIES,
+    dwtComparators: 8,
+    pmuEvents: true,
+};
+
+const TRACE_CAPABILITIES_BY_CORE = new Map<string, ProcessorTraceCapabilityTemplate>([
+    ['CM0', NO_TRACE_CAPABILITIES],
+    ['CM0PLUS', TB_ONLY_TRACE_CAPABILITIES],
+    ['CM1', NO_TRACE_CAPABILITIES],
+    ['CM3', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
+    ['CM4', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
+    ['CM7', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
+    ['CM23', TB_ONLY_TRACE_CAPABILITIES],
+    ['CM33', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
+    ['CM35P', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
+    ['CM52', CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES],
+    ['CM55', CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES],
+    ['CM85', CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES],
+]);
+
 /**
  * The TraceConfigurationWebviewProvider owns the VS Code sidebar webview for
  * editing ctrace.yml files. It keeps all file-system and YAML mutation work on
@@ -80,18 +155,24 @@ interface RowBuildContext {
 export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProvider {
     private webviewView: vscode.WebviewView | undefined;
     private ctraceFile: CTraceYamlFile | undefined;
+    private ctraceFileWatcher: Disposable | undefined;
     private loading = false;
     private dirty = false;
     private errorMessage: string | undefined;
     private readonly collapsedRows = new Set<string>();
+    private readonly processorCapabilities = new Map<string, ProcessorTraceCapabilities>();
 
     /**
-     * The constructor stores the extension URI so resolveWebviewView can later
-     * turn built files under dist/webviews into webview-safe URIs. VS Code
-     * webviews cannot load arbitrary extension file paths directly; every local
-     * asset must go through webview.asWebviewUri.
+     * The constructor stores the extension URI for webview asset loading and
+     * creates the cbuild-run reader used after the CMSIS Solution extension
+     * provides the active target's cbuild-run file path. VS Code webviews
+     * cannot load arbitrary extension file paths directly, so every local asset
+     * still goes through webview.asWebviewUri.
      */
-    public constructor(private readonly extensionUri: vscode.Uri) {}
+    public constructor(
+        private readonly extensionUri: vscode.Uri,
+        private readonly cbuildRunReader: CbuildRunReader = new CbuildRunReader()
+    ) {}
 
     /**
      * activate registers this object as the provider for the contributed view.
@@ -101,7 +182,8 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
      */
     public activate(context: vscode.ExtensionContext): void {
         context.subscriptions.push(
-            vscode.window.registerWebviewViewProvider(VIEW_ID, this)
+            vscode.window.registerWebviewViewProvider(VIEW_ID, this),
+            { dispose: () => this.disposeCurrentFileWatcher() }
         );
     }
 
@@ -126,6 +208,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
         });
         webviewView.onDidDispose(() => {
             this.webviewView = undefined;
+            this.disposeCurrentFileWatcher();
         });
         void this.loadInitialFile();
     }
@@ -143,7 +226,9 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
         try {
             const candidate = await this.findInitialCTraceFile();
             if (!candidate) {
+                this.disposeCurrentFileWatcher();
                 this.ctraceFile = undefined;
+                this.processorCapabilities.clear();
                 this.errorMessage = undefined;
                 return;
             }
@@ -188,14 +273,134 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
 
     /**
      * loadFile creates the CTraceYamlFile wrapper and parses the supplied file.
-     * It also assigns ctrace-ref fields immediately so the webview and future
-     * generated trace data can rely on a reference existing for each map node.
+     * It also assigns internal ctrace references and loads processor trace
+     * capabilities so the webview can hide unsupported controls before the first
+     * state snapshot is posted.
      */
     private async loadFile(fileName: string): Promise<void> {
-        this.ctraceFile = new CTraceYamlFile(fileName);
-        const document = await this.ctraceFile.load(fileName);
+        const nextFile = new CTraceYamlFile(fileName);
+        const document = await nextFile.load(fileName);
+        this.disposeCurrentFileWatcher();
+        this.ctraceFile = nextFile;
         document.assignCTraceRefs();
+        await this.loadProcessorCapabilities();
+        this.watchCurrentFile();
         this.dirty = false;
+    }
+
+    /**
+     * loadProcessorCapabilities rebuilds the in-memory capability table for the
+     * currently loaded ctrace file. The cbuild-run file is used only to discover
+     * processor names and core names; the trace feature limits themselves come
+     * from TRACE_CAPABILITIES_BY_CORE so cbuild-run data is not treated as a
+     * capability source.
+     */
+    private async loadProcessorCapabilities(): Promise<void> {
+        this.processorCapabilities.clear();
+        const configuredPnames = this.getConfiguredProcessorNames();
+        const processors = await this.getCBuildRunProcessors();
+        processors.forEach(processor => {
+            const pname = this.getProcessorNameForCapabilities(processor, processors, configuredPnames);
+            if (!pname) {
+                return;
+            }
+            this.processorCapabilities.set(pname, this.createTraceCapabilities(pname, processor.core));
+        });
+        configuredPnames.forEach(pname => {
+            if (!this.processorCapabilities.has(pname)) {
+                this.processorCapabilities.set(pname, this.createTraceCapabilities(pname));
+            }
+        });
+    }
+
+    /**
+     * getCBuildRunProcessors asks the CMSIS Solution extension for the active
+     * target's cbuild-run file path, parses that file with this view's own
+     * CbuildRunReader instance, and returns only the processor list. The caller
+     * intentionally consumes processor.core and processor.pname only.
+     */
+    private async getCBuildRunProcessors(): Promise<ProcessorType[]> {
+        const cbuildRunFileName = await this.getCBuildRunFileName();
+        if (!cbuildRunFileName) {
+            return [];
+        }
+        try {
+            await this.cbuildRunReader.parse(cbuildRunFileName);
+            return this.cbuildRunReader.getProcessors();
+        } catch (error) {
+            logger.debug(`Trace Configuration: Ignoring cbuild-run file ${cbuildRunFileName}: ${this.errorToString(error)}`);
+            return [];
+        }
+    }
+
+    /**
+     * getCBuildRunFileName bridges to the CMSIS Solution extension command
+     * that resolves the active target's generated cbuild-run file. The command
+     * returns an empty string when no active solution target is available, and
+     * command failures are treated the same way so the trace editor can still
+     * render fallback ctrace.yml-based rows.
+     */
+    private async getCBuildRunFileName(): Promise<string | undefined> {
+        try {
+            const fileName = await vscode.commands.executeCommand<string | undefined>(CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
+            return fileName?.trim() ? fileName : undefined;
+        } catch (error) {
+            logger.debug(`Trace Configuration: Failed to get active cbuild-run file from CMSIS Solution: ${this.errorToString(error)}`);
+            return undefined;
+        }
+    }
+
+    /**
+     * getProcessorNameForCapabilities chooses the map key used by the trace
+     * capability table. cbuild-run usually provides pname, but single-core
+     * generated files may only provide core; in that case the single ctrace
+     * pname is paired with the single cbuild-run processor so the UI can still
+     * use the parsed core metadata.
+     */
+    private getProcessorNameForCapabilities(processor: ProcessorType, processors: ProcessorType[], configuredPnames: string[]): string | undefined {
+        if (processor.pname) {
+            return processor.pname;
+        }
+        if (processors.length === 1 && configuredPnames.length === 1) {
+            return configuredPnames[0];
+        }
+        return processor.core;
+    }
+
+    /**
+     * getConfiguredProcessorNames reads processor names from the ctrace setup
+     * array. These names let the webview apply fallback capabilities even before
+     * a project has generated a cbuild-run file.
+     */
+    private getConfiguredProcessorNames(): string[] {
+        const setup = this.ctraceFile?.document?.yaml.getNode(['ctrace', 'setup']);
+        if (!YAML.isSeq(setup)) {
+            return [];
+        }
+        return setup.items.flatMap(item => {
+            if (!YAML.isMap(item)) {
+                return [];
+            }
+            const pname = this.mapScalarToString(item, 'pname');
+            return pname ? [pname] : [];
+        });
+    }
+
+    /**
+     * createTraceCapabilities maps a CMSIS core name to the internally stored
+     * trace feature limits exposed by the webview. The optional pname fallback
+     * exists for hand-authored single-core files whose pname is itself a core
+     * spelling such as cm33; otherwise unknown cores get no trace GUI.
+     */
+    private createTraceCapabilities(pname: string, core?: string): ProcessorTraceCapabilities {
+        const normalizedCore = this.normalizeCoreName(core) ?? this.normalizeCoreName(pname);
+        const template = normalizedCore ? TRACE_CAPABILITIES_BY_CORE.get(normalizedCore) : undefined;
+        const capabilities = template ?? NO_TRACE_CAPABILITIES;
+        return {
+            pname,
+            core,
+            ...capabilities,
+        };
     }
 
     /**
@@ -213,7 +418,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
                     await this.refreshFile();
                     break;
                 case 'save':
-                    await this.saveCurrentDocument();
+                    await this.saveCurrentDocument({ reloadBeforeSave: true, skipWhenReloaded: true });
                     break;
                 case 'openFile':
                     await this.promptAndOpenFile();
@@ -253,12 +458,95 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
         try {
             const document = await this.ctraceFile.load();
             document.assignCTraceRefs();
+            await this.loadProcessorCapabilities();
             this.dirty = false;
             this.errorMessage = undefined;
         } finally {
             this.loading = false;
             this.postState();
         }
+    }
+
+    /**
+     * reloadCurrentFileIfChanged checks the file stamp tracked by the YAML file
+     * layer and only reparses ctrace.yml when the on-disk file has changed.
+     * This is the core guard that keeps ctrace.yml as the golden source: before
+     * a webview command mutates the DOM, the provider gives direct file edits a
+     * chance to replace the in-memory document first.
+     */
+    private async reloadCurrentFileIfChanged(): Promise<boolean> {
+        const file = this.requireFile();
+        const changed = await file.reloadIfChanged();
+        if (changed && file.document) {
+            await this.acceptDiskDocument(file.document);
+        }
+        return changed;
+    }
+
+    /**
+     * requireFreshDocumentForEdit returns the current YAML DOM only when it is
+     * still synchronized with disk. If ctrace.yml changed after the webview
+     * rendered its rows, this method reloads and returns undefined so the stale
+     * browser action is ignored instead of being applied to a different file
+     * shape or overwriting a user's hand edit.
+     */
+    private async requireFreshDocumentForEdit(): Promise<NonNullable<CTraceYamlFile['document']> | undefined> {
+        const reloaded = await this.reloadCurrentFileIfChanged();
+        return reloaded ? undefined : this.requireDocument();
+    }
+
+    /**
+     * acceptDiskDocument normalizes a freshly loaded YAML document for display.
+     * The ctrace references are rebuilt internally, processor limits are
+     * recalculated from the latest project files, and the webview receives a new
+     * state snapshot that is derived from ctrace.yml rather than from browser
+     * state.
+     */
+    private async acceptDiskDocument(document: NonNullable<CTraceYamlFile['document']>): Promise<void> {
+        document.assignCTraceRefs();
+        await this.loadProcessorCapabilities();
+        this.dirty = false;
+        this.errorMessage = undefined;
+        this.postState();
+    }
+
+    /**
+     * watchCurrentFile starts a file watcher for the selected ctrace.yml so
+     * hand edits made in VS Code or another editor automatically flow back into
+     * the webview. The callback is guarded by object identity so a delayed event
+     * from an older file cannot update the view after the user opens a different
+     * trace configuration.
+     */
+    private watchCurrentFile(): void {
+        this.disposeCurrentFileWatcher();
+        const watchedFile = this.ctraceFile;
+        if (!watchedFile) {
+            return;
+        }
+        this.ctraceFileWatcher = watchedFile.watch(document => {
+            if (this.ctraceFile !== watchedFile) {
+                return;
+            }
+            void this.acceptDiskDocument(document);
+        }, error => {
+            if (this.ctraceFile !== watchedFile) {
+                return;
+            }
+            this.errorMessage = this.errorToString(error);
+            logger.error(`Trace Configuration: Failed to reload ctrace file after disk change: ${this.errorMessage}`);
+            this.postState();
+        });
+    }
+
+    /**
+     * disposeCurrentFileWatcher releases the active file watcher whenever the
+     * view closes or a different ctrace.yml is selected. Without this cleanup,
+     * stale watchers could continue responding to old files and make it look as
+     * though the webview, not the currently selected YAML file, owned the state.
+     */
+    private disposeCurrentFileWatcher(): void {
+        this.ctraceFileWatcher?.dispose();
+        this.ctraceFileWatcher = undefined;
     }
 
     /**
@@ -315,65 +603,68 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
      * row represents a trace subsystem rather than a literal boolean scalar.
      */
     private async updateValue(pathToUpdate: (string | number)[], value: string | boolean | string[]): Promise<void> {
-        const document = this.requireDocument();
+        const document = await this.requireFreshDocumentForEdit();
+        if (!document) {
+            return;
+        }
         if (this.isProcessorPath(pathToUpdate) && typeof value === 'boolean') {
             document.yaml.set([...pathToUpdate, 'disable'], !value);
-            await this.saveCurrentDocument();
+            await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
         if (this.isEventsPath(pathToUpdate) && Array.isArray(value)) {
             document.yaml.set(pathToUpdate, value.map(event => ({ event })));
-            await this.saveCurrentDocument();
+            await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
         if (this.isItmPrivilegedPath(pathToUpdate) && Array.isArray(value)) {
             document.yaml.set(pathToUpdate, this.privilegedRangesToMask(value));
-            await this.saveCurrentDocument();
+            await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
         if (this.isDwtDataAccessPath(pathToUpdate) && typeof value === 'string') {
             document.yaml.set(pathToUpdate, this.accessLabelToValue(value));
-            await this.saveCurrentDocument();
+            await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
         if (this.isTimestampsPath(pathToUpdate) && typeof value === 'boolean') {
             document.yaml.set(pathToUpdate, value ? { 'itm-prescaler': '16' } : null);
-            await this.saveCurrentDocument();
+            await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
         if (this.isItmPath(pathToUpdate) && typeof value === 'string') {
             document.yaml.set([...pathToUpdate, 'enable'], value);
-            await this.saveCurrentDocument();
+            await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
         if (this.isPcSamplingPath(pathToUpdate) && typeof value === 'string') {
             document.yaml.set([...pathToUpdate, 'period'], this.normalizePcSamplingPeriod(value));
-            await this.saveCurrentDocument();
+            await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
         if (this.isStreamSyncDwtPeriodPath(pathToUpdate) && typeof value === 'string') {
             const streamSyncPath = pathToUpdate.slice(0, -1);
             document.yaml.set(streamSyncPath, value === 'off' ? [] : [{ period: `DWT\\${value}` }]);
-            await this.saveCurrentDocument();
+            await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
         if (this.isExceptionsPath(pathToUpdate) && typeof value === 'boolean') {
             document.yaml.set(pathToUpdate, value ? {} : null);
-            await this.saveCurrentDocument();
+            await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
         if (this.isTimeSyncPath(pathToUpdate) && typeof value === 'boolean') {
             document.yaml.set(pathToUpdate, value ? {} : null);
-            await this.saveCurrentDocument();
+            await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
         if (this.isInstructionsPath(pathToUpdate) && typeof value === 'boolean') {
             document.yaml.set(pathToUpdate, value ? {} : null);
-            await this.saveCurrentDocument();
+            await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
         document.yaml.set(pathToUpdate, value);
-        await this.saveCurrentDocument();
+        await this.saveCurrentDocument({ abortIfDiskChanged: true });
     }
 
     /**
@@ -383,9 +674,12 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
      * further in YAML if needed.
      */
     private async addItem(pathToUpdate: (string | number)[], addChildKind: NonNullable<TraceConfigurationRow['addChildKind']>): Promise<void> {
-        const document = this.requireDocument();
+        const document = await this.requireFreshDocumentForEdit();
+        if (!document) {
+            return;
+        }
         document.yaml.append(pathToUpdate, this.createNewItem(addChildKind));
-        await this.saveCurrentDocument();
+        await this.saveCurrentDocument({ abortIfDiskChanged: true });
     }
 
     /**
@@ -394,9 +688,12 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
      * can be surprisingly destructive.
      */
     private async removeItem(pathToRemove: (string | number)[]): Promise<void> {
-        const document = this.requireDocument();
+        const document = await this.requireFreshDocumentForEdit();
+        if (!document) {
+            return;
+        }
         document.yaml.delete(pathToRemove);
-        await this.saveCurrentDocument();
+        await this.saveCurrentDocument({ abortIfDiskChanged: true });
     }
 
     /**
@@ -420,14 +717,28 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
     }
 
     /**
-     * saveCurrentDocument assigns fresh ctrace-ref values, persists the YAML
-     * file, and posts the refreshed tree to the webview. The function is async
-     * because writes go through the filesystem-backed CTraceYamlFile abstraction.
+     * saveCurrentDocument refreshes internal ctrace references, persists the
+     * YAML file, and posts the refreshed tree to the webview. The options let
+     * callers protect ctrace.yml as the source of truth: toolbar saves reload
+     * first and skip writing if disk changed, while edit saves abort if a file
+     * change lands in the small window between the pre-edit reload check and the
+     * final filesystem write.
      */
-    private async saveCurrentDocument(): Promise<void> {
+    private async saveCurrentDocument(options: { reloadBeforeSave?: boolean; skipWhenReloaded?: boolean; abortIfDiskChanged?: boolean } = {}): Promise<void> {
         const file = this.requireFile();
+        if (options.reloadBeforeSave) {
+            const reloaded = await this.reloadCurrentFileIfChanged();
+            if (reloaded && options.skipWhenReloaded) {
+                return;
+            }
+        }
+        if (options.abortIfDiskChanged && await file.hasExternalFileChanged()) {
+            await this.reloadCurrentFileIfChanged();
+            return;
+        }
         file.document?.assignCTraceRefs();
         await file.save();
+        await this.loadProcessorCapabilities();
         this.dirty = false;
         this.errorMessage = undefined;
         this.postState();
@@ -482,7 +793,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
         const document = this.ctraceFile?.document;
         const rows = document ? this.createRows(document.yaml.document.contents) : [];
         const emptyMessage = document
-            ? rows.length === 0 ? 'The selected YAML file has no ctrace configuration.' : undefined
+            ? rows.length === 0 ? 'No trace-capable processor configuration is available for this ctrace file.' : undefined
             : 'Open a ctrace.yml file to edit trace configuration.';
         return {
             fileName: this.ctraceFile?.fileName,
@@ -537,6 +848,9 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
         depth: number,
         forceExpanded = false
     ): void {
+        if (!this.shouldShowTraceNode(label, nodePath)) {
+            return;
+        }
         if (this.isStreamSynchronizationPath(nodePath)) {
             this.appendStreamSynchronizationRows(context, node, nodePath, label, depth, forceExpanded);
             return;
@@ -666,12 +980,67 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             hasChildren,
             expanded: this.hasInlineMultiSelect(nodePath) ? false : expanded,
             removable: typeof nodePath.at(-1) === 'number' && nodePath.at(-2) !== 'setup',
-            addChildKind: YAML.isSeq(node) && nodePath.at(-1) !== 'setup' && !this.hasInlineMultiSelect(nodePath)
-                ? this.getAddChildKind(nodePath)
-                : undefined,
+            addChildKind: this.getRowAddChildKind(node, nodePath),
             description: this.describeNode(node, nodePath)
         };
         return row;
+    }
+
+    /**
+     * getRowAddChildKind decides whether a sequence row should expose an add
+     * button. It preserves the normal starter-object behavior, but suppresses
+     * DWT Data Trace additions when the selected processor has already consumed
+     * all available DWT comparator channels.
+     */
+    private getRowAddChildKind(node: YAML.Node, nodePath: (string | number)[]): TraceConfigurationRow['addChildKind'] {
+        if (!YAML.isSeq(node) || nodePath.at(-1) === 'setup' || this.hasInlineMultiSelect(nodePath)) {
+            return undefined;
+        }
+        if (this.isDwtDataTracePath(nodePath)) {
+            const capabilities = this.getTraceCapabilitiesForPath(nodePath);
+            if (capabilities && node.items.length >= capabilities.dwtComparators) {
+                return undefined;
+            }
+        }
+        return this.getAddChildKind(nodePath);
+    }
+
+    /**
+     * shouldShowTraceNode applies processor capability filtering to YAML rows.
+     * Unsupported processors and unsupported trace feature groups are not sent
+     * to the webview, which prevents users from configuring hardware that the
+     * selected core cannot provide.
+     */
+    private shouldShowTraceNode(label: string, nodePath: (string | number)[]): boolean {
+        const capabilities = this.getTraceCapabilitiesForPath(nodePath);
+        if (!capabilities) {
+            return true;
+        }
+        if (this.isProcessorPath(nodePath)) {
+            return capabilities.supportsTrace;
+        }
+        switch (label) {
+            case 'timestamps':
+                return capabilities.timestamps;
+            case 'exceptions':
+                return capabilities.exceptions;
+            case 'events':
+                return capabilities.eventCounters;
+            case 'itm':
+                return capabilities.instrumentationTrace;
+            case 'data':
+                return capabilities.dwtComparators > 0;
+            case 'instructions':
+                return capabilities.instructionTrace;
+            case 'pcsampling':
+                return capabilities.pcSampling;
+            case 'timesync':
+                return capabilities.timeSynchronization;
+            case 'synchronization':
+                return capabilities.streamSynchronization;
+            default:
+                return true;
+        }
     }
 
     /**
@@ -744,11 +1113,11 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
     private getAdvancedSettingsEntries(node: YAML.YAMLMap, nodePath: (string | number)[]): { label: string; path: (string | number)[]; node: YAML.Node }[] {
         const entries: { label: string; path: (string | number)[]; node: YAML.Node }[] = [];
         const timesync = node.get('timesync', true);
-        if (YAML.isNode(timesync)) {
+        if (YAML.isNode(timesync) && this.shouldShowTraceNode('timesync', [...nodePath, 'timesync'])) {
             entries.push({ label: 'timesync', path: [...nodePath, 'timesync'], node: timesync });
         }
         const synchronization = node.get('synchronization', true);
-        if (YAML.isNode(synchronization)) {
+        if (YAML.isNode(synchronization) && this.shouldShowTraceNode('synchronization', [...nodePath, 'synchronization'])) {
             entries.push({ label: 'synchronization', path: [...nodePath, 'synchronization'], node: synchronization });
         }
         return entries;
@@ -1090,7 +1459,8 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
      */
     private getSelectOptions(label: string, nodePath: (string | number)[]): string[] | undefined {
         if (this.isEventsPath(nodePath)) {
-            return EVENT_COUNTER_OPTIONS;
+            const capabilities = this.getTraceCapabilitiesForPath(nodePath);
+            return capabilities?.pmuEvents ? EVENT_COUNTER_OPTIONS : EVENT_COUNTER_OPTIONS.filter(option => option !== 'PMU');
         }
         if (this.isItmPrivilegedPath(nodePath)) {
             return PRIVILEGED_RANGE_OPTIONS;
@@ -1194,6 +1564,44 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
     }
 
     /**
+     * getTraceCapabilitiesForPath resolves a row path to the processor that
+     * owns it, then returns that processor's loaded or inferred trace
+     * capabilities.
+     */
+    private getTraceCapabilitiesForPath(nodePath: (string | number)[]): ProcessorTraceCapabilities | undefined {
+        const pname = this.getProcessorNameForPath(nodePath);
+        return pname ? this.processorCapabilities.get(pname) : undefined;
+    }
+
+    /**
+     * getProcessorNameForPath finds the setup item that owns a row and returns
+     * its pname. Rows outside setup are intentionally left without capabilities
+     * because they may represent legacy top-level ctrace sections.
+     */
+    private getProcessorNameForPath(nodePath: (string | number)[]): string | undefined {
+        const setupIndex = this.getSetupIndexForPath(nodePath);
+        if (setupIndex === undefined) {
+            return undefined;
+        }
+        const processorNode = this.ctraceFile?.document?.yaml.getNode(['ctrace', 'setup', setupIndex]);
+        return YAML.isMap(processorNode) ? this.mapScalarToString(processorNode, 'pname') : undefined;
+    }
+
+    /**
+     * getSetupIndexForPath scans a YAML path for the ctrace setup sequence
+     * segment and returns the numeric item index that follows it.
+     */
+    private getSetupIndexForPath(nodePath: (string | number)[]): number | undefined {
+        const setupIndex = nodePath.findIndex((segment, index) =>
+            segment === 'setup' && typeof nodePath.at(index + 1) === 'number');
+        if (setupIndex < 0) {
+            return undefined;
+        }
+        const processorIndex = nodePath.at(setupIndex + 1);
+        return typeof processorIndex === 'number' ? processorIndex : undefined;
+    }
+
+    /**
      * hasInlineMultiSelect identifies rows whose child YAML should be edited
      * through a single checklist control instead of being expanded into visible
      * child rows.
@@ -1246,6 +1654,15 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
      */
     private isPcSamplingPath(nodePath: (string | number)[]): boolean {
         return nodePath.at(-1) === 'pcsampling';
+    }
+
+    /**
+     * isDwtDataTracePath identifies the DWT Data Trace sequence. It is used for
+     * processor-specific DWT comparator limits, such as hiding the add button
+     * after four channels on Cortex-M3-class cores.
+     */
+    private isDwtDataTracePath(nodePath: (string | number)[]): boolean {
+        return nodePath.at(-1) === 'data';
     }
 
     /**
@@ -1376,6 +1793,26 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             default:
                 return value;
         }
+    }
+
+    /**
+     * normalizeCoreName recognizes common CMSIS core spellings such as CM33,
+     * Cortex-M33, and pname-derived names like cm33_core0. It returns a compact
+     * key used by the internal trace capability table.
+     */
+    private normalizeCoreName(value?: string): string | undefined {
+        if (!value) {
+            return undefined;
+        }
+        const normalized = value
+            .toUpperCase()
+            .replace(/CORTEX[-_\s]?M/g, 'CM')
+            .replace(/[-_\s]/g, '');
+        if (normalized.includes('CM0PLUS') || normalized.includes('CM0+')) {
+            return 'CM0PLUS';
+        }
+        const match = normalized.match(/CM(?:35P|85|55|33|23|7|4|3|1|0)/);
+        return match?.[0];
     }
 
     /**
