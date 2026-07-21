@@ -26,126 +26,7 @@ import {
     TraceHostToWebviewMessage,
     TraceWebviewToHostMessage
 } from './trace-configuration-protocol';
-
-const VIEW_ID = 'cmsis-debugger.traceConfiguration';
-const CTRACE_FILE_GLOB = '{**/ctrace.yml,**/ctrace.yaml,**/*.ctrace.yml,**/*.ctrace.yaml}';
-const CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND = 'cmsis-csolution.getCbuildRunFile';
-const EVENT_COUNTER_OPTIONS = ['CYCCNT', 'CPICNT', 'EXCCNT', 'SLEEPCNT', 'LSUCNT', 'FOLDCNT', 'PMU'];
-const PRIVILEGED_RANGE_OPTIONS = ['0-7', '8-15', '16-23', '24-31'];
-const STREAM_SYNC_PERIOD_OPTIONS = ['off', '16M', '64M', '256M'];
-const PC_SAMPLING_PERIOD_OPTIONS = [
-    'off',
-    '64',
-    '128',
-    '192',
-    '256',
-    '320',
-    '384',
-    '448',
-    '512',
-    '576',
-    '640',
-    '704',
-    '768',
-    '832',
-    '896',
-    '960',
-    '1024',
-    '2048',
-    '3072',
-    '4096',
-    '5120',
-    '6144',
-    '7168',
-    '8192',
-    '9216',
-    '10240',
-    '11264',
-    '12288',
-    '13312',
-    '14336',
-    '15360',
-    '16384',
-];
-
-interface RowBuildContext {
-    rows: TraceConfigurationRow[];
-    collapsedRows: Set<string>;
-}
-
-interface ProcessorTraceCapabilities {
-    pname: string;
-    core?: string | undefined;
-    supportsTrace: boolean;
-    dwtComparators: number;
-    timestamps: boolean;
-    exceptions: boolean;
-    eventCounters: boolean;
-    pmuEvents: boolean;
-    instrumentationTrace: boolean;
-    instructionTrace: boolean;
-    pcSampling: boolean;
-    timeSynchronization: boolean;
-    streamSynchronization: boolean;
-}
-
-type ProcessorTraceCapabilityTemplate = Omit<ProcessorTraceCapabilities, 'pname' | 'core'>;
-
-const NO_TRACE_CAPABILITIES: ProcessorTraceCapabilityTemplate = {
-    supportsTrace: false,
-    dwtComparators: 0,
-    timestamps: false,
-    exceptions: false,
-    eventCounters: false,
-    pmuEvents: false,
-    instrumentationTrace: false,
-    instructionTrace: false,
-    pcSampling: false,
-    timeSynchronization: false,
-    streamSynchronization: false,
-};
-
-const TB_ONLY_TRACE_CAPABILITIES: ProcessorTraceCapabilityTemplate = {
-    ...NO_TRACE_CAPABILITIES,
-    supportsTrace: true,
-    instructionTrace: true,
-};
-
-const CORTEX_M_DWT_4_TRACE_CAPABILITIES: ProcessorTraceCapabilityTemplate = {
-    supportsTrace: true,
-    dwtComparators: 4,
-    timestamps: true,
-    exceptions: true,
-    eventCounters: true,
-    pmuEvents: false,
-    instrumentationTrace: true,
-    instructionTrace: true,
-    pcSampling: true,
-    timeSynchronization: true,
-    streamSynchronization: true,
-};
-
-const CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES: ProcessorTraceCapabilityTemplate = {
-    ...CORTEX_M_DWT_4_TRACE_CAPABILITIES,
-    dwtComparators: 8,
-    pmuEvents: true,
-};
-
-const TRACE_CAPABILITIES_BY_CORE = new Map<string, ProcessorTraceCapabilityTemplate>([
-    ['CM0', NO_TRACE_CAPABILITIES],
-    ['CM0PLUS', TB_ONLY_TRACE_CAPABILITIES],
-    ['CM1', NO_TRACE_CAPABILITIES],
-    ['CM3', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
-    ['CM4', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
-    ['CM7', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
-    ['CM23', TB_ONLY_TRACE_CAPABILITIES],
-    ['CM33', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
-    ['CM35P', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
-    ['CM52', CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES],
-    ['CM55', CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES],
-    ['CM85', CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES],
-]);
-
+import * as TraceConfigurationTypes from './trace-configuration-types';
 /**
  * The TraceConfigurationWebviewProvider owns the VS Code sidebar webview for
  * editing ctrace.yml files. It keeps all file-system and YAML mutation work on
@@ -160,7 +41,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
     private dirty = false;
     private errorMessage: string | undefined;
     private readonly collapsedRows = new Set<string>();
-    private readonly processorCapabilities = new Map<string, ProcessorTraceCapabilities>();
+    private readonly processorCapabilities = new Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities>();
 
     /**
      * The constructor stores the extension URI for webview asset loading and
@@ -182,7 +63,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
      */
     public activate(context: vscode.ExtensionContext): void {
         context.subscriptions.push(
-            vscode.window.registerWebviewViewProvider(VIEW_ID, this),
+        vscode.window.registerWebviewViewProvider(TraceConfigurationTypes.VIEW_ID, this),
             { dispose: () => this.disposeCurrentFileWatcher() }
         );
     }
@@ -253,7 +134,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
         if (activeFile && this.isCTraceFileName(activeFile.fsPath)) {
             return activeFile;
         }
-        const files = await vscode.workspace.findFiles(CTRACE_FILE_GLOB, '**/{node_modules,dist,coverage}/**', 10);
+        const files = await vscode.workspace.findFiles(TraceConfigurationTypes.CTRACE_FILE_GLOB, '**/{node_modules,dist,coverage}/**', 10);
         return files.find(file => this.isCTraceFileName(file.fsPath));
     }
 
@@ -342,7 +223,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
      */
     private async getCBuildRunFileName(): Promise<string | undefined> {
         try {
-            const fileName = await vscode.commands.executeCommand<string | undefined>(CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
+            const fileName = await vscode.commands.executeCommand<string | undefined>(TraceConfigurationTypes.CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
             return fileName?.trim() ? fileName : undefined;
         } catch (error) {
             logger.debug(`Trace Configuration: Failed to get active cbuild-run file from CMSIS Solution: ${this.errorToString(error)}`);
@@ -392,10 +273,10 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
      * exists for hand-authored single-core files whose pname is itself a core
      * spelling such as cm33; otherwise unknown cores get no trace GUI.
      */
-    private createTraceCapabilities(pname: string, core?: string): ProcessorTraceCapabilities {
+    private createTraceCapabilities(pname: string, core?: string): TraceConfigurationTypes.ProcessorTraceCapabilities {
         const normalizedCore = this.normalizeCoreName(core) ?? this.normalizeCoreName(pname);
-        const template = normalizedCore ? TRACE_CAPABILITIES_BY_CORE.get(normalizedCore) : undefined;
-        const capabilities = template ?? NO_TRACE_CAPABILITIES;
+        const template = normalizedCore ? TraceConfigurationTypes.TRACE_CAPABILITIES_BY_CORE.get(normalizedCore) : undefined;
+        const capabilities = template ?? TraceConfigurationTypes.NO_TRACE_CAPABILITIES;
         return {
             pname,
             core,
@@ -817,7 +698,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
         if (!root) {
             return [];
         }
-        const context: RowBuildContext = {
+        const context: TraceConfigurationTypes.RowBuildContext = {
             rows: [],
             collapsedRows: this.collapsedRows
         };
@@ -841,7 +722,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
      * an editable Label/Selection row instead of being used as a row title.
      */
     private appendNodeRows(
-        context: RowBuildContext,
+        context: TraceConfigurationTypes.RowBuildContext,
         node: YAML.Node,
         nodePath: (string | number)[],
         label: string,
@@ -881,7 +762,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
      * gives Time Syncronization and Stream Syncronization a clearer home in the
      * webview tree.
      */
-    private appendAdvancedSettingsRows(context: RowBuildContext, node: YAML.Node, nodePath: (string | number)[], depth: number): void {
+    private appendAdvancedSettingsRows(context: TraceConfigurationTypes.RowBuildContext, node: YAML.Node, nodePath: (string | number)[], depth: number): void {
         if (!this.isProcessorPath(nodePath) || !YAML.isMap(node)) {
             return;
         }
@@ -918,7 +799,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
      * the DWT dropdown changes.
      */
     private appendStreamSynchronizationRows(
-        context: RowBuildContext,
+        context: TraceConfigurationTypes.RowBuildContext,
         node: YAML.Node,
         nodePath: (string | number)[],
         label: string,
@@ -944,7 +825,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             kind: 'scalar',
             control: 'select',
             value: this.getStreamSyncDwtPeriod(node),
-            options: STREAM_SYNC_PERIOD_OPTIONS,
+            options: TraceConfigurationTypes.STREAM_SYNC_PERIOD_OPTIONS,
             hasChildren: false,
             expanded: false,
             removable: false,
@@ -1460,16 +1341,16 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
     private getSelectOptions(label: string, nodePath: (string | number)[]): string[] | undefined {
         if (this.isEventsPath(nodePath)) {
             const capabilities = this.getTraceCapabilitiesForPath(nodePath);
-            return capabilities?.pmuEvents ? EVENT_COUNTER_OPTIONS : EVENT_COUNTER_OPTIONS.filter(option => option !== 'PMU');
+            return capabilities?.pmuEvents ? TraceConfigurationTypes.EVENT_COUNTER_OPTIONS : TraceConfigurationTypes.EVENT_COUNTER_OPTIONS.filter(option => option !== 'PMU');
         }
         if (this.isItmPrivilegedPath(nodePath)) {
-            return PRIVILEGED_RANGE_OPTIONS;
+            return TraceConfigurationTypes.PRIVILEGED_RANGE_OPTIONS;
         }
         if (this.isPcSamplingPath(nodePath)) {
-            return PC_SAMPLING_PERIOD_OPTIONS;
+            return TraceConfigurationTypes.PC_SAMPLING_PERIOD_OPTIONS;
         }
         if (this.isStreamSyncDwtPeriodPath(nodePath)) {
-            return STREAM_SYNC_PERIOD_OPTIONS;
+            return TraceConfigurationTypes.STREAM_SYNC_PERIOD_OPTIONS;
         }
         if (this.isDwtDataAccessPath(nodePath)) {
             return ['Read', 'Write', 'Read Write', 'Execute'];
@@ -1568,7 +1449,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
      * owns it, then returns that processor's loaded or inferred trace
      * capabilities.
      */
-    private getTraceCapabilitiesForPath(nodePath: (string | number)[]): ProcessorTraceCapabilities | undefined {
+    private getTraceCapabilitiesForPath(nodePath: (string | number)[]): TraceConfigurationTypes.ProcessorTraceCapabilities | undefined {
         const pname = this.getProcessorNameForPath(nodePath);
         return pname ? this.processorCapabilities.get(pname) : undefined;
     }
@@ -1842,7 +1723,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
      */
     private privilegedMaskToRanges(value?: string): string[] {
         const mask = this.parseNumericMask(value);
-        return PRIVILEGED_RANGE_OPTIONS.filter(option => {
+        return TraceConfigurationTypes.PRIVILEGED_RANGE_OPTIONS.filter(option => {
             const [startText, endText] = option.split('-');
             const start = Number(startText);
             const end = Number(endText);
