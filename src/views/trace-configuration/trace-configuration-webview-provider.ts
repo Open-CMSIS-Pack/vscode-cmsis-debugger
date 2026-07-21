@@ -33,38 +33,37 @@ const PRIVILEGED_RANGE_OPTIONS = ['0-7', '8-15', '16-23', '24-31'];
 const STREAM_SYNC_PERIOD_OPTIONS = ['off', '16M', '64M', '256M'];
 const PC_SAMPLING_PERIOD_OPTIONS = [
     'off',
-    '64*1',
-    '64*2',
-    '64*3',
-    '64*4',
-    '64*5',
-    '64*6',
-    '64*7',
-    '64*8',
-    '64*9',
-    '64*10',
-    '64*11',
-    '64*12',
-    '64*13',
-    '64*14',
-    '64*15',
-    '64*16',
-    '1024*1',
-    '1024*2',
-    '1024*3',
-    '1024*4',
-    '1024*5',
-    '1024*6',
-    '1024*7',
-    '1024*8',
-    '1024*9',
-    '1024*10',
-    '1024*11',
-    '1024*12',
-    '1024*13',
-    '1024*14',
-    '1024*15',
-    '1024*16',
+    '64',
+    '128',
+    '192',
+    '256',
+    '320',
+    '384',
+    '448',
+    '512',
+    '576',
+    '640',
+    '704',
+    '768',
+    '832',
+    '896',
+    '960',
+    '1024',
+    '2048',
+    '3072',
+    '4096',
+    '5120',
+    '6144',
+    '7168',
+    '8192',
+    '9216',
+    '10240',
+    '11264',
+    '12288',
+    '13312',
+    '14336',
+    '15360',
+    '16384',
 ];
 
 interface RowBuildContext {
@@ -348,7 +347,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             return;
         }
         if (this.isPcSamplingPath(pathToUpdate) && typeof value === 'string') {
-            document.yaml.set([...pathToUpdate, 'period'], value);
+            document.yaml.set([...pathToUpdate, 'period'], this.normalizePcSamplingPeriod(value));
             await this.saveCurrentDocument();
             return;
         }
@@ -821,7 +820,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             return this.mapScalarToString(node, 'enable') ?? '';
         }
         if (this.isPcSamplingPath(nodePath) && YAML.isMap(node)) {
-            return this.mapScalarToString(node, 'period') ?? 'off';
+            return this.normalizePcSamplingPeriod(this.mapScalarToString(node, 'period') ?? 'off');
         }
         if (this.isDwtDataAccessPath(nodePath)) {
             return this.accessValueToLabel(scalarValue);
@@ -1311,6 +1310,29 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             return period === undefined || period === null ? [] : [String(period)];
         }).find(period => period.startsWith('DWT\\'));
         return dwtPeriod?.replace(/^DWT\\/, '') ?? 'off';
+    }
+
+    /**
+     * normalizePcSamplingPeriod converts older expression-style values such as
+     * 64*2 or 1024*16 into the numeric strings shown by the dropdown. Values
+     * that are already numeric, off, or otherwise unknown are returned unchanged
+     * so hand-authored future schema values are not destroyed by display code.
+     */
+    private normalizePcSamplingPeriod(value: string): string {
+        const trimmed = value.trim();
+        if (trimmed === 'off') {
+            return trimmed;
+        }
+        const expression = trimmed.match(/^(\d+)\s*\*\s*(\d+)$/);
+        if (!expression) {
+            return trimmed;
+        }
+        const base = Number(expression[1]);
+        const multiplier = Number(expression[2]);
+        if (!Number.isFinite(base) || !Number.isFinite(multiplier)) {
+            return trimmed;
+        }
+        return String(base * multiplier);
     }
 
     /**
