@@ -17,16 +17,17 @@
 
 import * as vscode from 'vscode';
 import {
-    ContinuedEvent,
     GDBTargetDebugSession,
-    GDBTargetDebugTracker,
-    StoppedEvent
+    GDBTargetDebugTracker
 } from '../../debug-session';
 import {
     CTraceProcessManager,
     CTraceProcessManagerLaunchOptions,
     CTraceProcessManagerOptions
 } from '../../desktop/process/ctrace-process-manager';
+import { waitForMs } from '../../utils';
+
+const PRE_DECODE_DELAY = 750;
 
 export class CTraceController {
     private activeSession: GDBTargetDebugSession | undefined;
@@ -36,8 +37,8 @@ export class CTraceController {
     public activate(context: vscode.ExtensionContext, tracker: GDBTargetDebugTracker): void {
         context.subscriptions.push(
             tracker.onDidChangeActiveDebugSession(session => this.handleActiveSessionChanged(session)),
-            tracker.onContinued(event => this.handleContinuedEvent(event)),
-            tracker.onStopped(event => this.handleStoppedEvent(event))
+            tracker.onStopped(event => this.handleDecodeTrigger(event.session)),
+            tracker.onWillStopSession(session => this.handleDecodeTrigger(session))
         );
     }
 
@@ -55,11 +56,12 @@ export class CTraceController {
         this.activeSession = session;
     }
 
-    protected handleContinuedEvent(_event: ContinuedEvent): void {
-        // TODO: Handle continued events for trace processing.
-    }
-
-    protected handleStoppedEvent(_event: StoppedEvent): void {
-        // TODO: Handle stopped events for trace processing.
+    protected async handleDecodeTrigger(session: GDBTargetDebugSession | undefined): Promise<void> {
+        const effectiveSession = session ?? this.activeSession;
+        const cbuildRunFile = await effectiveSession?.getCbuildRun();
+        const cbuildRunFilePath = cbuildRunFile?.getFilePath();
+        // TODO: Check if this can become event driven
+        await waitForMs(PRE_DECODE_DELAY);
+        await this.run({ cbuildRunFilePath });  // Use active session *.cbuild-run.yml file
     }
 }
