@@ -15,38 +15,50 @@
  */
 // generated with AI
 
+import * as vscode from 'vscode';
 import { logger } from '../../logger';
+import { BuiltinToolPath } from '../builtin-tool-path';
 import {
     ProcessManager,
     ProcessManagerOptions
 } from './process-manager';
 
-// TODO: Update when the bundled pyTS location is known.
-export const DEFAULT_PYTS_PATH = 'pyts';
+export const DEFAULT_PYTS_PATH = 'tools/pyts/pyts';
+const CSOLUTION_GET_CBUILD_RUN_FILE_COMMAND = 'cmsis-csolution.getCbuildRunFile';
 
 export interface PyTsProcessManagerOptions {
     readonly pyTsPath?: string;
 }
 
 export interface PyTsProcessManagerLaunchOptions {
-    readonly cbuildRunFilePath: string;
+    readonly cbuildRunFilePath?: string;
 }
 
 export class PyTsProcessManager {
     private readonly processManager: ProcessManager;
 
-    public constructor(options: PyTsProcessManagerOptions) {
+    public constructor(options: PyTsProcessManagerOptions = {}) {
+        const pyTsPath = options.pyTsPath ?? new BuiltinToolPath(DEFAULT_PYTS_PATH).getAbsolutePath()?.fsPath;
+        if (!pyTsPath) {
+            throw new Error('Failed to resolve the absolute path for pyTS.');
+        }
         const processOptions: ProcessManagerOptions = {
-            command: options.pyTsPath ?? DEFAULT_PYTS_PATH,
+            command: pyTsPath,
             name: 'pyTS',
             output: { append: logger.append, appendLine: logger.appendLine }
         };
         this.processManager = new ProcessManager(processOptions);
     }
 
-    public launch(options: PyTsProcessManagerLaunchOptions): void {
+    public async launch(options: PyTsProcessManagerLaunchOptions = {}): Promise<void> {
+        const cbuildRunFilePath = options.cbuildRunFilePath ??
+            await vscode.commands.executeCommand<string | undefined>(CSOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
+        const trimmedPath = cbuildRunFilePath?.trim();
+        if (!trimmedPath) {
+            throw new Error('No cbuild run file path provided.');
+        }
         this.processManager.launch({
-            args: [options.cbuildRunFilePath, '--allow-missing']
+            args: [trimmedPath, '--allow-missing']
         });
     }
 
