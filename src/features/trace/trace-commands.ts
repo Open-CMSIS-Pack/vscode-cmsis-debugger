@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
 import * as vscode from 'vscode';
 import { EXTENSION_NAME } from '../../manifest';
-import { PyTsProcessManager } from '../../desktop/process/pyts-process-manager';
-import { CTraceProcessManager } from '../../desktop/process/ctrace-process-manager';
+import { PyTsController } from './pyts-controller';
+import { CTraceController } from './ctrace-controller';
 
 /**
  * Registers commands related to trace functionality.
@@ -29,6 +30,9 @@ export class TraceCommands {
     public static readonly launchPyTsID = `${EXTENSION_NAME}.launchPyTs`;
     public static readonly launchCTraceID = `${EXTENSION_NAME}.launchCTrace`;
 
+    private readonly pyTsController = new PyTsController();
+    private readonly cTraceController = new CTraceController();
+
     public activate(context: vscode.ExtensionContext): void {
         // Register trace commands
         context.subscriptions.push(
@@ -39,9 +43,7 @@ export class TraceCommands {
 
     protected async handleLaunchPyTs(): Promise<void> {
         try {
-            const pytsProcessManager = new PyTsProcessManager();
-            await pytsProcessManager.launch();
-            await pytsProcessManager.waitForExit();
+            await this.pyTsController.run();
         } catch (error) {
             console.error('Failed to launch pyTS process:', error);
         }
@@ -49,9 +51,7 @@ export class TraceCommands {
 
     protected async handleLaunchCTrace(): Promise<void> {
         try {
-            const ctraceProcessManager = new CTraceProcessManager();
-            await ctraceProcessManager.launch();
-            await ctraceProcessManager.waitForExit();
+            await this.cTraceController.run();
         } catch (error) {
             console.error('Failed to launch ctrace process:', error);
         }
