@@ -323,6 +323,15 @@ export class TraceConfigurationModel {
             await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
+        if (this.rowBuilder.isGlobalTraceDisablePath(pathToUpdate) && typeof value === 'boolean') {
+            if (value) {
+                document.yaml.set(pathToUpdate, true);
+            } else {
+                document.yaml.delete(pathToUpdate);
+            }
+            await this.saveCurrentDocument({ abortIfDiskChanged: true });
+            return;
+        }
         if (this.rowBuilder.isEventsPath(pathToUpdate) && Array.isArray(value)) {
             document.yaml.set(pathToUpdate, value.map(event => ({ event })));
             await this.saveCurrentDocument({ abortIfDiskChanged: true });

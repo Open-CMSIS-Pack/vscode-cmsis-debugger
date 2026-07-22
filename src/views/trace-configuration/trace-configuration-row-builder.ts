@@ -84,7 +84,7 @@ export class TraceConfigurationRowBuilder {
         };
         const ctraceRoot = this.getCTraceFile()?.document?.yaml.getNode(['ctrace']);
         if (ctraceRoot) {
-            this.getChildEntries(ctraceRoot).forEach(child => {
+            this.getRootChildEntries(ctraceRoot).forEach(child => {
                 this.appendNodeRows(context, child.node, child.path, child.label, 0);
             });
             return context.rows;
@@ -364,6 +364,24 @@ export class TraceConfigurationRowBuilder {
             }] : []);
         }
         return [];
+    }
+
+    /**
+     * getRootChildEntries returns the top-level ctrace rows and guarantees that
+     * the global Disable checkbox is visible even when ctrace.yml omits the
+     * disable key. In that omitted form trace is enabled, so the synthetic row
+     * is unchecked and only becomes real YAML if the user checks it.
+     */
+    private getRootChildEntries(root: YAML.Node): { label: string; path: (string | number)[]; node: YAML.Node }[] {
+        const entries = this.getChildEntries(root);
+        if (!entries.some(entry => this.isGlobalTraceDisablePath(entry.path))) {
+            entries.push({
+                label: 'disable',
+                path: ['ctrace', 'disable'],
+                node: new YAML.Scalar(false)
+            });
+        }
+        return this.sortDisplayEntries(entries);
     }
 
     /**
@@ -823,6 +841,16 @@ export class TraceConfigurationRowBuilder {
      */
     public isProcessorPath(nodePath: (string | number)[]): boolean {
         return nodePath.at(-2) === 'setup' && typeof nodePath.at(-1) === 'number';
+    }
+
+    /**
+     * isGlobalTraceDisablePath identifies the top-level ctrace disable flag.
+     * This is intentionally separate from processor disable fields because the
+     * global flag's checkbox maps directly to "trace disabled", while processor
+     * rows use their checkbox to mean "processor trace enabled".
+     */
+    public isGlobalTraceDisablePath(nodePath: (string | number)[]): boolean {
+        return nodePath.length === 2 && nodePath[0] === 'ctrace' && nodePath[1] === 'disable';
     }
 
     /**
