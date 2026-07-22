@@ -442,13 +442,10 @@ export class TraceConfigurationRowBuilder {
 
     /**
      * getRowValue returns the editable value shown in the Selection column.
-     * Most scalar rows use their scalar text directly; Instrumentation Trace is
-     * a folded map row whose visible textbox edits its hidden enable child.
+     * Most scalar rows use their scalar text directly. Folded map controls such
+     * as PC Sampling still expose a scalar child as the parent row's value.
      */
     private getRowValue(node: YAML.Node, nodePath: (string | number)[], scalarValue?: string): string | undefined {
-        if (this.isItmPath(nodePath) && YAML.isMap(node)) {
-            return this.mapScalarToString(node, 'enable') ?? '';
-        }
         if (this.isPcSamplingPath(nodePath) && YAML.isMap(node)) {
             return this.normalizePcSamplingPeriod(this.mapScalarToString(node, 'period') ?? 'off');
         }
@@ -491,9 +488,9 @@ export class TraceConfigurationRowBuilder {
     /**
      * shouldHideNode centralizes user-facing filtering for YAML keys that are
      * still preserved in the file but should not clutter the trace editor. The
-     * metadata keys are always hidden, ITM enable is folded into its parent row,
-     * and pname is only hidden when there is no multi-core distinction for the
-     * user to make.
+     * metadata keys are always hidden, ITM enable is folded into its parent
+     * row's channel checklist, and pname is only hidden when there is no
+     * multi-core distinction for the user to make.
      */
     private shouldHideNode(label: string, parentPath: (string | number)[]): boolean {
         if (label === 'ctrace-ref' || label === 'created-by') {
@@ -660,11 +657,8 @@ export class TraceConfigurationRowBuilder {
      * unknown scalars as text inputs so every existing file remains editable.
      */
     private getControlKind(label: string, nodePath: (string | number)[], scalarValue?: string): TraceConfigurationRow['control'] {
-        if (this.isEventsPath(nodePath) || this.isItmPrivilegedPath(nodePath)) {
+        if (this.isEventsPath(nodePath) || this.isItmPath(nodePath) || this.isItmPrivilegedPath(nodePath)) {
             return 'multi-select';
-        }
-        if (this.isItmPath(nodePath)) {
-            return 'text';
         }
         if (this.isPcSamplingPath(nodePath)) {
             return 'select';
@@ -723,6 +717,9 @@ export class TraceConfigurationRowBuilder {
             const capabilities = this.getTraceCapabilitiesForPath(nodePath);
             return capabilities?.pmuEvents ? TraceConfigurationTypes.EVENT_COUNTER_OPTIONS : TraceConfigurationTypes.EVENT_COUNTER_OPTIONS.filter(option => option !== 'PMU');
         }
+        if (this.isItmPath(nodePath)) {
+            return TraceConfigurationTypes.ITM_CHANNEL_OPTIONS;
+        }
         if (this.isItmPrivilegedPath(nodePath)) {
             return TraceConfigurationTypes.PRIVILEGED_RANGE_OPTIONS;
         }
@@ -752,9 +749,10 @@ export class TraceConfigurationRowBuilder {
 
     /**
      * getSelectedOptions extracts the checked values for multi-select controls.
-     * Event counters are stored as a YAML sequence of event maps, while ITM
-     * privileged ranges are stored as a bit mask, so the serializer translates
-     * both shapes into the option labels rendered by the webview checklist.
+     * Event counters are stored as a YAML sequence of event maps. ITM enable is
+     * stored as one bit per channel, while ITM privileged is stored as one bit
+     * per eight-channel block, so the serializer translates both mask shapes
+     * into the option labels rendered by the webview checklist.
      */
     private getSelectedOptions(
         node: YAML.Node,
@@ -770,6 +768,9 @@ export class TraceConfigurationRowBuilder {
                 const event = item.get('event');
                 return event === undefined || event === null ? [] : [String(event)];
             });
+        }
+        if (this.isItmPath(nodePath) && YAML.isMap(node)) {
+            return this.itmEnableMaskToChannels(this.mapScalarToString(node, 'enable'));
         }
         if (this.isItmPrivilegedPath(nodePath)) {
             return this.privilegedMaskToRanges(scalarValue);
@@ -874,7 +875,7 @@ export class TraceConfigurationRowBuilder {
     /**
      * isItmPath identifies the ITM map so the webview can show it as the more
      * descriptive Instrumentation Trace row and fold the child enable value into
-     * that parent row's checkbox.
+     * that parent row's channel checklist.
      */
     public isItmPath(nodePath: (string | number)[]): boolean {
         return nodePath.at(-1) === 'itm';
@@ -1077,44 +1078,83 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
-     * privilegedMaskToRanges converts the stored ITM privilege bit mask into
-     * the four user-facing port ranges. A range is checked when any bit in that
-     * range is set, which keeps the control useful even for hand-edited masks.
+     * itmEnableMaskToChannels converts the stored ITM enable mask into
+     * individual channel labels. The ctrace documentation defines each bit in
+     * enable as one ITM channel, so bit 0 maps to channel 0 and bit 31 maps to
+     * channel 31.
      */
-    private privilegedMaskToRanges(value?: string): string[] {
+    private itmEnableMaskToChannels(value?: string): string[] {
         const mask = this.parseNumericMask(value);
-        return TraceConfigurationTypes.PRIVILEGED_RANGE_OPTIONS.filter(option => {
-            const [startText, endText] = option.split('-');
-            const start = Number(startText);
-            const end = Number(endText);
-            const rangeMask = this.createBitRangeMask(start, end);
-            return (mask & rangeMask) !== 0;
+        return TraceConfigurationTypes.ITM_CHANNEL_OPTIONS.filter(option => {
+            const channel = Number(option);
+            return (mask & this.createBitMask(channel)) !== 0;
         });
     }
 
     /**
-     * privilegedRangesToMask converts checked ITM privilege ranges back into
-     * the hexadecimal mask format already used by ctrace examples.
+     * itmChannelsToMask converts checked ITM channel labels back into the
+     * hexadecimal enable mask expected by ctrace.yml. Each selected channel sets
+     * exactly the bit with the same number.
      */
-    public privilegedRangesToMask(ranges: string[]): string {
-        const mask = ranges.reduce((currentMask, range) => {
-            const [startText, endText] = range.split('-');
-            return (currentMask | this.createBitRangeMask(Number(startText), Number(endText))) >>> 0;
+    public itmChannelsToMask(channels: string[]): string {
+        const mask = channels.reduce((currentMask, channel) => {
+            return (currentMask | this.createBitMask(Number(channel))) >>> 0;
         }, 0);
         return `0x${mask.toString(16).padStart(8, '0')}`;
     }
 
     /**
-     * createBitRangeMask returns a 32-bit mask with every bit between start and
-     * end set. The >>> 0 coercion keeps JavaScript's signed bitwise operations
-     * usable for the top 24-31 range.
+     * privilegedMaskToRanges converts the stored ITM privilege bit mask into
+     * the four user-facing port ranges. The ctrace documentation defines each
+     * bit in privileged as one block of eight channels, so 0x2 maps to channels
+     * 8-15 instead of to channel bit 1 directly.
      */
-    private createBitRangeMask(start: number, end: number): number {
-        let mask = 0;
-        for (let bit = start; bit <= end; bit++) {
-            mask = (mask | (1 << bit)) >>> 0;
+    private privilegedMaskToRanges(value?: string): string[] {
+        const mask = this.parseNumericMask(value);
+        return TraceConfigurationTypes.PRIVILEGED_RANGE_OPTIONS.filter(option => {
+            const block = this.privilegedRangeToBlockIndex(option);
+            return block !== undefined && (mask & this.createBitMask(block)) !== 0;
+        });
+    }
+
+    /**
+     * privilegedRangesToMask converts checked ITM privilege ranges back into
+     * the compact hexadecimal mask used by ctrace.yml. Each selected range sets
+     * one bit for the corresponding eight-channel block.
+     */
+    public privilegedRangesToMask(ranges: string[]): string {
+        const mask = ranges.reduce((currentMask, range) => {
+            const block = this.privilegedRangeToBlockIndex(range);
+            return block === undefined ? currentMask : (currentMask | this.createBitMask(block)) >>> 0;
+        }, 0);
+        return `0x${mask.toString(16)}`;
+    }
+
+    /**
+     * privilegedRangeToBlockIndex maps a user-facing channel range to the
+     * privilege bit that controls that block. For example, 8-15 returns 1, so
+     * selecting it writes value 0x2.
+     */
+    private privilegedRangeToBlockIndex(range: string): number | undefined {
+        const [startText, endText] = range.split('-');
+        const start = Number(startText);
+        const end = Number(endText);
+        if (!Number.isInteger(start) || !Number.isInteger(end) || end - start !== 7 || start % 8 !== 0) {
+            return undefined;
         }
-        return mask >>> 0;
+        return start / 8;
+    }
+
+    /**
+     * createBitMask returns a 32-bit mask with a single bit set. The >>> 0
+     * coercion keeps JavaScript's signed bitwise operations usable for ITM
+     * channel 31.
+     */
+    private createBitMask(bit: number): number {
+        if (!Number.isInteger(bit) || bit < 0 || bit > 31) {
+            return 0;
+        }
+        return (1 << bit) >>> 0;
     }
 
     /**
@@ -1135,8 +1175,8 @@ export class TraceConfigurationRowBuilder {
     /**
      * mapScalarToString reads a named scalar child from a YAML map and returns
      * the original source text when available. It is used for folded controls
-     * such as ITM enable, where the editable value is represented by the parent
-     * row rather than by its own visible child row.
+     * such as ITM enable, where the channel checklist is represented by the
+     * parent row rather than by its own visible child row.
      */
     private mapScalarToString(map: YAML.YAMLMap, key: string): string | undefined {
         const value = map.get(key, true);

@@ -20,6 +20,7 @@ import { TraceConfigurationRow } from './trace-configuration-protocol';
 export const VIEW_ID = 'cmsis-debugger.traceConfiguration';
 export const CTRACE_FILE_GLOB = '{**/ctrace.yml,**/ctrace.yaml,**/*.ctrace.yml,**/*.ctrace.yaml}';
 export const EVENT_COUNTER_OPTIONS = ['CYCCNT', 'CPICNT', 'EXCCNT', 'SLEEPCNT', 'LSUCNT', 'FOLDCNT', 'PMU'];
+export const ITM_CHANNEL_OPTIONS = Array.from({ length: 32 }, (_value, index) => String(index));
 export const PRIVILEGED_RANGE_OPTIONS = ['0-7', '8-15', '16-23', '24-31'];
 export const STREAM_SYNC_PERIOD_OPTIONS = ['off', '16M', '64M', '256M'];
 export const PC_SAMPLING_PERIOD_OPTIONS = [
