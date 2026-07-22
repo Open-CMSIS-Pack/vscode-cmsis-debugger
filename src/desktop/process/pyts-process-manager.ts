@@ -20,6 +20,7 @@ import { logger } from '../../logger';
 import { BuiltinToolPath } from '../builtin-tool-path';
 import {
     ProcessManager,
+    ProcessManagerLaunchOptions,
     ProcessManagerOptions
 } from './process-manager';
 
@@ -30,13 +31,11 @@ export interface PyTsProcessManagerOptions {
     readonly pyTsPath?: string;
 }
 
-export interface PyTsProcessManagerLaunchOptions {
+export interface PyTsProcessManagerLaunchOptions extends ProcessManagerLaunchOptions {
     readonly cbuildRunFilePath?: string;
 }
 
-export class PyTsProcessManager {
-    private readonly processManager: ProcessManager;
-
+export class PyTsProcessManager extends ProcessManager {
     public constructor(options: PyTsProcessManagerOptions = {}) {
         const pyTsPath = options.pyTsPath ?? new BuiltinToolPath(DEFAULT_PYTS_PATH).getAbsolutePath()?.fsPath;
         if (!pyTsPath) {
@@ -47,22 +46,24 @@ export class PyTsProcessManager {
             name: 'pyTS',
             output: { append: logger.append, appendLine: logger.appendLine }
         };
-        this.processManager = new ProcessManager(processOptions);
+        super(processOptions);
     }
 
-    public async launch(options: PyTsProcessManagerLaunchOptions = {}): Promise<void> {
-        const cbuildRunFilePath = options.cbuildRunFilePath ??
-            await vscode.commands.executeCommand<string | undefined>(CSOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
-        const trimmedPath = cbuildRunFilePath?.trim();
-        if (!trimmedPath) {
-            throw new Error('No cbuild run file path provided.');
-        }
-        this.processManager.launch({
-            args: [trimmedPath, '--allow-missing']
+    public override async launch(options: PyTsProcessManagerLaunchOptions = {}): Promise<void> {
+        const args = options.args ?? await this.getDefaultArgs(options.cbuildRunFilePath);
+        super.launch({
+            ...options,
+            args
         });
     }
 
-    public waitForExit(): Promise<void> {
-        return this.processManager.waitForExit();
+    private async getDefaultArgs(cbuildRunFilePath: string | undefined): Promise<readonly string[]> {
+        const resolvedCbuildRunFilePath = cbuildRunFilePath ??
+            await vscode.commands.executeCommand<string | undefined>(CSOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
+        const trimmedPath = resolvedCbuildRunFilePath?.trim();
+        if (!trimmedPath) {
+            throw new Error('No cbuild run file path provided.');
+        }
+        return [trimmedPath, '--allow-missing'];
     }
 }
