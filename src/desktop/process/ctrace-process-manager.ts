@@ -15,28 +15,30 @@
  */
 // generated with AI
 
+import { logger } from '../../logger';
 import {
     ProcessManager,
-    ProcessManagerOptions,
-    ProcessOutput
+    ProcessManagerOptions
 } from './process-manager';
 
 // TODO: Update when the bundled ctrace location is known.
 export const DEFAULT_CTRACE_PATH = 'ctrace';
 
 export interface CTraceProcessManagerOptions {
+    readonly rawFilePath: string;
     readonly cTracePath?: string;
-    readonly output?: ProcessOutput;
 }
 
 export class CTraceProcessManager {
     private readonly processManager: ProcessManager;
 
-    public constructor(options: CTraceProcessManagerOptions = {}) {
+    public constructor(options: CTraceProcessManagerOptions) {
         const processOptions: ProcessManagerOptions = {
             command: options.cTracePath ?? DEFAULT_CTRACE_PATH,
+            // TODO: remove --tolerant-decode when trace generation inserts sync packets at run
+            args: ['-i', options.rawFilePath, '--csv', '--tolerant-decode'],
             name: 'ctrace',
-            ...(options.output === undefined ? {} : { output: options.output })
+            output: { append: logger.append, appendLine: logger.appendLine }
         };
         this.processManager = new ProcessManager(processOptions);
     }
