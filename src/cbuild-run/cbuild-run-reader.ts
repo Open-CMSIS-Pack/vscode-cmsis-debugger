@@ -34,6 +34,10 @@ export class CbuildRunReader {
         return !!this.cbuildRun;
     }
 
+    public getFilePath(): string | undefined {
+        return this.cbuildRunFilePath;
+    }
+
     public getContents(): CbuildRunType | undefined {
         return this.cbuildRun;
     }
