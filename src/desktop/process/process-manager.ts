@@ -26,9 +26,6 @@ export interface ProcessOutput {
 
 export interface ProcessManagerOptions {
     readonly command: string;
-    readonly args?: readonly string[];
-    readonly cwd?: string | URL;
-    readonly env?: NodeJS.ProcessEnv;
     readonly windowsHide?: boolean;
     readonly name: string;
     readonly output?: ProcessOutput;
@@ -36,6 +33,12 @@ export interface ProcessManagerOptions {
     readonly onSpawn?: (process: ProcessManager) => void;
     readonly onError?: (error: Error, process: ProcessManager) => void;
     readonly onExit?: (code: number | null, signal: NodeJS.Signals | null, process: ProcessManager) => void;
+}
+
+export interface ProcessManagerLaunchOptions {
+    readonly args?: readonly string[];
+    readonly cwd?: string | URL;
+    readonly env?: NodeJS.ProcessEnv;
 }
 
 export interface StopProcessOptions {
@@ -61,20 +64,20 @@ export class ProcessManager {
 
     public constructor(private readonly options: ProcessManagerOptions) {}
 
-    public launch(): void {
+    public launch(options: ProcessManagerLaunchOptions): void {
         if (this.isStarted) {
             throw new Error(`${this.options.name} process has already been launched.`);
         }
 
         const output = this.options.output;
         if (output !== undefined) {
-            output.appendLine(`Launching ${this.options.name} with command: ${this.options.command} ${this.options.args?.join(' ')}`);
+            output.appendLine(`Launching ${this.options.name} with command: ${this.options.command} ${options.args?.join(' ')}`);
         }
 
         // Launch the process with stdio streams piped for output forwarding and termination.
-        this.child = spawn(this.options.command, [...(this.options.args ?? [])], {
-            cwd: this.options.cwd,
-            env: this.options.env,
+        this.child = spawn(this.options.command, [...(options.args ?? [])], {
+            cwd: options.cwd,
+            env: options.env,
             windowsHide: this.options.windowsHide,
             stdio: ['pipe', 'pipe', 'pipe']
         });
