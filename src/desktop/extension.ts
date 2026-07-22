@@ -30,6 +30,8 @@ import { CorePeripherals } from '../views/core-peripherals/core-peripherals';
 import { clearAllViewState } from '../views/dynamic-view-states';
 import { TraceConfigurationWebviewProvider } from '../views/trace-configuration/trace-configuration-webview-provider';
 import { TraceCommands } from '../features/trace/trace-commands';
+import { PyTsController } from '../features/trace/pyts-controller';
+import { CTraceController } from '../features/trace/ctrace-controller';
 
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
@@ -53,8 +55,10 @@ const askForReload = async (): Promise<void> => {
 export const activate = async (context: vscode.ExtensionContext): Promise<void> => {
     let canCompleteActivation = true;
     const genericCommands = new GenericCommands();
-    const traceCommands = new TraceCommands();
     const gdbtargetDebugTracker = new GDBTargetDebugTracker();
+    const pyTsController = new PyTsController();
+    const cTraceController = new CTraceController();
+    const traceCommands = new TraceCommands(pyTsController, cTraceController);
     const gdbtargetConfigurationProvider = new GDBTargetConfigurationProvider();
     const cpuStates = new CpuStates();
     const cpuStatesCommands = new CpuStatesCommands();
@@ -70,6 +74,8 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);
     // Activate generic commands
     genericCommands.activate(context);
+    pyTsController.activate(context, gdbtargetDebugTracker);
+    cTraceController.activate(context, gdbtargetDebugTracker);
     // Activate trace commands
     traceCommands.activate(context);
     // Activate components
