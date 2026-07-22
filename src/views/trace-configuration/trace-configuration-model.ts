@@ -343,8 +343,8 @@ export class TraceConfigurationModel {
             await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
-        if (this.rowBuilder.isItmPath(pathToUpdate) && typeof value === 'string') {
-            document.yaml.set([...pathToUpdate, 'enable'], value);
+        if (this.rowBuilder.isItmPath(pathToUpdate) && Array.isArray(value)) {
+            document.yaml.set([...pathToUpdate, 'enable'], this.rowBuilder.itmChannelsToMask(value));
             await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
