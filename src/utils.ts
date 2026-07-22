@@ -100,7 +100,7 @@ export class FileLocationManager {
             return fileName?.trim() ? fileName : undefined;
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            logger.debug(`Trace Configuration: Failed to get active cbuild-run file from CMSIS Solution: ${errorMessage}`);
+            logger.debug(`Failed to get active cbuild-run file from CMSIS Solution: ${errorMessage}`);
             return undefined;
         }
     }
