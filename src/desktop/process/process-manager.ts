@@ -66,6 +66,11 @@ export class ProcessManager {
             throw new Error(`${this.options.name} process has already been launched.`);
         }
 
+        const output = this.options.output;
+        if (output !== undefined) {
+            output.appendLine(`Launching ${this.options.name} with command: ${this.options.command} ${this.options.args?.join(' ')}`);
+        }
+
         // Launch the process with stdio streams piped for output forwarding and termination.
         this.child = spawn(this.options.command, [...(this.options.args ?? [])], {
             cwd: this.options.cwd,
@@ -79,7 +84,6 @@ export class ProcessManager {
         });
 
         // Attach listeners to forward stdout and stderr to the output channel, if provided.
-        const output = this.options.output;
         if (output !== undefined) {
             this.child.stdout.on('data', (chunk: Buffer) => output.append(chunk.toString('utf8')));
             this.child.stderr.on('data', (chunk: Buffer) => output.append(chunk.toString('utf8')));
