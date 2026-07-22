@@ -15,6 +15,13 @@
  */
 // generated with AI
 
+import * as vscode from 'vscode';
+import {
+    ContinuedEvent,
+    GDBTargetDebugSession,
+    GDBTargetDebugTracker,
+    StoppedEvent
+} from '../../debug-session';
 import {
     CTraceProcessManager,
     CTraceProcessManagerLaunchOptions,
@@ -22,11 +29,37 @@ import {
 } from '../../desktop/process/ctrace-process-manager';
 
 export class CTraceController {
+    private activeSession: GDBTargetDebugSession | undefined;
+
     public constructor(private readonly options: CTraceProcessManagerOptions = {}) {}
+
+    public activate(context: vscode.ExtensionContext, tracker: GDBTargetDebugTracker): void {
+        context.subscriptions.push(
+            tracker.onDidChangeActiveDebugSession(session => this.handleActiveSessionChanged(session)),
+            tracker.onContinued(event => this.handleContinuedEvent(event)),
+            tracker.onStopped(event => this.handleStoppedEvent(event))
+        );
+    }
 
     public async run(options: CTraceProcessManagerLaunchOptions = {}): Promise<void> {
         const processManager = new CTraceProcessManager(this.options);
-        await processManager.launch(options);
+        const cbuildRunFilePath = options.cbuildRunFilePath ?? this.activeSession?.getCbuildRunPath();
+        const launchOptions: CTraceProcessManagerLaunchOptions = cbuildRunFilePath === undefined
+            ? options
+            : { ...options, cbuildRunFilePath };
+        await processManager.launch(launchOptions);
         await processManager.waitForExit();
+    }
+
+    protected handleActiveSessionChanged(session: GDBTargetDebugSession | undefined): void {
+        this.activeSession = session;
+    }
+
+    protected handleContinuedEvent(_event: ContinuedEvent): void {
+        // TODO: Handle continued events for trace processing.
+    }
+
+    protected handleStoppedEvent(_event: StoppedEvent): void {
+        // TODO: Handle stopped events for trace processing.
     }
 }
