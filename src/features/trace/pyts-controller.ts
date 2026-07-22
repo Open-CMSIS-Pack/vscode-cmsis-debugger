@@ -37,8 +37,10 @@ export class PyTsController {
 
     public activate(context: vscode.ExtensionContext, tracker: GDBTargetDebugTracker, fileWatchManager: FileWatchManager): void {
         this.fileWatchManager = fileWatchManager;
+        // TODO: Check what CMSIS Solution extension does regarding workspacefolders.
+        const ws = vscode.workspace.workspaceFolders?.[0];
         this.fileWatchManager.addWatch({
-            globPattern: CTRACE_CONFIGURATION_GLOB,
+            globPattern: ws ? new vscode.RelativePattern(ws, CTRACE_CONFIGURATION_GLOB) : CTRACE_CONFIGURATION_GLOB,
             onDidCreate: uri => this.handleCTraceFileChanged(uri),
             onDidChange: uri => this.handleCTraceFileChanged(uri)
         });
