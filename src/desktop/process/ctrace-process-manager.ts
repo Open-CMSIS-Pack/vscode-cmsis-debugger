@@ -21,6 +21,7 @@ import { logger } from '../../logger';
 import { BuiltinToolPath } from '../builtin-tool-path';
 import {
     ProcessManager,
+    ProcessManagerLaunchOptions,
     ProcessManagerOptions
 } from './process-manager';
 
@@ -32,13 +33,11 @@ export interface CTraceProcessManagerOptions {
     readonly cTracePath?: string;
 }
 
-export interface CTraceProcessManagerLaunchOptions {
+export interface CTraceProcessManagerLaunchOptions extends ProcessManagerLaunchOptions {
     readonly rawFilePath?: string;
 }
 
-export class CTraceProcessManager {
-    private readonly processManager: ProcessManager;
-
+export class CTraceProcessManager extends ProcessManager {
     public constructor(options: CTraceProcessManagerOptions = {}) {
         const cTracePath = options.cTracePath ?? new BuiltinToolPath(DEFAULT_CTRACE_PATH).getAbsolutePath()?.fsPath;
         if (!cTracePath) {
@@ -49,19 +48,20 @@ export class CTraceProcessManager {
             name: 'ctrace',
             output: { append: logger.append, appendLine: logger.appendLine }
         };
-        this.processManager = new ProcessManager(processOptions);
+        super(processOptions);
     }
 
-    public async launch(options: CTraceProcessManagerLaunchOptions = {}): Promise<void> {
-        const rawFilePath = options.rawFilePath ?? await this.getDefaultRawFilePath();
-        this.processManager.launch({
+    public override async launch(options: CTraceProcessManagerLaunchOptions = {}): Promise<void> {
+        const args = options.args ?? [
+            '-i', options.rawFilePath ?? await this.getDefaultRawFilePath(),
+            '--csv',
             // TODO: remove --tolerant-decode when trace generation inserts sync packets at run
-            args: ['-i', rawFilePath, '--csv', '--tolerant-decode']
+            '--tolerant-decode'
+        ];
+        super.launch({
+            ...options,
+            args
         });
-    }
-
-    public waitForExit(): Promise<void> {
-        return this.processManager.waitForExit();
     }
 
     private async getDefaultRawFilePath(): Promise<string> {
