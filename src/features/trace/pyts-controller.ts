@@ -17,27 +17,33 @@
 
 import * as vscode from 'vscode';
 import {
-    ContinuedEvent,
     GDBTargetDebugSession,
-    GDBTargetDebugTracker,
-    StoppedEvent
+    GDBTargetDebugTracker
 } from '../../debug-session';
 import {
     PyTsProcessManager,
     PyTsProcessManagerLaunchOptions,
     PyTsProcessManagerOptions
 } from '../../desktop/process/pyts-process-manager';
+import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
+
+const CTRACE_CONFIGURATION_GLOB = '.cmsis/*.ctrace.{yml,yaml}';
 
 export class PyTsController {
     private activeSession: GDBTargetDebugSession | undefined;
+    private fileWatchManager: FileWatchManager | undefined;
 
     public constructor(private readonly options: PyTsProcessManagerOptions = {}) {}
 
-    public activate(context: vscode.ExtensionContext, tracker: GDBTargetDebugTracker): void {
+    public activate(context: vscode.ExtensionContext, tracker: GDBTargetDebugTracker, fileWatchManager: FileWatchManager): void {
+        this.fileWatchManager = fileWatchManager;
+        this.fileWatchManager.addWatch({
+            globPattern: CTRACE_CONFIGURATION_GLOB,
+            onDidCreate: uri => this.handleCTraceFileChanged(uri),
+            onDidChange: uri => this.handleCTraceFileChanged(uri)
+        });
         context.subscriptions.push(
-            tracker.onDidChangeActiveDebugSession(session => this.handleActiveSessionChanged(session)),
-            tracker.onContinued(event => this.handleContinuedEvent(event)),
-            tracker.onStopped(event => this.handleStoppedEvent(event))
+            tracker.onDidChangeActiveDebugSession(session => this.handleActiveSessionChanged(session))
         );
     }
 
@@ -55,11 +61,8 @@ export class PyTsController {
         this.activeSession = session;
     }
 
-    protected handleContinuedEvent(_event: ContinuedEvent): void {
-        // TODO: Handle continued events for trace processing.
-    }
-
-    protected handleStoppedEvent(_event: StoppedEvent): void {
-        // TODO: Handle stopped events for trace processing.
+    protected async handleCTraceFileChanged(_uri: vscode.Uri): Promise<void> {
+        // TODO: Match this is the ctrace file for the active session/expected cbuildrun file
+        await this.run();
     }
 }
