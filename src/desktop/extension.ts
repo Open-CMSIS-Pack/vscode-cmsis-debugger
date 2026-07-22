@@ -32,6 +32,7 @@ import { TraceConfigurationWebviewProvider } from '../views/trace-configuration/
 import { TraceCommands } from '../features/trace/trace-commands';
 import { PyTsController } from '../features/trace/pyts-controller';
 import { CTraceController } from '../features/trace/ctrace-controller';
+import { FileWatchManager } from './filesystem/file-watch-manager';
 
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
@@ -56,6 +57,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     let canCompleteActivation = true;
     const genericCommands = new GenericCommands();
     const gdbtargetDebugTracker = new GDBTargetDebugTracker();
+    const fileWatchManager = new FileWatchManager();
     const pyTsController = new PyTsController();
     const cTraceController = new CTraceController();
     const traceCommands = new TraceCommands(pyTsController, cTraceController);
@@ -72,9 +74,10 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     const traceConfiguration = new TraceConfigurationWebviewProvider(context.extensionUri);
 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);
+    fileWatchManager.activate(context);
     // Activate generic commands
     genericCommands.activate(context);
-    pyTsController.activate(context, gdbtargetDebugTracker);
+    pyTsController.activate(context, gdbtargetDebugTracker, fileWatchManager);
     cTraceController.activate(context, gdbtargetDebugTracker);
     // Activate trace commands
     traceCommands.activate(context);

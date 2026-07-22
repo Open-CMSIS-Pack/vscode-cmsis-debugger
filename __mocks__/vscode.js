@@ -135,6 +135,12 @@ module.exports = {
             })
         },
         findFiles: jest.fn(() => Promise.resolve([])),
+        createFileSystemWatcher: jest.fn(() => ({
+            dispose: jest.fn(),
+            onDidCreate: jest.fn(() => ({ dispose: jest.fn() })),
+            onDidChange: jest.fn(() => ({ dispose: jest.fn() })),
+            onDidDelete: jest.fn(() => ({ dispose: jest.fn() })),
+        })),
         workspaceFolders: [
             {
                 uri: URI.file(path.join(__dirname, '..')),
