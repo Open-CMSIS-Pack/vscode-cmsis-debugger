@@ -84,7 +84,7 @@ export class TraceConfigurationRowBuilder {
         };
         const ctraceRoot = this.getCTraceFile()?.document?.yaml.getNode(['ctrace']);
         if (ctraceRoot) {
-            this.getRootChildEntries(ctraceRoot).forEach(child => {
+            this.getChildEntries(ctraceRoot).forEach(child => {
                 this.appendNodeRows(context, child.node, child.path, child.label, 0);
             });
             return context.rows;
@@ -367,24 +367,6 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
-     * getRootChildEntries returns the top-level ctrace rows and guarantees that
-     * the global Disable checkbox is visible even when ctrace.yml omits the
-     * disable key. In that omitted form trace is enabled, so the synthetic row
-     * is unchecked and only becomes real YAML if the user checks it.
-     */
-    private getRootChildEntries(root: YAML.Node): { label: string; path: (string | number)[]; node: YAML.Node }[] {
-        const entries = this.getChildEntries(root);
-        if (!entries.some(entry => this.isGlobalTraceDisablePath(entry.path))) {
-            entries.push({
-                label: 'disable',
-                path: ['ctrace', 'disable'],
-                node: new YAML.Scalar(false)
-            });
-        }
-        return this.sortDisplayEntries(entries);
-    }
-
-    /**
      * getAdvancedSettingsEntries finds the real YAML nodes that should be shown
      * beneath the synthetic Advanced Settings row. Keeping these as real node
      * entries means the child controls still edit the original ctrace paths.
@@ -506,12 +488,16 @@ export class TraceConfigurationRowBuilder {
     /**
      * shouldHideNode centralizes user-facing filtering for YAML keys that are
      * still preserved in the file but should not clutter the trace editor. The
-     * metadata keys are always hidden, ITM enable is folded into its parent
-     * row's channel checklist, and pname is only hidden when there is no
-     * multi-core distinction for the user to make.
+     * metadata keys are always hidden, top-level disable is hidden because the
+     * setting is processor-specific, ITM enable is folded into its parent row's
+     * channel checklist, and pname is only hidden when there is no multi-core
+     * distinction for the user to make.
      */
     private shouldHideNode(label: string, parentPath: (string | number)[]): boolean {
         if (label === 'ctrace-ref' || label === 'created-by') {
+            return true;
+        }
+        if (label === 'disable' && parentPath.length === 1 && parentPath[0] === 'ctrace') {
             return true;
         }
         if (label === 'disable' && this.isProcessorPath(parentPath)) {
@@ -702,13 +688,13 @@ export class TraceConfigurationRowBuilder {
 
     /**
      * getCheckedState gives checkbox controls their initial state. Scalar
-     * checkboxes use YAML-ish truthy strings, while the timestamps subsystem is
-     * checked when the YAML node is a populated map and unchecked when the file
-     * has the empty/null form used to disable that subsystem.
+     * checkboxes use YAML-ish truthy strings, while processor disable is
+     * presence-based: if the hidden disable key exists under the processor,
+     * trace is disabled for that processor.
      */
     private getCheckedState(node: YAML.Node, nodePath: (string | number)[], scalarValue?: string): boolean {
         if (this.isProcessorPath(nodePath) && YAML.isMap(node)) {
-            return !this.isTruthyValue(this.mapScalarToString(node, 'disable'));
+            return node.get('disable', true) !== undefined;
         }
         if (this.isTimestampsPath(nodePath)) {
             return YAML.isMap(node) && node.items.some(pair => this.keyToString(pair.key) !== 'ctrace-ref');
@@ -837,20 +823,10 @@ export class TraceConfigurationRowBuilder {
     /**
      * isProcessorPath identifies a setup sequence item. In the user-facing tree
      * this row is shown as Processor:<pname> and its checkbox edits the hidden
-     * disable field for that processor.
+     * presence-based disable field for that processor.
      */
     public isProcessorPath(nodePath: (string | number)[]): boolean {
         return nodePath.at(-2) === 'setup' && typeof nodePath.at(-1) === 'number';
-    }
-
-    /**
-     * isGlobalTraceDisablePath identifies the top-level ctrace disable flag.
-     * This is intentionally separate from processor disable fields because the
-     * global flag's checkbox maps directly to "trace disabled", while processor
-     * rows use their checkbox to mean "processor trace enabled".
-     */
-    public isGlobalTraceDisablePath(nodePath: (string | number)[]): boolean {
-        return nodePath.length === 2 && nodePath[0] === 'ctrace' && nodePath[1] === 'disable';
     }
 
     /**

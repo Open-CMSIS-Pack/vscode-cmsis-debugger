@@ -319,15 +319,10 @@ export class TraceConfigurationModel {
             return;
         }
         if (this.rowBuilder.isProcessorPath(pathToUpdate) && typeof value === 'boolean') {
-            document.yaml.set([...pathToUpdate, 'disable'], !value);
-            await this.saveCurrentDocument({ abortIfDiskChanged: true });
-            return;
-        }
-        if (this.rowBuilder.isGlobalTraceDisablePath(pathToUpdate) && typeof value === 'boolean') {
             if (value) {
-                document.yaml.set(pathToUpdate, true);
+                document.yaml.set([...pathToUpdate, 'disable'], null);
             } else {
-                document.yaml.delete(pathToUpdate);
+                document.yaml.delete([...pathToUpdate, 'disable']);
             }
             await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
