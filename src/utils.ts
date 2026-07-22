@@ -14,10 +14,6 @@
  * limitations under the License.
  */
 
-// NOTE: Keep vscode imports out of this file.
-// Mocking path in this module's tests causes trouble with path-require in global vscode mock.
-// Can be merged once we found a better solution for path usage in global vscode mock.
-
 import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
