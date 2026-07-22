@@ -34,8 +34,8 @@ export interface CTraceProcessManagerOptions {
 }
 
 export interface CTraceProcessManagerLaunchOptions extends ProcessManagerLaunchOptions {
-    readonly rawFilePath?: string;
-    readonly cbuildRunFilePath?: string;
+    readonly rawFilePath?: string | undefined;
+    readonly cbuildRunFilePath?: string | undefined;
 }
 
 export class CTraceProcessManager extends ProcessManager {

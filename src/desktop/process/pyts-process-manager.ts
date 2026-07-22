@@ -32,7 +32,7 @@ export interface PyTsProcessManagerOptions {
 }
 
 export interface PyTsProcessManagerLaunchOptions extends ProcessManagerLaunchOptions {
-    readonly cbuildRunFilePath?: string;
+    readonly cbuildRunFilePath?: string | undefined;
 }
 
 export class PyTsProcessManager extends ProcessManager {
