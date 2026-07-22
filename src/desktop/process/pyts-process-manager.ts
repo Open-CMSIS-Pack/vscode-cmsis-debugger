@@ -25,8 +25,11 @@ import {
 export const DEFAULT_PYTS_PATH = 'pyts';
 
 export interface PyTsProcessManagerOptions {
-    readonly cbuildRunFilePath: string;
     readonly pyTsPath?: string;
+}
+
+export interface PyTsProcessManagerLaunchOptions {
+    readonly cbuildRunFilePath: string;
 }
 
 export class PyTsProcessManager {
@@ -35,15 +38,16 @@ export class PyTsProcessManager {
     public constructor(options: PyTsProcessManagerOptions) {
         const processOptions: ProcessManagerOptions = {
             command: options.pyTsPath ?? DEFAULT_PYTS_PATH,
-            args: [options.cbuildRunFilePath, '--allow-missing'],
             name: 'pyTS',
             output: { append: logger.append, appendLine: logger.appendLine }
         };
         this.processManager = new ProcessManager(processOptions);
     }
 
-    public launch(): void {
-        this.processManager.launch();
+    public launch(options: PyTsProcessManagerLaunchOptions): void {
+        this.processManager.launch({
+            args: [options.cbuildRunFilePath, '--allow-missing']
+        });
     }
 
     public waitForExit(): Promise<void> {
