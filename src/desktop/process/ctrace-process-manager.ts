@@ -25,8 +25,11 @@ import {
 export const DEFAULT_CTRACE_PATH = 'ctrace';
 
 export interface CTraceProcessManagerOptions {
-    readonly rawFilePath: string;
     readonly cTracePath?: string;
+}
+
+export interface CTraceProcessManagerLaunchOptions {
+    readonly rawFilePath: string;
 }
 
 export class CTraceProcessManager {
@@ -35,16 +38,17 @@ export class CTraceProcessManager {
     public constructor(options: CTraceProcessManagerOptions) {
         const processOptions: ProcessManagerOptions = {
             command: options.cTracePath ?? DEFAULT_CTRACE_PATH,
-            // TODO: remove --tolerant-decode when trace generation inserts sync packets at run
-            args: ['-i', options.rawFilePath, '--csv', '--tolerant-decode'],
             name: 'ctrace',
             output: { append: logger.append, appendLine: logger.appendLine }
         };
         this.processManager = new ProcessManager(processOptions);
     }
 
-    public launch(): void {
-        this.processManager.launch();
+    public launch(options: CTraceProcessManagerLaunchOptions): void {
+        this.processManager.launch({
+            // TODO: remove --tolerant-decode when trace generation inserts sync packets at run
+            args: ['-i', options.rawFilePath, '--csv', '--tolerant-decode']
+        });
     }
 
     public waitForExit(): Promise<void> {

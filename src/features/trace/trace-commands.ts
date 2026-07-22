@@ -54,10 +54,9 @@ export class TraceCommands {
                 throw new Error('Failed to resolve the absolute path for pyTS.');
             }
             const pytsProcessManager = new PyTsProcessManager({
-                cbuildRunFilePath: trimmedPath,
                 pyTsPath: pyTsAbsolutePath.fsPath
             });
-            pytsProcessManager.launch();
+            pytsProcessManager.launch({ cbuildRunFilePath: trimmedPath });
             await pytsProcessManager.waitForExit();
         } catch (error) {
             console.error('Failed to launch pyTS process:', error);
@@ -87,10 +86,9 @@ export class TraceCommands {
                 throw new Error('Failed to resolve the absolute path for ctrace.');
             }
             const ctraceProcessManager = new CTraceProcessManager({
-                rawFilePath,
                 cTracePath: cTraceAbsolutePath.fsPath
             });
-            ctraceProcessManager.launch();
+            ctraceProcessManager.launch({ rawFilePath });
             await ctraceProcessManager.waitForExit();
         } catch (error) {
             console.error('Failed to launch ctrace process:', error);
