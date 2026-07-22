@@ -30,8 +30,10 @@ export class TraceCommands {
     public static readonly launchPyTsID = `${EXTENSION_NAME}.launchPyTs`;
     public static readonly launchCTraceID = `${EXTENSION_NAME}.launchCTrace`;
 
-    private readonly pyTsController = new PyTsController();
-    private readonly cTraceController = new CTraceController();
+    public constructor(
+        private readonly pyTsController: PyTsController,
+        private readonly cTraceController: CTraceController
+    ) {}
 
     public activate(context: vscode.ExtensionContext): void {
         // Register trace commands

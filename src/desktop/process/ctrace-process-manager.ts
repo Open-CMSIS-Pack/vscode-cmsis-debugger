@@ -35,6 +35,7 @@ export interface CTraceProcessManagerOptions {
 
 export interface CTraceProcessManagerLaunchOptions extends ProcessManagerLaunchOptions {
     readonly rawFilePath?: string;
+    readonly cbuildRunFilePath?: string;
 }
 
 export class CTraceProcessManager extends ProcessManager {
@@ -53,7 +54,7 @@ export class CTraceProcessManager extends ProcessManager {
 
     public override async launch(options: CTraceProcessManagerLaunchOptions = {}): Promise<void> {
         const args = options.args ?? [
-            '-i', options.rawFilePath ?? await this.getDefaultRawFilePath(),
+            '-i', options.rawFilePath ?? await this.getDefaultRawFilePath(options.cbuildRunFilePath),
             '--csv',
             // TODO: remove --tolerant-decode when trace generation inserts sync packets at run
             '--tolerant-decode'
@@ -64,9 +65,10 @@ export class CTraceProcessManager extends ProcessManager {
         });
     }
 
-    private async getDefaultRawFilePath(): Promise<string> {
-        const cbuildRunFilePath = await vscode.commands.executeCommand<string | undefined>(CSOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
-        const trimmedPath = cbuildRunFilePath?.trim();
+    private async getDefaultRawFilePath(cbuildRunFilePath: string | undefined): Promise<string> {
+        const resolvedCbuildRunFilePath = cbuildRunFilePath ??
+            await vscode.commands.executeCommand<string | undefined>(CSOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
+        const trimmedPath = resolvedCbuildRunFilePath?.trim();
         if (!trimmedPath) {
             throw new Error('No cbuild run file path provided.');
         }
