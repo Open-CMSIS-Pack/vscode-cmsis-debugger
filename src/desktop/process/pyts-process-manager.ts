@@ -15,10 +15,10 @@
  */
 // generated with AI
 
+import { logger } from '../../logger';
 import {
     ProcessManager,
-    ProcessManagerOptions,
-    ProcessOutput
+    ProcessManagerOptions
 } from './process-manager';
 
 // TODO: Update when the bundled pyTS location is known.
@@ -27,7 +27,6 @@ export const DEFAULT_PYTS_PATH = 'pyts';
 export interface PyTsProcessManagerOptions {
     readonly cbuildRunFilePath: string;
     readonly pyTsPath?: string;
-    readonly output?: ProcessOutput;
 }
 
 export class PyTsProcessManager {
@@ -38,7 +37,7 @@ export class PyTsProcessManager {
             command: options.pyTsPath ?? DEFAULT_PYTS_PATH,
             args: [options.cbuildRunFilePath, '--allow-missing'],
             name: 'pyTS',
-            ...(options.output === undefined ? {} : { output: options.output })
+            output: { append: logger.append, appendLine: logger.appendLine }
         };
         this.processManager = new ProcessManager(processOptions);
     }
