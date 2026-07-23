@@ -25,16 +25,27 @@ import {
     CTraceProcessManagerLaunchOptions,
     CTraceProcessManagerOptions
 } from '../../desktop/process/ctrace-process-manager';
+import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
 import { waitForMs } from '../../utils';
 
 const PRE_DECODE_DELAY = 750;
+const RAW_TRACE_GLOB = '.trace/*.{SWO,TB}.raw';
 
 export class CTraceController {
     private activeSession: GDBTargetDebugSession | undefined;
+    private fileWatchManager: FileWatchManager | undefined;
 
     public constructor(private readonly options: CTraceProcessManagerOptions = {}) {}
 
-    public activate(context: vscode.ExtensionContext, tracker: GDBTargetDebugTracker): void {
+    public activate(context: vscode.ExtensionContext, tracker: GDBTargetDebugTracker, fileWatchManager: FileWatchManager): void {
+        this.fileWatchManager = fileWatchManager;
+        // TODO: Check what CMSIS Solution extension does regarding workspacefolders.
+        const ws = vscode.workspace.workspaceFolders?.[0];
+        this.fileWatchManager.addWatch({
+            globPattern: ws ? new vscode.RelativePattern(ws, RAW_TRACE_GLOB) : RAW_TRACE_GLOB,
+            onDidCreate: uri => this.handleRawTraceFileChanged(uri),
+            onDidChange: uri => this.handleRawTraceFileChanged(uri)
+        });
         context.subscriptions.push(
             tracker.onDidChangeActiveDebugSession(session => this.handleActiveSessionChanged(session)),
             tracker.onStopped(event => this.handleDecodeTrigger(event.session)),
@@ -54,6 +65,11 @@ export class CTraceController {
 
     protected handleActiveSessionChanged(session: GDBTargetDebugSession | undefined): void {
         this.activeSession = session;
+    }
+
+    protected async handleRawTraceFileChanged(_uri: vscode.Uri): Promise<void> {
+        // TODO: Put some proper logic in
+        // await this.run({ rawFilePath: uri.fsPath });
     }
 
     protected async handleDecodeTrigger(session: GDBTargetDebugSession | undefined): Promise<void> {
