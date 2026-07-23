@@ -52,6 +52,13 @@ class MockTreeItem {
     }
 }
 
+class MockRelativePattern {
+    constructor(base, pattern) {
+        this.baseUri = base.uri ?? base;
+        this.pattern = pattern;
+    }
+}
+
 module.exports = {
     EventEmitter: jest.fn(() => {
         const callbacks = [];
@@ -65,6 +72,7 @@ module.exports = {
         };
     }),
     Uri: URI,
+    RelativePattern: MockRelativePattern,
     TreeItem: MockTreeItem,
     TreeItemCollapsibleState: MockTreeItemCollapsibleState,
     window: {
