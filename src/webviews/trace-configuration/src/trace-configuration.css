@@ -159,6 +159,8 @@ select {
     background: var(--vscode-dropdown-background, #3c3c3c);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
     padding: 4px;
+    max-height: 220px;
+    overflow-y: auto;
 }
 
 .multi-select-option {

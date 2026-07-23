@@ -24,6 +24,8 @@ import {
 } from './trace-configuration-protocol';
 import * as TraceConfigurationTypes from './trace-configuration-types';
 
+type TraceNodeEntry = { label: string; path: (string | number)[]; node: YAML.Node };
+
 /**
  * TraceConfigurationRowBuilder is responsible for projecting the ctrace YAML DOM into the
  * serializable row state consumed by the webview. It deliberately does not read from disk or
@@ -84,7 +86,7 @@ export class TraceConfigurationRowBuilder {
         };
         const ctraceRoot = this.getCTraceFile()?.document?.yaml.getNode(['ctrace']);
         if (ctraceRoot) {
-            this.getChildEntries(ctraceRoot).forEach(child => {
+            this.getChildEntries(ctraceRoot, ['ctrace']).forEach(child => {
                 this.appendNodeRows(context, child.node, child.path, child.label, 0);
             });
             return context.rows;
@@ -117,7 +119,7 @@ export class TraceConfigurationRowBuilder {
             return;
         }
         const id = this.pathToId(nodePath);
-        const childEntries = this.getChildEntries(node);
+        const childEntries = this.getChildEntries(node, nodePath);
         const hasChildren = childEntries.length > 0;
         if (this.shouldFlattenSetupNode(node, nodePath) || this.shouldFlattenInstructionTriggerItem(node, nodePath)) {
             childEntries.forEach(child => {
@@ -337,33 +339,173 @@ export class TraceConfigurationRowBuilder {
      * and it also hides pname when the file only describes one processor core
      * because that value would not help the user distinguish between entries.
      */
-    private getChildEntries(node: YAML.Node): { label: string; path: (string | number)[]; node: YAML.Node }[] {
+    private getChildEntries(node: YAML.Node, nodePath = this.getNodePath(node)): TraceNodeEntry[] {
         if (YAML.isMap(node)) {
-            const entries: { label: string; path: (string | number)[]; node: YAML.Node }[] = [];
+            const entries: TraceNodeEntry[] = [];
             node.items.forEach(pair => {
                 const label = this.keyToString(pair.key);
-                if (!label || this.shouldHideNode(label, this.getNodePath(node)) || !YAML.isNode(pair.value)) {
+                if (!label || this.shouldHideNode(label, nodePath) || !YAML.isNode(pair.value)) {
                     return;
                 }
                 entries.push({
                     label,
-                    path: [...this.getNodePath(node), label],
+                    path: [...nodePath, label],
                     node: pair.value
                 });
             });
+            this.appendSyntheticChildEntries(entries, nodePath);
             return this.sortDisplayEntries(entries);
         }
-        if (YAML.isSeq(node) && this.isEventsPath(this.getNodePath(node))) {
+        if (YAML.isSeq(node) && this.isEventsPath(nodePath)) {
             return [];
         }
         if (YAML.isSeq(node)) {
             return node.items.flatMap((item, index) => YAML.isNode(item) ? [{
                 label: this.getSequenceItemLabel(item, index),
-                path: [...this.getNodePath(node), index],
+                path: [...nodePath, index],
                 node: item
             }] : []);
         }
+        return this.getFilteredSyntheticChildEntries(nodePath);
+    }
+
+    /**
+     * appendSyntheticChildEntries adds schema-defined optional fields that are
+     * not currently present in ctrace.yml. These rows let users fill optional
+     * settings from the webview, but because the nodes are synthetic nothing is
+     * written until the user enters or selects a value.
+     */
+    private appendSyntheticChildEntries(entries: TraceNodeEntry[], parentPath: (string | number)[]): void {
+        const existingLabels = new Set(entries.map(entry => entry.label));
+        this.getFilteredSyntheticChildEntries(parentPath).forEach(entry => {
+            if (existingLabels.has(entry.label)) {
+                return;
+            }
+            entries.push(entry);
+        });
+    }
+
+    /**
+     * getFilteredSyntheticChildEntries applies the same hidden-node and
+     * processor-capability checks to synthetic rows that real YAML children use.
+     * Scalar null nodes such as a bare "timestamps:" can call this directly so
+     * valid YAML shorthand still exposes the optional fields from the schema.
+     */
+    private getFilteredSyntheticChildEntries(parentPath: (string | number)[]): TraceNodeEntry[] {
+        return this.getSyntheticChildEntries(parentPath)
+            .filter(entry => !this.shouldHideNode(entry.label, parentPath) && this.shouldShowTraceNode(entry.label, entry.path));
+    }
+
+    /**
+     * getSyntheticChildEntries mirrors the current ctrace JSON schema for the
+     * parts edited by this webview. Required fields are only synthesized for new
+     * sequence items where the add action creates the parent object; optional
+     * fields remain absent from YAML until edited.
+     */
+    private getSyntheticChildEntries(parentPath: (string | number)[]): TraceNodeEntry[] {
+        if (this.isProcessorPath(parentPath)) {
+            return [
+                this.createSyntheticMapEntry(parentPath, 'timestamps'),
+                this.createSyntheticNullEntry(parentPath, 'exceptions'),
+                this.createSyntheticSequenceEntry(parentPath, 'events'),
+                this.createSyntheticMapEntry(parentPath, 'itm'),
+                this.createSyntheticSequenceEntry(parentPath, 'data'),
+                this.createSyntheticMapEntry(parentPath, 'instructions'),
+                this.createSyntheticMapEntry(parentPath, 'pcsampling'),
+                this.createSyntheticSequenceEntry(parentPath, 'tracehalt'),
+            ];
+        }
+        if (this.isTimestampsPath(parentPath)) {
+            return [
+                this.createSyntheticScalarEntry(parentPath, 'clock'),
+                this.createSyntheticScalarEntry(parentPath, 'itm-prescaler'),
+            ];
+        }
+        if (this.isItmPath(parentPath)) {
+            return [this.createSyntheticScalarEntry(parentPath, 'privileged')];
+        }
+        if (this.isDataTraceItemPath(parentPath)) {
+            return [
+                this.createSyntheticScalarEntry(parentPath, 'label'),
+                this.createSyntheticScalarEntry(parentPath, 'access'),
+                this.createSyntheticScalarEntry(parentPath, 'size'),
+                this.createSyntheticScalarEntry(parentPath, 'output'),
+                this.createSyntheticMapEntry(parentPath, 'match'),
+            ];
+        }
+        if (this.isInstructionsPath(parentPath)) {
+            return [
+                this.createSyntheticSequenceEntry(parentPath, 'start'),
+                this.createSyntheticSequenceEntry(parentPath, 'stop'),
+            ];
+        }
+        if (this.isConditionItemPath(parentPath)) {
+            return [
+                this.createSyntheticScalarEntry(parentPath, 'access'),
+                this.createSyntheticScalarEntry(parentPath, 'size'),
+                this.createSyntheticMapEntry(parentPath, 'match'),
+            ];
+        }
+        if (this.isMatchPath(parentPath)) {
+            return [
+                this.createSyntheticScalarEntry(parentPath, 'value'),
+                this.createSyntheticScalarEntry(parentPath, 'size'),
+            ];
+        }
         return [];
+    }
+
+    /**
+     * createSyntheticScalarEntry returns a blank scalar row for a schema field
+     * that does not exist in YAML yet. Blank values are later interpreted by the
+     * model as "delete/keep absent" for optional fields.
+     */
+    private createSyntheticScalarEntry(parentPath: (string | number)[], label: string): TraceNodeEntry {
+        return {
+            label,
+            path: [...parentPath, label],
+            node: new YAML.Scalar('')
+        };
+    }
+
+    /**
+     * createSyntheticNullEntry returns a null scalar row for presence-only
+     * schema fields such as exceptions. The row can render as an unchecked
+     * checkbox while preserving the YAML convention of writing an empty key when
+     * enabled.
+     */
+    private createSyntheticNullEntry(parentPath: (string | number)[], label: string): TraceNodeEntry {
+        return {
+            label,
+            path: [...parentPath, label],
+            node: new YAML.Scalar(null)
+        };
+    }
+
+    /**
+     * createSyntheticMapEntry returns an empty map row for optional object
+     * fields. Child generation is path-based, so the row can still show its
+     * schema children even though this map is not present in ctrace.yml yet.
+     */
+    private createSyntheticMapEntry(parentPath: (string | number)[], label: string): TraceNodeEntry {
+        return {
+            label,
+            path: [...parentPath, label],
+            node: new YAML.YAMLMap()
+        };
+    }
+
+    /**
+     * createSyntheticSequenceEntry returns an empty sequence row for optional
+     * list fields. The add button can append to the real YAML path and the DOM
+     * layer will create the sequence only when the user adds an item.
+     */
+    private createSyntheticSequenceEntry(parentPath: (string | number)[], label: string): TraceNodeEntry {
+        return {
+            label,
+            path: [...parentPath, label],
+            node: new YAML.YAMLSeq()
+        };
     }
 
     /**
@@ -376,10 +518,14 @@ export class TraceConfigurationRowBuilder {
         const timesync = node.get('timesync', true);
         if (YAML.isNode(timesync) && this.shouldShowTraceNode('timesync', [...nodePath, 'timesync'])) {
             entries.push({ label: 'timesync', path: [...nodePath, 'timesync'], node: timesync });
+        } else if (this.shouldShowTraceNode('timesync', [...nodePath, 'timesync'])) {
+            entries.push(this.createSyntheticNullEntry(nodePath, 'timesync'));
         }
         const synchronization = node.get('synchronization', true);
         if (YAML.isNode(synchronization) && this.shouldShowTraceNode('synchronization', [...nodePath, 'synchronization'])) {
             entries.push({ label: 'synchronization', path: [...nodePath, 'synchronization'], node: synchronization });
+        } else if (this.shouldShowTraceNode('synchronization', [...nodePath, 'synchronization'])) {
+            entries.push(this.createSyntheticSequenceEntry(nodePath, 'synchronization'));
         }
         return entries;
     }
@@ -423,6 +569,8 @@ export class TraceConfigurationRowBuilder {
                 return 50;
             case 'instructions':
                 return 60;
+            case 'tracehalt':
+                return 70;
             default:
                 return 100;
         }
@@ -446,10 +594,11 @@ export class TraceConfigurationRowBuilder {
      * as PC Sampling still expose a scalar child as the parent row's value.
      */
     private getRowValue(node: YAML.Node, nodePath: (string | number)[], scalarValue?: string): string | undefined {
-        if (this.isPcSamplingPath(nodePath) && YAML.isMap(node)) {
-            return this.normalizePcSamplingPeriod(this.mapScalarToString(node, 'period') ?? 'off');
+        if (this.isPcSamplingPath(nodePath)) {
+            const period = YAML.isMap(node) ? this.mapScalarToString(node, 'period') : scalarValue;
+            return this.normalizePcSamplingPeriod(period && period.trim().length > 0 ? period : 'off');
         }
-        if (this.isDwtDataAccessPath(nodePath)) {
+        if (this.isDwtDataAccessPath(nodePath) || this.isTraceConditionAccessPath(nodePath)) {
             return this.accessValueToLabel(scalarValue);
         }
         return scalarValue;
@@ -482,6 +631,9 @@ export class TraceConfigurationRowBuilder {
         if (label.toLowerCase() === 'synchronization' && this.isStreamSynchronizationPath(nodePath)) {
             return 'Stream Syncronization';
         }
+        if (label.toLowerCase() === 'tracehalt') {
+            return 'Trace Halt';
+        }
         return this.toDisplayTitle(label);
     }
 
@@ -494,7 +646,7 @@ export class TraceConfigurationRowBuilder {
      * distinction for the user to make.
      */
     private shouldHideNode(label: string, parentPath: (string | number)[]): boolean {
-        if (label === 'ctrace-ref' || label === 'created-by') {
+        if (label === 'ctrace-ref' || label === 'created-by' || label === 'generated-by') {
             return true;
         }
         if (label === 'disable' && parentPath.length === 1 && parentPath[0] === 'ctrace') {
@@ -688,25 +840,24 @@ export class TraceConfigurationRowBuilder {
 
     /**
      * getCheckedState gives checkbox controls their initial state. Scalar
-     * checkboxes use YAML-ish truthy strings, while processor disable is
-     * presence-based: if the hidden disable key exists under the processor,
-     * trace is disabled for that processor.
+     * checkboxes use YAML-ish truthy strings, while processor rows invert the
+     * hidden disable key: checked means trace is enabled, so disable is absent.
      */
     private getCheckedState(node: YAML.Node, nodePath: (string | number)[], scalarValue?: string): boolean {
         if (this.isProcessorPath(nodePath) && YAML.isMap(node)) {
-            return node.get('disable', true) !== undefined;
+            return node.get('disable', true) === undefined;
         }
         if (this.isTimestampsPath(nodePath)) {
-            return YAML.isMap(node) && node.items.some(pair => this.keyToString(pair.key) !== 'ctrace-ref');
+            return this.nodeExists(nodePath);
         }
         if (this.isExceptionsPath(nodePath)) {
-            return YAML.isMap(node) || this.isTruthyValue(scalarValue);
+            return this.nodeExists(nodePath);
         }
         if (this.isInstructionsPath(nodePath)) {
-            return YAML.isMap(node) && node.items.some(pair => this.keyToString(pair.key) !== 'ctrace-ref');
+            return this.nodeExists(nodePath);
         }
         if (this.isTimeSyncPath(nodePath)) {
-            return YAML.isMap(node) || this.isTruthyValue(scalarValue);
+            return this.nodeExists(nodePath);
         }
         return this.isTruthyValue(scalarValue);
     }
@@ -734,16 +885,21 @@ export class TraceConfigurationRowBuilder {
             return TraceConfigurationTypes.STREAM_SYNC_PERIOD_OPTIONS;
         }
         if (this.isDwtDataAccessPath(nodePath)) {
-            return ['Read', 'Write', 'Read Write', 'Execute'];
+            return TraceConfigurationTypes.DATA_ACCESS_OPTIONS;
         }
-        if (label === 'itm-prescaler' && nodePath.at(-2) === 'timestamps') {
-            return ['1', '4', '16', '64'];
+        if (this.isTraceConditionAccessPath(nodePath)) {
+            return TraceConfigurationTypes.CONDITION_ACCESS_OPTIONS;
+        }
+        if (this.isTimestampsPrescalerPath(nodePath)) {
+            return ['', '1', '4', '16', '64'];
+        }
+        if (this.isDataOutputPath(nodePath)) {
+            return TraceConfigurationTypes.DATA_OUTPUT_OPTIONS;
+        }
+        if (this.isMatchSizePath(nodePath)) {
+            return TraceConfigurationTypes.MATCH_SIZE_OPTIONS;
         }
         switch (label.toLowerCase()) {
-            case 'access':
-                return ['read', 'write', 'rw', 'readwrite'];
-            case 'output':
-                return ['value', 'address', 'PC', 'match', 'PC+value', 'address+value', 'PC+address'];
             case 'pc':
                 return ['yes', 'no'];
             default:
@@ -792,10 +948,11 @@ export class TraceConfigurationRowBuilder {
         switch (section) {
             case 'data':
                 return 'data';
+            case 'tracehalt':
+                return 'condition';
             case 'start':
-                return 'start';
             case 'stop':
-                return 'stop';
+                return 'condition';
             default:
                 return 'generic-map';
         }
@@ -821,6 +978,23 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
+     * isTimestampsPrescalerPath identifies the optional ITM prescaler field
+     * inside timestamps. The schema restricts it to 1, 4, 16, or 64, with a
+     * blank UI value meaning the optional key should stay absent.
+     */
+    private isTimestampsPrescalerPath(nodePath: (string | number)[]): boolean {
+        return nodePath.at(-1) === 'itm-prescaler' && this.isTimestampsPath(nodePath.slice(0, -1));
+    }
+
+    /**
+     * isTimestampsClockPath identifies the optional timestamp clock field,
+     * which the schema stores as an integer frequency in Hertz.
+     */
+    private isTimestampsClockPath(nodePath: (string | number)[]): boolean {
+        return nodePath.at(-1) === 'clock' && this.isTimestampsPath(nodePath.slice(0, -1));
+    }
+
+    /**
      * isProcessorPath identifies a setup sequence item. In the user-facing tree
      * this row is shown as Processor:<pname> and its checkbox edits the hidden
      * presence-based disable field for that processor.
@@ -837,6 +1011,73 @@ export class TraceConfigurationRowBuilder {
     private getTraceCapabilitiesForPath(nodePath: (string | number)[]): TraceConfigurationTypes.ProcessorTraceCapabilities | undefined {
         const pname = this.getProcessorNameForPath(nodePath);
         return pname ? this.processorCapabilities.get(pname) : undefined;
+    }
+
+    /**
+     * isOptionalScalarPath identifies schema fields that should not be written
+     * when the webview sends an empty string. Required placeholders such as
+     * location are intentionally excluded so newly added list items remain
+     * visible until the user fills them.
+     */
+    public isOptionalScalarPath(nodePath: (string | number)[]): boolean {
+        const key = nodePath.at(-1);
+        return this.isTimestampsClockPath(nodePath)
+            || this.isTimestampsPrescalerPath(nodePath)
+            || this.isItmPrivilegedPath(nodePath)
+            || (this.isDataTraceItemPath(nodePath.slice(0, -1)) && (key === 'label' || key === 'access' || key === 'size' || key === 'output'))
+            || (this.isConditionItemPath(nodePath.slice(0, -1)) && (key === 'access' || key === 'size'))
+            || (this.isMatchPath(nodePath.slice(0, -1)) && (key === 'value' || key === 'size'));
+    }
+
+    /**
+     * toYamlScalarValue converts webview text/select values into the primitive
+     * shape expected by the ctrace schema. Numeric schema fields become numbers
+     * when the user entered a decimal value; hexadecimal match values are kept
+     * as strings because the schema explicitly allows that spelling.
+     */
+    public toYamlScalarValue(nodePath: (string | number)[], value: string): string | number {
+        const trimmed = value.trim();
+        if (this.isIntegerScalarPath(nodePath) && /^\d+$/.test(trimmed)) {
+            return Number(trimmed);
+        }
+        if (this.isDwtDataAccessPath(nodePath) || this.isTraceConditionAccessPath(nodePath)) {
+            return this.accessLabelToValue(value);
+        }
+        return value;
+    }
+
+    /**
+     * shouldPruneEmptyOptionalParent returns true for optional object parents
+     * that should disappear when their last child is removed. Currently this is
+     * used for match objects so clearing match.value and match.size does not
+     * leave an empty optional match block in ctrace.yml.
+     */
+    public shouldPruneEmptyOptionalParent(nodePath: (string | number)[]): boolean {
+        return this.isMatchPath(nodePath);
+    }
+
+    /**
+     * isIntegerScalarPath lists schema scalar fields that should be serialized
+     * as YAML numbers when entered as decimal text.
+     */
+    private isIntegerScalarPath(nodePath: (string | number)[]): boolean {
+        const key = nodePath.at(-1);
+        return this.isTimestampsClockPath(nodePath)
+            || this.isTimestampsPrescalerPath(nodePath)
+            || this.isPcSamplingPath(nodePath)
+            || this.isItmPrivilegedPath(nodePath)
+            || ((this.isDataTraceItemPath(nodePath.slice(0, -1)) || this.isConditionItemPath(nodePath.slice(0, -1))) && key === 'size')
+            || (this.isMatchPath(nodePath.slice(0, -1)) && (key === 'size' || key === 'value'));
+    }
+
+    /**
+     * nodeExists checks the actual YAML DOM rather than synthetic row nodes.
+     * Presence-based ctrace sections such as timestamps, exceptions, timesync,
+     * and instructions are enabled when their key exists, even if the value is
+     * null or an empty map.
+     */
+    private nodeExists(nodePath: (string | number)[]): boolean {
+        return this.getCTraceFile()?.document?.yaml.getNode(nodePath) !== undefined;
     }
 
     /**
@@ -932,6 +1173,15 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
+     * isDataTraceItemPath identifies one object inside the data trace sequence.
+     * The schema requires location and permits optional label/access/size/output
+     * and match fields below this path.
+     */
+    private isDataTraceItemPath(nodePath: (string | number)[]): boolean {
+        return typeof nodePath.at(-1) === 'number' && nodePath.at(-2) === 'data';
+    }
+
+    /**
      * isTimeSyncPath identifies the Time Syncronization node that is grouped
      * under Advanced Settings and rendered as a boolean checkbox.
      */
@@ -968,6 +1218,63 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
+     * isDataOutputPath identifies the DWT data output mode field whose options
+     * come directly from the ctrace schema.
+     */
+    private isDataOutputPath(nodePath: (string | number)[]): boolean {
+        return nodePath.at(-1) === 'output' && this.isDataTraceItemPath(nodePath.slice(0, -1));
+    }
+
+    /**
+     * isConditionItemPath identifies one condition object in instructions
+     * start/stop or tracehalt. Conditions share access, size, and match options
+     * in the ctrace schema.
+     */
+    private isConditionItemPath(nodePath: (string | number)[]): boolean {
+        if (typeof nodePath.at(-1) !== 'number') {
+            return false;
+        }
+        const sequenceKey = nodePath.at(-2);
+        return sequenceKey === 'tracehalt'
+            || ((sequenceKey === 'start' || sequenceKey === 'stop') && nodePath.at(-3) === 'instructions');
+    }
+
+    /**
+     * isTraceConditionAccessPath identifies access fields under condition
+     * entries. Unlike DWT data access, conditions may use Execute.
+     */
+    public isTraceConditionAccessPath(nodePath: (string | number)[]): boolean {
+        return nodePath.at(-1) === 'access' && this.isConditionItemPath(nodePath.slice(0, -1));
+    }
+
+    /**
+     * isMatchPath identifies optional match objects under data trace items or
+     * condition items.
+     */
+    private isMatchPath(nodePath: (string | number)[]): boolean {
+        return nodePath.at(-1) === 'match'
+            && (this.isDataTraceItemPath(nodePath.slice(0, -1)) || this.isConditionItemPath(nodePath.slice(0, -1)));
+    }
+
+    /**
+     * isMatchSizePath identifies the optional match comparison size field,
+     * which the schema restricts to 1, 2, or 4.
+     */
+    public isMatchSizePath(nodePath: (string | number)[]): boolean {
+        return nodePath.at(-1) === 'size' && this.isMatchPath(nodePath.slice(0, -1));
+    }
+
+    /**
+     * isMatchValuePath identifies the required value field inside an optional
+     * match object. The model uses this to remove the whole optional match block
+     * when the required value is cleared, preventing invalid match maps that
+     * contain only optional children.
+     */
+    public isMatchValuePath(nodePath: (string | number)[]): boolean {
+        return nodePath.at(-1) === 'value' && this.isMatchPath(nodePath.slice(0, -1));
+    }
+
+    /**
      * isExceptionsPath identifies the exceptions configuration node, whose
      * presence or truthy scalar value is represented as a simple enable/disable
      * checkbox in the Selection column.
@@ -989,10 +1296,18 @@ export class TraceConfigurationRowBuilder {
             if (!YAML.isMap(item)) {
                 return [];
             }
+            const dwt = item.get('DWT');
+            if (dwt !== undefined && dwt !== null) {
+                return [String(dwt)];
+            }
             const period = item.get('period');
-            return period === undefined || period === null ? [] : [String(period)];
-        }).find(period => period.startsWith('DWT\\'));
-        return dwtPeriod?.replace(/^DWT\\/, '') ?? 'off';
+            if (period === undefined || period === null) {
+                return [];
+            }
+            const periodText = String(period);
+            return periodText.startsWith('DWT\\') ? [periodText.replace(/^DWT\\/, '')] : [];
+        }).at(0);
+        return dwtPeriod ?? 'off';
     }
 
     /**
