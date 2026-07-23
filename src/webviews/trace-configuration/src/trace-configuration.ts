@@ -32,7 +32,7 @@ interface TraceConfigurationRow {
     hasChildren: boolean;
     expanded: boolean;
     removable: boolean;
-    addChildKind?: 'data' | 'start' | 'stop' | 'generic-map' | 'generic-scalar';
+    addChildKind?: 'data' | 'condition' | 'start' | 'stop' | 'generic-map' | 'generic-scalar';
     description?: string;
 }
 

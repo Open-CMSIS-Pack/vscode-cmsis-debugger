@@ -36,40 +36,84 @@ export interface CTraceRoot {
 
 export interface CTraceConfiguration {
     'ctrace-ref'?: string;
+    'generated-by'?: string;
     'created-by'?: string;
+    setup?: CTraceProcessorTraceSetup[];
     instructions?: CTraceInstructions;
     timestamp?: unknown;
+    timestamps?: CTraceTimestamps | null;
     data?: CTraceDataTrace[];
-    exceptions?: CTraceExceptionTrace[];
+    exceptions?: null | CTraceExceptionTrace[];
     events?: CTraceEventTrace[];
-    itm?: CTraceItmTrace[];
+    itm?: CTraceItmTrace | CTraceItmTrace[];
+    pcsampling?: CTracePcSampling;
+    synchronization?: CTraceSynchronization[];
+    tracehalt?: CTraceCondition[];
     'ELF-files'?: CTraceElfFile[];
     'register-values'?: CTraceRegisterValues[];
     [key: string]: unknown;
 }
 
-export interface CTraceLocationTrigger {
+export interface CTraceProcessorTraceSetup {
     'ctrace-ref'?: string;
-    location: string;
-    value?: CTraceScalar;
     pname?: string;
+    disable?: null;
+    timestamps?: CTraceTimestamps | null;
+    timesync?: null;
+    data?: CTraceDataTrace[];
+    exceptions?: null;
+    events?: CTraceEventTrace[];
+    itm?: CTraceItmTrace;
+    instructions?: CTraceInstructions | null;
+    pcsampling?: CTracePcSampling;
+    synchronization?: CTraceSynchronization[];
+    tracehalt?: CTraceCondition[];
+    [key: string]: unknown;
+}
+
+export interface CTraceTimestamps {
+    'ctrace-ref'?: string;
+    clock?: number | string;
+    'itm-prescaler'?: 1 | 4 | 16 | 64 | string;
     [key: string]: unknown;
 }
 
 export interface CTraceInstructions {
     'ctrace-ref'?: string;
-    start?: CTraceLocationTrigger[];
-    stop?: CTraceLocationTrigger[];
+    start?: CTraceCondition[];
+    stop?: CTraceCondition[];
     [key: string]: unknown;
 }
 
 export interface CTraceDataTrace {
     'ctrace-ref'?: string;
     location: string;
-    access?: 'read' | 'write' | 'rw' | 'r' | 'w' | string;
+    label?: string;
+    access?: 'W' | 'R' | 'RW' | 'read' | 'write' | 'rw' | 'r' | 'w' | string;
     size?: number | string;
+    output?: 'value' | 'offset' | 'PC' | 'match' | 'PC+value' | 'offset+value' | 'PC+offset' | string;
+    match?: CTraceMatch;
     pc?: boolean | 'yes' | 'no' | string;
     pname?: string;
+    [key: string]: unknown;
+}
+
+export interface CTraceCondition {
+    'ctrace-ref'?: string;
+    location: string;
+    access?: 'X' | 'R' | 'W' | 'RW' | string;
+    size?: number | string;
+    match?: CTraceMatch;
+    pname?: string;
+    [key: string]: unknown;
+}
+
+export type CTraceLocationTrigger = CTraceCondition;
+
+export interface CTraceMatch {
+    'ctrace-ref'?: string;
+    value: CTraceScalar;
+    size?: 1 | 2 | 4 | string;
     [key: string]: unknown;
 }
 
@@ -90,7 +134,20 @@ export interface CTraceItmTrace {
     'ctrace-ref'?: string;
     pname?: string;
     enable?: number | string;
+    privileged?: number | string;
     privilege?: number | string;
+    [key: string]: unknown;
+}
+
+export interface CTracePcSampling {
+    'ctrace-ref'?: string;
+    period?: number | string;
+    [key: string]: unknown;
+}
+
+export interface CTraceSynchronization {
+    'ctrace-ref'?: string;
+    DWT: 'off' | '16M' | '64M' | '256M' | string;
     [key: string]: unknown;
 }
 

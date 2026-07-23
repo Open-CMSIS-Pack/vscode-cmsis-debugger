@@ -17,6 +17,7 @@
 
 import * as path from 'node:path';
 
+import * as YAML from 'yaml';
 import * as vscode from 'vscode';
 
 import { CTraceYamlFile, Disposable } from '../../generic';
@@ -318,67 +319,107 @@ export class TraceConfigurationModel {
         if (!document) {
             return;
         }
+        if (typeof value === 'string' && value.trim() === '' && this.rowBuilder.isOptionalScalarPath(pathToUpdate)) {
+            this.deleteOptionalValue(document, pathToUpdate);
+            await this.saveCurrentDocument({ abortIfDiskChanged: true });
+            return;
+        }
         if (this.rowBuilder.isProcessorPath(pathToUpdate) && typeof value === 'boolean') {
             if (value) {
-                document.yaml.set([...pathToUpdate, 'disable'], null);
-            } else {
                 document.yaml.delete([...pathToUpdate, 'disable']);
+            } else {
+                this.setProcessorDisable(document, pathToUpdate);
             }
             await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
         if (this.rowBuilder.isEventsPath(pathToUpdate) && Array.isArray(value)) {
-            document.yaml.set(pathToUpdate, value.map(event => ({ event })));
+            if (value.length > 0) {
+                document.yaml.set(pathToUpdate, value.map(event => ({ event })));
+            } else {
+                document.yaml.delete(pathToUpdate);
+            }
             await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
         if (this.rowBuilder.isItmPrivilegedPath(pathToUpdate) && Array.isArray(value)) {
-            document.yaml.set(pathToUpdate, this.rowBuilder.privilegedRangesToMask(value));
+            if (value.length === 0) {
+                document.yaml.delete(pathToUpdate);
+            } else if (this.hasNonEmptyScalarValue(document, [...pathToUpdate.slice(0, -1), 'enable'])) {
+                document.yaml.set(pathToUpdate, this.rowBuilder.privilegedRangesToMask(value));
+            }
             await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
-        if (this.rowBuilder.isDwtDataAccessPath(pathToUpdate) && typeof value === 'string') {
+        if ((this.rowBuilder.isDwtDataAccessPath(pathToUpdate) || this.rowBuilder.isTraceConditionAccessPath(pathToUpdate)) && typeof value === 'string') {
             document.yaml.set(pathToUpdate, this.rowBuilder.accessLabelToValue(value));
             await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
         if (this.rowBuilder.isTimestampsPath(pathToUpdate) && typeof value === 'boolean') {
-            document.yaml.set(pathToUpdate, value ? { 'itm-prescaler': '16' } : null);
+            if (value) {
+                document.yaml.set(pathToUpdate, {});
+            } else {
+                document.yaml.delete(pathToUpdate);
+            }
             await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
         if (this.rowBuilder.isItmPath(pathToUpdate) && Array.isArray(value)) {
-            document.yaml.set([...pathToUpdate, 'enable'], this.rowBuilder.itmChannelsToMask(value));
+            if (value.length > 0) {
+                document.yaml.set([...pathToUpdate, 'enable'], this.rowBuilder.itmChannelsToMask(value));
+            } else {
+                document.yaml.delete(pathToUpdate);
+            }
             await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
         if (this.rowBuilder.isPcSamplingPath(pathToUpdate) && typeof value === 'string') {
-            document.yaml.set([...pathToUpdate, 'period'], this.rowBuilder.normalizePcSamplingPeriod(value));
+            const period = this.rowBuilder.normalizePcSamplingPeriod(value);
+            document.yaml.set([...pathToUpdate, 'period'], period === 'off' ? 0 : Number(period));
             await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
         if (this.rowBuilder.isStreamSyncDwtPeriodPath(pathToUpdate) && typeof value === 'string') {
             const streamSyncPath = pathToUpdate.slice(0, -1);
-            document.yaml.set(streamSyncPath, value === 'off' ? [] : [{ period: `DWT\\${value}` }]);
+            document.yaml.set(streamSyncPath, [{ DWT: value }]);
             await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
+        if (this.rowBuilder.isMatchSizePath(pathToUpdate)
+            && typeof value === 'string'
+            && !this.hasNonEmptyScalarValue(document, [...pathToUpdate.slice(0, -1), 'value'])) {
+            this.notifyStateChanged();
+            return;
+        }
         if (this.rowBuilder.isExceptionsPath(pathToUpdate) && typeof value === 'boolean') {
-            document.yaml.set(pathToUpdate, value ? {} : null);
+            if (value) {
+                document.yaml.set(pathToUpdate, null);
+            } else {
+                document.yaml.delete(pathToUpdate);
+            }
             await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
         if (this.rowBuilder.isTimeSyncPath(pathToUpdate) && typeof value === 'boolean') {
-            document.yaml.set(pathToUpdate, value ? {} : null);
+            if (value) {
+                document.yaml.set(pathToUpdate, null);
+            } else {
+                document.yaml.delete(pathToUpdate);
+            }
             await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
         if (this.rowBuilder.isInstructionsPath(pathToUpdate) && typeof value === 'boolean') {
-            document.yaml.set(pathToUpdate, value ? {} : null);
+            if (value) {
+                document.yaml.set(pathToUpdate, {});
+            } else {
+                document.yaml.delete(pathToUpdate);
+            }
             await this.saveCurrentDocument({ abortIfDiskChanged: true });
             return;
         }
-        document.yaml.set(pathToUpdate, value);
+        document.yaml.set(pathToUpdate, typeof value === 'string' ? this.rowBuilder.toYamlScalarValue(pathToUpdate, value) : value);
         await this.saveCurrentDocument({ abortIfDiskChanged: true });
     }
 
@@ -412,6 +453,84 @@ export class TraceConfigurationModel {
     }
 
     /**
+     * deleteOptionalValue removes an optional scalar field that the user cleared
+     * in the webview. If that leaves an optional object such as match empty, the
+     * parent object is pruned too so ctrace.yml does not accumulate empty
+     * optional blocks.
+     */
+    private deleteOptionalValue(document: NonNullable<CTraceYamlFile['document']>, pathToDelete: (string | number)[]): void {
+        if (this.rowBuilder.isMatchValuePath(pathToDelete)) {
+            document.yaml.delete(pathToDelete.slice(0, -1));
+            return;
+        }
+        document.yaml.delete(pathToDelete);
+        const parentPath = pathToDelete.slice(0, -1);
+        const parent = document.yaml.getNode(parentPath);
+        if (this.rowBuilder.shouldPruneEmptyOptionalParent(parentPath) && YAML.isMap(parent) && parent.items.length === 0) {
+            document.yaml.delete(parentPath);
+        }
+    }
+
+    /**
+     * hasNonEmptyScalarValue checks whether a schema-required sibling already
+     * exists before the model writes an optional child beneath the same parent.
+     * This keeps optional objects sparse without creating invalid half-filled
+     * YAML such as match blocks that only contain size.
+     */
+    private hasNonEmptyScalarValue(document: NonNullable<CTraceYamlFile['document']>, pathToCheck: (string | number)[]): boolean {
+        const node = document.yaml.getNode(pathToCheck);
+        if (!YAML.isScalar(node) || node.value === undefined || node.value === null) {
+            return false;
+        }
+        return String(node.value).trim().length > 0;
+    }
+
+    /**
+     * setProcessorDisable writes the processor-level disable marker and then
+     * moves that YAML pair directly after pname. The DOM set call is still used
+     * to create the key safely, while the follow-up item reorder keeps the file
+     * readable for users who inspect or edit ctrace.yml by hand.
+     */
+    private setProcessorDisable(document: NonNullable<CTraceYamlFile['document']>, processorPath: (string | number)[]): void {
+        document.yaml.set([...processorPath, 'disable'], null);
+        const processorNode = document.yaml.getNode(processorPath);
+        if (!YAML.isMap(processorNode)) {
+            return;
+        }
+        const disableIndex = this.findMapPairIndex(processorNode, 'disable');
+        if (disableIndex < 0) {
+            return;
+        }
+        const [disablePair] = processorNode.items.splice(disableIndex, 1);
+        if (!disablePair) {
+            return;
+        }
+        const pnameIndex = this.findMapPairIndex(processorNode, 'pname');
+        processorNode.items.splice(pnameIndex >= 0 ? pnameIndex + 1 : 0, 0, disablePair);
+    }
+
+    /**
+     * findMapPairIndex locates one key in a YAML map without converting the
+     * whole map to JavaScript. Staying on the YAML node layer preserves comments,
+     * scalar spelling, and pair ordering while we make a tiny readability edit.
+     */
+    private findMapPairIndex(map: YAML.YAMLMap, key: string): number {
+        return map.items.findIndex(pair => this.mapKeyToString(pair.key) === key);
+    }
+
+    /**
+     * mapKeyToString extracts a string key from a YAML pair. ctrace keys should
+     * be plain scalar strings, but the fallback keeps the ordering helper
+     * defensive around unusual hand-authored YAML.
+     */
+    private mapKeyToString(key: unknown): string | undefined {
+        if (YAML.isScalar(key)) {
+            return key.value === undefined || key.value === null ? undefined : String(key.value);
+        }
+        return key?.toString();
+    }
+
+    /**
      * createNewItem maps webview add buttons to starter YAML objects. These
      * defaults are intentionally small so the UI helps users begin a trace entry
      * without inventing values that should come from the target/debug session.
@@ -419,7 +538,8 @@ export class TraceConfigurationModel {
     private createNewItem(addChildKind: NonNullable<TraceConfigurationRow['addChildKind']>): object {
         switch (addChildKind) {
             case 'data':
-                return { location: '', access: 'rw' };
+                return { location: '' };
+            case 'condition':
             case 'start':
             case 'stop':
                 return { location: '' };
