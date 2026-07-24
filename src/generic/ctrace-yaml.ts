@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
 import { Disposable, NodeTextFileAdapter, TextFileAdapter, YamlDomFile } from './yaml-file';
 import { YamlDiagnostic, YamlDomDocument, YamlPath } from './yaml-dom';
