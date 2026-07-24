@@ -34,7 +34,8 @@ export interface CTraceProcessManagerOptions {
 }
 
 export interface CTraceProcessManagerLaunchOptions extends ProcessManagerLaunchOptions {
-    readonly rawFilePath?: string | undefined;
+    readonly traceDir?: string | undefined;
+    readonly solutionSet?: string | undefined;
     readonly cbuildRunFilePath?: string | undefined;
 }
 
@@ -53,11 +54,14 @@ export class CTraceProcessManager extends ProcessManager {
     }
 
     public override async launch(options: CTraceProcessManagerLaunchOptions = {}): Promise<void> {
+        const workspacePath = vscode.workspace.workspaceFolders?.at(0)?.uri.fsPath;
+        if (!workspacePath) {
+            throw new Error('No workspace folder is open.');
+        }
         const args = options.args ?? [
-            '-i', options.rawFilePath ?? await this.getDefaultRawFilePath(options.cbuildRunFilePath),
-            '--csv',
-            // TODO: remove --tolerant-decode when trace generation inserts sync packets at run
-            '--tolerant-decode'
+            options.traceDir ?? path.join(workspacePath, '.trace'),
+            '-t', options.solutionSet ?? await this.getDefaultSolutionSet(options.cbuildRunFilePath),
+            '--csv'
         ];
         super.launch({
             ...options,
@@ -65,7 +69,7 @@ export class CTraceProcessManager extends ProcessManager {
         });
     }
 
-    private async getDefaultRawFilePath(cbuildRunFilePath: string | undefined): Promise<string> {
+    private async getDefaultSolutionSet(cbuildRunFilePath: string | undefined): Promise<string> {
         const resolvedCbuildRunFilePath = cbuildRunFilePath ??
             await vscode.commands.executeCommand<string | undefined>(CSOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
         const trimmedPath = resolvedCbuildRunFilePath?.trim();
@@ -79,10 +83,6 @@ export class CTraceProcessManager extends ProcessManager {
         const activeSet = await vscode.commands.executeCommand<string | undefined>(CSOLUTION_GET_ACTIVE_TARGET_SET_COMMAND);
         const trimmedActiveSet = activeSet?.trim();
         const targetSet = trimmedActiveSet ? `+${trimmedActiveSet}` : '';
-        const workspacePath = vscode.workspace.workspaceFolders?.at(0)?.uri.fsPath;
-        if (!workspacePath) {
-            throw new Error('Failed to resolve the workspace path.');
-        }
-        return path.join(workspacePath, '.trace', `${solutionName}${targetSet}.SWO.raw`);
+        return `${solutionName}${targetSet}`;
     }
 }
