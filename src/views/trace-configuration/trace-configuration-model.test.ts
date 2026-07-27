@@ -15,7 +15,7 @@
  */
 // generated with AI
 
-import { CTraceYamlDocument } from '../../generic';
+import { CTraceYamlDocument } from './ctrace-yaml';
 import { TraceConfigurationModel } from './trace-configuration-model';
 
 interface TraceConfigurationModelPrivate {
