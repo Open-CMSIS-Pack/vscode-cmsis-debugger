@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
-import { CTraceYamlDocument } from './ctrace-yaml';
+import { CTraceYamlDocument } from '../../generic';
 import { TraceConfigurationModel } from './trace-configuration-model';
 
 interface TraceConfigurationModelPrivate {
