@@ -20,8 +20,9 @@ import * as path from 'node:path';
 import * as YAML from 'yaml';
 import * as vscode from 'vscode';
 
-import { CTraceYamlFile, Disposable } from '../../generic';
+import { Disposable } from '../../generic';
 import { logger } from '../../logger';
+import { CTraceYamlFile } from './ctrace-yaml';
 import {
     TraceConfigurationRow,
     TraceConfigurationState,

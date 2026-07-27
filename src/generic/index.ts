@@ -14,6 +14,5 @@
  * limitations under the License.
  */
 
-export * from './ctrace-yaml';
 export * from './yaml-dom';
 export * from './yaml-file';

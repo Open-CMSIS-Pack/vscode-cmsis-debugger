@@ -15,7 +15,7 @@
  */
 
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
-import { Disposable, TextFileAdapter, TextFileStamp } from './yaml-file';
+import { Disposable, TextFileAdapter, TextFileStamp } from '../../generic/yaml-file';
 
 class MemoryTextFileAdapter implements TextFileAdapter {
     private version = 0;
@@ -64,7 +64,7 @@ describe('CTraceYamlDocument', () => {
             '  created-by: CMSIS-Debugger v1.4.0',
             '  data:',
             '    - location: mySymbol',
-            '      access: rw',
+            '      access: RW',
             '      size: 8',
             '      pc: no',
             ''
@@ -74,7 +74,7 @@ describe('CTraceYamlDocument', () => {
         expect(document.getDataTrace()).toEqual([
             {
                 location: 'mySymbol',
-                access: 'rw',
+                access: 'RW',
                 size: '8',
                 pc: 'no'
             }
@@ -82,19 +82,19 @@ describe('CTraceYamlDocument', () => {
 
         document.upsertDataTrace({
             location: 'mySymbol',
-            access: 'write',
+            access: 'W',
             size: '4',
             pc: 'yes'
         });
         document.upsertDataTrace({
             location: 'otherSymbol',
-            access: 'read'
+            access: 'R'
         });
 
         expect(document.getDataTrace()).toHaveLength(2);
         expect(document.getDataTrace()[0]).toMatchObject({
             location: 'mySymbol',
-            access: 'write',
+            access: 'W',
             size: '4'
         });
         expect(document.removeDataTrace('otherSymbol')).toBe(true);

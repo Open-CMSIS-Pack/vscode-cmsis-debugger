@@ -15,8 +15,8 @@
  */
 // generated with AI
 
-import { Disposable, NodeTextFileAdapter, TextFileAdapter, YamlDomFile } from './yaml-file';
-import { YamlDiagnostic, YamlDomDocument, YamlPath } from './yaml-dom';
+import { Disposable, NodeTextFileAdapter, TextFileAdapter, YamlDomFile } from '../../generic/yaml-file';
+import { YamlDiagnostic, YamlDomDocument, YamlPath } from '../../generic/yaml-dom';
 import * as YAML from 'yaml';
 
 const CTRACE_ROOT = 'ctrace';
@@ -26,10 +26,20 @@ const ELF_FILES_PATH = [CTRACE_ROOT, 'ELF-files'] as const;
 const REGISTER_VALUES_PATH = [CTRACE_ROOT, 'register-values'] as const;
 
 export type CTraceScalar = string | number | boolean | null;
+export type CTraceLocation = string | number;
+export type CTraceUnsignedValue = string | number;
+export type CTraceTimestampPrescaler = 1 | 4 | 16 | 64 | '1' | '4' | '16' | '64';
+export type CTraceDataAccess = 'W' | 'R' | 'RW';
+export type CTraceConditionAccess = 'X' | 'R' | 'W' | 'RW';
+export type CTraceDataOutput = 'value' | 'offset' | 'PC' | 'match' | 'PC+value' | 'offset+value' | 'PC+offset';
+export type CTraceMatchSize = 1 | 2 | 4 | '1' | '2' | '4';
+export type CTraceSynchronizationPeriod = 'off' | '16M' | '64M' | '256M';
 
 export interface CTraceRegisterBlock {
     [registerName: string]: CTraceScalar | CTraceRegisterBlock;
 }
+
+export type CTraceRegisterValue = CTraceScalar | CTraceRegisterBlock | undefined;
 
 export interface CTraceRoot {
     ctrace?: CTraceConfiguration;
@@ -41,7 +51,6 @@ export interface CTraceConfiguration {
     'created-by'?: string;
     setup?: CTraceProcessorTraceSetup[];
     instructions?: CTraceInstructions;
-    timestamp?: unknown;
     timestamps?: CTraceTimestamps | null;
     data?: CTraceDataTrace[];
     exceptions?: null | CTraceExceptionTrace[];
@@ -52,7 +61,6 @@ export interface CTraceConfiguration {
     tracehalt?: CTraceCondition[];
     'ELF-files'?: CTraceElfFile[];
     'register-values'?: CTraceRegisterValues[];
-    [key: string]: unknown;
 }
 
 export interface CTraceProcessorTraceSetup {
@@ -69,66 +77,58 @@ export interface CTraceProcessorTraceSetup {
     pcsampling?: CTracePcSampling;
     synchronization?: CTraceSynchronization[];
     tracehalt?: CTraceCondition[];
-    [key: string]: unknown;
 }
 
 export interface CTraceTimestamps {
     'ctrace-ref'?: string;
     clock?: number | string;
-    'itm-prescaler'?: 1 | 4 | 16 | 64 | string;
-    [key: string]: unknown;
+    'itm-prescaler'?: CTraceTimestampPrescaler;
 }
 
 export interface CTraceInstructions {
     'ctrace-ref'?: string;
     start?: CTraceCondition[];
     stop?: CTraceCondition[];
-    [key: string]: unknown;
 }
 
 export interface CTraceDataTrace {
     'ctrace-ref'?: string;
-    location: string;
+    location: CTraceLocation;
     label?: string;
-    access?: 'W' | 'R' | 'RW' | 'read' | 'write' | 'rw' | 'r' | 'w' | string;
+    access?: CTraceDataAccess;
     size?: number | string;
-    output?: 'value' | 'offset' | 'PC' | 'match' | 'PC+value' | 'offset+value' | 'PC+offset' | string;
+    output?: CTraceDataOutput;
     match?: CTraceMatch;
     pc?: boolean | 'yes' | 'no' | string;
     pname?: string;
-    [key: string]: unknown;
 }
 
 export interface CTraceCondition {
     'ctrace-ref'?: string;
-    location: string;
-    access?: 'X' | 'R' | 'W' | 'RW' | string;
+    location: CTraceLocation;
+    access?: CTraceConditionAccess;
     size?: number | string;
     match?: CTraceMatch;
     pname?: string;
-    [key: string]: unknown;
 }
 
 export type CTraceLocationTrigger = CTraceCondition;
 
 export interface CTraceMatch {
     'ctrace-ref'?: string;
-    value: CTraceScalar;
-    size?: 1 | 2 | 4 | string;
-    [key: string]: unknown;
+    value: CTraceUnsignedValue;
+    size?: CTraceMatchSize;
 }
 
 export interface CTraceExceptionTrace {
     'ctrace-ref'?: string;
     pname?: string;
-    [key: string]: unknown;
 }
 
 export interface CTraceEventTrace {
     'ctrace-ref'?: string;
     event: string;
     pname?: string;
-    [key: string]: unknown;
 }
 
 export interface CTraceItmTrace {
@@ -137,32 +137,28 @@ export interface CTraceItmTrace {
     enable?: number | string;
     privileged?: number | string;
     privilege?: number | string;
-    [key: string]: unknown;
 }
 
 export interface CTracePcSampling {
     'ctrace-ref'?: string;
     period?: number | string;
-    [key: string]: unknown;
 }
 
 export interface CTraceSynchronization {
     'ctrace-ref'?: string;
-    DWT: 'off' | '16M' | '64M' | '256M' | string;
-    [key: string]: unknown;
+    DWT: CTraceSynchronizationPeriod;
 }
 
 export interface CTraceElfFile {
     'ctrace-ref'?: string;
     file: string;
     pname?: string;
-    [key: string]: unknown;
 }
 
 export interface CTraceRegisterValues {
     'ctrace-ref'?: string;
     pname?: string;
-    [registerGroup: string]: unknown;
+    [registerGroup: string]: CTraceRegisterValue;
 }
 
 type DataTraceMatcher = (entry: CTraceDataTrace) => boolean;

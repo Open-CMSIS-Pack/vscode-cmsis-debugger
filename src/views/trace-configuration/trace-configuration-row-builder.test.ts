@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { CTraceYamlDocument, CTraceYamlFile } from '../../generic';
+import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import { TraceConfigurationRow, TraceConfigurationState } from './trace-configuration-protocol';
 import { TraceConfigurationRowBuilder } from './trace-configuration-row-builder';
 import * as TraceConfigurationTypes from './trace-configuration-types';

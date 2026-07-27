@@ -17,12 +17,12 @@
 
 import * as YAML from 'yaml';
 
-import { CTraceYamlFile } from '../../generic';
 import {
     TraceConfigurationRow,
     TraceConfigurationState,
 } from './trace-configuration-protocol';
 import * as TraceConfigurationTypes from './trace-configuration-types';
+import { CTraceYamlFile } from './ctrace-yaml';
 
 type TraceNodeEntry = { label: string; path: (string | number)[]; node: YAML.Node };
 

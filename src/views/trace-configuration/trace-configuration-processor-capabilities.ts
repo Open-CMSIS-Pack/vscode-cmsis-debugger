@@ -18,9 +18,9 @@
 import * as YAML from 'yaml';
 
 import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
-import { CTraceYamlFile } from '../../generic';
 import { logger } from '../../logger';
 import { FileLocationManager } from '../../utils';
+import { CTraceYamlFile } from './ctrace-yaml';
 import * as TraceConfigurationTypes from './trace-configuration-types';
 
 /**
