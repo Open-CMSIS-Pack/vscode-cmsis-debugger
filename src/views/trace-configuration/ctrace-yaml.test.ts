@@ -102,36 +102,22 @@ describe('CTraceYamlDocument', () => {
         expect(document.getDataTrace()).toHaveLength(1);
     });
 
-    it('replaces generated ELF and register values while keeping plain hex output', () => {
+    it('writes register values while keeping plain hex output', () => {
         const document = CTraceYamlDocument.create('CMSIS-Debugger v1.7.0');
 
-        document.replaceGeneratedValues(
-            [
-                {
-                    file: 'program1.axf',
-                    pname: 'Core0'
-                }
-            ],
-            [
-                {
-                    pname: 'Core0',
-                    ITM: {
-                        TER: '0xFFFFFFFF',
-                        TPR: '0x8'
-                    },
-                    DWT: {
-                        COMP0: '0x20000000'
-                    }
-                }
-            ]
-        );
-
-        expect(document.getElfFiles()).toEqual([
+        document.setRegisterValues([
             {
-                file: 'program1.axf',
-                pname: 'Core0'
+                pname: 'Core0',
+                ITM: {
+                    TER: '0xFFFFFFFF',
+                    TPR: '0x8'
+                },
+                DWT: {
+                    COMP0: '0x20000000'
+                }
             }
         ]);
+
         expect(document.getRegisterValuesForPname('Core0')).toMatchObject({
             ITM: {
                 TER: '0xFFFFFFFF',
@@ -146,25 +132,21 @@ describe('CTraceYamlDocument', () => {
         expect(output).toContain('COMP0: 0x20000000');
     });
 
-    it('can clear generated sections without removing user trace configuration', () => {
+    it('can clear register values without removing user trace configuration', () => {
         const document = CTraceYamlDocument.parse([
             'ctrace:',
             '  data:',
             '    - location: mySymbol',
-            '  ELF-files:',
-            '    - file: program.axf',
             '  register-values:',
             '    - pname: Core0',
             ''
         ].join('\n'));
 
-        document.clearGeneratedValues();
+        document.setRegisterValues([]);
 
         expect(document.getDataTrace()).toEqual([{ location: 'mySymbol' }]);
-        expect(document.getElfFiles()).toEqual([]);
         expect(document.getRegisterValues()).toEqual([]);
         expect(document.toString()).toContain('data:');
-        expect(document.toString()).not.toContain('ELF-files');
         expect(document.toString()).not.toContain('register-values');
     });
 

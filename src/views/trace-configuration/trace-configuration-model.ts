@@ -545,6 +545,14 @@ export class TraceConfigurationModel {
     }
 
     /**
+     * removeLegacyElfFileMetadata drops obsolete ctrace-owned ELF references.
+     * cbuild-run.yml remains the source for build output metadata.
+     */
+    private removeLegacyElfFileMetadata(document: NonNullable<CTraceYamlFile['document']>): void {
+        document.yaml.delete(['ctrace', 'ELF-files']);
+    }
+
+    /**
      * hasNonEmptyScalarValue checks whether a schema-required sibling already
      * exists before the model writes an optional child beneath the same parent.
      * This keeps optional objects sparse without creating invalid half-filled
@@ -643,8 +651,9 @@ export class TraceConfigurationModel {
             await this.reloadCurrentFileIfChanged();
             return;
         }
-        file.document?.assignCTraceRefs();
         if (file.document) {
+            this.removeLegacyElfFileMetadata(file.document);
+            file.document.assignCTraceRefs();
             this.convertAllEmptyEditableSequencesToBareKeys(file.document);
         }
         await file.save();

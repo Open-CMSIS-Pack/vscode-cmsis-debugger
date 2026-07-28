@@ -176,6 +176,23 @@ describe('TraceConfigurationModel', () => {
         expect(adapter.text).not.toContain('data: {}');
     });
 
+    it('drops legacy ctrace ELF metadata on save', async () => {
+        const { adapter, model } = await createModelFromText([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '  ELF-files:',
+            '    - file: program.axf',
+            '      pname: cm33',
+            ''
+        ].join('\n'));
+
+        await model.saveCurrentDocument();
+
+        expect(adapter.text).not.toContain('ELF-files');
+        expect(adapter.text).not.toContain('program.axf');
+    });
+
     it('refresh discards unsaved webview edits and resumes file watching', async () => {
         const originalText = [
             'ctrace:',

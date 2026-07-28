@@ -249,6 +249,19 @@ describe('TraceConfigurationRowBuilder', () => {
             .toBeLessThan(rowIndex(state, ['ctrace', 'setup', 0, 'instructions', 'start', 0, 'match']));
     });
 
+    it('hides legacy ctrace ELF metadata sections', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '  ELF-files:',
+            '    - file: program.axf',
+            ''
+        ].join('\n'));
+
+        expect(hasRow(state, ['ctrace', 'ELF-files'])).toBe(false);
+    });
+
     it('renders current schema values for PC sampling and DWT synchronization', () => {
         const state = createStateFromYaml([
             'ctrace:',

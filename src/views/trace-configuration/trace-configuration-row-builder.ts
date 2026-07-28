@@ -691,6 +691,9 @@ export class TraceConfigurationRowBuilder {
         if (label === 'ctrace-ref' || label === 'created-by' || label === 'generated-by') {
             return true;
         }
+        if (label === 'ELF-files') {
+            return true;
+        }
         if (label === 'disable' && parentPath.length === 1 && parentPath[0] === 'ctrace') {
             return true;
         }
@@ -731,8 +734,7 @@ export class TraceConfigurationRowBuilder {
     /**
      * collectCoreNames recursively walks the YAML tree looking for pname scalar
      * values. It accepts maps and sequences because pname may appear in several
-     * ctrace sections such as data traces, events, ELF files, and register
-     * values.
+     * ctrace sections such as data traces, events, and register values.
      */
     private collectCoreNames(node: YAML.Node, coreNames: Set<string>): void {
         if (YAML.isMap(node)) {
@@ -1480,7 +1482,6 @@ export class TraceConfigurationRowBuilder {
     private toDisplayTitle(label: string): string {
         const acronyms = new Map([
             ['dwt', 'DWT'],
-            ['elf', 'ELF'],
             ['itm', 'ITM'],
             ['pc', 'PC'],
             ['pmu', 'PMU'],

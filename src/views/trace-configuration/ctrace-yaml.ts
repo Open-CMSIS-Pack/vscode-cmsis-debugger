@@ -22,7 +22,6 @@ import * as YAML from 'yaml';
 const CTRACE_ROOT = 'ctrace';
 const CTRACE_PATH = [CTRACE_ROOT] as const;
 const DATA_TRACE_PATH = [CTRACE_ROOT, 'data'] as const;
-const ELF_FILES_PATH = [CTRACE_ROOT, 'ELF-files'] as const;
 const REGISTER_VALUES_PATH = [CTRACE_ROOT, 'register-values'] as const;
 
 export type CTraceScalar = string | number | boolean | null;
@@ -59,7 +58,6 @@ export interface CTraceConfiguration {
     pcsampling?: CTracePcSampling;
     synchronization?: CTraceSynchronization[];
     tracehalt?: CTraceCondition[];
-    'ELF-files'?: CTraceElfFile[];
     'register-values'?: CTraceRegisterValues[];
 }
 
@@ -149,12 +147,6 @@ export interface CTraceSynchronization {
     DWT: CTraceSynchronizationPeriod;
 }
 
-export interface CTraceElfFile {
-    'ctrace-ref'?: string;
-    file: string;
-    pname?: string;
-}
-
 export interface CTraceRegisterValues {
     'ctrace-ref'?: string;
     pname?: string;
@@ -162,7 +154,6 @@ export interface CTraceRegisterValues {
 }
 
 type DataTraceMatcher = (entry: CTraceDataTrace) => boolean;
-type ElfFileMatcher = (entry: CTraceElfFile) => boolean;
 type RegisterValuesMatcher = (entry: CTraceRegisterValues) => boolean;
 
 function mapKeyToString(key: unknown): string | undefined {
@@ -253,25 +244,6 @@ export class CTraceYamlDocument {
         return this.yamlDomDocument.delete([...DATA_TRACE_PATH, index]);
     }
 
-    public getElfFiles(): CTraceElfFile[] {
-        return this.yamlDomDocument.getArray<CTraceElfFile>(ELF_FILES_PATH);
-    }
-
-    public setElfFiles(entries: CTraceElfFile[]): void {
-        this.setOrDeleteSequence(ELF_FILES_PATH, entries);
-    }
-
-    public upsertElfFile(entry: CTraceElfFile, matcher?: ElfFileMatcher): void {
-        const effectiveMatcher = matcher ?? (candidate =>
-            candidate.pname === entry.pname || (!candidate.pname && !entry.pname));
-        const index = this.getElfFiles().findIndex(effectiveMatcher);
-        if (index >= 0) {
-            this.yamlDomDocument.set([...ELF_FILES_PATH, index], entry);
-            return;
-        }
-        this.yamlDomDocument.append(ELF_FILES_PATH, entry);
-    }
-
     public getRegisterValues(): CTraceRegisterValues[] {
         return this.yamlDomDocument.getArray<CTraceRegisterValues>(REGISTER_VALUES_PATH);
     }
@@ -294,16 +266,6 @@ export class CTraceYamlDocument {
             return;
         }
         this.yamlDomDocument.append(REGISTER_VALUES_PATH, entry);
-    }
-
-    public replaceGeneratedValues(elfFiles: CTraceElfFile[], registerValues: CTraceRegisterValues[]): void {
-        this.setElfFiles(elfFiles);
-        this.setRegisterValues(registerValues);
-    }
-
-    public clearGeneratedValues(): void {
-        this.yamlDomDocument.delete(ELF_FILES_PATH);
-        this.yamlDomDocument.delete(REGISTER_VALUES_PATH);
     }
 
     public assignCTraceRefs(): void {
