@@ -76,7 +76,7 @@
         {
           "id": "cmsis-debugger.traceConfiguration",
           "type": "webview",
-          "name": "CMSIS Trace Configuration",
+          "name": "Trace Generation",
           "icon": "media/trace-and-live-light.svg"
         }
       ]
