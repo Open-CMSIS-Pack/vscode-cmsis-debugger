@@ -23,6 +23,7 @@ interface TraceConfigurationRow {
     id: string;
     label: string;
     path: (string | number)[];
+    valuePath?: (string | number)[];
     depth: number;
     kind: 'map' | 'sequence' | 'scalar';
     control: TraceControlKind;
@@ -203,7 +204,7 @@ function createStatus(state: TraceConfigurationState): HTMLElement {
     const file = createElement('span', 'trace-file');
     file.textContent = state.fileName ?? 'No ctrace.yml selected';
     const dirty = createElement('span', state.dirty ? 'status-warn' : 'status-ok');
-    dirty.textContent = state.dirty ? 'Saving' : 'Synced';
+    dirty.textContent = state.dirty ? 'Unsaved' : 'Synced';
     status.append(file, dirty);
     return status;
 }
@@ -334,6 +335,15 @@ function createRemoveButton(row: TraceConfigurationRow): HTMLButtonElement {
 }
 
 /**
+ * getValuePath returns the YAML path edited by the row's value control. Most
+ * rows edit their own node, while promoted controls edit a child scalar from
+ * their parent header row.
+ */
+function getValuePath(row: TraceConfigurationRow): (string | number)[] {
+    return row.valuePath ?? row.path;
+}
+
+/**
  * createSelectionCell chooses the correct editor for a row. Maps and sequences
  * mostly render add buttons or an intentionally empty value cell because their
  * purpose is structural; scalars render text, checkbox, or select controls
@@ -396,7 +406,7 @@ function createCheckbox(row: TraceConfigurationRow): HTMLLabelElement {
     checkbox.checked = row.checked ?? false;
     checkbox.setAttribute('aria-label', row.label);
     checkbox.addEventListener('change', () => {
-        post({ type: 'updateValue', path: row.path, value: checkbox.checked });
+        post({ type: 'updateValue', path: getValuePath(row), value: checkbox.checked });
     });
     label.append(checkbox);
     return label;
@@ -417,7 +427,7 @@ function createSelect(row: TraceConfigurationRow): HTMLSelectElement {
         select.append(option);
     });
     select.addEventListener('change', () => {
-        post({ type: 'updateValue', path: row.path, value: select.value });
+        post({ type: 'updateValue', path: getValuePath(row), value: select.value });
     });
     return select;
 }
@@ -458,7 +468,7 @@ function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
                 selectedValues.delete(optionValue);
             }
             updateSummary();
-            post({ type: 'updateValue', path: row.path, value: Array.from(selectedValues) });
+            post({ type: 'updateValue', path: getValuePath(row), value: Array.from(selectedValues) });
         });
         const text = createElement('span');
         text.textContent = optionValue;
@@ -485,7 +495,7 @@ function createTextInput(row: TraceConfigurationRow): HTMLInputElement {
             return;
         }
         lastCommittedValue = input.value;
-        post({ type: 'updateValue', path: row.path, value: input.value });
+        post({ type: 'updateValue', path: getValuePath(row), value: input.value });
     };
     input.addEventListener('change', commit);
     input.addEventListener('blur', commit);

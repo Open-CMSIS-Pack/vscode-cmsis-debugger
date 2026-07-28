@@ -184,6 +184,7 @@ export class TraceConfigurationModel {
             const document = await this.ctraceFile.load();
             document.assignCTraceRefs();
             await this.loadProcessorCapabilities();
+            this.watchCurrentFile();
             this.dirty = false;
             this.errorMessage = undefined;
         } finally {
@@ -216,6 +217,9 @@ export class TraceConfigurationModel {
      * shape or overwriting a user's hand edit.
      */
     private async requireFreshDocumentForEdit(): Promise<NonNullable<CTraceYamlFile['document']> | undefined> {
+        if (this.dirty) {
+            return this.requireDocument();
+        }
         const reloaded = await this.reloadCurrentFileIfChanged();
         return reloaded ? undefined : this.requireDocument();
     }
@@ -228,6 +232,10 @@ export class TraceConfigurationModel {
      * state.
      */
     private async acceptDiskDocument(document: NonNullable<CTraceYamlFile['document']>): Promise<void> {
+        if (this.dirty) {
+            this.notifyStateChanged();
+            return;
+        }
         document.assignCTraceRefs();
         await this.loadProcessorCapabilities();
         this.dirty = false;
@@ -310,10 +318,11 @@ export class TraceConfigurationModel {
     }
 
     /**
-     * updateValue writes a value from the webview into the YAML DOM and
-     * immediately saves the file. Most controls write directly to scalar nodes;
-     * the timestamps checkbox writes a small enabled/disabled map because that
-     * row represents a trace subsystem rather than a literal boolean scalar.
+     * updateValue writes a value from the webview into the in-memory YAML DOM.
+     * The file is not persisted until the user clicks Save. Most controls write
+     * directly to scalar nodes; the timestamps checkbox writes a small
+     * enabled/disabled map because that row represents a trace subsystem rather
+     * than a literal boolean scalar.
      */
     public async updateValue(pathToUpdate: (string | number)[], value: string | boolean | string[]): Promise<void> {
         const document = await this.requireFreshDocumentForEdit();
@@ -322,7 +331,7 @@ export class TraceConfigurationModel {
         }
         if (typeof value === 'string' && value.trim() === '' && this.rowBuilder.isOptionalScalarPath(pathToUpdate)) {
             this.deleteOptionalValue(document, pathToUpdate);
-            await this.saveCurrentDocument({ abortIfDiskChanged: true });
+            await this.acceptInMemoryEdit();
             return;
         }
         if (this.rowBuilder.isProcessorPath(pathToUpdate) && typeof value === 'boolean') {
@@ -331,7 +340,7 @@ export class TraceConfigurationModel {
             } else {
                 this.setProcessorDisable(document, pathToUpdate);
             }
-            await this.saveCurrentDocument({ abortIfDiskChanged: true });
+            await this.acceptInMemoryEdit();
             return;
         }
         if (this.rowBuilder.isEventsPath(pathToUpdate) && Array.isArray(value)) {
@@ -340,7 +349,7 @@ export class TraceConfigurationModel {
             } else {
                 document.yaml.delete(pathToUpdate);
             }
-            await this.saveCurrentDocument({ abortIfDiskChanged: true });
+            await this.acceptInMemoryEdit();
             return;
         }
         if (this.rowBuilder.isItmPrivilegedPath(pathToUpdate) && Array.isArray(value)) {
@@ -349,12 +358,12 @@ export class TraceConfigurationModel {
             } else if (this.hasNonEmptyScalarValue(document, [...pathToUpdate.slice(0, -1), 'enable'])) {
                 document.yaml.set(pathToUpdate, this.rowBuilder.privilegedRangesToMask(value));
             }
-            await this.saveCurrentDocument({ abortIfDiskChanged: true });
+            await this.acceptInMemoryEdit();
             return;
         }
         if ((this.rowBuilder.isDwtDataAccessPath(pathToUpdate) || this.rowBuilder.isTraceConditionAccessPath(pathToUpdate)) && typeof value === 'string') {
             document.yaml.set(pathToUpdate, this.rowBuilder.accessLabelToValue(value));
-            await this.saveCurrentDocument({ abortIfDiskChanged: true });
+            await this.acceptInMemoryEdit();
             return;
         }
         if (this.rowBuilder.isTimestampsPath(pathToUpdate) && typeof value === 'boolean') {
@@ -363,7 +372,7 @@ export class TraceConfigurationModel {
             } else {
                 document.yaml.delete(pathToUpdate);
             }
-            await this.saveCurrentDocument({ abortIfDiskChanged: true });
+            await this.acceptInMemoryEdit();
             return;
         }
         if (this.rowBuilder.isItmPath(pathToUpdate) && Array.isArray(value)) {
@@ -372,19 +381,19 @@ export class TraceConfigurationModel {
             } else {
                 document.yaml.delete(pathToUpdate);
             }
-            await this.saveCurrentDocument({ abortIfDiskChanged: true });
+            await this.acceptInMemoryEdit();
             return;
         }
         if (this.rowBuilder.isPcSamplingPath(pathToUpdate) && typeof value === 'string') {
             const period = this.rowBuilder.normalizePcSamplingPeriod(value);
             document.yaml.set([...pathToUpdate, 'period'], period === 'off' ? 0 : Number(period));
-            await this.saveCurrentDocument({ abortIfDiskChanged: true });
+            await this.acceptInMemoryEdit();
             return;
         }
         if (this.rowBuilder.isStreamSyncDwtPeriodPath(pathToUpdate) && typeof value === 'string') {
             const streamSyncPath = pathToUpdate.slice(0, -1);
             document.yaml.set(streamSyncPath, [{ DWT: value }]);
-            await this.saveCurrentDocument({ abortIfDiskChanged: true });
+            await this.acceptInMemoryEdit();
             return;
         }
         if (this.rowBuilder.isMatchSizePath(pathToUpdate)
@@ -399,7 +408,7 @@ export class TraceConfigurationModel {
             } else {
                 document.yaml.delete(pathToUpdate);
             }
-            await this.saveCurrentDocument({ abortIfDiskChanged: true });
+            await this.acceptInMemoryEdit();
             return;
         }
         if (this.rowBuilder.isTimeSyncPath(pathToUpdate) && typeof value === 'boolean') {
@@ -408,7 +417,7 @@ export class TraceConfigurationModel {
             } else {
                 document.yaml.delete(pathToUpdate);
             }
-            await this.saveCurrentDocument({ abortIfDiskChanged: true });
+            await this.acceptInMemoryEdit();
             return;
         }
         if (this.rowBuilder.isInstructionsPath(pathToUpdate) && typeof value === 'boolean') {
@@ -417,11 +426,11 @@ export class TraceConfigurationModel {
             } else {
                 document.yaml.delete(pathToUpdate);
             }
-            await this.saveCurrentDocument({ abortIfDiskChanged: true });
+            await this.acceptInMemoryEdit();
             return;
         }
         document.yaml.set(pathToUpdate, typeof value === 'string' ? this.rowBuilder.toYamlScalarValue(pathToUpdate, value) : value);
-        await this.saveCurrentDocument({ abortIfDiskChanged: true });
+        await this.acceptInMemoryEdit();
     }
 
     /**
@@ -436,13 +445,13 @@ export class TraceConfigurationModel {
             return;
         }
         document.yaml.append(pathToUpdate, this.createNewItem(addChildKind));
-        await this.saveCurrentDocument({ abortIfDiskChanged: true });
+        await this.acceptInMemoryEdit();
     }
 
     /**
-     * removeItem deletes the selected YAML node and saves the file. It is only
-     * exposed for sequence items because removing arbitrary map keys from a GUI
-     * can be surprisingly destructive.
+     * removeItem deletes the selected YAML node in memory. It is only exposed
+     * for sequence items because removing arbitrary map keys from a GUI can be
+     * surprisingly destructive.
      */
     public async removeItem(pathToRemove: (string | number)[]): Promise<void> {
         const document = await this.requireFreshDocumentForEdit();
@@ -450,7 +459,8 @@ export class TraceConfigurationModel {
             return;
         }
         document.yaml.delete(pathToRemove);
-        await this.saveCurrentDocument({ abortIfDiskChanged: true });
+        this.convertEmptySequenceToBareKey(document, pathToRemove.slice(0, -1));
+        await this.acceptInMemoryEdit();
     }
 
     /**
@@ -469,6 +479,68 @@ export class TraceConfigurationModel {
         const parent = document.yaml.getNode(parentPath);
         if (this.rowBuilder.shouldPruneEmptyOptionalParent(parentPath) && YAML.isMap(parent) && parent.items.length === 0) {
             document.yaml.delete(parentPath);
+        }
+    }
+
+    /**
+     * acceptInMemoryEdit refreshes derived state after a webview edit without
+     * writing to disk. While dirty, the file watcher is paused so unsaved
+     * in-memory edits stay authoritative until the user clicks Save or Refresh.
+     */
+    private async acceptInMemoryEdit(): Promise<void> {
+        this.requireDocument().assignCTraceRefs();
+        await this.loadProcessorCapabilities();
+        this.dirty = true;
+        this.errorMessage = undefined;
+        this.disposeCurrentFileWatcher();
+        this.notifyStateChanged();
+    }
+
+    /**
+     * convertEmptySequenceToBareKey keeps empty editable lists as YAML shorthand
+     * such as "data:" rather than serializing them as "data: []".
+     */
+    private convertEmptySequenceToBareKey(document: NonNullable<CTraceYamlFile['document']>, sequencePath: (string | number)[]): void {
+        if (!this.rowBuilder.shouldUseBareSequenceWhenEmpty(sequencePath)) {
+            return;
+        }
+        const sequence = document.yaml.getNode(sequencePath);
+        if (YAML.isSeq(sequence) && sequence.items.length === 0) {
+            document.yaml.set(sequencePath, null);
+        }
+    }
+
+    /**
+     * convertAllEmptyEditableSequencesToBareKeys normalizes files that already
+     * contain empty lists such as "data: []" before Save serializes them.
+     */
+    private convertAllEmptyEditableSequencesToBareKeys(document: NonNullable<CTraceYamlFile['document']>): void {
+        const visitNode = (node: YAML.Node, nodePath: (string | number)[]): void => {
+            if (YAML.isSeq(node)) {
+                if (node.items.length === 0) {
+                    this.convertEmptySequenceToBareKey(document, nodePath);
+                    return;
+                }
+                node.items.forEach((item, index) => {
+                    if (YAML.isNode(item)) {
+                        visitNode(item, [...nodePath, index]);
+                    }
+                });
+                return;
+            }
+            if (!YAML.isMap(node)) {
+                return;
+            }
+            node.items.forEach(pair => {
+                const key = this.mapKeyToString(pair.key);
+                if (key && YAML.isNode(pair.value)) {
+                    visitNode(pair.value, [...nodePath, key]);
+                }
+            });
+        };
+        const root = document.yaml.document.contents;
+        if (YAML.isNode(root)) {
+            visitNode(root, []);
         }
     }
 
@@ -539,10 +611,11 @@ export class TraceConfigurationModel {
     private createNewItem(addChildKind: NonNullable<TraceConfigurationRow['addChildKind']>): object {
         switch (addChildKind) {
             case 'data':
-                return { location: '' };
-            case 'condition':
+                return { location: '', access: 'W' };
             case 'start':
             case 'stop':
+                return { location: '', access: 'X' };
+            case 'condition':
                 return { location: '' };
             case 'generic-map':
                 return { name: '' };
@@ -555,10 +628,8 @@ export class TraceConfigurationModel {
     /**
      * saveCurrentDocument refreshes internal ctrace references, persists the
      * YAML file, and posts the refreshed tree to the webview. The options let
-     * callers protect ctrace.yml as the source of truth: toolbar saves reload
-     * first and skip writing if disk changed, while edit saves abort if a file
-     * change lands in the small window between the pre-edit reload check and the
-     * final filesystem write.
+     * callers choose whether to reload or abort if the file changed on disk
+     * before writing.
      */
     public async saveCurrentDocument(options: { reloadBeforeSave?: boolean; skipWhenReloaded?: boolean; abortIfDiskChanged?: boolean } = {}): Promise<void> {
         const file = this.requireFile();
@@ -573,8 +644,12 @@ export class TraceConfigurationModel {
             return;
         }
         file.document?.assignCTraceRefs();
+        if (file.document) {
+            this.convertAllEmptyEditableSequencesToBareKeys(file.document);
+        }
         await file.save();
         await this.loadProcessorCapabilities();
+        this.watchCurrentFile();
         this.dirty = false;
         this.errorMessage = undefined;
         this.notifyStateChanged();

@@ -21,6 +21,7 @@ export interface TraceConfigurationRow {
     id: string;
     label: string;
     path: (string | number)[];
+    valuePath?: (string | number)[] | undefined;
     depth: number;
     kind: 'map' | 'sequence' | 'scalar';
     control: TraceControlKind;

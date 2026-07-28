@@ -101,7 +101,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
                     await this.model.refreshFile();
                     break;
                 case 'save':
-                    await this.model.saveCurrentDocument({ reloadBeforeSave: true, skipWhenReloaded: true });
+                    await this.model.saveCurrentDocument();
                     break;
                 case 'openFile':
                     await this.promptAndOpenFile();

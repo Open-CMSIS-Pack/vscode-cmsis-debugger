@@ -99,9 +99,7 @@ export class TraceConfigurationRowBuilder {
      * appendNodeRows turns a YAML node into one or more table rows. It emits the
      * current row first and then, when expanded, recursively emits child rows for
      * maps and sequences. setup is treated as a purely structural YAML level in
-     * the webview because the available processors are discovered elsewhere, and
-     * instruction trigger items are flattened so their Location field appears as
-     * an editable Label/Selection row instead of being used as a row title.
+     * the webview because the available processors are discovered elsewhere.
      */
     private appendNodeRows(
         context: TraceConfigurationTypes.RowBuildContext,
@@ -121,7 +119,7 @@ export class TraceConfigurationRowBuilder {
         const id = this.pathToId(nodePath);
         const childEntries = this.getChildEntries(node, nodePath);
         const hasChildren = childEntries.length > 0;
-        if (this.shouldFlattenSetupNode(node, nodePath) || this.shouldFlattenInstructionTriggerItem(node, nodePath)) {
+        if (this.shouldFlattenSetupNode(node, nodePath)) {
             childEntries.forEach(child => {
                 this.appendNodeRows(context, child.node, child.path, child.label, depth);
             });
@@ -227,12 +225,14 @@ export class TraceConfigurationRowBuilder {
         hasChildren: boolean,
         expanded: boolean
     ): TraceConfigurationRow {
-        const kind = YAML.isMap(node) ? 'map' : YAML.isSeq(node) ? 'sequence' : 'scalar';
+        const kind = YAML.isMap(node) ? 'map' : YAML.isSeq(node) || this.isBareSequenceNode(node, nodePath) ? 'sequence' : 'scalar';
         const scalarValue = YAML.isScalar(node) ? this.scalarToString(node) : undefined;
+        const valuePath = this.getRowValuePath(nodePath);
         const row: TraceConfigurationRow = {
             id: this.pathToId(nodePath),
             label: this.getRowLabel(node, label, nodePath),
             path: nodePath,
+            ...(valuePath ? { valuePath } : {}),
             depth,
             kind,
             control: this.getControlKind(label, nodePath, scalarValue),
@@ -256,12 +256,13 @@ export class TraceConfigurationRowBuilder {
      * all available DWT comparator channels.
      */
     private getRowAddChildKind(node: YAML.Node, nodePath: (string | number)[]): TraceConfigurationRow['addChildKind'] {
-        if (!YAML.isSeq(node) || nodePath.at(-1) === 'setup' || this.hasInlineMultiSelect(nodePath)) {
+        if ((!YAML.isSeq(node) && !this.isBareSequenceNode(node, nodePath)) || nodePath.at(-1) === 'setup' || this.hasInlineMultiSelect(nodePath)) {
             return undefined;
         }
         if (this.isDwtDataTracePath(nodePath)) {
             const capabilities = this.getTraceCapabilitiesForPath(nodePath);
-            if (capabilities && node.items.length >= capabilities.dwtComparators) {
+            const itemCount = YAML.isSeq(node) ? node.items.length : 0;
+            if (capabilities && itemCount >= capabilities.dwtComparators) {
                 return undefined;
             }
         }
@@ -320,24 +321,9 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
-     * shouldFlattenInstructionTriggerItem detects sequence items under
-     * Instruction Trace start/stop lists. Those YAML maps are storage wrappers
-     * around editable trigger fields, so the webview promotes Location and
-     * Access directly under Start/Stop instead of showing the location value as
-     * the item's label.
-     */
-    private shouldFlattenInstructionTriggerItem(node: YAML.Node, nodePath: (string | number)[]): boolean {
-        return YAML.isMap(node)
-            && typeof nodePath.at(-1) === 'number'
-            && (nodePath.at(-2) === 'start' || nodePath.at(-2) === 'stop')
-            && nodePath.at(-3) === 'instructions';
-    }
-
-    /**
      * getChildEntries extracts child rows from YAML maps and sequences. The
-     * method skips implementation metadata such as ctrace-ref and created-by,
-     * and it also hides pname when the file only describes one processor core
-     * because that value would not help the user distinguish between entries.
+     * method skips implementation metadata such as ctrace-ref, created-by, and
+     * pname because processor names are rendered in their parent row labels.
      */
     private getChildEntries(node: YAML.Node, nodePath = this.getNodePath(node)): TraceNodeEntry[] {
         if (YAML.isMap(node)) {
@@ -354,7 +340,7 @@ export class TraceConfigurationRowBuilder {
                 });
             });
             this.appendSyntheticChildEntries(entries, nodePath);
-            return this.sortDisplayEntries(entries);
+            return this.sortDisplayEntries(entries, nodePath);
         }
         if (YAML.isSeq(node) && this.isEventsPath(nodePath)) {
             return [];
@@ -536,12 +522,12 @@ export class TraceConfigurationRowBuilder {
      * in the order users are expected to review them, while all other entries
      * keep their original relative order after that leading group.
      */
-    private sortDisplayEntries(entries: { label: string; path: (string | number)[]; node: YAML.Node }[]): { label: string; path: (string | number)[]; node: YAML.Node }[] {
+    private sortDisplayEntries(entries: { label: string; path: (string | number)[]; node: YAML.Node }[], parentPath: (string | number)[]): { label: string; path: (string | number)[]; node: YAML.Node }[] {
         return entries
             .map((entry, index) => ({ entry, index }))
             .sort((left, right) => {
-                const leftRank = this.getDisplayOrderRank(left.entry.label);
-                const rightRank = this.getDisplayOrderRank(right.entry.label);
+                const leftRank = this.getDisplayOrderRank(left.entry.label, parentPath);
+                const rightRank = this.getDisplayOrderRank(right.entry.label, parentPath);
                 return leftRank === rightRank ? left.index - right.index : leftRank - rightRank;
             })
             .map(item => item.entry);
@@ -553,7 +539,11 @@ export class TraceConfigurationRowBuilder {
      * in the webview table, and the default rank leaves unlisted rows after the
      * primary trace subsystem group.
      */
-    private getDisplayOrderRank(label: string): number {
+    private getDisplayOrderRank(label: string, parentPath: (string | number)[]): number {
+        const fieldRank = this.getFieldDisplayOrderRank(label, parentPath);
+        if (fieldRank !== undefined) {
+            return fieldRank;
+        }
         switch (label) {
             case 'disable':
                 return 5;
@@ -577,6 +567,37 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
+     * getFieldDisplayOrderRank keeps schema fields in a stable UI order even
+     * when some fields are real YAML nodes and others are synthetic placeholders.
+     */
+    private getFieldDisplayOrderRank(label: string, parentPath: (string | number)[]): number | undefined {
+        const rankForDataTrace = new Map([
+            ['location', 10],
+            ['label', 20],
+            ['access', 30],
+            ['size', 40],
+            ['output', 50],
+            ['match', 60],
+            ['pc', 70],
+            ['pname', 80],
+        ]);
+        const rankForCondition = new Map([
+            ['location', 10],
+            ['access', 20],
+            ['size', 30],
+            ['match', 40],
+            ['pname', 50],
+        ]);
+        if (this.isDataTraceItemPath(parentPath)) {
+            return rankForDataTrace.get(label);
+        }
+        if (this.isConditionItemPath(parentPath)) {
+            return rankForCondition.get(label);
+        }
+        return undefined;
+    }
+
+    /**
      * getRowLabel chooses the final label for a row. Processor rows are derived
      * from their pname field, while all normal YAML keys go through the generic
      * display-label mapper.
@@ -584,6 +605,9 @@ export class TraceConfigurationRowBuilder {
     private getRowLabel(node: YAML.Node, label: string, nodePath: (string | number)[]): string {
         if (this.isProcessorPath(nodePath) && YAML.isMap(node)) {
             return `Processor:${this.mapScalarToString(node, 'pname') ?? 'Unknown'}`;
+        }
+        if (this.isPromotedLocationItemPath(nodePath)) {
+            return 'Location';
         }
         return this.getDisplayLabel(label, nodePath);
     }
@@ -594,14 +618,33 @@ export class TraceConfigurationRowBuilder {
      * as PC Sampling still expose a scalar child as the parent row's value.
      */
     private getRowValue(node: YAML.Node, nodePath: (string | number)[], scalarValue?: string): string | undefined {
+        if (this.isPromotedLocationItemPath(nodePath)) {
+            return YAML.isMap(node) ? this.mapScalarToString(node, 'location') ?? '' : '';
+        }
         if (this.isPcSamplingPath(nodePath)) {
             const period = YAML.isMap(node) ? this.mapScalarToString(node, 'period') : scalarValue;
             return this.normalizePcSamplingPeriod(period && period.trim().length > 0 ? period : 'off');
         }
-        if (this.isDwtDataAccessPath(nodePath) || this.isTraceConditionAccessPath(nodePath)) {
-            return this.accessValueToLabel(scalarValue);
+        if (this.isDwtDataAccessPath(nodePath)) {
+            const accessValue = this.accessValueToLabel(scalarValue);
+            return accessValue && accessValue.trim().length > 0 ? accessValue : 'Write';
+        }
+        if (this.isTraceConditionAccessPath(nodePath)) {
+            const accessValue = this.accessValueToLabel(scalarValue);
+            return accessValue && accessValue.trim().length > 0 ? accessValue : 'Execute';
         }
         return scalarValue;
+    }
+
+    /**
+     * getRowValuePath lets promoted header controls edit a child scalar while
+     * preserving the parent path for expansion and remove operations.
+     */
+    private getRowValuePath(nodePath: (string | number)[]): (string | number)[] | undefined {
+        if (this.isPromotedLocationItemPath(nodePath)) {
+            return [...nodePath, 'location'];
+        }
+        return undefined;
     }
 
     /**
@@ -642,8 +685,7 @@ export class TraceConfigurationRowBuilder {
      * still preserved in the file but should not clutter the trace editor. The
      * metadata keys are always hidden, top-level disable is hidden because the
      * setting is processor-specific, ITM enable is folded into its parent row's
-     * channel checklist, and pname is only hidden when there is no multi-core
-     * distinction for the user to make.
+     * channel checklist, and pname is folded into processor row labels.
      */
     private shouldHideNode(label: string, parentPath: (string | number)[]): boolean {
         if (label === 'ctrace-ref' || label === 'created-by' || label === 'generated-by') {
@@ -661,10 +703,13 @@ export class TraceConfigurationRowBuilder {
         if (label === 'period' && this.isPcSamplingPath(parentPath)) {
             return true;
         }
+        if (label === 'location' && this.isPromotedLocationItemPath(parentPath)) {
+            return true;
+        }
         if ((label === 'timesync' || label === 'synchronization') && this.isProcessorPath(parentPath)) {
             return true;
         }
-        return label === 'pname' && this.hasSingleCoreDescription();
+        return label === 'pname';
     }
 
     /**
@@ -813,6 +858,12 @@ export class TraceConfigurationRowBuilder {
      * unknown scalars as text inputs so every existing file remains editable.
      */
     private getControlKind(label: string, nodePath: (string | number)[], scalarValue?: string): TraceConfigurationRow['control'] {
+        if (this.shouldUseBareSequenceWhenEmpty(nodePath)) {
+            return 'none';
+        }
+        if (this.isPromotedLocationItemPath(nodePath)) {
+            return 'text';
+        }
         if (this.isEventsPath(nodePath) || this.isItmPath(nodePath) || this.isItmPrivilegedPath(nodePath)) {
             return 'multi-select';
         }
@@ -951,8 +1002,9 @@ export class TraceConfigurationRowBuilder {
             case 'tracehalt':
                 return 'condition';
             case 'start':
+                return 'start';
             case 'stop':
-                return 'condition';
+                return 'stop';
             default:
                 return 'generic-map';
         }
@@ -1182,6 +1234,52 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
+     * isInstructionTraceTriggerItemPath identifies one object inside an
+     * Instruction Trace Start or Stop sequence.
+     */
+    private isInstructionTraceTriggerItemPath(nodePath: (string | number)[]): boolean {
+        return typeof nodePath.at(-1) === 'number'
+            && (nodePath.at(-2) === 'start' || nodePath.at(-2) === 'stop')
+            && nodePath.at(-3) === 'instructions';
+    }
+
+    /**
+     * isInstructionTraceTriggerSequencePath identifies the Start and Stop
+     * sequences that own Instruction Trace trigger items.
+     */
+    private isInstructionTraceTriggerSequencePath(nodePath: (string | number)[]): boolean {
+        return (nodePath.at(-1) === 'start' || nodePath.at(-1) === 'stop')
+            && nodePath.at(-2) === 'instructions';
+    }
+
+    /**
+     * isPromotedLocationItemPath identifies sequence item rows whose required
+     * location field is rendered directly in the item header instead of as a
+     * duplicate child row.
+     */
+    private isPromotedLocationItemPath(nodePath: (string | number)[]): boolean {
+        return this.isDataTraceItemPath(nodePath) || this.isInstructionTraceTriggerItemPath(nodePath);
+    }
+
+    /**
+     * shouldUseBareSequenceWhenEmpty identifies editable sequences that should
+     * serialize as a bare YAML key when their last item is removed.
+     */
+    public shouldUseBareSequenceWhenEmpty(nodePath: (string | number)[]): boolean {
+        return this.isDwtDataTracePath(nodePath) || this.isInstructionTraceTriggerSequencePath(nodePath);
+    }
+
+    /**
+     * isBareSequenceNode identifies null shorthand nodes that the UI should
+     * treat as editable empty sequences.
+     */
+    private isBareSequenceNode(node: YAML.Node, nodePath: (string | number)[]): boolean {
+        return this.shouldUseBareSequenceWhenEmpty(nodePath)
+            && YAML.isScalar(node)
+            && (node.value === null || node.value === undefined);
+    }
+
+    /**
      * isTimeSyncPath identifies the Time Syncronization node that is grouped
      * under Advanced Settings and rendered as a boolean checkbox.
      */
@@ -1234,9 +1332,7 @@ export class TraceConfigurationRowBuilder {
         if (typeof nodePath.at(-1) !== 'number') {
             return false;
         }
-        const sequenceKey = nodePath.at(-2);
-        return sequenceKey === 'tracehalt'
-            || ((sequenceKey === 'start' || sequenceKey === 'stop') && nodePath.at(-3) === 'instructions');
+        return nodePath.at(-2) === 'tracehalt' || this.isInstructionTraceTriggerItemPath(nodePath);
     }
 
     /**
