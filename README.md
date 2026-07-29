@@ -68,7 +68,7 @@ The **Run and Debug** view provides:
 - [**BREAKPOINTS**](#breakpoints) section for managing stop points in application execution to inspect the state.
 
 > &#128204; **TIP**
-> 
+>
 > Click on a _line number badge_ to navigate to the source code line.
 
 Other debugger specific views or features:
@@ -91,7 +91,8 @@ Other debugger specific views or features:
 ### Target interaction while running
 
 Depending on the debug view and the debug probe used, target interaction with a Cortex-M CPU may or may not possible
-while running. The following table shows target interaction capabilities while running (with J-Link or using pyOCD):
+while running. The following table shows target interaction capabilities while running (with J-Link GDB server or using
+pyOCD):
 
 | View | Read | Edit |
 |------|------|------|
@@ -111,8 +112,8 @@ change the radix, there are multiple ways to do so:
 
 - To change it globally, right-click for example in an editor window and select **Set Global Output Radix to ...**.
   This allows you to switch the global radix between `decimal` and `hexadecimal`.
-- To change the radix of a single expression, you can double-click a variable for example in the
-  [**Live Watch**](#trace-and-live-view), [**WATCH**](#watch), or [**VARIABLES**](#variables) view. Then, add a "`,`"
+- To change the radix of a single expression, you can edit a variable for example in the
+  [**Live Watch**](#trace-and-live-view) or [**WATCH**](#watch) view. Then, add a "`,`"
   to the expression, directly followed by one of these format specifiers (make sure no space is between the `,` and the
   format specifier):
 
@@ -126,9 +127,9 @@ change the radix, there are multiple ways to do so:
 
 - You can also use this syntax in the [**DEBUG CONSOLE**](#debug-console).
 
-**Examples**
+#### Examples
 
-```
+```txt
 counter,d
 value,o
 number,t
@@ -365,7 +366,7 @@ The **Component Viewer toolbar** offers the following action buttons:
 
 | Button | Description |
 |--------|-------------|
-| Filter | Filter the displayed components |
+| Filter | Filter the displayed components and their entries |
 | Clear Filter | Remove component filtering |
 | Disable Periodic Update | Components are not updated while the target is running |
 | Expand All | Show all components at once |
