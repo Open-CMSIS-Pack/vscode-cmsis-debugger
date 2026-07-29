@@ -2,5 +2,4 @@
     // Ensure editing files in this workspace uses Unix line endings
     "files.eol": "\n",
     "markdownlint.configFile": ".github/markdownlint.jsonc",
-    "cdt.debug.sourceHighlighting": false,
 }
