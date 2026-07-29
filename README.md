@@ -105,14 +105,14 @@ pyOCD):
 | [**WATCH**](#watch)                       | &#10060; | &#10060; |
 | [**CALL STACK**](#call-stack)             | &#10060; | &#10060; |
 
-### Working with radixes
+### Number formats
 
-Expressions can be represented in different number formats. The debuggers default format is `decimal`. If you wish to
+Expressions can be represented in different number formats. The debuggers default format is `natural`. If you wish to
 change the radix, there are multiple ways to do so:
 
 - To change it globally, right-click for example in an editor window and select **Set Global Output Radix to ...**.
   This allows you to switch the global radix between `decimal` and `hexadecimal`.
-- To change the radix of a single expression, you can edit a variable for example in the
+- To change the radix of a single expression, you can edit it for example in the
   [**Live Watch**](#trace-and-live-view) or [**WATCH**](#watch) view. Then, add a "`,`"
   to the expression, directly followed by one of these format specifiers (make sure no space is between the `,` and the
   format specifier):
