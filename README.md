@@ -361,7 +361,7 @@ The Component Viewer shows information about:
 
 The **Component Viewer toolbar** offers the following action buttons:
 
-![Component Viewer Buttons](./images/comp-viewer-buttons.png)
+![Component Viewer Buttons](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/comp-viewer-buttons.png)
 
 | Button | Description |
 |--------|-------------|
@@ -372,7 +372,7 @@ The **Component Viewer toolbar** offers the following action buttons:
 | Collapse All | Only show  top-level component name |
 
 The **Disable Periodic Update** button stops updates for all components. If you wish to lock a single component, use
-the component's ![Lock Component Display](./images/comp-view-lock-comp.png) button to disable periodic updates.
+the component's ![Lock Component Display](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/comp-view-lock-comp.png) button to disable periodic updates.
 
 #### CORE PERIPHERALS
 
