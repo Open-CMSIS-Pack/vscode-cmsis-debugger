@@ -398,9 +398,10 @@ describe('LiveWatchTreeDataProvider', () => {
                 session: {}
             };
             await (liveWatchTreeDataProvider as any).refresh();
+            const label = 'myVar = new-value';
             expect(node.value.highlightedLabel).toEqual({
-                label: 'myVar = ',
-                highlights: [[0, 5]]
+                label: label,
+                highlights: [[label.indexOf('=') + 2, label.length]]
             });
         });
 
@@ -981,10 +982,11 @@ describe('LiveWatchTreeDataProvider', () => {
             };
             const node = makeNode('myVar', { result: 'prev', variablesReference: 0 }, 1);
             const evalResult = await (liveWatchTreeDataProvider as any).evaluateNodeExpression(node);
+            const label = 'myVar = error-message';
             expect(evalResult.result).toBe('error-message');
             expect(evalResult.highlightedLabel).toEqual({
-                label: 'myVar = ',
-                highlights: [[0, 5]]
+                label: label,
+                highlights: [[label.indexOf('=') + 2, label.length]]
             });
         });
     });
