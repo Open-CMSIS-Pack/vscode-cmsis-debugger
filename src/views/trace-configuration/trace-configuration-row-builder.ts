@@ -1332,7 +1332,7 @@ export class TraceConfigurationRowBuilder {
      * duplicate child row.
      */
     private isPromotedLocationItemPath(nodePath: (string | number)[]): boolean {
-        return this.isDataTraceItemPath(nodePath) || this.isInstructionTraceTriggerItemPath(nodePath);
+        return this.isDataTraceItemPath(nodePath) || this.isConditionItemPath(nodePath);
     }
 
     /**

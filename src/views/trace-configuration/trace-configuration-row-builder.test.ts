@@ -209,6 +209,14 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(traceHaltRow.label).toBe('Trace Halt');
         expect(traceHaltRow.addChildKind).toBe('condition');
 
+        const traceHaltItemRow = findRow(state, ['ctrace', 'setup', 0, 'tracehalt', 0]);
+        expect(traceHaltItemRow.label).toBe('Location');
+        expect(traceHaltItemRow.control).toBe('text');
+        expect(traceHaltItemRow.value).toBe('stopTrace');
+        expect(traceHaltItemRow.valuePath).toEqual(['ctrace', 'setup', 0, 'tracehalt', 0, 'location']);
+        expect(traceHaltItemRow.removable).toBe(true);
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'tracehalt', 0, 'location'])).toBe(false);
+
         const startAccessRow = findRow(state, ['ctrace', 'setup', 0, 'instructions', 'start', 0, 'access']);
         expect(startAccessRow.value).toBe('Execute');
         expect(startAccessRow.options).toEqual(['Execute', 'Read', 'Write', 'Read Write']);
