@@ -970,7 +970,7 @@ export class TraceConfigurationRowBuilder {
             return TraceConfigurationTypes.CONDITION_ACCESS_OPTIONS;
         }
         if (this.isTimestampsPrescalerPath(nodePath)) {
-            return ['', '1', '4', '16', '64'];
+            return ['1', '4', '16', '64'];
         }
         if (this.isDataOutputPath(nodePath)) {
             return TraceConfigurationTypes.DATA_OUTPUT_OPTIONS;

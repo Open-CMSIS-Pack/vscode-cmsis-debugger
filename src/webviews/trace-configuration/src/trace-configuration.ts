@@ -72,6 +72,7 @@ declare function acquireVsCodeApi(): VsCodeApi;
 
 const vscodeApi = acquireVsCodeApi();
 const root = document.getElementById('root');
+let openMultiSelectId: string | undefined;
 
 /**
  * post sends one typed browser action to the extension host. Keeping all
@@ -119,6 +120,19 @@ function clearElement(element: HTMLElement): void {
     while (element.firstChild) {
         element.firstChild.remove();
     }
+}
+
+/**
+ * closeOpenMultiSelect clears the persisted open dropdown and closes any
+ * rendered multi-select details elements. It is called for outside clicks and
+ * Escape so checkbox changes can keep the active dropdown open across host
+ * state refreshes.
+ */
+function closeOpenMultiSelect(): void {
+    openMultiSelectId = undefined;
+    document.querySelectorAll<HTMLDetailsElement>('details.multi-select[open]').forEach(details => {
+        details.open = false;
+    });
 }
 
 /**
@@ -440,6 +454,8 @@ function createSelect(row: TraceConfigurationRow): HTMLSelectElement {
  */
 function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
     const details = createElement('details', 'multi-select');
+    details.dataset.rowId = row.id;
+    details.open = openMultiSelectId === row.id;
     const summary = createElement('summary', 'multi-select-summary');
     const selectedValues = new Set(row.selectedOptions ?? []);
 
@@ -454,6 +470,18 @@ function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
             : 'None';
     };
     updateSummary();
+    details.addEventListener('toggle', () => {
+        if (details.open) {
+            openMultiSelectId = row.id;
+            document.querySelectorAll<HTMLDetailsElement>('details.multi-select[open]').forEach(openDetails => {
+                if (openDetails !== details) {
+                    openDetails.open = false;
+                }
+            });
+            return;
+        }
+        openMultiSelectId = openMultiSelectId === row.id ? undefined : openMultiSelectId;
+    });
     const menu = createElement('div', 'multi-select-menu');
     (row.options ?? []).forEach(optionValue => {
         const label = createElement('label', 'multi-select-option');
@@ -528,6 +556,19 @@ function onMessage(event: MessageEvent<HostToWebviewMessage>): void {
         renderApp(event.data.state);
     }
 }
+
+document.addEventListener('click', event => {
+    if (event.target instanceof HTMLElement && event.target.closest('.multi-select')) {
+        return;
+    }
+    closeOpenMultiSelect();
+});
+
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+        closeOpenMultiSelect();
+    }
+});
 
 window.addEventListener('message', onMessage);
 post({ type: 'ready' });

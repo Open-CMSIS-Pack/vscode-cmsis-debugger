@@ -331,7 +331,7 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(timestampsRow.checked).toBe(true);
         expect(timestampsRow.hasChildren).toBe(true);
         expect(findRow(state, ['ctrace', 'setup', 0, 'timestamps', 'clock']).label).toBe('Clock');
-        expect(findRow(state, ['ctrace', 'setup', 0, 'timestamps', 'itm-prescaler']).options).toEqual(['', '1', '4', '16', '64']);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'timestamps', 'itm-prescaler']).options).toEqual(['1', '4', '16', '64']);
 
         const instructionsRow = findRow(state, ['ctrace', 'setup', 0, 'instructions']);
         expect(instructionsRow.checked).toBe(true);
