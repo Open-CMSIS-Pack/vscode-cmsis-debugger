@@ -444,8 +444,26 @@ export class TraceConfigurationModel {
         if (!document) {
             return;
         }
+        if (!this.rowBuilder.canAddSharedDwtComparatorEntry(pathToUpdate)) {
+            this.errorMessage = this.createSharedDwtComparatorLimitMessage(pathToUpdate);
+            this.notifyStateChanged();
+            return;
+        }
         document.yaml.append(pathToUpdate, this.createNewItem(addChildKind));
         await this.acceptInMemoryEdit();
+    }
+
+    /**
+     * createSharedDwtComparatorLimitMessage reports stale add attempts that
+     * arrive after the UI has already hidden add controls for a full DWT
+     * comparator pool.
+     */
+    private createSharedDwtComparatorLimitMessage(pathToUpdate: (string | number)[]): string {
+        const usage = this.rowBuilder.getSharedDwtComparatorUsage(pathToUpdate);
+        if (!usage) {
+            return 'No DWT comparators are available for this processor.';
+        }
+        return `No DWT comparators are available for this processor. DWT Data Trace, Instruction Trace Start/Stop, and Trace Halt already use ${usage.used} of ${usage.limit} shared comparator entries.`;
     }
 
     /**

@@ -252,21 +252,47 @@ export class TraceConfigurationRowBuilder {
     /**
      * getRowAddChildKind decides whether a sequence row should expose an add
      * button. It preserves the normal starter-object behavior, but suppresses
-     * DWT Data Trace additions when the selected processor has already consumed
-     * all available DWT comparator channels.
+     * additions for features backed by the shared DWT comparator pool when the
+     * selected processor has no comparator channels left.
      */
     private getRowAddChildKind(node: YAML.Node, nodePath: (string | number)[]): TraceConfigurationRow['addChildKind'] {
         if ((!YAML.isSeq(node) && !this.isBareSequenceNode(node, nodePath)) || nodePath.at(-1) === 'setup' || this.hasInlineMultiSelect(nodePath)) {
             return undefined;
         }
-        if (this.isDwtDataTracePath(nodePath)) {
-            const capabilities = this.getTraceCapabilitiesForPath(nodePath);
-            const itemCount = YAML.isSeq(node) ? node.items.length : 0;
-            if (capabilities && itemCount >= capabilities.dwtComparators) {
-                return undefined;
-            }
+        if (!this.canAddSharedDwtComparatorEntry(nodePath)) {
+            return undefined;
         }
         return this.getAddChildKind(nodePath);
+    }
+
+    /**
+     * canAddSharedDwtComparatorEntry checks the processor-wide DWT comparator
+     * pool used by DWT Data Trace, Instruction Trace Start/Stop, and Trace Halt
+     * entries. Rows without processor capabilities are left editable so legacy
+     * or top-level ctrace sections keep their existing behavior.
+     */
+    public canAddSharedDwtComparatorEntry(nodePath: (string | number)[]): boolean {
+        const usage = this.getSharedDwtComparatorUsage(nodePath);
+        return usage ? usage.used < usage.limit : true;
+    }
+
+    /**
+     * getSharedDwtComparatorUsage returns current pool usage for one editable
+     * comparator-backed sequence. Each list entry consumes one comparator in
+     * the UI accounting model.
+     */
+    public getSharedDwtComparatorUsage(nodePath: (string | number)[]): { used: number; limit: number } | undefined {
+        if (!this.isSharedDwtComparatorSequencePath(nodePath)) {
+            return undefined;
+        }
+        const capabilities = this.getTraceCapabilitiesForPath(nodePath);
+        if (!capabilities) {
+            return undefined;
+        }
+        return {
+            used: this.countSharedDwtComparatorEntries(nodePath),
+            limit: capabilities.dwtComparators
+        };
     }
 
     /**
@@ -1218,12 +1244,58 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
-     * isDwtDataTracePath identifies the DWT Data Trace sequence. It is used for
-     * processor-specific DWT comparator limits, such as hiding the add button
-     * after four channels on Cortex-M3-class cores.
+     * isDwtDataTracePath identifies the DWT Data Trace sequence. Each item uses
+     * the same processor DWT comparator pool as instruction start/stop and
+     * trace halt conditions.
      */
     private isDwtDataTracePath(nodePath: (string | number)[]): boolean {
         return nodePath.at(-1) === 'data';
+    }
+
+    /**
+     * isTraceHaltPath identifies the Trace Halt condition sequence. Trace halt
+     * conditions consume DWT comparators from the same processor-local pool as
+     * data trace and instruction trace trigger conditions.
+     */
+    private isTraceHaltPath(nodePath: (string | number)[]): boolean {
+        return nodePath.at(-1) === 'tracehalt';
+    }
+
+    /**
+     * isSharedDwtComparatorSequencePath identifies editable ctrace lists whose
+     * entries consume one DWT comparator from the processor's shared pool.
+     */
+    private isSharedDwtComparatorSequencePath(nodePath: (string | number)[]): boolean {
+        return this.isDwtDataTracePath(nodePath)
+            || this.isInstructionTraceTriggerSequencePath(nodePath)
+            || this.isTraceHaltPath(nodePath);
+    }
+
+    /**
+     * countSharedDwtComparatorEntries totals DWT comparator consumers for the
+     * setup item that owns the current row.
+     */
+    private countSharedDwtComparatorEntries(nodePath: (string | number)[]): number {
+        const setupIndex = this.getSetupIndexForPath(nodePath);
+        if (setupIndex === undefined) {
+            return 0;
+        }
+        const processorPath = ['ctrace', 'setup', setupIndex];
+        return [
+            [...processorPath, 'data'],
+            [...processorPath, 'instructions', 'start'],
+            [...processorPath, 'instructions', 'stop'],
+            [...processorPath, 'tracehalt'],
+        ].reduce((total, path) => total + this.countSequenceItems(path), 0);
+    }
+
+    /**
+     * countSequenceItems treats missing and bare-key shorthand sequences as
+     * empty while counting all existing list entries as comparator consumers.
+     */
+    private countSequenceItems(nodePath: (string | number)[]): number {
+        const node = this.getCTraceFile()?.document?.yaml.getNode(nodePath);
+        return YAML.isSeq(node) ? node.items.length : 0;
     }
 
     /**
@@ -1268,7 +1340,7 @@ export class TraceConfigurationRowBuilder {
      * serialize as a bare YAML key when their last item is removed.
      */
     public shouldUseBareSequenceWhenEmpty(nodePath: (string | number)[]): boolean {
-        return this.isDwtDataTracePath(nodePath) || this.isInstructionTraceTriggerSequencePath(nodePath);
+        return this.isSharedDwtComparatorSequencePath(nodePath);
     }
 
     /**

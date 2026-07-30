@@ -220,6 +220,29 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(findRow(state, ['ctrace', 'setup', 0, 'tracehalt', 0, 'access']).options).toEqual(TraceConfigurationTypes.CONDITION_ACCESS_OPTIONS);
     });
 
+    it('hides add controls when shared DWT comparator entries reach the processor limit', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: watchOne',
+            '        - location: watchTwo',
+            '      instructions:',
+            '        start:',
+            '          - location: main',
+            '        stop:',
+            '      tracehalt:',
+            '        - location: stopTrace',
+            ''
+        ].join('\n'));
+
+        expect(findRow(state, ['ctrace', 'setup', 0, 'data']).addChildKind).toBeUndefined();
+        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'start']).addChildKind).toBeUndefined();
+        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'stop']).addChildKind).toBeUndefined();
+        expect(findRow(state, ['ctrace', 'setup', 0, 'tracehalt']).addChildKind).toBeUndefined();
+    });
+
     it('keeps editable trace item fields in static schema order', () => {
         const state = createStateFromYaml([
             'ctrace:',

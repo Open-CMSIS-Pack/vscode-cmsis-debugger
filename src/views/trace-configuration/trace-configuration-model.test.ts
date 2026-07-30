@@ -18,10 +18,16 @@
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import { Disposable, TextFileAdapter, TextFileStamp } from '../../generic/yaml-file';
 import { TraceConfigurationModel } from './trace-configuration-model';
+import { TraceConfigurationProcessorCapabilities } from './trace-configuration-processor-capabilities';
+import * as TraceConfigurationTypes from './trace-configuration-types';
 
 interface TraceConfigurationModelPrivate {
     ctraceFile: CTraceYamlFile;
     setProcessorDisable(document: CTraceYamlDocument, processorPath: (string | number)[]): void;
+}
+
+interface TraceConfigurationProcessorCapabilitiesPrivate {
+    processorCapabilities: Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities>;
 }
 
 class MemoryTextFileAdapter implements TextFileAdapter {
@@ -66,12 +72,33 @@ class MemoryTextFileAdapter implements TextFileAdapter {
     }
 }
 
-async function createModelFromText(text: string): Promise<{ adapter: MemoryTextFileAdapter; model: TraceConfigurationModel }> {
+function createCapabilities(pname = 'cm33'): Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities> {
+    return new Map([
+        [
+            pname,
+            {
+                pname,
+                core: 'CM33',
+                ...TraceConfigurationTypes.CORTEX_M_DWT_4_TRACE_CAPABILITIES
+            }
+        ]
+    ]);
+}
+
+async function createModelFromText(
+    text: string,
+    capabilities?: Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities>
+): Promise<{ adapter: MemoryTextFileAdapter; model: TraceConfigurationModel }> {
     const adapter = new MemoryTextFileAdapter(text);
     const file = new CTraceYamlFile('target.ctrace.yml', adapter);
     const document = await file.load();
     document.assignCTraceRefs();
-    const model = new TraceConfigurationModel();
+    const processorCapabilities = capabilities ? new TraceConfigurationProcessorCapabilities(() => file) : undefined;
+    if (processorCapabilities) {
+        const privateCapabilities = processorCapabilities as unknown as TraceConfigurationProcessorCapabilitiesPrivate;
+        capabilities?.forEach((value, key) => privateCapabilities.processorCapabilities.set(key, value));
+    }
+    const model = new TraceConfigurationModel(() => {}, processorCapabilities);
     (model as unknown as TraceConfigurationModelPrivate).ctraceFile = file;
     return { adapter, model };
 }
@@ -174,6 +201,32 @@ describe('TraceConfigurationModel', () => {
         expect(adapter.text).toContain('      data:\n');
         expect(adapter.text).not.toContain('data: []');
         expect(adapter.text).not.toContain('data: {}');
+    });
+
+    it('rejects direct add attempts when shared DWT comparators are already used', async () => {
+        const { adapter, model } = await createModelFromText([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: watchOne',
+            '        - location: watchTwo',
+            '      instructions:',
+            '        start:',
+            '          - location: main',
+            '        stop:',
+            '      tracehalt:',
+            '        - location: stopTrace',
+            ''
+        ].join('\n'), createCapabilities());
+
+        await model.addItem(['ctrace', 'setup', 0, 'instructions', 'stop'], 'stop');
+
+        const document = (model as unknown as TraceConfigurationModelPrivate).ctraceFile.document;
+        expect(document?.yaml.getNode(['ctrace', 'setup', 0, 'instructions', 'stop', 0])).toBeUndefined();
+        expect(adapter.writeCount).toBe(0);
+        expect(model.createState().dirty).toBe(false);
+        expect(model.createState().errorMessage).toContain('already use 4 of 4');
     });
 
     it('drops legacy ctrace ELF metadata on save', async () => {
