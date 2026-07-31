@@ -1,45 +1,31 @@
 # Change Log
 
-## 1.7.2
+## 1.8.0
 
+- Redesigns the [Component Viewer](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#component-viewer) and
+[Core Peripherals](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#core-peripherals) views as tree tables for more intuitive interaction.
+- Enhances the [Live Watch](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-and-live-view) window with editable expression values and automatic highlighting when values change.
+- The extension now preserves [view states](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-and-live-view) across debug sessions and IDE restarts (such as whether periodic updates are enabled). Non-default values are stored under `vscode-cmsis-debugger.viewState` in the workspace settings (`.vscode/settings.json`).
 - Includes updated pyOCD distribution ([pyOCD v0.45.1](https://github.com/pyocd/pyOCD/releases/tag/v0.45.1))
-    - Fixes a regression in flash programming support introduced in pyOCD v0.45.0 that caused programming to abort when a DFP `<algorithm>` element's `RAMstart` and `RAMsize` attributes defined an address range not covered by a `<memory>` element.
-
-## 1.7.1
-
-- Includes updated pyOCD distribution ([pyOCD v0.45.0](https://github.com/pyocd/pyOCD/releases/tag/v0.45.0))
-    - Extends CMSIS debug sequence support with new functionality
-        - Adds support for `FlashEraseSetup` and `FlashProgramSetup` sequences to allow selection of flash programming approach at runtime (FLM algorithm vs debug sequences).
-        - Adds support for `RunPythonScript` debug access function to run Python scripts from debug sequences.
-        - Uses FLM algorithms for flash programming when `<flashinfo>` is present but no flash programming debug sequences are defined.
-        - Experimental: Adds `TraceCapture` and `TraceFlush` sequence hooks, and `__traceclockin` and `__traceclockout` debug access variables for enhanced trace support.
+    - Extends CMSIS debug sequence support:
+        - Adds support for `FlashEraseSetup` and `FlashProgramSetup` [sequences](https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec/main/html/debug_description.html#default_sequences) to allow [selection of flash programming approach](https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec/main/html/debug_description.html#flashAlgorithmSelection) at runtime (FLM algorithm vs debug sequences).
+        - Adds support for `RunPythonScript` [debug access function](https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec/main/html/debug_description.html#DebugFunctions) to run Python scripts from debug sequences.
+        - Uses FLM algorithms for flash programming when [`<flashinfo>`](https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec/main/html/pdsc_family_pg.html#element_flashinfo) is present but no flash programming debug sequences are defined.
     - Replaces the `telnet_*` session option names with `stdio_*`, reflecting that standard I/O is not limited to Telnet transport. `telnet_*` option names are kept as aliases for backwards compatibility.
     - Adds `file-out` and `file-in` options to the RTT channel setup to enable file-based input and output in non-interactive use cases.
-    - Adds the `swv_raw_file` option to store the raw SWV trace stream in a file.
-    - Limits SWV console output to ITM channel 0.
-    - Fixes support for CMSIS-DAP probes with empty serial number.
-    - Fixes support for `<flashinfo>` subregions that span more than one defined `<memory>` region.
+    - Fixes support for CMSIS-DAP probes with an empty serial number.
+    - Fixes support for [`<flashinfo>`](https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec/main/html/pdsc_family_pg.html#element_flashinfo) subregions that span more than one defined [`<memory>`](https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec/main/html/pdsc_family_pg.html#element_memory) region.
     - Suppresses disconnect errors while closing a session after flash programming.
-    - Fixes discovery of debug and trace components in sub-systems without processors.
-
-## 1.7.0
-
-- Pre-release featuring early access to improved [Component Viewer](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#component-viewer) and
-[Core Peripherals](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#core-peripherals) views, plus an updated arm-none-eabi-gdb distribution ([arm-none-eabi-gdb v15.2.1](https://artifacts.tools.arm.com/arm-none-eabi-gdb/15.2.1/), see [Release Notes](https://gitlab.arm.com/tooling/gnu-toolchains-for-arm/-/blob/releases/15.2.rel1/release_notes.md)).
-    - Feedback is welcome: use [GitHub issues](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/new/choose) to request enhancements or report defects.
-- The extension now preserves the state of its views across debug sessions and IDE restarts (such as whether periodic updates are enabled). Non-default values are stored under `vscode-cmsis-debugger.viewState` in the workspace settings (`.vscode/settings.json`).
-- Enhances the [Live Watch](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-and-live-view) window with editable expression values and automatic highlighting when values change.
-- Also included in this extension release:
-    - [pyOCD v0.44.1](https://github.com/pyocd/pyOCD/releases/tag/v0.44.1)
-- Minimum versions required for CMSIS Debugger v1.7.0 pre-release functionality:
-    - [Arm CMSIS Solution extension v1.68.0](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution)
-    - [CDT GDB Adapter extension v2.8.0](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode)
+- Includes updated arm-none-eabi-gdb distribution ([arm-none-eabi-gdb v15.2.1](https://artifacts.tools.arm.com/arm-none-eabi-gdb/15.2.1/)). See the [release notes](https://gitlab.arm.com/tooling/gnu-toolchains-for-arm/-/blob/releases/15.2.rel1/release_notes.md).
+- Minimum extension versions required for CMSIS Debugger v1.8.0:
+    - [Arm CMSIS Solution extension v1.70.0](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution)
+    - [CDT GDB Adapter extension v2.9.0](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode)
     - [Memory Inspector v1.2.0](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector)
     - [Peripheral Inspector v1.9.2](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector)
     - [Serial Monitor v0.13.1](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor)
     - [RTOS Views v0.0.16](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views)
-- See [v1.6.1...v1.7.0](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/compare/v1.6.1...v1.7.0) for the complete list
-of changes included in this pre-release.
+- See [CMSIS Debugger 1.8.0 project board](https://github.com/orgs/Open-CMSIS-Pack/projects/21/views/12) for a full list
+of enhancement requests and defects addressed in this release.
 
 ## 1.6.1
 
