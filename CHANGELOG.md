@@ -5,16 +5,16 @@
 - Redesigns the [Component Viewer](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#component-viewer) and
 [Core Peripherals](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#core-peripherals) views as tree tables for more intuitive interaction.
 - Enhances the [Live Watch](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-and-live-view) window with editable expression values and automatic highlighting when values change.
-- The extension now preserves the state of its views across debug sessions and IDE restarts (such as whether periodic updates are enabled). Non-default values are stored under `vscode-cmsis-debugger.viewState` in the workspace settings (`.vscode/settings.json`).
+- The extension now preserves [view states](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-and-live-view) across debug sessions and IDE restarts (such as whether periodic updates are enabled). Non-default values are stored under `vscode-cmsis-debugger.viewState` in the workspace settings (`.vscode/settings.json`).
 - Includes updated pyOCD distribution ([pyOCD v0.45.1](https://github.com/pyocd/pyOCD/releases/tag/v0.45.1))
     - Extends CMSIS debug sequence support:
-        - Adds support for `FlashEraseSetup` and `FlashProgramSetup` sequences to allow selection of flash programming approach at runtime (FLM algorithm vs debug sequences).
-        - Adds support for `RunPythonScript` debug access function to run Python scripts from debug sequences.
-        - Uses FLM algorithms for flash programming when `<flashinfo>` is present but no flash programming debug sequences are defined.
+        - Adds support for `FlashEraseSetup` and `FlashProgramSetup` [sequences](https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec/main/html/debug_description.html#default_sequences) to allow [selection of flash programming approach](https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec/main/html/debug_description.html#flashAlgorithmSelection) at runtime (FLM algorithm vs debug sequences).
+        - Adds support for `RunPythonScript` [debug access function](https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec/main/html/debug_description.html#DebugFunctions) to run Python scripts from debug sequences.
+        - Uses FLM algorithms for flash programming when [`<flashinfo>`](https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec/main/html/pdsc_family_pg.html#element_flashinfo) is present but no flash programming debug sequences are defined.
     - Replaces the `telnet_*` session option names with `stdio_*`, reflecting that standard I/O is not limited to Telnet transport. `telnet_*` option names are kept as aliases for backwards compatibility.
     - Adds `file-out` and `file-in` options to the RTT channel setup to enable file-based input and output in non-interactive use cases.
     - Fixes support for CMSIS-DAP probes with an empty serial number.
-    - Fixes support for `<flashinfo>` subregions that span more than one defined `<memory>` region.
+    - Fixes support for [`<flashinfo>`](https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec/main/html/pdsc_family_pg.html#element_flashinfo) subregions that span more than one defined [`<memory>`](https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec/main/html/pdsc_family_pg.html#element_memory) region.
     - Suppresses disconnect errors while closing a session after flash programming.
 - Includes updated arm-none-eabi-gdb distribution ([arm-none-eabi-gdb v15.2.1](https://artifacts.tools.arm.com/arm-none-eabi-gdb/15.2.1/)). See the [release notes](https://gitlab.arm.com/tooling/gnu-toolchains-for-arm/-/blob/releases/15.2.rel1/release_notes.md).
 - Minimum extension versions required for CMSIS Debugger v1.8.0:
