@@ -95,7 +95,9 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
 
     public getTreeItem(element: LiveWatchNode): vscode.TreeItem {
         const item = new vscode.TreeItem(element.value.highlightedLabel ?? element.expression + ' = ');
-        item.description = element.value.result;
+        if (element.value.highlightedLabel === undefined) {
+            item.description = element.value.result;
+        }
         item.tooltip = element.value.type ?? '';
         item.collapsibleState = element.value.variablesReference !== 0 ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None;
         item.contextValue = element.parent ? 'childExpression' : 'parentExpression';
@@ -426,7 +428,8 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         const response = await this.evaluateInitialExpression(node.expression);
         // Highlight label if value has changed
         if (node.value.result !== response.result) {
-            node.value.highlightedLabel = { label: node.expression + ' = ', highlights: [[0, node.expression.length]] };
+            const label = node.expression + ' = ' + response.result;
+            node.value.highlightedLabel = { label: label, highlights: [[label.indexOf('=') + 2, label.length]] };
         } else {
             node.value.highlightedLabel = undefined;
         }
