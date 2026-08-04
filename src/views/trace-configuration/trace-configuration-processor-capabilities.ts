@@ -79,7 +79,7 @@ export class TraceConfigurationProcessorCapabilities {
                     continue;
                 }
 
-                this.processorCapabilities.set(pname, this.createTraceCapabilities(pname));
+                this.processorCapabilities.set(pname, this.createTraceCapabilities(pname, processor.core));
             }
 
             for (const pname of configuredProcessorNames) {
@@ -192,8 +192,8 @@ export class TraceConfigurationProcessorCapabilities {
      * template. Unknown processors intentionally get the no-trace template so the UI does not expose
      * unsupported controls optimistically.
      */
-    private createTraceCapabilities(pname: string): TraceConfigurationTypes.ProcessorTraceCapabilities {
-        const normalizedName = this.normalizeCoreName(pname);
+    private createTraceCapabilities(pname: string, coreName?: string): TraceConfigurationTypes.ProcessorTraceCapabilities {
+        const normalizedName = this.normalizeCoreName(coreName) ?? this.normalizeCoreName(pname);
         const template = normalizedName
             ? TraceConfigurationTypes.TRACE_CAPABILITIES_BY_CORE.get(normalizedName) ?? TraceConfigurationTypes.NO_TRACE_CAPABILITIES
             : TraceConfigurationTypes.NO_TRACE_CAPABILITIES;
@@ -231,7 +231,7 @@ export class TraceConfigurationProcessorCapabilities {
         if (normalized.includes('CM0PLUS') || normalized.includes('CM0+')) {
             return 'CM0PLUS';
         }
-        const match = normalized.match(/CM(?:35P|85|55|33|23|7|4|3|1|0)/);
+        const match = normalized.match(/CM(?:35P|85|55|52|33|23|7|4|3|1|0)/);
         return match?.[0];
     }
 

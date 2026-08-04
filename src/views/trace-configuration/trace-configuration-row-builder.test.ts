@@ -25,14 +25,17 @@ import * as TraceConfigurationTypes from './trace-configuration-types';
  * builder tests. The row builder filters optional feature rows by pname, so
  * tests need a capability entry that matches the synthetic ctrace.yml content.
  */
-function createCapabilities(pname = 'cm33'): Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities> {
+function createCapabilities(
+    pname = 'cm33',
+    template: TraceConfigurationTypes.ProcessorTraceCapabilityTemplate = TraceConfigurationTypes.CORTEX_M_DWT_4_TRACE_CAPABILITIES
+): Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities> {
     return new Map([
         [
             pname,
             {
                 pname,
                 core: 'CM33',
-                ...TraceConfigurationTypes.CORTEX_M_DWT_4_TRACE_CAPABILITIES
+                ...template
             }
         ]
     ]);
@@ -43,15 +46,37 @@ function createCapabilities(pname = 'cm33'): Map<string, TraceConfigurationTypes
  * DOM used by the extension and asks the row builder to produce webview state.
  * Keeping this helper small makes each test focus on the schema row contract.
  */
-function createStateFromYaml(text: string): TraceConfigurationState {
+function createStateFromYaml(
+    text: string,
+    options: {
+        loading?: boolean;
+        dirty?: boolean;
+        errorMessage?: string;
+        collapsedRows?: Set<string>;
+        capabilities?: Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities>;
+        fileName?: string;
+    } = {}
+): TraceConfigurationState {
     const file = new CTraceYamlFile('target.ctrace.yml');
+    file.fileName = options.fileName ?? file.fileName;
     file.document = CTraceYamlDocument.parse(text);
     file.document.assignCTraceRefs();
     return new TraceConfigurationRowBuilder(
         () => file,
-        () => false,
-        () => false,
+        () => options.loading ?? false,
+        () => options.dirty ?? false,
+        () => options.errorMessage,
+        options.collapsedRows ?? new Set<string>(),
+        options.capabilities ?? createCapabilities()
+    ).createState();
+}
+
+function createStateWithoutFile(options: { loading?: boolean; dirty?: boolean; errorMessage?: string } = {}): TraceConfigurationState {
+    return new TraceConfigurationRowBuilder(
         () => undefined,
+        () => options.loading ?? false,
+        () => options.dirty ?? false,
+        () => options.errorMessage,
         new Set<string>(),
         createCapabilities()
     ).createState();
@@ -79,6 +104,54 @@ function rowIndex(state: TraceConfigurationState, path: (string | number)[]): nu
 }
 
 describe('TraceConfigurationRowBuilder', () => {
+    it('reports status and empty messages when no file is loaded', () => {
+        const state = createStateWithoutFile({
+            loading: true,
+            dirty: true,
+            errorMessage: 'failed'
+        });
+
+        expect(state).toMatchObject({
+            rows: [],
+            loading: true,
+            dirty: true,
+            errorMessage: 'failed',
+            emptyMessage: 'Open a ctrace.yml file to edit trace configuration.'
+        });
+    });
+
+    it('renders fallback YAML rows when the document has no ctrace root', () => {
+        const state = createStateFromYaml([
+            'custom-root:',
+            '  enabled: true',
+            '  nested:',
+            '    value: 1',
+            ''
+        ].join('\n'));
+
+        expect(findRow(state, []).label).toBe('YAML');
+        expect(findRow(state, ['custom-root']).label).toBe('Custom Root');
+        expect(findRow(state, ['custom-root', 'enabled']).control).toBe('checkbox');
+        expect(findRow(state, ['custom-root', 'enabled']).checked).toBe(true);
+        expect(findRow(state, ['custom-root', 'nested', 'value']).value).toBe('1');
+    });
+
+    it('collapses rows and hides their children until expanded again', () => {
+        const collapsedRows = new Set<string>([JSON.stringify(['ctrace', 'setup', 0])]);
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      timestamps:',
+            '        clock: 100000000',
+            ''
+        ].join('\n'), { collapsedRows });
+
+        const processorRow = findRow(state, ['ctrace', 'setup', 0]);
+        expect(processorRow.expanded).toBe(false);
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'timestamps'])).toBe(false);
+    });
+
     it('checks processor rows when trace is enabled and unchecks them when disable is present', () => {
         const enabledState = createStateFromYaml([
             'ctrace:',
@@ -105,6 +178,7 @@ describe('TraceConfigurationRowBuilder', () => {
             '    - pname: cm33',
             '      data:',
             '        - location: watchSymbol',
+            '          pc: yes',
             ''
         ].join('\n'));
 
@@ -130,6 +204,7 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'output']).options).not.toContain('');
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'match']).label).toBe('Match');
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'match', 'size']).options).toEqual(TraceConfigurationTypes.MATCH_SIZE_OPTIONS);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'pc']).options).toEqual(['yes', 'no']);
     });
 
     it('promotes DWT data trace locations to item headers in multi-core files', () => {
@@ -315,6 +390,132 @@ describe('TraceConfigurationRowBuilder', () => {
         const dwtSyncRow = findRow(state, ['ctrace', 'setup', 0, 'synchronization', 'dwt-sync-period']);
         expect(dwtSyncRow.value).toBe('64M');
         expect(dwtSyncRow.options).toEqual(TraceConfigurationTypes.STREAM_SYNC_PERIOD_OPTIONS);
+    });
+
+    it('renders event and ITM masks as inline multi-select controls', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      events:',
+            '        - event: CYCCNT',
+            '        - event: PMU',
+            '        - ignored: true',
+            '      itm:',
+            '        enable: 0x80000005',
+            '        privileged: 0x5',
+            ''
+        ].join('\n'), {
+            capabilities: createCapabilities('cm33', TraceConfigurationTypes.CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES)
+        });
+
+        const eventsRow = findRow(state, ['ctrace', 'setup', 0, 'events']);
+        expect(eventsRow.control).toBe('multi-select');
+        expect(eventsRow.expanded).toBe(false);
+        expect(eventsRow.selectedOptions).toEqual(['CYCCNT', 'PMU']);
+        expect(eventsRow.options).toContain('PMU');
+
+        const itmRow = findRow(state, ['ctrace', 'setup', 0, 'itm']);
+        expect(itmRow.label).toBe('Instrumentation Trace');
+        expect(itmRow.control).toBe('multi-select');
+        expect(itmRow.selectedOptions).toEqual(['0', '2', '31']);
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'itm', 'enable'])).toBe(false);
+
+        const privilegedRow = findRow(state, ['ctrace', 'setup', 0, 'itm', 'privileged']);
+        expect(privilegedRow.control).toBe('multi-select');
+        expect(privilegedRow.selectedOptions).toEqual(['0-7', '16-23']);
+    });
+
+    it('removes PMU event choices when processor capabilities do not support PMU events', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      events:',
+            ''
+        ].join('\n'));
+
+        expect(findRow(state, ['ctrace', 'setup', 0, 'events']).options).not.toContain('PMU');
+    });
+
+    it('filters unsupported feature rows based on processor capabilities', () => {
+        const noTraceState = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm0',
+            '      timestamps:',
+            ''
+        ].join('\n'), {
+            capabilities: createCapabilities('cm0', TraceConfigurationTypes.NO_TRACE_CAPABILITIES)
+        });
+        const instructionOnlyState = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm0plus',
+            '      timestamps:',
+            '      instructions:',
+            '      data:',
+            ''
+        ].join('\n'), {
+            capabilities: createCapabilities('cm0plus', TraceConfigurationTypes.TB_ONLY_TRACE_CAPABILITIES)
+        });
+
+        expect(noTraceState.rows).toHaveLength(0);
+        expect(noTraceState.emptyMessage).toBe('No trace-capable processor configuration is available for this ctrace file.');
+        expect(hasRow(instructionOnlyState, ['ctrace', 'setup', 0, 'instructions'])).toBe(true);
+        expect(hasRow(instructionOnlyState, ['ctrace', 'setup', 0, 'timestamps'])).toBe(false);
+        expect(hasRow(instructionOnlyState, ['ctrace', 'setup', 0, 'data'])).toBe(false);
+    });
+
+    it('renders legacy stream synchronization period spelling and collapsed advanced settings', () => {
+        const collapsedRows = new Set<string>([JSON.stringify(['ctrace', 'setup', 0, 'advanced-settings'])]);
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      timesync:',
+            '      synchronization:',
+            '        - period: DWT\\16M',
+            '        - period: ETM\\64M',
+            ''
+        ].join('\n'), { collapsedRows });
+
+        const advancedRow = findRow(state, ['ctrace', 'setup', 0, 'advanced-settings']);
+        expect(advancedRow.expanded).toBe(false);
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'timesync'])).toBe(false);
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'synchronization', 'dwt-sync-period'])).toBe(false);
+
+        const expandedState = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      synchronization:',
+            '        - period: DWT\\16M',
+            ''
+        ].join('\n'));
+        expect(findRow(expandedState, ['ctrace', 'setup', 0, 'synchronization', 'dwt-sync-period']).value).toBe('16M');
+    });
+
+    it('exposes conversion helpers used by the model for scalar and mask values', () => {
+        const builder = new TraceConfigurationRowBuilder(
+            () => undefined,
+            () => false,
+            () => false,
+            () => undefined,
+            new Set<string>(),
+            createCapabilities()
+        );
+
+        expect(builder.toYamlScalarValue(['ctrace', 'setup', 0, 'timestamps', 'clock'], ' 100000000 ')).toBe(100000000);
+        expect(builder.toYamlScalarValue(['ctrace', 'setup', 0, 'data', 0, 'match', 'value'], '0x10')).toBe('0x10');
+        expect(builder.toYamlScalarValue(['ctrace', 'setup', 0, 'data', 0, 'access'], 'Read')).toBe('R');
+        expect(builder.normalizePcSamplingPeriod('64 * 16')).toBe('1024');
+        expect(builder.normalizePcSamplingPeriod('off')).toBe('off');
+        expect(builder.normalizePcSamplingPeriod('custom')).toBe('custom');
+        expect(builder.itmChannelsToMask(['0', '31', 'bad'])).toBe('0x80000001');
+        expect(builder.privilegedRangesToMask(['8-15', 'bad'])).toBe('0x2');
+        expect(builder.accessLabelToValue('Execute')).toBe('X');
+        expect(builder.accessLabelToValue('Custom')).toBe('Custom');
     });
 
     it('shows schema children for nullable object shorthand sections', () => {
