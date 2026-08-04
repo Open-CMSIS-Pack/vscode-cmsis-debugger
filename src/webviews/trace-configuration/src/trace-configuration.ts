@@ -17,55 +17,15 @@
 
 import './trace-configuration.css';
 
-type TraceControlKind = 'none' | 'text' | 'checkbox' | 'select' | 'multi-select' | 'readonly';
-
-interface TraceConfigurationRow {
-    id: string;
-    label: string;
-    path: (string | number)[];
-    valuePath?: (string | number)[];
-    depth: number;
-    kind: 'map' | 'sequence' | 'scalar';
-    control: TraceControlKind;
-    value?: string;
-    checked?: boolean;
-    options?: string[];
-    selectedOptions?: string[];
-    hasChildren: boolean;
-    expanded: boolean;
-    removable: boolean;
-    addChildKind?: 'data' | 'condition' | 'start' | 'stop' | 'generic-map' | 'generic-scalar';
-    description?: string;
-}
-
-interface TraceConfigurationState {
-    fileName?: string;
-    rows: TraceConfigurationRow[];
-    loading: boolean;
-    dirty: boolean;
-    emptyMessage?: string;
-    errorMessage?: string;
-}
-
-interface TraceUpdateMessage {
-    type: 'update';
-    state: TraceConfigurationState;
-}
-
-type HostToWebviewMessage = TraceUpdateMessage;
-
-type WebviewToHostMessage =
-    | { type: 'ready' }
-    | { type: 'refresh' }
-    | { type: 'save' }
-    | { type: 'openFile' }
-    | { type: 'toggle'; id: string; expanded: boolean }
-    | { type: 'updateValue'; path: (string | number)[]; value: string | boolean | string[] }
-    | { type: 'addItem'; path: (string | number)[]; addChildKind: NonNullable<TraceConfigurationRow['addChildKind']> }
-    | { type: 'removeItem'; path: (string | number)[] };
+import type {
+    TraceConfigurationRow,
+    TraceConfigurationState,
+    TraceHostToWebviewMessage,
+    TraceWebviewToHostMessage
+} from '../../../views/trace-configuration/trace-configuration-protocol';
 
 interface VsCodeApi {
-    postMessage(message: WebviewToHostMessage): void;
+    postMessage(message: TraceWebviewToHostMessage): void;
 }
 
 declare function acquireVsCodeApi(): VsCodeApi;
@@ -80,7 +40,7 @@ let openMultiSelectId: string | undefined;
  * leave the sandbox and keeps the rest of the renderer free of acquireVsCodeApi
  * details.
  */
-function post(message: WebviewToHostMessage): void {
+function post(message: TraceWebviewToHostMessage): void {
     vscodeApi.postMessage(message);
 }
 
@@ -551,7 +511,7 @@ function createReadonly(text: string): HTMLSpanElement {
  * onMessage receives replacement state from the extension host. The host sends
  * complete snapshots, so every update simply re-renders the webview.
  */
-function onMessage(event: MessageEvent<HostToWebviewMessage>): void {
+function onMessage(event: MessageEvent<TraceHostToWebviewMessage>): void {
     if (event.data.type === 'update') {
         renderApp(event.data.state);
     }
