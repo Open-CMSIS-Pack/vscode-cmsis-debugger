@@ -1112,12 +1112,19 @@ export class TraceConfigurationRowBuilder {
     public isOptionalScalarPath(nodePath: (string | number)[]): boolean {
         const key = nodePath.at(-1);
         const parentPath = nodePath.slice(0, -1);
-        return this.isTimestampsClockPath(nodePath)
-            || this.isTimestampsPrescalerPath(nodePath)
-            || this.isItmPrivilegedPath(nodePath)
-            || (this.isDataTraceItemPath(parentPath) && this.isDataTraceOptionalKey(key))
-            || (this.isConditionItemPath(parentPath) && this.isConditionOptionalKey(key))
-            || (this.isMatchPath(parentPath) && this.isMatchOptionalKey(key));
+        if (this.isOptionalStandaloneScalarPath(nodePath)) {
+            return true;
+        }
+        if (this.isDataTraceItemPath(parentPath)) {
+            return this.isDataTraceOptionalKey(key);
+        }
+        if (this.isConditionItemPath(parentPath)) {
+            return this.isConditionOptionalKey(key);
+        }
+        if (this.isMatchPath(parentPath)) {
+            return this.isMatchOptionalKey(key);
+        }
+        return false;
     }
 
     /**
@@ -1160,6 +1167,14 @@ export class TraceConfigurationRowBuilder {
             || this.isItmPrivilegedPath(nodePath)
             || (this.isTraceItemPath(parentPath) && key === 'size')
             || (this.isMatchPath(parentPath) && this.isMatchIntegerKey(key));
+    }
+
+    private isOptionalStandaloneScalarPath(nodePath: (string | number)[]): boolean {
+        return [
+            this.isTimestampsClockPath(nodePath),
+            this.isTimestampsPrescalerPath(nodePath),
+            this.isItmPrivilegedPath(nodePath)
+        ].some(Boolean);
     }
 
     private isDataTraceOptionalKey(key: string | number | undefined): boolean {
