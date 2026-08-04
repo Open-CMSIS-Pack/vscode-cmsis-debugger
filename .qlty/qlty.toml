@@ -6,7 +6,7 @@ exclude_patterns = [
     "**/node_modules/**",  # Ignore node_modules directories
     "**/dist/**",          # Ignore distribution/build output
     "**/coverage/**",       # Ignore code coverage output
-    "**/generic/**".        # Ignore temporary code that is going to be replaced later
+    "**/generic/**"        # Ignore temporary code that is going to be replaced later
 ]
 
 # Glob patterns to identify test files
