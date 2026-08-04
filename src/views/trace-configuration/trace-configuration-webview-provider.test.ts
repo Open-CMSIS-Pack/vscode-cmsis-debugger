@@ -135,7 +135,7 @@ describe('TraceConfigurationWebviewProvider', () => {
         provider.resolveWebviewView(view, {} as vscode.WebviewViewResolveContext, {} as vscode.CancellationToken);
 
         expect(fake.webview.options?.enableScripts).toBe(true);
-        expect(fake.webview.options?.localResourceRoots?.map(uri => uri.fsPath)).toEqual(['/extension']);
+        expect(fake.webview.options?.localResourceRoots?.map(uri => uri.path)).toEqual(['/extension']);
         expect(fake.webview.html).toContain('trace-configuration.js');
         expect(fake.webview.html).toContain('trace-configuration.css');
         expect(fake.webview.html).toContain('codicon.css');
@@ -190,7 +190,8 @@ describe('TraceConfigurationWebviewProvider', () => {
         const model = new FakeTraceConfigurationModel();
         const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
         const { view, sendMessage } = createWebviewView();
-        (vscode.window.showOpenDialog as jest.Mock).mockResolvedValue([vscode.Uri.file('/workspace/target.ctrace.yml')]);
+        const selectedFile = vscode.Uri.file('/workspace/target.ctrace.yml');
+        (vscode.window.showOpenDialog as jest.Mock).mockResolvedValue([selectedFile]);
         provider.resolveWebviewView(view, {} as vscode.WebviewViewResolveContext, {} as vscode.CancellationToken);
 
         sendMessage({ type: 'openFile' });
@@ -205,7 +206,7 @@ describe('TraceConfigurationWebviewProvider', () => {
             },
             title: 'Open CMSIS Trace Configuration'
         });
-        expect(model.openFile).toHaveBeenCalledWith('/workspace/target.ctrace.yml');
+        expect(model.openFile).toHaveBeenCalledWith(selectedFile.fsPath);
     });
 
     it('does not open a file when the user cancels the picker', async () => {
