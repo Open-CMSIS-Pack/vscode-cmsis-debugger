@@ -695,10 +695,10 @@ export class TraceConfigurationRowBuilder {
             return 'PC Sampling';
         }
         if (label.toLowerCase() === 'timesync' && this.isTimeSyncPath(nodePath)) {
-            return 'Time Syncronization';
+            return 'Time Synchronization';
         }
         if (label.toLowerCase() === 'synchronization' && this.isStreamSynchronizationPath(nodePath)) {
-            return 'Stream Syncronization';
+            return 'Stream Synchronization';
         }
         if (label.toLowerCase() === 'tracehalt') {
             return 'Trace Halt';
