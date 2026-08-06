@@ -205,7 +205,7 @@ describe('TraceConfigurationModel', () => {
         await model.addItem(['ctrace', 'setup', 0, 'instructions', 'stop'], 'stop');
 
         const document = (model as unknown as TraceConfigurationModelPrivate).ctraceFile?.document;
-        expect(document?.yaml.getNode(['ctrace', 'setup', 0, 'instructions', 'stop', 0])).toBeUndefined();
+        expect(document?.yaml.getItem(['ctrace', 'setup', 0, 'instructions', 'stop', 0])).toBeUndefined();
         expect(adapter.writeCount).toBe(0);
         expect(model.createState().dirty).toBe(false);
         expect(model.createState().errorMessage).toContain('already use 4 of 4');

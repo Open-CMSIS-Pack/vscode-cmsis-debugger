@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
+import { ITextFileSystem } from '@open-cmsis-pack/cmsis-common/text-file-system';
+
 import { MemoryTextFileAdapter } from '../__test__/memory-text-file-adapter';
-import { YamlDomFile } from './yaml-file';
+import { NodeTextFileAdapter, YamlDomFile } from './yaml-file';
 import { YamlDomDocument } from './yaml-dom';
 
 describe('YamlDomDocument', () => {
@@ -62,6 +64,31 @@ describe('YamlDomDocument', () => {
 });
 
 describe('YamlDomFile', () => {
+    it('uses an injected text file system for node-backed reads and writes', async () => {
+        const files = new Map<string, string>([['target.ctrace.yml', 'ctrace:\n']]);
+        const fileSystem: ITextFileSystem = {
+            exists: fileName => files.has(fileName),
+            read: fileName => files.get(fileName) ?? '',
+            write: (fileName, content) => files.set(fileName, content),
+            unlink: fileName => {
+                files.delete(fileName);
+            },
+            dirname: fileName => fileName.slice(0, fileName.lastIndexOf('/')),
+            resolve: (...pathSegments) => pathSegments.join('/')
+        };
+        const adapter = new NodeTextFileAdapter(fileSystem);
+
+        await expect(adapter.readTextFile('missing.ctrace.yml')).rejects.toMatchObject({
+            code: 'ENOENT',
+            path: 'missing.ctrace.yml'
+        });
+        await expect(adapter.readTextFile('target.ctrace.yml')).resolves.toBe('ctrace:\n');
+
+        await adapter.writeTextFile('target.ctrace.yml', 'ctrace:\n  created-by: test\n');
+
+        expect(files.get('target.ctrace.yml')).toBe('ctrace:\n  created-by: test\n');
+    });
+
     it('reloads when the underlying file changes and saves the current document', async () => {
         const adapter = new MemoryTextFileAdapter('ctrace:\n  created-by: old\n');
         const file = new YamlDomFile('target.ctrace.yml', adapter);

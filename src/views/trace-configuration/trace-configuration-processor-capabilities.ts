@@ -15,9 +15,8 @@
  */
 // generated with AI
 
-import * as YAML from 'yaml';
-
 import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
+import { isYamlMapItem, isYamlScalarItem, isYamlSequenceItem, YamlTreeItem, yamlScalarToString } from '../../generic';
 import { logger } from '../../logger';
 import { FileLocationManager } from '../../utils';
 import { CTraceYamlFile } from './ctrace-yaml';
@@ -118,11 +117,10 @@ export class TraceConfigurationProcessorCapabilities {
             return undefined;
         }
 
-        const setupItem = ctraceFile.document.yaml.getNode(['ctrace', 'setup', setupIndex]);
+        const setupItem = ctraceFile.document.yaml.getItem(['ctrace', 'setup', setupIndex]);
 
-        if (YAML.isMap(setupItem)) {
-            const pname = setupItem.get('pname');
-            return this.mapScalarToString(pname);
+        if (isYamlMapItem(setupItem)) {
+            return this.mapScalarToString(setupItem.getChild('pname'));
         }
 
         return undefined;
@@ -176,14 +174,14 @@ export class TraceConfigurationProcessorCapabilities {
      * include processors that the current cbuild-run reader did not expose.
      */
     private getConfiguredProcessorNames(): string[] {
-        const setup = this.getCTraceFile()?.document?.yaml.getNode(['ctrace', 'setup']);
+        const setup = this.getCTraceFile()?.document?.yaml.getItem(['ctrace', 'setup']);
 
-        if (!YAML.isSeq(setup)) {
+        if (!isYamlSequenceItem(setup)) {
             return [];
         }
 
-        return setup.items
-            .map((item) => (YAML.isMap(item) ? this.mapScalarToString(item.get('pname')) : undefined))
+        return setup.getChildren()
+            .map((item) => (isYamlMapItem(item) ? this.mapScalarToString(item.getChild('pname')) : undefined))
             .filter((pname): pname is string => Boolean(pname));
     }
 
@@ -239,12 +237,8 @@ export class TraceConfigurationProcessorCapabilities {
      * mapScalarToString safely converts YAML scalar nodes into strings for capability lookup. YAML maps
      * can also return raw values, so the fallback keeps this helper defensive around parser details.
      */
-    private mapScalarToString(node: unknown): string | undefined {
-        if (YAML.isScalar(node)) {
-            return node.value === null || node.value === undefined ? undefined : String(node.value);
-        }
-
-        return node === null || node === undefined ? undefined : String(node);
+    private mapScalarToString(node: YamlTreeItem | undefined): string | undefined {
+        return isYamlScalarItem(node) ? yamlScalarToString(node) : undefined;
     }
 
     /**

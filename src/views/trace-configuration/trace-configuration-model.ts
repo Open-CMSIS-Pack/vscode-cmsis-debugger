@@ -17,10 +17,9 @@
 
 import * as path from 'node:path';
 
-import * as YAML from 'yaml';
 import * as vscode from 'vscode';
 
-import { Disposable } from '../../generic';
+import { Disposable, isYamlMapItem, isYamlScalarItem, isYamlSequenceItem, YamlTreeItem, yamlScalarToString } from '../../generic';
 import { logger } from '../../logger';
 import { CTraceYamlFile } from './ctrace-yaml';
 import {
@@ -494,8 +493,8 @@ export class TraceConfigurationModel {
         }
         document.yaml.delete(pathToDelete);
         const parentPath = pathToDelete.slice(0, -1);
-        const parent = document.yaml.getNode(parentPath);
-        if (this.rowBuilder.shouldPruneEmptyOptionalParent(parentPath) && YAML.isMap(parent) && parent.items.length === 0) {
+        const parent = document.yaml.getItem(parentPath);
+        if (this.rowBuilder.shouldPruneEmptyOptionalParent(parentPath) && isYamlMapItem(parent) && parent.getChildren().length === 0) {
             document.yaml.delete(parentPath);
         }
     }
@@ -522,8 +521,8 @@ export class TraceConfigurationModel {
         if (!this.rowBuilder.shouldUseBareSequenceWhenEmpty(sequencePath)) {
             return;
         }
-        const sequence = document.yaml.getNode(sequencePath);
-        if (YAML.isSeq(sequence) && sequence.items.length === 0) {
+        const sequence = document.yaml.getItem(sequencePath);
+        if (isYamlSequenceItem(sequence) && sequence.getChildren().length === 0) {
             document.yaml.set(sequencePath, null);
         }
     }
@@ -533,33 +532,28 @@ export class TraceConfigurationModel {
      * contain empty lists such as "data: []" before Save serializes them.
      */
     private convertAllEmptyEditableSequencesToBareKeys(document: NonNullable<CTraceYamlFile['document']>): void {
-        const visitNode = (node: YAML.Node, nodePath: (string | number)[]): void => {
-            if (YAML.isSeq(node)) {
-                if (node.items.length === 0) {
+        const visitNode = (node: YamlTreeItem, nodePath: (string | number)[]): void => {
+            if (isYamlSequenceItem(node)) {
+                if (node.getChildren().length === 0) {
                     this.convertEmptySequenceToBareKey(document, nodePath);
                     return;
                 }
-                node.items.forEach((item, index) => {
-                    if (YAML.isNode(item)) {
-                        visitNode(item, [...nodePath, index]);
-                    }
+                node.getChildren().forEach((item, index) => {
+                    visitNode(item, [...nodePath, index]);
                 });
                 return;
             }
-            if (!YAML.isMap(node)) {
+            if (!isYamlMapItem(node)) {
                 return;
             }
-            node.items.forEach(pair => {
-                const key = this.mapKeyToString(pair.key);
-                if (key && YAML.isNode(pair.value)) {
-                    visitNode(pair.value, [...nodePath, key]);
+            node.getChildren().forEach(child => {
+                const key = child.getTag();
+                if (key) {
+                    visitNode(child, [...nodePath, key]);
                 }
             });
         };
-        const root = document.yaml.document.contents;
-        if (YAML.isNode(root)) {
-            visitNode(root, []);
-        }
+        visitNode(document.yaml.rootItem, []);
     }
 
     /**
@@ -577,11 +571,11 @@ export class TraceConfigurationModel {
      * YAML such as match blocks that only contain size.
      */
     private hasNonEmptyScalarValue(document: NonNullable<CTraceYamlFile['document']>, pathToCheck: (string | number)[]): boolean {
-        const node = document.yaml.getNode(pathToCheck);
-        if (!YAML.isScalar(node) || node.value === undefined || node.value === null) {
+        const node = document.yaml.getItem(pathToCheck);
+        if (!isYamlScalarItem(node)) {
             return false;
         }
-        return String(node.value).trim().length > 0;
+        return yamlScalarToString(node).trim().length > 0;
     }
 
     /**
@@ -592,41 +586,21 @@ export class TraceConfigurationModel {
      */
     private setProcessorDisable(document: NonNullable<CTraceYamlFile['document']>, processorPath: (string | number)[]): void {
         document.yaml.set([...processorPath, 'disable'], null);
-        const processorNode = document.yaml.getNode(processorPath);
-        if (!YAML.isMap(processorNode)) {
+        const processorNode = document.yaml.getItem(processorPath);
+        if (!isYamlMapItem(processorNode)) {
             return;
         }
-        const disableIndex = this.findMapPairIndex(processorNode, 'disable');
+        const disableItem = processorNode.getChild('disable');
+        const disableIndex = processorNode.indexOfChild(disableItem);
         if (disableIndex < 0) {
             return;
         }
-        const [disablePair] = processorNode.items.splice(disableIndex, 1);
-        if (!disablePair) {
+        if (!disableItem) {
             return;
         }
-        const pnameIndex = this.findMapPairIndex(processorNode, 'pname');
-        processorNode.items.splice(pnameIndex >= 0 ? pnameIndex + 1 : 0, 0, disablePair);
-    }
-
-    /**
-     * findMapPairIndex locates one key in a YAML map without converting the
-     * whole map to JavaScript. Staying on the YAML node layer preserves comments,
-     * scalar spelling, and pair ordering while we make a tiny readability edit.
-     */
-    private findMapPairIndex(map: YAML.YAMLMap, key: string): number {
-        return map.items.findIndex(pair => this.mapKeyToString(pair.key) === key);
-    }
-
-    /**
-     * mapKeyToString extracts a string key from a YAML pair. ctrace keys should
-     * be plain scalar strings, but the fallback keeps the ordering helper
-     * defensive around unusual hand-authored YAML.
-     */
-    private mapKeyToString(key: unknown): string | undefined {
-        if (YAML.isScalar(key)) {
-            return key.value === undefined || key.value === null ? undefined : String(key.value);
-        }
-        return key?.toString();
+        processorNode.removeChild(disableItem);
+        const pnameIndex = processorNode.indexOfChild(processorNode.getChild('pname'));
+        processorNode.addChild(disableItem, false, pnameIndex >= 0 ? pnameIndex + 1 : 0);
     }
 
     /**

@@ -16,8 +16,16 @@
 // generated with AI
 
 import { Disposable, NodeTextFileAdapter, TextFileAdapter, YamlDomFile } from '../../generic/yaml-file';
-import { YamlDiagnostic, YamlDomDocument, YamlPath } from '../../generic/yaml-dom';
-import * as YAML from 'yaml';
+import {
+    isYamlMapItem,
+    isYamlSequenceItem,
+    isYamlScalarItem,
+    yamlScalarToString,
+    YamlDiagnostic,
+    YamlDomDocument,
+    YamlPath,
+    YamlTreeItem,
+} from '../../generic/yaml-dom';
 
 const CTRACE_ROOT = 'ctrace';
 const CTRACE_PATH = [CTRACE_ROOT] as const;
@@ -156,16 +164,9 @@ export interface CTraceRegisterValues {
 type DataTraceMatcher = (entry: CTraceDataTrace) => boolean;
 type RegisterValuesMatcher = (entry: CTraceRegisterValues) => boolean;
 
-function mapKeyToString(key: unknown): string | undefined {
-    if (YAML.isScalar(key)) {
-        return key.value === undefined || key.value === null ? undefined : String(key.value);
-    }
-    return key?.toString();
-}
-
-function mapScalarToString(map: YAML.YAMLMap, key: string): string | undefined {
-    const value = map.get(key);
-    return value === undefined || value === null ? undefined : String(value);
+function mapScalarToString(map: YamlTreeItem, key: string): string | undefined {
+    const value = map.getChild(key);
+    return isYamlScalarItem(value) ? yamlScalarToString(value) : undefined;
 }
 
 function joinReference(prefix: string | undefined, suffix: string): string {
@@ -270,8 +271,8 @@ export class CTraceYamlDocument {
 
     public assignCTraceRefs(): void {
         this.ctraceRefs.clear();
-        const root = this.yamlDomDocument.getNode(CTRACE_PATH);
-        if (!YAML.isMap(root)) {
+        const root = this.yamlDomDocument.getItem(CTRACE_PATH);
+        if (!isYamlMapItem(root)) {
             return;
         }
         this.setInternalCTraceRef(CTRACE_PATH, CTRACE_ROOT);
@@ -297,41 +298,41 @@ export class CTraceYamlDocument {
     }
 
     private assignMapChildReferences(
-        map: YAML.YAMLMap,
+        map: YamlTreeItem,
         currentPath: YamlPath,
         currentReference?: string,
         currentSection?: string
     ): void {
-        [...map.items].forEach(pair => {
-            const key = mapKeyToString(pair.key);
+        [...map.getChildren()].forEach(child => {
+            const key = child.getTag();
             if (key === 'ctrace-ref') {
-                map.delete(key);
+                map.removeChild(child);
                 return;
             }
-            if (!key || !YAML.isNode(pair.value)) {
+            if (!key) {
                 return;
             }
-            if (YAML.isSeq(pair.value)) {
-                this.assignSequenceReferences(pair.value, [...currentPath, key], key, currentReference, currentSection);
+            if (isYamlSequenceItem(child)) {
+                this.assignSequenceReferences(child, [...currentPath, key], key, currentReference, currentSection);
                 return;
             }
-            if (YAML.isMap(pair.value)) {
+            if (isYamlMapItem(child)) {
                 const childReference = joinReference(currentReference, key);
                 this.setInternalCTraceRef([...currentPath, key], childReference);
-                this.assignMapChildReferences(pair.value, [...currentPath, key], childReference, key);
+                this.assignMapChildReferences(child, [...currentPath, key], childReference, key);
             }
         });
     }
 
     private assignSequenceReferences(
-        sequence: YAML.YAMLSeq,
+        sequence: YamlTreeItem,
         sequencePath: YamlPath,
         key: string,
         currentReference?: string,
         currentSection?: string
     ): void {
-        sequence.items.forEach((item, index) => {
-            if (!YAML.isMap(item)) {
+        sequence.getChildren().forEach((item, index) => {
+            if (!isYamlMapItem(item)) {
                 return;
             }
             const reference = this.createSequenceItemReference(item, key, index, currentReference, currentSection);
@@ -342,7 +343,7 @@ export class CTraceYamlDocument {
     }
 
     private createSequenceItemReference(
-        item: YAML.YAMLMap,
+        item: YamlTreeItem,
         key: string,
         index: number,
         currentReference?: string,

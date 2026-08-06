@@ -36,7 +36,7 @@ describe('CTraceYamlDocument', () => {
             {
                 location: 'mySymbol',
                 access: 'RW',
-                size: '8',
+                size: 8,
                 pc: 'no'
             }
         ]);

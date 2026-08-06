@@ -13,11 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
-import * as YAML from 'yaml';
+import { CTreeItem, ETreeItemKind, ITreeItem } from '@open-cmsis-pack/cmsis-common/tree-item';
+import { CTreeItemBuilder } from '@open-cmsis-pack/cmsis-common/tree-item-builder';
+import { CTreeItemYamlParser } from '@open-cmsis-pack/cmsis-common/tree-item-yaml-parser';
 
 export type YamlPathSegment = string | number;
 export type YamlPath = readonly YamlPathSegment[];
+export type YamlTreeItem = ITreeItem<CTreeItem>;
+export type YamlMapItem = YamlTreeItem & { getKind(): ETreeItemKind.Map };
+export type YamlSequenceItem = YamlTreeItem & { getKind(): ETreeItemKind.Sequence };
+export type YamlScalarItem = YamlTreeItem & { getKind(): ETreeItemKind.Scalar };
 
 export type YamlNodeKind = 'document' | 'map' | 'sequence' | 'scalar' | 'missing';
 
@@ -40,13 +47,7 @@ export interface YamlSetOptions {
     scalarStyle?: YamlScalarStyle;
 }
 
-const YAML_STRINGIFY_OPTIONS = {
-    defaultKeyType: 'PLAIN' as const,
-    defaultStringType: 'PLAIN' as const,
-    nullStr: ''
-};
-
-const SCALAR_TYPE_BY_STYLE: Record<YamlScalarStyle, YAML.Scalar.Type> = {
+const SCALAR_TYPE_BY_STYLE: Record<YamlScalarStyle, string> = {
     plain: 'PLAIN',
     'single-quoted': 'QUOTE_SINGLE',
     'double-quoted': 'QUOTE_DOUBLE',
@@ -54,216 +55,168 @@ const SCALAR_TYPE_BY_STYLE: Record<YamlScalarStyle, YAML.Scalar.Type> = {
     'block-literal': 'BLOCK_LITERAL'
 };
 
-function createPlainScalarSchema(): YAML.Schema {
-    const schema = new YAML.Schema({ schema: 'core' }).clone();
-    schema.tags = schema.tags.map(tag => {
-        const suffix = tag.tag.split(':').pop();
-        switch (suffix) {
-            case 'bool':
-            case 'int':
-            case 'float':
-                return {
-                    ...tag,
-                    test: /^$a/
-                } as YAML.ScalarTag;
-            default:
-                return tag;
-        }
+export function isYamlMapItem(item: YamlTreeItem | undefined): item is YamlMapItem {
+    return item?.getKind() === ETreeItemKind.Map;
+}
+
+export function isYamlSequenceItem(item: YamlTreeItem | undefined): item is YamlSequenceItem {
+    return item?.getKind() === ETreeItemKind.Sequence;
+}
+
+export function isYamlScalarItem(item: YamlTreeItem | undefined): item is YamlScalarItem {
+    return item?.getKind() === ETreeItemKind.Scalar;
+}
+
+export function yamlScalarToString(item: YamlTreeItem): string {
+    return item.getText() ?? '';
+}
+
+export function createYamlScalarItem(tag = '', value?: string | number | boolean | null): YamlTreeItem {
+    const item = new CTreeItem(tag);
+    item.fromObject(value ?? null);
+    return item;
+}
+
+export function createYamlMapItem(tag = ''): YamlTreeItem {
+    const item = new CTreeItem(tag);
+    item.setKind(ETreeItemKind.Map);
+    return item;
+}
+
+export function createYamlSequenceItem(tag = ''): YamlTreeItem {
+    const item = new CTreeItem(tag);
+    item.setKind(ETreeItemKind.Sequence);
+    return item;
+}
+
+function createParser(fileName?: string): CTreeItemYamlParser {
+    return new CTreeItemYamlParser(new CTreeItemBuilder(fileName));
+}
+
+function createRootItem(): YamlTreeItem {
+    return createYamlMapItem('');
+}
+
+function toDiagnostic(message: string, line: number, column: number, fileName?: string): YamlDiagnostic {
+    const diagnostic: YamlDiagnostic = { message, line, column };
+    if (fileName) {
+        diagnostic.fileName = fileName;
+    }
+    return diagnostic;
+}
+
+function parseDiagnostics(parser: CTreeItemYamlParser, fileName?: string): YamlDiagnostic[] {
+    return (parser.yamlDocument?.errors ?? []).map(error => {
+        const linePosition = error.linePos?.[0];
+        return toDiagnostic(
+            error.message,
+            linePosition?.line ?? 0,
+            linePosition?.col ?? 0,
+            fileName
+        );
     });
-    return schema;
 }
 
-const PLAIN_SCALAR_SCHEMA = createPlainScalarSchema();
-
-function toPath(path: YamlPath): (string | number)[] {
-    return [...path];
+function isEmptyRoot(item: YamlTreeItem): boolean {
+    return item.getKind() === ETreeItemKind.Undefined
+        && item.getChildren().length === 0
+        && item.getText() === undefined;
 }
 
-function scalarSource(node: YAML.Scalar): string | undefined {
-    if (node.value === null || node.value === undefined) {
+function kindForValue(value: unknown): ETreeItemKind {
+    if (Array.isArray(value)) {
+        return ETreeItemKind.Sequence;
+    }
+    if (typeof value === 'object' && value !== null) {
+        return ETreeItemKind.Map;
+    }
+    return ETreeItemKind.Scalar;
+}
+
+function kindForPathSegment(nextSegment: YamlPathSegment | undefined): ETreeItemKind {
+    return typeof nextSegment === 'number' ? ETreeItemKind.Sequence : ETreeItemKind.Map;
+}
+
+function getCommentsProperty(item: YamlTreeItem): YamlComments | undefined {
+    const comments = item.getProperty('comments');
+    if (!comments || typeof comments !== 'object') {
         return undefined;
     }
-    if (node.type === 'QUOTE_DOUBLE' || node.type === 'QUOTE_SINGLE') {
-        return String(node.value);
-    }
-    return node.source ?? String(node.value);
-}
-
-function normalizeScalarSources(node: YAML.Node | null | undefined): void {
-    if (!node) {
-        return;
-    }
-    if (YAML.isScalar(node)) {
-        if (node.source !== undefined && node.value !== null && typeof node.value !== 'string') {
-            node.value = node.source;
-        }
-        return;
-    }
-    if (YAML.isSeq(node)) {
-        node.items.forEach(item => {
-            if (YAML.isNode(item)) {
-                normalizeScalarSources(item);
-            }
-        });
-        return;
-    }
-    if (YAML.isMap(node)) {
-        node.items.forEach(pair => {
-            if (YAML.isNode(pair.key)) {
-                normalizeScalarSources(pair.key);
-            }
-            if (YAML.isNode(pair.value)) {
-                normalizeScalarSources(pair.value);
-            }
-        });
-    }
-}
-
-function nodeToJS(node: YAML.Node | undefined): unknown {
-    if (!node) {
-        return undefined;
-    }
-    if (YAML.isScalar(node)) {
-        return node.value ?? undefined;
-    }
-    if (YAML.isSeq(node)) {
-        return node.items.map(item => YAML.isNode(item) ? nodeToJS(item) : undefined);
-    }
-    if (YAML.isMap(node)) {
-        const object = Object.create(null) as Record<string, unknown>;
-        node.items.forEach(pair => {
-            const key = YAML.isScalar(pair.key) ? scalarSource(pair.key) : pair.key?.toString();
-            if (key !== undefined && YAML.isNode(pair.value)) {
-                Object.defineProperty(object, key, {
-                    value: nodeToJS(pair.value),
-                    enumerable: true,
-                    configurable: true,
-                    writable: true
-                });
-            }
-        });
-        return object;
-    }
-    return undefined;
-}
-
-function getComments(node: YAML.Node | YAML.Document | undefined): YamlComments | undefined {
-    if (!node) {
-        return undefined;
-    }
-    const comments: YamlComments = {};
-    if (node.comment !== undefined) {
-        comments.comment = node.comment;
-    }
-    if (node.commentBefore !== undefined) {
-        comments.commentBefore = node.commentBefore;
-    }
-    if (YAML.isNode(node) && node.spaceBefore !== undefined) {
-        comments.spaceBefore = node.spaceBefore;
-    }
-    return Object.keys(comments).length ? comments : undefined;
-}
-
-function setComments(node: YAML.Node | YAML.Document, comments: YamlComments | undefined): void {
-    if (!comments) {
-        return;
-    }
-    if (comments.comment !== undefined) {
-        node.comment = comments.comment;
-    }
-    if (comments.commentBefore !== undefined) {
-        node.commentBefore = comments.commentBefore;
-    }
-    if (YAML.isNode(node) && comments.spaceBefore !== undefined && comments.spaceBefore !== null) {
-        node.spaceBefore = comments.spaceBefore;
-    }
+    return comments as YamlComments;
 }
 
 export class YamlDomDocument {
-    private readonly plainScalarSchema = PLAIN_SCALAR_SCHEMA;
+    private readonly parser: CTreeItemYamlParser;
 
     private constructor(
-        private readonly yamlDocument: YAML.Document,
-        public readonly diagnostics: YamlDiagnostic[] = []
+        private root: YamlTreeItem,
+        public readonly diagnostics: YamlDiagnostic[] = [],
+        parser?: CTreeItemYamlParser
     ) {
-        this.yamlDocument.schema = this.plainScalarSchema;
+        this.parser = parser ?? createParser();
     }
 
     public static parse(text: string, fileName?: string): YamlDomDocument {
-        const document = YAML.parseDocument(text);
-        normalizeScalarSources(document.contents);
-        const diagnostics = document.errors.map(error => {
-            const linePosition = error.linePos?.[0];
-            const diagnostic: YamlDiagnostic = {
-                message: error.message,
-                line: linePosition?.line ?? 0,
-                column: linePosition?.col ?? 0
-            };
-            if (fileName) {
-                diagnostic.fileName = fileName;
-            }
-            return diagnostic;
-        });
-        return new YamlDomDocument(document, diagnostics);
+        const parser = createParser(fileName);
+        const root = parser.parse(text);
+        return new YamlDomDocument(root, parseDiagnostics(parser, fileName), parser);
     }
 
     public static create(rootKey?: string): YamlDomDocument {
-        const document = new YAML.Document(YAML_STRINGIFY_OPTIONS);
-        document.contents = new YAML.YAMLMap();
-        const dom = new YamlDomDocument(document);
+        const dom = new YamlDomDocument(createRootItem());
         if (rootKey) {
             dom.ensureMap([rootKey]);
         }
         return dom;
     }
 
-    public get document(): YAML.Document {
-        return this.yamlDocument;
+    public get rootItem(): YamlTreeItem {
+        return this.root;
     }
 
     public get hasErrors(): boolean {
         return this.diagnostics.length > 0;
     }
 
-    public getNode(path: YamlPath = []): YAML.Node | undefined {
-        if (path.length === 0) {
-            return this.yamlDocument.contents ?? undefined;
+    public getItem(path: YamlPath = []): YamlTreeItem | undefined {
+        let current: YamlTreeItem | undefined = this.root;
+        for (const segment of path) {
+            if (!current) {
+                return undefined;
+            }
+            current = typeof segment === 'number'
+                ? current.childAtIndex(segment)
+                : current.getChild(segment);
         }
-        const node = this.yamlDocument.getIn(toPath(path), true);
-        return YAML.isNode(node) ? node : undefined;
+        return current && !isEmptyRoot(current) ? current : undefined;
     }
 
     public getKind(path: YamlPath = []): YamlNodeKind {
-        if (path.length === 0 && this.yamlDocument.contents === null) {
+        const item = this.getItem(path);
+        if (!item) {
             return 'missing';
         }
-        if (path.length === 0 && this.yamlDocument.contents === undefined) {
-            return 'missing';
+        switch (item.getKind()) {
+            case ETreeItemKind.Map:
+                return 'map';
+            case ETreeItemKind.Sequence:
+                return 'sequence';
+            case ETreeItemKind.Scalar:
+                return 'scalar';
+            case ETreeItemKind.Undefined:
+            default:
+                return 'document';
         }
-        const node = this.getNode(path);
-        if (!node) {
-            return 'missing';
-        }
-        if (YAML.isMap(node)) {
-            return 'map';
-        }
-        if (YAML.isSeq(node)) {
-            return 'sequence';
-        }
-        if (YAML.isScalar(node)) {
-            return 'scalar';
-        }
-        return 'document';
     }
 
     public getValue<T = unknown>(path: YamlPath = []): T | undefined {
-        const value = path.length === 0 ? nodeToJS(this.yamlDocument.contents ?? undefined) : nodeToJS(this.getNode(path));
-        return value as T | undefined;
+        const item = this.getItem(path);
+        return item ? item.toObject() as T : undefined;
     }
 
     public getScalarSource(path: YamlPath): string | undefined {
-        const node = this.getNode(path);
-        return YAML.isScalar(node) ? scalarSource(node) : undefined;
+        const item = this.getItem(path);
+        return isYamlScalarItem(item) ? yamlScalarToString(item) : undefined;
     }
 
     public getString(path: YamlPath): string | undefined {
@@ -281,110 +234,111 @@ export class YamlDomDocument {
     }
 
     public getComments(path: YamlPath = []): YamlComments | undefined {
-        if (path.length === 0) {
-            return getComments(this.yamlDocument);
-        }
-        return getComments(this.getNode(path));
+        const item = this.getItem(path);
+        return item ? getCommentsProperty(item) : undefined;
     }
 
     public setComments(path: YamlPath, comments: YamlComments): void {
-        if (path.length === 0) {
-            setComments(this.yamlDocument, comments);
-            return;
-        }
-        const node = this.getNode(path);
-        if (node) {
-            setComments(node, comments);
-        }
+        this.getItem(path)?.setProperty('comments', comments);
     }
 
     public set(path: YamlPath, value: unknown, options: YamlSetOptions = {}): void {
-        if (path.length === 0) {
-            const node = this.createNode(value, options);
-            this.yamlDocument.contents = node;
-            return;
+        const item = this.ensureItem(path, kindForValue(value));
+        item.fromObject(value ?? null);
+        if (isYamlScalarItem(item) && options.scalarStyle) {
+            item.scalarType = SCALAR_TYPE_BY_STYLE[options.scalarStyle];
         }
-        this.ensureParentFor(path);
-        this.yamlDocument.setIn(toPath(path), this.createNode(value, options));
     }
 
     public delete(path: YamlPath): boolean {
         if (path.length === 0) {
-            this.yamlDocument.contents = null;
+            this.root = new CTreeItem('');
             return true;
         }
-        return this.yamlDocument.deleteIn(toPath(path));
+        const parentPath = path.slice(0, -1);
+        const segment = path.at(-1);
+        const parent = this.getItem(parentPath);
+        if (!parent || segment === undefined) {
+            return false;
+        }
+        const child = typeof segment === 'number'
+            ? parent.childAtIndex(segment)
+            : parent.getChild(segment);
+        if (!child) {
+            return false;
+        }
+        parent.removeChild(child);
+        return true;
     }
 
-    public ensureMap(path: YamlPath): YAML.YAMLMap {
-        const existing = this.getNode(path);
-        if (YAML.isMap(existing)) {
-            return existing;
-        }
-        const map = new YAML.YAMLMap();
-        if (path.length === 0) {
-            this.yamlDocument.contents = map;
-            return map;
-        }
-        this.ensureParentFor(path);
-        this.yamlDocument.setIn(toPath(path), map);
-        return map;
+    public ensureMap(path: YamlPath): YamlTreeItem {
+        return this.ensureItem(path, ETreeItemKind.Map);
     }
 
-    public ensureSequence(path: YamlPath): YAML.YAMLSeq {
-        const existing = this.getNode(path);
-        if (YAML.isSeq(existing)) {
-            return existing;
-        }
-        const sequence = new YAML.YAMLSeq();
-        if (path.length === 0) {
-            this.yamlDocument.contents = sequence;
-            return sequence;
-        }
-        this.ensureParentFor(path);
-        this.yamlDocument.setIn(toPath(path), sequence);
-        return sequence;
+    public ensureSequence(path: YamlPath): YamlTreeItem {
+        return this.ensureItem(path, ETreeItemKind.Sequence);
     }
 
     public append(path: YamlPath, value: unknown, options: YamlSetOptions = {}): void {
         const sequence = this.ensureSequence(path);
-        sequence.add(this.createNode(value, options));
+        const child = sequence.createChild('-');
+        child.fromObject(value ?? null);
+        if (isYamlScalarItem(child) && options.scalarStyle) {
+            child.scalarType = SCALAR_TYPE_BY_STYLE[options.scalarStyle];
+        }
     }
 
     public toJS<T = unknown>(): T {
-        return this.yamlDocument.toJS() as T;
+        return this.root.toObject() as T;
     }
 
     public toString(): string {
-        this.yamlDocument.schema = this.plainScalarSchema;
-        return this.yamlDocument.toString(YAML_STRINGIFY_OPTIONS);
+        return this.parser.toString(this.root);
     }
 
-    private ensureParentFor(path: YamlPath): void {
-        let currentPath: YamlPathSegment[] = [];
-        for (let index = 0; index < path.length - 1; index++) {
-            const segment = path.at(index);
-            const nextSegment = path.at(index + 1);
-            if (segment === undefined || nextSegment === undefined) {
-                return;
-            }
-            currentPath = [...currentPath, segment];
-            const node = this.getNode(currentPath);
-            if (typeof nextSegment === 'number') {
-                if (!YAML.isSeq(node)) {
-                    this.ensureSequence(currentPath);
-                }
-            } else if (!YAML.isMap(node)) {
-                this.ensureMap(currentPath);
-            }
+    private ensureItem(path: YamlPath, itemKind: ETreeItemKind): YamlTreeItem {
+        if (path.length === 0) {
+            this.setItemKind(this.root, itemKind);
+            return this.root;
         }
+        let current = this.root;
+        this.setItemKind(current, kindForPathSegment(path.at(0)));
+        path.forEach((segment, index) => {
+            const nextKind = index === path.length - 1
+                ? itemKind
+                : kindForPathSegment(path.at(index + 1));
+            current = typeof segment === 'number'
+                ? this.ensureSequenceChild(current, segment, nextKind)
+                : this.ensureMapChild(current, segment, nextKind);
+        });
+        return current;
     }
 
-    private createNode(value: unknown, options: YamlSetOptions): YAML.Node {
-        const node = this.yamlDocument.createNode(value) as YAML.Node;
-        if (YAML.isScalar(node) && options.scalarStyle) {
-            node.type = SCALAR_TYPE_BY_STYLE[options.scalarStyle];
+    private ensureMapChild(parent: YamlTreeItem, tag: string, kind: ETreeItemKind): YamlTreeItem {
+        this.setItemKind(parent, ETreeItemKind.Map);
+        const child = parent.getChild(tag) ?? parent.createChild(tag);
+        this.setItemKind(child, kind);
+        return child;
+    }
+
+    private ensureSequenceChild(parent: YamlTreeItem, index: number, kind: ETreeItemKind): YamlTreeItem {
+        this.setItemKind(parent, ETreeItemKind.Sequence);
+        for (let childIndex = parent.getChildren().length; childIndex <= index; childIndex++) {
+            parent.createChild('-').fromObject(null);
         }
-        return node;
+        const child = parent.childAtIndex(index);
+        if (!child) {
+            throw new Error(`Unable to create YAML sequence item at index ${index}.`);
+        }
+        this.setItemKind(child, kind);
+        return child;
+    }
+
+    private setItemKind(item: YamlTreeItem, kind: ETreeItemKind): void {
+        if (item.getKind() !== kind) {
+            item.setText(undefined);
+            item.removeChildrenNotInTags([]);
+        }
+        item.setKind(kind);
     }
 }
