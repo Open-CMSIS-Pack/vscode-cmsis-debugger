@@ -14,51 +14,9 @@
  * limitations under the License.
  */
 
-import { Disposable, TextFileAdapter, TextFileStamp, YamlDomFile } from './yaml-file';
+import { MemoryTextFileAdapter } from '../__test__/memory-text-file-adapter';
+import { YamlDomFile } from './yaml-file';
 import { YamlDomDocument } from './yaml-dom';
-
-class MemoryTextFileAdapter implements TextFileAdapter {
-    public text = '';
-    private version = 0;
-    private readonly listeners: (() => void)[] = [];
-
-    constructor(text: string) {
-        this.text = text;
-    }
-
-    public async readTextFile(_fileName: string): Promise<string> {
-        return this.text;
-    }
-
-    public async writeTextFile(_fileName: string, contents: string): Promise<void> {
-        this.update(contents);
-    }
-
-    public async stat(_fileName: string): Promise<TextFileStamp> {
-        return {
-            mtimeMs: this.version,
-            size: this.text.length
-        };
-    }
-
-    public watch(_fileName: string, onDidChange: () => void): Disposable {
-        this.listeners.push(onDidChange);
-        return {
-            dispose: () => {
-                const index = this.listeners.indexOf(onDidChange);
-                if (index >= 0) {
-                    this.listeners.splice(index, 1);
-                }
-            }
-        };
-    }
-
-    public update(text: string): void {
-        this.text = text;
-        this.version++;
-        this.listeners.forEach(listener => listener());
-    }
-}
 
 describe('YamlDomDocument', () => {
     it('reads scalar source text and updates YAML without quoting hex strings', () => {

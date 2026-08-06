@@ -18,7 +18,7 @@
 import * as vscode from 'vscode';
 
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
-import { Disposable, TextFileAdapter, TextFileStamp } from '../../generic/yaml-file';
+import { MemoryTextFileAdapter } from '../../__test__/memory-text-file-adapter';
 import { TraceConfigurationModel } from './trace-configuration-model';
 import { TraceConfigurationProcessorCapabilities } from './trace-configuration-processor-capabilities';
 import * as TraceConfigurationTypes from './trace-configuration-types';
@@ -30,54 +30,6 @@ interface TraceConfigurationModelPrivate {
 
 interface TraceConfigurationProcessorCapabilitiesPrivate {
     processorCapabilities: Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities>;
-}
-
-class MemoryTextFileAdapter implements TextFileAdapter {
-    public writeCount = 0;
-    private version = 0;
-    private readonly listeners: (() => void)[] = [];
-
-    public constructor(public text: string) {}
-
-    public async readTextFile(_fileName: string): Promise<string> {
-        return this.text;
-    }
-
-    public async writeTextFile(_fileName: string, contents: string): Promise<void> {
-        this.text = contents;
-        this.writeCount++;
-        this.version++;
-        this.listeners.forEach(listener => listener());
-    }
-
-    public async stat(_fileName: string): Promise<TextFileStamp> {
-        return {
-            mtimeMs: this.version,
-            size: this.text.length
-        };
-    }
-
-    public watch(_fileName: string, onDidChange: () => void): Disposable {
-        this.listeners.push(onDidChange);
-        return {
-            dispose: () => {
-                const index = this.listeners.indexOf(onDidChange);
-                if (index >= 0) {
-                    this.listeners.splice(index, 1);
-                }
-            }
-        };
-    }
-
-    public listenerCount(): number {
-        return this.listeners.length;
-    }
-
-    public simulateExternalChange(text: string): void {
-        this.text = text;
-        this.version++;
-        this.listeners.forEach(listener => listener());
-    }
 }
 
 function createCapabilities(pname = 'cm33'): Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities> {

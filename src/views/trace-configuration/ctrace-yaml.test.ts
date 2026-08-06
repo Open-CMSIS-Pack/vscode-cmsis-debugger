@@ -16,47 +16,7 @@
 // generated with AI
 
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
-import { Disposable, TextFileAdapter, TextFileStamp } from '../../generic/yaml-file';
-
-class MemoryTextFileAdapter implements TextFileAdapter {
-    private version = 0;
-    private readonly listeners: (() => void)[] = [];
-
-    constructor(public text: string) {}
-
-    public async readTextFile(_fileName: string): Promise<string> {
-        return this.text;
-    }
-
-    public async writeTextFile(_fileName: string, contents: string): Promise<void> {
-        this.update(contents);
-    }
-
-    public async stat(_fileName: string): Promise<TextFileStamp> {
-        return {
-            mtimeMs: this.version,
-            size: this.text.length
-        };
-    }
-
-    public watch(_fileName: string, onDidChange: () => void): Disposable {
-        this.listeners.push(onDidChange);
-        return {
-            dispose: () => {
-                const index = this.listeners.indexOf(onDidChange);
-                if (index >= 0) {
-                    this.listeners.splice(index, 1);
-                }
-            }
-        };
-    }
-
-    public update(text: string): void {
-        this.text = text;
-        this.version++;
-        this.listeners.forEach(listener => listener());
-    }
-}
+import { MemoryTextFileAdapter } from '../../__test__/memory-text-file-adapter';
 
 describe('CTraceYamlDocument', () => {
     it('reads and updates user-authored trace data entries', () => {
