@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-// NOTE: Keep vscode imports out of this file.
-// Mocking path in this module's tests causes trouble with path-require in global vscode mock.
-// Can be merged once we found a better solution for path usage in global vscode mock.
-
 import * as os from 'os';
 import * as path from 'path';
+import * as vscode from 'vscode';
+import { logger } from './logger';
 
 export const isWindows = os.platform() === 'win32';
 
@@ -87,3 +85,23 @@ export const calculateTime = (states: bigint, frequency: number): string => {
 export const waitForMs = async (ms: number): Promise<void> => {
     return new Promise<void>(resolve => setTimeout(() => resolve(), ms));
 };
+
+export class FileLocationManager {
+    private readonly CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND = 'cmsis-csolution.getCbuildRunFile';
+    /**
+     * getCBuildRunFileName asks the CMSIS Solution extension for the active
+     * target's generated cbuild-run file. Empty results and command failures are
+     * treated as "not available" so the trace view can still fall back to the
+     * processor names already present in ctrace.yml.
+     */
+    public async getCBuildRunFileName(): Promise<string | undefined> {
+        try {
+            const fileName = await vscode.commands.executeCommand<string | undefined>(this.CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
+            return fileName?.trim() ? fileName : undefined;
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logger.debug(`Failed to get active cbuild-run file from CMSIS Solution: ${errorMessage}`);
+            return undefined;
+        }
+    }
+}

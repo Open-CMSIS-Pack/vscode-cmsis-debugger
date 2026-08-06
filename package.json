@@ -72,6 +72,13 @@
           "type": "webview",
           "name": "Core Peripherals",
           "icon": "media/trace-and-live-light.svg"
+        },
+        {
+          "id": "cmsis-debugger.traceConfiguration",
+          "type": "webview",
+          "name": "Trace Generation",
+          "icon": "media/trace-and-live-light.svg",
+          "when": "config.vscode-cmsis-debugger.enableTraceGenerationView"
         }
       ]
     },
@@ -816,7 +823,8 @@
         }
       }
     ],
-    "configuration": {
+    "configuration": [
+      {
       "title": "CMSIS Debugger",
       "properties": {
         "vscode-cmsis-debugger.viewState": {
@@ -856,7 +864,18 @@
           }
         }
       }
-    }
+      },
+      {
+        "title": "Enable Trace Generation View",
+        "properties": {
+          "vscode-cmsis-debugger.enableTraceGenerationView": {
+            "type": "boolean",
+            "default": false,
+            "description": "Enable Trace Generation View in the Debug Panel."
+          }
+        }
+      }
+    ]
   },
   "scripts": {
     "prepare": "npm run build",
