@@ -17,6 +17,7 @@
 import * as path from 'path';
 import { CbuildRunReader } from './cbuild-run-reader';
 import { getCmsisPackRootPath } from '../utils';
+import { FileReader } from '../desktop/file-reader';
 
 const TEST_CBUILD_RUN_FILE = 'test-data/multi-core.cbuild-run.yml'; // Relative to repo root
 const TEST_FILE_PATH = 'test-data/fileReaderTest.txt'; // Relative to repo root
@@ -24,6 +25,14 @@ const PACK_ROOT = '/my/pack/root';
 
 const EXPECTED_CUSTOM_SVD = path.resolve(path.dirname(TEST_CBUILD_RUN_FILE), '../../MyDevice/multi-core-custom.svd');
 const EXPECTED_CUSTOM_SCVD = path.resolve(path.dirname(TEST_CBUILD_RUN_FILE), '../../MyDevice/multi-core-custom.scvd');
+
+class StringFileReader implements FileReader {
+    public constructor(private readonly contents: string) {}
+
+    public async readFileToString(_filePath: string): Promise<string> {
+        return this.contents;
+    }
+}
 
 // Compare function that compares path and allows differing drive letter casing on Windows.
 const comparePath = (received: string|undefined, expected: string): boolean => {
@@ -150,6 +159,33 @@ describe('CbuildRunReader', () => {
             await cbuildRunReader.parse(TEST_CBUILD_RUN_FILE);
             const pnames = cbuildRunReader.getPnames();
             expect(pnames).toEqual(['Core0', 'Core1']);
+        });
+
+        it('returns processors from system resources', async () => {
+            const reader = new CbuildRunReader(new StringFileReader([
+                'cbuild-run:',
+                '  output: []',
+                '  debugger:',
+                '    name: <default>',
+                '  debug-vars:',
+                '    vars: ""',
+                '  system-resources:',
+                '    processors:',
+                '      - pname: Core0',
+                '        core: Cortex-M3',
+                '        revision: r2p1',
+                '        max-clock: 120000000',
+                '      - pname: Core1',
+                '        core: Cortex-M55',
+                '        revision: r1p0',
+                '        max-clock: 200000000',
+            ].join('\n')));
+            await reader.parse('test.cbuild-run.yml');
+
+            expect(reader.getProcessors().map(processor => ({ pname: processor.pname, core: processor.core }))).toEqual([
+                { pname: 'Core0', core: 'Cortex-M3' },
+                { pname: 'Core1', core: 'Cortex-M55' },
+            ]);
         });
 
         it.each([
