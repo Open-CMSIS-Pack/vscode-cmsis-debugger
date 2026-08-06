@@ -303,7 +303,7 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(findRow(state, ['ctrace', 'setup', 0, 'tracehalt', 0, 'access']).options).toEqual(TraceConfigurationTypes.CONDITION_ACCESS_OPTIONS);
     });
 
-    it('hides add controls when shared DWT comparator entries reach the processor limit', () => {
+    it('disables add controls when shared DWT comparator entries reach the processor limit', () => {
         const state = createStateFromYaml([
             'ctrace:',
             '  setup:',
@@ -320,10 +320,20 @@ describe('TraceConfigurationRowBuilder', () => {
             ''
         ].join('\n'));
 
-        expect(findRow(state, ['ctrace', 'setup', 0, 'data']).addChildKind).toBeUndefined();
-        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'start']).addChildKind).toBeUndefined();
-        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'stop']).addChildKind).toBeUndefined();
-        expect(findRow(state, ['ctrace', 'setup', 0, 'tracehalt']).addChildKind).toBeUndefined();
+        const disabledReason = 'Maximum number of comparators has been reached for cm33';
+        const dataRow = findRow(state, ['ctrace', 'setup', 0, 'data']);
+        const startRow = findRow(state, ['ctrace', 'setup', 0, 'instructions', 'start']);
+        const stopRow = findRow(state, ['ctrace', 'setup', 0, 'instructions', 'stop']);
+        const traceHaltRow = findRow(state, ['ctrace', 'setup', 0, 'tracehalt']);
+
+        expect(dataRow.addChildKind).toBe('data');
+        expect(startRow.addChildKind).toBe('start');
+        expect(stopRow.addChildKind).toBe('stop');
+        expect(traceHaltRow.addChildKind).toBe('condition');
+        expect(dataRow.addChildDisabledReason).toBe(disabledReason);
+        expect(startRow.addChildDisabledReason).toBe(disabledReason);
+        expect(stopRow.addChildDisabledReason).toBe(disabledReason);
+        expect(traceHaltRow.addChildDisabledReason).toBe(disabledReason);
     });
 
     it('keeps editable trace item fields in static schema order', () => {

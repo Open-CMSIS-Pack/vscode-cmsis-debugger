@@ -98,6 +98,53 @@ button {
     background: var(--vscode-button-secondaryHoverBackground, #454545);
 }
 
+.icon-button:disabled {
+    opacity: 0.45;
+    cursor: default;
+    pointer-events: none;
+}
+
+.icon-button:disabled:hover {
+    background: var(--vscode-button-secondaryBackground, #3c3c3c);
+}
+
+.add-button-wrapper {
+    display: inline-flex;
+    position: relative;
+}
+
+.tooltip-wrapper {
+    outline: none;
+}
+
+.tooltip-wrapper::after {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    z-index: 10;
+    display: none;
+    max-width: min(220px, 70vw);
+    padding: 3px 5px;
+    border: 1px solid var(--vscode-editorWidget-border, var(--vscode-panel-border, #454545));
+    border-radius: 2px;
+    background: var(--vscode-editorWidget-background, #252526);
+    color: var(--vscode-editorWidget-foreground, var(--vscode-foreground, #cccccc));
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    content: attr(data-tooltip);
+    font-size: 11px;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+    pointer-events: none;
+    transform: translateX(-50%);
+    white-space: normal;
+    width: max-content;
+}
+
+.tooltip-wrapper:hover::after,
+.tooltip-wrapper:focus-visible::after {
+    display: block;
+}
+
 .add-button {
     width: 22px;
     height: 22px;

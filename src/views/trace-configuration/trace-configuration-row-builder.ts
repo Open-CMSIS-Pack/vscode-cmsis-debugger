@@ -244,6 +244,7 @@ export class TraceConfigurationRowBuilder {
             expanded: this.hasInlineMultiSelect(nodePath) ? false : expanded,
             removable: typeof nodePath.at(-1) === 'number' && nodePath.at(-2) !== 'setup',
             addChildKind: this.getRowAddChildKind(node, nodePath),
+            addChildDisabledReason: this.getRowAddChildDisabledReason(node, nodePath),
             description: this.describeNode(node, nodePath)
         };
         return row;
@@ -251,18 +252,32 @@ export class TraceConfigurationRowBuilder {
 
     /**
      * getRowAddChildKind decides whether a sequence row should expose an add
-     * button. It preserves the normal starter-object behavior, but suppresses
-     * additions for features backed by the shared DWT comparator pool when the
-     * selected processor has no comparator channels left.
+     * button. It preserves the normal starter-object behavior; comparator
+     * limits are represented separately so the webview can keep the button
+     * visible in a disabled state.
      */
     private getRowAddChildKind(node: YAML.Node, nodePath: (string | number)[]): TraceConfigurationRow['addChildKind'] {
         if ((!YAML.isSeq(node) && !this.isBareSequenceNode(node, nodePath)) || nodePath.at(-1) === 'setup' || this.hasInlineMultiSelect(nodePath)) {
             return undefined;
         }
-        if (!this.canAddSharedDwtComparatorEntry(nodePath)) {
+        return this.getAddChildKind(nodePath);
+    }
+
+    /**
+     * getRowAddChildDisabledReason explains why an otherwise-addable row cannot
+     * accept more entries. The processor name comes from the loaded trace
+     * capability metadata, which is built from the active cbuild-run.yml pname
+     * when that file is available.
+     */
+    private getRowAddChildDisabledReason(node: YAML.Node, nodePath: (string | number)[]): string | undefined {
+        if (!this.getRowAddChildKind(node, nodePath)) {
             return undefined;
         }
-        return this.getAddChildKind(nodePath);
+        const usage = this.getSharedDwtComparatorUsage(nodePath);
+        if (!usage || usage.used < usage.limit) {
+            return undefined;
+        }
+        return `Maximum number of comparators has been reached for ${usage.pname}`;
     }
 
     /**
@@ -281,7 +296,7 @@ export class TraceConfigurationRowBuilder {
      * comparator-backed sequence. Each list entry consumes one comparator in
      * the UI accounting model.
      */
-    public getSharedDwtComparatorUsage(nodePath: (string | number)[]): { used: number; limit: number } | undefined {
+    public getSharedDwtComparatorUsage(nodePath: (string | number)[]): { used: number; limit: number; pname: string } | undefined {
         if (!this.isSharedDwtComparatorSequencePath(nodePath)) {
             return undefined;
         }
@@ -291,7 +306,8 @@ export class TraceConfigurationRowBuilder {
         }
         return {
             used: this.countSharedDwtComparatorEntries(nodePath),
-            limit: capabilities.dwtComparators
+            limit: capabilities.dwtComparators,
+            pname: capabilities.pname
         };
     }
 

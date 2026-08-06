@@ -356,17 +356,28 @@ function createSelectionCell(row: TraceConfigurationRow): HTMLTableCellElement {
  * createAddButton renders the plus button for editable YAML sequences. The
  * host decides what placeholder object should be appended based on addChildKind.
  */
-function createAddButton(row: TraceConfigurationRow): HTMLButtonElement {
+function createAddButton(row: TraceConfigurationRow): HTMLElement {
+    const wrapper = createElement('span', 'add-button-wrapper');
     const button = createElement('button', 'icon-button add-button');
     button.type = 'button';
-    button.title = 'Add item';
-    button.setAttribute('aria-label', `Add item to ${row.label}`);
+    const disabledReason = row.addChildDisabledReason;
+    button.disabled = Boolean(disabledReason);
+    button.setAttribute('aria-label', disabledReason ?? `Add item to ${row.label}`);
     button.append(createIcon('add'));
-    button.addEventListener('click', event => {
-        event.stopPropagation();
-        post({ type: 'addItem', path: row.path, addChildKind: row.addChildKind ?? 'generic-map' });
-    });
-    return button;
+    if (disabledReason) {
+        wrapper.classList.add('tooltip-wrapper');
+        wrapper.dataset.tooltip = disabledReason;
+        wrapper.tabIndex = 0;
+        wrapper.setAttribute('aria-label', disabledReason);
+    } else {
+        button.title = 'Add item';
+        button.addEventListener('click', event => {
+            event.stopPropagation();
+            post({ type: 'addItem', path: row.path, addChildKind: row.addChildKind ?? 'generic-map' });
+        });
+    }
+    wrapper.append(button);
+    return wrapper;
 }
 
 /**
