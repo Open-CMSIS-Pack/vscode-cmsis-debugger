@@ -204,7 +204,40 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'output']).options).not.toContain('');
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'match']).label).toBe('Match');
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'match', 'size']).options).toEqual(TraceConfigurationTypes.MATCH_SIZE_OPTIONS);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'match', 'size']).options).not.toContain('');
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'pc']).options).toEqual(['yes', 'no']);
+    });
+
+    it('disables match size until match value is provided', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: Core0',
+            '      data:',
+            '        - location: watchSymbol',
+            '          match:',
+            '      instructions:',
+            '        start:',
+            '          - location: startSymbol',
+            '            match:',
+            '              value: 0x10',
+            '        stop:',
+            '          - location: stopSymbol',
+            '            match:',
+            '      tracehalt:',
+            '        - location: haltSymbol',
+            '          match:',
+            ''
+        ].join('\n'));
+
+        expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'match', 'size']).controlDisabledReason)
+            .toBe('Size can\'t be set if no value is provided');
+        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'start', 0, 'match', 'size']).controlDisabledReason)
+            .toBeUndefined();
+        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'stop', 0, 'match', 'size']).controlDisabledReason)
+            .toBe('Size can\'t be set if no value is provided');
+        expect(findRow(state, ['ctrace', 'setup', 0, 'tracehalt', 0, 'match', 'size']).controlDisabledReason)
+            .toBe('Size can\'t be set if no value is provided');
     });
 
     it('promotes DWT data trace locations to item headers in multi-core files', () => {

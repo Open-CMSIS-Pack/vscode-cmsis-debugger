@@ -48,10 +48,14 @@ button {
     container-type: inline-size;
 }
 
-.tree-toolbar {
+.trace-header {
     position: sticky;
     top: 0;
     z-index: 5;
+    background: var(--vscode-sideBarSectionHeader-background, #252526);
+}
+
+.tree-toolbar {
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -111,6 +115,12 @@ button {
 .add-button-wrapper {
     display: inline-flex;
     position: relative;
+}
+
+.control-tooltip-wrapper {
+    display: block;
+    position: relative;
+    width: 100%;
 }
 
 .tooltip-wrapper {
@@ -184,6 +194,11 @@ select {
     background: var(--vscode-input-background, #3c3c3c);
     color: var(--vscode-input-foreground, #ffffff);
     padding: 3px 6px;
+}
+
+select:disabled {
+    opacity: 0.55;
+    cursor: default;
 }
 
 .multi-select {

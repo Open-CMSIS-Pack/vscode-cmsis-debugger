@@ -29,6 +29,7 @@ export interface TraceConfigurationRow {
     checked?: boolean | undefined;
     options?: string[] | undefined;
     selectedOptions?: string[] | undefined;
+    controlDisabledReason?: string | undefined;
     hasChildren: boolean;
     expanded: boolean;
     removable: boolean;

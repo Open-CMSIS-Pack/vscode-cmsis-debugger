@@ -249,6 +249,7 @@ export class TraceConfigurationRowBuilder {
             checked: this.getCheckedState(node, nodePath, scalarValue),
             options: this.getSelectOptions(label, nodePath),
             selectedOptions: this.getSelectedOptions(node, label, nodePath, scalarValue),
+            controlDisabledReason: this.getControlDisabledReason(nodePath),
             hasChildren,
             expanded: this.hasInlineMultiSelect(nodePath) ? false : expanded,
             removable: typeof nodePath.at(-1) === 'number' && nodePath.at(-2) !== 'setup',
@@ -696,6 +697,13 @@ export class TraceConfigurationRowBuilder {
             return [...nodePath, 'location'];
         }
         return undefined;
+    }
+
+    private getControlDisabledReason(nodePath: (string | number)[]): string | undefined {
+        if (!this.isMatchSizePath(nodePath) || this.hasNonEmptyMatchValue(nodePath)) {
+            return undefined;
+        }
+        return 'Size can\'t be set if no value is provided';
     }
 
     /**
@@ -1208,6 +1216,11 @@ export class TraceConfigurationRowBuilder {
      */
     private nodeExists(nodePath: (string | number)[]): boolean {
         return this.getCTraceFile()?.document?.yaml.getItem(nodePath) !== undefined;
+    }
+
+    private hasNonEmptyMatchValue(matchSizePath: (string | number)[]): boolean {
+        const value = this.getCTraceFile()?.document?.yaml.getString([...matchSizePath.slice(0, -1), 'value']);
+        return value !== undefined && value.trim().length > 0;
     }
 
     /**

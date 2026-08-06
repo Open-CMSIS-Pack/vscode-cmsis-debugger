@@ -25,7 +25,7 @@ export const PRIVILEGED_RANGE_OPTIONS = ['0-7', '8-15', '16-23', '24-31'];
 export const DATA_ACCESS_OPTIONS = ['Read', 'Write', 'Read Write'];
 export const CONDITION_ACCESS_OPTIONS = ['Execute', 'Read', 'Write', 'Read Write'];
 export const DATA_OUTPUT_OPTIONS = ['value', 'offset', 'PC', 'match', 'PC+value', 'offset+value', 'PC+offset'];
-export const MATCH_SIZE_OPTIONS = ['', '1', '2', '4'];
+export const MATCH_SIZE_OPTIONS = ['1', '2', '4'];
 export const STREAM_SYNC_PERIOD_OPTIONS = ['off', '16M', '64M', '256M'];
 export const PC_SAMPLING_PERIOD_OPTIONS = [
     'off',

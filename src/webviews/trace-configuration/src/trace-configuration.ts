@@ -106,7 +106,7 @@ function renderApp(state: TraceConfigurationState): void {
     }
     clearElement(root);
     const surface = createElement('main', 'table-surface');
-    surface.append(createToolbar(), createStatus(state));
+    surface.append(createHeader(state));
     if (state.loading) {
         surface.append(createEmptyState('Loading ctrace.yml...'));
     } else if (state.errorMessage) {
@@ -117,6 +117,16 @@ function renderApp(state: TraceConfigurationState): void {
         surface.append(createTable(state.rows));
     }
     root.append(surface);
+}
+
+/**
+ * createHeader keeps the toolbar and save state together in the sticky region
+ * so the file status remains visible while the tree body scrolls.
+ */
+function createHeader(state: TraceConfigurationState): HTMLElement {
+    const header = createElement('div', 'trace-header');
+    header.append(createToolbar(), createStatus(state));
+    return header;
 }
 
 /**
@@ -401,8 +411,10 @@ function createCheckbox(row: TraceConfigurationRow): HTMLLabelElement {
  * createSelect renders scalar fields with known small vocabularies, such as
  * access and output. Changes are saved immediately through the host.
  */
-function createSelect(row: TraceConfigurationRow): HTMLSelectElement {
+function createSelect(row: TraceConfigurationRow): HTMLElement {
+    const disabledReason = row.controlDisabledReason;
     const select = createElement('select');
+    select.disabled = Boolean(disabledReason);
     select.setAttribute('aria-label', row.label);
     (row.options ?? []).forEach(optionValue => {
         const option = createElement('option');
@@ -414,6 +426,14 @@ function createSelect(row: TraceConfigurationRow): HTMLSelectElement {
     select.addEventListener('change', () => {
         post({ type: 'updateValue', path: getValuePath(row), value: select.value });
     });
+    if (disabledReason) {
+        const wrapper = createElement('span', 'tooltip-wrapper control-tooltip-wrapper');
+        wrapper.dataset.tooltip = disabledReason;
+        wrapper.tabIndex = 0;
+        wrapper.setAttribute('aria-label', disabledReason);
+        wrapper.append(select);
+        return wrapper;
+    }
     return select;
 }
 
