@@ -26,16 +26,26 @@ import {
     CTraceProcessManagerOptions
 } from '../../desktop/process/ctrace-process-manager';
 import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
-import { waitForMs } from '../../utils';
 
-const PRE_DECODE_DELAY = 750;
+const RAW_TRACE_SAVE_WINDOW_MS = 2_000;
 const RAW_TRACE_GLOB = '.trace/*.{SWO,TB}.raw';
+
+interface PendingDecode {
+    readonly cbuildRunFilePath: string | undefined;
+    readonly stoppedAt: number;
+}
 
 export class CTraceController {
     private activeSession: GDBTargetDebugSession | undefined;
     private fileWatchManager: FileWatchManager | undefined;
+    private readonly pendingDecodes = new Map<string, PendingDecode>();
+    private readonly rawTraceSaves = new Map<string, number>();
 
-    public constructor(private readonly options: CTraceProcessManagerOptions = {}) {}
+    public constructor(
+        private readonly options: CTraceProcessManagerOptions = {},
+        // Injected to make timing-based behavior deterministic in tests.
+        private readonly now: () => number = Date.now
+    ) {}
 
     public activate(context: vscode.ExtensionContext, tracker: GDBTargetDebugTracker, fileWatchManager: FileWatchManager): void {
         this.fileWatchManager = fileWatchManager;
@@ -67,17 +77,58 @@ export class CTraceController {
         this.activeSession = session;
     }
 
-    protected async handleRawTraceFileChanged(_uri: vscode.Uri): Promise<void> {
-        // TODO: Put some proper logic in
-        // await this.run({ rawFilePath: uri.fsPath });
+    protected async handleRawTraceFileChanged(uri: vscode.Uri): Promise<void> {
+        const savedAt = this.now();
+        this.rawTraceSaves.set(uri.fsPath, savedAt);
+        this.removeExpiredEvents(savedAt);
+        await this.decodePendingTrace();
     }
 
     protected async handleDecodeTrigger(session: GDBTargetDebugSession | undefined): Promise<void> {
         const effectiveSession = session ?? this.activeSession;
-        const cbuildRunFile = await effectiveSession?.getCbuildRun();
+        if (effectiveSession === undefined) {
+            return;
+        }
+        const cbuildRunFile = await effectiveSession.getCbuildRun();
         const cbuildRunFilePath = cbuildRunFile?.getFilePath();
-        // TODO: Check if this can become event driven
-        await waitForMs(PRE_DECODE_DELAY);
-        await this.run({ cbuildRunFilePath });  // Use active session *.cbuild-run.yml file
+        const stoppedAt = this.now();
+        this.removeExpiredEvents(stoppedAt);
+        this.pendingDecodes.delete(effectiveSession.session.id);
+        this.pendingDecodes.set(effectiveSession.session.id, {
+            cbuildRunFilePath,
+            stoppedAt,
+        });
+        await this.decodePendingTrace();
+    }
+
+    private removeExpiredEvents(now: number): void {
+        const rawTraceSaves = [...this.rawTraceSaves.entries()];
+        const expiredRawTraceSaves = rawTraceSaves
+            .filter(([, savedAt]) => savedAt < now - RAW_TRACE_SAVE_WINDOW_MS);
+        expiredRawTraceSaves.forEach(([filePath]) => this.rawTraceSaves.delete(filePath));
+        const pendingDecodes = [...this.pendingDecodes.entries()];
+        const expiredPendingDecodes = pendingDecodes
+            .filter(([, pendingDecode]) => pendingDecode.stoppedAt < now - RAW_TRACE_SAVE_WINDOW_MS);
+        expiredPendingDecodes.forEach(([sessionId]) => this.pendingDecodes.delete(sessionId));
+    }
+
+    private consumeNearbyRawTraceSaves(stoppedAt: number): boolean {
+        const rawTraceSaves = [...this.rawTraceSaves.entries()];
+        const nearbyRawTraceSaves = rawTraceSaves
+            .filter(([, savedAt]) => Math.abs(savedAt - stoppedAt) <= RAW_TRACE_SAVE_WINDOW_MS);
+        nearbyRawTraceSaves.forEach(([filePath]) => this.rawTraceSaves.delete(filePath));
+        return nearbyRawTraceSaves.length > 0;
+    }
+
+    private async decodePendingTrace(): Promise<void> {
+        const pendingDecodes = [...this.pendingDecodes.entries()].reverse();
+        for (const [sessionId, pendingDecode] of pendingDecodes) {
+            if (!this.consumeNearbyRawTraceSaves(pendingDecode.stoppedAt)) {
+                continue;
+            }
+            this.pendingDecodes.delete(sessionId);
+            await this.run({ cbuildRunFilePath: pendingDecode.cbuildRunFilePath });
+            return;
+        }
     }
 }
