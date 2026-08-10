@@ -107,6 +107,12 @@
         "enablement": "config.vscode-cmsis-debugger.enableTraceGenerationView"
       },
       {
+        "command": "vscode-cmsis-debugger.reloadCTrace",
+        "title": "Reload ctrace",
+        "category": "CMSIS Debugger",
+        "enablement": "inDebugMode && config.vscode-cmsis-debugger.enableTraceGenerationView"
+      },
+      {
         "title": "CPU Time",
         "shortTitle": "CPU Time",
         "command": "vscode-cmsis-debugger.showCpuTimeHistory",
@@ -535,6 +541,10 @@
         {
           "command": "vscode-cmsis-debugger.launchCTrace",
           "when": "config.vscode-cmsis-debugger.enableTraceGenerationView"
+        },
+        {
+          "command": "vscode-cmsis-debugger.reloadCTrace",
+          "when": "inDebugMode && config.vscode-cmsis-debugger.enableTraceGenerationView"
         }
       ],
       "view/title": [

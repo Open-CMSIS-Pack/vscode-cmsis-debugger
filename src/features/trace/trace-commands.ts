@@ -29,6 +29,7 @@ export class TraceCommands {
 
     public static readonly launchPyTsID = `${EXTENSION_NAME}.launchPyTs`;
     public static readonly launchCTraceID = `${EXTENSION_NAME}.launchCTrace`;
+    public static readonly reloadCTraceID = `${EXTENSION_NAME}.reloadCTrace`;
 
     public constructor(
         private readonly pyTsController: PyTsController,
@@ -40,6 +41,7 @@ export class TraceCommands {
         context.subscriptions.push(
             vscode.commands.registerCommand(TraceCommands.launchPyTsID, () => this.handleLaunchPyTs()),
             vscode.commands.registerCommand(TraceCommands.launchCTraceID, () => this.handleLaunchCTrace()),
+            vscode.commands.registerCommand(TraceCommands.reloadCTraceID, () => this.handleReloadCTrace()),
         );
     }
 
@@ -56,6 +58,16 @@ export class TraceCommands {
             await this.cTraceController.run();
         } catch (error) {
             console.error('Failed to launch ctrace process:', error);
+        }
+    }
+
+    protected async handleReloadCTrace(): Promise<void> {
+        const session = vscode.debug.activeDebugSession;
+        if (session) {
+            await session.customRequest('evaluate', {
+                expression: '> monitor ctrace reload',
+                context: 'repl'
+            });
         }
     }
 
