@@ -1,4 +1,5 @@
 version: 2
+
 updates:
 - package-ecosystem: "npm"
   directory: "/"
@@ -12,6 +13,10 @@ updates:
     - dependency-name: "@types/node"
       update-types:
         - version-update:semver-major
+  groups:
+    codeql-actions:
+      patterns:
+        - "github/codeql-action/*"
 
 - package-ecosystem: "github-actions"
   directory: "/"
