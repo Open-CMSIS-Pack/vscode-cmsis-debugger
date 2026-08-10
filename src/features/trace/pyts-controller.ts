@@ -51,7 +51,7 @@ export class PyTsController {
         this.updateCTraceConfigurationWatcher();
     }
 
-    public async run(options: PyTsProcessManagerLaunchOptions = {}): Promise<void> {
+    public async run(options: PyTsProcessManagerLaunchOptions = {}, shouldReloadCTrace: boolean = false): Promise<void> {
         const processManager = new PyTsProcessManager(this.options);
         const cbuildRunFilePath = options.cbuildRunFilePath ?? this.activeSession?.getCbuildRunPath();
         const launchOptions: PyTsProcessManagerLaunchOptions = cbuildRunFilePath === undefined
@@ -59,6 +59,19 @@ export class PyTsController {
             : { ...options, cbuildRunFilePath };
         await processManager.launch(launchOptions);
         await processManager.waitForExit();
+        if (shouldReloadCTrace) {
+            await this.reloadCTrace();
+        }
+    }
+
+    public async reloadCTrace(): Promise<void> {
+        const session = vscode.debug.activeDebugSession;
+        if (session) {
+            await session.customRequest('evaluate', {
+                expression: '> monitor ctrace reload',
+                context: 'repl'
+            });
+        }
     }
 
     protected handleActiveSessionChanged(session: GDBTargetDebugSession | undefined): void {
@@ -67,7 +80,7 @@ export class PyTsController {
 
     protected async handleCTraceFileChanged(_uri: vscode.Uri): Promise<void> {
         // TODO: Match this is the ctrace file for the active session/expected cbuildrun file
-        await this.run();
+        await this.run({}, true);
     }
 
     private updateCTraceConfigurationWatcher(): void {

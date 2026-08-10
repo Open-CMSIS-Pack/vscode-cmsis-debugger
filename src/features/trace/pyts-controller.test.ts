@@ -15,12 +15,61 @@
  */
 // generated with AI
 
-import { extensionContextFactory } from '../../__test__/vscode.factory';
+import * as vscode from 'vscode';
+import { debugSessionFactory, extensionContextFactory } from '../../__test__/vscode.factory';
 import { traceWatchFactory } from '../../__test__/trace-watch.factory';
 import { GDBTargetDebugTracker } from '../../debug-session';
+import { PyTsProcessManager } from '../../desktop/process/pyts-process-manager';
 import { PyTsController } from './pyts-controller';
 
+type PyTsControllerTestAccess = {
+    handleCTraceFileChanged(uri: vscode.Uri): Promise<void>;
+};
+
 describe('PyTsController', () => {
+    it('sends a ctrace reload request to the active debug session', async () => {
+        const session = debugSessionFactory({ name: 'test', type: 'cmsis-debugger', request: 'launch' });
+        Object.defineProperty(vscode.debug, 'activeDebugSession', { configurable: true, value: session });
+        const controller = new PyTsController();
+
+        await controller.reloadCTrace();
+
+        expect(session.customRequest).toHaveBeenCalledWith('evaluate', {
+            expression: '> monitor ctrace reload',
+            context: 'repl'
+        });
+    });
+
+    it('does nothing when no debug session is active', async () => {
+        Object.defineProperty(vscode.debug, 'activeDebugSession', { configurable: true, value: undefined });
+        const controller = new PyTsController();
+
+        await expect(controller.reloadCTrace()).resolves.toBeUndefined();
+    });
+
+    it('reloads ctrace after pyTS exits when requested separately from its launch options', async () => {
+        const launch = jest.spyOn(PyTsProcessManager.prototype, 'launch').mockResolvedValue();
+        const waitForExit = jest.spyOn(PyTsProcessManager.prototype, 'waitForExit').mockResolvedValue();
+        const controller = new PyTsController({ pyTsPath: 'pyTS' });
+        const reloadCTrace = jest.spyOn(controller, 'reloadCTrace').mockResolvedValue();
+
+        await controller.run({}, true);
+
+        expect(launch).toHaveBeenCalledWith({});
+        expect(waitForExit).toHaveBeenCalledTimes(1);
+        expect(reloadCTrace).toHaveBeenCalledTimes(1);
+    });
+
+    it('reloads ctrace after a ctrace configuration file changes', async () => {
+        const controller = new PyTsController();
+        const run = jest.spyOn(controller, 'run').mockResolvedValue();
+        const testAccess = controller as unknown as PyTsControllerTestAccess;
+
+        await testAccess.handleCTraceFileChanged(vscode.Uri.file('/workspace/.cmsis/trace.ctrace.yml'));
+
+        expect(run).toHaveBeenCalledWith({}, true);
+    });
+
     it('adds and removes its ctrace configuration watch when the trace setting changes', () => {
         const tracker = {
             onDidChangeActiveDebugSession: jest.fn(() => ({ dispose: jest.fn() })),

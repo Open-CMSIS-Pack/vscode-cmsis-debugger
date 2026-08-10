@@ -47,7 +47,7 @@ export class TraceCommands {
 
     protected async handleLaunchPyTs(): Promise<void> {
         try {
-            await this.pyTsController.run();
+            await this.pyTsController.run({}, true);
         } catch (error) {
             console.error('Failed to launch pyTS process:', error);
         }
@@ -62,13 +62,7 @@ export class TraceCommands {
     }
 
     protected async handleReloadCTrace(): Promise<void> {
-        const session = vscode.debug.activeDebugSession;
-        if (session) {
-            await session.customRequest('evaluate', {
-                expression: '> monitor ctrace reload',
-                context: 'repl'
-            });
-        }
+        await this.pyTsController.reloadCTrace();
     }
 
 }
