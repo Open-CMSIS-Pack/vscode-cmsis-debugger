@@ -23,6 +23,6 @@ export const DISPLAY_NAME = 'Arm CMSIS Debugger';
 export const COMPONENT_VIEWER_DISPLAY_NAME = 'Arm CMSIS Component Viewer';
 
 // Extension configuration setting identifiers.
-export const ENABLE_TRACE_GENERATION_VIEW_SETTING = `${EXTENSION_ID}.enableTraceGenerationView`;
+export const ENABLE_TRACE_GENERATION_VIEW_SETTING = `${EXTENSION_NAME}.enableTraceGenerationView`;
 
 export const VIEW_PREFIX = 'cmsis-debugger';
