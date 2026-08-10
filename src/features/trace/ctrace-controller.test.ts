@@ -16,13 +16,16 @@
 // generated with AI
 
 import * as vscode from 'vscode';
-import { GDBTargetDebugSession } from '../../debug-session';
+import { extensionContextFactory } from '../../__test__/vscode.factory';
+import { traceWatchFactory } from '../../__test__/trace-watch.factory';
+import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../../debug-session';
 import { CTraceController } from './ctrace-controller';
 
 const CBUILD_RUN_FILE_PATH = '/workspace/solution+target.cbuild-run.yml';
 const RAW_TRACE_URI = vscode.Uri.file('/workspace/.trace/solution.SWO.raw');
 
 type CTraceControllerTestAccess = {
+    traceEnabled: boolean;
     handleDecodeTrigger(session: GDBTargetDebugSession | undefined): Promise<void>;
     handleRawTraceFileChanged(uri: vscode.Uri): Promise<void>;
 };
@@ -45,6 +48,7 @@ describe('CTraceController', () => {
         run = jest.spyOn(controller, 'run').mockResolvedValue();
         session = createSession('session-1', CBUILD_RUN_FILE_PATH);
         testAccess = controller as unknown as CTraceControllerTestAccess;
+        testAccess.traceEnabled = true;
     });
 
     it('decodes when a raw trace file is saved after the target stops', async () => {
@@ -93,5 +97,25 @@ describe('CTraceController', () => {
 
         expect(run).toHaveBeenCalledTimes(1);
         expect(run).toHaveBeenCalledWith({ cbuildRunFilePath: newerCbuildRunFilePath });
+    });
+
+    it('adds and removes its raw trace watch when the trace setting changes', () => {
+        const tracker = {
+            onDidChangeActiveDebugSession: jest.fn(() => ({ dispose: jest.fn() })),
+            onStopped: jest.fn(() => ({ dispose: jest.fn() })),
+            onWillStopSession: jest.fn(() => ({ dispose: jest.fn() })),
+        } as unknown as GDBTargetDebugTracker;
+        const traceWatch = traceWatchFactory();
+
+        controller.activate(extensionContextFactory(), tracker, traceWatch.fileWatchManager);
+        expect(traceWatch.addWatch).not.toHaveBeenCalled();
+
+        traceWatch.setTraceEnabled(true);
+        traceWatch.fireTraceConfigurationChange();
+        expect(traceWatch.addWatch).toHaveBeenCalledTimes(1);
+
+        traceWatch.setTraceEnabled(false);
+        traceWatch.fireTraceConfigurationChange();
+        expect(traceWatch.removeWatch).toHaveBeenCalledWith('ctrace-raw-trace');
     });
 });

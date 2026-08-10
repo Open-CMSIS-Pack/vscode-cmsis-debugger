@@ -20,6 +20,7 @@ import {
     GDBTargetDebugSession,
     GDBTargetDebugTracker
 } from '../../debug-session';
+import { ENABLE_TRACE_GENERATION_VIEW_SETTING } from '../../manifest';
 import {
     CTraceProcessManager,
     CTraceProcessManagerLaunchOptions,
@@ -29,6 +30,7 @@ import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
 
 const RAW_TRACE_SAVE_WINDOW_MS = 2_000;
 const RAW_TRACE_GLOB = '.trace/*.{SWO,TB}.raw';
+const RAW_TRACE_WATCH_ID = 'ctrace-raw-trace';
 
 interface PendingDecode {
     readonly cbuildRunFilePath: string | undefined;
@@ -38,6 +40,7 @@ interface PendingDecode {
 export class CTraceController {
     private activeSession: GDBTargetDebugSession | undefined;
     private fileWatchManager: FileWatchManager | undefined;
+    private traceEnabled = false;
     private readonly pendingDecodes = new Map<string, PendingDecode>();
     private readonly rawTraceSaves = new Map<string, number>();
 
@@ -49,18 +52,18 @@ export class CTraceController {
 
     public activate(context: vscode.ExtensionContext, tracker: GDBTargetDebugTracker, fileWatchManager: FileWatchManager): void {
         this.fileWatchManager = fileWatchManager;
-        // TODO: Check what CMSIS Solution extension does regarding workspacefolders.
-        const ws = vscode.workspace.workspaceFolders?.[0];
-        this.fileWatchManager.addWatch({
-            globPattern: ws ? new vscode.RelativePattern(ws, RAW_TRACE_GLOB) : RAW_TRACE_GLOB,
-            onDidCreate: uri => this.handleRawTraceFileChanged(uri),
-            onDidChange: uri => this.handleRawTraceFileChanged(uri)
-        });
         context.subscriptions.push(
             tracker.onDidChangeActiveDebugSession(session => this.handleActiveSessionChanged(session)),
             tracker.onStopped(event => this.handleDecodeTrigger(event.session)),
-            tracker.onWillStopSession(session => this.handleDecodeTrigger(session))
+            tracker.onWillStopSession(session => this.handleDecodeTrigger(session)),
+            vscode.workspace.onDidChangeConfiguration(event => {
+                if (event.affectsConfiguration(ENABLE_TRACE_GENERATION_VIEW_SETTING)) {
+                    this.updateRawTraceWatcher();
+                }
+            }),
+            { dispose: () => this.removeRawTraceWatcher() }
         );
+        this.updateRawTraceWatcher();
     }
 
     public async run(options: CTraceProcessManagerLaunchOptions = {}): Promise<void> {
@@ -78,6 +81,9 @@ export class CTraceController {
     }
 
     protected async handleRawTraceFileChanged(uri: vscode.Uri): Promise<void> {
+        if (!this.traceEnabled) {
+            return;
+        }
         const savedAt = this.now();
         this.rawTraceSaves.set(uri.fsPath, savedAt);
         this.removeExpiredEvents(savedAt);
@@ -85,6 +91,9 @@ export class CTraceController {
     }
 
     protected async handleDecodeTrigger(session: GDBTargetDebugSession | undefined): Promise<void> {
+        if (!this.traceEnabled) {
+            return;
+        }
         const effectiveSession = session ?? this.activeSession;
         if (effectiveSession === undefined) {
             return;
@@ -130,5 +139,37 @@ export class CTraceController {
             await this.run({ cbuildRunFilePath: pendingDecode.cbuildRunFilePath });
             return;
         }
+    }
+
+    private updateRawTraceWatcher(): void {
+        this.traceEnabled = vscode.workspace.getConfiguration().get<boolean>(ENABLE_TRACE_GENERATION_VIEW_SETTING, false);
+        if (this.traceEnabled) {
+            this.addRawTraceWatcher();
+        } else {
+            this.removeRawTraceWatcher();
+            this.pendingDecodes.clear();
+            this.rawTraceSaves.clear();
+        }
+    }
+
+    private addRawTraceWatcher(): void {
+        if (this.fileWatchManager === undefined) {
+            return;
+        }
+        // TODO: Check what CMSIS Solution extension does regarding workspacefolders.
+        const ws = vscode.workspace.workspaceFolders?.[0];
+        this.fileWatchManager.addWatch({
+            id: RAW_TRACE_WATCH_ID,
+            globPattern: ws ? new vscode.RelativePattern(ws, RAW_TRACE_GLOB) : RAW_TRACE_GLOB,
+            onDidCreate: uri => this.handleRawTraceFileChanged(uri),
+            onDidChange: uri => this.handleRawTraceFileChanged(uri)
+        });
+    }
+
+    private removeRawTraceWatcher(): void {
+        if (this.fileWatchManager === undefined) {
+            return;
+        }
+        this.fileWatchManager.removeWatch(RAW_TRACE_WATCH_ID);
     }
 }

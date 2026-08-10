@@ -97,12 +97,14 @@
       {
         "command": "vscode-cmsis-debugger.launchPyTs",
         "title": "Convert *.ctrace.yml to *.ctrace-run.yml",
-        "category": "CMSIS Debugger"
+        "category": "CMSIS Debugger",
+        "enablement": "config.vscode-cmsis-debugger.enableTraceGenerationView"
       },
       {
         "command": "vscode-cmsis-debugger.launchCTrace",
         "title": "Decode raw trace file",
-        "category": "CMSIS Debugger"
+        "category": "CMSIS Debugger",
+        "enablement": "config.vscode-cmsis-debugger.enableTraceGenerationView"
       },
       {
         "title": "CPU Time",
@@ -528,11 +530,11 @@
         },
         {
           "command": "vscode-cmsis-debugger.launchPyTs",
-          "when": "true"
+          "when": "config.vscode-cmsis-debugger.enableTraceGenerationView"
         },
         {
           "command": "vscode-cmsis-debugger.launchCTrace",
-          "when": "true"
+          "when": "config.vscode-cmsis-debugger.enableTraceGenerationView"
         }
       ],
       "view/title": [

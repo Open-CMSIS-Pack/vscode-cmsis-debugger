@@ -20,6 +20,7 @@ import * as vscode from 'vscode';
 export type FileWatchEventCallback = (uri: vscode.Uri) => void | Promise<void>;
 
 export interface FileWatchRegistrationOptions {
+    readonly id: string;
     readonly globPattern: vscode.GlobPattern;
     readonly onDidCreate?: FileWatchEventCallback;
     readonly onDidChange?: FileWatchEventCallback;
@@ -32,7 +33,7 @@ interface FileWatchRegistration {
 
 export class FileWatchManager implements vscode.Disposable {
     private context: vscode.ExtensionContext | undefined;
-    private readonly registrations = new Map<vscode.FileSystemWatcher, FileWatchRegistration>();
+    private readonly registrations = new Map<string, FileWatchRegistration>();
 
     public activate(context: vscode.ExtensionContext): void {
         if (this.context === context) {
@@ -45,7 +46,10 @@ export class FileWatchManager implements vscode.Disposable {
         context.subscriptions.push(this);
     }
 
-    public addWatch(options: FileWatchRegistrationOptions): vscode.FileSystemWatcher {
+    public addWatch(options: FileWatchRegistrationOptions): void {
+        if (this.registrations.has(options.id)) {
+            return;
+        }
         const watcher = vscode.workspace.createFileSystemWatcher(
             options.globPattern,
             options.onDidCreate === undefined,
@@ -62,22 +66,21 @@ export class FileWatchManager implements vscode.Disposable {
         if (options.onDidDelete !== undefined) {
             disposables.push(watcher.onDidDelete(options.onDidDelete));
         }
-        this.registrations.set(watcher, { disposables });
-        return watcher;
+        this.registrations.set(options.id, { disposables });
     }
 
-    public removeWatch(watcher: vscode.FileSystemWatcher): boolean {
-        const registration = this.registrations.get(watcher);
+    public removeWatch(id: string): boolean {
+        const registration = this.registrations.get(id);
         if (registration === undefined) {
             return false;
         }
-        this.registrations.delete(watcher);
+        this.registrations.delete(id);
         registration.disposables.forEach(disposable => disposable.dispose());
         return true;
     }
 
     public dispose(): void {
-        [...this.registrations.keys()].forEach(watcher => this.removeWatch(watcher));
+        [...this.registrations.keys()].forEach(id => this.removeWatch(id));
         this.context = undefined;
     }
 }

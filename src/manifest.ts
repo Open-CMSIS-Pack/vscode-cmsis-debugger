@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,12 @@
 export const PUBLISHER_NAME = 'arm';
 export const EXTENSION_NAME = 'vscode-cmsis-debugger';
 export const EXTENSION_ID = `${PUBLISHER_NAME}.${EXTENSION_NAME}`;
-export const DISPLAY_NAME = 'Arm CMSIS Debugger';
-export const VIEW_PREFIX = 'cmsis-debugger';
 
+// User-facing extension and view display names.
+export const DISPLAY_NAME = 'Arm CMSIS Debugger';
 export const COMPONENT_VIEWER_DISPLAY_NAME = 'Arm CMSIS Component Viewer';
+
+// Extension configuration setting identifiers.
+export const ENABLE_TRACE_GENERATION_VIEW_SETTING = `${EXTENSION_ID}.enableTraceGenerationView`;
+
+export const VIEW_PREFIX = 'cmsis-debugger';

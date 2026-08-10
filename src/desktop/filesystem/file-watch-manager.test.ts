@@ -48,6 +48,7 @@ const createWatcher = () => {
 
 describe('FileWatchManager', () => {
     const globPattern = '**/*.raw';
+    const WATCH_ID = 'test-watch';
     let createFileSystemWatcher: jest.Mock;
 
     beforeEach(() => {
@@ -73,12 +74,11 @@ describe('FileWatchManager', () => {
         const manager = new FileWatchManager();
         const uri = vscode.Uri.file('trace.raw');
 
-        const result = manager.addWatch({ globPattern, onDidCreate, onDidChange, onDidDelete });
+        manager.addWatch({ id: WATCH_ID, globPattern, onDidCreate, onDidChange, onDidDelete });
         await callbacks.create?.(uri);
         await callbacks.change?.(uri);
         await callbacks.delete?.(uri);
 
-        expect(result).toBe(watcher);
         expect(createFileSystemWatcher).toHaveBeenCalledWith(globPattern, false, false, false);
         expect(onDidCreate).toHaveBeenCalledWith(uri);
         expect(onDidChange).toHaveBeenCalledWith(uri);
@@ -90,7 +90,7 @@ describe('FileWatchManager', () => {
         createFileSystemWatcher.mockReturnValue(watcher);
         const manager = new FileWatchManager();
 
-        manager.addWatch({ globPattern });
+        manager.addWatch({ id: WATCH_ID, globPattern });
 
         expect(createFileSystemWatcher).toHaveBeenCalledWith(globPattern, true, true, true);
         expect(watcher.onDidCreate).not.toHaveBeenCalled();
@@ -102,11 +102,22 @@ describe('FileWatchManager', () => {
         const { listenerDisposables, watcher } = createWatcher();
         createFileSystemWatcher.mockReturnValue(watcher);
         const manager = new FileWatchManager();
-        manager.addWatch({ globPattern, onDidChange: jest.fn() });
+        manager.addWatch({ id: WATCH_ID, globPattern, onDidChange: jest.fn() });
 
-        expect(manager.removeWatch(watcher)).toBe(true);
-        expect(manager.removeWatch(watcher)).toBe(false);
+        expect(manager.removeWatch(WATCH_ID)).toBe(true);
+        expect(manager.removeWatch(WATCH_ID)).toBe(false);
         expect(watcher.dispose).toHaveBeenCalledTimes(1);
         expect(listenerDisposables.change.dispose).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not create a duplicate watch for an existing ID', () => {
+        const { watcher } = createWatcher();
+        createFileSystemWatcher.mockReturnValue(watcher);
+        const manager = new FileWatchManager();
+
+        manager.addWatch({ id: WATCH_ID, globPattern });
+        manager.addWatch({ id: WATCH_ID, globPattern });
+
+        expect(createFileSystemWatcher).toHaveBeenCalledTimes(1);
     });
 });

@@ -198,6 +198,7 @@ module.exports = {
         },
         findFiles: jest.fn(() => Promise.resolve([])),
         createFileSystemWatcher: jest.fn(() => createMockFileSystemWatcher()),
+        onDidChangeConfiguration: jest.fn(() => ({ dispose: jest.fn() })),
         workspaceFolders: [
             {
                 uri: URI.file(path.join(__dirname, '..')),

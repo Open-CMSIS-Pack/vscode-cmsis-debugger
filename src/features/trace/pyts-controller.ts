@@ -20,6 +20,7 @@ import {
     GDBTargetDebugSession,
     GDBTargetDebugTracker
 } from '../../debug-session';
+import { ENABLE_TRACE_GENERATION_VIEW_SETTING } from '../../manifest';
 import {
     PyTsProcessManager,
     PyTsProcessManagerLaunchOptions,
@@ -28,6 +29,7 @@ import {
 import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
 
 const CTRACE_CONFIGURATION_GLOB = '.cmsis/*.ctrace.{yml,yaml}';
+const CTRACE_CONFIGURATION_WATCH_ID = 'pyts-ctrace-configuration';
 
 export class PyTsController {
     private activeSession: GDBTargetDebugSession | undefined;
@@ -37,16 +39,16 @@ export class PyTsController {
 
     public activate(context: vscode.ExtensionContext, tracker: GDBTargetDebugTracker, fileWatchManager: FileWatchManager): void {
         this.fileWatchManager = fileWatchManager;
-        // TODO: Check what CMSIS Solution extension does regarding workspacefolders.
-        const ws = vscode.workspace.workspaceFolders?.[0];
-        this.fileWatchManager.addWatch({
-            globPattern: ws ? new vscode.RelativePattern(ws, CTRACE_CONFIGURATION_GLOB) : CTRACE_CONFIGURATION_GLOB,
-            onDidCreate: uri => this.handleCTraceFileChanged(uri),
-            onDidChange: uri => this.handleCTraceFileChanged(uri)
-        });
         context.subscriptions.push(
-            tracker.onDidChangeActiveDebugSession(session => this.handleActiveSessionChanged(session))
+            tracker.onDidChangeActiveDebugSession(session => this.handleActiveSessionChanged(session)),
+            vscode.workspace.onDidChangeConfiguration(event => {
+                if (event.affectsConfiguration(ENABLE_TRACE_GENERATION_VIEW_SETTING)) {
+                    this.updateCTraceConfigurationWatcher();
+                }
+            }),
+            { dispose: () => this.removeCTraceConfigurationWatcher() }
         );
+        this.updateCTraceConfigurationWatcher();
     }
 
     public async run(options: PyTsProcessManagerLaunchOptions = {}): Promise<void> {
@@ -66,5 +68,35 @@ export class PyTsController {
     protected async handleCTraceFileChanged(_uri: vscode.Uri): Promise<void> {
         // TODO: Match this is the ctrace file for the active session/expected cbuildrun file
         await this.run();
+    }
+
+    private updateCTraceConfigurationWatcher(): void {
+        const traceEnabled = vscode.workspace.getConfiguration().get<boolean>(ENABLE_TRACE_GENERATION_VIEW_SETTING, false);
+        if (traceEnabled) {
+            this.addCTraceConfigurationWatcher();
+        } else {
+            this.removeCTraceConfigurationWatcher();
+        }
+    }
+
+    private addCTraceConfigurationWatcher(): void {
+        if (this.fileWatchManager === undefined) {
+            return;
+        }
+        // TODO: Check what CMSIS Solution extension does regarding workspacefolders.
+        const ws = vscode.workspace.workspaceFolders?.[0];
+        this.fileWatchManager.addWatch({
+            id: CTRACE_CONFIGURATION_WATCH_ID,
+            globPattern: ws ? new vscode.RelativePattern(ws, CTRACE_CONFIGURATION_GLOB) : CTRACE_CONFIGURATION_GLOB,
+            onDidCreate: uri => this.handleCTraceFileChanged(uri),
+            onDidChange: uri => this.handleCTraceFileChanged(uri)
+        });
+    }
+
+    private removeCTraceConfigurationWatcher(): void {
+        if (this.fileWatchManager === undefined) {
+            return;
+        }
+        this.fileWatchManager.removeWatch(CTRACE_CONFIGURATION_WATCH_ID);
     }
 }
