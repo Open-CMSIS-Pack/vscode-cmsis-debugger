@@ -18,6 +18,15 @@
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import { MemoryTextFileAdapter } from '../../__test__/memory-text-file-adapter';
 
+function expectSubstringsInOrder(text: string, substrings: string[]): void {
+    let previousIndex = -1;
+    substrings.forEach(substring => {
+        const index = text.indexOf(substring, previousIndex + 1);
+        expect(index).toBeGreaterThan(previousIndex);
+        previousIndex = index;
+    });
+}
+
 describe('CTraceYamlDocument', () => {
     it('reads and updates user-authored trace data entries', () => {
         const document = CTraceYamlDocument.parse([
@@ -144,6 +153,109 @@ describe('CTraceYamlDocument', () => {
         expect(document.getCTraceRef(['ctrace', 'setup', 0, 'data', 0, 'match'])).toBe('Core0/data#0/match');
         expect(document.getCTraceRef(['ctrace', 'setup', 1, 'events', 0])).toBe('Core1/events#0');
         expect(document.toString()).not.toContain('ctrace-ref');
+    });
+
+    it('normalizes maps to the documented ctrace.yml order', () => {
+        const document = CTraceYamlDocument.parse([
+            'ctrace:',
+            '  setup:',
+            '    - tracehalt:',
+            '        - match:',
+            '            size: 2',
+            '            value: 0x20',
+            '          size: 4',
+            '          access: X',
+            '          location: stopTrace',
+            '      synchronization:',
+            '        - DWT: 16M',
+            '      pcsampling:',
+            '        period: 64',
+            '      instructions:',
+            '        stop:',
+            '          - match:',
+            '              size: 4',
+            '              value: 0x10',
+            '            access: X',
+            '            location: stopHere',
+            '        start:',
+            '          - size: 4',
+            '            location: main',
+            '      itm:',
+            '        privileged: 0x0',
+            '        enable: 0x1',
+            '      events:',
+            '        - pname: cm33',
+            '          event: CYCCNT',
+            '      exceptions:',
+            '      data:',
+            '        - match:',
+            '            size: 4',
+            '            value: 0x30',
+            '          output: PC',
+            '          size: 4',
+            '          access: R',
+            '          label: Watch',
+            '          location: watchedValue',
+            '      timesync:',
+            '      timestamps:',
+            '        itm-prescaler: 4',
+            '        clock: 100000000',
+            '      disable:',
+            '      pname: cm33',
+            '  created-by: CMSIS-Debugger',
+            ''
+        ].join('\n'));
+
+        document.normalizeDocumentOrder();
+        const output = document.toString();
+
+        expectSubstringsInOrder(output, [
+            '  created-by: CMSIS-Debugger',
+            '  setup:',
+            '    - pname: cm33',
+            '      disable:',
+            '      timestamps:',
+            '        clock: 100000000',
+            '        itm-prescaler: 4',
+            '      timesync:',
+            '      data:',
+            '        - location: watchedValue',
+            '          label: Watch',
+            '          access: R',
+            '          size: 4',
+            '          output: PC',
+            '          match:',
+            '            value: 0x30',
+            '            size: 4',
+            '      exceptions:',
+            '      events:',
+            '        - event: CYCCNT',
+            '          pname: cm33',
+            '      itm:',
+            '        enable: 0x1',
+            '        privileged: 0x0',
+            '      instructions:',
+            '        start:',
+            '          - location: main',
+            '            size: 4',
+            '        stop:',
+            '          - location: stopHere',
+            '            access: X',
+            '            match:',
+            '              value: 0x10',
+            '              size: 4',
+            '      pcsampling:',
+            '        period: 64',
+            '      synchronization:',
+            '        - DWT: 16M',
+            '      tracehalt:',
+            '        - location: stopTrace',
+            '          access: X',
+            '          size: 4',
+            '          match:',
+            '            value: 0x20',
+            '            size: 2'
+        ]);
     });
 });
 

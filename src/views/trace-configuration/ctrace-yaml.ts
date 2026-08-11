@@ -31,6 +31,46 @@ const CTRACE_ROOT = 'ctrace';
 const CTRACE_PATH = [CTRACE_ROOT] as const;
 const DATA_TRACE_PATH = [CTRACE_ROOT, 'data'] as const;
 const REGISTER_VALUES_PATH = [CTRACE_ROOT, 'register-values'] as const;
+const CTRACE_ROOT_ORDER = [
+    'generated-by',
+    'created-by',
+    'setup',
+    'timestamps',
+    'timesync',
+    'data',
+    'exceptions',
+    'events',
+    'itm',
+    'instructions',
+    'pcsampling',
+    'synchronization',
+    'tracehalt',
+    'register-values'
+] as const;
+const PROCESSOR_SETUP_ORDER = [
+    'pname',
+    'disable',
+    'timestamps',
+    'timesync',
+    'data',
+    'exceptions',
+    'events',
+    'itm',
+    'instructions',
+    'pcsampling',
+    'synchronization',
+    'tracehalt'
+] as const;
+const TIMESTAMPS_ORDER = ['clock', 'itm-prescaler'] as const;
+const DATA_TRACE_ORDER = ['location', 'label', 'access', 'size', 'output', 'match', 'pc', 'pname'] as const;
+const MATCH_ORDER = ['value', 'size'] as const;
+const EVENT_TRACE_ORDER = ['event', 'pname'] as const;
+const ITM_ORDER = ['enable', 'privileged', 'privilege', 'pname'] as const;
+const INSTRUCTIONS_ORDER = ['start', 'stop'] as const;
+const CONDITION_ORDER = ['location', 'access', 'size', 'match', 'pname'] as const;
+const PCSAMPLING_ORDER = ['period'] as const;
+const SYNCHRONIZATION_ORDER = ['DWT'] as const;
+const REGISTER_VALUES_ORDER = ['pname'] as const;
 
 export type CTraceScalar = string | number | boolean | null;
 export type CTraceLocation = string | number;
@@ -217,6 +257,7 @@ export class CTraceYamlDocument {
 
     public setCreatedBy(createdBy: string): void {
         this.yamlDomDocument.set([CTRACE_ROOT, 'created-by'], createdBy);
+        this.normalizeDocumentOrder();
     }
 
     public getDataTrace(): CTraceDataTrace[] {
@@ -225,15 +266,18 @@ export class CTraceYamlDocument {
 
     public setDataTrace(entries: CTraceDataTrace[]): void {
         this.setOrDeleteSequence(DATA_TRACE_PATH, entries);
+        this.normalizeDocumentOrder();
     }
 
     public upsertDataTrace(entry: CTraceDataTrace, matcher?: DataTraceMatcher): void {
         const index = this.findDataTraceIndex(entry, matcher);
         if (index >= 0) {
             this.yamlDomDocument.set([...DATA_TRACE_PATH, index], entry);
+            this.normalizeDocumentOrder();
             return;
         }
         this.yamlDomDocument.append(DATA_TRACE_PATH, entry);
+        this.normalizeDocumentOrder();
     }
 
     public removeDataTrace(location: string, pname?: string): boolean {
@@ -256,6 +300,7 @@ export class CTraceYamlDocument {
 
     public setRegisterValues(entries: CTraceRegisterValues[]): void {
         this.setOrDeleteSequence(REGISTER_VALUES_PATH, entries);
+        this.normalizeDocumentOrder();
     }
 
     public upsertRegisterValues(entry: CTraceRegisterValues, matcher?: RegisterValuesMatcher): void {
@@ -264,9 +309,23 @@ export class CTraceYamlDocument {
         const index = this.getRegisterValues().findIndex(effectiveMatcher);
         if (index >= 0) {
             this.yamlDomDocument.set([...REGISTER_VALUES_PATH, index], entry);
+            this.normalizeDocumentOrder();
             return;
         }
         this.yamlDomDocument.append(REGISTER_VALUES_PATH, entry);
+        this.normalizeDocumentOrder();
+    }
+
+    /**
+     * normalizeDocumentOrder keeps emitted ctrace.yml maps aligned with the
+     * public file-structure tables while preserving unknown keys after known
+     * keys in their original relative order.
+     */
+    public normalizeDocumentOrder(): void {
+        const root = this.yamlDomDocument.getItem(CTRACE_PATH);
+        if (isYamlMapItem(root)) {
+            this.normalizeMapOrder(root, [...CTRACE_PATH]);
+        }
     }
 
     public assignCTraceRefs(): void {
@@ -373,6 +432,151 @@ export class CTraceYamlDocument {
             return;
         }
         this.yamlDomDocument.set(path, entries);
+    }
+
+    private normalizeMapOrder(map: YamlTreeItem, path: (string | number)[]): void {
+        const order = this.getDocumentOrderForMap(path);
+        if (order) {
+            this.reorderMapChildren(map, order);
+        }
+        map.getChildren().forEach(child => {
+            const tag = child.getTag();
+            if (!tag) {
+                return;
+            }
+            this.normalizeChildOrder(child, [...path, tag]);
+        });
+    }
+
+    private normalizeSequenceOrder(sequence: YamlTreeItem, path: (string | number)[]): void {
+        sequence.getChildren().forEach((item, index) => {
+            this.normalizeChildOrder(item, [...path, index]);
+        });
+    }
+
+    private normalizeChildOrder(child: YamlTreeItem, path: (string | number)[]): void {
+        if (isYamlMapItem(child)) {
+            this.normalizeMapOrder(child, path);
+            return;
+        }
+        if (isYamlSequenceItem(child)) {
+            this.normalizeSequenceOrder(child, path);
+        }
+    }
+
+    private reorderMapChildren(map: YamlTreeItem, preferredOrder: readonly string[]): void {
+        const rankByTag = new Map(preferredOrder.map((tag, index) => [tag, index]));
+        const orderedChildren = map.getChildren()
+            .map((child, index) => ({ child, index, rank: rankByTag.get(child.getTag() ?? '') }))
+            .sort((left, right) => {
+                if (left.rank === undefined && right.rank === undefined) {
+                    return left.index - right.index;
+                }
+                if (left.rank === undefined) {
+                    return 1;
+                }
+                if (right.rank === undefined) {
+                    return -1;
+                }
+                return left.rank === right.rank ? left.index - right.index : left.rank - right.rank;
+            });
+        if (orderedChildren.every((entry, index) => entry.index === index)) {
+            return;
+        }
+        orderedChildren.forEach(entry => map.removeChild(entry.child));
+        orderedChildren.forEach(entry => map.addChild(entry.child));
+    }
+
+    private getDocumentOrderForMap(path: (string | number)[]): readonly string[] | undefined {
+        if (this.isCTraceRootPath(path)) {
+            return CTRACE_ROOT_ORDER;
+        }
+        if (this.isProcessorSetupPath(path)) {
+            return PROCESSOR_SETUP_ORDER;
+        }
+        if (this.isTimestampsPath(path)) {
+            return TIMESTAMPS_ORDER;
+        }
+        if (this.isDataTraceItemPath(path)) {
+            return DATA_TRACE_ORDER;
+        }
+        if (this.isMatchPath(path)) {
+            return MATCH_ORDER;
+        }
+        if (this.isEventTraceItemPath(path)) {
+            return EVENT_TRACE_ORDER;
+        }
+        if (this.isItmPath(path)) {
+            return ITM_ORDER;
+        }
+        if (this.isInstructionsPath(path)) {
+            return INSTRUCTIONS_ORDER;
+        }
+        if (this.isConditionItemPath(path)) {
+            return CONDITION_ORDER;
+        }
+        if (this.isPcSamplingPath(path)) {
+            return PCSAMPLING_ORDER;
+        }
+        if (this.isSynchronizationItemPath(path)) {
+            return SYNCHRONIZATION_ORDER;
+        }
+        if (this.isRegisterValuesItemPath(path)) {
+            return REGISTER_VALUES_ORDER;
+        }
+        return undefined;
+    }
+
+    private isCTraceRootPath(path: (string | number)[]): boolean {
+        return path.length === 1 && path[0] === CTRACE_ROOT;
+    }
+
+    private isProcessorSetupPath(path: (string | number)[]): boolean {
+        return path.at(-2) === 'setup' && typeof path.at(-1) === 'number';
+    }
+
+    private isTimestampsPath(path: (string | number)[]): boolean {
+        return path.at(-1) === 'timestamps';
+    }
+
+    private isDataTraceItemPath(path: (string | number)[]): boolean {
+        return path.at(-2) === 'data' && typeof path.at(-1) === 'number';
+    }
+
+    private isMatchPath(path: (string | number)[]): boolean {
+        return path.at(-1) === 'match' && (this.isDataTraceItemPath(path.slice(0, -1)) || this.isConditionItemPath(path.slice(0, -1)));
+    }
+
+    private isEventTraceItemPath(path: (string | number)[]): boolean {
+        return path.at(-2) === 'events' && typeof path.at(-1) === 'number';
+    }
+
+    private isItmPath(path: (string | number)[]): boolean {
+        return path.at(-1) === 'itm';
+    }
+
+    private isInstructionsPath(path: (string | number)[]): boolean {
+        return path.at(-1) === 'instructions';
+    }
+
+    private isConditionItemPath(path: (string | number)[]): boolean {
+        if (typeof path.at(-1) !== 'number') {
+            return false;
+        }
+        return path.at(-2) === 'tracehalt'
+            || ((path.at(-2) === 'start' || path.at(-2) === 'stop') && path.at(-3) === 'instructions');
+    }
+
+    private isPcSamplingPath(path: (string | number)[]): boolean {
+        return path.at(-1) === 'pcsampling';
+    }
+
+    private isSynchronizationItemPath(path: (string | number)[]): boolean {
+        return path.at(-2) === 'synchronization' && typeof path.at(-1) === 'number';
+    }
+
+    private isRegisterValuesItemPath(path: (string | number)[]): boolean {
+        return path.at(-2) === 'register-values' && typeof path.at(-1) === 'number';
     }
 }
 

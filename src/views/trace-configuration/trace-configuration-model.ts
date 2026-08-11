@@ -519,7 +519,9 @@ export class TraceConfigurationModel {
      * in-memory edits stay authoritative until the user clicks Save or Refresh.
      */
     private async acceptInMemoryEdit(): Promise<void> {
-        this.requireDocument().assignCTraceRefs();
+        const document = this.requireDocument();
+        document.normalizeDocumentOrder();
+        document.assignCTraceRefs();
         await this.loadProcessorCapabilities();
         this.dirty = true;
         this.errorMessage = undefined;
@@ -659,8 +661,9 @@ export class TraceConfigurationModel {
         }
         if (file.document) {
             this.removeLegacyElfFileMetadata(file.document);
-            file.document.assignCTraceRefs();
             this.convertAllEmptyEditableSequencesToBareKeys(file.document);
+            file.document.normalizeDocumentOrder();
+            file.document.assignCTraceRefs();
         }
         await file.save();
         await this.loadProcessorCapabilities();

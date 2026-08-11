@@ -45,6 +45,15 @@ function createCapabilities(pname = 'cm33'): Map<string, TraceConfigurationTypes
     ]);
 }
 
+function expectSubstringsInOrder(text: string, substrings: string[]): void {
+    let previousIndex = -1;
+    substrings.forEach(substring => {
+        const index = text.indexOf(substring, previousIndex + 1);
+        expect(index).toBeGreaterThan(previousIndex);
+        previousIndex = index;
+    });
+}
+
 async function createModelFromText(
     text: string,
     capabilities?: Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities>
@@ -329,6 +338,58 @@ describe('TraceConfigurationModel', () => {
         expect(focusedState.focusedRowId).toBe(JSON.stringify(['ctrace', 'setup', 0, 'data', 1]));
         expect(focusedState.rows.some(row => JSON.stringify(row.path) === JSON.stringify(['ctrace', 'setup', 0, 'data', 1]))).toBe(true);
         expect(model.createState().focusedRowId).toBeUndefined();
+    });
+
+    it('serializes webview-added fields in the documented ctrace.yml order', async () => {
+        const { adapter, model } = await createModelFromText([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            ''
+        ].join('\n'), createCapabilities());
+
+        await model.updateValue(['ctrace', 'setup', 0, 'events'], ['CYCCNT']);
+        await model.updateValue(['ctrace', 'setup', 0, 'itm'], ['0']);
+        await model.addItem(['ctrace', 'setup', 0, 'data'], 'data');
+        await model.updateValue(['ctrace', 'setup', 0, 'data', 0, 'location'], 'watchSymbol');
+        await model.updateValue(['ctrace', 'setup', 0, 'data', 0, 'output'], 'PC');
+        await model.updateValue(['ctrace', 'setup', 0, 'data', 0, 'label'], 'Watch');
+        await model.updateValue(['ctrace', 'setup', 0, 'data', 0, 'size'], '4');
+        await model.updateValue(['ctrace', 'setup', 0, 'data', 0, 'match', 'value'], '0x10');
+        await model.updateValue(['ctrace', 'setup', 0, 'data', 0, 'match', 'size'], '4');
+        await model.updateValue(['ctrace', 'setup', 0, 'exceptions'], true);
+        await model.updateValue(['ctrace', 'setup', 0, 'instructions'], true);
+        await model.updateValue(['ctrace', 'setup', 0, 'pcsampling'], '64');
+        await model.updateValue(['ctrace', 'setup', 0, 'synchronization', 0, 'DWT'], '16M');
+        await model.updateValue(['ctrace', 'setup', 0, 'timesync'], true);
+        await model.updateValue(['ctrace', 'setup', 0, 'timestamps'], true);
+
+        await model.saveCurrentDocument();
+
+        expectSubstringsInOrder(adapter.text, [
+            '    - pname: cm33',
+            '      timestamps: {}',
+            '      timesync:',
+            '      data:',
+            '        - location: watchSymbol',
+            '          label: Watch',
+            '          access: W',
+            '          size: 4',
+            '          output: PC',
+            '          match:',
+            '            value: 0x10',
+            '            size: 4',
+            '      exceptions:',
+            '      events:',
+            '        - event: CYCCNT',
+            '      itm:',
+            '        enable: 0x00000001',
+            '      instructions: {}',
+            '      pcsampling:',
+            '        period: 64',
+            '      synchronization:',
+            '        - DWT: 16M'
+        ]);
     });
 
     it('does not create optional match size when match value is absent', async () => {
