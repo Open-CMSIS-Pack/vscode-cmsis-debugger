@@ -29,6 +29,7 @@ export interface TraceConfigurationRow {
     checked?: boolean | undefined;
     options?: string[] | undefined;
     selectedOptions?: string[] | undefined;
+    placeholder?: string | undefined;
     controlDisabledReason?: string | undefined;
     hasChildren: boolean;
     expanded: boolean;
@@ -45,6 +46,7 @@ export interface TraceConfigurationState {
     dirty: boolean;
     emptyMessage?: string | undefined;
     errorMessage?: string | undefined;
+    focusedRowId?: string | undefined;
 }
 
 export interface TraceReadyMessage {

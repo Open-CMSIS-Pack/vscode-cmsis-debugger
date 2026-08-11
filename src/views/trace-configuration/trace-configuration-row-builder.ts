@@ -182,7 +182,7 @@ export class TraceConfigurationRowBuilder {
 
     /**
      * appendStreamSynchronizationRows renders the synchronization sequence as a
-     * user-facing Stream Syncronization group with one DWT period child. ETM
+     * user-facing Stream Syncronization group with one DWT child. ETM
      * entries remain unsupported in the UI because they are being removed from
      * the current spec, but the YAML structure is still translated cleanly when
      * the DWT dropdown changes.
@@ -205,10 +205,10 @@ export class TraceConfigurationRowBuilder {
         if (!expanded) {
             return;
         }
-        const dwtPeriodPath = [...nodePath, 'dwt-sync-period'];
+        const dwtPeriodPath = [...nodePath, 0, 'DWT'];
         context.rows.push({
             id: this.pathToId(dwtPeriodPath),
-            label: 'DWT Sync Period (cycles)',
+            label: '- DWT',
             path: dwtPeriodPath,
             depth: depth + 1,
             kind: 'scalar',
@@ -237,6 +237,7 @@ export class TraceConfigurationRowBuilder {
         const kind = isYamlMapItem(node) ? 'map' : isYamlSequenceItem(node) || this.isBareSequenceNode(node, nodePath) ? 'sequence' : 'scalar';
         const scalarValue = isYamlScalarItem(node) ? this.scalarToString(node) : undefined;
         const valuePath = this.getRowValuePath(nodePath);
+        const placeholder = this.getRowPlaceholder(nodePath);
         const row: TraceConfigurationRow = {
             id: this.pathToId(nodePath),
             label: this.getRowLabel(node, label, nodePath),
@@ -249,6 +250,7 @@ export class TraceConfigurationRowBuilder {
             checked: this.getCheckedState(node, nodePath, scalarValue),
             options: this.getSelectOptions(label, nodePath),
             selectedOptions: this.getSelectedOptions(node, label, nodePath, scalarValue),
+            ...(placeholder ? { placeholder } : {}),
             controlDisabledReason: this.getControlDisabledReason(nodePath),
             hasChildren,
             expanded: this.hasInlineMultiSelect(nodePath) ? false : expanded,
@@ -695,6 +697,16 @@ export class TraceConfigurationRowBuilder {
     private getRowValuePath(nodePath: (string | number)[]): (string | number)[] | undefined {
         if (this.isPromotedLocationItemPath(nodePath)) {
             return [...nodePath, 'location'];
+        }
+        return undefined;
+    }
+
+    private getRowPlaceholder(nodePath: (string | number)[]): string | undefined {
+        if (this.isTraceItemSizePath(nodePath) || this.isMatchSizePath(nodePath)) {
+            return '<Auto>';
+        }
+        if (this.isMatchValuePath(nodePath)) {
+            return '<None>';
         }
         return undefined;
     }
@@ -1434,11 +1446,25 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
-     * isStreamSyncDwtPeriodPath identifies the synthetic child row used to edit
-     * the real synchronization sequence's DWT period value.
+     * isStreamSyncDwtPeriodPath identifies the folded DWT child row used to
+     * edit the real synchronization sequence's DWT period value.
      */
     public isStreamSyncDwtPeriodPath(nodePath: (string | number)[]): boolean {
+        if (nodePath.at(-1) === 'DWT' && typeof nodePath.at(-2) === 'number') {
+            return this.isStreamSynchronizationPath(nodePath.slice(0, -2));
+        }
         return nodePath.at(-1) === 'dwt-sync-period' && this.isStreamSynchronizationPath(nodePath.slice(0, -1));
+    }
+
+    /**
+     * getStreamSyncPathForDwtPeriodPath returns the sequence path rewritten
+     * when the folded DWT dropdown changes. The legacy synthetic path is still
+     * accepted so stale webview messages do not fail during extension updates.
+     */
+    public getStreamSyncPathForDwtPeriodPath(nodePath: (string | number)[]): (string | number)[] {
+        return nodePath.at(-1) === 'DWT' && typeof nodePath.at(-2) === 'number'
+            ? nodePath.slice(0, -2)
+            : nodePath.slice(0, -1);
     }
 
     /**
@@ -1498,6 +1524,14 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
+     * isTraceItemSizePath identifies the optional item-level size field for
+     * DWT data and condition entries.
+     */
+    private isTraceItemSizePath(nodePath: (string | number)[]): boolean {
+        return nodePath.at(-1) === 'size' && this.isTraceItemPath(nodePath.slice(0, -1));
+    }
+
+    /**
      * isMatchValuePath identifies the required value field inside an optional
      * match object. The model uses this to remove the whole optional match block
      * when the required value is cleared, preventing invalid match maps that
@@ -1523,7 +1557,7 @@ export class TraceConfigurationRowBuilder {
      */
     private getStreamSyncDwtPeriod(node: YamlTreeItem): string {
         if (!isYamlSequenceItem(node)) {
-            return 'off';
+            return '256M';
         }
         const dwtPeriod = node.getChildren().flatMap(item => {
             if (!isYamlMapItem(item)) {
@@ -1540,7 +1574,7 @@ export class TraceConfigurationRowBuilder {
             const periodText = this.scalarToString(period);
             return periodText.startsWith('DWT\\') ? [periodText.replace(/^DWT\\/, '')] : [];
         }).at(0);
-        return dwtPeriod ?? 'off';
+        return dwtPeriod ?? '256M';
     }
 
     /**

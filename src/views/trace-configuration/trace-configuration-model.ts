@@ -41,6 +41,7 @@ export class TraceConfigurationModel {
     private loading = false;
     private dirty = false;
     private errorMessage: string | undefined;
+    private focusedRowId: string | undefined;
     private readonly collapsedRows = new Set<string>();
     private readonly processorCapabilities: TraceConfigurationProcessorCapabilities;
     private readonly rowBuilder: TraceConfigurationRowBuilder;
@@ -390,7 +391,7 @@ export class TraceConfigurationModel {
             return;
         }
         if (this.rowBuilder.isStreamSyncDwtPeriodPath(pathToUpdate) && typeof value === 'string') {
-            const streamSyncPath = pathToUpdate.slice(0, -1);
+            const streamSyncPath = this.rowBuilder.getStreamSyncPathForDwtPeriodPath(pathToUpdate);
             document.yaml.set(streamSyncPath, [{ DWT: value }]);
             await this.acceptInMemoryEdit();
             return;
@@ -448,8 +449,21 @@ export class TraceConfigurationModel {
             this.notifyStateChanged();
             return;
         }
+        const newItemIndex = this.getNextSequenceIndex(document, pathToUpdate);
         document.yaml.append(pathToUpdate, this.createNewItem(addChildKind));
+        this.collapsedRows.delete(this.pathToId(pathToUpdate));
+        this.focusedRowId = this.pathToId([...pathToUpdate, newItemIndex]);
         await this.acceptInMemoryEdit();
+    }
+
+    /**
+     * getNextSequenceIndex returns the path segment that append will assign to
+     * the next child. Missing and bare-key sequence paths become index 0 when
+     * the YAML DOM materializes them.
+     */
+    private getNextSequenceIndex(document: NonNullable<CTraceYamlFile['document']>, sequencePath: (string | number)[]): number {
+        const sequence = document.yaml.getItem(sequencePath);
+        return isYamlSequenceItem(sequence) ? sequence.getChildren().length : 0;
     }
 
     /**
@@ -698,7 +712,16 @@ export class TraceConfigurationModel {
      * rows that the UI can render.
      */
     public createState(): TraceConfigurationState {
-        return this.rowBuilder.createState();
+        const state = this.rowBuilder.createState();
+        if (!this.focusedRowId) {
+            return state;
+        }
+        const focusedState: TraceConfigurationState = {
+            ...state,
+            focusedRowId: this.focusedRowId
+        };
+        this.focusedRowId = undefined;
+        return focusedState;
     }
 
     /**
@@ -717,5 +740,12 @@ export class TraceConfigurationModel {
      */
     private errorToString(error: unknown): string {
         return error instanceof Error ? error.message : String(error);
+    }
+
+    /**
+     * pathToId creates row identifiers that match TraceConfigurationRowBuilder.
+     */
+    private pathToId(nodePath: (string | number)[]): string {
+        return JSON.stringify(nodePath);
     }
 }

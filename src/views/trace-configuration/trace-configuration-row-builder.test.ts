@@ -200,9 +200,12 @@ describe('TraceConfigurationRowBuilder', () => {
 
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'label']).label).toBe('Label');
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'size']).label).toBe('Size');
+        expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'size']).placeholder).toBe('<Auto>');
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'output']).options).toEqual(TraceConfigurationTypes.DATA_OUTPUT_OPTIONS);
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'output']).options).not.toContain('');
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'match']).label).toBe('Match');
+        expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'match', 'value']).placeholder).toBe('<None>');
+        expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'match', 'size']).placeholder).toBe('<Auto>');
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'match', 'size']).options).toEqual(TraceConfigurationTypes.MATCH_SIZE_OPTIONS);
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'match', 'size']).options).not.toContain('');
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'pc']).options).toEqual(['yes', 'no']);
@@ -329,11 +332,16 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(startAccessRow.value).toBe('Execute');
         expect(startAccessRow.options).toEqual(['Execute', 'Read', 'Write', 'Read Write']);
         expect(startAccessRow.options).not.toContain('');
+        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'start', 0, 'size']).placeholder).toBe('<Auto>');
+        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'start', 0, 'match', 'value']).placeholder).toBe('<None>');
         const stopAccessRow = findRow(state, ['ctrace', 'setup', 0, 'instructions', 'stop', 0, 'access']);
         expect(stopAccessRow.value).toBe('Execute');
         expect(stopAccessRow.options).toEqual(['Execute', 'Read', 'Write', 'Read Write']);
         expect(stopAccessRow.options).not.toContain('');
+        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'stop', 0, 'size']).placeholder).toBe('<Auto>');
         expect(findRow(state, ['ctrace', 'setup', 0, 'tracehalt', 0, 'access']).options).toEqual(TraceConfigurationTypes.CONDITION_ACCESS_OPTIONS);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'tracehalt', 0, 'size']).placeholder).toBe('<Auto>');
+        expect(findRow(state, ['ctrace', 'setup', 0, 'tracehalt', 0, 'match', 'value']).placeholder).toBe('<None>');
     });
 
     it('disables add controls when shared DWT comparator entries reach the processor limit', () => {
@@ -430,9 +438,23 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(pcSamplingRow.options?.filter(option => option === '1024')).toHaveLength(1);
 
         expect(state.rows.some(row => row.label === 'Advanced Settings')).toBe(true);
-        const dwtSyncRow = findRow(state, ['ctrace', 'setup', 0, 'synchronization', 'dwt-sync-period']);
+        const dwtSyncRow = findRow(state, ['ctrace', 'setup', 0, 'synchronization', 0, 'DWT']);
+        expect(dwtSyncRow.label).toBe('- DWT');
         expect(dwtSyncRow.value).toBe('64M');
         expect(dwtSyncRow.options).toEqual(TraceConfigurationTypes.STREAM_SYNC_PERIOD_OPTIONS);
+    });
+
+    it('defaults missing DWT stream synchronization to 256M', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            ''
+        ].join('\n'));
+
+        const dwtSyncRow = findRow(state, ['ctrace', 'setup', 0, 'synchronization', 0, 'DWT']);
+        expect(dwtSyncRow.label).toBe('- DWT');
+        expect(dwtSyncRow.value).toBe('256M');
     });
 
     it('renders event and ITM masks as inline multi-select controls', () => {
@@ -526,7 +548,7 @@ describe('TraceConfigurationRowBuilder', () => {
         const advancedRow = findRow(state, ['ctrace', 'setup', 0, 'advanced-settings']);
         expect(advancedRow.expanded).toBe(false);
         expect(hasRow(state, ['ctrace', 'setup', 0, 'timesync'])).toBe(false);
-        expect(hasRow(state, ['ctrace', 'setup', 0, 'synchronization', 'dwt-sync-period'])).toBe(false);
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'synchronization', 0, 'DWT'])).toBe(false);
 
         const expandedState = createStateFromYaml([
             'ctrace:',
@@ -536,7 +558,7 @@ describe('TraceConfigurationRowBuilder', () => {
             '        - period: DWT\\16M',
             ''
         ].join('\n'));
-        expect(findRow(expandedState, ['ctrace', 'setup', 0, 'synchronization', 'dwt-sync-period']).value).toBe('16M');
+        expect(findRow(expandedState, ['ctrace', 'setup', 0, 'synchronization', 0, 'DWT']).value).toBe('16M');
     });
 
     it('exposes conversion helpers used by the model for scalar and mask values', () => {

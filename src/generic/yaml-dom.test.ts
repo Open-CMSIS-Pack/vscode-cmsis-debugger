@@ -21,6 +21,29 @@ import { NodeTextFileAdapter, YamlDomFile } from './yaml-file';
 import { YamlDomDocument } from './yaml-dom';
 
 describe('YamlDomDocument', () => {
+    it('creates nested maps and sequences and deletes paths safely', () => {
+        const document = YamlDomDocument.create('ctrace');
+
+        document.ensureSequence(['ctrace', 'setup']);
+        document.set(['ctrace', 'setup', 0, 'pname'], 'cm33');
+        document.set(['ctrace', 'setup', 0, 'data', 0, 'location'], 'watchSymbol');
+        document.append(['ctrace', 'setup', 0, 'data'], {
+            location: 'secondWatch',
+            access: 'W'
+        });
+
+        expect(document.getKind()).toBe('map');
+        expect(document.getKind(['ctrace', 'setup'])).toBe('sequence');
+        expect(document.getString(['ctrace', 'setup', 0, 'pname'])).toBe('cm33');
+        expect(document.getArray(['ctrace', 'setup', 0, 'data'])).toEqual([
+            { location: 'watchSymbol' },
+            { location: 'secondWatch', access: 'W' }
+        ]);
+        expect(document.delete(['ctrace', 'setup', 0, 'missing'])).toBe(false);
+        expect(document.delete(['ctrace', 'setup', 0, 'data', 0, 'location'])).toBe(true);
+        expect(document.getString(['ctrace', 'setup', 0, 'data', 0, 'location'])).toBeUndefined();
+    });
+
     it('reads scalar source text and updates YAML without quoting hex strings', () => {
         const input = [
             '# Trace settings',
@@ -103,5 +126,24 @@ describe('YamlDomFile', () => {
         file.document?.set(['ctrace', 'created-by'], 'saved');
         await file.save();
         expect(adapter.text).toContain('created-by: saved');
+    });
+
+    it('tracks external file stamps and reloads from watchers', async () => {
+        const adapter = new MemoryTextFileAdapter('ctrace:\n  created-by: initial\n');
+        const file = new YamlDomFile('target.ctrace.yml', adapter);
+        const onDidReload = jest.fn();
+
+        await file.load();
+        await expect(file.hasExternalFileChanged()).resolves.toBe(false);
+        const watcher = file.watch(onDidReload);
+
+        adapter.update('ctrace:\n  created-by: watched\n');
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(onDidReload).toHaveBeenCalledTimes(1);
+        expect(file.document?.getString(['ctrace', 'created-by'])).toBe('watched');
+
+        watcher.dispose();
+        expect(adapter.listenerCount()).toBe(0);
     });
 });

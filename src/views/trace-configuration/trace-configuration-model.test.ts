@@ -289,7 +289,7 @@ describe('TraceConfigurationModel', () => {
         await model.updateValue(['ctrace', 'setup', 0, 'timesync'], false);
         await model.updateValue(['ctrace', 'setup', 0, 'timesync'], true);
         await model.updateValue(['ctrace', 'setup', 0, 'pcsampling'], '64 * 16');
-        await model.updateValue(['ctrace', 'setup', 0, 'synchronization', 'dwt-sync-period'], '256M');
+        await model.updateValue(['ctrace', 'setup', 0, 'synchronization', 0, 'DWT'], '256M');
 
         expect(adapter.writeCount).toBe(0);
         expect(model.createState().dirty).toBe(true);
@@ -307,6 +307,28 @@ describe('TraceConfigurationModel', () => {
         expect(adapter.text).toContain('      synchronization:\n        - DWT: 256M\n');
         expect(adapter.text).toContain('      timesync:\n');
         expect(adapter.text).not.toContain('disable:');
+    });
+
+    it('expands collapsed comparator lists and focuses the newly added child', async () => {
+        const { model } = await createModelFromText([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: existingWatch',
+            ''
+        ].join('\n'), createCapabilities());
+        const dataPath = ['ctrace', 'setup', 0, 'data'];
+        model.updateExpandedState(JSON.stringify(dataPath), false);
+
+        await model.addItem(dataPath, 'data');
+
+        const focusedState = model.createState();
+        const dataRow = focusedState.rows.find(row => JSON.stringify(row.path) === JSON.stringify(dataPath));
+        expect(dataRow?.expanded).toBe(true);
+        expect(focusedState.focusedRowId).toBe(JSON.stringify(['ctrace', 'setup', 0, 'data', 1]));
+        expect(focusedState.rows.some(row => JSON.stringify(row.path) === JSON.stringify(['ctrace', 'setup', 0, 'data', 1]))).toBe(true);
+        expect(model.createState().focusedRowId).toBeUndefined();
     });
 
     it('does not create optional match size when match value is absent', async () => {

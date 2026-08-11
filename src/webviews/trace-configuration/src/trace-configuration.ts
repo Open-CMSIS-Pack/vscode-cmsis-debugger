@@ -117,6 +117,27 @@ function renderApp(state: TraceConfigurationState): void {
         surface.append(createTable(state.rows));
     }
     root.append(surface);
+    focusRow(state.focusedRowId);
+}
+
+/**
+ * focusRow brings a newly added row into view after a host-rendered state
+ * refresh. The lookup avoids CSS escaping issues by comparing dataset values.
+ */
+function focusRow(rowId: string | undefined): void {
+    if (!rowId) {
+        return;
+    }
+    const row = Array.from(document.querySelectorAll<HTMLTableRowElement>('tr[data-row-id]'))
+        .find(candidate => candidate.dataset.rowId === rowId);
+    if (!row) {
+        return;
+    }
+    if (row.tabIndex < 0) {
+        row.tabIndex = -1;
+    }
+    row.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    row.focus({ preventScroll: true });
 }
 
 /**
@@ -416,6 +437,15 @@ function createSelect(row: TraceConfigurationRow): HTMLElement {
     const select = createElement('select');
     select.disabled = Boolean(disabledReason);
     select.setAttribute('aria-label', row.label);
+    if (row.placeholder && !row.value) {
+        const placeholderOption = createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.textContent = row.placeholder;
+        placeholderOption.disabled = true;
+        placeholderOption.selected = true;
+        select.classList.add('placeholder-selected');
+        select.append(placeholderOption);
+    }
     (row.options ?? []).forEach(optionValue => {
         const option = createElement('option');
         option.value = optionValue;
@@ -506,6 +536,7 @@ function createTextInput(row: TraceConfigurationRow): HTMLInputElement {
     const input = createElement('input');
     input.type = 'text';
     input.value = row.value ?? '';
+    input.placeholder = row.placeholder ?? '';
     input.spellcheck = false;
     input.setAttribute('aria-label', row.label);
     let lastCommittedValue = input.value;

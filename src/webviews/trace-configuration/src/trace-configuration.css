@@ -196,6 +196,15 @@ select {
     padding: 3px 6px;
 }
 
+input::placeholder,
+.placeholder-selected {
+    color: var(--vscode-input-placeholderForeground, #a6a6a6);
+}
+
+input::placeholder {
+    opacity: 1;
+}
+
 select:disabled {
     opacity: 0.55;
     cursor: default;
