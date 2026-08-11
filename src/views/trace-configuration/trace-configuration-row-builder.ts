@@ -181,7 +181,7 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
-     * appendStreamSynchronizationRows renders the synchronization sequence as a
+     * appendStreamSynchronizationRows renders the synchronization map as a
      * user-facing Stream Syncronization group with one DWT child. ETM
      * entries remain unsupported in the UI because they are being removed from
      * the current spec, but the YAML structure is still translated cleanly when
@@ -205,10 +205,10 @@ export class TraceConfigurationRowBuilder {
         if (!expanded) {
             return;
         }
-        const dwtPeriodPath = [...nodePath, 0, 'DWT'];
+        const dwtPeriodPath = [...nodePath, 'DWT'];
         context.rows.push({
             id: this.pathToId(dwtPeriodPath),
-            label: '- DWT',
+            label: 'DWT',
             path: dwtPeriodPath,
             depth: depth + 1,
             kind: 'scalar',
@@ -565,7 +565,7 @@ export class TraceConfigurationRowBuilder {
         if (synchronization && this.shouldShowTraceNode('synchronization', [...nodePath, 'synchronization'])) {
             entries.push({ label: 'synchronization', path: [...nodePath, 'synchronization'], node: synchronization });
         } else if (this.shouldShowTraceNode('synchronization', [...nodePath, 'synchronization'])) {
-            entries.push(this.createSyntheticSequenceEntry(nodePath, 'synchronization'));
+            entries.push(this.createSyntheticMapEntry(nodePath, 'synchronization'));
         }
         return entries;
     }
@@ -1437,8 +1437,8 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
-     * isStreamSynchronizationPath identifies the stream synchronization
-     * sequence. The webview renders it as a parent row with one folded DWT sync
+     * isStreamSynchronizationPath identifies the stream synchronization map.
+     * The webview renders it as a parent row with one folded DWT sync
      * period child and no add button.
      */
     private isStreamSynchronizationPath(nodePath: (string | number)[]): boolean {
@@ -1447,9 +1447,12 @@ export class TraceConfigurationRowBuilder {
 
     /**
      * isStreamSyncDwtPeriodPath identifies the folded DWT child row used to
-     * edit the real synchronization sequence's DWT period value.
+     * edit the real synchronization map's DWT period value.
      */
     public isStreamSyncDwtPeriodPath(nodePath: (string | number)[]): boolean {
+        if (nodePath.at(-1) === 'DWT' && this.isStreamSynchronizationPath(nodePath.slice(0, -1))) {
+            return true;
+        }
         if (nodePath.at(-1) === 'DWT' && typeof nodePath.at(-2) === 'number') {
             return this.isStreamSynchronizationPath(nodePath.slice(0, -2));
         }
@@ -1462,6 +1465,9 @@ export class TraceConfigurationRowBuilder {
      * accepted so stale webview messages do not fail during extension updates.
      */
     public getStreamSyncPathForDwtPeriodPath(nodePath: (string | number)[]): (string | number)[] {
+        if (nodePath.at(-1) === 'DWT' && this.isStreamSynchronizationPath(nodePath.slice(0, -1))) {
+            return nodePath.slice(0, -1);
+        }
         return nodePath.at(-1) === 'DWT' && typeof nodePath.at(-2) === 'number'
             ? nodePath.slice(0, -2)
             : nodePath.slice(0, -1);
@@ -1552,10 +1558,22 @@ export class TraceConfigurationRowBuilder {
 
     /**
      * getStreamSyncDwtPeriod extracts the DWT synchronization period from the
-     * real YAML sequence. ETM entries are ignored because the current UI only
-     * exposes the DWT period supported by the revised trace spec.
+     * real YAML map. Older sequence encodings are still accepted for existing
+     * files and rewritten to the current map shape on edit/save.
      */
     private getStreamSyncDwtPeriod(node: YamlTreeItem): string {
+        if (isYamlMapItem(node)) {
+            const dwt = node.getChild('DWT');
+            if (isYamlScalarItem(dwt)) {
+                return this.scalarToString(dwt);
+            }
+            const period = node.getChild('period');
+            if (isYamlScalarItem(period)) {
+                const periodText = this.scalarToString(period);
+                return periodText.startsWith('DWT\\') ? periodText.replace(/^DWT\\/, '') : periodText;
+            }
+            return '256M';
+        }
         if (!isYamlSequenceItem(node)) {
             return '256M';
         }

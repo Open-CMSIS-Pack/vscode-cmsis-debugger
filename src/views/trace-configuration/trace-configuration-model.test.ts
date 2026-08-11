@@ -277,7 +277,7 @@ describe('TraceConfigurationModel', () => {
             '      instructions:',
             '      pcsampling:',
             '      synchronization:',
-            '        - DWT: off',
+            '        DWT: off',
             '      timesync:',
             ''
         ].join('\n'), createCapabilities());
@@ -298,7 +298,7 @@ describe('TraceConfigurationModel', () => {
         await model.updateValue(['ctrace', 'setup', 0, 'timesync'], false);
         await model.updateValue(['ctrace', 'setup', 0, 'timesync'], true);
         await model.updateValue(['ctrace', 'setup', 0, 'pcsampling'], '64 * 16');
-        await model.updateValue(['ctrace', 'setup', 0, 'synchronization', 0, 'DWT'], '256M');
+        await model.updateValue(['ctrace', 'setup', 0, 'synchronization', 'DWT'], '256M');
 
         expect(adapter.writeCount).toBe(0);
         expect(model.createState().dirty).toBe(true);
@@ -313,7 +313,7 @@ describe('TraceConfigurationModel', () => {
         expect(adapter.text).toContain('            size: 4\n');
         expect(adapter.text).toContain('      instructions: {}\n');
         expect(adapter.text).toContain('      pcsampling:\n        period: 1024\n');
-        expect(adapter.text).toContain('      synchronization:\n        - DWT: 256M\n');
+        expect(adapter.text).toContain('      synchronization:\n        DWT: 256M\n');
         expect(adapter.text).toContain('      timesync:\n');
         expect(adapter.text).not.toContain('disable:');
     });
@@ -360,7 +360,7 @@ describe('TraceConfigurationModel', () => {
         await model.updateValue(['ctrace', 'setup', 0, 'exceptions'], true);
         await model.updateValue(['ctrace', 'setup', 0, 'instructions'], true);
         await model.updateValue(['ctrace', 'setup', 0, 'pcsampling'], '64');
-        await model.updateValue(['ctrace', 'setup', 0, 'synchronization', 0, 'DWT'], '16M');
+        await model.updateValue(['ctrace', 'setup', 0, 'synchronization', 'DWT'], '16M');
         await model.updateValue(['ctrace', 'setup', 0, 'timesync'], true);
         await model.updateValue(['ctrace', 'setup', 0, 'timestamps'], true);
 
@@ -388,7 +388,7 @@ describe('TraceConfigurationModel', () => {
             '      pcsampling:',
             '        period: 64',
             '      synchronization:',
-            '        - DWT: 16M'
+            '        DWT: 16M'
         ]);
     });
 

@@ -104,7 +104,7 @@ export interface CTraceConfiguration {
     events?: CTraceEventTrace[];
     itm?: CTraceItmTrace | CTraceItmTrace[];
     pcsampling?: CTracePcSampling;
-    synchronization?: CTraceSynchronization[];
+    synchronization?: CTraceSynchronization;
     tracehalt?: CTraceCondition[];
     'register-values'?: CTraceRegisterValues[];
 }
@@ -121,7 +121,7 @@ export interface CTraceProcessorTraceSetup {
     itm?: CTraceItmTrace;
     instructions?: CTraceInstructions | null;
     pcsampling?: CTracePcSampling;
-    synchronization?: CTraceSynchronization[];
+    synchronization?: CTraceSynchronization;
     tracehalt?: CTraceCondition[];
 }
 
@@ -518,7 +518,7 @@ export class CTraceYamlDocument {
         if (this.isPcSamplingPath(path)) {
             return PCSAMPLING_ORDER;
         }
-        if (this.isSynchronizationItemPath(path)) {
+        if (this.isSynchronizationPath(path)) {
             return SYNCHRONIZATION_ORDER;
         }
         if (this.isRegisterValuesItemPath(path)) {
@@ -571,8 +571,9 @@ export class CTraceYamlDocument {
         return path.at(-1) === 'pcsampling';
     }
 
-    private isSynchronizationItemPath(path: (string | number)[]): boolean {
-        return path.at(-2) === 'synchronization' && typeof path.at(-1) === 'number';
+    private isSynchronizationPath(path: (string | number)[]): boolean {
+        return path.at(-1) === 'synchronization'
+            || (path.at(-2) === 'synchronization' && typeof path.at(-1) === 'number');
     }
 
     private isRegisterValuesItemPath(path: (string | number)[]): boolean {

@@ -392,7 +392,7 @@ export class TraceConfigurationModel {
         }
         if (this.rowBuilder.isStreamSyncDwtPeriodPath(pathToUpdate) && typeof value === 'string') {
             const streamSyncPath = this.rowBuilder.getStreamSyncPathForDwtPeriodPath(pathToUpdate);
-            document.yaml.set(streamSyncPath, [{ DWT: value }]);
+            document.yaml.set(streamSyncPath, { DWT: value });
             await this.acceptInMemoryEdit();
             return;
         }

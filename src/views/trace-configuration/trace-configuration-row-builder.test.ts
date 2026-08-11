@@ -426,7 +426,7 @@ describe('TraceConfigurationRowBuilder', () => {
             '    - pname: cm33',
             '      pcsampling:',
             '      synchronization:',
-            '        - DWT: 64M',
+            '        DWT: 64M',
             ''
         ].join('\n'));
 
@@ -438,8 +438,8 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(pcSamplingRow.options?.filter(option => option === '1024')).toHaveLength(1);
 
         expect(state.rows.some(row => row.label === 'Advanced Settings')).toBe(true);
-        const dwtSyncRow = findRow(state, ['ctrace', 'setup', 0, 'synchronization', 0, 'DWT']);
-        expect(dwtSyncRow.label).toBe('- DWT');
+        const dwtSyncRow = findRow(state, ['ctrace', 'setup', 0, 'synchronization', 'DWT']);
+        expect(dwtSyncRow.label).toBe('DWT');
         expect(dwtSyncRow.value).toBe('64M');
         expect(dwtSyncRow.options).toEqual(TraceConfigurationTypes.STREAM_SYNC_PERIOD_OPTIONS);
     });
@@ -452,8 +452,8 @@ describe('TraceConfigurationRowBuilder', () => {
             ''
         ].join('\n'));
 
-        const dwtSyncRow = findRow(state, ['ctrace', 'setup', 0, 'synchronization', 0, 'DWT']);
-        expect(dwtSyncRow.label).toBe('- DWT');
+        const dwtSyncRow = findRow(state, ['ctrace', 'setup', 0, 'synchronization', 'DWT']);
+        expect(dwtSyncRow.label).toBe('DWT');
         expect(dwtSyncRow.value).toBe('256M');
     });
 
@@ -548,7 +548,7 @@ describe('TraceConfigurationRowBuilder', () => {
         const advancedRow = findRow(state, ['ctrace', 'setup', 0, 'advanced-settings']);
         expect(advancedRow.expanded).toBe(false);
         expect(hasRow(state, ['ctrace', 'setup', 0, 'timesync'])).toBe(false);
-        expect(hasRow(state, ['ctrace', 'setup', 0, 'synchronization', 0, 'DWT'])).toBe(false);
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'synchronization', 'DWT'])).toBe(false);
 
         const expandedState = createStateFromYaml([
             'ctrace:',
@@ -558,7 +558,7 @@ describe('TraceConfigurationRowBuilder', () => {
             '        - period: DWT\\16M',
             ''
         ].join('\n'));
-        expect(findRow(expandedState, ['ctrace', 'setup', 0, 'synchronization', 0, 'DWT']).value).toBe('16M');
+        expect(findRow(expandedState, ['ctrace', 'setup', 0, 'synchronization', 'DWT']).value).toBe('16M');
     });
 
     it('exposes conversion helpers used by the model for scalar and mask values', () => {
