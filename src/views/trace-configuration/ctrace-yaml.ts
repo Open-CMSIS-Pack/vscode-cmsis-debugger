@@ -15,7 +15,7 @@
  */
 // generated with AI
 
-import { Disposable, NodeTextFileAdapter, TextFileAdapter, YamlDomFile } from '../../generic/yaml-file';
+import { Disposable, NodeTextFileAdapter, TextFileAdapter, YamlDomFile } from '../../desktop/yaml-file';
 import {
     isYamlMapItem,
     isYamlSequenceItem,
@@ -25,7 +25,7 @@ import {
     YamlDomDocument,
     YamlPath,
     YamlTreeItem,
-} from '../../generic/yaml-dom';
+} from '../../desktop/yaml-dom';
 
 const CTRACE_ROOT = 'ctrace';
 const CTRACE_PATH = [CTRACE_ROOT] as const;

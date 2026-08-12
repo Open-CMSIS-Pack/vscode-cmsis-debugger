@@ -19,7 +19,7 @@ import * as fsPromises from 'node:fs/promises';
 
 import { ITextFileSystem, TextFileSystem } from '@open-cmsis-pack/cmsis-common/text-file-system';
 
-import { YamlDomDocument } from './yaml-dom';
+import { YamlDomDocument } from '../desktop/yaml-dom';
 
 export interface Disposable {
     dispose(): void;

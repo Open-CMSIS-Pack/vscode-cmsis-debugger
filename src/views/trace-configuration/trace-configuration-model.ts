@@ -19,7 +19,8 @@ import * as path from 'node:path';
 
 import * as vscode from 'vscode';
 
-import { Disposable, isYamlMapItem, isYamlScalarItem, isYamlSequenceItem, YamlTreeItem, yamlScalarToString } from '../../generic';
+import { isYamlMapItem, isYamlScalarItem, isYamlSequenceItem, YamlTreeItem, yamlScalarToString } from '../../desktop/yaml-dom';
+import { Disposable } from '../../desktop/yaml-file';
 import { logger } from '../../logger';
 import { CTraceYamlFile } from './ctrace-yaml';
 import {

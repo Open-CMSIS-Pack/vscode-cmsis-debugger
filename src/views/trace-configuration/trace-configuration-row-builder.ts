@@ -24,7 +24,7 @@ import {
     isYamlSequenceItem,
     YamlTreeItem,
     yamlScalarToString,
-} from '../../generic';
+} from '../../desktop/yaml-dom';
 
 import {
     TraceConfigurationRow,

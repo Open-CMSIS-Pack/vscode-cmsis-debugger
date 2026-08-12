@@ -15,7 +15,7 @@
  */
 // generated with AI
 
-import { Disposable, TextFileAdapter, TextFileStamp } from '../generic/yaml-file';
+import { Disposable, TextFileAdapter, TextFileStamp } from '../desktop/yaml-file';
 
 export class MemoryTextFileAdapter implements TextFileAdapter {
     public writeCount = 0;
