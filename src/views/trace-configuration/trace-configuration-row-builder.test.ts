@@ -420,6 +420,8 @@ describe('TraceConfigurationRowBuilder', () => {
             '    - pname: cm33',
             '      data:',
             '        - location: watchOne',
+            '          match:',
+            '            value: 0x10',
             '      instructions:',
             '        start:',
             '          - location: main',
@@ -427,12 +429,53 @@ describe('TraceConfigurationRowBuilder', () => {
             '      tracehalt:',
             ''
         ].join('\n'));
-        const expectedTooltip = 'Add Item. Comparators used are 2/4.';
+        const expectedTooltip = 'Add Item. Comparators used are 3/4.';
 
         expect(findRow(state, ['ctrace', 'setup', 0, 'data']).addChildTooltip).toBe(expectedTooltip);
         expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'start']).addChildTooltip).toBe(expectedTooltip);
         expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'stop']).addChildTooltip).toBe(expectedTooltip);
         expect(findRow(state, ['ctrace', 'setup', 0, 'tracehalt']).addChildTooltip).toBe(expectedTooltip);
+    });
+
+    it('disables empty match values when shared DWT comparators are exhausted', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: watchOne',
+            '          match:',
+            '        - location: watchTwo',
+            '      instructions:',
+            '        start:',
+            '          - location: main',
+            '      tracehalt:',
+            '        - location: halt',
+            ''
+        ].join('\n'));
+        const filledState = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: watchOne',
+            '          match:',
+            '            value: 0x10',
+            '        - location: watchTwo',
+            '      instructions:',
+            '        start:',
+            '          - location: main',
+            '      tracehalt:',
+            '        - location: halt',
+            ''
+        ].join('\n'));
+
+        expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'match', 'value']).controlDisabledReason)
+            .toBe('Maximum number of comparators has been reached for cm33');
+        expect(findRow(filledState, ['ctrace', 'setup', 0, 'data', 0, 'match', 'value']).controlDisabledReason)
+            .toBeUndefined();
+        expect(findRow(filledState, ['ctrace', 'setup', 0, 'data']).addChildTooltip)
+            .toBe('Add Item. Comparators used are 5/4.');
     });
 
     it('keeps editable trace item fields in static schema order', () => {

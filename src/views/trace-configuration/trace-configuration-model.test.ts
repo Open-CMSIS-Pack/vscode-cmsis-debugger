@@ -416,6 +416,31 @@ describe('TraceConfigurationModel', () => {
         expect(adapter.text).not.toContain('match:');
     });
 
+    it('does not create match value when shared DWT comparators are exhausted', async () => {
+        const { adapter, model } = await createModelFromText([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: watchOne',
+            '          match:',
+            '        - location: watchTwo',
+            '      instructions:',
+            '        start:',
+            '          - location: main',
+            '      tracehalt:',
+            '        - location: halt',
+            ''
+        ].join('\n'), createCapabilities());
+
+        await model.updateValue(['ctrace', 'setup', 0, 'data', 0, 'match', 'value'], '0x10');
+
+        expect(model.createState().dirty).toBe(false);
+        expect(model.createState().errorMessage).toContain('already use 4 of 4');
+        await model.saveCurrentDocument();
+        expect(adapter.text).not.toContain('value: 0x10');
+    });
+
     it('deletes optional values and prunes empty match parents', async () => {
         const { adapter, model } = await createModelFromText([
             'ctrace:',

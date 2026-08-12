@@ -396,6 +396,13 @@ export class TraceConfigurationModel {
             await this.acceptInMemoryEdit();
             return;
         }
+        if (this.rowBuilder.isMatchValuePath(pathToUpdate)
+            && typeof value === 'string'
+            && !this.rowBuilder.canSetSharedDwtComparatorMatchValue(pathToUpdate)) {
+            this.errorMessage = this.createSharedDwtComparatorLimitMessage(pathToUpdate);
+            this.notifyStateChanged();
+            return;
+        }
         if (this.rowBuilder.isMatchSizePath(pathToUpdate)
             && typeof value === 'string'
             && !this.hasNonEmptyScalarValue(document, [...pathToUpdate.slice(0, -1), 'value'])) {
@@ -467,16 +474,16 @@ export class TraceConfigurationModel {
     }
 
     /**
-     * createSharedDwtComparatorLimitMessage reports stale add attempts that
-     * arrive after the UI has already hidden add controls for a full DWT
-     * comparator pool.
+     * createSharedDwtComparatorLimitMessage reports stale attempts that arrive
+     * after the UI has already disabled controls for a full DWT comparator
+     * pool.
      */
     private createSharedDwtComparatorLimitMessage(pathToUpdate: (string | number)[]): string {
         const usage = this.rowBuilder.getSharedDwtComparatorUsage(pathToUpdate);
         if (!usage) {
             return 'No DWT comparators are available for this processor.';
         }
-        return `No DWT comparators are available for this processor. DWT Data Trace, Instruction Trace Start/Stop, and Trace Halt already use ${usage.used} of ${usage.limit} shared comparator entries.`;
+        return `No DWT comparators are available for this processor. DWT Data Trace, Instruction Trace Start/Stop, Trace Halt, and Match Value fields already use ${usage.used} of ${usage.limit} shared comparator entries.`;
     }
 
     /**

@@ -316,12 +316,25 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
+     * canSetSharedDwtComparatorMatchValue checks whether an empty match.value
+     * can start consuming one more comparator. Existing values remain editable
+     * because they already account for their comparator in current usage.
+     */
+    public canSetSharedDwtComparatorMatchValue(nodePath: (string | number)[]): boolean {
+        if (!this.isMatchValuePath(nodePath) || this.hasNonEmptyMatchValue(nodePath)) {
+            return true;
+        }
+        const usage = this.getSharedDwtComparatorUsage(nodePath);
+        return usage ? usage.used < usage.limit : true;
+    }
+
+    /**
      * getSharedDwtComparatorUsage returns current pool usage for one editable
-     * comparator-backed sequence. Each list entry consumes one comparator in
-     * the UI accounting model.
+     * comparator-backed sequence or match.value row. Each list entry consumes
+     * one comparator, and each filled match.value consumes another comparator.
      */
     public getSharedDwtComparatorUsage(nodePath: (string | number)[]): { used: number; limit: number; processorName: string } | undefined {
-        if (!this.isSharedDwtComparatorSequencePath(nodePath)) {
+        if (!this.isSharedDwtComparatorSequencePath(nodePath) && !this.isMatchValuePath(nodePath)) {
             return undefined;
         }
         const capabilities = this.getTraceCapabilitiesForPath(nodePath);
@@ -731,10 +744,14 @@ export class TraceConfigurationRowBuilder {
     }
 
     private getControlDisabledReason(nodePath: (string | number)[]): string | undefined {
-        if (!this.isMatchSizePath(nodePath) || this.hasNonEmptyMatchValue(nodePath)) {
-            return undefined;
+        if (this.isMatchSizePath(nodePath)) {
+            return this.hasNonEmptyMatchValue(nodePath) ? undefined : 'Size can\'t be set if no value is provided';
         }
-        return 'Size can\'t be set if no value is provided';
+        if (this.isMatchValuePath(nodePath) && !this.canSetSharedDwtComparatorMatchValue(nodePath)) {
+            const usage = this.getSharedDwtComparatorUsage(nodePath);
+            return usage ? `Maximum number of comparators has been reached for ${usage.processorName}` : undefined;
+        }
+        return undefined;
     }
 
     /**
@@ -1366,7 +1383,9 @@ export class TraceConfigurationRowBuilder {
 
     /**
      * countSharedDwtComparatorEntries totals DWT comparator consumers for the
-     * setup item that owns the current row.
+     * setup item that owns the current row. Each trace item consumes one
+     * comparator, and each filled match.value consumes one additional
+     * comparator.
      */
     private countSharedDwtComparatorEntries(nodePath: (string | number)[]): number {
         const setupIndex = this.getSetupIndexForPath(nodePath);
@@ -1379,7 +1398,7 @@ export class TraceConfigurationRowBuilder {
             [...processorPath, 'instructions', 'start'],
             [...processorPath, 'instructions', 'stop'],
             [...processorPath, 'tracehalt'],
-        ].reduce((total, path) => total + this.countSequenceItems(path), 0);
+        ].reduce((total, path) => total + this.countSequenceItems(path) + this.countSequenceMatchValues(path), 0);
     }
 
     /**
@@ -1389,6 +1408,33 @@ export class TraceConfigurationRowBuilder {
     private countSequenceItems(nodePath: (string | number)[]): number {
         const node = this.getCTraceFile()?.document?.yaml.getItem(nodePath);
         return isYamlSequenceItem(node) ? node.getChildren().length : 0;
+    }
+
+    /**
+     * countSequenceMatchValues counts non-empty match.value fields below one
+     * comparator-backed list. These optional match values consume additional
+     * comparators beyond the location comparator used by the list item itself.
+     */
+    private countSequenceMatchValues(nodePath: (string | number)[]): number {
+        const node = this.getCTraceFile()?.document?.yaml.getItem(nodePath);
+        if (!isYamlSequenceItem(node)) {
+            return 0;
+        }
+        return node.getChildren()
+            .filter(item => this.hasNonEmptyTraceItemMatchValue(item))
+            .length;
+    }
+
+    private hasNonEmptyTraceItemMatchValue(item: YamlTreeItem): boolean {
+        if (!isYamlMapItem(item)) {
+            return false;
+        }
+        const match = item.getChild('match');
+        if (!isYamlMapItem(match)) {
+            return false;
+        }
+        const value = match.getChild('value');
+        return isYamlScalarItem(value) && this.scalarToString(value).trim().length > 0;
     }
 
     /**

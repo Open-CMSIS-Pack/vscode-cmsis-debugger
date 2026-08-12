@@ -548,11 +548,13 @@ function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
  * createTextInput renders editable scalar text. It commits on blur or Enter so
  * users can type without saving the file after every keystroke.
  */
-function createTextInput(row: TraceConfigurationRow): HTMLInputElement {
+function createTextInput(row: TraceConfigurationRow): HTMLElement {
+    const disabledReason = row.controlDisabledReason;
     const input = createElement('input');
     input.type = 'text';
     input.value = row.value ?? '';
     input.placeholder = row.placeholder ?? '';
+    input.disabled = Boolean(disabledReason);
     input.spellcheck = false;
     input.setAttribute('aria-label', row.label);
     let lastCommittedValue = input.value;
@@ -571,6 +573,14 @@ function createTextInput(row: TraceConfigurationRow): HTMLInputElement {
             input.blur();
         }
     });
+    if (disabledReason) {
+        const wrapper = createElement('span', 'tooltip-wrapper control-tooltip-wrapper');
+        wrapper.dataset.tooltip = disabledReason;
+        wrapper.tabIndex = 0;
+        wrapper.setAttribute('aria-label', disabledReason);
+        wrapper.append(input);
+        return wrapper;
+    }
     return input;
 }
 
