@@ -277,15 +277,15 @@ function createRow(row: TraceConfigurationRow): HTMLTableRowElement {
         tr.tabIndex = 0;
         tr.setAttribute('aria-expanded', String(row.expanded));
         tr.addEventListener('click', event => {
-            if (event.target instanceof HTMLElement && event.target.closest('.multi-select')) {
-                return;
-            }
-            if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement || event.target instanceof HTMLButtonElement) {
+            if (isRowToggleInteractiveTarget(event.target)) {
                 return;
             }
             post({ type: 'toggle', id: row.id, expanded: !row.expanded });
         });
         tr.addEventListener('keydown', event => {
+            if (isRowToggleInteractiveTarget(event.target)) {
+                return;
+            }
             if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
                 post({ type: 'toggle', id: row.id, expanded: !row.expanded });
@@ -293,6 +293,17 @@ function createRow(row: TraceConfigurationRow): HTMLTableRowElement {
         });
     }
     return tr;
+}
+
+/**
+ * isRowToggleInteractiveTarget prevents clicks and key presses on controls from
+ * falling through to the row-level expand/collapse handler.
+ */
+function isRowToggleInteractiveTarget(target: EventTarget | null): boolean {
+    if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLButtonElement) {
+        return true;
+    }
+    return target instanceof HTMLElement && Boolean(target.closest('.multi-select, .add-button-wrapper, .tooltip-wrapper'));
 }
 
 /**
@@ -388,20 +399,25 @@ function createSelectionCell(row: TraceConfigurationRow): HTMLTableCellElement {
  * host decides what placeholder object should be appended based on addChildKind.
  */
 function createAddButton(row: TraceConfigurationRow): HTMLElement {
-    const wrapper = createElement('span', 'add-button-wrapper');
+    const wrapper = createElement('span', 'add-button-wrapper tooltip-wrapper');
     const button = createElement('button', 'icon-button add-button');
     button.type = 'button';
     const disabledReason = row.addChildDisabledReason;
+    const tooltip = disabledReason ?? row.addChildTooltip ?? 'Add Item';
+    wrapper.dataset.tooltip = tooltip;
     button.disabled = Boolean(disabledReason);
-    button.setAttribute('aria-label', disabledReason ?? `Add item to ${row.label}`);
+    button.setAttribute('aria-label', tooltip);
     button.append(createIcon('add'));
+    wrapper.addEventListener('click', event => {
+        event.stopPropagation();
+    });
+    wrapper.addEventListener('keydown', event => {
+        event.stopPropagation();
+    });
     if (disabledReason) {
-        wrapper.classList.add('tooltip-wrapper');
-        wrapper.dataset.tooltip = disabledReason;
         wrapper.tabIndex = 0;
         wrapper.setAttribute('aria-label', disabledReason);
     } else {
-        button.title = 'Add item';
         button.addEventListener('click', event => {
             event.stopPropagation();
             post({ type: 'addItem', path: row.path, addChildKind: row.addChildKind ?? 'generic-map' });

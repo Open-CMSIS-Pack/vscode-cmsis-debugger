@@ -413,6 +413,28 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(traceHaltRow.addChildDisabledReason).toBe(disabledReason);
     });
 
+    it('shows shared DWT comparator usage in add button tooltips', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: watchOne',
+            '      instructions:',
+            '        start:',
+            '          - location: main',
+            '        stop:',
+            '      tracehalt:',
+            ''
+        ].join('\n'));
+        const expectedTooltip = 'Add Item. Comparators used are 2/4.';
+
+        expect(findRow(state, ['ctrace', 'setup', 0, 'data']).addChildTooltip).toBe(expectedTooltip);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'start']).addChildTooltip).toBe(expectedTooltip);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'stop']).addChildTooltip).toBe(expectedTooltip);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'tracehalt']).addChildTooltip).toBe(expectedTooltip);
+    });
+
     it('keeps editable trace item fields in static schema order', () => {
         const state = createStateFromYaml([
             'ctrace:',

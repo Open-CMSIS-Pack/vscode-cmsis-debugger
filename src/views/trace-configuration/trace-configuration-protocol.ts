@@ -35,6 +35,7 @@ export interface TraceConfigurationRow {
     expanded: boolean;
     removable: boolean;
     addChildKind?: 'data' | 'condition' | 'start' | 'stop' | 'generic-map' | 'generic-scalar' | undefined;
+    addChildTooltip?: string | undefined;
     addChildDisabledReason?: string | undefined;
     description?: string | undefined;
 }

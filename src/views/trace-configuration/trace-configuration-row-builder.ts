@@ -256,6 +256,7 @@ export class TraceConfigurationRowBuilder {
             expanded: this.hasInlineMultiSelect(nodePath) ? false : expanded,
             removable: typeof nodePath.at(-1) === 'number' && nodePath.at(-2) !== 'setup',
             addChildKind: this.getRowAddChildKind(node, nodePath),
+            addChildTooltip: this.getRowAddChildTooltip(node, nodePath),
             addChildDisabledReason: this.getRowAddChildDisabledReason(node, nodePath),
             description: this.describeNode(node, nodePath)
         };
@@ -289,6 +290,18 @@ export class TraceConfigurationRowBuilder {
             return undefined;
         }
         return `Maximum number of comparators has been reached for ${usage.processorName}`;
+    }
+
+    /**
+     * getRowAddChildTooltip augments comparator-backed add buttons with current
+     * shared DWT comparator usage while leaving generic add buttons terse.
+     */
+    private getRowAddChildTooltip(node: YamlTreeItem, nodePath: (string | number)[]): string | undefined {
+        if (!this.getRowAddChildKind(node, nodePath)) {
+            return undefined;
+        }
+        const usage = this.getSharedDwtComparatorUsage(nodePath);
+        return usage ? `Add Item. Comparators used are ${usage.used}/${usage.limit}.` : 'Add Item';
     }
 
     /**
