@@ -49,6 +49,7 @@ const CTRACE_ROOT_ORDER = [
 ] as const;
 const PROCESSOR_SETUP_ORDER = [
     'pname',
+    'core',
     'disable',
     'timestamps',
     'timesync',
@@ -112,6 +113,7 @@ export interface CTraceConfiguration {
 export interface CTraceProcessorTraceSetup {
     'ctrace-ref'?: string;
     pname?: string;
+    core?: string;
     disable?: null;
     timestamps?: CTraceTimestamps | null;
     timesync?: null;

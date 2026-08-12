@@ -22,10 +22,16 @@ import { FileLocationManager } from '../../utils';
 import { CTraceYamlFile } from './ctrace-yaml';
 import * as TraceConfigurationTypes from './trace-configuration-types';
 
+interface ConfiguredProcessor {
+    index: number;
+    displayName: string;
+    core?: string | undefined;
+}
+
 /**
- * TraceConfigurationProcessorCapabilities owns the processor-name-to-trace-feature lookup used by
- * the trace configuration UI. It reads only enough project context to identify processor cores,
- * then maps those core names to the static capability templates stored in trace-configuration-types.
+ * TraceConfigurationProcessorCapabilities owns the processor-to-trace-feature lookup used by the
+ * trace configuration UI. It reads only enough project context to identify processor cores, then
+ * maps those core names to the static capability templates stored in trace-configuration-types.
  */
 export class TraceConfigurationProcessorCapabilities {
     private readonly processorCapabilities = new Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities>();
@@ -59,38 +65,34 @@ export class TraceConfigurationProcessorCapabilities {
     }
 
     /**
-     * load rebuilds the capability map from the active cbuild-run.yml file when available. The
-     * cbuild-run file gives us processor names, and the actual trace limits come from the static
-     * templates stored inside this extension. If cbuild-run data is unavailable, this method falls
-     * back to processor names declared directly in the current ctrace.yml file.
+     * load rebuilds the capability map from the active ctrace.yml setup list and cbuild-run.yml file
+     * when available. Capability templates are selected from processor cores only; pname values are
+     * retained only as display names for the webview.
      */
     public async load(): Promise<void> {
         this.processorCapabilities.clear();
 
         try {
             const processors = await this.getCBuildRunProcessors();
-            const configuredProcessorNames = this.getConfiguredProcessorNames();
+            const configuredProcessors = this.getConfiguredProcessors();
 
-            for (const processor of processors) {
-                const pname = this.getProcessorNameForCapabilities(processor);
+            for (const configuredProcessor of configuredProcessors) {
+                const processor = processors.at(configuredProcessor.index);
+                const core = configuredProcessor.core ?? (processor ? this.getProcessorCoreForCapabilities(processor) : undefined);
 
-                if (!pname) {
-                    continue;
-                }
-
-                this.processorCapabilities.set(pname, this.createTraceCapabilities(pname, processor.core));
-            }
-
-            for (const pname of configuredProcessorNames) {
-                if (!this.processorCapabilities.has(pname)) {
-                    this.processorCapabilities.set(pname, this.createTraceCapabilities(pname));
-                }
+                this.processorCapabilities.set(
+                    this.setupIndexToCapabilitiesKey(configuredProcessor.index),
+                    this.createTraceCapabilities(configuredProcessor.displayName, core)
+                );
             }
         } catch (error) {
             logger.warn('Unable to load processor trace capabilities: ' + this.errorToString(error));
 
-            for (const pname of this.getConfiguredProcessorNames()) {
-                this.processorCapabilities.set(pname, this.createTraceCapabilities(pname));
+            for (const configuredProcessor of this.getConfiguredProcessors()) {
+                this.processorCapabilities.set(
+                    this.setupIndexToCapabilitiesKey(configuredProcessor.index),
+                    this.createTraceCapabilities(configuredProcessor.displayName, configuredProcessor.core)
+                );
             }
         }
     }
@@ -100,14 +102,13 @@ export class TraceConfigurationProcessorCapabilities {
      * lets row generation hide or disable controls based on the core that contains the row.
      */
     public getForPath(nodePath: Array<string | number>): TraceConfigurationTypes.ProcessorTraceCapabilities | undefined {
-        const pname = this.getProcessorNameForPath(nodePath);
-        return pname ? this.processorCapabilities.get(pname) : undefined;
+        const setupIndex = this.getSetupIndexForPath(nodePath);
+        return setupIndex === undefined ? undefined : this.processorCapabilities.get(this.setupIndexToCapabilitiesKey(setupIndex));
     }
 
     /**
-     * getProcessorNameForPath resolves a ctrace path back to its setup entry. The path can be either
-     * the setup item itself or any descendant under that item, which is how capability checks connect
-     * nested UI rows to their owning processor.
+     * getProcessorNameForPath resolves the display name for a setup entry. pname is used when present;
+     * otherwise core is used so processor rows can still render as Processor:<core>.
      */
     public getProcessorNameForPath(nodePath: Array<string | number>): string | undefined {
         const ctraceFile = this.getCTraceFile();
@@ -120,7 +121,7 @@ export class TraceConfigurationProcessorCapabilities {
         const setupItem = ctraceFile.document.yaml.getItem(['ctrace', 'setup', setupIndex]);
 
         if (isYamlMapItem(setupItem)) {
-            return this.mapScalarToString(setupItem.getChild('pname'));
+            return this.getConfiguredProcessorDisplayName(setupItem);
         }
 
         return undefined;
@@ -141,7 +142,7 @@ export class TraceConfigurationProcessorCapabilities {
     /**
      * getCBuildRunProcessors asks the Arm CMSIS Solution extension for the active cbuild-run.yml path
      * and then reuses CbuildRunReader to parse processors from it. Missing extension data simply means
-     * the caller will fall back to ctrace.yml processor names.
+     * the caller will fall back to ctrace.yml core values when present.
      */
     private async getCBuildRunProcessors(): Promise<ProcessorType[]> {
         const cbuildRunFilePath = await this.fileLocationManager.getCBuildRunFileName();
@@ -160,20 +161,20 @@ export class TraceConfigurationProcessorCapabilities {
     }
 
     /**
-     * getProcessorNameForCapabilities chooses the most specific processor identity available from
-     * cbuild-run data. The pname field matches ctrace.yml directly, while processorName is a useful
-     * fallback for generated files that omit pname.
+     * getProcessorCoreForCapabilities returns the processor core identity from cbuild-run data.
+     * cbuild-run pname values are deliberately ignored here because trace capabilities only depend
+     * on the core.
      */
-    private getProcessorNameForCapabilities(processor: ProcessorType): string | undefined {
-        return processor.pname || processor.core;
+    private getProcessorCoreForCapabilities(processor: ProcessorType): string | undefined {
+        return processor.core;
     }
 
     /**
-     * getConfiguredProcessorNames scans the active ctrace.yml setup list for pname values. These names
-     * are used as a fallback when cbuild-run data is missing and as a supplement when ctrace.yml names
-     * include processors that the current cbuild-run reader did not expose.
+     * getConfiguredProcessors scans the active ctrace.yml setup list for display names and optional
+     * core values. pname is kept only as display text; core is the only ctrace value used for trace
+     * capability lookup.
      */
-    private getConfiguredProcessorNames(): string[] {
+    private getConfiguredProcessors(): ConfiguredProcessor[] {
         const setup = this.getCTraceFile()?.document?.yaml.getItem(['ctrace', 'setup']);
 
         if (!isYamlSequenceItem(setup)) {
@@ -181,24 +182,32 @@ export class TraceConfigurationProcessorCapabilities {
         }
 
         return setup.getChildren()
-            .map((item) => (isYamlMapItem(item) ? this.mapScalarToString(item.getChild('pname')) : undefined))
-            .filter((pname): pname is string => Boolean(pname));
+            .flatMap((item, index) => {
+                if (!isYamlMapItem(item)) {
+                    return [];
+                }
+                const core = this.mapScalarToString(item.getChild('core'));
+                return [{
+                    index,
+                    displayName: this.getConfiguredProcessorDisplayName(item) ?? `Processor ${index + 1}`,
+                    ...(core ? { core } : {})
+                }];
+            });
     }
 
     /**
-     * createTraceCapabilities normalizes a processor name and looks up the matching trace capability
-     * template. Unknown processors intentionally get the no-trace template so the UI does not expose
-     * unsupported controls optimistically.
+     * createTraceCapabilities looks up the processor core using the documented Cortex-M Dcore value.
+     * Unknown or non-Cortex-M processors intentionally get the no-trace template so the UI does not
+     * expose unsupported controls optimistically.
      */
-    private createTraceCapabilities(pname: string, coreName?: string): TraceConfigurationTypes.ProcessorTraceCapabilities {
-        const normalizedName = this.normalizeCoreName(coreName) ?? this.normalizeCoreName(pname);
-        const template = normalizedName
-            ? TraceConfigurationTypes.TRACE_CAPABILITIES_BY_CORE.get(normalizedName) ?? TraceConfigurationTypes.NO_TRACE_CAPABILITIES
+    private createTraceCapabilities(displayName: string, coreName?: string): TraceConfigurationTypes.ProcessorTraceCapabilities {
+        const template = coreName
+            ? TraceConfigurationTypes.TRACE_CAPABILITIES_BY_CORE.get(coreName) ?? TraceConfigurationTypes.NO_TRACE_CAPABILITIES
             : TraceConfigurationTypes.NO_TRACE_CAPABILITIES;
 
         return {
-            pname,
-            core: normalizedName,
+            displayName,
+            core: coreName,
             supportsTrace: template.supportsTrace,
             dwtComparators: template.dwtComparators,
             timestamps: template.timestamps,
@@ -214,31 +223,19 @@ export class TraceConfigurationProcessorCapabilities {
     }
 
     /**
-     * normalizeCoreName turns common Cortex spelling variants into stable lookup keys. The
-     * documentation and generated files are not guaranteed to agree on hyphens or letter casing, so
-     * this keeps capability matching tolerant without changing the original pname shown to users.
-     */
-    private normalizeCoreName(value?: string): string | undefined {
-        if (!value) {
-            return undefined;
-        }
-        const normalized = value
-            .toUpperCase()
-            .replace(/CORTEX[-_\s]?M/g, 'CM')
-            .replace(/[-_\s]/g, '');
-        if (normalized.includes('CM0PLUS') || normalized.includes('CM0+')) {
-            return 'CM0PLUS';
-        }
-        const match = normalized.match(/CM(?:35P|85|55|52|33|23|7|4|3|1|0)/);
-        return match?.[0];
-    }
-
-    /**
      * mapScalarToString safely converts YAML scalar nodes into strings for capability lookup. YAML maps
      * can also return raw values, so the fallback keeps this helper defensive around parser details.
      */
     private mapScalarToString(node: YamlTreeItem | undefined): string | undefined {
         return isYamlScalarItem(node) ? yamlScalarToString(node) : undefined;
+    }
+
+    private getConfiguredProcessorDisplayName(setupItem: YamlTreeItem): string | undefined {
+        return this.mapScalarToString(setupItem.getChild('pname')) ?? this.mapScalarToString(setupItem.getChild('core'));
+    }
+
+    private setupIndexToCapabilitiesKey(setupIndex: number): string {
+        return String(setupIndex);
     }
 
     /**

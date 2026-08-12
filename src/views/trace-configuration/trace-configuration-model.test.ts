@@ -32,13 +32,13 @@ interface TraceConfigurationProcessorCapabilitiesPrivate {
     processorCapabilities: Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities>;
 }
 
-function createCapabilities(pname = 'cm33'): Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities> {
+function createCapabilities(displayName = 'cm33'): Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities> {
     return new Map([
         [
-            pname,
+            '0',
             {
-                pname,
-                core: 'CM33',
+                displayName,
+                core: 'Cortex-M33',
                 ...TraceConfigurationTypes.CORTEX_M_DWT_4_TRACE_CAPABILITIES
             }
         ]
@@ -120,6 +120,7 @@ describe('TraceConfigurationModel', () => {
             'ctrace:',
             '  setup:',
             '    - pname: cm33',
+            '      core: Cortex-M33',
             '      data:',
             '      instructions:',
             '        start:',
@@ -323,6 +324,7 @@ describe('TraceConfigurationModel', () => {
             'ctrace:',
             '  setup:',
             '    - pname: cm33',
+            '      core: Cortex-M33',
             '      data:',
             '        - location: existingWatch',
             ''
@@ -345,6 +347,7 @@ describe('TraceConfigurationModel', () => {
             'ctrace:',
             '  setup:',
             '    - pname: cm33',
+            '      core: Cortex-M33',
             ''
         ].join('\n'), createCapabilities());
 
@@ -368,6 +371,7 @@ describe('TraceConfigurationModel', () => {
 
         expectSubstringsInOrder(adapter.text, [
             '    - pname: cm33',
+            '      core: Cortex-M33',
             '      timestamps: {}',
             '      timesync:',
             '      data:',

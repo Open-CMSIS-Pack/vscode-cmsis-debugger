@@ -31,12 +31,12 @@ describe('TraceConfigurationProcessorCapabilities', () => {
         jest.restoreAllMocks();
     });
 
-    it('loads processor capabilities from cbuild-run data and supplements ctrace.yml processor names', async () => {
+    it('loads processor capabilities from cbuild-run cores and keeps ctrace.yml display names', async () => {
         jest.spyOn(FileLocationManager.prototype, 'getCBuildRunFileName').mockResolvedValue('project.cbuild-run.yml');
         const parseSpy = jest.spyOn(CbuildRunReader.prototype, 'parse').mockResolvedValue();
         jest.spyOn(CbuildRunReader.prototype, 'getProcessors').mockReturnValue([
             { pname: 'Core0', core: 'Cortex-M55' },
-            { core: 'Cortex M3' },
+            { core: 'Cortex-M3' },
         ] as ProcessorType[]);
         const ctraceFile = createCTraceFile([
             'ctrace:',
@@ -50,32 +50,31 @@ describe('TraceConfigurationProcessorCapabilities', () => {
         await capabilities.load();
 
         expect(parseSpy).toHaveBeenCalledWith('project.cbuild-run.yml');
-        expect(capabilities.capabilities.get('Core0')).toMatchObject({
-            pname: 'Core0',
-            core: 'CM55',
+        expect(capabilities.capabilities.get('0')).toMatchObject({
+            displayName: 'Core0',
+            core: 'Cortex-M55',
             pmuEvents: true,
             dwtComparators: 8
         });
-        expect(capabilities.capabilities.get('Cortex M3')).toMatchObject({
-            pname: 'Cortex M3',
-            core: 'CM3',
+        expect(capabilities.capabilities.get('1')).toMatchObject({
+            displayName: 'cm33',
+            core: 'Cortex-M3',
             supportsTrace: true,
             dwtComparators: 4
         });
-        expect(capabilities.capabilities.get('cm33')).toMatchObject({
-            pname: 'cm33',
-            core: 'CM33',
-            supportsTrace: true
-        });
+        expect(capabilities.capabilities.has('Core0')).toBe(false);
+        expect(capabilities.capabilities.has('Cortex-M55')).toBe(false);
     });
 
-    it('falls back to ctrace.yml processor names when cbuild-run data is unavailable', async () => {
+    it('falls back to ctrace.yml core values when cbuild-run data is unavailable', async () => {
         jest.spyOn(FileLocationManager.prototype, 'getCBuildRunFileName').mockResolvedValue(undefined);
         const parseSpy = jest.spyOn(CbuildRunReader.prototype, 'parse');
         const ctraceFile = createCTraceFile([
             'ctrace:',
             '  setup:',
-            '    - pname: Cortex-M0+',
+            '    - pname: DisplayCore',
+            '      core: Cortex-M0+',
+            '    - core: Cortex-M33',
             '    - pname: unknown-core',
             ''
         ].join('\n'));
@@ -84,13 +83,22 @@ describe('TraceConfigurationProcessorCapabilities', () => {
         await capabilities.load();
 
         expect(parseSpy).not.toHaveBeenCalled();
-        expect(capabilities.capabilities.get('Cortex-M0+')).toMatchObject({
-            core: 'CM0PLUS',
+        expect(capabilities.capabilities.get('0')).toMatchObject({
+            displayName: 'DisplayCore',
+            core: 'Cortex-M0+',
             supportsTrace: true,
             instructionTrace: true,
             dwtComparators: 0
         });
-        expect(capabilities.capabilities.get('unknown-core')).toMatchObject({
+        expect(capabilities.capabilities.get('1')).toMatchObject({
+            displayName: 'Cortex-M33',
+            core: 'Cortex-M33',
+            supportsTrace: true,
+            dwtComparators: 4
+        });
+        expect(capabilities.getProcessorNameForPath(['ctrace', 'setup', 1])).toBe('Cortex-M33');
+        expect(capabilities.capabilities.get('2')).toMatchObject({
+            displayName: 'unknown-core',
             core: undefined,
             supportsTrace: false,
             dwtComparators: 0
@@ -104,14 +112,16 @@ describe('TraceConfigurationProcessorCapabilities', () => {
             'ctrace:',
             '  setup:',
             '    - pname: cm4',
+            '      core: Cortex-M4',
             ''
         ].join('\n'));
         const capabilities = new TraceConfigurationProcessorCapabilities(() => ctraceFile);
 
         await capabilities.load();
 
-        expect(capabilities.capabilities.get('cm4')).toMatchObject({
-            core: 'CM4',
+        expect(capabilities.capabilities.get('0')).toMatchObject({
+            displayName: 'cm4',
+            core: 'Cortex-M4',
             supportsTrace: true,
             dwtComparators: 4
         });
@@ -123,6 +133,7 @@ describe('TraceConfigurationProcessorCapabilities', () => {
             'ctrace:',
             '  setup:',
             '    - pname: cm52',
+            '      core: Cortex-M52',
             '      data:',
             '        - location: watchedValue',
             ''
@@ -134,7 +145,8 @@ describe('TraceConfigurationProcessorCapabilities', () => {
         expect(capabilities.getSetupIndexForPath(['ctrace', 'setup', 0, 'data', 0])).toBe(0);
         expect(capabilities.getProcessorNameForPath(['ctrace', 'setup', 0, 'data', 0])).toBe('cm52');
         expect(capabilities.getForPath(['ctrace', 'setup', 0, 'data', 0])).toMatchObject({
-            core: 'CM52',
+            displayName: 'cm52',
+            core: 'Cortex-M52',
             pmuEvents: true
         });
         expect(capabilities.getForPath(['ctrace', 'data', 0])).toBeUndefined();
@@ -146,6 +158,7 @@ describe('TraceConfigurationProcessorCapabilities', () => {
             'ctrace:',
             '  setup:',
             '    - pname: cm7',
+            '      core: Cortex-M7',
             ''
         ].join('\n'));
         const capabilities = new TraceConfigurationProcessorCapabilities(() => ctraceFile);

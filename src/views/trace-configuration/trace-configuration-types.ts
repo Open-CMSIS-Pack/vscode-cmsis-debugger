@@ -68,7 +68,7 @@ export interface RowBuildContext {
 }
 
 export interface ProcessorTraceCapabilities {
-    pname: string;
+    displayName: string;
     core?: string | undefined;
     supportsTrace: boolean;
     dwtComparators: number;
@@ -83,7 +83,7 @@ export interface ProcessorTraceCapabilities {
     streamSynchronization: boolean;
 }
 
-export type ProcessorTraceCapabilityTemplate = Omit<ProcessorTraceCapabilities, 'pname' | 'core'>;
+export type ProcessorTraceCapabilityTemplate = Omit<ProcessorTraceCapabilities, 'displayName' | 'core'>;
 
 export const NO_TRACE_CAPABILITIES: ProcessorTraceCapabilityTemplate = {
     supportsTrace: false,
@@ -126,16 +126,16 @@ export const CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES: ProcessorTraceCapabilityTemp
 };
 
 export const TRACE_CAPABILITIES_BY_CORE = new Map<string, ProcessorTraceCapabilityTemplate>([
-    ['CM0', NO_TRACE_CAPABILITIES],
-    ['CM0PLUS', TB_ONLY_TRACE_CAPABILITIES],
-    ['CM1', NO_TRACE_CAPABILITIES],
-    ['CM3', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
-    ['CM4', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
-    ['CM7', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
-    ['CM23', TB_ONLY_TRACE_CAPABILITIES],
-    ['CM33', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
-    ['CM35P', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
-    ['CM52', CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES],
-    ['CM55', CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES],
-    ['CM85', CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES],
+    ['Cortex-M0', NO_TRACE_CAPABILITIES],
+    ['Cortex-M0+', TB_ONLY_TRACE_CAPABILITIES],
+    ['Cortex-M1', NO_TRACE_CAPABILITIES],
+    ['Cortex-M3', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
+    ['Cortex-M4', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
+    ['Cortex-M7', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
+    ['Cortex-M23', TB_ONLY_TRACE_CAPABILITIES],
+    ['Cortex-M33', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
+    ['Cortex-M35P', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
+    ['Cortex-M52', CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES],
+    ['Cortex-M55', CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES],
+    ['Cortex-M85', CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES],
 ]);

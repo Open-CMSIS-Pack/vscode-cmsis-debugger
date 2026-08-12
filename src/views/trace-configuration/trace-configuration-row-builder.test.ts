@@ -22,19 +22,20 @@ import * as TraceConfigurationTypes from './trace-configuration-types';
 
 /**
  * createCapabilities builds a realistic Cortex-M33 capability map for row
- * builder tests. The row builder filters optional feature rows by pname, so
- * tests need a capability entry that matches the synthetic ctrace.yml content.
+ * builder tests. Production capabilities are keyed by setup index so pname can
+ * remain display-only.
  */
 function createCapabilities(
-    pname = 'cm33',
-    template: TraceConfigurationTypes.ProcessorTraceCapabilityTemplate = TraceConfigurationTypes.CORTEX_M_DWT_4_TRACE_CAPABILITIES
+    displayName = 'cm33',
+    template: TraceConfigurationTypes.ProcessorTraceCapabilityTemplate = TraceConfigurationTypes.CORTEX_M_DWT_4_TRACE_CAPABILITIES,
+    setupIndex = 0
 ): Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities> {
     return new Map([
         [
-            pname,
+            String(setupIndex),
             {
-                pname,
-                core: 'CM33',
+                displayName,
+                core: 'Cortex-M33',
                 ...template
             }
         ]
@@ -169,6 +170,41 @@ describe('TraceConfigurationRowBuilder', () => {
 
         expect(findRow(enabledState, ['ctrace', 'setup', 0]).checked).toBe(true);
         expect(findRow(disabledState, ['ctrace', 'setup', 0]).checked).toBe(false);
+    });
+
+    it('uses pname only for processor row display and falls back to core', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: DisplayCore',
+            '      core: Cortex-M55',
+            '    - core: Cortex-M33',
+            ''
+        ].join('\n'), {
+            capabilities: new Map([
+                [
+                    '0',
+                    {
+                        displayName: 'DisplayCore',
+                        core: 'Cortex-M55',
+                        ...TraceConfigurationTypes.CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES
+                    }
+                ],
+                [
+                    '1',
+                    {
+                        displayName: 'Cortex-M33',
+                        core: 'Cortex-M33',
+                        ...TraceConfigurationTypes.CORTEX_M_DWT_4_TRACE_CAPABILITIES
+                    }
+                ]
+            ])
+        });
+
+        expect(findRow(state, ['ctrace', 'setup', 0]).label).toBe('Processor:DisplayCore');
+        expect(findRow(state, ['ctrace', 'setup', 1]).label).toBe('Processor:Cortex-M33');
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'core'])).toBe(false);
+        expect(hasRow(state, ['ctrace', 'setup', 1, 'core'])).toBe(false);
     });
 
     it('renders schema optional fields for DWT data trace items without writing defaults', () => {

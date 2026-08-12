@@ -277,9 +277,8 @@ export class TraceConfigurationRowBuilder {
 
     /**
      * getRowAddChildDisabledReason explains why an otherwise-addable row cannot
-     * accept more entries. The processor name comes from the loaded trace
-     * capability metadata, which is built from the active cbuild-run.yml pname
-     * when that file is available.
+     * accept more entries. The display name follows the processor row label,
+     * using pname when present and core otherwise.
      */
     private getRowAddChildDisabledReason(node: YamlTreeItem, nodePath: (string | number)[]): string | undefined {
         if (!this.getRowAddChildKind(node, nodePath)) {
@@ -289,7 +288,7 @@ export class TraceConfigurationRowBuilder {
         if (!usage || usage.used < usage.limit) {
             return undefined;
         }
-        return `Maximum number of comparators has been reached for ${usage.pname}`;
+        return `Maximum number of comparators has been reached for ${usage.processorName}`;
     }
 
     /**
@@ -308,7 +307,7 @@ export class TraceConfigurationRowBuilder {
      * comparator-backed sequence. Each list entry consumes one comparator in
      * the UI accounting model.
      */
-    public getSharedDwtComparatorUsage(nodePath: (string | number)[]): { used: number; limit: number; pname: string } | undefined {
+    public getSharedDwtComparatorUsage(nodePath: (string | number)[]): { used: number; limit: number; processorName: string } | undefined {
         if (!this.isSharedDwtComparatorSequencePath(nodePath)) {
             return undefined;
         }
@@ -319,7 +318,7 @@ export class TraceConfigurationRowBuilder {
         return {
             used: this.countSharedDwtComparatorEntries(nodePath),
             limit: capabilities.dwtComparators,
-            pname: capabilities.pname
+            processorName: this.getProcessorDisplayNameForPath(nodePath) ?? capabilities.displayName
         };
     }
 
@@ -365,7 +364,7 @@ export class TraceConfigurationRowBuilder {
      * shouldFlattenSetupNode detects YAML levels that exist only to organize
      * settings by core. The setup sequence itself is always hidden so users
      * cannot add processors from this view; each setup item remains visible as
-     * a Processor:<pname> group that owns the processor trace configuration.
+     * a Processor:<pname-or-core> group that owns the processor trace configuration.
      */
     private shouldFlattenSetupNode(node: YamlTreeItem, nodePath: (string | number)[]): boolean {
         if (isYamlSequenceItem(node) && nodePath.at(-1) === 'setup') {
@@ -376,8 +375,8 @@ export class TraceConfigurationRowBuilder {
 
     /**
      * getChildEntries extracts child rows from YAML maps and sequences. The
-     * method skips implementation metadata such as ctrace-ref, created-by, and
-     * pname because processor names are rendered in their parent row labels.
+     * method skips implementation metadata and processor identity fields because
+     * they are rendered in their parent row labels.
      */
     private getChildEntries(node: YamlTreeItem, nodePath = this.getNodePath(node)): TraceNodeEntry[] {
         if (isYamlMapItem(node)) {
@@ -653,17 +652,24 @@ export class TraceConfigurationRowBuilder {
 
     /**
      * getRowLabel chooses the final label for a row. Processor rows are derived
-     * from their pname field, while all normal YAML keys go through the generic
-     * display-label mapper.
+     * from pname for display, falling back to core when pname is absent, while
+     * all normal YAML keys go through the generic display-label mapper.
      */
     private getRowLabel(node: YamlTreeItem, label: string, nodePath: (string | number)[]): string {
         if (this.isProcessorPath(nodePath) && isYamlMapItem(node)) {
-            return `Processor:${this.mapScalarToString(node, 'pname') ?? 'Unknown'}`;
+            return `Processor:${this.getProcessorDisplayName(node, nodePath)}`;
         }
         if (this.isPromotedLocationItemPath(nodePath)) {
             return 'Location';
         }
         return this.getDisplayLabel(label, nodePath);
+    }
+
+    private getProcessorDisplayName(node: YamlTreeItem, nodePath: (string | number)[]): string {
+        return this.mapScalarToString(node, 'pname')
+            ?? this.mapScalarToString(node, 'core')
+            ?? this.getTraceCapabilitiesForPath(nodePath)?.displayName
+            ?? 'Unknown';
     }
 
     /**
@@ -756,7 +762,8 @@ export class TraceConfigurationRowBuilder {
      * still preserved in the file but should not clutter the trace editor. The
      * metadata keys are always hidden, top-level disable is hidden because the
      * setting is processor-specific, ITM enable is folded into its parent row's
-     * channel checklist, and pname is folded into processor row labels.
+     * channel checklist, and processor identity fields are folded into processor
+     * row labels.
      */
     private shouldHideNode(label: string, parentPath: (string | number)[]): boolean {
         if (label === 'ctrace-ref' || label === 'created-by' || label === 'generated-by') {
@@ -783,7 +790,7 @@ export class TraceConfigurationRowBuilder {
         if ((label === 'timesync' || label === 'synchronization') && this.isProcessorPath(parentPath)) {
             return true;
         }
-        return label === 'pname';
+        return label === 'pname' || label === 'core';
     }
 
     /**
@@ -1117,13 +1124,12 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
-     * getTraceCapabilitiesForPath resolves a row path to the processor that
-     * owns it, then returns that processor's loaded or inferred trace
-     * capabilities.
+     * getTraceCapabilitiesForPath resolves a row path to the setup item that
+     * owns it, then returns that setup item's core-derived trace capabilities.
      */
     private getTraceCapabilitiesForPath(nodePath: (string | number)[]): TraceConfigurationTypes.ProcessorTraceCapabilities | undefined {
-        const pname = this.getProcessorNameForPath(nodePath);
-        return pname ? this.processorCapabilities.get(pname) : undefined;
+        const setupIndex = this.getSetupIndexForPath(nodePath);
+        return setupIndex === undefined ? undefined : this.processorCapabilities.get(String(setupIndex));
     }
 
     /**
@@ -1236,17 +1242,16 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
-     * getProcessorNameForPath finds the setup item that owns a row and returns
-     * its pname. Rows outside setup are intentionally left without capabilities
-     * because they may represent legacy top-level ctrace sections.
+     * getProcessorDisplayNameForPath finds the setup item that owns a row and
+     * returns the name used in the webview: pname first, then core.
      */
-    private getProcessorNameForPath(nodePath: (string | number)[]): string | undefined {
+    private getProcessorDisplayNameForPath(nodePath: (string | number)[]): string | undefined {
         const setupIndex = this.getSetupIndexForPath(nodePath);
         if (setupIndex === undefined) {
             return undefined;
         }
         const processorNode = this.getCTraceFile()?.document?.yaml.getItem(['ctrace', 'setup', setupIndex]);
-        return isYamlMapItem(processorNode) ? this.mapScalarToString(processorNode, 'pname') : undefined;
+        return isYamlMapItem(processorNode) ? this.getProcessorDisplayName(processorNode, nodePath) : undefined;
     }
 
     /**
