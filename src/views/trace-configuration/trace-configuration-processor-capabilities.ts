@@ -196,9 +196,9 @@ export class TraceConfigurationProcessorCapabilities {
     }
 
     /**
-     * createTraceCapabilities looks up the processor core using the documented Cortex-M Dcore value.
-     * Unknown or non-Cortex-M processors intentionally get the no-trace template so the UI does not
-     * expose unsupported controls optimistically.
+     * createTraceCapabilities looks up the processor core using documented Dcore values that have
+     * Cortex-M trace capability equivalents. Unknown or unsupported processors intentionally get the
+     * no-trace template so the UI does not expose unsupported controls optimistically.
      */
     private createTraceCapabilities(displayName: string, coreName?: string): TraceConfigurationTypes.ProcessorTraceCapabilities {
         const template = coreName

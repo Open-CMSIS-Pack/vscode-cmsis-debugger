@@ -127,6 +127,83 @@ describe('TraceConfigurationProcessorCapabilities', () => {
         });
     });
 
+    it('supports non-Cortex-A/R Dcore aliases with Cortex-M trace capability equivalents', async () => {
+        jest.spyOn(FileLocationManager.prototype, 'getCBuildRunFileName').mockResolvedValue(undefined);
+        const ctraceFile = createCTraceFile([
+            'ctrace:',
+            '  setup:',
+            '    - core: SC000',
+            '    - core: SC300',
+            '    - core: Star-MC1',
+            '    - core: Star-MC3',
+            '    - core: ARMV8MBL',
+            '    - core: ARMV8MML',
+            '    - core: ARMV81MML',
+            '    - core: Cortex-A53',
+            '    - core: Cortex-R5',
+            ''
+        ].join('\n'));
+        const capabilities = new TraceConfigurationProcessorCapabilities(() => ctraceFile);
+
+        await capabilities.load();
+
+        expect(capabilities.capabilities.get('0')).toMatchObject({
+            displayName: 'SC000',
+            core: 'SC000',
+            supportsTrace: false,
+            dwtComparators: 0
+        });
+        expect(capabilities.capabilities.get('1')).toMatchObject({
+            displayName: 'SC300',
+            core: 'SC300',
+            supportsTrace: true,
+            dwtComparators: 4
+        });
+        expect(capabilities.capabilities.get('2')).toMatchObject({
+            displayName: 'Star-MC1',
+            core: 'Star-MC1',
+            supportsTrace: true,
+            dwtComparators: 4
+        });
+        expect(capabilities.capabilities.get('3')).toMatchObject({
+            displayName: 'Star-MC3',
+            core: 'Star-MC3',
+            supportsTrace: true,
+            pmuEvents: true,
+            dwtComparators: 8
+        });
+        expect(capabilities.capabilities.get('4')).toMatchObject({
+            displayName: 'ARMV8MBL',
+            core: 'ARMV8MBL',
+            supportsTrace: true,
+            dwtComparators: 4
+        });
+        expect(capabilities.capabilities.get('5')).toMatchObject({
+            displayName: 'ARMV8MML',
+            core: 'ARMV8MML',
+            supportsTrace: true,
+            dwtComparators: 4
+        });
+        expect(capabilities.capabilities.get('6')).toMatchObject({
+            displayName: 'ARMV81MML',
+            core: 'ARMV81MML',
+            supportsTrace: true,
+            dwtComparators: 4
+        });
+        expect(capabilities.capabilities.get('7')).toMatchObject({
+            displayName: 'Cortex-A53',
+            core: 'Cortex-A53',
+            supportsTrace: false,
+            dwtComparators: 0
+        });
+        expect(capabilities.capabilities.get('8')).toMatchObject({
+            displayName: 'Cortex-R5',
+            core: 'Cortex-R5',
+            supportsTrace: false,
+            dwtComparators: 0
+        });
+    });
+
     it('resolves capabilities for setup descendants and ignores paths outside setup', async () => {
         jest.spyOn(FileLocationManager.prototype, 'getCBuildRunFileName').mockResolvedValue(undefined);
         const ctraceFile = createCTraceFile([
