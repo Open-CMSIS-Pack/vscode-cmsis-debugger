@@ -31,12 +31,12 @@ describe('TraceConfigurationProcessorCapabilities', () => {
         jest.restoreAllMocks();
     });
 
-    it('loads processor capabilities from cbuild-run cores and keeps ctrace.yml display names', async () => {
+    it('loads processor capabilities from cbuild-run cores by pname and keeps ctrace.yml display names', async () => {
         jest.spyOn(FileLocationManager.prototype, 'getCBuildRunFileName').mockResolvedValue('project.cbuild-run.yml');
         const parseSpy = jest.spyOn(CbuildRunReader.prototype, 'parse').mockResolvedValue();
         jest.spyOn(CbuildRunReader.prototype, 'getProcessors').mockReturnValue([
+            { pname: 'cm33', core: 'Cortex-M3' },
             { pname: 'Core0', core: 'Cortex-M55' },
-            { core: 'Cortex-M3' },
         ] as ProcessorType[]);
         const ctraceFile = createCTraceFile([
             'ctrace:',
@@ -64,6 +64,31 @@ describe('TraceConfigurationProcessorCapabilities', () => {
         });
         expect(capabilities.capabilities.has('Core0')).toBe(false);
         expect(capabilities.capabilities.has('Cortex-M55')).toBe(false);
+    });
+
+    it('does not match multi-core cbuild-run processors by position when pname is missing', async () => {
+        jest.spyOn(FileLocationManager.prototype, 'getCBuildRunFileName').mockResolvedValue('project.cbuild-run.yml');
+        jest.spyOn(CbuildRunReader.prototype, 'parse').mockResolvedValue();
+        jest.spyOn(CbuildRunReader.prototype, 'getProcessors').mockReturnValue([
+            { pname: 'Core0', core: 'Cortex-M55' },
+            { pname: 'Core1', core: 'Cortex-M3' },
+        ] as ProcessorType[]);
+        const ctraceFile = createCTraceFile([
+            'ctrace:',
+            '  setup:',
+            '    - disable:',
+            ''
+        ].join('\n'));
+        const capabilities = new TraceConfigurationProcessorCapabilities(() => ctraceFile);
+
+        await capabilities.load();
+
+        expect(capabilities.capabilities.get('0')).toMatchObject({
+            displayName: 'Processor 1',
+            core: undefined,
+            supportsTrace: false,
+            dwtComparators: 0
+        });
     });
 
     it('falls back to ctrace.yml core values when cbuild-run data is unavailable', async () => {
@@ -176,7 +201,7 @@ describe('TraceConfigurationProcessorCapabilities', () => {
             displayName: 'ARMV8MBL',
             core: 'ARMV8MBL',
             supportsTrace: true,
-            dwtComparators: 4
+            dwtComparators: 0
         });
         expect(capabilities.capabilities.get('5')).toMatchObject({
             displayName: 'ARMV8MML',

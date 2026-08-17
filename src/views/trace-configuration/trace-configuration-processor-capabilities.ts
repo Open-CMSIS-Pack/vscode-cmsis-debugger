@@ -25,6 +25,7 @@ import * as TraceConfigurationTypes from './trace-configuration-types';
 interface ConfiguredProcessor {
     index: number;
     displayName: string;
+    pname?: string | undefined;
     core?: string | undefined;
 }
 
@@ -66,8 +67,8 @@ export class TraceConfigurationProcessorCapabilities {
 
     /**
      * load rebuilds the capability map from the active ctrace.yml setup list and cbuild-run.yml file
-     * when available. Capability templates are selected from processor cores only; pname values are
-     * retained only as display names for the webview.
+     * when available. Capability templates are selected from processor cores only; pname values
+     * identify multi-core cbuild-run processors and are retained as display names for the webview.
      */
     public async load(): Promise<void> {
         this.processorCapabilities.clear();
@@ -77,8 +78,7 @@ export class TraceConfigurationProcessorCapabilities {
             const configuredProcessors = this.getConfiguredProcessors();
 
             for (const configuredProcessor of configuredProcessors) {
-                const processor = processors.at(configuredProcessor.index);
-                const core = configuredProcessor.core ?? (processor ? this.getProcessorCoreForCapabilities(processor) : undefined);
+                const core = this.getProcessorCoreForConfiguredProcessor(configuredProcessor, processors);
 
                 this.processorCapabilities.set(
                     this.setupIndexToCapabilitiesKey(configuredProcessor.index),
@@ -170,9 +170,37 @@ export class TraceConfigurationProcessorCapabilities {
     }
 
     /**
-     * getConfiguredProcessors scans the active ctrace.yml setup list for display names and optional
-     * core values. pname is kept only as display text; core is the only ctrace value used for trace
-     * capability lookup.
+     * getProcessorCoreForConfiguredProcessor prefers explicit ctrace core values, then matches
+     * cbuild-run processors by pname. Positional matching is kept only for the single-processor
+     * fallback where pname is not needed to disambiguate the target.
+     */
+    private getProcessorCoreForConfiguredProcessor(
+        configuredProcessor: ConfiguredProcessor,
+        processors: ProcessorType[]
+    ): string | undefined {
+        if (configuredProcessor.core) {
+            return configuredProcessor.core;
+        }
+
+        const processor = this.getCBuildRunProcessor(configuredProcessor, processors);
+        return processor ? this.getProcessorCoreForCapabilities(processor) : undefined;
+    }
+
+    private getCBuildRunProcessor(configuredProcessor: ConfiguredProcessor, processors: ProcessorType[]): ProcessorType | undefined {
+        if (configuredProcessor.pname) {
+            return processors.find(processor => processor.pname === configuredProcessor.pname);
+        }
+
+        if (processors.length === 1) {
+            return processors[0];
+        }
+
+        return undefined;
+    }
+
+    /**
+     * getConfiguredProcessors scans the active ctrace.yml setup list for pnames and optional core
+     * values. pname identifies cbuild-run processors and is also used as the webview display name.
      */
     private getConfiguredProcessors(): ConfiguredProcessor[] {
         const setup = this.getCTraceFile()?.document?.yaml.getItem(['ctrace', 'setup']);
@@ -186,10 +214,12 @@ export class TraceConfigurationProcessorCapabilities {
                 if (!isYamlMapItem(item)) {
                     return [];
                 }
+                const pname = this.mapScalarToString(item.getChild('pname'));
                 const core = this.mapScalarToString(item.getChild('core'));
                 return [{
                     index,
-                    displayName: this.getConfiguredProcessorDisplayName(item) ?? `Processor ${index + 1}`,
+                    displayName: pname ?? core ?? `Processor ${index + 1}`,
+                    ...(pname ? { pname } : {}),
                     ...(core ? { core } : {})
                 }];
             });
