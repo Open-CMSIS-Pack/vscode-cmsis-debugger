@@ -16,6 +16,7 @@
 // generated with AI
 
 import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
+import { logger } from '../../logger';
 import { FileLocationManager } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import { TraceConfigurationProcessorCapabilities } from './trace-configuration-processor-capabilities';
@@ -69,6 +70,7 @@ describe('TraceConfigurationProcessorCapabilities', () => {
     it('does not match multi-core cbuild-run processors by position when pname is missing', async () => {
         jest.spyOn(FileLocationManager.prototype, 'getCBuildRunFileName').mockResolvedValue('project.cbuild-run.yml');
         jest.spyOn(CbuildRunReader.prototype, 'parse').mockResolvedValue();
+        const warnSpy = jest.spyOn(logger, 'warn').mockImplementation();
         jest.spyOn(CbuildRunReader.prototype, 'getProcessors').mockReturnValue([
             { pname: 'Core0', core: 'Cortex-M55' },
             { pname: 'Core1', core: 'Cortex-M3' },
@@ -89,6 +91,34 @@ describe('TraceConfigurationProcessorCapabilities', () => {
             supportsTrace: false,
             dwtComparators: 0
         });
+        expect(warnSpy).toHaveBeenCalledWith('Unable to identify trace processor setup entry 1: multi-core projects require pname.');
+    });
+
+    it('warns when multi-core cbuild-run processor entries are missing pname', async () => {
+        jest.spyOn(FileLocationManager.prototype, 'getCBuildRunFileName').mockResolvedValue('project.cbuild-run.yml');
+        jest.spyOn(CbuildRunReader.prototype, 'parse').mockResolvedValue();
+        const warnSpy = jest.spyOn(logger, 'warn').mockImplementation();
+        jest.spyOn(CbuildRunReader.prototype, 'getProcessors').mockReturnValue([
+            { pname: 'Core0', core: 'Cortex-M55' },
+            { core: 'Cortex-M3' },
+        ] as ProcessorType[]);
+        const ctraceFile = createCTraceFile([
+            'ctrace:',
+            '  setup:',
+            '    - pname: Core0',
+            ''
+        ].join('\n'));
+        const capabilities = new TraceConfigurationProcessorCapabilities(() => ctraceFile);
+
+        await capabilities.load();
+
+        expect(capabilities.capabilities.get('0')).toMatchObject({
+            displayName: 'Core0',
+            core: 'Cortex-M55',
+            supportsTrace: true,
+            dwtComparators: 8
+        });
+        expect(warnSpy).toHaveBeenCalledWith('Invalid multi-core cbuild-run processor data: processor entries 2 are missing pname.');
     });
 
     it('falls back to ctrace.yml core values when cbuild-run data is unavailable', async () => {

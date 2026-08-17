@@ -153,7 +153,9 @@ export class TraceConfigurationProcessorCapabilities {
 
         try {
             await this.cbuildRunReader.parse(cbuildRunFilePath);
-            return this.cbuildRunReader.getProcessors();
+            const processors = this.cbuildRunReader.getProcessors();
+            this.warnForInvalidMultiCoreProcessors(processors);
+            return processors;
         } catch (error) {
             logger.warn('Unable to read processors from ' + cbuildRunFilePath + ': ' + this.errorToString(error));
             return [];
@@ -161,9 +163,8 @@ export class TraceConfigurationProcessorCapabilities {
     }
 
     /**
-     * getProcessorCoreForCapabilities returns the processor core identity from cbuild-run data.
-     * cbuild-run pname values are deliberately ignored here because trace capabilities only depend
-     * on the core.
+     * getProcessorCoreForCapabilities returns the processor core type from cbuild-run data. The core
+     * value drives trace capability selection; pname is the multi-core processor identifier.
      */
     private getProcessorCoreForCapabilities(processor: ProcessorType): string | undefined {
         return processor.core;
@@ -171,13 +172,15 @@ export class TraceConfigurationProcessorCapabilities {
 
     /**
      * getProcessorCoreForConfiguredProcessor prefers explicit ctrace core values, then matches
-     * cbuild-run processors by pname. Positional matching is kept only for the single-processor
-     * fallback where pname is not needed to disambiguate the target.
+     * cbuild-run processors by pname. Positional matching is valid only for the single-processor
+     * fallback, where pname is optional because there is no processor identity ambiguity.
      */
     private getProcessorCoreForConfiguredProcessor(
         configuredProcessor: ConfiguredProcessor,
         processors: ProcessorType[]
     ): string | undefined {
+        this.warnForMissingConfiguredProcessorPname(configuredProcessor, processors);
+
         if (configuredProcessor.core) {
             return configuredProcessor.core;
         }
@@ -196,6 +199,34 @@ export class TraceConfigurationProcessorCapabilities {
         }
 
         return undefined;
+    }
+
+    private warnForInvalidMultiCoreProcessors(processors: ProcessorType[]): void {
+        if (processors.length <= 1) {
+            return;
+        }
+
+        const missingPnameIndexes = processors.flatMap((processor, index) => processor.pname ? [] : [String(index + 1)]);
+
+        if (missingPnameIndexes.length > 0) {
+            logger.warn(
+                'Invalid multi-core cbuild-run processor data: processor entries '
+                + missingPnameIndexes.join(', ')
+                + ' are missing pname.'
+            );
+        }
+    }
+
+    private warnForMissingConfiguredProcessorPname(configuredProcessor: ConfiguredProcessor, processors: ProcessorType[]): void {
+        if (processors.length <= 1 || configuredProcessor.pname) {
+            return;
+        }
+
+        logger.warn(
+            'Unable to identify trace processor setup entry '
+            + String(configuredProcessor.index + 1)
+            + ': multi-core projects require pname.'
+        );
     }
 
     /**
