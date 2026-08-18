@@ -98,6 +98,22 @@ async function waitForWatcherWork(): Promise<void> {
     }
 }
 
+async function waitForCondition(description: string, condition: () => boolean | Promise<boolean>): Promise<void> {
+    const timeoutAt = Date.now() + 2000;
+
+    while (Date.now() < timeoutAt) {
+        if (await condition()) {
+            return;
+        }
+
+        await new Promise<void>(resolve => {
+            setTimeout(resolve, 10);
+        });
+    }
+
+    throw new Error(`Timed out waiting for ${description}.`);
+}
+
 function createProcessor(core: string, pname?: string): ProcessorType {
     return {
         core,
@@ -138,6 +154,22 @@ async function readTemporaryTextFile(fileName: string): Promise<string> {
     // Test paths are created under this suite's temporary workspace root.
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     return fsPromises.readFile(fileName, 'utf8');
+}
+
+async function waitForTemporaryTextFile(
+    fileName: string,
+    predicate: (contents: string) => boolean = () => true
+): Promise<string> {
+    let contents = '';
+    await waitForCondition(fileName, async () => {
+        try {
+            contents = await readTemporaryTextFile(fileName);
+            return predicate(contents);
+        } catch {
+            return false;
+        }
+    });
+    return contents;
 }
 
 async function writeTemporaryTextFile(fileName: string, contents: string): Promise<void> {
@@ -253,10 +285,14 @@ describe('TraceConfigurationModel', () => {
         const watcher = getLastCreatedFileSystemWatcher();
 
         fireWatcherHandler(watcher, 'create', cbuildRunFile);
-        await waitForWatcherWork();
 
         const generatedTraceFile = path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yaml');
-        const generatedText = await readTemporaryTextFile(generatedTraceFile);
+        const generatedText = await waitForTemporaryTextFile(generatedTraceFile);
+        await waitForCondition('trace generation view to be enabled', () => updateConfiguration.mock.calls.some(call =>
+            call[0] === TraceConfigurationTypes.TRACE_GENERATION_VIEW_ENABLED_CONFIG
+            && call[1] === true
+            && call[2] === vscode.ConfigurationTarget.Workspace
+        ));
         expect(updateConfiguration).toHaveBeenCalledWith(
             TraceConfigurationTypes.TRACE_GENERATION_VIEW_ENABLED_CONFIG,
             true,
@@ -301,8 +337,11 @@ describe('TraceConfigurationModel', () => {
         const watcher = getLastCreatedFileSystemWatcher();
 
         fireWatcherHandler(watcher, 'create', cbuildRunFile);
-        await waitForWatcherWork();
 
+        await waitForCondition('invalid multi-core processor error', () =>
+            model.createState().errorMessage?.includes(
+                'Invalid multi-core cbuild-run processor data: processor entries 2 are missing pname.'
+            ) ?? false);
         await expect(readTemporaryTextFile(generatedTraceFile)).rejects.toThrow('ENOENT');
         expect(model.createState().errorMessage).toContain(
             'Invalid multi-core cbuild-run processor data: processor entries 2 are missing pname.'
@@ -322,8 +361,8 @@ describe('TraceConfigurationModel', () => {
         const watcher = getLastCreatedFileSystemWatcher();
 
         fireWatcherHandler(watcher, 'create', cbuildRunFile);
-        await waitForWatcherWork();
 
+        await waitForTemporaryTextFile(path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yaml'), contents => contents.includes('pname: core0'));
         expect(vscode.workspace.fs.createDirectory).not.toHaveBeenCalled();
         await expect(readTemporaryTextFile(path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yaml'))).resolves.toContain('pname: core0');
         model.dispose();
@@ -355,9 +394,13 @@ describe('TraceConfigurationModel', () => {
         const watcher = getLastCreatedFileSystemWatcher();
 
         fireWatcherHandler(watcher, 'change', cbuildRunFile);
-        await waitForWatcherWork();
 
-        const generatedText = await readTemporaryTextFile(generatedTraceFile);
+        const generatedText = await waitForTemporaryTextFile(generatedTraceFile, contents => contents.includes('pname: core1'));
+        await waitForCondition('trace generation view to be enabled', () => updateConfiguration.mock.calls.some(call =>
+            call[0] === TraceConfigurationTypes.TRACE_GENERATION_VIEW_ENABLED_CONFIG
+            && call[1] === true
+            && call[2] === vscode.ConfigurationTarget.Workspace
+        ));
         expect(updateConfiguration).toHaveBeenCalledWith(
             TraceConfigurationTypes.TRACE_GENERATION_VIEW_ENABLED_CONFIG,
             true,
@@ -392,8 +435,12 @@ describe('TraceConfigurationModel', () => {
         const watcher = getLastCreatedFileSystemWatcher();
 
         fireWatcherHandler(watcher, 'delete', cbuildRunFile);
-        await waitForWatcherWork();
 
+        await waitForCondition('trace generation view to be disabled', () => updateConfiguration.mock.calls.some(call =>
+            call[0] === TraceConfigurationTypes.TRACE_GENERATION_VIEW_ENABLED_CONFIG
+            && call[1] === false
+            && call[2] === vscode.ConfigurationTarget.Workspace
+        ));
         await expect(readTemporaryTextFile(generatedTraceFile)).resolves.toBe(originalText);
         expect(updateConfiguration).toHaveBeenCalledWith(
             TraceConfigurationTypes.TRACE_GENERATION_VIEW_ENABLED_CONFIG,
