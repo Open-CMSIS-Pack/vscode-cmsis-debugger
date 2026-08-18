@@ -65,6 +65,19 @@ function getWorkspaceFsMock(method: 'readFile' | 'writeFile' | 'stat'): jest.Moc
     }
 }
 
+function normalizeTestFsPath(fileName: string | undefined): string | undefined {
+    if (!fileName) {
+        return undefined;
+    }
+
+    const normalized = path.normalize(fileName);
+    return process.platform === 'win32' ? normalized.toLowerCase() : normalized;
+}
+
+function expectSameFsPath(actual: string | undefined, expected: string): void {
+    expect(normalizeTestFsPath(actual)).toBe(normalizeTestFsPath(expected));
+}
+
 function createCodedError(message: string, code: string): Error & { code: string } {
     return Object.assign(new Error(message), { code });
 }
@@ -92,8 +105,8 @@ describe('WorkspaceTextFileAdapter', () => {
         await adapter.writeTextFile(fileName, text);
         await expect(adapter.readTextFile(fileName)).resolves.toBe(text);
 
-        expect(getLastWorkspaceFsUri('writeFile')?.fsPath).toBe(fileName);
-        expect(getLastWorkspaceFsUri('readFile')?.fsPath).toBe(fileName);
+        expectSameFsPath(getLastWorkspaceFsUri('writeFile')?.fsPath, fileName);
+        expectSameFsPath(getLastWorkspaceFsUri('readFile')?.fsPath, fileName);
     });
 
     it('returns file stamps from VS Code workspace fs stat', async () => {
@@ -109,7 +122,7 @@ describe('WorkspaceTextFileAdapter', () => {
             size: Buffer.byteLength(text)
         });
         expect(stamp?.mtimeMs).toEqual(expect.any(Number));
-        expect(getLastWorkspaceFsUri('stat')?.fsPath).toBe(fileName);
+        expectSameFsPath(getLastWorkspaceFsUri('stat')?.fsPath, fileName);
     });
 
     it('returns undefined when stat reports a missing file', async () => {
