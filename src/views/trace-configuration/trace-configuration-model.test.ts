@@ -114,6 +114,19 @@ async function waitForCondition(description: string, condition: () => boolean | 
     throw new Error(`Timed out waiting for ${description}.`);
 }
 
+function normalizeTestFsPath(fileName: string | undefined): string | undefined {
+    if (!fileName) {
+        return undefined;
+    }
+
+    const normalized = path.normalize(fileName);
+    return process.platform === 'win32' ? normalized.toLowerCase() : normalized;
+}
+
+function expectSameFsPath(actual: string | undefined, expected: string): void {
+    expect(normalizeTestFsPath(actual)).toBe(normalizeTestFsPath(expected));
+}
+
 function createProcessor(core: string, pname?: string): ProcessorType {
     return {
         core,
@@ -319,7 +332,7 @@ describe('TraceConfigurationModel', () => {
             'instructions: {}'
         ]);
         expect(generatedText).not.toContain('pname: core1\n      core: Cortex-M23\n      timestamps');
-        expect(model.createState().fileName).toBe(generatedTraceFile);
+        expectSameFsPath(model.createState().fileName, generatedTraceFile);
         expect(onDidChange).toHaveBeenCalled();
         model.dispose();
     });
