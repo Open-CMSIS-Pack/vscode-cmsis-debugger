@@ -35,6 +35,13 @@ const ConfigurationTarget = {
     Workspace: 2,
 };
 
+const FileType = {
+    Unknown: 0,
+    File: 1,
+    Directory: 2,
+    SymbolicLink: 64,
+};
+
 const MockTreeItemCollapsibleState = { 
     None: 0, 
     Collapsed: 1, 
@@ -162,7 +169,30 @@ module.exports = {
             readFile: jest.fn(uri => {
                 const buffer = fs.readFileSync(uri.fsPath);
                 return new Promise(resolve => resolve(new Uint8Array(buffer)));
-            })
+            }),
+            writeFile: jest.fn((uri, contents) => {
+                fs.mkdirSync(path.dirname(uri.fsPath), { recursive: true });
+                fs.writeFileSync(uri.fsPath, Buffer.from(contents));
+                return Promise.resolve();
+            }),
+            createDirectory: jest.fn(uri => {
+                fs.mkdirSync(uri.fsPath, { recursive: true });
+                return Promise.resolve();
+            }),
+            stat: jest.fn(uri => new Promise((resolve, reject) => {
+                fs.stat(uri.fsPath, (error, stats) => {
+                    if (error) {
+                        reject(error);
+                        return;
+                    }
+                    resolve({
+                        type: stats.isDirectory() ? FileType.Directory : FileType.File,
+                        ctime: stats.ctimeMs,
+                        mtime: stats.mtimeMs,
+                        size: stats.size,
+                    });
+                });
+            }))
         },
         findFiles: jest.fn(() => Promise.resolve([])),
         createFileSystemWatcher: jest.fn(() => createMockFileSystemWatcher()),
@@ -207,4 +237,5 @@ module.exports = {
     EnvironmentVariableMutatorType,
     StatusBarAlignment,
     ConfigurationTarget,
+    FileType,
 };

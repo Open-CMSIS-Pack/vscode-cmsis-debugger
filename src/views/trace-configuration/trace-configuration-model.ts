@@ -16,13 +16,15 @@
 // generated with AI
 
 import * as path from 'node:path';
+import { TextDecoder, TextEncoder } from 'node:util';
 
 import * as vscode from 'vscode';
 
+import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
 import { isYamlMapItem, isYamlScalarItem, isYamlSequenceItem, YamlTreeItem, yamlScalarToString } from '../../desktop/yaml-dom';
 import { Disposable } from '../../desktop/yaml-file';
 import { logger } from '../../logger';
-import { CTraceYamlFile } from './ctrace-yaml';
+import { CTraceProcessorTraceSetup, CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import {
     TraceConfigurationRow,
     TraceConfigurationState,
@@ -30,8 +32,14 @@ import {
 import { TraceConfigurationProcessorCapabilities } from './trace-configuration-processor-capabilities';
 import { TraceConfigurationRowBuilder } from './trace-configuration-row-builder';
 import * as TraceConfigurationTypes from './trace-configuration-types';
+import { WorkspaceTextFileAdapter } from './workspace-text-file-adapter';
 
 type GeneratedCBuildRunFileChangeType = 'created' | 'changed' | 'deleted';
+
+interface GeneratedTraceProcessor {
+    core: string;
+    pname?: string | undefined;
+}
 
 export interface GeneratedCBuildRunFileChangeEvent {
     type: GeneratedCBuildRunFileChangeType;
@@ -139,15 +147,19 @@ export class TraceConfigurationModel {
         void this.refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event);
     }
 
-    /**
-     * refreshProcessorCapabilitiesFromGeneratedCBuildRunFile is the current
-     * watcher handler. Future ctrace.yml generation can be added here or via
-     * onDidChangeGeneratedCBuildRunFile without changing watcher setup.
-     */
     private async refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event: GeneratedCBuildRunFileChangeEvent): Promise<void> {
         try {
             logger.debug(`Trace Configuration: Generated cbuild-run file ${event.type}: ${event.uri.fsPath}`);
-            await this.loadProcessorCapabilities();
+            switch (event.type) {
+                case 'created':
+                case 'changed':
+                    await this.createOrUpdateGeneratedCTraceFile(event.uri);
+                    await this.setTraceGenerationWebviewEnabled(true);
+                    break;
+                case 'deleted':
+                    await this.setTraceGenerationWebviewEnabled(false);
+                    break;
+            }
             this.errorMessage = undefined;
         } catch (error) {
             this.errorMessage = this.errorToString(error);
@@ -223,7 +235,7 @@ export class TraceConfigurationModel {
      * state snapshot is posted.
      */
     private async loadFile(fileName: string): Promise<void> {
-        const nextFile = new CTraceYamlFile(fileName);
+        const nextFile = new CTraceYamlFile(fileName, new WorkspaceTextFileAdapter());
         const document = await nextFile.load(fileName);
         this.disposeCurrentFileWatcher();
         this.ctraceFile = nextFile;
@@ -240,6 +252,236 @@ export class TraceConfigurationModel {
      */
     private async loadProcessorCapabilities(): Promise<void> {
         await this.processorCapabilities.load();
+    }
+
+    private async createOrUpdateGeneratedCTraceFile(cbuildRunFileUri: vscode.Uri): Promise<void> {
+        const workspaceFolder = this.getGeneratedCBuildRunWorkspaceFolder(cbuildRunFileUri);
+        const projectName = this.getProjectNameFromGeneratedCBuildRunFile(cbuildRunFileUri);
+        const processors = await this.readGeneratedCBuildRunProcessors(cbuildRunFileUri);
+        const traceFileUri = await this.resolveGeneratedCTraceFileUri(workspaceFolder.uri, projectName);
+        const traceFileExists = await this.fileExists(traceFileUri);
+        const document = traceFileExists
+            ? await this.readCTraceDocument(traceFileUri)
+            : CTraceYamlDocument.create('CMSIS Debugger');
+
+        const changed = this.addMissingProcessorTraceSetups(document, processors);
+
+        if (!traceFileExists || changed) {
+            await this.writeCTraceDocument(traceFileUri, document);
+        }
+
+        await this.loadFile(traceFileUri.fsPath);
+    }
+
+    private getGeneratedCBuildRunWorkspaceFolder(cbuildRunFileUri: vscode.Uri): vscode.WorkspaceFolder {
+        const workspaceFolder = (vscode.workspace.workspaceFolders ?? []).find(folder => {
+            const expectedDirectory = path.join(folder.uri.fsPath, 'out');
+            return path.dirname(cbuildRunFileUri.fsPath) === expectedDirectory;
+        });
+
+        if (!workspaceFolder) {
+            throw new Error(`Generated cbuild-run file is not in a workspace out folder: ${cbuildRunFileUri.fsPath}`);
+        }
+
+        return workspaceFolder;
+    }
+
+    private getProjectNameFromGeneratedCBuildRunFile(cbuildRunFileUri: vscode.Uri): string {
+        const baseName = path.basename(cbuildRunFileUri.fsPath);
+        const suffix = '.cbuild-run.yml';
+        return baseName.endsWith(suffix) ? baseName.slice(0, -suffix.length) : path.parse(baseName).name;
+    }
+
+    private async readGeneratedCBuildRunProcessors(cbuildRunFileUri: vscode.Uri): Promise<GeneratedTraceProcessor[]> {
+        const reader = new CbuildRunReader();
+        await reader.parse(cbuildRunFileUri.fsPath);
+        const processors = reader.getProcessors();
+        this.validateGeneratedProcessors(processors);
+        return processors.map(processor => ({
+            core: processor.core,
+            ...(processor.pname ? { pname: processor.pname } : {})
+        }));
+    }
+
+    private validateGeneratedProcessors(processors: ProcessorType[]): void {
+        if (processors.length <= 1) {
+            return;
+        }
+
+        const missingPnameIndexes = processors.flatMap((processor, index) => processor.pname ? [] : [String(index + 1)]);
+
+        if (missingPnameIndexes.length > 0) {
+            throw new Error(
+                'Invalid multi-core cbuild-run processor data: processor entries '
+                + missingPnameIndexes.join(', ')
+                + ' are missing pname.'
+            );
+        }
+    }
+
+    private async resolveGeneratedCTraceFileUri(workspaceFolderUri: vscode.Uri, projectName: string): Promise<vscode.Uri> {
+        const cmsisDirectory = vscode.Uri.file(path.join(workspaceFolderUri.fsPath, '.cmsis'));
+        const yamlFile = vscode.Uri.file(path.join(cmsisDirectory.fsPath, `${projectName}.ctrace.yaml`));
+        const ymlFile = vscode.Uri.file(path.join(cmsisDirectory.fsPath, `${projectName}.ctrace.yml`));
+
+        if (await this.fileExists(yamlFile)) {
+            return yamlFile;
+        }
+
+        if (await this.fileExists(ymlFile)) {
+            return ymlFile;
+        }
+
+        return yamlFile;
+    }
+
+    private async readCTraceDocument(traceFileUri: vscode.Uri): Promise<CTraceYamlDocument> {
+        const contents = await vscode.workspace.fs.readFile(traceFileUri);
+        return CTraceYamlDocument.parse(new TextDecoder().decode(contents), traceFileUri.fsPath);
+    }
+
+    private async writeCTraceDocument(traceFileUri: vscode.Uri, document: CTraceYamlDocument): Promise<void> {
+        document.normalizeDocumentOrder();
+        document.assignCTraceRefs();
+        await this.ensureDirectoryExists(vscode.Uri.file(path.dirname(traceFileUri.fsPath)));
+        await vscode.workspace.fs.writeFile(traceFileUri, new TextEncoder().encode(document.toString()));
+    }
+
+    private async fileExists(uri: vscode.Uri): Promise<boolean> {
+        return await this.statIfExists(uri) !== undefined;
+    }
+
+    private async ensureDirectoryExists(uri: vscode.Uri): Promise<void> {
+        const stat = await this.statIfExists(uri);
+
+        if (!stat) {
+            await vscode.workspace.fs.createDirectory(uri);
+            return;
+        }
+
+        if (!this.isDirectoryStat(stat)) {
+            throw new Error(`${uri.fsPath} exists but is not a directory.`);
+        }
+    }
+
+    private async statIfExists(uri: vscode.Uri): Promise<vscode.FileStat | undefined> {
+        try {
+            return await vscode.workspace.fs.stat(uri);
+        } catch (error) {
+            if (this.isFileNotFoundError(error)) {
+                return undefined;
+            }
+            throw error;
+        }
+    }
+
+    private isDirectoryStat(stat: vscode.FileStat): boolean {
+        const nodeStat = stat as vscode.FileStat & { isDirectory?: () => boolean };
+        return stat.type === vscode.FileType.Directory || nodeStat.isDirectory?.() === true;
+    }
+
+    private isFileNotFoundError(error: unknown): boolean {
+        if (!error || typeof error !== 'object') {
+            return false;
+        }
+        const errorWithCode = error as { code?: unknown };
+        return errorWithCode.code === 'ENOENT' || errorWithCode.code === 'FileNotFound';
+    }
+
+    private addMissingProcessorTraceSetups(document: CTraceYamlDocument, processors: GeneratedTraceProcessor[]): boolean {
+        const existingProcessorKeys = new Set(document.yaml
+            .getArray<CTraceProcessorTraceSetup>(['ctrace', 'setup'])
+            .flatMap(setup => {
+                const key = this.getProcessorTraceSetupKey(setup);
+                return key ? [key] : [];
+            }));
+        let changed = false;
+
+        for (const processor of processors) {
+            const key = this.getGeneratedTraceProcessorKey(processor);
+
+            if (key && existingProcessorKeys.has(key)) {
+                continue;
+            }
+
+            document.yaml.append(['ctrace', 'setup'], this.createProcessorTraceSetup(processor));
+            if (key) {
+                existingProcessorKeys.add(key);
+            }
+            changed = true;
+        }
+
+        if (changed) {
+            document.normalizeDocumentOrder();
+            document.assignCTraceRefs();
+        }
+
+        return changed;
+    }
+
+    private getProcessorTraceSetupKey(setup: CTraceProcessorTraceSetup): string | undefined {
+        if (setup.pname) {
+            return `pname:${setup.pname}`;
+        }
+
+        return setup.core ? `core:${setup.core}` : undefined;
+    }
+
+    private getGeneratedTraceProcessorKey(processor: GeneratedTraceProcessor): string | undefined {
+        if (processor.pname) {
+            return `pname:${processor.pname}`;
+        }
+
+        return processor.core ? `core:${processor.core}` : undefined;
+    }
+
+    private createProcessorTraceSetup(processor: GeneratedTraceProcessor): CTraceProcessorTraceSetup {
+        const setup: CTraceProcessorTraceSetup = {
+            core: processor.core,
+            ...(processor.pname ? { pname: processor.pname } : {})
+        };
+        const capabilities = TraceConfigurationTypes.TRACE_CAPABILITIES_BY_CORE.get(processor.core)
+            ?? TraceConfigurationTypes.NO_TRACE_CAPABILITIES;
+
+        if (!capabilities.supportsTrace) {
+            return setup;
+        }
+
+        if (capabilities.timestamps) {
+            setup.timestamps = {};
+        }
+        if (capabilities.timeSynchronization) {
+            setup.timesync = null;
+        }
+        if (capabilities.dwtComparators > 0) {
+            setup.data = [];
+        }
+        if (capabilities.exceptions) {
+            setup.exceptions = null;
+        }
+        if (capabilities.eventCounters) {
+            setup.events = [];
+        }
+        if (capabilities.instrumentationTrace) {
+            setup.itm = { enable: '0x0' };
+        }
+        if (capabilities.instructionTrace) {
+            setup.instructions = {};
+        }
+        if (capabilities.pcSampling) {
+            setup.pcsampling = { period: 'off' };
+        }
+        if (capabilities.streamSynchronization) {
+            setup.synchronization = { DWT: '256M' };
+        }
+
+        return setup;
+    }
+
+    private async setTraceGenerationWebviewEnabled(enabled: boolean): Promise<void> {
+        await vscode.workspace
+            .getConfiguration()
+            .update(TraceConfigurationTypes.TRACE_GENERATION_VIEW_ENABLED_CONFIG, enabled, vscode.ConfigurationTarget.Workspace);
     }
 
     /**
