@@ -106,7 +106,7 @@ function renderApp(state: TraceConfigurationState): void {
     }
     clearElement(root);
     const surface = createElement('main', 'table-surface');
-    surface.append(createToolbar(), createStatus(state));
+    surface.append(createHeader(state));
     if (state.loading) {
         surface.append(createEmptyState('Loading ctrace.yml...'));
     } else if (state.errorMessage) {
@@ -117,6 +117,37 @@ function renderApp(state: TraceConfigurationState): void {
         surface.append(createTable(state.rows));
     }
     root.append(surface);
+    focusRow(state.focusedRowId);
+}
+
+/**
+ * focusRow brings a newly added row into view after a host-rendered state
+ * refresh. The lookup avoids CSS escaping issues by comparing dataset values.
+ */
+function focusRow(rowId: string | undefined): void {
+    if (!rowId) {
+        return;
+    }
+    const row = Array.from(document.querySelectorAll<HTMLTableRowElement>('tr[data-row-id]'))
+        .find(candidate => candidate.dataset.rowId === rowId);
+    if (!row) {
+        return;
+    }
+    if (row.tabIndex < 0) {
+        row.tabIndex = -1;
+    }
+    row.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    row.focus({ preventScroll: true });
+}
+
+/**
+ * createHeader keeps the toolbar and save state together in the sticky region
+ * so the file status remains visible while the tree body scrolls.
+ */
+function createHeader(state: TraceConfigurationState): HTMLElement {
+    const header = createElement('div', 'trace-header');
+    header.append(createToolbar(), createStatus(state));
+    return header;
 }
 
 /**
@@ -246,15 +277,15 @@ function createRow(row: TraceConfigurationRow): HTMLTableRowElement {
         tr.tabIndex = 0;
         tr.setAttribute('aria-expanded', String(row.expanded));
         tr.addEventListener('click', event => {
-            if (event.target instanceof HTMLElement && event.target.closest('.multi-select')) {
-                return;
-            }
-            if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement || event.target instanceof HTMLButtonElement) {
+            if (isRowToggleInteractiveTarget(event.target)) {
                 return;
             }
             post({ type: 'toggle', id: row.id, expanded: !row.expanded });
         });
         tr.addEventListener('keydown', event => {
+            if (isRowToggleInteractiveTarget(event.target)) {
+                return;
+            }
             if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
                 post({ type: 'toggle', id: row.id, expanded: !row.expanded });
@@ -262,6 +293,17 @@ function createRow(row: TraceConfigurationRow): HTMLTableRowElement {
         });
     }
     return tr;
+}
+
+/**
+ * isRowToggleInteractiveTarget prevents clicks and key presses on controls from
+ * falling through to the row-level expand/collapse handler.
+ */
+function isRowToggleInteractiveTarget(target: EventTarget | null): boolean {
+    if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLButtonElement) {
+        return true;
+    }
+    return target instanceof HTMLElement && Boolean(target.closest('.multi-select, .add-button-wrapper, .tooltip-wrapper'));
 }
 
 /**
@@ -356,17 +398,33 @@ function createSelectionCell(row: TraceConfigurationRow): HTMLTableCellElement {
  * createAddButton renders the plus button for editable YAML sequences. The
  * host decides what placeholder object should be appended based on addChildKind.
  */
-function createAddButton(row: TraceConfigurationRow): HTMLButtonElement {
+function createAddButton(row: TraceConfigurationRow): HTMLElement {
+    const wrapper = createElement('span', 'add-button-wrapper tooltip-wrapper');
     const button = createElement('button', 'icon-button add-button');
     button.type = 'button';
-    button.title = 'Add item';
-    button.setAttribute('aria-label', `Add item to ${row.label}`);
+    const disabledReason = row.addChildDisabledReason;
+    const tooltip = disabledReason ?? row.addChildTooltip ?? 'Add Item';
+    wrapper.dataset.tooltip = tooltip;
+    button.disabled = Boolean(disabledReason);
+    button.setAttribute('aria-label', tooltip);
     button.append(createIcon('add'));
-    button.addEventListener('click', event => {
+    wrapper.addEventListener('click', event => {
         event.stopPropagation();
-        post({ type: 'addItem', path: row.path, addChildKind: row.addChildKind ?? 'generic-map' });
     });
-    return button;
+    wrapper.addEventListener('keydown', event => {
+        event.stopPropagation();
+    });
+    if (disabledReason) {
+        wrapper.tabIndex = 0;
+        wrapper.setAttribute('aria-label', disabledReason);
+    } else {
+        button.addEventListener('click', event => {
+            event.stopPropagation();
+            post({ type: 'addItem', path: row.path, addChildKind: row.addChildKind ?? 'generic-map' });
+        });
+    }
+    wrapper.append(button);
+    return wrapper;
 }
 
 /**
@@ -390,9 +448,20 @@ function createCheckbox(row: TraceConfigurationRow): HTMLLabelElement {
  * createSelect renders scalar fields with known small vocabularies, such as
  * access and output. Changes are saved immediately through the host.
  */
-function createSelect(row: TraceConfigurationRow): HTMLSelectElement {
+function createSelect(row: TraceConfigurationRow): HTMLElement {
+    const disabledReason = row.controlDisabledReason;
     const select = createElement('select');
+    select.disabled = Boolean(disabledReason);
     select.setAttribute('aria-label', row.label);
+    if (row.placeholder && !row.value) {
+        const placeholderOption = createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.textContent = row.placeholder;
+        placeholderOption.disabled = true;
+        placeholderOption.selected = true;
+        select.classList.add('placeholder-selected');
+        select.append(placeholderOption);
+    }
     (row.options ?? []).forEach(optionValue => {
         const option = createElement('option');
         option.value = optionValue;
@@ -403,6 +472,14 @@ function createSelect(row: TraceConfigurationRow): HTMLSelectElement {
     select.addEventListener('change', () => {
         post({ type: 'updateValue', path: getValuePath(row), value: select.value });
     });
+    if (disabledReason) {
+        const wrapper = createElement('span', 'tooltip-wrapper control-tooltip-wrapper');
+        wrapper.dataset.tooltip = disabledReason;
+        wrapper.tabIndex = 0;
+        wrapper.setAttribute('aria-label', disabledReason);
+        wrapper.append(select);
+        return wrapper;
+    }
     return select;
 }
 
@@ -471,10 +548,13 @@ function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
  * createTextInput renders editable scalar text. It commits on blur or Enter so
  * users can type without saving the file after every keystroke.
  */
-function createTextInput(row: TraceConfigurationRow): HTMLInputElement {
+function createTextInput(row: TraceConfigurationRow): HTMLElement {
+    const disabledReason = row.controlDisabledReason;
     const input = createElement('input');
     input.type = 'text';
     input.value = row.value ?? '';
+    input.placeholder = row.placeholder ?? '';
+    input.disabled = Boolean(disabledReason);
     input.spellcheck = false;
     input.setAttribute('aria-label', row.label);
     let lastCommittedValue = input.value;
@@ -493,6 +573,14 @@ function createTextInput(row: TraceConfigurationRow): HTMLInputElement {
             input.blur();
         }
     });
+    if (disabledReason) {
+        const wrapper = createElement('span', 'tooltip-wrapper control-tooltip-wrapper');
+        wrapper.dataset.tooltip = disabledReason;
+        wrapper.tabIndex = 0;
+        wrapper.setAttribute('aria-label', disabledReason);
+        wrapper.append(input);
+        return wrapper;
+    }
     return input;
 }
 

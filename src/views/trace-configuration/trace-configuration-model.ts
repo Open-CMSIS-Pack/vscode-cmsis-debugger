@@ -17,10 +17,10 @@
 
 import * as path from 'node:path';
 
-import * as YAML from 'yaml';
 import * as vscode from 'vscode';
 
-import { Disposable } from '../../generic';
+import { isYamlMapItem, isYamlScalarItem, isYamlSequenceItem, YamlTreeItem, yamlScalarToString } from '../../desktop/yaml-dom';
+import { Disposable } from '../../desktop/yaml-file';
 import { logger } from '../../logger';
 import { CTraceYamlFile } from './ctrace-yaml';
 import {
@@ -42,6 +42,7 @@ export class TraceConfigurationModel {
     private loading = false;
     private dirty = false;
     private errorMessage: string | undefined;
+    private focusedRowId: string | undefined;
     private readonly collapsedRows = new Set<string>();
     private readonly processorCapabilities: TraceConfigurationProcessorCapabilities;
     private readonly rowBuilder: TraceConfigurationRowBuilder;
@@ -391,9 +392,16 @@ export class TraceConfigurationModel {
             return;
         }
         if (this.rowBuilder.isStreamSyncDwtPeriodPath(pathToUpdate) && typeof value === 'string') {
-            const streamSyncPath = pathToUpdate.slice(0, -1);
-            document.yaml.set(streamSyncPath, [{ DWT: value }]);
+            const streamSyncPath = this.rowBuilder.getStreamSyncPathForDwtPeriodPath(pathToUpdate);
+            document.yaml.set(streamSyncPath, { DWT: value });
             await this.acceptInMemoryEdit();
+            return;
+        }
+        if (this.rowBuilder.isMatchValuePath(pathToUpdate)
+            && typeof value === 'string'
+            && !this.rowBuilder.canSetSharedDwtComparatorMatchValue(pathToUpdate)) {
+            this.errorMessage = this.createSharedDwtComparatorLimitMessage(pathToUpdate);
+            this.notifyStateChanged();
             return;
         }
         if (this.rowBuilder.isMatchSizePath(pathToUpdate)
@@ -449,21 +457,34 @@ export class TraceConfigurationModel {
             this.notifyStateChanged();
             return;
         }
+        const newItemIndex = this.getNextSequenceIndex(document, pathToUpdate);
         document.yaml.append(pathToUpdate, this.createNewItem(addChildKind));
+        this.collapsedRows.delete(this.pathToId(pathToUpdate));
+        this.focusedRowId = this.pathToId([...pathToUpdate, newItemIndex]);
         await this.acceptInMemoryEdit();
     }
 
     /**
-     * createSharedDwtComparatorLimitMessage reports stale add attempts that
-     * arrive after the UI has already hidden add controls for a full DWT
-     * comparator pool.
+     * getNextSequenceIndex returns the path segment that append will assign to
+     * the next child. Missing and bare-key sequence paths become index 0 when
+     * the YAML DOM materializes them.
+     */
+    private getNextSequenceIndex(document: NonNullable<CTraceYamlFile['document']>, sequencePath: (string | number)[]): number {
+        const sequence = document.yaml.getItem(sequencePath);
+        return isYamlSequenceItem(sequence) ? sequence.getChildren().length : 0;
+    }
+
+    /**
+     * createSharedDwtComparatorLimitMessage reports stale attempts that arrive
+     * after the UI has already disabled controls for a full DWT comparator
+     * pool.
      */
     private createSharedDwtComparatorLimitMessage(pathToUpdate: (string | number)[]): string {
         const usage = this.rowBuilder.getSharedDwtComparatorUsage(pathToUpdate);
         if (!usage) {
             return 'No DWT comparators are available for this processor.';
         }
-        return `No DWT comparators are available for this processor. DWT Data Trace, Instruction Trace Start/Stop, and Trace Halt already use ${usage.used} of ${usage.limit} shared comparator entries.`;
+        return `No DWT comparators are available for this processor. DWT Data Trace, Instruction Trace Start/Stop, Trace Halt, and Match Value fields already use ${usage.used} of ${usage.limit} shared comparator entries.`;
     }
 
     /**
@@ -494,8 +515,8 @@ export class TraceConfigurationModel {
         }
         document.yaml.delete(pathToDelete);
         const parentPath = pathToDelete.slice(0, -1);
-        const parent = document.yaml.getNode(parentPath);
-        if (this.rowBuilder.shouldPruneEmptyOptionalParent(parentPath) && YAML.isMap(parent) && parent.items.length === 0) {
+        const parent = document.yaml.getItem(parentPath);
+        if (this.rowBuilder.shouldPruneEmptyOptionalParent(parentPath) && isYamlMapItem(parent) && parent.getChildren().length === 0) {
             document.yaml.delete(parentPath);
         }
     }
@@ -506,7 +527,9 @@ export class TraceConfigurationModel {
      * in-memory edits stay authoritative until the user clicks Save or Refresh.
      */
     private async acceptInMemoryEdit(): Promise<void> {
-        this.requireDocument().assignCTraceRefs();
+        const document = this.requireDocument();
+        document.normalizeDocumentOrder();
+        document.assignCTraceRefs();
         await this.loadProcessorCapabilities();
         this.dirty = true;
         this.errorMessage = undefined;
@@ -522,8 +545,8 @@ export class TraceConfigurationModel {
         if (!this.rowBuilder.shouldUseBareSequenceWhenEmpty(sequencePath)) {
             return;
         }
-        const sequence = document.yaml.getNode(sequencePath);
-        if (YAML.isSeq(sequence) && sequence.items.length === 0) {
+        const sequence = document.yaml.getItem(sequencePath);
+        if (isYamlSequenceItem(sequence) && sequence.getChildren().length === 0) {
             document.yaml.set(sequencePath, null);
         }
     }
@@ -533,33 +556,28 @@ export class TraceConfigurationModel {
      * contain empty lists such as "data: []" before Save serializes them.
      */
     private convertAllEmptyEditableSequencesToBareKeys(document: NonNullable<CTraceYamlFile['document']>): void {
-        const visitNode = (node: YAML.Node, nodePath: (string | number)[]): void => {
-            if (YAML.isSeq(node)) {
-                if (node.items.length === 0) {
+        const visitNode = (node: YamlTreeItem, nodePath: (string | number)[]): void => {
+            if (isYamlSequenceItem(node)) {
+                if (node.getChildren().length === 0) {
                     this.convertEmptySequenceToBareKey(document, nodePath);
                     return;
                 }
-                node.items.forEach((item, index) => {
-                    if (YAML.isNode(item)) {
-                        visitNode(item, [...nodePath, index]);
-                    }
+                node.getChildren().forEach((item, index) => {
+                    visitNode(item, [...nodePath, index]);
                 });
                 return;
             }
-            if (!YAML.isMap(node)) {
+            if (!isYamlMapItem(node)) {
                 return;
             }
-            node.items.forEach(pair => {
-                const key = this.mapKeyToString(pair.key);
-                if (key && YAML.isNode(pair.value)) {
-                    visitNode(pair.value, [...nodePath, key]);
+            node.getChildren().forEach(child => {
+                const key = child.getTag();
+                if (key) {
+                    visitNode(child, [...nodePath, key]);
                 }
             });
         };
-        const root = document.yaml.document.contents;
-        if (YAML.isNode(root)) {
-            visitNode(root, []);
-        }
+        visitNode(document.yaml.rootItem, []);
     }
 
     /**
@@ -577,11 +595,11 @@ export class TraceConfigurationModel {
      * YAML such as match blocks that only contain size.
      */
     private hasNonEmptyScalarValue(document: NonNullable<CTraceYamlFile['document']>, pathToCheck: (string | number)[]): boolean {
-        const node = document.yaml.getNode(pathToCheck);
-        if (!YAML.isScalar(node) || node.value === undefined || node.value === null) {
+        const node = document.yaml.getItem(pathToCheck);
+        if (!isYamlScalarItem(node)) {
             return false;
         }
-        return String(node.value).trim().length > 0;
+        return yamlScalarToString(node).trim().length > 0;
     }
 
     /**
@@ -592,41 +610,21 @@ export class TraceConfigurationModel {
      */
     private setProcessorDisable(document: NonNullable<CTraceYamlFile['document']>, processorPath: (string | number)[]): void {
         document.yaml.set([...processorPath, 'disable'], null);
-        const processorNode = document.yaml.getNode(processorPath);
-        if (!YAML.isMap(processorNode)) {
+        const processorNode = document.yaml.getItem(processorPath);
+        if (!isYamlMapItem(processorNode)) {
             return;
         }
-        const disableIndex = this.findMapPairIndex(processorNode, 'disable');
+        const disableItem = processorNode.getChild('disable');
+        const disableIndex = processorNode.indexOfChild(disableItem);
         if (disableIndex < 0) {
             return;
         }
-        const [disablePair] = processorNode.items.splice(disableIndex, 1);
-        if (!disablePair) {
+        if (!disableItem) {
             return;
         }
-        const pnameIndex = this.findMapPairIndex(processorNode, 'pname');
-        processorNode.items.splice(pnameIndex >= 0 ? pnameIndex + 1 : 0, 0, disablePair);
-    }
-
-    /**
-     * findMapPairIndex locates one key in a YAML map without converting the
-     * whole map to JavaScript. Staying on the YAML node layer preserves comments,
-     * scalar spelling, and pair ordering while we make a tiny readability edit.
-     */
-    private findMapPairIndex(map: YAML.YAMLMap, key: string): number {
-        return map.items.findIndex(pair => this.mapKeyToString(pair.key) === key);
-    }
-
-    /**
-     * mapKeyToString extracts a string key from a YAML pair. ctrace keys should
-     * be plain scalar strings, but the fallback keeps the ordering helper
-     * defensive around unusual hand-authored YAML.
-     */
-    private mapKeyToString(key: unknown): string | undefined {
-        if (YAML.isScalar(key)) {
-            return key.value === undefined || key.value === null ? undefined : String(key.value);
-        }
-        return key?.toString();
+        processorNode.removeChild(disableItem);
+        const pnameIndex = processorNode.indexOfChild(processorNode.getChild('pname'));
+        processorNode.addChild(disableItem, false, pnameIndex >= 0 ? pnameIndex + 1 : 0);
     }
 
     /**
@@ -671,8 +669,9 @@ export class TraceConfigurationModel {
         }
         if (file.document) {
             this.removeLegacyElfFileMetadata(file.document);
-            file.document.assignCTraceRefs();
             this.convertAllEmptyEditableSequencesToBareKeys(file.document);
+            file.document.normalizeDocumentOrder();
+            file.document.assignCTraceRefs();
         }
         await file.save();
         await this.loadProcessorCapabilities();
@@ -724,7 +723,16 @@ export class TraceConfigurationModel {
      * rows that the UI can render.
      */
     public createState(): TraceConfigurationState {
-        return this.rowBuilder.createState();
+        const state = this.rowBuilder.createState();
+        if (!this.focusedRowId) {
+            return state;
+        }
+        const focusedState: TraceConfigurationState = {
+            ...state,
+            focusedRowId: this.focusedRowId
+        };
+        this.focusedRowId = undefined;
+        return focusedState;
     }
 
     /**
@@ -743,5 +751,12 @@ export class TraceConfigurationModel {
      */
     private errorToString(error: unknown): string {
         return error instanceof Error ? error.message : String(error);
+    }
+
+    /**
+     * pathToId creates row identifiers that match TraceConfigurationRowBuilder.
+     */
+    private pathToId(nodePath: (string | number)[]): string {
+        return JSON.stringify(nodePath);
     }
 }

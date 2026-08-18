@@ -15,7 +15,16 @@
  */
 // generated with AI
 
-import * as YAML from 'yaml';
+import {
+    createYamlMapItem,
+    createYamlScalarItem,
+    createYamlSequenceItem,
+    isYamlMapItem,
+    isYamlScalarItem,
+    isYamlSequenceItem,
+    YamlTreeItem,
+    yamlScalarToString,
+} from '../../desktop/yaml-dom';
 
 import {
     TraceConfigurationRow,
@@ -24,7 +33,7 @@ import {
 import * as TraceConfigurationTypes from './trace-configuration-types';
 import { CTraceYamlFile } from './ctrace-yaml';
 
-type TraceNodeEntry = { label: string; path: (string | number)[]; node: YAML.Node };
+type TraceNodeEntry = { label: string; path: (string | number)[]; node: YamlTreeItem };
 
 /**
  * TraceConfigurationRowBuilder is responsible for projecting the ctrace YAML DOM into the
@@ -54,7 +63,7 @@ export class TraceConfigurationRowBuilder {
      */
     public createState(): TraceConfigurationState {
         const document = this.getCTraceFile()?.document;
-        const rows = document ? this.createRows(document.yaml.document.contents) : [];
+        const rows = document ? this.createRows(document.yaml.rootItem) : [];
         const emptyMessage = document
             ? rows.length === 0 ? 'No trace-capable processor configuration is available for this ctrace file.' : undefined
             : 'Open a ctrace.yml file to edit trace configuration.';
@@ -76,7 +85,7 @@ export class TraceConfigurationRowBuilder {
      * the webview can render a simple table body instead of traversing YAML
      * itself.
      */
-    private createRows(root: YAML.Node | null | undefined): TraceConfigurationRow[] {
+    private createRows(root: YamlTreeItem | undefined): TraceConfigurationRow[] {
         if (!root) {
             return [];
         }
@@ -84,7 +93,7 @@ export class TraceConfigurationRowBuilder {
             rows: [],
             collapsedRows: this.collapsedRows
         };
-        const ctraceRoot = this.getCTraceFile()?.document?.yaml.getNode(['ctrace']);
+        const ctraceRoot = this.getCTraceFile()?.document?.yaml.getItem(['ctrace']);
         if (ctraceRoot) {
             this.getChildEntries(ctraceRoot, ['ctrace']).forEach(child => {
                 this.appendNodeRows(context, child.node, child.path, child.label, 0);
@@ -103,7 +112,7 @@ export class TraceConfigurationRowBuilder {
      */
     private appendNodeRows(
         context: TraceConfigurationTypes.RowBuildContext,
-        node: YAML.Node,
+        node: YamlTreeItem,
         nodePath: (string | number)[],
         label: string,
         depth: number,
@@ -142,8 +151,8 @@ export class TraceConfigurationRowBuilder {
      * gives Time Syncronization and Stream Syncronization a clearer home in the
      * webview tree.
      */
-    private appendAdvancedSettingsRows(context: TraceConfigurationTypes.RowBuildContext, node: YAML.Node, nodePath: (string | number)[], depth: number): void {
-        if (!this.isProcessorPath(nodePath) || !YAML.isMap(node)) {
+    private appendAdvancedSettingsRows(context: TraceConfigurationTypes.RowBuildContext, node: YamlTreeItem, nodePath: (string | number)[], depth: number): void {
+        if (!this.isProcessorPath(nodePath) || !isYamlMapItem(node)) {
             return;
         }
         const childEntries = this.getAdvancedSettingsEntries(node, nodePath);
@@ -172,15 +181,15 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
-     * appendStreamSynchronizationRows renders the synchronization sequence as a
-     * user-facing Stream Syncronization group with one DWT period child. ETM
+     * appendStreamSynchronizationRows renders the synchronization map as a
+     * user-facing Stream Syncronization group with one DWT child. ETM
      * entries remain unsupported in the UI because they are being removed from
      * the current spec, but the YAML structure is still translated cleanly when
      * the DWT dropdown changes.
      */
     private appendStreamSynchronizationRows(
         context: TraceConfigurationTypes.RowBuildContext,
-        node: YAML.Node,
+        node: YamlTreeItem,
         nodePath: (string | number)[],
         label: string,
         depth: number,
@@ -196,10 +205,10 @@ export class TraceConfigurationRowBuilder {
         if (!expanded) {
             return;
         }
-        const dwtPeriodPath = [...nodePath, 'dwt-sync-period'];
+        const dwtPeriodPath = [...nodePath, 'DWT'];
         context.rows.push({
             id: this.pathToId(dwtPeriodPath),
-            label: 'DWT Sync Period (cycles)',
+            label: 'DWT',
             path: dwtPeriodPath,
             depth: depth + 1,
             kind: 'scalar',
@@ -218,16 +227,17 @@ export class TraceConfigurationRowBuilder {
      * rendered as expandable groups that mirror the mockup's tree-table style.
      */
     private createRow(
-        node: YAML.Node,
+        node: YamlTreeItem,
         nodePath: (string | number)[],
         label: string,
         depth: number,
         hasChildren: boolean,
         expanded: boolean
     ): TraceConfigurationRow {
-        const kind = YAML.isMap(node) ? 'map' : YAML.isSeq(node) || this.isBareSequenceNode(node, nodePath) ? 'sequence' : 'scalar';
-        const scalarValue = YAML.isScalar(node) ? this.scalarToString(node) : undefined;
+        const kind = isYamlMapItem(node) ? 'map' : isYamlSequenceItem(node) || this.isBareSequenceNode(node, nodePath) ? 'sequence' : 'scalar';
+        const scalarValue = isYamlScalarItem(node) ? this.scalarToString(node) : undefined;
         const valuePath = this.getRowValuePath(nodePath);
+        const placeholder = this.getRowPlaceholder(nodePath);
         const row: TraceConfigurationRow = {
             id: this.pathToId(nodePath),
             label: this.getRowLabel(node, label, nodePath),
@@ -240,10 +250,14 @@ export class TraceConfigurationRowBuilder {
             checked: this.getCheckedState(node, nodePath, scalarValue),
             options: this.getSelectOptions(label, nodePath),
             selectedOptions: this.getSelectedOptions(node, label, nodePath, scalarValue),
+            ...(placeholder ? { placeholder } : {}),
+            controlDisabledReason: this.getControlDisabledReason(nodePath),
             hasChildren,
             expanded: this.hasInlineMultiSelect(nodePath) ? false : expanded,
             removable: typeof nodePath.at(-1) === 'number' && nodePath.at(-2) !== 'setup',
             addChildKind: this.getRowAddChildKind(node, nodePath),
+            addChildTooltip: this.getRowAddChildTooltip(node, nodePath),
+            addChildDisabledReason: this.getRowAddChildDisabledReason(node, nodePath),
             description: this.describeNode(node, nodePath)
         };
         return row;
@@ -251,18 +265,43 @@ export class TraceConfigurationRowBuilder {
 
     /**
      * getRowAddChildKind decides whether a sequence row should expose an add
-     * button. It preserves the normal starter-object behavior, but suppresses
-     * additions for features backed by the shared DWT comparator pool when the
-     * selected processor has no comparator channels left.
+     * button. It preserves the normal starter-object behavior; comparator
+     * limits are represented separately so the webview can keep the button
+     * visible in a disabled state.
      */
-    private getRowAddChildKind(node: YAML.Node, nodePath: (string | number)[]): TraceConfigurationRow['addChildKind'] {
-        if ((!YAML.isSeq(node) && !this.isBareSequenceNode(node, nodePath)) || nodePath.at(-1) === 'setup' || this.hasInlineMultiSelect(nodePath)) {
-            return undefined;
-        }
-        if (!this.canAddSharedDwtComparatorEntry(nodePath)) {
+    private getRowAddChildKind(node: YamlTreeItem, nodePath: (string | number)[]): TraceConfigurationRow['addChildKind'] {
+        if ((!isYamlSequenceItem(node) && !this.isBareSequenceNode(node, nodePath)) || nodePath.at(-1) === 'setup' || this.hasInlineMultiSelect(nodePath)) {
             return undefined;
         }
         return this.getAddChildKind(nodePath);
+    }
+
+    /**
+     * getRowAddChildDisabledReason explains why an otherwise-addable row cannot
+     * accept more entries. The display name follows the processor row label,
+     * using pname when present and core otherwise.
+     */
+    private getRowAddChildDisabledReason(node: YamlTreeItem, nodePath: (string | number)[]): string | undefined {
+        if (!this.getRowAddChildKind(node, nodePath)) {
+            return undefined;
+        }
+        const usage = this.getSharedDwtComparatorUsage(nodePath);
+        if (!usage || usage.used < usage.limit) {
+            return undefined;
+        }
+        return `Maximum number of comparators has been reached for ${usage.processorName}`;
+    }
+
+    /**
+     * getRowAddChildTooltip augments comparator-backed add buttons with current
+     * shared DWT comparator usage while leaving generic add buttons terse.
+     */
+    private getRowAddChildTooltip(node: YamlTreeItem, nodePath: (string | number)[]): string | undefined {
+        if (!this.getRowAddChildKind(node, nodePath)) {
+            return undefined;
+        }
+        const usage = this.getSharedDwtComparatorUsage(nodePath);
+        return usage ? `Add Item. Comparators used are ${usage.used}/${usage.limit}.` : 'Add Item';
     }
 
     /**
@@ -277,12 +316,25 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
-     * getSharedDwtComparatorUsage returns current pool usage for one editable
-     * comparator-backed sequence. Each list entry consumes one comparator in
-     * the UI accounting model.
+     * canSetSharedDwtComparatorMatchValue checks whether an empty match.value
+     * can start consuming one more comparator. Existing values remain editable
+     * because they already account for their comparator in current usage.
      */
-    public getSharedDwtComparatorUsage(nodePath: (string | number)[]): { used: number; limit: number } | undefined {
-        if (!this.isSharedDwtComparatorSequencePath(nodePath)) {
+    public canSetSharedDwtComparatorMatchValue(nodePath: (string | number)[]): boolean {
+        if (!this.isMatchValuePath(nodePath) || this.hasNonEmptyMatchValue(nodePath)) {
+            return true;
+        }
+        const usage = this.getSharedDwtComparatorUsage(nodePath);
+        return usage ? usage.used < usage.limit : true;
+    }
+
+    /**
+     * getSharedDwtComparatorUsage returns current pool usage for one editable
+     * comparator-backed sequence or match.value row. Each list entry consumes
+     * one comparator, and each filled match.value consumes another comparator.
+     */
+    public getSharedDwtComparatorUsage(nodePath: (string | number)[]): { used: number; limit: number; processorName: string } | undefined {
+        if (!this.isSharedDwtComparatorSequencePath(nodePath) && !this.isMatchValuePath(nodePath)) {
             return undefined;
         }
         const capabilities = this.getTraceCapabilitiesForPath(nodePath);
@@ -291,7 +343,8 @@ export class TraceConfigurationRowBuilder {
         }
         return {
             used: this.countSharedDwtComparatorEntries(nodePath),
-            limit: capabilities.dwtComparators
+            limit: capabilities.dwtComparators,
+            processorName: this.getProcessorDisplayNameForPath(nodePath) ?? capabilities.displayName
         };
     }
 
@@ -337,10 +390,10 @@ export class TraceConfigurationRowBuilder {
      * shouldFlattenSetupNode detects YAML levels that exist only to organize
      * settings by core. The setup sequence itself is always hidden so users
      * cannot add processors from this view; each setup item remains visible as
-     * a Processor:<pname> group that owns the processor trace configuration.
+     * a Processor:<pname-or-core> group that owns the processor trace configuration.
      */
-    private shouldFlattenSetupNode(node: YAML.Node, nodePath: (string | number)[]): boolean {
-        if (YAML.isSeq(node) && nodePath.at(-1) === 'setup') {
+    private shouldFlattenSetupNode(node: YamlTreeItem, nodePath: (string | number)[]): boolean {
+        if (isYamlSequenceItem(node) && nodePath.at(-1) === 'setup') {
             return true;
         }
         return false;
@@ -348,35 +401,35 @@ export class TraceConfigurationRowBuilder {
 
     /**
      * getChildEntries extracts child rows from YAML maps and sequences. The
-     * method skips implementation metadata such as ctrace-ref, created-by, and
-     * pname because processor names are rendered in their parent row labels.
+     * method skips implementation metadata and processor identity fields because
+     * they are rendered in their parent row labels.
      */
-    private getChildEntries(node: YAML.Node, nodePath = this.getNodePath(node)): TraceNodeEntry[] {
-        if (YAML.isMap(node)) {
+    private getChildEntries(node: YamlTreeItem, nodePath = this.getNodePath(node)): TraceNodeEntry[] {
+        if (isYamlMapItem(node)) {
             const entries: TraceNodeEntry[] = [];
-            node.items.forEach(pair => {
-                const label = this.keyToString(pair.key);
-                if (!label || this.shouldHideNode(label, nodePath) || !YAML.isNode(pair.value)) {
+            node.getChildren().forEach(child => {
+                const label = child.getTag();
+                if (!label || this.shouldHideNode(label, nodePath)) {
                     return;
                 }
                 entries.push({
                     label,
                     path: [...nodePath, label],
-                    node: pair.value
+                    node: child
                 });
             });
             this.appendSyntheticChildEntries(entries, nodePath);
             return this.sortDisplayEntries(entries, nodePath);
         }
-        if (YAML.isSeq(node) && this.isEventsPath(nodePath)) {
+        if (isYamlSequenceItem(node) && this.isEventsPath(nodePath)) {
             return [];
         }
-        if (YAML.isSeq(node)) {
-            return node.items.flatMap((item, index) => YAML.isNode(item) ? [{
+        if (isYamlSequenceItem(node)) {
+            return node.getChildren().map((item, index) => ({
                 label: this.getSequenceItemLabel(item, index),
                 path: [...nodePath, index],
                 node: item
-            }] : []);
+            }));
         }
         return this.getFilteredSyntheticChildEntries(nodePath);
     }
@@ -476,7 +529,7 @@ export class TraceConfigurationRowBuilder {
         return {
             label,
             path: [...parentPath, label],
-            node: new YAML.Scalar('')
+            node: createYamlScalarItem(label, '')
         };
     }
 
@@ -490,7 +543,7 @@ export class TraceConfigurationRowBuilder {
         return {
             label,
             path: [...parentPath, label],
-            node: new YAML.Scalar(null)
+            node: createYamlScalarItem(label, null)
         };
     }
 
@@ -503,7 +556,7 @@ export class TraceConfigurationRowBuilder {
         return {
             label,
             path: [...parentPath, label],
-            node: new YAML.YAMLMap()
+            node: createYamlMapItem(label)
         };
     }
 
@@ -516,7 +569,7 @@ export class TraceConfigurationRowBuilder {
         return {
             label,
             path: [...parentPath, label],
-            node: new YAML.YAMLSeq()
+            node: createYamlSequenceItem(label)
         };
     }
 
@@ -525,19 +578,19 @@ export class TraceConfigurationRowBuilder {
      * beneath the synthetic Advanced Settings row. Keeping these as real node
      * entries means the child controls still edit the original ctrace paths.
      */
-    private getAdvancedSettingsEntries(node: YAML.YAMLMap, nodePath: (string | number)[]): { label: string; path: (string | number)[]; node: YAML.Node }[] {
-        const entries: { label: string; path: (string | number)[]; node: YAML.Node }[] = [];
-        const timesync = node.get('timesync', true);
-        if (YAML.isNode(timesync) && this.shouldShowTraceNode('timesync', [...nodePath, 'timesync'])) {
+    private getAdvancedSettingsEntries(node: YamlTreeItem, nodePath: (string | number)[]): TraceNodeEntry[] {
+        const entries: TraceNodeEntry[] = [];
+        const timesync = node.getChild('timesync');
+        if (timesync && this.shouldShowTraceNode('timesync', [...nodePath, 'timesync'])) {
             entries.push({ label: 'timesync', path: [...nodePath, 'timesync'], node: timesync });
         } else if (this.shouldShowTraceNode('timesync', [...nodePath, 'timesync'])) {
             entries.push(this.createSyntheticNullEntry(nodePath, 'timesync'));
         }
-        const synchronization = node.get('synchronization', true);
-        if (YAML.isNode(synchronization) && this.shouldShowTraceNode('synchronization', [...nodePath, 'synchronization'])) {
+        const synchronization = node.getChild('synchronization');
+        if (synchronization && this.shouldShowTraceNode('synchronization', [...nodePath, 'synchronization'])) {
             entries.push({ label: 'synchronization', path: [...nodePath, 'synchronization'], node: synchronization });
         } else if (this.shouldShowTraceNode('synchronization', [...nodePath, 'synchronization'])) {
-            entries.push(this.createSyntheticSequenceEntry(nodePath, 'synchronization'));
+            entries.push(this.createSyntheticMapEntry(nodePath, 'synchronization'));
         }
         return entries;
     }
@@ -548,7 +601,7 @@ export class TraceConfigurationRowBuilder {
      * in the order users are expected to review them, while all other entries
      * keep their original relative order after that leading group.
      */
-    private sortDisplayEntries(entries: { label: string; path: (string | number)[]; node: YAML.Node }[], parentPath: (string | number)[]): { label: string; path: (string | number)[]; node: YAML.Node }[] {
+    private sortDisplayEntries(entries: TraceNodeEntry[], parentPath: (string | number)[]): TraceNodeEntry[] {
         return entries
             .map((entry, index) => ({ entry, index }))
             .sort((left, right) => {
@@ -625,12 +678,12 @@ export class TraceConfigurationRowBuilder {
 
     /**
      * getRowLabel chooses the final label for a row. Processor rows are derived
-     * from their pname field, while all normal YAML keys go through the generic
-     * display-label mapper.
+     * from pname for display, falling back to core when pname is absent, while
+     * all normal YAML keys go through the generic display-label mapper.
      */
-    private getRowLabel(node: YAML.Node, label: string, nodePath: (string | number)[]): string {
-        if (this.isProcessorPath(nodePath) && YAML.isMap(node)) {
-            return `Processor:${this.mapScalarToString(node, 'pname') ?? 'Unknown'}`;
+    private getRowLabel(node: YamlTreeItem, label: string, nodePath: (string | number)[]): string {
+        if (this.isProcessorPath(nodePath) && isYamlMapItem(node)) {
+            return `Processor:${this.getProcessorDisplayName(node, nodePath)}`;
         }
         if (this.isPromotedLocationItemPath(nodePath)) {
             return 'Location';
@@ -638,17 +691,24 @@ export class TraceConfigurationRowBuilder {
         return this.getDisplayLabel(label, nodePath);
     }
 
+    private getProcessorDisplayName(node: YamlTreeItem, nodePath: (string | number)[]): string {
+        return this.mapScalarToString(node, 'pname')
+            ?? this.mapScalarToString(node, 'core')
+            ?? this.getTraceCapabilitiesForPath(nodePath)?.displayName
+            ?? 'Unknown';
+    }
+
     /**
      * getRowValue returns the editable value shown in the Selection column.
      * Most scalar rows use their scalar text directly. Folded map controls such
      * as PC Sampling still expose a scalar child as the parent row's value.
      */
-    private getRowValue(node: YAML.Node, nodePath: (string | number)[], scalarValue?: string): string | undefined {
+    private getRowValue(node: YamlTreeItem, nodePath: (string | number)[], scalarValue?: string): string | undefined {
         if (this.isPromotedLocationItemPath(nodePath)) {
-            return YAML.isMap(node) ? this.mapScalarToString(node, 'location') ?? '' : '';
+            return isYamlMapItem(node) ? this.mapScalarToString(node, 'location') ?? '' : '';
         }
         if (this.isPcSamplingPath(nodePath)) {
-            const period = YAML.isMap(node) ? this.mapScalarToString(node, 'period') : scalarValue;
+            const period = isYamlMapItem(node) ? this.mapScalarToString(node, 'period') : scalarValue;
             return this.normalizePcSamplingPeriod(period && period.trim().length > 0 ? period : 'off');
         }
         if (this.isDwtDataAccessPath(nodePath)) {
@@ -669,6 +729,27 @@ export class TraceConfigurationRowBuilder {
     private getRowValuePath(nodePath: (string | number)[]): (string | number)[] | undefined {
         if (this.isPromotedLocationItemPath(nodePath)) {
             return [...nodePath, 'location'];
+        }
+        return undefined;
+    }
+
+    private getRowPlaceholder(nodePath: (string | number)[]): string | undefined {
+        if (this.isTraceItemSizePath(nodePath) || this.isMatchSizePath(nodePath)) {
+            return '<Auto>';
+        }
+        if (this.isMatchValuePath(nodePath)) {
+            return '<None>';
+        }
+        return undefined;
+    }
+
+    private getControlDisabledReason(nodePath: (string | number)[]): string | undefined {
+        if (this.isMatchSizePath(nodePath)) {
+            return this.hasNonEmptyMatchValue(nodePath) ? undefined : 'Size can\'t be set if no value is provided';
+        }
+        if (this.isMatchValuePath(nodePath) && !this.canSetSharedDwtComparatorMatchValue(nodePath)) {
+            const usage = this.getSharedDwtComparatorUsage(nodePath);
+            return usage ? `Maximum number of comparators has been reached for ${usage.processorName}` : undefined;
         }
         return undefined;
     }
@@ -711,7 +792,8 @@ export class TraceConfigurationRowBuilder {
      * still preserved in the file but should not clutter the trace editor. The
      * metadata keys are always hidden, top-level disable is hidden because the
      * setting is processor-specific, ITM enable is folded into its parent row's
-     * channel checklist, and pname is folded into processor row labels.
+     * channel checklist, and processor identity fields are folded into processor
+     * row labels.
      */
     private shouldHideNode(label: string, parentPath: (string | number)[]): boolean {
         if (label === 'ctrace-ref' || label === 'created-by' || label === 'generated-by') {
@@ -738,7 +820,7 @@ export class TraceConfigurationRowBuilder {
         if ((label === 'timesync' || label === 'synchronization') && this.isProcessorPath(parentPath)) {
             return true;
         }
-        return label === 'pname';
+        return label === 'pname' || label === 'core';
     }
 
     /**
@@ -748,7 +830,7 @@ export class TraceConfigurationRowBuilder {
      * keeping them visible when multiple cores are present.
      */
     private hasSingleCoreDescription(): boolean {
-        const ctraceRoot = this.getCTraceFile()?.document?.yaml.getNode(['ctrace']);
+        const ctraceRoot = this.getCTraceFile()?.document?.yaml.getItem(['ctrace']);
         if (!ctraceRoot) {
             return false;
         }
@@ -762,29 +844,23 @@ export class TraceConfigurationRowBuilder {
      * values. It accepts maps and sequences because pname may appear in several
      * ctrace sections such as data traces, events, and register values.
      */
-    private collectCoreNames(node: YAML.Node, coreNames: Set<string>): void {
-        if (YAML.isMap(node)) {
-            node.items.forEach(pair => {
-                const label = this.keyToString(pair.key);
-                if (label === 'pname' && YAML.isScalar(pair.value)) {
-                    const coreName = this.scalarToString(pair.value).trim();
+    private collectCoreNames(node: YamlTreeItem, coreNames: Set<string>): void {
+        if (isYamlMapItem(node)) {
+            node.getChildren().forEach(child => {
+                const label = child.getTag();
+                if (label === 'pname' && isYamlScalarItem(child)) {
+                    const coreName = this.scalarToString(child).trim();
                     if (coreName) {
                         coreNames.add(coreName);
                     }
                     return;
                 }
-                if (YAML.isNode(pair.value)) {
-                    this.collectCoreNames(pair.value, coreNames);
-                }
+                this.collectCoreNames(child, coreNames);
             });
             return;
         }
-        if (YAML.isSeq(node)) {
-            node.items.forEach(item => {
-                if (YAML.isNode(item)) {
-                    this.collectCoreNames(item, coreNames);
-                }
-            });
+        if (isYamlSequenceItem(node)) {
+            node.getChildren().forEach(item => this.collectCoreNames(item, coreNames));
         }
     }
 
@@ -793,8 +869,8 @@ export class TraceConfigurationRowBuilder {
      * time rows are serialized. This avoids storing mutable path side tables on
      * YAML nodes and keeps the serializer resilient after edits replace nodes.
      */
-    private getNodePath(targetNode: YAML.Node): (string | number)[] {
-        const root = this.getCTraceFile()?.document?.yaml.getNode(['ctrace']);
+    private getNodePath(targetNode: YamlTreeItem): (string | number)[] {
+        const root = this.getCTraceFile()?.document?.yaml.getItem(['ctrace']);
         const pathToTarget = root ? this.findNodePath(root, targetNode, ['ctrace']) : undefined;
         return pathToTarget ?? ['ctrace'];
     }
@@ -804,26 +880,26 @@ export class TraceConfigurationRowBuilder {
      * path. Map children append their key and sequence children append their
      * numeric index, matching the paths accepted by YamlDomDocument.set/delete.
      */
-    private findNodePath(currentNode: YAML.Node, targetNode: YAML.Node, currentPath: (string | number)[]): (string | number)[] | undefined {
+    private findNodePath(currentNode: YamlTreeItem, targetNode: YamlTreeItem, currentPath: (string | number)[]): (string | number)[] | undefined {
         if (currentNode === targetNode) {
             return currentPath;
         }
-        if (YAML.isMap(currentNode)) {
-            for (const pair of currentNode.items) {
-                const key = this.keyToString(pair.key);
-                if (!key || !YAML.isNode(pair.value)) {
+        if (isYamlMapItem(currentNode)) {
+            for (const child of currentNode.getChildren()) {
+                const key = child.getTag();
+                if (!key) {
                     continue;
                 }
-                const found = this.findNodePath(pair.value, targetNode, [...currentPath, key]);
+                const found = this.findNodePath(child, targetNode, [...currentPath, key]);
                 if (found) {
                     return found;
                 }
             }
         }
-        if (YAML.isSeq(currentNode)) {
-            for (let index = 0; index < currentNode.items.length; index++) {
-                const item = currentNode.items.at(index);
-                if (!YAML.isNode(item)) {
+        if (isYamlSequenceItem(currentNode)) {
+            for (let index = 0; index < currentNode.getChildren().length; index++) {
+                const item = currentNode.childAtIndex(index);
+                if (!item) {
                     continue;
                 }
                 const found = this.findNodePath(item, targetNode, [...currentPath, index]);
@@ -836,27 +912,11 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
-     * keyToString converts a YAML map key into a display/path string. ctrace
-     * keys should be scalar strings, but the fallback keeps the UI functional if
-     * a hand-edited file contains a more unusual YAML key.
+     * scalarToString returns the original scalar spelling preserved by the
+     * cmsis-common tree parser.
      */
-    private keyToString(key: unknown): string | undefined {
-        if (YAML.isScalar(key)) {
-            return key.value === undefined || key.value === null ? undefined : String(key.value);
-        }
-        return key?.toString();
-    }
-
-    /**
-     * scalarToString converts YAML scalar nodes into editable strings. It uses
-     * the original source text when available so values such as 0xFFFFFFFF keep
-     * the user's preferred spelling in the webview.
-     */
-    private scalarToString(node: YAML.Scalar): string {
-        if (node.value === undefined || node.value === null) {
-            return '';
-        }
-        return node.source ?? String(node.value);
+    private scalarToString(node: YamlTreeItem): string {
+        return yamlScalarToString(node);
     }
 
     /**
@@ -865,16 +925,16 @@ export class TraceConfigurationRowBuilder {
      * file, then falls back to an item number. In single-core files it skips
      * pname so the core name is not shown as either a field or a grouping label.
      */
-    private getSequenceItemLabel(node: YAML.Node, index: number): string {
-        if (YAML.isMap(node)) {
+    private getSequenceItemLabel(node: YamlTreeItem, index: number): string {
+        if (isYamlMapItem(node)) {
             const identityKeys = this.hasSingleCoreDescription()
                 ? ['location', 'event', 'file']
                 : ['pname', 'location', 'event', 'file'];
             const candidate = identityKeys
-                .map(key => node.get(key))
-                .find(value => value !== undefined && value !== null);
-            if (candidate !== undefined && candidate !== null) {
-                return String(candidate);
+                .map(key => node.getChild(key))
+                .find(value => value !== undefined);
+            if (candidate) {
+                return isYamlScalarItem(candidate) ? this.scalarToString(candidate) : String(candidate.toObject());
             }
         }
         return `Item ${index + 1}`;
@@ -922,9 +982,9 @@ export class TraceConfigurationRowBuilder {
      * checkboxes use YAML-ish truthy strings, while processor rows invert the
      * hidden disable key: checked means trace is enabled, so disable is absent.
      */
-    private getCheckedState(node: YAML.Node, nodePath: (string | number)[], scalarValue?: string): boolean {
-        if (this.isProcessorPath(nodePath) && YAML.isMap(node)) {
-            return node.get('disable', true) === undefined;
+    private getCheckedState(node: YamlTreeItem, nodePath: (string | number)[], scalarValue?: string): boolean {
+        if (this.isProcessorPath(nodePath) && isYamlMapItem(node)) {
+            return node.getChild('disable') === undefined;
         }
         if (this.isTimestampsPath(nodePath)) {
             return this.nodeExists(nodePath);
@@ -994,21 +1054,21 @@ export class TraceConfigurationRowBuilder {
      * into the option labels rendered by the webview checklist.
      */
     private getSelectedOptions(
-        node: YAML.Node,
+        node: YamlTreeItem,
         _label: string,
         nodePath: (string | number)[],
         scalarValue?: string
     ): string[] | undefined {
-        if (this.isEventsPath(nodePath) && YAML.isSeq(node)) {
-            return node.items.flatMap(item => {
-                if (!YAML.isMap(item)) {
+        if (this.isEventsPath(nodePath) && isYamlSequenceItem(node)) {
+            return node.getChildren().flatMap(item => {
+                if (!isYamlMapItem(item)) {
                     return [];
                 }
-                const event = item.get('event');
-                return event === undefined || event === null ? [] : [String(event)];
+                const event = item.getChild('event');
+                return isYamlScalarItem(event) ? [this.scalarToString(event)] : [];
             });
         }
-        if (this.isItmPath(nodePath) && YAML.isMap(node)) {
+        if (this.isItmPath(nodePath) && isYamlMapItem(node)) {
             return this.itmEnableMaskToChannels(this.mapScalarToString(node, 'enable'));
         }
         if (this.isItmPrivilegedPath(nodePath)) {
@@ -1094,13 +1154,12 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
-     * getTraceCapabilitiesForPath resolves a row path to the processor that
-     * owns it, then returns that processor's loaded or inferred trace
-     * capabilities.
+     * getTraceCapabilitiesForPath resolves a row path to the setup item that
+     * owns it, then returns that setup item's core-derived trace capabilities.
      */
     private getTraceCapabilitiesForPath(nodePath: (string | number)[]): TraceConfigurationTypes.ProcessorTraceCapabilities | undefined {
-        const pname = this.getProcessorNameForPath(nodePath);
-        return pname ? this.processorCapabilities.get(pname) : undefined;
+        const setupIndex = this.getSetupIndexForPath(nodePath);
+        return setupIndex === undefined ? undefined : this.processorCapabilities.get(String(setupIndex));
     }
 
     /**
@@ -1204,21 +1263,25 @@ export class TraceConfigurationRowBuilder {
      * null or an empty map.
      */
     private nodeExists(nodePath: (string | number)[]): boolean {
-        return this.getCTraceFile()?.document?.yaml.getNode(nodePath) !== undefined;
+        return this.getCTraceFile()?.document?.yaml.getItem(nodePath) !== undefined;
+    }
+
+    private hasNonEmptyMatchValue(matchSizePath: (string | number)[]): boolean {
+        const value = this.getCTraceFile()?.document?.yaml.getString([...matchSizePath.slice(0, -1), 'value']);
+        return value !== undefined && value.trim().length > 0;
     }
 
     /**
-     * getProcessorNameForPath finds the setup item that owns a row and returns
-     * its pname. Rows outside setup are intentionally left without capabilities
-     * because they may represent legacy top-level ctrace sections.
+     * getProcessorDisplayNameForPath finds the setup item that owns a row and
+     * returns the name used in the webview: pname first, then core.
      */
-    private getProcessorNameForPath(nodePath: (string | number)[]): string | undefined {
+    private getProcessorDisplayNameForPath(nodePath: (string | number)[]): string | undefined {
         const setupIndex = this.getSetupIndexForPath(nodePath);
         if (setupIndex === undefined) {
             return undefined;
         }
-        const processorNode = this.getCTraceFile()?.document?.yaml.getNode(['ctrace', 'setup', setupIndex]);
-        return YAML.isMap(processorNode) ? this.mapScalarToString(processorNode, 'pname') : undefined;
+        const processorNode = this.getCTraceFile()?.document?.yaml.getItem(['ctrace', 'setup', setupIndex]);
+        return isYamlMapItem(processorNode) ? this.getProcessorDisplayName(processorNode, nodePath) : undefined;
     }
 
     /**
@@ -1320,7 +1383,9 @@ export class TraceConfigurationRowBuilder {
 
     /**
      * countSharedDwtComparatorEntries totals DWT comparator consumers for the
-     * setup item that owns the current row.
+     * setup item that owns the current row. Each trace item consumes one
+     * comparator, and each filled match.value consumes one additional
+     * comparator.
      */
     private countSharedDwtComparatorEntries(nodePath: (string | number)[]): number {
         const setupIndex = this.getSetupIndexForPath(nodePath);
@@ -1333,7 +1398,7 @@ export class TraceConfigurationRowBuilder {
             [...processorPath, 'instructions', 'start'],
             [...processorPath, 'instructions', 'stop'],
             [...processorPath, 'tracehalt'],
-        ].reduce((total, path) => total + this.countSequenceItems(path), 0);
+        ].reduce((total, path) => total + this.countSequenceItems(path) + this.countSequenceMatchValues(path), 0);
     }
 
     /**
@@ -1341,8 +1406,35 @@ export class TraceConfigurationRowBuilder {
      * empty while counting all existing list entries as comparator consumers.
      */
     private countSequenceItems(nodePath: (string | number)[]): number {
-        const node = this.getCTraceFile()?.document?.yaml.getNode(nodePath);
-        return YAML.isSeq(node) ? node.items.length : 0;
+        const node = this.getCTraceFile()?.document?.yaml.getItem(nodePath);
+        return isYamlSequenceItem(node) ? node.getChildren().length : 0;
+    }
+
+    /**
+     * countSequenceMatchValues counts non-empty match.value fields below one
+     * comparator-backed list. These optional match values consume additional
+     * comparators beyond the location comparator used by the list item itself.
+     */
+    private countSequenceMatchValues(nodePath: (string | number)[]): number {
+        const node = this.getCTraceFile()?.document?.yaml.getItem(nodePath);
+        if (!isYamlSequenceItem(node)) {
+            return 0;
+        }
+        return node.getChildren()
+            .filter(item => this.hasNonEmptyTraceItemMatchValue(item))
+            .length;
+    }
+
+    private hasNonEmptyTraceItemMatchValue(item: YamlTreeItem): boolean {
+        if (!isYamlMapItem(item)) {
+            return false;
+        }
+        const match = item.getChild('match');
+        if (!isYamlMapItem(match)) {
+            return false;
+        }
+        const value = match.getChild('value');
+        return isYamlScalarItem(value) && this.scalarToString(value).trim().length > 0;
     }
 
     /**
@@ -1394,10 +1486,10 @@ export class TraceConfigurationRowBuilder {
      * isBareSequenceNode identifies null shorthand nodes that the UI should
      * treat as editable empty sequences.
      */
-    private isBareSequenceNode(node: YAML.Node, nodePath: (string | number)[]): boolean {
+    private isBareSequenceNode(node: YamlTreeItem, nodePath: (string | number)[]): boolean {
         return this.shouldUseBareSequenceWhenEmpty(nodePath)
-            && YAML.isScalar(node)
-            && (node.value === null || node.value === undefined);
+            && isYamlScalarItem(node)
+            && node.getText() === undefined;
     }
 
     /**
@@ -1409,8 +1501,8 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
-     * isStreamSynchronizationPath identifies the stream synchronization
-     * sequence. The webview renders it as a parent row with one folded DWT sync
+     * isStreamSynchronizationPath identifies the stream synchronization map.
+     * The webview renders it as a parent row with one folded DWT sync
      * period child and no add button.
      */
     private isStreamSynchronizationPath(nodePath: (string | number)[]): boolean {
@@ -1418,11 +1510,31 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
-     * isStreamSyncDwtPeriodPath identifies the synthetic child row used to edit
-     * the real synchronization sequence's DWT period value.
+     * isStreamSyncDwtPeriodPath identifies the folded DWT child row used to
+     * edit the real synchronization map's DWT period value.
      */
     public isStreamSyncDwtPeriodPath(nodePath: (string | number)[]): boolean {
+        if (nodePath.at(-1) === 'DWT' && this.isStreamSynchronizationPath(nodePath.slice(0, -1))) {
+            return true;
+        }
+        if (nodePath.at(-1) === 'DWT' && typeof nodePath.at(-2) === 'number') {
+            return this.isStreamSynchronizationPath(nodePath.slice(0, -2));
+        }
         return nodePath.at(-1) === 'dwt-sync-period' && this.isStreamSynchronizationPath(nodePath.slice(0, -1));
+    }
+
+    /**
+     * getStreamSyncPathForDwtPeriodPath returns the sequence path rewritten
+     * when the folded DWT dropdown changes. The legacy synthetic path is still
+     * accepted so stale webview messages do not fail during extension updates.
+     */
+    public getStreamSyncPathForDwtPeriodPath(nodePath: (string | number)[]): (string | number)[] {
+        if (nodePath.at(-1) === 'DWT' && this.isStreamSynchronizationPath(nodePath.slice(0, -1))) {
+            return nodePath.slice(0, -1);
+        }
+        return nodePath.at(-1) === 'DWT' && typeof nodePath.at(-2) === 'number'
+            ? nodePath.slice(0, -2)
+            : nodePath.slice(0, -1);
     }
 
     /**
@@ -1482,6 +1594,14 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
+     * isTraceItemSizePath identifies the optional item-level size field for
+     * DWT data and condition entries.
+     */
+    private isTraceItemSizePath(nodePath: (string | number)[]): boolean {
+        return nodePath.at(-1) === 'size' && this.isTraceItemPath(nodePath.slice(0, -1));
+    }
+
+    /**
      * isMatchValuePath identifies the required value field inside an optional
      * match object. The model uses this to remove the whole optional match block
      * when the required value is cleared, preventing invalid match maps that
@@ -1502,29 +1622,41 @@ export class TraceConfigurationRowBuilder {
 
     /**
      * getStreamSyncDwtPeriod extracts the DWT synchronization period from the
-     * real YAML sequence. ETM entries are ignored because the current UI only
-     * exposes the DWT period supported by the revised trace spec.
+     * real YAML map. Older sequence encodings are still accepted for existing
+     * files and rewritten to the current map shape on edit/save.
      */
-    private getStreamSyncDwtPeriod(node: YAML.Node): string {
-        if (!YAML.isSeq(node)) {
-            return 'off';
+    private getStreamSyncDwtPeriod(node: YamlTreeItem): string {
+        if (isYamlMapItem(node)) {
+            const dwt = node.getChild('DWT');
+            if (isYamlScalarItem(dwt)) {
+                return this.scalarToString(dwt);
+            }
+            const period = node.getChild('period');
+            if (isYamlScalarItem(period)) {
+                const periodText = this.scalarToString(period);
+                return periodText.startsWith('DWT\\') ? periodText.replace(/^DWT\\/, '') : periodText;
+            }
+            return '256M';
         }
-        const dwtPeriod = node.items.flatMap(item => {
-            if (!YAML.isMap(item)) {
+        if (!isYamlSequenceItem(node)) {
+            return '256M';
+        }
+        const dwtPeriod = node.getChildren().flatMap(item => {
+            if (!isYamlMapItem(item)) {
                 return [];
             }
-            const dwt = item.get('DWT');
-            if (dwt !== undefined && dwt !== null) {
-                return [String(dwt)];
+            const dwt = item.getChild('DWT');
+            if (isYamlScalarItem(dwt)) {
+                return [this.scalarToString(dwt)];
             }
-            const period = item.get('period');
-            if (period === undefined || period === null) {
+            const period = item.getChild('period');
+            if (!isYamlScalarItem(period)) {
                 return [];
             }
-            const periodText = String(period);
+            const periodText = this.scalarToString(period);
             return periodText.startsWith('DWT\\') ? [periodText.replace(/^DWT\\/, '')] : [];
         }).at(0);
-        return dwtPeriod ?? 'off';
+        return dwtPeriod ?? '256M';
     }
 
     /**
@@ -1713,12 +1845,9 @@ export class TraceConfigurationRowBuilder {
      * such as ITM enable, where the channel checklist is represented by the
      * parent row rather than by its own visible child row.
      */
-    private mapScalarToString(map: YAML.YAMLMap, key: string): string | undefined {
-        const value = map.get(key, true);
-        if (!YAML.isScalar(value)) {
-            return undefined;
-        }
-        return this.scalarToString(value);
+    private mapScalarToString(map: YamlTreeItem, key: string): string | undefined {
+        const value = map.getChild(key);
+        return isYamlScalarItem(value) ? this.scalarToString(value) : undefined;
     }
 
     /**
@@ -1726,7 +1855,7 @@ export class TraceConfigurationRowBuilder {
      * path and generated reference details are implementation internals rather
      * than user-facing trace configuration.
      */
-    private describeNode(_node: YAML.Node, _nodePath: (string | number)[]): string | undefined {
+    private describeNode(_node: YamlTreeItem, _nodePath: (string | number)[]): string | undefined {
         return undefined;
     }
 

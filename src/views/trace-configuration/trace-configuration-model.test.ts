@@ -18,7 +18,7 @@
 import * as vscode from 'vscode';
 
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
-import { Disposable, TextFileAdapter, TextFileStamp } from '../../generic/yaml-file';
+import { MemoryTextFileAdapter } from '../../__test__/memory-text-file-adapter';
 import { TraceConfigurationModel } from './trace-configuration-model';
 import { TraceConfigurationProcessorCapabilities } from './trace-configuration-processor-capabilities';
 import * as TraceConfigurationTypes from './trace-configuration-types';
@@ -32,65 +32,26 @@ interface TraceConfigurationProcessorCapabilitiesPrivate {
     processorCapabilities: Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities>;
 }
 
-class MemoryTextFileAdapter implements TextFileAdapter {
-    public writeCount = 0;
-    private version = 0;
-    private readonly listeners: (() => void)[] = [];
-
-    public constructor(public text: string) {}
-
-    public async readTextFile(_fileName: string): Promise<string> {
-        return this.text;
-    }
-
-    public async writeTextFile(_fileName: string, contents: string): Promise<void> {
-        this.text = contents;
-        this.writeCount++;
-        this.version++;
-        this.listeners.forEach(listener => listener());
-    }
-
-    public async stat(_fileName: string): Promise<TextFileStamp> {
-        return {
-            mtimeMs: this.version,
-            size: this.text.length
-        };
-    }
-
-    public watch(_fileName: string, onDidChange: () => void): Disposable {
-        this.listeners.push(onDidChange);
-        return {
-            dispose: () => {
-                const index = this.listeners.indexOf(onDidChange);
-                if (index >= 0) {
-                    this.listeners.splice(index, 1);
-                }
-            }
-        };
-    }
-
-    public listenerCount(): number {
-        return this.listeners.length;
-    }
-
-    public simulateExternalChange(text: string): void {
-        this.text = text;
-        this.version++;
-        this.listeners.forEach(listener => listener());
-    }
-}
-
-function createCapabilities(pname = 'cm33'): Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities> {
+function createCapabilities(displayName = 'cm33'): Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities> {
     return new Map([
         [
-            pname,
+            '0',
             {
-                pname,
-                core: 'CM33',
+                displayName,
+                core: 'Cortex-M33',
                 ...TraceConfigurationTypes.CORTEX_M_DWT_4_TRACE_CAPABILITIES
             }
         ]
     ]);
+}
+
+function expectSubstringsInOrder(text: string, substrings: string[]): void {
+    let previousIndex = -1;
+    substrings.forEach(substring => {
+        const index = text.indexOf(substring, previousIndex + 1);
+        expect(index).toBeGreaterThan(previousIndex);
+        previousIndex = index;
+    });
 }
 
 async function createModelFromText(
@@ -159,6 +120,7 @@ describe('TraceConfigurationModel', () => {
             'ctrace:',
             '  setup:',
             '    - pname: cm33',
+            '      core: Cortex-M33',
             '      data:',
             '      instructions:',
             '        start:',
@@ -253,7 +215,7 @@ describe('TraceConfigurationModel', () => {
         await model.addItem(['ctrace', 'setup', 0, 'instructions', 'stop'], 'stop');
 
         const document = (model as unknown as TraceConfigurationModelPrivate).ctraceFile?.document;
-        expect(document?.yaml.getNode(['ctrace', 'setup', 0, 'instructions', 'stop', 0])).toBeUndefined();
+        expect(document?.yaml.getItem(['ctrace', 'setup', 0, 'instructions', 'stop', 0])).toBeUndefined();
         expect(adapter.writeCount).toBe(0);
         expect(model.createState().dirty).toBe(false);
         expect(model.createState().errorMessage).toContain('already use 4 of 4');
@@ -316,7 +278,7 @@ describe('TraceConfigurationModel', () => {
             '      instructions:',
             '      pcsampling:',
             '      synchronization:',
-            '        - DWT: off',
+            '        DWT: off',
             '      timesync:',
             ''
         ].join('\n'), createCapabilities());
@@ -337,7 +299,7 @@ describe('TraceConfigurationModel', () => {
         await model.updateValue(['ctrace', 'setup', 0, 'timesync'], false);
         await model.updateValue(['ctrace', 'setup', 0, 'timesync'], true);
         await model.updateValue(['ctrace', 'setup', 0, 'pcsampling'], '64 * 16');
-        await model.updateValue(['ctrace', 'setup', 0, 'synchronization', 'dwt-sync-period'], '256M');
+        await model.updateValue(['ctrace', 'setup', 0, 'synchronization', 'DWT'], '256M');
 
         expect(adapter.writeCount).toBe(0);
         expect(model.createState().dirty).toBe(true);
@@ -352,9 +314,86 @@ describe('TraceConfigurationModel', () => {
         expect(adapter.text).toContain('            size: 4\n');
         expect(adapter.text).toContain('      instructions: {}\n');
         expect(adapter.text).toContain('      pcsampling:\n        period: 1024\n');
-        expect(adapter.text).toContain('      synchronization:\n        - DWT: 256M\n');
+        expect(adapter.text).toContain('      synchronization:\n        DWT: 256M\n');
         expect(adapter.text).toContain('      timesync:\n');
         expect(adapter.text).not.toContain('disable:');
+    });
+
+    it('expands collapsed comparator lists and focuses the newly added child', async () => {
+        const { model } = await createModelFromText([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      core: Cortex-M33',
+            '      data:',
+            '        - location: existingWatch',
+            ''
+        ].join('\n'), createCapabilities());
+        const dataPath = ['ctrace', 'setup', 0, 'data'];
+        model.updateExpandedState(JSON.stringify(dataPath), false);
+
+        await model.addItem(dataPath, 'data');
+
+        const focusedState = model.createState();
+        const dataRow = focusedState.rows.find(row => JSON.stringify(row.path) === JSON.stringify(dataPath));
+        expect(dataRow?.expanded).toBe(true);
+        expect(focusedState.focusedRowId).toBe(JSON.stringify(['ctrace', 'setup', 0, 'data', 1]));
+        expect(focusedState.rows.some(row => JSON.stringify(row.path) === JSON.stringify(['ctrace', 'setup', 0, 'data', 1]))).toBe(true);
+        expect(model.createState().focusedRowId).toBeUndefined();
+    });
+
+    it('serializes webview-added fields in the documented ctrace.yml order', async () => {
+        const { adapter, model } = await createModelFromText([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      core: Cortex-M33',
+            ''
+        ].join('\n'), createCapabilities());
+
+        await model.updateValue(['ctrace', 'setup', 0, 'events'], ['CYCCNT']);
+        await model.updateValue(['ctrace', 'setup', 0, 'itm'], ['0']);
+        await model.addItem(['ctrace', 'setup', 0, 'data'], 'data');
+        await model.updateValue(['ctrace', 'setup', 0, 'data', 0, 'location'], 'watchSymbol');
+        await model.updateValue(['ctrace', 'setup', 0, 'data', 0, 'output'], 'PC');
+        await model.updateValue(['ctrace', 'setup', 0, 'data', 0, 'label'], 'Watch');
+        await model.updateValue(['ctrace', 'setup', 0, 'data', 0, 'size'], '4');
+        await model.updateValue(['ctrace', 'setup', 0, 'data', 0, 'match', 'value'], '0x10');
+        await model.updateValue(['ctrace', 'setup', 0, 'data', 0, 'match', 'size'], '4');
+        await model.updateValue(['ctrace', 'setup', 0, 'exceptions'], true);
+        await model.updateValue(['ctrace', 'setup', 0, 'instructions'], true);
+        await model.updateValue(['ctrace', 'setup', 0, 'pcsampling'], '64');
+        await model.updateValue(['ctrace', 'setup', 0, 'synchronization', 'DWT'], '16M');
+        await model.updateValue(['ctrace', 'setup', 0, 'timesync'], true);
+        await model.updateValue(['ctrace', 'setup', 0, 'timestamps'], true);
+
+        await model.saveCurrentDocument();
+
+        expectSubstringsInOrder(adapter.text, [
+            '    - pname: cm33',
+            '      core: Cortex-M33',
+            '      timestamps: {}',
+            '      timesync:',
+            '      data:',
+            '        - location: watchSymbol',
+            '          label: Watch',
+            '          access: W',
+            '          size: 4',
+            '          output: PC',
+            '          match:',
+            '            value: 0x10',
+            '            size: 4',
+            '      exceptions:',
+            '      events:',
+            '        - event: CYCCNT',
+            '      itm:',
+            '        enable: 0x00000001',
+            '      instructions: {}',
+            '      pcsampling:',
+            '        period: 64',
+            '      synchronization:',
+            '        DWT: 16M'
+        ]);
     });
 
     it('does not create optional match size when match value is absent', async () => {
@@ -375,6 +414,31 @@ describe('TraceConfigurationModel', () => {
         expect(onDidChange).toHaveBeenCalled();
         await model.saveCurrentDocument();
         expect(adapter.text).not.toContain('match:');
+    });
+
+    it('does not create match value when shared DWT comparators are exhausted', async () => {
+        const { adapter, model } = await createModelFromText([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: watchOne',
+            '          match:',
+            '        - location: watchTwo',
+            '      instructions:',
+            '        start:',
+            '          - location: main',
+            '      tracehalt:',
+            '        - location: halt',
+            ''
+        ].join('\n'), createCapabilities());
+
+        await model.updateValue(['ctrace', 'setup', 0, 'data', 0, 'match', 'value'], '0x10');
+
+        expect(model.createState().dirty).toBe(false);
+        expect(model.createState().errorMessage).toContain('already use 4 of 4');
+        await model.saveCurrentDocument();
+        expect(adapter.text).not.toContain('value: 0x10');
     });
 
     it('deletes optional values and prunes empty match parents', async () => {

@@ -22,19 +22,20 @@ import * as TraceConfigurationTypes from './trace-configuration-types';
 
 /**
  * createCapabilities builds a realistic Cortex-M33 capability map for row
- * builder tests. The row builder filters optional feature rows by pname, so
- * tests need a capability entry that matches the synthetic ctrace.yml content.
+ * builder tests. Production capabilities are keyed by setup index so pname can
+ * remain display-only.
  */
 function createCapabilities(
-    pname = 'cm33',
-    template: TraceConfigurationTypes.ProcessorTraceCapabilityTemplate = TraceConfigurationTypes.CORTEX_M_DWT_4_TRACE_CAPABILITIES
+    displayName = 'cm33',
+    template: TraceConfigurationTypes.ProcessorTraceCapabilityTemplate = TraceConfigurationTypes.CORTEX_M_DWT_4_TRACE_CAPABILITIES,
+    setupIndex = 0
 ): Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities> {
     return new Map([
         [
-            pname,
+            String(setupIndex),
             {
-                pname,
-                core: 'CM33',
+                displayName,
+                core: 'Cortex-M33',
                 ...template
             }
         ]
@@ -171,6 +172,41 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(findRow(disabledState, ['ctrace', 'setup', 0]).checked).toBe(false);
     });
 
+    it('uses pname only for processor row display and falls back to core', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: DisplayCore',
+            '      core: Cortex-M55',
+            '    - core: Cortex-M33',
+            ''
+        ].join('\n'), {
+            capabilities: new Map([
+                [
+                    '0',
+                    {
+                        displayName: 'DisplayCore',
+                        core: 'Cortex-M55',
+                        ...TraceConfigurationTypes.CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES
+                    }
+                ],
+                [
+                    '1',
+                    {
+                        displayName: 'Cortex-M33',
+                        core: 'Cortex-M33',
+                        ...TraceConfigurationTypes.CORTEX_M_DWT_4_TRACE_CAPABILITIES
+                    }
+                ]
+            ])
+        });
+
+        expect(findRow(state, ['ctrace', 'setup', 0]).label).toBe('Processor:DisplayCore');
+        expect(findRow(state, ['ctrace', 'setup', 1]).label).toBe('Processor:Cortex-M33');
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'core'])).toBe(false);
+        expect(hasRow(state, ['ctrace', 'setup', 1, 'core'])).toBe(false);
+    });
+
     it('renders schema optional fields for DWT data trace items without writing defaults', () => {
         const state = createStateFromYaml([
             'ctrace:',
@@ -200,11 +236,47 @@ describe('TraceConfigurationRowBuilder', () => {
 
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'label']).label).toBe('Label');
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'size']).label).toBe('Size');
+        expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'size']).placeholder).toBe('<Auto>');
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'output']).options).toEqual(TraceConfigurationTypes.DATA_OUTPUT_OPTIONS);
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'output']).options).not.toContain('');
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'match']).label).toBe('Match');
+        expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'match', 'value']).placeholder).toBe('<None>');
+        expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'match', 'size']).placeholder).toBe('<Auto>');
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'match', 'size']).options).toEqual(TraceConfigurationTypes.MATCH_SIZE_OPTIONS);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'match', 'size']).options).not.toContain('');
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'pc']).options).toEqual(['yes', 'no']);
+    });
+
+    it('disables match size until match value is provided', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: Core0',
+            '      data:',
+            '        - location: watchSymbol',
+            '          match:',
+            '      instructions:',
+            '        start:',
+            '          - location: startSymbol',
+            '            match:',
+            '              value: 0x10',
+            '        stop:',
+            '          - location: stopSymbol',
+            '            match:',
+            '      tracehalt:',
+            '        - location: haltSymbol',
+            '          match:',
+            ''
+        ].join('\n'));
+
+        expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'match', 'size']).controlDisabledReason)
+            .toBe('Size can\'t be set if no value is provided');
+        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'start', 0, 'match', 'size']).controlDisabledReason)
+            .toBeUndefined();
+        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'stop', 0, 'match', 'size']).controlDisabledReason)
+            .toBe('Size can\'t be set if no value is provided');
+        expect(findRow(state, ['ctrace', 'setup', 0, 'tracehalt', 0, 'match', 'size']).controlDisabledReason)
+            .toBe('Size can\'t be set if no value is provided');
     });
 
     it('promotes DWT data trace locations to item headers in multi-core files', () => {
@@ -296,14 +368,19 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(startAccessRow.value).toBe('Execute');
         expect(startAccessRow.options).toEqual(['Execute', 'Read', 'Write', 'Read Write']);
         expect(startAccessRow.options).not.toContain('');
+        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'start', 0, 'size']).placeholder).toBe('<Auto>');
+        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'start', 0, 'match', 'value']).placeholder).toBe('<None>');
         const stopAccessRow = findRow(state, ['ctrace', 'setup', 0, 'instructions', 'stop', 0, 'access']);
         expect(stopAccessRow.value).toBe('Execute');
         expect(stopAccessRow.options).toEqual(['Execute', 'Read', 'Write', 'Read Write']);
         expect(stopAccessRow.options).not.toContain('');
+        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'stop', 0, 'size']).placeholder).toBe('<Auto>');
         expect(findRow(state, ['ctrace', 'setup', 0, 'tracehalt', 0, 'access']).options).toEqual(TraceConfigurationTypes.CONDITION_ACCESS_OPTIONS);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'tracehalt', 0, 'size']).placeholder).toBe('<Auto>');
+        expect(findRow(state, ['ctrace', 'setup', 0, 'tracehalt', 0, 'match', 'value']).placeholder).toBe('<None>');
     });
 
-    it('hides add controls when shared DWT comparator entries reach the processor limit', () => {
+    it('disables add controls when shared DWT comparator entries reach the processor limit', () => {
         const state = createStateFromYaml([
             'ctrace:',
             '  setup:',
@@ -320,10 +397,85 @@ describe('TraceConfigurationRowBuilder', () => {
             ''
         ].join('\n'));
 
-        expect(findRow(state, ['ctrace', 'setup', 0, 'data']).addChildKind).toBeUndefined();
-        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'start']).addChildKind).toBeUndefined();
-        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'stop']).addChildKind).toBeUndefined();
-        expect(findRow(state, ['ctrace', 'setup', 0, 'tracehalt']).addChildKind).toBeUndefined();
+        const disabledReason = 'Maximum number of comparators has been reached for cm33';
+        const dataRow = findRow(state, ['ctrace', 'setup', 0, 'data']);
+        const startRow = findRow(state, ['ctrace', 'setup', 0, 'instructions', 'start']);
+        const stopRow = findRow(state, ['ctrace', 'setup', 0, 'instructions', 'stop']);
+        const traceHaltRow = findRow(state, ['ctrace', 'setup', 0, 'tracehalt']);
+
+        expect(dataRow.addChildKind).toBe('data');
+        expect(startRow.addChildKind).toBe('start');
+        expect(stopRow.addChildKind).toBe('stop');
+        expect(traceHaltRow.addChildKind).toBe('condition');
+        expect(dataRow.addChildDisabledReason).toBe(disabledReason);
+        expect(startRow.addChildDisabledReason).toBe(disabledReason);
+        expect(stopRow.addChildDisabledReason).toBe(disabledReason);
+        expect(traceHaltRow.addChildDisabledReason).toBe(disabledReason);
+    });
+
+    it('shows shared DWT comparator usage in add button tooltips', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: watchOne',
+            '          match:',
+            '            value: 0x10',
+            '      instructions:',
+            '        start:',
+            '          - location: main',
+            '        stop:',
+            '      tracehalt:',
+            ''
+        ].join('\n'));
+        const expectedTooltip = 'Add Item. Comparators used are 3/4.';
+
+        expect(findRow(state, ['ctrace', 'setup', 0, 'data']).addChildTooltip).toBe(expectedTooltip);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'start']).addChildTooltip).toBe(expectedTooltip);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'stop']).addChildTooltip).toBe(expectedTooltip);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'tracehalt']).addChildTooltip).toBe(expectedTooltip);
+    });
+
+    it('disables empty match values when shared DWT comparators are exhausted', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: watchOne',
+            '          match:',
+            '        - location: watchTwo',
+            '      instructions:',
+            '        start:',
+            '          - location: main',
+            '      tracehalt:',
+            '        - location: halt',
+            ''
+        ].join('\n'));
+        const filledState = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: watchOne',
+            '          match:',
+            '            value: 0x10',
+            '        - location: watchTwo',
+            '      instructions:',
+            '        start:',
+            '          - location: main',
+            '      tracehalt:',
+            '        - location: halt',
+            ''
+        ].join('\n'));
+
+        expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'match', 'value']).controlDisabledReason)
+            .toBe('Maximum number of comparators has been reached for cm33');
+        expect(findRow(filledState, ['ctrace', 'setup', 0, 'data', 0, 'match', 'value']).controlDisabledReason)
+            .toBeUndefined();
+        expect(findRow(filledState, ['ctrace', 'setup', 0, 'data']).addChildTooltip)
+            .toBe('Add Item. Comparators used are 5/4.');
     });
 
     it('keeps editable trace item fields in static schema order', () => {
@@ -375,7 +527,7 @@ describe('TraceConfigurationRowBuilder', () => {
             '    - pname: cm33',
             '      pcsampling:',
             '      synchronization:',
-            '        - DWT: 64M',
+            '        DWT: 64M',
             ''
         ].join('\n'));
 
@@ -387,9 +539,23 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(pcSamplingRow.options?.filter(option => option === '1024')).toHaveLength(1);
 
         expect(state.rows.some(row => row.label === 'Advanced Settings')).toBe(true);
-        const dwtSyncRow = findRow(state, ['ctrace', 'setup', 0, 'synchronization', 'dwt-sync-period']);
+        const dwtSyncRow = findRow(state, ['ctrace', 'setup', 0, 'synchronization', 'DWT']);
+        expect(dwtSyncRow.label).toBe('DWT');
         expect(dwtSyncRow.value).toBe('64M');
         expect(dwtSyncRow.options).toEqual(TraceConfigurationTypes.STREAM_SYNC_PERIOD_OPTIONS);
+    });
+
+    it('defaults missing DWT stream synchronization to 256M', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            ''
+        ].join('\n'));
+
+        const dwtSyncRow = findRow(state, ['ctrace', 'setup', 0, 'synchronization', 'DWT']);
+        expect(dwtSyncRow.label).toBe('DWT');
+        expect(dwtSyncRow.value).toBe('256M');
     });
 
     it('renders event and ITM masks as inline multi-select controls', () => {
@@ -483,7 +649,7 @@ describe('TraceConfigurationRowBuilder', () => {
         const advancedRow = findRow(state, ['ctrace', 'setup', 0, 'advanced-settings']);
         expect(advancedRow.expanded).toBe(false);
         expect(hasRow(state, ['ctrace', 'setup', 0, 'timesync'])).toBe(false);
-        expect(hasRow(state, ['ctrace', 'setup', 0, 'synchronization', 'dwt-sync-period'])).toBe(false);
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'synchronization', 'DWT'])).toBe(false);
 
         const expandedState = createStateFromYaml([
             'ctrace:',
@@ -493,7 +659,7 @@ describe('TraceConfigurationRowBuilder', () => {
             '        - period: DWT\\16M',
             ''
         ].join('\n'));
-        expect(findRow(expandedState, ['ctrace', 'setup', 0, 'synchronization', 'dwt-sync-period']).value).toBe('16M');
+        expect(findRow(expandedState, ['ctrace', 'setup', 0, 'synchronization', 'DWT']).value).toBe('16M');
     });
 
     it('exposes conversion helpers used by the model for scalar and mask values', () => {

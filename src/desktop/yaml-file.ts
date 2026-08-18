@@ -16,7 +16,10 @@
 
 import * as fs from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
-import { YamlDomDocument } from './yaml-dom';
+
+import { ITextFileSystem, TextFileSystem } from '@open-cmsis-pack/cmsis-common/text-file-system';
+
+import { YamlDomDocument } from '../desktop/yaml-dom';
 
 export interface Disposable {
     dispose(): void;
@@ -35,16 +38,17 @@ export interface TextFileAdapter {
 }
 
 export class NodeTextFileAdapter implements TextFileAdapter {
+    public constructor(private readonly fileSystem: ITextFileSystem = new TextFileSystem()) {}
+
     public async readTextFile(fileName: string): Promise<string> {
-        // File names come from workspace/user-selected trace configuration paths.
-        // eslint-disable-next-line security/detect-non-literal-fs-filename
-        return fsPromises.readFile(fileName, 'utf8');
+        if (!this.fileSystem.exists(fileName)) {
+            throw this.createFileNotFoundError(fileName);
+        }
+        return this.fileSystem.read(fileName);
     }
 
     public async writeTextFile(fileName: string, contents: string): Promise<void> {
-        // File names come from workspace/user-selected trace configuration paths.
-        // eslint-disable-next-line security/detect-non-literal-fs-filename
-        await fsPromises.writeFile(fileName, contents, 'utf8');
+        this.fileSystem.write(fileName, contents);
     }
 
     public async stat(fileName: string): Promise<TextFileStamp | undefined> {
@@ -71,6 +75,13 @@ export class NodeTextFileAdapter implements TextFileAdapter {
         return {
             dispose: () => watcher.close()
         };
+    }
+
+    private createFileNotFoundError(fileName: string): NodeJS.ErrnoException {
+        const error = new Error(`ENOENT: no such file or directory, open '${fileName}'`) as NodeJS.ErrnoException;
+        error.code = 'ENOENT';
+        error.path = fileName;
+        return error;
     }
 }
 

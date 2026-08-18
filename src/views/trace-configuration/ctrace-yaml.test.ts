@@ -16,47 +16,7 @@
 // generated with AI
 
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
-import { Disposable, TextFileAdapter, TextFileStamp } from '../../generic/yaml-file';
-
-class MemoryTextFileAdapter implements TextFileAdapter {
-    private version = 0;
-    private readonly listeners: (() => void)[] = [];
-
-    constructor(public text: string) {}
-
-    public async readTextFile(_fileName: string): Promise<string> {
-        return this.text;
-    }
-
-    public async writeTextFile(_fileName: string, contents: string): Promise<void> {
-        this.update(contents);
-    }
-
-    public async stat(_fileName: string): Promise<TextFileStamp> {
-        return {
-            mtimeMs: this.version,
-            size: this.text.length
-        };
-    }
-
-    public watch(_fileName: string, onDidChange: () => void): Disposable {
-        this.listeners.push(onDidChange);
-        return {
-            dispose: () => {
-                const index = this.listeners.indexOf(onDidChange);
-                if (index >= 0) {
-                    this.listeners.splice(index, 1);
-                }
-            }
-        };
-    }
-
-    public update(text: string): void {
-        this.text = text;
-        this.version++;
-        this.listeners.forEach(listener => listener());
-    }
-}
+import { MemoryTextFileAdapter } from '../../__test__/memory-text-file-adapter';
 
 describe('CTraceYamlDocument', () => {
     it('reads and updates user-authored trace data entries', () => {
@@ -76,7 +36,7 @@ describe('CTraceYamlDocument', () => {
             {
                 location: 'mySymbol',
                 access: 'RW',
-                size: '8',
+                size: 8,
                 pc: 'no'
             }
         ]);
@@ -184,6 +144,62 @@ describe('CTraceYamlDocument', () => {
         expect(document.getCTraceRef(['ctrace', 'setup', 0, 'data', 0, 'match'])).toBe('Core0/data#0/match');
         expect(document.getCTraceRef(['ctrace', 'setup', 1, 'events', 0])).toBe('Core1/events#0');
         expect(document.toString()).not.toContain('ctrace-ref');
+    });
+
+    it('normalizes maps to the documented ctrace.yml order', () => {
+        const document = CTraceYamlDocument.parse([
+            'ctrace:',
+            '  setup:',
+            '    - tracehalt:',
+            '        - match:',
+            '            size: 2',
+            '            value: 0x20',
+            '          size: 4',
+            '          access: X',
+            '          location: stopTrace',
+            '      synchronization:',
+            '        DWT: 16M',
+            '      pcsampling:',
+            '        period: 64',
+            '      instructions:',
+            '        stop:',
+            '          - match:',
+            '              size: 4',
+            '              value: 0x10',
+            '            access: X',
+            '            location: stopHere',
+            '        start:',
+            '          - size: 4',
+            '            location: main',
+            '      itm:',
+            '        privileged: 0x0',
+            '        enable: 0x1',
+            '      events:',
+            '        - pname: cm33',
+            '          event: CYCCNT',
+            '      exceptions:',
+            '      data:',
+            '        - match:',
+            '            size: 4',
+            '            value: 0x30',
+            '          output: PC',
+            '          size: 4',
+            '          access: R',
+            '          label: Watch',
+            '          location: watchedValue',
+            '      timesync:',
+            '      timestamps:',
+            '        itm-prescaler: 4',
+            '        clock: 100000000',
+            '      disable:',
+            '      pname: cm33',
+            '  created-by: CMSIS-Debugger',
+            ''
+        ].join('\n'));
+
+        document.normalizeDocumentOrder();
+
+        expect(document.toString()).toMatchSnapshot();
     });
 });
 

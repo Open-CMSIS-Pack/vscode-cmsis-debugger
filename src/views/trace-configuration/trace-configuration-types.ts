@@ -25,7 +25,7 @@ export const PRIVILEGED_RANGE_OPTIONS = ['0-7', '8-15', '16-23', '24-31'];
 export const DATA_ACCESS_OPTIONS = ['Read', 'Write', 'Read Write'];
 export const CONDITION_ACCESS_OPTIONS = ['Execute', 'Read', 'Write', 'Read Write'];
 export const DATA_OUTPUT_OPTIONS = ['value', 'offset', 'PC', 'match', 'PC+value', 'offset+value', 'PC+offset'];
-export const MATCH_SIZE_OPTIONS = ['', '1', '2', '4'];
+export const MATCH_SIZE_OPTIONS = ['1', '2', '4'];
 export const STREAM_SYNC_PERIOD_OPTIONS = ['off', '16M', '64M', '256M'];
 export const PC_SAMPLING_PERIOD_OPTIONS = [
     'off',
@@ -68,7 +68,7 @@ export interface RowBuildContext {
 }
 
 export interface ProcessorTraceCapabilities {
-    pname: string;
+    displayName: string;
     core?: string | undefined;
     supportsTrace: boolean;
     dwtComparators: number;
@@ -83,7 +83,7 @@ export interface ProcessorTraceCapabilities {
     streamSynchronization: boolean;
 }
 
-export type ProcessorTraceCapabilityTemplate = Omit<ProcessorTraceCapabilities, 'pname' | 'core'>;
+export type ProcessorTraceCapabilityTemplate = Omit<ProcessorTraceCapabilities, 'displayName' | 'core'>;
 
 export const NO_TRACE_CAPABILITIES: ProcessorTraceCapabilityTemplate = {
     supportsTrace: false,
@@ -126,16 +126,24 @@ export const CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES: ProcessorTraceCapabilityTemp
 };
 
 export const TRACE_CAPABILITIES_BY_CORE = new Map<string, ProcessorTraceCapabilityTemplate>([
-    ['CM0', NO_TRACE_CAPABILITIES],
-    ['CM0PLUS', TB_ONLY_TRACE_CAPABILITIES],
-    ['CM1', NO_TRACE_CAPABILITIES],
-    ['CM3', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
-    ['CM4', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
-    ['CM7', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
-    ['CM23', TB_ONLY_TRACE_CAPABILITIES],
-    ['CM33', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
-    ['CM35P', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
-    ['CM52', CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES],
-    ['CM55', CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES],
-    ['CM85', CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES],
+    ['Cortex-M0', NO_TRACE_CAPABILITIES],
+    ['Cortex-M0+', TB_ONLY_TRACE_CAPABILITIES],
+    ['Cortex-M1', NO_TRACE_CAPABILITIES],
+    ['Cortex-M3', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
+    ['Cortex-M4', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
+    ['Cortex-M7', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
+    ['Cortex-M23', TB_ONLY_TRACE_CAPABILITIES],
+    ['Cortex-M33', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
+    ['Cortex-M35P', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
+    ['Cortex-M52', CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES],
+    ['Cortex-M55', CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES],
+    ['Cortex-M85', CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES],
+    ['Star-MC1', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
+    ['Star-MC3', CORTEX_M_DWT_8_PMU_TRACE_CAPABILITIES],
+    ['SC000', NO_TRACE_CAPABILITIES],
+    ['SC300', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
+    ['ARMV8MBL', TB_ONLY_TRACE_CAPABILITIES],
+    ['ARMV8MML', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
+    ['ARMV81MML', CORTEX_M_DWT_4_TRACE_CAPABILITIES],
+    ['*', NO_TRACE_CAPABILITIES],
 ]);

@@ -48,10 +48,14 @@ button {
     container-type: inline-size;
 }
 
-.tree-toolbar {
+.trace-header {
     position: sticky;
     top: 0;
     z-index: 5;
+    background: var(--vscode-sideBarSectionHeader-background, #252526);
+}
+
+.tree-toolbar {
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -98,6 +102,59 @@ button {
     background: var(--vscode-button-secondaryHoverBackground, #454545);
 }
 
+.icon-button:disabled {
+    opacity: 0.45;
+    cursor: default;
+    pointer-events: none;
+}
+
+.icon-button:disabled:hover {
+    background: var(--vscode-button-secondaryBackground, #3c3c3c);
+}
+
+.add-button-wrapper {
+    display: inline-flex;
+    position: relative;
+}
+
+.control-tooltip-wrapper {
+    display: block;
+    position: relative;
+    width: 100%;
+}
+
+.tooltip-wrapper {
+    outline: none;
+}
+
+.tooltip-wrapper::after {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    z-index: 10;
+    display: none;
+    max-width: min(220px, 70vw);
+    padding: 3px 5px;
+    border: 1px solid var(--vscode-editorHoverWidget-border, #454545);
+    border-radius: 2px;
+    background: var(--vscode-editorHoverWidget-background, #2d2d30);
+    color: var(--vscode-editorHoverWidget-foreground, #cccccc);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    content: attr(data-tooltip);
+    font: 11px/1.4 var(--vscode-font-family, "Segoe UI", system-ui, sans-serif);
+    overflow-wrap: anywhere;
+    pointer-events: none;
+    transform: translateX(-50%);
+    white-space: normal;
+    width: max-content;
+}
+
+.tooltip-wrapper:hover::after,
+.tooltip-wrapper:focus-visible::after,
+.tooltip-wrapper:focus-within::after {
+    display: block;
+}
+
 .add-button {
     width: 22px;
     height: 22px;
@@ -137,6 +194,21 @@ select {
     background: var(--vscode-input-background, #3c3c3c);
     color: var(--vscode-input-foreground, #ffffff);
     padding: 3px 6px;
+}
+
+input::placeholder,
+.placeholder-selected {
+    color: var(--vscode-input-placeholderForeground, #a6a6a6);
+}
+
+input::placeholder {
+    opacity: 1;
+}
+
+input[type="text"]:disabled,
+select:disabled {
+    opacity: 0.55;
+    cursor: default;
 }
 
 .multi-select {

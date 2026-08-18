@@ -825,45 +825,53 @@
     ],
     "configuration": [
       {
-      "title": "CMSIS Debugger",
-      "properties": {
-        "vscode-cmsis-debugger.viewState": {
-          "type": "object",
-          "markdownDescription": "Persisted dynamic view state per debug configuration.",
-          "additionalProperties": {
+        "title": "CMSIS Debugger",
+        "properties": {
+          "vscode-cmsis-debugger.viewState": {
             "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "componentViewer": {
-                "type": "object",
-                "markdownDescription": "Persisted dynamic view state for the Component Viewer.",
-                "additionalProperties": false,
-                "properties": {
-                  "periodicUpdateEnabled": { "type": "boolean" },
-                  "filterPattern": { "type": "string" }
+            "markdownDescription": "Persisted dynamic view state per debug configuration.",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "componentViewer": {
+                  "type": "object",
+                  "markdownDescription": "Persisted dynamic view state for the Component Viewer.",
+                  "additionalProperties": false,
+                  "properties": {
+                    "periodicUpdateEnabled": {
+                      "type": "boolean"
+                    },
+                    "filterPattern": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "corePeripherals": {
+                  "type": "object",
+                  "markdownDescription": "Persisted dynamic view state for the Core Peripherals view.",
+                  "additionalProperties": false,
+                  "properties": {
+                    "periodicUpdateEnabled": {
+                      "type": "boolean"
+                    },
+                    "filterPattern": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "cpuStatesEnabled": {
+                  "type": "boolean",
+                  "markdownDescription": "Persisted CPU time enable/disable state."
+                },
+                "liveWatchPeriodicUpdateEnabled": {
+                  "type": "boolean",
+                  "markdownDescription": "Persisted Live Watch periodic update enable/disable state."
                 }
-              },
-              "corePeripherals": {
-                "type": "object",
-                "markdownDescription": "Persisted dynamic view state for the Core Peripherals view.",
-                "additionalProperties": false,
-                "properties": {
-                  "periodicUpdateEnabled": { "type": "boolean" },
-                  "filterPattern": { "type": "string" }
-                }
-              },
-              "cpuStatesEnabled": {
-                "type": "boolean",
-                "markdownDescription": "Persisted CPU time enable/disable state."
-              },
-              "liveWatchPeriodicUpdateEnabled": {
-                "type": "boolean",
-                "markdownDescription": "Persisted Live Watch periodic update enable/disable state."
               }
             }
           }
         }
-      }
       },
       {
         "title": "Enable Trace Generation View",
@@ -900,6 +908,7 @@
     "baseContentUrl": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/blob/main/README.md"
   },
   "dependencies": {
+    "@open-cmsis-pack/cmsis-common": "^0.1.0",
     "@vscode/codicons": "0.0.45",
     "react": "18.3.1",
     "react-dom": "18.3.1",

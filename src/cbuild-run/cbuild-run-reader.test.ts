@@ -26,7 +26,7 @@ const PACK_ROOT = '/my/pack/root';
 const EXPECTED_CUSTOM_SVD = path.resolve(path.dirname(TEST_CBUILD_RUN_FILE), '../../MyDevice/multi-core-custom.svd');
 const EXPECTED_CUSTOM_SCVD = path.resolve(path.dirname(TEST_CBUILD_RUN_FILE), '../../MyDevice/multi-core-custom.scvd');
 
-class StringFileReader implements FileReader {
+class MockFileReader implements FileReader {
     public constructor(private readonly contents: string) {}
 
     public async readFileToString(_filePath: string): Promise<string> {
@@ -162,7 +162,7 @@ describe('CbuildRunReader', () => {
         });
 
         it('returns processors from system resources', async () => {
-            const reader = new CbuildRunReader(new StringFileReader([
+            const reader = new CbuildRunReader(new MockFileReader([
                 'cbuild-run:',
                 '  output: []',
                 '  debugger:',
