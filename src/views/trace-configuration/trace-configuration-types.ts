@@ -18,6 +18,7 @@
 import { TraceConfigurationRow } from './trace-configuration-protocol';
 
 export const VIEW_ID = 'cmsis-debugger.traceConfiguration';
+export const TRACE_GENERATION_VIEW_ENABLED_CONFIG = 'vscode-cmsis-debugger.enableTraceGenerationView';
 export const CTRACE_FILE_GLOB = '{**/ctrace.yml,**/ctrace.yaml,**/*.ctrace.yml,**/*.ctrace.yaml}';
 export const CBUILD_RUN_FILE_GLOB = 'out/*.cbuild-run.yml';
 export const EVENT_COUNTER_OPTIONS = ['CYCCNT', 'CPICNT', 'EXCCNT', 'SLEEPCNT', 'LSUCNT', 'FOLDCNT', 'PMU'];
