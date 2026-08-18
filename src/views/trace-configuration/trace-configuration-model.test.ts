@@ -28,6 +28,18 @@ interface TraceConfigurationModelPrivate {
     setProcessorDisable(document: CTraceYamlDocument, processorPath: (string | number)[]): void;
 }
 
+interface MockFileSystemWatcher {
+    dispose: jest.Mock;
+    onDidCreate: jest.Mock;
+    onDidChange: jest.Mock;
+    onDidDelete: jest.Mock;
+    _handlers: {
+        create: Array<(uri: vscode.Uri) => void>;
+        change: Array<(uri: vscode.Uri) => void>;
+        delete: Array<(uri: vscode.Uri) => void>;
+    };
+}
+
 interface TraceConfigurationProcessorCapabilitiesPrivate {
     processorCapabilities: Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities>;
 }
@@ -43,6 +55,26 @@ function createCapabilities(displayName = 'cm33'): Map<string, TraceConfiguratio
             }
         ]
     ]);
+}
+
+function getLastCreatedFileSystemWatcher(): MockFileSystemWatcher {
+    const watcher = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.results.at(-1)?.value as MockFileSystemWatcher | undefined;
+    expect(watcher).toBeDefined();
+    return watcher as MockFileSystemWatcher;
+}
+
+function fireWatcherHandler(watcher: MockFileSystemWatcher, handlerName: 'create' | 'change' | 'delete', uri: vscode.Uri): void {
+    switch (handlerName) {
+        case 'create':
+            watcher._handlers.create[0]?.(uri);
+            break;
+        case 'change':
+            watcher._handlers.change[0]?.(uri);
+            break;
+        case 'delete':
+            watcher._handlers.delete[0]?.(uri);
+            break;
+    }
 }
 
 function expectSubstringsInOrder(text: string, substrings: string[]): void {
@@ -93,6 +125,40 @@ describe('TraceConfigurationModel', () => {
             dirty: false,
             emptyMessage: 'Open a ctrace.yml file to edit trace configuration.'
         });
+    });
+
+    it('watches generated cbuild-run files in the top-level out folder', () => {
+        const model = new TraceConfigurationModel();
+
+        expect(vscode.workspace.createFileSystemWatcher).toHaveBeenCalledTimes(1);
+        const pattern = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls[0]?.[0] as { pattern: string };
+        expect(pattern.pattern).toBe(TraceConfigurationTypes.CBUILD_RUN_FILE_GLOB);
+
+        model.dispose();
+        expect(getLastCreatedFileSystemWatcher().dispose).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+        { handlerName: 'create', expectedType: 'created' },
+        { handlerName: 'change', expectedType: 'changed' },
+        { handlerName: 'delete', expectedType: 'deleted' },
+    ] as const)('fires generated cbuild-run events when files are $expectedType', async ({ handlerName, expectedType }) => {
+        const onDidChange = jest.fn();
+        const processorCapabilities = new TraceConfigurationProcessorCapabilities(() => undefined);
+        const loadSpy = jest.spyOn(processorCapabilities, 'load').mockResolvedValue();
+        const model = new TraceConfigurationModel(onDidChange, processorCapabilities);
+        const events: unknown[] = [];
+        model.onDidChangeGeneratedCBuildRunFile(event => events.push(event));
+        const watcher = getLastCreatedFileSystemWatcher();
+        const uri = vscode.Uri.file('/workspace/out/project.cbuild-run.yml');
+
+        fireWatcherHandler(watcher, handlerName, uri);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(events).toEqual([{ type: expectedType, uri }]);
+        expect(loadSpy).toHaveBeenCalledTimes(1);
+        expect(onDidChange).toHaveBeenCalledTimes(1);
     });
 
     it('writes processor disable directly after pname', () => {

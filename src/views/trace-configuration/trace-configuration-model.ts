@@ -31,6 +31,13 @@ import { TraceConfigurationProcessorCapabilities } from './trace-configuration-p
 import { TraceConfigurationRowBuilder } from './trace-configuration-row-builder';
 import * as TraceConfigurationTypes from './trace-configuration-types';
 
+type GeneratedCBuildRunFileChangeType = 'created' | 'changed' | 'deleted';
+
+export interface GeneratedCBuildRunFileChangeEvent {
+    type: GeneratedCBuildRunFileChangeType;
+    uri: vscode.Uri;
+}
+
 /**
  * TraceConfigurationModel owns the ctrace.yml document lifecycle and file mutations for the trace
  * configuration webview. It deliberately delegates processor capability lookup and row projection to
@@ -39,6 +46,9 @@ import * as TraceConfigurationTypes from './trace-configuration-types';
 export class TraceConfigurationModel {
     private ctraceFile: CTraceYamlFile | undefined;
     private ctraceFileWatcher: Disposable | undefined;
+    private readonly generatedCBuildRunFileWatchers: vscode.Disposable[] = [];
+    private readonly _onDidChangeGeneratedCBuildRunFileEmitter = new vscode.EventEmitter<GeneratedCBuildRunFileChangeEvent>();
+    public readonly onDidChangeGeneratedCBuildRunFile = this._onDidChangeGeneratedCBuildRunFileEmitter.event;
     private loading = false;
     private dirty = false;
     private errorMessage: string | undefined;
@@ -65,6 +75,7 @@ export class TraceConfigurationModel {
             this.collapsedRows,
             this.processorCapabilities.capabilities
         );
+        this.watchGeneratedCBuildRunFiles();
     }
 
     /**
@@ -82,7 +93,68 @@ export class TraceConfigurationModel {
      * cannot continue reacting to stale ctrace.yml watcher events.
      */
     public dispose(): void {
+        this.disposeViewResources();
+        this.disposeGeneratedCBuildRunFileWatchers();
+    }
+
+    /**
+     * disposeViewResources releases resources tied to the current webview
+     * instance. Generated cbuild-run watching is intentionally kept alive
+     * across webview disposal because builds can happen while the view is
+     * closed.
+     */
+    public disposeViewResources(): void {
         this.disposeCurrentFileWatcher();
+    }
+
+    /**
+     * watchGeneratedCBuildRunFiles starts one workspace-relative watcher per
+     * workspace folder. Generated cbuild-run files are expected directly under
+     * <workspace>/out, so nested out folders are intentionally ignored.
+     */
+    private watchGeneratedCBuildRunFiles(): void {
+        this.disposeGeneratedCBuildRunFileWatchers();
+
+        for (const workspaceFolder of vscode.workspace.workspaceFolders ?? []) {
+            const pattern = new vscode.RelativePattern(workspaceFolder, TraceConfigurationTypes.CBUILD_RUN_FILE_GLOB);
+            const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+            this.generatedCBuildRunFileWatchers.push(
+                watcher,
+                watcher.onDidCreate(uri => this.handleGeneratedCBuildRunFileChange('created', uri)),
+                watcher.onDidChange(uri => this.handleGeneratedCBuildRunFileChange('changed', uri)),
+                watcher.onDidDelete(uri => this.handleGeneratedCBuildRunFileChange('deleted', uri))
+            );
+        }
+    }
+
+    private disposeGeneratedCBuildRunFileWatchers(): void {
+        for (const watcher of this.generatedCBuildRunFileWatchers.splice(0)) {
+            watcher.dispose();
+        }
+    }
+
+    private handleGeneratedCBuildRunFileChange(type: GeneratedCBuildRunFileChangeType, uri: vscode.Uri): void {
+        const event: GeneratedCBuildRunFileChangeEvent = { type, uri };
+        this._onDidChangeGeneratedCBuildRunFileEmitter.fire(event);
+        void this.refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event);
+    }
+
+    /**
+     * refreshProcessorCapabilitiesFromGeneratedCBuildRunFile is the current
+     * watcher handler. Future ctrace.yml generation can be added here or via
+     * onDidChangeGeneratedCBuildRunFile without changing watcher setup.
+     */
+    private async refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event: GeneratedCBuildRunFileChangeEvent): Promise<void> {
+        try {
+            logger.debug(`Trace Configuration: Generated cbuild-run file ${event.type}: ${event.uri.fsPath}`);
+            await this.loadProcessorCapabilities();
+            this.errorMessage = undefined;
+        } catch (error) {
+            this.errorMessage = this.errorToString(error);
+            logger.error(`Trace Configuration: Failed to process generated cbuild-run file change: ${this.errorMessage}`);
+        } finally {
+            this.notifyStateChanged();
+        }
     }
 
     /**
@@ -92,6 +164,7 @@ export class TraceConfigurationModel {
      * files and the first result is used.
      */
     public async loadInitialFile(): Promise<void> {
+        this.watchGeneratedCBuildRunFiles();
         this.loading = true;
         this.errorMessage = undefined;
         this.notifyStateChanged();

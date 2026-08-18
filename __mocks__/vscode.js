@@ -52,6 +52,35 @@ class MockTreeItem {
     }
 }
 
+class MockRelativePattern {
+    base;
+    pattern;
+    constructor(base, pattern) {
+        this.base = base;
+        this.pattern = pattern;
+    }
+}
+
+function createMockFileSystemWatcher() {
+    const handlers = { create: [], change: [], delete: [] };
+    return {
+        onDidCreate: jest.fn(callback => {
+            handlers.create.push(callback);
+            return { dispose: jest.fn() };
+        }),
+        onDidChange: jest.fn(callback => {
+            handlers.change.push(callback);
+            return { dispose: jest.fn() };
+        }),
+        onDidDelete: jest.fn(callback => {
+            handlers.delete.push(callback);
+            return { dispose: jest.fn() };
+        }),
+        dispose: jest.fn(),
+        _handlers: handlers,
+    };
+}
+
 module.exports = {
     EventEmitter: jest.fn(() => {
         const callbacks = [];
@@ -65,6 +94,7 @@ module.exports = {
         };
     }),
     Uri: URI,
+    RelativePattern: MockRelativePattern,
     TreeItem: MockTreeItem,
     TreeItemCollapsibleState: MockTreeItemCollapsibleState,
     window: {
@@ -135,6 +165,7 @@ module.exports = {
             })
         },
         findFiles: jest.fn(() => Promise.resolve([])),
+        createFileSystemWatcher: jest.fn(() => createMockFileSystemWatcher()),
         workspaceFolders: [
             {
                 uri: URI.file(path.join(__dirname, '..')),
