@@ -136,7 +136,9 @@ export const containsSubstringsInOrder = (text: string, substrings: string[]): b
 };
 
 export class FileLocationManager {
-    private readonly CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND = 'cmsis-csolution.getCbuildRunFile';
+    private static readonly CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND = 'cmsis-csolution.getCbuildRunFile';
+    private static readonly CMSIS_SOLUTION_GET_ACTIVE_TARGET_SET_COMMAND = 'cmsis-csolution.getActiveTargetSet';
+
     /**
      * getCBuildRunFileName asks the CMSIS Solution extension for the active
      * target's generated cbuild-run file. Empty results and command failures are
@@ -145,7 +147,7 @@ export class FileLocationManager {
      */
     public async getCBuildRunFileName(): Promise<string | undefined> {
         try {
-            const fileName = await vscode.commands.executeCommand<string | undefined>(this.CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
+            const fileName = await vscode.commands.executeCommand<string | undefined>(FileLocationManager.CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
             return fileName?.trim() ? fileName : undefined;
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -153,4 +155,22 @@ export class FileLocationManager {
             return undefined;
         }
     }
+
+    public async getDefaultSolutionSet(cbuildRunFilePath: string | undefined): Promise<string> {
+        const resolvedCbuildRunFilePath = cbuildRunFilePath ??
+            await vscode.commands.executeCommand<string | undefined>(FileLocationManager.CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
+        const trimmedPath = resolvedCbuildRunFilePath?.trim();
+        if (!trimmedPath) {
+            throw new Error('No cbuild run file path provided.');
+        }
+        const solutionName = trimmedPath.match(/.*[\\/](.*)\+.*\.cbuild-run\.yml$/)?.[1];
+        if (!solutionName) {
+            throw new Error('Failed to extract solution name from cbuild run file path.');
+        }
+        const activeSet = await vscode.commands.executeCommand<string | undefined>(FileLocationManager.CMSIS_SOLUTION_GET_ACTIVE_TARGET_SET_COMMAND);
+        const trimmedActiveSet = activeSet?.trim();
+        const targetSet = trimmedActiveSet ? `+${trimmedActiveSet}` : '';
+        return `${solutionName}${targetSet}`;
+    }
+
 }

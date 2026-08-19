@@ -29,10 +29,6 @@ export interface ProcessManagerOptions {
     readonly windowsHide?: boolean;
     readonly name: string;
     readonly output?: ProcessOutput;
-    // TODO: Check if really needed
-    readonly onSpawn?: (process: ProcessManager) => void;
-    readonly onError?: (error: Error, process: ProcessManager) => void;
-    readonly onExit?: (code: number | null, signal: NodeJS.Signals | null, process: ProcessManager) => void;
 }
 
 export interface ProcessManagerLaunchOptions {
@@ -95,7 +91,6 @@ export class ProcessManager {
             this.child.stderr.resume();
         }
         // Attach listeners to handle process lifecycle events and invoke callbacks.
-        this.child.once('spawn', () => this.options.onSpawn?.(this));
         this.child.once('error', (error) => {
             this.handleExited();
             this.options.output?.appendLine(`${this.options.name} process error: ${error.message}`);

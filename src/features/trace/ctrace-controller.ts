@@ -156,7 +156,6 @@ export class CTraceController {
         if (this.fileWatchManager === undefined) {
             return;
         }
-        // TODO: Check what CMSIS Solution extension does regarding workspacefolders.
         const ws = vscode.workspace.workspaceFolders?.[0];
         this.fileWatchManager.addWatch({
             id: RAW_TRACE_WATCH_ID,

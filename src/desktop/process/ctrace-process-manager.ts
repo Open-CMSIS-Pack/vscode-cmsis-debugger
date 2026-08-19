@@ -24,10 +24,9 @@ import {
     ProcessManagerLaunchOptions,
     ProcessManagerOptions
 } from './process-manager';
+import { FileLocationManager } from '../../utils';
 
 export const DEFAULT_CTRACE_PATH = 'tools/ctrace/ctrace';
-const CSOLUTION_GET_CBUILD_RUN_FILE_COMMAND = 'cmsis-csolution.getCbuildRunFile';
-const CSOLUTION_GET_ACTIVE_TARGET_SET_COMMAND = 'cmsis-csolution.getActiveTargetSet';
 
 export interface CTraceProcessManagerOptions {
     readonly cTracePath?: string;
@@ -58,9 +57,10 @@ export class CTraceProcessManager extends ProcessManager {
         if (!workspacePath) {
             throw new Error('No workspace folder is open.');
         }
+        const locationManager = new FileLocationManager();
         const args = options.args ?? [
             options.traceDir ?? path.join(workspacePath, '.trace'),
-            '-t', options.solutionSet ?? await this.getDefaultSolutionSet(options.cbuildRunFilePath),
+            '-t', options.solutionSet ?? await locationManager.getDefaultSolutionSet(options.cbuildRunFilePath),
             '--csv'
         ];
         super.launch({
@@ -69,20 +69,4 @@ export class CTraceProcessManager extends ProcessManager {
         });
     }
 
-    private async getDefaultSolutionSet(cbuildRunFilePath: string | undefined): Promise<string> {
-        const resolvedCbuildRunFilePath = cbuildRunFilePath ??
-            await vscode.commands.executeCommand<string | undefined>(CSOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
-        const trimmedPath = resolvedCbuildRunFilePath?.trim();
-        if (!trimmedPath) {
-            throw new Error('No cbuild run file path provided.');
-        }
-        const solutionName = trimmedPath.match(/.*[\\/](.*)\+.*\.cbuild-run\.yml$/)?.[1];
-        if (!solutionName) {
-            throw new Error('Failed to extract solution name from cbuild run file path.');
-        }
-        const activeSet = await vscode.commands.executeCommand<string | undefined>(CSOLUTION_GET_ACTIVE_TARGET_SET_COMMAND);
-        const trimmedActiveSet = activeSet?.trim();
-        const targetSet = trimmedActiveSet ? `+${trimmedActiveSet}` : '';
-        return `${solutionName}${targetSet}`;
-    }
 }

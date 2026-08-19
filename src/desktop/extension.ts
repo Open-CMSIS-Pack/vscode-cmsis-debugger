@@ -37,7 +37,7 @@ import { FileWatchManager } from './filesystem/file-watch-manager';
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
     'tools/gdb/bin/arm-none-eabi-gdb',
-    // TODO: TEMPORARY, these tools will be shipped separately in future
+    // Temporary, these tools are expected to ship separately in future
     'tools/ctrace/ctrace',
     'tools/pyts/pyTS'
 ];
