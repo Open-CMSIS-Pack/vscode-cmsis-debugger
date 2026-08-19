@@ -21,6 +21,7 @@ import { traceWatchFactory } from '../../__test__/trace-watch.factory';
 import { GDBTargetDebugSession } from '../../debug-session';
 import { debugTrackerFactory, gdbTargetDebugSessionFactory } from '../../debug-session/__test__/debug-session.factory';
 import { CTraceProcessManager } from '../../desktop/process/ctrace-process-manager';
+import { logger } from '../../logger';
 import { CTraceController } from './ctrace-controller';
 
 const CBUILD_RUN_FILE_PATH = '/workspace/solution+target.cbuild-run.yml';
@@ -51,7 +52,7 @@ describe('CTraceController', () => {
     beforeEach(() => {
         now = 10_000;
         controller = new CTraceController({}, () => now);
-        run = jest.spyOn(controller, 'run').mockResolvedValue();
+        run = jest.spyOn(controller, 'run').mockResolvedValue(0);
         session = createSession('session-1', CBUILD_RUN_FILE_PATH);
         testAccess = controller as unknown as CTraceControllerTestAccess;
         testAccess.traceEnabled = true;
@@ -63,15 +64,15 @@ describe('CTraceController', () => {
 
     it('runs ctrace with the active session cbuild run path unless the caller supplies one', async () => {
         const launch = jest.spyOn(CTraceProcessManager.prototype, 'launch').mockResolvedValue();
-        const waitForExit = jest.spyOn(CTraceProcessManager.prototype, 'waitForExit').mockResolvedValue();
+        const waitForExit = jest.spyOn(CTraceProcessManager.prototype, 'waitForExit').mockResolvedValue(0);
         const runningController = new CTraceController({ cTracePath: 'ctrace-path' });
         const runningControllerAccess = runningController as unknown as CTraceControllerTestAccess;
         runningControllerAccess.handleActiveSessionChanged(session);
 
-        await runningController.run();
-        await runningController.run({ cbuildRunFilePath: '/workspace/provided.cbuild-run.yml' });
+        await expect(runningController.run()).resolves.toBe(0);
+        await expect(runningController.run({ cbuildRunFilePath: '/workspace/provided.cbuild-run.yml' })).resolves.toBe(0);
         const directController = new CTraceController({ cTracePath: 'ctrace-path' });
-        await directController.run({ args: ['--version'] });
+        await expect(directController.run({ args: ['--version'] })).resolves.toBe(0);
 
         expect(launch).toHaveBeenNthCalledWith(1, { cbuildRunFilePath: CBUILD_RUN_FILE_PATH });
         expect(launch).toHaveBeenNthCalledWith(2, { cbuildRunFilePath: '/workspace/provided.cbuild-run.yml' });
@@ -86,6 +87,17 @@ describe('CTraceController', () => {
 
         expect(run).toHaveBeenCalledTimes(1);
         expect(run).toHaveBeenCalledWith({ cbuildRunFilePath: CBUILD_RUN_FILE_PATH });
+    });
+
+    it('logs a failed ctrace decode', async () => {
+        run.mockResolvedValue(11);
+        const error = jest.spyOn(logger, 'error').mockImplementation();
+
+        await testAccess.handleDecodeTrigger(session);
+        now += 250;
+        await testAccess.handleRawTraceFileChanged(RAW_TRACE_URI);
+
+        expect(error).toHaveBeenCalledWith('ctrace process exited with code 11');
     });
 
     it('decodes when the target stops shortly after a raw trace file is saved', async () => {

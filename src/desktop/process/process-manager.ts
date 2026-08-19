@@ -56,10 +56,12 @@ export class ProcessManager {
     private static readonly WAIT_INTERVAL_MS = 250;
 
     private child: ChildProcessWithoutNullStreams | undefined;
-    private exitPromise: Promise<void> | undefined;
-    private resolveExit: (() => void) | undefined;
+    private exitPromise: Promise<number | null> | undefined;
+    private resolveExit: ((code: number | null) => void) | undefined;
     private isStarted = false;
+    private didSpawn = false;
     private didExit = false;
+    private completedExitCode: number | null | undefined;
 
     public constructor(private readonly options: ProcessManagerOptions) {}
 
@@ -94,14 +96,19 @@ export class ProcessManager {
             this.child.stderr.resume();
         }
         // Attach listeners to handle process lifecycle events and invoke callbacks.
-        this.child.once('spawn', () => this.options.onSpawn?.(this));
+        this.child.once('spawn', () => {
+            this.didSpawn = true;
+            this.options.onSpawn?.(this);
+        });
         this.child.once('error', (error) => {
-            this.handleExited();
+            if (!this.didSpawn) {
+                this.handleExited(null);
+            }
             this.options.output?.appendLine(`${this.options.name} process error: ${error.message}`);
             this.options.onError?.(error, this);
         });
         this.child.once('exit', (code, signal) => {
-            this.handleExited();
+            this.handleExited(code);
             this.options.output?.appendLine(`${this.options.name} exited with code ${code ?? 'null'}${signal ? `, signal ${signal}` : ''}.`);
             this.options.onExit?.(code, signal, this);
         });
@@ -124,7 +131,19 @@ export class ProcessManager {
         return this.child === undefined || this.hasExited ? false : this.child.kill(signal);
     }
 
-    public waitForExit(): Promise<void> {
+    /**
+     * Returns the exit code once the process has completed. Undefined indicates
+     * that the process has not yet completed; null indicates no exit code exists.
+     */
+    public getExitCode(): number | null | undefined {
+        return this.completedExitCode;
+    }
+
+    /**
+     * Waits for process completion and returns its exit code. A null code indicates
+     * that the process was terminated by a signal or could not be started.
+     */
+    public waitForExit(): Promise<number | null> {
         if (this.exitPromise === undefined) {
             throw new Error(`${this.options.name} process has not been launched.`);
         }
@@ -145,12 +164,13 @@ export class ProcessManager {
         await this.waitUntilStopped(options.forceTimeout ?? ProcessManager.DEFAULT_FORCE_TIMEOUT_MS);
     }
 
-    private handleExited(): void {
+    private handleExited(code: number | null): void {
         if (this.didExit) {
             return;
         }
         this.didExit = true;
-        this.resolveExit?.();
+        this.completedExitCode = code;
+        this.resolveExit?.(code);
     }
 
     private async waitUntilStopped(timeoutMs: number): Promise<boolean> {

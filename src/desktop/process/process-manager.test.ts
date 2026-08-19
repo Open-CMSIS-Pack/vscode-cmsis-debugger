@@ -40,6 +40,7 @@ describe('ProcessManager', () => {
         expect(processManager.pid).toBeUndefined();
         expect(processManager.isRunning).toBe(false);
         expect(processManager.hasExited).toBe(false);
+        expect(processManager.getExitCode()).toBeUndefined();
         expect(processManager.signal('SIGTERM')).toBe(false);
         expect(() => processManager.waitForExit()).toThrow('test process process has not been launched.');
         await expect(processManager.stop({ timeout: 0 })).resolves.toBeUndefined();
@@ -53,13 +54,15 @@ describe('ProcessManager', () => {
         }));
         expect(processManager.pid).toBe(1234);
         expect(processManager.isRunning).toBe(true);
+        expect(processManager.getExitCode()).toBeUndefined();
         expect(() => processManager.launch({})).toThrow('test process process has already been launched.');
 
-        child.emitExit(0);
-        await processManager.waitForExit();
+        child.emitExit(23);
+        await expect(processManager.waitForExit()).resolves.toBe(23);
 
         expect(processManager.hasExited).toBe(true);
         expect(processManager.isRunning).toBe(false);
+        expect(processManager.getExitCode()).toBe(23);
         expect(processManager.signal('SIGTERM')).toBe(false);
     });
 
@@ -81,7 +84,7 @@ describe('ProcessManager', () => {
         child.stderr.write('standard error');
         child.emitExit(0);
 
-        await processManager.waitForExit();
+        await expect(processManager.waitForExit()).resolves.toBe(0);
 
         expect(onSpawn).toHaveBeenCalledWith(processManager);
         expect(output.append).toHaveBeenCalledWith('standard output');
@@ -98,7 +101,7 @@ describe('ProcessManager', () => {
 
         processManager.launch({});
         child.emitExit(0);
-        await processManager.waitForExit();
+        await expect(processManager.waitForExit()).resolves.toBe(0);
 
         expect(stdoutResume).toHaveBeenCalledTimes(1);
         expect(stderrResume).toHaveBeenCalledTimes(1);
@@ -113,12 +116,32 @@ describe('ProcessManager', () => {
         processManager.launch({});
         child.emit('error', error);
 
-        await processManager.waitForExit();
+        await expect(processManager.waitForExit()).resolves.toBeNull();
 
         expect(onError).toHaveBeenCalledWith(error, processManager);
         expect(output.appendLine).toHaveBeenCalledWith('test process process error: unable to start');
         expect(processManager.hasExited).toBe(true);
         expect(processManager.isRunning).toBe(false);
+        expect(processManager.getExitCode()).toBeNull();
+    });
+
+    it('continues waiting for an exit after an error from a spawned process', async () => {
+        const onError = jest.fn();
+        const processManager = new ProcessManager({ command: 'test-command', name: 'test process', onError });
+        const error = new Error('unable to terminate');
+
+        processManager.launch({});
+        child.emit('spawn');
+        child.emit('error', error);
+
+        expect(onError).toHaveBeenCalledWith(error, processManager);
+        expect(processManager.isRunning).toBe(true);
+        expect(processManager.getExitCode()).toBeUndefined();
+
+        child.emitExit(23);
+
+        await expect(processManager.waitForExit()).resolves.toBe(23);
+        expect(processManager.getExitCode()).toBe(23);
     });
 
     it('stops a running process with its graceful termination signal', async () => {
@@ -131,6 +154,7 @@ describe('ProcessManager', () => {
         expect(child.signals).toEqual(['SIGTERM']);
         expect(onForce).not.toHaveBeenCalled();
         expect(processManager.hasExited).toBe(true);
+        expect(processManager.getExitCode()).toBeNull();
     });
 
     it('forces termination after the graceful timeout expires', async () => {

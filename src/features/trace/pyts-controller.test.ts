@@ -21,6 +21,7 @@ import { traceWatchFactory } from '../../__test__/trace-watch.factory';
 import { GDBTargetDebugSession } from '../../debug-session';
 import { debugTrackerFactory, gdbTargetDebugSessionFactory } from '../../debug-session/__test__/debug-session.factory';
 import { PyTsProcessManager } from '../../desktop/process/pyts-process-manager';
+import { logger } from '../../logger';
 import { PyTsController } from './pyts-controller';
 
 type PyTsControllerTestAccess = {
@@ -53,29 +54,40 @@ describe('PyTsController', () => {
 
     it('reloads ctrace after pyTS exits when requested separately from its launch options', async () => {
         const launch = jest.spyOn(PyTsProcessManager.prototype, 'launch').mockResolvedValue();
-        const waitForExit = jest.spyOn(PyTsProcessManager.prototype, 'waitForExit').mockResolvedValue();
+        const waitForExit = jest.spyOn(PyTsProcessManager.prototype, 'waitForExit').mockResolvedValue(0);
         const controller = new PyTsController({ pyTsPath: 'pyTS' });
         const reloadCTrace = jest.spyOn(controller, 'reloadCTrace').mockResolvedValue();
 
-        await controller.run({}, true);
+        await expect(controller.run({}, true)).resolves.toBe(0);
 
         expect(launch).toHaveBeenCalledWith({});
         expect(waitForExit).toHaveBeenCalledTimes(1);
         expect(reloadCTrace).toHaveBeenCalledTimes(1);
     });
 
+    it('does not reload ctrace after a failed pyTS exit', async () => {
+        jest.spyOn(PyTsProcessManager.prototype, 'launch').mockResolvedValue();
+        jest.spyOn(PyTsProcessManager.prototype, 'waitForExit').mockResolvedValue(17);
+        const controller = new PyTsController({ pyTsPath: 'pyTS' });
+        const reloadCTrace = jest.spyOn(controller, 'reloadCTrace').mockResolvedValue();
+
+        await expect(controller.run({}, true)).resolves.toBe(17);
+
+        expect(reloadCTrace).not.toHaveBeenCalled();
+    });
+
     it('uses the active session cbuild run path unless the caller supplies one', async () => {
         const launch = jest.spyOn(PyTsProcessManager.prototype, 'launch').mockResolvedValue();
-        const waitForExit = jest.spyOn(PyTsProcessManager.prototype, 'waitForExit').mockResolvedValue();
+        const waitForExit = jest.spyOn(PyTsProcessManager.prototype, 'waitForExit').mockResolvedValue(0);
         const controller = new PyTsController({ pyTsPath: 'pyTS' });
         const testAccess = controller as unknown as PyTsControllerTestAccess;
         const activeSession = { getCbuildRunPath: () => '/workspace/active.cbuild-run.yml' } as unknown as GDBTargetDebugSession;
         testAccess.handleActiveSessionChanged(activeSession);
 
-        await controller.run();
-        await controller.run({ cbuildRunFilePath: '/workspace/provided.cbuild-run.yml' });
+        await expect(controller.run()).resolves.toBe(0);
+        await expect(controller.run({ cbuildRunFilePath: '/workspace/provided.cbuild-run.yml' })).resolves.toBe(0);
         const directController = new PyTsController({ pyTsPath: 'pyTS' });
-        await directController.run({ args: ['--version'] });
+        await expect(directController.run({ args: ['--version'] })).resolves.toBe(0);
 
         expect(launch).toHaveBeenNthCalledWith(1, { cbuildRunFilePath: '/workspace/active.cbuild-run.yml' });
         expect(launch).toHaveBeenNthCalledWith(2, { cbuildRunFilePath: '/workspace/provided.cbuild-run.yml' });
@@ -85,12 +97,24 @@ describe('PyTsController', () => {
 
     it('reloads ctrace after a ctrace configuration file changes', async () => {
         const controller = new PyTsController();
-        const run = jest.spyOn(controller, 'run').mockResolvedValue();
+        const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
         const testAccess = controller as unknown as PyTsControllerTestAccess;
 
         await testAccess.handleCTraceFileChanged(vscode.Uri.file('/workspace/.cmsis/trace.ctrace.yml'));
 
         expect(run).toHaveBeenCalledWith({}, true);
+    });
+
+    it('logs a failed pyTS exit from a ctrace configuration file change', async () => {
+        const controller = new PyTsController();
+        const run = jest.spyOn(controller, 'run').mockResolvedValue(null);
+        const error = jest.spyOn(logger, 'error').mockImplementation();
+        const testAccess = controller as unknown as PyTsControllerTestAccess;
+
+        await testAccess.handleCTraceFileChanged(vscode.Uri.file('/workspace/.cmsis/trace.ctrace.yml'));
+
+        expect(run).toHaveBeenCalledWith({}, true);
+        expect(error).toHaveBeenCalledWith('pyTS process exited with code null');
     });
 
     it('adds and removes its ctrace configuration watch when the trace setting changes', () => {
@@ -116,7 +140,7 @@ describe('PyTsController', () => {
     it('forwards watched configuration file events and removes its watch when disposed', async () => {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         const controller = new PyTsController();
-        const run = jest.spyOn(controller, 'run').mockResolvedValue();
+        const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
         const tracker = debugTrackerFactory();
         const traceWatch = traceWatchFactory();
         const context = extensionContextFactory();

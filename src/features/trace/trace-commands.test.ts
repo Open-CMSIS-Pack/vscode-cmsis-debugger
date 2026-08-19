@@ -18,6 +18,7 @@
 import * as vscode from 'vscode';
 import { extensionContextFactory } from '../../__test__/vscode.factory';
 import { CTraceController } from './ctrace-controller';
+import { logger } from '../../logger';
 import { PyTsController } from './pyts-controller';
 import { TraceCommands } from './trace-commands';
 
@@ -52,7 +53,7 @@ describe('TraceCommands', () => {
     });
 
     it('requests a ctrace reload after pyTS completes', async () => {
-        const run = jest.spyOn(pyTsController, 'run').mockResolvedValue();
+        const run = jest.spyOn(pyTsController, 'run').mockResolvedValue(0);
         commands.activate(extensionContextFactory());
 
         await registeredCommands.get(TraceCommands.launchPyTsID)!();
@@ -61,7 +62,7 @@ describe('TraceCommands', () => {
     });
 
     it('runs ctrace when its command is invoked', async () => {
-        const run = jest.spyOn(cTraceController, 'run').mockResolvedValue();
+        const run = jest.spyOn(cTraceController, 'run').mockResolvedValue(0);
         commands.activate(extensionContextFactory());
 
         await registeredCommands.get(TraceCommands.launchCTraceID)!();
@@ -72,25 +73,38 @@ describe('TraceCommands', () => {
     it('reports a pyTS launch failure', async () => {
         const error = new Error('pyTS failed');
         const run = jest.spyOn(pyTsController, 'run').mockRejectedValue(error);
-        const consoleError = jest.spyOn(console, 'error').mockImplementation();
+        const loggerError = jest.spyOn(logger, 'error').mockImplementation();
         commands.activate(extensionContextFactory());
 
         await registeredCommands.get(TraceCommands.launchPyTsID)!();
 
         expect(run).toHaveBeenCalledWith({}, true);
-        expect(consoleError).toHaveBeenCalledWith('Failed to launch pyTS process:', error);
+        expect(loggerError).toHaveBeenCalledWith('Failed to launch pyTS process:', error);
     });
 
     it('reports a ctrace launch failure', async () => {
         const error = new Error('ctrace failed');
         const run = jest.spyOn(cTraceController, 'run').mockRejectedValue(error);
-        const consoleError = jest.spyOn(console, 'error').mockImplementation();
+        const loggerError = jest.spyOn(logger, 'error').mockImplementation();
         commands.activate(extensionContextFactory());
 
         await registeredCommands.get(TraceCommands.launchCTraceID)!();
 
         expect(run).toHaveBeenCalledWith();
-        expect(consoleError).toHaveBeenCalledWith('Failed to launch ctrace process:', error);
+        expect(loggerError).toHaveBeenCalledWith('Failed to launch ctrace process:', error);
+    });
+
+    it('logs non-zero and null process exit codes', async () => {
+        jest.spyOn(pyTsController, 'run').mockResolvedValue(7);
+        jest.spyOn(cTraceController, 'run').mockResolvedValue(null);
+        const loggerError = jest.spyOn(logger, 'error').mockImplementation();
+        commands.activate(extensionContextFactory());
+
+        await registeredCommands.get(TraceCommands.launchPyTsID)!();
+        await registeredCommands.get(TraceCommands.launchCTraceID)!();
+
+        expect(loggerError).toHaveBeenCalledWith('pyTS process exited with code 7');
+        expect(loggerError).toHaveBeenCalledWith('ctrace process exited with code null');
     });
 
     it('delegates the ctrace reload command to the pyTS controller', async () => {

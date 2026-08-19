@@ -27,6 +27,7 @@ import {
     CTraceProcessManagerOptions
 } from '../../desktop/process/ctrace-process-manager';
 import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
+import { logger } from '../..';
 
 const RAW_TRACE_SAVE_WINDOW_MS = 2_000;
 const RAW_TRACE_GLOB = '.trace/*.{SWO,TB}.raw';
@@ -66,14 +67,14 @@ export class CTraceController {
         this.updateRawTraceWatcher();
     }
 
-    public async run(options: CTraceProcessManagerLaunchOptions = {}): Promise<void> {
+    public async run(options: CTraceProcessManagerLaunchOptions = {}): Promise<number | null> {
         const processManager = new CTraceProcessManager(this.options);
         const cbuildRunFilePath = options.cbuildRunFilePath ?? this.activeSession?.getCbuildRunPath();
         const launchOptions: CTraceProcessManagerLaunchOptions = cbuildRunFilePath === undefined
             ? options
             : { ...options, cbuildRunFilePath };
         await processManager.launch(launchOptions);
-        await processManager.waitForExit();
+        return processManager.waitForExit();
     }
 
     protected handleActiveSessionChanged(session: GDBTargetDebugSession | undefined): void {
@@ -136,8 +137,15 @@ export class CTraceController {
                 continue;
             }
             this.pendingDecodes.delete(sessionId);
-            await this.run({ cbuildRunFilePath: pendingDecode.cbuildRunFilePath });
-            return;
+            try {
+                const exitCode = await this.run({ cbuildRunFilePath: pendingDecode.cbuildRunFilePath });
+                if (exitCode !== 0) {
+                    logger.error(`ctrace process exited with code ${exitCode}`);
+                }
+                return;
+            } catch (error) {
+                logger.error('Failed to launch ctrace process:', error);
+            }
         }
     }
 

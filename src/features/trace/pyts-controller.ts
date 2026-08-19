@@ -27,6 +27,7 @@ import {
     PyTsProcessManagerOptions
 } from '../../desktop/process/pyts-process-manager';
 import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
+import { logger } from '../..';
 
 const CTRACE_CONFIGURATION_GLOB = '.cmsis/*.ctrace.{yml,yaml}';
 const CTRACE_CONFIGURATION_WATCH_ID = 'pyts-ctrace-configuration';
@@ -51,17 +52,18 @@ export class PyTsController {
         this.updateCTraceConfigurationWatcher();
     }
 
-    public async run(options: PyTsProcessManagerLaunchOptions = {}, shouldReloadCTrace: boolean = false): Promise<void> {
+    public async run(options: PyTsProcessManagerLaunchOptions = {}, shouldReloadCTrace: boolean = false): Promise<number | null> {
         const processManager = new PyTsProcessManager(this.options);
         const cbuildRunFilePath = options.cbuildRunFilePath ?? this.activeSession?.getCbuildRunPath();
         const launchOptions: PyTsProcessManagerLaunchOptions = cbuildRunFilePath === undefined
             ? options
             : { ...options, cbuildRunFilePath };
         await processManager.launch(launchOptions);
-        await processManager.waitForExit();
-        if (shouldReloadCTrace) {
+        const exitCode = await processManager.waitForExit();
+        if (shouldReloadCTrace && exitCode === 0) {  // Only reload if pyTS exited successfully
             await this.reloadCTrace();
         }
+        return exitCode;
     }
 
     public async reloadCTrace(): Promise<void> {
@@ -80,7 +82,14 @@ export class PyTsController {
 
     protected async handleCTraceFileChanged(_uri: vscode.Uri): Promise<void> {
         // TODO: Match this is the ctrace file for the active session/expected cbuildrun file
-        await this.run({}, true);
+        try {
+            const exitCode = await this.run({}, true);
+            if (exitCode !== 0) {
+                logger.error(`pyTS process exited with code ${exitCode}`);
+            }
+        } catch (error) {
+            logger.error('Failed to launch pyTS process:', error);
+        }
     }
 
     private updateCTraceConfigurationWatcher(): void {

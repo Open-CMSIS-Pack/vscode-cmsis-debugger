@@ -19,6 +19,7 @@ import * as vscode from 'vscode';
 import { EXTENSION_NAME } from '../../manifest';
 import { PyTsController } from './pyts-controller';
 import { CTraceController } from './ctrace-controller';
+import { logger } from '../..';
 
 /**
  * Registers commands related to trace functionality.
@@ -47,17 +48,23 @@ export class TraceCommands {
 
     protected async handleLaunchPyTs(): Promise<void> {
         try {
-            await this.pyTsController.run({}, true);
+            const exitCode = await this.pyTsController.run({}, true);
+            if (exitCode !== 0) {
+                logger.error(`pyTS process exited with code ${exitCode}`);
+            }
         } catch (error) {
-            console.error('Failed to launch pyTS process:', error);
+            logger.error('Failed to launch pyTS process:', error);
         }
     }
 
     protected async handleLaunchCTrace(): Promise<void> {
         try {
-            await this.cTraceController.run();
+            const exitCode = await this.cTraceController.run();
+            if (exitCode !== 0) {
+                logger.error(`ctrace process exited with code ${exitCode}`);
+            }
         } catch (error) {
-            console.error('Failed to launch ctrace process:', error);
+            logger.error('Failed to launch ctrace process:', error);
         }
     }
 
