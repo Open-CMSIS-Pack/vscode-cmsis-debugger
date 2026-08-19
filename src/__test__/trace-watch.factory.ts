@@ -24,9 +24,8 @@ export interface TraceWatchFixture {
     readonly addWatch: jest.Mock;
     readonly removeWatch: jest.Mock;
     getLatestWatch(): FileWatchRegistrationOptions | undefined;
-    fireUnrelatedConfigurationChange(): void;
+    fireConfigurationChange(affectsTraceSetting: boolean): void;
     setTraceEnabled(enabled: boolean): void;
-    fireTraceConfigurationChange(): void;
 }
 
 export function traceWatchFactory(): TraceWatchFixture {
@@ -41,12 +40,6 @@ export function traceWatchFactory(): TraceWatchFixture {
     });
     const removeWatch = jest.fn();
     const fileWatchManager = { addWatch, removeWatch } as unknown as FileWatchManager;
-    const traceConfigurationChange = {
-        affectsConfiguration: (setting: string) => setting === ENABLE_TRACE_GENERATION_VIEW_SETTING,
-    } as vscode.ConfigurationChangeEvent;
-    const unrelatedConfigurationChange = {
-        affectsConfiguration: () => false,
-    } as vscode.ConfigurationChangeEvent;
 
     jest.mocked(vscode.workspace.getConfiguration).mockImplementation(() => configuration);
     jest.mocked(vscode.workspace.onDidChangeConfiguration).mockImplementation((handler: (event: vscode.ConfigurationChangeEvent) => void) => {
@@ -59,10 +52,11 @@ export function traceWatchFactory(): TraceWatchFixture {
         addWatch,
         removeWatch,
         getLatestWatch: () => latestWatch,
-        fireUnrelatedConfigurationChange: () => configurationChangeHandler?.(unrelatedConfigurationChange),
+        fireConfigurationChange: affectsTraceSetting => configurationChangeHandler?.({
+            affectsConfiguration: setting => affectsTraceSetting && setting === ENABLE_TRACE_GENERATION_VIEW_SETTING,
+        } as vscode.ConfigurationChangeEvent),
         setTraceEnabled: enabled => {
             traceEnabled = enabled;
         },
-        fireTraceConfigurationChange: () => configurationChangeHandler?.(traceConfigurationChange),
     };
 }

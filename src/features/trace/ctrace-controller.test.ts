@@ -166,15 +166,15 @@ describe('CTraceController', () => {
         controller.activate(extensionContextFactory(), tracker, traceWatch.fileWatchManager);
         expect(traceWatch.addWatch).not.toHaveBeenCalled();
 
-        traceWatch.fireUnrelatedConfigurationChange();
+        traceWatch.fireConfigurationChange(false);
         expect(traceWatch.addWatch).not.toHaveBeenCalled();
 
         traceWatch.setTraceEnabled(true);
-        traceWatch.fireTraceConfigurationChange();
+        traceWatch.fireConfigurationChange(true);
         expect(traceWatch.addWatch).toHaveBeenCalledTimes(1);
 
         traceWatch.setTraceEnabled(false);
-        traceWatch.fireTraceConfigurationChange();
+        traceWatch.fireConfigurationChange(true);
         expect(traceWatch.removeWatch).toHaveBeenCalledWith('ctrace-raw-trace');
     });
 
