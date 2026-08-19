@@ -18,6 +18,7 @@
 import { spawn } from 'child_process';
 import * as vscode from 'vscode';
 import { childProcessFactory } from '../../__test__/child-process.factory';
+import { BuiltinToolPath } from '../builtin-tool-path';
 import { CTraceProcessManager } from './ctrace-process-manager';
 
 jest.mock('child_process');
@@ -31,6 +32,7 @@ describe('CTraceProcessManager', () => {
     });
 
     afterEach(() => {
+        jest.restoreAllMocks();
         jest.clearAllMocks();
     });
 
@@ -68,5 +70,26 @@ describe('CTraceProcessManager', () => {
             expect.any(Object)
         );
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith('cmsis-csolution.getActiveTargetSet');
+    });
+
+    it('rejects construction when the bundled ctrace path cannot be resolved', () => {
+        jest.spyOn(BuiltinToolPath.prototype, 'getAbsolutePath').mockReturnValue(undefined);
+
+        expect(() => new CTraceProcessManager()).toThrow('Failed to resolve the absolute path for ctrace.');
+    });
+
+    it('rejects launch when no workspace is open', async () => {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        Object.defineProperty(vscode.workspace, 'workspaceFolders', { configurable: true, value: undefined });
+        const processManager = new CTraceProcessManager({ cTracePath: 'ctrace-path' });
+
+        try {
+            await expect(processManager.launch()).rejects.toThrow('No workspace folder is open.');
+        } finally {
+            Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+                configurable: true,
+                value: workspaceFolders
+            });
+        }
     });
 });

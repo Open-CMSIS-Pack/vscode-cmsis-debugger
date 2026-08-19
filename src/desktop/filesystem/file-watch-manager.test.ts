@@ -65,6 +65,24 @@ describe('FileWatchManager', () => {
         expect(context.subscriptions).toContain(manager);
     });
 
+    it('ignores repeated activation with the same context', () => {
+        const context = extensionContextFactory();
+        const manager = new FileWatchManager();
+
+        manager.activate(context);
+        manager.activate(context);
+
+        expect(context.subscriptions).toEqual([manager]);
+    });
+
+    it('rejects activation with a different context', () => {
+        const manager = new FileWatchManager();
+
+        manager.activate(extensionContextFactory());
+
+        expect(() => manager.activate(extensionContextFactory())).toThrow('File watch manager has already been activated.');
+    });
+
     it('registers the supplied callbacks and forwards events', async () => {
         const { callbacks, watcher } = createWatcher();
         createFileSystemWatcher.mockReturnValue(watcher);
@@ -119,5 +137,23 @@ describe('FileWatchManager', () => {
         manager.addWatch({ id: WATCH_ID, globPattern });
 
         expect(createFileSystemWatcher).toHaveBeenCalledTimes(1);
+    });
+
+    it('disposes every watch and can be activated again', () => {
+        const firstWatch = createWatcher();
+        const secondWatch = createWatcher();
+        createFileSystemWatcher
+            .mockReturnValueOnce(firstWatch.watcher)
+            .mockReturnValueOnce(secondWatch.watcher);
+        const manager = new FileWatchManager();
+
+        manager.activate(extensionContextFactory());
+        manager.addWatch({ id: 'first-watch', globPattern });
+        manager.addWatch({ id: 'second-watch', globPattern });
+        manager.dispose();
+
+        expect(firstWatch.watcher.dispose).toHaveBeenCalledTimes(1);
+        expect(secondWatch.watcher.dispose).toHaveBeenCalledTimes(1);
+        expect(() => manager.activate(extensionContextFactory())).not.toThrow();
     });
 });

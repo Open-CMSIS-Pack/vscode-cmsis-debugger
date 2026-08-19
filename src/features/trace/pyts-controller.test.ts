@@ -18,12 +18,16 @@
 import * as vscode from 'vscode';
 import { debugSessionFactory, extensionContextFactory } from '../../__test__/vscode.factory';
 import { traceWatchFactory } from '../../__test__/trace-watch.factory';
-import { debugTrackerFactory } from '../../debug-session/__test__/debug-session.factory';
+import { GDBTargetDebugSession } from '../../debug-session';
+import { debugTrackerFactory, gdbTargetDebugSessionFactory } from '../../debug-session/__test__/debug-session.factory';
 import { PyTsProcessManager } from '../../desktop/process/pyts-process-manager';
 import { PyTsController } from './pyts-controller';
 
 type PyTsControllerTestAccess = {
+    addCTraceConfigurationWatcher(): void;
+    handleActiveSessionChanged(session: GDBTargetDebugSession | undefined): void;
     handleCTraceFileChanged(uri: vscode.Uri): Promise<void>;
+    removeCTraceConfigurationWatcher(): void;
 };
 
 describe('PyTsController', () => {
@@ -60,6 +64,25 @@ describe('PyTsController', () => {
         expect(reloadCTrace).toHaveBeenCalledTimes(1);
     });
 
+    it('uses the active session cbuild run path unless the caller supplies one', async () => {
+        const launch = jest.spyOn(PyTsProcessManager.prototype, 'launch').mockResolvedValue();
+        const waitForExit = jest.spyOn(PyTsProcessManager.prototype, 'waitForExit').mockResolvedValue();
+        const controller = new PyTsController({ pyTsPath: 'pyTS' });
+        const testAccess = controller as unknown as PyTsControllerTestAccess;
+        const activeSession = { getCbuildRunPath: () => '/workspace/active.cbuild-run.yml' } as unknown as GDBTargetDebugSession;
+        testAccess.handleActiveSessionChanged(activeSession);
+
+        await controller.run();
+        await controller.run({ cbuildRunFilePath: '/workspace/provided.cbuild-run.yml' });
+        const directController = new PyTsController({ pyTsPath: 'pyTS' });
+        await directController.run({ args: ['--version'] });
+
+        expect(launch).toHaveBeenNthCalledWith(1, { cbuildRunFilePath: '/workspace/active.cbuild-run.yml' });
+        expect(launch).toHaveBeenNthCalledWith(2, { cbuildRunFilePath: '/workspace/provided.cbuild-run.yml' });
+        expect(launch).toHaveBeenNthCalledWith(3, { args: ['--version'] });
+        expect(waitForExit).toHaveBeenCalledTimes(3);
+    });
+
     it('reloads ctrace after a ctrace configuration file changes', async () => {
         const controller = new PyTsController();
         const run = jest.spyOn(controller, 'run').mockResolvedValue();
@@ -78,6 +101,9 @@ describe('PyTsController', () => {
         controller.activate(extensionContextFactory(), tracker, traceWatch.fileWatchManager);
         expect(traceWatch.addWatch).not.toHaveBeenCalled();
 
+        traceWatch.fireUnrelatedConfigurationChange();
+        expect(traceWatch.addWatch).not.toHaveBeenCalled();
+
         traceWatch.setTraceEnabled(true);
         traceWatch.fireTraceConfigurationChange();
         expect(traceWatch.addWatch).toHaveBeenCalledTimes(1);
@@ -85,5 +111,46 @@ describe('PyTsController', () => {
         traceWatch.setTraceEnabled(false);
         traceWatch.fireTraceConfigurationChange();
         expect(traceWatch.removeWatch).toHaveBeenCalledWith('pyts-ctrace-configuration');
+    });
+
+    it('forwards watched configuration file events and removes its watch when disposed', async () => {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        const controller = new PyTsController();
+        const run = jest.spyOn(controller, 'run').mockResolvedValue();
+        const tracker = debugTrackerFactory();
+        const traceWatch = traceWatchFactory();
+        const context = extensionContextFactory();
+        traceWatch.setTraceEnabled(true);
+        Object.defineProperty(vscode.workspace, 'workspaceFolders', { configurable: true, value: undefined });
+
+        try {
+            controller.activate(context, tracker, traceWatch.fileWatchManager);
+            await tracker.callbacks.activeSession?.(gdbTargetDebugSessionFactory('tracker-session'));
+            const watch = traceWatch.getLatestWatch();
+            if (watch === undefined) {
+                throw new Error('Expected a ctrace configuration watch.');
+            }
+            expect(watch.globPattern).toBe('.cmsis/*.ctrace.{yml,yaml}');
+            await watch.onDidCreate?.(vscode.Uri.file('/workspace/.cmsis/trace.ctrace.yml'));
+            await watch.onDidChange?.(vscode.Uri.file('/workspace/.cmsis/trace.ctrace.yml'));
+            context.subscriptions.at(-1)?.dispose();
+
+            expect(run).toHaveBeenNthCalledWith(1, {}, true);
+            expect(run).toHaveBeenNthCalledWith(2, {}, true);
+            expect(traceWatch.removeWatch).toHaveBeenCalledWith('pyts-ctrace-configuration');
+        } finally {
+            Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+                configurable: true,
+                value: workspaceFolders
+            });
+        }
+    });
+
+    it('does not require a file watch manager before activation', () => {
+        const controller = new PyTsController();
+        const testAccess = controller as unknown as PyTsControllerTestAccess;
+
+        testAccess.addCTraceConfigurationWatcher();
+        testAccess.removeCTraceConfigurationWatcher();
     });
 });
