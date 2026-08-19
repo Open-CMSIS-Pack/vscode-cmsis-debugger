@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,10 +20,14 @@ import * as vscode from 'vscode';
 import { logger } from './logger';
 import {
     calculateTime,
+    containsSubstringsInOrder,
     extractPname,
     FileLocationManager,
     getCmsisPackRootPath,
-    isWindows
+    isWindows,
+    normalizeFsPath,
+    waitForCondition,
+    waitForImmediate
 } from './utils';
 
 const CMSIS_PACK_ROOT_DEFAULT = 'mock/path';
@@ -142,6 +146,65 @@ describe('getCbuildRunFile', () => {
 
         expect(result).toBe('/workspace/project/example.cbuild-run.yml');
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith('cmsis-csolution.getCbuildRunFile');
+    });
+});
+
+describe('normalizeFsPath', () => {
+
+    it('normalizes path separators and case for filesystem comparisons', () => {
+        const fileName = path.join('workspace', 'folder', '..', 'Target.ctrace.yaml');
+        const expected = path.normalize(fileName);
+
+        expect(normalizeFsPath(fileName)).toBe(isWindows ? expected.toLowerCase() : expected);
+    });
+
+    it('preserves undefined paths', () => {
+        expect(normalizeFsPath(undefined)).toBeUndefined();
+    });
+});
+
+describe('waitForImmediate', () => {
+
+    it('resolves on a future event loop turn', async () => {
+        let resolved = false;
+        const promise = waitForImmediate().then(() => {
+            resolved = true;
+        });
+
+        expect(resolved).toBe(false);
+        await promise;
+        expect(resolved).toBe(true);
+    });
+});
+
+describe('waitForCondition', () => {
+
+    it('waits until the condition succeeds', async () => {
+        let attempts = 0;
+
+        await waitForCondition('test condition', () => {
+            attempts++;
+            return attempts === 2;
+        }, { timeoutMs: 100, intervalMs: 0 });
+
+        expect(attempts).toBe(2);
+    });
+
+    it('throws when the condition times out', async () => {
+        await expect(waitForCondition('test timeout', () => false, { timeoutMs: 0 }))
+            .rejects.toThrow('Timed out waiting for test timeout.');
+    });
+});
+
+describe('containsSubstringsInOrder', () => {
+
+    it('returns true when each substring appears after the previous one', () => {
+        expect(containsSubstringsInOrder('alpha beta gamma', ['alpha', 'beta', 'gamma'])).toBe(true);
+    });
+
+    it('returns false when a substring is missing or appears out of order', () => {
+        expect(containsSubstringsInOrder('alpha beta gamma', ['alpha', 'delta'])).toBe(false);
+        expect(containsSubstringsInOrder('alpha beta gamma', ['gamma', 'alpha'])).toBe(false);
     });
 });
 

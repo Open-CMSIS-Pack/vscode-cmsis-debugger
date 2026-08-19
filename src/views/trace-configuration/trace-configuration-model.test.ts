@@ -21,9 +21,10 @@ import * as path from 'node:path';
 
 import * as vscode from 'vscode';
 
-import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
-import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import { MemoryTextFileAdapter } from '../../__test__/memory-text-file-adapter';
+import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
+import { containsSubstringsInOrder, normalizeFsPath, waitForCondition, waitForImmediate } from '../../utils';
+import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import { TraceConfigurationModel } from './trace-configuration-model';
 import { TraceConfigurationProcessorCapabilities } from './trace-configuration-processor-capabilities';
 import * as TraceConfigurationTypes from './trace-configuration-types';
@@ -92,39 +93,12 @@ function fireWatcherHandler(watcher: MockFileSystemWatcher, handlerName: 'create
 
 async function waitForWatcherWork(): Promise<void> {
     for (let index = 0; index < 10; index++) {
-        await new Promise<void>(resolve => {
-            setImmediate(resolve);
-        });
+        await waitForImmediate();
     }
-}
-
-async function waitForCondition(description: string, condition: () => boolean | Promise<boolean>): Promise<void> {
-    const timeoutAt = Date.now() + 2000;
-
-    while (Date.now() < timeoutAt) {
-        if (await condition()) {
-            return;
-        }
-
-        await new Promise<void>(resolve => {
-            setTimeout(resolve, 10);
-        });
-    }
-
-    throw new Error(`Timed out waiting for ${description}.`);
-}
-
-function normalizeTestFsPath(fileName: string | undefined): string | undefined {
-    if (!fileName) {
-        return undefined;
-    }
-
-    const normalized = path.normalize(fileName);
-    return process.platform === 'win32' ? normalized.toLowerCase() : normalized;
 }
 
 function expectSameFsPath(actual: string | undefined, expected: string): void {
-    expect(normalizeTestFsPath(actual)).toBe(normalizeTestFsPath(expected));
+    expect(normalizeFsPath(actual)).toBe(normalizeFsPath(expected));
 }
 
 function createProcessor(core: string, pname?: string): ProcessorType {
@@ -195,15 +169,6 @@ async function createTemporaryDirectory(directoryName: string): Promise<void> {
     // Test paths are created under this suite's temporary workspace root.
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     await fsPromises.mkdir(directoryName, { recursive: true });
-}
-
-function expectSubstringsInOrder(text: string, substrings: string[]): void {
-    let previousIndex = -1;
-    substrings.forEach(substring => {
-        const index = text.indexOf(substring, previousIndex + 1);
-        expect(index).toBeGreaterThan(previousIndex);
-        previousIndex = index;
-    });
 }
 
 async function createModelFromText(
@@ -312,7 +277,7 @@ describe('TraceConfigurationModel', () => {
             vscode.ConfigurationTarget.Workspace
         );
         expect(generatedText).toContain('created-by: CMSIS Debugger');
-        expectSubstringsInOrder(generatedText, [
+        expect(containsSubstringsInOrder(generatedText, [
             'pname: core0',
             'core: Cortex-M55',
             'timestamps: {}',
@@ -330,7 +295,7 @@ describe('TraceConfigurationModel', () => {
             'pname: core1',
             'core: Cortex-M23',
             'instructions: {}'
-        ]);
+        ])).toBe(true);
         expect(generatedText).not.toContain('pname: core1\n      core: Cortex-M23\n      timestamps');
         expectSameFsPath(model.createState().fileName, generatedTraceFile);
         expect(onDidChange).toHaveBeenCalled();
@@ -738,7 +703,7 @@ describe('TraceConfigurationModel', () => {
 
         await model.saveCurrentDocument();
 
-        expectSubstringsInOrder(adapter.text, [
+        expect(containsSubstringsInOrder(adapter.text, [
             '    - pname: cm33',
             '      core: Cortex-M33',
             '      timestamps: {}',
@@ -762,7 +727,7 @@ describe('TraceConfigurationModel', () => {
             '        period: 64',
             '      synchronization:',
             '        DWT: 16M'
-        ]);
+        ])).toBe(true);
     });
 
     it('does not create optional match size when match value is absent', async () => {
