@@ -134,6 +134,14 @@ with the year adjusted as needed:
   similar patterns appear across tests.
 - Follow existing test patterns, including `jest.mock`, factory helpers under
   `src/__test__`, and local feature test factories.
+- Before adding a local mock, use or extend a suitable shared fixture unless
+  the behavior is feature-specific or a shared change adds unrelated complexity.
+- Type fixtures accurately. Avoid repeated `as` or `as unknown as` chains;
+  centralize an unavoidable external or partial-type boundary in a shared fixture.
+- Mock narrowly. Share repeated module mocks, explicitly opt into broad or
+  Node built-in mocks, and prevent mock overrides leaking between tests.
+- Scope temporary global mock state to its test and restore it with
+  `try`/`finally`. Use shared teardown only when several tests change that state.
 - Use snapshots when output is structured and stable.
 - Keep `any` usage in tests rare. When needed, localize it with an explicit
   lint suppression.
