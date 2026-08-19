@@ -20,9 +20,13 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 
 import { isYamlMapItem, isYamlScalarItem, isYamlSequenceItem, YamlTreeItem, yamlScalarToString } from '../../desktop/yaml-dom';
-import { Disposable } from '../../desktop/yaml-file';
 import { logger } from '../../logger';
 import { CTraceYamlFile } from './ctrace-yaml';
+import {
+    GeneratedCBuildRunFileChangeEvent,
+    TraceConfigurationFileWatcher
+} from './trace-configuration-file-watcher';
+import { TraceConfigurationGeneratedCTraceFileManager } from './trace-configuration-generated-ctrace-file-manager';
 import {
     TraceConfigurationRow,
     TraceConfigurationState,
@@ -30,15 +34,20 @@ import {
 import { TraceConfigurationProcessorCapabilities } from './trace-configuration-processor-capabilities';
 import { TraceConfigurationRowBuilder } from './trace-configuration-row-builder';
 import * as TraceConfigurationTypes from './trace-configuration-types';
+import { WorkspaceTextFileAdapter } from './workspace-text-file-adapter';
+
+export type { GeneratedCBuildRunFileChangeEvent } from './trace-configuration-file-watcher';
 
 /**
  * TraceConfigurationModel owns the ctrace.yml document lifecycle and file mutations for the trace
  * configuration webview. It deliberately delegates processor capability lookup and row projection to
- * smaller helper classes so this file stays focused on reading, writing, watching, and saving YAML.
+ * smaller helper classes so this file stays focused on orchestrating file lifecycle, edits, and state.
  */
 export class TraceConfigurationModel {
     private ctraceFile: CTraceYamlFile | undefined;
-    private ctraceFileWatcher: Disposable | undefined;
+    private readonly fileWatcher: TraceConfigurationFileWatcher;
+    private readonly generatedCTraceFileManager: TraceConfigurationGeneratedCTraceFileManager;
+    public readonly onDidChangeGeneratedCBuildRunFile: vscode.Event<GeneratedCBuildRunFileChangeEvent>;
     private loading = false;
     private dirty = false;
     private errorMessage: string | undefined;
@@ -54,8 +63,10 @@ export class TraceConfigurationModel {
     public constructor(
         private onDidChange: () => void = () => {},
         processorCapabilities?: TraceConfigurationProcessorCapabilities,
-        rowBuilder?: TraceConfigurationRowBuilder
+        rowBuilder?: TraceConfigurationRowBuilder,
+        generatedCTraceFileManager?: TraceConfigurationGeneratedCTraceFileManager
     ) {
+        this.generatedCTraceFileManager = generatedCTraceFileManager ?? new TraceConfigurationGeneratedCTraceFileManager();
         this.processorCapabilities = processorCapabilities ?? new TraceConfigurationProcessorCapabilities(() => this.ctraceFile);
         this.rowBuilder = rowBuilder ?? new TraceConfigurationRowBuilder(
             () => this.ctraceFile,
@@ -65,6 +76,14 @@ export class TraceConfigurationModel {
             this.collapsedRows,
             this.processorCapabilities.capabilities
         );
+        this.fileWatcher = new TraceConfigurationFileWatcher({
+            getCurrentFile: () => this.ctraceFile,
+            onCurrentFileReloaded: document => this.acceptDiskDocument(document),
+            onCurrentFileReloadFailed: error => this.reportCurrentFileReloadError(error),
+            onGeneratedCBuildRunFileChanged: event => this.refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event)
+        });
+        this.onDidChangeGeneratedCBuildRunFile = this.fileWatcher.onDidChangeGeneratedCBuildRunFile;
+        this.fileWatcher.watchGeneratedCBuildRunFiles();
     }
 
     /**
@@ -82,7 +101,37 @@ export class TraceConfigurationModel {
      * cannot continue reacting to stale ctrace.yml watcher events.
      */
     public dispose(): void {
-        this.disposeCurrentFileWatcher();
+        this.fileWatcher.dispose();
+    }
+
+    /**
+     * disposeViewResources releases resources tied to the current webview
+     * instance. Generated cbuild-run watching is intentionally kept alive
+     * across webview disposal because builds can happen while the view is
+     * closed.
+     */
+    public disposeViewResources(): void {
+        this.fileWatcher.disposeViewResources();
+    }
+
+    /**
+     * refreshProcessorCapabilitiesFromGeneratedCBuildRunFile delegates generated
+     * ctrace.yml creation to the generated-file manager and loads the returned
+     * trace file when a created or changed cbuild-run file produced one.
+     */
+    private async refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event: GeneratedCBuildRunFileChangeEvent): Promise<void> {
+        try {
+            const generatedTraceFileUri = await this.generatedCTraceFileManager.processGeneratedCBuildRunFileChange(event);
+            if (generatedTraceFileUri) {
+                await this.loadFile(generatedTraceFileUri.fsPath);
+            }
+            this.errorMessage = undefined;
+        } catch (error) {
+            this.errorMessage = this.errorToString(error);
+            logger.error(`Trace Configuration: Failed to process generated cbuild-run file change: ${this.errorMessage}`);
+        } finally {
+            this.notifyStateChanged();
+        }
     }
 
     /**
@@ -92,13 +141,14 @@ export class TraceConfigurationModel {
      * files and the first result is used.
      */
     public async loadInitialFile(): Promise<void> {
+        this.fileWatcher.watchGeneratedCBuildRunFiles();
         this.loading = true;
         this.errorMessage = undefined;
         this.notifyStateChanged();
         try {
             const candidate = await this.findInitialCTraceFile();
             if (!candidate) {
-                this.disposeCurrentFileWatcher();
+                this.fileWatcher.disposeCurrentFileWatcher();
                 this.ctraceFile = undefined;
                 this.processorCapabilities.clear();
                 this.errorMessage = undefined;
@@ -150,13 +200,13 @@ export class TraceConfigurationModel {
      * state snapshot is posted.
      */
     private async loadFile(fileName: string): Promise<void> {
-        const nextFile = new CTraceYamlFile(fileName);
+        const nextFile = new CTraceYamlFile(fileName, new WorkspaceTextFileAdapter());
         const document = await nextFile.load(fileName);
-        this.disposeCurrentFileWatcher();
+        this.fileWatcher.disposeCurrentFileWatcher();
         this.ctraceFile = nextFile;
         document.assignCTraceRefs();
         await this.loadProcessorCapabilities();
-        this.watchCurrentFile();
+        this.fileWatcher.watchCurrentFile();
         this.dirty = false;
     }
 
@@ -185,7 +235,7 @@ export class TraceConfigurationModel {
             const document = await this.ctraceFile.load();
             document.assignCTraceRefs();
             await this.loadProcessorCapabilities();
-            this.watchCurrentFile();
+            this.fileWatcher.watchCurrentFile();
             this.dirty = false;
             this.errorMessage = undefined;
         } finally {
@@ -245,42 +295,14 @@ export class TraceConfigurationModel {
     }
 
     /**
-     * watchCurrentFile starts a file watcher for the selected ctrace.yml so
-     * hand edits made in VS Code or another editor automatically flow back into
-     * the webview. The callback is guarded by object identity so a delayed event
-     * from an older file cannot update the view after the user opens a different
-     * trace configuration.
+     * reportCurrentFileReloadError records and logs a ctrace.yml reload failure
+     * reported by the file watcher so the next state snapshot can show the
+     * problem in the webview.
      */
-    private watchCurrentFile(): void {
-        this.disposeCurrentFileWatcher();
-        const watchedFile = this.ctraceFile;
-        if (!watchedFile) {
-            return;
-        }
-        this.ctraceFileWatcher = watchedFile.watch(document => {
-            if (this.ctraceFile !== watchedFile) {
-                return;
-            }
-            void this.acceptDiskDocument(document);
-        }, error => {
-            if (this.ctraceFile !== watchedFile) {
-                return;
-            }
-            this.errorMessage = this.errorToString(error);
-            logger.error(`Trace Configuration: Failed to reload ctrace file after disk change: ${this.errorMessage}`);
-            this.notifyStateChanged();
-        });
-    }
-
-    /**
-     * disposeCurrentFileWatcher releases the active file watcher whenever the
-     * view closes or a different ctrace.yml is selected. Without this cleanup,
-     * stale watchers could continue responding to old files and make it look as
-     * though the webview, not the currently selected YAML file, owned the state.
-     */
-    private disposeCurrentFileWatcher(): void {
-        this.ctraceFileWatcher?.dispose();
-        this.ctraceFileWatcher = undefined;
+    private reportCurrentFileReloadError(error: unknown): void {
+        this.errorMessage = this.errorToString(error);
+        logger.error(`Trace Configuration: Failed to reload ctrace file after disk change: ${this.errorMessage}`);
+        this.notifyStateChanged();
     }
 
     /**
@@ -533,7 +555,7 @@ export class TraceConfigurationModel {
         await this.loadProcessorCapabilities();
         this.dirty = true;
         this.errorMessage = undefined;
-        this.disposeCurrentFileWatcher();
+        this.fileWatcher.disposeCurrentFileWatcher();
         this.notifyStateChanged();
     }
 
@@ -675,7 +697,7 @@ export class TraceConfigurationModel {
         }
         await file.save();
         await this.loadProcessorCapabilities();
-        this.watchCurrentFile();
+        this.fileWatcher.watchCurrentFile();
         this.dirty = false;
         this.errorMessage = undefined;
         this.notifyStateChanged();

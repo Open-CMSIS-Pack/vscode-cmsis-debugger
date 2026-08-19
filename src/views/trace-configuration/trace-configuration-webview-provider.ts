@@ -81,7 +81,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
         });
         webviewView.onDidDispose(() => {
             this.webviewView = undefined;
-            this.model.dispose();
+            this.model.disposeViewResources();
         });
         void this.model.loadInitialFile();
     }

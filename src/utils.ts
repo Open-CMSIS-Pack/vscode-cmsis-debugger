@@ -86,6 +86,55 @@ export const waitForMs = async (ms: number): Promise<void> => {
     return new Promise<void>(resolve => setTimeout(() => resolve(), ms));
 };
 
+export const waitForImmediate = async (): Promise<void> => {
+    return new Promise<void>(resolve => setImmediate(resolve));
+};
+
+export interface WaitForConditionOptions {
+    timeoutMs?: number;
+    intervalMs?: number;
+}
+
+export const waitForCondition = async (
+    description: string,
+    condition: () => boolean | Promise<boolean>,
+    options: WaitForConditionOptions = {}
+): Promise<void> => {
+    const timeoutAt = Date.now() + (options.timeoutMs ?? 2000);
+    const intervalMs = options.intervalMs ?? 10;
+
+    while (Date.now() < timeoutAt) {
+        if (await condition()) {
+            return;
+        }
+
+        await waitForMs(intervalMs);
+    }
+
+    throw new Error(`Timed out waiting for ${description}.`);
+};
+
+export const normalizeFsPath = (fileName: string | undefined): string | undefined => {
+    if (!fileName) {
+        return undefined;
+    }
+
+    const normalized = path.normalize(fileName);
+    return isWindows ? normalized.toLowerCase() : normalized;
+};
+
+export const containsSubstringsInOrder = (text: string, substrings: string[]): boolean => {
+    let previousIndex = -1;
+    return substrings.every(substring => {
+        const index = text.indexOf(substring, previousIndex + 1);
+        if (index <= previousIndex) {
+            return false;
+        }
+        previousIndex = index;
+        return true;
+    });
+};
+
 export class FileLocationManager {
     private readonly CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND = 'cmsis-csolution.getCbuildRunFile';
     /**

@@ -43,6 +43,7 @@ class FakeTraceConfigurationModel {
         this.onDidChange = callback;
     });
     public readonly dispose = jest.fn();
+    public readonly disposeViewResources = jest.fn();
     public readonly loadInitialFile = jest.fn().mockResolvedValue(undefined);
     public readonly refreshFile = jest.fn().mockResolvedValue(undefined);
     public readonly saveCurrentDocument = jest.fn().mockResolvedValue(undefined);
@@ -236,7 +237,7 @@ describe('TraceConfigurationWebviewProvider', () => {
         expect(model.reportError).toHaveBeenCalledWith(expectedError, 'Trace Configuration: Webview action failed');
     });
 
-    it('disposes the model and stops posting updates after the webview is disposed', () => {
+    it('disposes view resources and stops posting updates after the webview is disposed', () => {
         const model = new FakeTraceConfigurationModel();
         const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
         const { view, fake, disposeView } = createWebviewView();
@@ -245,7 +246,8 @@ describe('TraceConfigurationWebviewProvider', () => {
         disposeView();
         model.fireDidChange();
 
-        expect(model.dispose).toHaveBeenCalledTimes(1);
+        expect(model.disposeViewResources).toHaveBeenCalledTimes(1);
+        expect(model.dispose).not.toHaveBeenCalled();
         expect(fake.webview.postMessage).not.toHaveBeenCalled();
     });
 });

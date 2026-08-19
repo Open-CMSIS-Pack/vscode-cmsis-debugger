@@ -35,6 +35,13 @@ const ConfigurationTarget = {
     Workspace: 2,
 };
 
+const FileType = {
+    Unknown: 0,
+    File: 1,
+    Directory: 2,
+    SymbolicLink: 64,
+};
+
 const MockTreeItemCollapsibleState = { 
     None: 0, 
     Collapsed: 1, 
@@ -52,6 +59,35 @@ class MockTreeItem {
     }
 }
 
+class MockRelativePattern {
+    base;
+    pattern;
+    constructor(base, pattern) {
+        this.base = base;
+        this.pattern = pattern;
+    }
+}
+
+function createMockFileSystemWatcher() {
+    const handlers = { create: [], change: [], delete: [] };
+    return {
+        onDidCreate: jest.fn(callback => {
+            handlers.create.push(callback);
+            return { dispose: jest.fn() };
+        }),
+        onDidChange: jest.fn(callback => {
+            handlers.change.push(callback);
+            return { dispose: jest.fn() };
+        }),
+        onDidDelete: jest.fn(callback => {
+            handlers.delete.push(callback);
+            return { dispose: jest.fn() };
+        }),
+        dispose: jest.fn(),
+        _handlers: handlers,
+    };
+}
+
 module.exports = {
     EventEmitter: jest.fn(() => {
         const callbacks = [];
@@ -65,6 +101,7 @@ module.exports = {
         };
     }),
     Uri: URI,
+    RelativePattern: MockRelativePattern,
     TreeItem: MockTreeItem,
     TreeItemCollapsibleState: MockTreeItemCollapsibleState,
     window: {
@@ -132,9 +169,33 @@ module.exports = {
             readFile: jest.fn(uri => {
                 const buffer = fs.readFileSync(uri.fsPath);
                 return new Promise(resolve => resolve(new Uint8Array(buffer)));
-            })
+            }),
+            writeFile: jest.fn((uri, contents) => {
+                fs.mkdirSync(path.dirname(uri.fsPath), { recursive: true });
+                fs.writeFileSync(uri.fsPath, Buffer.from(contents));
+                return Promise.resolve();
+            }),
+            createDirectory: jest.fn(uri => {
+                fs.mkdirSync(uri.fsPath, { recursive: true });
+                return Promise.resolve();
+            }),
+            stat: jest.fn(uri => new Promise((resolve, reject) => {
+                fs.stat(uri.fsPath, (error, stats) => {
+                    if (error) {
+                        reject(error);
+                        return;
+                    }
+                    resolve({
+                        type: stats.isDirectory() ? FileType.Directory : FileType.File,
+                        ctime: stats.ctimeMs,
+                        mtime: stats.mtimeMs,
+                        size: stats.size,
+                    });
+                });
+            }))
         },
         findFiles: jest.fn(() => Promise.resolve([])),
+        createFileSystemWatcher: jest.fn(() => createMockFileSystemWatcher()),
         workspaceFolders: [
             {
                 uri: URI.file(path.join(__dirname, '..')),
@@ -176,4 +237,5 @@ module.exports = {
     EnvironmentVariableMutatorType,
     StatusBarAlignment,
     ConfigurationTarget,
+    FileType,
 };
