@@ -19,10 +19,7 @@ import { spawn } from 'child_process';
 import { childProcessFactory, MockChildProcess } from '../../__test__/child-process.factory';
 import { ProcessManager } from './process-manager';
 
-jest.mock('child_process', () => ({
-    ...jest.requireActual<typeof import('child_process')>('child_process'),
-    spawn: jest.fn()
-}));
+jest.mock('child_process');
 
 describe('ProcessManager', () => {
     const mockSpawn = jest.mocked(spawn);
