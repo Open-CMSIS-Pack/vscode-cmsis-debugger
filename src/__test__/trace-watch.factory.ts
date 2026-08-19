@@ -16,13 +16,15 @@
 // generated with AI
 
 import * as vscode from 'vscode';
-import { FileWatchManager } from '../desktop/filesystem/file-watch-manager';
+import { FileWatchManager, FileWatchRegistrationOptions } from '../desktop/filesystem/file-watch-manager';
 import { ENABLE_TRACE_GENERATION_VIEW_SETTING } from '../manifest';
 
 export interface TraceWatchFixture {
     readonly fileWatchManager: FileWatchManager;
     readonly addWatch: jest.Mock;
     readonly removeWatch: jest.Mock;
+    getLatestWatch(): FileWatchRegistrationOptions | undefined;
+    fireUnrelatedConfigurationChange(): void;
     setTraceEnabled(enabled: boolean): void;
     fireTraceConfigurationChange(): void;
 }
@@ -30,21 +32,24 @@ export interface TraceWatchFixture {
 export function traceWatchFactory(): TraceWatchFixture {
     let traceEnabled = false;
     let configurationChangeHandler: ((event: vscode.ConfigurationChangeEvent) => void) | undefined;
+    let latestWatch: FileWatchRegistrationOptions | undefined;
     const configuration = {
         get: jest.fn(() => traceEnabled),
     } as unknown as vscode.WorkspaceConfiguration;
-    const addWatch = jest.fn();
+    const addWatch = jest.fn((options: FileWatchRegistrationOptions) => {
+        latestWatch = options;
+    });
     const removeWatch = jest.fn();
     const fileWatchManager = { addWatch, removeWatch } as unknown as FileWatchManager;
     const traceConfigurationChange = {
         affectsConfiguration: (setting: string) => setting === ENABLE_TRACE_GENERATION_VIEW_SETTING,
     } as vscode.ConfigurationChangeEvent;
+    const unrelatedConfigurationChange = {
+        affectsConfiguration: () => false,
+    } as vscode.ConfigurationChangeEvent;
 
-    (vscode.workspace.getConfiguration as jest.Mock)
-        .mockReturnValueOnce(configuration)
-        .mockReturnValueOnce(configuration)
-        .mockReturnValueOnce(configuration);
-    (vscode.workspace.onDidChangeConfiguration as jest.Mock).mockImplementationOnce((handler: (event: vscode.ConfigurationChangeEvent) => void) => {
+    jest.mocked(vscode.workspace.getConfiguration).mockImplementation(() => configuration);
+    jest.mocked(vscode.workspace.onDidChangeConfiguration).mockImplementation((handler: (event: vscode.ConfigurationChangeEvent) => void) => {
         configurationChangeHandler = handler;
         return { dispose: jest.fn() };
     });
@@ -53,6 +58,8 @@ export function traceWatchFactory(): TraceWatchFixture {
         fileWatchManager,
         addWatch,
         removeWatch,
+        getLatestWatch: () => latestWatch,
+        fireUnrelatedConfigurationChange: () => configurationChangeHandler?.(unrelatedConfigurationChange),
         setTraceEnabled: enabled => {
             traceEnabled = enabled;
         },

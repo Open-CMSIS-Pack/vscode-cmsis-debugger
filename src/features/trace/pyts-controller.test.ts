@@ -18,7 +18,7 @@
 import * as vscode from 'vscode';
 import { debugSessionFactory, extensionContextFactory } from '../../__test__/vscode.factory';
 import { traceWatchFactory } from '../../__test__/trace-watch.factory';
-import { GDBTargetDebugTracker } from '../../debug-session';
+import { debugTrackerFactory } from '../../debug-session/__test__/debug-session.factory';
 import { PyTsProcessManager } from '../../desktop/process/pyts-process-manager';
 import { PyTsController } from './pyts-controller';
 
@@ -71,9 +71,7 @@ describe('PyTsController', () => {
     });
 
     it('adds and removes its ctrace configuration watch when the trace setting changes', () => {
-        const tracker = {
-            onDidChangeActiveDebugSession: jest.fn(() => ({ dispose: jest.fn() })),
-        } as unknown as GDBTargetDebugTracker;
+        const tracker = debugTrackerFactory();
         const controller = new PyTsController();
         const traceWatch = traceWatchFactory();
 
