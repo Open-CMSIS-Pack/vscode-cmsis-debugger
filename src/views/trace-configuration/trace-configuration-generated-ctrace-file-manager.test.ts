@@ -24,7 +24,7 @@ import * as vscode from 'vscode';
 import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
 import { containsSubstringsInOrder, normalizeFsPath } from '../../utils';
 import { TraceConfigurationGeneratedCTraceFileManager } from './trace-configuration-generated-ctrace-file-manager';
-import * as TraceConfigurationTypes from './trace-configuration-types';
+import { ENABLE_TRACE_GENERATION_VIEW_SETTING } from '../../manifest';
 
 interface MutableWorkspace {
     workspaceFolders: vscode.WorkspaceFolder[] | undefined;
@@ -116,7 +116,7 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         const generatedText = await readTemporaryTextFile(expectedTraceFile);
         expectSameFsPath(generatedTraceFile?.fsPath, expectedTraceFile);
         expect(updateConfiguration).toHaveBeenCalledWith(
-            TraceConfigurationTypes.TRACE_GENERATION_VIEW_ENABLED_CONFIG,
+            ENABLE_TRACE_GENERATION_VIEW_SETTING,
             true,
             vscode.ConfigurationTarget.Workspace
         );
@@ -189,7 +189,7 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
 
         expect(generatedTraceFile).toBeUndefined();
         expect(updateConfiguration).toHaveBeenCalledWith(
-            TraceConfigurationTypes.TRACE_GENERATION_VIEW_ENABLED_CONFIG,
+            ENABLE_TRACE_GENERATION_VIEW_SETTING,
             false,
             vscode.ConfigurationTarget.Workspace
         );

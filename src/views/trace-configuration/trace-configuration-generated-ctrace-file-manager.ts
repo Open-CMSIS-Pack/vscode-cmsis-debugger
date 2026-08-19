@@ -25,6 +25,7 @@ import { logger } from '../../logger';
 import { CTraceProcessorTraceSetup, CTraceYamlDocument } from './ctrace-yaml';
 import { GeneratedCBuildRunFileChangeEvent } from './trace-configuration-file-watcher';
 import * as TraceConfigurationTypes from './trace-configuration-types';
+import { ENABLE_TRACE_GENERATION_VIEW_SETTING } from '../../manifest';
 
 interface GeneratedTraceProcessor {
     core: string;
@@ -359,6 +360,6 @@ export class TraceConfigurationGeneratedCTraceFileManager {
     private async setTraceGenerationWebviewEnabled(enabled: boolean): Promise<void> {
         await vscode.workspace
             .getConfiguration()
-            .update(TraceConfigurationTypes.TRACE_GENERATION_VIEW_ENABLED_CONFIG, enabled, vscode.ConfigurationTarget.Workspace);
+            .update(ENABLE_TRACE_GENERATION_VIEW_SETTING, enabled, vscode.ConfigurationTarget.Workspace);
     }
 }

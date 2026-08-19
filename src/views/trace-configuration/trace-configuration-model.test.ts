@@ -28,6 +28,7 @@ import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import { TraceConfigurationModel } from './trace-configuration-model';
 import { TraceConfigurationProcessorCapabilities } from './trace-configuration-processor-capabilities';
 import * as TraceConfigurationTypes from './trace-configuration-types';
+import { ENABLE_TRACE_GENERATION_VIEW_SETTING } from '../../manifest';
 
 interface TraceConfigurationModelPrivate {
     ctraceFile: CTraceYamlFile | undefined;
@@ -267,12 +268,12 @@ describe('TraceConfigurationModel', () => {
         const generatedTraceFile = path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yaml');
         const generatedText = await waitForTemporaryTextFile(generatedTraceFile);
         await waitForCondition('trace generation view to be enabled', () => updateConfiguration.mock.calls.some(call =>
-            call[0] === TraceConfigurationTypes.TRACE_GENERATION_VIEW_ENABLED_CONFIG
+            call[0] === ENABLE_TRACE_GENERATION_VIEW_SETTING
             && call[1] === true
             && call[2] === vscode.ConfigurationTarget.Workspace
         ));
         expect(updateConfiguration).toHaveBeenCalledWith(
-            TraceConfigurationTypes.TRACE_GENERATION_VIEW_ENABLED_CONFIG,
+            ENABLE_TRACE_GENERATION_VIEW_SETTING,
             true,
             vscode.ConfigurationTarget.Workspace
         );
@@ -375,12 +376,12 @@ describe('TraceConfigurationModel', () => {
 
         const generatedText = await waitForTemporaryTextFile(generatedTraceFile, contents => contents.includes('pname: core1'));
         await waitForCondition('trace generation view to be enabled', () => updateConfiguration.mock.calls.some(call =>
-            call[0] === TraceConfigurationTypes.TRACE_GENERATION_VIEW_ENABLED_CONFIG
+            call[0] === ENABLE_TRACE_GENERATION_VIEW_SETTING
             && call[1] === true
             && call[2] === vscode.ConfigurationTarget.Workspace
         ));
         expect(updateConfiguration).toHaveBeenCalledWith(
-            TraceConfigurationTypes.TRACE_GENERATION_VIEW_ENABLED_CONFIG,
+            ENABLE_TRACE_GENERATION_VIEW_SETTING,
             true,
             vscode.ConfigurationTarget.Workspace
         );
@@ -415,13 +416,13 @@ describe('TraceConfigurationModel', () => {
         fireWatcherHandler(watcher, 'delete', cbuildRunFile);
 
         await waitForCondition('trace generation view to be disabled', () => updateConfiguration.mock.calls.some(call =>
-            call[0] === TraceConfigurationTypes.TRACE_GENERATION_VIEW_ENABLED_CONFIG
+            call[0] === ENABLE_TRACE_GENERATION_VIEW_SETTING
             && call[1] === false
             && call[2] === vscode.ConfigurationTarget.Workspace
         ));
         await expect(readTemporaryTextFile(generatedTraceFile)).resolves.toBe(originalText);
         expect(updateConfiguration).toHaveBeenCalledWith(
-            TraceConfigurationTypes.TRACE_GENERATION_VIEW_ENABLED_CONFIG,
+            ENABLE_TRACE_GENERATION_VIEW_SETTING,
             false,
             vscode.ConfigurationTarget.Workspace
         );
