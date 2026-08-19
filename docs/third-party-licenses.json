@@ -14,6 +14,13 @@
         "license": "https://developer.arm.com/GetEula?Id=a162e8bb-8565-45a5-bdf6-7249bf3afe43"
     },
     {
+        "name": "ctrace",
+        "version": "0.1.0",
+        "spdx": "Apache-2.0",
+        "url": "https://github.com/Open-CMSIS-Pack/devtools/tree/main/tools/ctrace",
+        "license": "https://github.com/Open-CMSIS-Pack/devtools/blob/main/LICENSE"
+    },
+    {
         "name": "jsonc-parser",
         "version": "3.3.1",
         "spdx": "MIT",
@@ -33,6 +40,13 @@
         "spdx": "Apache-2.0",
         "url": "https://github.com/pyocd/pyOCD",
         "license": "https://github.com/pyocd/pyOCD/blob/v0.45.1/LICENSE"
+    },
+    {
+        "name": "pyTS",
+        "version": "0.3.0",
+        "spdx": "Apache-2.0",
+        "url": "https://github.com/Open-CMSIS-Pack/pyTS/releases",
+        "license": "https://github.com/Open-CMSIS-Pack/pyTS/blob/main/LICENSE"
     },
     {
         "name": "react",

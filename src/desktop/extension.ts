@@ -39,7 +39,7 @@ const BUILTIN_TOOLS_PATHS = [
     'tools/gdb/bin/arm-none-eabi-gdb',
     // TODO: TEMPORARY, these tools will be shipped separately in future
     'tools/ctrace/ctrace',
-    'tools/pyts/pyts'
+    'tools/pyts/pyTS'
 ];
 
 let liveWatchTreeDataProvider: LiveWatchTreeDataProvider;

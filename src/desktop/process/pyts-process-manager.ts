@@ -24,7 +24,7 @@ import {
     ProcessManagerOptions
 } from './process-manager';
 
-export const DEFAULT_PYTS_PATH = 'tools/pyts/pyts';
+export const DEFAULT_PYTS_PATH = 'tools/pyts/pyTS';
 const CSOLUTION_GET_CBUILD_RUN_FILE_COMMAND = 'cmsis-csolution.getCbuildRunFile';
 
 export interface PyTsProcessManagerOptions {

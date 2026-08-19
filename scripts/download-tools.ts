@@ -30,7 +30,10 @@ type CmsisPackageJson = PackageJson & {
     cmsis: {
         pyocd?: string;
         pyocdNightly?: string;
+        pyocdTrace?: string;
         gdb?: string;
+        pyts?: string;
+        ctrace?: string;
     };                                                                                                                                                                                                                                                                                
 };
 
@@ -102,6 +105,74 @@ const pyocdNightly : Downloadable = new Downloadable(
     },
 )
 
+class BranchGitHubWorkflowAsset extends GitHubWorkflowAsset {
+    private branchWorkflowRunPromise: Promise<Awaited<ReturnType<typeof this.findLatestWorkflowRun>>> | undefined;
+
+    public constructor(
+        owner: string,
+        repo: string,
+        workflow: string,
+        artifactName: string | RegExp,
+        private readonly branch: string,
+        token?: string
+    ) {
+        super(owner, repo, workflow, artifactName, { token });
+    }
+
+    protected override get lastWorkflowRun() {
+        this.branchWorkflowRunPromise ??= this.findLatestWorkflowRun();
+        return this.branchWorkflowRunPromise;
+    }
+
+    private async findLatestWorkflowRun() {
+        const octokit = await this.getOctokit();
+        const response = await octokit.rest.actions.listWorkflowRuns({
+            owner: this.owner,
+            repo: this.repo,
+            workflow_id: this.workflow,
+            branch: this.branch,
+            per_page: 100,
+            status: 'success'
+        });
+        for (const run of response.data.workflow_runs) {
+            const artifacts = await octokit.rest.actions.listWorkflowRunArtifacts({
+                owner: this.owner,
+                repo: this.repo,
+                run_id: run.id,
+            });
+            if (artifacts.data.artifacts.some(artifact => !artifact.expired && artifact.name.match(this.artifactName))) {
+                return run;
+            }
+        }
+        throw new Error(`No successful ${this.workflow} run on branch ${this.branch} has a non-expired ${this.artifactName} artifact.`);
+    }
+}
+
+const pyocdTrace : Downloadable = new Downloadable(
+    'pyOCD Trace', 'pyocd',
+    async (target) => {
+        const { os, arch } = {
+            'win32-x64': { os: 'windows', arch: '' },
+            'win32-arm64': { os: 'windows', arch: '' },
+            'linux-x64': { os: 'linux', arch: '' },
+            'linux-arm64': { os: 'linux', arch: '-arm64' },
+            'darwin-x64': { os: 'macos', arch: '' },
+            'darwin-arm64': { os: 'macos', arch: '' },
+        }[target];
+        const json = await downloader.getPackageJson<CmsisPackageJson>();
+        const branch = json?.cmsis?.pyocdTrace;
+        if (branch === undefined) {
+            console.warn('No pyOCD Trace branch specified in package.json (<repo>@<branch>)');
+            return undefined;
+        }
+        const { repo, owner, reference } = splitGitReference(branch, 'pyocd', 'pyOCD');
+        const assetPattern = `pyocd-${os}${arch}-\\d+\\.\\d+\\.\\d+.*`;
+        return new BranchGitHubWorkflowAsset(
+            owner, repo, 'release_builds.yaml', assetPattern, reference, process.env.GITHUB_TOKEN
+        );
+    },
+);
+
 class GDBArchiveFileAsset extends ArchiveFileAsset {
     protected async extractArchive(archiveFile: string, dest?: string, options: { strip?: number; force?: boolean } = {}): Promise<string> {
         if (!archiveFile.toLowerCase().endsWith('.tar.xz')) {
@@ -156,12 +227,84 @@ const gdb : Downloadable = new Downloadable(
     },
 );
 
+const pyts : Downloadable = new Downloadable(
+    'pyTS', 'pyts',
+    async (target) => {
+        const { os, arch, ext } = {
+            'win32-x64': { os: 'windows', arch: 'amd64', ext: 'zip' },
+            'win32-arm64': { os: 'windows', arch: 'arm64', ext: 'zip' },
+            'linux-x64': { os: 'linux', arch: 'amd64', ext: 'tar.gz' },
+            'linux-arm64': { os: 'linux', arch: 'arm64', ext: 'tar.gz' },
+            'darwin-x64': { os: 'darwin', arch: 'amd64', ext: 'tar.gz' },
+            'darwin-arm64': { os: 'darwin', arch: 'arm64', ext: 'tar.gz' },
+        }[target];
+        const json = await downloader.getPackageJson<CmsisPackageJson>();
+        const reqVersion = json?.cmsis?.pyts;
+        if (reqVersion === undefined) {
+            console.warn('No pyTS version specified in package.json');
+            return undefined;
+        }
+        const { repo, owner, reference } = splitGitReference(reqVersion, 'Open-CMSIS-Pack', 'pyTS');
+        const releaseAsset = new GitHubReleaseAsset(
+            owner, repo, reference,
+            `pyTS-${reference}-${os}-${arch}.${ext}`,
+            { token: process.env.GITHUB_TOKEN });
+        return new ArchiveFileAsset(releaseAsset);
+    },
+);
+
+class CTraceArchiveFileAsset extends ArchiveFileAsset {
+    public constructor(subject: GitHubReleaseAsset, private readonly executablePath: string) {
+        super(subject);
+    }
+
+    public async copyTo(dest?: string): Promise<string> {
+        dest = await super.copyTo(dest);
+        await fs.rename(path.join(dest, this.executablePath), path.join(dest, path.basename(this.executablePath)));
+        await fs.rm(path.join(dest, 'bin'), { recursive: true, force: true });
+        return dest;
+    }
+}
+
+const ctrace : Downloadable = new Downloadable(
+    'ctrace', 'ctrace',
+    async (target) => {
+        const platform = {
+            'win32-x64': { directory: 'windows-amd64', ext: '.exe' },
+            'win32-arm64': { directory: 'windows-arm64', ext: '.exe' },
+            'linux-x64': { directory: 'linux-amd64', ext: '' },
+            'linux-arm64': { directory: 'linux-arm64', ext: '' },
+            'darwin-x64': undefined,
+            'darwin-arm64': { directory: 'darwin-arm64', ext: '' },
+        }[target];
+        if (platform === undefined) {
+            console.warn(`No ctrace release binary is available for target ${target}`);
+            return undefined;
+        }
+        const json = await downloader.getPackageJson<CmsisPackageJson>();
+        const reqVersion = json?.cmsis?.ctrace;
+        if (reqVersion === undefined) {
+            console.warn('No ctrace version specified in package.json');
+            return undefined;
+        }
+        const { repo, owner, reference } = splitGitReference(reqVersion, 'Open-CMSIS-Pack', 'devtools');
+        const releaseAsset = new GitHubReleaseAsset(
+            owner, repo, `tools/ctrace/${reference}`,
+            'ctrace.zip',
+            { token: process.env.GITHUB_TOKEN });
+        return new CTraceArchiveFileAsset(releaseAsset, path.join('bin', platform.directory, `ctrace${platform.ext}`));
+    },
+);
+
 // If no arguments are provided to the downloader script, all assets are downloaded
 // in the order they are listed. In that case, 'pyocd' will overwrite 'pyocdNightly'.
 const downloader = new Downloader({
+    pyocdTrace,
     pyocdNightly,
     pyocd,
-    gdb
+    gdb,
+    pyts,
+    ctrace,
 });
 
 downloader
