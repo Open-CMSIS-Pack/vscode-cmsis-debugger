@@ -137,7 +137,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             canSelectFolders: false,
             canSelectMany: false,
             filters: {
-                'CMSIS Trace YAML': ['yml']
+                'CMSIS Trace YAML': ['yml', 'yaml']
             },
             title: 'Open CMSIS Trace Configuration'
         });
