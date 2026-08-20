@@ -133,10 +133,9 @@ export class TraceConfigurationModel {
     }
 
     /**
-     * loadInitialFile finds the best ctrace.yml candidate and loads it as soon
-     * as the webview appears. The active editor is preferred because it is the
-     * clearest user intent; otherwise the workspace is searched for trace YAML
-     * files and the first result is used.
+     * loadInitialFile finds the first .cmsis/*.ctrace.yml candidate and loads it
+     * as soon as the webview appears. When no generated or existing ctrace file
+     * is available, the manually enabled view remains open with an empty state.
      */
     public async loadInitialFile(): Promise<void> {
         this.fileWatcher.watchGeneratedCBuildRunFiles();
@@ -163,32 +162,24 @@ export class TraceConfigurationModel {
     }
 
     /**
-     * findInitialCTraceFile applies the discovery policy used by
-     * loadInitialFile. It deliberately avoids prompting because resolve happens
-     * during view creation; prompts are reserved for the explicit Open button in
-     * the webview.
+     * findInitialCTraceFile searches workspace .cmsis folders for supported
+     * *.ctrace.yml files. It deliberately ignores the active editor so unrelated
+     * trace files outside the generated configuration folder are not selected.
      */
     private async findInitialCTraceFile(): Promise<vscode.Uri | undefined> {
-        const activeFile = vscode.window.activeTextEditor?.document.uri;
-        if (activeFile && TraceConfigurationModel.isCTraceFileName(activeFile.fsPath)) {
-            return activeFile;
-        }
         const files = await vscode.workspace.findFiles(TraceConfigurationTypes.CTRACE_FILE_GLOB, '**/{node_modules,dist,coverage}/**', 10);
-        return files.find(file => TraceConfigurationModel.isCTraceFileName(file.fsPath));
+        return files.at(0);
     }
 
     /**
-     * isCTraceFileName centralizes filename recognition so active-editor,
-     * workspace-search, and open-dialog paths all use the same rule. The rule is
-     * intentionally broad enough to accept ctrace.yml, ctrace.yaml, and
-     * target-specific names such as board.ctrace.yml.
+     * isCTraceFileName centralizes explicit-open filename validation so only
+     * target-specific files that follow the supported *.ctrace.yml format are
+     * accepted.
      */
     public static isCTraceFileName(fileName: string): boolean {
         const baseName = path.basename(fileName).toLowerCase();
-        return baseName === 'ctrace.yml'
-            || baseName === 'ctrace.yaml'
-            || baseName.endsWith('.ctrace.yml')
-            || baseName.endsWith('.ctrace.yaml');
+        return baseName.endsWith('.ctrace.yml')
+        || baseName.endsWith('.ctrace.yaml');
     }
 
     /**
@@ -311,7 +302,7 @@ export class TraceConfigurationModel {
      */
     public async openFile(fileName: string): Promise<void> {
         if (!TraceConfigurationModel.isCTraceFileName(fileName)) {
-            throw new Error('Please select ctrace.yml, ctrace.yaml, or a *.ctrace.yml file.');
+            throw new Error('Please select a *.ctrace.yml, or *.ctrace.yaml file.');
         }
         this.loading = true;
         this.notifyStateChanged();

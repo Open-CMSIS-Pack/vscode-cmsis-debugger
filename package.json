@@ -879,7 +879,7 @@
           "vscode-cmsis-debugger.enableTraceGenerationView": {
             "type": "boolean",
             "default": false,
-            "description": "Enable Trace Generation View in the Debug Panel."
+            "description": "Show the Trace Generation view and load trace configuration from .cmsis/*.ctrace.yml when available."
           }
         }
       }

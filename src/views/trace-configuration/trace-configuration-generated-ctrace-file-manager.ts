@@ -40,21 +40,18 @@ export class TraceConfigurationGeneratedCTraceFileManager {
     private readonly encoder = new TextEncoder();
 
     /**
-     * processGeneratedCBuildRunFileChange updates generated trace files and the
-     * trace generation setting for a generated cbuild-run watcher event, then
-     * returns the ctrace file that the model should load.
+     * processGeneratedCBuildRunFileChange updates generated trace files for
+     * created and changed cbuild-run events, then returns the ctrace file that
+     * the model should load. Deletion leaves the user-controlled view setting
+     * and any existing ctrace file untouched.
      */
     public async processGeneratedCBuildRunFileChange(event: GeneratedCBuildRunFileChangeEvent): Promise<vscode.Uri | undefined> {
         logger.debug(`Trace Configuration: Generated cbuild-run file ${event.type}: ${event.uri.fsPath}`);
         switch (event.type) {
             case 'created':
-            case 'changed': {
-                const traceFileUri = await this.createOrUpdateGeneratedCTraceFile(event.uri);
-                await this.setTraceGenerationWebviewEnabled(true);
-                return traceFileUri;
-            }
+            case 'changed':
+                return this.createOrUpdateGeneratedCTraceFile(event.uri);
             case 'deleted':
-                await this.setTraceGenerationWebviewEnabled(false);
                 return undefined;
         }
     }
@@ -68,7 +65,7 @@ export class TraceConfigurationGeneratedCTraceFileManager {
         const workspaceFolder = this.getGeneratedCBuildRunWorkspaceFolder(cbuildRunFileUri);
         const projectName = this.getProjectNameFromGeneratedCBuildRunFile(cbuildRunFileUri);
         const processors = await this.readGeneratedCBuildRunProcessors(cbuildRunFileUri);
-        const traceFileUri = await this.resolveGeneratedCTraceFileUri(workspaceFolder.uri, projectName);
+        const traceFileUri = this.resolveGeneratedCTraceFileUri(workspaceFolder.uri, projectName);
         const traceFileExists = await this.fileExists(traceFileUri);
         const document = traceFileExists
             ? await this.readCTraceDocument(traceFileUri)
@@ -146,23 +143,12 @@ export class TraceConfigurationGeneratedCTraceFileManager {
     }
 
     /**
-     * resolveGeneratedCTraceFileUri chooses the generated ctrace file path,
-     * preferring an existing .yaml or .yml file before falling back to .yaml.
+     * resolveGeneratedCTraceFileUri returns the .cmsis ctrace path associated
+     * with a generated project using the supported *.ctrace.yml file format.
      */
-    private async resolveGeneratedCTraceFileUri(workspaceFolderUri: vscode.Uri, projectName: string): Promise<vscode.Uri> {
+    private resolveGeneratedCTraceFileUri(workspaceFolderUri: vscode.Uri, projectName: string): vscode.Uri {
         const cmsisDirectory = vscode.Uri.file(path.join(workspaceFolderUri.fsPath, '.cmsis'));
-        const yamlFile = vscode.Uri.file(path.join(cmsisDirectory.fsPath, `${projectName}.ctrace.yaml`));
-        const ymlFile = vscode.Uri.file(path.join(cmsisDirectory.fsPath, `${projectName}.ctrace.yml`));
-
-        if (await this.fileExists(yamlFile)) {
-            return yamlFile;
-        }
-
-        if (await this.fileExists(ymlFile)) {
-            return ymlFile;
-        }
-
-        return yamlFile;
+        return vscode.Uri.file(path.join(cmsisDirectory.fsPath, `${projectName}.ctrace.yml`));
     }
 
     /**
@@ -350,15 +336,5 @@ export class TraceConfigurationGeneratedCTraceFileManager {
         }
 
         return setup;
-    }
-
-    /**
-     * setTraceGenerationWebviewEnabled persists whether the trace generation
-     * webview should be enabled for the current workspace.
-     */
-    private async setTraceGenerationWebviewEnabled(enabled: boolean): Promise<void> {
-        await vscode.workspace
-            .getConfiguration()
-            .update(TraceConfigurationTypes.TRACE_GENERATION_VIEW_ENABLED_CONFIG, enabled, vscode.ConfigurationTarget.Workspace);
     }
 }
