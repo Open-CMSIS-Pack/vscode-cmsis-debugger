@@ -23,6 +23,7 @@ import * as vscode from 'vscode';
 
 import { MemoryTextFileAdapter } from '../../__test__/memory-text-file-adapter';
 import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
+import { CBUILD_INDEX_FILE_GLOB, CTRACE_FILE_GLOB } from '../../manifest';
 import { containsSubstringsInOrder, normalizeFsPath, waitForCondition, waitForImmediate } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import { TraceConfigurationModel } from './trace-configuration-model';
@@ -227,7 +228,7 @@ describe('TraceConfigurationModel', () => {
 
         expect(vscode.workspace.createFileSystemWatcher).toHaveBeenCalledTimes(1);
         const pattern = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls[0]?.[0] as { pattern: string };
-        expect(pattern.pattern).toBe(TraceConfigurationTypes.CBUILD_INDEX_FILE_GLOB);
+        expect(pattern.pattern).toBe(CBUILD_INDEX_FILE_GLOB);
 
         model.dispose();
         expect(getLastCreatedFileSystemWatcher().dispose).toHaveBeenCalledTimes(1);
@@ -876,7 +877,7 @@ describe('TraceConfigurationModel', () => {
 
         await model.loadInitialFile();
 
-        expect(vscode.workspace.findFiles).toHaveBeenCalledWith(TraceConfigurationTypes.CTRACE_FILE_GLOB, '**/{node_modules,dist,coverage}/**', 10);
+        expect(vscode.workspace.findFiles).toHaveBeenCalledWith(CTRACE_FILE_GLOB, '**/{node_modules,dist,coverage}/**', 10);
         expect(model.createState().emptyMessage).toBe('Open a ctrace.yml file to edit trace configuration.');
     });
 

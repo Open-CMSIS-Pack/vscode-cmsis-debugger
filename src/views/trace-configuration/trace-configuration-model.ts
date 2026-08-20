@@ -21,6 +21,7 @@ import * as vscode from 'vscode';
 
 import { isYamlMapItem, isYamlScalarItem, isYamlSequenceItem, YamlTreeItem, yamlScalarToString } from '../../desktop/yaml-dom';
 import { logger } from '../../logger';
+import { CTRACE_FILE_GLOB } from '../../manifest';
 import { CTraceYamlFile } from './ctrace-yaml';
 import {
     GeneratedCBuildRunFileChangeEvent,
@@ -33,7 +34,6 @@ import {
 } from './trace-configuration-protocol';
 import { TraceConfigurationProcessorCapabilities } from './trace-configuration-processor-capabilities';
 import { TraceConfigurationRowBuilder } from './trace-configuration-row-builder';
-import * as TraceConfigurationTypes from './trace-configuration-types';
 import { WorkspaceTextFileAdapter } from './workspace-text-file-adapter';
 
 /**
@@ -167,7 +167,7 @@ export class TraceConfigurationModel {
      * trace files outside the generated configuration folder are not selected.
      */
     private async findInitialCTraceFile(): Promise<vscode.Uri | undefined> {
-        const files = await vscode.workspace.findFiles(TraceConfigurationTypes.CTRACE_FILE_GLOB, '**/{node_modules,dist,coverage}/**', 10);
+        const files = await vscode.workspace.findFiles(CTRACE_FILE_GLOB, '**/{node_modules,dist,coverage}/**', 10);
         return files.at(0);
     }
 
@@ -178,8 +178,7 @@ export class TraceConfigurationModel {
      */
     public static isCTraceFileName(fileName: string): boolean {
         const baseName = path.basename(fileName).toLowerCase();
-        return baseName.endsWith('.ctrace.yml')
-        || baseName.endsWith('.ctrace.yaml');
+        return baseName.endsWith('.ctrace.yml');
     }
 
     /**
@@ -302,7 +301,7 @@ export class TraceConfigurationModel {
      */
     public async openFile(fileName: string): Promise<void> {
         if (!TraceConfigurationModel.isCTraceFileName(fileName)) {
-            throw new Error('Please select a *.ctrace.yml, or *.ctrace.yaml file.');
+            throw new Error('Please select a *.ctrace.yml file.');
         }
         this.loading = true;
         this.notifyStateChanged();

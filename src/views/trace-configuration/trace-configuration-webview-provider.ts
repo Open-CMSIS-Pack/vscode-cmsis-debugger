@@ -16,12 +16,13 @@
 // generated with AI
 
 import * as vscode from 'vscode';
+
+import { TRACE_CONFIGURATION_VIEW_ID } from '../../manifest';
 import {
     TraceHostToWebviewMessage,
     TraceWebviewToHostMessage
 } from './trace-configuration-protocol';
 import { TraceConfigurationModel } from './trace-configuration-model';
-import { VIEW_ID } from './trace-configuration-types';
 
 /**
  * The TraceConfigurationWebviewProvider owns the VS Code sidebar webview shell
@@ -54,7 +55,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
      */
     public activate(context: vscode.ExtensionContext): void {
         context.subscriptions.push(
-            vscode.window.registerWebviewViewProvider(VIEW_ID, this),
+            vscode.window.registerWebviewViewProvider(TRACE_CONFIGURATION_VIEW_ID, this),
             { dispose: () => this.model.dispose() }
         );
     }
@@ -136,7 +137,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             canSelectFolders: false,
             canSelectMany: false,
             filters: {
-                'CMSIS Trace YAML': ['yml', 'yaml']
+                'CMSIS Trace YAML': ['yml']
             },
             title: 'Open CMSIS Trace Configuration'
         });

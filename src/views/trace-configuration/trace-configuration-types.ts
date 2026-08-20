@@ -17,9 +17,6 @@
 
 import { TraceConfigurationRow } from './trace-configuration-protocol';
 
-export const VIEW_ID = 'cmsis-debugger.traceConfiguration';
-export const CTRACE_FILE_GLOB = '.cmsis/*.ctrace.yml';
-export const CBUILD_INDEX_FILE_GLOB = '*.cbuild-idx.yml';
 export const EVENT_COUNTER_OPTIONS = ['CYCCNT', 'CPICNT', 'EXCCNT', 'SLEEPCNT', 'LSUCNT', 'FOLDCNT', 'PMU'];
 export const ITM_CHANNEL_OPTIONS = Array.from({ length: 32 }, (_value, index) => String(index));
 export const PRIVILEGED_RANGE_OPTIONS = ['0-7', '8-15', '16-23', '24-31'];

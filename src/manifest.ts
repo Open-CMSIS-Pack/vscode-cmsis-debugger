@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,3 +21,6 @@ export const DISPLAY_NAME = 'Arm CMSIS Debugger';
 export const VIEW_PREFIX = 'cmsis-debugger';
 
 export const COMPONENT_VIEWER_DISPLAY_NAME = 'Arm CMSIS Component Viewer';
+export const TRACE_CONFIGURATION_VIEW_ID = `${VIEW_PREFIX}.traceConfiguration`;
+export const CTRACE_FILE_GLOB = '.cmsis/*.ctrace.yml';
+export const CBUILD_INDEX_FILE_GLOB = '*.cbuild-idx.yml';

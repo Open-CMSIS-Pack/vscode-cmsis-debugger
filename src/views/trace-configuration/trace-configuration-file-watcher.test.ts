@@ -17,6 +17,7 @@
 
 import * as vscode from 'vscode';
 
+import { CBUILD_INDEX_FILE_GLOB } from '../../manifest';
 import { waitForCondition } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import {
@@ -24,7 +25,6 @@ import {
     TraceConfigurationFileWatcher,
     TraceConfigurationFileWatcherCallbacks
 } from './trace-configuration-file-watcher';
-import * as TraceConfigurationTypes from './trace-configuration-types';
 
 interface MockFileSystemWatcher {
     dispose: jest.Mock;
@@ -124,7 +124,7 @@ describe('TraceConfigurationFileWatcher', () => {
         cbuildRunWatcher._handlers.change[0]?.(uri);
         cbuildRunWatcher._handlers.delete[0]?.(uri);
 
-        expect(cbuildIndexPattern.pattern).toBe(TraceConfigurationTypes.CBUILD_INDEX_FILE_GLOB);
+        expect(cbuildIndexPattern.pattern).toBe(CBUILD_INDEX_FILE_GLOB);
         expect(getCBuildRunFileName).toHaveBeenCalledTimes(1);
         expect(cbuildRunPattern.base).toBe('/workspace/out');
         expect(cbuildRunPattern.pattern).toBe('project.cbuild-run.yml');

@@ -18,9 +18,9 @@
 import * as vscode from 'vscode';
 
 import { extensionContextFactory } from '../../__test__/vscode.factory';
+import { TRACE_CONFIGURATION_VIEW_ID } from '../../manifest';
 import { TraceConfigurationModel } from './trace-configuration-model';
 import { TraceWebviewToHostMessage } from './trace-configuration-protocol';
-import { VIEW_ID } from './trace-configuration-types';
 import { TraceConfigurationWebviewProvider } from './trace-configuration-webview-provider';
 
 type MessageHandler = (message: TraceWebviewToHostMessage) => void;
@@ -124,7 +124,7 @@ describe('TraceConfigurationWebviewProvider', () => {
         provider.activate(context);
         context.subscriptions.forEach(disposable => disposable.dispose());
 
-        expect(vscode.window.registerWebviewViewProvider).toHaveBeenCalledWith(VIEW_ID, provider);
+        expect(vscode.window.registerWebviewViewProvider).toHaveBeenCalledWith(TRACE_CONFIGURATION_VIEW_ID, provider);
         expect(model.dispose).toHaveBeenCalledTimes(1);
     });
 
@@ -203,7 +203,7 @@ describe('TraceConfigurationWebviewProvider', () => {
             canSelectFolders: false,
             canSelectMany: false,
             filters: {
-                'CMSIS Trace YAML': ['yml', 'yaml']
+                'CMSIS Trace YAML': ['yml']
             },
             title: 'Open CMSIS Trace Configuration'
         });

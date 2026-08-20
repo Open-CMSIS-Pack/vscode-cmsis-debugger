@@ -20,9 +20,9 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 
 import { Disposable } from '../../desktop/yaml-file';
+import { CBUILD_INDEX_FILE_GLOB } from '../../manifest';
 import { FileLocationManager, normalizeFsPath } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
-import * as TraceConfigurationTypes from './trace-configuration-types';
 
 export type GeneratedCBuildRunFileChangeType = 'created' | 'changed' | 'deleted';
 
@@ -103,7 +103,7 @@ export class TraceConfigurationFileWatcher {
         }
 
         const watchVersion = this.generatedWatchVersion;
-        const pattern = new vscode.RelativePattern(mainWorkspaceFolder, TraceConfigurationTypes.CBUILD_INDEX_FILE_GLOB);
+        const pattern = new vscode.RelativePattern(mainWorkspaceFolder, CBUILD_INDEX_FILE_GLOB);
         const watcher = vscode.workspace.createFileSystemWatcher(pattern);
         this.generatedCBuildIndexFileWatchers.push(
             watcher,
