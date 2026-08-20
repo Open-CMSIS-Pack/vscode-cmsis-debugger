@@ -77,6 +77,34 @@ const TOOLS: Record<string, ToolManifest> = {
             timeout: 5000,
         },
     },
+    pyts: {
+        toolPattern: /^pyts$/,
+        executablePath: 'pyTS',
+        requiredFiles: [
+            'pyTS',
+        ],
+        requiredDirs: [],
+        versionCheck: {
+            args: ['--version'],
+            expectedOutput: 'pyts',
+            timeout: 5000,
+        },
+    },
+    ctrace: {
+        toolPattern: /^ctrace$/,
+        executablePath: 'ctrace',
+        requiredFiles: [
+            'ctrace',
+        ],
+        requiredDirs: [
+            'THIRD_PARTY_LICENSES',
+        ],
+        versionCheck: {
+            args: ['--version'],
+            expectedOutput: 'ctrace',
+            timeout: 5000,
+        },
+    },
 };
 
 let targetPlatform: string = process.platform;

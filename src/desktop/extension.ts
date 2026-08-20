@@ -29,10 +29,17 @@ import { ComponentViewerTreeDataProvider } from '../views/component-viewer/compo
 import { CorePeripherals } from '../views/core-peripherals/core-peripherals';
 import { clearAllViewState } from '../views/dynamic-view-states';
 import { TraceConfigurationWebviewProvider } from '../views/trace-configuration/trace-configuration-webview-provider';
+import { TraceCommands } from '../features/trace/trace-commands';
+import { PyTsController } from '../features/trace/pyts-controller';
+import { CTraceController } from '../features/trace/ctrace-controller';
+import { FileWatchManager } from './filesystem/file-watch-manager';
 
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
-    'tools/gdb/bin/arm-none-eabi-gdb'
+    'tools/gdb/bin/arm-none-eabi-gdb',
+    // Temporary, these tools are expected to ship separately in future
+    'tools/ctrace/ctrace',
+    'tools/pyts/pyTS'
 ];
 
 let liveWatchTreeDataProvider: LiveWatchTreeDataProvider;
@@ -50,6 +57,10 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     let canCompleteActivation = true;
     const genericCommands = new GenericCommands();
     const gdbtargetDebugTracker = new GDBTargetDebugTracker();
+    const fileWatchManager = new FileWatchManager();
+    const pyTsController = new PyTsController();
+    const cTraceController = new CTraceController();
+    const traceCommands = new TraceCommands(pyTsController, cTraceController);
     const gdbtargetConfigurationProvider = new GDBTargetConfigurationProvider();
     const cpuStates = new CpuStates();
     const cpuStatesCommands = new CpuStatesCommands();
@@ -63,8 +74,13 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     const traceConfiguration = new TraceConfigurationWebviewProvider(context.extensionUri);
 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);
+    fileWatchManager.activate(context);
     // Activate generic commands
     genericCommands.activate(context);
+    pyTsController.activate(context, gdbtargetDebugTracker, fileWatchManager);
+    cTraceController.activate(context, gdbtargetDebugTracker, fileWatchManager);
+    // Activate trace commands
+    traceCommands.activate(context);
     // Activate components
     gdbtargetDebugTracker.activate(context);
     gdbtargetConfigurationProvider.activate(context, gdbtargetDebugTracker);

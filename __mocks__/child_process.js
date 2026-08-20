@@ -1,5 +1,5 @@
 /**
- * Copyright 2025-2026 Arm Limited
+ * Copyright 2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,16 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// generated with AI
 
-export const PUBLISHER_NAME = 'arm';
-export const EXTENSION_NAME = 'vscode-cmsis-debugger';
-export const EXTENSION_ID = `${PUBLISHER_NAME}.${EXTENSION_NAME}`;
+const childProcess = jest.requireActual('child_process');
 
-// User-facing extension and view display names.
-export const DISPLAY_NAME = 'Arm CMSIS Debugger';
-export const COMPONENT_VIEWER_DISPLAY_NAME = 'Arm CMSIS Component Viewer';
-
-// Extension configuration setting identifiers.
-export const ENABLE_TRACE_GENERATION_VIEW_SETTING = `${EXTENSION_NAME}.enableTraceGenerationView`;
-
-export const VIEW_PREFIX = 'cmsis-debugger';
+module.exports = {
+    ...childProcess,
+    spawn: jest.fn()
+};
