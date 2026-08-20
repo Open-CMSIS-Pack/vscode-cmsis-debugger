@@ -15,9 +15,12 @@
  */
 // generated with AI
 
+import * as path from 'node:path';
+
 import * as vscode from 'vscode';
 
 import { Disposable } from '../../desktop/yaml-file';
+import { FileLocationManager, normalizeFsPath } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import * as TraceConfigurationTypes from './trace-configuration-types';
 
@@ -60,7 +63,11 @@ export interface TraceConfigurationFileWatcherCallbacks {
  */
 export class TraceConfigurationFileWatcher {
     private ctraceFileWatcher: Disposable | undefined;
+    private readonly generatedCBuildIndexFileWatchers: vscode.Disposable[] = [];
     private readonly generatedCBuildRunFileWatchers: vscode.Disposable[] = [];
+    private generatedCBuildRunFileName: string | undefined;
+    private generatedWatchVersion = 0;
+    private cbuildRunResolutionVersion = 0;
     private readonly _onDidChangeGeneratedCBuildRunFileEmitter = new vscode.EventEmitter<GeneratedCBuildRunFileChangeEvent>();
 
     /**
@@ -72,27 +79,41 @@ export class TraceConfigurationFileWatcher {
     /**
      * The constructor stores callbacks that let watcher events update the model
      * without this class knowing how YAML documents or webview state are managed.
+     * The file location manager resolves the active cbuild-run path through the
+     * CMSIS Solution extension after a cbuild index file changes.
      */
-    public constructor(private readonly callbacks: TraceConfigurationFileWatcherCallbacks) {}
+    public constructor(
+        private readonly callbacks: TraceConfigurationFileWatcherCallbacks,
+        private readonly fileLocationManager: Pick<FileLocationManager, 'getCBuildRunFileName'> = new FileLocationManager()
+    ) {}
 
     /**
-     * watchGeneratedCBuildRunFiles rebuilds workspace watchers for generated
-     * cbuild-run files directly under each workspace folder's top-level out
-     * directory.
+     * watchGeneratedCBuildRunFiles rebuilds the main workspace watcher for
+     * cbuild index files. A created or changed index file is the stable signal
+     * used to resolve and watch the active generated cbuild-run file.
      */
     public watchGeneratedCBuildRunFiles(): void {
-        this.disposeGeneratedCBuildRunFileWatchers();
+        this.generatedWatchVersion += 1;
+        this.cbuildRunResolutionVersion += 1;
+        this.disposeGeneratedCBuildFileWatchers();
 
-        for (const workspaceFolder of vscode.workspace.workspaceFolders ?? []) {
-            const pattern = new vscode.RelativePattern(workspaceFolder, TraceConfigurationTypes.CBUILD_RUN_FILE_GLOB);
-            const watcher = vscode.workspace.createFileSystemWatcher(pattern);
-            this.generatedCBuildRunFileWatchers.push(
-                watcher,
-                watcher.onDidCreate(uri => this.handleGeneratedCBuildRunFileChange('created', uri)),
-                watcher.onDidChange(uri => this.handleGeneratedCBuildRunFileChange('changed', uri)),
-                watcher.onDidDelete(uri => this.handleGeneratedCBuildRunFileChange('deleted', uri))
-            );
+        const mainWorkspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!mainWorkspaceFolder) {
+            return;
         }
+
+        const watchVersion = this.generatedWatchVersion;
+        const pattern = new vscode.RelativePattern(mainWorkspaceFolder, TraceConfigurationTypes.CBUILD_INDEX_FILE_GLOB);
+        const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+        this.generatedCBuildIndexFileWatchers.push(
+            watcher,
+            watcher.onDidCreate(() => {
+                void this.resolveAndWatchGeneratedCBuildRunFile(watchVersion);
+            }),
+            watcher.onDidChange(() => {
+                void this.resolveAndWatchGeneratedCBuildRunFile(watchVersion);
+            })
+        );
     }
 
     /**
@@ -138,19 +159,101 @@ export class TraceConfigurationFileWatcher {
      */
     public dispose(): void {
         this.disposeViewResources();
-        this.disposeGeneratedCBuildRunFileWatchers();
+        this.generatedWatchVersion += 1;
+        this.cbuildRunResolutionVersion += 1;
+        this.disposeGeneratedCBuildFileWatchers();
         this._onDidChangeGeneratedCBuildRunFileEmitter.dispose();
     }
 
     /**
-     * disposeGeneratedCBuildRunFileWatchers releases all generated cbuild-run
-     * watchers and their event subscriptions before a workspace watch refresh or
-     * full model disposal.
+     * resolveAndWatchGeneratedCBuildRunFile asks CMSIS Solution for the active
+     * cbuild-run path and installs an exact-file watcher when this is still the
+     * newest index event for the active workspace watch.
+     */
+    private async resolveAndWatchGeneratedCBuildRunFile(watchVersion: number): Promise<void> {
+        const resolutionVersion = ++this.cbuildRunResolutionVersion;
+        const cbuildRunFileName = await this.fileLocationManager.getCBuildRunFileName();
+
+        if (
+            !cbuildRunFileName
+            || watchVersion !== this.generatedWatchVersion
+            || resolutionVersion !== this.cbuildRunResolutionVersion
+        ) {
+            return;
+        }
+
+        this.watchGeneratedCBuildRunFile(cbuildRunFileName, watchVersion);
+    }
+
+    /**
+     * watchGeneratedCBuildRunFile replaces the active generated-file watcher
+     * with one scoped to the exact cbuild-run path returned by CMSIS Solution.
+     * Repeated index events that resolve to the same path keep the existing
+     * watcher and its subscriptions.
+     */
+    private watchGeneratedCBuildRunFile(cbuildRunFileName: string, watchVersion: number): void {
+        if (
+            this.generatedCBuildRunFileWatchers.length > 0
+            && normalizeFsPath(this.generatedCBuildRunFileName) === normalizeFsPath(cbuildRunFileName)
+        ) {
+            return;
+        }
+
+        this.disposeGeneratedCBuildRunFileWatchers();
+        this.generatedCBuildRunFileName = cbuildRunFileName;
+
+        const pattern = new vscode.RelativePattern(path.dirname(cbuildRunFileName), path.basename(cbuildRunFileName));
+        const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+        this.generatedCBuildRunFileWatchers.push(
+            watcher,
+            watcher.onDidCreate(uri => this.handleWatchedGeneratedCBuildRunFileChange(watchVersion, cbuildRunFileName, 'created', uri)),
+            watcher.onDidChange(uri => this.handleWatchedGeneratedCBuildRunFileChange(watchVersion, cbuildRunFileName, 'changed', uri)),
+            watcher.onDidDelete(uri => this.handleWatchedGeneratedCBuildRunFileChange(watchVersion, cbuildRunFileName, 'deleted', uri))
+        );
+    }
+
+    /**
+     * handleWatchedGeneratedCBuildRunFileChange ignores delayed callbacks from
+     * replaced watchers and forwards events only for the currently resolved
+     * cbuild-run file.
+     */
+    private handleWatchedGeneratedCBuildRunFileChange(
+        watchVersion: number,
+        watchedFileName: string,
+        type: GeneratedCBuildRunFileChangeType,
+        uri: vscode.Uri
+    ): void {
+        if (
+            watchVersion !== this.generatedWatchVersion
+            || normalizeFsPath(watchedFileName) !== normalizeFsPath(this.generatedCBuildRunFileName)
+        ) {
+            return;
+        }
+
+        this.handleGeneratedCBuildRunFileChange(type, uri);
+    }
+
+    /**
+     * disposeGeneratedCBuildFileWatchers releases the cbuild index entry-point
+     * watcher and the currently resolved cbuild-run watcher during a workspace
+     * watch refresh or full model disposal.
+     */
+    private disposeGeneratedCBuildFileWatchers(): void {
+        for (const watcher of this.generatedCBuildIndexFileWatchers.splice(0)) {
+            watcher.dispose();
+        }
+        this.disposeGeneratedCBuildRunFileWatchers();
+    }
+
+    /**
+     * disposeGeneratedCBuildRunFileWatchers releases the exact cbuild-run
+     * watcher and its event subscriptions before the resolved path changes.
      */
     private disposeGeneratedCBuildRunFileWatchers(): void {
         for (const watcher of this.generatedCBuildRunFileWatchers.splice(0)) {
             watcher.dispose();
         }
+        this.generatedCBuildRunFileName = undefined;
     }
 
     /**

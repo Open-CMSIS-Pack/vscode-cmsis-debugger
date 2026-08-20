@@ -91,6 +91,20 @@ function fireWatcherHandler(watcher: MockFileSystemWatcher, handlerName: 'create
     }
 }
 
+async function resolveGeneratedCBuildRunWatcher(cbuildRunFile: vscode.Uri): Promise<MockFileSystemWatcher> {
+    (vscode.commands.executeCommand as jest.Mock).mockResolvedValue(cbuildRunFile.fsPath);
+    const cbuildIndexWatcher = getLastCreatedFileSystemWatcher();
+    const watcherCount = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls.length;
+    const workspaceRoot = path.dirname(path.dirname(cbuildRunFile.fsPath));
+    const cbuildIndexFile = vscode.Uri.file(path.join(workspaceRoot, 'project.cbuild-idx.yml'));
+
+    fireWatcherHandler(cbuildIndexWatcher, 'change', cbuildIndexFile);
+    await waitForCondition('resolved generated cbuild-run watcher', () =>
+        (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls.length === watcherCount + 1);
+
+    return getLastCreatedFileSystemWatcher();
+}
+
 async function waitForWatcherWork(): Promise<void> {
     for (let index = 0; index < 10; index++) {
         await waitForImmediate();
@@ -219,12 +233,12 @@ describe('TraceConfigurationModel', () => {
         });
     });
 
-    it('watches generated cbuild-run files in the top-level out folder', () => {
+    it('watches cbuild index files in the main workspace folder', () => {
         const model = new TraceConfigurationModel();
 
         expect(vscode.workspace.createFileSystemWatcher).toHaveBeenCalledTimes(1);
         const pattern = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls[0]?.[0] as { pattern: string };
-        expect(pattern.pattern).toBe(TraceConfigurationTypes.CBUILD_RUN_FILE_GLOB);
+        expect(pattern.pattern).toBe(TraceConfigurationTypes.CBUILD_INDEX_FILE_GLOB);
 
         model.dispose();
         expect(getLastCreatedFileSystemWatcher().dispose).toHaveBeenCalledTimes(1);
@@ -239,8 +253,8 @@ describe('TraceConfigurationModel', () => {
         const model = new TraceConfigurationModel(onDidChange);
         const events: unknown[] = [];
         model.onDidChangeGeneratedCBuildRunFile(event => events.push(event));
-        const watcher = getLastCreatedFileSystemWatcher();
         const uri = vscode.Uri.file('/workspace/out/project.cbuild-run.yml');
+        const watcher = await resolveGeneratedCBuildRunWatcher(uri);
 
         fireWatcherHandler(watcher, handlerName, uri);
         await waitForWatcherWork();
@@ -260,7 +274,7 @@ describe('TraceConfigurationModel', () => {
         ]);
         const cbuildRunFile = vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml'));
         const model = new TraceConfigurationModel(onDidChange);
-        const watcher = getLastCreatedFileSystemWatcher();
+        const watcher = await resolveGeneratedCBuildRunWatcher(cbuildRunFile);
 
         fireWatcherHandler(watcher, 'create', cbuildRunFile);
 
@@ -312,7 +326,7 @@ describe('TraceConfigurationModel', () => {
         const cbuildRunFile = vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml'));
         const generatedTraceFile = path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yaml');
         const model = new TraceConfigurationModel();
-        const watcher = getLastCreatedFileSystemWatcher();
+        const watcher = await resolveGeneratedCBuildRunWatcher(cbuildRunFile);
 
         fireWatcherHandler(watcher, 'create', cbuildRunFile);
 
@@ -336,7 +350,7 @@ describe('TraceConfigurationModel', () => {
         await createTemporaryDirectory(path.join(workspaceRoot, '.cmsis'));
         const cbuildRunFile = vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml'));
         const model = new TraceConfigurationModel();
-        const watcher = getLastCreatedFileSystemWatcher();
+        const watcher = await resolveGeneratedCBuildRunWatcher(cbuildRunFile);
 
         fireWatcherHandler(watcher, 'create', cbuildRunFile);
 
@@ -369,7 +383,7 @@ describe('TraceConfigurationModel', () => {
         ].join('\n'));
         const cbuildRunFile = vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml'));
         const model = new TraceConfigurationModel();
-        const watcher = getLastCreatedFileSystemWatcher();
+        const watcher = await resolveGeneratedCBuildRunWatcher(cbuildRunFile);
 
         fireWatcherHandler(watcher, 'change', cbuildRunFile);
 
@@ -410,7 +424,7 @@ describe('TraceConfigurationModel', () => {
         const cbuildRunFile = vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml'));
         const parseSpy = jest.spyOn(CbuildRunReader.prototype, 'parse');
         const model = new TraceConfigurationModel();
-        const watcher = getLastCreatedFileSystemWatcher();
+        const watcher = await resolveGeneratedCBuildRunWatcher(cbuildRunFile);
 
         fireWatcherHandler(watcher, 'delete', cbuildRunFile);
 
