@@ -874,12 +874,17 @@
         }
       },
       {
-        "title": "Enable Trace Generation View",
+        "title": "Trace Generation View",
         "properties": {
           "vscode-cmsis-debugger.enableTraceGenerationView": {
             "type": "boolean",
             "default": false,
             "description": "Show the Trace Generation view and load trace configuration from .cmsis/*.ctrace.yml when available."
+          },
+          "vscode-cmsis-debugger.showCTraceRefsInTooltips": {
+            "type": "boolean",
+            "default": false,
+            "description": "Show internal ctrace-ref values in Trace Generation label tooltips for debugging trace generation e2e."
           }
         }
       }

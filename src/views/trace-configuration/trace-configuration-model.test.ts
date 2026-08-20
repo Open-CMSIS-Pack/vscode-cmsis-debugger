@@ -856,7 +856,6 @@ describe('TraceConfigurationModel', () => {
             'ctrace:',
             '  setup:',
             '    - pname: core0',
-            '      core: Cortex-M55',
             '      timestamps:',
             ''
         ].join('\n'));

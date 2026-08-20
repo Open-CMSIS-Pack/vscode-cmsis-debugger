@@ -165,6 +165,7 @@ module.exports = {
             update: jest.fn().mockResolvedValue(undefined),
             inspect: jest.fn().mockReturnValue(undefined),
         })),
+        onDidChangeConfiguration: jest.fn(() => ({ dispose: jest.fn() })),
         fs: {
             readFile: jest.fn(uri => {
                 const buffer = fs.readFileSync(uri.fsPath);

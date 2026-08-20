@@ -18,7 +18,10 @@
 import * as vscode from 'vscode';
 
 import { extensionContextFactory } from '../../__test__/vscode.factory';
-import { TRACE_CONFIGURATION_VIEW_ID } from '../../manifest';
+import {
+    TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING,
+    TRACE_CONFIGURATION_VIEW_ID
+} from '../../manifest';
 import { TraceConfigurationModel } from './trace-configuration-model';
 import { TraceWebviewToHostMessage } from './trace-configuration-protocol';
 import { TraceConfigurationWebviewProvider } from './trace-configuration-webview-provider';
@@ -163,6 +166,25 @@ describe('TraceConfigurationWebviewProvider', () => {
                 rows: []
             }
         });
+    });
+
+    it('posts fresh state when the ctrace-ref tooltip setting changes', () => {
+        const model = new FakeTraceConfigurationModel();
+        const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
+        const context = extensionContextFactory();
+        const { view, fake } = createWebviewView();
+        provider.activate(context);
+        provider.resolveWebviewView(view, {} as vscode.WebviewViewResolveContext, {} as vscode.CancellationToken);
+        const configurationHandler = (vscode.workspace.onDidChangeConfiguration as jest.Mock).mock.calls[0][0] as
+            (event: vscode.ConfigurationChangeEvent) => void;
+        const event = {
+            affectsConfiguration: jest.fn((setting: string) => setting === TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING)
+        } as vscode.ConfigurationChangeEvent;
+
+        configurationHandler(event);
+
+        expect(event.affectsConfiguration).toHaveBeenCalledWith(TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING);
+        expect(fake.webview.postMessage).toHaveBeenCalledTimes(1);
     });
 
     it('routes webview messages to model operations', async () => {

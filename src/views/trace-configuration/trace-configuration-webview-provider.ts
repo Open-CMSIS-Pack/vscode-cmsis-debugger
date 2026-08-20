@@ -17,7 +17,10 @@
 
 import * as vscode from 'vscode';
 
-import { TRACE_CONFIGURATION_VIEW_ID } from '../../manifest';
+import {
+    TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING,
+    TRACE_CONFIGURATION_VIEW_ID
+} from '../../manifest';
 import {
     TraceHostToWebviewMessage,
     TraceWebviewToHostMessage
@@ -51,11 +54,17 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
     /**
      * activate registers this object as the provider for the contributed view.
      * The model is also registered for disposal so any active file watcher is
-     * released when the extension deactivates.
+     * released when the extension deactivates. Configuration changes that
+     * affect debugging tooltips immediately refresh an open webview.
      */
     public activate(context: vscode.ExtensionContext): void {
         context.subscriptions.push(
             vscode.window.registerWebviewViewProvider(TRACE_CONFIGURATION_VIEW_ID, this),
+            vscode.workspace.onDidChangeConfiguration(event => {
+                if (event.affectsConfiguration(TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING)) {
+                    this.postState();
+                }
+            }),
             { dispose: () => this.model.dispose() }
         );
     }

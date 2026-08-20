@@ -21,7 +21,7 @@ import * as vscode from 'vscode';
 
 import { isYamlMapItem, isYamlScalarItem, isYamlSequenceItem, YamlTreeItem, yamlScalarToString } from '../../desktop/yaml-dom';
 import { logger } from '../../logger';
-import { CTRACE_FILE_GLOB } from '../../manifest';
+import { CTRACE_FILE_GLOB, TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING } from '../../manifest';
 import { CTraceYamlFile } from './ctrace-yaml';
 import {
     GeneratedCBuildRunFileChangeEvent,
@@ -72,7 +72,8 @@ export class TraceConfigurationModel {
             () => this.dirty,
             () => this.errorMessage,
             this.collapsedRows,
-            this.processorCapabilities.capabilities
+            this.processorCapabilities.capabilities,
+            () => vscode.workspace.getConfiguration().get<boolean>(TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING, false)
         );
         this.fileWatcher = new TraceConfigurationFileWatcher({
             getCurrentFile: () => this.ctraceFile,
@@ -178,7 +179,8 @@ export class TraceConfigurationModel {
      */
     public static isCTraceFileName(fileName: string): boolean {
         const baseName = path.basename(fileName).toLowerCase();
-        return baseName.endsWith('.ctrace.yml');
+        return baseName.endsWith('.ctrace.yml')
+        || baseName.endsWith('.ctrace.yaml');
     }
 
     /**
@@ -301,7 +303,7 @@ export class TraceConfigurationModel {
      */
     public async openFile(fileName: string): Promise<void> {
         if (!TraceConfigurationModel.isCTraceFileName(fileName)) {
-            throw new Error('Please select a *.ctrace.yml file.');
+            throw new Error('Please select a *.ctrace.yml, or *.ctrace.yaml file.');
         }
         this.loading = true;
         this.notifyStateChanged();

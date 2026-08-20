@@ -63,6 +63,7 @@ export const PC_SAMPLING_PERIOD_OPTIONS = [
 export interface RowBuildContext {
     rows: TraceConfigurationRow[];
     collapsedRows: Set<string>;
+    showCTraceRefsInTooltips: boolean;
 }
 
 export interface ProcessorTraceCapabilities {

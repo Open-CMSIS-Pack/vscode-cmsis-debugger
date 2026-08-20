@@ -22,5 +22,6 @@ export const VIEW_PREFIX = 'cmsis-debugger';
 
 export const COMPONENT_VIEWER_DISPLAY_NAME = 'Arm CMSIS Component Viewer';
 export const TRACE_CONFIGURATION_VIEW_ID = `${VIEW_PREFIX}.traceConfiguration`;
+export const TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING = `${EXTENSION_NAME}.showCTraceRefsInTooltips`;
 export const CTRACE_FILE_GLOB = '.cmsis/*.ctrace.yml';
 export const CBUILD_INDEX_FILE_GLOB = '*.cbuild-idx.yml';

@@ -56,6 +56,7 @@ function createStateFromYaml(
         collapsedRows?: Set<string>;
         capabilities?: Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities>;
         fileName?: string;
+        showCTraceRefsInTooltips?: boolean;
     } = {}
 ): TraceConfigurationState {
     const file = new CTraceYamlFile('target.ctrace.yml');
@@ -68,7 +69,8 @@ function createStateFromYaml(
         () => options.dirty ?? false,
         () => options.errorMessage,
         options.collapsedRows ?? new Set<string>(),
-        options.capabilities ?? createCapabilities()
+        options.capabilities ?? createCapabilities(),
+        () => options.showCTraceRefsInTooltips ?? false
     ).createState();
 }
 
@@ -79,7 +81,8 @@ function createStateWithoutFile(options: { loading?: boolean; dirty?: boolean; e
         () => options.dirty ?? false,
         () => options.errorMessage,
         new Set<string>(),
-        createCapabilities()
+        createCapabilities(),
+        () => false
     ).createState();
 }
 
@@ -135,6 +138,25 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(findRow(state, ['custom-root', 'enabled']).control).toBe('checkbox');
         expect(findRow(state, ['custom-root', 'enabled']).checked).toBe(true);
         expect(findRow(state, ['custom-root', 'nested', 'value']).value).toBe('1');
+    });
+
+    it('adds ctrace-ref label tooltips only when the debugging setting is enabled', () => {
+        const text = [
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: watchSymbol',
+            ''
+        ].join('\n');
+
+        const defaultState = createStateFromYaml(text);
+        const debugState = createStateFromYaml(text, { showCTraceRefsInTooltips: true });
+
+        expect(findRow(defaultState, ['ctrace', 'setup', 0]).labelTooltip).toBeUndefined();
+        expect(findRow(defaultState, ['ctrace', 'setup', 0, 'data', 0]).labelTooltip).toBeUndefined();
+        expect(findRow(debugState, ['ctrace', 'setup', 0]).labelTooltip).toBe('ctrace-ref: cm33');
+        expect(findRow(debugState, ['ctrace', 'setup', 0, 'data', 0]).labelTooltip).toBe('ctrace-ref: cm33/data#0');
     });
 
     it('collapses rows and hides their children until expanded again', () => {
@@ -669,7 +691,8 @@ describe('TraceConfigurationRowBuilder', () => {
             () => false,
             () => undefined,
             new Set<string>(),
-            createCapabilities()
+            createCapabilities(),
+            () => false
         );
 
         expect(builder.toYamlScalarValue(['ctrace', 'setup', 0, 'timestamps', 'clock'], ' 100000000 ')).toBe(100000000);
