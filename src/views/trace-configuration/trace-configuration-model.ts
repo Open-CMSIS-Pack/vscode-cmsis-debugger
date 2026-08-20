@@ -36,8 +36,6 @@ import { TraceConfigurationRowBuilder } from './trace-configuration-row-builder'
 import * as TraceConfigurationTypes from './trace-configuration-types';
 import { WorkspaceTextFileAdapter } from './workspace-text-file-adapter';
 
-export type { GeneratedCBuildRunFileChangeEvent } from './trace-configuration-file-watcher';
-
 /**
  * TraceConfigurationModel owns the ctrace.yml document lifecycle and file mutations for the trace
  * configuration webview. It deliberately delegates processor capability lookup and row projection to
