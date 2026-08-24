@@ -19,9 +19,10 @@ import * as vscode from 'vscode';
 import { debugSessionFactory, extensionContextFactory } from '../../__test__/vscode.factory';
 import { traceWatchFactory } from '../../__test__/trace-watch.factory';
 import { GDBTargetDebugSession } from '../../debug-session';
-import { debugTrackerFactory, gdbTargetDebugSessionFactory } from '../../debug-session/__test__/debug-session.factory';
+import { debugTrackerFactory } from '../../debug-session/__test__/debug-session.factory';
 import { PyTsProcessManager } from '../../desktop/process/pyts-process-manager';
 import { logger } from '../../logger';
+import { waitForCondition } from '../../utils';
 import { PyTsController } from './pyts-controller';
 
 type PyTsControllerTestAccess = {
@@ -32,6 +33,12 @@ type PyTsControllerTestAccess = {
 };
 
 describe('PyTsController', () => {
+    const ctraceUri = vscode.Uri.file('/workspace/.cmsis/trace.ctrace.yml');
+
+    beforeEach(() => {
+        jest.mocked(vscode.workspace.fs.readFile).mockResolvedValue(new TextEncoder().encode('trace: initial'));
+    });
+
     it('sends a ctrace reload request to the active debug session', async () => {
         const session = debugSessionFactory({ name: 'test', type: 'cmsis-debugger', request: 'launch' });
         Object.defineProperty(vscode.debug, 'activeDebugSession', { configurable: true, value: session });
@@ -100,7 +107,7 @@ describe('PyTsController', () => {
         const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
         const testAccess = controller as unknown as PyTsControllerTestAccess;
 
-        await testAccess.handleCTraceFileChanged(vscode.Uri.file('/workspace/.cmsis/trace.ctrace.yml'));
+        await testAccess.handleCTraceFileChanged(ctraceUri);
 
         expect(run).toHaveBeenCalledWith({}, true);
     });
@@ -111,7 +118,7 @@ describe('PyTsController', () => {
         const error = jest.spyOn(logger, 'error').mockImplementation();
         const testAccess = controller as unknown as PyTsControllerTestAccess;
 
-        await testAccess.handleCTraceFileChanged(vscode.Uri.file('/workspace/.cmsis/trace.ctrace.yml'));
+        await testAccess.handleCTraceFileChanged(ctraceUri);
 
         expect(run).toHaveBeenCalledWith({}, true);
         expect(error).toHaveBeenCalledWith('pyTS process exited with code null');
@@ -149,18 +156,17 @@ describe('PyTsController', () => {
 
         try {
             controller.activate(context, tracker, traceWatch.fileWatchManager);
-            await tracker.callbacks.activeSession?.(gdbTargetDebugSessionFactory('tracker-session'));
             const watch = traceWatch.getLatestWatch();
             if (watch === undefined) {
                 throw new Error('Expected a ctrace configuration watch.');
             }
             expect(watch.globPattern).toBe('.cmsis/*.ctrace.{yml,yaml}');
-            await watch.onDidCreate?.(vscode.Uri.file('/workspace/.cmsis/trace.ctrace.yml'));
-            await watch.onDidChange?.(vscode.Uri.file('/workspace/.cmsis/trace.ctrace.yml'));
+            await watch.onDidCreate?.(ctraceUri);
+            await watch.onDidChange?.(ctraceUri);
             context.subscriptions.at(-1)?.dispose();
 
             expect(run).toHaveBeenNthCalledWith(1, {}, true);
-            expect(run).toHaveBeenNthCalledWith(2, {}, true);
+            expect(run).toHaveBeenCalledTimes(1);
             expect(traceWatch.removeWatch).toHaveBeenCalledWith('pyts-ctrace-configuration');
         } finally {
             Object.defineProperty(vscode.workspace, 'workspaceFolders', {
@@ -176,5 +182,44 @@ describe('PyTsController', () => {
 
         testAccess.addCTraceConfigurationWatcher();
         testAccess.removeCTraceConfigurationWatcher();
+    });
+
+    it('queues one follow-up conversion when content changes while pyTS is running', async () => {
+        const controller = new PyTsController();
+        let finishFirstRun: ((exitCode: number) => void) | undefined;
+        const firstRun = new Promise<number>(resolve => {
+            finishFirstRun = resolve;
+        });
+        const run = jest.spyOn(controller, 'run')
+            .mockReturnValueOnce(firstRun)
+            .mockResolvedValue(0);
+        const testAccess = controller as unknown as PyTsControllerTestAccess;
+
+        const firstChange = testAccess.handleCTraceFileChanged(ctraceUri);
+        await waitForCondition('the first pyTS conversion to start', () => run.mock.calls.length === 1);
+        jest.mocked(vscode.workspace.fs.readFile).mockResolvedValue(new TextEncoder().encode('trace: changed'));
+        const secondChange = testAccess.handleCTraceFileChanged(ctraceUri);
+        const duplicateChange = testAccess.handleCTraceFileChanged(ctraceUri);
+
+        expect(run).toHaveBeenCalledTimes(1);
+        finishFirstRun?.(0);
+        await Promise.all([firstChange, secondChange, duplicateChange]);
+
+        expect(run).toHaveBeenCalledTimes(2);
+    });
+
+    it('ignores generated ctrace files for another active project', async () => {
+        const controller = new PyTsController();
+        const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
+        const testAccess = controller as unknown as PyTsControllerTestAccess;
+        const activeSession = {
+            getCbuildRunPath: () => '/workspace/out/active.cbuild-run.yml'
+        } as unknown as GDBTargetDebugSession;
+        testAccess.handleActiveSessionChanged(activeSession);
+
+        await testAccess.handleCTraceFileChanged(vscode.Uri.file('/workspace/.cmsis/other.ctrace.yml'));
+
+        expect(vscode.workspace.fs.readFile).not.toHaveBeenCalled();
+        expect(run).not.toHaveBeenCalled();
     });
 });
