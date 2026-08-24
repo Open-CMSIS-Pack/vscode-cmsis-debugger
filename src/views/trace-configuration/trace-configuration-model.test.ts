@@ -185,7 +185,7 @@ async function createModelFromText(
         const privateCapabilities = processorCapabilities as unknown as TraceConfigurationProcessorCapabilitiesPrivate;
         capabilities?.forEach((value, key) => privateCapabilities.processorCapabilities.set(key, value));
     }
-    const model = new TraceConfigurationModel(() => {}, processorCapabilities);
+    const model = new TraceConfigurationModel(() => { }, processorCapabilities);
     (model as unknown as TraceConfigurationModelPrivate).ctraceFile = file;
     return { adapter, model };
 }
@@ -281,22 +281,24 @@ describe('TraceConfigurationModel', () => {
         expect(containsSubstringsInOrder(generatedText, [
             'pname: core0',
             'core: Cortex-M55',
-            'timestamps: {}',
+            'timestamps:',
             'timesync:',
             'data:',
             'exceptions:',
             'events:',
             'itm:',
             'enable: 0x0',
-            'instructions: {}',
+            'instructions:',
             'pcsampling:',
             'period: off',
             'synchronization:',
             'DWT: 256M',
             'pname: core1',
             'core: Cortex-M23',
-            'instructions: {}'
+            'instructions:'
         ])).toBe(true);
+        expect(generatedText).not.toContain('timestamps: {}');
+        expect(generatedText).not.toContain('instructions: {}');
         expect(generatedText).not.toContain('pname: core1\n      core: Cortex-M23\n      timestamps');
         expectSameFsPath(model.createState().fileName, generatedTraceFile);
         expect(onDidChange).toHaveBeenCalled();
@@ -530,6 +532,24 @@ describe('TraceConfigurationModel', () => {
         expect(adapter.text).not.toContain('data: {}');
     });
 
+    it('normalizes empty timestamps and instructions maps to bare keys on save', async () => {
+        const { adapter, model } = await createModelFromText([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      timestamps: {}',
+            '      instructions: {}',
+            ''
+        ].join('\n'));
+
+        await model.saveCurrentDocument();
+
+        expect(adapter.text).toContain('      timestamps:\n');
+        expect(adapter.text).toContain('      instructions:\n');
+        expect(adapter.text).not.toContain('timestamps: {}');
+        expect(adapter.text).not.toContain('instructions: {}');
+    });
+
     it('rejects direct add attempts when shared DWT comparators are already used', async () => {
         const { adapter, model } = await createModelFromText([
             'ctrace:',
@@ -641,17 +661,19 @@ describe('TraceConfigurationModel', () => {
 
         await model.saveCurrentDocument();
 
-        expect(adapter.text).toContain('      timestamps: {}\n');
+        expect(adapter.text).toContain('      timestamps:\n');
         expect(adapter.text).toContain('      exceptions:\n');
         expect(adapter.text).toContain('      events:\n        - event: CYCCNT\n        - event: EXCCNT\n');
         expect(adapter.text).toContain('      itm:\n        enable: 0x80000001\n        privileged: 0xa\n');
         expect(adapter.text).toContain('          access: RW\n');
         expect(adapter.text).toContain('            size: 4\n');
-        expect(adapter.text).toContain('      instructions: {}\n');
+        expect(adapter.text).toContain('      instructions:\n');
         expect(adapter.text).toContain('      pcsampling:\n        period: 1024\n');
         expect(adapter.text).toContain('      synchronization:\n        DWT: 256M\n');
         expect(adapter.text).toContain('      timesync:\n');
         expect(adapter.text).not.toContain('disable:');
+        expect(adapter.text).not.toContain('      instructions: {}\n');
+        expect(adapter.text).not.toContain('      timestamps: {}\n');
     });
 
     it('expands collapsed comparator lists and focuses the newly added child', async () => {
@@ -707,7 +729,7 @@ describe('TraceConfigurationModel', () => {
         expect(containsSubstringsInOrder(adapter.text, [
             '    - pname: cm33',
             '      core: Cortex-M33',
-            '      timestamps: {}',
+            '      timestamps:',
             '      timesync:',
             '      data:',
             '        - location: watchSymbol',
@@ -723,7 +745,7 @@ describe('TraceConfigurationModel', () => {
             '        - event: CYCCNT',
             '      itm:',
             '        enable: 0x00000001',
-            '      instructions: {}',
+            '      instructions:',
             '      pcsampling:',
             '        period: 64',
             '      synchronization:',
