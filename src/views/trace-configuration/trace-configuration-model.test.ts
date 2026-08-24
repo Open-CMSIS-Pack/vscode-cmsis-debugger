@@ -550,6 +550,34 @@ describe('TraceConfigurationModel', () => {
         expect(adapter.text).not.toContain('instructions: {}');
     });
 
+    it('normalizes empty trace configuration sequences to bare keys on save', async () => {
+        const { adapter, model } = await createModelFromText([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      timestamps: {}',
+            '      data: []',
+            '      instructions:',
+            '        start: []',
+            '        stop: []',
+            '      tracehalt: {}',
+            '    - pname: cm55',
+            '      instructions: {}',
+            ''
+        ].join('\n'));
+
+        await model.saveCurrentDocument();
+
+        expect(adapter.text).toContain('      timestamps:\n');
+        expect(adapter.text).toContain('      data:\n');
+        expect(adapter.text).toContain('        start:\n');
+        expect(adapter.text).toContain('        stop:\n');
+        expect(adapter.text).toContain('      tracehalt:\n');
+        expect(adapter.text).toContain('    - pname: cm55\n      instructions:\n');
+        expect(adapter.text).not.toContain('[]');
+        expect(adapter.text).not.toContain('{}');
+    });
+
     it('rejects direct add attempts when shared DWT comparators are already used', async () => {
         const { adapter, model } = await createModelFromText([
             'ctrace:',

@@ -603,13 +603,16 @@ export class TraceConfigurationModel {
     }
 
     /**
-     * convertAllEmptyPresenceMapsToBareKeys canonicalizes enabled sections that
-     * have no optional children from "section: {}" to the ctrace bare-key form.
+     * convertAllEmptyPresenceSectionsToBareKeys canonicalizes enabled sections
+     * and editable sequences with no children from "section: {}" or
+     * "section: []" to the ctrace bare-key form.
      */
-    private convertAllEmptyPresenceMapsToBareKeys(document: NonNullable<CTraceYamlFile['document']>): void {
+    private convertAllEmptyPresenceSectionsToBareKeys(document: NonNullable<CTraceYamlFile['document']>): void {
         const visitNode = (node: YamlTreeItem, nodePath: (string | number)[]): void => {
             if (node.getChildren().length === 0
-                && (this.rowBuilder.isTimestampsPath(nodePath) || this.rowBuilder.isInstructionsPath(nodePath))) {
+                && (this.rowBuilder.isTimestampsPath(nodePath)
+                    || this.rowBuilder.isInstructionsPath(nodePath)
+                    || this.rowBuilder.shouldUseBareSequenceWhenEmpty(nodePath))) {
                 document.yaml.set(nodePath, null);
                 return;
             }
@@ -722,7 +725,7 @@ export class TraceConfigurationModel {
         if (file.document) {
             this.removeLegacyElfFileMetadata(file.document);
             this.convertAllEmptyEditableSequencesToBareKeys(file.document);
-            this.convertAllEmptyPresenceMapsToBareKeys(file.document);
+            this.convertAllEmptyPresenceSectionsToBareKeys(file.document);
             file.document.normalizeDocumentOrder();
             file.document.assignCTraceRefs();
         }
