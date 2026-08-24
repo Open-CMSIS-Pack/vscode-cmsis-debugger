@@ -19,6 +19,7 @@ import * as vscode from 'vscode';
 
 import { extensionContextFactory } from '../../__test__/vscode.factory';
 import { logger } from '../../logger';
+import { normalizeFsPath } from '../../utils';
 import { TraceConfigurationCommands } from './trace-configuration-commands';
 
 describe('TraceConfigurationCommands', () => {
@@ -76,7 +77,7 @@ describe('TraceConfigurationCommands', () => {
         expect(getCBuildRunFileName).toHaveBeenCalledTimes(1);
         expect(createDefaultCTraceFile).toHaveBeenCalledWith(vscode.Uri.file('/workspace/out/demo.cbuild-run.yml'));
         expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
-            'Default trace configuration generated at /workspace/.cmsis/demo.ctrace.yml.'
+            `Default trace configuration generated at ${normalizeFsPath('/workspace/.cmsis/demo.ctrace.yml')}.`
         );
     });
 
