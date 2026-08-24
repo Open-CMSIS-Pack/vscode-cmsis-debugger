@@ -40,11 +40,11 @@ export class TraceConfigurationCommands {
     public activate(context: vscode.ExtensionContext): void {
         context.subscriptions.push(vscode.commands.registerCommand(
             TraceConfigurationCommands.generateDefaultTraceGeneratorId,
-            () => this.generateDefaultTraceGenerator()
+            () => this.generateDefaultCtraceFile()
         ));
     }
 
-    private async generateDefaultTraceGenerator(): Promise<void> {
+    private async generateDefaultCtraceFile(): Promise<void> {
         const cbuildRunFileName = await this.fileLocationManager.getCBuildRunFileName();
         if (!cbuildRunFileName) {
             await vscode.window.showErrorMessage(
