@@ -323,7 +323,7 @@ export class TraceConfigurationGeneratedCTraceFileManager {
         }
 
         if (capabilities.timestamps) {
-            setup.timestamps = {};
+            setup.timestamps = null;
         }
         if (capabilities.timeSynchronization) {
             setup.timesync = null;
@@ -341,7 +341,7 @@ export class TraceConfigurationGeneratedCTraceFileManager {
             setup.itm = { enable: '0x0' };
         }
         if (capabilities.instructionTrace) {
-            setup.instructions = {};
+            setup.instructions = null;
         }
         if (capabilities.pcSampling) {
             setup.pcsampling = { period: 'off' };

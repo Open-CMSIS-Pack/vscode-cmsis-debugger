@@ -124,22 +124,24 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         expect(containsSubstringsInOrder(generatedText, [
             'pname: core0',
             'core: Cortex-M55',
-            'timestamps: {}',
+            'timestamps:',
             'timesync:',
             'data:',
             'exceptions:',
             'events:',
             'itm:',
             'enable: 0x0',
-            'instructions: {}',
+            'instructions:',
             'pcsampling:',
             'period: off',
             'synchronization:',
             'DWT: 256M',
             'pname: core1',
             'core: Cortex-M23',
-            'instructions: {}'
+            'instructions:'
         ])).toBe(true);
+        expect(generatedText).not.toContain('timestamps: {}');
+        expect(generatedText).not.toContain('instructions: {}');
     });
 
     it('updates an existing generated ctrace file without duplicating existing processors', async () => {
