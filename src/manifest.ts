@@ -17,6 +17,7 @@
 export const PUBLISHER_NAME = 'arm';
 export const EXTENSION_NAME = 'vscode-cmsis-debugger';
 export const EXTENSION_ID = `${PUBLISHER_NAME}.${EXTENSION_NAME}`;
+export const VIEW_PREFIX = 'cmsis-debugger';
 
 // User-facing extension and view display names.
 export const DISPLAY_NAME = 'Arm CMSIS Debugger';
@@ -28,5 +29,3 @@ export const CBUILD_INDEX_FILE_GLOB = '*.cbuild-idx.yml';
 
 // Extension configuration setting identifiers.
 export const ENABLE_TRACE_GENERATION_VIEW_SETTING = `${EXTENSION_NAME}.enableTraceGenerationView`;
-
-export const VIEW_PREFIX = 'cmsis-debugger';

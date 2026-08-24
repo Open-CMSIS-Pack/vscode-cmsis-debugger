@@ -41,18 +41,21 @@ export class TraceConfigurationGeneratedCTraceFileManager {
     private readonly encoder = new TextEncoder();
 
     /**
-     * processGeneratedCBuildRunFileChange updates generated trace files for
-     * created and changed cbuild-run events, then returns the ctrace file that
-     * the model should load. Deletion leaves the user-controlled view setting
-     * and any existing ctrace file untouched.
+     * processGeneratedCBuildRunFileChange updates generated trace files and the
+     * trace generation setting for a generated cbuild-run watcher event, then
+     * returns the ctrace file that the model should load.
      */
     public async processGeneratedCBuildRunFileChange(event: GeneratedCBuildRunFileChangeEvent): Promise<vscode.Uri | undefined> {
         logger.debug(`Trace Configuration: Generated cbuild-run file ${event.type}: ${event.uri.fsPath}`);
         switch (event.type) {
             case 'created':
-            case 'changed':
-                return this.createDefaultCTraceFile(event.uri);
+            case 'changed': {
+                const traceFileUri = await this.createDefaultCTraceFile(event.uri);
+                await this.setTraceGenerationWebviewEnabled(true);
+                return traceFileUri;
+            }
             case 'deleted':
+                await this.setTraceGenerationWebviewEnabled(false);
                 return undefined;
         }
     }
