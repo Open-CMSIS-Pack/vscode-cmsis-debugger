@@ -154,9 +154,11 @@ describe('TraceConfigurationRowBuilder', () => {
         const debugState = createStateFromYaml(text, { showCTraceRefsInTooltips: true });
 
         expect(findRow(defaultState, ['ctrace', 'setup', 0]).labelTooltip).toBeUndefined();
+        expect(findRow(defaultState, ['ctrace', 'setup', 0, 'data']).labelTooltip).toBeUndefined();
         expect(findRow(defaultState, ['ctrace', 'setup', 0, 'data', 0]).labelTooltip).toBeUndefined();
         expect(findRow(debugState, ['ctrace', 'setup', 0]).labelTooltip).toBe('ctrace-ref: cm33');
-        expect(findRow(debugState, ['ctrace', 'setup', 0, 'data', 0]).labelTooltip).toBe('ctrace-ref: cm33/data#0');
+        expect(findRow(debugState, ['ctrace', 'setup', 0, 'data']).labelTooltip).toBe('ctrace-ref: data');
+        expect(findRow(debugState, ['ctrace', 'setup', 0, 'data', 0]).labelTooltip).toBe('ctrace-ref: data#0');
     });
 
     it('collapses rows and hides their children until expanded again', () => {
