@@ -29,6 +29,7 @@ import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import { TraceConfigurationModel } from './trace-configuration-model';
 import { TraceConfigurationProcessorCapabilities } from './trace-configuration-processor-capabilities';
 import * as TraceConfigurationTypes from './trace-configuration-types';
+import { ENABLE_TRACE_GENERATION_VIEW_SETTING } from '../../manifest';
 
 interface TraceConfigurationModelPrivate {
     ctraceFile: CTraceYamlFile | undefined;
@@ -269,6 +270,16 @@ describe('TraceConfigurationModel', () => {
 
         const generatedTraceFile = path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yml');
         const generatedText = await waitForTemporaryTextFile(generatedTraceFile);
+        await waitForCondition('trace generation view to be enabled', () => updateConfiguration.mock.calls.some(call =>
+            call[0] === ENABLE_TRACE_GENERATION_VIEW_SETTING
+            && call[1] === true
+            && call[2] === vscode.ConfigurationTarget.Workspace
+        ));
+        expect(updateConfiguration).toHaveBeenCalledWith(
+            ENABLE_TRACE_GENERATION_VIEW_SETTING,
+            true,
+            vscode.ConfigurationTarget.Workspace
+        );
         expect(generatedText).toContain('created-by: CMSIS Debugger');
         expect(containsSubstringsInOrder(generatedText, [
             'pname: core0',
@@ -364,6 +375,16 @@ describe('TraceConfigurationModel', () => {
         fireWatcherHandler(watcher, 'change', cbuildRunFile);
 
         const generatedText = await waitForTemporaryTextFile(generatedTraceFile, contents => contents.includes('pname: core1'));
+        await waitForCondition('trace generation view to be enabled', () => updateConfiguration.mock.calls.some(call =>
+            call[0] === ENABLE_TRACE_GENERATION_VIEW_SETTING
+            && call[1] === true
+            && call[2] === vscode.ConfigurationTarget.Workspace
+        ));
+        expect(updateConfiguration).toHaveBeenCalledWith(
+            ENABLE_TRACE_GENERATION_VIEW_SETTING,
+            true,
+            vscode.ConfigurationTarget.Workspace
+        );
         expect(generatedText.match(/pname: core0/g) ?? []).toHaveLength(1);
         expect(generatedText).toContain('created-by: user');
         expect(generatedText).toContain('location: existingWatch');
@@ -397,6 +418,17 @@ describe('TraceConfigurationModel', () => {
         await waitForWatcherWork();
         await expect(readTemporaryTextFile(generatedTraceFile)).resolves.toBe(originalText);
         expect(getConfiguration).not.toHaveBeenCalled();
+        await waitForCondition('trace generation view to be disabled', () => updateConfiguration.mock.calls.some(call =>
+            call[0] === ENABLE_TRACE_GENERATION_VIEW_SETTING
+            && call[1] === false
+            && call[2] === vscode.ConfigurationTarget.Workspace
+        ));
+        await expect(readTemporaryTextFile(generatedTraceFile)).resolves.toBe(originalText);
+        expect(updateConfiguration).toHaveBeenCalledWith(
+            ENABLE_TRACE_GENERATION_VIEW_SETTING,
+            false,
+            vscode.ConfigurationTarget.Workspace
+        );
         expect(parseSpy).not.toHaveBeenCalled();
         model.dispose();
     });

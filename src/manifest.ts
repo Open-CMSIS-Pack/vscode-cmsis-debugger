@@ -17,11 +17,16 @@
 export const PUBLISHER_NAME = 'arm';
 export const EXTENSION_NAME = 'vscode-cmsis-debugger';
 export const EXTENSION_ID = `${PUBLISHER_NAME}.${EXTENSION_NAME}`;
-export const DISPLAY_NAME = 'Arm CMSIS Debugger';
-export const VIEW_PREFIX = 'cmsis-debugger';
 
+// User-facing extension and view display names.
+export const DISPLAY_NAME = 'Arm CMSIS Debugger';
 export const COMPONENT_VIEWER_DISPLAY_NAME = 'Arm CMSIS Component Viewer';
 export const TRACE_CONFIGURATION_VIEW_ID = `${VIEW_PREFIX}.traceConfiguration`;
 export const TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING = `${EXTENSION_NAME}.showCTraceRefsInTooltips`;
 export const CTRACE_FILE_GLOB = '.cmsis/*.ctrace.yml';
 export const CBUILD_INDEX_FILE_GLOB = '*.cbuild-idx.yml';
+
+// Extension configuration setting identifiers.
+export const ENABLE_TRACE_GENERATION_VIEW_SETTING = `${EXTENSION_NAME}.enableTraceGenerationView`;
+
+export const VIEW_PREFIX = 'cmsis-debugger';

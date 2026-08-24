@@ -60,9 +60,11 @@ class MockTreeItem {
 }
 
 class MockRelativePattern {
+    baseUri;
     base;
     pattern;
     constructor(base, pattern) {
+        this.baseUri = base.uri ?? base;
         this.base = base;
         this.pattern = pattern;
     }
@@ -197,6 +199,7 @@ module.exports = {
         },
         findFiles: jest.fn(() => Promise.resolve([])),
         createFileSystemWatcher: jest.fn(() => createMockFileSystemWatcher()),
+        onDidChangeConfiguration: jest.fn(() => ({ dispose: jest.fn() })),
         workspaceFolders: [
             {
                 uri: URI.file(path.join(__dirname, '..')),

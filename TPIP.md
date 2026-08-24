@@ -6,9 +6,11 @@ Generated for release: 1.8.0
 |---|---|---|---|
 | @vscode/codicons | 0.0.45 | https://github.com/microsoft/vscode-codicons | [CC-BY-4.0](https://github.com/microsoft/vscode-codicons/blob/main/LICENSE) |
 | arm-none-eabi-gdb | 15.2.1 | https://artifacts.tools.arm.com/arm-none-eabi-gdb/15.2.1/ | [GPL-3.0-or-later](https://developer.arm.com/GetEula?Id=a162e8bb-8565-45a5-bdf6-7249bf3afe43) |
+| ctrace | 0.1.0 | https://github.com/Open-CMSIS-Pack/devtools/tree/main/tools/ctrace | [Apache-2.0](https://github.com/Open-CMSIS-Pack/devtools/blob/main/LICENSE) |
 | jsonc-parser | 3.3.1 | https://github.com/microsoft/node-jsonc-parser | [MIT](https://github.com/microsoft/node-jsonc-parser/blob/main/LICENSE.md) |
 | lodash | 4.18.1 | https://github.com/lodash/lodash | [MIT](https://github.com/lodash/lodash/blob/main/LICENSE) |
 | pyocd | 0.45.1 | https://github.com/pyocd/pyOCD | [Apache-2.0](https://github.com/pyocd/pyOCD/blob/v0.45.1/LICENSE) |
+| pyTS | 0.3.0 | https://github.com/Open-CMSIS-Pack/pyTS/releases | [Apache-2.0](https://github.com/Open-CMSIS-Pack/pyTS/blob/main/LICENSE) |
 | react | 18.3.1 | https://github.com/facebook/react | [MIT](https://github.com/facebook/react/blob/main/LICENSE) |
 | react-dom | 18.3.1 | https://github.com/facebook/react | [MIT](https://github.com/facebook/react/blob/main/LICENSE) |
 | sax-ts | 1.2.13 | https://github.com/Maxim-Mazurok/sax-ts | [ISC](https://github.com/Maxim-Mazurok/sax-ts/blob/master/LICENSE.md) |
