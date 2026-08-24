@@ -50,10 +50,19 @@ export class TraceConfigurationGeneratedCTraceFileManager {
         switch (event.type) {
             case 'created':
             case 'changed':
-                return this.createOrUpdateGeneratedCTraceFile(event.uri);
+                return this.createDefaultCTraceFile(event.uri);
             case 'deleted':
                 return undefined;
         }
+    }
+
+    /**
+     * createDefaultCTraceFile creates the default trace configuration associated
+     * with a cbuild-run file. Existing files are preserved and receive only
+     * missing processor setup entries.
+     */
+    public async createDefaultCTraceFile(cbuildRunFileUri: vscode.Uri): Promise<vscode.Uri> {
+        return this.createOrUpdateGeneratedCTraceFile(cbuildRunFileUri);
     }
 
     /**

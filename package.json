@@ -89,6 +89,11 @@
         "category": "CMSIS Debugger"
       },
       {
+        "command": "vscode-cmsis-debugger.generateDefaultTraceGenerator",
+        "title": "Generate Default Trace Generator",
+        "category": "CMSIS Debugger"
+      },
+      {
         "command": "vscode-cmsis-debugger.openDisassemblyView",
         "title": "Open Disassembly View",
         "category": "Run and Debug",
@@ -358,6 +363,10 @@
       "commandPalette": [
         {
           "command": "vscode-cmsis-debugger.resetDynamicViewState",
+          "when": "true"
+        },
+        {
+          "command": "vscode-cmsis-debugger.generateDefaultTraceGenerator",
           "when": "true"
         },
         {
