@@ -20,6 +20,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 
 import { Disposable } from '../../desktop/yaml-file';
+import { logger } from '../../logger';
 import { CBUILD_INDEX_FILE_GLOB } from '../../manifest';
 import { FileLocationManager, normalizeFsPath } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
@@ -183,6 +184,54 @@ export class TraceConfigurationFileWatcher {
         }
 
         this.watchGeneratedCBuildRunFile(cbuildRunFileName, watchVersion);
+        await this.processExistingGeneratedCBuildRunFile(
+            cbuildRunFileName,
+            watchVersion,
+            resolutionVersion
+        );
+    }
+
+    /**
+     * processExistingGeneratedCBuildRunFile handles the case where generation
+     * completed before the exact cbuild-run watcher was installed.
+     */
+    private async processExistingGeneratedCBuildRunFile(
+        cbuildRunFileName: string,
+        watchVersion: number,
+        resolutionVersion: number
+    ): Promise<void> {
+        const uri = vscode.Uri.file(cbuildRunFileName);
+        try {
+            await vscode.workspace.fs.stat(uri);
+        } catch (error) {
+            if (!this.isFileNotFoundError(error)) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                logger.error(`Trace Configuration: Failed to inspect generated cbuild-run file: ${errorMessage}`);
+            }
+            return;
+        }
+
+        if (
+            watchVersion !== this.generatedWatchVersion
+            || resolutionVersion !== this.cbuildRunResolutionVersion
+            || normalizeFsPath(cbuildRunFileName) !== normalizeFsPath(this.generatedCBuildRunFileName)
+        ) {
+            return;
+        }
+
+        this.handleGeneratedCBuildRunFileChange('changed', uri);
+    }
+
+    /**
+     * isFileNotFoundError recognizes missing-file errors from VS Code and Node
+     * filesystem adapters while an index and its cbuild-run output converge.
+     */
+    private isFileNotFoundError(error: unknown): boolean {
+        if (!error || typeof error !== 'object') {
+            return false;
+        }
+        const errorWithCode = error as { code?: unknown };
+        return errorWithCode.code === 'ENOENT' || errorWithCode.code === 'FileNotFound';
     }
 
     /**

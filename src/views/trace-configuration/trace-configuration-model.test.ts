@@ -101,9 +101,11 @@ async function resolveGeneratedCBuildRunWatcher(cbuildRunFile: vscode.Uri): Prom
 
     fireWatcherHandler(cbuildIndexWatcher, 'change', cbuildIndexFile);
     await waitForCondition('resolved generated cbuild-run watcher', () =>
-        (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls.length === watcherCount + 1);
+        (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls.length >= watcherCount + 1);
 
-    return getLastCreatedFileSystemWatcher();
+    const watcher = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.results.at(watcherCount)?.value as MockFileSystemWatcher | undefined;
+    expect(watcher).toBeDefined();
+    return watcher as MockFileSystemWatcher;
 }
 
 async function waitForWatcherWork(): Promise<void> {
@@ -314,6 +316,25 @@ describe('TraceConfigurationModel', () => {
         expect(generatedText).not.toContain('pname: core1\n      core: Cortex-M23\n      timestamps');
         expectSameFsPath(model.createState().fileName, generatedTraceFile);
         expect(onDidChange).toHaveBeenCalled();
+        model.dispose();
+    });
+
+    it('creates a default ctrace file when an index is created after the cbuild-run file exists', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M55', 'core0')]);
+        const cbuildRunDirectory = path.join(workspaceRoot, 'arbitrary', 'nested', 'output');
+        const cbuildRunFile = vscode.Uri.file(path.join(cbuildRunDirectory, 'demo+debug.cbuild-run.yml'));
+        await createTemporaryDirectory(cbuildRunDirectory);
+        await writeTemporaryTextFile(cbuildRunFile.fsPath, 'cbuild-run:\n');
+        const model = new TraceConfigurationModel();
+
+        await resolveGeneratedCBuildRunWatcher(cbuildRunFile);
+
+        const generatedTraceFile = path.join(workspaceRoot, '.cmsis', 'demo+debug.ctrace.yml');
+        const generatedText = await waitForTemporaryTextFile(generatedTraceFile);
+        expect(generatedText).toContain('created-by: CMSIS Debugger');
+        expect(generatedText).toContain('pname: core0');
+        expectSameFsPath(model.createState().fileName, generatedTraceFile);
         model.dispose();
     });
 

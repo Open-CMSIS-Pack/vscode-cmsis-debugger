@@ -15,10 +15,12 @@
  */
 // generated with AI
 
+import * as path from 'node:path';
+
 import * as vscode from 'vscode';
 
 import { CBUILD_INDEX_FILE_GLOB } from '../../manifest';
-import { waitForCondition } from '../../utils';
+import { normalizeFsPath, waitForCondition } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import {
     GeneratedCBuildRunFileChangeEvent,
@@ -137,6 +139,44 @@ describe('TraceConfigurationFileWatcher', () => {
 
         watcher.dispose();
         expect(cbuildIndexWatcher.dispose).toHaveBeenCalledTimes(1);
+        expect(cbuildRunWatcher.dispose).toHaveBeenCalledTimes(1);
+    });
+
+    it('processes an existing cbuild-run file after installing its watcher', async () => {
+        mutableWorkspace.workspaceFolders = [{
+            uri: vscode.Uri.file('/workspace'),
+            name: 'workspace',
+            index: 0
+        }];
+        const cbuildRunFile = vscode.Uri.file(path.resolve('test-data/multi-core.cbuild-run.yml'));
+        const getCBuildRunFileName = jest.fn().mockResolvedValue(cbuildRunFile.fsPath);
+        const onGeneratedCBuildRunFileChanged = jest.fn();
+        const callbacks: TraceConfigurationFileWatcherCallbacks = {
+            getCurrentFile: jest.fn(),
+            onCurrentFileReloaded: jest.fn(),
+            onCurrentFileReloadFailed: jest.fn(),
+            onGeneratedCBuildRunFileChanged
+        };
+        const watcher = new TraceConfigurationFileWatcher(callbacks, { getCBuildRunFileName });
+
+        watcher.watchGeneratedCBuildRunFiles();
+        const cbuildIndexWatcher = getLastCreatedFileSystemWatcher();
+        cbuildIndexWatcher._handlers.create[0]?.(vscode.Uri.file('/workspace/project.cbuild-idx.yml'));
+        await waitForCondition('existing cbuild-run processing', () =>
+            onGeneratedCBuildRunFileChanged.mock.calls.length === 1);
+
+        const cbuildRunWatcher = getLastCreatedFileSystemWatcher();
+        const inspectedUri = (vscode.workspace.fs.stat as jest.Mock).mock.calls.at(-1)?.[0] as vscode.Uri | undefined;
+        expect(normalizeFsPath(inspectedUri?.fsPath)).toBe(normalizeFsPath(cbuildRunFile.fsPath));
+        expect(onGeneratedCBuildRunFileChanged).toHaveBeenCalledWith({
+            type: 'changed',
+            uri: cbuildRunFile
+        });
+
+        cbuildRunWatcher._handlers.change[0]?.(cbuildRunFile);
+
+        expect(onGeneratedCBuildRunFileChanged).toHaveBeenCalledTimes(2);
+        watcher.dispose();
         expect(cbuildRunWatcher.dispose).toHaveBeenCalledTimes(1);
     });
 
