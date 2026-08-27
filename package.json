@@ -924,7 +924,7 @@
           "vscode-cmsis-debugger.showCTraceRefsInTooltips": {
             "type": "boolean",
             "default": false,
-            "description": "Show internal ctrace-ref values in Trace Generation label tooltips for debugging trace generation e2e."
+            "description": "Show internal ctrace-ref values in label tooltips for diagnostic purposes."
           }
         }
       }
