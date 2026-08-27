@@ -30,7 +30,7 @@ type DefaultCTraceFileCreator = Pick<TraceConfigurationGeneratedCTraceFileManage
  * trace configuration files.
  */
 export class TraceConfigurationCommands {
-    public static readonly generateDefaultTraceGeneratorId = `${EXTENSION_NAME}.generateDefaultTraceGenerator`;
+    public static readonly generateDefaultCtraceFileId = `${EXTENSION_NAME}.generateDefaultTraceGenerator`;
 
     public constructor(
         private readonly fileLocationManager: CBuildRunFileLocator = new FileLocationManager(),
@@ -39,7 +39,7 @@ export class TraceConfigurationCommands {
 
     public activate(context: vscode.ExtensionContext): void {
         context.subscriptions.push(vscode.commands.registerCommand(
-            TraceConfigurationCommands.generateDefaultTraceGeneratorId,
+            TraceConfigurationCommands.generateDefaultCtraceFileId,
             () => this.generateDefaultCtraceFile()
         ));
     }

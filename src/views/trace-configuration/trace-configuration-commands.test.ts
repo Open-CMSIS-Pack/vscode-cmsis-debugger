@@ -35,7 +35,7 @@ describe('TraceConfigurationCommands', () => {
         createDefaultCTraceFile.mockReset();
         (vscode.commands.registerCommand as jest.Mock).mockImplementation(
             (command: string, registeredHandler: () => Promise<void>) => {
-                if (command === TraceConfigurationCommands.generateDefaultTraceGeneratorId) {
+                if (command === TraceConfigurationCommands.generateDefaultCtraceFileId) {
                     handler = registeredHandler;
                 }
                 return { dispose: jest.fn() };
@@ -61,7 +61,7 @@ describe('TraceConfigurationCommands', () => {
         activateCommands();
 
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
-            TraceConfigurationCommands.generateDefaultTraceGeneratorId,
+            TraceConfigurationCommands.generateDefaultCtraceFileId,
             expect.any(Function)
         );
         expect(context.subscriptions).toHaveLength(1);
