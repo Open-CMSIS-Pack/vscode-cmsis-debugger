@@ -90,7 +90,7 @@
       },
       {
         "command": "vscode-cmsis-debugger.generateDefaultCTraceFile",
-        "title": "Generate Default Trace Generator",
+        "title": "Generate Default Ctrace File",
         "category": "CMSIS Debugger",
         "enablement": "config.vscode-cmsis-debugger.enableTraceGenerationView"
       },
