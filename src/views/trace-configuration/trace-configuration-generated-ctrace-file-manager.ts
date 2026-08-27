@@ -75,7 +75,10 @@ export class TraceConfigurationGeneratedCTraceFileManager {
      * returns the generated ctrace file URI.
      */
     private async createOrUpdateGeneratedCTraceFile(cbuildRunFileUri: vscode.Uri): Promise<vscode.Uri> {
-        const workspaceFolder = this.getGeneratedCBuildRunWorkspaceFolder(cbuildRunFileUri);
+        const workspaceFolder = vscode.workspace.workspaceFolders?.at(0);
+        if (!workspaceFolder) {
+            throw new Error('Cannot generate a ctrace file without an open workspace folder.');
+        }
         const projectName = this.getProjectNameFromGeneratedCBuildRunFile(cbuildRunFileUri);
         const processors = await this.readGeneratedCBuildRunProcessors(cbuildRunFileUri);
         const traceFileUri = this.resolveGeneratedCTraceFileUri(workspaceFolder.uri, projectName);
@@ -91,23 +94,6 @@ export class TraceConfigurationGeneratedCTraceFileManager {
         }
 
         return traceFileUri;
-    }
-
-    /**
-     * getGeneratedCBuildRunWorkspaceFolder returns the workspace whose top-level
-     * out folder contains the generated cbuild-run file.
-     */
-    private getGeneratedCBuildRunWorkspaceFolder(cbuildRunFileUri: vscode.Uri): vscode.WorkspaceFolder {
-        const workspaceFolder = (vscode.workspace.workspaceFolders ?? []).find(folder => {
-            const expectedDirectory = path.join(folder.uri.fsPath, 'out');
-            return path.dirname(cbuildRunFileUri.fsPath) === expectedDirectory;
-        });
-
-        if (!workspaceFolder) {
-            throw new Error(`Generated cbuild-run file is not in a workspace out folder: ${cbuildRunFileUri.fsPath}`);
-        }
-
-        return workspaceFolder;
     }
 
     /**
