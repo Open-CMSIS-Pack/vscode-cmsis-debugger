@@ -60,6 +60,9 @@ describe('TraceConfigurationCommands', () => {
     it('registers the command-palette handler', () => {
         activateCommands();
 
+        expect(TraceConfigurationCommands.generateDefaultCtraceFileId).toBe(
+            'vscode-cmsis-debugger.generateDefaultCTraceFile'
+        );
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
             TraceConfigurationCommands.generateDefaultCtraceFileId,
             expect.any(Function)

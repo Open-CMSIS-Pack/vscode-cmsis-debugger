@@ -30,7 +30,7 @@ type DefaultCTraceFileCreator = Pick<TraceConfigurationGeneratedCTraceFileManage
  * trace configuration files.
  */
 export class TraceConfigurationCommands {
-    public static readonly generateDefaultCtraceFileId = `${EXTENSION_NAME}.generateDefaultTraceGenerator`;
+    public static readonly generateDefaultCtraceFileId = `${EXTENSION_NAME}.generateDefaultCTraceFile`;
 
     public constructor(
         private readonly fileLocationManager: CBuildRunFileLocator = new FileLocationManager(),

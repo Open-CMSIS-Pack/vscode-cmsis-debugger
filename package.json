@@ -89,9 +89,10 @@
         "category": "CMSIS Debugger"
       },
       {
-        "command": "vscode-cmsis-debugger.generateDefaultTraceGenerator",
+        "command": "vscode-cmsis-debugger.generateDefaultCTraceFile",
         "title": "Generate Default Trace Generator",
-        "category": "CMSIS Debugger"
+        "category": "CMSIS Debugger",
+        "enablement": "config.vscode-cmsis-debugger.enableTraceGenerationView"
       },
       {
         "command": "vscode-cmsis-debugger.openDisassemblyView",
@@ -384,8 +385,8 @@
           "when": "true"
         },
         {
-          "command": "vscode-cmsis-debugger.generateDefaultTraceGenerator",
-          "when": "true"
+          "command": "vscode-cmsis-debugger.generateDefaultCTraceFile",
+          "when": "config.vscode-cmsis-debugger.enableTraceGenerationView"
         },
         {
           "command": "vscode-cmsis-debugger.openDisassemblyView",
