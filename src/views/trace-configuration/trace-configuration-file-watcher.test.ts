@@ -168,10 +168,10 @@ describe('TraceConfigurationFileWatcher', () => {
         const cbuildRunWatcher = getLastCreatedFileSystemWatcher();
         const inspectedUri = (vscode.workspace.fs.stat as jest.Mock).mock.calls.at(-1)?.[0] as vscode.Uri | undefined;
         expect(normalizeFsPath(inspectedUri?.fsPath)).toBe(normalizeFsPath(cbuildRunFile.fsPath));
-        expect(onGeneratedCBuildRunFileChanged).toHaveBeenCalledWith({
-            type: 'changed',
-            uri: cbuildRunFile
-        });
+        const changeEvent = onGeneratedCBuildRunFileChanged.mock.calls.at(-1)?.[0] as
+            GeneratedCBuildRunFileChangeEvent | undefined;
+        expect(changeEvent?.type).toBe('changed');
+        expect(normalizeFsPath(changeEvent?.uri.fsPath)).toBe(normalizeFsPath(cbuildRunFile.fsPath));
 
         cbuildRunWatcher._handlers.change[0]?.(cbuildRunFile);
 
