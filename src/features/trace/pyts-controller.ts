@@ -36,7 +36,7 @@ const CTRACE_CONFIGURATION_WATCH_ID = 'pyts-ctrace-configuration';
 
 interface PendingCTraceConversion {
     readonly cbuildRunFilePath: string | undefined;
-    readonly normalizedPath: string;
+    readonly conversionKey: string;
     readonly contents: Uint8Array;
 }
 
@@ -101,33 +101,34 @@ export class PyTsController {
 
         try {
             const normalizedPath = normalizeFsPath(uri.fsPath) ?? uri.fsPath;
-            const previousRead = this.contentReadPromises.get(normalizedPath) ?? Promise.resolve(false);
+            const conversionKey = this.getConversionKey(normalizedPath, cbuildRunFilePath);
+            const previousRead = this.contentReadPromises.get(conversionKey) ?? Promise.resolve(false);
             const contentReadPromise = previousRead.catch(() => false).then(async () => {
                 const contents = await vscode.workspace.fs.readFile(uri);
-                if (this.contentsEqual(this.observedCTraceContents.get(normalizedPath), contents)
-                    || this.contentsEqual(this.successfulCTraceContents.get(normalizedPath), contents)) {
+                if (this.contentsEqual(this.observedCTraceContents.get(conversionKey), contents)
+                    || this.contentsEqual(this.successfulCTraceContents.get(conversionKey), contents)) {
                     return false;
                 }
-                this.observedCTraceContents.set(normalizedPath, contents);
+                this.observedCTraceContents.set(conversionKey, contents);
                 return true;
             });
-            this.contentReadPromises.set(normalizedPath, contentReadPromise);
+            this.contentReadPromises.set(conversionKey, contentReadPromise);
             let contentsChanged: boolean;
             try {
                 contentsChanged = await contentReadPromise;
             } finally {
-                if (this.contentReadPromises.get(normalizedPath) === contentReadPromise) {
-                    this.contentReadPromises.delete(normalizedPath);
+                if (this.contentReadPromises.get(conversionKey) === contentReadPromise) {
+                    this.contentReadPromises.delete(conversionKey);
                 }
             }
             if (!contentsChanged) {
                 return;
             }
-            const contents = this.observedCTraceContents.get(normalizedPath);
+            const contents = this.observedCTraceContents.get(conversionKey);
             if (contents === undefined) {
                 return;
             }
-            this.pendingConversion = { cbuildRunFilePath, normalizedPath, contents };
+            this.pendingConversion = { cbuildRunFilePath, conversionKey, contents };
             this.conversionPromise ??= this.processPendingConversions();
             await this.conversionPromise;
         } catch (error) {
@@ -146,7 +147,7 @@ export class PyTsController {
                 try {
                     const exitCode = await this.run(launchOptions, true);
                     if (exitCode === 0) {
-                        this.successfulCTraceContents.set(pendingConversion.normalizedPath, pendingConversion.contents);
+                        this.successfulCTraceContents.set(pendingConversion.conversionKey, pendingConversion.contents);
                     } else {
                         logger.error(`pyTS process exited with code ${exitCode}`);
                     }
@@ -154,16 +155,23 @@ export class PyTsController {
                     logger.error('Failed to launch pyTS process:', error);
                 } finally {
                     if (this.contentsEqual(
-                        this.observedCTraceContents.get(pendingConversion.normalizedPath),
+                        this.observedCTraceContents.get(pendingConversion.conversionKey),
                         pendingConversion.contents
                     )) {
-                        this.observedCTraceContents.delete(pendingConversion.normalizedPath);
+                        this.observedCTraceContents.delete(pendingConversion.conversionKey);
                     }
                 }
             }
         } finally {
             this.conversionPromise = undefined;
         }
+    }
+
+    private getConversionKey(ctracePath: string, cbuildRunFilePath: string | undefined): string {
+        const normalizedCbuildRunPath = cbuildRunFilePath === undefined
+            ? ''
+            : normalizeFsPath(cbuildRunFilePath) ?? cbuildRunFilePath;
+        return `${ctracePath}\0${normalizedCbuildRunPath}`;
     }
 
     private isCTraceFileForCBuildRun(uri: vscode.Uri, cbuildRunFilePath: string | undefined): boolean {

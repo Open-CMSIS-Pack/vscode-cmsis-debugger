@@ -142,6 +142,26 @@ describe('PyTsController', () => {
         expect(error).toHaveBeenCalledWith('Failed to launch pyTS process:', launchError);
     });
 
+    it('converts unchanged ctrace content for a different cbuild-run context', async () => {
+        const controller = new PyTsController();
+        const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
+        const testAccess = controller as unknown as PyTsControllerTestAccess;
+        const firstSession = {
+            getCbuildRunPath: () => '/workspace/build/first.cbuild-run.yml'
+        } as unknown as GDBTargetDebugSession;
+        const secondSession = {
+            getCbuildRunPath: () => '/workspace/build/second.cbuild-run.yml'
+        } as unknown as GDBTargetDebugSession;
+
+        testAccess.handleActiveSessionChanged(firstSession);
+        await testAccess.handleCTraceFileChanged(ctraceUri);
+        testAccess.handleActiveSessionChanged(secondSession);
+        await testAccess.handleCTraceFileChanged(ctraceUri);
+
+        expect(run).toHaveBeenNthCalledWith(1, { cbuildRunFilePath: '/workspace/build/first.cbuild-run.yml' }, true);
+        expect(run).toHaveBeenNthCalledWith(2, { cbuildRunFilePath: '/workspace/build/second.cbuild-run.yml' }, true);
+    });
+
     it('adds and removes its ctrace configuration watch when the trace setting changes', () => {
         const tracker = debugTrackerFactory();
         const controller = new PyTsController();
