@@ -45,7 +45,6 @@ export class PyTsController {
     private activeSession: GDBTargetDebugSession | undefined;
     private fileWatchManager: FileWatchManager | undefined;
     private readonly observedCTraceContents = new Map<string, Uint8Array>();
-    private readonly successfulCTraceContents = new Map<string, Uint8Array>();
     private readonly contentReadPromises = new Map<string, Promise<boolean>>();
     private pendingConversion: PendingCTraceConversion | undefined;
     private conversionPromise: Promise<void> | undefined;
@@ -113,8 +112,7 @@ export class PyTsController {
                 if (watcherGeneration !== this.watcherGeneration) {
                     return false;
                 }
-                if (this.contentsEqual(this.observedCTraceContents.get(conversionKey), contents)
-                    || this.contentsEqual(this.successfulCTraceContents.get(conversionKey), contents)) {
+                if (this.contentsEqual(this.observedCTraceContents.get(conversionKey), contents)) {
                     return false;
                 }
                 this.observedCTraceContents.set(conversionKey, contents);
@@ -154,14 +152,13 @@ export class PyTsController {
                     : { cbuildRunFilePath: pendingConversion.cbuildRunFilePath };
                 try {
                     const exitCode = await this.run(launchOptions, true);
-                    if (exitCode === 0 && pendingConversion.watcherGeneration === this.watcherGeneration) {
-                        this.successfulCTraceContents.set(pendingConversion.conversionKey, pendingConversion.contents);
-                    } else {
+                    if (exitCode !== 0) {
                         logger.error(`pyTS process exited with code ${exitCode}`);
                     }
                 } catch (error) {
                     logger.error('Failed to launch pyTS process:', error);
                 } finally {
+                    await this.contentReadPromises.get(pendingConversion.conversionKey)?.catch(() => false);
                     if (this.contentsEqual(
                         this.observedCTraceContents.get(pendingConversion.conversionKey),
                         pendingConversion.contents
@@ -215,7 +212,7 @@ export class PyTsController {
         }
     }
 
-    private addCTraceConfigurationWatcher(): void {
+    protected addCTraceConfigurationWatcher(): void {
         if (this.fileWatchManager === undefined) {
             return;
         }
@@ -229,13 +226,12 @@ export class PyTsController {
         });
     }
 
-    private removeCTraceConfigurationWatcher(): void {
+    protected removeCTraceConfigurationWatcher(): void {
         if (this.fileWatchManager !== undefined) {
             this.fileWatchManager.removeWatch(CTRACE_CONFIGURATION_WATCH_ID);
         }
         this.watcherGeneration += 1;
         this.observedCTraceContents.clear();
-        this.successfulCTraceContents.clear();
         this.contentReadPromises.clear();
         this.pendingConversion = undefined;
     }
