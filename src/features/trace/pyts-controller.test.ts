@@ -222,6 +222,33 @@ describe('PyTsController', () => {
         testAccess.removeCTraceConfigurationWatcher();
     });
 
+    it('discards stale queued and cached state when the watcher is removed', async () => {
+        const controller = new PyTsController();
+        let finishFirstRun: ((exitCode: number) => void) | undefined;
+        const firstRun = new Promise<number>(resolve => {
+            finishFirstRun = resolve;
+        });
+        const run = jest.spyOn(controller, 'run')
+            .mockReturnValueOnce(firstRun)
+            .mockResolvedValue(0);
+        const testAccess = controller as unknown as PyTsControllerTestAccess;
+
+        const firstChange = testAccess.handleCTraceFileChanged(ctraceUri);
+        await waitForCondition('the first pyTS conversion to start', () => run.mock.calls.length === 1);
+        jest.mocked(vscode.workspace.fs.readFile).mockResolvedValue(new TextEncoder().encode('trace: changed'));
+        const queuedChange = testAccess.handleCTraceFileChanged(ctraceUri);
+        await waitForCondition('the changed contents to be read', () => vscode.workspace.fs.readFile.mock.calls.length === 2);
+        testAccess.removeCTraceConfigurationWatcher();
+        finishFirstRun?.(0);
+        await Promise.all([firstChange, queuedChange]);
+
+        expect(run).toHaveBeenCalledTimes(1);
+
+        await testAccess.handleCTraceFileChanged(ctraceUri);
+
+        expect(run).toHaveBeenCalledTimes(2);
+    });
+
     it('queues one follow-up conversion when content changes while pyTS is running', async () => {
         const controller = new PyTsController();
         let finishFirstRun: ((exitCode: number) => void) | undefined;

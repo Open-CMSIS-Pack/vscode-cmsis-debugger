@@ -38,6 +38,7 @@ interface PendingCTraceConversion {
     readonly cbuildRunFilePath: string | undefined;
     readonly conversionKey: string;
     readonly contents: Uint8Array;
+    readonly watcherGeneration: number;
 }
 
 export class PyTsController {
@@ -48,6 +49,7 @@ export class PyTsController {
     private readonly contentReadPromises = new Map<string, Promise<boolean>>();
     private pendingConversion: PendingCTraceConversion | undefined;
     private conversionPromise: Promise<void> | undefined;
+    private watcherGeneration = 0;
 
     public constructor(private readonly options: PyTsProcessManagerOptions = {}) { }
 
@@ -93,7 +95,10 @@ export class PyTsController {
         this.activeSession = session;
     }
 
-    protected async handleCTraceFileChanged(uri: vscode.Uri): Promise<void> {
+    protected async handleCTraceFileChanged(
+        uri: vscode.Uri,
+        watcherGeneration: number = this.watcherGeneration
+    ): Promise<void> {
         const cbuildRunFilePath = this.activeSession?.getCbuildRunPath();
         if (!this.isCTraceFileForCBuildRun(uri, cbuildRunFilePath)) {
             return;
@@ -105,6 +110,9 @@ export class PyTsController {
             const previousRead = this.contentReadPromises.get(conversionKey) ?? Promise.resolve(false);
             const contentReadPromise = previousRead.catch(() => false).then(async () => {
                 const contents = await vscode.workspace.fs.readFile(uri);
+                if (watcherGeneration !== this.watcherGeneration) {
+                    return false;
+                }
                 if (this.contentsEqual(this.observedCTraceContents.get(conversionKey), contents)
                     || this.contentsEqual(this.successfulCTraceContents.get(conversionKey), contents)) {
                     return false;
@@ -128,7 +136,7 @@ export class PyTsController {
             if (contents === undefined) {
                 return;
             }
-            this.pendingConversion = { cbuildRunFilePath, conversionKey, contents };
+            this.pendingConversion = { cbuildRunFilePath, conversionKey, contents, watcherGeneration };
             this.conversionPromise ??= this.processPendingConversions();
             await this.conversionPromise;
         } catch (error) {
@@ -146,7 +154,7 @@ export class PyTsController {
                     : { cbuildRunFilePath: pendingConversion.cbuildRunFilePath };
                 try {
                     const exitCode = await this.run(launchOptions, true);
-                    if (exitCode === 0) {
+                    if (exitCode === 0 && pendingConversion.watcherGeneration === this.watcherGeneration) {
                         this.successfulCTraceContents.set(pendingConversion.conversionKey, pendingConversion.contents);
                     } else {
                         logger.error(`pyTS process exited with code ${exitCode}`);
@@ -208,21 +216,23 @@ export class PyTsController {
             return;
         }
         const ws = vscode.workspace.workspaceFolders?.[0];
+        const watcherGeneration = this.watcherGeneration;
         this.fileWatchManager.addWatch({
             id: CTRACE_CONFIGURATION_WATCH_ID,
             globPattern: ws ? new vscode.RelativePattern(ws, CTRACE_CONFIGURATION_GLOB) : CTRACE_CONFIGURATION_GLOB,
-            onDidCreate: uri => this.handleCTraceFileChanged(uri),
-            onDidChange: uri => this.handleCTraceFileChanged(uri)
+            onDidCreate: uri => this.handleCTraceFileChanged(uri, watcherGeneration),
+            onDidChange: uri => this.handleCTraceFileChanged(uri, watcherGeneration)
         });
     }
 
     private removeCTraceConfigurationWatcher(): void {
-        if (this.fileWatchManager === undefined) {
-            return;
+        if (this.fileWatchManager !== undefined) {
+            this.fileWatchManager.removeWatch(CTRACE_CONFIGURATION_WATCH_ID);
         }
-        this.fileWatchManager.removeWatch(CTRACE_CONFIGURATION_WATCH_ID);
+        this.watcherGeneration += 1;
         this.observedCTraceContents.clear();
         this.successfulCTraceContents.clear();
         this.contentReadPromises.clear();
+        this.pendingConversion = undefined;
     }
 }
