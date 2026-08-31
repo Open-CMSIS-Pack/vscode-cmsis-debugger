@@ -26,7 +26,7 @@ describe('TraceConfigurationCommands', () => {
     let context: vscode.ExtensionContext;
     let handler: (() => Promise<void>) | undefined;
     const getCBuildRunFileName = jest.fn<Promise<string | undefined>, []>();
-    const createDefaultCTraceFile = jest.fn<Promise<vscode.Uri>, [vscode.Uri]>();
+    const createDefaultCTraceFile = jest.fn<Promise<vscode.Uri | undefined>, [vscode.Uri]>();
 
     beforeEach(() => {
         context = extensionContextFactory();
@@ -93,6 +93,18 @@ describe('TraceConfigurationCommands', () => {
         expect(createDefaultCTraceFile).not.toHaveBeenCalled();
         expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
             'No active cbuild-run file was found. Generate the project and try again.'
+        );
+    });
+
+    it('reports when trace mode prevents default ctrace generation', async () => {
+        getCBuildRunFileName.mockResolvedValue('/workspace/out/demo.cbuild-run.yml');
+        createDefaultCTraceFile.mockResolvedValue(undefined);
+        const commandHandler = activateCommands();
+
+        await commandHandler();
+
+        expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+            'Trace configuration was not generated because debugger.trace.swo-uart.mode is off.'
         );
     });
 

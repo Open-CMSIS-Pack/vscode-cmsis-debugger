@@ -57,6 +57,12 @@ export class TraceConfigurationCommands {
             const traceFile = await this.generatedCTraceFileManager.createDefaultCTraceFile(
                 vscode.Uri.file(cbuildRunFileName)
             );
+            if (!traceFile) {
+                await vscode.window.showInformationMessage(
+                    'Trace configuration was not generated because tracing is set to off.'
+                );
+                return;
+            }
             await vscode.window.showInformationMessage(
                 `Default trace configuration generated at ${traceFile.fsPath}.`
             );

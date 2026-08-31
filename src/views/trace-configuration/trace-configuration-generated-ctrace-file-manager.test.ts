@@ -191,7 +191,7 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
 
         const expectedTraceFile = path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yml');
         expect(CbuildRunReader.prototype.parse).toHaveBeenCalledWith(cbuildRunFile.fsPath);
-        expectSameFsPath(generatedTraceFile.fsPath, expectedTraceFile);
+        expectSameFsPath(generatedTraceFile?.fsPath, expectedTraceFile);
         await expect(readTemporaryTextFile(expectedTraceFile)).resolves.toContain('pname: core0');
     });
 
@@ -212,6 +212,31 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
             vscode.ConfigurationTarget.Workspace
         );
         expect(parseSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not generate a ctrace file when SWO UART trace mode is off', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const updateConfiguration = mockTraceGenerationConfiguration();
+        jest.spyOn(CbuildRunReader.prototype, 'parse').mockResolvedValue();
+        jest.spyOn(CbuildRunReader.prototype, 'getSwoUartTraceMode').mockReturnValue('off');
+        const getProcessors = jest.spyOn(CbuildRunReader.prototype, 'getProcessors');
+        const cbuildRunFile = vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml'));
+        const manager = new TraceConfigurationGeneratedCTraceFileManager();
+
+        const generatedTraceFile = await manager.processGeneratedCBuildRunFileChange({
+            type: 'created',
+            uri: cbuildRunFile
+        });
+
+        expect(generatedTraceFile).toBeUndefined();
+        expect(getProcessors).not.toHaveBeenCalled();
+        await expect(readTemporaryTextFile(path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yml')))
+            .rejects.toThrow('ENOENT');
+        expect(updateConfiguration).toHaveBeenCalledWith(
+            ENABLE_TRACE_GENERATION_VIEW_SETTING,
+            false,
+            vscode.ConfigurationTarget.Workspace
+        );
     });
 
     it('rejects generated multi-core processor data when a processor is missing pname', async () => {

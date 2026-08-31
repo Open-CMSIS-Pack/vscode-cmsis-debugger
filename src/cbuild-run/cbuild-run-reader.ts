@@ -17,7 +17,12 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 import * as yaml from 'yaml';
-import { CbuildRunRootType, CbuildRunType, ProcessorType } from './cbuild-run-types';
+import {
+    CbuildRunRootType,
+    CbuildRunType,
+    ProcessorType,
+    SwoUartTraceModeType
+} from './cbuild-run-types';
 import { FileReader, VscodeFileReader } from '../desktop/file-reader';
 import { getCmsisPackRootPath } from '../utils';
 
@@ -119,6 +124,20 @@ export class CbuildRunReader {
      */
     public getProcessors(): ProcessorType[] {
         return this.cbuildRun?.['system-resources']?.processors ?? [];
+    }
+
+    /**
+     * Returns the validated SWO UART trace mode from
+     * debugger.trace.swo-uart.mode. The cbuild-run file is external input, so
+     * unsupported values and the legacy string trace shape are ignored.
+     */
+    public getSwoUartTraceMode(): SwoUartTraceModeType | undefined {
+        const trace = this.cbuildRun?.debugger?.trace;
+        if (!trace || typeof trace !== 'object') {
+            return undefined;
+        }
+        const mode = trace['swo-uart']?.mode;
+        return mode === 'on' || mode === 'off' ? mode : undefined;
     }
 
     public getTargetType(): string | undefined {

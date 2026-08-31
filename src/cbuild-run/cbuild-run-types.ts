@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -75,6 +75,16 @@ export interface GdbserverType {
 
 export type ProtocolType = 'swd'|'jtag';
 
+export type SwoUartTraceModeType = 'on' | 'off';
+
+export interface SwoUartTraceType {
+    mode?: SwoUartTraceModeType;
+};
+
+export interface DebuggerTraceType {
+    'swo-uart'?: SwoUartTraceType;
+};
+
 export interface DebuggerType {
     name: string;
     info?: string;
@@ -84,7 +94,7 @@ export interface DebuggerType {
     'start-pname'?: string;
     gdbserver?: GdbserverType[];
     terminal?: string;
-    trace?: string;
+    trace?: string | DebuggerTraceType;
 };
 
 export interface DebugVarsType {
