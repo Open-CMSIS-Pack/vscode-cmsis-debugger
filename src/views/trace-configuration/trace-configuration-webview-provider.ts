@@ -27,6 +27,8 @@ import {
 } from './trace-configuration-protocol';
 import { TraceConfigurationModel } from './trace-configuration-model';
 
+const CMSIS_SOLUTION_EXTENSION_ID = 'Arm.cmsis-csolution';
+
 /**
  * The TraceConfigurationWebviewProvider owns the VS Code sidebar webview shell
  * for editing ctrace.yml files. File discovery, YAML mutation, capability
@@ -36,6 +38,7 @@ import { TraceConfigurationModel } from './trace-configuration-model';
 export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProvider {
     private webviewView: vscode.WebviewView | undefined;
     private readonly model: TraceConfigurationModel;
+    private initialLoad: Promise<void> | undefined;
 
     /**
      * The constructor stores the extension URI for webview asset loading and
@@ -67,13 +70,15 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             }),
             { dispose: () => this.model.dispose() }
         );
+        this.model.watchForGeneratedCBuildRunFiles();
+        this.initializeAfterCmsisSolutionActivation();
     }
 
     /**
      * resolveWebviewView is called by VS Code when the sidebar view is first
      * opened. The method configures CSP-safe HTML, installs message handlers,
-     * cleans up webview-only state on dispose, and asks the model to load the
-     * initial ctrace.yml file.
+     * cleans up webview-only state on dispose. Startup discovery begins after
+     * the CMSIS Solution activation promise completes.
      */
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
@@ -91,9 +96,46 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
         });
         webviewView.onDidDispose(() => {
             this.webviewView = undefined;
-            this.model.disposeViewResources();
         });
-        void this.model.loadInitialFile();
+    }
+
+    /**
+     * initializeAfterCmsisSolutionActivation observes CMSIS Solution's
+     * activation promise without making CMSIS Debugger activation depend on it.
+     * VS Code has no public event for another extension becoming active. The
+     * promise completion is the supported readiness boundary for its commands,
+     * while the already-installed cbuild index watcher covers project setup
+     * that finishes after the activation promise resolves.
+     */
+    private initializeAfterCmsisSolutionActivation(): void {
+        const extension = vscode.extensions.getExtension(CMSIS_SOLUTION_EXTENSION_ID);
+        if (!extension) {
+            return;
+        }
+        try {
+            void Promise.resolve(extension.activate())
+                .then(() => this.loadInitialFileOnce())
+                .catch(error => this.model.reportError(
+                    error,
+                    'Trace Configuration: Failed to initialize after CMSIS Solution activation'
+                ));
+        } catch (error) {
+            this.model.reportError(
+                error,
+                'Trace Configuration: Failed to initialize after CMSIS Solution activation'
+            );
+        }
+    }
+
+    /**
+     * loadInitialFileOnce handles CMSIS Solution activation completion without
+     * repeating startup discovery.
+     */
+    private loadInitialFileOnce(): Promise<void> {
+        if (!this.initialLoad) {
+            this.initialLoad = this.model.loadInitialFile();
+        }
+        return this.initialLoad;
     }
 
     /**

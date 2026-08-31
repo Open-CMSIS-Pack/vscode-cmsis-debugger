@@ -46,7 +46,7 @@ class FakeTraceConfigurationModel {
         this.onDidChange = callback;
     });
     public readonly dispose = jest.fn();
-    public readonly disposeViewResources = jest.fn();
+    public readonly watchForGeneratedCBuildRunFiles = jest.fn();
     public readonly loadInitialFile = jest.fn().mockResolvedValue(undefined);
     public readonly refreshFile = jest.fn().mockResolvedValue(undefined);
     public readonly saveCurrentDocument = jest.fn().mockResolvedValue(undefined);
@@ -112,6 +112,10 @@ describe('TraceConfigurationWebviewProvider', () => {
     beforeEach(() => {
         vscode.Uri.joinPath = jest.fn((base: vscode.Uri, ...pathSegments: string[]) =>
             vscode.Uri.file([base.fsPath, ...pathSegments].join('/')));
+        (vscode.extensions.getExtension as jest.Mock).mockReturnValue({
+            isActive: true,
+            activate: jest.fn()
+        });
     });
 
     afterEach(() => {
@@ -119,23 +123,78 @@ describe('TraceConfigurationWebviewProvider', () => {
         jest.restoreAllMocks();
     });
 
-    it('registers the trace generation webview provider and disposes the model with the extension context', () => {
+    it('registers the trace generation webview provider, initializes its model, and disposes it with the extension context', async () => {
         const model = new FakeTraceConfigurationModel();
         const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
         const context = extensionContextFactory();
 
-        provider.activate(context);
+        await provider.activate(context);
         context.subscriptions.forEach(disposable => disposable.dispose());
 
         expect(vscode.window.registerWebviewViewProvider).toHaveBeenCalledWith(TRACE_CONFIGURATION_VIEW_ID, provider);
+        expect(vscode.extensions.getExtension).toHaveBeenCalledWith('Arm.cmsis-csolution');
+        expect(model.watchForGeneratedCBuildRunFiles).toHaveBeenCalledTimes(1);
+        expect(model.loadInitialFile).toHaveBeenCalledTimes(1);
         expect(model.dispose).toHaveBeenCalledTimes(1);
     });
 
-    it('configures the webview shell and loads the initial file when resolved', () => {
+    it('observes CMSIS Solution activation without blocking CMSIS Debugger activation', async () => {
+        let completeActivation: (() => void) | undefined;
+        const cmsisSolutionActivation = new Promise<void>(resolve => {
+            completeActivation = resolve;
+        });
+        const activateCmsisSolution = jest.fn().mockReturnValue(cmsisSolutionActivation);
+        (vscode.extensions.getExtension as jest.Mock).mockReturnValue({
+            isActive: false,
+            activate: activateCmsisSolution
+        });
+        const model = new FakeTraceConfigurationModel();
+        const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
+        const activation = provider.activate(extensionContextFactory());
+
+        await Promise.resolve();
+
+        expect(activation).toBeUndefined();
+        expect(model.watchForGeneratedCBuildRunFiles).toHaveBeenCalledTimes(1);
+        expect(model.watchForGeneratedCBuildRunFiles.mock.invocationCallOrder[0]).toBeLessThan(
+            activateCmsisSolution.mock.invocationCallOrder[0] ?? Number.MAX_SAFE_INTEGER
+        );
+        expect(activateCmsisSolution).toHaveBeenCalledTimes(1);
+        expect(model.loadInitialFile).not.toHaveBeenCalled();
+
+        completeActivation?.();
+        await cmsisSolutionActivation;
+        await Promise.resolve();
+
+        expect(model.loadInitialFile).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports CMSIS Solution activation failures without rejecting extension activation', async () => {
+        const expectedError = new Error('activation failed');
+        (vscode.extensions.getExtension as jest.Mock).mockReturnValue({
+            isActive: false,
+            activate: jest.fn().mockRejectedValue(expectedError)
+        });
+        const model = new FakeTraceConfigurationModel();
+        const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
+
+        expect(provider.activate(extensionContextFactory())).toBeUndefined();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(model.reportError).toHaveBeenCalledWith(
+            expectedError,
+            'Trace Configuration: Failed to initialize after CMSIS Solution activation'
+        );
+        expect(model.loadInitialFile).not.toHaveBeenCalled();
+    });
+
+    it('configures the webview shell without repeating activation initialization', async () => {
         const model = new FakeTraceConfigurationModel();
         const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
         const { view, fake } = createWebviewView();
 
+        await provider.activate(extensionContextFactory());
         provider.resolveWebviewView(view, {} as vscode.WebviewViewResolveContext, {} as vscode.CancellationToken);
 
         expect(fake.webview.options?.enableScripts).toBe(true);
@@ -168,12 +227,12 @@ describe('TraceConfigurationWebviewProvider', () => {
         });
     });
 
-    it('posts fresh state when the ctrace-ref tooltip setting changes', () => {
+    it('posts fresh state when the ctrace-ref tooltip setting changes', async () => {
         const model = new FakeTraceConfigurationModel();
         const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
         const context = extensionContextFactory();
         const { view, fake } = createWebviewView();
-        provider.activate(context);
+        await provider.activate(context);
         provider.resolveWebviewView(view, {} as vscode.WebviewViewResolveContext, {} as vscode.CancellationToken);
         const configurationHandler = (vscode.workspace.onDidChangeConfiguration as jest.Mock).mock.calls[0][0] as
             (event: vscode.ConfigurationChangeEvent) => void;
@@ -184,6 +243,7 @@ describe('TraceConfigurationWebviewProvider', () => {
         configurationHandler(event);
 
         expect(event.affectsConfiguration).toHaveBeenCalledWith(TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING);
+        expect(model.loadInitialFile).toHaveBeenCalledTimes(1);
         expect(fake.webview.postMessage).toHaveBeenCalledTimes(1);
     });
 
@@ -259,7 +319,7 @@ describe('TraceConfigurationWebviewProvider', () => {
         expect(model.reportError).toHaveBeenCalledWith(expectedError, 'Trace Configuration: Webview action failed');
     });
 
-    it('disposes view resources and stops posting updates after the webview is disposed', () => {
+    it('stops posting updates after the webview is disposed', () => {
         const model = new FakeTraceConfigurationModel();
         const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
         const { view, fake, disposeView } = createWebviewView();
@@ -268,7 +328,6 @@ describe('TraceConfigurationWebviewProvider', () => {
         disposeView();
         model.fireDidChange();
 
-        expect(model.disposeViewResources).toHaveBeenCalledTimes(1);
         expect(model.dispose).not.toHaveBeenCalled();
         expect(fake.webview.postMessage).not.toHaveBeenCalled();
     });

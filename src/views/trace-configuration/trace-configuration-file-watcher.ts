@@ -18,6 +18,7 @@
 import * as path from 'node:path';
 
 import * as vscode from 'vscode';
+import { parse } from 'yaml';
 
 import { Disposable } from '../../desktop/yaml-file';
 import { logger } from '../../logger';
@@ -94,6 +95,9 @@ export class TraceConfigurationFileWatcher {
      * used to resolve and watch the active generated cbuild-run file.
      */
     public watchGeneratedCBuildRunFiles(): void {
+        if (this.generatedCBuildIndexFileWatchers.length > 0) {
+            return;
+        }
         this.generatedWatchVersion += 1;
         this.cbuildRunResolutionVersion += 1;
         this.disposeGeneratedCBuildFileWatchers();
@@ -108,13 +112,24 @@ export class TraceConfigurationFileWatcher {
         const watcher = vscode.workspace.createFileSystemWatcher(pattern);
         this.generatedCBuildIndexFileWatchers.push(
             watcher,
-            watcher.onDidCreate(() => {
-                void this.resolveAndWatchGeneratedCBuildRunFile(watchVersion);
+            watcher.onDidCreate(uri => {
+                void this.resolveAndWatchGeneratedCBuildRunFile(watchVersion, uri);
             }),
-            watcher.onDidChange(() => {
-                void this.resolveAndWatchGeneratedCBuildRunFile(watchVersion);
+            watcher.onDidChange(uri => {
+                void this.resolveAndWatchGeneratedCBuildRunFile(watchVersion, uri);
             })
         );
+    }
+
+    /**
+     * processActiveCBuildRunFile asks CMSIS Solution for the active cbuild-run
+     * file, watches it, and processes it immediately when it already exists.
+     * When activation completed before CMSIS Solution finished loading its
+     * build data, an existing index supplies the prebuilt cbuild-run path. The
+     * result tells startup whether it must wait for a new index event instead.
+     */
+    public async processActiveCBuildRunFile(): Promise<boolean> {
+        return this.resolveAndWatchGeneratedCBuildRunFile(this.generatedWatchVersion, undefined, true);
     }
 
     /**
@@ -146,20 +161,11 @@ export class TraceConfigurationFileWatcher {
     }
 
     /**
-     * disposeViewResources releases only watchers tied to the current webview
-     * document while keeping generated cbuild-run watchers alive for background
-     * build output changes.
-     */
-    public disposeViewResources(): void {
-        this.disposeCurrentFileWatcher();
-    }
-
-    /**
      * dispose releases every watcher and event emitter owned by this class when
      * the trace configuration model is no longer needed.
      */
     public dispose(): void {
-        this.disposeViewResources();
+        this.disposeCurrentFileWatcher();
         this.generatedWatchVersion += 1;
         this.cbuildRunResolutionVersion += 1;
         this.disposeGeneratedCBuildFileWatchers();
@@ -169,26 +175,105 @@ export class TraceConfigurationFileWatcher {
     /**
      * resolveAndWatchGeneratedCBuildRunFile asks CMSIS Solution for the active
      * cbuild-run path and installs an exact-file watcher when this is still the
-     * newest index event for the active workspace watch.
+     * newest index event for the active workspace watch. If CMSIS Solution is
+     * still loading its build files, an index event can supply the same path
+     * directly without waiting or polling.
      */
-    private async resolveAndWatchGeneratedCBuildRunFile(watchVersion: number): Promise<void> {
+    private async resolveAndWatchGeneratedCBuildRunFile(
+        watchVersion: number,
+        cbuildIndexFile?: vscode.Uri,
+        findExistingCBuildIndex = false
+    ): Promise<boolean> {
         const resolutionVersion = ++this.cbuildRunResolutionVersion;
         const cbuildRunFileName = await this.fileLocationManager.getCBuildRunFileName();
 
         if (
-            !cbuildRunFileName
+            watchVersion !== this.generatedWatchVersion
+            || resolutionVersion !== this.cbuildRunResolutionVersion
+        ) {
+            return false;
+        }
+
+        if (cbuildRunFileName) {
+            this.watchGeneratedCBuildRunFile(cbuildRunFileName, watchVersion);
+            if (await this.processExistingGeneratedCBuildRunFile(
+                cbuildRunFileName,
+                watchVersion,
+                resolutionVersion
+            )) {
+                return true;
+            }
+        }
+
+        const indexFile = cbuildIndexFile ?? (findExistingCBuildIndex
+            ? await this.findExistingCBuildIndexFile()
+            : undefined);
+        const indexedCBuildRunFileName = indexFile
+            ? await this.readCBuildRunFileNameFromIndex(indexFile)
+            : undefined;
+        if (
+            !indexedCBuildRunFileName
             || watchVersion !== this.generatedWatchVersion
             || resolutionVersion !== this.cbuildRunResolutionVersion
         ) {
-            return;
+            return false;
         }
 
-        this.watchGeneratedCBuildRunFile(cbuildRunFileName, watchVersion);
-        await this.processExistingGeneratedCBuildRunFile(
-            cbuildRunFileName,
+        this.watchGeneratedCBuildRunFile(indexedCBuildRunFileName, watchVersion);
+        return this.processExistingGeneratedCBuildRunFile(
+            indexedCBuildRunFileName,
             watchVersion,
             resolutionVersion
         );
+    }
+
+    /**
+     * findExistingCBuildIndexFile covers prebuilt projects whose index existed
+     * before the filesystem watcher was installed. This lookup runs only after
+     * CMSIS Solution activation and an unsuccessful command result, so it
+     * cannot recreate the original pre-activation race.
+     */
+    private async findExistingCBuildIndexFile(): Promise<vscode.Uri | undefined> {
+        const mainWorkspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!mainWorkspaceFolder) {
+            return undefined;
+        }
+        const pattern = new vscode.RelativePattern(mainWorkspaceFolder, CBUILD_INDEX_FILE_GLOB);
+        const files = await vscode.workspace.findFiles(pattern, null, 1);
+        return files.at(0);
+    }
+
+    /**
+     * readCBuildRunFileNameFromIndex resolves the generated cbuild-run path
+     * recorded by the index event. The YAML is external data, so each property
+     * is checked before the path is used.
+     */
+    private async readCBuildRunFileNameFromIndex(cbuildIndexFile: vscode.Uri): Promise<string | undefined> {
+        try {
+            const bytes = await vscode.workspace.fs.readFile(cbuildIndexFile);
+            const root: unknown = parse(new TextDecoder().decode(bytes));
+            const buildIndex = this.getObjectProperty(root, 'build-idx');
+            const cbuildRunFileName = this.getObjectProperty(buildIndex, 'cbuild-run');
+            if (typeof cbuildRunFileName !== 'string' || !cbuildRunFileName.trim()) {
+                return undefined;
+            }
+            return path.resolve(path.dirname(cbuildIndexFile.fsPath), cbuildRunFileName.trim());
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logger.debug(`Trace Configuration: Failed to read generated cbuild index file: ${errorMessage}`);
+            return undefined;
+        }
+    }
+
+    /**
+     * getObjectProperty reads an unknown YAML mapping without trusting its
+     * shape at the filesystem boundary.
+     */
+    private getObjectProperty(value: unknown, key: string): unknown {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) {
+            return undefined;
+        }
+        return Reflect.get(value, key);
     }
 
     /**
@@ -199,7 +284,7 @@ export class TraceConfigurationFileWatcher {
         cbuildRunFileName: string,
         watchVersion: number,
         resolutionVersion: number
-    ): Promise<void> {
+    ): Promise<boolean> {
         const uri = vscode.Uri.file(cbuildRunFileName);
         try {
             await vscode.workspace.fs.stat(uri);
@@ -208,7 +293,7 @@ export class TraceConfigurationFileWatcher {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 logger.error(`Trace Configuration: Failed to inspect generated cbuild-run file: ${errorMessage}`);
             }
-            return;
+            return false;
         }
 
         if (
@@ -216,10 +301,11 @@ export class TraceConfigurationFileWatcher {
             || resolutionVersion !== this.cbuildRunResolutionVersion
             || normalizeFsPath(cbuildRunFileName) !== normalizeFsPath(this.generatedCBuildRunFileName)
         ) {
-            return;
+            return false;
         }
 
-        this.handleGeneratedCBuildRunFileChange('changed', uri);
+        await this.handleGeneratedCBuildRunFileChange('changed', uri);
+        return true;
     }
 
     /**
@@ -279,7 +365,7 @@ export class TraceConfigurationFileWatcher {
             return;
         }
 
-        this.handleGeneratedCBuildRunFileChange(type, uri);
+        void this.handleGeneratedCBuildRunFileChange(type, uri);
     }
 
     /**
@@ -310,10 +396,10 @@ export class TraceConfigurationFileWatcher {
      * and forwards the same event to the model callback that updates trace YAML
      * and configuration state.
      */
-    private handleGeneratedCBuildRunFileChange(type: GeneratedCBuildRunFileChangeType, uri: vscode.Uri): void {
+    private async handleGeneratedCBuildRunFileChange(type: GeneratedCBuildRunFileChangeType, uri: vscode.Uri): Promise<void> {
         const event: GeneratedCBuildRunFileChangeEvent = { type, uri };
         this._onDidChangeGeneratedCBuildRunFileEmitter.fire(event);
-        void this.callbacks.onGeneratedCBuildRunFileChanged(event);
+        await this.callbacks.onGeneratedCBuildRunFileChanged(event);
     }
 
     /**

@@ -36,6 +36,9 @@ import { TraceConfigurationProcessorCapabilities } from './trace-configuration-p
 import { TraceConfigurationRowBuilder } from './trace-configuration-row-builder';
 import { WorkspaceTextFileAdapter } from './workspace-text-file-adapter';
 
+const WORKSPACE_SEARCH_EXCLUDE_GLOB = '**/{node_modules,dist,coverage}/**';
+const BUILD_REQUIRED_MESSAGE = 'Build/Rebuild csolution project to enable trace configuration';
+
 /**
  * TraceConfigurationModel owns the ctrace.yml document lifecycle and file mutations for the trace
  * configuration webview. It deliberately delegates processor capability lookup and row projection to
@@ -49,6 +52,7 @@ export class TraceConfigurationModel {
     private loading = false;
     private dirty = false;
     private errorMessage: string | undefined;
+    private emptyMessage: string | undefined;
     private focusedRowId: string | undefined;
     private readonly collapsedRows = new Set<string>();
     private readonly processorCapabilities: TraceConfigurationProcessorCapabilities;
@@ -82,7 +86,6 @@ export class TraceConfigurationModel {
             onGeneratedCBuildRunFileChanged: event => this.refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event)
         });
         this.onDidChangeGeneratedCBuildRunFile = this.fileWatcher.onDidChangeGeneratedCBuildRunFile;
-        this.fileWatcher.watchGeneratedCBuildRunFiles();
     }
 
     /**
@@ -104,13 +107,12 @@ export class TraceConfigurationModel {
     }
 
     /**
-     * disposeViewResources releases resources tied to the current webview
-     * instance. Generated cbuild-run watching is intentionally kept alive
-     * across webview disposal because builds can happen while the view is
-     * closed.
+     * watchForGeneratedCBuildRunFiles installs the cbuild index watcher before
+     * CMSIS Solution activation starts. This prevents generated-file events
+     * emitted during companion-extension startup from being missed.
      */
-    public disposeViewResources(): void {
-        this.fileWatcher.disposeViewResources();
+    public watchForGeneratedCBuildRunFiles(): void {
+        this.fileWatcher.watchGeneratedCBuildRunFiles();
     }
 
     /**
@@ -134,25 +136,29 @@ export class TraceConfigurationModel {
     }
 
     /**
-     * loadInitialFile finds the first .cmsis/*.ctrace.yml candidate and loads it
-     * as soon as the webview appears. When no generated or existing ctrace file
-     * is available, the manually enabled view remains open with an empty state.
+     * loadInitialFile handles CMSIS Solution activation by asking it for the
+     * active cbuild-run file. A valid existing file enters the generated trace
+     * flow immediately. Otherwise, an index watcher waits for the first build
+     * while any existing .cmsis/*.ctrace.yml file remains available to edit.
      */
     public async loadInitialFile(): Promise<void> {
-        this.fileWatcher.watchGeneratedCBuildRunFiles();
+        this.watchForGeneratedCBuildRunFiles();
         this.loading = true;
         this.errorMessage = undefined;
+        this.emptyMessage = undefined;
         this.notifyStateChanged();
         try {
-            const candidate = await this.findInitialCTraceFile();
-            if (!candidate) {
-                this.fileWatcher.disposeCurrentFileWatcher();
-                this.ctraceFile = undefined;
-                this.processorCapabilities.clear();
-                this.errorMessage = undefined;
+            if (await this.fileWatcher.processActiveCBuildRunFile()) {
                 return;
             }
-            await this.loadFile(candidate.fsPath);
+            const candidate = await this.findInitialCTraceFile();
+            if (candidate) {
+                await this.loadFile(candidate.fsPath);
+                return;
+            }
+
+            this.clearCurrentFile();
+            this.emptyMessage = BUILD_REQUIRED_MESSAGE;
         } catch (error) {
             this.errorMessage = this.errorToString(error);
             logger.error(`Trace Configuration: Failed to load ctrace file: ${this.errorMessage}`);
@@ -168,8 +174,18 @@ export class TraceConfigurationModel {
      * trace files outside the generated configuration folder are not selected.
      */
     private async findInitialCTraceFile(): Promise<vscode.Uri | undefined> {
-        const files = await vscode.workspace.findFiles(CTRACE_FILE_GLOB, '**/{node_modules,dist,coverage}/**', 10);
+        const files = await vscode.workspace.findFiles(CTRACE_FILE_GLOB, WORKSPACE_SEARCH_EXCLUDE_GLOB, 10);
         return files.at(0);
+    }
+
+    /**
+     * clearCurrentFile resets file-backed state before startup falls back to
+     * generated project discovery or the build-required empty state.
+     */
+    private clearCurrentFile(): void {
+        this.fileWatcher.disposeCurrentFileWatcher();
+        this.ctraceFile = undefined;
+        this.processorCapabilities.clear();
     }
 
     /**
@@ -198,6 +214,7 @@ export class TraceConfigurationModel {
         await this.loadProcessorCapabilities();
         this.fileWatcher.watchCurrentFile();
         this.dirty = false;
+        this.emptyMessage = undefined;
     }
 
     /**
@@ -735,7 +752,10 @@ export class TraceConfigurationModel {
      * rows that the UI can render.
      */
     public createState(): TraceConfigurationState {
-        const state = this.rowBuilder.createState();
+        const rowBuilderState = this.rowBuilder.createState();
+        const state: TraceConfigurationState = this.emptyMessage
+            ? { ...rowBuilderState, emptyMessage: this.emptyMessage }
+            : rowBuilderState;
         if (!this.focusedRowId) {
             return state;
         }
