@@ -22,7 +22,7 @@ import { GDBTargetDebugSession } from '../../debug-session';
 import { debugTrackerFactory } from '../../debug-session/__test__/debug-session.factory';
 import { PyTsProcessManager } from '../../desktop/process/pyts-process-manager';
 import { logger } from '../../logger';
-import { waitForCondition } from '../../utils';
+import { isWindows, waitForCondition } from '../../utils';
 import { PyTsController } from './pyts-controller';
 
 type PyTsControllerTestAccess = {
@@ -237,7 +237,10 @@ describe('PyTsController', () => {
         await waitForCondition('the first pyTS conversion to start', () => run.mock.calls.length === 1);
         jest.mocked(vscode.workspace.fs.readFile).mockResolvedValue(new TextEncoder().encode('trace: changed'));
         const queuedChange = testAccess.handleCTraceFileChanged(ctraceUri);
-        await waitForCondition('the changed contents to be read', () => vscode.workspace.fs.readFile.mock.calls.length === 2);
+        await waitForCondition(
+            'the changed contents to be read',
+            () => jest.mocked(vscode.workspace.fs.readFile).mock.calls.length === 2
+        );
         testAccess.removeCTraceConfigurationWatcher();
         finishFirstRun?.(0);
         await Promise.all([firstChange, queuedChange]);
@@ -294,6 +297,86 @@ describe('PyTsController', () => {
 
         expect(run).toHaveBeenCalledTimes(2);
         expect(error).toHaveBeenCalledWith('Failed to launch pyTS process:', expect.any(Error));
+    });
+
+    it.each(['yml', 'yaml'])('converts the matching generated .ctrace.%s file', async extension => {
+        const controller = new PyTsController();
+        const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
+        const testAccess = controller as unknown as PyTsControllerTestAccess;
+        const activeSession = {
+            getCbuildRunPath: () => '/workspace/out/active.cbuild-run.yml'
+        } as unknown as GDBTargetDebugSession;
+        testAccess.handleActiveSessionChanged(activeSession);
+
+        await testAccess.handleCTraceFileChanged(vscode.Uri.file(`/workspace/.cmsis/active.ctrace.${extension}`));
+
+        expect(run).toHaveBeenCalledWith({ cbuildRunFilePath: '/workspace/out/active.cbuild-run.yml' }, true);
+    });
+
+    it('converts ctrace files when there is no active cbuild-run context', async () => {
+        const controller = new PyTsController();
+        const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
+        const testAccess = controller as unknown as PyTsControllerTestAccess;
+
+        await testAccess.handleCTraceFileChanged(ctraceUri);
+
+        expect(run).toHaveBeenCalledWith({}, true);
+    });
+
+    it.each([
+        '/workspace/.cmsis/inactive.ctrace.yml',
+        '/workspace/.cmsis/active-copy.ctrace.yml',
+        '/workspace/other/.cmsis/active.ctrace.yml'
+    ])('ignores ctrace file outside the active generated project: %s', async ctracePath => {
+        const controller = new PyTsController();
+        const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
+        const testAccess = controller as unknown as PyTsControllerTestAccess;
+        const activeSession = {
+            getCbuildRunPath: () => '/workspace/out/active.cbuild-run.yml'
+        } as unknown as GDBTargetDebugSession;
+        testAccess.handleActiveSessionChanged(activeSession);
+
+        await testAccess.handleCTraceFileChanged(vscode.Uri.file(ctracePath));
+
+        expect(vscode.workspace.fs.readFile).not.toHaveBeenCalled();
+        expect(run).not.toHaveBeenCalled();
+    });
+
+    it('matches Windows ctrace paths case-insensitively with normalized separators', async () => {
+        if (!isWindows) {
+            return;
+        }
+        const controller = new PyTsController();
+        const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
+        const testAccess = controller as unknown as PyTsControllerTestAccess;
+        const activeSession = {
+            getCbuildRunPath: () => 'C:/Workspace/Project/out/ACTIVE.cbuild-run.yml'
+        } as unknown as GDBTargetDebugSession;
+        testAccess.handleActiveSessionChanged(activeSession);
+
+        await testAccess.handleCTraceFileChanged(vscode.Uri.file('c:\\workspace\\project\\.cmsis\\active.ctrace.yaml'));
+
+        expect(run).toHaveBeenCalledWith({
+            cbuildRunFilePath: 'C:/Workspace/Project/out/ACTIVE.cbuild-run.yml'
+        }, true);
+    });
+
+    it('recovers from a ctrace file read failure', async () => {
+        const controller = new PyTsController();
+        const readError = new Error('read failed');
+        jest.mocked(vscode.workspace.fs.readFile)
+            .mockRejectedValueOnce(readError)
+            .mockResolvedValue(new TextEncoder().encode('trace: recovered'));
+        const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
+        const error = jest.spyOn(logger, 'error').mockImplementation();
+        const testAccess = controller as unknown as PyTsControllerTestAccess;
+
+        await testAccess.handleCTraceFileChanged(ctraceUri);
+        await testAccess.handleCTraceFileChanged(ctraceUri);
+
+        expect(vscode.workspace.fs.readFile).toHaveBeenCalledTimes(2);
+        expect(run).toHaveBeenCalledTimes(1);
+        expect(error).toHaveBeenCalledWith('Failed to process ctrace configuration change:', readError);
     });
 
     it('ignores generated ctrace files for another active project', async () => {

@@ -183,18 +183,22 @@ export class PyTsController {
     }
 
     private isCTraceFileForCBuildRun(uri: vscode.Uri, cbuildRunFilePath: string | undefined): boolean {
-        if (cbuildRunFilePath === undefined || path.basename(path.dirname(cbuildRunFilePath)) !== 'out') {
+        const cbuildRunDirectoryName = cbuildRunFilePath === undefined
+            ? undefined
+            : normalizeFsPath(path.basename(path.dirname(cbuildRunFilePath)));
+        if (cbuildRunFilePath === undefined || cbuildRunDirectoryName !== normalizeFsPath('out')) {
             return true;
         }
         const suffix = '.cbuild-run.yml';
-        const cbuildRunName = path.basename(cbuildRunFilePath);
+        const cbuildRunName = normalizeFsPath(path.basename(cbuildRunFilePath)) ?? path.basename(cbuildRunFilePath);
         if (!cbuildRunName.endsWith(suffix)) {
             return true;
         }
         const projectName = cbuildRunName.slice(0, -suffix.length);
         const expectedDirectory = path.join(path.dirname(path.dirname(cbuildRunFilePath)), '.cmsis');
+        const ctraceName = normalizeFsPath(path.basename(uri.fsPath)) ?? path.basename(uri.fsPath);
         return normalizeFsPath(path.dirname(uri.fsPath)) === normalizeFsPath(expectedDirectory) &&
-            path.basename(uri.fsPath).startsWith(`${projectName}.ctrace.`);
+            ctraceName.startsWith(`${projectName}.ctrace.`);
     }
 
     private contentsEqual(previous: Uint8Array | undefined, current: Uint8Array): boolean {
