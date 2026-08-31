@@ -119,9 +119,27 @@ describe('PyTsController', () => {
         const testAccess = controller as unknown as PyTsControllerTestAccess;
 
         await testAccess.handleCTraceFileChanged(ctraceUri);
+        await testAccess.handleCTraceFileChanged(ctraceUri);
 
-        expect(run).toHaveBeenCalledWith({}, true);
+        expect(run).toHaveBeenCalledTimes(2);
+        expect(error).toHaveBeenCalledTimes(2);
         expect(error).toHaveBeenCalledWith('pyTS process exited with code null');
+    });
+
+    it('retries unchanged ctrace content after a pyTS launch error', async () => {
+        const controller = new PyTsController();
+        const launchError = new Error('launch failed');
+        const run = jest.spyOn(controller, 'run')
+            .mockRejectedValueOnce(launchError)
+            .mockResolvedValue(0);
+        const error = jest.spyOn(logger, 'error').mockImplementation();
+        const testAccess = controller as unknown as PyTsControllerTestAccess;
+
+        await testAccess.handleCTraceFileChanged(ctraceUri);
+        await testAccess.handleCTraceFileChanged(ctraceUri);
+
+        expect(run).toHaveBeenCalledTimes(2);
+        expect(error).toHaveBeenCalledWith('Failed to launch pyTS process:', launchError);
     });
 
     it('adds and removes its ctrace configuration watch when the trace setting changes', () => {
@@ -206,6 +224,29 @@ describe('PyTsController', () => {
         await Promise.all([firstChange, secondChange, duplicateChange]);
 
         expect(run).toHaveBeenCalledTimes(2);
+    });
+
+    it('processes queued content after an earlier pyTS launch fails', async () => {
+        const controller = new PyTsController();
+        let failFirstRun: ((error: Error) => void) | undefined;
+        const firstRun = new Promise<number>((_resolve, reject) => {
+            failFirstRun = reject;
+        });
+        const run = jest.spyOn(controller, 'run')
+            .mockReturnValueOnce(firstRun)
+            .mockResolvedValue(0);
+        const error = jest.spyOn(logger, 'error').mockImplementation();
+        const testAccess = controller as unknown as PyTsControllerTestAccess;
+
+        const firstChange = testAccess.handleCTraceFileChanged(ctraceUri);
+        await waitForCondition('the first pyTS conversion to start', () => run.mock.calls.length === 1);
+        jest.mocked(vscode.workspace.fs.readFile).mockResolvedValue(new TextEncoder().encode('trace: changed'));
+        const secondChange = testAccess.handleCTraceFileChanged(ctraceUri);
+        failFirstRun?.(new Error('launch failed'));
+        await Promise.all([firstChange, secondChange]);
+
+        expect(run).toHaveBeenCalledTimes(2);
+        expect(error).toHaveBeenCalledWith('Failed to launch pyTS process:', expect.any(Error));
     });
 
     it('ignores generated ctrace files for another active project', async () => {

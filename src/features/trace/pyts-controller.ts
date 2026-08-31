@@ -36,12 +36,15 @@ const CTRACE_CONFIGURATION_WATCH_ID = 'pyts-ctrace-configuration';
 
 interface PendingCTraceConversion {
     readonly cbuildRunFilePath: string | undefined;
+    readonly normalizedPath: string;
+    readonly contents: Uint8Array;
 }
 
 export class PyTsController {
     private activeSession: GDBTargetDebugSession | undefined;
     private fileWatchManager: FileWatchManager | undefined;
-    private readonly ctraceContents = new Map<string, Uint8Array>();
+    private readonly observedCTraceContents = new Map<string, Uint8Array>();
+    private readonly successfulCTraceContents = new Map<string, Uint8Array>();
     private readonly contentReadPromises = new Map<string, Promise<boolean>>();
     private pendingConversion: PendingCTraceConversion | undefined;
     private conversionPromise: Promise<void> | undefined;
@@ -101,10 +104,11 @@ export class PyTsController {
             const previousRead = this.contentReadPromises.get(normalizedPath) ?? Promise.resolve(false);
             const contentReadPromise = previousRead.catch(() => false).then(async () => {
                 const contents = await vscode.workspace.fs.readFile(uri);
-                if (this.contentsEqual(this.ctraceContents.get(normalizedPath), contents)) {
+                if (this.contentsEqual(this.observedCTraceContents.get(normalizedPath), contents)
+                    || this.contentsEqual(this.successfulCTraceContents.get(normalizedPath), contents)) {
                     return false;
                 }
-                this.ctraceContents.set(normalizedPath, contents);
+                this.observedCTraceContents.set(normalizedPath, contents);
                 return true;
             });
             this.contentReadPromises.set(normalizedPath, contentReadPromise);
@@ -119,7 +123,11 @@ export class PyTsController {
             if (!contentsChanged) {
                 return;
             }
-            this.pendingConversion = { cbuildRunFilePath };
+            const contents = this.observedCTraceContents.get(normalizedPath);
+            if (contents === undefined) {
+                return;
+            }
+            this.pendingConversion = { cbuildRunFilePath, normalizedPath, contents };
             this.conversionPromise ??= this.processPendingConversions();
             await this.conversionPromise;
         } catch (error) {
@@ -135,9 +143,22 @@ export class PyTsController {
                 const launchOptions: PyTsProcessManagerLaunchOptions = pendingConversion.cbuildRunFilePath === undefined
                     ? {}
                     : { cbuildRunFilePath: pendingConversion.cbuildRunFilePath };
-                const exitCode = await this.run(launchOptions, true);
-                if (exitCode !== 0) {
-                    logger.error(`pyTS process exited with code ${exitCode}`);
+                try {
+                    const exitCode = await this.run(launchOptions, true);
+                    if (exitCode === 0) {
+                        this.successfulCTraceContents.set(pendingConversion.normalizedPath, pendingConversion.contents);
+                    } else {
+                        logger.error(`pyTS process exited with code ${exitCode}`);
+                    }
+                } catch (error) {
+                    logger.error('Failed to launch pyTS process:', error);
+                } finally {
+                    if (this.contentsEqual(
+                        this.observedCTraceContents.get(pendingConversion.normalizedPath),
+                        pendingConversion.contents
+                    )) {
+                        this.observedCTraceContents.delete(pendingConversion.normalizedPath);
+                    }
                 }
             }
         } finally {
@@ -192,7 +213,8 @@ export class PyTsController {
             return;
         }
         this.fileWatchManager.removeWatch(CTRACE_CONFIGURATION_WATCH_ID);
-        this.ctraceContents.clear();
+        this.observedCTraceContents.clear();
+        this.successfulCTraceContents.clear();
         this.contentReadPromises.clear();
     }
 }
