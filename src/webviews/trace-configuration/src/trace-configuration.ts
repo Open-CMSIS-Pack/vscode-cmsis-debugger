@@ -65,8 +65,8 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
  * shell loads codicon.css, so the browser bundle only needs to create the
  * standard codicon class names.
  */
-function createIcon(name: string): HTMLSpanElement {
-    const icon = createElement('span', `codicon codicon-${name}`);
+function createIcon(name: string, extraClass?: string): HTMLSpanElement {
+    const icon = createElement('span', `codicon codicon-${name} trace-config${extraClass ? ' ' + extraClass : ''}`);
     icon.setAttribute('aria-hidden', 'true');
     return icon;
 }
@@ -254,15 +254,16 @@ function createTable(rows: TraceConfigurationRow[]): HTMLTableElement {
  * a function to mirror createTableBody and keep renderApp easy to scan.
  */
 function createTableHead(): HTMLTableSectionElement {
-    const thead = createElement('thead');
-    const row = createElement('tr');
-    const label = createElement('th');
-    label.textContent = 'Label';
-    const selection = createElement('th');
-    selection.textContent = 'Selection';
-    row.append(label, selection);
-    thead.append(row);
-    return thead;
+    return createElement('thead');
+    // const thead = createElement('thead');
+    // const row = createElement('tr');
+    // const label = createElement('th');
+    // label.textContent = 'Label';
+    // const selection = createElement('th');
+    // selection.textContent = 'Selection';
+    // row.append(label, selection);
+    // thead.append(row);
+    // return thead;
 }
 
 /**
@@ -328,7 +329,9 @@ function createLabelCell(row: TraceConfigurationRow): HTMLTableCellElement {
     const wrapper = createElement('div', 'tree-label');
     const title = createElement('div', `node-title depth-${Math.min(row.depth, 5)}`);
     const prefix = createElement('span', 'node-prefix');
-    prefix.textContent = row.hasChildren ? row.expanded ? 'v' : '>' : '';
+    if (row.hasChildren) {
+        prefix.append(createIcon(row.expanded ? 'chevron-down' : 'chevron-right', 'chevron'));
+    }
     const label = createElement('span', 'node-text');
     label.textContent = row.label;
     title.append(prefix, label);
@@ -506,6 +509,7 @@ function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
     details.dataset.rowId = row.id;
     details.open = openMultiSelectId === row.id;
     const summary = createElement('summary', 'multi-select-summary');
+    summary.append(createElement('span', 'multi-select-label'), createIcon('chevron-down'));
     const selectedValues = new Set(row.selectedOptions ?? []);
 
     /**
@@ -514,9 +518,12 @@ function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
      * opening each multi-select control.
      */
     const updateSummary = () => {
-        summary.textContent = selectedValues.size > 0
-            ? Array.from(selectedValues).join(', ')
-            : 'None';
+        const label = summary.querySelector('.multi-select-label') as HTMLElement;
+        if (label) {
+            label.textContent = selectedValues.size > 0
+                ? Array.from(selectedValues).join(', ')
+                : 'None';
+        }
     };
     updateSummary();
     details.addEventListener('toggle', () => {

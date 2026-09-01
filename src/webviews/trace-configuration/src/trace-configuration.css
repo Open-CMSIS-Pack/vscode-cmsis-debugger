@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- /* generated with AI */
+/* generated with AI */
 
 * {
     box-sizing: border-box;
@@ -232,6 +232,30 @@ select:disabled {
     cursor: pointer;
 }
 
+.multi-select-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.multi-select-summary .codicon {
+    flex: none;
+}
+
+/* .multi-select-summary::after {
+    content: '';
+    display: inline-block;
+    width: 0;
+    height: 0;
+    margin-left: 0.3em;
+    vertical-align: middle;
+    border-top: 4px solid;
+    border-right: 4px solid transparent;
+    border-left: 4px solid transparent;
+    right: 4px;
+    position: absolute;
+} */
+
 .multi-select-menu {
     position: absolute;
     z-index: 3;
@@ -343,6 +367,7 @@ input[type="checkbox"] {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    padding-left: 0.3em;
 }
 
 .node-meta {
@@ -417,6 +442,10 @@ input[type="checkbox"] {
 
 .error-state {
     color: var(--vscode-errorForeground, #f48771);
+}
+
+.codicon.trace-config.chevron {
+    display: block;
 }
 
 @container (max-width: 360px) {
