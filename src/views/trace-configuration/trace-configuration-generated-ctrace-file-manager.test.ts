@@ -176,20 +176,20 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         expect(generatedText).toContain('core: Cortex-M33');
     });
 
-    it('generates a default ctrace file in .cmsis folder', async () => {
+    it('names the generated ctrace file after the cbuild-run file', async () => {
         const workspaceRoot = await createTemporaryWorkspace();
         mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M55', 'core0')]);
         const cbuildRunFile = vscode.Uri.file(path.join(
             os.tmpdir(),
             'external-build-output',
             'nested',
-            'demo.cbuild-run.yml'
+            'solution+project+target.cbuild-run.yml'
         ));
         const manager = new TraceConfigurationGeneratedCTraceFileManager();
 
         const generatedTraceFile = await manager.createDefaultCTraceFile(cbuildRunFile);
 
-        const expectedTraceFile = path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yml');
+        const expectedTraceFile = path.join(workspaceRoot, '.cmsis', 'solution+project+target.ctrace.yml');
         expect(CbuildRunReader.prototype.parse).toHaveBeenCalledWith(cbuildRunFile.fsPath);
         expectSameFsPath(generatedTraceFile?.fsPath, expectedTraceFile);
         await expect(readTemporaryTextFile(expectedTraceFile)).resolves.toContain('pname: core0');

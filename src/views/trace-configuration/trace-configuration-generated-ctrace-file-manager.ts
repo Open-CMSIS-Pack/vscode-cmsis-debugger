@@ -79,7 +79,7 @@ export class TraceConfigurationGeneratedCTraceFileManager {
         if (!workspaceFolder) {
             throw new Error('Cannot generate a ctrace file without an open workspace folder.');
         }
-        const projectName = this.getProjectNameFromGeneratedCBuildRunFile(cbuildRunFileUri);
+        const traceFileName = this.getGeneratedCTraceFileName(cbuildRunFileUri);
         const processors = await this.readGeneratedCBuildRunProcessors(cbuildRunFileUri);
         if (!processors) {
             logger.debug(
@@ -87,7 +87,7 @@ export class TraceConfigurationGeneratedCTraceFileManager {
             );
             return undefined;
         }
-        const traceFileUri = this.resolveGeneratedCTraceFileUri(workspaceFolder.uri, projectName);
+        const traceFileUri = this.resolveGeneratedCTraceFileUri(workspaceFolder.uri, traceFileName);
         const traceFileExists = await this.fileExists(traceFileUri);
         const document = traceFileExists
             ? await this.readCTraceDocument(traceFileUri)
@@ -103,13 +103,14 @@ export class TraceConfigurationGeneratedCTraceFileManager {
     }
 
     /**
-     * getProjectNameFromGeneratedCBuildRunFile derives the project base name
-     * used for the generated .cmsis ctrace file.
+     * getGeneratedCTraceFileName derives the generated ctrace filename directly
+     * from the cbuild-run filename.
      */
-    private getProjectNameFromGeneratedCBuildRunFile(cbuildRunFileUri: vscode.Uri): string {
+    private getGeneratedCTraceFileName(cbuildRunFileUri: vscode.Uri): string {
         const baseName = path.basename(cbuildRunFileUri.fsPath);
         const suffix = '.cbuild-run.yml';
-        return baseName.endsWith(suffix) ? baseName.slice(0, -suffix.length) : path.parse(baseName).name;
+        const name = baseName.endsWith(suffix) ? baseName.slice(0, -suffix.length) : path.parse(baseName).name;
+        return `${name}.ctrace.yml`;
     }
 
     /**
@@ -153,12 +154,12 @@ export class TraceConfigurationGeneratedCTraceFileManager {
     }
 
     /**
-     * resolveGeneratedCTraceFileUri returns the .cmsis ctrace path associated
-     * with a generated project using the supported *.ctrace.yml file format.
+     * resolveGeneratedCTraceFileUri returns the generated ctrace path inside
+     * the workspace's .cmsis directory.
      */
-    private resolveGeneratedCTraceFileUri(workspaceFolderUri: vscode.Uri, projectName: string): vscode.Uri {
+    private resolveGeneratedCTraceFileUri(workspaceFolderUri: vscode.Uri, traceFileName: string): vscode.Uri {
         const cmsisDirectory = vscode.Uri.file(path.join(workspaceFolderUri.fsPath, '.cmsis'));
-        return vscode.Uri.file(path.join(cmsisDirectory.fsPath, `${projectName}.ctrace.yml`));
+        return vscode.Uri.file(path.join(cmsisDirectory.fsPath, traceFileName));
     }
 
     /**
