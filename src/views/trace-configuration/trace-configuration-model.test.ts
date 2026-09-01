@@ -26,6 +26,7 @@ import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
 import { CBUILD_INDEX_FILE_GLOB, CTRACE_FILE_GLOB, ENABLE_TRACE_GENERATION_VIEW_SETTING } from '../../manifest';
 import { containsSubstringsInOrder, normalizeFsPath, waitForCondition, waitForImmediate } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
+import { SWO_UART_TRACE_OFF_MESSAGE } from './trace-configuration-generated-ctrace-file-manager';
 import { TraceConfigurationModel } from './trace-configuration-model';
 import { TraceConfigurationProcessorCapabilities } from './trace-configuration-processor-capabilities';
 import * as TraceConfigurationTypes from './trace-configuration-types';
@@ -349,6 +350,55 @@ describe('TraceConfigurationModel', () => {
         expect(generatedText).toContain('created-by: CMSIS Debugger');
         expect(generatedText).toContain('pname: core0');
         expectSameFsPath(model.createState().fileName, generatedTraceFile);
+        model.dispose();
+    });
+
+    it('clears the active ctrace file and shows guidance when SWO UART trace mode is off', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const updateConfiguration = mockTraceGenerationConfiguration();
+        jest.spyOn(CbuildRunReader.prototype, 'parse').mockResolvedValue();
+        jest.spyOn(CbuildRunReader.prototype, 'getSwoUartTraceMode').mockReturnValue('off');
+        const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
+        const ctraceFileName = path.join(ctraceDirectory, 'demo.ctrace.yml');
+        const cbuildRunDirectory = path.join(workspaceRoot, 'out');
+        const cbuildRunFile = vscode.Uri.file(path.join(cbuildRunDirectory, 'demo.cbuild-run.yml'));
+        await createTemporaryDirectory(ctraceDirectory);
+        await createTemporaryDirectory(cbuildRunDirectory);
+        await writeTemporaryTextFile(ctraceFileName, [
+            'ctrace:',
+            '  setup:',
+            '    - pname: core0',
+            '      core: Cortex-M55',
+            ''
+        ].join('\n'));
+        await writeTemporaryTextFile(cbuildRunFile.fsPath, 'cbuild-run:\n');
+        const model = new TraceConfigurationModel();
+        await model.openFile(ctraceFileName);
+        expect(model.createState().rows.length).toBeGreaterThan(0);
+
+        (vscode.commands.executeCommand as jest.Mock).mockResolvedValue(cbuildRunFile.fsPath);
+        model.watchForGeneratedCBuildRunFiles();
+        const cbuildIndexWatcher = getLastCreatedFileSystemWatcher();
+        fireWatcherHandler(
+            cbuildIndexWatcher,
+            'change',
+            vscode.Uri.file(path.join(workspaceRoot, 'project.cbuild-idx.yml'))
+        );
+        await waitForCondition('SWO UART trace-off guidance', () =>
+            model.createState().emptyMessage === SWO_UART_TRACE_OFF_MESSAGE);
+
+        expect(model.createState()).toMatchObject({
+            fileName: undefined,
+            rows: [],
+            dirty: false,
+            emptyMessage: SWO_UART_TRACE_OFF_MESSAGE
+        });
+        expect(updateConfiguration).toHaveBeenCalledWith(
+            ENABLE_TRACE_GENERATION_VIEW_SETTING,
+            true,
+            vscode.ConfigurationTarget.Workspace
+        );
+        await expect(readTemporaryTextFile(ctraceFileName)).resolves.toContain('pname: core0');
         model.dispose();
     });
 

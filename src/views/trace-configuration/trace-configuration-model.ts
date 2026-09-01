@@ -27,7 +27,10 @@ import {
     GeneratedCBuildRunFileChangeEvent,
     TraceConfigurationFileWatcher
 } from './trace-configuration-file-watcher';
-import { TraceConfigurationGeneratedCTraceFileManager } from './trace-configuration-generated-ctrace-file-manager';
+import {
+    SWO_UART_TRACE_OFF_MESSAGE,
+    TraceConfigurationGeneratedCTraceFileManager
+} from './trace-configuration-generated-ctrace-file-manager';
 import {
     TraceConfigurationRow,
     TraceConfigurationState,
@@ -117,14 +120,22 @@ export class TraceConfigurationModel {
 
     /**
      * refreshProcessorCapabilitiesFromGeneratedCBuildRunFile delegates generated
-     * ctrace.yml creation to the generated-file manager and loads the returned
-     * trace file when a created or changed cbuild-run file produced one.
+     * ctrace.yml creation to the generated-file manager. It loads generated
+     * trace files and replaces file-backed state with guidance when tracing is off.
      */
     private async refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event: GeneratedCBuildRunFileChangeEvent): Promise<void> {
         try {
-            const generatedTraceFileUri = await this.generatedCTraceFileManager.processGeneratedCBuildRunFileChange(event);
-            if (generatedTraceFileUri) {
-                await this.loadFile(generatedTraceFileUri.fsPath);
+            const result = await this.generatedCTraceFileManager.processGeneratedCBuildRunFileChange(event);
+            switch (result.status) {
+                case 'generated':
+                    await this.loadFile(result.uri.fsPath);
+                    break;
+                case 'trace-off':
+                    this.clearCurrentFile();
+                    this.emptyMessage = SWO_UART_TRACE_OFF_MESSAGE;
+                    break;
+                case 'deleted':
+                    break;
             }
             this.errorMessage = undefined;
         } catch (error) {
@@ -186,6 +197,7 @@ export class TraceConfigurationModel {
         this.fileWatcher.disposeCurrentFileWatcher();
         this.ctraceFile = undefined;
         this.processorCapabilities.clear();
+        this.dirty = false;
     }
 
     /**

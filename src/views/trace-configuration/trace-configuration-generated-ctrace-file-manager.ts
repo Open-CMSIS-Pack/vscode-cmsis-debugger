@@ -32,6 +32,14 @@ interface GeneratedTraceProcessor {
     pname?: string | undefined;
 }
 
+export const SWO_UART_TRACE_OFF_MESSAGE =
+    'Trace Configuration: Skipping ctrace generation because SWO UART trace is off';
+
+export type GeneratedCBuildRunFileProcessingResult =
+    | { status: 'generated'; uri: vscode.Uri }
+    | { status: 'trace-off' }
+    | { status: 'deleted' };
+
 /**
  * TraceConfigurationGeneratedCTraceFileManager owns the generated cbuild-run to
  * generated ctrace.yml conversion flow.
@@ -43,20 +51,25 @@ export class TraceConfigurationGeneratedCTraceFileManager {
     /**
      * processGeneratedCBuildRunFileChange updates generated trace files and the
      * trace generation setting for a generated cbuild-run watcher event, then
-     * returns the ctrace file that the model should load.
+     * reports whether a ctrace file was generated, tracing is off, or the source
+     * file was deleted.
      */
-    public async processGeneratedCBuildRunFileChange(event: GeneratedCBuildRunFileChangeEvent): Promise<vscode.Uri | undefined> {
+    public async processGeneratedCBuildRunFileChange(
+        event: GeneratedCBuildRunFileChangeEvent
+    ): Promise<GeneratedCBuildRunFileProcessingResult> {
         logger.debug(`Trace Configuration: Generated cbuild-run file ${event.type}: ${event.uri.fsPath}`);
         switch (event.type) {
             case 'created':
             case 'changed': {
                 const traceFileUri = await this.createDefaultCTraceFile(event.uri);
-                await this.setTraceGenerationWebviewEnabled(traceFileUri !== undefined);
-                return traceFileUri;
+                await this.setTraceGenerationWebviewEnabled(true);
+                return traceFileUri
+                    ? { status: 'generated', uri: traceFileUri }
+                    : { status: 'trace-off' };
             }
             case 'deleted':
                 await this.setTraceGenerationWebviewEnabled(false);
-                return undefined;
+                return { status: 'deleted' };
         }
     }
 
@@ -82,9 +95,7 @@ export class TraceConfigurationGeneratedCTraceFileManager {
         const traceFileName = this.getGeneratedCTraceFileName(cbuildRunFileUri);
         const processors = await this.readGeneratedCBuildRunProcessors(cbuildRunFileUri);
         if (!processors) {
-            logger.debug(
-                `Trace Configuration: Skipping ctrace generation because SWO UART trace is off: ${cbuildRunFileUri.fsPath}`
-            );
+            logger.debug(`${SWO_UART_TRACE_OFF_MESSAGE}: ${cbuildRunFileUri.fsPath}`);
             return undefined;
         }
         const traceFileUri = this.resolveGeneratedCTraceFileUri(workspaceFolder.uri, traceFileName);
