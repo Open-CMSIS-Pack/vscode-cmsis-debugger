@@ -1009,7 +1009,7 @@
     "typescript-eslint": "8.62.0",
     "webpack": "5.105.4",
     "webpack-cli": "6.0.1",
-    "yargs": "18.0.0"
+    "yargs": "18.1.0"
   },
   "cmsis": {
     "pyocd": "pyocd/pyOCD@0.45.1",
