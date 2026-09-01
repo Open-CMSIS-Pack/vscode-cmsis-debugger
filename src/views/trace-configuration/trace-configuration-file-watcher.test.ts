@@ -216,10 +216,10 @@ describe('TraceConfigurationFileWatcher', () => {
         expect(getCBuildRunFileName).toHaveBeenCalledTimes(1);
         expect(cbuildRunPattern.base).toBe(path.dirname(cbuildRunFile.fsPath));
         expect(cbuildRunPattern.pattern).toBe(path.basename(cbuildRunFile.fsPath));
-        expect(onGeneratedCBuildRunFileChanged).toHaveBeenCalledWith({
-            type: 'changed',
-            uri: cbuildRunFile
-        });
+        const changeEvent = onGeneratedCBuildRunFileChanged.mock.calls.at(-1)?.[0] as
+            GeneratedCBuildRunFileChangeEvent | undefined;
+        expect(changeEvent?.type).toBe('changed');
+        expect(normalizeFsPath(changeEvent?.uri.fsPath)).toBe(normalizeFsPath(cbuildRunFile.fsPath));
 
         watcher.dispose();
         expect(cbuildRunWatcher.dispose).toHaveBeenCalledTimes(1);
@@ -259,10 +259,10 @@ describe('TraceConfigurationFileWatcher', () => {
         expect(indexPattern.base.uri.fsPath).toBe(normalizeFsPath('/workspace'));
         expect(indexPattern.pattern).toBe(CBUILD_INDEX_FILE_GLOB);
         expect(getCBuildRunFileName).toHaveBeenCalledTimes(1);
-        expect(onGeneratedCBuildRunFileChanged).toHaveBeenCalledWith({
-            type: 'changed',
-            uri: cbuildRunFile
-        });
+        const changeEvent = onGeneratedCBuildRunFileChanged.mock.calls.at(-1)?.[0] as
+            GeneratedCBuildRunFileChangeEvent | undefined;
+        expect(changeEvent?.type).toBe('changed');
+        expect(normalizeFsPath(changeEvent?.uri.fsPath)).toBe(normalizeFsPath(cbuildRunFile.fsPath));
 
         watcher.dispose();
     });
