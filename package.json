@@ -153,6 +153,16 @@
         "category": "Live Watch"
       },
       {
+        "command": "cdt.debug.setOutputRadixToDecimal",
+        "title": "Set Output Radix to Decimal",
+        "category": "Live Watch"
+      },
+      {
+        "command": "cdt.debug.setOutputRadixToHex",
+        "title": "Set Output Radix to Hexadecimal",
+        "category": "Live Watch"
+      },
+      {
         "command": "vscode-cmsis-debugger.liveWatch.delete",
         "title": "Delete Expression",
         "icon": "$(close)",
