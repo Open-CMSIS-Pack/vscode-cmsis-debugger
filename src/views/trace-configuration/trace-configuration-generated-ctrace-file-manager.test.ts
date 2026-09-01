@@ -43,9 +43,10 @@ function createProcessor(core: string, pname?: string): ProcessorType {
     };
 }
 
-function mockGeneratedCBuildRunProcessors(processors: ProcessorType[]): void {
+function mockGeneratedCBuildRunProcessors(processors: ProcessorType[], targetSet = '<default>'): void {
     jest.spyOn(CbuildRunReader.prototype, 'parse').mockResolvedValue();
     jest.spyOn(CbuildRunReader.prototype, 'getProcessors').mockReturnValue(processors);
+    jest.spyOn(CbuildRunReader.prototype, 'getTargetSet').mockReturnValue(targetSet);
 }
 
 function mockTraceGenerationConfiguration(): jest.Mock {
@@ -178,9 +179,12 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         expect(generatedText).toContain('core: Cortex-M33');
     });
 
-    it('names the generated ctrace file after the cbuild-run file', async () => {
+    it.each([
+        { targetSet: 'Release', expectedName: 'solution+project+target@Release.ctrace.yml' },
+        { targetSet: '<default>', expectedName: 'solution+project+target.ctrace.yml' },
+    ])('names the generated ctrace file using target set $targetSet', async ({ targetSet, expectedName }) => {
         const workspaceRoot = await createTemporaryWorkspace();
-        mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M55', 'core0')]);
+        mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M55', 'core0')], targetSet);
         const cbuildRunFile = vscode.Uri.file(path.join(
             os.tmpdir(),
             'external-build-output',
@@ -191,7 +195,7 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
 
         const generatedTraceFile = await manager.createDefaultCTraceFile(cbuildRunFile);
 
-        const expectedTraceFile = path.join(workspaceRoot, '.cmsis', 'solution+project+target.ctrace.yml');
+        const expectedTraceFile = path.join(workspaceRoot, '.cmsis', expectedName);
         expect(CbuildRunReader.prototype.parse).toHaveBeenCalledWith(cbuildRunFile.fsPath);
         expectSameFsPath(generatedTraceFile?.fsPath, expectedTraceFile);
         await expect(readTemporaryTextFile(expectedTraceFile)).resolves.toContain('pname: core0');

@@ -135,9 +135,10 @@ function createProcessor(core: string, pname?: string): ProcessorType {
     };
 }
 
-function mockGeneratedCBuildRunProcessors(processors: ProcessorType[]): void {
+function mockGeneratedCBuildRunProcessors(processors: ProcessorType[], targetSet = '<default>'): void {
     jest.spyOn(CbuildRunReader.prototype, 'parse').mockResolvedValue();
     jest.spyOn(CbuildRunReader.prototype, 'getProcessors').mockReturnValue(processors);
+    jest.spyOn(CbuildRunReader.prototype, 'getTargetSet').mockReturnValue(targetSet);
 }
 
 function mockTraceGenerationConfiguration(): jest.Mock {

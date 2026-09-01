@@ -161,6 +161,26 @@ describe('CbuildRunReader', () => {
             expect(pnames).toEqual(['Core0', 'Core1']);
         });
 
+        it('returns the target set from the cbuild-run root', async () => {
+            const reader = new CbuildRunReader(new MockFileReader([
+                'cbuild-run:',
+                '  target-set: Release',
+                '  output: []',
+                '  debugger:',
+                '    name: <default>',
+                '  debug-vars:',
+                '    vars: ""',
+            ].join('\n')));
+
+            await reader.parse('test.cbuild-run.yml');
+
+            expect(reader.getTargetSet()).toBe('Release');
+        });
+
+        it('returns no target set when no cbuild-run has been parsed', () => {
+            expect(cbuildRunReader.getTargetSet()).toBeUndefined();
+        });
+
         it('returns processors from system resources', async () => {
             const reader = new CbuildRunReader(new MockFileReader([
                 'cbuild-run:',
