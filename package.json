@@ -988,7 +988,7 @@
     "file-type": "21.3.2",
     "fs-extra": "11.4.0",
     "glob": "13.0.6",
-    "globby": "16.1.1",
+    "globby": "16.2.4",
     "jest": "30.4.2",
     "jest-html-reporter": "4.4.0",
     "lzma-native": "8.0.6",
