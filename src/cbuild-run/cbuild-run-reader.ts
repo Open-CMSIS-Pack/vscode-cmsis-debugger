@@ -137,7 +137,7 @@ export class CbuildRunReader {
             return undefined;
         }
         const mode = trace['swo-uart']?.mode;
-        return mode === 'on' || mode === 'off' ? mode : undefined;
+        return mode === 'off' || mode === 'server' || mode === 'file' ? mode : undefined;
     }
 
     public getTargetType(): string | undefined {

@@ -188,7 +188,7 @@ describe('CbuildRunReader', () => {
             ]);
         });
 
-        it.each(['on', 'off'] as const)('returns the SWO UART trace mode when it is %s', async mode => {
+        it.each(['server', 'file', 'off'] as const)('returns the SWO UART trace mode when it is %s', async mode => {
             const reader = new CbuildRunReader(new MockFileReader([
                 'cbuild-run:',
                 '  output: []',

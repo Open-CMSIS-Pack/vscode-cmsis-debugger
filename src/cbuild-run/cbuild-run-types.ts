@@ -75,7 +75,7 @@ export interface GdbserverType {
 
 export type ProtocolType = 'swd'|'jtag';
 
-export type SwoUartTraceModeType = 'on' | 'off';
+export type SwoUartTraceModeType = 'server' | 'off' | 'file';
 
 export interface SwoUartTraceType {
     mode?: SwoUartTraceModeType;
