@@ -104,7 +104,7 @@ describe('TraceConfigurationCommands', () => {
         await commandHandler();
 
         expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
-            'Trace configuration was not generated because debugger.trace.swo-uart.mode is off.'
+            'Trace configuration was not generated because tracing is set to off.'
         );
     });
 
