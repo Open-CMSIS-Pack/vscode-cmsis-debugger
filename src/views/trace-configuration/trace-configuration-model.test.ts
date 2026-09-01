@@ -99,7 +99,8 @@ async function waitForWatcherWork(): Promise<void> {
 }
 
 function expectSameFsPath(actual: string | undefined, expected: string): void {
-    expect(normalizeFsPath(actual)).toBe(normalizeFsPath(expected));
+    expect(actual).toBeDefined();
+    expect(normalizeFsPath(actual as string)).toBe(normalizeFsPath(expected));
 }
 
 function createProcessor(core: string, pname?: string): ProcessorType {
@@ -185,7 +186,7 @@ async function createModelFromText(
         const privateCapabilities = processorCapabilities as unknown as TraceConfigurationProcessorCapabilitiesPrivate;
         capabilities?.forEach((value, key) => privateCapabilities.processorCapabilities.set(key, value));
     }
-    const model = new TraceConfigurationModel(() => {}, processorCapabilities);
+    const model = new TraceConfigurationModel(() => { }, processorCapabilities);
     (model as unknown as TraceConfigurationModelPrivate).ctraceFile = file;
     return { adapter, model };
 }
@@ -218,6 +219,16 @@ describe('TraceConfigurationModel', () => {
             dirty: false,
             emptyMessage: 'Open a ctrace.yml file to edit trace configuration.'
         });
+    });
+
+    it('keeps a loaded ctrace filename absolute', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const fileName = path.join(workspaceRoot, '.cmsis', 'target.ctrace.yml');
+        const { model } = await createModelFromText('created-by: CMSIS Debugger\n');
+        (model as unknown as TraceConfigurationModelPrivate).ctraceFile = new CTraceYamlFile(fileName, new MemoryTextFileAdapter('created-by: CMSIS Debugger\n'));
+
+        expect(model.createState().fileName).toBe(fileName);
+        model.dispose();
     });
 
     it('watches generated cbuild-run files in the top-level out folder', () => {

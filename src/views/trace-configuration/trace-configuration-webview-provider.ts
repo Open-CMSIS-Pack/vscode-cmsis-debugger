@@ -156,9 +156,16 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
         if (!this.webviewView) {
             return;
         }
+        const state = this.model.createState();
+        const workspaceFolder = state.fileName
+            ? vscode.workspace.getWorkspaceFolder(vscode.Uri.file(state.fileName))
+            : undefined;
         const message: TraceHostToWebviewMessage = {
             type: 'update',
-            state: this.model.createState()
+            state: {
+                ...state,
+                ...(workspaceFolder ? { workspaceFolderPath: workspaceFolder.uri.fsPath } : {})
+            }
         };
         void this.webviewView.webview.postMessage(message);
     }

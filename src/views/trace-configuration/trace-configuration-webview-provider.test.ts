@@ -75,7 +75,7 @@ function createWebviewView(): {
     fake: FakeWebviewView;
     sendMessage: (message: TraceWebviewToHostMessage) => void;
     disposeView: () => void;
-    } {
+} {
     let messageHandler: MessageHandler | undefined;
     let disposeHandler: DisposeHandler | undefined;
     const fake: FakeWebviewView = {
@@ -148,6 +148,11 @@ describe('TraceConfigurationWebviewProvider', () => {
         const model = new FakeTraceConfigurationModel();
         const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
         const { view, fake, sendMessage } = createWebviewView();
+        jest.spyOn(vscode.workspace, 'getWorkspaceFolder').mockReturnValue({
+            uri: vscode.Uri.file('/workspace'),
+            name: 'workspace',
+            index: 0
+        });
         provider.resolveWebviewView(view, {} as vscode.WebviewViewResolveContext, {} as vscode.CancellationToken);
 
         sendMessage({ type: 'ready' });
@@ -158,6 +163,7 @@ describe('TraceConfigurationWebviewProvider', () => {
             type: 'update',
             state: {
                 fileName: 'target.ctrace.yml',
+                workspaceFolderPath: '/workspace',
                 dirty: false,
                 diagnostics: [],
                 rows: []

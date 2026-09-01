@@ -61,7 +61,7 @@ export class TraceConfigurationModel {
      * collaborators make this class easy to test while the default path uses the production helpers.
      */
     public constructor(
-        private onDidChange: () => void = () => {},
+        private onDidChange: () => void = () => { },
         processorCapabilities?: TraceConfigurationProcessorCapabilities,
         rowBuilder?: TraceConfigurationRowBuilder,
         generatedCTraceFileManager?: TraceConfigurationGeneratedCTraceFileManager

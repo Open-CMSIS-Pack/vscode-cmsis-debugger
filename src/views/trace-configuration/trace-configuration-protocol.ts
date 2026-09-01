@@ -42,6 +42,7 @@ export interface TraceConfigurationRow {
 
 export interface TraceConfigurationState {
     fileName?: string | undefined;
+    workspaceFolderPath?: string | undefined;
     rows: TraceConfigurationRow[];
     loading: boolean;
     dirty: boolean;

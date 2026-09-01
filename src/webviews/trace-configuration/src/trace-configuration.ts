@@ -207,11 +207,23 @@ function toggleAllRows(expanded: boolean): void {
 function createStatus(state: TraceConfigurationState): HTMLElement {
     const status = createElement('div', 'trace-status');
     const file = createElement('span', 'trace-file');
-    file.textContent = state.fileName ?? 'No ctrace.yml selected';
+    file.textContent = getFileNameDisplayText(state);
+    file.title = state.fileName ?? '';
     const dirty = createElement('span', state.dirty ? 'status-warn' : 'status-ok');
     dirty.textContent = state.dirty ? 'Unsaved' : 'Synced';
     status.append(file, dirty);
     return status;
+}
+
+/**
+ * getFileNameDisplayText preserves the absolute filename in state while
+ * shortening the status label for files inside the active workspace.
+ */
+function getFileNameDisplayText(state: TraceConfigurationState): string {
+    if (!state.fileName || !state.workspaceFolderPath) {
+        return state.fileName ?? 'No ctrace.yml selected';
+    }
+    return state.fileName.slice(state.workspaceFolderPath.length + 1);
 }
 
 /**
