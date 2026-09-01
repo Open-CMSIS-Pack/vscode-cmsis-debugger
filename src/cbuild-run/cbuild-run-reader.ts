@@ -128,16 +128,26 @@ export class CbuildRunReader {
 
     /**
      * Returns the validated SWO UART trace mode from
-     * debugger.trace.swo-uart.mode. The cbuild-run file is external input, so
-     * unsupported values and the legacy string trace shape are ignored.
+     * the debugger.trace[] entry containing sibling swo-uart and mode
+     * properties. Unsupported values and the legacy string trace shape are ignored.
      */
     public getSwoUartTraceMode(): SwoUartTraceModeType | undefined {
         const trace = this.cbuildRun?.debugger?.trace;
-        if (!trace || typeof trace !== 'object') {
+        if (!trace || typeof trace === 'string') {
             return undefined;
         }
-        const mode = trace['swo-uart']?.mode;
-        return mode === 'off' || mode === 'server' || mode === 'file' ? mode : undefined;
+
+        for (const traceEntry of trace) {
+            if (traceEntry['swo-uart'] === undefined) {
+                continue;
+            }
+            const mode = traceEntry.mode;
+            if (mode === 'off' || mode === 'server' || mode === 'file') {
+                return mode;
+            }
+        }
+
+        return undefined;
     }
 
     public getTargetType(): string | undefined {
