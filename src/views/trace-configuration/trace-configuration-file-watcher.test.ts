@@ -256,7 +256,7 @@ describe('TraceConfigurationFileWatcher', () => {
             base: vscode.WorkspaceFolder;
             pattern: string;
         };
-        expect(indexPattern.base.uri.fsPath).toBe('/workspace');
+        expect(indexPattern.base.uri.fsPath).toBe(normalizeFsPath('/workspace'));
         expect(indexPattern.pattern).toBe(CBUILD_INDEX_FILE_GLOB);
         expect(getCBuildRunFileName).toHaveBeenCalledTimes(1);
         expect(onGeneratedCBuildRunFileChanged).toHaveBeenCalledWith({
