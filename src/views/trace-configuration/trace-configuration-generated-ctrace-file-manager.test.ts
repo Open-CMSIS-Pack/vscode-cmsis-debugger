@@ -45,6 +45,7 @@ function createProcessor(core: string, pname?: string): ProcessorType {
 
 function mockGeneratedCBuildRunProcessors(processors: ProcessorType[], targetSet = '<default>'): void {
     jest.spyOn(CbuildRunReader.prototype, 'parse').mockResolvedValue();
+    jest.spyOn(CbuildRunReader.prototype, 'getSwoUartTraceMode').mockReturnValue('server');
     jest.spyOn(CbuildRunReader.prototype, 'getProcessors').mockReturnValue(processors);
     jest.spyOn(CbuildRunReader.prototype, 'getTargetSet').mockReturnValue(targetSet);
 }
@@ -220,11 +221,14 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         expect(parseSpy).not.toHaveBeenCalled();
     });
 
-    it('does not generate a ctrace file when SWO UART trace mode is off', async () => {
+    it.each([
+        { traceMode: 'off' as const, description: 'off' },
+        { traceMode: undefined, description: 'undefined' },
+    ])('does not generate a ctrace file when SWO UART trace mode is $description', async ({ traceMode }) => {
         const workspaceRoot = await createTemporaryWorkspace();
         const updateConfiguration = mockTraceGenerationConfiguration();
         jest.spyOn(CbuildRunReader.prototype, 'parse').mockResolvedValue();
-        jest.spyOn(CbuildRunReader.prototype, 'getSwoUartTraceMode').mockReturnValue('off');
+        jest.spyOn(CbuildRunReader.prototype, 'getSwoUartTraceMode').mockReturnValue(traceMode);
         const getProcessors = jest.spyOn(CbuildRunReader.prototype, 'getProcessors');
         const cbuildRunFile = vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml'));
         const manager = new TraceConfigurationGeneratedCTraceFileManager();

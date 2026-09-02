@@ -38,7 +38,7 @@ interface GeneratedCBuildRunData {
 }
 
 export const SWO_UART_TRACE_OFF_MESSAGE =
-    'Trace Configuration: Skipping ctrace generation because SWO UART trace is off';
+    'Trace generation turned off, enable in debugger\'s trace settings';
 
 export type GeneratedCBuildRunFileProcessingResult =
     | { status: 'generated'; uri: vscode.Uri }
@@ -139,7 +139,8 @@ export class TraceConfigurationGeneratedCTraceFileManager {
     ): Promise<GeneratedCBuildRunData | undefined> {
         const reader = new CbuildRunReader();
         await reader.parse(cbuildRunFileUri.fsPath);
-        if (reader.getSwoUartTraceMode() === 'off') {
+        const traceMode = reader.getSwoUartTraceMode();
+        if (traceMode === undefined || traceMode === 'off') {
             return undefined;
         }
         const processors = reader.getProcessors();

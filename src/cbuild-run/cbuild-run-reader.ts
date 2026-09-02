@@ -145,7 +145,7 @@ export class CbuildRunReader {
             if (traceEntry['swo-uart'] === undefined) {
                 continue;
             }
-            const mode = traceEntry.mode;
+            const mode = traceEntry.mode ?? 'off';
             if (mode === 'off' || mode === 'server' || mode === 'file') {
                 return mode;
             }
