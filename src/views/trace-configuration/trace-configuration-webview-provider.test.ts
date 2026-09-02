@@ -75,6 +75,7 @@ function createWebviewView(): {
     fake: FakeWebviewView;
     sendMessage: (message: TraceWebviewToHostMessage) => void;
     disposeView: () => void;
+    // eslint-disable-next-line indent
 } {
     let messageHandler: MessageHandler | undefined;
     let disposeHandler: DisposeHandler | undefined;
@@ -148,8 +149,9 @@ describe('TraceConfigurationWebviewProvider', () => {
         const model = new FakeTraceConfigurationModel();
         const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
         const { view, fake, sendMessage } = createWebviewView();
+        const workspaceUri = vscode.Uri.file('/workspace');
         jest.spyOn(vscode.workspace, 'getWorkspaceFolder').mockReturnValue({
-            uri: vscode.Uri.file('/workspace'),
+            uri: workspaceUri,
             name: 'workspace',
             index: 0
         });
@@ -163,7 +165,7 @@ describe('TraceConfigurationWebviewProvider', () => {
             type: 'update',
             state: {
                 fileName: 'target.ctrace.yml',
-                workspaceFolderPath: '/workspace',
+                workspaceFolderPath: workspaceUri.fsPath,
                 dirty: false,
                 diagnostics: [],
                 rows: []

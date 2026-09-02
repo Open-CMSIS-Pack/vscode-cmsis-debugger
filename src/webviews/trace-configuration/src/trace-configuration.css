@@ -302,8 +302,8 @@ input[type="checkbox"] {
 
 .option-tree-table th,
 .option-tree-table td {
-    border-bottom: 1px solid rgba(128, 128, 128, 0.22);
-    padding: 6px 7px;
+    /* border-bottom: 1px solid rgba(128, 128, 128, 0.22); */
+    padding: 0px 7px;
     text-align: left;
     vertical-align: middle;
 }
@@ -342,6 +342,8 @@ input[type="checkbox"] {
 .tree-label,
 .selection-cell {
     min-width: 0;
+    height: 2em;
+    line-height: 2em;
 }
 
 .node-title {
@@ -364,6 +366,7 @@ input[type="checkbox"] {
 
 .node-text {
     min-width: 0;
+    line-height: 2em;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -450,12 +453,12 @@ input[type="checkbox"] {
 
 @container (max-width: 360px) {
     .option-tree-table th:first-child {
-        width: 48%;
+        width: fit-content;
     }
 
     .option-tree-table th,
     .option-tree-table td {
-        padding: 5px;
+        padding: 0px;
     }
 
     .node-prefix {
