@@ -139,44 +139,44 @@ describe('TraceConfigurationWebviewProvider', () => {
         expect(model.dispose).toHaveBeenCalledTimes(1);
     });
 
-    it('observes CMSIS Solution activation without blocking CMSIS Debugger activation', async () => {
-        let completeActivation: (() => void) | undefined;
-        const cmsisSolutionActivation = new Promise<void>(resolve => {
-            completeActivation = resolve;
-        });
-        const activateCmsisSolution = jest.fn().mockReturnValue(cmsisSolutionActivation);
-        (vscode.extensions.getExtension as jest.Mock).mockReturnValue({
+    it('does not activate CMSIS Solution when it is inactive', async () => {
+        let extensionsChangeHandler: (() => void) | undefined;
+        const disposeExtensionChangeSubscription = jest.fn();
+        const extension = {
             isActive: false,
-            activate: activateCmsisSolution
+            activate: jest.fn()
+        };
+        (vscode.extensions.getExtension as jest.Mock).mockReturnValue(extension);
+        (vscode.extensions.onDidChange as jest.Mock).mockImplementationOnce((handler: () => void) => {
+            extensionsChangeHandler = handler;
+            return { dispose: disposeExtensionChangeSubscription };
         });
         const model = new FakeTraceConfigurationModel();
         const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
-        const activation = provider.activate(extensionContextFactory());
+        provider.activate(extensionContextFactory());
 
         await Promise.resolve();
 
-        expect(activation).toBeUndefined();
         expect(model.watchForGeneratedCBuildRunFiles).toHaveBeenCalledTimes(1);
-        expect(model.watchForGeneratedCBuildRunFiles.mock.invocationCallOrder[0]).toBeLessThan(
-            activateCmsisSolution.mock.invocationCallOrder[0] ?? Number.MAX_SAFE_INTEGER
-        );
-        expect(activateCmsisSolution).toHaveBeenCalledTimes(1);
+        expect(extension.activate).not.toHaveBeenCalled();
         expect(model.loadInitialFile).not.toHaveBeenCalled();
+        expect(vscode.extensions.onDidChange).toHaveBeenCalledTimes(1);
 
-        completeActivation?.();
-        await cmsisSolutionActivation;
+        extension.isActive = true;
+        extensionsChangeHandler?.();
         await Promise.resolve();
 
+        expect(disposeExtensionChangeSubscription).toHaveBeenCalledTimes(1);
+        expect(extension.activate).not.toHaveBeenCalled();
         expect(model.loadInitialFile).toHaveBeenCalledTimes(1);
     });
 
-    it('waits for CMSIS Solution to be enabled before activating it', async () => {
+    it('waits for CMSIS Solution to become available and active', async () => {
         let extensionsChangeHandler: (() => void) | undefined;
         const disposeExtensionChangeSubscription = jest.fn();
-        const activateCmsisSolution = jest.fn().mockResolvedValue(undefined);
         const enabledExtension = {
-            isActive: false,
-            activate: activateCmsisSolution
+            isActive: true,
+            activate: jest.fn()
         };
         (vscode.extensions.getExtension as jest.Mock)
             .mockReturnValueOnce(undefined)
@@ -192,7 +192,7 @@ describe('TraceConfigurationWebviewProvider', () => {
         provider.activate(context);
         await Promise.resolve();
 
-        expect(activateCmsisSolution).not.toHaveBeenCalled();
+        expect(enabledExtension.activate).not.toHaveBeenCalled();
         expect(model.loadInitialFile).not.toHaveBeenCalled();
         expect(vscode.extensions.onDidChange).toHaveBeenCalledTimes(1);
 
@@ -201,17 +201,14 @@ describe('TraceConfigurationWebviewProvider', () => {
         await Promise.resolve();
 
         expect(disposeExtensionChangeSubscription).toHaveBeenCalledTimes(1);
-        expect(activateCmsisSolution).toHaveBeenCalledTimes(1);
+        expect(enabledExtension.activate).not.toHaveBeenCalled();
         expect(model.loadInitialFile).toHaveBeenCalledTimes(1);
     });
 
-    it('reports CMSIS Solution activation failures without rejecting extension activation', async () => {
-        const expectedError = new Error('activation failed');
-        (vscode.extensions.getExtension as jest.Mock).mockReturnValue({
-            isActive: false,
-            activate: jest.fn().mockRejectedValue(expectedError)
-        });
+    it('reports initialization failures without rejecting extension activation', async () => {
+        const expectedError = new Error('initialization failed');
         const model = new FakeTraceConfigurationModel();
+        model.loadInitialFile.mockRejectedValue(expectedError);
         const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
 
         expect(provider.activate(extensionContextFactory())).toBeUndefined();
@@ -222,7 +219,7 @@ describe('TraceConfigurationWebviewProvider', () => {
             expectedError,
             'Trace Configuration: Failed to initialize after CMSIS Solution activation'
         );
-        expect(model.loadInitialFile).not.toHaveBeenCalled();
+        expect(model.loadInitialFile).toHaveBeenCalledTimes(1);
     });
 
     it('configures the webview shell without repeating activation initialization', async () => {
