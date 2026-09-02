@@ -39,7 +39,6 @@ import { TraceConfigurationProcessorCapabilities } from './trace-configuration-p
 import { TraceConfigurationRowBuilder } from './trace-configuration-row-builder';
 import { WorkspaceTextFileAdapter } from './workspace-text-file-adapter';
 
-const WORKSPACE_SEARCH_EXCLUDE_GLOB = '**/{node_modules,dist,coverage}/**';
 const BUILD_REQUIRED_MESSAGE = 'Build/Rebuild csolution project to enable trace configuration';
 
 /**
@@ -185,7 +184,7 @@ export class TraceConfigurationModel {
      * trace files outside the generated configuration folder are not selected.
      */
     private async findInitialCTraceFile(): Promise<vscode.Uri | undefined> {
-        const files = await vscode.workspace.findFiles(CTRACE_FILE_GLOB, WORKSPACE_SEARCH_EXCLUDE_GLOB, 10);
+        const files = await vscode.workspace.findFiles(CTRACE_FILE_GLOB, null, 10);
         return files.at(0);
     }
 

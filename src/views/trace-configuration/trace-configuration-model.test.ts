@@ -1090,7 +1090,7 @@ describe('TraceConfigurationModel', () => {
 
         await model.loadInitialFile();
 
-        expect(vscode.workspace.findFiles).toHaveBeenCalledWith(CTRACE_FILE_GLOB, '**/{node_modules,dist,coverage}/**', 10);
+        expect(vscode.workspace.findFiles).toHaveBeenCalledWith(CTRACE_FILE_GLOB, null, 10);
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith('cmsis-csolution.getCbuildRunFile');
         const pattern = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls[0]?.[0] as { pattern: string };
         expect(pattern.pattern).toBe(CBUILD_INDEX_FILE_GLOB);
