@@ -564,13 +564,18 @@ export class TraceConfigurationModel {
      * such as "data:" rather than serializing them as "data: []".
      */
     private convertEmptySequenceToBareKey(document: NonNullable<CTraceYamlFile['document']>, sequencePath: (string | number)[]): void {
-        if (!this.rowBuilder.shouldUseBareSequenceWhenEmpty(sequencePath)) {
+        if (!this.shouldNormalizeEmptySequenceToBareKey(sequencePath)) {
             return;
         }
         const sequence = document.yaml.getItem(sequencePath);
         if (isYamlSequenceItem(sequence) && sequence.getChildren().length === 0) {
             document.yaml.set(sequencePath, null);
         }
+    }
+
+    private shouldNormalizeEmptySequenceToBareKey(sequencePath: (string | number)[]): boolean {
+        return this.rowBuilder.shouldUseBareSequenceWhenEmpty(sequencePath)
+            || this.rowBuilder.isEventsPath(sequencePath);
     }
 
     /**
@@ -612,7 +617,7 @@ export class TraceConfigurationModel {
             if (node.getChildren().length === 0
                 && (this.rowBuilder.isTimestampsPath(nodePath)
                     || this.rowBuilder.isInstructionsPath(nodePath)
-                    || this.rowBuilder.shouldUseBareSequenceWhenEmpty(nodePath))) {
+                    || this.shouldNormalizeEmptySequenceToBareKey(nodePath))) {
                 document.yaml.set(nodePath, null);
                 return;
             }

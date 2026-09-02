@@ -518,20 +518,24 @@ describe('TraceConfigurationModel', () => {
         expect(adapter.text).not.toContain('stop: []');
     });
 
-    it('normalizes already empty DWT data trace lists to bare keys on save', async () => {
+    it('normalizes already empty data and event trace lists to bare keys on save', async () => {
         const { adapter, model } = await createModelFromText([
             'ctrace:',
             '  setup:',
             '    - pname: cm33',
             '      data: []',
+            '      events: []',
             ''
         ].join('\n'));
 
         await model.saveCurrentDocument();
 
         expect(adapter.text).toContain('      data:\n');
+        expect(adapter.text).toContain('      events:\n');
         expect(adapter.text).not.toContain('data: []');
+        expect(adapter.text).not.toContain('events: []');
         expect(adapter.text).not.toContain('data: {}');
+        expect(model.createState().rows.find(row => row.path.join('/') === 'ctrace/setup/0/events')?.control).toBe('multi-select');
     });
 
     it('normalizes empty timestamps and instructions maps to bare keys on save', async () => {
