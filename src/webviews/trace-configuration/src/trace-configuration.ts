@@ -157,16 +157,17 @@ function createHeader(state: TraceConfigurationState): HTMLElement {
  * rendered in the table.
  */
 function createToolbar(): HTMLElement {
-    const toolbar = createElement('div', 'tree-toolbar');
-    toolbar.setAttribute('role', 'toolbar');
-    toolbar.setAttribute('aria-label', 'Trace configuration controls');
-    toolbar.append(
-        createToolbarButton('save', 'Save ctrace.yml', () => post({ type: 'save' })),
-        createToolbarButton('folder-opened', 'Open ctrace.yml', () => post({ type: 'openFile' })),
-        createToolbarButton('expand-all', 'Expand all', () => toggleAllRows(true)),
-        createToolbarButton('collapse-all', 'Collapse all', () => toggleAllRows(false))
-    );
-    return toolbar;
+    return createElement('span', 'tree-toolbar-hidden');
+    // const toolbar = createElement('div', 'tree-toolbar');
+    // toolbar.setAttribute('role', 'toolbar');
+    // toolbar.setAttribute('aria-label', 'Trace configuration controls');
+    // toolbar.append(
+    //     createToolbarButton('save', 'Save ctrace.yml', () => post({ type: 'save' })),
+    //     createToolbarButton('folder-opened', 'Open ctrace.yml', () => post({ type: 'openFile' })),
+    //     createToolbarButton('expand-all', 'Expand all', () => toggleAllRows(true)),
+    //     createToolbarButton('collapse-all', 'Collapse all', () => toggleAllRows(false))
+    // );
+    // return toolbar;
 }
 
 /**
@@ -174,30 +175,30 @@ function createToolbar(): HTMLElement {
  * callback is attached directly because toolbar buttons do not need row path
  * metadata.
  */
-function createToolbarButton(iconName: string, title: string, onClick: () => void): HTMLButtonElement {
-    const button = createElement('button', 'icon-button');
-    button.type = 'button';
-    button.title = title;
-    button.setAttribute('aria-label', title);
-    button.append(createIcon(iconName));
-    button.addEventListener('click', onClick);
-    return button;
-}
+// function createToolbarButton(iconName: string, title: string, onClick: () => void): HTMLButtonElement {
+//     const button = createElement('button', 'icon-button');
+//     button.type = 'button';
+//     button.title = title;
+//     button.setAttribute('aria-label', title);
+//     button.append(createIcon(iconName));
+//     button.addEventListener('click', onClick);
+//     return button;
+// }
 
 /**
  * toggleAllRows broadcasts expand/collapse messages for each expandable row in
  * the rendered table. The host owns expansion state, so the webview reports
  * each requested transition and waits for the next state update.
  */
-function toggleAllRows(expanded: boolean): void {
-    document.querySelectorAll<HTMLTableRowElement>('tr[data-row-id][data-has-children="true"]').forEach(row => {
-        post({
-            type: 'toggle',
-            id: row.dataset.rowId ?? '',
-            expanded
-        });
-    });
-}
+// function toggleAllRows(expanded: boolean): void {
+//     document.querySelectorAll<HTMLTableRowElement>('tr[data-row-id][data-has-children="true"]').forEach(row => {
+//         post({
+//             type: 'toggle',
+//             id: row.dataset.rowId ?? '',
+//             expanded
+//         });
+//     });
+// }
 
 /**
  * createStatus renders the selected filename and unsaved/saved state. Saves are

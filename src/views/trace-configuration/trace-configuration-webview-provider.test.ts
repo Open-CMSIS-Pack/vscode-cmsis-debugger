@@ -19,7 +19,7 @@ import * as vscode from 'vscode';
 
 import { extensionContextFactory } from '../../__test__/vscode.factory';
 import { TraceConfigurationModel } from './trace-configuration-model';
-import { TraceWebviewToHostMessage } from './trace-configuration-protocol';
+import { TraceConfigurationState, TraceWebviewToHostMessage } from './trace-configuration-protocol';
 import { VIEW_ID } from './trace-configuration-types';
 import { TraceConfigurationWebviewProvider } from './trace-configuration-webview-provider';
 
@@ -53,8 +53,9 @@ class FakeTraceConfigurationModel {
     public readonly addItem = jest.fn().mockResolvedValue(undefined);
     public readonly removeItem = jest.fn().mockResolvedValue(undefined);
     public readonly reportError = jest.fn();
-    public readonly createState = jest.fn(() => ({
+    public readonly createState = jest.fn<TraceConfigurationState & { diagnostics: [] }, []>(() => ({
         fileName: 'target.ctrace.yml',
+        loading: false,
         dirty: false,
         diagnostics: [],
         rows: []
@@ -110,6 +111,7 @@ describe('TraceConfigurationWebviewProvider', () => {
     beforeEach(() => {
         vscode.Uri.joinPath = jest.fn((base: vscode.Uri, ...pathSegments: string[]) =>
             vscode.Uri.file([base.fsPath, ...pathSegments].join('/')));
+        (vscode.commands.registerCommand as jest.Mock).mockReturnValue({ dispose: jest.fn() });
     });
 
     afterEach(() => {
@@ -126,7 +128,75 @@ describe('TraceConfigurationWebviewProvider', () => {
         context.subscriptions.forEach(disposable => disposable.dispose());
 
         expect(vscode.window.registerWebviewViewProvider).toHaveBeenCalledWith(VIEW_ID, provider);
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
+            'vscode-cmsis-debugger.traceConfiguration.save',
+            expect.any(Function)
+        );
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
+            'vscode-cmsis-debugger.traceConfiguration.openFile',
+            expect.any(Function)
+        );
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
+            'vscode-cmsis-debugger.traceConfiguration.expandAll',
+            expect.any(Function)
+        );
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
+            'vscode-cmsis-debugger.traceConfiguration.collapseAll',
+            expect.any(Function)
+        );
         expect(model.dispose).toHaveBeenCalledTimes(1);
+    });
+
+    it('routes trace configuration title commands to model operations', async () => {
+        const model = new FakeTraceConfigurationModel();
+        model.createState.mockReturnValue({
+            fileName: 'target.ctrace.yml',
+            dirty: false,
+            loading: false,
+            diagnostics: [],
+            rows: [
+                {
+                    id: 'parent',
+                    label: 'Parent',
+                    path: ['parent'],
+                    depth: 0,
+                    kind: 'map',
+                    control: 'none',
+                    hasChildren: true,
+                    expanded: false,
+                    removable: false
+                },
+                {
+                    id: 'leaf',
+                    label: 'Leaf',
+                    path: ['parent', 'leaf'],
+                    depth: 1,
+                    kind: 'scalar',
+                    control: 'none',
+                    hasChildren: false,
+                    expanded: false,
+                    removable: false
+                }
+            ]
+        });
+        const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
+        const context = extensionContextFactory();
+        provider.activate(context);
+        const findCommand = (command: string): (() => Promise<void> | void) => {
+            const entry = (vscode.commands.registerCommand as jest.Mock).mock.calls.find(([registeredCommand]) => registeredCommand === command);
+            expect(entry).toBeDefined();
+            return entry?.[1] as () => Promise<void> | void;
+        };
+
+        await findCommand('vscode-cmsis-debugger.traceConfiguration.save')();
+        await findCommand('vscode-cmsis-debugger.traceConfiguration.openFile')();
+        findCommand('vscode-cmsis-debugger.traceConfiguration.expandAll')();
+        findCommand('vscode-cmsis-debugger.traceConfiguration.collapseAll')();
+
+        expect(model.saveCurrentDocument).toHaveBeenCalledTimes(1);
+        expect(vscode.window.showOpenDialog).toHaveBeenCalledTimes(1);
+        expect(model.updateExpandedState).toHaveBeenNthCalledWith(1, 'parent', true);
+        expect(model.updateExpandedState).toHaveBeenNthCalledWith(2, 'parent', false);
     });
 
     it('configures the webview shell and loads the initial file when resolved', () => {
@@ -166,6 +236,7 @@ describe('TraceConfigurationWebviewProvider', () => {
             state: {
                 fileName: 'target.ctrace.yml',
                 workspaceFolderPath: workspaceUri.fsPath,
+                loading: false,
                 dirty: false,
                 diagnostics: [],
                 rows: []

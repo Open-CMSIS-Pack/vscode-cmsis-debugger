@@ -55,6 +55,18 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
     public activate(context: vscode.ExtensionContext): void {
         context.subscriptions.push(
             vscode.window.registerWebviewViewProvider(VIEW_ID, this),
+            vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.save', async () => {
+                await this.handleCommand(() => this.model.saveCurrentDocument());
+            }),
+            vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.openFile', async () => {
+                await this.handleCommand(() => this.promptAndOpenFile());
+            }),
+            vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.expandAll', () => {
+                this.toggleAllRows(true);
+            }),
+            vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.collapseAll', () => {
+                this.toggleAllRows(false);
+            }),
             { dispose: () => this.model.dispose() }
         );
     }
@@ -121,6 +133,30 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             }
         } catch (error) {
             this.model.reportError(error, 'Trace Configuration: Webview action failed');
+        }
+    }
+
+    /**
+     * handleCommand applies the same error reporting used for webview actions
+     * to commands invoked from the native view title.
+     */
+    private async handleCommand(action: () => Promise<void>): Promise<void> {
+        try {
+            await action();
+        } catch (error) {
+            this.model.reportError(error, 'Trace Configuration: Command failed');
+        }
+    }
+
+    /**
+     * toggleAllRows applies the current webview toolbar behavior to native
+     * title-bar commands by updating every expandable rendered row.
+     */
+    private toggleAllRows(expanded: boolean): void {
+        for (const row of this.model.createState().rows) {
+            if (row.hasChildren) {
+                this.model.updateExpandedState(row.id, expanded);
+            }
         }
     }
 
