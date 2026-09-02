@@ -142,6 +142,8 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         ])).toBe(true);
         expect(generatedText).not.toContain('timestamps: {}');
         expect(generatedText).not.toContain('instructions: {}');
+        expect(generatedText).not.toContain('data: []');
+        expect(generatedText).not.toContain('events: []');
     });
 
     it('updates an existing generated ctrace file without duplicating existing processors', async () => {

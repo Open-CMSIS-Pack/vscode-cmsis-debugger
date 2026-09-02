@@ -100,9 +100,9 @@ export interface CTraceConfiguration {
     setup?: CTraceProcessorTraceSetup[];
     instructions?: CTraceInstructions;
     timestamps?: CTraceTimestamps | null;
-    data?: CTraceDataTrace[];
+    data?: CTraceDataTrace[] | null;
     exceptions?: null | CTraceExceptionTrace[];
-    events?: CTraceEventTrace[];
+    events?: CTraceEventTrace[] | null;
     itm?: CTraceItmTrace | CTraceItmTrace[];
     pcsampling?: CTracePcSampling;
     synchronization?: CTraceSynchronization;
@@ -117,9 +117,9 @@ export interface CTraceProcessorTraceSetup {
     disable?: null;
     timestamps?: CTraceTimestamps | null;
     timesync?: null;
-    data?: CTraceDataTrace[];
+    data?: CTraceDataTrace[] | null;
     exceptions?: null;
-    events?: CTraceEventTrace[];
+    events?: CTraceEventTrace[] | null;
     itm?: CTraceItmTrace;
     instructions?: CTraceInstructions | null;
     pcsampling?: CTracePcSampling;
@@ -218,7 +218,7 @@ function joinReference(prefix: string | undefined, suffix: string): string {
 export class CTraceYamlDocument {
     private readonly ctraceRefs = new Map<string, string>();
 
-    constructor(private readonly yamlDomDocument: YamlDomDocument) {}
+    constructor(private readonly yamlDomDocument: YamlDomDocument) { }
 
     public static parse(text: string, fileName?: string): CTraceYamlDocument {
         return new CTraceYamlDocument(YamlDomDocument.parse(text, fileName));
@@ -631,7 +631,7 @@ export class CTraceYamlFile {
 
     public watch(
         onDidReload: (document: CTraceYamlDocument) => void,
-        onError: (error: unknown) => void = () => {}
+        onError: (error: unknown) => void = () => { }
     ): Disposable {
         return this.yamlFile.watch(document => {
             this.currentDocument = new CTraceYamlDocument(document);

@@ -299,6 +299,8 @@ describe('TraceConfigurationModel', () => {
         ])).toBe(true);
         expect(generatedText).not.toContain('timestamps: {}');
         expect(generatedText).not.toContain('instructions: {}');
+        expect(generatedText).not.toContain('data: []');
+        expect(generatedText).not.toContain('events: []');
         expect(generatedText).not.toContain('pname: core1\n      core: Cortex-M23\n      timestamps');
         expectSameFsPath(model.createState().fileName, generatedTraceFile);
         expect(onDidChange).toHaveBeenCalled();
