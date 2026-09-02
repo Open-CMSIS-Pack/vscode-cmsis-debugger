@@ -592,6 +592,20 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(privilegedRow.selectedOptions).toEqual(['0-7', '16-23']);
     });
 
+    it('renders a bare event list as an empty multi-select control', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      events:',
+            ''
+        ].join('\n'));
+
+        const eventsRow = findRow(state, ['ctrace', 'setup', 0, 'events']);
+        expect(eventsRow.control).toBe('multi-select');
+        expect(eventsRow.selectedOptions).toEqual([]);
+    });
+
     it('removes PMU event choices when processor capabilities do not support PMU events', () => {
         const state = createStateFromYaml([
             'ctrace:',

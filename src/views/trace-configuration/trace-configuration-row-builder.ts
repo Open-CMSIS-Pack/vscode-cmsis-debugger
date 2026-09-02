@@ -54,7 +54,7 @@ export class TraceConfigurationRowBuilder {
         private readonly getErrorMessage: () => string | undefined,
         private readonly collapsedRows: Set<string>,
         private readonly processorCapabilities: ReadonlyMap<string, TraceConfigurationTypes.ProcessorTraceCapabilities>
-    ) {}
+    ) { }
 
     /**
      * createState builds the DTO consumed by the webview. It contains display
@@ -946,13 +946,16 @@ export class TraceConfigurationRowBuilder {
      * unknown scalars as text inputs so every existing file remains editable.
      */
     private getControlKind(label: string, nodePath: (string | number)[], scalarValue?: string): TraceConfigurationRow['control'] {
+        if (this.isEventsPath(nodePath)) {
+            return 'multi-select';
+        }
         if (this.shouldUseBareSequenceWhenEmpty(nodePath)) {
             return 'none';
         }
         if (this.isPromotedLocationItemPath(nodePath)) {
             return 'text';
         }
-        if (this.isEventsPath(nodePath) || this.isItmPath(nodePath) || this.isItmPrivilegedPath(nodePath)) {
+        if (this.isItmPath(nodePath) || this.isItmPrivilegedPath(nodePath)) {
             return 'multi-select';
         }
         if (this.isPcSamplingPath(nodePath)) {
@@ -1059,14 +1062,14 @@ export class TraceConfigurationRowBuilder {
         nodePath: (string | number)[],
         scalarValue?: string
     ): string[] | undefined {
-        if (this.isEventsPath(nodePath) && isYamlSequenceItem(node)) {
-            return node.getChildren().flatMap(item => {
+        if (this.isEventsPath(nodePath)) {
+            return isYamlSequenceItem(node) ? node.getChildren().flatMap(item => {
                 if (!isYamlMapItem(item)) {
                     return [];
                 }
                 const event = item.getChild('event');
                 return isYamlScalarItem(event) ? [this.scalarToString(event)] : [];
-            });
+            }) : [];
         }
         if (this.isItmPath(nodePath) && isYamlMapItem(node)) {
             return this.itmEnableMaskToChannels(this.mapScalarToString(node, 'enable'));
@@ -1479,7 +1482,8 @@ export class TraceConfigurationRowBuilder {
      * serialize as a bare YAML key when their last item is removed.
      */
     public shouldUseBareSequenceWhenEmpty(nodePath: (string | number)[]): boolean {
-        return this.isSharedDwtComparatorSequencePath(nodePath);
+        return this.isSharedDwtComparatorSequencePath(nodePath)
+            || this.isEventsPath(nodePath);
     }
 
     /**

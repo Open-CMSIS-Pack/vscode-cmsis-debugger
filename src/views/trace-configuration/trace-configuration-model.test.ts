@@ -523,10 +523,11 @@ describe('TraceConfigurationModel', () => {
             'ctrace:',
             '  setup:',
             '    - pname: cm33',
+            '      core: Cortex-M33',
             '      data: []',
             '      events: []',
             ''
-        ].join('\n'));
+        ].join('\n'), createCapabilities());
 
         await model.saveCurrentDocument();
 
