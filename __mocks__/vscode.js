@@ -209,6 +209,7 @@ module.exports = {
     },
     extensions: {
         getExtension: jest.fn(),
+        onDidChange: jest.fn(() => ({ dispose: jest.fn() })),
     },
     commands: {
         executeCommand: jest.fn(),

@@ -39,6 +39,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
     private webviewView: vscode.WebviewView | undefined;
     private readonly model: TraceConfigurationModel;
     private initialLoad: Promise<void> | undefined;
+    private cmsisSolutionExtensionChangeSubscription: vscode.Disposable | undefined;
 
     /**
      * The constructor stores the extension URI for webview asset loading and
@@ -71,7 +72,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             { dispose: () => this.model.dispose() }
         );
         this.model.watchForGeneratedCBuildRunFiles();
-        this.initializeAfterCmsisSolutionActivation();
+        this.initializeAfterCmsisSolutionActivation(context);
     }
 
     /**
@@ -100,20 +101,37 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
     }
 
     /**
-     * initializeAfterCmsisSolutionActivation observes CMSIS Solution's
-     * activation promise without making CMSIS Debugger activation depend on it.
-     * VS Code has no public event for another extension becoming active. The
-     * promise completion is the supported readiness boundary for its commands,
-     * while the already-installed cbuild index watcher covers project setup
-     * that finishes after the activation promise resolves.
+     * initializeAfterCmsisSolutionActivation waits for CMSIS Solution to become
+     * available when it is disabled, then observes its activation promise without
+     * making CMSIS Debugger activation depend on it. The already-installed cbuild
+     * index watcher covers project setup that finishes after activation resolves.
      */
-    private initializeAfterCmsisSolutionActivation(): void {
-        const extension = vscode.extensions.getExtension(CMSIS_SOLUTION_EXTENSION_ID);
+    private initializeAfterCmsisSolutionActivation(context: vscode.ExtensionContext): void {
+        const extension = vscode.extensions.getExtension<object>(CMSIS_SOLUTION_EXTENSION_ID);
         if (!extension) {
+            this.cmsisSolutionExtensionChangeSubscription = vscode.extensions.onDidChange(() => {
+                const enabledExtension = vscode.extensions.getExtension<object>(CMSIS_SOLUTION_EXTENSION_ID);
+                if (!enabledExtension) {
+                    return;
+                }
+                this.cmsisSolutionExtensionChangeSubscription?.dispose();
+                this.cmsisSolutionExtensionChangeSubscription = undefined;
+                this.observeCmsisSolutionActivation(enabledExtension);
+            });
+            context.subscriptions.push(this.cmsisSolutionExtensionChangeSubscription);
             return;
         }
+        this.observeCmsisSolutionActivation(extension);
+    }
+
+    /**
+     * observeCmsisSolutionActivation loads the initial trace file after an enabled
+     * CMSIS Solution extension is active, activating it first only when necessary.
+     */
+    private observeCmsisSolutionActivation(extension: vscode.Extension<object>): void {
         try {
-            void Promise.resolve(extension.activate())
+            const activation = extension.isActive ? Promise.resolve() : Promise.resolve(extension.activate());
+            void activation
                 .then(() => this.loadInitialFileOnce())
                 .catch(error => this.model.reportError(
                     error,

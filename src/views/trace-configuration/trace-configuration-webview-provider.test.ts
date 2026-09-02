@@ -112,6 +112,7 @@ describe('TraceConfigurationWebviewProvider', () => {
     beforeEach(() => {
         vscode.Uri.joinPath = jest.fn((base: vscode.Uri, ...pathSegments: string[]) =>
             vscode.Uri.file([base.fsPath, ...pathSegments].join('/')));
+        (vscode.extensions.onDidChange as jest.Mock).mockReset().mockReturnValue({ dispose: jest.fn() });
         (vscode.extensions.getExtension as jest.Mock).mockReturnValue({
             isActive: true,
             activate: jest.fn()
@@ -166,6 +167,41 @@ describe('TraceConfigurationWebviewProvider', () => {
         await cmsisSolutionActivation;
         await Promise.resolve();
 
+        expect(model.loadInitialFile).toHaveBeenCalledTimes(1);
+    });
+
+    it('waits for CMSIS Solution to be enabled before activating it', async () => {
+        let extensionsChangeHandler: (() => void) | undefined;
+        const disposeExtensionChangeSubscription = jest.fn();
+        const activateCmsisSolution = jest.fn().mockResolvedValue(undefined);
+        const enabledExtension = {
+            isActive: false,
+            activate: activateCmsisSolution
+        };
+        (vscode.extensions.getExtension as jest.Mock)
+            .mockReturnValueOnce(undefined)
+            .mockReturnValue(enabledExtension);
+        (vscode.extensions.onDidChange as jest.Mock).mockImplementationOnce((handler: () => void) => {
+            extensionsChangeHandler = handler;
+            return { dispose: disposeExtensionChangeSubscription };
+        });
+        const model = new FakeTraceConfigurationModel();
+        const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
+        const context = extensionContextFactory();
+
+        provider.activate(context);
+        await Promise.resolve();
+
+        expect(activateCmsisSolution).not.toHaveBeenCalled();
+        expect(model.loadInitialFile).not.toHaveBeenCalled();
+        expect(vscode.extensions.onDidChange).toHaveBeenCalledTimes(1);
+
+        extensionsChangeHandler?.();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(disposeExtensionChangeSubscription).toHaveBeenCalledTimes(1);
+        expect(activateCmsisSolution).toHaveBeenCalledTimes(1);
         expect(model.loadInitialFile).toHaveBeenCalledTimes(1);
     });
 
