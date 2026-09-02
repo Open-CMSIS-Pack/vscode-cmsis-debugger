@@ -179,8 +179,7 @@ export class TraceConfigurationGeneratedCTraceFileManager {
      * the workspace's .cmsis directory.
      */
     private resolveGeneratedCTraceFileUri(workspaceFolderUri: vscode.Uri, traceFileName: string): vscode.Uri {
-        const cmsisDirectory = vscode.Uri.file(path.join(workspaceFolderUri.fsPath, '.cmsis'));
-        return vscode.Uri.file(path.join(cmsisDirectory.fsPath, traceFileName));
+        return vscode.Uri.file(path.join(workspaceFolderUri.fsPath, '.cmsis', traceFileName));
     }
 
     /**
