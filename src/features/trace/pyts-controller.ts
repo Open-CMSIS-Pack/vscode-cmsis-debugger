@@ -201,8 +201,12 @@ export class PyTsController {
         const projectName = cbuildRunName.slice(0, -suffix.length);
         const expectedDirectory = path.join(path.dirname(path.dirname(cbuildRunFilePath)), '.cmsis');
         const ctraceName = normalizeFsPath(path.basename(uri.fsPath)) ?? path.basename(uri.fsPath);
+        const ctraceSuffix = ctraceName.endsWith('.ctrace.yaml') ? '.ctrace.yaml' : '.ctrace.yml';
+        const solutionSetName = ctraceName.slice(0, -ctraceSuffix.length);
+        const namedTargetSetPrefix = `${projectName}@`;
         return normalizeFsPath(path.dirname(uri.fsPath)) === normalizeFsPath(expectedDirectory) &&
-            ctraceName.startsWith(`${projectName}.ctrace.`);
+            (solutionSetName === projectName ||
+                solutionSetName.startsWith(namedTargetSetPrefix) && solutionSetName.length > namedTargetSetPrefix.length);
     }
 
     private contentsEqual(previous: Uint8Array | undefined, current: Uint8Array): boolean {

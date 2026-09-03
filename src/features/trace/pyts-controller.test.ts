@@ -341,6 +341,17 @@ describe('PyTsController', () => {
         expect(run).toHaveBeenCalledWith({ cbuildRunFilePath: activeSession.getCbuildRunPath() }, true);
     });
 
+    it.each(['yml', 'yaml'])('converts a named target-set .ctrace.%s file', async extension => {
+        const controller = new PyTsController();
+        const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
+        const activeSession = gdbTargetDebugSessionFactory('/workspace/out/active.cbuild-run.yml');
+        controller.handleActiveSessionChanged(activeSession);
+
+        await controller.handleCTraceFileChanged(generatedCTraceUri(activeSession, `active@targetSet.ctrace.${extension}`));
+
+        expect(run).toHaveBeenCalledWith({ cbuildRunFilePath: activeSession.getCbuildRunPath() }, true);
+    });
+
     it('converts ctrace files when there is no active cbuild-run context', async () => {
         const controller = new PyTsController();
         const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
@@ -352,7 +363,8 @@ describe('PyTsController', () => {
 
     it.each([
         'inactive.ctrace.yml',
-        'active-copy.ctrace.yml'
+        'active-copy.ctrace.yml',
+        'active@.ctrace.yml'
     ])('ignores another ctrace file in the generated project: %s', async ctraceFileName => {
         const controller = new PyTsController();
         const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
