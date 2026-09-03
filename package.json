@@ -1003,7 +1003,7 @@
     "ts-jest": "29.4.6",
     "ts-loader": "9.5.4",
     "ts-node": "10.9.2",
-    "tsx": "4.23.12",
+    "tsx": "4.23.13",
     "type-fest": "5.4.4",
     "typescript": "5.9.3",
     "typescript-eslint": "8.62.0",
