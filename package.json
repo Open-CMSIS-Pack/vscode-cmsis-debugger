@@ -1015,7 +1015,7 @@
     "pyocd": "pyocd/pyOCD@0.45.1",
     "pyocdNightly": "pyocd/pyOCD@nightly",
     "pyocdTrace": "pyocd/pyOCD@feature/trace",
-    "gdb": "15.2.1",
+    "gdb": "15.3.1",
     "pyts": "Open-CMSIS-Pack/pyTS@0.3.0",
     "ctrace": "Open-CMSIS-Pack/devtools@0.1.0"
   }
