@@ -960,7 +960,7 @@
     "react-dom": "18.3.1",
     "vscode-uri": "3.1.0",
     "xml2js": "0.6.2",
-    "yaml": "2.8.3"
+    "yaml": "2.9.0"
   },
   "devDependencies": {
     "@eclipse-cdt-cloud/vscode-peripheral-inspector": "0.0.0",
