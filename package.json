@@ -89,6 +89,12 @@
         "category": "CMSIS Debugger"
       },
       {
+        "command": "vscode-cmsis-debugger.generateDefaultCTraceFile",
+        "title": "Generate Default Ctrace File",
+        "category": "CMSIS Debugger",
+        "enablement": "config.vscode-cmsis-debugger.enableTraceGenerationView"
+      },
+      {
         "command": "vscode-cmsis-debugger.openDisassemblyView",
         "title": "Open Disassembly View",
         "category": "Run and Debug",
@@ -377,6 +383,10 @@
         {
           "command": "vscode-cmsis-debugger.resetDynamicViewState",
           "when": "true"
+        },
+        {
+          "command": "vscode-cmsis-debugger.generateDefaultCTraceFile",
+          "when": "config.vscode-cmsis-debugger.enableTraceGenerationView"
         },
         {
           "command": "vscode-cmsis-debugger.openDisassemblyView",
@@ -904,12 +914,17 @@
         }
       },
       {
-        "title": "Enable Trace Generation View",
+        "title": "Trace Generation View",
         "properties": {
           "vscode-cmsis-debugger.enableTraceGenerationView": {
             "type": "boolean",
             "default": false,
-            "description": "Enable Trace Generation View in the Debug Panel."
+            "description": "Show the Trace Generation view and load trace configuration from .cmsis/*.ctrace.yml when available."
+          },
+          "vscode-cmsis-debugger.showCTraceRefsInTooltips": {
+            "type": "boolean",
+            "default": false,
+            "description": "Show internal ctrace-ref values in label tooltips for diagnostic purposes."
           }
         }
       }
@@ -943,9 +958,9 @@
     "@vscode/codicons": "0.0.45",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "vscode-uri": "3.1.0",
+    "vscode-uri": "3.2.0",
     "xml2js": "0.6.2",
-    "yaml": "2.8.3"
+    "yaml": "2.9.0"
   },
   "devDependencies": {
     "@eclipse-cdt-cloud/vscode-peripheral-inspector": "0.0.0",
@@ -955,7 +970,7 @@
     "@types/fs-extra": "11.0.4",
     "@types/jest": "30.0.0",
     "@types/minimist": "1.2.5",
-    "@types/node": "22.19.15",
+    "@types/node": "22.20.1",
     "@types/node-fetch": "2.6.13",
     "@types/react": "18.3.23",
     "@types/react-dom": "18.3.7",
@@ -967,13 +982,13 @@
     "@vscode/debugprotocol": "1.68.0",
     "@vscode/vsce": "3.9.2",
     "css-loader": "7.1.4",
-    "eslint": "10.0.2",
+    "eslint": "10.9.1",
     "eslint-plugin-security": "4.0.0",
     "extract-zip": "2.0.1",
     "file-type": "21.3.2",
-    "fs-extra": "11.3.3",
+    "fs-extra": "11.4.0",
     "glob": "13.0.6",
-    "globby": "16.1.1",
+    "globby": "16.2.4",
     "jest": "30.4.2",
     "jest-html-reporter": "4.4.0",
     "lzma-native": "8.0.6",
@@ -988,13 +1003,13 @@
     "ts-jest": "29.4.6",
     "ts-loader": "9.5.4",
     "ts-node": "10.9.2",
-    "tsx": "4.22.4",
+    "tsx": "4.23.13",
     "type-fest": "5.4.4",
     "typescript": "5.9.3",
     "typescript-eslint": "8.62.0",
-    "webpack": "5.105.4",
-    "webpack-cli": "6.0.1",
-    "yargs": "18.0.0"
+    "webpack": "5.110.2",
+    "webpack-cli": "7.2.3",
+    "yargs": "18.1.0"
   },
   "cmsis": {
     "pyocd": "pyocd/pyOCD@0.45.1",

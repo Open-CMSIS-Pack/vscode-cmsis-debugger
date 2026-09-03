@@ -32,6 +32,19 @@ interface GeneratedTraceProcessor {
     pname?: string | undefined;
 }
 
+interface GeneratedCBuildRunData {
+    processors: GeneratedTraceProcessor[];
+    targetSet: string | undefined;
+}
+
+export const SWO_UART_TRACE_OFF_MESSAGE =
+    'Trace generation turned off, enable in debugger\'s trace settings';
+
+export type GeneratedCBuildRunFileProcessingResult =
+    | { status: 'generated'; uri: vscode.Uri }
+    | { status: 'trace-off' }
+    | { status: 'deleted' };
+
 /**
  * TraceConfigurationGeneratedCTraceFileManager owns the generated cbuild-run to
  * generated ctrace.yml conversion flow.
@@ -43,21 +56,35 @@ export class TraceConfigurationGeneratedCTraceFileManager {
     /**
      * processGeneratedCBuildRunFileChange updates generated trace files and the
      * trace generation setting for a generated cbuild-run watcher event, then
-     * returns the ctrace file that the model should load.
+     * reports whether a ctrace file was generated, tracing is off, or the source
+     * file was deleted.
      */
-    public async processGeneratedCBuildRunFileChange(event: GeneratedCBuildRunFileChangeEvent): Promise<vscode.Uri | undefined> {
+    public async processGeneratedCBuildRunFileChange(
+        event: GeneratedCBuildRunFileChangeEvent
+    ): Promise<GeneratedCBuildRunFileProcessingResult> {
         logger.debug(`Trace Configuration: Generated cbuild-run file ${event.type}: ${event.uri.fsPath}`);
         switch (event.type) {
             case 'created':
             case 'changed': {
-                const traceFileUri = await this.createOrUpdateGeneratedCTraceFile(event.uri);
+                const traceFileUri = await this.createDefaultCTraceFile(event.uri);
                 await this.setTraceGenerationWebviewEnabled(true);
-                return traceFileUri;
+                return traceFileUri
+                    ? { status: 'generated', uri: traceFileUri }
+                    : { status: 'trace-off' };
             }
             case 'deleted':
                 await this.setTraceGenerationWebviewEnabled(false);
-                return undefined;
+                return { status: 'deleted' };
         }
+    }
+
+    /**
+     * createDefaultCTraceFile creates the default trace configuration associated
+     * with a cbuild-run file. Existing files are preserved and receive only
+     * missing processor setup entries.
+     */
+    public async createDefaultCTraceFile(cbuildRunFileUri: vscode.Uri): Promise<vscode.Uri | undefined> {
+        return this.createOrUpdateGeneratedCTraceFile(cbuildRunFileUri);
     }
 
     /**
@@ -65,17 +92,24 @@ export class TraceConfigurationGeneratedCTraceFileManager {
      * cbuild-run file, creates the matching .cmsis ctrace file when needed, and
      * returns the generated ctrace file URI.
      */
-    private async createOrUpdateGeneratedCTraceFile(cbuildRunFileUri: vscode.Uri): Promise<vscode.Uri> {
-        const workspaceFolder = this.getGeneratedCBuildRunWorkspaceFolder(cbuildRunFileUri);
-        const projectName = this.getProjectNameFromGeneratedCBuildRunFile(cbuildRunFileUri);
-        const processors = await this.readGeneratedCBuildRunProcessors(cbuildRunFileUri);
-        const traceFileUri = await this.resolveGeneratedCTraceFileUri(workspaceFolder.uri, projectName);
+    private async createOrUpdateGeneratedCTraceFile(cbuildRunFileUri: vscode.Uri): Promise<vscode.Uri | undefined> {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.at(0);
+        if (!workspaceFolder) {
+            throw new Error('Cannot generate a ctrace file without an open workspace folder.');
+        }
+        const cbuildRun = await this.readGeneratedCBuildRun(cbuildRunFileUri);
+        if (!cbuildRun) {
+            logger.debug(`${SWO_UART_TRACE_OFF_MESSAGE}: ${cbuildRunFileUri.fsPath}`);
+            return undefined;
+        }
+        const traceFileName = this.getGeneratedCTraceFileName(cbuildRunFileUri, cbuildRun.targetSet);
+        const traceFileUri = this.resolveGeneratedCTraceFileUri(workspaceFolder.uri, traceFileName);
         const traceFileExists = await this.fileExists(traceFileUri);
         const document = traceFileExists
             ? await this.readCTraceDocument(traceFileUri)
             : CTraceYamlDocument.create('CMSIS Debugger');
 
-        const changed = this.addMissingProcessorTraceSetups(document, processors);
+        const changed = this.addMissingProcessorTraceSetups(document, cbuildRun.processors);
 
         if (!traceFileExists || changed) {
             await this.writeCTraceDocument(traceFileUri, document);
@@ -85,45 +119,39 @@ export class TraceConfigurationGeneratedCTraceFileManager {
     }
 
     /**
-     * getGeneratedCBuildRunWorkspaceFolder returns the workspace whose top-level
-     * out folder contains the generated cbuild-run file.
+     * getGeneratedCTraceFileName derives the generated ctrace filename directly
+     * from the cbuild-run filename and appends a non-default target set.
      */
-    private getGeneratedCBuildRunWorkspaceFolder(cbuildRunFileUri: vscode.Uri): vscode.WorkspaceFolder {
-        const workspaceFolder = (vscode.workspace.workspaceFolders ?? []).find(folder => {
-            const expectedDirectory = path.join(folder.uri.fsPath, 'out');
-            return path.dirname(cbuildRunFileUri.fsPath) === expectedDirectory;
-        });
-
-        if (!workspaceFolder) {
-            throw new Error(`Generated cbuild-run file is not in a workspace out folder: ${cbuildRunFileUri.fsPath}`);
-        }
-
-        return workspaceFolder;
-    }
-
-    /**
-     * getProjectNameFromGeneratedCBuildRunFile derives the project base name
-     * used for the generated .cmsis ctrace file.
-     */
-    private getProjectNameFromGeneratedCBuildRunFile(cbuildRunFileUri: vscode.Uri): string {
+    private getGeneratedCTraceFileName(cbuildRunFileUri: vscode.Uri, targetSet: string | undefined): string {
         const baseName = path.basename(cbuildRunFileUri.fsPath);
         const suffix = '.cbuild-run.yml';
-        return baseName.endsWith(suffix) ? baseName.slice(0, -suffix.length) : path.parse(baseName).name;
+        const name = baseName.endsWith(suffix) ? baseName.slice(0, -suffix.length) : path.parse(baseName).name;
+        const targetSetSuffix = targetSet && targetSet !== '<default>' ? `@${targetSet}` : '';
+        return `${name}${targetSetSuffix}.ctrace.yml`;
     }
 
     /**
-     * readGeneratedCBuildRunProcessors parses a generated cbuild-run file and
-     * converts its processor entries into the subset needed for ctrace setup.
+     * readGeneratedCBuildRun parses a generated cbuild-run file and returns the
+     * target set and processor subset needed to create the matching ctrace file.
      */
-    private async readGeneratedCBuildRunProcessors(cbuildRunFileUri: vscode.Uri): Promise<GeneratedTraceProcessor[]> {
+    private async readGeneratedCBuildRun(
+        cbuildRunFileUri: vscode.Uri
+    ): Promise<GeneratedCBuildRunData | undefined> {
         const reader = new CbuildRunReader();
         await reader.parse(cbuildRunFileUri.fsPath);
+        const traceMode = reader.getSwoUartTraceMode();
+        if (traceMode === undefined || traceMode === 'off') {
+            return undefined;
+        }
         const processors = reader.getProcessors();
         this.validateGeneratedProcessors(processors);
-        return processors.map(processor => ({
-            core: processor.core,
-            ...(processor.pname ? { pname: processor.pname } : {})
-        }));
+        return {
+            processors: processors.map(processor => ({
+                core: processor.core,
+                ...(processor.pname ? { pname: processor.pname } : {})
+            })),
+            targetSet: reader.getTargetSet()
+        };
     }
 
     /**
@@ -147,23 +175,11 @@ export class TraceConfigurationGeneratedCTraceFileManager {
     }
 
     /**
-     * resolveGeneratedCTraceFileUri chooses the generated ctrace file path,
-     * preferring an existing .yaml or .yml file before falling back to .yaml.
+     * resolveGeneratedCTraceFileUri returns the generated ctrace path inside
+     * the workspace's .cmsis directory.
      */
-    private async resolveGeneratedCTraceFileUri(workspaceFolderUri: vscode.Uri, projectName: string): Promise<vscode.Uri> {
-        const cmsisDirectory = vscode.Uri.file(path.join(workspaceFolderUri.fsPath, '.cmsis'));
-        const yamlFile = vscode.Uri.file(path.join(cmsisDirectory.fsPath, `${projectName}.ctrace.yaml`));
-        const ymlFile = vscode.Uri.file(path.join(cmsisDirectory.fsPath, `${projectName}.ctrace.yml`));
-
-        if (await this.fileExists(yamlFile)) {
-            return yamlFile;
-        }
-
-        if (await this.fileExists(ymlFile)) {
-            return ymlFile;
-        }
-
-        return yamlFile;
+    private resolveGeneratedCTraceFileUri(workspaceFolderUri: vscode.Uri, traceFileName: string): vscode.Uri {
+        return vscode.Uri.file(path.join(workspaceFolderUri.fsPath, '.cmsis', traceFileName));
     }
 
     /**

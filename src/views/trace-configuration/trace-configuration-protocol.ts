@@ -20,6 +20,7 @@ export type TraceControlKind = 'none' | 'text' | 'checkbox' | 'select' | 'multi-
 export interface TraceConfigurationRow {
     id: string;
     label: string;
+    labelTooltip?: string | undefined;
     path: (string | number)[];
     valuePath?: (string | number)[] | undefined;
     depth: number;

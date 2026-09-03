@@ -308,8 +308,9 @@ function isRowToggleInteractiveTarget(target: EventTarget | null): boolean {
 
 /**
  * createLabelCell renders indentation, expand/collapse affordance, row label,
- * remove button, and optional metadata. It keeps all non-editing controls in
- * the first column so the Selection column can focus on YAML values.
+ * optional debugging tooltip, remove button, and metadata. It keeps all
+ * non-editing controls in the first column so the Selection column can focus
+ * on YAML values.
  */
 function createLabelCell(row: TraceConfigurationRow): HTMLTableCellElement {
     const cell = createElement('td');
@@ -319,6 +320,9 @@ function createLabelCell(row: TraceConfigurationRow): HTMLTableCellElement {
     prefix.textContent = row.hasChildren ? row.expanded ? 'v' : '>' : '';
     const label = createElement('span', 'node-text');
     label.textContent = row.label;
+    if (row.labelTooltip) {
+        label.title = row.labelTooltip;
+    }
     title.append(prefix, label);
     if (row.removable) {
         title.append(createRemoveButton(row));

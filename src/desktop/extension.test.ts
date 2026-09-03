@@ -22,6 +22,20 @@ import { ComponentViewerTreeDataProvider } from '../views/component-viewer/compo
 import { LiveWatchTreeDataProvider } from '../views/live-watch/live-watch';
 
 describe('extension', () => {
+    const extensionContexts: vscode.ExtensionContext[] = [];
+
+    function createExtensionContext(): vscode.ExtensionContext {
+        const context = extensionContextFactory();
+        extensionContexts.push(context);
+        return context;
+    }
+
+    afterEach(() => {
+        extensionContexts.splice(0).forEach(context => {
+            (context.subscriptions as Array<vscode.Disposable | undefined>)
+                .forEach(disposable => disposable?.dispose());
+        });
+    });
 
     describe('activate', () => {
         const liveWatchCommands = [ 'cmsis-debugger.liveWatch.open', 'cmsis-debugger.liveWatch.focus' ];
@@ -30,7 +44,7 @@ describe('extension', () => {
 
         it('activates extension without asking to reload', async () => {
             const loggerSpy = jest.spyOn(logger, 'debug');
-            await activate(extensionContextFactory());
+            await activate(createExtensionContext());
             expect(loggerSpy).toHaveBeenCalledWith('CMSIS Debugger activated');
             expect(vscode.window.showWarningMessage).not.toHaveBeenCalledWith('Cannot activate all Arm CMSIS Debugger views. Please reload the window.', 'Reload Window');
         });
@@ -47,7 +61,7 @@ describe('extension', () => {
                 .mockResolvedValueOnce(availableCommands)
                 .mockResolvedValueOnce(availableCommands)
                 .mockResolvedValueOnce(availableCommands);
-            await activate(extensionContextFactory());
+            await activate(createExtensionContext());
             expect(loggerSpy).toHaveBeenCalledWith('CMSIS Debugger activation incomplete');
             expect(vscode.window.showWarningMessage).toHaveBeenCalledWith('Cannot activate all Arm CMSIS Debugger views. Please reload the window.', 'Reload Window');
         });
@@ -55,14 +69,14 @@ describe('extension', () => {
         it('reloads window if users clicks \'Reload Window\' button', async () => {
             (vscode.commands.getCommands as jest.Mock).mockResolvedValueOnce([]);
             (vscode.window.showWarningMessage as jest.Mock).mockResolvedValueOnce('Reload Window');
-            await activate(extensionContextFactory());
+            await activate(createExtensionContext());
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('workbench.action.reloadWindow');
         });
 
         it('does not reload window if users clicks \'x\' button', async () => {
             (vscode.commands.getCommands as jest.Mock).mockResolvedValueOnce([]);
             (vscode.window.showWarningMessage as jest.Mock).mockResolvedValueOnce(undefined);
-            await activate(extensionContextFactory());
+            await activate(createExtensionContext());
             expect(vscode.commands.executeCommand).not.toHaveBeenCalledWith('workbench.action.reloadWindow');
         });
 
@@ -80,7 +94,7 @@ describe('extension', () => {
         });
 
         it('deactivates extension after activation', async () => {
-            await activate(extensionContextFactory());
+            await activate(createExtensionContext());
             await deactivate();
             expect(loggerSpy).toHaveBeenCalledWith('CMSIS Debugger deactivated');
             expect(treeDataProviderClearSpy).toHaveBeenCalledTimes(2); // Component Viewer and Core Peripherals
@@ -92,4 +106,3 @@ describe('extension', () => {
 
     });
 });
-
