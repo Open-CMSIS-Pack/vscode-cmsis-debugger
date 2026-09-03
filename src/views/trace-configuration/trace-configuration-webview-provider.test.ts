@@ -205,6 +205,70 @@ describe('TraceConfigurationWebviewProvider', () => {
         expect(model.loadInitialFile).toHaveBeenCalledTimes(1);
     });
 
+    it('polls every 100 ms until CMSIS Solution becomes active', async () => {
+        jest.useFakeTimers();
+        try {
+            const extension = {
+                isActive: false,
+                activate: jest.fn()
+            };
+            (vscode.extensions.getExtension as jest.Mock).mockReturnValue(extension);
+            const model = new FakeTraceConfigurationModel();
+            const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
+            const context = extensionContextFactory();
+
+            provider.activate(context);
+            extension.isActive = true;
+
+            jest.advanceTimersByTime(99);
+            expect(model.loadInitialFile).not.toHaveBeenCalled();
+
+            jest.advanceTimersByTime(1);
+            await Promise.resolve();
+
+            expect(extension.activate).not.toHaveBeenCalled();
+            expect(model.loadInitialFile).toHaveBeenCalledTimes(1);
+            expect(jest.getTimerCount()).toBe(0);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('stops automatic activation monitoring after ten seconds', () => {
+        jest.useFakeTimers();
+        try {
+            const disposeExtensionChangeSubscription = jest.fn();
+            const extension = {
+                isActive: false,
+                activate: jest.fn()
+            };
+            (vscode.extensions.getExtension as jest.Mock).mockReturnValue(extension);
+            (vscode.extensions.onDidChange as jest.Mock).mockReturnValueOnce({
+                dispose: disposeExtensionChangeSubscription
+            });
+            const model = new FakeTraceConfigurationModel();
+            const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
+
+            provider.activate(extensionContextFactory());
+
+            jest.advanceTimersByTime(9_999);
+            expect(disposeExtensionChangeSubscription).not.toHaveBeenCalled();
+
+            jest.advanceTimersByTime(1);
+            expect(disposeExtensionChangeSubscription).toHaveBeenCalledTimes(1);
+            expect(jest.getTimerCount()).toBe(0);
+            expect(model.loadInitialFile).not.toHaveBeenCalled();
+            expect(extension.activate).not.toHaveBeenCalled();
+
+            extension.isActive = true;
+            jest.advanceTimersByTime(100);
+
+            expect(model.loadInitialFile).not.toHaveBeenCalled();
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
     it('reports initialization failures without rejecting extension activation', async () => {
         const expectedError = new Error('initialization failed');
         const model = new FakeTraceConfigurationModel();
