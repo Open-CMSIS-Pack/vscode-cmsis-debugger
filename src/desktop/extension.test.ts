@@ -21,15 +21,15 @@ import { activate, deactivate } from './extension';
 import { ComponentViewerTreeDataProvider } from '../views/component-viewer/component-viewer-tree-view';
 import { LiveWatchTreeDataProvider } from '../views/live-watch/live-watch';
 
-const extensionContexts: vscode.ExtensionContext[] = [];
-
-function createExtensionContext(): vscode.ExtensionContext {
-    const context = extensionContextFactory();
-    extensionContexts.push(context);
-    return context;
-}
-
 describe('extension', () => {
+    const extensionContexts: vscode.ExtensionContext[] = [];
+
+    function createExtensionContext(): vscode.ExtensionContext {
+        const context = extensionContextFactory();
+        extensionContexts.push(context);
+        return context;
+    }
+
     afterEach(() => {
         extensionContexts.splice(0).forEach(context => {
             (context.subscriptions as Array<vscode.Disposable | undefined>)

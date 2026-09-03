@@ -44,7 +44,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
     private readonly model: TraceConfigurationModel;
     private initialLoad: Promise<void> | undefined;
     private cmsisSolutionExtensionChangeSubscription: vscode.Disposable | undefined;
-    private cmsisSolutionActivationPollingTimer: ReturnType<typeof setInterval> | undefined;
+    private cmsisSolutionActivationPollingTimer: NodeJS.Timeout | undefined;
 
     /**
      * The constructor stores the extension URI for webview asset loading and
