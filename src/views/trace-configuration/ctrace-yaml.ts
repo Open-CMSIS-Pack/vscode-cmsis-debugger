@@ -217,6 +217,7 @@ function joinReference(prefix: string | undefined, suffix: string): string {
 
 export class CTraceYamlDocument {
     private readonly ctraceRefs = new Map<string, string>();
+    private useProcessorReferencePrefix = false;
 
     constructor(private readonly yamlDomDocument: YamlDomDocument) {}
 
@@ -332,10 +333,13 @@ export class CTraceYamlDocument {
 
     public assignCTraceRefs(): void {
         this.ctraceRefs.clear();
+        this.useProcessorReferencePrefix = false;
         const root = this.yamlDomDocument.getItem(CTRACE_PATH);
         if (!isYamlMapItem(root)) {
             return;
         }
+        const setup = root.getChild('setup');
+        this.useProcessorReferencePrefix = isYamlSequenceItem(setup) && setup.getChildren().length > 1;
         this.setInternalCTraceRef(CTRACE_PATH, CTRACE_ROOT);
         this.assignMapChildReferences(root, CTRACE_PATH);
     }
@@ -362,7 +366,8 @@ export class CTraceYamlDocument {
         map: YamlTreeItem,
         currentPath: YamlPath,
         currentReference?: string,
-        currentSection?: string
+        currentSection?: string,
+        sectionParentReference?: string
     ): void {
         [...map.getChildren()].forEach(child => {
             const key = child.getTag();
@@ -373,14 +378,22 @@ export class CTraceYamlDocument {
             if (!key) {
                 return;
             }
+            const childPath = [...currentPath, key];
+            const childReference = joinReference(currentReference, key);
+            this.setInternalCTraceRef(childPath, childReference);
             if (isYamlSequenceItem(child)) {
-                this.assignSequenceReferences(child, [...currentPath, key], key, currentReference, currentSection);
+                this.assignSequenceReferences(
+                    child,
+                    childPath,
+                    key,
+                    currentReference,
+                    currentSection,
+                    sectionParentReference
+                );
                 return;
             }
             if (isYamlMapItem(child)) {
-                const childReference = joinReference(currentReference, key);
-                this.setInternalCTraceRef([...currentPath, key], childReference);
-                this.assignMapChildReferences(child, [...currentPath, key], childReference, key);
+                this.assignMapChildReferences(child, childPath, childReference, key, currentReference);
             }
         });
     }
@@ -390,16 +403,25 @@ export class CTraceYamlDocument {
         sequencePath: YamlPath,
         key: string,
         currentReference?: string,
-        currentSection?: string
+        currentSection?: string,
+        sectionParentReference?: string
     ): void {
         sequence.getChildren().forEach((item, index) => {
+            const reference = this.createSequenceItemReference(
+                item,
+                key,
+                index,
+                currentReference,
+                currentSection,
+                sectionParentReference
+            );
+            const itemPath = [...sequencePath, index];
+            this.setInternalCTraceRef(itemPath, reference);
             if (!isYamlMapItem(item)) {
                 return;
             }
-            const reference = this.createSequenceItemReference(item, key, index, currentReference, currentSection);
-            const itemPath = [...sequencePath, index];
-            this.setInternalCTraceRef(itemPath, reference);
-            this.assignMapChildReferences(item, itemPath, reference);
+            const childReference = key === 'setup' && !this.useProcessorReferencePrefix ? undefined : reference;
+            this.assignMapChildReferences(item, itemPath, childReference);
         });
     }
 
@@ -408,13 +430,14 @@ export class CTraceYamlDocument {
         key: string,
         index: number,
         currentReference?: string,
-        currentSection?: string
+        currentSection?: string,
+        sectionParentReference?: string
     ): string {
         if (key === 'setup') {
             return mapScalarToString(item, 'pname') || `setup#${index}`;
         }
         if (currentSection === 'instructions') {
-            return `${currentSection}:${key}#${index}`;
+            return joinReference(sectionParentReference, `${currentSection}:${key}#${index}`);
         }
         const reference = `${key}#${index}`;
         return joinReference(currentReference, reference);
