@@ -1007,7 +1007,7 @@
     "type-fest": "5.4.4",
     "typescript": "5.9.3",
     "typescript-eslint": "8.62.0",
-    "webpack": "5.110.1",
+    "webpack": "5.110.2",
     "webpack-cli": "7.2.3",
     "yargs": "18.1.0"
   },
