@@ -1,5 +1,9 @@
 # Change Log
 
+## Next Release
+
+- Includes updated arm-none-eabi-gdb distribution ([arm-none-eabi-gdb v15.3.1](https://artifacts.tools.arm.com/arm-none-eabi-gdb/15.3.1/)). See the [release notes](https://gitlab.arm.com/tooling/gnu-toolchains-for-arm/-/blob/releases/15.3.rel1/release_notes.md).
+
 ## 1.8.0
 
 - Redesigns the [Component Viewer](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#component-viewer) and
