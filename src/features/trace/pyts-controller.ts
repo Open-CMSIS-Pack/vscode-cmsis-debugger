@@ -107,6 +107,7 @@ export class PyTsController {
             const normalizedPath = normalizeFsPath(uri.fsPath) ?? uri.fsPath;
             const conversionKey = this.getConversionKey(normalizedPath, cbuildRunFilePath);
             const previousRead = this.contentReadPromises.get(conversionKey) ?? Promise.resolve(false);
+            // catching any file errors from the previous read to ensure the chain continues
             const contentReadPromise = previousRead.catch(() => false).then(async () => {
                 const contents = await vscode.workspace.fs.readFile(uri);
                 if (watcherGeneration !== this.watcherGeneration) {
@@ -183,9 +184,15 @@ export class PyTsController {
         const cbuildRunDirectoryName = cbuildRunFilePath === undefined
             ? undefined
             : normalizeFsPath(path.basename(path.dirname(cbuildRunFilePath)));
-        if (cbuildRunFilePath === undefined || cbuildRunDirectoryName !== normalizeFsPath('out')) {
+
+        if (cbuildRunFilePath === undefined) {
             return true;
         }
+
+        if (cbuildRunDirectoryName !== normalizeFsPath('out')) {
+            return true; // Cannot apply generated-project filtering.
+        }
+
         const suffix = '.cbuild-run.yml';
         const cbuildRunName = normalizeFsPath(path.basename(cbuildRunFilePath)) ?? path.basename(cbuildRunFilePath);
         if (!cbuildRunName.endsWith(suffix)) {
