@@ -601,9 +601,12 @@ function createReadonly(text: string): HTMLSpanElement {
 
 /**
  * onMessage receives replacement state from the extension host. The host sends
- * complete snapshots, so every update simply re-renders the webview.
+ * complete snapshots, so every trusted update simply re-renders the webview.
  */
 function onMessage(event: MessageEvent<TraceHostToWebviewMessage>): void {
+    if (event.origin !== window.location.origin) {
+        return;
+    }
     if (event.data.type === 'update') {
         renderApp(event.data.state);
     }
