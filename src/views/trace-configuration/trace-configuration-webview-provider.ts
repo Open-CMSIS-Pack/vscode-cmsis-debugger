@@ -28,10 +28,6 @@ import {
 import { TraceConfigurationModel } from './trace-configuration-model';
 
 const CMSIS_SOLUTION_EXTENSION_ID = 'Arm.cmsis-csolution';
-const CMSIS_SOLUTION_ACTIVATION_POLL_INTERVAL_MS = 100;
-const CMSIS_SOLUTION_ACTIVATION_POLL_TIMEOUT_MS = 10_000;
-const CMSIS_SOLUTION_ACTIVATION_POLL_ATTEMPTS =
-    CMSIS_SOLUTION_ACTIVATION_POLL_TIMEOUT_MS / CMSIS_SOLUTION_ACTIVATION_POLL_INTERVAL_MS;
 
 /**
  * The TraceConfigurationWebviewProvider owns the VS Code sidebar webview shell
@@ -44,7 +40,6 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
     private readonly model: TraceConfigurationModel;
     private initialLoad: Promise<void> | undefined;
     private cmsisSolutionExtensionChangeSubscription: vscode.Disposable | undefined;
-    private cmsisSolutionActivationPollingTimer: NodeJS.Timeout | undefined;
 
     /**
      * The constructor stores the extension URI for webview asset loading and
@@ -66,7 +61,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
      * released when the extension deactivates. Configuration changes that
      * affect debugging tooltips immediately refresh an open webview.
      */
-    public activate(context: vscode.ExtensionContext): void {
+    public async activate(context: vscode.ExtensionContext): Promise<void> {
         context.subscriptions.push(
             vscode.window.registerWebviewViewProvider(TRACE_CONFIGURATION_VIEW_ID, this),
             vscode.workspace.onDidChangeConfiguration(event => {
@@ -77,7 +72,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             { dispose: () => this.model.dispose() }
         );
         this.model.watchForGeneratedCBuildRunFiles();
-        this.initializeWhenCmsisSolutionIsActive(context);
+        await this.initializeAfterCmsisSolutionActivation(context);
     }
 
     /**
@@ -106,68 +101,49 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
     }
 
     /**
-     * initializeWhenCmsisSolutionIsActive loads initial state only when CMSIS
-     * Solution is already active. Otherwise it observes extension changes and
-     * polls for up to ten seconds without activating the companion extension.
+     * initializeAfterCmsisSolutionActivation activates an available CMSIS
+     * Solution extension before loading initial state. Disabled or unavailable
+     * extensions are left untouched until an extension change makes them available.
      */
-    private initializeWhenCmsisSolutionIsActive(context: vscode.ExtensionContext): void {
-        const subscription = vscode.extensions.onDidChange(() => this.loadInitialFileForActiveCmsisSolution());
+    private async initializeAfterCmsisSolutionActivation(context: vscode.ExtensionContext): Promise<void> {
+        const subscription = vscode.extensions.onDidChange(() => {
+            void this.activateCmsisSolutionIfAvailable();
+        });
         this.cmsisSolutionExtensionChangeSubscription = subscription;
         context.subscriptions.push(subscription);
-        if (this.loadInitialFileForActiveCmsisSolution()) {
+        await this.activateCmsisSolutionIfAvailable();
+    }
+
+    /**
+     * activateCmsisSolutionIfAvailable leaves disabled or unavailable
+     * installations untouched and initializes the first one exposed by VS Code.
+     */
+    private async activateCmsisSolutionIfAvailable(): Promise<void> {
+        const enabledExtension = vscode.extensions.getExtension<object>(CMSIS_SOLUTION_EXTENSION_ID);
+        if (!enabledExtension) {
             return;
         }
-        this.startCmsisSolutionActivationPolling(context);
-    }
-
-    /**
-     * startCmsisSolutionActivationPolling checks for CMSIS Solution activation
-     * every 100 ms and ends all automatic activation monitoring after ten seconds.
-     */
-    private startCmsisSolutionActivationPolling(context: vscode.ExtensionContext): void {
-        let attempts = 0;
-        this.cmsisSolutionActivationPollingTimer = setInterval(() => {
-            attempts += 1;
-            if (this.loadInitialFileForActiveCmsisSolution()) {
-                return;
-            }
-            if (attempts >= CMSIS_SOLUTION_ACTIVATION_POLL_ATTEMPTS) {
-                this.stopCmsisSolutionActivationMonitoring();
-            }
-        }, CMSIS_SOLUTION_ACTIVATION_POLL_INTERVAL_MS);
-        context.subscriptions.push({
-            dispose: () => this.stopCmsisSolutionActivationMonitoring()
-        });
-    }
-
-    /**
-     * stopCmsisSolutionActivationMonitoring releases both activation signals so
-     * successful initialization, timeout, and extension disposal stop polling.
-     */
-    private stopCmsisSolutionActivationMonitoring(): void {
         this.cmsisSolutionExtensionChangeSubscription?.dispose();
         this.cmsisSolutionExtensionChangeSubscription = undefined;
-        if (this.cmsisSolutionActivationPollingTimer !== undefined) {
-            clearInterval(this.cmsisSolutionActivationPollingTimer);
-            this.cmsisSolutionActivationPollingTimer = undefined;
-        }
+        await this.activateCmsisSolutionAndLoadInitialFile(enabledExtension);
     }
 
     /**
-     * loadInitialFileForActiveCmsisSolution starts initial discovery only when
-     * CMSIS Solution is already active and reports whether loading was started.
+     * activateCmsisSolutionAndLoadInitialFile ensures CMSIS Solution is active
+     * before starting initial generated trace configuration discovery.
      */
-    private loadInitialFileForActiveCmsisSolution(): boolean {
-        const extension = vscode.extensions.getExtension<object>(CMSIS_SOLUTION_EXTENSION_ID);
-        if (!extension?.isActive) {
-            return false;
+    private async activateCmsisSolutionAndLoadInitialFile(extension: vscode.Extension<object>): Promise<void> {
+        try {
+            if (!extension.isActive) {
+                await extension.activate();
+            }
+            await this.loadInitialFileOnce();
+        } catch (error) {
+            this.model.reportError(
+                error,
+                'Trace Configuration: Failed to initialize after CMSIS Solution activation'
+            );
         }
-        this.stopCmsisSolutionActivationMonitoring();
-        void this.loadInitialFileOnce().catch(error => this.model.reportError(
-            error,
-            'Trace Configuration: Failed to initialize after CMSIS Solution activation'
-        ));
-        return true;
     }
 
     /**

@@ -102,7 +102,7 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
             fsPromises.rm(workspaceRoot, { recursive: true, force: true })));
     });
 
-    it('creates a generated ctrace file with processor defaults and enables trace generation', async () => {
+    it('creates a generated ctrace file with processors disabled by default and enables trace generation', async () => {
         const workspaceRoot = await createTemporaryWorkspace();
         const updateConfiguration = mockTraceGenerationConfiguration();
         mockGeneratedCBuildRunProcessors([
@@ -127,26 +127,28 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         expect(containsSubstringsInOrder(generatedText, [
             'pname: core0',
             'core: Cortex-M55',
+            'disable:',
             'timestamps:',
-            'timesync:',
+            'itm-prescaler: 1',
             'data:',
-            'exceptions:',
             'events:',
             'itm:',
             'enable: 0x0',
-            'instructions:',
             'pcsampling:',
-            'period: off',
+            'period: 0',
             'synchronization:',
             'DWT: 256M',
             'pname: core1',
             'core: Cortex-M23',
-            'instructions:'
+            'disable:'
         ])).toBe(true);
+        expect(generatedText.match(/disable:/g) ?? []).toHaveLength(2);
+        expect(generatedText).not.toMatch(/timesync|exceptions|instructions/);
         expect(generatedText).not.toContain('timestamps: {}');
         expect(generatedText).not.toContain('instructions: {}');
         expect(generatedText).not.toContain('data: []');
         expect(generatedText).not.toContain('events: []');
+        expect(generatedText).not.toContain('pname: core1\n      core: Cortex-M23\n      timestamps');
     });
 
     it('updates an existing generated ctrace file without duplicating existing processors', async () => {

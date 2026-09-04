@@ -37,6 +37,7 @@ import {
 } from './trace-configuration-protocol';
 import { TraceConfigurationProcessorCapabilities } from './trace-configuration-processor-capabilities';
 import { TraceConfigurationRowBuilder } from './trace-configuration-row-builder';
+import { DEFAULT_ITM_PRESCALER } from './trace-configuration-types';
 import { WorkspaceTextFileAdapter } from './workspace-text-file-adapter';
 
 const BUILD_REQUIRED_MESSAGE = 'Build/Rebuild csolution project to enable trace configuration';
@@ -56,7 +57,7 @@ export class TraceConfigurationModel {
     private errorMessage: string | undefined;
     private emptyMessage: string | undefined;
     private focusedRowId: string | undefined;
-    private readonly collapsedRows = new Set<string>();
+    private readonly expandedRows = new Set<string>();
     private readonly processorCapabilities: TraceConfigurationProcessorCapabilities;
     private readonly rowBuilder: TraceConfigurationRowBuilder;
 
@@ -77,7 +78,7 @@ export class TraceConfigurationModel {
             () => this.loading,
             () => this.dirty,
             () => this.errorMessage,
-            this.collapsedRows,
+            this.expandedRows,
             this.processorCapabilities.capabilities,
             () => vscode.workspace.getConfiguration().get<boolean>(TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING, false)
         );
@@ -351,9 +352,9 @@ export class TraceConfigurationModel {
      */
     public updateExpandedState(id: string, expanded: boolean): void {
         if (expanded) {
-            this.collapsedRows.delete(id);
+            this.expandedRows.add(id);
         } else {
-            this.collapsedRows.add(id);
+            this.expandedRows.delete(id);
         }
         this.notifyStateChanged();
     }
@@ -409,7 +410,7 @@ export class TraceConfigurationModel {
         }
         if (this.rowBuilder.isTimestampsPath(pathToUpdate) && typeof value === 'boolean') {
             if (value) {
-                document.yaml.set(pathToUpdate, null);
+                document.yaml.set(pathToUpdate, { 'itm-prescaler': DEFAULT_ITM_PRESCALER });
             } else {
                 document.yaml.delete(pathToUpdate);
             }
@@ -499,9 +500,19 @@ export class TraceConfigurationModel {
         }
         const newItemIndex = this.getNextSequenceIndex(document, pathToUpdate);
         document.yaml.append(pathToUpdate, this.createNewItem(addChildKind));
-        this.collapsedRows.delete(this.pathToId(pathToUpdate));
+        this.expandPath(pathToUpdate);
         this.focusedRowId = this.pathToId([...pathToUpdate, newItemIndex]);
         await this.acceptInMemoryEdit();
+    }
+
+    /**
+     * expandPath reveals a row and its ancestors after an action creates a new
+     * child. Untouched branches remain collapsed by default.
+     */
+    private expandPath(pathToExpand: (string | number)[]): void {
+        for (let length = 1; length <= pathToExpand.length; length += 1) {
+            this.expandedRows.add(this.pathToId(pathToExpand.slice(0, length)));
+        }
     }
 
     /**
