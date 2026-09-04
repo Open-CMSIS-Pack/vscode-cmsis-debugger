@@ -343,10 +343,10 @@ export class TraceConfigurationGeneratedCTraceFileManager {
             setup.timestamps = { 'itm-prescaler': TraceConfigurationTypes.DEFAULT_ITM_PRESCALER };
         }
         if (capabilities.dwtComparators > 0) {
-            setup.data = [];
+            setup.data = null;
         }
         if (capabilities.eventCounters) {
-            setup.events = [];
+            setup.events = null;
         }
         if (capabilities.instrumentationTrace) {
             setup.itm = { enable: '0x0' };

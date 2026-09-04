@@ -144,6 +144,11 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         ])).toBe(true);
         expect(generatedText.match(/disable:/g) ?? []).toHaveLength(2);
         expect(generatedText).not.toMatch(/timesync|exceptions|instructions/);
+        expect(generatedText).not.toContain('timestamps: {}');
+        expect(generatedText).not.toContain('instructions: {}');
+        expect(generatedText).not.toContain('data: []');
+        expect(generatedText).not.toContain('events: []');
+        expect(generatedText).not.toContain('pname: core1\n      core: Cortex-M23\n      timestamps');
     });
 
     it('updates an existing generated ctrace file without duplicating existing processors', async () => {
