@@ -314,22 +314,26 @@ describe('TraceConfigurationModel', () => {
         expect(containsSubstringsInOrder(generatedText, [
             'pname: core0',
             'core: Cortex-M55',
-            'timestamps: {}',
+            'timestamps:',
             'timesync:',
             'data:',
             'exceptions:',
             'events:',
             'itm:',
             'enable: 0x0',
-            'instructions: {}',
+            'instructions:',
             'pcsampling:',
             'period: off',
             'synchronization:',
             'DWT: 256M',
             'pname: core1',
             'core: Cortex-M23',
-            'instructions: {}'
+            'instructions:'
         ])).toBe(true);
+        expect(generatedText).not.toContain('timestamps: {}');
+        expect(generatedText).not.toContain('instructions: {}');
+        expect(generatedText).not.toContain('data: []');
+        expect(generatedText).not.toContain('events: []');
         expect(generatedText).not.toContain('pname: core1\n      core: Cortex-M23\n      timestamps');
         expectSameFsPath(model.createState().fileName, generatedTraceFile);
         expect(onDidChange).toHaveBeenCalled();
@@ -613,20 +617,71 @@ describe('TraceConfigurationModel', () => {
         expect(adapter.text).not.toContain('stop: []');
     });
 
-    it('normalizes already empty DWT data trace lists to bare keys on save', async () => {
+    it('normalizes already empty data and event trace lists to bare keys on save', async () => {
         const { adapter, model } = await createModelFromText([
             'ctrace:',
             '  setup:',
             '    - pname: cm33',
+            '      core: Cortex-M33',
             '      data: []',
+            '      events: []',
+            ''
+        ].join('\n'), createCapabilities());
+
+        await model.saveCurrentDocument();
+
+        expect(adapter.text).toContain('      data:\n');
+        expect(adapter.text).toContain('      events:\n');
+        expect(adapter.text).not.toContain('data: []');
+        expect(adapter.text).not.toContain('events: []');
+        expect(adapter.text).not.toContain('data: {}');
+        expect(model.createState().rows.find(row => row.path.join('/') === 'ctrace/setup/0/events')?.control).toBe('multi-select');
+    });
+
+    it('normalizes empty timestamps and instructions maps to bare keys on save', async () => {
+        const { adapter, model } = await createModelFromText([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      timestamps: {}',
+            '      instructions: {}',
             ''
         ].join('\n'));
 
         await model.saveCurrentDocument();
 
+        expect(adapter.text).toContain('      timestamps:\n');
+        expect(adapter.text).toContain('      instructions:\n');
+        expect(adapter.text).not.toContain('timestamps: {}');
+        expect(adapter.text).not.toContain('instructions: {}');
+    });
+
+    it('normalizes empty trace configuration sequences to bare keys on save', async () => {
+        const { adapter, model } = await createModelFromText([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      timestamps: {}',
+            '      data: []',
+            '      instructions:',
+            '        start: []',
+            '        stop: []',
+            '      tracehalt: {}',
+            '    - pname: cm55',
+            '      instructions: {}',
+            ''
+        ].join('\n'));
+
+        await model.saveCurrentDocument();
+
+        expect(adapter.text).toContain('      timestamps:\n');
         expect(adapter.text).toContain('      data:\n');
-        expect(adapter.text).not.toContain('data: []');
-        expect(adapter.text).not.toContain('data: {}');
+        expect(adapter.text).toContain('        start:\n');
+        expect(adapter.text).toContain('        stop:\n');
+        expect(adapter.text).toContain('      tracehalt:\n');
+        expect(adapter.text).toContain('    - pname: cm55\n      instructions:\n');
+        expect(adapter.text).not.toContain('[]');
+        expect(adapter.text).not.toContain('{}');
     });
 
     it('rejects direct add attempts when shared DWT comparators are already used', async () => {
@@ -751,8 +806,8 @@ describe('TraceConfigurationModel', () => {
         expect(adapter.text).toContain('      synchronization:\n        DWT: 256M\n');
         expect(adapter.text).toContain('      timesync:\n');
         expect(adapter.text).not.toContain('disable:');
-        expect(adapter.text).not.toContain('      timestamps: {}\n');
         expect(adapter.text).not.toContain('      instructions: {}\n');
+        expect(adapter.text).not.toContain('      timestamps: {}\n');
     });
 
     it('expands collapsed comparator lists and focuses the newly added child', async () => {
