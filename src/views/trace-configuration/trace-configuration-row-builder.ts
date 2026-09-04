@@ -1646,14 +1646,13 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
-     * getStreamSyncDwtPeriod shows stream synchronization as off while Time
-     * Synchronization is disabled. Once enabled, it extracts the configured DWT
-     * period or supplies the 256M default. Older sequence encodings are still
-     * accepted for existing files and rewritten to the current map shape on edit/save.
+     * getStreamSyncDwtPeriod shows stream synchronization as off when its YAML
+     * node is absent. Otherwise it extracts the configured DWT period or supplies
+     * the default independently of Time Synchronization. Older sequence encodings
+     * are still accepted for existing files and rewritten to the current map shape on edit/save.
      */
     private getStreamSyncDwtPeriod(node: YamlTreeItem, nodePath: (string | number)[]): string {
-        const timeSyncPath = [...nodePath.slice(0, -1), 'timesync'];
-        if (!this.nodeExists(timeSyncPath)) {
+        if (!this.nodeExists(nodePath)) {
             return 'off';
         }
         if (isYamlMapItem(node)) {
@@ -1666,10 +1665,10 @@ export class TraceConfigurationRowBuilder {
                 const periodText = this.scalarToString(period);
                 return periodText.startsWith('DWT\\') ? periodText.replace(/^DWT\\/, '') : periodText;
             }
-            return '256M';
+            return TraceConfigurationTypes.DEFAULT_STREAM_SYNC_PERIOD;
         }
         if (!isYamlSequenceItem(node)) {
-            return '256M';
+            return TraceConfigurationTypes.DEFAULT_STREAM_SYNC_PERIOD;
         }
         const dwtPeriod = node.getChildren().flatMap(item => {
             if (!isYamlMapItem(item)) {
@@ -1686,7 +1685,7 @@ export class TraceConfigurationRowBuilder {
             const periodText = this.scalarToString(period);
             return periodText.startsWith('DWT\\') ? [periodText.replace(/^DWT\\/, '')] : [];
         }).at(0);
-        return dwtPeriod ?? '256M';
+        return dwtPeriod ?? TraceConfigurationTypes.DEFAULT_STREAM_SYNC_PERIOD;
     }
 
     /**

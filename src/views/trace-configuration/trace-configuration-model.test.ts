@@ -284,7 +284,7 @@ describe('TraceConfigurationModel', () => {
         model.dispose();
     });
 
-    it('creates a generated ctrace file with processor defaults when a cbuild-run file is created', async () => {
+    it('creates a generated ctrace file with processors disabled by default when a cbuild-run file is created', async () => {
         const workspaceRoot = await createTemporaryWorkspace();
         const updateConfiguration = mockTraceGenerationConfiguration();
         const onDidChange = jest.fn();
@@ -314,17 +314,43 @@ describe('TraceConfigurationModel', () => {
         expect(containsSubstringsInOrder(generatedText, [
             'pname: core0',
             'core: Cortex-M55',
+            'disable:',
+            'timestamps:',
+            'itm-prescaler: 1',
             'data:',
             'events:',
             'itm:',
             'enable: 0x0',
             'pcsampling:',
             'period: 0',
+            'synchronization:',
+            'DWT: 256M',
             'pname: core1',
-            'core: Cortex-M23'
+            'core: Cortex-M23',
+            'disable:'
         ])).toBe(true);
-        expect(generatedText).not.toMatch(/timestamps|timesync|exceptions|instructions|synchronization/);
-        expectSameFsPath(model.createState().fileName, generatedTraceFile);
+        expect(generatedText.match(/disable:/g) ?? []).toHaveLength(2);
+        expect(generatedText).not.toMatch(/timesync|exceptions|instructions/);
+        [
+            ['ctrace', 'setup', 0],
+            ['ctrace', 'setup', 0, 'timestamps'],
+            ['ctrace', 'setup', 0, 'advanced-settings'],
+            ['ctrace', 'setup', 0, 'synchronization'],
+        ].forEach(pathToExpand => model.updateExpandedState(JSON.stringify(pathToExpand), true));
+        const state = model.createState();
+        expectSameFsPath(state.fileName, generatedTraceFile);
+        expect(state.rows
+            .filter(row => row.path.at(-2) === 'setup' && typeof row.path.at(-1) === 'number')
+            .map(row => row.checked))
+            .toEqual([false, false]);
+        expect(state.rows.find(row => JSON.stringify(row.path) === JSON.stringify(['ctrace', 'setup', 0, 'timestamps'])))
+            .toMatchObject({ checked: true });
+        expect(state.rows.find(row => JSON.stringify(row.path) === JSON.stringify(['ctrace', 'setup', 0, 'timestamps', 'itm-prescaler'])))
+            .toMatchObject({ value: '1' });
+        expect(state.rows.find(row => JSON.stringify(row.path) === JSON.stringify(['ctrace', 'setup', 0, 'timesync'])))
+            .toMatchObject({ checked: false });
+        expect(state.rows.find(row => JSON.stringify(row.path) === JSON.stringify(['ctrace', 'setup', 0, 'synchronization', 'DWT'])))
+            .toMatchObject({ value: '256M' });
         expect(onDidChange).toHaveBeenCalled();
         model.dispose();
     });
@@ -733,7 +759,7 @@ describe('TraceConfigurationModel', () => {
 
         await model.saveCurrentDocument();
 
-        expect(adapter.text).toContain('      timestamps:\n');
+        expect(adapter.text).toContain('      timestamps:\n        itm-prescaler: 1\n');
         expect(adapter.text).toContain('      exceptions:\n');
         expect(adapter.text).toContain('      events:\n        - event: CYCCNT\n        - event: EXCCNT\n');
         expect(adapter.text).toContain('      itm:\n        enable: 0x80000001\n        privileged: 0xa\n');
@@ -818,6 +844,7 @@ describe('TraceConfigurationModel', () => {
             '    - pname: cm33',
             '      core: Cortex-M33',
             '      timestamps:',
+            '        itm-prescaler: 1',
             '      timesync:',
             '      data:',
             '        - location: watchSymbol',

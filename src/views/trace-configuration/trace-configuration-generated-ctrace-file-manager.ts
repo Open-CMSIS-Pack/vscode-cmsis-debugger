@@ -329,7 +329,8 @@ export class TraceConfigurationGeneratedCTraceFileManager {
     private createProcessorTraceSetup(processor: GeneratedTraceProcessor): CTraceProcessorTraceSetup {
         const setup: CTraceProcessorTraceSetup = {
             core: processor.core,
-            ...(processor.pname ? { pname: processor.pname } : {})
+            ...(processor.pname ? { pname: processor.pname } : {}),
+            disable: null
         };
         const capabilities = TraceConfigurationTypes.TRACE_CAPABILITIES_BY_CORE.get(processor.core)
             ?? TraceConfigurationTypes.NO_TRACE_CAPABILITIES;
@@ -338,6 +339,9 @@ export class TraceConfigurationGeneratedCTraceFileManager {
             return setup;
         }
 
+        if (capabilities.timestamps) {
+            setup.timestamps = { 'itm-prescaler': TraceConfigurationTypes.DEFAULT_ITM_PRESCALER };
+        }
         if (capabilities.dwtComparators > 0) {
             setup.data = [];
         }
@@ -349,6 +353,9 @@ export class TraceConfigurationGeneratedCTraceFileManager {
         }
         if (capabilities.pcSampling) {
             setup.pcsampling = { period: 0 };
+        }
+        if (capabilities.streamSynchronization) {
+            setup.synchronization = { DWT: TraceConfigurationTypes.DEFAULT_STREAM_SYNC_PERIOD };
         }
 
         return setup;

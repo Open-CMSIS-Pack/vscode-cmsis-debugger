@@ -596,7 +596,7 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(dwtSyncRow.value).toBe('off');
     });
 
-    it('defaults DWT stream synchronization to 256M when Time Synchronization is enabled', () => {
+    it('shows Stream Synchronization as off when it is absent even if Time Synchronization is enabled', () => {
         const state = createStateFromYaml([
             'ctrace:',
             '  setup:',
@@ -606,10 +606,10 @@ describe('TraceConfigurationRowBuilder', () => {
         ].join('\n'));
 
         expect(findRow(state, ['ctrace', 'setup', 0, 'timesync']).checked).toBe(true);
-        expect(findRow(state, ['ctrace', 'setup', 0, 'synchronization', 'DWT']).value).toBe('256M');
+        expect(findRow(state, ['ctrace', 'setup', 0, 'synchronization', 'DWT']).value).toBe('off');
     });
 
-    it('shows DWT stream synchronization as off while Time Synchronization is disabled', () => {
+    it('shows the configured DWT stream synchronization while Time Synchronization is disabled', () => {
         const state = createStateFromYaml([
             'ctrace:',
             '  setup:',
@@ -620,7 +620,7 @@ describe('TraceConfigurationRowBuilder', () => {
         ].join('\n'));
 
         expect(findRow(state, ['ctrace', 'setup', 0, 'timesync']).checked).toBe(false);
-        expect(findRow(state, ['ctrace', 'setup', 0, 'synchronization', 'DWT']).value).toBe('off');
+        expect(findRow(state, ['ctrace', 'setup', 0, 'synchronization', 'DWT']).value).toBe('64M');
     });
 
     it('renders event and ITM masks as inline multi-select controls', () => {
