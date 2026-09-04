@@ -314,23 +314,16 @@ describe('TraceConfigurationModel', () => {
         expect(containsSubstringsInOrder(generatedText, [
             'pname: core0',
             'core: Cortex-M55',
-            'timestamps: {}',
-            'timesync:',
             'data:',
-            'exceptions:',
             'events:',
             'itm:',
             'enable: 0x0',
-            'instructions: {}',
             'pcsampling:',
-            'period: off',
-            'synchronization:',
-            'DWT: 256M',
+            'period: 0',
             'pname: core1',
-            'core: Cortex-M23',
-            'instructions: {}'
+            'core: Cortex-M23'
         ])).toBe(true);
-        expect(generatedText).not.toContain('pname: core1\n      core: Cortex-M23\n      timestamps');
+        expect(generatedText).not.toMatch(/timestamps|timesync|exceptions|instructions|synchronization/);
         expectSameFsPath(model.createState().fileName, generatedTraceFile);
         expect(onDidChange).toHaveBeenCalled();
         model.dispose();

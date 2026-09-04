@@ -26,7 +26,7 @@ export const DATA_OUTPUT_OPTIONS = ['value', 'offset', 'PC', 'match', 'PC+value'
 export const MATCH_SIZE_OPTIONS = ['1', '2', '4'];
 export const STREAM_SYNC_PERIOD_OPTIONS = ['off', '16M', '64M', '256M'];
 export const PC_SAMPLING_PERIOD_OPTIONS = [
-    'off',
+    '0',
     '64',
     '128',
     '192',

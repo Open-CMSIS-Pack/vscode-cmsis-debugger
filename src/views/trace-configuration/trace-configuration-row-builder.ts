@@ -224,7 +224,7 @@ export class TraceConfigurationRowBuilder {
             depth: depth + 1,
             kind: 'scalar',
             control: 'select',
-            value: this.getStreamSyncDwtPeriod(node),
+            value: this.getStreamSyncDwtPeriod(node, nodePath),
             options: TraceConfigurationTypes.STREAM_SYNC_PERIOD_OPTIONS,
             hasChildren: false,
             expanded: false,
@@ -736,7 +736,7 @@ export class TraceConfigurationRowBuilder {
         }
         if (this.isPcSamplingPath(nodePath)) {
             const period = isYamlMapItem(node) ? this.mapScalarToString(node, 'period') : scalarValue;
-            return this.normalizePcSamplingPeriod(period && period.trim().length > 0 ? period : 'off');
+            return this.normalizePcSamplingPeriod(period && period.trim().length > 0 ? period : '0');
         }
         if (this.isDwtDataAccessPath(nodePath)) {
             const accessValue = this.accessValueToLabel(scalarValue);
@@ -1648,11 +1648,16 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
-     * getStreamSyncDwtPeriod extracts the DWT synchronization period from the
-     * real YAML map. Older sequence encodings are still accepted for existing
-     * files and rewritten to the current map shape on edit/save.
+     * getStreamSyncDwtPeriod shows stream synchronization as off while Time
+     * Synchronization is disabled. Once enabled, it extracts the configured DWT
+     * period or supplies the 256M default. Older sequence encodings are still
+     * accepted for existing files and rewritten to the current map shape on edit/save.
      */
-    private getStreamSyncDwtPeriod(node: YamlTreeItem): string {
+    private getStreamSyncDwtPeriod(node: YamlTreeItem, nodePath: (string | number)[]): string {
+        const timeSyncPath = [...nodePath.slice(0, -1), 'timesync'];
+        if (!this.nodeExists(timeSyncPath)) {
+            return 'off';
+        }
         if (isYamlMapItem(node)) {
             const dwt = node.getChild('DWT');
             if (isYamlScalarItem(dwt)) {
@@ -1687,15 +1692,15 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
-     * normalizePcSamplingPeriod converts older expression-style values such as
-     * 64*2 or 1024*16 into the numeric strings shown by the dropdown. Values
-     * that are already numeric, off, or otherwise unknown are returned unchanged
-     * so hand-authored future schema values are not destroyed by display code.
+     * normalizePcSamplingPeriod converts the legacy off spelling to zero and
+     * older expression-style values such as 64*2 or 1024*16 into the numeric
+     * strings shown by the dropdown. Other values are returned unchanged so
+     * hand-authored future schema values are not destroyed by display code.
      */
     public normalizePcSamplingPeriod(value: string): string {
         const trimmed = value.trim();
         if (trimmed === 'off') {
-            return trimmed;
+            return '0';
         }
         const expression = trimmed.match(/^(\d+)\s*\*\s*(\d+)$/);
         if (!expression) {

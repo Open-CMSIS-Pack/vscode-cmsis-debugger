@@ -338,17 +338,8 @@ export class TraceConfigurationGeneratedCTraceFileManager {
             return setup;
         }
 
-        if (capabilities.timestamps) {
-            setup.timestamps = {};
-        }
-        if (capabilities.timeSynchronization) {
-            setup.timesync = null;
-        }
         if (capabilities.dwtComparators > 0) {
             setup.data = [];
-        }
-        if (capabilities.exceptions) {
-            setup.exceptions = null;
         }
         if (capabilities.eventCounters) {
             setup.events = [];
@@ -356,14 +347,8 @@ export class TraceConfigurationGeneratedCTraceFileManager {
         if (capabilities.instrumentationTrace) {
             setup.itm = { enable: '0x0' };
         }
-        if (capabilities.instructionTrace) {
-            setup.instructions = {};
-        }
         if (capabilities.pcSampling) {
-            setup.pcsampling = { period: 'off' };
-        }
-        if (capabilities.streamSynchronization) {
-            setup.synchronization = { DWT: '256M' };
+            setup.pcsampling = { period: 0 };
         }
 
         return setup;

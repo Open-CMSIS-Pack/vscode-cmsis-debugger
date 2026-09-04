@@ -550,6 +550,7 @@ describe('TraceConfigurationRowBuilder', () => {
             '  setup:',
             '    - pname: cm33',
             '      pcsampling:',
+            '      timesync:',
             '      synchronization:',
             '        DWT: 64M',
             ''
@@ -557,8 +558,9 @@ describe('TraceConfigurationRowBuilder', () => {
 
         const pcSamplingRow = findRow(state, ['ctrace', 'setup', 0, 'pcsampling']);
         expect(pcSamplingRow.label).toBe('PC Sampling');
-        expect(pcSamplingRow.value).toBe('off');
+        expect(pcSamplingRow.value).toBe('0');
         expect(pcSamplingRow.options).toEqual(TraceConfigurationTypes.PC_SAMPLING_PERIOD_OPTIONS);
+        expect(pcSamplingRow.options).not.toContain('off');
         expect(pcSamplingRow.options).not.toContain('64*1');
         expect(pcSamplingRow.options?.filter(option => option === '1024')).toHaveLength(1);
 
@@ -569,7 +571,7 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(dwtSyncRow.options).toEqual(TraceConfigurationTypes.STREAM_SYNC_PERIOD_OPTIONS);
     });
 
-    it('defaults missing DWT stream synchronization to 256M', () => {
+    it('renders optional trace subsystems as disabled when their YAML nodes are absent', () => {
         const state = createStateFromYaml([
             'ctrace:',
             '  setup:',
@@ -577,9 +579,41 @@ describe('TraceConfigurationRowBuilder', () => {
             ''
         ].join('\n'));
 
+        expect(findRow(state, ['ctrace', 'setup', 0, 'timestamps']).checked).toBe(false);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'exceptions']).checked).toBe(false);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions']).checked).toBe(false);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'timesync']).checked).toBe(false);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'advanced-settings']).label).toBe('Advanced Settings');
         const dwtSyncRow = findRow(state, ['ctrace', 'setup', 0, 'synchronization', 'DWT']);
         expect(dwtSyncRow.label).toBe('DWT');
-        expect(dwtSyncRow.value).toBe('256M');
+        expect(dwtSyncRow.value).toBe('off');
+    });
+
+    it('defaults DWT stream synchronization to 256M when Time Synchronization is enabled', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      timesync:',
+            ''
+        ].join('\n'));
+
+        expect(findRow(state, ['ctrace', 'setup', 0, 'timesync']).checked).toBe(true);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'synchronization', 'DWT']).value).toBe('256M');
+    });
+
+    it('shows DWT stream synchronization as off while Time Synchronization is disabled', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      synchronization:',
+            '        DWT: 64M',
+            ''
+        ].join('\n'));
+
+        expect(findRow(state, ['ctrace', 'setup', 0, 'timesync']).checked).toBe(false);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'synchronization', 'DWT']).value).toBe('off');
     });
 
     it('renders event and ITM masks as inline multi-select controls', () => {
@@ -679,6 +713,7 @@ describe('TraceConfigurationRowBuilder', () => {
             'ctrace:',
             '  setup:',
             '    - pname: cm33',
+            '      timesync:',
             '      synchronization:',
             '        - period: DWT\\16M',
             ''
@@ -701,7 +736,7 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(builder.toYamlScalarValue(['ctrace', 'setup', 0, 'data', 0, 'match', 'value'], '0x10')).toBe('0x10');
         expect(builder.toYamlScalarValue(['ctrace', 'setup', 0, 'data', 0, 'access'], 'Read')).toBe('R');
         expect(builder.normalizePcSamplingPeriod('64 * 16')).toBe('1024');
-        expect(builder.normalizePcSamplingPeriod('off')).toBe('off');
+        expect(builder.normalizePcSamplingPeriod('off')).toBe('0');
         expect(builder.normalizePcSamplingPeriod('custom')).toBe('custom');
         expect(builder.itmChannelsToMask(['0', '31', 'bad'])).toBe('0x80000001');
         expect(builder.privilegedRangesToMask(['8-15', 'bad'])).toBe('0x2');

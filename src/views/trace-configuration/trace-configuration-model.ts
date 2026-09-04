@@ -427,7 +427,7 @@ export class TraceConfigurationModel {
         }
         if (this.rowBuilder.isPcSamplingPath(pathToUpdate) && typeof value === 'string') {
             const period = this.rowBuilder.normalizePcSamplingPeriod(value);
-            document.yaml.set([...pathToUpdate, 'period'], period === 'off' ? 0 : Number(period));
+            document.yaml.set([...pathToUpdate, 'period'], Number(period));
             await this.acceptInMemoryEdit();
             return;
         }
