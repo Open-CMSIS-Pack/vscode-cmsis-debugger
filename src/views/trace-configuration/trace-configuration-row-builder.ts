@@ -1690,15 +1690,15 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
-     * normalizePcSamplingPeriod converts the legacy off spelling to zero and
-     * older expression-style values such as 64*2 or 1024*16 into the numeric
-     * strings shown by the dropdown. Other values are returned unchanged so
-     * hand-authored future schema values are not destroyed by display code.
+     * normalizePcSamplingPeriod maps the persisted zero value to the off label
+     * and converts older expression-style values such as 64*2 or 1024*16 into
+     * the numeric strings shown by the dropdown. Other values are returned
+     * unchanged so hand-authored future schema values are not destroyed.
      */
     public normalizePcSamplingPeriod(value: string): string {
         const trimmed = value.trim();
-        if (trimmed === 'off') {
-            return '0';
+        if (trimmed === '0' || trimmed === 'off') {
+            return 'off';
         }
         const expression = trimmed.match(/^(\d+)\s*\*\s*(\d+)$/);
         if (!expression) {

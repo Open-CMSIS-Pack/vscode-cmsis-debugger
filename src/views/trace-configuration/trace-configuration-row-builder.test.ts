@@ -555,6 +555,7 @@ describe('TraceConfigurationRowBuilder', () => {
             '  setup:',
             '    - pname: cm33',
             '      pcsampling:',
+            '        period: 0',
             '      timesync:',
             '      synchronization:',
             '        DWT: 64M',
@@ -563,9 +564,10 @@ describe('TraceConfigurationRowBuilder', () => {
 
         const pcSamplingRow = findRow(state, ['ctrace', 'setup', 0, 'pcsampling']);
         expect(pcSamplingRow.label).toBe('PC Sampling');
-        expect(pcSamplingRow.value).toBe('0');
+        expect(pcSamplingRow.value).toBe('off');
         expect(pcSamplingRow.options).toEqual(TraceConfigurationTypes.PC_SAMPLING_PERIOD_OPTIONS);
-        expect(pcSamplingRow.options).not.toContain('off');
+        expect(pcSamplingRow.options).toContain('off');
+        expect(pcSamplingRow.options).not.toContain('0');
         expect(pcSamplingRow.options).not.toContain('64*1');
         expect(pcSamplingRow.options?.filter(option => option === '1024')).toHaveLength(1);
 
@@ -741,7 +743,8 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(builder.toYamlScalarValue(['ctrace', 'setup', 0, 'data', 0, 'match', 'value'], '0x10')).toBe('0x10');
         expect(builder.toYamlScalarValue(['ctrace', 'setup', 0, 'data', 0, 'access'], 'Read')).toBe('R');
         expect(builder.normalizePcSamplingPeriod('64 * 16')).toBe('1024');
-        expect(builder.normalizePcSamplingPeriod('off')).toBe('0');
+        expect(builder.normalizePcSamplingPeriod('0')).toBe('off');
+        expect(builder.normalizePcSamplingPeriod('off')).toBe('off');
         expect(builder.normalizePcSamplingPeriod('custom')).toBe('custom');
         expect(builder.itmChannelsToMask(['0', '31', 'bad'])).toBe('0x80000001');
         expect(builder.privilegedRangesToMask(['8-15', 'bad'])).toBe('0x2');

@@ -746,6 +746,22 @@ describe('TraceConfigurationModel', () => {
         expect(adapter.text).not.toContain('disable:');
     });
 
+    it('writes the PC Sampling off selection as zero', async () => {
+        const { adapter, model } = await createModelFromText([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      pcsampling:',
+            '        period: 64',
+            ''
+        ].join('\n'), createCapabilities());
+
+        await model.updateValue(['ctrace', 'setup', 0, 'pcsampling'], 'off');
+        await model.saveCurrentDocument();
+
+        expect(adapter.text).toContain('      pcsampling:\n        period: 0\n');
+    });
+
     it('expands collapsed comparator lists and focuses the newly added child', async () => {
         const { model } = await createModelFromText([
             'ctrace:',
