@@ -207,7 +207,7 @@ export class TraceConfigurationModel {
     public static isCTraceFileName(fileName: string): boolean {
         const baseName = path.basename(fileName).toLowerCase();
         return baseName.endsWith('.ctrace.yml')
-        || baseName.endsWith('.ctrace.yaml');
+            || baseName.endsWith('.ctrace.yaml');
     }
 
     /**
