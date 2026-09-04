@@ -45,7 +45,8 @@ export class TraceConfigurationRowBuilder {
      * The constructor receives lightweight accessors instead of owning the mutable model state.
      * That keeps this class focused on row/state creation while still letting it always render
      * the freshest file, loading status, dirty flag, error message, collapsed rows, and processor
-     * capability map owned by the model layer.
+     * capability map owned by the model layer. The tooltip setting is also read through an accessor
+     * so a settings change is reflected the next time state is created.
      */
     public constructor(
         private readonly getCTraceFile: () => CTraceYamlFile | undefined,
@@ -53,7 +54,8 @@ export class TraceConfigurationRowBuilder {
         private readonly getDirty: () => boolean,
         private readonly getErrorMessage: () => string | undefined,
         private readonly collapsedRows: Set<string>,
-        private readonly processorCapabilities: ReadonlyMap<string, TraceConfigurationTypes.ProcessorTraceCapabilities>
+        private readonly processorCapabilities: ReadonlyMap<string, TraceConfigurationTypes.ProcessorTraceCapabilities>,
+        private readonly getShowCTraceRefsInTooltips: () => boolean
     ) { }
 
     /**
@@ -91,7 +93,8 @@ export class TraceConfigurationRowBuilder {
         }
         const context: TraceConfigurationTypes.RowBuildContext = {
             rows: [],
-            collapsedRows: this.collapsedRows
+            collapsedRows: this.collapsedRows,
+            showCTraceRefsInTooltips: this.getShowCTraceRefsInTooltips()
         };
         const ctraceRoot = this.getCTraceFile()?.document?.yaml.getItem(['ctrace']);
         if (ctraceRoot) {
@@ -135,7 +138,15 @@ export class TraceConfigurationRowBuilder {
             return;
         }
         const expanded = forceExpanded || !context.collapsedRows.has(id);
-        context.rows.push(this.createRow(node, nodePath, label, depth, hasChildren, expanded));
+        context.rows.push(this.createRow(
+            node,
+            nodePath,
+            label,
+            depth,
+            hasChildren,
+            expanded,
+            context.showCTraceRefsInTooltips
+        ));
         if (!hasChildren || !expanded) {
             return;
         }
@@ -198,7 +209,7 @@ export class TraceConfigurationRowBuilder {
         const id = this.pathToId(nodePath);
         const expanded = forceExpanded || !context.collapsedRows.has(id);
         context.rows.push({
-            ...this.createRow(node, nodePath, label, depth, true, expanded),
+            ...this.createRow(node, nodePath, label, depth, true, expanded, context.showCTraceRefsInTooltips),
             addChildKind: undefined,
             control: 'none',
         });
@@ -232,15 +243,18 @@ export class TraceConfigurationRowBuilder {
         label: string,
         depth: number,
         hasChildren: boolean,
-        expanded: boolean
+        expanded: boolean,
+        showCTraceRefsInTooltips: boolean
     ): TraceConfigurationRow {
         const kind = isYamlMapItem(node) ? 'map' : isYamlSequenceItem(node) || this.isBareSequenceNode(node, nodePath) ? 'sequence' : 'scalar';
         const scalarValue = isYamlScalarItem(node) ? this.scalarToString(node) : undefined;
         const valuePath = this.getRowValuePath(nodePath);
         const placeholder = this.getRowPlaceholder(nodePath);
+        const labelTooltip = this.getCTraceRefTooltip(nodePath, showCTraceRefsInTooltips);
         const row: TraceConfigurationRow = {
             id: this.pathToId(nodePath),
             label: this.getRowLabel(node, label, nodePath),
+            ...(labelTooltip ? { labelTooltip } : {}),
             path: nodePath,
             ...(valuePath ? { valuePath } : {}),
             depth,
@@ -261,6 +275,19 @@ export class TraceConfigurationRowBuilder {
             description: this.describeNode(node, nodePath)
         };
         return row;
+    }
+
+    /**
+     * getCTraceRefTooltip returns a debugging tooltip for nodes that have an
+     * internally assigned ctrace-ref, while keeping production row state free
+     * of that metadata when the setting is disabled.
+     */
+    private getCTraceRefTooltip(nodePath: (string | number)[], showCTraceRefsInTooltips: boolean): string | undefined {
+        if (!showCTraceRefsInTooltips) {
+            return undefined;
+        }
+        const ctraceRef = this.getCTraceFile()?.document?.getCTraceRef(nodePath);
+        return ctraceRef ? `ctrace-ref: ${ctraceRef}` : undefined;
     }
 
     /**

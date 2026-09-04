@@ -167,6 +167,7 @@ module.exports = {
             update: jest.fn().mockResolvedValue(undefined),
             inspect: jest.fn().mockReturnValue(undefined),
         })),
+        onDidChangeConfiguration: jest.fn(() => ({ dispose: jest.fn() })),
         fs: {
             readFile: jest.fn(uri => {
                 const buffer = fs.readFileSync(uri.fsPath);
@@ -198,7 +199,6 @@ module.exports = {
         },
         findFiles: jest.fn(() => Promise.resolve([])),
         createFileSystemWatcher: jest.fn(() => createMockFileSystemWatcher()),
-        onDidChangeConfiguration: jest.fn(() => ({ dispose: jest.fn() })),
         workspaceFolders: [
             {
                 uri: URI.file(path.join(__dirname, '..')),
@@ -209,6 +209,7 @@ module.exports = {
     },
     extensions: {
         getExtension: jest.fn(),
+        onDidChange: jest.fn(() => ({ dispose: jest.fn() })),
     },
     commands: {
         executeCommand: jest.fn(),
