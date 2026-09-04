@@ -67,7 +67,7 @@ describe('TraceConfigurationProcessorCapabilities', () => {
         expect(capabilities.capabilities.has('Cortex-M55')).toBe(false);
     });
 
-    it('does not match multi-core cbuild-run processors by position when pname is missing', async () => {
+    it('leaves capabilities unrestricted when a multi-core processor cannot be identified', async () => {
         jest.spyOn(FileLocationManager.prototype, 'getCBuildRunFileName').mockResolvedValue('project.cbuild-run.yml');
         jest.spyOn(CbuildRunReader.prototype, 'parse').mockResolvedValue();
         const warnSpy = jest.spyOn(logger, 'warn').mockImplementation();
@@ -85,12 +85,7 @@ describe('TraceConfigurationProcessorCapabilities', () => {
 
         await capabilities.load();
 
-        expect(capabilities.capabilities.get('0')).toMatchObject({
-            displayName: 'Processor 1',
-            core: undefined,
-            supportsTrace: false,
-            dwtComparators: 0
-        });
+        expect(capabilities.capabilities.has('0')).toBe(false);
         expect(warnSpy).toHaveBeenCalledWith('Unable to identify trace processor setup entry 1: multi-core projects require pname.');
     });
 
@@ -152,12 +147,7 @@ describe('TraceConfigurationProcessorCapabilities', () => {
             dwtComparators: 4
         });
         expect(capabilities.getProcessorNameForPath(['ctrace', 'setup', 1])).toBe('Cortex-M33');
-        expect(capabilities.capabilities.get('2')).toMatchObject({
-            displayName: 'unknown-core',
-            core: undefined,
-            supportsTrace: false,
-            dwtComparators: 0
-        });
+        expect(capabilities.capabilities.has('2')).toBe(false);
     });
 
     it('keeps ctrace.yml fallback names when parsing the active cbuild-run file fails', async () => {
@@ -168,6 +158,7 @@ describe('TraceConfigurationProcessorCapabilities', () => {
             '  setup:',
             '    - pname: cm4',
             '      core: Cortex-M4',
+            '    - pname: core-without-build-data',
             ''
         ].join('\n'));
         const capabilities = new TraceConfigurationProcessorCapabilities(() => ctraceFile);
@@ -180,6 +171,7 @@ describe('TraceConfigurationProcessorCapabilities', () => {
             supportsTrace: true,
             dwtComparators: 4
         });
+        expect(capabilities.capabilities.has('1')).toBe(false);
     });
 
     it('supports non-Cortex-A/R Dcore aliases with Cortex-M trace capability equivalents', async () => {

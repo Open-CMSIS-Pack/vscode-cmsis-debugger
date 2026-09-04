@@ -21,22 +21,25 @@ import * as vscode from 'vscode';
 
 import { isYamlMapItem, isYamlScalarItem, isYamlSequenceItem, YamlTreeItem, yamlScalarToString } from '../../desktop/yaml-dom';
 import { logger } from '../../logger';
+import { CTRACE_FILE_GLOB, TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING } from '../../manifest';
 import { CTraceYamlFile } from './ctrace-yaml';
 import {
     GeneratedCBuildRunFileChangeEvent,
     TraceConfigurationFileWatcher
 } from './trace-configuration-file-watcher';
-import { TraceConfigurationGeneratedCTraceFileManager } from './trace-configuration-generated-ctrace-file-manager';
+import {
+    SWO_UART_TRACE_OFF_MESSAGE,
+    TraceConfigurationGeneratedCTraceFileManager
+} from './trace-configuration-generated-ctrace-file-manager';
 import {
     TraceConfigurationRow,
     TraceConfigurationState,
 } from './trace-configuration-protocol';
 import { TraceConfigurationProcessorCapabilities } from './trace-configuration-processor-capabilities';
 import { TraceConfigurationRowBuilder } from './trace-configuration-row-builder';
-import * as TraceConfigurationTypes from './trace-configuration-types';
 import { WorkspaceTextFileAdapter } from './workspace-text-file-adapter';
 
-export type { GeneratedCBuildRunFileChangeEvent } from './trace-configuration-file-watcher';
+const BUILD_REQUIRED_MESSAGE = 'Build/Rebuild csolution project to enable trace configuration';
 
 /**
  * TraceConfigurationModel owns the ctrace.yml document lifecycle and file mutations for the trace
@@ -51,6 +54,7 @@ export class TraceConfigurationModel {
     private loading = false;
     private dirty = false;
     private errorMessage: string | undefined;
+    private emptyMessage: string | undefined;
     private focusedRowId: string | undefined;
     private readonly collapsedRows = new Set<string>();
     private readonly processorCapabilities: TraceConfigurationProcessorCapabilities;
@@ -74,7 +78,8 @@ export class TraceConfigurationModel {
             () => this.dirty,
             () => this.errorMessage,
             this.collapsedRows,
-            this.processorCapabilities.capabilities
+            this.processorCapabilities.capabilities,
+            () => vscode.workspace.getConfiguration().get<boolean>(TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING, false)
         );
         this.fileWatcher = new TraceConfigurationFileWatcher({
             getCurrentFile: () => this.ctraceFile,
@@ -83,7 +88,6 @@ export class TraceConfigurationModel {
             onGeneratedCBuildRunFileChanged: event => this.refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event)
         });
         this.onDidChangeGeneratedCBuildRunFile = this.fileWatcher.onDidChangeGeneratedCBuildRunFile;
-        this.fileWatcher.watchGeneratedCBuildRunFiles();
     }
 
     /**
@@ -105,25 +109,32 @@ export class TraceConfigurationModel {
     }
 
     /**
-     * disposeViewResources releases resources tied to the current webview
-     * instance. Generated cbuild-run watching is intentionally kept alive
-     * across webview disposal because builds can happen while the view is
-     * closed.
+     * watchForGeneratedCBuildRunFiles installs the cbuild index watcher before
+     * CMSIS Solution activation starts. This prevents generated-file events
+     * emitted during companion-extension startup from being missed.
      */
-    public disposeViewResources(): void {
-        this.fileWatcher.disposeViewResources();
+    public watchForGeneratedCBuildRunFiles(): void {
+        this.fileWatcher.watchGeneratedCBuildRunFiles();
     }
 
     /**
      * refreshProcessorCapabilitiesFromGeneratedCBuildRunFile delegates generated
-     * ctrace.yml creation to the generated-file manager and loads the returned
-     * trace file when a created or changed cbuild-run file produced one.
+     * ctrace.yml creation to the generated-file manager. It loads generated
+     * trace files and replaces file-backed state with guidance when tracing is off.
      */
     private async refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event: GeneratedCBuildRunFileChangeEvent): Promise<void> {
         try {
-            const generatedTraceFileUri = await this.generatedCTraceFileManager.processGeneratedCBuildRunFileChange(event);
-            if (generatedTraceFileUri) {
-                await this.loadFile(generatedTraceFileUri.fsPath);
+            const result = await this.generatedCTraceFileManager.processGeneratedCBuildRunFileChange(event);
+            switch (result.status) {
+                case 'generated':
+                    await this.loadFile(result.uri.fsPath);
+                    break;
+                case 'trace-off':
+                    this.clearCurrentFile();
+                    this.emptyMessage = SWO_UART_TRACE_OFF_MESSAGE;
+                    break;
+                case 'deleted':
+                    break;
             }
             this.errorMessage = undefined;
         } catch (error) {
@@ -135,26 +146,29 @@ export class TraceConfigurationModel {
     }
 
     /**
-     * loadInitialFile finds the best ctrace.yml candidate and loads it as soon
-     * as the webview appears. The active editor is preferred because it is the
-     * clearest user intent; otherwise the workspace is searched for trace YAML
-     * files and the first result is used.
+     * loadInitialFile handles CMSIS Solution activation by asking it for the
+     * active cbuild-run file. A valid existing file enters the generated trace
+     * flow immediately. Otherwise, an index watcher waits for the first build
+     * while any existing .cmsis/*.ctrace.yml file remains available to edit.
      */
     public async loadInitialFile(): Promise<void> {
-        this.fileWatcher.watchGeneratedCBuildRunFiles();
+        this.watchForGeneratedCBuildRunFiles();
         this.loading = true;
         this.errorMessage = undefined;
+        this.emptyMessage = undefined;
         this.notifyStateChanged();
         try {
-            const candidate = await this.findInitialCTraceFile();
-            if (!candidate) {
-                this.fileWatcher.disposeCurrentFileWatcher();
-                this.ctraceFile = undefined;
-                this.processorCapabilities.clear();
-                this.errorMessage = undefined;
+            if (await this.fileWatcher.processActiveCBuildRunFile()) {
                 return;
             }
-            await this.loadFile(candidate.fsPath);
+            const candidate = await this.findInitialCTraceFile();
+            if (candidate) {
+                await this.loadFile(candidate.fsPath);
+                return;
+            }
+
+            this.clearCurrentFile();
+            this.emptyMessage = BUILD_REQUIRED_MESSAGE;
         } catch (error) {
             this.errorMessage = this.errorToString(error);
             logger.error(`Trace Configuration: Failed to load ctrace file: ${this.errorMessage}`);
@@ -165,32 +179,35 @@ export class TraceConfigurationModel {
     }
 
     /**
-     * findInitialCTraceFile applies the discovery policy used by
-     * loadInitialFile. It deliberately avoids prompting because resolve happens
-     * during view creation; prompts are reserved for the explicit Open button in
-     * the webview.
+     * findInitialCTraceFile searches workspace .cmsis folders for supported
+     * *.ctrace.yml files. It deliberately ignores the active editor so unrelated
+     * trace files outside the generated configuration folder are not selected.
      */
     private async findInitialCTraceFile(): Promise<vscode.Uri | undefined> {
-        const activeFile = vscode.window.activeTextEditor?.document.uri;
-        if (activeFile && TraceConfigurationModel.isCTraceFileName(activeFile.fsPath)) {
-            return activeFile;
-        }
-        const files = await vscode.workspace.findFiles(TraceConfigurationTypes.CTRACE_FILE_GLOB, '**/{node_modules,dist,coverage}/**', 10);
-        return files.find(file => TraceConfigurationModel.isCTraceFileName(file.fsPath));
+        const files = await vscode.workspace.findFiles(CTRACE_FILE_GLOB, null, 10);
+        return files.at(0);
     }
 
     /**
-     * isCTraceFileName centralizes filename recognition so active-editor,
-     * workspace-search, and open-dialog paths all use the same rule. The rule is
-     * intentionally broad enough to accept ctrace.yml, ctrace.yaml, and
-     * target-specific names such as board.ctrace.yml.
+     * clearCurrentFile resets file-backed state before startup falls back to
+     * generated project discovery or the build-required empty state.
+     */
+    private clearCurrentFile(): void {
+        this.fileWatcher.disposeCurrentFileWatcher();
+        this.ctraceFile = undefined;
+        this.processorCapabilities.clear();
+        this.dirty = false;
+    }
+
+    /**
+     * isCTraceFileName centralizes explicit-open filename validation so only
+     * target-specific files that follow the supported *.ctrace.yml format are
+     * accepted.
      */
     public static isCTraceFileName(fileName: string): boolean {
         const baseName = path.basename(fileName).toLowerCase();
-        return baseName === 'ctrace.yml'
-            || baseName === 'ctrace.yaml'
-            || baseName.endsWith('.ctrace.yml')
-            || baseName.endsWith('.ctrace.yaml');
+        return baseName.endsWith('.ctrace.yml')
+        || baseName.endsWith('.ctrace.yaml');
     }
 
     /**
@@ -208,6 +225,7 @@ export class TraceConfigurationModel {
         await this.loadProcessorCapabilities();
         this.fileWatcher.watchCurrentFile();
         this.dirty = false;
+        this.emptyMessage = undefined;
     }
 
     /**
@@ -313,7 +331,7 @@ export class TraceConfigurationModel {
      */
     public async openFile(fileName: string): Promise<void> {
         if (!TraceConfigurationModel.isCTraceFileName(fileName)) {
-            throw new Error('Please select ctrace.yml, ctrace.yaml, or a *.ctrace.yml file.');
+            throw new Error('Please select a *.ctrace.yml, or *.ctrace.yaml file.');
         }
         this.loading = true;
         this.notifyStateChanged();
@@ -779,7 +797,10 @@ export class TraceConfigurationModel {
      * rows that the UI can render.
      */
     public createState(): TraceConfigurationState {
-        const state = this.rowBuilder.createState();
+        const rowBuilderState = this.rowBuilder.createState();
+        const state: TraceConfigurationState = this.emptyMessage
+            ? { ...rowBuilderState, emptyMessage: this.emptyMessage }
+            : rowBuilderState;
         if (!this.focusedRowId) {
             return state;
         }
