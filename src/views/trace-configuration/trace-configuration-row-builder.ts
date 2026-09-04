@@ -44,7 +44,7 @@ export class TraceConfigurationRowBuilder {
     /**
      * The constructor receives lightweight accessors instead of owning the mutable model state.
      * That keeps this class focused on row/state creation while still letting it always render
-     * the freshest file, loading status, dirty flag, error message, collapsed rows, and processor
+     * the freshest file, loading status, dirty flag, error message, expanded rows, and processor
      * capability map owned by the model layer. The tooltip setting is also read through an accessor
      * so a settings change is reflected the next time state is created.
      */
@@ -53,7 +53,7 @@ export class TraceConfigurationRowBuilder {
         private readonly getLoading: () => boolean,
         private readonly getDirty: () => boolean,
         private readonly getErrorMessage: () => string | undefined,
-        private readonly collapsedRows: Set<string>,
+        private readonly expandedRows: Set<string>,
         private readonly processorCapabilities: ReadonlyMap<string, TraceConfigurationTypes.ProcessorTraceCapabilities>,
         private readonly getShowCTraceRefsInTooltips: () => boolean
     ) {}
@@ -93,7 +93,7 @@ export class TraceConfigurationRowBuilder {
         }
         const context: TraceConfigurationTypes.RowBuildContext = {
             rows: [],
-            collapsedRows: this.collapsedRows,
+            expandedRows: this.expandedRows,
             showCTraceRefsInTooltips: this.getShowCTraceRefsInTooltips()
         };
         const ctraceRoot = this.getCTraceFile()?.document?.yaml.getItem(['ctrace']);
@@ -103,7 +103,7 @@ export class TraceConfigurationRowBuilder {
             });
             return context.rows;
         }
-        this.appendNodeRows(context, root, [], 'YAML', 0, true);
+        this.appendNodeRows(context, root, [], 'YAML', 0);
         return context.rows;
     }
 
@@ -118,14 +118,13 @@ export class TraceConfigurationRowBuilder {
         node: YamlTreeItem,
         nodePath: (string | number)[],
         label: string,
-        depth: number,
-        forceExpanded = false
+        depth: number
     ): void {
         if (!this.shouldShowTraceNode(label, nodePath)) {
             return;
         }
         if (this.isStreamSynchronizationPath(nodePath)) {
-            this.appendStreamSynchronizationRows(context, node, nodePath, label, depth, forceExpanded);
+            this.appendStreamSynchronizationRows(context, node, nodePath, label, depth);
             return;
         }
         const id = this.pathToId(nodePath);
@@ -137,7 +136,7 @@ export class TraceConfigurationRowBuilder {
             });
             return;
         }
-        const expanded = forceExpanded || !context.collapsedRows.has(id);
+        const expanded = context.expandedRows.has(id);
         context.rows.push(this.createRow(
             node,
             nodePath,
@@ -171,7 +170,7 @@ export class TraceConfigurationRowBuilder {
             return;
         }
         const advancedPath = [...nodePath, 'advanced-settings'];
-        const expanded = !context.collapsedRows.has(this.pathToId(advancedPath));
+        const expanded = context.expandedRows.has(this.pathToId(advancedPath));
         context.rows.push({
             id: this.pathToId(advancedPath),
             label: 'Advanced Settings',
@@ -203,11 +202,10 @@ export class TraceConfigurationRowBuilder {
         node: YamlTreeItem,
         nodePath: (string | number)[],
         label: string,
-        depth: number,
-        forceExpanded = false
+        depth: number
     ): void {
         const id = this.pathToId(nodePath);
-        const expanded = forceExpanded || !context.collapsedRows.has(id);
+        const expanded = context.expandedRows.has(id);
         context.rows.push({
             ...this.createRow(node, nodePath, label, depth, true, expanded, context.showCTraceRefsInTooltips),
             addChildKind: undefined,

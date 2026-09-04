@@ -998,6 +998,8 @@ describe('TraceConfigurationModel', () => {
         expect(vscode.workspace.findFiles).toHaveBeenCalledTimes(2);
         expect(onDidChange).toHaveBeenCalled();
 
+        model.updateExpandedState(JSON.stringify(['ctrace', 'setup', 0]), true);
+        model.updateExpandedState(JSON.stringify(['ctrace', 'setup', 0, 'timestamps']), true);
         const ctraceWatcher = getLastCreatedFileSystemWatcher();
         onDidChange.mockClear();
         await writeTemporaryTextFile(ctraceFileName, [

@@ -42,6 +42,12 @@ function createCapabilities(
     ]);
 }
 
+class AllRowsExpandedSet extends Set<string> {
+    public override has(_value: string): boolean {
+        return true;
+    }
+}
+
 /**
  * createStateFromYaml parses a ctrace document through the same generic YAML
  * DOM used by the extension and asks the row builder to produce webview state.
@@ -53,7 +59,7 @@ function createStateFromYaml(
         loading?: boolean;
         dirty?: boolean;
         errorMessage?: string;
-        collapsedRows?: Set<string>;
+        expandedRows?: Set<string>;
         capabilities?: Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities>;
         fileName?: string;
         showCTraceRefsInTooltips?: boolean;
@@ -68,7 +74,7 @@ function createStateFromYaml(
         () => options.loading ?? false,
         () => options.dirty ?? false,
         () => options.errorMessage,
-        options.collapsedRows ?? new Set<string>(),
+        options.expandedRows ?? new AllRowsExpandedSet(),
         options.capabilities ?? createCapabilities(),
         () => options.showCTraceRefsInTooltips ?? false
     ).createState();
@@ -161,8 +167,7 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(findRow(debugState, ['ctrace', 'setup', 0, 'data', 0]).labelTooltip).toBe('ctrace-ref: data#0');
     });
 
-    it('collapses rows and hides their children until expanded again', () => {
-        const collapsedRows = new Set<string>([JSON.stringify(['ctrace', 'setup', 0])]);
+    it('collapses rows by default and hides their children until expanded', () => {
         const state = createStateFromYaml([
             'ctrace:',
             '  setup:',
@@ -170,7 +175,7 @@ describe('TraceConfigurationRowBuilder', () => {
             '      timestamps:',
             '        clock: 100000000',
             ''
-        ].join('\n'), { collapsedRows });
+        ].join('\n'), { expandedRows: new Set<string>() });
 
         const processorRow = findRow(state, ['ctrace', 'setup', 0]);
         expect(processorRow.expanded).toBe(false);
@@ -692,7 +697,7 @@ describe('TraceConfigurationRowBuilder', () => {
     });
 
     it('renders legacy stream synchronization period spelling and collapsed advanced settings', () => {
-        const collapsedRows = new Set<string>([JSON.stringify(['ctrace', 'setup', 0, 'advanced-settings'])]);
+        const expandedRows = new Set<string>([JSON.stringify(['ctrace', 'setup', 0])]);
         const state = createStateFromYaml([
             'ctrace:',
             '  setup:',
@@ -702,7 +707,7 @@ describe('TraceConfigurationRowBuilder', () => {
             '        - period: DWT\\16M',
             '        - period: ETM\\64M',
             ''
-        ].join('\n'), { collapsedRows });
+        ].join('\n'), { expandedRows });
 
         const advancedRow = findRow(state, ['ctrace', 'setup', 0, 'advanced-settings']);
         expect(advancedRow.expanded).toBe(false);
