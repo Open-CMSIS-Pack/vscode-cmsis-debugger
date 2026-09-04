@@ -65,7 +65,7 @@ export class TraceConfigurationModel {
      * collaborators make this class easy to test while the default path uses the production helpers.
      */
     public constructor(
-        private onDidChange: () => void = () => {},
+        private onDidChange: () => void = () => { },
         processorCapabilities?: TraceConfigurationProcessorCapabilities,
         rowBuilder?: TraceConfigurationRowBuilder,
         generatedCTraceFileManager?: TraceConfigurationGeneratedCTraceFileManager
@@ -409,7 +409,7 @@ export class TraceConfigurationModel {
         }
         if (this.rowBuilder.isTimestampsPath(pathToUpdate) && typeof value === 'boolean') {
             if (value) {
-                document.yaml.set(pathToUpdate, {});
+                document.yaml.set(pathToUpdate, null);
             } else {
                 document.yaml.delete(pathToUpdate);
             }
@@ -470,7 +470,7 @@ export class TraceConfigurationModel {
         }
         if (this.rowBuilder.isInstructionsPath(pathToUpdate) && typeof value === 'boolean') {
             if (value) {
-                document.yaml.set(pathToUpdate, {});
+                document.yaml.set(pathToUpdate, null);
             } else {
                 document.yaml.delete(pathToUpdate);
             }
@@ -621,6 +621,39 @@ export class TraceConfigurationModel {
     }
 
     /**
+     * convertAllEmptyPresenceSectionsToBareKeys canonicalizes enabled sections
+     * and editable sequences with no children from "section: {}" or
+     * "section: []" to the ctrace bare-key form.
+     */
+    private convertAllEmptyPresenceSectionsToBareKeys(document: NonNullable<CTraceYamlFile['document']>): void {
+        const visitNode = (node: YamlTreeItem, nodePath: (string | number)[]): void => {
+            if (node.getChildren().length === 0
+                && (this.rowBuilder.isTimestampsPath(nodePath)
+                    || this.rowBuilder.isInstructionsPath(nodePath)
+                    || this.rowBuilder.shouldUseBareSequenceWhenEmpty(nodePath))) {
+                document.yaml.set(nodePath, null);
+                return;
+            }
+            if (isYamlSequenceItem(node)) {
+                node.getChildren().forEach((item, index) => {
+                    visitNode(item, [...nodePath, index]);
+                });
+                return;
+            }
+            if (!isYamlMapItem(node)) {
+                return;
+            }
+            node.getChildren().forEach(child => {
+                const key = child.getTag();
+                if (key) {
+                    visitNode(child, [...nodePath, key]);
+                }
+            });
+        };
+        visitNode(document.yaml.rootItem, []);
+    }
+
+    /**
      * removeLegacyElfFileMetadata drops obsolete ctrace-owned ELF references.
      * cbuild-run.yml remains the source for build output metadata.
      */
@@ -710,6 +743,7 @@ export class TraceConfigurationModel {
         if (file.document) {
             this.removeLegacyElfFileMetadata(file.document);
             this.convertAllEmptyEditableSequencesToBareKeys(file.document);
+            this.convertAllEmptyPresenceSectionsToBareKeys(file.document);
             file.document.normalizeDocumentOrder();
             file.document.assignCTraceRefs();
         }
