@@ -20,6 +20,7 @@ import { logger } from '../logger';
 import { activate, deactivate } from './extension';
 import { ComponentViewerTreeDataProvider } from '../views/component-viewer/component-viewer-tree-view';
 import { LiveWatchTreeDataProvider } from '../views/live-watch/live-watch';
+import { TraceConfigurationWebviewProvider } from '../views/trace-configuration/trace-configuration-webview-provider';
 
 describe('extension', () => {
     const extensionContexts: vscode.ExtensionContext[] = [];
@@ -47,6 +48,42 @@ describe('extension', () => {
             await activate(createExtensionContext());
             expect(loggerSpy).toHaveBeenCalledWith('CMSIS Debugger activated');
             expect(vscode.window.showWarningMessage).not.toHaveBeenCalledWith('Cannot activate all Arm CMSIS Debugger views. Please reload the window.', 'Reload Window');
+        });
+
+        it('awaits trace configuration initialization before completing activation', async () => {
+            let completeTraceConfigurationActivation: (() => void) | undefined;
+            let reportTraceConfigurationActivationStarted: (() => void) | undefined;
+            const traceConfigurationActivation = new Promise<void>(resolve => {
+                completeTraceConfigurationActivation = resolve;
+            });
+            const traceConfigurationActivationStarted = new Promise<void>(resolve => {
+                reportTraceConfigurationActivationStarted = resolve;
+            });
+            const traceConfigurationActivateSpy = jest
+                .spyOn(TraceConfigurationWebviewProvider.prototype, 'activate')
+                .mockImplementation(() => {
+                    reportTraceConfigurationActivationStarted?.();
+                    return traceConfigurationActivation;
+                });
+
+            try {
+                let debuggerActivationCompleted = false;
+                const debuggerActivation = activate(createExtensionContext());
+                void debuggerActivation.then(() => {
+                    debuggerActivationCompleted = true;
+                });
+
+                await traceConfigurationActivationStarted;
+
+                expect(debuggerActivationCompleted).toBe(false);
+
+                completeTraceConfigurationActivation?.();
+                await debuggerActivation;
+
+                expect(debuggerActivationCompleted).toBe(true);
+            } finally {
+                traceConfigurationActivateSpy.mockRestore();
+            }
         });
 
         it.each([

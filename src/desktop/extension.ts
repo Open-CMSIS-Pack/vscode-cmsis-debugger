@@ -107,7 +107,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     }
     // Trace Configuration
     logger.debug('Activating CMSIS Trace Configuration');
-    traceConfiguration.activate(context);
+    await traceConfiguration.activate(context);
     traceConfigurationCommands.activate(context);
 
     // Register reset dynamic view state command
