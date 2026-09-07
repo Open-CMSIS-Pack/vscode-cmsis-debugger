@@ -69,6 +69,8 @@ export class TraceConfigurationProcessorCapabilities {
      * load rebuilds the capability map from the active ctrace.yml setup list and cbuild-run.yml file
      * when available. Capability templates are selected from processor cores only; pname values
      * identify multi-core cbuild-run processors and are retained as display names for the webview.
+     * Setup entries whose cores cannot be resolved are left unrestricted so their existing ctrace
+     * configuration remains visible when cbuild-run data is unavailable.
      */
     public async load(): Promise<void> {
         this.processorCapabilities.clear();
@@ -79,6 +81,9 @@ export class TraceConfigurationProcessorCapabilities {
 
             for (const configuredProcessor of configuredProcessors) {
                 const core = this.getProcessorCoreForConfiguredProcessor(configuredProcessor, processors);
+                if (!core) {
+                    continue;
+                }
 
                 this.processorCapabilities.set(
                     this.setupIndexToCapabilitiesKey(configuredProcessor.index),
@@ -89,6 +94,9 @@ export class TraceConfigurationProcessorCapabilities {
             logger.warn('Unable to load processor trace capabilities: ' + this.errorToString(error));
 
             for (const configuredProcessor of this.getConfiguredProcessors()) {
+                if (!configuredProcessor.core) {
+                    continue;
+                }
                 this.processorCapabilities.set(
                     this.setupIndexToCapabilitiesKey(configuredProcessor.index),
                     this.createTraceCapabilities(configuredProcessor.displayName, configuredProcessor.core)

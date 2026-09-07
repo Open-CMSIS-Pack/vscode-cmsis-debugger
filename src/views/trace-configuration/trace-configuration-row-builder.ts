@@ -44,17 +44,19 @@ export class TraceConfigurationRowBuilder {
     /**
      * The constructor receives lightweight accessors instead of owning the mutable model state.
      * That keeps this class focused on row/state creation while still letting it always render
-     * the freshest file, loading status, dirty flag, error message, collapsed rows, and processor
-     * capability map owned by the model layer.
+     * the freshest file, loading status, dirty flag, error message, expanded rows, and processor
+     * capability map owned by the model layer. The tooltip setting is also read through an accessor
+     * so a settings change is reflected the next time state is created.
      */
     public constructor(
         private readonly getCTraceFile: () => CTraceYamlFile | undefined,
         private readonly getLoading: () => boolean,
         private readonly getDirty: () => boolean,
         private readonly getErrorMessage: () => string | undefined,
-        private readonly collapsedRows: Set<string>,
-        private readonly processorCapabilities: ReadonlyMap<string, TraceConfigurationTypes.ProcessorTraceCapabilities>
-    ) {}
+        private readonly expandedRows: Set<string>,
+        private readonly processorCapabilities: ReadonlyMap<string, TraceConfigurationTypes.ProcessorTraceCapabilities>,
+        private readonly getShowCTraceRefsInTooltips: () => boolean
+    ) { }
 
     /**
      * createState builds the DTO consumed by the webview. It contains display
@@ -91,7 +93,8 @@ export class TraceConfigurationRowBuilder {
         }
         const context: TraceConfigurationTypes.RowBuildContext = {
             rows: [],
-            collapsedRows: this.collapsedRows
+            expandedRows: this.expandedRows,
+            showCTraceRefsInTooltips: this.getShowCTraceRefsInTooltips()
         };
         const ctraceRoot = this.getCTraceFile()?.document?.yaml.getItem(['ctrace']);
         if (ctraceRoot) {
@@ -100,7 +103,7 @@ export class TraceConfigurationRowBuilder {
             });
             return context.rows;
         }
-        this.appendNodeRows(context, root, [], 'YAML', 0, true);
+        this.appendNodeRows(context, root, [], 'YAML', 0);
         return context.rows;
     }
 
@@ -115,14 +118,13 @@ export class TraceConfigurationRowBuilder {
         node: YamlTreeItem,
         nodePath: (string | number)[],
         label: string,
-        depth: number,
-        forceExpanded = false
+        depth: number
     ): void {
         if (!this.shouldShowTraceNode(label, nodePath)) {
             return;
         }
         if (this.isStreamSynchronizationPath(nodePath)) {
-            this.appendStreamSynchronizationRows(context, node, nodePath, label, depth, forceExpanded);
+            this.appendStreamSynchronizationRows(context, node, nodePath, label, depth);
             return;
         }
         const id = this.pathToId(nodePath);
@@ -134,8 +136,16 @@ export class TraceConfigurationRowBuilder {
             });
             return;
         }
-        const expanded = forceExpanded || !context.collapsedRows.has(id);
-        context.rows.push(this.createRow(node, nodePath, label, depth, hasChildren, expanded));
+        const expanded = context.expandedRows.has(id);
+        context.rows.push(this.createRow(
+            node,
+            nodePath,
+            label,
+            depth,
+            hasChildren,
+            expanded,
+            context.showCTraceRefsInTooltips
+        ));
         if (!hasChildren || !expanded) {
             return;
         }
@@ -160,7 +170,7 @@ export class TraceConfigurationRowBuilder {
             return;
         }
         const advancedPath = [...nodePath, 'advanced-settings'];
-        const expanded = !context.collapsedRows.has(this.pathToId(advancedPath));
+        const expanded = context.expandedRows.has(this.pathToId(advancedPath));
         context.rows.push({
             id: this.pathToId(advancedPath),
             label: 'Advanced Settings',
@@ -192,13 +202,12 @@ export class TraceConfigurationRowBuilder {
         node: YamlTreeItem,
         nodePath: (string | number)[],
         label: string,
-        depth: number,
-        forceExpanded = false
+        depth: number
     ): void {
         const id = this.pathToId(nodePath);
-        const expanded = forceExpanded || !context.collapsedRows.has(id);
+        const expanded = context.expandedRows.has(id);
         context.rows.push({
-            ...this.createRow(node, nodePath, label, depth, true, expanded),
+            ...this.createRow(node, nodePath, label, depth, true, expanded, context.showCTraceRefsInTooltips),
             addChildKind: undefined,
             control: 'none',
         });
@@ -213,7 +222,7 @@ export class TraceConfigurationRowBuilder {
             depth: depth + 1,
             kind: 'scalar',
             control: 'select',
-            value: this.getStreamSyncDwtPeriod(node),
+            value: this.getStreamSyncDwtPeriod(node, nodePath),
             options: TraceConfigurationTypes.STREAM_SYNC_PERIOD_OPTIONS,
             hasChildren: false,
             expanded: false,
@@ -232,15 +241,18 @@ export class TraceConfigurationRowBuilder {
         label: string,
         depth: number,
         hasChildren: boolean,
-        expanded: boolean
+        expanded: boolean,
+        showCTraceRefsInTooltips: boolean
     ): TraceConfigurationRow {
         const kind = isYamlMapItem(node) ? 'map' : isYamlSequenceItem(node) || this.isBareSequenceNode(node, nodePath) ? 'sequence' : 'scalar';
         const scalarValue = isYamlScalarItem(node) ? this.scalarToString(node) : undefined;
         const valuePath = this.getRowValuePath(nodePath);
         const placeholder = this.getRowPlaceholder(nodePath);
+        const labelTooltip = this.getCTraceRefTooltip(nodePath, showCTraceRefsInTooltips);
         const row: TraceConfigurationRow = {
             id: this.pathToId(nodePath),
             label: this.getRowLabel(node, label, nodePath),
+            ...(labelTooltip ? { labelTooltip } : {}),
             path: nodePath,
             ...(valuePath ? { valuePath } : {}),
             depth,
@@ -261,6 +273,19 @@ export class TraceConfigurationRowBuilder {
             description: this.describeNode(node, nodePath)
         };
         return row;
+    }
+
+    /**
+     * getCTraceRefTooltip returns a debugging tooltip for nodes that have an
+     * internally assigned ctrace-ref, while keeping production row state free
+     * of that metadata when the setting is disabled.
+     */
+    private getCTraceRefTooltip(nodePath: (string | number)[], showCTraceRefsInTooltips: boolean): string | undefined {
+        if (!showCTraceRefsInTooltips) {
+            return undefined;
+        }
+        const ctraceRef = this.getCTraceFile()?.document?.getCTraceRef(nodePath);
+        return ctraceRef ? `ctrace-ref: ${ctraceRef}` : undefined;
     }
 
     /**
@@ -709,7 +734,7 @@ export class TraceConfigurationRowBuilder {
         }
         if (this.isPcSamplingPath(nodePath)) {
             const period = isYamlMapItem(node) ? this.mapScalarToString(node, 'period') : scalarValue;
-            return this.normalizePcSamplingPeriod(period && period.trim().length > 0 ? period : 'off');
+            return this.normalizePcSamplingPeriod(period && period.trim().length > 0 ? period : '0');
         }
         if (this.isDwtDataAccessPath(nodePath)) {
             const accessValue = this.accessValueToLabel(scalarValue);
@@ -946,13 +971,16 @@ export class TraceConfigurationRowBuilder {
      * unknown scalars as text inputs so every existing file remains editable.
      */
     private getControlKind(label: string, nodePath: (string | number)[], scalarValue?: string): TraceConfigurationRow['control'] {
+        if (this.isEventsPath(nodePath)) {
+            return 'multi-select';
+        }
         if (this.shouldUseBareSequenceWhenEmpty(nodePath)) {
             return 'none';
         }
         if (this.isPromotedLocationItemPath(nodePath)) {
             return 'text';
         }
-        if (this.isEventsPath(nodePath) || this.isItmPath(nodePath) || this.isItmPrivilegedPath(nodePath)) {
+        if (this.isItmPath(nodePath) || this.isItmPrivilegedPath(nodePath)) {
             return 'multi-select';
         }
         if (this.isPcSamplingPath(nodePath)) {
@@ -1059,14 +1087,14 @@ export class TraceConfigurationRowBuilder {
         nodePath: (string | number)[],
         scalarValue?: string
     ): string[] | undefined {
-        if (this.isEventsPath(nodePath) && isYamlSequenceItem(node)) {
-            return node.getChildren().flatMap(item => {
+        if (this.isEventsPath(nodePath)) {
+            return isYamlSequenceItem(node) ? node.getChildren().flatMap(item => {
                 if (!isYamlMapItem(item)) {
                     return [];
                 }
                 const event = item.getChild('event');
                 return isYamlScalarItem(event) ? [this.scalarToString(event)] : [];
-            });
+            }) : [];
         }
         if (this.isItmPath(nodePath) && isYamlMapItem(node)) {
             return this.itmEnableMaskToChannels(this.mapScalarToString(node, 'enable'));
@@ -1479,7 +1507,8 @@ export class TraceConfigurationRowBuilder {
      * serialize as a bare YAML key when their last item is removed.
      */
     public shouldUseBareSequenceWhenEmpty(nodePath: (string | number)[]): boolean {
-        return this.isSharedDwtComparatorSequencePath(nodePath);
+        return this.isSharedDwtComparatorSequencePath(nodePath)
+            || this.isEventsPath(nodePath);
     }
 
     /**
@@ -1621,11 +1650,15 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
-     * getStreamSyncDwtPeriod extracts the DWT synchronization period from the
-     * real YAML map. Older sequence encodings are still accepted for existing
-     * files and rewritten to the current map shape on edit/save.
+     * getStreamSyncDwtPeriod shows stream synchronization as off when its YAML
+     * node is absent. Otherwise it extracts the configured DWT period or supplies
+     * the default independently of Time Synchronization. Older sequence encodings
+     * are still accepted for existing files and rewritten to the current map shape on edit/save.
      */
-    private getStreamSyncDwtPeriod(node: YamlTreeItem): string {
+    private getStreamSyncDwtPeriod(node: YamlTreeItem, nodePath: (string | number)[]): string {
+        if (!this.nodeExists(nodePath)) {
+            return 'off';
+        }
         if (isYamlMapItem(node)) {
             const dwt = node.getChild('DWT');
             if (isYamlScalarItem(dwt)) {
@@ -1636,10 +1669,10 @@ export class TraceConfigurationRowBuilder {
                 const periodText = this.scalarToString(period);
                 return periodText.startsWith('DWT\\') ? periodText.replace(/^DWT\\/, '') : periodText;
             }
-            return '256M';
+            return TraceConfigurationTypes.DEFAULT_STREAM_SYNC_PERIOD;
         }
         if (!isYamlSequenceItem(node)) {
-            return '256M';
+            return TraceConfigurationTypes.DEFAULT_STREAM_SYNC_PERIOD;
         }
         const dwtPeriod = node.getChildren().flatMap(item => {
             if (!isYamlMapItem(item)) {
@@ -1656,19 +1689,19 @@ export class TraceConfigurationRowBuilder {
             const periodText = this.scalarToString(period);
             return periodText.startsWith('DWT\\') ? [periodText.replace(/^DWT\\/, '')] : [];
         }).at(0);
-        return dwtPeriod ?? '256M';
+        return dwtPeriod ?? TraceConfigurationTypes.DEFAULT_STREAM_SYNC_PERIOD;
     }
 
     /**
-     * normalizePcSamplingPeriod converts older expression-style values such as
-     * 64*2 or 1024*16 into the numeric strings shown by the dropdown. Values
-     * that are already numeric, off, or otherwise unknown are returned unchanged
-     * so hand-authored future schema values are not destroyed by display code.
+     * normalizePcSamplingPeriod maps the persisted zero value to the off label
+     * and converts older expression-style values such as 64*2 or 1024*16 into
+     * the numeric strings shown by the dropdown. Other values are returned
+     * unchanged so hand-authored future schema values are not destroyed.
      */
     public normalizePcSamplingPeriod(value: string): string {
         const trimmed = value.trim();
-        if (trimmed === 'off') {
-            return trimmed;
+        if (trimmed === '0' || trimmed === 'off') {
+            return 'off';
         }
         const expression = trimmed.match(/^(\d+)\s*\*\s*(\d+)$/);
         if (!expression) {

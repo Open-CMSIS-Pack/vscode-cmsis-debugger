@@ -8,10 +8,10 @@
     },
     {
         "name": "arm-none-eabi-gdb",
-        "version": "15.2.1",
+        "version": "15.3.1",
         "spdx": "GPL-3.0-or-later",
-        "url": "https://artifacts.tools.arm.com/arm-none-eabi-gdb/15.2.1/",
-        "license": "https://developer.arm.com/GetEula?Id=a162e8bb-8565-45a5-bdf6-7249bf3afe43"
+        "url": "https://artifacts.tools.arm.com/arm-none-eabi-gdb/15.3.1/",
+        "license": "https://gitlab.arm.com/tooling/gnu-toolchains-for-arm/-/blob/releases/15.3.rel1/EULA.txt"
     },
     {
         "name": "ctrace",
@@ -71,7 +71,7 @@
     },
     {
         "name": "vscode-uri",
-        "version": "3.1.0",
+        "version": "3.2.0",
         "spdx": "MIT",
         "url": "https://github.com/microsoft/vscode-uri",
         "license": "https://github.com/microsoft/vscode-uri/blob/main/LICENSE.md"
@@ -85,7 +85,7 @@
     },
     {
         "name": "yaml",
-        "version": "2.8.3",
+        "version": "2.9.0",
         "spdx": "ISC",
         "url": "https://github.com/eemeli/yaml",
         "license": "https://github.com/eemeli/yaml/blob/main/LICENSE"

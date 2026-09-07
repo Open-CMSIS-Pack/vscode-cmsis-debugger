@@ -17,7 +17,12 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 import * as yaml from 'yaml';
-import { CbuildRunRootType, CbuildRunType, ProcessorType } from './cbuild-run-types';
+import {
+    CbuildRunRootType,
+    CbuildRunType,
+    ProcessorType,
+    SwoUartTraceModeType
+} from './cbuild-run-types';
 import { FileReader, VscodeFileReader } from '../desktop/file-reader';
 import { getCmsisPackRootPath } from '../utils';
 
@@ -40,6 +45,10 @@ export class CbuildRunReader {
 
     public getContents(): CbuildRunType | undefined {
         return this.cbuildRun;
+    }
+
+    public getTargetSet(): string | undefined {
+        return this.cbuildRun?.['target-set'];
     }
 
     public async parse(filePath: string): Promise<void> {
@@ -119,6 +128,30 @@ export class CbuildRunReader {
      */
     public getProcessors(): ProcessorType[] {
         return this.cbuildRun?.['system-resources']?.processors ?? [];
+    }
+
+    /**
+     * Returns the validated SWO UART trace mode from
+     * the debugger.trace[] entry containing sibling swo-uart and mode
+     * properties. Unsupported values and the legacy string trace shape are ignored.
+     */
+    public getSwoUartTraceMode(): SwoUartTraceModeType | undefined {
+        const trace = this.cbuildRun?.debugger?.trace;
+        if (!trace || typeof trace === 'string') {
+            return undefined;
+        }
+
+        for (const traceEntry of trace) {
+            if (traceEntry['swo-uart'] === undefined) {
+                continue;
+            }
+            const mode = traceEntry.mode ?? 'off';
+            if (mode === 'off' || mode === 'server' || mode === 'file') {
+                return mode;
+            }
+        }
+
+        return undefined;
     }
 
     public getTargetType(): string | undefined {
