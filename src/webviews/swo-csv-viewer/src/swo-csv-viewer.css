@@ -1,0 +1,156 @@
+:root {
+    color: var(--vscode-editor-foreground);
+    background: var(--vscode-editor-background);
+    font-family: var(--vscode-editor-font-family);
+    font-size: var(--vscode-editor-font-size);
+}
+
+body {
+    margin: 0;
+}
+
+.swo-csv-viewer {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.table-frame {
+    min-height: 0;
+    flex: 1;
+    overflow: auto;
+}
+
+.table-header,
+.table-row {
+    display: grid;
+    min-width: max-content;
+}
+
+.table-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--vscode-editor-background);
+    border-bottom: 1px solid var(--vscode-editorWidget-border);
+}
+
+.table-header label,
+.index-header {
+    position: relative;
+    min-width: 0;
+    padding: 5px 6px;
+    border-right: 1px solid var(--vscode-editorWidget-border);
+}
+
+.column-resize {
+    position: absolute;
+    top: 0;
+    right: -3px;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    background: transparent;
+    border: 0;
+}
+
+.sort-button {
+    display: block;
+    overflow: hidden;
+    width: 100%;
+    padding-bottom: 4px;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    font: inherit;
+    font-weight: 600;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sort-button.ascending::after,
+.sort-button.descending::after {
+    display: inline-block;
+    margin-left: 6px;
+    border-right: 4px solid transparent;
+    border-left: 4px solid transparent;
+    content: "";
+}
+
+.sort-button.ascending::after {
+    border-bottom: 6px solid currentColor;
+}
+
+.sort-button.descending::after {
+    border-top: 6px solid currentColor;
+}
+
+.filter-spacer {
+    display: block;
+    height: 19px;
+}
+
+.table-header input {
+    box-sizing: border-box;
+    width: 100%;
+    color: var(--vscode-input-foreground);
+    background: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border);
+}
+
+.table-scroll {
+    overflow: auto;
+    height: calc(100vh - 78px);
+}
+
+.table-rows {
+    position: relative;
+    min-width: max-content;
+}
+
+.table-row {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 24px;
+}
+
+.table-cell,
+.row-index-cell {
+    overflow: hidden;
+    padding: 2px 6px;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    border-right: 1px solid var(--vscode-editorWidget-border);
+    border-bottom: 1px solid var(--vscode-editorWidget-border);
+    font: inherit;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.row-index-cell {
+    color: var(--vscode-editorLineNumber-foreground);
+}
+
+.table-cell:hover,
+.table-cell:focus-visible {
+    background: var(--vscode-list-activeSelectionBackground);
+    outline: none;
+}
+
+.table-status {
+    margin: 0;
+    padding: 6px 10px;
+    background: var(--vscode-editorWidget-background);
+}
+
+.error {
+    color: var(--vscode-errorForeground);
+}
+
+.warning {
+    color: var(--vscode-editorWarning-foreground);
+}

@@ -34,6 +34,7 @@ import { TraceCommands } from '../features/trace/trace-commands';
 import { PyTsController } from '../features/trace/pyts-controller';
 import { CTraceController } from '../features/trace/ctrace-controller';
 import { FileWatchManager } from './filesystem/file-watch-manager';
+import { CSV_TABLE_EDITOR_VIEW_TYPE, SWO_CSV_EDITOR_VIEW_TYPE, SwoCsvEditorProvider } from '../views/swo-csv-viewer/swo-csv-editor-provider';
 
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
@@ -74,6 +75,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     const corePeripherals = new CorePeripherals(context, corePeripheralsTreeDataProvider);
     const traceConfiguration = new TraceConfigurationWebviewProvider(context.extensionUri);
     const traceConfigurationCommands = new TraceConfigurationCommands();
+    const swoCsvEditorProvider = new SwoCsvEditorProvider(context.extensionUri);
 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);
     fileWatchManager.activate(context);
@@ -109,6 +111,10 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     logger.debug('Activating CMSIS Trace Configuration');
     await traceConfiguration.activate(context);
     traceConfigurationCommands.activate(context);
+    context.subscriptions.push(
+        vscode.window.registerCustomEditorProvider(SWO_CSV_EDITOR_VIEW_TYPE, swoCsvEditorProvider),
+        vscode.window.registerCustomEditorProvider(CSV_TABLE_EDITOR_VIEW_TYPE, swoCsvEditorProvider),
+    );
 
     // Register reset dynamic view state command
     context.subscriptions.push(

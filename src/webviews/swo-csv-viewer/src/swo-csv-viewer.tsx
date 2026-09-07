@@ -1,0 +1,167 @@
+/**
+ * Copyright 2026 Arm Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+// generated with AI
+
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { useEffect, useRef, useState } from 'react';
+import type { SwoCsvFilter, SwoCsvRow, SwoCsvSort } from '../../../views/swo-csv-viewer/swo-csv-table';
+import type { SwoCsvHostMessage, SwoCsvWebviewMessage } from '../../../views/swo-csv-viewer/swo-csv-protocol';
+import './swo-csv-viewer.css';
+
+declare function acquireVsCodeApi(): { postMessage: (message: SwoCsvWebviewMessage) => void };
+
+const vscode = acquireVsCodeApi();
+const ROW_HEIGHT = 24;
+
+interface TableState {
+    readonly columns: readonly string[];
+    readonly totalRowCount: number;
+    readonly malformedRowCount: number;
+    readonly loading: boolean;
+    readonly error?: string;
+}
+
+const INITIAL_STATE: TableState = {
+    columns: [],
+    totalRowCount: 0,
+    malformedRowCount: 0,
+    loading: true,
+};
+
+export const SwoCsvViewer = (): JSX.Element => {
+    const scrollElementRef = useRef<HTMLDivElement>(null);
+    const [tableState, setTableState] = useState<TableState>(INITIAL_STATE);
+    const [rows, setRows] = useState<readonly SwoCsvRow[]>([]);
+    const [rowStart, setRowStart] = useState(0);
+    const [filters, setFilters] = useState<readonly SwoCsvFilter[]>([]);
+    const [sort, setSort] = useState<SwoCsvSort | null>(null);
+    const [columnWidths, setColumnWidths] = useState<readonly number[]>([]);
+    const [tableRevision, setTableRevision] = useState(0);
+    const latestRequestId = useRef(0);
+    const rowVirtualizer = useVirtualizer({
+        count: tableState.totalRowCount,
+        getScrollElement: () => scrollElementRef.current,
+        estimateSize: () => ROW_HEIGHT,
+        overscan: 16,
+    });
+    const virtualRows = rowVirtualizer.getVirtualItems();
+
+    useEffect(() => {
+        const receiveMessage = (event: MessageEvent<SwoCsvHostMessage>): void => {
+            const message = event.data;
+            if (message.type === 'tableState') {
+                setTableState(message);
+                setRows([]);
+                setTableRevision(revision => revision + 1);
+                setColumnWidths(widths => widths.length === message.columns.length + 1 ? widths : [72, ...message.columns.map(() => 180)]);
+                return;
+            }
+            if (message.type === 'rows') {
+                if (message.requestId !== latestRequestId.current) {
+                    return;
+                }
+                setRows(message.rows);
+                setRowStart(message.start);
+            }
+        };
+        window.addEventListener('message', receiveMessage);
+        return () => window.removeEventListener('message', receiveMessage);
+    }, []);
+
+    useEffect(() => {
+        if (tableState.loading || virtualRows.length === 0) {
+            return;
+        }
+        const nextRequestId = latestRequestId.current + 1;
+        latestRequestId.current = nextRequestId;
+        vscode.postMessage({
+            type: 'requestRows',
+            requestId: nextRequestId,
+            start: virtualRows[0].index,
+            end: virtualRows.at(-1)?.index === undefined ? 0 : virtualRows.at(-1)!.index + 1,
+        });
+    }, [tableRevision, tableState.loading, tableState.totalRowCount, virtualRows.at(0)?.index, virtualRows.at(-1)?.index]);
+
+    const updateFilter = (columnIndex: number, value: string): void => {
+        const nextFilters = tableState.columns.map((_, index) => ({ columnIndex: index, value: index === columnIndex ? value : filters.find(filter => filter.columnIndex === index)?.value ?? '' }));
+        setFilters(nextFilters);
+        vscode.postMessage({ type: 'setFilters', filters: nextFilters });
+        scrollElementRef.current?.scrollTo({ top: 0 });
+    };
+
+    const updateSort = (columnIndex: number | null): void => {
+        const nextSort = sort?.columnIndex !== columnIndex
+            ? { columnIndex, direction: 'ascending' as const }
+            : sort.direction === 'ascending'
+                ? { columnIndex, direction: 'descending' as const }
+                : null;
+        setSort(nextSort);
+        vscode.postMessage({ type: 'setSort', sort: nextSort });
+        scrollElementRef.current?.scrollTo({ top: 0 });
+    };
+
+    const resizeColumn = (columnIndex: number, startX: number, startWidth: number): void => {
+        const onPointerMove = (event: PointerEvent): void => {
+            setColumnWidths(widths => widths.map((width, index) => index === columnIndex ? Math.max(100, startWidth + event.clientX - startX) : width));
+        };
+        const onPointerUp = (): void => {
+            window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('pointerup', onPointerUp);
+        };
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+    };
+
+    const gridTemplateColumns = columnWidths.map(width => `${width}px`).join(' ');
+    return <main className="swo-csv-viewer">
+        <section className="table-frame" aria-label="CSV table">
+            <div className="table-header" style={{ gridTemplateColumns }}>
+                <div className="index-header">
+                    <button type="button" className={`sort-button ${sort?.columnIndex === null ? sort.direction : ''}`} aria-label="Sort by row index" onClick={() => updateSort(null)}>#</button>
+                    <span className="filter-spacer" />
+                    <button type="button" className="column-resize" aria-label="Resize row index" onPointerDown={event => resizeColumn(0, event.clientX, columnWidths[0])} />
+                </div>
+                {tableState.columns.map((column, columnIndex) => <label key={column}>
+                    <button type="button" className={`sort-button ${sort?.columnIndex === columnIndex ? sort.direction : ''}`} aria-label={`Sort by ${column}`} onClick={() => updateSort(columnIndex)}>{column}</button>
+                    <input
+                        aria-label={`Filter ${column}`}
+                        value={filters.find(filter => filter.columnIndex === columnIndex)?.value ?? ''}
+                        onChange={event => updateFilter(columnIndex, event.target.value)}
+                    />
+                    <button type="button" className="column-resize" aria-label={`Resize ${column}`} onPointerDown={event => resizeColumn(columnIndex + 1, event.clientX, columnWidths[columnIndex + 1])} />
+                </label>)}
+            </div>
+            <div className="table-scroll" ref={scrollElementRef}>
+                <div className="table-rows" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
+                    {virtualRows.map(virtualRow => {
+                        const row = rows[virtualRow.index - rowStart];
+                        if (row === undefined) {
+                            return null;
+                        }
+                        return <div className="table-row" key={row.sourceRowIndex} style={{ gridTemplateColumns, transform: `translateY(${virtualRow.start}px)` }}>
+                            <span className="row-index-cell">{row.sourceRowIndex}</span>
+                            {row.cells.map((cellValue, columnIndex) => <button type="button" className="table-cell" key={`${row.sourceRowIndex}-${columnIndex}`} onClick={() => vscode.postMessage({ type: 'cellSelected', sourceRowIndex: row.sourceRowIndex, columnIndex, columnName: tableState.columns[columnIndex], cellValue })}>{cellValue}</button>)}
+                        </div>;
+                    })}
+                </div>
+            </div>
+        </section>
+        {tableState.loading && <p className="table-status">Loading CSV...</p>}
+        {tableState.error !== undefined && <p className="table-status error">{tableState.error}</p>}
+        {!tableState.loading && tableState.error === undefined && tableState.totalRowCount === 0 && <p className="table-status">No matching rows</p>}
+        {tableState.malformedRowCount > 0 && <p className="table-status warning">{tableState.malformedRowCount} rows were normalized to the header column count.</p>}
+    </main>;
+};

@@ -13,6 +13,7 @@
     },
     "include": [
         "tree-table/src",
-        "trace-configuration/src"
+        "trace-configuration/src",
+        "swo-csv-viewer/src"
     ]
 }

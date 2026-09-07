@@ -42,10 +42,10 @@ const FileType = {
     SymbolicLink: 64,
 };
 
-const MockTreeItemCollapsibleState = { 
-    None: 0, 
-    Collapsed: 1, 
-    Expanded: 2 
+const MockTreeItemCollapsibleState = {
+    None: 0,
+    Collapsed: 1,
+    Expanded: 2
 };
 
 class MockTreeItem {
@@ -116,8 +116,8 @@ module.exports = {
             error: jest.fn(),
         })),
         createStatusBarItem: jest.fn(() => ({
-    		id: 'mockStatusBarItem',
-		    alignment: StatusBarAlignment.Left,
+            id: 'mockStatusBarItem',
+            alignment: StatusBarAlignment.Left,
             text: '',
             show: jest.fn(),
             hide: jest.fn(),
@@ -131,6 +131,7 @@ module.exports = {
         })),
         registerTreeDataProvider: jest.fn(() => ({ dispose: jest.fn() })),
         registerWebviewViewProvider: jest.fn(() => ({ dispose: jest.fn() })),
+        registerCustomEditorProvider: jest.fn(() => ({ dispose: jest.fn() })),
         showErrorMessage: jest.fn(),
         showInformationMessage: jest.fn(() => Promise.resolve(undefined)),
         showWarningMessage: jest.fn(),

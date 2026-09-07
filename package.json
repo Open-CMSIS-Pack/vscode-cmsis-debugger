@@ -45,6 +45,31 @@
     "onStartupFinished"
   ],
   "contributes": {
+    "customEditors": [
+      {
+        "viewType": "vscode-cmsis-debugger.swoCsvTableViewer",
+        "displayName": "CSV SWO Table Viewer",
+        "selector": [
+          {
+            "filenamePattern": "*.swo.csv"
+          },
+          {
+            "filenamePattern": "*.swd.csv"
+          }
+        ],
+        "priority": "default"
+      },
+      {
+        "viewType": "vscode-cmsis-debugger.csvTableViewer",
+        "displayName": "CSV SWO Table Viewer",
+        "selector": [
+          {
+            "filenamePattern": "*.csv"
+          }
+        ],
+        "priority": "option"
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {
@@ -955,6 +980,7 @@
   },
   "dependencies": {
     "@open-cmsis-pack/cmsis-common": "^0.1.0",
+    "@tanstack/react-virtual": "^3.13.18",
     "@vscode/codicons": "0.0.45",
     "react": "18.3.1",
     "react-dom": "18.3.1",
