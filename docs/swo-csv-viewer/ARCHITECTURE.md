@@ -171,6 +171,8 @@ Webview-to-host messages:
 - `setFilters` replaces the active per-column filters.
 - `setSort` replaces or clears the active sort.
 - `cellSelected` reports the source row, CSV column, column name, and raw value.
+- `copyRows` requests clipboard serialization for compact display-index
+  intervals.
 - `rowsRendered` confirms that a requested range has rendered for performance
   diagnostics.
 
@@ -200,9 +202,10 @@ changes that do not alter the result count.
 The browser bundle is a React application using TanStack Virtual. It retains
 only the current visible row window. It owns filter input values, three-state
 header sorting, resizable column widths, scroll position, virtual row
-measurements, the filter debounce timer, and the latest accepted request
-identifier. Filter text updates immediately in the webview while the host
-receives only the settled value.
+measurements, compact row-selection intervals, the logical row caret and range
+anchor, the filter debounce timer, and the latest accepted request identifier.
+Filter text updates immediately in the webview while the host receives only
+the settled value.
 
 The first `#` column displays the stable source row index. It is presentation
 metadata rather than a CSV column, so CSV column indices remain unchanged in
@@ -210,11 +213,28 @@ filtering and selection messages.
 
 ## Selection boundary
 
-Cell selection is an integration event rather than a data mutation. The
-webview sends selected coordinates and a value to the provider. The provider
-reads the authoritative source row and verifies the row, column name, and value
-before writing an extension log event. Invalid or stale selections are
-discarded with a warning.
+Multi-row selection is webview-local navigation state. It is represented by
+normalized display-index intervals rather than a set of source rows, so large
+contiguous selections have constant memory cost. Pointer and keyboard
+navigation maintain a logical caret and range anchor. TanStack Virtual scrolls
+the caret into view while focus remains on the persistent grid container, so
+virtual row unmounting does not discard keyboard focus.
+
+Filtering, sorting, and source reloads change display-index meaning and
+therefore clear row selection. Hiding the editor does not clear selection or
+scroll state because the custom editor retains its webview context.
+
+A clicked cell still emits a singular integration event rather than the full
+row selection. The webview sends its source coordinates and value to the
+provider. The provider reads the authoritative source row and verifies the row,
+column name, and value before writing an extension log event. Invalid or stale
+cell events are discarded with a warning.
+
+Ctrl/Cmd+C sends the selected display-index intervals to the provider. The
+provider validates their normalized bounds, reads rows from the active store
+in bounded batches, serializes data cells as CSV in current display order, and
+writes one CRLF-delimited value to the VS Code clipboard. The synthetic `#`
+column is excluded. A reload or panel disposal cancels clipboard publication.
 
 ## Build boundaries
 
