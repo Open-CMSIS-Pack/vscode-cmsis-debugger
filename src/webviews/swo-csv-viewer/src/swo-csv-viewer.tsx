@@ -144,6 +144,7 @@ export const SwoCsvViewer = (): JSX.Element => {
                     {tableState.columns.map((column, columnIndex) => <label key={column}>
                         <button type="button" className={`sort-button ${sort?.columnIndex === columnIndex ? sort.direction : ''}`} aria-label={`Sort by ${column}`} onClick={() => updateSort(columnIndex)}>{column}</button>
                         <input
+                            type="search"
                             aria-label={`Filter ${column}`}
                             value={filters.find(filter => filter.columnIndex === columnIndex)?.value ?? ''}
                             onChange={event => updateFilter(columnIndex, event.target.value)}
