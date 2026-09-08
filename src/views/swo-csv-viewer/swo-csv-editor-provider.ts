@@ -44,6 +44,7 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
         let filters: readonly SwoCsvFilter[] = [];
         let sort: SwoCsvSort | null = null;
         let loadGeneration = 0;
+        let updateGeneration = 0;
 
         const updateRows = (): void => {
             filteredRows = sortSwoCsvRows(filterSwoCsvRows(table.rows, filters), sort);
@@ -52,16 +53,27 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
         const postMessage = (message: SwoCsvHostMessage): void => {
             void webviewPanel.webview.postMessage(message);
         };
-        const postState = (loading: boolean, error?: string): void => {
+        const postState = (loading: boolean, error?: string, loadingMessage?: string): void => {
             const message: SwoCsvHostMessage = {
                 type: 'tableState',
                 columns: table.columns,
                 totalRowCount: filteredRows.length,
                 malformedRowCount: table.malformedRowCount,
                 loading,
+                ...(loadingMessage === undefined ? {} : { loadingMessage }),
                 ...(error === undefined ? {} : { error }),
             };
             postMessage(message);
+        };
+        const updateRowsWithProgress = async (loadingMessage: string): Promise<void> => {
+            const generation = ++updateGeneration;
+            postState(true, undefined, loadingMessage);
+            await new Promise<void>(resolve => setTimeout(resolve, 0));
+            if (generation !== updateGeneration) {
+                return;
+            }
+            updateRows();
+            postState(false);
         };
         const load = async (): Promise<void> => {
             const generation = ++loadGeneration;
@@ -99,13 +111,11 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
                 }
                 case 'setFilters':
                     filters = message.filters;
-                    updateRows();
-                    postState(false);
+                    void updateRowsWithProgress('Filtering CSV...');
                     break;
                 case 'setSort':
                     sort = message.sort;
-                    updateRows();
-                    postState(false);
+                    void updateRowsWithProgress('Sorting CSV...');
                     break;
                 case 'cellSelected':
                     this.logCellSelection(message, table);

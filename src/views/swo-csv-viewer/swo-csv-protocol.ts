@@ -23,6 +23,7 @@ export interface SwoCsvTableState {
     readonly totalRowCount: number;
     readonly malformedRowCount: number;
     readonly loading: boolean;
+    readonly loadingMessage?: string;
     readonly error?: string;
 }
 
