@@ -18,7 +18,7 @@ body {
 .table-frame {
     min-height: 0;
     flex: 1;
-    overflow: auto;
+    overflow: hidden;
 }
 
 .table-header,
@@ -101,7 +101,7 @@ body {
 
 .table-scroll {
     overflow: auto;
-    height: calc(100vh - 78px);
+    height: 100%;
 }
 
 .table-rows {

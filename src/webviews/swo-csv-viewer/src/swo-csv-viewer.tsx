@@ -125,27 +125,31 @@ export const SwoCsvViewer = (): JSX.Element => {
         window.addEventListener('pointerup', onPointerUp);
     };
 
-    const gridTemplateColumns = columnWidths.map(width => `${width}px`).join(' ');
+    const effectiveColumnWidths = columnWidths.length === tableState.columns.length + 1
+        ? columnWidths
+        : [72, ...tableState.columns.map(() => 180)];
+    const gridTemplateColumns = effectiveColumnWidths.map(width => `${width}px`).join(' ');
+    const tableWidth = effectiveColumnWidths.reduce((width, columnWidth) => width + columnWidth, 0);
     return <main className="swo-csv-viewer">
         <section className="table-frame" aria-label="CSV table">
-            <div className="table-header" style={{ gridTemplateColumns }}>
-                <div className="index-header">
-                    <button type="button" className={`sort-button ${sort?.columnIndex === null ? sort.direction : ''}`} aria-label="Sort by row index" onClick={() => updateSort(null)}>#</button>
-                    <span className="filter-spacer" />
-                    <button type="button" className="column-resize" aria-label="Resize row index" onPointerDown={event => resizeColumn(0, event.clientX, columnWidths[0])} />
-                </div>
-                {tableState.columns.map((column, columnIndex) => <label key={column}>
-                    <button type="button" className={`sort-button ${sort?.columnIndex === columnIndex ? sort.direction : ''}`} aria-label={`Sort by ${column}`} onClick={() => updateSort(columnIndex)}>{column}</button>
-                    <input
-                        aria-label={`Filter ${column}`}
-                        value={filters.find(filter => filter.columnIndex === columnIndex)?.value ?? ''}
-                        onChange={event => updateFilter(columnIndex, event.target.value)}
-                    />
-                    <button type="button" className="column-resize" aria-label={`Resize ${column}`} onPointerDown={event => resizeColumn(columnIndex + 1, event.clientX, columnWidths[columnIndex + 1])} />
-                </label>)}
-            </div>
             <div className="table-scroll" ref={scrollElementRef}>
-                <div className="table-rows" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
+                <div className="table-header" style={{ gridTemplateColumns, width: `${tableWidth}px` }}>
+                    <div className="index-header">
+                        <button type="button" className={`sort-button ${sort?.columnIndex === null ? sort.direction : ''}`} aria-label="Sort by row index" onClick={() => updateSort(null)}>#</button>
+                        <span className="filter-spacer" />
+                        <button type="button" className="column-resize" aria-label="Resize row index" onPointerDown={event => resizeColumn(0, event.clientX, effectiveColumnWidths[0])} />
+                    </div>
+                    {tableState.columns.map((column, columnIndex) => <label key={column}>
+                        <button type="button" className={`sort-button ${sort?.columnIndex === columnIndex ? sort.direction : ''}`} aria-label={`Sort by ${column}`} onClick={() => updateSort(columnIndex)}>{column}</button>
+                        <input
+                            aria-label={`Filter ${column}`}
+                            value={filters.find(filter => filter.columnIndex === columnIndex)?.value ?? ''}
+                            onChange={event => updateFilter(columnIndex, event.target.value)}
+                        />
+                        <button type="button" className="column-resize" aria-label={`Resize ${column}`} onPointerDown={event => resizeColumn(columnIndex + 1, event.clientX, effectiveColumnWidths[columnIndex + 1])} />
+                    </label>)}
+                </div>
+                <div className="table-rows" style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: `${tableWidth}px` }}>
                     {virtualRows.map(virtualRow => {
                         const row = rows[virtualRow.index - rowStart];
                         if (row === undefined) {
