@@ -15,6 +15,7 @@
  */
 // generated with AI
 
+import { EOL } from 'node:os';
 import { areValidRowSelectionIntervals, type RowSelectionInterval } from './row-selection';
 import type { SwoCsvRowStore } from './swo-csv-row-store';
 import { serializeSwoCsvRow } from './swo-csv-table';
@@ -44,6 +45,6 @@ export const copySwoCsvRows = async (
     if (!isActive()) {
         return 'cancelled';
     }
-    await writeText(lines.join('\r\n'));
+    await writeText(`${EOL}${lines.join(EOL)}`);
     return 'copied';
 };

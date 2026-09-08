@@ -15,6 +15,7 @@
  */
 // generated with AI
 
+import { EOL } from 'node:os';
 import { copySwoCsvRows } from './copy-swo-csv-rows';
 import { InMemorySwoCsvRowStore, type SwoCsvRowStore } from './swo-csv-row-store';
 
@@ -34,7 +35,7 @@ describe('copySwoCsvRows', () => {
 
         await expect(copySwoCsvRows([{ start: 0, end: 0 }, { start: 2, end: 2 }], store, writeText, () => true))
             .resolves.toBe('copied');
-        expect(writeText).toHaveBeenCalledWith('2,"with,comma"\r\n10,plain');
+        expect(writeText).toHaveBeenCalledWith(`${EOL}2,"with,comma"${EOL}10,plain`);
     });
 
     it('reads large intervals in bounded batches', async () => {
