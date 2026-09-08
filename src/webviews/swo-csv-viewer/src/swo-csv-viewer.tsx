@@ -115,7 +115,8 @@ export const SwoCsvViewer = (): JSX.Element => {
 
     const resizeColumn = (columnIndex: number, startX: number, startWidth: number): void => {
         const onPointerMove = (event: PointerEvent): void => {
-            setColumnWidths(widths => widths.map((width, index) => index === columnIndex ? Math.max(100, startWidth + event.clientX - startX) : width));
+            const minimumWidth = columnIndex === 0 ? 22 : 100;
+            setColumnWidths(widths => widths.map((width, index) => index === columnIndex ? Math.max(minimumWidth, startWidth + event.clientX - startX) : width));
         };
         const onPointerUp = (): void => {
             window.removeEventListener('pointermove', onPointerMove);
