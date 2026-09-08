@@ -34,7 +34,7 @@ import { TraceCommands } from '../features/trace/trace-commands';
 import { PyTsController } from '../features/trace/pyts-controller';
 import { CTraceController } from '../features/trace/ctrace-controller';
 import { FileWatchManager } from './filesystem/file-watch-manager';
-import { CSV_TABLE_EDITOR_VIEW_TYPE, SWO_CSV_EDITOR_VIEW_TYPE, SwoCsvEditorProvider } from '../views/swo-csv-viewer/swo-csv-editor-provider';
+import { SWO_CSV_EDITOR_VIEW_TYPE, SwoCsvEditorProvider } from '../views/swo-csv-viewer/swo-csv-editor-provider';
 
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
@@ -113,7 +113,6 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     traceConfigurationCommands.activate(context);
     context.subscriptions.push(
         vscode.window.registerCustomEditorProvider(SWO_CSV_EDITOR_VIEW_TYPE, swoCsvEditorProvider),
-        vscode.window.registerCustomEditorProvider(CSV_TABLE_EDITOR_VIEW_TYPE, swoCsvEditorProvider),
     );
 
     // Register reset dynamic view state command

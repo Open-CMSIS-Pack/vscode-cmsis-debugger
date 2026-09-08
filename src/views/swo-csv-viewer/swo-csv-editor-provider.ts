@@ -22,7 +22,6 @@ import { filterSwoCsvRows, parseSwoCsv, parseSwoCsvLines, sortSwoCsvRows, type S
 import type { SwoCsvHostMessage, SwoCsvWebviewMessage } from './swo-csv-protocol';
 
 export const SWO_CSV_EDITOR_VIEW_TYPE = 'vscode-cmsis-debugger.swoCsvTableViewer';
-export const CSV_TABLE_EDITOR_VIEW_TYPE = 'vscode-cmsis-debugger.csvTableViewer';
 
 export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider {
     public constructor(private readonly extensionUri: vscode.Uri) { }
