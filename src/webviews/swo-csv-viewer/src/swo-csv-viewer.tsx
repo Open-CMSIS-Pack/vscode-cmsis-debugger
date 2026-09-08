@@ -59,6 +59,7 @@ export const SwoCsvViewer = (): JSX.Element => {
     const [sort, setSort] = useState<SwoCsvSort | null>(null);
     const [columnWidths, setColumnWidths] = useState<readonly number[]>([]);
     const [tableRevision, setTableRevision] = useState(0);
+    const [renderedRequestId, setRenderedRequestId] = useState<number | null>(null);
     const latestRequestId = useRef(0);
     const activeColumnResize = useRef<ActiveColumnResize | null>(null);
     const suppressSort = useRef(false);
@@ -87,6 +88,7 @@ export const SwoCsvViewer = (): JSX.Element => {
                 }
                 setRows(message.rows);
                 setRowStart(message.start);
+                setRenderedRequestId(message.requestId);
             }
         };
         window.addEventListener('message', receiveMessage);
@@ -99,6 +101,22 @@ export const SwoCsvViewer = (): JSX.Element => {
             window.clearTimeout(clearSortSuppressionTimer.current);
         }
     }, []);
+
+    useEffect(() => {
+        if (renderedRequestId === null) {
+            return;
+        }
+        let secondFrame = 0;
+        const firstFrame = window.requestAnimationFrame(() => {
+            secondFrame = window.requestAnimationFrame(() => {
+                vscode.postMessage({ type: 'rowsRendered', requestId: renderedRequestId });
+            });
+        });
+        return () => {
+            window.cancelAnimationFrame(firstFrame);
+            window.cancelAnimationFrame(secondFrame);
+        };
+    }, [renderedRequestId]);
 
     useEffect(() => {
         if (tableState.loading || virtualRows.length === 0) {

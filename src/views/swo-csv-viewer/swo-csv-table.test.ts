@@ -15,7 +15,7 @@
  */
 // generated with AI
 
-import { filterSwoCsvRows, parseSwoCsv, parseSwoCsvAsyncLines, parseSwoCsvLines, sortSwoCsvRows } from './swo-csv-table';
+import { filterSwoCsvRows, parseSwoCsv, parseSwoCsvAsyncLines, parseSwoCsvChunks, parseSwoCsvLines, sortSwoCsvRows } from './swo-csv-table';
 
 describe('parseSwoCsv', () => {
     it('parses known unquoted rows and preserves source row indexes', () => {
@@ -66,6 +66,24 @@ describe('parseSwoCsv', () => {
 
         expect(table.rows).toHaveLength(2);
         expect(table.rows[1]).toEqual({ sourceRowIndex: 1, cells: ['13', 'message'] });
+    });
+
+    it('parses chunks across record, escaped quote, and CRLF boundaries', async () => {
+        async function* chunks(): AsyncGenerator<string> {
+            yield 'cycles,note\r';
+            yield '\n12,"first line\nsecond ';
+            yield 'line with "';
+            yield '"quoted"" text"\r';
+            yield '\n13,done';
+        }
+
+        const table = await parseSwoCsvChunks(chunks());
+
+        expect(table.rows).toEqual([
+            { sourceRowIndex: 0, cells: ['12', 'first line\nsecond line with "quoted" text'] },
+            { sourceRowIndex: 1, cells: ['13', 'done'] },
+        ]);
+        expect(table.malformedRowCount).toBe(0);
     });
 });
 

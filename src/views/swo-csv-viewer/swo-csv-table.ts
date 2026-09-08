@@ -59,21 +59,124 @@ export const parseSwoCsvAsyncLines = async (lines: AsyncIterable<string>): Promi
     return builder.build();
 };
 
+export const parseSwoCsvChunks = async (chunks: AsyncIterable<string>): Promise<SwoCsvTable> => {
+    const builder = new SwoCsvTableBuilder();
+    let cells: string[] = [];
+    let cellParts: string[] = [];
+    let insideQuotes = false;
+    let pendingQuote = false;
+    let pendingCarriageReturn = false;
+    let recordStarted = false;
+
+    const addCell = (): void => {
+        cells.push(cellParts.length === 0 ? '' : cellParts.length === 1 ? cellParts[0] : cellParts.join(''));
+        cellParts = [];
+    };
+    const addRecord = (): void => {
+        if (recordStarted) {
+            addCell();
+            builder.addCells(cells);
+        } else {
+            builder.addCells([]);
+        }
+        cells = [];
+        recordStarted = false;
+    };
+
+    for await (const chunk of chunks) {
+        let segmentStart = 0;
+        for (let index = 0; index < chunk.length; index += 1) {
+            const character = chunk.charAt(index);
+
+            if (pendingCarriageReturn) {
+                pendingCarriageReturn = false;
+                if (character === '\n') {
+                    segmentStart = index + 1;
+                    continue;
+                }
+            }
+
+            if (pendingQuote) {
+                pendingQuote = false;
+                if (character === '"') {
+                    cellParts.push('"');
+                    segmentStart = index + 1;
+                    continue;
+                }
+                insideQuotes = false;
+            }
+
+            if (character === '"') {
+                if (segmentStart < index) {
+                    cellParts.push(chunk.slice(segmentStart, index));
+                }
+                recordStarted = true;
+                if (insideQuotes) {
+                    if (index + 1 < chunk.length) {
+                        if (chunk.charAt(index + 1) === '"') {
+                            cellParts.push('"');
+                            index += 1;
+                        } else {
+                            insideQuotes = false;
+                        }
+                    } else {
+                        pendingQuote = true;
+                    }
+                } else {
+                    insideQuotes = true;
+                }
+                segmentStart = index + 1;
+            } else if (character === ',' && !insideQuotes) {
+                if (segmentStart < index) {
+                    cellParts.push(chunk.slice(segmentStart, index));
+                }
+                addCell();
+                recordStarted = true;
+                segmentStart = index + 1;
+            } else if ((character === '\r' || character === '\n') && !insideQuotes) {
+                if (segmentStart < index) {
+                    cellParts.push(chunk.slice(segmentStart, index));
+                    recordStarted = true;
+                }
+                addRecord();
+                pendingCarriageReturn = character === '\r';
+                segmentStart = index + 1;
+            } else if (!recordStarted) {
+                recordStarted = true;
+            }
+        }
+        if (segmentStart < chunk.length) {
+            cellParts.push(chunk.slice(segmentStart));
+        }
+    }
+
+    if (pendingQuote) {
+        insideQuotes = false;
+    }
+    if (recordStarted || cells.length > 0 || insideQuotes) {
+        addRecord();
+    }
+    return builder.build();
+};
+
 class SwoCsvTableBuilder {
     private columns: readonly string[] | undefined;
     private readonly rows: SwoCsvRow[] = [];
     private malformedRowCount = 0;
 
     public addLine(line: string): void {
+        this.addCells(line.length === 0 ? [] : parseCsvRecord(line));
+    }
+
+    public addCells(rawCells: readonly string[]): void {
         if (this.columns === undefined) {
-            this.columns = line.length === 0 ? [] : parseCsvRecord(line);
+            this.columns = rawCells;
             return;
         }
-        if (line.length === 0) {
+        if (rawCells.length === 0) {
             return;
         }
 
-        const rawCells = parseCsvRecord(line);
         if (rawCells.length !== this.columns.length) {
             this.malformedRowCount += 1;
         }

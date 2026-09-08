@@ -17,12 +17,17 @@
 
 import * as vscode from 'vscode';
 import { createReadStream } from 'fs';
-import { createInterface } from 'readline';
 import { logger } from '../../logger';
-import { filterSwoCsvRows, parseSwoCsv, parseSwoCsvAsyncLines, sortSwoCsvRows, type SwoCsvFilter, type SwoCsvRow, type SwoCsvSort, type SwoCsvTable } from './swo-csv-table';
+import { filterSwoCsvRows, parseSwoCsv, parseSwoCsvChunks, sortSwoCsvRows, type SwoCsvFilter, type SwoCsvRow, type SwoCsvSort, type SwoCsvTable } from './swo-csv-table';
 import type { SwoCsvHostMessage, SwoCsvWebviewMessage } from './swo-csv-protocol';
 
 export const SWO_CSV_EDITOR_VIEW_TYPE = 'vscode-cmsis-debugger.swoCsvTableViewer';
+
+interface PendingFirstRender {
+    readonly loadGeneration: number;
+    readonly loadStartedAt: number;
+    readonly rowsRequestedAt: number;
+}
 
 export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider {
     public constructor(private readonly extensionUri: vscode.Uri) { }
@@ -46,6 +51,8 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
         let sort: SwoCsvSort | null = null;
         let loadGeneration = 0;
         let updateGeneration = 0;
+        let pendingFirstRender: Omit<PendingFirstRender, 'rowsRequestedAt'> | null = null;
+        const firstRenderRequests = new Map<number, PendingFirstRender>();
 
         const updateRows = (): void => {
             filteredRows = sortSwoCsvRows(filterSwoCsvRows(table.rows, filters), sort);
@@ -78,14 +85,22 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
         };
         const load = async (): Promise<void> => {
             const generation = ++loadGeneration;
+            const loadStartedAt = performance.now();
             postState(true);
+            logger.debug(`[SwoCsvEditor] Load ${generation} started: uri=${document.uri.toString()}`);
             try {
+                const readStartedAt = performance.now();
                 table = await this.readTable(document.uri);
+                const readAndParseMs = performance.now() - readStartedAt;
                 if (generation !== loadGeneration) {
                     return;
                 }
+                const initializeRowsStartedAt = performance.now();
                 updateRows();
+                const initializeRowsMs = performance.now() - initializeRowsStartedAt;
                 postState(false);
+                pendingFirstRender = { loadGeneration: generation, loadStartedAt };
+                logger.debug(`[SwoCsvEditor] Load ${generation} host complete: total=${formatMilliseconds(performance.now() - loadStartedAt)} readAndParse=${formatMilliseconds(readAndParseMs)} initializeRows=${formatMilliseconds(initializeRowsMs)} rows=${table.rows.length} malformedRows=${table.malformedRowCount}`);
             } catch (error) {
                 if (generation === loadGeneration) {
                     postState(false, `Unable to load CSV: ${error instanceof Error ? error.message : String(error)}`);
@@ -101,6 +116,13 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
                 case 'requestRows': {
                     const start = Math.max(0, message.start);
                     const end = Math.max(start, message.end);
+                    if (pendingFirstRender !== null) {
+                        firstRenderRequests.set(message.requestId, {
+                            ...pendingFirstRender,
+                            rowsRequestedAt: performance.now(),
+                        });
+                        pendingFirstRender = null;
+                    }
                     postMessage({
                         type: 'rows',
                         requestId: message.requestId,
@@ -108,6 +130,15 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
                         rows: filteredRows.slice(start, end),
                         totalRowCount: filteredRows.length,
                     });
+                    break;
+                }
+                case 'rowsRendered': {
+                    const timing = firstRenderRequests.get(message.requestId);
+                    if (timing !== undefined) {
+                        const renderedAt = performance.now();
+                        logger.debug(`[SwoCsvEditor] Load ${timing.loadGeneration} first rows rendered: total=${formatMilliseconds(renderedAt - timing.loadStartedAt)} requestToRender=${formatMilliseconds(renderedAt - timing.rowsRequestedAt)}`);
+                        firstRenderRequests.delete(message.requestId);
+                    }
                     break;
                 }
                 case 'setFilters':
@@ -162,11 +193,9 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
         // The URI originates from VS Code's custom-editor lifecycle.
         // eslint-disable-next-line security/detect-non-literal-fs-filename
         const stream = createReadStream(uri.fsPath, { encoding: 'utf8' });
-        const lines = createInterface({ input: stream, crlfDelay: Infinity });
         try {
-            return await parseSwoCsvAsyncLines(lines);
+            return await parseSwoCsvChunks(stream);
         } finally {
-            lines.close();
             stream.destroy();
         }
     }
@@ -180,3 +209,5 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
         logger.debug(`[SwoCsvEditor] Cell selected: row=${message.sourceRowIndex} column=${message.columnIndex} name=${message.columnName} value=${message.cellValue}`);
     }
 }
+
+const formatMilliseconds = (milliseconds: number): string => `${milliseconds.toFixed(1)}ms`;

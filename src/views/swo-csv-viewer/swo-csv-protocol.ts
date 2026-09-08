@@ -66,4 +66,9 @@ export interface SwoCsvCellSelected {
     readonly cellValue: string;
 }
 
-export type SwoCsvWebviewMessage = SwoCsvReady | SwoCsvRequestRows | SwoCsvSetFilters | SwoCsvSetSort | SwoCsvCellSelected;
+export interface SwoCsvRowsRendered {
+    readonly type: 'rowsRendered';
+    readonly requestId: number;
+}
+
+export type SwoCsvWebviewMessage = SwoCsvReady | SwoCsvRequestRows | SwoCsvSetFilters | SwoCsvSetSort | SwoCsvCellSelected | SwoCsvRowsRendered;
