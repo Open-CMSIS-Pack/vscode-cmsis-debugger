@@ -35,7 +35,7 @@ describe('copySwoCsvRows', () => {
 
         await expect(copySwoCsvRows([{ start: 0, end: 0 }, { start: 2, end: 2 }], store, writeText, () => true))
             .resolves.toBe('copied');
-        expect(writeText).toHaveBeenCalledWith(`${EOL}2,"with,comma"${EOL}10,plain`);
+        expect(writeText).toHaveBeenCalledWith(`2,"with,comma"${EOL}10,plain${EOL}`);
     });
 
     it('reads large intervals in bounded batches', async () => {

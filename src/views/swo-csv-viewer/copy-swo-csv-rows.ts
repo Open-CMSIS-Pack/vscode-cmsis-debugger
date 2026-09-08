@@ -45,6 +45,6 @@ export const copySwoCsvRows = async (
     if (!isActive()) {
         return 'cancelled';
     }
-    await writeText(`${EOL}${lines.join(EOL)}`);
+    await writeText(`${lines.join(EOL)}${EOL}`);
     return 'copied';
 };
