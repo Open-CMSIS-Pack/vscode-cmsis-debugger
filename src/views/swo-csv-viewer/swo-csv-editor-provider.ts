@@ -19,10 +19,10 @@ import * as vscode from 'vscode';
 import { createReadStream } from 'fs';
 import { stat } from 'node:fs/promises';
 import { logger } from '../../logger';
+import { copySwoCsvRows } from './copy-swo-csv-rows';
 import { IndexedSwoCsvRowStore } from './indexed-swo-csv-row-store';
-import { areValidRowSelectionIntervals, type RowSelectionInterval } from './row-selection';
 import { InMemorySwoCsvRowStore, type SwoCsvRowStore } from './swo-csv-row-store';
-import { parseSwoCsv, parseSwoCsvChunks, serializeSwoCsvRow, type SwoCsvFilter, type SwoCsvSort } from './swo-csv-table';
+import { parseSwoCsv, parseSwoCsvChunks, type SwoCsvFilter, type SwoCsvSort } from './swo-csv-table';
 import type { SwoCsvHostMessage, SwoCsvWebviewMessage } from './swo-csv-protocol';
 
 export const SWO_CSV_EDITOR_VIEW_TYPE = 'vscode-cmsis-debugger.swoCsvTableViewer';
@@ -198,11 +198,15 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
                     break;
                 case 'copyRows': {
                     const requestedStore = rowStore;
-                    await this.copyRowsToClipboard(
+                    const result = await copySwoCsvRows(
                         message.intervals,
                         requestedStore,
+                        value => vscode.env.clipboard.writeText(value),
                         () => !disposed && requestedStore === rowStore,
                     );
+                    if (result === 'invalid') {
+                        logger.warn('[SwoCsvEditor] Ignored invalid copy rows message');
+                    }
                     break;
                 }
             }
@@ -275,30 +279,6 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
         logger.debug(`[SwoCsvEditor] Cell selected: row=${message.sourceRowIndex} column=${message.columnIndex} name=${message.columnName} value=${message.cellValue}`);
     }
 
-    private async copyRowsToClipboard(
-        intervals: readonly RowSelectionInterval[],
-        rowStore: SwoCsvRowStore,
-        isActive: () => boolean,
-    ): Promise<void> {
-        if (!areValidRowSelectionIntervals(intervals, rowStore.rowCount)) {
-            logger.warn('[SwoCsvEditor] Ignored invalid copy rows message');
-            return;
-        }
-        const lines: string[] = [];
-        const batchSize = 10_000;
-        for (const interval of intervals) {
-            for (let start = interval.start; start <= interval.end; start += batchSize) {
-                const rows = await rowStore.getRows(start, Math.min(start + batchSize, interval.end + 1));
-                if (!isActive()) {
-                    return;
-                }
-                lines.push(...rows.map(serializeSwoCsvRow));
-            }
-        }
-        if (isActive()) {
-            await vscode.env.clipboard.writeText(lines.join('\r\n'));
-        }
-    }
 }
 
 const formatMilliseconds = (milliseconds: number): string => `${milliseconds.toFixed(1)}ms`;
