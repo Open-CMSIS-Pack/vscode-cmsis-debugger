@@ -112,7 +112,11 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     await traceConfiguration.activate(context);
     traceConfigurationCommands.activate(context);
     context.subscriptions.push(
-        vscode.window.registerCustomEditorProvider(SWO_CSV_EDITOR_VIEW_TYPE, swoCsvEditorProvider),
+        vscode.window.registerCustomEditorProvider(SWO_CSV_EDITOR_VIEW_TYPE, swoCsvEditorProvider, {
+            webviewOptions: {
+                retainContextWhenHidden: true,
+            },
+        }),
     );
 
     // Register reset dynamic view state command
