@@ -78,6 +78,7 @@ export const SwoCsvViewer = (): JSX.Element => {
             }
         };
         window.addEventListener('message', receiveMessage);
+        vscode.postMessage({ type: 'ready' });
         return () => window.removeEventListener('message', receiveMessage);
     }, []);
 

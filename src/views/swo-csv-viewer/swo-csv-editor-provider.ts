@@ -40,8 +40,6 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
             enableScripts: true,
             localResourceRoots: [this.extensionUri],
         };
-        webviewPanel.webview.html = this.buildShell(webviewPanel.webview);
-
         let table: SwoCsvTable = { columns: [], rows: [], malformedRowCount: 0 };
         let filteredRows: readonly SwoCsvRow[] = [];
         let filters: readonly SwoCsvFilter[] = [];
@@ -85,6 +83,9 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
 
         webviewPanel.webview.onDidReceiveMessage((message: SwoCsvWebviewMessage) => {
             switch (message.type) {
+                case 'ready':
+                    void load();
+                    break;
                 case 'requestRows': {
                     const start = Math.max(0, message.start);
                     const end = Math.max(start, message.end);
@@ -113,6 +114,8 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
             }
         });
 
+        webviewPanel.webview.html = this.buildShell(webviewPanel.webview);
+
         const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(document.uri, '*'));
         watcher.onDidChange(uri => {
             if (uri.toString() === document.uri.toString()) {
@@ -120,7 +123,6 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
             }
         });
         webviewPanel.onDidDispose(() => watcher.dispose());
-        await load();
     }
 
     private buildShell(webview: vscode.Webview): string {
