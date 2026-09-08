@@ -53,21 +53,17 @@
           {
             "filenamePattern": "*.swo.csv"
           },
-          {
+        {
             "filenamePattern": "*.swd.csv"
-          }
+        },
+        {
+            "filenamePattern": "*.tb.csv"
+        },
+        {
+            "filenamePattern": "*.tb-*.csv"
+        }
         ],
         "priority": "default"
-      },
-      {
-        "viewType": "vscode-cmsis-debugger.csvTableViewer",
-        "displayName": "CSV SWO Table Viewer",
-        "selector": [
-          {
-            "filenamePattern": "*.csv"
-          }
-        ],
-        "priority": "option"
       }
     ],
     "viewsContainers": {
