@@ -17,8 +17,9 @@
 
 import * as vscode from 'vscode';
 import { createReadStream } from 'fs';
+import { createInterface } from 'readline';
 import { logger } from '../../logger';
-import { filterSwoCsvRows, parseSwoCsv, parseSwoCsvLines, sortSwoCsvRows, type SwoCsvFilter, type SwoCsvRow, type SwoCsvSort, type SwoCsvTable } from './swo-csv-table';
+import { filterSwoCsvRows, parseSwoCsv, parseSwoCsvAsyncLines, sortSwoCsvRows, type SwoCsvFilter, type SwoCsvRow, type SwoCsvSort, type SwoCsvTable } from './swo-csv-table';
 import type { SwoCsvHostMessage, SwoCsvWebviewMessage } from './swo-csv-protocol';
 
 export const SWO_CSV_EDITOR_VIEW_TYPE = 'vscode-cmsis-debugger.swoCsvTableViewer';
@@ -158,22 +159,16 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
             return parseSwoCsv(new TextDecoder().decode(bytes));
         }
 
-        const decoder = new TextDecoder();
-        const lines: string[] = [];
-        let remainder = '';
         // The URI originates from VS Code's custom-editor lifecycle.
         // eslint-disable-next-line security/detect-non-literal-fs-filename
-        for await (const chunk of createReadStream(uri.fsPath)) {
-            const text = remainder + decoder.decode(chunk, { stream: true });
-            const lineParts = text.split(/\r?\n/);
-            remainder = lineParts.pop() ?? '';
-            lines.push(...lineParts);
+        const stream = createReadStream(uri.fsPath, { encoding: 'utf8' });
+        const lines = createInterface({ input: stream, crlfDelay: Infinity });
+        try {
+            return await parseSwoCsvAsyncLines(lines);
+        } finally {
+            lines.close();
+            stream.destroy();
         }
-        remainder += decoder.decode();
-        if (remainder.length > 0) {
-            lines.push(remainder);
-        }
-        return parseSwoCsvLines(lines);
     }
 
     private logCellSelection(message: Extract<SwoCsvWebviewMessage, { type: 'cellSelected' }>, table: SwoCsvTable): void {

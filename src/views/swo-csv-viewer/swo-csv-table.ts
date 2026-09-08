@@ -44,34 +44,53 @@ export const parseSwoCsv = (contents: string): SwoCsvTable => {
 
 
 export const parseSwoCsvLines = (lines: Iterable<string>): SwoCsvTable => {
-    const iterator = lines[Symbol.iterator]();
-    const header = iterator.next().value;
-    if (header === undefined || header.length === 0) {
-        return { columns: [], rows: [], malformedRowCount: 0 };
+    const builder = new SwoCsvTableBuilder();
+    for (const line of lines) {
+        builder.addLine(line);
     }
+    return builder.build();
+};
 
-    const columns = parseCsvRecord(header);
-    const rows: SwoCsvRow[] = [];
-    let malformedRowCount = 0;
+export const parseSwoCsvAsyncLines = async (lines: AsyncIterable<string>): Promise<SwoCsvTable> => {
+    const builder = new SwoCsvTableBuilder();
+    for await (const line of lines) {
+        builder.addLine(line);
+    }
+    return builder.build();
+};
 
-    for (let next = iterator.next(); !next.done; next = iterator.next()) {
-        const line = next.value;
+class SwoCsvTableBuilder {
+    private columns: readonly string[] | undefined;
+    private readonly rows: SwoCsvRow[] = [];
+    private malformedRowCount = 0;
+
+    public addLine(line: string): void {
+        if (this.columns === undefined) {
+            this.columns = line.length === 0 ? [] : parseCsvRecord(line);
+            return;
+        }
         if (line.length === 0) {
-            continue;
+            return;
         }
 
         const rawCells = parseCsvRecord(line);
-        if (rawCells.length !== columns.length) {
-            malformedRowCount += 1;
+        if (rawCells.length !== this.columns.length) {
+            this.malformedRowCount += 1;
         }
-        rows.push({
-            sourceRowIndex: rows.length,
-            cells: normalizeCells(rawCells, columns.length),
+        this.rows.push({
+            sourceRowIndex: this.rows.length,
+            cells: normalizeCells(rawCells, this.columns.length),
         });
     }
 
-    return { columns, rows, malformedRowCount };
-};
+    public build(): SwoCsvTable {
+        return {
+            columns: this.columns ?? [],
+            rows: this.rows,
+            malformedRowCount: this.malformedRowCount,
+        };
+    }
+}
 
 export const filterSwoCsvRows = (rows: readonly SwoCsvRow[], filters: readonly SwoCsvFilter[]): readonly SwoCsvRow[] => {
     const activeFilters = filters.filter(filter => filter.value.length > 0);

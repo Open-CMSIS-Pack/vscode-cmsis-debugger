@@ -214,7 +214,10 @@ export const SwoCsvViewer = (): JSX.Element => {
                 </div>
             </div>
         </section>
-        {tableState.loading && <p className="table-status">{tableState.loadingMessage ?? 'Loading CSV...'}</p>}
+        {tableState.loading && <div className="loading-overlay" role="status" aria-live="polite">
+            <span className="loading-spinner" aria-hidden="true" />
+            <span>{tableState.loadingMessage ?? 'Loading CSV...'}</span>
+        </div>}
         {tableState.error !== undefined && <p className="table-status error">{tableState.error}</p>}
         {!tableState.loading && tableState.error === undefined && tableState.totalRowCount === 0 && <p className="table-status">No matching rows</p>}
         {tableState.malformedRowCount > 0 && <p className="table-status warning">{tableState.malformedRowCount} rows were normalized to the header column count.</p>}

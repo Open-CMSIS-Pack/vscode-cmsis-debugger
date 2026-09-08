@@ -15,7 +15,7 @@
  */
 // generated with AI
 
-import { filterSwoCsvRows, parseSwoCsv, parseSwoCsvLines, sortSwoCsvRows } from './swo-csv-table';
+import { filterSwoCsvRows, parseSwoCsv, parseSwoCsvAsyncLines, parseSwoCsvLines, sortSwoCsvRows } from './swo-csv-table';
 
 describe('parseSwoCsv', () => {
     it('parses known unquoted rows and preserves source row indexes', () => {
@@ -50,6 +50,19 @@ describe('parseSwoCsv', () => {
 
     it('parses line iterables without concatenating their input', () => {
         const table = parseSwoCsvLines(['cycles,type', '12,event', '13,message']);
+
+        expect(table.rows).toHaveLength(2);
+        expect(table.rows[1]).toEqual({ sourceRowIndex: 1, cells: ['13', 'message'] });
+    });
+
+    it('parses asynchronous line iterables incrementally', async () => {
+        async function* lines(): AsyncGenerator<string> {
+            yield 'cycles,type';
+            yield '12,event';
+            yield '13,message';
+        }
+
+        const table = await parseSwoCsvAsyncLines(lines());
 
         expect(table.rows).toHaveLength(2);
         expect(table.rows[1]).toEqual({ sourceRowIndex: 1, cells: ['13', 'message'] });
