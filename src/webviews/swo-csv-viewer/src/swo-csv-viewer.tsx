@@ -17,7 +17,20 @@
 
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useEffect, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
+import {
+    clearSelectedRows,
+    commitRowSelectionCaret,
+    EMPTY_ROW_SELECTION,
+    isRowSelected,
+    moveRowCaret,
+    selectAllRows,
+    selectRowRange,
+    selectSingleRow,
+    toggleRow,
+    type RowSelectionMovement,
+    type RowSelectionState,
+} from '../../../views/swo-csv-viewer/row-selection';
 import type { SwoCsvFilter, SwoCsvRow, SwoCsvSort } from '../../../views/swo-csv-viewer/swo-csv-table';
 import type { SwoCsvHostMessage, SwoCsvWebviewMessage } from '../../../views/swo-csv-viewer/swo-csv-protocol';
 import './swo-csv-viewer.css';
@@ -53,17 +66,20 @@ const INITIAL_STATE: TableState = {
 
 export const SwoCsvViewer = (): JSX.Element => {
     const scrollElementRef = useRef<HTMLDivElement>(null);
+    const tableHeaderRef = useRef<HTMLDivElement>(null);
     const [tableState, setTableState] = useState<TableState>(INITIAL_STATE);
     const [rows, setRows] = useState<readonly SwoCsvRow[]>([]);
     const [rowStart, setRowStart] = useState(0);
     const [filters, setFilters] = useState<readonly SwoCsvFilter[]>([]);
     const [sort, setSort] = useState<SwoCsvSort | null>(null);
     const [columnWidths, setColumnWidths] = useState<readonly number[]>([]);
+    const [selection, setSelection] = useState<RowSelectionState>(EMPTY_ROW_SELECTION);
     const [tableRevision, setTableRevision] = useState(0);
     const [renderedRequestId, setRenderedRequestId] = useState<number | null>(null);
     const latestRequestId = useRef(0);
     const activeColumnResize = useRef<ActiveColumnResize | null>(null);
     const suppressSort = useRef(false);
+    const keyboardRangeActive = useRef(false);
     const clearSortSuppressionTimer = useRef<number | null>(null);
     const filterTimer = useRef<number | null>(null);
     const rowVirtualizer = useVirtualizer({
@@ -80,6 +96,7 @@ export const SwoCsvViewer = (): JSX.Element => {
             if (message.type === 'tableState') {
                 setTableState(message);
                 setRows([]);
+                setSelection(EMPTY_ROW_SELECTION);
                 setTableRevision(revision => revision + 1);
                 setColumnWidths(widths => widths.length === message.columns.length + 1 ? widths : [72, ...message.columns.map(() => 180)]);
                 return;
@@ -204,21 +221,112 @@ export const SwoCsvViewer = (): JSX.Element => {
         }, 0);
     };
 
+    const updateRowSelection = (event: ReactMouseEvent<HTMLButtonElement>, rowIndex: number): void => {
+        setSelection(current => event.shiftKey
+            ? selectRowRange(current, rowIndex)
+            : event.ctrlKey || event.metaKey
+                ? toggleRow(current, rowIndex)
+                : selectSingleRow(rowIndex));
+        scrollElementRef.current?.focus({ preventScroll: true });
+    };
+
+    const moveSelection = (destination: number, movement: RowSelectionMovement): void => {
+        const clampedDestination = Math.max(0, Math.min(destination, tableState.totalRowCount - 1));
+        setSelection(current => moveRowCaret(current, clampedDestination, tableState.totalRowCount, movement));
+        rowVirtualizer.scrollToIndex(clampedDestination, { align: 'auto' });
+    };
+
+    const handleTableKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
+        if (event.target instanceof HTMLElement && event.target.closest('.table-header') !== null) {
+            return;
+        }
+        const controlPressed = event.ctrlKey || event.metaKey;
+        if (controlPressed && event.key.toLowerCase() === 'a') {
+            event.preventDefault();
+            setSelection(current => selectAllRows(current, tableState.totalRowCount));
+            return;
+        }
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            setSelection(clearSelectedRows);
+            return;
+        }
+        if (tableState.totalRowCount === 0) {
+            return;
+        }
+
+        const firstVisibleRow = virtualRows.find(row => row.start + row.size > (scrollElementRef.current?.scrollTop ?? 0))?.index ?? 0;
+        const currentRow = selection.caret ?? firstVisibleRow;
+        if (controlPressed && (event.key === ' ' || event.code === 'Space')) {
+            event.preventDefault();
+            setSelection(current => toggleRow(current, current.caret ?? firstVisibleRow));
+            return;
+        }
+        const visibleHeight = Math.max(ROW_HEIGHT, (scrollElementRef.current?.clientHeight ?? ROW_HEIGHT) - (tableHeaderRef.current?.offsetHeight ?? 0));
+        const pageSize = Math.max(1, Math.floor(visibleHeight / ROW_HEIGHT));
+        let destination: number;
+        switch (event.key) {
+            case 'ArrowUp':
+                destination = currentRow - 1;
+                break;
+            case 'ArrowDown':
+                destination = currentRow + 1;
+                break;
+            case 'PageUp':
+                destination = currentRow - pageSize;
+                break;
+            case 'PageDown':
+                destination = currentRow + pageSize;
+                break;
+            case 'Home':
+                destination = 0;
+                break;
+            case 'End':
+                destination = tableState.totalRowCount - 1;
+                break;
+            default:
+                return;
+        }
+        event.preventDefault();
+        keyboardRangeActive.current = event.shiftKey;
+        moveSelection(destination, event.shiftKey ? 'extend' : controlPressed ? 'caret-only' : 'replace');
+    };
+
+    const handleTableKeyUp = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
+        if (event.key === 'Shift' && keyboardRangeActive.current) {
+            keyboardRangeActive.current = false;
+            setSelection(commitRowSelectionCaret);
+        }
+    };
+
     const effectiveColumnWidths = columnWidths.length === tableState.columns.length + 1
         ? columnWidths
         : [72, ...tableState.columns.map(() => 180)];
     const gridTemplateColumns = effectiveColumnWidths.map(width => `${width}px`).join(' ');
     const tableWidth = effectiveColumnWidths.reduce((width, columnWidth) => width + columnWidth, 0);
+    const activeRowIsRendered = selection.caret !== null && virtualRows.some(row => row.index === selection.caret);
     return <main className="swo-csv-viewer">
         <section className="table-frame" aria-label="CSV table">
-            <div className="table-scroll" ref={scrollElementRef}>
-                <div className="table-header" style={{ gridTemplateColumns, width: `${tableWidth}px` }}>
-                    <div className="index-header">
+            <div
+                className="table-scroll"
+                ref={scrollElementRef}
+                role="grid"
+                aria-label="CSV rows"
+                aria-colcount={tableState.columns.length + 1}
+                aria-rowcount={tableState.totalRowCount + 1}
+                aria-multiselectable="true"
+                aria-activedescendant={activeRowIsRendered ? `swo-csv-row-${selection.caret}` : undefined}
+                tabIndex={0}
+                onKeyDown={handleTableKeyDown}
+                onKeyUp={handleTableKeyUp}
+            >
+                <div className="table-header" ref={tableHeaderRef} role="row" aria-rowindex={1} style={{ gridTemplateColumns, width: `${tableWidth}px` }}>
+                    <div className="index-header" role="columnheader" aria-colindex={1}>
                         <button type="button" className={`sort-button ${sort?.columnIndex === null ? sort.direction : ''}`} aria-label="Sort by row index" onClick={() => updateSort(null)}>#</button>
                         <span className="filter-spacer" />
                         <button type="button" className="column-resize" aria-label="Resize row index" onPointerDown={event => startColumnResize(event, 0, effectiveColumnWidths[0])} onPointerMove={resizeColumn} onPointerUp={finishColumnResize} onPointerCancel={finishColumnResize} onLostPointerCapture={finishColumnResize} />
                     </div>
-                    {tableState.columns.map((column, columnIndex) => <label key={column}>
+                    {tableState.columns.map((column, columnIndex) => <label key={column} role="columnheader" aria-colindex={columnIndex + 2}>
                         <button type="button" className={`sort-button ${sort?.columnIndex === columnIndex ? sort.direction : ''}`} aria-label={`Sort by ${column}`} onClick={() => updateSort(columnIndex)}>{column}</button>
                         <input
                             type="search"
@@ -229,15 +337,36 @@ export const SwoCsvViewer = (): JSX.Element => {
                         <button type="button" className="column-resize" aria-label={`Resize ${column}`} onPointerDown={event => startColumnResize(event, columnIndex + 1, effectiveColumnWidths[columnIndex + 1])} onPointerMove={resizeColumn} onPointerUp={finishColumnResize} onPointerCancel={finishColumnResize} onLostPointerCapture={finishColumnResize} />
                     </label>)}
                 </div>
-                <div className="table-rows" style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: `${tableWidth}px` }}>
+                <div className="table-rows" role="rowgroup" style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: `${tableWidth}px` }}>
                     {virtualRows.map(virtualRow => {
                         const row = rows[virtualRow.index - rowStart];
                         if (row === undefined) {
                             return null;
                         }
-                        return <div className="table-row" key={row.sourceRowIndex} style={{ gridTemplateColumns, transform: `translateY(${virtualRow.start}px)` }}>
-                            <span className="row-index-cell">{row.sourceRowIndex}</span>
-                            {row.cells.map((cellValue, columnIndex) => <button type="button" className="table-cell" key={`${row.sourceRowIndex}-${columnIndex}`} onClick={() => vscode.postMessage({ type: 'cellSelected', sourceRowIndex: row.sourceRowIndex, columnIndex, columnName: tableState.columns[columnIndex], cellValue })}>{cellValue}</button>)}
+                        const selected = isRowSelected(selection, virtualRow.index);
+                        const caret = selection.caret === virtualRow.index;
+                        return <div
+                            className={`table-row${selected ? ' selected' : ''}${caret ? ' caret' : ''}`}
+                            id={`swo-csv-row-${virtualRow.index}`}
+                            key={row.sourceRowIndex}
+                            role="row"
+                            aria-rowindex={virtualRow.index + 2}
+                            aria-selected={selected}
+                            style={{ gridTemplateColumns, transform: `translateY(${virtualRow.start}px)` }}
+                        >
+                            <span className="row-index-cell" role="gridcell" aria-colindex={1}>{row.sourceRowIndex}</span>
+                            {row.cells.map((cellValue, columnIndex) => <button
+                                type="button"
+                                className="table-cell"
+                                key={`${row.sourceRowIndex}-${columnIndex}`}
+                                role="gridcell"
+                                aria-colindex={columnIndex + 2}
+                                tabIndex={-1}
+                                onClick={event => {
+                                    updateRowSelection(event, virtualRow.index);
+                                    vscode.postMessage({ type: 'cellSelected', sourceRowIndex: row.sourceRowIndex, columnIndex, columnName: tableState.columns[columnIndex], cellValue });
+                                }}
+                            >{cellValue}</button>)}
                         </div>;
                     })}
                 </div>

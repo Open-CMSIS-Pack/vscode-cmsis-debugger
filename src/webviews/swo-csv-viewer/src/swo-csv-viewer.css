@@ -137,6 +137,7 @@ body {
 .table-scroll {
     overflow: auto;
     height: 100%;
+    outline: none;
 }
 
 .table-rows {
@@ -170,10 +171,25 @@ body {
     color: var(--vscode-editorLineNumber-foreground);
 }
 
-.table-cell:hover,
-.table-cell:focus-visible {
-    background: var(--vscode-list-activeSelectionBackground);
-    outline: none;
+.table-row:hover {
+    background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.04));
+}
+
+.table-row.selected {
+    color: var(--vscode-list-inactiveSelectionForeground, inherit);
+    background: var(--vscode-list-inactiveSelectionBackground, rgba(255, 255, 255, 0.08));
+}
+
+.table-scroll:focus .table-row.caret {
+    color: var(--vscode-list-activeSelectionForeground, inherit);
+    background: var(--vscode-list-activeSelectionBackground, rgba(0, 127, 212, 0.35));
+    outline: 1px solid var(--vscode-focusBorder, #007fd4);
+    outline-offset: -1px;
+}
+
+.table-row.selected .row-index-cell,
+.table-scroll:focus .table-row.caret .row-index-cell {
+    color: inherit;
 }
 
 .table-status {
