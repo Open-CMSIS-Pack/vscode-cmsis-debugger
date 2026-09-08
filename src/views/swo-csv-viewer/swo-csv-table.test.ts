@@ -39,6 +39,15 @@ describe('parseSwoCsv', () => {
         expect(table.malformedRowCount).toBe(2);
     });
 
+    it('parses quoted commas and escaped quotes without marking rows malformed', () => {
+        const table = parseSwoCsv('cycles,stream,note\n12,main,"decoder received a,b and said ""retry"""\n');
+
+        expect(table.rows).toEqual([
+            { sourceRowIndex: 0, cells: ['12', 'main', 'decoder received a,b and said "retry"'] },
+        ]);
+        expect(table.malformedRowCount).toBe(0);
+    });
+
     it('parses line iterables without concatenating their input', () => {
         const table = parseSwoCsvLines(['cycles,type', '12,event', '13,message']);
 

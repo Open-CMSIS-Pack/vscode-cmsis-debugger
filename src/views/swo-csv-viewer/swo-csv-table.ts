@@ -50,7 +50,7 @@ export const parseSwoCsvLines = (lines: Iterable<string>): SwoCsvTable => {
         return { columns: [], rows: [], malformedRowCount: 0 };
     }
 
-    const columns = header.split(',');
+    const columns = parseCsvRecord(header);
     const rows: SwoCsvRow[] = [];
     let malformedRowCount = 0;
 
@@ -60,7 +60,7 @@ export const parseSwoCsvLines = (lines: Iterable<string>): SwoCsvTable => {
             continue;
         }
 
-        const rawCells = line.split(',');
+        const rawCells = parseCsvRecord(line);
         if (rawCells.length !== columns.length) {
             malformedRowCount += 1;
         }
@@ -113,4 +113,30 @@ const normalizeCells = (rawCells: readonly string[], columnCount: number): reado
         ...rawCells.slice(0, columnCount - 1),
         rawCells.slice(columnCount - 1).join(','),
     ];
+};
+
+const parseCsvRecord = (record: string): readonly string[] => {
+    const cells: string[] = [];
+    let cell = '';
+    let insideQuotes = false;
+
+    for (let index = 0; index < record.length; index += 1) {
+        const character = record.charAt(index);
+        if (character === '"') {
+            if (insideQuotes && record.charAt(index + 1) === '"') {
+                cell += '"';
+                index += 1;
+            } else {
+                insideQuotes = !insideQuotes;
+            }
+        } else if (character === ',' && !insideQuotes) {
+            cells.push(cell);
+            cell = '';
+        } else {
+            cell += character;
+        }
+    }
+
+    cells.push(cell);
+    return cells;
 };
