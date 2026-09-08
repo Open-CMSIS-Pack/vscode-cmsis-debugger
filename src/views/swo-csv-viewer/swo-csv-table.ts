@@ -38,6 +38,10 @@ export interface SwoCsvSort {
     readonly direction: SwoCsvSortDirection;
 }
 
+const NATURAL_SORT_COLLATOR = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
+export const compareSwoCsvSortValues = (left: string, right: string): number => NATURAL_SORT_COLLATOR.compare(left, right);
+
 export const parseSwoCsv = (contents: string): SwoCsvTable => {
     return parseSwoCsvLines(contents.split(/\r?\n/));
 };
@@ -165,7 +169,7 @@ class SwoCsvTableBuilder {
     private malformedRowCount = 0;
 
     public addLine(line: string): void {
-        this.addCells(line.length === 0 ? [] : parseCsvRecord(line));
+        this.addCells(line.length === 0 ? [] : parseSwoCsvRecord(line));
     }
 
     public addCells(rawCells: readonly string[]): void {
@@ -215,7 +219,7 @@ export const sortSwoCsvRows = (rows: readonly SwoCsvRow[], sort: SwoCsvSort | nu
     return [...rows].sort((left, right) => {
         const comparison = sort.columnIndex === null
             ? left.sourceRowIndex - right.sourceRowIndex
-            : (left.cells[sort.columnIndex] ?? '').localeCompare(right.cells[sort.columnIndex] ?? '', undefined, { numeric: true, sensitivity: 'base' });
+            : compareSwoCsvSortValues(left.cells[sort.columnIndex] ?? '', right.cells[sort.columnIndex] ?? '');
         return comparison === 0
             ? left.sourceRowIndex - right.sourceRowIndex
             : comparison * direction;
@@ -237,7 +241,7 @@ const normalizeCells = (rawCells: readonly string[], columnCount: number): reado
     ];
 };
 
-const parseCsvRecord = (record: string): readonly string[] => {
+export const parseSwoCsvRecord = (record: string): readonly string[] => {
     const cells: string[] = [];
     let cell = '';
     let insideQuotes = false;

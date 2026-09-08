@@ -26,6 +26,7 @@ declare function acquireVsCodeApi(): { postMessage: (message: SwoCsvWebviewMessa
 
 const vscode = acquireVsCodeApi();
 const ROW_HEIGHT = 24;
+const FILTER_DEBOUNCE_MS = 250;
 
 interface TableState {
     readonly columns: readonly string[];
@@ -64,6 +65,7 @@ export const SwoCsvViewer = (): JSX.Element => {
     const activeColumnResize = useRef<ActiveColumnResize | null>(null);
     const suppressSort = useRef(false);
     const clearSortSuppressionTimer = useRef<number | null>(null);
+    const filterTimer = useRef<number | null>(null);
     const rowVirtualizer = useVirtualizer({
         count: tableState.totalRowCount,
         getScrollElement: () => scrollElementRef.current,
@@ -100,6 +102,9 @@ export const SwoCsvViewer = (): JSX.Element => {
         if (clearSortSuppressionTimer.current !== null) {
             window.clearTimeout(clearSortSuppressionTimer.current);
         }
+        if (filterTimer.current !== null) {
+            window.clearTimeout(filterTimer.current);
+        }
     }, []);
 
     useEffect(() => {
@@ -135,7 +140,13 @@ export const SwoCsvViewer = (): JSX.Element => {
     const updateFilter = (columnIndex: number, value: string): void => {
         const nextFilters = tableState.columns.map((_, index) => ({ columnIndex: index, value: index === columnIndex ? value : filters.find(filter => filter.columnIndex === index)?.value ?? '' }));
         setFilters(nextFilters);
-        vscode.postMessage({ type: 'setFilters', filters: nextFilters });
+        if (filterTimer.current !== null) {
+            window.clearTimeout(filterTimer.current);
+        }
+        filterTimer.current = window.setTimeout(() => {
+            vscode.postMessage({ type: 'setFilters', filters: nextFilters });
+            filterTimer.current = null;
+        }, FILTER_DEBOUNCE_MS);
         scrollElementRef.current?.scrollTo({ top: 0 });
     };
 
