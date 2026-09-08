@@ -246,6 +246,11 @@ export const SwoCsvViewer = (): JSX.Element => {
             setSelection(current => selectAllRows(current, tableState.totalRowCount));
             return;
         }
+        if (controlPressed && event.key.toLowerCase() === 'c' && selection.intervals.length > 0) {
+            event.preventDefault();
+            vscode.postMessage({ type: 'copyRows', intervals: selection.intervals });
+            return;
+        }
         if (event.key === 'Escape') {
             event.preventDefault();
             setSelection(clearSelectedRows);

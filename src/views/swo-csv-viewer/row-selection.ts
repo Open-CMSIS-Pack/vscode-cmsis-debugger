@@ -38,6 +38,20 @@ export const isRowSelected = (state: RowSelectionState, rowIndex: number): boole
     return state.intervals.some(interval => rowIndex >= interval.start && rowIndex <= interval.end);
 };
 
+export const areValidRowSelectionIntervals = (intervals: readonly RowSelectionInterval[], rowCount: number): boolean => {
+    let previousEnd = -2;
+    return intervals.length > 0 && intervals.every(interval => {
+        const valid = Number.isInteger(interval.start)
+            && Number.isInteger(interval.end)
+            && interval.start >= 0
+            && interval.start <= interval.end
+            && interval.end < rowCount
+            && interval.start > previousEnd + 1;
+        previousEnd = interval.end;
+        return valid;
+    });
+};
+
 export const selectSingleRow = (rowIndex: number): RowSelectionState => ({
     intervals: [{ start: rowIndex, end: rowIndex }],
     caret: rowIndex,

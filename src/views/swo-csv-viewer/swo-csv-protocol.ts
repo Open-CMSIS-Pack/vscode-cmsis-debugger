@@ -16,6 +16,7 @@
 // generated with AI
 
 import type { SwoCsvFilter, SwoCsvRow, SwoCsvSort } from './swo-csv-table';
+import type { RowSelectionInterval } from './row-selection';
 
 export interface SwoCsvTableState {
     readonly type: 'tableState';
@@ -71,4 +72,9 @@ export interface SwoCsvRowsRendered {
     readonly requestId: number;
 }
 
-export type SwoCsvWebviewMessage = SwoCsvReady | SwoCsvRequestRows | SwoCsvSetFilters | SwoCsvSetSort | SwoCsvCellSelected | SwoCsvRowsRendered;
+export interface SwoCsvCopyRows {
+    readonly type: 'copyRows';
+    readonly intervals: readonly RowSelectionInterval[];
+}
+
+export type SwoCsvWebviewMessage = SwoCsvReady | SwoCsvRequestRows | SwoCsvSetFilters | SwoCsvSetSort | SwoCsvCellSelected | SwoCsvRowsRendered | SwoCsvCopyRows;

@@ -15,7 +15,16 @@
  */
 // generated with AI
 
-import { filterSwoCsvRows, parseSwoCsv, parseSwoCsvAsyncLines, parseSwoCsvChunks, parseSwoCsvLines, sortSwoCsvRows } from './swo-csv-table';
+import { filterSwoCsvRows, parseSwoCsv, parseSwoCsvAsyncLines, parseSwoCsvChunks, parseSwoCsvLines, serializeSwoCsvRow, sortSwoCsvRows } from './swo-csv-table';
+
+describe('serializeSwoCsvRow', () => {
+    it('quotes commas, quotes, and line breaks', () => {
+        expect(serializeSwoCsvRow({
+            sourceRowIndex: 0,
+            cells: ['plain', 'with,comma', 'with "quote"', 'line\nbreak'],
+        })).toBe('plain,"with,comma","with ""quote""","line\nbreak"');
+    });
+});
 
 describe('parseSwoCsv', () => {
     it('parses known unquoted rows and preserves source row indexes', () => {

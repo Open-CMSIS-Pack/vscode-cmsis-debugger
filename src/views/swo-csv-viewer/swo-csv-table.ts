@@ -42,6 +42,12 @@ const NATURAL_SORT_COLLATOR = new Intl.Collator(undefined, { numeric: true, sens
 
 export const compareSwoCsvSortValues = (left: string, right: string): number => NATURAL_SORT_COLLATOR.compare(left, right);
 
+export const serializeSwoCsvRow = (row: SwoCsvRow): string => row.cells.map(escapeSwoCsvCell).join(',');
+
+const escapeSwoCsvCell = (value: string): string => /[",\r\n]/.test(value)
+    ? `"${value.replaceAll('"', '""')}"`
+    : value;
+
 export const parseSwoCsv = (contents: string): SwoCsvTable => {
     return parseSwoCsvLines(contents.split(/\r?\n/));
 };

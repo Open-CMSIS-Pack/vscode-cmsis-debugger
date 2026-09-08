@@ -16,6 +16,7 @@
 // generated with AI
 
 import {
+    areValidRowSelectionIntervals,
     clearSelectedRows,
     commitRowSelectionCaret,
     EMPTY_ROW_SELECTION,
@@ -28,6 +29,14 @@ import {
 } from './row-selection';
 
 describe('row selection', () => {
+    it('validates normalized selection intervals against the current view', () => {
+        expect(areValidRowSelectionIntervals([{ start: 1, end: 3 }, { start: 5, end: 5 }], 6)).toBe(true);
+        expect(areValidRowSelectionIntervals([], 6)).toBe(false);
+        expect(areValidRowSelectionIntervals([{ start: 1, end: 3 }, { start: 3, end: 5 }], 6)).toBe(false);
+        expect(areValidRowSelectionIntervals([{ start: 1, end: 6 }], 6)).toBe(false);
+        expect(areValidRowSelectionIntervals([{ start: 1.5, end: 2 }], 6)).toBe(false);
+    });
+
     it('selects one row when extending without an anchor', () => {
         expect(selectRowRange(EMPTY_ROW_SELECTION, 4)).toEqual({
             intervals: [{ start: 4, end: 4 }],
