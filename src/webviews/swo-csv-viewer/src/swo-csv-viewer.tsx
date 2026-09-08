@@ -17,6 +17,7 @@
 
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useEffect, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { SwoCsvFilter, SwoCsvRow, SwoCsvSort } from '../../../views/swo-csv-viewer/swo-csv-table';
 import type { SwoCsvHostMessage, SwoCsvWebviewMessage } from '../../../views/swo-csv-viewer/swo-csv-protocol';
 import './swo-csv-viewer.css';
@@ -33,6 +34,13 @@ interface TableState {
     readonly loading: boolean;
     readonly loadingMessage?: string;
     readonly error?: string;
+}
+
+interface ActiveColumnResize {
+    readonly pointerId: number;
+    readonly columnIndex: number;
+    readonly startX: number;
+    readonly startWidth: number;
 }
 
 const INITIAL_STATE: TableState = {
@@ -52,6 +60,9 @@ export const SwoCsvViewer = (): JSX.Element => {
     const [columnWidths, setColumnWidths] = useState<readonly number[]>([]);
     const [tableRevision, setTableRevision] = useState(0);
     const latestRequestId = useRef(0);
+    const activeColumnResize = useRef<ActiveColumnResize | null>(null);
+    const suppressSort = useRef(false);
+    const clearSortSuppressionTimer = useRef<number | null>(null);
     const rowVirtualizer = useVirtualizer({
         count: tableState.totalRowCount,
         getScrollElement: () => scrollElementRef.current,
@@ -83,6 +94,12 @@ export const SwoCsvViewer = (): JSX.Element => {
         return () => window.removeEventListener('message', receiveMessage);
     }, []);
 
+    useEffect(() => () => {
+        if (clearSortSuppressionTimer.current !== null) {
+            window.clearTimeout(clearSortSuppressionTimer.current);
+        }
+    }, []);
+
     useEffect(() => {
         if (tableState.loading || virtualRows.length === 0) {
             return;
@@ -105,6 +122,9 @@ export const SwoCsvViewer = (): JSX.Element => {
     };
 
     const updateSort = (columnIndex: number | null): void => {
+        if (suppressSort.current) {
+            return;
+        }
         const nextSort = sort?.columnIndex !== columnIndex
             ? { columnIndex, direction: 'ascending' as const }
             : sort.direction === 'ascending'
@@ -115,17 +135,44 @@ export const SwoCsvViewer = (): JSX.Element => {
         scrollElementRef.current?.scrollTo({ top: 0 });
     };
 
-    const resizeColumn = (columnIndex: number, startX: number, startWidth: number): void => {
-        const onPointerMove = (event: PointerEvent): void => {
-            const minimumWidth = columnIndex === 0 ? 22 : 100;
-            setColumnWidths(widths => widths.map((width, index) => index === columnIndex ? Math.max(minimumWidth, startWidth + event.clientX - startX) : width));
-        };
-        const onPointerUp = (): void => {
-            window.removeEventListener('pointermove', onPointerMove);
-            window.removeEventListener('pointerup', onPointerUp);
-        };
-        window.addEventListener('pointermove', onPointerMove);
-        window.addEventListener('pointerup', onPointerUp);
+    const startColumnResize = (event: ReactPointerEvent<HTMLButtonElement>, columnIndex: number, startWidth: number): void => {
+        if (event.button !== 0) {
+            return;
+        }
+        if (clearSortSuppressionTimer.current !== null) {
+            window.clearTimeout(clearSortSuppressionTimer.current);
+            clearSortSuppressionTimer.current = null;
+        }
+        activeColumnResize.current = { pointerId: event.pointerId, columnIndex, startX: event.clientX, startWidth };
+        suppressSort.current = true;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        event.preventDefault();
+        event.stopPropagation();
+    };
+
+    const resizeColumn = (event: ReactPointerEvent<HTMLButtonElement>): void => {
+        const activeResize = activeColumnResize.current;
+        if (activeResize === null || activeResize.pointerId !== event.pointerId) {
+            return;
+        }
+        const minimumWidth = activeResize.columnIndex === 0 ? 22 : 100;
+        setColumnWidths(widths => widths.map((width, index) => index === activeResize.columnIndex
+            ? Math.max(minimumWidth, activeResize.startWidth + event.clientX - activeResize.startX)
+            : width));
+    };
+
+    const finishColumnResize = (event: ReactPointerEvent<HTMLButtonElement>): void => {
+        if (activeColumnResize.current?.pointerId !== event.pointerId) {
+            return;
+        }
+        activeColumnResize.current = null;
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+        clearSortSuppressionTimer.current = window.setTimeout(() => {
+            suppressSort.current = false;
+            clearSortSuppressionTimer.current = null;
+        }, 0);
     };
 
     const effectiveColumnWidths = columnWidths.length === tableState.columns.length + 1
@@ -140,7 +187,7 @@ export const SwoCsvViewer = (): JSX.Element => {
                     <div className="index-header">
                         <button type="button" className={`sort-button ${sort?.columnIndex === null ? sort.direction : ''}`} aria-label="Sort by row index" onClick={() => updateSort(null)}>#</button>
                         <span className="filter-spacer" />
-                        <button type="button" className="column-resize" aria-label="Resize row index" onPointerDown={event => resizeColumn(0, event.clientX, effectiveColumnWidths[0])} />
+                        <button type="button" className="column-resize" aria-label="Resize row index" onPointerDown={event => startColumnResize(event, 0, effectiveColumnWidths[0])} onPointerMove={resizeColumn} onPointerUp={finishColumnResize} onPointerCancel={finishColumnResize} onLostPointerCapture={finishColumnResize} />
                     </div>
                     {tableState.columns.map((column, columnIndex) => <label key={column}>
                         <button type="button" className={`sort-button ${sort?.columnIndex === columnIndex ? sort.direction : ''}`} aria-label={`Sort by ${column}`} onClick={() => updateSort(columnIndex)}>{column}</button>
@@ -150,7 +197,7 @@ export const SwoCsvViewer = (): JSX.Element => {
                             value={filters.find(filter => filter.columnIndex === columnIndex)?.value ?? ''}
                             onChange={event => updateFilter(columnIndex, event.target.value)}
                         />
-                        <button type="button" className="column-resize" aria-label={`Resize ${column}`} onPointerDown={event => resizeColumn(columnIndex + 1, event.clientX, effectiveColumnWidths[columnIndex + 1])} />
+                        <button type="button" className="column-resize" aria-label={`Resize ${column}`} onPointerDown={event => startColumnResize(event, columnIndex + 1, effectiveColumnWidths[columnIndex + 1])} onPointerMove={resizeColumn} onPointerUp={finishColumnResize} onPointerCancel={finishColumnResize} onLostPointerCapture={finishColumnResize} />
                     </label>)}
                 </div>
                 <div className="table-rows" style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: `${tableWidth}px` }}>
