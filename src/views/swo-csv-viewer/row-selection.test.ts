@@ -20,6 +20,7 @@ import {
     clearSelectedRows,
     commitRowSelectionCaret,
     EMPTY_ROW_SELECTION,
+    findFirstSelectedRowInRange,
     isRowSelected,
     moveRowCaret,
     selectAllRows,
@@ -35,6 +36,14 @@ describe('row selection', () => {
         expect(areValidRowSelectionIntervals([{ start: 1, end: 3 }, { start: 3, end: 5 }], 6)).toBe(false);
         expect(areValidRowSelectionIntervals([{ start: 1, end: 6 }], 6)).toBe(false);
         expect(areValidRowSelectionIntervals([{ start: 1.5, end: 2 }], 6)).toBe(false);
+    });
+
+    it('finds the topmost selected row in the visible range', () => {
+        const intervals = [{ start: 2, end: 4 }, { start: 8, end: 10 }];
+
+        expect(findFirstSelectedRowInRange(intervals, 3, 9)).toBe(3);
+        expect(findFirstSelectedRowInRange(intervals, 5, 9)).toBe(8);
+        expect(findFirstSelectedRowInRange(intervals, 5, 7)).toBeNull();
     });
 
     it('selects one row when extending without an anchor', () => {

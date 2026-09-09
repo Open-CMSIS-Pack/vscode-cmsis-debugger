@@ -22,6 +22,7 @@ import {
     clearSelectedRows,
     commitRowSelectionCaret,
     EMPTY_ROW_SELECTION,
+    findFirstSelectedRowInRange,
     isRowSelected,
     moveRowCaret,
     selectAllRows,
@@ -40,6 +41,7 @@ declare function acquireVsCodeApi(): { postMessage: (message: SwoCsvWebviewMessa
 const vscode = acquireVsCodeApi();
 const ROW_HEIGHT = 24;
 const FILTER_DEBOUNCE_MS = 250;
+const COPY_BUTTON_DELAY_MS = 1_000;
 
 interface TableState {
     readonly columns: readonly string[];
@@ -74,6 +76,8 @@ export const SwoCsvViewer = (): JSX.Element => {
     const [sort, setSort] = useState<SwoCsvSort | null>(null);
     const [columnWidths, setColumnWidths] = useState<readonly number[]>([]);
     const [selection, setSelection] = useState<RowSelectionState>(EMPTY_ROW_SELECTION);
+    const [copyButtonReady, setCopyButtonReady] = useState(false);
+    const [scrollTop, setScrollTop] = useState(0);
     const [tableRevision, setTableRevision] = useState(0);
     const [renderedRequestId, setRenderedRequestId] = useState<number | null>(null);
     const latestRequestId = useRef(0);
@@ -82,6 +86,7 @@ export const SwoCsvViewer = (): JSX.Element => {
     const keyboardRangeActive = useRef(false);
     const clearSortSuppressionTimer = useRef<number | null>(null);
     const filterTimer = useRef<number | null>(null);
+    const copyButtonTimer = useRef<number | null>(null);
     const rowVirtualizer = useVirtualizer({
         count: tableState.totalRowCount,
         getScrollElement: () => scrollElementRef.current,
@@ -122,7 +127,31 @@ export const SwoCsvViewer = (): JSX.Element => {
         if (filterTimer.current !== null) {
             window.clearTimeout(filterTimer.current);
         }
+        if (copyButtonTimer.current !== null) {
+            window.clearTimeout(copyButtonTimer.current);
+        }
     }, []);
+
+    useEffect(() => {
+        setCopyButtonReady(false);
+        if (copyButtonTimer.current !== null) {
+            window.clearTimeout(copyButtonTimer.current);
+            copyButtonTimer.current = null;
+        }
+        if (selection.intervals.length === 0) {
+            return;
+        }
+        copyButtonTimer.current = window.setTimeout(() => {
+            setCopyButtonReady(true);
+            copyButtonTimer.current = null;
+        }, COPY_BUTTON_DELAY_MS);
+        return () => {
+            if (copyButtonTimer.current !== null) {
+                window.clearTimeout(copyButtonTimer.current);
+                copyButtonTimer.current = null;
+            }
+        };
+    }, [selection.intervals]);
 
     useEffect(() => {
         if (renderedRequestId === null) {
@@ -310,6 +339,14 @@ export const SwoCsvViewer = (): JSX.Element => {
     const gridTemplateColumns = effectiveColumnWidths.map(width => `${width}px`).join(' ');
     const tableWidth = effectiveColumnWidths.reduce((width, columnWidth) => width + columnWidth, 0);
     const activeRowIsRendered = selection.caret !== null && virtualRows.some(row => row.index === selection.caret);
+    const visibleRowCount = Math.max(0, Math.ceil(((scrollElementRef.current?.clientHeight ?? 0) - (tableHeaderRef.current?.offsetHeight ?? 0)) / ROW_HEIGHT));
+    const firstVisibleRow = Math.max(0, Math.ceil(scrollTop / ROW_HEIGHT));
+    const copyButtonRow = copyButtonReady
+        ? findFirstSelectedRowInRange(selection.intervals, firstVisibleRow, firstVisibleRow + visibleRowCount - 1)
+        : null;
+    const copyButtonTop = copyButtonRow === null
+        ? 0
+        : Math.max(4, (tableHeaderRef.current?.offsetHeight ?? 0) + copyButtonRow * ROW_HEIGHT - scrollTop - 30);
     return <main className="swo-csv-viewer">
         <section className="table-frame" aria-label="CSV table">
             <div
@@ -324,6 +361,7 @@ export const SwoCsvViewer = (): JSX.Element => {
                 tabIndex={0}
                 onKeyDown={handleTableKeyDown}
                 onKeyUp={handleTableKeyUp}
+                onScroll={event => setScrollTop(event.currentTarget.scrollTop)}
             >
                 <div className="table-header" ref={tableHeaderRef} role="row" aria-rowindex={1} style={{ gridTemplateColumns, width: `${tableWidth}px` }}>
                     <div className="index-header" role="columnheader" aria-colindex={1}>
@@ -376,6 +414,18 @@ export const SwoCsvViewer = (): JSX.Element => {
                     })}
                 </div>
             </div>
+            {copyButtonRow !== null && <button
+                type="button"
+                className="copy-selection-tooltip"
+                aria-label="Copy selected rows"
+                onClick={() => vscode.postMessage({ type: 'copyRows', intervals: selection.intervals })}
+                style={{ top: `${copyButtonTop}px` }}
+            >
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                    <path fill="currentColor" d="M4 4V1h8v8H9v3H1V4h3Zm1 0h4v4h2V2H5v2Zm3 1H2v6h6V5Z" />
+                </svg>
+                <span>Copy</span>
+            </button>}
         </section>
         {tableState.loading && <div className="loading-overlay" role="status" aria-live="polite">
             <span className="loading-spinner" aria-hidden="true" />

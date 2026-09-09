@@ -38,6 +38,23 @@ export const isRowSelected = (state: RowSelectionState, rowIndex: number): boole
     return state.intervals.some(interval => rowIndex >= interval.start && rowIndex <= interval.end);
 };
 
+export const findFirstSelectedRowInRange = (
+    intervals: readonly RowSelectionInterval[],
+    rangeStart: number,
+    rangeEnd: number,
+): number | null => {
+    for (const interval of intervals) {
+        const firstSelectedRow = Math.max(interval.start, rangeStart);
+        if (firstSelectedRow <= interval.end && firstSelectedRow <= rangeEnd) {
+            return firstSelectedRow;
+        }
+        if (interval.start > rangeEnd) {
+            break;
+        }
+    }
+    return null;
+};
+
 export const areValidRowSelectionIntervals = (intervals: readonly RowSelectionInterval[], rowCount: number): boolean => {
     let previousEnd = -2;
     return intervals.length > 0 && intervals.every(interval => {

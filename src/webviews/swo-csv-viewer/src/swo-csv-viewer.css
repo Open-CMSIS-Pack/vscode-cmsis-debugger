@@ -48,9 +48,14 @@ body {
     .loading-spinner {
         animation-duration: 1600ms;
     }
+
+    .copy-selection-tooltip {
+        animation: none;
+    }
 }
 
 .table-frame {
+    position: relative;
     min-height: 0;
     flex: 1;
     overflow: hidden;
@@ -168,7 +173,59 @@ body {
 }
 
 .row-index-cell {
+    position: sticky;
+    left: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
     color: var(--vscode-editorLineNumber-foreground);
+    background: var(--vscode-editor-background);
+}
+
+.copy-selection-tooltip {
+    position: absolute;
+    z-index: 3;
+    left: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 24px;
+    padding: 0 7px 0 5px;
+    color: var(--vscode-editorWidget-foreground);
+    background: var(--vscode-editorWidget-background);
+    border: 1px solid var(--vscode-editorWidget-border);
+    border-radius: 3px;
+    box-shadow: 0 2px 6px var(--vscode-widget-shadow);
+    font: inherit;
+    cursor: pointer;
+    animation: copy-selection-tooltip-appear 160ms ease-out both;
+}
+
+@keyframes copy-selection-tooltip-appear {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.copy-selection-tooltip:hover {
+    background: var(--vscode-toolbar-hoverBackground);
+}
+
+.copy-selection-tooltip:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: -1px;
+}
+
+.copy-selection-tooltip svg {
+    width: 14px;
+    height: 14px;
 }
 
 .table-row:hover {
@@ -190,6 +247,7 @@ body {
 .table-row.selected .row-index-cell,
 .table-scroll:focus .table-row.caret .row-index-cell {
     color: inherit;
+    background: inherit;
 }
 
 .table-status {
