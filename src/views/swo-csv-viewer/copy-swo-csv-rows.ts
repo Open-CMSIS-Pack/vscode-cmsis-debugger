@@ -20,7 +20,9 @@ import { areValidRowSelectionIntervals, type RowSelectionInterval } from './row-
 import type { SwoCsvRowStore } from './swo-csv-row-store';
 import { serializeSwoCsvRow } from './swo-csv-table';
 
-export type CopySwoCsvRowsResult = 'copied' | 'invalid' | 'cancelled';
+const MAX_COPY_BYTES = 50 * 1024 * 1024;
+
+export type CopySwoCsvRowsResult = 'copied' | 'invalid' | 'cancelled' | 'too-large';
 
 export const copySwoCsvRows = async (
     intervals: readonly RowSelectionInterval[],
@@ -28,18 +30,29 @@ export const copySwoCsvRows = async (
     writeText: (value: string) => Thenable<void>,
     isActive: () => boolean,
     batchSize = 10_000,
+    maxBytes = MAX_COPY_BYTES,
 ): Promise<CopySwoCsvRowsResult> => {
-    if (!areValidRowSelectionIntervals(intervals, rowStore.rowCount) || !Number.isInteger(batchSize) || batchSize <= 0) {
+    if (!areValidRowSelectionIntervals(intervals, rowStore.rowCount)
+        || !Number.isInteger(batchSize) || batchSize <= 0
+        || !Number.isInteger(maxBytes) || maxBytes <= 0) {
         return 'invalid';
     }
     const lines: string[] = [];
+    let byteLength = 0;
     for (const interval of intervals) {
         for (let start = interval.start; start <= interval.end; start += batchSize) {
             const rows = await rowStore.getRows(start, Math.min(start + batchSize, interval.end + 1));
             if (!isActive()) {
                 return 'cancelled';
             }
-            lines.push(...rows.map(serializeSwoCsvRow));
+            for (const row of rows) {
+                const line = serializeSwoCsvRow(row);
+                byteLength += Buffer.byteLength(line, 'utf8') + Buffer.byteLength(EOL, 'utf8');
+                if (byteLength > maxBytes) {
+                    return 'too-large';
+                }
+                lines.push(line);
+            }
         }
     }
     if (!isActive()) {

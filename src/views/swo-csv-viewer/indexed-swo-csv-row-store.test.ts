@@ -66,4 +66,25 @@ describe('IndexedSwoCsvRowStore', () => {
             await rm(temporaryDirectory, { recursive: true, force: true });
         }
     });
+
+    it('keeps the most recently requested view when updates overlap', async () => {
+        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'swo-csv-row-store-'));
+        const filePath = join(temporaryDirectory, 'trace.swo.csv');
+        const rows = Array.from({ length: 5_000 }, (_, index) => `${index},${index % 2 === 0 ? 'Event' : 'Message'}\n`);
+        await writeFile(filePath, `cycles,type\n${rows.join('')}`, 'utf8');
+
+        const store = await IndexedSwoCsvRowStore.create(filePath);
+        try {
+            const filteringView = store.applyView([{ columnIndex: 1, value: 'event' }], null);
+            const resetView = store.applyView([], null);
+
+            await Promise.all([filteringView, resetView]);
+
+            expect(store.rowCount).toBe(5_000);
+            expect((await store.getRows(0, 2)).map(row => row.cells[1])).toEqual(['Event', 'Message']);
+        } finally {
+            await store.dispose();
+            await rm(temporaryDirectory, { recursive: true, force: true });
+        }
+    });
 });

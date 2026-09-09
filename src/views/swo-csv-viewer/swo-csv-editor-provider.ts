@@ -206,6 +206,8 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
                     );
                     if (result === 'invalid') {
                         logger.warn('[SwoCsvEditor] Ignored invalid copy rows message');
+                    } else if (result === 'too-large') {
+                        void vscode.window.showWarningMessage('The selected rows are too large to copy. Refine the selection or export the rows to a file.');
                     }
                     break;
                 }

@@ -34,6 +34,7 @@ interface CsvRecordIndex {
 export class IndexedSwoCsvRowStore implements SwoCsvRowStore {
     private viewRowIds: Uint32Array | null = null;
     private externalView: ExternalRowIdIndex | null = null;
+    private viewUpdate = Promise.resolve();
 
     private constructor(
         private readonly fileHandle: FileHandle,
@@ -62,6 +63,44 @@ export class IndexedSwoCsvRowStore implements SwoCsvRowStore {
     }
 
     public async applyView(filters: readonly SwoCsvFilter[], sort: SwoCsvSort | null): Promise<SwoCsvViewTiming> {
+        let completeUpdate: () => void = () => undefined;
+        const previousUpdate = this.viewUpdate;
+        this.viewUpdate = new Promise<void>(resolve => {
+            completeUpdate = resolve;
+        });
+        await previousUpdate;
+        try {
+            return await this.applyViewInternal(filters, sort);
+        } finally {
+            completeUpdate();
+        }
+    }
+
+    public async getRows(start: number, end: number): Promise<readonly SwoCsvRow[]> {
+        if (this.externalView !== null) {
+            const rowIds = await this.externalView.getRowIds(start, end);
+            return await Promise.all(rowIds.map(rowId => this.getRequiredSourceRow(rowId)));
+        }
+        if (this.viewRowIds === null) {
+            return await this.readSourceRows(start, Math.min(end, this.index.locations.length));
+        }
+        return await Promise.all(Array.from(this.viewRowIds.subarray(start, end), async rowId => await this.getRequiredSourceRow(rowId)));
+    }
+
+    public async getSourceRow(sourceRowIndex: number): Promise<SwoCsvRow | undefined> {
+        if (sourceRowIndex < 0 || sourceRowIndex >= this.index.locations.length) {
+            return undefined;
+        }
+        return await this.getRequiredSourceRow(sourceRowIndex);
+    }
+
+    public async dispose(): Promise<void> {
+        this.viewRowIds = null;
+        await this.replaceExternalView(null);
+        await this.fileHandle.close();
+    }
+
+    private async applyViewInternal(filters: readonly SwoCsvFilter[], sort: SwoCsvSort | null): Promise<SwoCsvViewTiming> {
         const applyStartedAt = performance.now();
         const activeFilters = filters
             .filter(filter => filter.value.length > 0)
@@ -136,30 +175,6 @@ export class IndexedSwoCsvRowStore implements SwoCsvRowStore {
             materializeMs: performance.now() - materializeStartedAt,
             matchedRows: viewRowIds.length,
         };
-    }
-
-    public async getRows(start: number, end: number): Promise<readonly SwoCsvRow[]> {
-        if (this.externalView !== null) {
-            const rowIds = await this.externalView.getRowIds(start, end);
-            return await Promise.all(rowIds.map(rowId => this.getRequiredSourceRow(rowId)));
-        }
-        if (this.viewRowIds === null) {
-            return await this.readSourceRows(start, Math.min(end, this.index.locations.length));
-        }
-        return await Promise.all(Array.from(this.viewRowIds.subarray(start, end), async rowId => await this.getRequiredSourceRow(rowId)));
-    }
-
-    public async getSourceRow(sourceRowIndex: number): Promise<SwoCsvRow | undefined> {
-        if (sourceRowIndex < 0 || sourceRowIndex >= this.index.locations.length) {
-            return undefined;
-        }
-        return await this.getRequiredSourceRow(sourceRowIndex);
-    }
-
-    public async dispose(): Promise<void> {
-        this.viewRowIds = null;
-        await this.replaceExternalView(null);
-        await this.fileHandle.close();
     }
 
     private async *scanMatchingSortEntries(

@@ -67,6 +67,15 @@ describe('copySwoCsvRows', () => {
         await expect(copySwoCsvRows([{ start: 0, end: 0 }], store, writeText, () => false)).resolves.toBe('cancelled');
         expect(writeText).not.toHaveBeenCalled();
     });
+
+    it('rejects a selection that exceeds the clipboard size limit', async () => {
+        const store = createRowStore(1, async () => [{ sourceRowIndex: 0, cells: ['multibyte value'] }]);
+        const writeText = jest.fn<Promise<void>, [string]>();
+
+        await expect(copySwoCsvRows([{ start: 0, end: 0 }], store, writeText, () => true, 1, 10))
+            .resolves.toBe('too-large');
+        expect(writeText).not.toHaveBeenCalled();
+    });
 });
 
 const createRowStore = (rowCount: number, getRows: SwoCsvRowStore['getRows']): SwoCsvRowStore => ({
