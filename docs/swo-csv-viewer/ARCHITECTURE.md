@@ -36,9 +36,8 @@ flowchart LR
 The extension contributes read-only custom-editor registrations backed by one
 `SwoCsvEditorProvider` instance:
 
-- `*.swo.csv` and `*.tb.csv`, `*.tb-*.csv` use the table viewer by default.
-- General `*.csv` files expose the table viewer as an optional editor without
-  replacing the user's normal CSV editor.
+- `*.swo.csv`, `*.tb.csv`, and `*.tb-*.csv` use the table viewer
+  by default.
 
 VS Code owns editor selection and the native **Reopen With** and
 **Open in Text Editor** actions. The feature contributes no duplicate editor
@@ -51,9 +50,10 @@ ranges, reloads changed resources, and validates selection messages before
 logging them.
 
 An incrementing generation prevents an older asynchronous load or view update
-from replacing newer state. It does not cancel a row-store scan already in
-progress, so the webview debounces filter input before sending it to the host.
-The row store and file watcher are disposed with the webview panel.
+from replacing newer state. Row stores also reject obsolete derived views before
+they replace active row ordering, so unfinished scans cannot overwrite a newer
+filter or sort. The webview debounces filter input before sending it to the
+host. The row store and file watcher are disposed with the webview panel.
 
 ## Storage modes
 
@@ -233,8 +233,10 @@ cell events are discarded with a warning.
 Ctrl/Cmd+C sends the selected display-index intervals to the provider. The
 provider validates their normalized bounds, reads rows from the active store
 in bounded batches, serializes data cells as CSV in current display order, and
-writes one CRLF-delimited value to the VS Code clipboard. The synthetic `#`
-column is excluded. A reload or panel disposal cancels clipboard publication.
+writes one CRLF-delimited value to the VS Code clipboard. Clipboard exports are
+limited to 50 MiB to avoid exhausting extension-host memory; larger selections
+show a warning without publishing partial content. The synthetic `#` column is
+excluded. A reload or panel disposal cancels clipboard publication.
 
 ## Build boundaries
 
