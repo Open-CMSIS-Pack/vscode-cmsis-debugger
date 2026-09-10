@@ -21,10 +21,13 @@ export interface SwoCsvRowStore {
     readonly columns: readonly string[];
     readonly rowCount: number;
     readonly malformedRowCount: number;
+    readonly isIndexing: boolean;
 
     applyView(filters: readonly SwoCsvFilter[], sort: SwoCsvSort | null): Promise<SwoCsvViewTiming>;
     getRows(start: number, end: number): Promise<readonly SwoCsvRow[]>;
     getSourceRow(sourceRowIndex: number): Promise<SwoCsvRow | undefined>;
+    onDidIndexProgress(listener: () => void): () => void;
+    waitForIndexing(): Promise<void>;
     dispose(): Promise<void>;
 }
 
@@ -58,6 +61,10 @@ export class InMemorySwoCsvRowStore implements SwoCsvRowStore {
         return this.table.malformedRowCount;
     }
 
+    public get isIndexing(): boolean {
+        return false;
+    }
+
     public async applyView(filters: readonly SwoCsvFilter[], sort: SwoCsvSort | null): Promise<SwoCsvViewTiming> {
         const scanStartedAt = performance.now();
         const filteredRows = filterSwoCsvRows(this.table.rows, filters);
@@ -79,6 +86,14 @@ export class InMemorySwoCsvRowStore implements SwoCsvRowStore {
 
     public async getSourceRow(sourceRowIndex: number): Promise<SwoCsvRow | undefined> {
         return this.table.rows[sourceRowIndex];
+    }
+
+    public onDidIndexProgress(_listener: () => void): () => void {
+        return () => undefined;
+    }
+
+    public async waitForIndexing(): Promise<void> {
+        return;
     }
 
     public async dispose(): Promise<void> {

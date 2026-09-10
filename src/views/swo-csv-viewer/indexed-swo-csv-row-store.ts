@@ -26,28 +26,32 @@ const EXTERNAL_SORT_FILE_SIZE_LIMIT = 300 * 1024 * 1024;
 const INDEX_SEGMENT_SIZE = 65_536;
 
 interface CsvRecordIndex {
-    readonly columns: readonly string[];
+    columns: readonly string[];
     readonly locations: SegmentedRecordLocations;
-    readonly malformedRowCount: number;
+    malformedRowCount: number;
 }
 
 export class IndexedSwoCsvRowStore implements SwoCsvRowStore {
     private viewRowIds: Uint32Array | null = null;
     private externalView: ExternalRowIdIndex | null = null;
     private viewUpdate = Promise.resolve();
+    private disposed = false;
+    private readonly indexProgressListeners = new Set<() => void>();
 
     private constructor(
         private readonly fileHandle: FileHandle,
         private readonly index: CsvRecordIndex,
         private readonly fileSize: number,
+        private readonly indexing: CsvRecordIndexing,
     ) { }
 
     public static async create(filePath: string): Promise<IndexedSwoCsvRowStore> {
-        const [index, fileStat] = await Promise.all([buildCsvRecordIndex(filePath), stat(filePath)]);
+        const indexing = startCsvRecordIndexing(filePath);
+        const [index, fileStat] = await Promise.all([indexing.indexReady, stat(filePath)]);
         // The path originates from a VS Code file URI.
         // eslint-disable-next-line security/detect-non-literal-fs-filename
         const fileHandle = await open(filePath, 'r');
-        return new IndexedSwoCsvRowStore(fileHandle, index, fileStat.size);
+        return new IndexedSwoCsvRowStore(fileHandle, index, fileStat.size, indexing);
     }
 
     public get columns(): readonly string[] {
@@ -60,6 +64,10 @@ export class IndexedSwoCsvRowStore implements SwoCsvRowStore {
 
     public get malformedRowCount(): number {
         return this.index.malformedRowCount;
+    }
+
+    public get isIndexing(): boolean {
+        return !this.disposed && this.indexing.isIndexing;
     }
 
     public async applyView(filters: readonly SwoCsvFilter[], sort: SwoCsvSort | null): Promise<SwoCsvViewTiming> {
@@ -94,7 +102,17 @@ export class IndexedSwoCsvRowStore implements SwoCsvRowStore {
         return await this.getRequiredSourceRow(sourceRowIndex);
     }
 
+    public onDidIndexProgress(listener: () => void): () => void {
+        return this.indexing.onProgress(listener);
+    }
+
+    public async waitForIndexing(): Promise<void> {
+        await this.indexing.completion;
+    }
+
     public async dispose(): Promise<void> {
+        this.disposed = true;
+        this.indexing.cancel();
         this.viewRowIds = null;
         await this.replaceExternalView(null);
         await this.fileHandle.close();
@@ -242,10 +260,27 @@ export class IndexedSwoCsvRowStore implements SwoCsvRowStore {
     }
 }
 
-const buildCsvRecordIndex = async (filePath: string): Promise<CsvRecordIndex> => {
+interface CsvRecordIndexing {
+    readonly indexReady: Promise<CsvRecordIndex>;
+    readonly completion: Promise<void>;
+    readonly isIndexing: boolean;
+    onProgress(listener: () => void): () => void;
+    cancel(): void;
+}
+
+const startCsvRecordIndexing = (filePath: string): CsvRecordIndexing => {
     const records = new SegmentedRecordLocations();
-    let columns: readonly string[] = [];
-    let malformedRowCount = 0;
+    const index: CsvRecordIndex = { columns: [], locations: records, malformedRowCount: 0 };
+    const listeners = new Set<() => void>();
+    let cancelled = false;
+    let indexing = true;
+    let stream: ReturnType<typeof createReadStream> | undefined;
+    let resolveIndexReady: (index: CsvRecordIndex) => void = () => undefined;
+    let rejectIndexReady: (reason: unknown) => void = () => undefined;
+    const indexReady = new Promise<CsvRecordIndex>((resolve, reject) => {
+        resolveIndexReady = resolve;
+        rejectIndexReady = reject;
+    });
     let recordOffset = 0;
     let byteOffset = 0;
     let insideQuotes = false;
@@ -257,11 +292,12 @@ const buildCsvRecordIndex = async (filePath: string): Promise<CsvRecordIndex> =>
 
     const addRecord = (endOffset: number): void => {
         if (recordHasContent) {
-            if (columns.length === 0) {
-                columns = parseSwoCsvRecord(Buffer.concat(pendingHeaderParts).toString('utf8'));
+            if (index.columns.length === 0) {
+                index.columns = parseSwoCsvRecord(Buffer.concat(pendingHeaderParts).toString('utf8'));
+                resolveIndexReady(index);
             } else {
-                if (recordFieldCount !== columns.length) {
-                    malformedRowCount += 1;
+                if (recordFieldCount !== index.columns.length) {
+                    index.malformedRowCount += 1;
                 }
                 records.push(recordOffset, endOffset - recordOffset);
             }
@@ -272,72 +308,105 @@ const buildCsvRecordIndex = async (filePath: string): Promise<CsvRecordIndex> =>
         recordOffset = endOffset;
     };
 
-    // The path originates from a VS Code file URI.
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
-    const stream = createReadStream(filePath);
-    try {
-        for await (const chunk of stream) {
-            const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-            let segmentStart = 0;
-            for (let index = 0; index < buffer.length; index += 1) {
-                const value = buffer[index];
-                if (pendingCarriageReturn) {
-                    pendingCarriageReturn = false;
-                    if (value === 0x0a) {
-                        recordOffset += 1;
-                        segmentStart = index + 1;
-                        continue;
-                    }
+    const notifyProgress = (): void => {
+        for (const listener of listeners) {
+            listener();
+        }
+    };
+    const completion = (async (): Promise<void> => {
+        // The path originates from a VS Code file URI.
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
+        stream = createReadStream(filePath);
+        try {
+            for await (const chunk of stream) {
+                if (cancelled) {
+                    break;
                 }
-                if (pendingQuote) {
-                    pendingQuote = false;
+                const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+                let segmentStart = 0;
+                for (let byteIndex = 0; byteIndex < buffer.length; byteIndex += 1) {
+                    const value = buffer[byteIndex];
+                    if (pendingCarriageReturn) {
+                        pendingCarriageReturn = false;
+                        if (value === 0x0a) {
+                            recordOffset += 1;
+                            segmentStart = byteIndex + 1;
+                            continue;
+                        }
+                    }
+                    if (pendingQuote) {
+                        pendingQuote = false;
+                        if (value === 0x22) {
+                            continue;
+                        }
+                        insideQuotes = false;
+                    }
                     if (value === 0x22) {
-                        continue;
-                    }
-                    insideQuotes = false;
-                }
-                if (value === 0x22) {
-                    recordHasContent = true;
-                    if (insideQuotes) {
-                        if (index + 1 < buffer.length) {
-                            if (buffer[index + 1] === 0x22) {
-                                index += 1;
+                        recordHasContent = true;
+                        if (insideQuotes) {
+                            if (byteIndex + 1 < buffer.length) {
+                                if (buffer[byteIndex + 1] === 0x22) {
+                                    byteIndex += 1;
+                                } else {
+                                    insideQuotes = false;
+                                }
                             } else {
-                                insideQuotes = false;
+                                pendingQuote = true;
                             }
                         } else {
-                            pendingQuote = true;
+                            insideQuotes = true;
                         }
+                    } else if ((value === 0x0a || value === 0x0d) && !insideQuotes) {
+                        if (index.columns.length === 0 && segmentStart < byteIndex) {
+                            pendingHeaderParts.push(buffer.subarray(segmentStart, byteIndex));
+                        }
+                        addRecord(byteOffset + byteIndex);
+                        pendingCarriageReturn = value === 0x0d;
+                        recordOffset = byteOffset + index + 1;
+                        segmentStart = byteIndex + 1;
+                    } else if (value === 0x2c && !insideQuotes) {
+                        recordHasContent = true;
+                        recordFieldCount += 1;
                     } else {
-                        insideQuotes = true;
+                        recordHasContent = true;
                     }
-                } else if ((value === 0x0a || value === 0x0d) && !insideQuotes) {
-                    if (columns.length === 0 && segmentStart < index) {
-                        pendingHeaderParts.push(buffer.subarray(segmentStart, index));
-                    }
-                    addRecord(byteOffset + index);
-                    pendingCarriageReturn = value === 0x0d;
-                    recordOffset = byteOffset + index + 1;
-                    segmentStart = index + 1;
-                } else if (value === 0x2c && !insideQuotes) {
-                    recordHasContent = true;
-                    recordFieldCount += 1;
-                } else {
-                    recordHasContent = true;
                 }
+                if (index.columns.length === 0 && segmentStart < buffer.length) {
+                    pendingHeaderParts.push(buffer.subarray(segmentStart));
+                }
+                byteOffset += buffer.length;
+                notifyProgress();
             }
-            if (columns.length === 0 && segmentStart < buffer.length) {
-                pendingHeaderParts.push(buffer.subarray(segmentStart));
+            if (!cancelled && recordHasContent) {
+                addRecord(byteOffset);
             }
-            byteOffset += buffer.length;
+            if (index.columns.length === 0) {
+                resolveIndexReady(index);
+            }
+        } catch (error) {
+            rejectIndexReady(error);
+            throw error;
+        } finally {
+            indexing = false;
+            stream.destroy();
+            notifyProgress();
         }
-        if (recordHasContent) {
-            addRecord(byteOffset);
-        }
-    } finally {
-        stream.destroy();
-    }
-    return { columns, locations: records, malformedRowCount };
+    })();
+    return {
+        indexReady,
+        completion,
+        get isIndexing(): boolean {
+            return indexing;
+        },
+        onProgress(listener: () => void): () => void {
+            listeners.add(listener);
+            return () => listeners.delete(listener);
+        },
+        cancel(): void {
+            cancelled = true;
+            stream?.destroy();
+        },
+    };
 };
 
 class SegmentedRecordLocations {

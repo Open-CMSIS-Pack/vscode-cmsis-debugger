@@ -49,6 +49,7 @@ interface TableState {
     readonly totalRowCount: number;
     readonly malformedRowCount: number;
     readonly loading: boolean;
+    readonly indexing: boolean;
     readonly loadingMessage?: string;
     readonly error?: string;
 }
@@ -65,6 +66,7 @@ const INITIAL_STATE: TableState = {
     totalRowCount: 0,
     malformedRowCount: 0,
     loading: true,
+    indexing: false,
 };
 
 export const SwoCsvViewer = (): JSX.Element => {
@@ -102,11 +104,17 @@ export const SwoCsvViewer = (): JSX.Element => {
         const receiveMessage = (event: MessageEvent<SwoCsvHostMessage>): void => {
             const message = event.data;
             if (message.type === 'tableState') {
+                const isProgressUpdate = message.indexing
+                    && !message.loading
+                    && message.columns.length === tableState.columns.length
+                    && message.columns.every((column, index) => column === tableState.columns[index]);
                 setTableState(message);
-                setRows([]);
-                setSelection(EMPTY_ROW_SELECTION);
-                setTableRevision(revision => revision + 1);
-                setColumnWidths(widths => widths.length === message.columns.length + 1 ? widths : [72, ...message.columns.map(() => 180)]);
+                if (!isProgressUpdate) {
+                    setRows([]);
+                    setSelection(EMPTY_ROW_SELECTION);
+                    setTableRevision(revision => revision + 1);
+                    setColumnWidths(widths => widths.length === message.columns.length + 1 ? widths : [72, ...message.columns.map(() => 180)]);
+                }
                 return;
             }
             if (message.type === 'rows') {
@@ -187,6 +195,9 @@ export const SwoCsvViewer = (): JSX.Element => {
     }, [renderedRowEnd, renderedRowStart, tableRevision, tableState.loading, tableState.totalRowCount]);
 
     const updateFilter = (columnIndex: number, value: string): void => {
+        if (tableState.indexing) {
+            return;
+        }
         const nextFilters = tableState.columns.map((_, index) => ({ columnIndex: index, value: index === columnIndex ? value : filters.find(filter => filter.columnIndex === index)?.value ?? '' }));
         setFilters(nextFilters);
         if (filterTimer.current !== null) {
@@ -200,7 +211,7 @@ export const SwoCsvViewer = (): JSX.Element => {
     };
 
     const updateSort = (columnIndex: number | null): void => {
-        if (suppressSort.current) {
+        if (suppressSort.current || tableState.indexing) {
             return;
         }
         const nextSort = sort?.columnIndex !== columnIndex
@@ -367,16 +378,17 @@ export const SwoCsvViewer = (): JSX.Element => {
             >
                 <div className="table-header" ref={tableHeaderRef} role="row" aria-rowindex={1} style={{ gridTemplateColumns, width: `${tableWidth}px` }}>
                     <div className="index-header" role="columnheader" aria-colindex={1}>
-                        <button type="button" className={`sort-button ${sort?.columnIndex === null ? sort.direction : ''}`} aria-label="Sort by row index" onClick={() => updateSort(null)}>#</button>
+                        <button type="button" className={`sort-button ${sort?.columnIndex === null ? sort.direction : ''}`} aria-label="Sort by row index" disabled={tableState.indexing} onClick={() => updateSort(null)}>#</button>
                         <span className="filter-spacer" />
                         <button type="button" className="column-resize" aria-label="Resize row index" onPointerDown={event => startColumnResize(event, 0, effectiveColumnWidths[0])} onPointerMove={resizeColumn} onPointerUp={finishColumnResize} onPointerCancel={finishColumnResize} onLostPointerCapture={finishColumnResize} />
                     </div>
                     {tableState.columns.map((column, columnIndex) => <label key={column} role="columnheader" aria-colindex={columnIndex + 2}>
-                        <button type="button" className={`sort-button ${sort?.columnIndex === columnIndex ? sort.direction : ''}`} aria-label={`Sort by ${column}`} onClick={() => updateSort(columnIndex)}>{column}</button>
+                        <button type="button" className={`sort-button ${sort?.columnIndex === columnIndex ? sort.direction : ''}`} aria-label={`Sort by ${column}`} disabled={tableState.indexing} onClick={() => updateSort(columnIndex)}>{column}</button>
                         <input
                             type="search"
                             aria-label={`Filter ${column}`}
                             value={filters.find(filter => filter.columnIndex === columnIndex)?.value ?? ''}
+                            disabled={tableState.indexing}
                             onChange={event => updateFilter(columnIndex, event.target.value)}
                         />
                         <button type="button" className="column-resize" aria-label={`Resize ${column}`} onPointerDown={event => startColumnResize(event, columnIndex + 1, effectiveColumnWidths[columnIndex + 1])} onPointerMove={resizeColumn} onPointerUp={finishColumnResize} onPointerCancel={finishColumnResize} onLostPointerCapture={finishColumnResize} />
@@ -435,6 +447,7 @@ export const SwoCsvViewer = (): JSX.Element => {
             <span>{tableState.loadingMessage ?? 'Loading CSV...'}</span>
         </div>}
         {tableState.error !== undefined && <p className="table-status error">{tableState.error}</p>}
+        {tableState.indexing && <p className="table-status" role="status" aria-live="polite">Indexing {tableState.totalRowCount} rows...</p>}
         {!tableState.loading && tableState.error === undefined && tableState.totalRowCount === 0 && <p className="table-status">No matching rows</p>}
         {tableState.malformedRowCount > 0 && <p className="table-status warning">{tableState.malformedRowCount} rows were normalized to the header column count.</p>}
     </main>;

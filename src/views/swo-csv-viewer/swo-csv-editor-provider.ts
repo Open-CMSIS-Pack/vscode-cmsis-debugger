@@ -27,6 +27,7 @@ import type { SwoCsvHostMessage, SwoCsvWebviewMessage } from './swo-csv-protocol
 
 export const SWO_CSV_EDITOR_VIEW_TYPE = 'vscode-cmsis-debugger.swoCsvTableViewer';
 const IN_MEMORY_FILE_SIZE_LIMIT = 20 * 1024 * 1024;
+const INDEX_PROGRESS_UPDATE_INTERVAL_MS = 250;
 
 interface PendingFirstRender {
     readonly loadGeneration: number;
@@ -67,6 +68,8 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
         const firstRenderRequests = new Map<number, PendingFirstRender>();
         let pendingViewRender: Omit<PendingViewRender, 'rowsRequestedAt'> | null = null;
         const viewRenderRequests = new Map<number, PendingViewRender>();
+        let disposeIndexProgressListener: (() => void) | undefined;
+        let indexProgressTimer: ReturnType<typeof setTimeout> | undefined;
 
         const postMessage = (message: SwoCsvHostMessage): void => {
             void webviewPanel.webview.postMessage(message);
@@ -78,10 +81,30 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
                 totalRowCount: rowStore.rowCount,
                 malformedRowCount: rowStore.malformedRowCount,
                 loading,
+                indexing: rowStore.isIndexing,
                 ...(loadingMessage === undefined ? {} : { loadingMessage }),
                 ...(error === undefined ? {} : { error }),
             };
             postMessage(message);
+        };
+        const clearIndexProgressUpdates = (): void => {
+            disposeIndexProgressListener?.();
+            disposeIndexProgressListener = undefined;
+            if (indexProgressTimer !== undefined) {
+                clearTimeout(indexProgressTimer);
+                indexProgressTimer = undefined;
+            }
+        };
+        const scheduleIndexProgressUpdate = (generation: number): void => {
+            if (indexProgressTimer !== undefined) {
+                return;
+            }
+            indexProgressTimer = setTimeout(() => {
+                indexProgressTimer = undefined;
+                if (!disposed && generation === loadGeneration) {
+                    postState(false);
+                }
+            }, INDEX_PROGRESS_UPDATE_INTERVAL_MS);
         };
         const updateRowsWithProgress = async (loadingMessage: string, operation: 'filter' | 'sort'): Promise<void> => {
             const generation = ++updateGeneration;
@@ -120,6 +143,8 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
                 }
                 const previousStore = rowStore;
                 rowStore = loadedStore;
+                clearIndexProgressUpdates();
+                disposeIndexProgressListener = rowStore.onDidIndexProgress(() => scheduleIndexProgressUpdate(generation));
                 await previousStore.dispose();
                 const initializeRowsStartedAt = performance.now();
                 await rowStore.applyView(filters, sort);
@@ -227,6 +252,7 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
             loadGeneration += 1;
             updateGeneration += 1;
             watcher.dispose();
+            clearIndexProgressUpdates();
             void rowStore.dispose();
         });
     }
