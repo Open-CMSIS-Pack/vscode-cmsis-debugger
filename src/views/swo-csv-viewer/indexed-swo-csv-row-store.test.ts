@@ -42,6 +42,27 @@ describe('IndexedSwoCsvRowStore', () => {
         }
     });
 
+    it('counts fields around quoted commas and multiline values without decoding data records', async () => {
+        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'swo-csv-row-store-'));
+        const filePath = join(temporaryDirectory, 'trace.swo.csv');
+        await writeFile(filePath, 'cycles,type,note\r\n1,Event,"a, b"\r\n2,Message,"said ""retry""\nagain"\r\n3,Event\r\n4,Event,one,extra\r\n', 'utf8');
+
+        const store = await IndexedSwoCsvRowStore.create(filePath);
+        try {
+            expect(store.rowCount).toBe(4);
+            expect(store.malformedRowCount).toBe(2);
+            await expect(store.getRows(0, 4)).resolves.toEqual([
+                { sourceRowIndex: 0, cells: ['1', 'Event', 'a, b'] },
+                { sourceRowIndex: 1, cells: ['2', 'Message', 'said "retry"\nagain'] },
+                { sourceRowIndex: 2, cells: ['3', 'Event', ''] },
+                { sourceRowIndex: 3, cells: ['4', 'Event', 'one,extra'] },
+            ]);
+        } finally {
+            await store.dispose();
+            await rm(temporaryDirectory, { recursive: true, force: true });
+        }
+    });
+
     it('filters and sorts an indexed view while preserving source row indexes', async () => {
         const temporaryDirectory = await mkdtemp(join(tmpdir(), 'swo-csv-row-store-'));
         const filePath = join(temporaryDirectory, 'trace.swo.csv');
@@ -87,4 +108,5 @@ describe('IndexedSwoCsvRowStore', () => {
             await rm(temporaryDirectory, { recursive: true, force: true });
         }
     });
+
 });

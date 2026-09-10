@@ -252,22 +252,23 @@ const buildCsvRecordIndex = async (filePath: string): Promise<CsvRecordIndex> =>
     let pendingQuote = false;
     let pendingCarriageReturn = false;
     let recordHasContent = false;
-    let pendingRecordParts: Buffer[] = [];
+    let recordFieldCount = 1;
+    let pendingHeaderParts: Buffer[] = [];
 
     const addRecord = (endOffset: number): void => {
         if (recordHasContent) {
-            const rawCells = parseSwoCsvRecord(Buffer.concat(pendingRecordParts).toString('utf8'));
             if (columns.length === 0) {
-                columns = rawCells;
+                columns = parseSwoCsvRecord(Buffer.concat(pendingHeaderParts).toString('utf8'));
             } else {
-                if (rawCells.length !== columns.length) {
+                if (recordFieldCount !== columns.length) {
                     malformedRowCount += 1;
                 }
                 records.push(recordOffset, endOffset - recordOffset);
             }
         }
-        pendingRecordParts = [];
+        pendingHeaderParts = [];
         recordHasContent = false;
+        recordFieldCount = 1;
         recordOffset = endOffset;
     };
 
@@ -311,19 +312,22 @@ const buildCsvRecordIndex = async (filePath: string): Promise<CsvRecordIndex> =>
                         insideQuotes = true;
                     }
                 } else if ((value === 0x0a || value === 0x0d) && !insideQuotes) {
-                    if (segmentStart < index) {
-                        pendingRecordParts.push(buffer.subarray(segmentStart, index));
+                    if (columns.length === 0 && segmentStart < index) {
+                        pendingHeaderParts.push(buffer.subarray(segmentStart, index));
                     }
                     addRecord(byteOffset + index);
                     pendingCarriageReturn = value === 0x0d;
                     recordOffset = byteOffset + index + 1;
                     segmentStart = index + 1;
+                } else if (value === 0x2c && !insideQuotes) {
+                    recordHasContent = true;
+                    recordFieldCount += 1;
                 } else {
                     recordHasContent = true;
                 }
             }
-            if (segmentStart < buffer.length) {
-                pendingRecordParts.push(buffer.subarray(segmentStart));
+            if (columns.length === 0 && segmentStart < buffer.length) {
+                pendingHeaderParts.push(buffer.subarray(segmentStart));
             }
             byteOffset += buffer.length;
         }
