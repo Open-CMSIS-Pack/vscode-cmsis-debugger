@@ -15,7 +15,6 @@
  */
 // generated with AI
 
-import { useVirtualizer } from '@tanstack/react-virtual';
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import {
@@ -40,6 +39,8 @@ declare function acquireVsCodeApi(): { postMessage: (message: SwoCsvWebviewMessa
 
 const vscode = acquireVsCodeApi();
 const ROW_HEIGHT = 24;
+const ROW_OVERSCAN = 16;
+const MAX_SCROLL_HEIGHT = 30_000_000;
 const FILTER_DEBOUNCE_MS = 250;
 const COPY_BUTTON_DELAY_MS = 1_000;
 
@@ -87,13 +88,15 @@ export const SwoCsvViewer = (): JSX.Element => {
     const clearSortSuppressionTimer = useRef<number | null>(null);
     const filterTimer = useRef<number | null>(null);
     const copyButtonTimer = useRef<number | null>(null);
-    const rowVirtualizer = useVirtualizer({
-        count: tableState.totalRowCount,
-        getScrollElement: () => scrollElementRef.current,
-        estimateSize: () => ROW_HEIGHT,
-        overscan: 16,
-    });
-    const virtualRows = rowVirtualizer.getVirtualItems();
+    const rowViewportHeight = Math.max(ROW_HEIGHT, (scrollElementRef.current?.clientHeight ?? ROW_HEIGHT) - (tableHeaderRef.current?.offsetHeight ?? 0));
+    const logicalTableHeight = tableState.totalRowCount * ROW_HEIGHT;
+    const scrollHeight = Math.min(logicalTableHeight, MAX_SCROLL_HEIGHT);
+    const scrollScale = logicalTableHeight > MAX_SCROLL_HEIGHT ? logicalTableHeight / MAX_SCROLL_HEIGHT : 1;
+    const logicalScrollTop = scrollTop * scrollScale;
+    const firstVisibleRow = Math.max(0, Math.floor(logicalScrollTop / ROW_HEIGHT));
+    const visibleRowCount = Math.max(1, Math.ceil(rowViewportHeight / ROW_HEIGHT));
+    const renderedRowStart = Math.max(0, firstVisibleRow - ROW_OVERSCAN);
+    const renderedRowEnd = Math.min(tableState.totalRowCount, firstVisibleRow + visibleRowCount + ROW_OVERSCAN);
 
     useEffect(() => {
         const receiveMessage = (event: MessageEvent<SwoCsvHostMessage>): void => {
@@ -170,7 +173,7 @@ export const SwoCsvViewer = (): JSX.Element => {
     }, [renderedRequestId]);
 
     useEffect(() => {
-        if (tableState.loading || virtualRows.length === 0) {
+        if (tableState.loading || renderedRowEnd <= renderedRowStart) {
             return;
         }
         const nextRequestId = latestRequestId.current + 1;
@@ -178,10 +181,10 @@ export const SwoCsvViewer = (): JSX.Element => {
         vscode.postMessage({
             type: 'requestRows',
             requestId: nextRequestId,
-            start: virtualRows[0].index,
-            end: virtualRows.at(-1)?.index === undefined ? 0 : virtualRows.at(-1)!.index + 1,
+            start: renderedRowStart,
+            end: renderedRowEnd,
         });
-    }, [tableRevision, tableState.loading, tableState.totalRowCount, virtualRows.at(0)?.index, virtualRows.at(-1)?.index]);
+    }, [renderedRowEnd, renderedRowStart, tableRevision, tableState.loading, tableState.totalRowCount]);
 
     const updateFilter = (columnIndex: number, value: string): void => {
         const nextFilters = tableState.columns.map((_, index) => ({ columnIndex: index, value: index === columnIndex ? value : filters.find(filter => filter.columnIndex === index)?.value ?? '' }));
@@ -262,7 +265,7 @@ export const SwoCsvViewer = (): JSX.Element => {
     const moveSelection = (destination: number, movement: RowSelectionMovement): void => {
         const clampedDestination = Math.max(0, Math.min(destination, tableState.totalRowCount - 1));
         setSelection(current => moveRowCaret(current, clampedDestination, tableState.totalRowCount, movement));
-        rowVirtualizer.scrollToIndex(clampedDestination, { align: 'auto' });
+        scrollElementRef.current?.scrollTo({ top: clampedDestination * ROW_HEIGHT / scrollScale });
     };
 
     const handleTableKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
@@ -289,7 +292,6 @@ export const SwoCsvViewer = (): JSX.Element => {
             return;
         }
 
-        const firstVisibleRow = virtualRows.find(row => row.start + row.size > (scrollElementRef.current?.scrollTop ?? 0))?.index ?? 0;
         const currentRow = selection.caret ?? firstVisibleRow;
         if (controlPressed && (event.key === ' ' || event.code === 'Space')) {
             event.preventDefault();
@@ -338,9 +340,9 @@ export const SwoCsvViewer = (): JSX.Element => {
         : [72, ...tableState.columns.map(() => 180)];
     const gridTemplateColumns = effectiveColumnWidths.map(width => `${width}px`).join(' ');
     const tableWidth = effectiveColumnWidths.reduce((width, columnWidth) => width + columnWidth, 0);
-    const activeRowIsRendered = selection.caret !== null && virtualRows.some(row => row.index === selection.caret);
-    const visibleRowCount = Math.max(0, Math.ceil(((scrollElementRef.current?.clientHeight ?? 0) - (tableHeaderRef.current?.offsetHeight ?? 0)) / ROW_HEIGHT));
-    const firstVisibleRow = Math.max(0, Math.ceil(scrollTop / ROW_HEIGHT));
+    const activeRowIsRendered = selection.caret !== null
+        && selection.caret >= renderedRowStart
+        && selection.caret < renderedRowEnd;
     const copyButtonRow = copyButtonReady
         ? findFirstSelectedRowInRange(selection.intervals, firstVisibleRow, firstVisibleRow + visibleRowCount - 1)
         : null;
@@ -380,22 +382,23 @@ export const SwoCsvViewer = (): JSX.Element => {
                         <button type="button" className="column-resize" aria-label={`Resize ${column}`} onPointerDown={event => startColumnResize(event, columnIndex + 1, effectiveColumnWidths[columnIndex + 1])} onPointerMove={resizeColumn} onPointerUp={finishColumnResize} onPointerCancel={finishColumnResize} onLostPointerCapture={finishColumnResize} />
                     </label>)}
                 </div>
-                <div className="table-rows" role="rowgroup" style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: `${tableWidth}px` }}>
-                    {virtualRows.map(virtualRow => {
-                        const row = rows[virtualRow.index - rowStart];
+                <div className="table-rows" role="rowgroup" style={{ height: `${scrollHeight}px`, width: `${tableWidth}px` }}>
+                    {Array.from({ length: renderedRowEnd - renderedRowStart }, (_, offset) => renderedRowStart + offset).map(rowIndex => {
+                        const row = rows[rowIndex - rowStart];
                         if (row === undefined) {
                             return null;
                         }
-                        const selected = isRowSelected(selection, virtualRow.index);
-                        const caret = selection.caret === virtualRow.index;
+                        const selected = isRowSelected(selection, rowIndex);
+                        const caret = selection.caret === rowIndex;
+                        const rowTop = scrollTop + rowIndex * ROW_HEIGHT - logicalScrollTop;
                         return <div
                             className={`table-row${selected ? ' selected' : ''}${caret ? ' caret' : ''}`}
-                            id={`swo-csv-row-${virtualRow.index}`}
+                            id={`swo-csv-row-${rowIndex}`}
                             key={row.sourceRowIndex}
                             role="row"
-                            aria-rowindex={virtualRow.index + 2}
+                            aria-rowindex={rowIndex + 2}
                             aria-selected={selected}
-                            style={{ gridTemplateColumns, transform: `translateY(${virtualRow.start}px)` }}
+                            style={{ gridTemplateColumns, transform: `translateY(${rowTop}px)` }}
                         >
                             <span className="row-index-cell" role="gridcell" aria-colindex={1}>{row.sourceRowIndex}</span>
                             {row.cells.map((cellValue, columnIndex) => <button
@@ -406,7 +409,7 @@ export const SwoCsvViewer = (): JSX.Element => {
                                 aria-colindex={columnIndex + 2}
                                 tabIndex={-1}
                                 onClick={event => {
-                                    updateRowSelection(event, virtualRow.index);
+                                    updateRowSelection(event, rowIndex);
                                     vscode.postMessage({ type: 'cellSelected', sourceRowIndex: row.sourceRowIndex, columnIndex, columnName: tableState.columns[columnIndex], cellValue });
                                 }}
                             >{cellValue}</button>)}

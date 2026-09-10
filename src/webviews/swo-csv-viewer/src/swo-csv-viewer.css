@@ -6,8 +6,8 @@
 }
 
 body {
-    margin: 5px;
-    padding: 0;
+    margin: 0px;
+    padding: 0px;
 }
 
 .swo-csv-viewer {
@@ -60,6 +60,7 @@ body {
     min-height: 0;
     flex: 1;
     overflow: hidden;
+    margin: 5px;
 }
 
 .table-header,

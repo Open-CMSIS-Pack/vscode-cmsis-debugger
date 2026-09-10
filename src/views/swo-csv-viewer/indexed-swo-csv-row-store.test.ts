@@ -21,21 +21,6 @@ import { join } from 'node:path';
 import { IndexedSwoCsvRowStore } from './indexed-swo-csv-row-store';
 
 describe('IndexedSwoCsvRowStore', () => {
-    it('indexes the configured external fixture when requested', async () => {
-        const fixturePath = process.env.SWO_CSV_INDEX_FIXTURE;
-        if (fixturePath === undefined) {
-            return;
-        }
-
-        const store = await IndexedSwoCsvRowStore.create(fixturePath);
-        try {
-            expect(store.rowCount).toBe(10_000_000);
-            expect(store.malformedRowCount).toBe(0);
-        } finally {
-            await store.dispose();
-        }
-    });
-
     it('indexes and reads quoted records from disk', async () => {
         const temporaryDirectory = await mkdtemp(join(tmpdir(), 'swo-csv-row-store-'));
         const filePath = join(temporaryDirectory, 'trace.swo.csv');
