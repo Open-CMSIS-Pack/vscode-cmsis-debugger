@@ -6,7 +6,8 @@
 }
 
 body {
-    margin: 0;
+    margin: 5px;
+    padding: 0;
 }
 
 .swo-csv-viewer {
@@ -71,7 +72,7 @@ body {
     position: sticky;
     top: 0;
     z-index: 1;
-    background: var(--vscode-editor-background);
+    background: var(--vscode-editorActionList-background);
     border-bottom: 1px solid var(--vscode-editorWidget-border);
 }
 
@@ -143,6 +144,7 @@ body {
     overflow: auto;
     height: 100%;
     outline: none;
+    border-radius: 4px;
 }
 
 .table-rows {
@@ -215,7 +217,7 @@ body {
 }
 
 .copy-selection-tooltip:hover {
-    background: var(--vscode-toolbar-hoverBackground);
+    background: var(--vscode-actionBar-toggledBackground);
 }
 
 .copy-selection-tooltip:focus-visible {
