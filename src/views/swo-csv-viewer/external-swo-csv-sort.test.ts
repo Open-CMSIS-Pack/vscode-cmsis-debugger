@@ -51,4 +51,20 @@ describe('ExternalRowIdIndex', () => {
             await index.dispose();
         }
     });
+
+    it('profiles async entry production separately from run creation', async () => {
+        async function* delayedEntries(): AsyncGenerator<ExternalSortEntry> {
+            await new Promise<void>(resolve => setTimeout(resolve, 30));
+            yield { rowId: 0, sortValue: 'value' };
+        }
+
+        const index = await ExternalRowIdIndex.create(delayedEntries(), 'ascending');
+        try {
+            expect(index.scanMs).toBeGreaterThanOrEqual(20);
+            expect(index.scanMs).toBeGreaterThan(index.writeRunsMs);
+            expect(index.mergeRunsMs).toBeGreaterThanOrEqual(0);
+        } finally {
+            await index.dispose();
+        }
+    });
 });

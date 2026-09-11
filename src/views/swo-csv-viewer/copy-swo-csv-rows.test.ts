@@ -80,10 +80,14 @@ describe('copySwoCsvRows', () => {
 
 const createRowStore = (rowCount: number, getRows: SwoCsvRowStore['getRows']): SwoCsvRowStore => ({
     columns: ['value'],
+    sourceRowCount: rowCount,
     rowCount,
     malformedRowCount: 0,
+    isIndexing: false,
     applyView: async () => ({ store: 'in-memory', scanMs: 0, sortMs: 0, materializeMs: 0, matchedRows: rowCount }),
     getRows,
     getSourceRow: async () => undefined,
+    onDidIndexProgress: () => () => undefined,
+    waitForIndexing: async () => undefined,
     dispose: async () => undefined,
 });

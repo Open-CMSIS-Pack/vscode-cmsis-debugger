@@ -18,12 +18,16 @@
 import { createReadStream } from 'node:fs';
 import { open, stat, type FileHandle } from 'node:fs/promises';
 import { ExternalRowIdIndex, type ExternalSortEntry } from './external-swo-csv-sort';
-import type { SwoCsvRowStore, SwoCsvViewTiming } from './swo-csv-row-store';
-import { compareSwoCsvSortValues, parseSwoCsvRecord, type SwoCsvFilter, type SwoCsvRow, type SwoCsvSort } from './swo-csv-table';
+import type { SwoCsvColumnCacheTiming, SwoCsvRowStore, SwoCsvViewTiming } from './swo-csv-row-store';
+import { compareSwoCsvSortValues, matchesSwoCsvFilter, normalizeSwoCsvFilterValue, parseSwoCsvRecord, type SwoCsvFilter, type SwoCsvRow, type SwoCsvSort } from './swo-csv-table';
 
 const VIEW_SCAN_BATCH_SIZE = 4096;
 const EXTERNAL_SORT_FILE_SIZE_LIMIT = 300 * 1024 * 1024;
 const INDEX_SEGMENT_SIZE = 65_536;
+const PARSED_COLUMN_CACHE_BYTES = 64 * 1024 * 1024;
+const EXACT_INDEX_MAX_DISTINCT_VALUES = 1024;
+const EXACT_INDEX_MAX_BYTES = 16 * 1024 * 1024;
+const EXACT_INDEX_COLUMN_LIMIT = 2;
 
 interface CsvRecordIndex {
     columns: readonly string[];
@@ -31,12 +35,133 @@ interface CsvRecordIndex {
     malformedRowCount: number;
 }
 
+interface ParsedColumnSegment {
+    readonly raw: readonly string[];
+    readonly normalized: readonly string[];
+}
+
+interface MutableColumnCacheTiming {
+    hits: number;
+    misses: number;
+    loadMs: number;
+}
+
+class ParsedColumnCache {
+    private readonly segments = new Map<string, { readonly segment: ParsedColumnSegment; readonly bytes: number }>();
+    private sizeBytes = 0;
+
+    public constructor(private readonly maxBytes: number) { }
+
+    public get(columnIndex: number, start: number): ParsedColumnSegment | undefined {
+        const key = `${columnIndex}:${start}`;
+        const cached = this.segments.get(key);
+        if (cached === undefined) {
+            return undefined;
+        }
+        this.segments.delete(key);
+        this.segments.set(key, cached);
+        return cached.segment;
+    }
+
+    public set(columnIndex: number, start: number, segment: ParsedColumnSegment): void {
+        const key = `${columnIndex}:${start}`;
+        const bytes = segment.raw.reduce((total, value, index) => total + Buffer.byteLength(value) + Buffer.byteLength(segment.normalized[index] ?? ''), 0);
+        const previous = this.segments.get(key);
+        if (previous !== undefined) {
+            this.sizeBytes -= previous.bytes;
+            this.segments.delete(key);
+        }
+        if (bytes > this.maxBytes) {
+            return;
+        }
+        this.segments.set(key, { segment, bytes });
+        this.sizeBytes += bytes;
+        while (this.sizeBytes > this.maxBytes) {
+            const oldestKey = this.segments.keys().next().value;
+            if (oldestKey === undefined) {
+                break;
+            }
+            const oldest = this.segments.get(oldestKey)!;
+            this.segments.delete(oldestKey);
+            this.sizeBytes -= oldest.bytes;
+        }
+    }
+
+    public clear(): void {
+        this.segments.clear();
+        this.sizeBytes = 0;
+    }
+}
+
+const getColumnTiming = (timing: Map<number, MutableColumnCacheTiming>, columnIndex: number): MutableColumnCacheTiming => {
+    let columnTiming = timing.get(columnIndex);
+    if (columnTiming === undefined) {
+        columnTiming = { hits: 0, misses: 0, loadMs: 0 };
+        timing.set(columnIndex, columnTiming);
+    }
+    return columnTiming;
+};
+
+const toColumnCacheTiming = (timing: ReadonlyMap<number, MutableColumnCacheTiming>): readonly SwoCsvColumnCacheTiming[] => Array.from(
+    timing,
+    ([columnIndex, value]) => ({ columnIndex, ...value }),
+);
+
+const getRequiredColumns = (
+    filters: readonly SwoCsvFilter[],
+    sortColumnIndex: number | null,
+    indexedColumns: readonly number[],
+): readonly number[] => Array.from(new Set([
+    ...filters.filter(filter => !indexedColumns.includes(filter.columnIndex)).map(filter => filter.columnIndex),
+    ...(sortColumnIndex === null ? [] : [sortColumnIndex]),
+]));
+
+const createRowIds = (start: number, end: number): Uint32Array => Uint32Array.from(
+    { length: end - start },
+    (_, index) => start + index,
+);
+
+const lowerBound = (values: Uint32Array, target: number): number => {
+    let start = 0;
+    let end = values.length;
+    while (start < end) {
+        const middle = start + Math.floor((end - start) / 2);
+        if (values[middle]! < target) {
+            start = middle + 1;
+        } else {
+            end = middle;
+        }
+    }
+    return start;
+};
+
+const intersectSortedRowIds = (left: Uint32Array, right: Uint32Array): Uint32Array => {
+    const intersection: number[] = [];
+    let leftIndex = 0;
+    let rightIndex = 0;
+    while (leftIndex < left.length && rightIndex < right.length) {
+        const leftValue = left[leftIndex]!;
+        const rightValue = right[rightIndex]!;
+        if (leftValue === rightValue) {
+            intersection.push(leftValue);
+            leftIndex += 1;
+            rightIndex += 1;
+        } else if (leftValue < rightValue) {
+            leftIndex += 1;
+        } else {
+            rightIndex += 1;
+        }
+    }
+    return Uint32Array.from(intersection);
+};
+
 export class IndexedSwoCsvRowStore implements SwoCsvRowStore {
     private viewRowIds: Uint32Array | null = null;
     private externalView: ExternalRowIdIndex | null = null;
     private viewUpdate = Promise.resolve();
     private disposed = false;
-    private readonly indexProgressListeners = new Set<() => void>();
+    private readonly columnCache = new ParsedColumnCache(PARSED_COLUMN_CACHE_BYTES);
+    private readonly exactIndexes = new Map<number, ReadonlyMap<string, Uint32Array> | null>();
 
     private constructor(
         private readonly fileHandle: FileHandle,
@@ -58,6 +183,10 @@ export class IndexedSwoCsvRowStore implements SwoCsvRowStore {
         return this.index.columns;
     }
 
+    public get sourceRowCount(): number {
+        return this.index.locations.length;
+    }
+
     public get rowCount(): number {
         return this.externalView?.rowCount ?? this.viewRowIds?.length ?? this.index.locations.length;
     }
@@ -70,7 +199,7 @@ export class IndexedSwoCsvRowStore implements SwoCsvRowStore {
         return !this.disposed && this.indexing.isIndexing;
     }
 
-    public async applyView(filters: readonly SwoCsvFilter[], sort: SwoCsvSort | null): Promise<SwoCsvViewTiming> {
+    public async applyView(filters: readonly SwoCsvFilter[], sort: SwoCsvSort | null, signal?: AbortSignal): Promise<SwoCsvViewTiming> {
         let completeUpdate: () => void = () => undefined;
         const previousUpdate = this.viewUpdate;
         this.viewUpdate = new Promise<void>(resolve => {
@@ -78,7 +207,8 @@ export class IndexedSwoCsvRowStore implements SwoCsvRowStore {
         });
         await previousUpdate;
         try {
-            return await this.applyViewInternal(filters, sort);
+            signal?.throwIfAborted();
+            return await this.applyViewInternal(filters, sort, signal);
         } finally {
             completeUpdate();
         }
@@ -114,37 +244,46 @@ export class IndexedSwoCsvRowStore implements SwoCsvRowStore {
         this.disposed = true;
         this.indexing.cancel();
         this.viewRowIds = null;
+        this.columnCache.clear();
+        this.exactIndexes.clear();
         await this.replaceExternalView(null);
         await this.fileHandle.close();
     }
 
-    private async applyViewInternal(filters: readonly SwoCsvFilter[], sort: SwoCsvSort | null): Promise<SwoCsvViewTiming> {
+    private async applyViewInternal(filters: readonly SwoCsvFilter[], sort: SwoCsvSort | null, signal?: AbortSignal): Promise<SwoCsvViewTiming> {
         const applyStartedAt = performance.now();
+        const sourceRowCount = this.index.locations.length;
         const activeFilters = filters
             .filter(filter => filter.value.length > 0)
-            .map(filter => ({ ...filter, value: filter.value.toLocaleLowerCase() }));
+            .map(filter => ({ ...filter, value: normalizeSwoCsvFilterValue(filter.value) }));
         if (activeFilters.length === 0 && sort === null) {
             await this.replaceExternalView(null);
             this.viewRowIds = null;
             return { store: 'indexed', scanMs: 0, sortMs: 0, materializeMs: 0, matchedRows: this.rowCount };
         }
 
+        const cacheTiming = new Map<number, MutableColumnCacheTiming>();
+        const exactIndexColumns: number[] = [];
+        const candidateRowIds = await this.getExactFilterCandidates(activeFilters, cacheTiming, exactIndexColumns, signal);
         if (this.fileSize > EXTERNAL_SORT_FILE_SIZE_LIMIT && sort?.columnIndex !== null && sort !== null) {
             const externalView = await ExternalRowIdIndex.create(
-                this.scanMatchingSortEntries(activeFilters, sort.columnIndex),
+                this.scanMatchingSortEntries(activeFilters, sort.columnIndex, cacheTiming, candidateRowIds, signal),
                 sort.direction,
             );
+            signal?.throwIfAborted();
             await this.replaceExternalView(externalView);
             this.viewRowIds = null;
             return {
                 store: 'external-merge',
-                scanMs: externalView.writeRunsMs,
+                scanMs: externalView.scanMs,
                 sortMs: externalView.mergeRunsMs,
-                materializeMs: performance.now() - applyStartedAt - externalView.writeRunsMs - externalView.mergeRunsMs,
+                materializeMs: performance.now() - applyStartedAt - externalView.scanMs - externalView.writeRunsMs - externalView.mergeRunsMs,
                 matchedRows: externalView.rowCount,
                 runCount: externalView.runCount,
                 writeRunsMs: externalView.writeRunsMs,
                 mergeRunsMs: externalView.mergeRunsMs,
+                columnCache: toColumnCacheTiming(cacheTiming),
+                exactIndexColumns,
             };
         }
 
@@ -152,20 +291,30 @@ export class IndexedSwoCsvRowStore implements SwoCsvRowStore {
         const sortedMatches: Array<{ readonly rowId: number; readonly sortValue: string }> = [];
         const matchingRowIds: number[] = [];
         const sortByValue = sort?.columnIndex !== null && sort !== null;
-        for (let start = 0; start < this.index.locations.length; start += VIEW_SCAN_BATCH_SIZE) {
-            const rows = await this.readSourceRows(start, Math.min(start + VIEW_SCAN_BATCH_SIZE, this.index.locations.length));
-            for (const row of rows) {
-                if (activeFilters.every(filter =>
-                    (row.cells[filter.columnIndex] ?? '').toLocaleLowerCase().includes(filter.value)
-                )) {
+        for (let start = 0; start < sourceRowCount; start += VIEW_SCAN_BATCH_SIZE) {
+            signal?.throwIfAborted();
+            const end = Math.min(start + VIEW_SCAN_BATCH_SIZE, sourceRowCount);
+            const batchCandidates = candidateRowIds === null
+                ? undefined
+                : candidateRowIds.subarray(lowerBound(candidateRowIds, start), lowerBound(candidateRowIds, end));
+            if (batchCandidates?.length === 0) {
+                continue;
+            }
+            const requiredColumns = getRequiredColumns(activeFilters, sortByValue ? sort.columnIndex : null, exactIndexColumns);
+            const columns = await this.readCachedColumns(start, end, requiredColumns, cacheTiming);
+            const rowIds = batchCandidates ?? createRowIds(start, end);
+            for (const rowId of rowIds) {
+                if (activeFilters.every(filter => exactIndexColumns.includes(filter.columnIndex)
+                    || matchesSwoCsvFilter(columns.get(filter.columnIndex)?.normalized[rowId - start] ?? '', filter))) {
                     if (sortByValue) {
-                        sortedMatches.push({ rowId: row.sourceRowIndex, sortValue: row.cells[sort.columnIndex] ?? '' });
+                        sortedMatches.push({ rowId, sortValue: columns.get(sort.columnIndex)?.raw[rowId - start] ?? '' });
                     } else {
-                        matchingRowIds.push(row.sourceRowIndex);
+                        matchingRowIds.push(rowId);
                     }
                 }
             }
         }
+        signal?.throwIfAborted();
         const scanMs = performance.now() - scanStartedAt;
 
         const sortStartedAt = performance.now();
@@ -184,6 +333,7 @@ export class IndexedSwoCsvRowStore implements SwoCsvRowStore {
         const viewRowIds = sortByValue
             ? Uint32Array.from(sortedMatches, match => match.rowId)
             : Uint32Array.from(matchingRowIds);
+        signal?.throwIfAborted();
         await this.replaceExternalView(null);
         this.viewRowIds = viewRowIds;
         return {
@@ -192,23 +342,145 @@ export class IndexedSwoCsvRowStore implements SwoCsvRowStore {
             sortMs,
             materializeMs: performance.now() - materializeStartedAt,
             matchedRows: viewRowIds.length,
+            columnCache: toColumnCacheTiming(cacheTiming),
+            exactIndexColumns,
         };
     }
 
     private async *scanMatchingSortEntries(
         activeFilters: readonly SwoCsvFilter[],
         columnIndex: number,
+        cacheTiming: Map<number, MutableColumnCacheTiming>,
+        candidateRowIds: Uint32Array | null,
+        signal?: AbortSignal,
     ): AsyncGenerator<ExternalSortEntry> {
         for (let start = 0; start < this.index.locations.length; start += VIEW_SCAN_BATCH_SIZE) {
-            const rows = await this.readSourceRows(start, Math.min(start + VIEW_SCAN_BATCH_SIZE, this.index.locations.length));
-            for (const row of rows) {
-                if (activeFilters.every(filter =>
-                    (row.cells[filter.columnIndex] ?? '').toLocaleLowerCase().includes(filter.value)
-                )) {
-                    yield { rowId: row.sourceRowIndex, sortValue: row.cells[columnIndex] ?? '' };
+            signal?.throwIfAborted();
+            const end = Math.min(start + VIEW_SCAN_BATCH_SIZE, this.index.locations.length);
+            const batchCandidates = candidateRowIds === null
+                ? undefined
+                : candidateRowIds.subarray(lowerBound(candidateRowIds, start), lowerBound(candidateRowIds, end));
+            if (batchCandidates?.length === 0) {
+                continue;
+            }
+            const exactIndexColumns = activeFilters.filter(filter => filter.match === 'exact' && this.exactIndexes.get(filter.columnIndex) instanceof Map).map(filter => filter.columnIndex);
+            const requiredColumns = getRequiredColumns(activeFilters, columnIndex, exactIndexColumns);
+            const columns = await this.readCachedColumns(start, end, requiredColumns, cacheTiming);
+            const rowIds = batchCandidates ?? createRowIds(start, end);
+            for (const rowId of rowIds) {
+                if (activeFilters.every(filter => exactIndexColumns.includes(filter.columnIndex)
+                    || matchesSwoCsvFilter(columns.get(filter.columnIndex)?.normalized[rowId - start] ?? '', filter))) {
+                    yield { rowId, sortValue: columns.get(columnIndex)?.raw[rowId - start] ?? '' };
                 }
             }
         }
+    }
+
+    private async getExactFilterCandidates(
+        filters: readonly SwoCsvFilter[],
+        cacheTiming: Map<number, MutableColumnCacheTiming>,
+        indexedColumns: number[],
+        signal?: AbortSignal,
+    ): Promise<Uint32Array | null> {
+        let candidates: Uint32Array | null = null;
+        for (const filter of filters) {
+            if (filter.match !== 'exact') {
+                continue;
+            }
+            const index = await this.getOrBuildExactIndex(filter.columnIndex, cacheTiming, signal);
+            if (index === null) {
+                continue;
+            }
+            indexedColumns.push(filter.columnIndex);
+            const matches = index.get(filter.value) ?? new Uint32Array();
+            candidates = candidates === null ? matches : intersectSortedRowIds(candidates, matches);
+        }
+        return candidates;
+    }
+
+    private async getOrBuildExactIndex(
+        columnIndex: number,
+        cacheTiming: Map<number, MutableColumnCacheTiming>,
+        signal?: AbortSignal,
+    ): Promise<ReadonlyMap<string, Uint32Array> | null> {
+        if (this.isIndexing) {
+            return null;
+        }
+        const existing = this.exactIndexes.get(columnIndex);
+        if (existing !== undefined) {
+            return existing;
+        }
+        const values = new Map<string, number[]>();
+        let estimatedBytes = 0;
+        for (let start = 0; start < this.index.locations.length; start += VIEW_SCAN_BATCH_SIZE) {
+            signal?.throwIfAborted();
+            const end = Math.min(start + VIEW_SCAN_BATCH_SIZE, this.index.locations.length);
+            const column = (await this.readCachedColumns(start, end, [columnIndex], cacheTiming)).get(columnIndex)!;
+            for (let offset = 0; offset < column.normalized.length; offset += 1) {
+                const value = column.normalized[offset]!;
+                let rowIds = values.get(value);
+                if (rowIds === undefined) {
+                    if (values.size >= EXACT_INDEX_MAX_DISTINCT_VALUES) {
+                        this.exactIndexes.set(columnIndex, null);
+                        return null;
+                    }
+                    rowIds = [];
+                    values.set(value, rowIds);
+                    estimatedBytes += value.length * 2 + 32;
+                }
+                rowIds.push(start + offset);
+                estimatedBytes += Uint32Array.BYTES_PER_ELEMENT;
+                if (estimatedBytes > EXACT_INDEX_MAX_BYTES) {
+                    this.exactIndexes.set(columnIndex, null);
+                    return null;
+                }
+            }
+        }
+        if (this.exactIndexes.size >= EXACT_INDEX_COLUMN_LIMIT) {
+            const oldestColumn = this.exactIndexes.keys().next().value;
+            if (oldestColumn !== undefined) {
+                this.exactIndexes.delete(oldestColumn);
+            }
+        }
+        const index = new Map(Array.from(values, ([value, rowIds]) => [value, Uint32Array.from(rowIds)]));
+        this.exactIndexes.set(columnIndex, index);
+        return index;
+    }
+
+    private async readCachedColumns(
+        start: number,
+        end: number,
+        columnIndexes: readonly number[],
+        timing: Map<number, MutableColumnCacheTiming>,
+    ): Promise<ReadonlyMap<number, ParsedColumnSegment>> {
+        const columns = new Map<number, ParsedColumnSegment>();
+        const missing: number[] = [];
+        for (const columnIndex of columnIndexes) {
+            const stats = getColumnTiming(timing, columnIndex);
+            const cached = this.columnCache.get(columnIndex, start);
+            if (cached === undefined) {
+                stats.misses += 1;
+                missing.push(columnIndex);
+            } else {
+                stats.hits += 1;
+                columns.set(columnIndex, cached);
+            }
+        }
+        if (missing.length > 0) {
+            const loadStartedAt = performance.now();
+            const rows = await this.readSourceRows(start, end);
+            const loadMs = performance.now() - loadStartedAt;
+            for (const columnIndex of missing) {
+                const raw = rows.map(row => row.cells[columnIndex] ?? '');
+                const segment = { raw, normalized: raw.map(normalizeSwoCsvFilterValue) };
+                if (end - start === VIEW_SCAN_BATCH_SIZE || end === this.index.locations.length && !this.isIndexing) {
+                    this.columnCache.set(columnIndex, start, segment);
+                }
+                columns.set(columnIndex, segment);
+                getColumnTiming(timing, columnIndex).loadMs += loadMs / missing.length;
+            }
+        }
+        return columns;
     }
 
     private async replaceExternalView(replacement: ExternalRowIdIndex | null): Promise<void> {
@@ -362,7 +634,7 @@ const startCsvRecordIndexing = (filePath: string): CsvRecordIndexing => {
                         }
                         addRecord(byteOffset + byteIndex);
                         pendingCarriageReturn = value === 0x0d;
-                        recordOffset = byteOffset + index + 1;
+                        recordOffset = byteOffset + byteIndex + 1;
                         segmentStart = byteIndex + 1;
                     } else if (value === 0x2c && !insideQuotes) {
                         recordHasContent = true;
@@ -384,8 +656,10 @@ const startCsvRecordIndexing = (filePath: string): CsvRecordIndexing => {
                 resolveIndexReady(index);
             }
         } catch (error) {
-            rejectIndexReady(error);
-            throw error;
+            if (!cancelled) {
+                rejectIndexReady(error);
+                throw error;
+            }
         } finally {
             indexing = false;
             stream.destroy();

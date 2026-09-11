@@ -28,6 +28,7 @@ describe('IndexedSwoCsvRowStore', () => {
 
         const store = await IndexedSwoCsvRowStore.create(filePath);
         try {
+            await store.waitForIndexing();
             expect(store.columns).toEqual(['cycles', 'note']);
             expect(store.rowCount).toBe(3);
             expect(store.malformedRowCount).toBe(1);
@@ -49,6 +50,7 @@ describe('IndexedSwoCsvRowStore', () => {
 
         const store = await IndexedSwoCsvRowStore.create(filePath);
         try {
+            await store.waitForIndexing();
             expect(store.rowCount).toBe(4);
             expect(store.malformedRowCount).toBe(2);
             await expect(store.getRows(0, 4)).resolves.toEqual([
@@ -63,6 +65,58 @@ describe('IndexedSwoCsvRowStore', () => {
         }
     });
 
+    it('exposes the header before background indexing completes', async () => {
+        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'swo-csv-row-store-'));
+        const filePath = join(temporaryDirectory, 'trace.swo.csv');
+        const rows = Array.from({ length: 500_000 }, (_, index) => `${index},Event\n`);
+        await writeFile(filePath, `cycles,type\n${rows.join('')}`, 'utf8');
+
+        const store = await IndexedSwoCsvRowStore.create(filePath);
+        try {
+            expect(store.columns).toEqual(['cycles', 'type']);
+            expect(store.isIndexing).toBe(true);
+            expect(store.rowCount).toBeLessThan(500_000);
+            let progressEvents = 0;
+            const removeProgressListener = store.onDidIndexProgress(() => {
+                progressEvents += 1;
+            });
+            await store.waitForIndexing();
+            removeProgressListener();
+            expect(progressEvents).toBeGreaterThan(0);
+            expect(store.isIndexing).toBe(false);
+            expect(store.rowCount).toBe(500_000);
+        } finally {
+            await store.dispose();
+            await rm(temporaryDirectory, { recursive: true, force: true });
+        }
+    }, 30_000);
+
+    it('refreshes a partial filter after indexing without reusing incomplete cache data', async () => {
+        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'swo-csv-row-store-'));
+        const filePath = join(temporaryDirectory, 'trace.swo.csv');
+        const rows = Array.from({ length: 500_000 }, (_, index) => `${index},${index % 2 === 0 ? 'Event' : 'Message'}\n`);
+        await writeFile(filePath, `cycles,type\n${rows.join('')}`, 'utf8');
+
+        const store = await IndexedSwoCsvRowStore.create(filePath);
+        try {
+            expect(store.isIndexing).toBe(true);
+            await store.applyView([{ columnIndex: 1, value: 'event' }], null);
+            expect(store.rowCount).toBeLessThan(250_000);
+
+            await store.waitForIndexing();
+            await store.applyView([{ columnIndex: 1, value: 'event' }], null);
+
+            expect(store.rowCount).toBe(250_000);
+            expect((await store.getRows(249_999, 250_000))[0]).toEqual({
+                sourceRowIndex: 499_998,
+                cells: ['499998', 'Event'],
+            });
+        } finally {
+            await store.dispose();
+            await rm(temporaryDirectory, { recursive: true, force: true });
+        }
+    }, 30_000);
+
     it('filters and sorts an indexed view while preserving source row indexes', async () => {
         const temporaryDirectory = await mkdtemp(join(tmpdir(), 'swo-csv-row-store-'));
         const filePath = join(temporaryDirectory, 'trace.swo.csv');
@@ -70,7 +124,11 @@ describe('IndexedSwoCsvRowStore', () => {
 
         const store = await IndexedSwoCsvRowStore.create(filePath);
         try {
+            await store.waitForIndexing();
+            expect(store.sourceRowCount).toBe(3);
+            expect(store.rowCount).toBe(3);
             await store.applyView([{ columnIndex: 1, value: 'event' }], { columnIndex: 0, direction: 'ascending' });
+            expect(store.sourceRowCount).toBe(3);
             expect(store.rowCount).toBe(2);
             await expect(store.getRows(0, 2)).resolves.toEqual([
                 { sourceRowIndex: 2, cells: ['2', 'Event'] },
@@ -96,6 +154,7 @@ describe('IndexedSwoCsvRowStore', () => {
 
         const store = await IndexedSwoCsvRowStore.create(filePath);
         try {
+            await store.waitForIndexing();
             const filteringView = store.applyView([{ columnIndex: 1, value: 'event' }], null);
             const resetView = store.applyView([], null);
 
@@ -108,5 +167,19 @@ describe('IndexedSwoCsvRowStore', () => {
             await rm(temporaryDirectory, { recursive: true, force: true });
         }
     });
+
+    it('cancels an active index when disposed', async () => {
+        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'swo-csv-row-store-'));
+        const filePath = join(temporaryDirectory, 'trace.swo.csv');
+        const rows = Array.from({ length: 500_000 }, (_, index) => `${index},Event\n`);
+        await writeFile(filePath, `cycles,type\n${rows.join('')}`, 'utf8');
+
+        const store = await IndexedSwoCsvRowStore.create(filePath);
+        expect(store.isIndexing).toBe(true);
+        await store.dispose();
+        await store.waitForIndexing();
+        expect(store.isIndexing).toBe(false);
+        await rm(temporaryDirectory, { recursive: true, force: true });
+    }, 30_000);
 
 });

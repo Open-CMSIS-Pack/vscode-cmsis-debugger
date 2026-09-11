@@ -41,6 +41,7 @@ export class ExternalRowIdIndex {
         private readonly fileHandle: FileHandle,
         public readonly rowCount: number,
         public readonly runCount: number,
+        public readonly scanMs: number,
         public readonly writeRunsMs: number,
         public readonly mergeRunsMs: number,
     ) { }
@@ -52,9 +53,7 @@ export class ExternalRowIdIndex {
     ): Promise<ExternalRowIdIndex> {
         const temporaryDirectory = await mkdtemp(join(tmpdir(), 'vscode-cmsis-debugger-swo-csv-'));
         try {
-            const writeRunsStartedAt = performance.now();
-            const runPaths = await writeSortedRuns(temporaryDirectory, entries, direction, options);
-            const writeRunsMs = performance.now() - writeRunsStartedAt;
+            const { runPaths, scanMs, writeRunsMs } = await writeSortedRuns(temporaryDirectory, entries, direction, options);
             const indexPath = join(temporaryDirectory, 'row-ids.bin');
             const mergeRunsStartedAt = performance.now();
             const rowCount = await mergeRuns(runPaths, indexPath, direction);
@@ -62,7 +61,7 @@ export class ExternalRowIdIndex {
             // The path is created in this store's private temporary directory.
             // eslint-disable-next-line security/detect-non-literal-fs-filename
             const fileHandle = await open(indexPath, 'r');
-            return new ExternalRowIdIndex(temporaryDirectory, fileHandle, rowCount, runPaths.length, writeRunsMs, mergeRunsMs);
+            return new ExternalRowIdIndex(temporaryDirectory, fileHandle, rowCount, runPaths.length, scanMs, writeRunsMs, mergeRunsMs);
         } catch (error) {
             await rm(temporaryDirectory, { recursive: true, force: true });
             throw error;
@@ -98,10 +97,12 @@ const writeSortedRuns = async (
     entries: AsyncIterable<ExternalSortEntry>,
     direction: SwoCsvSortDirection,
     options: ExternalSortOptions,
-): Promise<readonly string[]> => {
+): Promise<{ readonly runPaths: readonly string[]; readonly scanMs: number; readonly writeRunsMs: number }> => {
     const runPaths: string[] = [];
     const batch: ExternalSortEntry[] = [];
     let keyBytes = 0;
+    let scanMs = 0;
+    let writeRunsMs = 0;
     const rowLimit = options.runRowLimit ?? RUN_ROW_LIMIT;
     const keyBytesLimit = options.runKeyBytesLimit ?? RUN_KEY_BYTES_LIMIT;
 
@@ -109,6 +110,7 @@ const writeSortedRuns = async (
         if (batch.length === 0) {
             return;
         }
+        const writeStartedAt = performance.now();
         batch.sort((left, right) => compareEntries(left, right, direction));
         const runPath = join(temporaryDirectory, `run-${runPaths.length}.bin`);
         const encodedEntries = batch.map(encodeEntry);
@@ -118,18 +120,29 @@ const writeSortedRuns = async (
         runPaths.push(runPath);
         batch.length = 0;
         keyBytes = 0;
+        writeRunsMs += performance.now() - writeStartedAt;
     };
 
-    for await (const entry of entries) {
+    const iterator = entries[Symbol.asyncIterator]();
+    while (true) {
+        const scanStartedAt = performance.now();
+        const next = await iterator.next();
+        scanMs += performance.now() - scanStartedAt;
+        if (next.done) {
+            break;
+        }
+        const entry = next.value;
+        const writeStartedAt = performance.now();
         const entryKeyBytes = Buffer.byteLength(entry.sortValue);
         if (batch.length >= rowLimit || keyBytes + entryKeyBytes > keyBytesLimit) {
             await flush();
         }
         batch.push(entry);
         keyBytes += entryKeyBytes;
+        writeRunsMs += performance.now() - writeStartedAt;
     }
     await flush();
-    return runPaths;
+    return { runPaths, scanMs, writeRunsMs };
 };
 
 const mergeRuns = async (

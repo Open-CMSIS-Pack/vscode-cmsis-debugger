@@ -29,6 +29,7 @@ export interface SwoCsvTable {
 export interface SwoCsvFilter {
     readonly columnIndex: number;
     readonly value: string;
+    readonly match?: 'substring' | 'exact';
 }
 
 export type SwoCsvSortDirection = 'ascending' | 'descending';
@@ -206,15 +207,23 @@ class SwoCsvTableBuilder {
 }
 
 export const filterSwoCsvRows = (rows: readonly SwoCsvRow[], filters: readonly SwoCsvFilter[]): readonly SwoCsvRow[] => {
-    const activeFilters = filters.filter(filter => filter.value.length > 0);
+    const activeFilters = filters
+        .filter(filter => filter.value.length > 0)
+        .map(filter => ({ ...filter, value: normalizeSwoCsvFilterValue(filter.value) }));
     if (activeFilters.length === 0) {
         return rows;
     }
 
     return rows.filter(row => activeFilters.every(filter =>
-        (row.cells[filter.columnIndex] ?? '').toLocaleLowerCase().includes(filter.value.toLocaleLowerCase())
+        matchesSwoCsvFilter(normalizeSwoCsvFilterValue(row.cells[filter.columnIndex] ?? ''), filter)
     ));
 };
+
+export const normalizeSwoCsvFilterValue = (value: string): string => value.toLocaleLowerCase();
+
+export const matchesSwoCsvFilter = (normalizedValue: string, filter: SwoCsvFilter): boolean => filter.match === 'exact'
+    ? normalizedValue === filter.value
+    : normalizedValue.includes(filter.value);
 
 export const sortSwoCsvRows = (rows: readonly SwoCsvRow[], sort: SwoCsvSort | null): readonly SwoCsvRow[] => {
     if (sort === null) {

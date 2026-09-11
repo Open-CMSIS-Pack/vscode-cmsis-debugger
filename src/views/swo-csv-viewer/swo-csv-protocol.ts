@@ -20,11 +20,13 @@ import type { RowSelectionInterval } from './row-selection';
 
 export interface SwoCsvTableState {
     readonly type: 'tableState';
+    readonly viewRevision: number;
     readonly columns: readonly string[];
     readonly totalRowCount: number;
     readonly malformedRowCount: number;
     readonly loading: boolean;
     readonly indexing: boolean;
+    readonly updating: boolean;
     readonly loadingMessage?: string;
     readonly error?: string;
 }
@@ -32,6 +34,7 @@ export interface SwoCsvTableState {
 export interface SwoCsvRows {
     readonly type: 'rows';
     readonly requestId: number;
+    readonly viewRevision: number;
     readonly start: number;
     readonly rows: readonly SwoCsvRow[];
     readonly totalRowCount: number;
@@ -46,6 +49,7 @@ export interface SwoCsvReady {
 export interface SwoCsvRequestRows {
     readonly type: 'requestRows';
     readonly requestId: number;
+    readonly viewRevision: number;
     readonly start: number;
     readonly end: number;
 }
@@ -53,6 +57,10 @@ export interface SwoCsvRequestRows {
 export interface SwoCsvSetFilters {
     readonly type: 'setFilters';
     readonly filters: readonly SwoCsvFilter[];
+}
+
+export interface SwoCsvCancelViewUpdate {
+    readonly type: 'cancelViewUpdate';
 }
 
 export interface SwoCsvSetSort {
@@ -75,7 +83,8 @@ export interface SwoCsvRowsRendered {
 
 export interface SwoCsvCopyRows {
     readonly type: 'copyRows';
+    readonly viewRevision: number;
     readonly intervals: readonly RowSelectionInterval[];
 }
 
-export type SwoCsvWebviewMessage = SwoCsvReady | SwoCsvRequestRows | SwoCsvSetFilters | SwoCsvSetSort | SwoCsvCellSelected | SwoCsvRowsRendered | SwoCsvCopyRows;
+export type SwoCsvWebviewMessage = SwoCsvReady | SwoCsvRequestRows | SwoCsvSetFilters | SwoCsvCancelViewUpdate | SwoCsvSetSort | SwoCsvCellSelected | SwoCsvRowsRendered | SwoCsvCopyRows;

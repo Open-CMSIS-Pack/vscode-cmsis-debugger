@@ -106,6 +106,13 @@ describe('filterSwoCsvRows', () => {
             { columnIndex: 1, value: 'event' },
         ])).toEqual([{ sourceRowIndex: 0, cells: ['Main', 'Event'] }]);
     });
+
+    it('supports case-insensitive exact matching without changing substring defaults', () => {
+        const table = parseSwoCsv('type\nEvent\nEventStart\nmessage\n');
+
+        expect(filterSwoCsvRows(table.rows, [{ columnIndex: 0, value: 'EVENT', match: 'exact' }])).toEqual([table.rows[0]]);
+        expect(filterSwoCsvRows(table.rows, [{ columnIndex: 0, value: 'EVENT' }])).toEqual([table.rows[0], table.rows[1]]);
+    });
 });
 
 describe('sortSwoCsvRows', () => {

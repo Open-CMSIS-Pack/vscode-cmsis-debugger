@@ -19,11 +19,12 @@ import { filterSwoCsvRows, sortSwoCsvRows, type SwoCsvFilter, type SwoCsvRow, ty
 
 export interface SwoCsvRowStore {
     readonly columns: readonly string[];
+    readonly sourceRowCount: number;
     readonly rowCount: number;
     readonly malformedRowCount: number;
     readonly isIndexing: boolean;
 
-    applyView(filters: readonly SwoCsvFilter[], sort: SwoCsvSort | null): Promise<SwoCsvViewTiming>;
+    applyView(filters: readonly SwoCsvFilter[], sort: SwoCsvSort | null, signal?: AbortSignal): Promise<SwoCsvViewTiming>;
     getRows(start: number, end: number): Promise<readonly SwoCsvRow[]>;
     getSourceRow(sourceRowIndex: number): Promise<SwoCsvRow | undefined>;
     onDidIndexProgress(listener: () => void): () => void;
@@ -40,6 +41,15 @@ export interface SwoCsvViewTiming {
     readonly runCount?: number;
     readonly writeRunsMs?: number;
     readonly mergeRunsMs?: number;
+    readonly columnCache?: readonly SwoCsvColumnCacheTiming[];
+    readonly exactIndexColumns?: readonly number[];
+}
+
+export interface SwoCsvColumnCacheTiming {
+    readonly columnIndex: number;
+    readonly hits: number;
+    readonly misses: number;
+    readonly loadMs: number;
 }
 
 export class InMemorySwoCsvRowStore implements SwoCsvRowStore {
@@ -51,6 +61,10 @@ export class InMemorySwoCsvRowStore implements SwoCsvRowStore {
 
     public get columns(): readonly string[] {
         return this.table.columns;
+    }
+
+    public get sourceRowCount(): number {
+        return this.table.rows.length;
     }
 
     public get rowCount(): number {
@@ -65,7 +79,8 @@ export class InMemorySwoCsvRowStore implements SwoCsvRowStore {
         return false;
     }
 
-    public async applyView(filters: readonly SwoCsvFilter[], sort: SwoCsvSort | null): Promise<SwoCsvViewTiming> {
+    public async applyView(filters: readonly SwoCsvFilter[], sort: SwoCsvSort | null, signal?: AbortSignal): Promise<SwoCsvViewTiming> {
+        signal?.throwIfAborted();
         const scanStartedAt = performance.now();
         const filteredRows = filterSwoCsvRows(this.table.rows, filters);
         const scanMs = performance.now() - scanStartedAt;
