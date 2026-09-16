@@ -37,7 +37,7 @@ interface GeneratedCBuildRunData {
     targetSet: string | undefined;
 }
 
-export const SWO_UART_TRACE_OFF_MESSAGE =
+export const TRACE_OFF_MESSAGE =
     'Trace generation turned off, enable in debugger\'s trace settings';
 
 export type GeneratedCBuildRunFileProcessingResult =
@@ -99,7 +99,7 @@ export class TraceConfigurationGeneratedCTraceFileManager {
         }
         const cbuildRun = await this.readGeneratedCBuildRun(cbuildRunFileUri);
         if (!cbuildRun) {
-            logger.debug(`${SWO_UART_TRACE_OFF_MESSAGE}: ${cbuildRunFileUri.fsPath}`);
+            logger.debug(`${TRACE_OFF_MESSAGE}: ${cbuildRunFileUri.fsPath}`);
             return undefined;
         }
         const traceFileName = this.getGeneratedCTraceFileName(cbuildRunFileUri, cbuildRun.targetSet);
@@ -139,7 +139,7 @@ export class TraceConfigurationGeneratedCTraceFileManager {
     ): Promise<GeneratedCBuildRunData | undefined> {
         const reader = new CbuildRunReader();
         await reader.parse(cbuildRunFileUri.fsPath);
-        const traceMode = reader.getSwoUartTraceMode();
+        const traceMode = reader.getTraceMode();
         if (traceMode === undefined || traceMode === 'off') {
             return undefined;
         }

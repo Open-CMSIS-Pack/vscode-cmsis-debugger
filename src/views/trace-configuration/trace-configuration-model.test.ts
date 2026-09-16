@@ -26,7 +26,7 @@ import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
 import { CBUILD_INDEX_FILE_GLOB, CTRACE_FILE_GLOB, ENABLE_TRACE_GENERATION_VIEW_SETTING } from '../../manifest';
 import { containsSubstringsInOrder, normalizeFsPath, waitForCondition, waitForImmediate } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
-import { SWO_UART_TRACE_OFF_MESSAGE } from './trace-configuration-generated-ctrace-file-manager';
+import { TRACE_OFF_MESSAGE } from './trace-configuration-generated-ctrace-file-manager';
 import { TraceConfigurationModel } from './trace-configuration-model';
 import { TraceConfigurationProcessorCapabilities } from './trace-configuration-processor-capabilities';
 import * as TraceConfigurationTypes from './trace-configuration-types';
@@ -137,7 +137,7 @@ function createProcessor(core: string, pname?: string): ProcessorType {
 
 function mockGeneratedCBuildRunProcessors(processors: ProcessorType[], targetSet = '<default>'): void {
     jest.spyOn(CbuildRunReader.prototype, 'parse').mockResolvedValue();
-    jest.spyOn(CbuildRunReader.prototype, 'getSwoUartTraceMode').mockReturnValue('server');
+    jest.spyOn(CbuildRunReader.prototype, 'getTraceMode').mockReturnValue('server');
     jest.spyOn(CbuildRunReader.prototype, 'getProcessors').mockReturnValue(processors);
     jest.spyOn(CbuildRunReader.prototype, 'getTargetSet').mockReturnValue(targetSet);
 }
@@ -379,11 +379,11 @@ describe('TraceConfigurationModel', () => {
         model.dispose();
     });
 
-    it('clears the active ctrace file and shows guidance when SWO UART trace mode is off', async () => {
+    it('clears the active ctrace file and shows guidance when trace mode is off', async () => {
         const workspaceRoot = await createTemporaryWorkspace();
         const updateConfiguration = mockTraceGenerationConfiguration();
         jest.spyOn(CbuildRunReader.prototype, 'parse').mockResolvedValue();
-        jest.spyOn(CbuildRunReader.prototype, 'getSwoUartTraceMode').mockReturnValue('off');
+        jest.spyOn(CbuildRunReader.prototype, 'getTraceMode').mockReturnValue('off');
         const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
         const ctraceFileName = path.join(ctraceDirectory, 'demo.ctrace.yml');
         const cbuildRunDirectory = path.join(workspaceRoot, 'out');
@@ -410,14 +410,14 @@ describe('TraceConfigurationModel', () => {
             'change',
             vscode.Uri.file(path.join(workspaceRoot, 'project.cbuild-idx.yml'))
         );
-        await waitForCondition('SWO UART trace-off guidance', () =>
-            model.createState().emptyMessage === SWO_UART_TRACE_OFF_MESSAGE);
+        await waitForCondition('trace-off guidance', () =>
+            model.createState().emptyMessage === TRACE_OFF_MESSAGE);
 
         expect(model.createState()).toMatchObject({
             fileName: undefined,
             rows: [],
             dirty: false,
-            emptyMessage: SWO_UART_TRACE_OFF_MESSAGE
+            emptyMessage: TRACE_OFF_MESSAGE
         });
         expect(updateConfiguration).toHaveBeenCalledWith(
             ENABLE_TRACE_GENERATION_VIEW_SETTING,
