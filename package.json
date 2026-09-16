@@ -932,7 +932,7 @@
   },
   "scripts": {
     "prepare": "npm run build",
-    "download-tools": "tsx scripts/download-tools.ts pyocd gdb pyts ctrace",
+    "download-tools": "tsx scripts/download-tools.ts pyocdNightly gdb pyts ctrace",
     "download-tools:nightly": "tsx scripts/download-tools.ts pyocdNightly gdb pyts ctrace",
     "validate-tools": "tsx scripts/validate-tools.ts",
     "clean": "git clean -f -x ./node_modules ./dist ./coverage ./tools",
