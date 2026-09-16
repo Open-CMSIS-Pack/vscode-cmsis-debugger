@@ -30,7 +30,6 @@ type CmsisPackageJson = PackageJson & {
     cmsis: {
         pyocd?: string;
         pyocdNightly?: string;
-        pyocdTrace?: string;
         gdb?: string;
         pyts?: string;
         ctrace?: string;
@@ -147,31 +146,6 @@ class BranchGitHubWorkflowAsset extends GitHubWorkflowAsset {
         throw new Error(`No successful ${this.workflow} run on branch ${this.branch} has a non-expired ${this.artifactName} artifact.`);
     }
 }
-
-const pyocdTrace : Downloadable = new Downloadable(
-    'pyOCD Trace', 'pyocd',
-    async (target) => {
-        const { os, arch } = {
-            'win32-x64': { os: 'windows', arch: '' },
-            'win32-arm64': { os: 'windows', arch: '' },
-            'linux-x64': { os: 'linux', arch: '' },
-            'linux-arm64': { os: 'linux', arch: '-arm64' },
-            'darwin-x64': { os: 'macos', arch: '' },
-            'darwin-arm64': { os: 'macos', arch: '' },
-        }[target];
-        const json = await downloader.getPackageJson<CmsisPackageJson>();
-        const branch = json?.cmsis?.pyocdTrace;
-        if (branch === undefined) {
-            console.warn('No pyOCD Trace branch specified in package.json (<repo>@<branch>)');
-            return undefined;
-        }
-        const { repo, owner, reference } = splitGitReference(branch, 'pyocd', 'pyOCD');
-        const assetPattern = `pyocd-${os}${arch}-\\d+\\.\\d+\\.\\d+.*`;
-        return new BranchGitHubWorkflowAsset(
-            owner, repo, 'release_builds.yaml', assetPattern, reference, process.env.GITHUB_TOKEN
-        );
-    },
-);
 
 class GDBArchiveFileAsset extends ArchiveFileAsset {
     protected async extractArchive(archiveFile: string, dest?: string, options: { strip?: number; force?: boolean } = {}): Promise<string> {
@@ -299,7 +273,6 @@ const ctrace : Downloadable = new Downloadable(
 // If no arguments are provided to the downloader script, all assets are downloaded
 // in the order they are listed. In that case, 'pyocd' will overwrite 'pyocdNightly'.
 const downloader = new Downloader({
-    pyocdTrace,
     pyocdNightly,
     pyocd,
     gdb,
