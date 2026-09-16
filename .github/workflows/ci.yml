@@ -223,6 +223,8 @@ jobs:
           path: .
 
       - name: Download tools
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm ci
           npm run download-tools:nightly -- --target ${{ matrix.target }} --no-cache
