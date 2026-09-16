@@ -360,8 +360,11 @@ export const SwoCsvViewer = (): JSX.Element => {
     const effectiveColumnWidths = columnWidths.length === tableState.columns.length + 1
         ? columnWidths
         : [72, ...tableState.columns.map(() => 180)];
-    const gridTemplateColumns = effectiveColumnWidths.map(width => `${width}px`).join(' ');
+    const gridTemplateColumns = effectiveColumnWidths.map((width, index) => index === effectiveColumnWidths.length - 1
+        ? `minmax(${width}px, 1fr)`
+        : `${width}px`).join(' ');
     const tableWidth = effectiveColumnWidths.reduce((width, columnWidth) => width + columnWidth, 0);
+    const tableLayoutWidth = `max(99%, ${tableWidth}px)`;
     const activeRowIsRendered = selection.caret !== null
         && selection.caret >= renderedRowStart
         && selection.caret < renderedRowEnd;
@@ -387,7 +390,7 @@ export const SwoCsvViewer = (): JSX.Element => {
                 onKeyUp={handleTableKeyUp}
                 onScroll={event => setScrollTop(event.currentTarget.scrollTop)}
             >
-                <div className="table-header" ref={tableHeaderRef} role="row" aria-rowindex={1} style={{ gridTemplateColumns, width: `${tableWidth}px` }}>
+                <div className="table-header" ref={tableHeaderRef} role="row" aria-rowindex={1} style={{ gridTemplateColumns, width: tableLayoutWidth }}>
                     <div className="index-header" role="columnheader" aria-colindex={1}>
                         <button type="button" className={`sort-button ${sort?.columnIndex === null ? sort.direction : ''}`} aria-label="Sort by row index" disabled={tableState.indexing} onClick={() => updateSort(null)}>#</button>
                         <span className="filter-spacer" />
@@ -404,7 +407,7 @@ export const SwoCsvViewer = (): JSX.Element => {
                         <button type="button" className="column-resize" aria-label={`Resize ${column}`} onPointerDown={event => startColumnResize(event, columnIndex + 1, effectiveColumnWidths[columnIndex + 1])} onPointerMove={resizeColumn} onPointerUp={finishColumnResize} onPointerCancel={finishColumnResize} onLostPointerCapture={finishColumnResize} />
                     </label>)}
                 </div>
-                <div className="table-rows" role="rowgroup" style={{ height: `${scrollHeight}px`, width: `${tableWidth}px` }}>
+                <div className="table-rows" role="rowgroup" style={{ height: `${scrollHeight}px`, width: tableLayoutWidth }}>
                     {Array.from({ length: renderedRowEnd - renderedRowStart }, (_, offset) => renderedRowStart + offset).map(rowIndex => {
                         const row = rows[rowIndex - rowStart];
                         if (row === undefined) {
