@@ -21,9 +21,8 @@ import * as vscode from 'vscode';
 
 import { FileLocationManager } from '../../desktop/file-location-manager';
 import { Disposable } from '../../desktop/yaml-file';
-import { logger } from '../../logger';
 import { CBUILD_INDEX_FILE_GLOB } from '../../manifest';
-import { normalizeFsPath } from '../../utils';
+import { fileExists, normalizeFsPath } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 
 export type GeneratedCBuildRunFileChangeType = 'created' | 'changed' | 'deleted';
@@ -199,7 +198,7 @@ export class TraceConfigurationFileWatcher {
 
         this.watchGeneratedCBuildRunFile(cbuildRunFileName, watchVersion);
         const uri = vscode.Uri.file(cbuildRunFileName);
-        if (!await this.fileExists(uri)) {
+        if (!await fileExists(uri)) {
             return false;
         }
         if (
@@ -223,7 +222,7 @@ export class TraceConfigurationFileWatcher {
         findExistingCBuildIndex = false
     ): Promise<string | undefined> {
         const cbuildRunFileName = await this.fileLocationManager.getCBuildRunFileNameFromCommand();
-        if (cbuildRunFileName && await this.fileExists(vscode.Uri.file(cbuildRunFileName))) {
+        if (cbuildRunFileName && await fileExists(vscode.Uri.file(cbuildRunFileName))) {
             return cbuildRunFileName;
         }
 
@@ -236,37 +235,8 @@ export class TraceConfigurationFileWatcher {
         return indexedCBuildRunFileName ?? cbuildRunFileName;
     }
 
-    /**
-     * Checks whether a generated file already exists after its watcher is
-     * installed, logging unexpected filesystem failures.
-     */
-    private async fileExists(uri: vscode.Uri): Promise<boolean> {
-        try {
-            await vscode.workspace.fs.stat(uri);
-        } catch (error) {
-            if (!this.isFileNotFoundError(error)) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                logger.error(`Trace Configuration: Failed to inspect generated cbuild-run file: ${errorMessage}`);
-            }
-            return false;
-        }
-        return true;
-    }
-
     private isCurrentGeneratedCBuildRunFile(cbuildRunFileName: string): boolean {
         return normalizeFsPath(cbuildRunFileName) === normalizeFsPath(this.generatedCBuildRunFileName);
-    }
-
-    /**
-     * isFileNotFoundError recognizes missing-file errors from VS Code and Node
-     * filesystem adapters while an index and its cbuild-run output converge.
-     */
-    private isFileNotFoundError(error: unknown): boolean {
-        if (!error || typeof error !== 'object') {
-            return false;
-        }
-        const errorWithCode = error as { code?: unknown };
-        return errorWithCode.code === 'ENOENT' || errorWithCode.code === 'FileNotFound';
     }
 
     /**

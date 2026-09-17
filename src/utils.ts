@@ -16,6 +16,9 @@
 
 import * as os from 'os';
 import * as path from 'path';
+import * as vscode from 'vscode';
+
+import { logger } from './logger';
 
 export const isWindows = os.platform() === 'win32';
 
@@ -119,6 +122,27 @@ export const normalizeFsPath = (fileName: string | undefined): string | undefine
 
     const normalized = path.normalize(fileName);
     return isWindows ? normalized.toLowerCase() : normalized;
+};
+
+export const isFileNotFoundError = (error: unknown): boolean => {
+    if (!error || typeof error !== 'object') {
+        return false;
+    }
+    const errorWithCode = error as { code?: unknown };
+    return errorWithCode.code === 'ENOENT' || errorWithCode.code === 'FileNotFound';
+};
+
+export const fileExists = async (uri: vscode.Uri): Promise<boolean> => {
+    try {
+        await vscode.workspace.fs.stat(uri);
+    } catch (error) {
+        if (!isFileNotFoundError(error)) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logger.error(`Failed to find file '${uri.fsPath}': ${errorMessage}`);
+        }
+        return false;
+    }
+    return true;
 };
 
 export const containsSubstringsInOrder = (text: string, substrings: string[]): boolean => {

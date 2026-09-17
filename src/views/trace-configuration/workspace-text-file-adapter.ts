@@ -21,6 +21,7 @@ import { TextDecoder, TextEncoder } from 'node:util';
 import * as vscode from 'vscode';
 
 import { Disposable, TextFileAdapter, TextFileStamp } from '../../desktop/yaml-file';
+import { isFileNotFoundError } from '../../utils';
 
 /**
  * WorkspaceTextFileAdapter bridges the YAML file abstraction to VS Code's
@@ -47,7 +48,7 @@ export class WorkspaceTextFileAdapter implements TextFileAdapter {
                 size: stat.size
             };
         } catch (error) {
-            if (this.isFileNotFoundError(error)) {
+            if (isFileNotFoundError(error)) {
                 return undefined;
             }
             throw error;
@@ -69,13 +70,5 @@ export class WorkspaceTextFileAdapter implements TextFileAdapter {
                 watcher.dispose();
             }
         };
-    }
-
-    private isFileNotFoundError(error: unknown): boolean {
-        if (!error || typeof error !== 'object') {
-            return false;
-        }
-        const errorWithCode = error as { code?: unknown };
-        return errorWithCode.code === 'ENOENT' || errorWithCode.code === 'FileNotFound';
     }
 }
