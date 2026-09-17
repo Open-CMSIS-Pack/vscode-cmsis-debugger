@@ -15,8 +15,7 @@
  */
 // generated with AI
 
-import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
-import { FileLocationManager } from '../../desktop/file-location-manager';
+import { CbuildRunReader, CBuildRunFileLocator, ProcessorType } from '../../cbuild-run';
 import { isYamlMapItem, isYamlScalarItem, isYamlSequenceItem, YamlTreeItem, yamlScalarToString } from '../../desktop/yaml-dom';
 import { logger } from '../../logger';
 import { CTraceYamlFile } from './ctrace-yaml';
@@ -36,7 +35,7 @@ interface ConfiguredProcessor {
  */
 export class TraceConfigurationProcessorCapabilities {
     private readonly processorCapabilities = new Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities>();
-    private readonly fileLocationManager = new FileLocationManager();
+    private readonly cbuildRunFileLocator = new CBuildRunFileLocator();
     private readonly cbuildRunReader = new CbuildRunReader();
     private readonly getCTraceFile: () => CTraceYamlFile | undefined;
 
@@ -153,7 +152,7 @@ export class TraceConfigurationProcessorCapabilities {
      * the caller will fall back to ctrace.yml core values when present.
      */
     private async getCBuildRunProcessors(): Promise<ProcessorType[]> {
-        const cbuildRunFilePath = await this.fileLocationManager.getCBuildRunFileNameFromCommand();
+        const cbuildRunFilePath = await this.cbuildRunFileLocator.getCBuildRunFileNameFromCommand();
 
         if (!cbuildRunFilePath) {
             return [];

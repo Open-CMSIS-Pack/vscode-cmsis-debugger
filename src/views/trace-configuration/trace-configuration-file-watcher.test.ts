@@ -19,7 +19,7 @@ import * as path from 'node:path';
 
 import * as vscode from 'vscode';
 
-import { FileLocationManager } from '../../desktop/file-location-manager';
+import { CBuildRunFileLocator } from '../../cbuild-run';
 import { CBUILD_INDEX_FILE_GLOB } from '../../manifest';
 import { normalizeFsPath, waitForCondition } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
@@ -70,10 +70,10 @@ function createMockCTraceYamlFile(): MockCTraceYamlFile {
     };
 }
 
-function createFileLocationManager(getCBuildRunFileNameFromCommand: jest.Mock): FileLocationManager {
-    const fileLocationManager = new FileLocationManager();
-    jest.spyOn(fileLocationManager, 'getCBuildRunFileNameFromCommand').mockImplementation(getCBuildRunFileNameFromCommand);
-    return fileLocationManager;
+function createCBuildRunFileLocator(getCBuildRunFileNameFromCommand: jest.Mock): CBuildRunFileLocator {
+    const cbuildRunFileLocator = new CBuildRunFileLocator();
+    jest.spyOn(cbuildRunFileLocator, 'getCBuildRunFileNameFromCommand').mockImplementation(getCBuildRunFileNameFromCommand);
+    return cbuildRunFileLocator;
 }
 
 function getCurrentFileReloadHandler(watch: jest.Mock): (document: CTraceYamlDocument) => void {
@@ -111,7 +111,7 @@ describe('TraceConfigurationFileWatcher', () => {
             onCurrentFileReloadFailed: jest.fn(),
             onGeneratedCBuildRunFileChanged
         };
-        const watcher = new TraceConfigurationFileWatcher(callbacks, createFileLocationManager(getCBuildRunFileNameFromCommand));
+        const watcher = new TraceConfigurationFileWatcher(callbacks, createCBuildRunFileLocator(getCBuildRunFileNameFromCommand));
         const events: GeneratedCBuildRunFileChangeEvent[] = [];
         watcher.onDidChangeGeneratedCBuildRunFile(event => events.push(event));
 
@@ -164,7 +164,7 @@ describe('TraceConfigurationFileWatcher', () => {
             onCurrentFileReloadFailed: jest.fn(),
             onGeneratedCBuildRunFileChanged
         };
-        const watcher = new TraceConfigurationFileWatcher(callbacks, createFileLocationManager(getCBuildRunFileNameFromCommand));
+        const watcher = new TraceConfigurationFileWatcher(callbacks, createCBuildRunFileLocator(getCBuildRunFileNameFromCommand));
 
         watcher.watchGeneratedCBuildRunFiles();
         const cbuildIndexWatcher = getLastCreatedFileSystemWatcher();
@@ -207,7 +207,7 @@ describe('TraceConfigurationFileWatcher', () => {
             onCurrentFileReloadFailed: jest.fn(),
             onGeneratedCBuildRunFileChanged
         };
-        const watcher = new TraceConfigurationFileWatcher(callbacks, createFileLocationManager(getCBuildRunFileNameFromCommand));
+        const watcher = new TraceConfigurationFileWatcher(callbacks, createCBuildRunFileLocator(getCBuildRunFileNameFromCommand));
 
         watcher.watchGeneratedCBuildRunFiles();
         const cbuildIndexWatcher = getLastCreatedFileSystemWatcher();
@@ -254,7 +254,7 @@ describe('TraceConfigurationFileWatcher', () => {
             onCurrentFileReloadFailed: jest.fn(),
             onGeneratedCBuildRunFileChanged
         };
-        const watcher = new TraceConfigurationFileWatcher(callbacks, createFileLocationManager(getCBuildRunFileNameFromCommand));
+        const watcher = new TraceConfigurationFileWatcher(callbacks, createCBuildRunFileLocator(getCBuildRunFileNameFromCommand));
 
         watcher.watchGeneratedCBuildRunFiles();
         await expect(watcher.processActiveCBuildRunFile()).resolves.toBe(true);
@@ -285,7 +285,7 @@ describe('TraceConfigurationFileWatcher', () => {
             onCurrentFileReloadFailed: jest.fn(),
             onGeneratedCBuildRunFileChanged
         };
-        const watcher = new TraceConfigurationFileWatcher(callbacks, createFileLocationManager(getCBuildRunFileNameFromCommand));
+        const watcher = new TraceConfigurationFileWatcher(callbacks, createCBuildRunFileLocator(getCBuildRunFileNameFromCommand));
 
         watcher.watchGeneratedCBuildRunFiles();
         const cbuildIndexWatcher = getLastCreatedFileSystemWatcher();

@@ -19,7 +19,7 @@ import * as path from 'node:path';
 
 import * as vscode from 'vscode';
 
-import { FileLocationManager } from '../../desktop/file-location-manager';
+import { CBuildRunFileLocator } from '../../cbuild-run';
 import { Disposable } from '../../desktop/yaml-file';
 import { CBUILD_INDEX_FILE_GLOB } from '../../manifest';
 import { fileExists, normalizeFsPath } from '../../utils';
@@ -85,7 +85,7 @@ export class TraceConfigurationFileWatcher {
      */
     public constructor(
         private readonly callbacks: TraceConfigurationFileWatcherCallbacks,
-        private readonly fileLocationManager: FileLocationManager = new FileLocationManager()
+        private readonly cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator()
     ) {}
 
     /**
@@ -184,7 +184,7 @@ export class TraceConfigurationFileWatcher {
         findExistingCBuildIndex = false
     ): Promise<boolean> {
         const resolutionVersion = ++this.cbuildRunResolutionVersion;
-        const cbuildRunFileName = await this.fileLocationManager.getCBuildRunFileName(
+        const cbuildRunFileName = await this.cbuildRunFileLocator.getCBuildRunFileName(
             cbuildIndexFile,
             findExistingCBuildIndex
         );

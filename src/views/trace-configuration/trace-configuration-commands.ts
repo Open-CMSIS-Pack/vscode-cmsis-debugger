@@ -17,12 +17,12 @@
 
 import * as vscode from 'vscode';
 
-import { FileLocationManager } from '../../desktop/file-location-manager';
+import { CBuildRunFileLocator } from '../../cbuild-run';
 import { EXTENSION_NAME } from '../../manifest';
 import { logger } from '../../logger';
 import { TraceConfigurationGeneratedCTraceFileManager } from './trace-configuration-generated-ctrace-file-manager';
 
-type CBuildRunFileLocator = Pick<FileLocationManager, 'getCBuildRunFileNameFromCommand'>;
+type CBuildRunFileNameProvider = Pick<CBuildRunFileLocator, 'getCBuildRunFileNameFromCommand'>;
 type DefaultCTraceFileCreator = Pick<TraceConfigurationGeneratedCTraceFileManager, 'createDefaultCTraceFile'>;
 
 /**
@@ -33,7 +33,7 @@ export class TraceConfigurationCommands {
     public static readonly generateDefaultCtraceFileId = `${EXTENSION_NAME}.generateDefaultCTraceFile`;
 
     public constructor(
-        private readonly fileLocationManager: CBuildRunFileLocator = new FileLocationManager(),
+        private readonly cbuildRunFileLocator: CBuildRunFileNameProvider = new CBuildRunFileLocator(),
         private readonly generatedCTraceFileManager: DefaultCTraceFileCreator = new TraceConfigurationGeneratedCTraceFileManager()
     ) {}
 
@@ -45,7 +45,7 @@ export class TraceConfigurationCommands {
     }
 
     private async generateDefaultCtraceFile(): Promise<void> {
-        const cbuildRunFileName = await this.fileLocationManager.getCBuildRunFileNameFromCommand();
+        const cbuildRunFileName = await this.cbuildRunFileLocator.getCBuildRunFileNameFromCommand();
         if (!cbuildRunFileName) {
             await vscode.window.showErrorMessage(
                 'No active cbuild-run file was found. Generate the project and try again.'

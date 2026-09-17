@@ -15,8 +15,7 @@
  */
 // generated with AI
 
-import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
-import { FileLocationManager } from '../../desktop/file-location-manager';
+import { CbuildRunReader, CBuildRunFileLocator, ProcessorType } from '../../cbuild-run';
 import { logger } from '../../logger';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import { TraceConfigurationProcessorCapabilities } from './trace-configuration-processor-capabilities';
@@ -33,7 +32,7 @@ describe('TraceConfigurationProcessorCapabilities', () => {
     });
 
     it('loads processor capabilities from cbuild-run cores by pname and keeps ctrace.yml display names', async () => {
-        jest.spyOn(FileLocationManager.prototype, 'getCBuildRunFileNameFromCommand').mockResolvedValue('project.cbuild-run.yml');
+        jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileNameFromCommand').mockResolvedValue('project.cbuild-run.yml');
         const parseSpy = jest.spyOn(CbuildRunReader.prototype, 'parse').mockResolvedValue();
         jest.spyOn(CbuildRunReader.prototype, 'getProcessors').mockReturnValue([
             { pname: 'cm33', core: 'Cortex-M3' },
@@ -68,7 +67,7 @@ describe('TraceConfigurationProcessorCapabilities', () => {
     });
 
     it('leaves capabilities unrestricted when a multi-core processor cannot be identified', async () => {
-        jest.spyOn(FileLocationManager.prototype, 'getCBuildRunFileNameFromCommand').mockResolvedValue('project.cbuild-run.yml');
+        jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileNameFromCommand').mockResolvedValue('project.cbuild-run.yml');
         jest.spyOn(CbuildRunReader.prototype, 'parse').mockResolvedValue();
         const warnSpy = jest.spyOn(logger, 'warn').mockImplementation();
         jest.spyOn(CbuildRunReader.prototype, 'getProcessors').mockReturnValue([
@@ -90,7 +89,7 @@ describe('TraceConfigurationProcessorCapabilities', () => {
     });
 
     it('warns when multi-core cbuild-run processor entries are missing pname', async () => {
-        jest.spyOn(FileLocationManager.prototype, 'getCBuildRunFileNameFromCommand').mockResolvedValue('project.cbuild-run.yml');
+        jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileNameFromCommand').mockResolvedValue('project.cbuild-run.yml');
         jest.spyOn(CbuildRunReader.prototype, 'parse').mockResolvedValue();
         const warnSpy = jest.spyOn(logger, 'warn').mockImplementation();
         jest.spyOn(CbuildRunReader.prototype, 'getProcessors').mockReturnValue([
@@ -117,7 +116,7 @@ describe('TraceConfigurationProcessorCapabilities', () => {
     });
 
     it('falls back to ctrace.yml core values when cbuild-run data is unavailable', async () => {
-        jest.spyOn(FileLocationManager.prototype, 'getCBuildRunFileNameFromCommand').mockResolvedValue(undefined);
+        jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileNameFromCommand').mockResolvedValue(undefined);
         const parseSpy = jest.spyOn(CbuildRunReader.prototype, 'parse');
         const ctraceFile = createCTraceFile([
             'ctrace:',
@@ -151,7 +150,7 @@ describe('TraceConfigurationProcessorCapabilities', () => {
     });
 
     it('keeps ctrace.yml fallback names when parsing the active cbuild-run file fails', async () => {
-        jest.spyOn(FileLocationManager.prototype, 'getCBuildRunFileNameFromCommand').mockResolvedValue('broken.cbuild-run.yml');
+        jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileNameFromCommand').mockResolvedValue('broken.cbuild-run.yml');
         jest.spyOn(CbuildRunReader.prototype, 'parse').mockRejectedValue(new Error('bad yaml'));
         const ctraceFile = createCTraceFile([
             'ctrace:',
@@ -175,7 +174,7 @@ describe('TraceConfigurationProcessorCapabilities', () => {
     });
 
     it('supports non-Cortex-A/R Dcore aliases with Cortex-M trace capability equivalents', async () => {
-        jest.spyOn(FileLocationManager.prototype, 'getCBuildRunFileNameFromCommand').mockResolvedValue(undefined);
+        jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileNameFromCommand').mockResolvedValue(undefined);
         const ctraceFile = createCTraceFile([
             'ctrace:',
             '  setup:',
@@ -252,7 +251,7 @@ describe('TraceConfigurationProcessorCapabilities', () => {
     });
 
     it('resolves capabilities for setup descendants and ignores paths outside setup', async () => {
-        jest.spyOn(FileLocationManager.prototype, 'getCBuildRunFileNameFromCommand').mockResolvedValue(undefined);
+        jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileNameFromCommand').mockResolvedValue(undefined);
         const ctraceFile = createCTraceFile([
             'ctrace:',
             '  setup:',
@@ -277,7 +276,7 @@ describe('TraceConfigurationProcessorCapabilities', () => {
     });
 
     it('clears cached capabilities', async () => {
-        jest.spyOn(FileLocationManager.prototype, 'getCBuildRunFileNameFromCommand').mockResolvedValue(undefined);
+        jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileNameFromCommand').mockResolvedValue(undefined);
         const ctraceFile = createCTraceFile([
             'ctrace:',
             '  setup:',

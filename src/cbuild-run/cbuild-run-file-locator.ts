@@ -24,7 +24,12 @@ import { logger } from '../logger';
 import { CBUILD_INDEX_FILE_GLOB } from '../manifest';
 import { fileExists } from '../utils';
 
-export class FileLocationManager {
+/**
+ * Locates cbuild-run files for functionality that is not directly tied to a
+ * debug session. Debug sessions receive the cbuild-run file path directly as
+ * a launch or attach configuration argument.
+ */
+export class CBuildRunFileLocator {
     private static readonly CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND = 'cmsis-csolution.getCbuildRunFile';
     private static readonly CMSIS_SOLUTION_GET_ACTIVE_TARGET_SET_COMMAND = 'cmsis-csolution.getActiveTargetSet';
 
@@ -71,7 +76,7 @@ export class FileLocationManager {
      */
     public async getCBuildRunFileNameFromCommand(): Promise<string | undefined> {
         try {
-            const fileName = await vscode.commands.executeCommand<string | undefined>(FileLocationManager.CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
+            const fileName = await vscode.commands.executeCommand<string | undefined>(CBuildRunFileLocator.CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
             return fileName?.trim() ? fileName : undefined;
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -104,7 +109,7 @@ export class FileLocationManager {
 
     public async getDefaultSolutionSet(cbuildRunFilePath: string | undefined): Promise<string> {
         const resolvedCbuildRunFilePath = cbuildRunFilePath ??
-            await vscode.commands.executeCommand<string | undefined>(FileLocationManager.CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
+            await vscode.commands.executeCommand<string | undefined>(CBuildRunFileLocator.CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
         const trimmedPath = resolvedCbuildRunFilePath?.trim();
         if (!trimmedPath) {
             throw new Error('No cbuild run file path provided.');
@@ -113,7 +118,7 @@ export class FileLocationManager {
         if (!solutionName) {
             throw new Error('Failed to extract solution name from cbuild run file path.');
         }
-        const activeSet = await vscode.commands.executeCommand<string | undefined>(FileLocationManager.CMSIS_SOLUTION_GET_ACTIVE_TARGET_SET_COMMAND);
+        const activeSet = await vscode.commands.executeCommand<string | undefined>(CBuildRunFileLocator.CMSIS_SOLUTION_GET_ACTIVE_TARGET_SET_COMMAND);
         const trimmedActiveSet = activeSet?.trim();
         const targetSet = trimmedActiveSet ? `+${trimmedActiveSet}` : '';
         return `${solutionName}${targetSet}`;
