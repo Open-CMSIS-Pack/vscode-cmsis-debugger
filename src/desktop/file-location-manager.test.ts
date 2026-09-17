@@ -15,6 +15,8 @@
  */
 // generated with AI
 
+import * as path from 'node:path';
+
 import * as vscode from 'vscode';
 
 import { logger } from '../logger';
@@ -65,6 +67,30 @@ describe('FileLocationManager', () => {
         await expect(fileLocationManager.findExistingCBuildIndexFile()).resolves.toBeUndefined();
 
         expect(vscode.workspace.findFiles).not.toHaveBeenCalled();
+    });
+
+    it('reads the cbuild-run file name relative to its cbuild index', async () => {
+        const cbuildIndexFile = vscode.Uri.file('/workspace/project.cbuild-idx.yml');
+        (vscode.workspace.fs.readFile as jest.Mock).mockResolvedValue(new TextEncoder().encode([
+            'build-idx:',
+            '  cbuild-run: out/project.cbuild-run.yml',
+            ''
+        ].join('\n')));
+
+        const result = await fileLocationManager.readCBuildRunFileNameFromIndex(cbuildIndexFile);
+
+        expect(result).toBe(path.resolve(path.dirname(cbuildIndexFile.fsPath), 'out/project.cbuild-run.yml'));
+    });
+
+    it('returns undefined and logs when a cbuild index cannot be read', async () => {
+        const loggerSpy = jest.spyOn(logger, 'debug');
+        const cbuildIndexFile = vscode.Uri.file('/workspace/project.cbuild-idx.yml');
+        (vscode.workspace.fs.readFile as jest.Mock).mockRejectedValue(new Error('read failed'));
+
+        const result = await fileLocationManager.readCBuildRunFileNameFromIndex(cbuildIndexFile);
+
+        expect(result).toBeUndefined();
+        expect(loggerSpy).toHaveBeenCalledWith('Trace Configuration: Failed to read generated cbuild index file: read failed');
     });
 
     it('returns cbuild-run file path from CMSIS Solution command', async () => {

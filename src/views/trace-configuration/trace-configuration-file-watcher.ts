@@ -18,7 +18,6 @@
 import * as path from 'node:path';
 
 import * as vscode from 'vscode';
-import { parse } from 'yaml';
 
 import { FileLocationManager } from '../../desktop/file-location-manager';
 import { Disposable } from '../../desktop/yaml-file';
@@ -210,7 +209,7 @@ export class TraceConfigurationFileWatcher {
             ? await this.fileLocationManager.findExistingCBuildIndexFile()
             : undefined);
         const indexedCBuildRunFileName = indexFile
-            ? await this.readCBuildRunFileNameFromIndex(indexFile)
+            ? await this.fileLocationManager.readCBuildRunFileNameFromIndex(indexFile)
             : undefined;
         if (
             !indexedCBuildRunFileName
@@ -226,39 +225,6 @@ export class TraceConfigurationFileWatcher {
             watchVersion,
             resolutionVersion
         );
-    }
-
-    /**
-     * readCBuildRunFileNameFromIndex resolves the generated cbuild-run path
-     * recorded by the index event. The YAML is external data, so each property
-     * is checked before the path is used.
-     */
-    private async readCBuildRunFileNameFromIndex(cbuildIndexFile: vscode.Uri): Promise<string | undefined> {
-        try {
-            const bytes = await vscode.workspace.fs.readFile(cbuildIndexFile);
-            const root: unknown = parse(new TextDecoder().decode(bytes));
-            const buildIndex = this.getObjectProperty(root, 'build-idx');
-            const cbuildRunFileName = this.getObjectProperty(buildIndex, 'cbuild-run');
-            if (typeof cbuildRunFileName !== 'string' || !cbuildRunFileName.trim()) {
-                return undefined;
-            }
-            return path.resolve(path.dirname(cbuildIndexFile.fsPath), cbuildRunFileName.trim());
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            logger.debug(`Trace Configuration: Failed to read generated cbuild index file: ${errorMessage}`);
-            return undefined;
-        }
-    }
-
-    /**
-     * getObjectProperty reads an unknown YAML mapping without trusting its
-     * shape at the filesystem boundary.
-     */
-    private getObjectProperty(value: unknown, key: string): unknown {
-        if (!value || typeof value !== 'object' || Array.isArray(value)) {
-            return undefined;
-        }
-        return Reflect.get(value, key);
     }
 
     /**

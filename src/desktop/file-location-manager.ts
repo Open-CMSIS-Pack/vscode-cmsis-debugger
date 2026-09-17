@@ -15,7 +15,10 @@
  */
 // generated with AI
 
+import * as path from 'node:path';
+
 import * as vscode from 'vscode';
+import { parse } from 'yaml';
 
 import { logger } from '../logger';
 import { CBUILD_INDEX_FILE_GLOB } from '../manifest';
@@ -36,6 +39,27 @@ export class FileLocationManager {
         const pattern = new vscode.RelativePattern(mainWorkspaceFolder, CBUILD_INDEX_FILE_GLOB);
         const files = await vscode.workspace.findFiles(pattern, null, 1);
         return files.at(0);
+    }
+
+    /**
+     * Resolves the generated cbuild-run path recorded by a cbuild index. The
+     * YAML is external data, so each property is checked before use.
+     */
+    public async readCBuildRunFileNameFromIndex(cbuildIndexFile: vscode.Uri): Promise<string | undefined> {
+        try {
+            const bytes = await vscode.workspace.fs.readFile(cbuildIndexFile);
+            const root: unknown = parse(new TextDecoder().decode(bytes));
+            const buildIndex = this.getObjectProperty(root, 'build-idx');
+            const cbuildRunFileName = this.getObjectProperty(buildIndex, 'cbuild-run');
+            if (typeof cbuildRunFileName !== 'string' || !cbuildRunFileName.trim()) {
+                return undefined;
+            }
+            return path.resolve(path.dirname(cbuildIndexFile.fsPath), cbuildRunFileName.trim());
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logger.debug(`Trace Configuration: Failed to read generated cbuild index file: ${errorMessage}`);
+            return undefined;
+        }
     }
 
     /**
@@ -70,5 +94,12 @@ export class FileLocationManager {
         const trimmedActiveSet = activeSet?.trim();
         const targetSet = trimmedActiveSet ? `+${trimmedActiveSet}` : '';
         return `${solutionName}${targetSet}`;
+    }
+
+    private getObjectProperty(value: unknown, key: string): unknown {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) {
+            return undefined;
+        }
+        return Reflect.get(value, key);
     }
 }
