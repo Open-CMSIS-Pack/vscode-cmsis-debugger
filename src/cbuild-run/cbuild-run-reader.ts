@@ -21,7 +21,7 @@ import {
     CbuildRunRootType,
     CbuildRunType,
     ProcessorType,
-    SwoUartTraceModeType
+    TraceModeType
 } from './cbuild-run-types';
 import { FileReader, VscodeFileReader } from '../desktop/file-reader';
 import { getCmsisPackRootPath } from '../utils';
@@ -131,18 +131,17 @@ export class CbuildRunReader {
     }
 
     /**
-     * Returns the validated SWO UART trace mode from
-     * the debugger.trace[] entry containing sibling swo-uart and mode
-     * properties. Unsupported values and the legacy string trace shape are ignored.
+     * Returns the validated mode from the first known debugger.trace[] entry.
+     * Unsupported values, unknown entry types, and the legacy string trace shape are ignored.
      */
-    public getSwoUartTraceMode(): SwoUartTraceModeType | undefined {
+    public getTraceMode(): TraceModeType | undefined {
         const trace = this.cbuildRun?.debugger?.trace;
         if (!trace || typeof trace === 'string') {
             return undefined;
         }
 
         for (const traceEntry of trace) {
-            if (traceEntry['swo-uart'] === undefined) {
+            if (!('swo-uart' in traceEntry) && !('trace-buffer' in traceEntry)) {
                 continue;
             }
             const mode = traceEntry.mode ?? 'off';
