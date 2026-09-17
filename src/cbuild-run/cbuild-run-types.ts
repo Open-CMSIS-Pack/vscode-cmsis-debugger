@@ -75,11 +75,18 @@ export interface GdbserverType {
 
 export type ProtocolType = 'swd'|'jtag';
 
-export type SwoUartTraceModeType = 'server' | 'off' | 'file';
+export type TraceModeType = 'server' | 'off' | 'file';
 
-export interface DebuggerTraceType {
-    'swo-uart'?: string | null;
-    mode?: SwoUartTraceModeType;
+export interface TraceType {
+    mode?: TraceModeType;
+};
+
+export interface SwoUartType extends TraceType {
+    'swo-uart': string | null;
+};
+
+export interface TraceBufferType extends TraceType {
+    'trace-buffer': string | null;
 };
 
 export interface DebuggerType {
@@ -91,7 +98,7 @@ export interface DebuggerType {
     'start-pname'?: string;
     gdbserver?: GdbserverType[];
     terminal?: string;
-    trace?: string | DebuggerTraceType[];
+    trace?: string | TraceType[];
 };
 
 export interface DebugVarsType {

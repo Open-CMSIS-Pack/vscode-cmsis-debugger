@@ -208,14 +208,21 @@ describe('CbuildRunReader', () => {
             ]);
         });
 
-        it.each(['server', 'file', 'off'] as const)('returns the SWO UART trace mode when it is %s', async mode => {
+        it.each([
+            { traceType: 'swo-uart', mode: 'server' },
+            { traceType: 'swo-uart', mode: 'file' },
+            { traceType: 'swo-uart', mode: 'off' },
+            { traceType: 'trace-buffer', mode: 'server' },
+            { traceType: 'trace-buffer', mode: 'file' },
+            { traceType: 'trace-buffer', mode: 'off' },
+        ] as const)('returns $mode from a $traceType trace entry', async ({ traceType, mode }) => {
             const reader = new CbuildRunReader(new MockFileReader([
                 'cbuild-run:',
                 '  output: []',
                 '  debugger:',
                 '    name: <default>',
                 '    trace:',
-                '      - swo-uart:',
+                `      - ${traceType}:`,
                 `        mode: ${mode}`,
                 '  debug-vars:',
                 '    vars: ""',
@@ -223,10 +230,27 @@ describe('CbuildRunReader', () => {
 
             await reader.parse('test.cbuild-run.yml');
 
-            expect(reader.getSwoUartTraceMode()).toBe(mode);
+            expect(reader.getTraceMode()).toBe(mode);
         });
 
-        it('returns no SWO UART trace mode for an unsupported external value', async () => {
+        it('defaults a known trace entry without a mode to off', async () => {
+            const reader = new CbuildRunReader(new MockFileReader([
+                'cbuild-run:',
+                '  output: []',
+                '  debugger:',
+                '    name: <default>',
+                '    trace:',
+                '      - trace-buffer:',
+                '  debug-vars:',
+                '    vars: ""',
+            ].join('\n')));
+
+            await reader.parse('test.cbuild-run.yml');
+
+            expect(reader.getTraceMode()).toBe('off');
+        });
+
+        it('returns no trace mode for an unsupported mode value', async () => {
             const reader = new CbuildRunReader(new MockFileReader([
                 'cbuild-run:',
                 '  output: []',
@@ -241,28 +265,30 @@ describe('CbuildRunReader', () => {
 
             await reader.parse('test.cbuild-run.yml');
 
-            expect(reader.getSwoUartTraceMode()).toBeUndefined();
+            expect(reader.getTraceMode()).toBeUndefined();
         });
 
-        it('does not return the mode from a different trace transport', async () => {
+        it('ignores unknown trace entry types', async () => {
             const reader = new CbuildRunReader(new MockFileReader([
                 'cbuild-run:',
                 '  output: []',
                 '  debugger:',
                 '    name: <default>',
                 '    trace:',
+                '      - unknown-trace:',
+                '        mode: server',
                 '      - trace-buffer:',
-                '        mode: off',
+                '        mode: file',
                 '  debug-vars:',
                 '    vars: ""',
             ].join('\n')));
 
             await reader.parse('test.cbuild-run.yml');
 
-            expect(reader.getSwoUartTraceMode()).toBeUndefined();
+            expect(reader.getTraceMode()).toBe('file');
         });
 
-        it('returns no SWO UART trace mode when trace is not an array', async () => {
+        it('returns no trace mode when trace is not an array', async () => {
             const reader = new CbuildRunReader(new MockFileReader([
                 'cbuild-run:',
                 '  output: []',
@@ -275,7 +301,7 @@ describe('CbuildRunReader', () => {
 
             await reader.parse('test.cbuild-run.yml');
 
-            expect(reader.getSwoUartTraceMode()).toBeUndefined();
+            expect(reader.getTraceMode()).toBeUndefined();
         });
 
         it.each([

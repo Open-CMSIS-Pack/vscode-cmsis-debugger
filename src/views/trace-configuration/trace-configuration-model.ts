@@ -28,7 +28,7 @@ import {
     TraceConfigurationFileWatcher
 } from './trace-configuration-file-watcher';
 import {
-    SWO_UART_TRACE_OFF_MESSAGE,
+    TRACE_OFF_MESSAGE,
     TraceConfigurationGeneratedCTraceFileManager
 } from './trace-configuration-generated-ctrace-file-manager';
 import {
@@ -132,7 +132,7 @@ export class TraceConfigurationModel {
                     break;
                 case 'trace-off':
                     this.clearCurrentFile();
-                    this.emptyMessage = SWO_UART_TRACE_OFF_MESSAGE;
+                    this.emptyMessage = TRACE_OFF_MESSAGE;
                     break;
                 case 'deleted':
                     break;
