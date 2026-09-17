@@ -163,59 +163,6 @@ describe('TraceConfigurationWebviewProvider', () => {
             fileName: 'target.ctrace.yml',
             dirty: false,
             loading: false,
-            diagnostics: [],
-            rows: [
-                {
-                    id: 'parent',
-                    label: 'Parent',
-                    path: ['parent'],
-                    depth: 0,
-                    kind: 'map',
-                    control: 'none',
-                    hasChildren: true,
-                    expanded: false,
-                    removable: false
-                },
-                {
-                    id: 'leaf',
-                    label: 'Leaf',
-                    path: ['parent', 'leaf'],
-                    depth: 1,
-                    kind: 'scalar',
-                    control: 'none',
-                    hasChildren: false,
-                    expanded: false,
-                    removable: false
-                }
-            ]
-        });
-        const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
-        const context = extensionContextFactory();
-        provider.activate(context);
-        const findCommand = (command: string): (() => Promise<void> | void) => {
-            const entry = (vscode.commands.registerCommand as jest.Mock).mock.calls.find(([registeredCommand]) => registeredCommand === command);
-            expect(entry).toBeDefined();
-            return entry?.[1] as () => Promise<void> | void;
-        };
-
-        await findCommand('vscode-cmsis-debugger.traceConfiguration.save')();
-        await findCommand('vscode-cmsis-debugger.traceConfiguration.openFile')();
-        findCommand('vscode-cmsis-debugger.traceConfiguration.expandAll')();
-        findCommand('vscode-cmsis-debugger.traceConfiguration.collapseAll')();
-
-        expect(model.saveCurrentDocument).toHaveBeenCalledTimes(1);
-        expect(vscode.window.showOpenDialog).toHaveBeenCalledTimes(1);
-        expect(model.updateExpandedState).toHaveBeenNthCalledWith(1, 'parent', true);
-        expect(model.updateExpandedState).toHaveBeenNthCalledWith(2, 'parent', false);
-    });
-
-    it('routes trace configuration title commands to model operations', async () => {
-        const model = new FakeTraceConfigurationModel();
-        model.createState.mockReturnValue({
-            fileName: 'target.ctrace.yml',
-            dirty: false,
-            loading: false,
-            diagnostics: [],
             rows: [
                 {
                     id: 'parent',
