@@ -184,7 +184,7 @@ export class TraceConfigurationFileWatcher {
         findExistingCBuildIndex = false
     ): Promise<boolean> {
         const resolutionVersion = ++this.cbuildRunResolutionVersion;
-        const cbuildRunFileName = await this.getCBuildRunFileName(
+        const cbuildRunFileName = await this.fileLocationManager.getCBuildRunFileName(
             cbuildIndexFile,
             findExistingCBuildIndex
         );
@@ -211,28 +211,6 @@ export class TraceConfigurationFileWatcher {
 
         await this.handleGeneratedCBuildRunFileChange('changed', uri);
         return true;
-    }
-
-    /**
-     * Gets the active cbuild-run file name from CMSIS Solution, falling back to
-     * the cbuild index while CMSIS Solution is still loading its build data.
-     */
-    private async getCBuildRunFileName(
-        cbuildIndexFile?: vscode.Uri,
-        findExistingCBuildIndex = false
-    ): Promise<string | undefined> {
-        const cbuildRunFileName = await this.fileLocationManager.getCBuildRunFileNameFromCommand();
-        if (cbuildRunFileName && await fileExists(vscode.Uri.file(cbuildRunFileName))) {
-            return cbuildRunFileName;
-        }
-
-        const indexFile = cbuildIndexFile ?? (findExistingCBuildIndex
-            ? await this.fileLocationManager.findExistingCBuildIndexFile()
-            : undefined);
-        const indexedCBuildRunFileName = indexFile
-            ? await this.fileLocationManager.readCBuildRunFileNameFromIndex(indexFile)
-            : undefined;
-        return indexedCBuildRunFileName ?? cbuildRunFileName;
     }
 
     private isCurrentGeneratedCBuildRunFile(cbuildRunFileName: string): boolean {

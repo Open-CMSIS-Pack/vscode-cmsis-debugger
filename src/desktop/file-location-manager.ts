@@ -22,6 +22,7 @@ import { parse } from 'yaml';
 
 import { logger } from '../logger';
 import { CBUILD_INDEX_FILE_GLOB } from '../manifest';
+import { fileExists } from '../utils';
 
 export class FileLocationManager {
     private static readonly CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND = 'cmsis-csolution.getCbuildRunFile';
@@ -77,6 +78,28 @@ export class FileLocationManager {
             logger.debug(`Failed to get active cbuild-run file from CMSIS Solution: ${errorMessage}`);
             return undefined;
         }
+    }
+
+    /**
+     * Gets the active cbuild-run file name from CMSIS Solution, falling back to
+     * the cbuild index while CMSIS Solution is still loading its build data.
+     */
+    public async getCBuildRunFileName(
+        cbuildIndexFile?: vscode.Uri,
+        findExistingCBuildIndex = false
+    ): Promise<string | undefined> {
+        const cbuildRunFileName = await this.getCBuildRunFileNameFromCommand();
+        if (cbuildRunFileName && await fileExists(vscode.Uri.file(cbuildRunFileName))) {
+            return cbuildRunFileName;
+        }
+
+        const indexFile = cbuildIndexFile ?? (findExistingCBuildIndex
+            ? await this.findExistingCBuildIndexFile()
+            : undefined);
+        const indexedCBuildRunFileName = indexFile
+            ? await this.readCBuildRunFileNameFromIndex(indexFile)
+            : undefined;
+        return indexedCBuildRunFileName ?? cbuildRunFileName;
     }
 
     public async getDefaultSolutionSet(cbuildRunFilePath: string | undefined): Promise<string> {

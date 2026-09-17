@@ -120,6 +120,57 @@ describe('FileLocationManager', () => {
         expect(loggerSpy).toHaveBeenCalledWith('Failed to get active cbuild-run file from CMSIS Solution: command unavailable');
     });
 
+    it('returns the command cbuild-run file when it exists', async () => {
+        const cbuildRunFileName = '/workspace/project/example.cbuild-run.yml';
+        jest.spyOn(fileLocationManager, 'getCBuildRunFileNameFromCommand').mockResolvedValue(cbuildRunFileName);
+        jest.spyOn(vscode.workspace.fs, 'stat').mockResolvedValue({
+            type: vscode.FileType.File,
+            ctime: 0,
+            mtime: 0,
+            size: 0
+        });
+        const readFromIndexSpy = jest.spyOn(fileLocationManager, 'readCBuildRunFileNameFromIndex');
+
+        const result = await fileLocationManager.getCBuildRunFileName(vscode.Uri.file('/workspace/project.cbuild-idx.yml'));
+
+        expect(result).toBe(cbuildRunFileName);
+        expect(readFromIndexSpy).not.toHaveBeenCalled();
+    });
+
+    it('falls back to a supplied cbuild index when the command file does not exist', async () => {
+        const cbuildIndexFile = vscode.Uri.file('/workspace/project.cbuild-idx.yml');
+        const indexedCBuildRunFileName = '/workspace/project/indexed.cbuild-run.yml';
+        jest.spyOn(fileLocationManager, 'getCBuildRunFileNameFromCommand').mockResolvedValue('/workspace/project/stale.cbuild-run.yml');
+        jest.spyOn(vscode.workspace.fs, 'stat').mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }));
+        jest.spyOn(fileLocationManager, 'readCBuildRunFileNameFromIndex').mockResolvedValue(indexedCBuildRunFileName);
+
+        const result = await fileLocationManager.getCBuildRunFileName(cbuildIndexFile);
+
+        expect(result).toBe(indexedCBuildRunFileName);
+    });
+
+    it('finds an existing cbuild index when requested', async () => {
+        const cbuildIndexFile = vscode.Uri.file('/workspace/project.cbuild-idx.yml');
+        const indexedCBuildRunFileName = '/workspace/project/indexed.cbuild-run.yml';
+        jest.spyOn(fileLocationManager, 'getCBuildRunFileNameFromCommand').mockResolvedValue(undefined);
+        jest.spyOn(fileLocationManager, 'findExistingCBuildIndexFile').mockResolvedValue(cbuildIndexFile);
+        jest.spyOn(fileLocationManager, 'readCBuildRunFileNameFromIndex').mockResolvedValue(indexedCBuildRunFileName);
+
+        const result = await fileLocationManager.getCBuildRunFileName(undefined, true);
+
+        expect(result).toBe(indexedCBuildRunFileName);
+    });
+
+    it('returns a missing command file when no index fallback is available', async () => {
+        const cbuildRunFileName = '/workspace/project/pending.cbuild-run.yml';
+        jest.spyOn(fileLocationManager, 'getCBuildRunFileNameFromCommand').mockResolvedValue(cbuildRunFileName);
+        jest.spyOn(vscode.workspace.fs, 'stat').mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }));
+
+        const result = await fileLocationManager.getCBuildRunFileName();
+
+        expect(result).toBe(cbuildRunFileName);
+    });
+
     it('supports separate FileLocationManager instances', async () => {
         (vscode.commands.executeCommand as jest.Mock).mockResolvedValue('/workspace/project/example.cbuild-run.yml');
 
