@@ -18,14 +18,53 @@
 import * as vscode from 'vscode';
 
 import { logger } from '../logger';
+import { CBUILD_INDEX_FILE_GLOB } from '../manifest';
 import { FileLocationManager } from './file-location-manager';
+
+interface MutableWorkspace {
+    workspaceFolders: readonly vscode.WorkspaceFolder[] | undefined;
+}
 
 describe('FileLocationManager', () => {
     const fileLocationManager = new FileLocationManager();
+    const mutableWorkspace = vscode.workspace as unknown as MutableWorkspace;
+    const originalWorkspaceFolders = mutableWorkspace.workspaceFolders;
 
     afterEach(() => {
+        mutableWorkspace.workspaceFolders = originalWorkspaceFolders;
         jest.clearAllMocks();
         jest.restoreAllMocks();
+    });
+
+    it('finds an existing cbuild index in the main workspace', async () => {
+        const workspaceFolder = {
+            uri: vscode.Uri.file('/workspace'),
+            name: 'workspace',
+            index: 0
+        };
+        const cbuildIndexFile = vscode.Uri.file('/workspace/project.cbuild-idx.yml');
+        mutableWorkspace.workspaceFolders = [workspaceFolder];
+        (vscode.workspace.findFiles as jest.Mock).mockResolvedValue([cbuildIndexFile]);
+
+        const result = await fileLocationManager.findExistingCBuildIndexFile();
+
+        expect(result).toBe(cbuildIndexFile);
+        expect(vscode.workspace.findFiles).toHaveBeenCalledWith(
+            expect.objectContaining({
+                base: workspaceFolder,
+                pattern: CBUILD_INDEX_FILE_GLOB
+            }),
+            null,
+            1
+        );
+    });
+
+    it('does not search for a cbuild index without a workspace', async () => {
+        mutableWorkspace.workspaceFolders = undefined;
+
+        await expect(fileLocationManager.findExistingCBuildIndexFile()).resolves.toBeUndefined();
+
+        expect(vscode.workspace.findFiles).not.toHaveBeenCalled();
     });
 
     it('returns cbuild-run file path from CMSIS Solution command', async () => {

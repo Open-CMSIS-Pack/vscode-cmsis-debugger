@@ -87,7 +87,7 @@ export class TraceConfigurationFileWatcher {
      */
     public constructor(
         private readonly callbacks: TraceConfigurationFileWatcherCallbacks,
-        private readonly fileLocationManager: Pick<FileLocationManager, 'getCBuildRunFileName'> = new FileLocationManager()
+        private readonly fileLocationManager: FileLocationManager = new FileLocationManager()
     ) {}
 
     /**
@@ -207,7 +207,7 @@ export class TraceConfigurationFileWatcher {
         }
 
         const indexFile = cbuildIndexFile ?? (findExistingCBuildIndex
-            ? await this.findExistingCBuildIndexFile()
+            ? await this.fileLocationManager.findExistingCBuildIndexFile()
             : undefined);
         const indexedCBuildRunFileName = indexFile
             ? await this.readCBuildRunFileNameFromIndex(indexFile)
@@ -226,22 +226,6 @@ export class TraceConfigurationFileWatcher {
             watchVersion,
             resolutionVersion
         );
-    }
-
-    /**
-     * findExistingCBuildIndexFile covers prebuilt projects whose index existed
-     * before the filesystem watcher was installed. This lookup runs only after
-     * CMSIS Solution activation and an unsuccessful command result, so it
-     * cannot recreate the original pre-activation race.
-     */
-    private async findExistingCBuildIndexFile(): Promise<vscode.Uri | undefined> {
-        const mainWorkspaceFolder = vscode.workspace.workspaceFolders?.[0];
-        if (!mainWorkspaceFolder) {
-            return undefined;
-        }
-        const pattern = new vscode.RelativePattern(mainWorkspaceFolder, CBUILD_INDEX_FILE_GLOB);
-        const files = await vscode.workspace.findFiles(pattern, null, 1);
-        return files.at(0);
     }
 
     /**

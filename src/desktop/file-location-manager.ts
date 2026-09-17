@@ -18,10 +18,25 @@
 import * as vscode from 'vscode';
 
 import { logger } from '../logger';
+import { CBUILD_INDEX_FILE_GLOB } from '../manifest';
 
 export class FileLocationManager {
     private static readonly CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND = 'cmsis-csolution.getCbuildRunFile';
     private static readonly CMSIS_SOLUTION_GET_ACTIVE_TARGET_SET_COMMAND = 'cmsis-csolution.getActiveTargetSet';
+
+    /**
+     * Finds a pre-existing cbuild index in the main workspace. This covers
+     * projects whose index was generated before a filesystem watcher started.
+     */
+    public async findExistingCBuildIndexFile(): Promise<vscode.Uri | undefined> {
+        const mainWorkspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!mainWorkspaceFolder) {
+            return undefined;
+        }
+        const pattern = new vscode.RelativePattern(mainWorkspaceFolder, CBUILD_INDEX_FILE_GLOB);
+        const files = await vscode.workspace.findFiles(pattern, null, 1);
+        return files.at(0);
+    }
 
     /**
      * getCBuildRunFileName asks the CMSIS Solution extension for the active

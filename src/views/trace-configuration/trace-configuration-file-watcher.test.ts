@@ -19,6 +19,7 @@ import * as path from 'node:path';
 
 import * as vscode from 'vscode';
 
+import { FileLocationManager } from '../../desktop/file-location-manager';
 import { CBUILD_INDEX_FILE_GLOB } from '../../manifest';
 import { normalizeFsPath, waitForCondition } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
@@ -69,6 +70,12 @@ function createMockCTraceYamlFile(): MockCTraceYamlFile {
     };
 }
 
+function createFileLocationManager(getCBuildRunFileName: jest.Mock): FileLocationManager {
+    const fileLocationManager = new FileLocationManager();
+    jest.spyOn(fileLocationManager, 'getCBuildRunFileName').mockImplementation(getCBuildRunFileName);
+    return fileLocationManager;
+}
+
 function getCurrentFileReloadHandler(watch: jest.Mock): (document: CTraceYamlDocument) => void {
     const handler = watch.mock.calls.at(-1)?.[0] as ((document: CTraceYamlDocument) => void) | undefined;
     expect(handler).toBeDefined();
@@ -104,7 +111,7 @@ describe('TraceConfigurationFileWatcher', () => {
             onCurrentFileReloadFailed: jest.fn(),
             onGeneratedCBuildRunFileChanged
         };
-        const watcher = new TraceConfigurationFileWatcher(callbacks, { getCBuildRunFileName });
+        const watcher = new TraceConfigurationFileWatcher(callbacks, createFileLocationManager(getCBuildRunFileName));
         const events: GeneratedCBuildRunFileChangeEvent[] = [];
         watcher.onDidChangeGeneratedCBuildRunFile(event => events.push(event));
 
@@ -157,7 +164,7 @@ describe('TraceConfigurationFileWatcher', () => {
             onCurrentFileReloadFailed: jest.fn(),
             onGeneratedCBuildRunFileChanged
         };
-        const watcher = new TraceConfigurationFileWatcher(callbacks, { getCBuildRunFileName });
+        const watcher = new TraceConfigurationFileWatcher(callbacks, createFileLocationManager(getCBuildRunFileName));
 
         watcher.watchGeneratedCBuildRunFiles();
         const cbuildIndexWatcher = getLastCreatedFileSystemWatcher();
@@ -200,7 +207,7 @@ describe('TraceConfigurationFileWatcher', () => {
             onCurrentFileReloadFailed: jest.fn(),
             onGeneratedCBuildRunFileChanged
         };
-        const watcher = new TraceConfigurationFileWatcher(callbacks, { getCBuildRunFileName });
+        const watcher = new TraceConfigurationFileWatcher(callbacks, createFileLocationManager(getCBuildRunFileName));
 
         watcher.watchGeneratedCBuildRunFiles();
         const cbuildIndexWatcher = getLastCreatedFileSystemWatcher();
@@ -247,7 +254,7 @@ describe('TraceConfigurationFileWatcher', () => {
             onCurrentFileReloadFailed: jest.fn(),
             onGeneratedCBuildRunFileChanged
         };
-        const watcher = new TraceConfigurationFileWatcher(callbacks, { getCBuildRunFileName });
+        const watcher = new TraceConfigurationFileWatcher(callbacks, createFileLocationManager(getCBuildRunFileName));
 
         watcher.watchGeneratedCBuildRunFiles();
         await expect(watcher.processActiveCBuildRunFile()).resolves.toBe(true);
@@ -278,7 +285,7 @@ describe('TraceConfigurationFileWatcher', () => {
             onCurrentFileReloadFailed: jest.fn(),
             onGeneratedCBuildRunFileChanged
         };
-        const watcher = new TraceConfigurationFileWatcher(callbacks, { getCBuildRunFileName });
+        const watcher = new TraceConfigurationFileWatcher(callbacks, createFileLocationManager(getCBuildRunFileName));
 
         watcher.watchGeneratedCBuildRunFiles();
         const cbuildIndexWatcher = getLastCreatedFileSystemWatcher();
