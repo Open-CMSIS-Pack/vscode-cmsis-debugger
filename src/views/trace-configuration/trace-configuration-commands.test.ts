@@ -25,13 +25,13 @@ import { TraceConfigurationCommands } from './trace-configuration-commands';
 describe('TraceConfigurationCommands', () => {
     let context: vscode.ExtensionContext;
     let handler: (() => Promise<void>) | undefined;
-    const getCBuildRunFileName = jest.fn<Promise<string | undefined>, []>();
+    const getCBuildRunFileNameFromCommand = jest.fn<Promise<string | undefined>, []>();
     const createDefaultCTraceFile = jest.fn<Promise<vscode.Uri | undefined>, [vscode.Uri]>();
 
     beforeEach(() => {
         context = extensionContextFactory();
         handler = undefined;
-        getCBuildRunFileName.mockReset();
+        getCBuildRunFileNameFromCommand.mockReset();
         createDefaultCTraceFile.mockReset();
         (vscode.commands.registerCommand as jest.Mock).mockImplementation(
             (command: string, registeredHandler: () => Promise<void>) => {
@@ -49,7 +49,7 @@ describe('TraceConfigurationCommands', () => {
 
     function activateCommands(): () => Promise<void> {
         const commands = new TraceConfigurationCommands(
-            { getCBuildRunFileName },
+            { getCBuildRunFileNameFromCommand },
             { createDefaultCTraceFile }
         );
         commands.activate(context);
@@ -71,13 +71,13 @@ describe('TraceConfigurationCommands', () => {
     });
 
     it('reads the active cbuild-run file and generates its default ctrace file', async () => {
-        getCBuildRunFileName.mockResolvedValue('/workspace/out/demo.cbuild-run.yml');
+        getCBuildRunFileNameFromCommand.mockResolvedValue('/workspace/out/demo.cbuild-run.yml');
         createDefaultCTraceFile.mockResolvedValue(vscode.Uri.file('/workspace/.cmsis/demo.ctrace.yml'));
         const commandHandler = activateCommands();
 
         await commandHandler();
 
-        expect(getCBuildRunFileName).toHaveBeenCalledTimes(1);
+        expect(getCBuildRunFileNameFromCommand).toHaveBeenCalledTimes(1);
         expect(createDefaultCTraceFile).toHaveBeenCalledWith(vscode.Uri.file('/workspace/out/demo.cbuild-run.yml'));
         expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
             `Default trace configuration generated at ${normalizeFsPath('/workspace/.cmsis/demo.ctrace.yml')}.`
@@ -85,7 +85,7 @@ describe('TraceConfigurationCommands', () => {
     });
 
     it('reports when no active cbuild-run file is available', async () => {
-        getCBuildRunFileName.mockResolvedValue(undefined);
+        getCBuildRunFileNameFromCommand.mockResolvedValue(undefined);
         const commandHandler = activateCommands();
 
         await commandHandler();
@@ -97,7 +97,7 @@ describe('TraceConfigurationCommands', () => {
     });
 
     it('reports when trace mode prevents default ctrace generation', async () => {
-        getCBuildRunFileName.mockResolvedValue('/workspace/out/demo.cbuild-run.yml');
+        getCBuildRunFileNameFromCommand.mockResolvedValue('/workspace/out/demo.cbuild-run.yml');
         createDefaultCTraceFile.mockResolvedValue(undefined);
         const commandHandler = activateCommands();
 
@@ -110,7 +110,7 @@ describe('TraceConfigurationCommands', () => {
 
     it('reports generation failures without rejecting the command', async () => {
         const loggerSpy = jest.spyOn(logger, 'error');
-        getCBuildRunFileName.mockResolvedValue('/workspace/out/demo.cbuild-run.yml');
+        getCBuildRunFileNameFromCommand.mockResolvedValue('/workspace/out/demo.cbuild-run.yml');
         createDefaultCTraceFile.mockRejectedValue(new Error('invalid processor data'));
         const commandHandler = activateCommands();
 

@@ -96,7 +96,7 @@ describe('FileLocationManager', () => {
     it('returns cbuild-run file path from CMSIS Solution command', async () => {
         (vscode.commands.executeCommand as jest.Mock).mockResolvedValue('/workspace/project/example.cbuild-run.yml');
 
-        const result = await fileLocationManager.getCBuildRunFileName();
+        const result = await fileLocationManager.getCBuildRunFileNameFromCommand();
 
         expect(result).toBe('/workspace/project/example.cbuild-run.yml');
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith('cmsis-csolution.getCbuildRunFile');
@@ -105,7 +105,7 @@ describe('FileLocationManager', () => {
     it('returns undefined when CMSIS Solution command returns an empty value', async () => {
         (vscode.commands.executeCommand as jest.Mock).mockResolvedValue('   ');
 
-        const result = await new FileLocationManager().getCBuildRunFileName();
+        const result = await new FileLocationManager().getCBuildRunFileNameFromCommand();
 
         expect(result).toBeUndefined();
     });
@@ -114,7 +114,7 @@ describe('FileLocationManager', () => {
         const loggerSpy = jest.spyOn(logger, 'debug');
         (vscode.commands.executeCommand as jest.Mock).mockRejectedValue(new Error('command unavailable'));
 
-        const result = await fileLocationManager.getCBuildRunFileName();
+        const result = await fileLocationManager.getCBuildRunFileNameFromCommand();
 
         expect(result).toBeUndefined();
         expect(loggerSpy).toHaveBeenCalledWith('Failed to get active cbuild-run file from CMSIS Solution: command unavailable');
@@ -123,7 +123,7 @@ describe('FileLocationManager', () => {
     it('supports separate FileLocationManager instances', async () => {
         (vscode.commands.executeCommand as jest.Mock).mockResolvedValue('/workspace/project/example.cbuild-run.yml');
 
-        const result = await new FileLocationManager().getCBuildRunFileName();
+        const result = await new FileLocationManager().getCBuildRunFileNameFromCommand();
 
         expect(result).toBe('/workspace/project/example.cbuild-run.yml');
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith('cmsis-csolution.getCbuildRunFile');

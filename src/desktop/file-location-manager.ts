@@ -63,12 +63,12 @@ export class FileLocationManager {
     }
 
     /**
-     * getCBuildRunFileName asks the CMSIS Solution extension for the active
+     * getCBuildRunFileNameFromCommand asks the CMSIS Solution extension for the active
      * target's generated cbuild-run file. Empty results and command failures are
      * treated as "not available" so the trace view can still fall back to the
      * processor names already present in ctrace.yml.
      */
-    public async getCBuildRunFileName(): Promise<string | undefined> {
+    public async getCBuildRunFileNameFromCommand(): Promise<string | undefined> {
         try {
             const fileName = await vscode.commands.executeCommand<string | undefined>(FileLocationManager.CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
             return fileName?.trim() ? fileName : undefined;

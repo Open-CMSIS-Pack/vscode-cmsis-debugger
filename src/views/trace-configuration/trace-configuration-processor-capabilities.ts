@@ -153,7 +153,7 @@ export class TraceConfigurationProcessorCapabilities {
      * the caller will fall back to ctrace.yml core values when present.
      */
     private async getCBuildRunProcessors(): Promise<ProcessorType[]> {
-        const cbuildRunFilePath = await this.fileLocationManager.getCBuildRunFileName();
+        const cbuildRunFilePath = await this.fileLocationManager.getCBuildRunFileNameFromCommand();
 
         if (!cbuildRunFilePath) {
             return [];

@@ -185,7 +185,7 @@ export class TraceConfigurationFileWatcher {
         findExistingCBuildIndex = false
     ): Promise<boolean> {
         const resolutionVersion = ++this.cbuildRunResolutionVersion;
-        const cbuildRunFileName = await this.fileLocationManager.getCBuildRunFileName();
+        const cbuildRunFileName = await this.fileLocationManager.getCBuildRunFileNameFromCommand();
 
         if (
             watchVersion !== this.generatedWatchVersion
