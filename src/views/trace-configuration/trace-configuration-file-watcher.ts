@@ -20,10 +20,11 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { parse } from 'yaml';
 
+import { FileLocationManager } from '../../desktop/file-location-manager';
 import { Disposable } from '../../desktop/yaml-file';
 import { logger } from '../../logger';
 import { CBUILD_INDEX_FILE_GLOB } from '../../manifest';
-import { FileLocationManager, normalizeFsPath } from '../../utils';
+import { normalizeFsPath } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 
 export type GeneratedCBuildRunFileChangeType = 'created' | 'changed' | 'deleted';

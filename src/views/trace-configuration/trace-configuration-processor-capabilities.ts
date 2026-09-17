@@ -16,9 +16,9 @@
 // generated with AI
 
 import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
+import { FileLocationManager } from '../../desktop/file-location-manager';
 import { isYamlMapItem, isYamlScalarItem, isYamlSequenceItem, YamlTreeItem, yamlScalarToString } from '../../desktop/yaml-dom';
 import { logger } from '../../logger';
-import { FileLocationManager } from '../../utils';
 import { CTraceYamlFile } from './ctrace-yaml';
 import * as TraceConfigurationTypes from './trace-configuration-types';
 

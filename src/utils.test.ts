@@ -16,13 +16,10 @@
 
 import * as os from 'os';
 import * as path from 'path';
-import * as vscode from 'vscode';
-import { logger } from './logger';
 import {
     calculateTime,
     containsSubstringsInOrder,
     extractPname,
-    FileLocationManager,
     getCmsisPackRootPath,
     isWindows,
     normalizeFsPath,
@@ -102,51 +99,6 @@ describe('extractPname', () => {
         expect(result).toBeUndefined();
     });
 
-});
-
-describe('getCbuildRunFile', () => {
-    const fileLocationManager = new FileLocationManager();
-
-    afterEach(() => {
-        jest.clearAllMocks();
-        jest.restoreAllMocks();
-    });
-
-    it('returns cbuild-run file path from CMSIS Solution command', async () => {
-        (vscode.commands.executeCommand as jest.Mock).mockResolvedValue('/workspace/project/example.cbuild-run.yml');
-
-        const result = await fileLocationManager.getCBuildRunFileName();
-
-        expect(result).toBe('/workspace/project/example.cbuild-run.yml');
-        expect(vscode.commands.executeCommand).toHaveBeenCalledWith('cmsis-csolution.getCbuildRunFile');
-    });
-
-    it('returns undefined when CMSIS Solution command returns an empty value', async () => {
-        (vscode.commands.executeCommand as jest.Mock).mockResolvedValue('   ');
-
-        const result = await new FileLocationManager().getCBuildRunFileName();
-
-        expect(result).toBeUndefined();
-    });
-
-    it('returns undefined and logs when CMSIS Solution command fails', async () => {
-        const loggerSpy = jest.spyOn(logger, 'debug');
-        (vscode.commands.executeCommand as jest.Mock).mockRejectedValue(new Error('command unavailable'));
-
-        const result = await fileLocationManager.getCBuildRunFileName();
-
-        expect(result).toBeUndefined();
-        expect(loggerSpy).toHaveBeenCalledWith('Failed to get active cbuild-run file from CMSIS Solution: command unavailable');
-    });
-
-    it('supports the FileLocationManager compatibility wrapper', async () => {
-        (vscode.commands.executeCommand as jest.Mock).mockResolvedValue('/workspace/project/example.cbuild-run.yml');
-
-        const result = await new FileLocationManager().getCBuildRunFileName();
-
-        expect(result).toBe('/workspace/project/example.cbuild-run.yml');
-        expect(vscode.commands.executeCommand).toHaveBeenCalledWith('cmsis-csolution.getCbuildRunFile');
-    });
 });
 
 describe('normalizeFsPath', () => {

@@ -17,9 +17,9 @@
 
 import * as vscode from 'vscode';
 
+import { FileLocationManager } from '../../desktop/file-location-manager';
 import { EXTENSION_NAME } from '../../manifest';
 import { logger } from '../../logger';
-import { FileLocationManager } from '../../utils';
 import { TraceConfigurationGeneratedCTraceFileManager } from './trace-configuration-generated-ctrace-file-manager';
 
 type CBuildRunFileLocator = Pick<FileLocationManager, 'getCBuildRunFileName'>;

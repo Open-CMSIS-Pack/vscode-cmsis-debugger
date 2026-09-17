@@ -16,8 +16,8 @@
 // generated with AI
 
 import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
+import { FileLocationManager } from '../../desktop/file-location-manager';
 import { logger } from '../../logger';
-import { FileLocationManager } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import { TraceConfigurationProcessorCapabilities } from './trace-configuration-processor-capabilities';
 

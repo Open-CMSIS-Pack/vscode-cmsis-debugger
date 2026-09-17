@@ -19,12 +19,12 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { logger } from '../../logger';
 import { BuiltinToolPath } from '../builtin-tool-path';
+import { FileLocationManager } from '../file-location-manager';
 import {
     ProcessManager,
     ProcessManagerLaunchOptions,
     ProcessManagerOptions
 } from './process-manager';
-import { FileLocationManager } from '../../utils';
 
 export const DEFAULT_CTRACE_PATH = 'tools/ctrace/ctrace';
 
