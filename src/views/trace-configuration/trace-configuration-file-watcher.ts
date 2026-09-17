@@ -185,24 +185,46 @@ export class TraceConfigurationFileWatcher {
         findExistingCBuildIndex = false
     ): Promise<boolean> {
         const resolutionVersion = ++this.cbuildRunResolutionVersion;
-        const cbuildRunFileName = await this.fileLocationManager.getCBuildRunFileNameFromCommand();
-
+        const cbuildRunFileName = await this.getCBuildRunFileName(
+            cbuildIndexFile,
+            findExistingCBuildIndex
+        );
         if (
-            watchVersion !== this.generatedWatchVersion
+            !cbuildRunFileName
+            || watchVersion !== this.generatedWatchVersion
             || resolutionVersion !== this.cbuildRunResolutionVersion
         ) {
             return false;
         }
 
-        if (cbuildRunFileName) {
-            this.watchGeneratedCBuildRunFile(cbuildRunFileName, watchVersion);
-            if (await this.processExistingGeneratedCBuildRunFile(
-                cbuildRunFileName,
-                watchVersion,
-                resolutionVersion
-            )) {
-                return true;
-            }
+        this.watchGeneratedCBuildRunFile(cbuildRunFileName, watchVersion);
+        const uri = vscode.Uri.file(cbuildRunFileName);
+        if (!await this.fileExists(uri)) {
+            return false;
+        }
+        if (
+            watchVersion !== this.generatedWatchVersion
+            || resolutionVersion !== this.cbuildRunResolutionVersion
+            || !this.isCurrentGeneratedCBuildRunFile(cbuildRunFileName)
+        ) {
+            return false;
+        }
+
+        await this.handleGeneratedCBuildRunFileChange('changed', uri);
+        return true;
+    }
+
+    /**
+     * Gets the active cbuild-run file name from CMSIS Solution, falling back to
+     * the cbuild index while CMSIS Solution is still loading its build data.
+     */
+    private async getCBuildRunFileName(
+        cbuildIndexFile?: vscode.Uri,
+        findExistingCBuildIndex = false
+    ): Promise<string | undefined> {
+        const cbuildRunFileName = await this.fileLocationManager.getCBuildRunFileNameFromCommand();
+        if (cbuildRunFileName && await this.fileExists(vscode.Uri.file(cbuildRunFileName))) {
+            return cbuildRunFileName;
         }
 
         const indexFile = cbuildIndexFile ?? (findExistingCBuildIndex
@@ -211,32 +233,14 @@ export class TraceConfigurationFileWatcher {
         const indexedCBuildRunFileName = indexFile
             ? await this.fileLocationManager.readCBuildRunFileNameFromIndex(indexFile)
             : undefined;
-        if (
-            !indexedCBuildRunFileName
-            || watchVersion !== this.generatedWatchVersion
-            || resolutionVersion !== this.cbuildRunResolutionVersion
-        ) {
-            return false;
-        }
-
-        this.watchGeneratedCBuildRunFile(indexedCBuildRunFileName, watchVersion);
-        return this.processExistingGeneratedCBuildRunFile(
-            indexedCBuildRunFileName,
-            watchVersion,
-            resolutionVersion
-        );
+        return indexedCBuildRunFileName ?? cbuildRunFileName;
     }
 
     /**
-     * processExistingGeneratedCBuildRunFile handles the case where generation
-     * completed before the exact cbuild-run watcher was installed.
+     * Checks whether a generated file already exists after its watcher is
+     * installed, logging unexpected filesystem failures.
      */
-    private async processExistingGeneratedCBuildRunFile(
-        cbuildRunFileName: string,
-        watchVersion: number,
-        resolutionVersion: number
-    ): Promise<boolean> {
-        const uri = vscode.Uri.file(cbuildRunFileName);
+    private async fileExists(uri: vscode.Uri): Promise<boolean> {
         try {
             await vscode.workspace.fs.stat(uri);
         } catch (error) {
@@ -246,17 +250,11 @@ export class TraceConfigurationFileWatcher {
             }
             return false;
         }
-
-        if (
-            watchVersion !== this.generatedWatchVersion
-            || resolutionVersion !== this.cbuildRunResolutionVersion
-            || normalizeFsPath(cbuildRunFileName) !== normalizeFsPath(this.generatedCBuildRunFileName)
-        ) {
-            return false;
-        }
-
-        await this.handleGeneratedCBuildRunFileChange('changed', uri);
         return true;
+    }
+
+    private isCurrentGeneratedCBuildRunFile(cbuildRunFileName: string): boolean {
+        return normalizeFsPath(cbuildRunFileName) === normalizeFsPath(this.generatedCBuildRunFileName);
     }
 
     /**
@@ -280,7 +278,7 @@ export class TraceConfigurationFileWatcher {
     private watchGeneratedCBuildRunFile(cbuildRunFileName: string, watchVersion: number): void {
         if (
             this.generatedCBuildRunFileWatchers.length > 0
-            && normalizeFsPath(this.generatedCBuildRunFileName) === normalizeFsPath(cbuildRunFileName)
+            && this.isCurrentGeneratedCBuildRunFile(cbuildRunFileName)
         ) {
             return;
         }
@@ -311,7 +309,7 @@ export class TraceConfigurationFileWatcher {
     ): void {
         if (
             watchVersion !== this.generatedWatchVersion
-            || normalizeFsPath(watchedFileName) !== normalizeFsPath(this.generatedCBuildRunFileName)
+            || !this.isCurrentGeneratedCBuildRunFile(watchedFileName)
         ) {
             return;
         }

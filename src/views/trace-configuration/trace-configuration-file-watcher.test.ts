@@ -187,14 +187,14 @@ describe('TraceConfigurationFileWatcher', () => {
         expect(cbuildRunWatcher.dispose).toHaveBeenCalledTimes(1);
     });
 
-    it('resolves the cbuild-run path from a changed index while the CMSIS Solution command is empty', async () => {
+    it('resolves the cbuild-run path from a changed index when the command file does not exist', async () => {
         mutableWorkspace.workspaceFolders = [{
             uri: vscode.Uri.file('/workspace'),
             name: 'workspace',
             index: 0
         }];
         const cbuildRunFile = vscode.Uri.file(path.resolve('test-data/multi-core.cbuild-run.yml'));
-        const getCBuildRunFileNameFromCommand = jest.fn().mockResolvedValue(undefined);
+        const getCBuildRunFileNameFromCommand = jest.fn().mockResolvedValue('/workspace/out/stale.cbuild-run.yml');
         (vscode.workspace.fs.readFile as jest.Mock).mockResolvedValueOnce(new TextEncoder().encode([
             'build-idx:',
             `  cbuild-run: ${JSON.stringify(cbuildRunFile.fsPath)}`,
