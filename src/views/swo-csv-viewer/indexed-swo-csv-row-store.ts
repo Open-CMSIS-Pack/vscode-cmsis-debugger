@@ -65,7 +65,7 @@ class ParsedColumnCache {
 
     public set(columnIndex: number, start: number, segment: ParsedColumnSegment): void {
         const key = `${columnIndex}:${start}`;
-        const bytes = segment.raw.reduce((total, value, index) => total + Buffer.byteLength(value) + Buffer.byteLength(segment.normalized[index] ?? ''), 0);
+        const bytes = segment.raw.reduce((total, value, index) => total + Buffer.byteLength(value) + Buffer.byteLength(segment.normalized.at(index) ?? ''), 0);
         const previous = this.segments.get(key);
         if (previous !== undefined) {
             this.sizeBytes -= previous.bytes;
@@ -126,7 +126,7 @@ const lowerBound = (values: Uint32Array, target: number): number => {
     let end = values.length;
     while (start < end) {
         const middle = start + Math.floor((end - start) / 2);
-        if (values[middle]! < target) {
+        if (values.at(middle)! < target) {
             start = middle + 1;
         } else {
             end = middle;
@@ -140,8 +140,8 @@ const intersectSortedRowIds = (left: Uint32Array, right: Uint32Array): Uint32Arr
     let leftIndex = 0;
     let rightIndex = 0;
     while (leftIndex < left.length && rightIndex < right.length) {
-        const leftValue = left[leftIndex]!;
-        const rightValue = right[rightIndex]!;
+        const leftValue = left.at(leftIndex)!;
+        const rightValue = right.at(rightIndex)!;
         if (leftValue === rightValue) {
             intersection.push(leftValue);
             leftIndex += 1;
@@ -172,7 +172,10 @@ export class IndexedSwoCsvRowStore implements SwoCsvRowStore {
 
     public static async create(filePath: string): Promise<IndexedSwoCsvRowStore> {
         const indexing = startCsvRecordIndexing(filePath);
-        const [index, fileStat] = await Promise.all([indexing.indexReady, stat(filePath)]);
+        // The path originates from a VS Code file URI.
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
+        const fileStatPromise = stat(filePath);
+        const [index, fileStat] = await Promise.all([indexing.indexReady, fileStatPromise]);
         // The path originates from a VS Code file URI.
         // eslint-disable-next-line security/detect-non-literal-fs-filename
         const fileHandle = await open(filePath, 'r');
@@ -305,9 +308,9 @@ export class IndexedSwoCsvRowStore implements SwoCsvRowStore {
             const rowIds = batchCandidates ?? createRowIds(start, end);
             for (const rowId of rowIds) {
                 if (activeFilters.every(filter => exactIndexColumns.includes(filter.columnIndex)
-                    || matchesSwoCsvFilter(columns.get(filter.columnIndex)?.normalized[rowId - start] ?? '', filter))) {
+                    || matchesSwoCsvFilter(columns.get(filter.columnIndex)?.normalized.at(rowId - start) ?? '', filter))) {
                     if (sortByValue) {
-                        sortedMatches.push({ rowId, sortValue: columns.get(sort.columnIndex)?.raw[rowId - start] ?? '' });
+                        sortedMatches.push({ rowId, sortValue: columns.get(sort.columnIndex)?.raw.at(rowId - start) ?? '' });
                     } else {
                         matchingRowIds.push(rowId);
                     }
@@ -369,8 +372,8 @@ export class IndexedSwoCsvRowStore implements SwoCsvRowStore {
             const rowIds = batchCandidates ?? createRowIds(start, end);
             for (const rowId of rowIds) {
                 if (activeFilters.every(filter => exactIndexColumns.includes(filter.columnIndex)
-                    || matchesSwoCsvFilter(columns.get(filter.columnIndex)?.normalized[rowId - start] ?? '', filter))) {
-                    yield { rowId, sortValue: columns.get(columnIndex)?.raw[rowId - start] ?? '' };
+                    || matchesSwoCsvFilter(columns.get(filter.columnIndex)?.normalized.at(rowId - start) ?? '', filter))) {
+                    yield { rowId, sortValue: columns.get(columnIndex)?.raw.at(rowId - start) ?? '' };
                 }
             }
         }
@@ -417,7 +420,7 @@ export class IndexedSwoCsvRowStore implements SwoCsvRowStore {
             const end = Math.min(start + VIEW_SCAN_BATCH_SIZE, this.index.locations.length);
             const column = (await this.readCachedColumns(start, end, [columnIndex], cacheTiming)).get(columnIndex)!;
             for (let offset = 0; offset < column.normalized.length; offset += 1) {
-                const value = column.normalized[offset]!;
+                const value = column.normalized.at(offset)!;
                 let rowIds = values.get(value);
                 if (rowIds === undefined) {
                     if (values.size >= EXACT_INDEX_MAX_DISTINCT_VALUES) {
@@ -471,7 +474,7 @@ export class IndexedSwoCsvRowStore implements SwoCsvRowStore {
             const rows = await this.readSourceRows(start, end);
             const loadMs = performance.now() - loadStartedAt;
             for (const columnIndex of missing) {
-                const raw = rows.map(row => row.cells[columnIndex] ?? '');
+                const raw = rows.map(row => row.cells.at(columnIndex) ?? '');
                 const segment = { raw, normalized: raw.map(normalizeSwoCsvFilterValue) };
                 if (end - start === VIEW_SCAN_BATCH_SIZE || end === this.index.locations.length && !this.isIndexing) {
                     this.columnCache.set(columnIndex, start, segment);
@@ -597,7 +600,7 @@ const startCsvRecordIndexing = (filePath: string): CsvRecordIndexing => {
                 const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
                 let segmentStart = 0;
                 for (let byteIndex = 0; byteIndex < buffer.length; byteIndex += 1) {
-                    const value = buffer[byteIndex];
+                    const value = buffer.at(byteIndex)!;
                     if (pendingCarriageReturn) {
                         pendingCarriageReturn = false;
                         if (value === 0x0a) {
@@ -617,7 +620,7 @@ const startCsvRecordIndexing = (filePath: string): CsvRecordIndexing => {
                         recordHasContent = true;
                         if (insideQuotes) {
                             if (byteIndex + 1 < buffer.length) {
-                                if (buffer[byteIndex + 1] === 0x22) {
+                                if (buffer.at(byteIndex + 1) === 0x22) {
                                     byteIndex += 1;
                                 } else {
                                     insideQuotes = false;
@@ -695,16 +698,16 @@ class SegmentedRecordLocations {
     public push(offset: number, length: number): void {
         const segmentIndex = Math.floor(this.recordCount / INDEX_SEGMENT_SIZE);
         const indexInSegment = this.recordCount % INDEX_SEGMENT_SIZE;
-        let offsets = this.offsetSegments[segmentIndex];
-        let lengths = this.lengthSegments[segmentIndex];
+        let offsets = this.offsetSegments.at(segmentIndex);
+        let lengths = this.lengthSegments.at(segmentIndex);
         if (offsets === undefined || lengths === undefined) {
             offsets = new Float64Array(INDEX_SEGMENT_SIZE);
             lengths = new Uint32Array(INDEX_SEGMENT_SIZE);
             this.offsetSegments.push(offsets);
             this.lengthSegments.push(lengths);
         }
-        offsets[indexInSegment] = offset;
-        lengths[indexInSegment] = length;
+        offsets.set([offset], indexInSegment);
+        lengths.set([length], indexInSegment);
         this.recordCount += 1;
     }
 
@@ -715,8 +718,8 @@ class SegmentedRecordLocations {
         const segmentIndex = Math.floor(index / INDEX_SEGMENT_SIZE);
         const indexInSegment = index % INDEX_SEGMENT_SIZE;
         return {
-            offset: this.offsetSegments[segmentIndex]![indexInSegment]!,
-            length: this.lengthSegments[segmentIndex]![indexInSegment]!,
+            offset: this.offsetSegments.at(segmentIndex)!.at(indexInSegment)!,
+            length: this.lengthSegments.at(segmentIndex)!.at(indexInSegment)!,
         };
     }
 }

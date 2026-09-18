@@ -162,15 +162,15 @@ const mergeRuns = async (
         while (true) {
             let selectedIndex = -1;
             for (let index = 0; index < current.length; index += 1) {
-                const candidate = current[index];
-                if (candidate !== null && (selectedIndex < 0 || compareEntries(candidate, current[selectedIndex]!, direction) < 0)) {
+                const candidate = current.at(index)!;
+                if (candidate !== null && (selectedIndex < 0 || compareEntries(candidate, current.at(selectedIndex)!, direction) < 0)) {
                     selectedIndex = index;
                 }
             }
             if (selectedIndex < 0) {
                 break;
             }
-            const selected = current[selectedIndex]!;
+            const selected = current.at(selectedIndex)!;
             outputBuffer.writeUInt32LE(selected.rowId, outputOffset);
             outputOffset += Uint32Array.BYTES_PER_ELEMENT;
             rowCount += 1;
@@ -179,7 +179,8 @@ const mergeRuns = async (
                 outputBuffer = Buffer.allocUnsafe(OUTPUT_BUFFER_ROW_COUNT * Uint32Array.BYTES_PER_ELEMENT);
                 outputOffset = 0;
             }
-            current[selectedIndex] = await readers[selectedIndex]!.readEntry();
+            const nextEntry = await readers.at(selectedIndex)!.readEntry();
+            current.splice(selectedIndex, 1, nextEntry);
         }
         if (outputOffset > 0) {
             await output.write(outputBuffer.subarray(0, outputOffset));

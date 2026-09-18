@@ -100,7 +100,7 @@ export class InMemorySwoCsvRowStore implements SwoCsvRowStore {
     }
 
     public async getSourceRow(sourceRowIndex: number): Promise<SwoCsvRow | undefined> {
-        return this.table.rows[sourceRowIndex];
+        return this.table.rows.at(sourceRowIndex);
     }
 
     public onDidIndexProgress(_listener: () => void): () => void {

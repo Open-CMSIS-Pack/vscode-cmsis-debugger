@@ -15,6 +15,8 @@
  */
 // generated with AI
 
+/* eslint-disable security/detect-non-literal-fs-filename -- fixture paths are created in test-owned temporary directories */
+
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
