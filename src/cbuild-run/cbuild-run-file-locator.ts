@@ -57,10 +57,14 @@ export class CBuildRunFileLocator {
             const root: unknown = parse(new TextDecoder().decode(bytes));
             const buildIndex = this.getObjectProperty(root, 'build-idx');
             const cbuildRunFileName = this.getObjectProperty(buildIndex, 'cbuild-run');
-            if (typeof cbuildRunFileName !== 'string' || !cbuildRunFileName.trim()) {
+            if (typeof cbuildRunFileName !== 'string') {
                 return undefined;
             }
-            return path.resolve(path.dirname(cbuildIndexFile.fsPath), cbuildRunFileName.trim());
+            const trimmedCbuildRunFileName = cbuildRunFileName.trim();
+            if (!trimmedCbuildRunFileName) {  // Return undefined if empty string
+                return undefined;
+            }
+            return path.resolve(path.dirname(cbuildIndexFile.fsPath), trimmedCbuildRunFileName);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             logger.debug(`Trace Configuration: Failed to read generated cbuild index file: ${errorMessage}`);
@@ -77,7 +81,7 @@ export class CBuildRunFileLocator {
     public async getCBuildRunFileNameFromCommand(): Promise<string | undefined> {
         try {
             const fileName = await vscode.commands.executeCommand<string | undefined>(CBuildRunFileLocator.CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
-            return fileName?.trim() ? fileName : undefined;
+            return fileName?.trim() || undefined;  // Returned undefined if empty string
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             logger.debug(`Failed to get active cbuild-run file from CMSIS Solution: ${errorMessage}`);
