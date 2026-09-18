@@ -12,7 +12,9 @@
         "skipLibCheck": true
     },
     "include": [
+        "styles.d.ts",
         "tree-table/src",
-        "trace-configuration/src"
+        "trace-configuration/src",
+        "swo-csv-viewer/src"
     ]
 }

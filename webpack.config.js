@@ -50,7 +50,8 @@ const webviewConfig = {
     target: 'web',
     entry: {
         'webviews/tree-table': './src/webviews/tree-table/src/index.tsx',
-        'webviews/trace-configuration': './src/webviews/trace-configuration/src/trace-configuration.ts'
+        'webviews/trace-configuration': './src/webviews/trace-configuration/src/trace-configuration.ts',
+        'webviews/swo-csv-viewer': './src/webviews/swo-csv-viewer/src/index.tsx'
     },
     output: {
         filename: '[name].js',
