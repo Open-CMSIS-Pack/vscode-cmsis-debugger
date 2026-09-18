@@ -72,6 +72,7 @@ const INITIAL_STATE: TableState = {
     updating: false,
 };
 
+
 export const SwoCsvViewer = (): JSX.Element => {
     const scrollElementRef = useRef<HTMLDivElement>(null);
     const tableHeaderRef = useRef<HTMLDivElement>(null);
