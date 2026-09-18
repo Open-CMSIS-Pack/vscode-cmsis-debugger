@@ -25,9 +25,6 @@ import { logger } from '../..';
  * Registers commands related to trace functionality.
  */
 export class TraceCommands {
-    public static readonly CSOLUTION_GET_CBUILD_RUN_FILE_COMMAND = 'cmsis-csolution.getCbuildRunFile';
-    public static readonly CSOLUTION_GET_ACTIVE_TARGET_SET_COMMAND = 'cmsis-csolution.getActiveTargetSet';
-
     public static readonly launchPyTsID = `${EXTENSION_NAME}.launchPyTs`;
     public static readonly launchCTraceID = `${EXTENSION_NAME}.launchCTrace`;
     public static readonly reloadCTraceID = `${EXTENSION_NAME}.reloadCTrace`;
