@@ -48,7 +48,7 @@ describe('SWO CSV generated-file performance integration', () => {
                 { sourceRowIndex: 65_537, cells: ['5537', 'Event'] },
             ]);
 
-            const geometry = getSwoCsvScrollGeometry(store.rowCount, SWO_CSV_MAX_SCROLL_HEIGHT / 2);
+            const geometry = getSwoCsvScrollGeometry(store.rowCount, SWO_CSV_MAX_SCROLL_HEIGHT / 2, 600);
             expect(geometry.logicalTableHeight).toBeGreaterThan(SWO_CSV_MAX_SCROLL_HEIGHT);
             expect(geometry.scrollHeight).toBe(SWO_CSV_MAX_SCROLL_HEIGHT);
             expect(geometry.scrollScale).toBeGreaterThan(1);

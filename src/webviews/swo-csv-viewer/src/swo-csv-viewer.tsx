@@ -97,7 +97,7 @@ export const SwoCsvViewer = (): JSX.Element => {
     const filterTimer = useRef<number | null>(null);
     const copyButtonTimer = useRef<number | null>(null);
     const rowViewportHeight = Math.max(SWO_CSV_ROW_HEIGHT, (scrollElementRef.current?.clientHeight ?? SWO_CSV_ROW_HEIGHT) - (tableHeaderRef.current?.offsetHeight ?? 0));
-    const { scrollHeight, scrollScale, logicalScrollTop, firstVisibleRow } = getSwoCsvScrollGeometry(tableState.totalRowCount, scrollTop);
+    const { scrollHeight, scrollScale, logicalScrollTop, firstVisibleRow } = getSwoCsvScrollGeometry(tableState.totalRowCount, scrollTop, rowViewportHeight);
     const visibleRowCount = Math.max(1, Math.ceil(rowViewportHeight / SWO_CSV_ROW_HEIGHT));
     const renderedRowStart = Math.max(0, firstVisibleRow - ROW_OVERSCAN);
     const renderedRowEnd = Math.min(tableState.totalRowCount, firstVisibleRow + visibleRowCount + ROW_OVERSCAN);
