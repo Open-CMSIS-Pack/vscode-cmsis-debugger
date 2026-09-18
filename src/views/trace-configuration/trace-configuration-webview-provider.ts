@@ -69,6 +69,18 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
                     this.postState();
                 }
             }),
+            vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.save', async () => {
+                await this.handleCommand(() => this.model.saveCurrentDocument());
+            }),
+            vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.openFile', async () => {
+                await this.handleCommand(() => this.promptAndOpenFile());
+            }),
+            vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.expandAll', () => {
+                this.toggleAllRows(true);
+            }),
+            vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.collapseAll', () => {
+                this.toggleAllRows(false);
+            }),
             { dispose: () => this.model.dispose() }
         );
         this.model.watchForGeneratedCBuildRunFiles();
@@ -196,6 +208,30 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
     }
 
     /**
+     * handleCommand applies the same error reporting used for webview actions
+     * to commands invoked from the native view title.
+     */
+    private async handleCommand(action: () => Promise<void>): Promise<void> {
+        try {
+            await action();
+        } catch (error) {
+            this.model.reportError(error, 'Trace Configuration: Command failed');
+        }
+    }
+
+    /**
+     * toggleAllRows applies the current webview toolbar behavior to native
+     * title-bar commands by updating every expandable rendered row.
+     */
+    private toggleAllRows(expanded: boolean): void {
+        for (const row of this.model.createState().rows) {
+            if (row.hasChildren) {
+                this.model.updateExpandedState(row.id, expanded);
+            }
+        }
+    }
+
+    /**
      * promptAndOpenFile lets the user manually pick a ctrace file when automatic
      * discovery found nothing or chose the wrong file. The provider owns the VS
      * Code dialog because it is UI plumbing, then hands the selected path to the
@@ -227,9 +263,16 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
         if (!this.webviewView) {
             return;
         }
+        const state = this.model.createState();
+        const workspaceFolder = state.fileName
+            ? vscode.workspace.getWorkspaceFolder(vscode.Uri.file(state.fileName))
+            : undefined;
         const message: TraceHostToWebviewMessage = {
             type: 'update',
-            state: this.model.createState()
+            state: {
+                ...state,
+                ...(workspaceFolder ? { workspaceFolderPath: workspaceFolder.uri.fsPath } : {})
+            }
         };
         void this.webviewView.webview.postMessage(message);
     }

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- /* generated with AI */
+/* generated with AI */
 
 * {
     box-sizing: border-box;
@@ -232,6 +232,30 @@ select:disabled {
     cursor: pointer;
 }
 
+.multi-select-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.multi-select-summary .codicon {
+    flex: none;
+}
+
+/* .multi-select-summary::after {
+    content: '';
+    display: inline-block;
+    width: 0;
+    height: 0;
+    margin-left: 0.3em;
+    vertical-align: middle;
+    border-top: 4px solid;
+    border-right: 4px solid transparent;
+    border-left: 4px solid transparent;
+    right: 4px;
+    position: absolute;
+} */
+
 .multi-select-menu {
     position: absolute;
     z-index: 3;
@@ -278,8 +302,8 @@ input[type="checkbox"] {
 
 .option-tree-table th,
 .option-tree-table td {
-    border-bottom: 1px solid rgba(128, 128, 128, 0.22);
-    padding: 6px 7px;
+    /* border-bottom: 1px solid rgba(128, 128, 128, 0.22); */
+    padding: 0px 7px;
     text-align: left;
     vertical-align: middle;
 }
@@ -318,6 +342,8 @@ input[type="checkbox"] {
 .tree-label,
 .selection-cell {
     min-width: 0;
+    height: 2em;
+    line-height: 2em;
 }
 
 .node-title {
@@ -340,9 +366,11 @@ input[type="checkbox"] {
 
 .node-text {
     min-width: 0;
+    line-height: 2em;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    padding-left: 0.3em;
 }
 
 .node-meta {
@@ -419,14 +447,18 @@ input[type="checkbox"] {
     color: var(--vscode-errorForeground, #f48771);
 }
 
+.codicon.trace-config.chevron {
+    display: block;
+}
+
 @container (max-width: 360px) {
     .option-tree-table th:first-child {
-        width: 48%;
+        width: fit-content;
     }
 
     .option-tree-table th,
     .option-tree-table td {
-        padding: 5px;
+        padding: 0px;
     }
 
     .node-prefix {
