@@ -64,6 +64,7 @@ describe('CBuildRunFileLocator', () => {
 
     it('does not find a cbuild index without a workspace', async () => {
         mutableWorkspace.workspaceFolders = undefined;
+        (vscode.workspace.findFiles as jest.Mock).mockResolvedValue([]);
 
         await expect(cbuildRunFileLocator.findExistingCBuildIndexFile()).resolves.toBeUndefined();
 
@@ -84,6 +85,27 @@ describe('CBuildRunFileLocator', () => {
 
         expect(result).toBe(cmsisJsonFile);
         expect(vscode.workspace.findFiles).toHaveBeenCalledWith(CMSIS_JSON_FILE_GLOB, null, 1);
+    });
+
+    it('gets the first available workspace folder', () => {
+        const firstWorkspaceFolder = {
+            uri: vscode.Uri.file('/workspace/first'),
+            name: 'first',
+            index: 0
+        };
+        mutableWorkspace.workspaceFolders = [firstWorkspaceFolder, {
+            uri: vscode.Uri.file('/workspace/second'),
+            name: 'second',
+            index: 1
+        }];
+
+        expect(cbuildRunFileLocator.getWorkspaceFolder()).toBe(firstWorkspaceFolder.uri);
+    });
+
+    it('returns undefined when no workspace folder is available', () => {
+        mutableWorkspace.workspaceFolders = undefined;
+
+        expect(cbuildRunFileLocator.getWorkspaceFolder()).toBeUndefined();
     });
 
     it('reads the cbuild-run file name relative to its cbuild index', async () => {

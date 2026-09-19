@@ -45,12 +45,12 @@ export class CTraceController {
     private traceEnabled = false;
     private readonly pendingDecodes = new Map<string, PendingDecode>();
     private readonly rawTraceSaves = new Map<string, number>();
-    private readonly cbuildRunFileLocator = new CBuildRunFileLocator();
 
     public constructor(
         private readonly options: CTraceProcessManagerOptions = {},
         // Injected to make timing-based behavior deterministic in tests.
-        private readonly now: () => number = Date.now
+        private readonly now: () => number = Date.now,
+        private readonly cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator()
     ) {}
 
     public async activate(

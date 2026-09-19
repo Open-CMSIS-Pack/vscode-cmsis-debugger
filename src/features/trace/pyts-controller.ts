@@ -50,9 +50,11 @@ export class PyTsController {
     private pendingConversion: PendingCTraceConversion | undefined;
     private conversionPromise: Promise<void> | undefined;
     private watcherGeneration = 0;
-    private readonly cbuildRunFileLocator = new CBuildRunFileLocator();
 
-    public constructor(private readonly options: PyTsProcessManagerOptions = {}) { }
+    public constructor(
+        private readonly options: PyTsProcessManagerOptions = {},
+        private readonly cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator()
+    ) { }
 
     public async activate(
         context: vscode.ExtensionContext,

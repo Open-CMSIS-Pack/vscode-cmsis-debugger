@@ -33,6 +33,8 @@ import { TraceConfigurationCommands } from '../views/trace-configuration/trace-c
 import { TraceCommands } from '../features/trace/trace-commands';
 import { PyTsController } from '../features/trace/pyts-controller';
 import { CTraceController } from '../features/trace/ctrace-controller';
+import { CBuildRunFileLocator } from '../cbuild-run';
+import { CmsisJsonWatcher } from '../cmsis-files';
 import { FileWatchManager } from './filesystem/file-watch-manager';
 
 const BUILTIN_TOOLS_PATHS = [
@@ -59,8 +61,10 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     const genericCommands = new GenericCommands();
     const gdbtargetDebugTracker = new GDBTargetDebugTracker();
     const fileWatchManager = new FileWatchManager();
-    const pyTsController = new PyTsController();
-    const cTraceController = new CTraceController();
+    const cbuildRunFileLocator = new CBuildRunFileLocator();
+    const cmsisJsonWatcher = new CmsisJsonWatcher(cbuildRunFileLocator);
+    const pyTsController = new PyTsController({}, cbuildRunFileLocator);
+    const cTraceController = new CTraceController({}, Date.now, cbuildRunFileLocator);
     const traceCommands = new TraceCommands(pyTsController, cTraceController);
     const gdbtargetConfigurationProvider = new GDBTargetConfigurationProvider();
     const cpuStates = new CpuStates();
@@ -72,11 +76,17 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     corePeripheralsTreeDataProvider = new ComponentViewerTreeDataProvider();
     const componentViewer = new ComponentViewer(context, componentViewerTreeDataProvider);
     const corePeripherals = new CorePeripherals(context, corePeripheralsTreeDataProvider);
-    const traceConfiguration = new TraceConfigurationWebviewProvider(context.extensionUri, undefined, fileWatchManager);
+    const traceConfiguration = new TraceConfigurationWebviewProvider(
+        context.extensionUri,
+        undefined,
+        fileWatchManager,
+        cbuildRunFileLocator
+    );
     const traceConfigurationCommands = new TraceConfigurationCommands();
 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);
     fileWatchManager.activate(context);
+    await cmsisJsonWatcher.activate(context, fileWatchManager);
     // Activate generic commands
     genericCommands.activate(context);
     await pyTsController.activate(context, gdbtargetDebugTracker, fileWatchManager);

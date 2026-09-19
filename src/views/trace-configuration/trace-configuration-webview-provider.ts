@@ -17,6 +17,7 @@
 
 import * as vscode from 'vscode';
 
+import { CBuildRunFileLocator } from '../../cbuild-run';
 import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
 import {
     TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING,
@@ -51,9 +52,17 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
     public constructor(
         private readonly extensionUri: vscode.Uri,
         model?: TraceConfigurationModel,
-        fileWatchManager: FileWatchManager = new FileWatchManager()
+        fileWatchManager: FileWatchManager = new FileWatchManager(),
+        cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator()
     ) {
-        this.model = model ?? new TraceConfigurationModel(undefined, undefined, undefined, undefined, fileWatchManager);
+        this.model = model ?? new TraceConfigurationModel(
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            fileWatchManager,
+            cbuildRunFileLocator
+        );
         this.model.setOnDidChange(() => this.postState());
     }
 
