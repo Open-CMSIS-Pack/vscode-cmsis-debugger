@@ -70,7 +70,7 @@ describe('PyTsProcessManager', () => {
             ['/workspace/example.cbuild-run.yml', '--allow-missing'],
             expect.any(Object)
         );
-        expect(getCBuildRunFileName).toHaveBeenCalledWith();
+        expect(getCBuildRunFileName).toHaveBeenCalledWith(undefined, true);
     });
 
     it('rejects launch when no cbuild run file is available', async () => {

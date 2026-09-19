@@ -147,12 +147,11 @@ export class TraceConfigurationProcessorCapabilities {
     }
 
     /**
-     * getCBuildRunProcessors asks the Arm CMSIS Solution extension for the active cbuild-run.yml path
-     * and then reuses CbuildRunReader to parse processors from it. Missing extension data simply means
-     * the caller will fall back to ctrace.yml core values when present.
+     * getCBuildRunProcessors parses processor data from the active cbuild-run.yml file. Missing build
+     * data simply means the caller will fall back to ctrace.yml core values when present.
      */
     private async getCBuildRunProcessors(): Promise<ProcessorType[]> {
-        const cbuildRunFilePath = await this.cbuildRunFileLocator.getCBuildRunFileNameFromCommand();
+        const cbuildRunFilePath = await this.cbuildRunFileLocator.getCBuildRunFileName(undefined, true);
 
         if (!cbuildRunFilePath) {
             return [];

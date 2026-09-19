@@ -58,7 +58,7 @@ export class PyTsProcessManager extends ProcessManager {
 
     private async getDefaultArgs(cbuildRunFilePath: string | undefined): Promise<readonly string[]> {
         const cbuildRunFileLocator = new CBuildRunFileLocator();
-        const resolvedCbuildRunFilePath = cbuildRunFilePath ?? await cbuildRunFileLocator.getCBuildRunFileName();
+        const resolvedCbuildRunFilePath = cbuildRunFilePath ?? await cbuildRunFileLocator.getCBuildRunFileName(undefined, true);
         const trimmedPath = resolvedCbuildRunFilePath?.trim();
         if (!trimmedPath) {
             throw new Error('No cbuild run file path provided.');
