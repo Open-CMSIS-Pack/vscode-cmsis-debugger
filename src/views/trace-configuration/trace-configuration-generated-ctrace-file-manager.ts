@@ -93,22 +93,17 @@ export class TraceConfigurationGeneratedCTraceFileManager {
      * createOrUpdateGeneratedCTraceFile reads processors from a generated
      * cbuild-run file, creates the matching .cmsis ctrace file when needed, and
      * returns the generated ctrace file URI.
-     */
+    */
     private async createOrUpdateGeneratedCTraceFile(cbuildRunFileUri: vscode.Uri): Promise<vscode.Uri | undefined> {
-        const workspaceFolder = vscode.workspace.workspaceFolders?.at(0);
-        if (!workspaceFolder) {
-            throw new Error('Cannot generate a ctrace file without an open workspace folder.');
-        }
         const cbuildRun = await this.readGeneratedCBuildRun(cbuildRunFileUri);
         if (!cbuildRun) {
             logger.debug(`${TRACE_OFF_MESSAGE}: ${cbuildRunFileUri.fsPath}`);
             return undefined;
         }
-        const traceFileName = await this.cbuildRunFileLocator.getCTraceFileNameFromCBuildRunPath(
-            cbuildRun.targetSet,
-            cbuildRunFileUri.fsPath
+        const traceFileUri = await this.cbuildRunFileLocator.getCTraceUriFromCBuildRunUri(
+            cbuildRunFileUri,
+            cbuildRun.targetSet
         );
-        const traceFileUri = this.resolveGeneratedCTraceFileUri(workspaceFolder.uri, traceFileName);
         const traceFileExists = await this.fileExists(traceFileUri);
         const document = traceFileExists
             ? await this.readCTraceDocument(traceFileUri)
@@ -165,14 +160,6 @@ export class TraceConfigurationGeneratedCTraceFileManager {
                 + ' are missing pname.'
             );
         }
-    }
-
-    /**
-     * resolveGeneratedCTraceFileUri returns the generated ctrace path inside
-     * the workspace's .cmsis directory.
-     */
-    private resolveGeneratedCTraceFileUri(workspaceFolderUri: vscode.Uri, traceFileName: string): vscode.Uri {
-        return vscode.Uri.file(path.join(workspaceFolderUri.fsPath, '.cmsis', traceFileName));
     }
 
     /**
