@@ -19,6 +19,7 @@ import * as path from 'node:path';
 
 import * as vscode from 'vscode';
 
+import { CmsisJsonWatcher } from '../../cmsis-files';
 import { CBuildRunFileLocator } from '../../cbuild-run';
 import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
 import { isYamlMapItem, isYamlScalarItem, isYamlSequenceItem, YamlTreeItem, yamlScalarToString } from '../../desktop/yaml-dom';
@@ -73,7 +74,8 @@ export class TraceConfigurationModel {
         rowBuilder?: TraceConfigurationRowBuilder,
         generatedCTraceFileManager?: TraceConfigurationGeneratedCTraceFileManager,
         fileWatchManager: FileWatchManager = new FileWatchManager(),
-        cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator()
+        cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator(),
+        cmsisJsonWatcher?: CmsisJsonWatcher
     ) {
         this.generatedCTraceFileManager = generatedCTraceFileManager ?? new TraceConfigurationGeneratedCTraceFileManager();
         this.processorCapabilities = processorCapabilities ?? new TraceConfigurationProcessorCapabilities(() => this.ctraceFile);
@@ -94,7 +96,8 @@ export class TraceConfigurationModel {
                 onGeneratedCBuildRunFileChanged: event => this.refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event)
             },
             cbuildRunFileLocator,
-            fileWatchManager
+            fileWatchManager,
+            cmsisJsonWatcher
         );
         this.onDidChangeGeneratedCBuildRunFile = this.fileWatcher.onDidChangeGeneratedCBuildRunFile;
     }

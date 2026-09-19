@@ -19,6 +19,7 @@ import * as path from 'node:path';
 
 import * as vscode from 'vscode';
 
+import { ActiveSolutionChangeEvent, CmsisJsonWatcher } from '../../cmsis-files';
 import { CBuildRunFileLocator } from '../../cbuild-run';
 import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
 import { CBUILD_INDEX_FILE_GLOB } from '../../manifest';
@@ -72,6 +73,9 @@ export class TraceConfigurationFileWatcher {
     private generatedCBuildRunFileName: string | undefined;
     private generatedWatchVersion = 0;
     private cbuildRunResolutionVersion = 0;
+    private currentFileWatchVersion = 0;
+    private activeSolutionGeneration = 0;
+    private readonly activeSolutionChangeSubscription: vscode.Disposable | undefined;
     private readonly _onDidChangeGeneratedCBuildRunFileEmitter = new vscode.EventEmitter<GeneratedCBuildRunFileChangeEvent>();
 
     /**
@@ -89,8 +93,13 @@ export class TraceConfigurationFileWatcher {
     public constructor(
         private readonly callbacks: TraceConfigurationFileWatcherCallbacks,
         private readonly cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator(),
-        private readonly fileWatchManager: FileWatchManager = new FileWatchManager()
-    ) {}
+        private readonly fileWatchManager: FileWatchManager = new FileWatchManager(),
+        cmsisJsonWatcher?: CmsisJsonWatcher
+    ) {
+        this.activeSolutionChangeSubscription = cmsisJsonWatcher?.onDidChangeActiveSolution(event => {
+            void this.handleActiveSolutionChanged(event);
+        });
+    }
 
     /**
      * watchGeneratedCBuildRunFiles rebuilds the main workspace watcher for
@@ -114,7 +123,9 @@ export class TraceConfigurationFileWatcher {
 
         const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
         if (!activeSolutionFolder || watchVersion !== this.generatedWatchVersion) {
-            this.generatedCBuildIndexWatchInstallation = undefined;
+            if (watchVersion === this.generatedWatchVersion) {
+                this.generatedCBuildIndexWatchInstallation = undefined;
+            }
             return;
         }
 
@@ -130,7 +141,9 @@ export class TraceConfigurationFileWatcher {
             }
         });
         this.generatedCBuildIndexWatchInstalled = true;
-        this.generatedCBuildIndexWatchInstallation = undefined;
+        if (watchVersion === this.generatedWatchVersion) {
+            this.generatedCBuildIndexWatchInstallation = undefined;
+        }
     }
 
     /**
@@ -151,6 +164,7 @@ export class TraceConfigurationFileWatcher {
      */
     public watchCurrentFile(): void {
         this.disposeCurrentFileWatcher();
+        const watchVersion = ++this.currentFileWatchVersion;
         const watchedFile = this.callbacks.getCurrentFile();
         if (!watchedFile) {
             return;
@@ -159,9 +173,9 @@ export class TraceConfigurationFileWatcher {
         this.fileWatchManager.addWatch({
             id: CURRENT_CTRACE_WATCH_ID,
             globPattern: pattern,
-            onDidCreate: () => this.reloadCurrentFile(watchedFile),
-            onDidChange: () => this.reloadCurrentFile(watchedFile),
-            onDidDelete: () => this.reloadCurrentFile(watchedFile)
+            onDidCreate: () => this.reloadCurrentFile(watchedFile, watchVersion),
+            onDidChange: () => this.reloadCurrentFile(watchedFile, watchVersion),
+            onDidDelete: () => this.reloadCurrentFile(watchedFile, watchVersion)
         });
     }
 
@@ -171,6 +185,7 @@ export class TraceConfigurationFileWatcher {
      * or unsaved webview edits are in memory.
      */
     public disposeCurrentFileWatcher(): void {
+        this.currentFileWatchVersion += 1;
         this.fileWatchManager.removeWatch(CURRENT_CTRACE_WATCH_ID);
     }
 
@@ -179,11 +194,23 @@ export class TraceConfigurationFileWatcher {
      * the trace configuration model is no longer needed.
      */
     public dispose(): void {
-        this.disposeCurrentFileWatcher();
-        this.generatedWatchVersion += 1;
-        this.cbuildRunResolutionVersion += 1;
-        this.disposeGeneratedCBuildFileWatchers();
+        this.activeSolutionChangeSubscription?.dispose();
+        this.resetActiveSolutionWatches();
         this._onDidChangeGeneratedCBuildRunFileEmitter.dispose();
+    }
+
+    private async handleActiveSolutionChanged(event: ActiveSolutionChangeEvent): Promise<void> {
+        if (event.generation <= this.activeSolutionGeneration) {
+            return;
+        }
+        this.activeSolutionGeneration = event.generation;
+        this.resetActiveSolutionWatches();
+
+        await this.watchGeneratedCBuildRunFiles();
+        if (event.generation !== this.activeSolutionGeneration) {
+            return;
+        }
+        await this.processActiveCBuildRunFile();
     }
 
     /**
@@ -292,6 +319,18 @@ export class TraceConfigurationFileWatcher {
     }
 
     /**
+     * resetActiveSolutionWatches invalidates pending callbacks and removes the
+     * watches whose paths depend on the selected CMSIS solution.
+     */
+    private resetActiveSolutionWatches(): void {
+        this.generatedWatchVersion += 1;
+        this.cbuildRunResolutionVersion += 1;
+        this.disposeCurrentFileWatcher();
+        this.disposeGeneratedCBuildFileWatchers();
+        this.generatedCBuildIndexWatchInstallation = undefined;
+    }
+
+    /**
      * disposeGeneratedCBuildRunFileWatchers releases the exact cbuild-run
      * watcher and its event subscriptions before the resolved path changes.
      */
@@ -315,17 +354,17 @@ export class TraceConfigurationFileWatcher {
      * reloadCurrentFile ignores delayed events from stale watchers and forwards
      * a reload only after the file stamp confirms an external file change.
      */
-    private async reloadCurrentFile(watchedFile: CTraceYamlFile): Promise<void> {
-        if (this.callbacks.getCurrentFile() !== watchedFile) {
+    private async reloadCurrentFile(watchedFile: CTraceYamlFile, watchVersion: number): Promise<void> {
+        if (watchVersion !== this.currentFileWatchVersion || this.callbacks.getCurrentFile() !== watchedFile) {
             return;
         }
         try {
-            if (!await watchedFile.reloadIfChanged() || this.callbacks.getCurrentFile() !== watchedFile || !watchedFile.document) {
+            if (!await watchedFile.reloadIfChanged() || watchVersion !== this.currentFileWatchVersion || this.callbacks.getCurrentFile() !== watchedFile || !watchedFile.document) {
                 return;
             }
             await this.callbacks.onCurrentFileReloaded(watchedFile.document);
         } catch (error) {
-            if (this.callbacks.getCurrentFile() === watchedFile) {
+            if (watchVersion === this.currentFileWatchVersion && this.callbacks.getCurrentFile() === watchedFile) {
                 this.callbacks.onCurrentFileReloadFailed(error);
             }
         }

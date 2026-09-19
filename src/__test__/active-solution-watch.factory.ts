@@ -15,28 +15,41 @@
  */
 // generated with AI
 
+import * as vscode from 'vscode';
+
 import { FileWatchManager, FileWatchRegistrationOptions } from '../desktop/filesystem/file-watch-manager';
+import { ActiveSolutionChangeEvent, CmsisJsonWatcher } from '../cmsis-files';
 import { makeFactory } from './test-data-factory';
 
 export interface ActiveSolutionWatchFixture {
     readonly fileWatchManager: FileWatchManager;
     readonly addWatch: jest.Mock;
     readonly removeWatch: jest.Mock;
+    readonly activeSolutionChangeEmitter: vscode.EventEmitter<ActiveSolutionChangeEvent>;
+    readonly cmsisJsonWatcher: CmsisJsonWatcher;
     getWatch(): FileWatchRegistrationOptions;
+    fireActiveSolutionChange(event: ActiveSolutionChangeEvent): void;
 }
 
 export const activeSolutionWatchFactory = makeFactory<ActiveSolutionWatchFixture>({
     addWatch: () => jest.fn(),
     removeWatch: () => jest.fn(),
+    activeSolutionChangeEmitter: () => new vscode.EventEmitter<ActiveSolutionChangeEvent>(),
     fileWatchManager: result => ({
         addWatch: result.addWatch,
         removeWatch: result.removeWatch
     } as unknown as FileWatchManager),
+    cmsisJsonWatcher: result => ({
+        onDidChangeActiveSolution: result.activeSolutionChangeEmitter?.event
+    } as unknown as CmsisJsonWatcher),
     getWatch: result => (): FileWatchRegistrationOptions => {
         const watch = result.addWatch?.mock.calls.at(-1)?.[0] as FileWatchRegistrationOptions | undefined;
         if (!watch) {
             throw new Error('No active-solution watch has been registered.');
         }
         return watch;
+    },
+    fireActiveSolutionChange: result => event => {
+        result.activeSolutionChangeEmitter?.fire(event);
     }
 });

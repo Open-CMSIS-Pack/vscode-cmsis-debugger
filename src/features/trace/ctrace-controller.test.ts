@@ -16,8 +16,10 @@
 // generated with AI
 
 import * as vscode from 'vscode';
+import { activeSolutionWatchFactory } from '../../__test__/active-solution-watch.factory';
 import { extensionContextFactory } from '../../__test__/vscode.factory';
 import { traceWatchFactory } from '../../__test__/trace-watch.factory';
+import { CBuildRunFileLocator } from '../../cbuild-run';
 import { GDBTargetDebugSession } from '../../debug-session';
 import { debugTrackerFactory, gdbTargetDebugSessionFactory } from '../../debug-session/__test__/debug-session.factory';
 import { CTraceProcessManager } from '../../desktop/process/ctrace-process-manager';
@@ -221,6 +223,46 @@ describe('CTraceController', () => {
                 value: workspaceFolders
             });
         }
+    });
+
+    it('replaces the enabled raw trace watch when the active solution changes', async () => {
+        const locator = new CBuildRunFileLocator();
+        jest.spyOn(locator, 'getActiveSolutionFolder')
+            .mockResolvedValueOnce(vscode.Uri.file('/workspace/first'))
+            .mockResolvedValueOnce(vscode.Uri.file('/workspace/second'));
+        const activeSolutionWatch = activeSolutionWatchFactory();
+        const solutionController = new CTraceController({}, () => now, locator, activeSolutionWatch.cmsisJsonWatcher);
+        const traceWatch = traceWatchFactory();
+        traceWatch.setTraceEnabled(true);
+
+        await solutionController.activate(extensionContextFactory(), debugTrackerFactory(), traceWatch.fileWatchManager);
+        const firstWatch = traceWatch.getLatestWatch();
+        activeSolutionWatch.fireActiveSolutionChange({
+            previousActiveSolutionPath: '/workspace/first/first.csolution.yml',
+            activeSolutionPath: '/workspace/second/second.csolution.yml',
+            generation: 1
+        });
+        await waitForCondition('the replacement raw trace watcher', () => traceWatch.addWatch.mock.calls.length === 2);
+        const secondWatch = traceWatch.getLatestWatch();
+
+        expect(traceWatch.removeWatch).toHaveBeenCalledWith('ctrace-raw-trace');
+        expect(firstWatch?.globPattern).toEqual(expect.objectContaining({ base: vscode.Uri.file('/workspace/first') }));
+        expect(secondWatch?.globPattern).toEqual(expect.objectContaining({ base: vscode.Uri.file('/workspace/second') }));
+    });
+
+    it('does not add a raw trace watch for an active-solution change while tracing is disabled', async () => {
+        const activeSolutionWatch = activeSolutionWatchFactory();
+        const solutionController = new CTraceController({}, () => now, undefined, activeSolutionWatch.cmsisJsonWatcher);
+        const traceWatch = traceWatchFactory();
+
+        await solutionController.activate(extensionContextFactory(), debugTrackerFactory(), traceWatch.fileWatchManager);
+        activeSolutionWatch.fireActiveSolutionChange({
+            previousActiveSolutionPath: '/workspace/first.csolution.yml',
+            activeSolutionPath: '/workspace/second.csolution.yml',
+            generation: 1
+        });
+
+        expect(traceWatch.addWatch).not.toHaveBeenCalled();
     });
 
     it('does not require a file watch manager before activation', async () => {

@@ -63,8 +63,8 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     const fileWatchManager = new FileWatchManager();
     const cbuildRunFileLocator = new CBuildRunFileLocator();
     const cmsisJsonWatcher = new CmsisJsonWatcher(cbuildRunFileLocator);
-    const pyTsController = new PyTsController({}, cbuildRunFileLocator);
-    const cTraceController = new CTraceController({}, Date.now, cbuildRunFileLocator);
+    const pyTsController = new PyTsController({}, cbuildRunFileLocator, cmsisJsonWatcher);
+    const cTraceController = new CTraceController({}, Date.now, cbuildRunFileLocator, cmsisJsonWatcher);
     const traceCommands = new TraceCommands(pyTsController, cTraceController);
     const gdbtargetConfigurationProvider = new GDBTargetConfigurationProvider();
     const cpuStates = new CpuStates();
@@ -80,7 +80,8 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
         context.extensionUri,
         undefined,
         fileWatchManager,
-        cbuildRunFileLocator
+        cbuildRunFileLocator,
+        cmsisJsonWatcher
     );
     const traceConfigurationCommands = new TraceConfigurationCommands();
 

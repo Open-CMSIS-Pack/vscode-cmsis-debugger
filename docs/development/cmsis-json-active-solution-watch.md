@@ -74,3 +74,5 @@ PR 1 initially and stop for review before starting PR 2.
 - Rename `cbuild-run-file-locator` to `cbuild-run-locator` for naming
   consistency.
 - Split `cbuild-run-file-locator` into separate modules by handled file type.
+- Move file watchers from trace modules to a central location for reuse by
+  other features.

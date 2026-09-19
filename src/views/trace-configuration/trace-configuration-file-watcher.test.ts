@@ -19,6 +19,7 @@ import * as path from 'node:path';
 
 import * as vscode from 'vscode';
 
+import { activeSolutionWatchFactory } from '../../__test__/active-solution-watch.factory';
 import { CBuildRunFileLocator } from '../../cbuild-run';
 import { FileWatchManager, FileWatchRegistrationOptions } from '../../desktop/filesystem/file-watch-manager';
 import { CBUILD_INDEX_FILE_GLOB, CMSIS_JSON_FILE_GLOB } from '../../manifest';
@@ -414,6 +415,100 @@ describe('TraceConfigurationFileWatcher', () => {
 
         expect(vscode.workspace.createFileSystemWatcher).toHaveBeenCalledTimes(1);
         expect(cbuildIndexWatcher.dispose).not.toHaveBeenCalled();
+
+        watcher.dispose();
+    });
+
+    it('resets active-solution watches and ignores an old ctrace callback after the active solution changes', async () => {
+        const watchedFile = createMockCTraceYamlFile();
+        const callbacks: TraceConfigurationFileWatcherCallbacks = {
+            getCurrentFile: () => watchedFile.file,
+            onCurrentFileReloaded: jest.fn(),
+            onCurrentFileReloadFailed: jest.fn(),
+            onGeneratedCBuildRunFileChanged: jest.fn()
+        };
+        const locator = new CBuildRunFileLocator();
+        jest.spyOn(locator, 'getActiveSolutionFolder')
+            .mockResolvedValueOnce(vscode.Uri.file('/workspace/first'))
+            .mockResolvedValueOnce(vscode.Uri.file('/workspace/second'));
+        jest.spyOn(locator, 'getCBuildRunFileName').mockResolvedValue(undefined);
+        const activeSolutionWatch = activeSolutionWatchFactory();
+        const watcher = new TraceConfigurationFileWatcher(
+            callbacks,
+            locator,
+            undefined,
+            activeSolutionWatch.cmsisJsonWatcher
+        );
+
+        await watcher.watchGeneratedCBuildRunFiles();
+        watcher.watchCurrentFile();
+        const firstCTraceWatcher = getLastCreatedFileSystemWatcher();
+        activeSolutionWatch.fireActiveSolutionChange({
+            previousActiveSolutionPath: '/workspace/first/first.csolution.yml',
+            activeSolutionPath: '/workspace/second/second.csolution.yml',
+            generation: 1
+        });
+        await waitForCondition('the replacement cbuild index watcher', () =>
+            (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls.length === 3);
+
+        firstCTraceWatcher._handlers.change[0]?.(vscode.Uri.file(watchedFile.file.fileName));
+
+        expect(firstCTraceWatcher.dispose).toHaveBeenCalledTimes(1);
+        expect(watchedFile.reloadIfChanged).not.toHaveBeenCalled();
+        expect(vscode.workspace.createFileSystemWatcher).toHaveBeenLastCalledWith(
+            expect.objectContaining({ base: vscode.Uri.file('/workspace/second'), pattern: CBUILD_INDEX_FILE_GLOB }),
+            false,
+            false,
+            true
+        );
+
+        watcher.dispose();
+    });
+
+    it('discovers and processes an existing cbuild-run file for the new solution', async () => {
+        const cbuildRunFile = vscode.Uri.file('/workspace/second/out/project.cbuild-run.yml');
+        const onGeneratedCBuildRunFileChanged = jest.fn();
+        const callbacks: TraceConfigurationFileWatcherCallbacks = {
+            getCurrentFile: jest.fn(),
+            onCurrentFileReloaded: jest.fn(),
+            onCurrentFileReloadFailed: jest.fn(),
+            onGeneratedCBuildRunFileChanged
+        };
+        const locator = new CBuildRunFileLocator();
+        jest.spyOn(locator, 'getActiveSolutionFolder')
+            .mockResolvedValueOnce(vscode.Uri.file('/workspace/first'))
+            .mockResolvedValueOnce(vscode.Uri.file('/workspace/second'));
+        jest.spyOn(locator, 'getCBuildRunFileName').mockResolvedValue(cbuildRunFile.fsPath);
+        jest.spyOn(vscode.workspace.fs, 'stat').mockResolvedValue({
+            type: vscode.FileType.File,
+            ctime: 0,
+            mtime: 0,
+            size: 0
+        });
+        const activeSolutionWatch = activeSolutionWatchFactory();
+        const watcher = new TraceConfigurationFileWatcher(
+            callbacks,
+            locator,
+            undefined,
+            activeSolutionWatch.cmsisJsonWatcher
+        );
+
+        await watcher.watchGeneratedCBuildRunFiles();
+        activeSolutionWatch.fireActiveSolutionChange({
+            previousActiveSolutionPath: '/workspace/first/first.csolution.yml',
+            activeSolutionPath: '/workspace/second/second.csolution.yml',
+            generation: 1
+        });
+        await waitForCondition('the new solution cbuild-run processing', () =>
+            onGeneratedCBuildRunFileChanged.mock.calls.length === 1);
+
+        const changeEvent = onGeneratedCBuildRunFileChanged.mock.calls.at(0)?.[0] as GeneratedCBuildRunFileChangeEvent;
+        expect(changeEvent.type).toBe('changed');
+        expect(normalizeFsPath(changeEvent.uri.fsPath)).toBe(normalizeFsPath(cbuildRunFile.fsPath));
+        expect((vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls.map(call => {
+            const pattern = call[0] as { pattern?: string };
+            return pattern.pattern;
+        })).toContain('project.cbuild-run.yml');
 
         watcher.dispose();
     });
