@@ -21,7 +21,7 @@ import * as vscode from 'vscode';
 
 import { CBuildRunFileLocator } from '../../cbuild-run';
 import { FileWatchManager, FileWatchRegistrationOptions } from '../../desktop/filesystem/file-watch-manager';
-import { CBUILD_INDEX_FILE_GLOB } from '../../manifest';
+import { CBUILD_INDEX_FILE_GLOB, CMSIS_JSON_FILE_GLOB } from '../../manifest';
 import { normalizeFsPath, waitForCondition } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import {
@@ -217,6 +217,14 @@ describe('TraceConfigurationFileWatcher', () => {
             `  cbuild-run: ${JSON.stringify(cbuildRunFile.fsPath)}`,
             ''
         ].join('\n')));
+        jest.spyOn(vscode.workspace.fs, 'stat')
+            .mockRejectedValueOnce(Object.assign(new Error('missing'), { code: 'ENOENT' }))
+            .mockResolvedValue({
+                type: vscode.FileType.File,
+                ctime: 0,
+                mtime: 0,
+                size: 0
+            });
         const onGeneratedCBuildRunFileChanged = jest.fn();
         const callbacks: TraceConfigurationFileWatcherCallbacks = {
             getCurrentFile: jest.fn(),
@@ -258,7 +266,9 @@ describe('TraceConfigurationFileWatcher', () => {
         const cbuildRunFile = vscode.Uri.file(path.resolve('test-data/multi-core.cbuild-run.yml'));
         const cbuildIndexFile = vscode.Uri.file('/workspace/project.cbuild-idx.yml');
         const getCBuildRunFileNameFromCommand = jest.fn().mockResolvedValue('');
-        (vscode.workspace.findFiles as jest.Mock).mockResolvedValueOnce([cbuildIndexFile]);
+        (vscode.workspace.findFiles as jest.Mock)
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([cbuildIndexFile]);
         (vscode.workspace.fs.readFile as jest.Mock).mockResolvedValueOnce(new TextEncoder().encode([
             'build-idx:',
             `  cbuild-run: ${JSON.stringify(cbuildRunFile.fsPath)}`,
@@ -276,10 +286,16 @@ describe('TraceConfigurationFileWatcher', () => {
         watcher.watchGeneratedCBuildRunFiles();
         await expect(watcher.processActiveCBuildRunFile()).resolves.toBe(true);
 
-        const indexPattern = (vscode.workspace.findFiles as jest.Mock).mock.calls[0]?.[0] as {
+        const cmsisJsonPattern = (vscode.workspace.findFiles as jest.Mock).mock.calls[0]?.[0] as {
             base: vscode.WorkspaceFolder;
             pattern: string;
         };
+        const indexPattern = (vscode.workspace.findFiles as jest.Mock).mock.calls[1]?.[0] as {
+            base: vscode.WorkspaceFolder;
+            pattern: string;
+        };
+        expect(cmsisJsonPattern.base.uri.fsPath).toBe(normalizeFsPath('/workspace'));
+        expect(cmsisJsonPattern.pattern).toBe(CMSIS_JSON_FILE_GLOB);
         expect(indexPattern.base.uri.fsPath).toBe(normalizeFsPath('/workspace'));
         expect(indexPattern.pattern).toBe(CBUILD_INDEX_FILE_GLOB);
         expect(getCBuildRunFileNameFromCommand).toHaveBeenCalledTimes(1);
@@ -295,6 +311,9 @@ describe('TraceConfigurationFileWatcher', () => {
         const getCBuildRunFileNameFromCommand = jest.fn()
             .mockResolvedValueOnce('/workspace/out/first.cbuild-run.yml')
             .mockResolvedValueOnce('/workspace/out/second.cbuild-run.yml');
+        jest.spyOn(vscode.workspace.fs, 'stat').mockRejectedValue(
+            Object.assign(new Error('missing'), { code: 'ENOENT' })
+        );
         const onGeneratedCBuildRunFileChanged = jest.fn();
         const callbacks: TraceConfigurationFileWatcherCallbacks = {
             getCurrentFile: jest.fn(),
