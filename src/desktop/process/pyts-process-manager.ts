@@ -15,7 +15,7 @@
  */
 // generated with AI
 
-import * as vscode from 'vscode';
+import { CBuildRunFileLocator } from '../../cbuild-run';
 import { logger } from '../../logger';
 import { BuiltinToolPath } from '../builtin-tool-path';
 import {
@@ -25,7 +25,6 @@ import {
 } from './process-manager';
 
 export const DEFAULT_PYTS_PATH = 'tools/pyts/pyTS';
-const CSOLUTION_GET_CBUILD_RUN_FILE_COMMAND = 'cmsis-csolution.getCbuildRunFile';
 
 export interface PyTsProcessManagerOptions {
     readonly pyTsPath?: string;
@@ -58,8 +57,8 @@ export class PyTsProcessManager extends ProcessManager {
     }
 
     private async getDefaultArgs(cbuildRunFilePath: string | undefined): Promise<readonly string[]> {
-        const resolvedCbuildRunFilePath = cbuildRunFilePath ??
-            await vscode.commands.executeCommand<string | undefined>(CSOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
+        const cbuildRunFileLocator = new CBuildRunFileLocator();
+        const resolvedCbuildRunFilePath = cbuildRunFilePath ?? await cbuildRunFileLocator.getCBuildRunFileName();
         const trimmedPath = resolvedCbuildRunFilePath?.trim();
         if (!trimmedPath) {
             throw new Error('No cbuild run file path provided.');
