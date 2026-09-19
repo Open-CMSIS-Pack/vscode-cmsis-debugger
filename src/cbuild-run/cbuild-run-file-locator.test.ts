@@ -272,6 +272,35 @@ describe('CBuildRunFileLocator', () => {
         expect(result).toBe(cbuildRunFileName);
     });
 
+    it.each([
+        { targetSet: 'Release', expectedFileName: 'project+target@Release.ctrace.yml' },
+        { targetSet: '<default>', expectedFileName: 'project+target.ctrace.yml' }
+    ])('gets the ctrace filename for target set $targetSet', async ({ targetSet, expectedFileName }) => {
+        const result = await cbuildRunFileLocator.getCTraceFileNameFromCBuildRunPath(
+            targetSet,
+            '/workspace/out/project+target.cbuild-run.yml'
+        );
+
+        expect(result).toBe(expectedFileName);
+    });
+
+    it('gets the ctrace filename from the located cbuild-run file when no path is provided', async () => {
+        const getCBuildRunFileName = jest.spyOn(cbuildRunFileLocator, 'getCBuildRunFileName')
+            .mockResolvedValue('/workspace/out/project+target.cbuild-run.yml');
+
+        const result = await cbuildRunFileLocator.getCTraceFileNameFromCBuildRunPath('Release');
+
+        expect(result).toBe('project+target@Release.ctrace.yml');
+        expect(getCBuildRunFileName).toHaveBeenCalledWith(undefined, true);
+    });
+
+    it('rejects when no cbuild-run file can be located for a ctrace filename', async () => {
+        jest.spyOn(cbuildRunFileLocator, 'getCBuildRunFileName').mockResolvedValue(undefined);
+
+        await expect(cbuildRunFileLocator.getCTraceFileNameFromCBuildRunPath('Release'))
+            .rejects.toThrow('No cbuild run file path provided.');
+    });
+
     it('supports separate CBuildRunFileLocator instances', async () => {
         (vscode.commands.executeCommand as jest.Mock).mockResolvedValue('/workspace/project/example.cbuild-run.yml');
 

@@ -194,6 +194,27 @@ export class CBuildRunFileLocator {
         return indexedCBuildRunFileName ?? cbuildRunFileName;
     }
 
+    /**
+     * Gets the generated ctrace filename associated with a cbuild-run file and
+     * target set. When no cbuild-run path is supplied, the active generated
+     * cbuild-run file is resolved first.
+     */
+    public async getCTraceFileNameFromCBuildRunPath(
+        targetSet: string | undefined,
+        cbuildRunFilePath?: string
+    ): Promise<string> {
+        const resolvedCbuildRunFilePath = cbuildRunFilePath ?? await this.getCBuildRunFileName(undefined, true);
+        const trimmedPath = resolvedCbuildRunFilePath?.trim();
+        if (!trimmedPath) {
+            throw new Error('No cbuild run file path provided.');
+        }
+        const baseName = path.basename(trimmedPath);
+        const suffix = '.cbuild-run.yml';
+        const name = baseName.endsWith(suffix) ? baseName.slice(0, -suffix.length) : path.parse(baseName).name;
+        const targetSetSuffix = targetSet && targetSet !== '<default>' ? `@${targetSet}` : '';
+        return `${name}${targetSetSuffix}.ctrace.yml`;
+    }
+
     public async getDefaultSolutionSet(cbuildRunFilePath: string | undefined): Promise<string> {
         const resolvedCbuildRunFilePath = cbuildRunFilePath ?? await this.getCBuildRunFileName();
         const trimmedPath = resolvedCbuildRunFilePath?.trim();

@@ -20,7 +20,7 @@ import { TextDecoder, TextEncoder } from 'node:util';
 
 import * as vscode from 'vscode';
 
-import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
+import { CbuildRunReader, CBuildRunFileLocator, ProcessorType } from '../../cbuild-run';
 import { logger } from '../../logger';
 import { isFileNotFoundError } from '../../utils';
 import { CTraceProcessorTraceSetup, CTraceYamlDocument } from './ctrace-yaml';
@@ -51,6 +51,7 @@ export type GeneratedCBuildRunFileProcessingResult =
  * generated ctrace.yml conversion flow.
  */
 export class TraceConfigurationGeneratedCTraceFileManager {
+    private readonly cbuildRunFileLocator = new CBuildRunFileLocator();
     private readonly decoder = new TextDecoder();
     private readonly encoder = new TextEncoder();
 
@@ -103,7 +104,10 @@ export class TraceConfigurationGeneratedCTraceFileManager {
             logger.debug(`${TRACE_OFF_MESSAGE}: ${cbuildRunFileUri.fsPath}`);
             return undefined;
         }
-        const traceFileName = this.getGeneratedCTraceFileName(cbuildRunFileUri, cbuildRun.targetSet);
+        const traceFileName = await this.cbuildRunFileLocator.getCTraceFileNameFromCBuildRunPath(
+            cbuildRun.targetSet,
+            cbuildRunFileUri.fsPath
+        );
         const traceFileUri = this.resolveGeneratedCTraceFileUri(workspaceFolder.uri, traceFileName);
         const traceFileExists = await this.fileExists(traceFileUri);
         const document = traceFileExists
@@ -117,18 +121,6 @@ export class TraceConfigurationGeneratedCTraceFileManager {
         }
 
         return traceFileUri;
-    }
-
-    /**
-     * getGeneratedCTraceFileName derives the generated ctrace filename directly
-     * from the cbuild-run filename and appends a non-default target set.
-     */
-    private getGeneratedCTraceFileName(cbuildRunFileUri: vscode.Uri, targetSet: string | undefined): string {
-        const baseName = path.basename(cbuildRunFileUri.fsPath);
-        const suffix = '.cbuild-run.yml';
-        const name = baseName.endsWith(suffix) ? baseName.slice(0, -suffix.length) : path.parse(baseName).name;
-        const targetSetSuffix = targetSet && targetSet !== '<default>' ? `@${targetSet}` : '';
-        return `${name}${targetSetSuffix}.ctrace.yml`;
     }
 
     /**
