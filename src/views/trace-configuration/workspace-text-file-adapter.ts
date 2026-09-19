@@ -15,12 +15,11 @@
  */
 // generated with AI
 
-import * as path from 'node:path';
 import { TextDecoder, TextEncoder } from 'node:util';
 
 import * as vscode from 'vscode';
 
-import { Disposable, TextFileAdapter, TextFileStamp } from '../../desktop/yaml-file';
+import { TextFileAdapter, TextFileStamp } from '../../desktop/yaml-file';
 import { isFileNotFoundError } from '../../utils';
 
 /**
@@ -55,20 +54,4 @@ export class WorkspaceTextFileAdapter implements TextFileAdapter {
         }
     }
 
-    public watch(fileName: string, onDidChange: () => void): Disposable {
-        const pattern = new vscode.RelativePattern(path.dirname(fileName), path.basename(fileName));
-        const watcher = vscode.workspace.createFileSystemWatcher(pattern);
-        const subscriptions = [
-            watcher.onDidCreate(onDidChange),
-            watcher.onDidChange(onDidChange),
-            watcher.onDidDelete(onDidChange)
-        ];
-
-        return {
-            dispose: () => {
-                subscriptions.forEach(subscription => subscription.dispose());
-                watcher.dispose();
-            }
-        };
-    }
 }

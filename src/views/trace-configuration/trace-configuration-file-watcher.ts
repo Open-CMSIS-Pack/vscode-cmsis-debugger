@@ -20,7 +20,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 
 import { CBuildRunFileLocator } from '../../cbuild-run';
-import { Disposable } from '../../desktop/yaml-file';
+import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
 import { CBUILD_INDEX_FILE_GLOB } from '../../manifest';
 import { fileExists, normalizeFsPath } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
@@ -58,14 +58,16 @@ export interface TraceConfigurationFileWatcherCallbacks {
     onGeneratedCBuildRunFileChanged(event: GeneratedCBuildRunFileChangeEvent): void | Promise<void>;
 }
 
+const CBUILD_INDEX_WATCH_ID = 'trace-configuration.cbuild-index';
+const GENERATED_CBUILD_RUN_WATCH_ID = 'trace-configuration.generated-cbuild-run';
+const CURRENT_CTRACE_WATCH_ID = 'trace-configuration.current-ctrace';
+
 /**
  * TraceConfigurationFileWatcher owns all file-system subscriptions used by the
  * trace configuration model.
  */
 export class TraceConfigurationFileWatcher {
-    private ctraceFileWatcher: Disposable | undefined;
-    private readonly generatedCBuildIndexFileWatchers: vscode.Disposable[] = [];
-    private readonly generatedCBuildRunFileWatchers: vscode.Disposable[] = [];
+    private generatedCBuildIndexWatchInstalled = false;
     private generatedCBuildRunFileName: string | undefined;
     private generatedWatchVersion = 0;
     private cbuildRunResolutionVersion = 0;
@@ -85,7 +87,8 @@ export class TraceConfigurationFileWatcher {
      */
     public constructor(
         private readonly callbacks: TraceConfigurationFileWatcherCallbacks,
-        private readonly cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator()
+        private readonly cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator(),
+        private readonly fileWatchManager: FileWatchManager = new FileWatchManager()
     ) {}
 
     /**
@@ -94,7 +97,7 @@ export class TraceConfigurationFileWatcher {
      * used to resolve and watch the active generated cbuild-run file.
      */
     public watchGeneratedCBuildRunFiles(): void {
-        if (this.generatedCBuildIndexFileWatchers.length > 0) {
+        if (this.generatedCBuildIndexWatchInstalled) {
             return;
         }
         this.generatedWatchVersion += 1;
@@ -108,16 +111,17 @@ export class TraceConfigurationFileWatcher {
 
         const watchVersion = this.generatedWatchVersion;
         const pattern = new vscode.RelativePattern(mainWorkspaceFolder, CBUILD_INDEX_FILE_GLOB);
-        const watcher = vscode.workspace.createFileSystemWatcher(pattern);
-        this.generatedCBuildIndexFileWatchers.push(
-            watcher,
-            watcher.onDidCreate(uri => {
+        this.fileWatchManager.addWatch({
+            id: CBUILD_INDEX_WATCH_ID,
+            globPattern: pattern,
+            onDidCreate: uri => {
                 void this.resolveAndWatchGeneratedCBuildRunFile(watchVersion, uri);
-            }),
-            watcher.onDidChange(uri => {
+            },
+            onDidChange: uri => {
                 void this.resolveAndWatchGeneratedCBuildRunFile(watchVersion, uri);
-            })
-        );
+            }
+        });
+        this.generatedCBuildIndexWatchInstalled = true;
     }
 
     /**
@@ -142,10 +146,13 @@ export class TraceConfigurationFileWatcher {
         if (!watchedFile) {
             return;
         }
-        this.ctraceFileWatcher = watchedFile.watch(document => {
-            this.handleCurrentFileReload(watchedFile, document);
-        }, error => {
-            this.handleCurrentFileReloadError(watchedFile, error);
+        const pattern = new vscode.RelativePattern(path.dirname(watchedFile.fileName), path.basename(watchedFile.fileName));
+        this.fileWatchManager.addWatch({
+            id: CURRENT_CTRACE_WATCH_ID,
+            globPattern: pattern,
+            onDidCreate: () => this.reloadCurrentFile(watchedFile),
+            onDidChange: () => this.reloadCurrentFile(watchedFile),
+            onDidDelete: () => this.reloadCurrentFile(watchedFile)
         });
     }
 
@@ -155,8 +162,7 @@ export class TraceConfigurationFileWatcher {
      * or unsaved webview edits are in memory.
      */
     public disposeCurrentFileWatcher(): void {
-        this.ctraceFileWatcher?.dispose();
-        this.ctraceFileWatcher = undefined;
+        this.fileWatchManager.removeWatch(CURRENT_CTRACE_WATCH_ID);
     }
 
     /**
@@ -225,7 +231,7 @@ export class TraceConfigurationFileWatcher {
      */
     private watchGeneratedCBuildRunFile(cbuildRunFileName: string, watchVersion: number): void {
         if (
-            this.generatedCBuildRunFileWatchers.length > 0
+            this.generatedCBuildRunFileName !== undefined
             && this.isCurrentGeneratedCBuildRunFile(cbuildRunFileName)
         ) {
             return;
@@ -235,13 +241,13 @@ export class TraceConfigurationFileWatcher {
         this.generatedCBuildRunFileName = cbuildRunFileName;
 
         const pattern = new vscode.RelativePattern(path.dirname(cbuildRunFileName), path.basename(cbuildRunFileName));
-        const watcher = vscode.workspace.createFileSystemWatcher(pattern);
-        this.generatedCBuildRunFileWatchers.push(
-            watcher,
-            watcher.onDidCreate(uri => this.handleWatchedGeneratedCBuildRunFileChange(watchVersion, cbuildRunFileName, 'created', uri)),
-            watcher.onDidChange(uri => this.handleWatchedGeneratedCBuildRunFileChange(watchVersion, cbuildRunFileName, 'changed', uri)),
-            watcher.onDidDelete(uri => this.handleWatchedGeneratedCBuildRunFileChange(watchVersion, cbuildRunFileName, 'deleted', uri))
-        );
+        this.fileWatchManager.addWatch({
+            id: GENERATED_CBUILD_RUN_WATCH_ID,
+            globPattern: pattern,
+            onDidCreate: uri => this.handleWatchedGeneratedCBuildRunFileChange(watchVersion, cbuildRunFileName, 'created', uri),
+            onDidChange: uri => this.handleWatchedGeneratedCBuildRunFileChange(watchVersion, cbuildRunFileName, 'changed', uri),
+            onDidDelete: uri => this.handleWatchedGeneratedCBuildRunFileChange(watchVersion, cbuildRunFileName, 'deleted', uri)
+        });
     }
 
     /**
@@ -271,9 +277,8 @@ export class TraceConfigurationFileWatcher {
      * watch refresh or full model disposal.
      */
     private disposeGeneratedCBuildFileWatchers(): void {
-        for (const watcher of this.generatedCBuildIndexFileWatchers.splice(0)) {
-            watcher.dispose();
-        }
+        this.fileWatchManager.removeWatch(CBUILD_INDEX_WATCH_ID);
+        this.generatedCBuildIndexWatchInstalled = false;
         this.disposeGeneratedCBuildRunFileWatchers();
     }
 
@@ -282,9 +287,7 @@ export class TraceConfigurationFileWatcher {
      * watcher and its event subscriptions before the resolved path changes.
      */
     private disposeGeneratedCBuildRunFileWatchers(): void {
-        for (const watcher of this.generatedCBuildRunFileWatchers.splice(0)) {
-            watcher.dispose();
-        }
+        this.fileWatchManager.removeWatch(GENERATED_CBUILD_RUN_WATCH_ID);
         this.generatedCBuildRunFileName = undefined;
     }
 
@@ -300,26 +303,22 @@ export class TraceConfigurationFileWatcher {
     }
 
     /**
-     * handleCurrentFileReload ignores delayed reloads from stale ctrace.yml
-     * watchers and forwards only reloads that still belong to the model's
-     * current file.
+     * reloadCurrentFile ignores delayed events from stale watchers and forwards
+     * a reload only after the file stamp confirms an external file change.
      */
-    private handleCurrentFileReload(watchedFile: CTraceYamlFile, document: CTraceYamlDocument): void {
+    private async reloadCurrentFile(watchedFile: CTraceYamlFile): Promise<void> {
         if (this.callbacks.getCurrentFile() !== watchedFile) {
             return;
         }
-        void this.callbacks.onCurrentFileReloaded(document);
-    }
-
-    /**
-     * handleCurrentFileReloadError ignores delayed errors from stale ctrace.yml
-     * watchers and forwards only errors that still belong to the model's current
-     * file.
-     */
-    private handleCurrentFileReloadError(watchedFile: CTraceYamlFile, error: unknown): void {
-        if (this.callbacks.getCurrentFile() !== watchedFile) {
-            return;
+        try {
+            if (!await watchedFile.reloadIfChanged() || this.callbacks.getCurrentFile() !== watchedFile || !watchedFile.document) {
+                return;
+            }
+            await this.callbacks.onCurrentFileReloaded(watchedFile.document);
+        } catch (error) {
+            if (this.callbacks.getCurrentFile() === watchedFile) {
+                this.callbacks.onCurrentFileReloadFailed(error);
+            }
         }
-        this.callbacks.onCurrentFileReloadFailed(error);
     }
 }
