@@ -22,6 +22,7 @@ import { GDBTargetDebugSession } from '../../debug-session';
 import { debugTrackerFactory, gdbTargetDebugSessionFactory } from '../../debug-session/__test__/debug-session.factory';
 import { CTraceProcessManager } from '../../desktop/process/ctrace-process-manager';
 import { logger } from '../../logger';
+import { waitForCondition } from '../../utils';
 import { CTraceController } from './ctrace-controller';
 
 const CBUILD_RUN_FILE_PATH = '/workspace/solution+target.cbuild-run.yml';
@@ -29,7 +30,7 @@ const RAW_TRACE_URI = vscode.Uri.file('/workspace/.trace/solution.SWO.raw');
 
 type CTraceControllerTestAccess = {
     traceEnabled: boolean;
-    addRawTraceWatcher(): void;
+    addRawTraceWatcher(): Promise<void>;
     handleDecodeTrigger(session: GDBTargetDebugSession | undefined): Promise<void>;
     handleActiveSessionChanged(session: GDBTargetDebugSession | undefined): void;
     handleRawTraceFileChanged(uri: vscode.Uri): Promise<void>;
@@ -159,11 +160,11 @@ describe('CTraceController', () => {
         expect(run).toHaveBeenCalledWith({ cbuildRunFilePath: newerCbuildRunFilePath });
     });
 
-    it('adds and removes its raw trace watch when the trace setting changes', () => {
+    it('adds and removes its raw trace watch when the trace setting changes', async () => {
         const tracker = debugTrackerFactory();
         const traceWatch = traceWatchFactory();
 
-        controller.activate(extensionContextFactory(), tracker, traceWatch.fileWatchManager);
+        await controller.activate(extensionContextFactory(), tracker, traceWatch.fileWatchManager);
         expect(traceWatch.addWatch).not.toHaveBeenCalled();
 
         traceWatch.fireConfigurationChange(false);
@@ -171,6 +172,7 @@ describe('CTraceController', () => {
 
         traceWatch.setTraceEnabled(true);
         traceWatch.fireConfigurationChange(true);
+        await waitForCondition('the raw trace watcher to be registered', () => traceWatch.addWatch.mock.calls.length === 1);
         expect(traceWatch.addWatch).toHaveBeenCalledTimes(1);
 
         traceWatch.setTraceEnabled(false);
@@ -184,7 +186,7 @@ describe('CTraceController', () => {
         const traceWatch = traceWatchFactory();
         const context = extensionContextFactory();
 
-        controller.activate(context, tracker, traceWatch.fileWatchManager);
+        await controller.activate(context, tracker, traceWatch.fileWatchManager);
         await tracker.callbacks.activeSession?.(trackerSession);
         await tracker.callbacks.stopped?.({ session: trackerSession });
         await tracker.callbacks.willStop?.(trackerSession);
@@ -201,7 +203,8 @@ describe('CTraceController', () => {
         Object.defineProperty(vscode.workspace, 'workspaceFolders', { configurable: true, value: undefined });
 
         try {
-            controller.activate(extensionContextFactory(), tracker, traceWatch.fileWatchManager);
+            await controller.activate(extensionContextFactory(), tracker, traceWatch.fileWatchManager);
+            await waitForCondition('the raw trace watcher to be registered', () => traceWatch.addWatch.mock.calls.length === 1);
             const watch = traceWatch.getLatestWatch();
             if (watch === undefined) {
                 throw new Error('Expected a raw trace file watch.');
@@ -220,11 +223,11 @@ describe('CTraceController', () => {
         }
     });
 
-    it('does not require a file watch manager before activation', () => {
+    it('does not require a file watch manager before activation', async () => {
         const unactivatedController = new CTraceController();
         const unactivatedControllerAccess = unactivatedController as unknown as CTraceControllerTestAccess;
 
-        unactivatedControllerAccess.addRawTraceWatcher();
+        await unactivatedControllerAccess.addRawTraceWatcher();
         unactivatedControllerAccess.removeRawTraceWatcher();
     });
 });

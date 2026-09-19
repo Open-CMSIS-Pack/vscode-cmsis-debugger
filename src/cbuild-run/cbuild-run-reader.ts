@@ -15,7 +15,6 @@
  */
 
 import * as path from 'path';
-import * as vscode from 'vscode';
 import * as yaml from 'yaml';
 import {
     CbuildRunRootType,
@@ -25,6 +24,7 @@ import {
 } from './cbuild-run-types';
 import { FileReader, VscodeFileReader } from '../desktop/file-reader';
 import { getCmsisPackRootPath } from '../utils';
+import { CBuildRunFileLocator } from './cbuild-run-file-locator';
 
 const CMSIS_PACK_ROOT_ENVVAR = '${CMSIS_PACK_ROOT}';
 
@@ -33,7 +33,10 @@ export class CbuildRunReader {
     private cbuildRunFilePath: string | undefined;
     private cbuildRunDir: string | undefined;
 
-    constructor(private reader: FileReader = new VscodeFileReader()) {}
+    public constructor(
+        private readonly reader: FileReader = new VscodeFileReader(),
+        private readonly cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator()
+    ) {}
 
     public hasContents(): boolean {
         return !!this.cbuildRun;
@@ -60,9 +63,9 @@ export class CbuildRunReader {
         }
         this.cbuildRunFilePath = filePath;
         const dirName = path.dirname(this.cbuildRunFilePath);
-        const workspace = vscode.workspace.workspaceFolders?.at(0)?.uri.fsPath;
+        const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
         // Only considers workspace if dirName is not absolute.
-        this.cbuildRunDir = workspace ? path.resolve(workspace, dirName) : dirName;
+        this.cbuildRunDir = activeSolutionFolder ? path.resolve(activeSolutionFolder.fsPath, dirName) : dirName;
     }
 
     public getSvdFilePaths(cmsisPackRoot?: string, pname?: string): string[] {

@@ -120,8 +120,8 @@ export class TraceConfigurationModel {
      * CMSIS Solution activation starts. This prevents generated-file events
      * emitted during companion-extension startup from being missed.
      */
-    public watchForGeneratedCBuildRunFiles(): void {
-        this.fileWatcher.watchGeneratedCBuildRunFiles();
+    public watchForGeneratedCBuildRunFiles(): Promise<void> {
+        return this.fileWatcher.watchGeneratedCBuildRunFiles();
     }
 
     /**
@@ -159,7 +159,7 @@ export class TraceConfigurationModel {
      * while any existing .cmsis/*.ctrace.yml file remains available to edit.
      */
     public async loadInitialFile(): Promise<void> {
-        this.watchForGeneratedCBuildRunFiles();
+        await this.watchForGeneratedCBuildRunFiles();
         this.loading = true;
         this.errorMessage = undefined;
         this.emptyMessage = undefined;
