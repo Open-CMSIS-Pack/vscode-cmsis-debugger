@@ -66,13 +66,13 @@ body {
 .table-header,
 .table-row {
     display: grid;
-    min-width: max-content;
 }
 
 .table-header {
     position: sticky;
     top: 0;
     z-index: 1;
+    min-width: max-content;
     background: var(--vscode-editorActionList-background);
     border-bottom: 1px solid var(--vscode-editorWidget-border);
 }

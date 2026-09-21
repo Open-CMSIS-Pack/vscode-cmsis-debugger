@@ -42,6 +42,7 @@ const vscode = acquireVsCodeApi();
 const ROW_OVERSCAN = 16;
 const FILTER_DEBOUNCE_MS = 250;
 const COPY_BUTTON_DELAY_MS = 1_000;
+const getMinimumColumnWidth = (columnIndex: number): number => columnIndex === 0 ? 22 : 100;
 
 interface TableState {
     readonly viewRevision: number;
@@ -256,10 +257,26 @@ export const SwoCsvViewer = (): JSX.Element => {
         if (activeResize === null || activeResize.pointerId !== event.pointerId) {
             return;
         }
-        const minimumWidth = activeResize.columnIndex === 0 ? 22 : 100;
+        const minimumWidth = getMinimumColumnWidth(activeResize.columnIndex);
         setColumnWidths(widths => widths.map((width, index) => index === activeResize.columnIndex
             ? Math.max(minimumWidth, activeResize.startWidth + event.clientX - activeResize.startX)
             : width));
+    };
+
+    const minimizeColumn = (event: ReactMouseEvent<HTMLButtonElement>, columnIndex: number): void => {
+        event.preventDefault();
+        event.stopPropagation();
+        suppressSort.current = true;
+        setColumnWidths(widths => widths.map((width, index) => index === columnIndex
+            ? getMinimumColumnWidth(columnIndex)
+            : width));
+        if (clearSortSuppressionTimer.current !== null) {
+            window.clearTimeout(clearSortSuppressionTimer.current);
+        }
+        clearSortSuppressionTimer.current = window.setTimeout(() => {
+            suppressSort.current = false;
+            clearSortSuppressionTimer.current = null;
+        }, 0);
     };
 
     const finishColumnResize = (event: ReactPointerEvent<HTMLButtonElement>): void => {
@@ -395,7 +412,7 @@ export const SwoCsvViewer = (): JSX.Element => {
                     <div className="index-header" role="columnheader" aria-colindex={1}>
                         <button type="button" className={`sort-button ${sort?.columnIndex === null ? sort.direction : ''}`} aria-label="Sort by row index" disabled={tableState.indexing} onClick={() => updateSort(null)}>#</button>
                         <span className="filter-spacer" />
-                        <button type="button" className="column-resize" aria-label="Resize row index" onPointerDown={event => startColumnResize(event, 0, effectiveColumnWidths[0])} onPointerMove={resizeColumn} onPointerUp={finishColumnResize} onPointerCancel={finishColumnResize} onLostPointerCapture={finishColumnResize} />
+                        <button type="button" className="column-resize" aria-label="Resize row index" onPointerDown={event => startColumnResize(event, 0, effectiveColumnWidths[0])} onPointerMove={resizeColumn} onPointerUp={finishColumnResize} onPointerCancel={finishColumnResize} onLostPointerCapture={finishColumnResize} onDoubleClick={event => minimizeColumn(event, 0)} />
                     </div>
                     {tableState.columns.map((column, columnIndex) => <label key={column} role="columnheader" aria-colindex={columnIndex + 2}>
                         <button type="button" className={`sort-button ${sort?.columnIndex === columnIndex ? sort.direction : ''}`} aria-label={`Sort by ${column}`} disabled={tableState.indexing} onClick={() => updateSort(columnIndex)}>{column}</button>
@@ -405,7 +422,7 @@ export const SwoCsvViewer = (): JSX.Element => {
                             value={filters.find(filter => filter.columnIndex === columnIndex)?.value ?? ''}
                             onChange={event => updateFilter(columnIndex, event.target.value)}
                         />
-                        <button type="button" className="column-resize" aria-label={`Resize ${column}`} onPointerDown={event => startColumnResize(event, columnIndex + 1, effectiveColumnWidths[columnIndex + 1])} onPointerMove={resizeColumn} onPointerUp={finishColumnResize} onPointerCancel={finishColumnResize} onLostPointerCapture={finishColumnResize} />
+                        <button type="button" className="column-resize" aria-label={`Resize ${column}`} onPointerDown={event => startColumnResize(event, columnIndex + 1, effectiveColumnWidths[columnIndex + 1])} onPointerMove={resizeColumn} onPointerUp={finishColumnResize} onPointerCancel={finishColumnResize} onLostPointerCapture={finishColumnResize} onDoubleClick={event => minimizeColumn(event, columnIndex + 1)} />
                     </label>)}
                 </div>
                 <div className="table-rows" role="rowgroup" style={{ height: `${scrollHeight}px`, width: tableLayoutWidth }}>
