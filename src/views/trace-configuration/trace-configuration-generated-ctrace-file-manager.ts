@@ -22,6 +22,7 @@ import * as vscode from 'vscode';
 
 import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
 import { logger } from '../../logger';
+import { isFileNotFoundError } from '../../utils';
 import { CTraceProcessorTraceSetup, CTraceYamlDocument } from './ctrace-yaml';
 import { GeneratedCBuildRunFileChangeEvent } from './trace-configuration-file-watcher';
 import * as TraceConfigurationTypes from './trace-configuration-types';
@@ -235,7 +236,7 @@ export class TraceConfigurationGeneratedCTraceFileManager {
         try {
             return await vscode.workspace.fs.stat(uri);
         } catch (error) {
-            if (this.isFileNotFoundError(error)) {
+            if (isFileNotFoundError(error)) {
                 return undefined;
             }
             throw error;
@@ -249,18 +250,6 @@ export class TraceConfigurationGeneratedCTraceFileManager {
     private isDirectoryStat(stat: vscode.FileStat): boolean {
         const nodeStat = stat as vscode.FileStat & { isDirectory?: () => boolean };
         return stat.type === vscode.FileType.Directory || nodeStat.isDirectory?.() === true;
-    }
-
-    /**
-     * isFileNotFoundError recognizes the missing-file error codes returned by
-     * the workspace filesystem adapters used in tests and production.
-     */
-    private isFileNotFoundError(error: unknown): boolean {
-        if (!error || typeof error !== 'object') {
-            return false;
-        }
-        const errorWithCode = error as { code?: unknown };
-        return errorWithCode.code === 'ENOENT' || errorWithCode.code === 'FileNotFound';
     }
 
     /**

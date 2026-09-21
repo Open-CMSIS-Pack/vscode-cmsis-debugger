@@ -18,12 +18,11 @@
 import * as path from 'node:path';
 
 import * as vscode from 'vscode';
-import { parse } from 'yaml';
 
+import { CBuildRunFileLocator } from '../../cbuild-run';
 import { Disposable } from '../../desktop/yaml-file';
-import { logger } from '../../logger';
 import { CBUILD_INDEX_FILE_GLOB } from '../../manifest';
-import { FileLocationManager, normalizeFsPath } from '../../utils';
+import { fileExists, normalizeFsPath } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 
 export type GeneratedCBuildRunFileChangeType = 'created' | 'changed' | 'deleted';
@@ -86,7 +85,7 @@ export class TraceConfigurationFileWatcher {
      */
     public constructor(
         private readonly callbacks: TraceConfigurationFileWatcherCallbacks,
-        private readonly fileLocationManager: Pick<FileLocationManager, 'getCBuildRunFileName'> = new FileLocationManager()
+        private readonly cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator()
     ) {}
 
     /**
@@ -185,121 +184,27 @@ export class TraceConfigurationFileWatcher {
         findExistingCBuildIndex = false
     ): Promise<boolean> {
         const resolutionVersion = ++this.cbuildRunResolutionVersion;
-        const cbuildRunFileName = await this.fileLocationManager.getCBuildRunFileName();
-
+        const cbuildRunFileName = await this.cbuildRunFileLocator.getCBuildRunFileName(
+            cbuildIndexFile,
+            findExistingCBuildIndex
+        );
         if (
-            watchVersion !== this.generatedWatchVersion
-            || resolutionVersion !== this.cbuildRunResolutionVersion
-        ) {
-            return false;
-        }
-
-        if (cbuildRunFileName) {
-            this.watchGeneratedCBuildRunFile(cbuildRunFileName, watchVersion);
-            if (await this.processExistingGeneratedCBuildRunFile(
-                cbuildRunFileName,
-                watchVersion,
-                resolutionVersion
-            )) {
-                return true;
-            }
-        }
-
-        const indexFile = cbuildIndexFile ?? (findExistingCBuildIndex
-            ? await this.findExistingCBuildIndexFile()
-            : undefined);
-        const indexedCBuildRunFileName = indexFile
-            ? await this.readCBuildRunFileNameFromIndex(indexFile)
-            : undefined;
-        if (
-            !indexedCBuildRunFileName
+            !cbuildRunFileName
             || watchVersion !== this.generatedWatchVersion
             || resolutionVersion !== this.cbuildRunResolutionVersion
         ) {
             return false;
         }
 
-        this.watchGeneratedCBuildRunFile(indexedCBuildRunFileName, watchVersion);
-        return this.processExistingGeneratedCBuildRunFile(
-            indexedCBuildRunFileName,
-            watchVersion,
-            resolutionVersion
-        );
-    }
-
-    /**
-     * findExistingCBuildIndexFile covers prebuilt projects whose index existed
-     * before the filesystem watcher was installed. This lookup runs only after
-     * CMSIS Solution activation and an unsuccessful command result, so it
-     * cannot recreate the original pre-activation race.
-     */
-    private async findExistingCBuildIndexFile(): Promise<vscode.Uri | undefined> {
-        const mainWorkspaceFolder = vscode.workspace.workspaceFolders?.[0];
-        if (!mainWorkspaceFolder) {
-            return undefined;
-        }
-        const pattern = new vscode.RelativePattern(mainWorkspaceFolder, CBUILD_INDEX_FILE_GLOB);
-        const files = await vscode.workspace.findFiles(pattern, null, 1);
-        return files.at(0);
-    }
-
-    /**
-     * readCBuildRunFileNameFromIndex resolves the generated cbuild-run path
-     * recorded by the index event. The YAML is external data, so each property
-     * is checked before the path is used.
-     */
-    private async readCBuildRunFileNameFromIndex(cbuildIndexFile: vscode.Uri): Promise<string | undefined> {
-        try {
-            const bytes = await vscode.workspace.fs.readFile(cbuildIndexFile);
-            const root: unknown = parse(new TextDecoder().decode(bytes));
-            const buildIndex = this.getObjectProperty(root, 'build-idx');
-            const cbuildRunFileName = this.getObjectProperty(buildIndex, 'cbuild-run');
-            if (typeof cbuildRunFileName !== 'string' || !cbuildRunFileName.trim()) {
-                return undefined;
-            }
-            return path.resolve(path.dirname(cbuildIndexFile.fsPath), cbuildRunFileName.trim());
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            logger.debug(`Trace Configuration: Failed to read generated cbuild index file: ${errorMessage}`);
-            return undefined;
-        }
-    }
-
-    /**
-     * getObjectProperty reads an unknown YAML mapping without trusting its
-     * shape at the filesystem boundary.
-     */
-    private getObjectProperty(value: unknown, key: string): unknown {
-        if (!value || typeof value !== 'object' || Array.isArray(value)) {
-            return undefined;
-        }
-        return Reflect.get(value, key);
-    }
-
-    /**
-     * processExistingGeneratedCBuildRunFile handles the case where generation
-     * completed before the exact cbuild-run watcher was installed.
-     */
-    private async processExistingGeneratedCBuildRunFile(
-        cbuildRunFileName: string,
-        watchVersion: number,
-        resolutionVersion: number
-    ): Promise<boolean> {
+        this.watchGeneratedCBuildRunFile(cbuildRunFileName, watchVersion);
         const uri = vscode.Uri.file(cbuildRunFileName);
-        try {
-            await vscode.workspace.fs.stat(uri);
-        } catch (error) {
-            if (!this.isFileNotFoundError(error)) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                logger.error(`Trace Configuration: Failed to inspect generated cbuild-run file: ${errorMessage}`);
-            }
+        if (!await fileExists(uri)) {
             return false;
         }
-
         if (
             watchVersion !== this.generatedWatchVersion
             || resolutionVersion !== this.cbuildRunResolutionVersion
-            || normalizeFsPath(cbuildRunFileName) !== normalizeFsPath(this.generatedCBuildRunFileName)
+            || !this.isCurrentGeneratedCBuildRunFile(cbuildRunFileName)
         ) {
             return false;
         }
@@ -308,16 +213,8 @@ export class TraceConfigurationFileWatcher {
         return true;
     }
 
-    /**
-     * isFileNotFoundError recognizes missing-file errors from VS Code and Node
-     * filesystem adapters while an index and its cbuild-run output converge.
-     */
-    private isFileNotFoundError(error: unknown): boolean {
-        if (!error || typeof error !== 'object') {
-            return false;
-        }
-        const errorWithCode = error as { code?: unknown };
-        return errorWithCode.code === 'ENOENT' || errorWithCode.code === 'FileNotFound';
+    private isCurrentGeneratedCBuildRunFile(cbuildRunFileName: string): boolean {
+        return normalizeFsPath(cbuildRunFileName) === normalizeFsPath(this.generatedCBuildRunFileName);
     }
 
     /**
@@ -329,7 +226,7 @@ export class TraceConfigurationFileWatcher {
     private watchGeneratedCBuildRunFile(cbuildRunFileName: string, watchVersion: number): void {
         if (
             this.generatedCBuildRunFileWatchers.length > 0
-            && normalizeFsPath(this.generatedCBuildRunFileName) === normalizeFsPath(cbuildRunFileName)
+            && this.isCurrentGeneratedCBuildRunFile(cbuildRunFileName)
         ) {
             return;
         }
@@ -360,7 +257,7 @@ export class TraceConfigurationFileWatcher {
     ): void {
         if (
             watchVersion !== this.generatedWatchVersion
-            || normalizeFsPath(watchedFileName) !== normalizeFsPath(this.generatedCBuildRunFileName)
+            || !this.isCurrentGeneratedCBuildRunFile(watchedFileName)
         ) {
             return;
         }
