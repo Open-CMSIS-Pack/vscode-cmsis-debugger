@@ -113,7 +113,7 @@ button {
 }
 
 .add-button-wrapper {
-    display: inline-flex;
+    display: flex;
     position: relative;
 }
 
@@ -130,7 +130,8 @@ button {
 .tooltip-wrapper::after {
     position: absolute;
     bottom: calc(100% + 6px);
-    left: 50%;
+    right: 0px;
+    left: auto;
     z-index: 10;
     display: none;
     max-width: min(220px, 70vw);
@@ -144,7 +145,6 @@ button {
     font: 11px/1.4 var(--vscode-font-family, "Segoe UI", system-ui, sans-serif);
     overflow-wrap: anywhere;
     pointer-events: none;
-    transform: translateX(-50%);
     white-space: normal;
     width: max-content;
 }
