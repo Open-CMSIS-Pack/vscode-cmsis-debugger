@@ -52,13 +52,13 @@ describe('TraceCommands', () => {
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith(TraceCommands.reloadCTraceID, expect.any(Function));
     });
 
-    it('requests a ctrace reload after pyTS completes', async () => {
+    it('runs pyTS when its command is invoked', async () => {
         const run = jest.spyOn(pyTsController, 'run').mockResolvedValue(0);
         commands.activate(extensionContextFactory());
 
         await registeredCommands.get(TraceCommands.launchPyTsID)!();
 
-        expect(run).toHaveBeenCalledWith({}, true);
+        expect(run).toHaveBeenCalledWith();
     });
 
     it('runs ctrace when its command is invoked', async () => {
@@ -78,7 +78,7 @@ describe('TraceCommands', () => {
 
         await registeredCommands.get(TraceCommands.launchPyTsID)!();
 
-        expect(run).toHaveBeenCalledWith({}, true);
+        expect(run).toHaveBeenCalledWith();
         expect(loggerError).toHaveBeenCalledWith('Failed to launch pyTS process:', error);
     });
 

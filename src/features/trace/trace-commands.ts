@@ -48,7 +48,7 @@ export class TraceCommands {
 
     protected async handleLaunchPyTs(): Promise<void> {
         try {
-            const exitCode = await this.pyTsController.run({}, true);
+            const exitCode = await this.pyTsController.run();
             if (exitCode !== 0) {
                 logger.error(`pyTS process exited with code ${exitCode}`);
             }

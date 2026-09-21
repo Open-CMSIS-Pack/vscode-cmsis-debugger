@@ -86,27 +86,16 @@ describe('PyTsController', () => {
         await expect(controller.reloadCTrace()).resolves.toBeUndefined();
     });
 
-    it('reloads ctrace after pyTS exits when requested separately from its launch options', async () => {
+    it('does not reload ctrace after pyTS exits', async () => {
         const launch = jest.spyOn(PyTsProcessManager.prototype, 'launch').mockResolvedValue();
         const waitForExit = jest.spyOn(PyTsProcessManager.prototype, 'waitForExit').mockResolvedValue(0);
         const controller = new PyTsController({ pyTsPath: 'pyTS' });
         const reloadCTrace = jest.spyOn(controller, 'reloadCTrace').mockResolvedValue();
 
-        await expect(controller.run({}, true)).resolves.toBe(0);
+        await expect(controller.run()).resolves.toBe(0);
 
         expect(launch).toHaveBeenCalledWith({});
         expect(waitForExit).toHaveBeenCalledTimes(1);
-        expect(reloadCTrace).toHaveBeenCalledTimes(1);
-    });
-
-    it('does not reload ctrace after a failed pyTS exit', async () => {
-        jest.spyOn(PyTsProcessManager.prototype, 'launch').mockResolvedValue();
-        jest.spyOn(PyTsProcessManager.prototype, 'waitForExit').mockResolvedValue(17);
-        const controller = new PyTsController({ pyTsPath: 'pyTS' });
-        const reloadCTrace = jest.spyOn(controller, 'reloadCTrace').mockResolvedValue();
-
-        await expect(controller.run({}, true)).resolves.toBe(17);
-
         expect(reloadCTrace).not.toHaveBeenCalled();
     });
 
@@ -129,13 +118,13 @@ describe('PyTsController', () => {
         expect(waitForExit).toHaveBeenCalledTimes(3);
     });
 
-    it('reloads ctrace after a ctrace configuration file changes', async () => {
+    it('converts ctrace after a ctrace configuration file changes', async () => {
         const controller = new PyTsController();
         const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
 
         await controller.handleCTraceFileChanged(ctraceUri);
 
-        expect(run).toHaveBeenCalledWith({}, true);
+        expect(run).toHaveBeenCalledWith({});
     });
 
     it('logs a failed pyTS exit from a ctrace configuration file change', async () => {
@@ -177,8 +166,8 @@ describe('PyTsController', () => {
         controller.handleActiveSessionChanged(secondSession);
         await controller.handleCTraceFileChanged(ctraceUri);
 
-        expect(run).toHaveBeenNthCalledWith(1, { cbuildRunFilePath: firstSession.getCbuildRunPath() }, true);
-        expect(run).toHaveBeenNthCalledWith(2, { cbuildRunFilePath: secondSession.getCbuildRunPath() }, true);
+        expect(run).toHaveBeenNthCalledWith(1, { cbuildRunFilePath: firstSession.getCbuildRunPath() });
+        expect(run).toHaveBeenNthCalledWith(2, { cbuildRunFilePath: secondSession.getCbuildRunPath() });
     });
 
     it('adds and removes its ctrace configuration watch when the trace setting changes', () => {
@@ -224,7 +213,7 @@ describe('PyTsController', () => {
             ]);
             context.subscriptions.at(-1)?.dispose();
 
-            expect(run).toHaveBeenNthCalledWith(1, {}, true);
+            expect(run).toHaveBeenNthCalledWith(1, {});
             expect(run).toHaveBeenCalledTimes(1);
             expect(traceWatch.removeWatch).toHaveBeenCalledWith('pyts-ctrace-configuration');
         } finally {
@@ -338,7 +327,7 @@ describe('PyTsController', () => {
 
         await controller.handleCTraceFileChanged(generatedCTraceUri(activeSession, `active.ctrace.${extension}`));
 
-        expect(run).toHaveBeenCalledWith({ cbuildRunFilePath: activeSession.getCbuildRunPath() }, true);
+        expect(run).toHaveBeenCalledWith({ cbuildRunFilePath: activeSession.getCbuildRunPath() });
     });
 
     it.each(['yml', 'yaml'])('converts a named target-set .ctrace.%s file', async extension => {
@@ -349,7 +338,7 @@ describe('PyTsController', () => {
 
         await controller.handleCTraceFileChanged(generatedCTraceUri(activeSession, `active@targetSet.ctrace.${extension}`));
 
-        expect(run).toHaveBeenCalledWith({ cbuildRunFilePath: activeSession.getCbuildRunPath() }, true);
+        expect(run).toHaveBeenCalledWith({ cbuildRunFilePath: activeSession.getCbuildRunPath() });
     });
 
     it('converts ctrace files when there is no active cbuild-run context', async () => {
@@ -358,7 +347,7 @@ describe('PyTsController', () => {
 
         await controller.handleCTraceFileChanged(ctraceUri);
 
-        expect(run).toHaveBeenCalledWith({}, true);
+        expect(run).toHaveBeenCalledWith({});
     });
 
     it.each([
@@ -409,7 +398,7 @@ describe('PyTsController', () => {
 
         expect(run).toHaveBeenCalledWith({
             cbuildRunFilePath: activeSession.getCbuildRunPath()
-        }, true);
+        });
     });
 
     it('recovers from a ctrace file read failure', async () => {
