@@ -133,7 +133,7 @@ button {
     right: 0px;
     left: auto;
     z-index: 10;
-    display: none;
+    display: block;
     max-width: min(220px, 70vw);
     padding: 3px 5px;
     border: 1px solid var(--vscode-editorHoverWidget-border, #454545);
@@ -143,8 +143,10 @@ button {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
     content: attr(data-tooltip);
     font: 11px/1.4 var(--vscode-font-family, "Segoe UI", system-ui, sans-serif);
+    opacity: 0;
     overflow-wrap: anywhere;
     pointer-events: none;
+    transition: opacity 600ms ease;
     white-space: normal;
     width: max-content;
 }
@@ -152,12 +154,22 @@ button {
 .tooltip-wrapper:hover::after,
 .tooltip-wrapper:focus-visible::after,
 .tooltip-wrapper:focus-within::after {
-    display: block;
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tooltip-wrapper::after {
+        transition: none;
+    }
 }
 
 .add-button {
-    width: 22px;
-    height: 22px;
+    width: 14px;
+    height: 14px;
+
+    & .codicon-add {
+        font-size: 9px !important;
+    }
 }
 
 .node-action {
@@ -296,7 +308,7 @@ input[type="checkbox"] {
 
 .option-tree-table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
     table-layout: fixed;
 }
 
