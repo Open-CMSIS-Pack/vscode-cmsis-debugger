@@ -69,7 +69,13 @@ export class TraceCommands {
     }
 
     protected async handleReloadCTrace(): Promise<void> {
-        await this.pyTsController.reloadCTrace();
+        const session = vscode.debug.activeDebugSession;
+        if (session) {
+            await session.customRequest('evaluate', {
+                expression: '> monitor ctrace reload',
+                context: 'repl'
+            });
+        }
     }
 
 }

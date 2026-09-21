@@ -66,37 +66,18 @@ describe('PyTsController', () => {
         jest.mocked(vscode.workspace.fs.readFile).mockResolvedValue(new TextEncoder().encode('trace: initial'));
     });
 
-    it('sends a ctrace reload request to the active debug session', async () => {
-        const session = debugSessionFactory({ name: 'test', type: 'cmsis-debugger', request: 'launch' });
-        Object.defineProperty(vscode.debug, 'activeDebugSession', { configurable: true, value: session });
-        const controller = new PyTsController();
-
-        await controller.reloadCTrace();
-
-        expect(session.customRequest).toHaveBeenCalledWith('evaluate', {
-            expression: '> monitor ctrace reload',
-            context: 'repl'
-        });
-    });
-
-    it('does nothing when no debug session is active', async () => {
-        Object.defineProperty(vscode.debug, 'activeDebugSession', { configurable: true, value: undefined });
-        const controller = new PyTsController();
-
-        await expect(controller.reloadCTrace()).resolves.toBeUndefined();
-    });
-
     it('does not reload ctrace after pyTS exits', async () => {
         const launch = jest.spyOn(PyTsProcessManager.prototype, 'launch').mockResolvedValue();
         const waitForExit = jest.spyOn(PyTsProcessManager.prototype, 'waitForExit').mockResolvedValue(0);
+        const session = debugSessionFactory({ name: 'test', type: 'cmsis-debugger', request: 'launch' });
+        Object.defineProperty(vscode.debug, 'activeDebugSession', { configurable: true, value: session });
         const controller = new PyTsController({ pyTsPath: 'pyTS' });
-        const reloadCTrace = jest.spyOn(controller, 'reloadCTrace').mockResolvedValue();
 
         await expect(controller.run()).resolves.toBe(0);
 
         expect(launch).toHaveBeenCalledWith({});
         expect(waitForExit).toHaveBeenCalledTimes(1);
-        expect(reloadCTrace).not.toHaveBeenCalled();
+        expect(session.customRequest).not.toHaveBeenCalled();
     });
 
     it('uses the active session cbuild run path unless the caller supplies one', async () => {

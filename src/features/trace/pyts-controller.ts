@@ -76,16 +76,6 @@ export class PyTsController {
         return processManager.waitForExit();
     }
 
-    public async reloadCTrace(): Promise<void> {
-        const session = vscode.debug.activeDebugSession;
-        if (session) {
-            await session.customRequest('evaluate', {
-                expression: '> monitor ctrace reload',
-                context: 'repl'
-            });
-        }
-    }
-
     protected handleActiveSessionChanged(session: GDBTargetDebugSession | undefined): void {
         this.activeSession = session;
     }
