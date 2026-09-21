@@ -254,20 +254,6 @@ select:disabled {
     flex: none;
 }
 
-/* .multi-select-summary::after {
-    content: '';
-    display: inline-block;
-    width: 0;
-    height: 0;
-    margin-left: 0.3em;
-    vertical-align: middle;
-    border-top: 4px solid;
-    border-right: 4px solid transparent;
-    border-left: 4px solid transparent;
-    right: 4px;
-    position: absolute;
-} */
-
 .multi-select-menu {
     position: absolute;
     z-index: 3;
@@ -314,7 +300,6 @@ input[type="checkbox"] {
 
 .option-tree-table th,
 .option-tree-table td {
-    /* border-bottom: 1px solid rgba(128, 128, 128, 0.22); */
     padding: 0px 7px;
     text-align: left;
     vertical-align: middle;
