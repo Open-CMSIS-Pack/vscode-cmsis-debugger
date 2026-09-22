@@ -122,13 +122,15 @@
         "command": "vscode-cmsis-debugger.traceConfiguration.save",
         "title": "Save ctrace.yml",
         "icon": "$(save)",
-        "category": "Trace Generation"
+        "category": "Trace Generation",
+        "enablement": "vscode-cmsis-debugger.traceConfiguration.isModified"
       },
       {
-        "command": "vscode-cmsis-debugger.traceConfiguration.openFile",
-        "title": "Open ctrace.yml",
-        "icon": "$(folder-opened)",
-        "category": "Trace Generation"
+        "command": "vscode-cmsis-debugger.traceConfiguration.revert",
+        "title": "Revert ctrace.yml",
+        "icon": "$(history)",
+        "category": "Trace Generation",
+        "enablement": "vscode-cmsis-debugger.traceConfiguration.isModified"
       },
       {
         "command": "vscode-cmsis-debugger.traceConfiguration.expandAll",
@@ -695,7 +697,7 @@
           "group": "navigation@1"
         },
         {
-          "command": "vscode-cmsis-debugger.traceConfiguration.openFile",
+          "command": "vscode-cmsis-debugger.traceConfiguration.revert",
           "when": "view == cmsis-debugger.traceConfiguration",
           "group": "navigation@2"
         },

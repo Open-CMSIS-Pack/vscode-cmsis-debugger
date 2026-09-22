@@ -86,8 +86,8 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.save', async () => {
                 await this.handleCommand(() => this.model.saveCurrentDocument());
             }),
-            vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.openFile', async () => {
-                await this.handleCommand(() => this.promptAndOpenFile());
+            vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.revert', async () => {
+                await this.handleCommand(() => this.model.refreshFile());
             }),
             vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.expandAll', () => {
                 this.toggleAllRows(true);

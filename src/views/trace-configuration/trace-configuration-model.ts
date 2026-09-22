@@ -56,13 +56,24 @@ export class TraceConfigurationModel {
     private readonly generatedCTraceFileManager: TraceConfigurationGeneratedCTraceFileManager;
     public readonly onDidChangeGeneratedCBuildRunFile: vscode.Event<GeneratedCBuildRunFileChangeEvent>;
     private loading = false;
-    private dirty = false;
+    private _dirty = false;
     private errorMessage: string | undefined;
     private emptyMessage: string | undefined;
     private focusedRowId: string | undefined;
     private readonly expandedRows = new Set<string>();
     private readonly processorCapabilities: TraceConfigurationProcessorCapabilities;
     private readonly rowBuilder: TraceConfigurationRowBuilder;
+
+    private set dirty(value: boolean) {
+        if (this._dirty !== value) {
+            this._dirty = value;
+            vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.traceConfiguration.isModified', value);
+        }
+    }
+
+    private get dirty(): boolean {
+        return this._dirty;
+    }
 
     /**
      * The constructor wires together the file model, capability mapper, and row builder. The optional
@@ -597,6 +608,7 @@ export class TraceConfigurationModel {
         this.errorMessage = undefined;
         this.fileWatcher.disposeCurrentFileWatcher();
         this.notifyStateChanged();
+        this.ctraceFile.saveAs('~'+this.ctraceFile!.fileName);
     }
 
     /**
