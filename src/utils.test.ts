@@ -25,6 +25,7 @@ import {
     extractPname,
     fileExists,
     getCmsisPackRootPath,
+    getObjectProperty,
     isFileNotFoundError,
     isWindows,
     normalizeFsPath,
@@ -165,6 +166,19 @@ describe('normalizeFsPath', () => {
 
     it('preserves undefined paths', () => {
         expect(normalizeFsPath(undefined)).toBeUndefined();
+    });
+});
+
+describe('getObjectProperty', () => {
+
+    it('gets a property from an object', () => {
+        expect(getObjectProperty({ selected: 'solution' }, 'selected')).toBe('solution');
+    });
+
+    it('returns undefined for non-object values and arrays', () => {
+        expect(getObjectProperty(undefined, 'selected')).toBeUndefined();
+        expect(getObjectProperty('solution', 'selected')).toBeUndefined();
+        expect(getObjectProperty(['solution'], '0')).toBeUndefined();
     });
 });
 

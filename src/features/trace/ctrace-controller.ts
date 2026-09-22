@@ -16,6 +16,8 @@
 // generated with AI
 
 import * as vscode from 'vscode';
+
+import { CmsisJsonWatcher } from '../../cmsis-files';
 import { CBuildRunFileLocator } from '../../cbuild-run';
 import {
     GDBTargetDebugSession,
@@ -43,14 +45,16 @@ export class CTraceController {
     private activeSession: GDBTargetDebugSession | undefined;
     private fileWatchManager: FileWatchManager | undefined;
     private traceEnabled = false;
+    private rawTraceWatcherGeneration = 0;
     private readonly pendingDecodes = new Map<string, PendingDecode>();
     private readonly rawTraceSaves = new Map<string, number>();
-    private readonly cbuildRunFileLocator = new CBuildRunFileLocator();
 
     public constructor(
         private readonly options: CTraceProcessManagerOptions = {},
         // Injected to make timing-based behavior deterministic in tests.
-        private readonly now: () => number = Date.now
+        private readonly now: () => number = Date.now,
+        private readonly cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator(),
+        private readonly cmsisJsonWatcher?: CmsisJsonWatcher
     ) {}
 
     public async activate(
@@ -59,6 +63,9 @@ export class CTraceController {
         fileWatchManager: FileWatchManager
     ): Promise<void> {
         this.fileWatchManager = fileWatchManager;
+        const activeSolutionChangeSubscription = this.cmsisJsonWatcher?.onDidChangeActiveSolution(() => {
+            void this.handleActiveSolutionPathChanged();
+        });
         context.subscriptions.push(
             tracker.onDidChangeActiveDebugSession(session => this.handleActiveSessionChanged(session)),
             tracker.onStopped(event => this.handleDecodeTrigger(event.session)),
@@ -68,7 +75,8 @@ export class CTraceController {
                     await this.updateRawTraceWatcher();
                 }
             }),
-            { dispose: () => this.removeRawTraceWatcher() }
+            { dispose: () => this.removeRawTraceWatcher() },
+            ...(activeSolutionChangeSubscription ? [activeSolutionChangeSubscription] : [])
         );
         await this.updateRawTraceWatcher();
     }
@@ -87,8 +95,11 @@ export class CTraceController {
         this.activeSession = session;
     }
 
-    protected async handleRawTraceFileChanged(uri: vscode.Uri): Promise<void> {
-        if (!this.traceEnabled) {
+    protected async handleRawTraceFileChanged(
+        uri: vscode.Uri,
+        watcherGeneration: number = this.rawTraceWatcherGeneration
+    ): Promise<void> {
+        if (!this.traceEnabled || watcherGeneration !== this.rawTraceWatcherGeneration) {
             return;
         }
         const savedAt = this.now();
@@ -172,9 +183,10 @@ export class CTraceController {
         if (fileWatchManager === undefined) {
             return;
         }
+        const watcherGeneration = this.rawTraceWatcherGeneration;
         const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
         // Ignore a stale registration after tracing was disabled or reactivation supplied a new manager.
-        if (!this.traceEnabled || fileWatchManager !== this.fileWatchManager) {
+        if (!this.traceEnabled || watcherGeneration !== this.rawTraceWatcherGeneration || fileWatchManager !== this.fileWatchManager) {
             return;
         }
         const globPattern = activeSolutionFolder
@@ -183,15 +195,26 @@ export class CTraceController {
         fileWatchManager.addWatch({
             id: RAW_TRACE_WATCH_ID,
             globPattern,
-            onDidCreate: uri => this.handleRawTraceFileChanged(uri),
-            onDidChange: uri => this.handleRawTraceFileChanged(uri)
+            onDidCreate: uri => this.handleRawTraceFileChanged(uri, watcherGeneration),
+            onDidChange: uri => this.handleRawTraceFileChanged(uri, watcherGeneration)
         });
     }
 
     private removeRawTraceWatcher(): void {
+        this.rawTraceWatcherGeneration += 1;
         if (this.fileWatchManager === undefined) {
             return;
         }
         this.fileWatchManager.removeWatch(RAW_TRACE_WATCH_ID);
+    }
+
+    private async handleActiveSolutionPathChanged(): Promise<void> {
+        if (!this.traceEnabled) {
+            return;
+        }
+        this.removeRawTraceWatcher();
+        this.pendingDecodes.clear();
+        this.rawTraceSaves.clear();
+        await this.addRawTraceWatcher();
     }
 }
