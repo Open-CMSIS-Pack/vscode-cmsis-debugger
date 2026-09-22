@@ -761,14 +761,12 @@ describe('TraceConfigurationModel', () => {
         await model.addItem(['ctrace', 'setup', 0, 'data'], 'data');
 
         expect(model.createState().dirty).toBe(true);
-        expect(adapter.listenerCount()).toBe(0);
 
         await model.refreshFile();
 
         expect(adapter.text).toBe(originalText);
         expect(adapter.writeCount).toBe(0);
         expect(model.createState().dirty).toBe(false);
-        expect(adapter.listenerCount()).toBe(1);
     });
 
     it('updates specialized trace controls in memory and saves their YAML shapes', async () => {
@@ -1097,7 +1095,7 @@ describe('TraceConfigurationModel', () => {
         expectSameFsPath(model.createState().fileName, ctraceFileName);
         expect(model.createState().rows.length).toBeGreaterThan(0);
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith('cmsis-csolution.getCbuildRunFile');
-        expect(vscode.workspace.findFiles).toHaveBeenCalledTimes(2);
+        expect(vscode.workspace.findFiles).toHaveBeenCalledWith(CTRACE_FILE_GLOB, null, 10);
         expect(onDidChange).toHaveBeenCalled();
 
         model.updateExpandedState(JSON.stringify(['ctrace', 'setup', 0]), true);

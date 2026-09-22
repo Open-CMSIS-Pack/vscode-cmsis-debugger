@@ -72,7 +72,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     corePeripheralsTreeDataProvider = new ComponentViewerTreeDataProvider();
     const componentViewer = new ComponentViewer(context, componentViewerTreeDataProvider);
     const corePeripherals = new CorePeripherals(context, corePeripheralsTreeDataProvider);
-    const traceConfiguration = new TraceConfigurationWebviewProvider(context.extensionUri);
+    const traceConfiguration = new TraceConfigurationWebviewProvider(context.extensionUri, undefined, fileWatchManager);
     const traceConfigurationCommands = new TraceConfigurationCommands();
 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);

@@ -14,16 +14,11 @@
  * limitations under the License.
  */
 
-import * as fs from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
 
 import { ITextFileSystem, TextFileSystem } from '@open-cmsis-pack/cmsis-common/text-file-system';
 
 import { YamlDomDocument } from '../desktop/yaml-dom';
-
-export interface Disposable {
-    dispose(): void;
-}
 
 export interface TextFileStamp {
     mtimeMs: number;
@@ -34,7 +29,6 @@ export interface TextFileAdapter {
     readTextFile(fileName: string): Promise<string>;
     writeTextFile(fileName: string, contents: string): Promise<void>;
     stat(fileName: string): Promise<TextFileStamp | undefined>;
-    watch(fileName: string, onDidChange: () => void): Disposable;
 }
 
 export class NodeTextFileAdapter implements TextFileAdapter {
@@ -66,15 +60,6 @@ export class NodeTextFileAdapter implements TextFileAdapter {
             }
             throw error;
         }
-    }
-
-    public watch(fileName: string, onDidChange: () => void): Disposable {
-        // File names come from workspace/user-selected trace configuration paths.
-        // eslint-disable-next-line security/detect-non-literal-fs-filename
-        const watcher = fs.watch(fileName, { persistent: false }, onDidChange);
-        return {
-            dispose: () => watcher.close()
-        };
     }
 
     private createFileNotFoundError(fileName: string): NodeJS.ErrnoException {
@@ -142,18 +127,4 @@ export class YamlDomFile {
         return true;
     }
 
-    public watch(
-        onDidReload: (document: YamlDomDocument) => void,
-        onError: (error: unknown) => void = () => {}
-    ): Disposable {
-        return this.fileAdapter.watch(this.fileName, () => {
-            void this.reloadIfChanged()
-                .then(changed => {
-                    if (changed && this.currentDocument) {
-                        onDidReload(this.currentDocument);
-                    }
-                })
-                .catch(onError);
-        });
-    }
 }

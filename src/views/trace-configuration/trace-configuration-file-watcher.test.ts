@@ -20,6 +20,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 
 import { CBuildRunFileLocator } from '../../cbuild-run';
+import { FileWatchManager, FileWatchRegistrationOptions } from '../../desktop/filesystem/file-watch-manager';
 import { CBUILD_INDEX_FILE_GLOB } from '../../manifest';
 import { normalizeFsPath, waitForCondition } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
@@ -46,9 +47,8 @@ interface MutableWorkspace {
 }
 
 interface MockCTraceYamlFile {
-    dispose: jest.Mock;
     file: CTraceYamlFile;
-    watch: jest.Mock;
+    reloadIfChanged: jest.Mock;
 }
 
 function getLastCreatedFileSystemWatcher(): MockFileSystemWatcher {
@@ -58,15 +58,15 @@ function getLastCreatedFileSystemWatcher(): MockFileSystemWatcher {
 }
 
 function createMockCTraceYamlFile(): MockCTraceYamlFile {
-    const dispose = jest.fn();
-    const watch = jest.fn((
-        _onDidReload: (document: CTraceYamlDocument) => void,
-        _onError: (error: unknown) => void
-    ) => ({ dispose }));
+    const document = CTraceYamlDocument.parse('ctrace:\n');
+    const reloadIfChanged = jest.fn().mockResolvedValue(true);
     return {
-        dispose,
-        file: { watch } as unknown as CTraceYamlFile,
-        watch
+        file: {
+            fileName: '/workspace/.cmsis/target.ctrace.yml',
+            document,
+            reloadIfChanged
+        } as unknown as CTraceYamlFile,
+        reloadIfChanged
     };
 }
 
@@ -76,18 +76,6 @@ function createCBuildRunFileLocator(getCBuildRunFileNameFromCommand: jest.Mock):
     return cbuildRunFileLocator;
 }
 
-function getCurrentFileReloadHandler(watch: jest.Mock): (document: CTraceYamlDocument) => void {
-    const handler = watch.mock.calls.at(-1)?.[0] as ((document: CTraceYamlDocument) => void) | undefined;
-    expect(handler).toBeDefined();
-    return handler as (document: CTraceYamlDocument) => void;
-}
-
-function getCurrentFileErrorHandler(watch: jest.Mock): (error: unknown) => void {
-    const handler = watch.mock.calls.at(-1)?.[1] as ((error: unknown) => void) | undefined;
-    expect(handler).toBeDefined();
-    return handler as (error: unknown) => void;
-}
-
 describe('TraceConfigurationFileWatcher', () => {
     const mutableWorkspace = vscode.workspace as unknown as MutableWorkspace;
     const originalWorkspaceFolders = mutableWorkspace.workspaceFolders;
@@ -95,6 +83,35 @@ describe('TraceConfigurationFileWatcher', () => {
     afterEach(() => {
         jest.restoreAllMocks();
         mutableWorkspace.workspaceFolders = originalWorkspaceFolders;
+    });
+
+    it('registers and removes every trace configuration watch through the manager', () => {
+        const watchedFile = createMockCTraceYamlFile();
+        const addWatch = jest.fn();
+        const removeWatch = jest.fn();
+        const fileWatchManager = { addWatch, removeWatch } as unknown as FileWatchManager;
+        const watcher = new TraceConfigurationFileWatcher(
+            {
+                getCurrentFile: () => watchedFile.file,
+                onCurrentFileReloaded: jest.fn(),
+                onCurrentFileReloadFailed: jest.fn(),
+                onGeneratedCBuildRunFileChanged: jest.fn()
+            },
+            undefined,
+            fileWatchManager
+        );
+
+        watcher.watchGeneratedCBuildRunFiles();
+        watcher.watchCurrentFile();
+        watcher.dispose();
+
+        expect(addWatch.mock.calls.map(call => (call[0] as FileWatchRegistrationOptions).id)).toEqual([
+            'trace-configuration.cbuild-index',
+            'trace-configuration.current-ctrace'
+        ]);
+        expect(removeWatch).toHaveBeenCalledWith('trace-configuration.cbuild-index');
+        expect(removeWatch).toHaveBeenCalledWith('trace-configuration.generated-cbuild-run');
+        expect(removeWatch).toHaveBeenCalledWith('trace-configuration.current-ctrace');
     });
 
     it('resolves and watches the generated cbuild-run file after a cbuild index file is created', async () => {
@@ -312,7 +329,7 @@ describe('TraceConfigurationFileWatcher', () => {
         watcher.dispose();
     });
 
-    it('forwards current ctrace reloads and ignores stale watcher callbacks', () => {
+    it('forwards current ctrace reloads and ignores stale watcher callbacks', async () => {
         const firstWatchedFile = createMockCTraceYamlFile();
         const secondWatchedFile = createMockCTraceYamlFile();
         let currentFile: CTraceYamlFile | undefined = firstWatchedFile.file;
@@ -325,28 +342,24 @@ describe('TraceConfigurationFileWatcher', () => {
             onGeneratedCBuildRunFileChanged: jest.fn()
         };
         const watcher = new TraceConfigurationFileWatcher(callbacks);
-        const document = CTraceYamlDocument.parse('ctrace:\n');
 
         watcher.watchCurrentFile();
+        const firstFileSystemWatcher = getLastCreatedFileSystemWatcher();
 
-        const firstReloadHandler = getCurrentFileReloadHandler(firstWatchedFile.watch);
-        const firstErrorHandler = getCurrentFileErrorHandler(firstWatchedFile.watch);
-        firstReloadHandler(document);
-        firstErrorHandler(new Error('first failure'));
+        await firstFileSystemWatcher._handlers.change[0]?.(vscode.Uri.file(firstWatchedFile.file.fileName));
+        firstWatchedFile.reloadIfChanged.mockRejectedValueOnce(new Error('first failure'));
+        await firstFileSystemWatcher._handlers.delete[0]?.(vscode.Uri.file(firstWatchedFile.file.fileName));
 
         currentFile = secondWatchedFile.file;
         watcher.watchCurrentFile();
-        firstReloadHandler(document);
-        firstErrorHandler(new Error('stale failure'));
+        await firstFileSystemWatcher._handlers.change[0]?.(vscode.Uri.file(firstWatchedFile.file.fileName));
 
-        expect(firstWatchedFile.dispose).toHaveBeenCalledTimes(1);
-        expect(secondWatchedFile.watch).toHaveBeenCalledTimes(1);
         expect(onCurrentFileReloaded).toHaveBeenCalledTimes(1);
-        expect(onCurrentFileReloaded).toHaveBeenCalledWith(document);
+        expect(onCurrentFileReloaded).toHaveBeenCalledWith(firstWatchedFile.file.document);
         expect(onCurrentFileReloadFailed).toHaveBeenCalledTimes(1);
 
         watcher.disposeCurrentFileWatcher();
-        expect(secondWatchedFile.dispose).toHaveBeenCalledTimes(1);
+        expect(firstFileSystemWatcher.dispose).toHaveBeenCalledTimes(1);
     });
 
     it('keeps current and generated file watchers alive when only the webview is disposed', () => {
@@ -364,11 +377,9 @@ describe('TraceConfigurationFileWatcher', () => {
         const fileSystemWatcher = getLastCreatedFileSystemWatcher();
 
 
-        expect(watchedFile.dispose).not.toHaveBeenCalled();
         expect(fileSystemWatcher.dispose).not.toHaveBeenCalled();
 
         watcher.dispose();
-        expect(watchedFile.dispose).toHaveBeenCalledTimes(1);
         expect(fileSystemWatcher.dispose).toHaveBeenCalledTimes(1);
     });
 
