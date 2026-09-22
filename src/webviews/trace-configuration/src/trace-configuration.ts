@@ -158,47 +158,7 @@ function createHeader(state: TraceConfigurationState): HTMLElement {
  */
 function createToolbar(): HTMLElement {
     return createElement('span', 'tree-toolbar-hidden');
-    // const toolbar = createElement('div', 'tree-toolbar');
-    // toolbar.setAttribute('role', 'toolbar');
-    // toolbar.setAttribute('aria-label', 'Trace configuration controls');
-    // toolbar.append(
-    //     createToolbarButton('save', 'Save ctrace.yml', () => post({ type: 'save' })),
-    //     createToolbarButton('folder-opened', 'Open ctrace.yml', () => post({ type: 'openFile' })),
-    //     createToolbarButton('expand-all', 'Expand all', () => toggleAllRows(true)),
-    //     createToolbarButton('collapse-all', 'Collapse all', () => toggleAllRows(false))
-    // );
-    // return toolbar;
 }
-
-/**
- * createToolbarButton creates a consistent icon button for the toolbar. The
- * callback is attached directly because toolbar buttons do not need row path
- * metadata.
- */
-// function createToolbarButton(iconName: string, title: string, onClick: () => void): HTMLButtonElement {
-//     const button = createElement('button', 'icon-button');
-//     button.type = 'button';
-//     button.title = title;
-//     button.setAttribute('aria-label', title);
-//     button.append(createIcon(iconName));
-//     button.addEventListener('click', onClick);
-//     return button;
-// }
-
-/**
- * toggleAllRows broadcasts expand/collapse messages for each expandable row in
- * the rendered table. The host owns expansion state, so the webview reports
- * each requested transition and waits for the next state update.
- */
-// function toggleAllRows(expanded: boolean): void {
-//     document.querySelectorAll<HTMLTableRowElement>('tr[data-row-id][data-has-children="true"]').forEach(row => {
-//         post({
-//             type: 'toggle',
-//             id: row.dataset.rowId ?? '',
-//             expanded
-//         });
-//     });
-// }
 
 /**
  * createStatus renders the selected filename and unsaved/saved state. Saves are
@@ -256,15 +216,6 @@ function createTable(rows: TraceConfigurationRow[]): HTMLTableElement {
  */
 function createTableHead(): HTMLTableSectionElement {
     return createElement('thead');
-    // const thead = createElement('thead');
-    // const row = createElement('tr');
-    // const label = createElement('th');
-    // label.textContent = 'Label';
-    // const selection = createElement('th');
-    // selection.textContent = 'Selection';
-    // row.append(label, selection);
-    // thead.append(row);
-    // return thead;
 }
 
 /**
