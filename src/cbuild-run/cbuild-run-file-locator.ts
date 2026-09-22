@@ -21,7 +21,10 @@ import * as vscode from 'vscode';
 import { parse } from 'yaml';
 
 import { logger } from '../logger';
-import { CBUILD_INDEX_FILE_GLOB } from '../manifest';
+import {
+    CBUILD_INDEX_FILE_GLOB,
+    CMSIS_JSON_FILE_GLOB
+} from '../manifest';
 import { fileExists } from '../utils';
 
 /**
@@ -38,13 +41,56 @@ export class CBuildRunFileLocator {
      * projects whose index was generated before a filesystem watcher started.
      */
     public async findExistingCBuildIndexFile(): Promise<vscode.Uri | undefined> {
+        return this.findFile(CBUILD_INDEX_FILE_GLOB);
+    }
+
+    /**
+     * Finds the CMSIS Solution workspace metadata in the main workspace.
+     */
+    public async findCmsisJsonFile(): Promise<vscode.Uri | undefined> {
+        return this.findFile(CMSIS_JSON_FILE_GLOB);
+    }
+
+    /**
+     * Finds a pre-existing cbuild index in the main workspace. This covers
+     * projects whose index was generated before a filesystem watcher started.
+     */
+    private async findFile(filePattern: string): Promise<vscode.Uri | undefined> {
         const mainWorkspaceFolder = vscode.workspace.workspaceFolders?.[0];
         if (!mainWorkspaceFolder) {
             return undefined;
         }
-        const pattern = new vscode.RelativePattern(mainWorkspaceFolder, CBUILD_INDEX_FILE_GLOB);
+        const pattern = new vscode.RelativePattern(mainWorkspaceFolder, filePattern);
         const files = await vscode.workspace.findFiles(pattern, null, 1);
         return files.at(0);
+    }
+
+    private async readFile(path: vscode.Uri): Promise<unknown> {
+        const bytes = await vscode.workspace.fs.readFile(path);
+        return parse(new TextDecoder().decode(bytes));
+    }
+
+    /**
+     * Resolves the generated cbuild-run path recorded by a cbuild index. The
+     * YAML is external data, so each property is checked before use.
+     */
+    public async readActiveSolutionPath(cmsisJsonFile: vscode.Uri): Promise<string | undefined> {
+        try {
+            const root = await this.readFile(cmsisJsonFile);
+            const activeSolutionPath = this.getObjectProperty(root, 'activeSolution');
+            if (typeof activeSolutionPath !== 'string') {
+                return undefined;
+            }
+            const trimmedActiveSolutionPath = activeSolutionPath.trim();
+            if (!trimmedActiveSolutionPath) {  // Return undefined if empty string
+                return undefined;
+            }
+            return path.resolve(path.dirname(cmsisJsonFile.fsPath), trimmedActiveSolutionPath);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logger.debug(`Failed to read CMSIS JSON file: ${errorMessage}`);
+            return undefined;
+        }
     }
 
     /**
@@ -53,8 +99,7 @@ export class CBuildRunFileLocator {
      */
     public async readCBuildRunFileNameFromIndex(cbuildIndexFile: vscode.Uri): Promise<string | undefined> {
         try {
-            const bytes = await vscode.workspace.fs.readFile(cbuildIndexFile);
-            const root: unknown = parse(new TextDecoder().decode(bytes));
+            const root = await this.readFile(cbuildIndexFile);
             const buildIndex = this.getObjectProperty(root, 'build-idx');
             const cbuildRunFileName = this.getObjectProperty(buildIndex, 'cbuild-run');
             if (typeof cbuildRunFileName !== 'string') {
@@ -67,7 +112,7 @@ export class CBuildRunFileLocator {
             return path.resolve(path.dirname(cbuildIndexFile.fsPath), trimmedCbuildRunFileName);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            logger.debug(`Trace Configuration: Failed to read generated cbuild index file: ${errorMessage}`);
+            logger.debug(`Failed to read generated cbuild index file: ${errorMessage}`);
             return undefined;
         }
     }
@@ -89,6 +134,46 @@ export class CBuildRunFileLocator {
         }
     }
 
+    public async getActiveSolutionPath(): Promise<string | undefined> {
+        const cmsisJsonFile = await this.findCmsisJsonFile();
+        if (cmsisJsonFile) {
+            return await this.readActiveSolutionPath(cmsisJsonFile);
+        }
+        return undefined;
+    }
+
+    public async getCbuildIndexPath(): Promise<string | undefined> {
+        const solutionPath = await this.getActiveSolutionPath();
+        if (!solutionPath) {
+            return undefined;
+        }
+        const solutionBase = solutionPath.match(/(.*)\.csolution\.yml$/)?.[1];
+        return solutionBase ? `${solutionBase}.cbuild-idx.yml` : undefined;
+    }
+
+    private async findCBuildIndexFile(
+        cbuildIndexFile: vscode.Uri | undefined,
+        findExistingCBuildIndex: boolean
+    ): Promise<vscode.Uri | undefined> {
+        if (cbuildIndexFile && await fileExists(cbuildIndexFile)) {
+            return cbuildIndexFile;
+        }
+
+        if (!findExistingCBuildIndex) {
+            return undefined;
+        }
+
+        const activeSolutionIndexPath = await this.getCbuildIndexPath();
+        if (activeSolutionIndexPath) {
+            const activeSolutionIndexFile = vscode.Uri.file(activeSolutionIndexPath);
+            if (await fileExists(activeSolutionIndexFile)) {
+                return activeSolutionIndexFile;
+            }
+        }
+
+        return await this.findExistingCBuildIndexFile();
+    }
+
     /**
      * Gets the active cbuild-run file name from CMSIS Solution, falling back to
      * the cbuild index while CMSIS Solution is still loading its build data.
@@ -102,9 +187,7 @@ export class CBuildRunFileLocator {
             return cbuildRunFileName;
         }
 
-        const indexFile = cbuildIndexFile ?? (findExistingCBuildIndex
-            ? await this.findExistingCBuildIndexFile()
-            : undefined);
+        const indexFile = await this.findCBuildIndexFile(cbuildIndexFile, findExistingCBuildIndex);
         const indexedCBuildRunFileName = indexFile
             ? await this.readCBuildRunFileNameFromIndex(indexFile)
             : undefined;
@@ -112,8 +195,7 @@ export class CBuildRunFileLocator {
     }
 
     public async getDefaultSolutionSet(cbuildRunFilePath: string | undefined): Promise<string> {
-        const resolvedCbuildRunFilePath = cbuildRunFilePath ??
-            await vscode.commands.executeCommand<string | undefined>(CBuildRunFileLocator.CMSIS_SOLUTION_GET_CBUILD_RUN_FILE_COMMAND);
+        const resolvedCbuildRunFilePath = cbuildRunFilePath ?? await this.getCBuildRunFileName();
         const trimmedPath = resolvedCbuildRunFilePath?.trim();
         if (!trimmedPath) {
             throw new Error('No cbuild run file path provided.');

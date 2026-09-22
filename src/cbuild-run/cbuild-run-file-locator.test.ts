@@ -20,7 +20,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 
 import { logger } from '../logger';
-import { CBUILD_INDEX_FILE_GLOB } from '../manifest';
+import { CBUILD_INDEX_FILE_GLOB, CMSIS_JSON_FILE_GLOB } from '../manifest';
 import { CBuildRunFileLocator } from './cbuild-run-file-locator';
 
 interface MutableWorkspace {
@@ -69,6 +69,29 @@ describe('CBuildRunFileLocator', () => {
         expect(vscode.workspace.findFiles).not.toHaveBeenCalled();
     });
 
+    it('finds CMSIS Solution workspace metadata in the main workspace', async () => {
+        const workspaceFolder = {
+            uri: vscode.Uri.file('/workspace'),
+            name: 'workspace',
+            index: 0
+        };
+        const cmsisJsonFile = vscode.Uri.file('/workspace/.vscode/cmsis.json');
+        mutableWorkspace.workspaceFolders = [workspaceFolder];
+        (vscode.workspace.findFiles as jest.Mock).mockResolvedValue([cmsisJsonFile]);
+
+        const result = await cbuildRunFileLocator.findCmsisJsonFile();
+
+        expect(result).toBe(cmsisJsonFile);
+        expect(vscode.workspace.findFiles).toHaveBeenCalledWith(
+            expect.objectContaining({
+                base: workspaceFolder,
+                pattern: CMSIS_JSON_FILE_GLOB
+            }),
+            null,
+            1
+        );
+    });
+
     it('reads the cbuild-run file name relative to its cbuild index', async () => {
         const cbuildIndexFile = vscode.Uri.file('/workspace/project.cbuild-idx.yml');
         (vscode.workspace.fs.readFile as jest.Mock).mockResolvedValue(new TextEncoder().encode([
@@ -90,7 +113,37 @@ describe('CBuildRunFileLocator', () => {
         const result = await cbuildRunFileLocator.readCBuildRunFileNameFromIndex(cbuildIndexFile);
 
         expect(result).toBeUndefined();
-        expect(loggerSpy).toHaveBeenCalledWith('Trace Configuration: Failed to read generated cbuild index file: read failed');
+        expect(loggerSpy).toHaveBeenCalledWith('Failed to read generated cbuild index file: read failed');
+    });
+
+    it('reads the active solution path relative to cmsis.json', async () => {
+        const cmsisJsonFile = vscode.Uri.file('/workspace/.vscode/cmsis.json');
+        (vscode.workspace.fs.readFile as jest.Mock).mockResolvedValue(new TextEncoder().encode(JSON.stringify({
+            activeSolution: '../project.csolution.yml'
+        })));
+
+        const result = await cbuildRunFileLocator.readActiveSolutionPath(cmsisJsonFile);
+
+        expect(result).toBe(path.resolve(path.dirname(cmsisJsonFile.fsPath), '../project.csolution.yml'));
+    });
+
+    it('returns undefined and logs when cmsis.json cannot be read', async () => {
+        const loggerSpy = jest.spyOn(logger, 'debug');
+        const cmsisJsonFile = vscode.Uri.file('/workspace/.vscode/cmsis.json');
+        (vscode.workspace.fs.readFile as jest.Mock).mockRejectedValue(new Error('read failed'));
+
+        const result = await cbuildRunFileLocator.readActiveSolutionPath(cmsisJsonFile);
+
+        expect(result).toBeUndefined();
+        expect(loggerSpy).toHaveBeenCalledWith('Failed to read CMSIS JSON file: read failed');
+    });
+
+    it('derives the cbuild index path from the active solution', async () => {
+        jest.spyOn(cbuildRunFileLocator, 'getActiveSolutionPath').mockResolvedValue('/workspace/project.csolution.yml');
+
+        const result = await cbuildRunFileLocator.getCbuildIndexPath();
+
+        expect(result).toBe('/workspace/project.cbuild-idx.yml');
     });
 
     it('returns cbuild-run file path from CMSIS Solution command', async () => {
@@ -141,12 +194,60 @@ describe('CBuildRunFileLocator', () => {
         const cbuildIndexFile = vscode.Uri.file('/workspace/project.cbuild-idx.yml');
         const indexedCBuildRunFileName = '/workspace/project/indexed.cbuild-run.yml';
         jest.spyOn(cbuildRunFileLocator, 'getCBuildRunFileNameFromCommand').mockResolvedValue('/workspace/project/stale.cbuild-run.yml');
-        jest.spyOn(vscode.workspace.fs, 'stat').mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }));
+        jest.spyOn(vscode.workspace.fs, 'stat')
+            .mockRejectedValueOnce(Object.assign(new Error('missing'), { code: 'ENOENT' }))
+            .mockResolvedValue({
+                type: vscode.FileType.File,
+                ctime: 0,
+                mtime: 0,
+                size: 0
+            });
         jest.spyOn(cbuildRunFileLocator, 'readCBuildRunFileNameFromIndex').mockResolvedValue(indexedCBuildRunFileName);
+        const getCbuildIndexPathSpy = jest.spyOn(cbuildRunFileLocator, 'getCbuildIndexPath');
 
         const result = await cbuildRunFileLocator.getCBuildRunFileName(cbuildIndexFile);
 
         expect(result).toBe(indexedCBuildRunFileName);
+        expect(cbuildRunFileLocator.readCBuildRunFileNameFromIndex).toHaveBeenCalledWith(cbuildIndexFile);
+        expect(getCbuildIndexPathSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not discover another index when a supplied index is missing and discovery is disabled', async () => {
+        const cbuildIndexFile = vscode.Uri.file('/workspace/project.cbuild-idx.yml');
+        const cbuildRunFileName = '/workspace/project/stale.cbuild-run.yml';
+        jest.spyOn(cbuildRunFileLocator, 'getCBuildRunFileNameFromCommand').mockResolvedValue(cbuildRunFileName);
+        jest.spyOn(vscode.workspace.fs, 'stat').mockRejectedValue(
+            Object.assign(new Error('missing'), { code: 'ENOENT' })
+        );
+        const getCbuildIndexPathSpy = jest.spyOn(cbuildRunFileLocator, 'getCbuildIndexPath');
+        const readFromIndexSpy = jest.spyOn(cbuildRunFileLocator, 'readCBuildRunFileNameFromIndex');
+
+        const result = await cbuildRunFileLocator.getCBuildRunFileName(cbuildIndexFile);
+
+        expect(result).toBe(cbuildRunFileName);
+        expect(getCbuildIndexPathSpy).not.toHaveBeenCalled();
+        expect(readFromIndexSpy).not.toHaveBeenCalled();
+    });
+
+    it('uses the active solution index before searching the workspace', async () => {
+        const activeSolutionIndexFile = '/workspace/project.cbuild-idx.yml';
+        const indexedCBuildRunFileName = '/workspace/project/indexed.cbuild-run.yml';
+        jest.spyOn(cbuildRunFileLocator, 'getCBuildRunFileNameFromCommand').mockResolvedValue(undefined);
+        jest.spyOn(cbuildRunFileLocator, 'getCbuildIndexPath').mockResolvedValue(activeSolutionIndexFile);
+        jest.spyOn(cbuildRunFileLocator, 'findExistingCBuildIndexFile').mockResolvedValue(vscode.Uri.file('/workspace/other.cbuild-idx.yml'));
+        jest.spyOn(cbuildRunFileLocator, 'readCBuildRunFileNameFromIndex').mockResolvedValue(indexedCBuildRunFileName);
+        jest.spyOn(vscode.workspace.fs, 'stat').mockResolvedValue({
+            type: vscode.FileType.File,
+            ctime: 0,
+            mtime: 0,
+            size: 0
+        });
+
+        const result = await cbuildRunFileLocator.getCBuildRunFileName(undefined, true);
+
+        expect(result).toBe(indexedCBuildRunFileName);
+        expect(cbuildRunFileLocator.readCBuildRunFileNameFromIndex).toHaveBeenCalledWith(vscode.Uri.file(activeSolutionIndexFile));
+        expect(cbuildRunFileLocator.readCBuildRunFileNameFromIndex).toHaveBeenCalledTimes(1);
     });
 
     it('finds an existing cbuild index when requested', async () => {
