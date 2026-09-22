@@ -15,12 +15,11 @@
  */
 // generated with AI
 
-import { Disposable, TextFileAdapter, TextFileStamp } from '../desktop/yaml-file';
+import { TextFileAdapter, TextFileStamp } from '../desktop/yaml-file';
 
 export class MemoryTextFileAdapter implements TextFileAdapter {
     public writeCount = 0;
     private version = 0;
-    private readonly listeners: (() => void)[] = [];
 
     public constructor(public text: string) {}
 
@@ -32,7 +31,6 @@ export class MemoryTextFileAdapter implements TextFileAdapter {
         this.text = contents;
         this.writeCount++;
         this.version++;
-        this.listeners.forEach(listener => listener());
     }
 
     public async stat(_fileName: string): Promise<TextFileStamp> {
@@ -42,26 +40,9 @@ export class MemoryTextFileAdapter implements TextFileAdapter {
         };
     }
 
-    public watch(_fileName: string, onDidChange: () => void): Disposable {
-        this.listeners.push(onDidChange);
-        return {
-            dispose: () => {
-                const index = this.listeners.indexOf(onDidChange);
-                if (index >= 0) {
-                    this.listeners.splice(index, 1);
-                }
-            }
-        };
-    }
-
-    public listenerCount(): number {
-        return this.listeners.length;
-    }
-
     public update(text: string): void {
         this.text = text;
         this.version++;
-        this.listeners.forEach(listener => listener());
     }
 
     public simulateExternalChange(text: string): void {

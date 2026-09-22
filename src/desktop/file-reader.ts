@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,27 @@
  * limitations under the License.
  */
 
+import * as path from 'node:path';
+
 import { Uri, workspace } from 'vscode';
-import * as path from 'path';
+
+import { CBuildRunFileLocator } from '../cbuild-run/cbuild-run-file-locator';
 
 export interface FileReader {
     readFileToString(path: string): Promise<string>;
 };
 
 export class VscodeFileReader implements FileReader {
+    public constructor(
+        private readonly cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator()
+    ) {}
+
     public async readFileToString(filePath: string): Promise<string> {
         // VSCode Uri's must be absolute to work properly
         const filePathFragments: string[] = [];
-        const workspaceFolder = workspace.workspaceFolders?.at(0)?.uri.fsPath;
-        if (!path.isAbsolute(filePath) && workspaceFolder?.length) {
-            filePathFragments.push(workspaceFolder);
+        const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
+        if (!path.isAbsolute(filePath) && activeSolutionFolder) {
+            filePathFragments.push(activeSolutionFolder.fsPath);
         }
         filePathFragments.push(filePath);
 

@@ -23,7 +23,12 @@ import * as vscode from 'vscode';
 
 import { MemoryTextFileAdapter } from '../../__test__/memory-text-file-adapter';
 import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
-import { CBUILD_INDEX_FILE_GLOB, CTRACE_FILE_GLOB, ENABLE_TRACE_GENERATION_VIEW_SETTING } from '../../manifest';
+import {
+    CBUILD_INDEX_FILE_GLOB,
+    CMSIS_JSON_FILE_GLOB,
+    CTRACE_FILE_GLOB,
+    ENABLE_TRACE_GENERATION_VIEW_SETTING
+} from '../../manifest';
 import { containsSubstringsInOrder, normalizeFsPath, waitForCondition, waitForImmediate } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import { TRACE_OFF_MESSAGE } from './trace-configuration-generated-ctrace-file-manager';
@@ -421,7 +426,7 @@ describe('TraceConfigurationModel', () => {
         expect(model.createState().rows.length).toBeGreaterThan(0);
 
         (vscode.commands.executeCommand as jest.Mock).mockResolvedValue(cbuildRunFile.fsPath);
-        model.watchForGeneratedCBuildRunFiles();
+        await model.watchForGeneratedCBuildRunFiles();
         const cbuildIndexWatcher = getLastCreatedFileSystemWatcher();
         fireWatcherHandler(
             cbuildIndexWatcher,
@@ -779,14 +784,12 @@ describe('TraceConfigurationModel', () => {
         await model.addItem(['ctrace', 'setup', 0, 'data'], 'data');
 
         expect(model.createState().dirty).toBe(true);
-        expect(adapter.listenerCount()).toBe(0);
 
         await model.refreshFile();
 
         expect(adapter.text).toBe(originalText);
         expect(adapter.writeCount).toBe(0);
         expect(model.createState().dirty).toBe(false);
-        expect(adapter.listenerCount()).toBe(1);
     });
 
     it('updates specialized trace controls in memory and saves their YAML shapes', async () => {
@@ -1115,7 +1118,7 @@ describe('TraceConfigurationModel', () => {
         expectSameFsPath(model.createState().fileName, ctraceFileName);
         expect(model.createState().rows.length).toBeGreaterThan(0);
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith('cmsis-csolution.getCbuildRunFile');
-        expect(vscode.workspace.findFiles).toHaveBeenCalledTimes(2);
+        expect(vscode.workspace.findFiles).toHaveBeenCalledWith(CTRACE_FILE_GLOB, null, 10);
         expect(onDidChange).toHaveBeenCalled();
 
         model.updateExpandedState(JSON.stringify(['ctrace', 'setup', 0]), true);
@@ -1157,7 +1160,7 @@ describe('TraceConfigurationModel', () => {
         await expect(readTemporaryTextFile(generatedTraceFile)).resolves.toContain('pname: core0');
         expectSameFsPath(model.createState().fileName, generatedTraceFile);
         expect(model.createState().rows.length).toBeGreaterThan(0);
-        expect(vscode.workspace.findFiles).not.toHaveBeenCalled();
+        expect(vscode.workspace.findFiles).toHaveBeenCalledWith(CMSIS_JSON_FILE_GLOB, null, 1);
         model.dispose();
     });
 
@@ -1182,7 +1185,7 @@ describe('TraceConfigurationModel', () => {
         });
         const model = new TraceConfigurationModel();
 
-        model.watchForGeneratedCBuildRunFiles();
+        await model.watchForGeneratedCBuildRunFiles();
         await model.loadInitialFile();
 
         const generatedTraceFile = path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yml');

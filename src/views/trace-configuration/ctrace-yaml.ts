@@ -15,7 +15,7 @@
  */
 // generated with AI
 
-import { Disposable, NodeTextFileAdapter, TextFileAdapter, YamlDomFile } from '../../desktop/yaml-file';
+import { NodeTextFileAdapter, TextFileAdapter, YamlDomFile } from '../../desktop/yaml-file';
 import {
     isYamlMapItem,
     isYamlSequenceItem,
@@ -652,13 +652,4 @@ export class CTraceYamlFile {
         return changed;
     }
 
-    public watch(
-        onDidReload: (document: CTraceYamlDocument) => void,
-        onError: (error: unknown) => void = () => { }
-    ): Disposable {
-        return this.yamlFile.watch(document => {
-            this.currentDocument = new CTraceYamlDocument(document);
-            onDidReload(this.currentDocument);
-        }, onError);
-    }
 }
