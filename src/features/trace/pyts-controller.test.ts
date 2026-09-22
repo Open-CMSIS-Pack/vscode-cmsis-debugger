@@ -27,8 +27,8 @@ import { isWindows, waitForCondition } from '../../utils';
 import { PyTsController as BasePyTsController } from './pyts-controller';
 
 class PyTsController extends BasePyTsController {
-    public override addCTraceConfigurationWatcher(): void {
-        super.addCTraceConfigurationWatcher();
+    public override addCTraceConfigurationWatcher(): Promise<void> {
+        return super.addCTraceConfigurationWatcher();
     }
 
     public override handleActiveSessionChanged(session: GDBTargetDebugSession | undefined): void {
@@ -181,12 +181,12 @@ describe('PyTsController', () => {
         expect(run).toHaveBeenNthCalledWith(2, { cbuildRunFilePath: secondSession.getCbuildRunPath() }, true);
     });
 
-    it('adds and removes its ctrace configuration watch when the trace setting changes', () => {
+    it('adds and removes its ctrace configuration watch when the trace setting changes', async () => {
         const tracker = debugTrackerFactory();
         const controller = new PyTsController();
         const traceWatch = traceWatchFactory();
 
-        controller.activate(extensionContextFactory(), tracker, traceWatch.fileWatchManager);
+        await controller.activate(extensionContextFactory(), tracker, traceWatch.fileWatchManager);
         expect(traceWatch.addWatch).not.toHaveBeenCalled();
 
         traceWatch.fireConfigurationChange(false);
@@ -194,6 +194,7 @@ describe('PyTsController', () => {
 
         traceWatch.setTraceEnabled(true);
         traceWatch.fireConfigurationChange(true);
+        await waitForCondition('the ctrace configuration watcher to be registered', () => traceWatch.addWatch.mock.calls.length === 1);
         expect(traceWatch.addWatch).toHaveBeenCalledTimes(1);
 
         traceWatch.setTraceEnabled(false);
@@ -212,7 +213,8 @@ describe('PyTsController', () => {
         Object.defineProperty(vscode.workspace, 'workspaceFolders', { configurable: true, value: undefined });
 
         try {
-            controller.activate(context, tracker, traceWatch.fileWatchManager);
+            await controller.activate(context, tracker, traceWatch.fileWatchManager);
+            await waitForCondition('the ctrace configuration watcher to be registered', () => traceWatch.addWatch.mock.calls.length === 1);
             const watch = traceWatch.getLatestWatch();
             if (watch === undefined) {
                 throw new Error('Expected a ctrace configuration watch.');

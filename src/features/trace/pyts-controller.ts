@@ -17,6 +17,7 @@
 
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { CBuildRunFileLocator } from '../../cbuild-run';
 import {
     GDBTargetDebugSession,
     GDBTargetDebugTracker
@@ -49,21 +50,26 @@ export class PyTsController {
     private pendingConversion: PendingCTraceConversion | undefined;
     private conversionPromise: Promise<void> | undefined;
     private watcherGeneration = 0;
+    private readonly cbuildRunFileLocator = new CBuildRunFileLocator();
 
     public constructor(private readonly options: PyTsProcessManagerOptions = {}) { }
 
-    public activate(context: vscode.ExtensionContext, tracker: GDBTargetDebugTracker, fileWatchManager: FileWatchManager): void {
+    public async activate(
+        context: vscode.ExtensionContext,
+        tracker: GDBTargetDebugTracker,
+        fileWatchManager: FileWatchManager
+    ): Promise<void> {
         this.fileWatchManager = fileWatchManager;
         context.subscriptions.push(
             tracker.onDidChangeActiveDebugSession(session => this.handleActiveSessionChanged(session)),
-            vscode.workspace.onDidChangeConfiguration(event => {
+            vscode.workspace.onDidChangeConfiguration(async event => {
                 if (event.affectsConfiguration(ENABLE_TRACE_GENERATION_VIEW_SETTING)) {
-                    this.updateCTraceConfigurationWatcher();
+                    await this.updateCTraceConfigurationWatcher();
                 }
             }),
             { dispose: () => this.removeCTraceConfigurationWatcher() }
         );
-        this.updateCTraceConfigurationWatcher();
+        await this.updateCTraceConfigurationWatcher();
     }
 
     public async run(options: PyTsProcessManagerLaunchOptions = {}, shouldReloadCTrace: boolean = false): Promise<number | null> {
@@ -214,24 +220,32 @@ export class PyTsController {
             previous.every((value, index) => value === current.at(index));
     }
 
-    private updateCTraceConfigurationWatcher(): void {
+    private async updateCTraceConfigurationWatcher(): Promise<void> {
         const traceEnabled = vscode.workspace.getConfiguration().get<boolean>(ENABLE_TRACE_GENERATION_VIEW_SETTING, false);
         if (traceEnabled) {
-            this.addCTraceConfigurationWatcher();
+            await this.addCTraceConfigurationWatcher();
         } else {
             this.removeCTraceConfigurationWatcher();
         }
     }
 
-    protected addCTraceConfigurationWatcher(): void {
-        if (this.fileWatchManager === undefined) {
+    protected async addCTraceConfigurationWatcher(): Promise<void> {
+        const fileWatchManager = this.fileWatchManager;
+        // A watcher cannot be registered before activation supplies its manager.
+        if (fileWatchManager === undefined) {
             return;
         }
-        const ws = vscode.workspace.workspaceFolders?.[0];
         const watcherGeneration = this.watcherGeneration;
-        this.fileWatchManager.addWatch({
+        const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
+        // Ignore a stale registration after removal or reactivation changes the watcher context.
+        if (watcherGeneration !== this.watcherGeneration || fileWatchManager !== this.fileWatchManager) {
+            return;
+        }
+        fileWatchManager.addWatch({
             id: CTRACE_CONFIGURATION_WATCH_ID,
-            globPattern: ws ? new vscode.RelativePattern(ws, CTRACE_CONFIGURATION_GLOB) : CTRACE_CONFIGURATION_GLOB,
+            globPattern: activeSolutionFolder
+                ? new vscode.RelativePattern(activeSolutionFolder, CTRACE_CONFIGURATION_GLOB)
+                : CTRACE_CONFIGURATION_GLOB,
             onDidCreate: uri => this.handleCTraceFileChanged(uri, watcherGeneration),
             onDidChange: uri => this.handleCTraceFileChanged(uri, watcherGeneration)
         });

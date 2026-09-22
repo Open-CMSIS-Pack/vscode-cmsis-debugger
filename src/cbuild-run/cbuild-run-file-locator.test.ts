@@ -46,6 +46,7 @@ describe('CBuildRunFileLocator', () => {
         };
         const cbuildIndexFile = vscode.Uri.file('/workspace/project.cbuild-idx.yml');
         mutableWorkspace.workspaceFolders = [workspaceFolder];
+        jest.spyOn(cbuildRunFileLocator, 'getActiveSolutionFolder').mockResolvedValue(workspaceFolder.uri);
         (vscode.workspace.findFiles as jest.Mock).mockResolvedValue([cbuildIndexFile]);
 
         const result = await cbuildRunFileLocator.findExistingCBuildIndexFile();
@@ -53,7 +54,7 @@ describe('CBuildRunFileLocator', () => {
         expect(result).toBe(cbuildIndexFile);
         expect(vscode.workspace.findFiles).toHaveBeenCalledWith(
             expect.objectContaining({
-                base: workspaceFolder,
+                base: workspaceFolder.uri,
                 pattern: CBUILD_INDEX_FILE_GLOB
             }),
             null,
@@ -61,12 +62,12 @@ describe('CBuildRunFileLocator', () => {
         );
     });
 
-    it('does not search for a cbuild index without a workspace', async () => {
+    it('does not find a cbuild index without a workspace', async () => {
         mutableWorkspace.workspaceFolders = undefined;
 
         await expect(cbuildRunFileLocator.findExistingCBuildIndexFile()).resolves.toBeUndefined();
 
-        expect(vscode.workspace.findFiles).not.toHaveBeenCalled();
+        expect(vscode.workspace.findFiles).toHaveBeenCalledWith(CMSIS_JSON_FILE_GLOB, null, 1);
     });
 
     it('finds CMSIS Solution workspace metadata in the main workspace', async () => {
@@ -82,14 +83,7 @@ describe('CBuildRunFileLocator', () => {
         const result = await cbuildRunFileLocator.findCmsisJsonFile();
 
         expect(result).toBe(cmsisJsonFile);
-        expect(vscode.workspace.findFiles).toHaveBeenCalledWith(
-            expect.objectContaining({
-                base: workspaceFolder,
-                pattern: CMSIS_JSON_FILE_GLOB
-            }),
-            null,
-            1
-        );
+        expect(vscode.workspace.findFiles).toHaveBeenCalledWith(CMSIS_JSON_FILE_GLOB, null, 1);
     });
 
     it('reads the cbuild-run file name relative to its cbuild index', async () => {
@@ -139,7 +133,7 @@ describe('CBuildRunFileLocator', () => {
     });
 
     it('derives the cbuild index path from the active solution', async () => {
-        jest.spyOn(cbuildRunFileLocator, 'getActiveSolutionPath').mockResolvedValue('/workspace/project.csolution.yml');
+        jest.spyOn(cbuildRunFileLocator, 'getActiveSolutionFilePath').mockResolvedValue('/workspace/project.csolution.yml');
 
         const result = await cbuildRunFileLocator.getCbuildIndexPath();
 
@@ -270,6 +264,80 @@ describe('CBuildRunFileLocator', () => {
         const result = await cbuildRunFileLocator.getCBuildRunFileName();
 
         expect(result).toBe(cbuildRunFileName);
+    });
+
+    it.each([
+        { targetSet: 'Release', expectedFileName: 'project+target@Release.ctrace.yml' },
+        { targetSet: '<default>', expectedFileName: 'project+target.ctrace.yml' }
+    ])('gets the ctrace filename for target set $targetSet', async ({ targetSet, expectedFileName }) => {
+        const result = await cbuildRunFileLocator.getCTraceFileNameFromCBuildRunPath(
+            '/workspace/out/project+target.cbuild-run.yml',
+            targetSet
+        );
+
+        expect(result).toBe(expectedFileName);
+    });
+
+    it('gets the ctrace filename from the located cbuild-run file when no path is provided', async () => {
+        const getCBuildRunFileName = jest.spyOn(cbuildRunFileLocator, 'getCBuildRunFileName')
+            .mockResolvedValue('/workspace/out/project+target.cbuild-run.yml');
+
+        const result = await cbuildRunFileLocator.getCTraceFileNameFromCBuildRunPath(undefined, 'Release');
+
+        expect(result).toBe('project+target@Release.ctrace.yml');
+        expect(getCBuildRunFileName).toHaveBeenCalledWith(undefined, true);
+    });
+
+    it('rejects when no cbuild-run file can be located for a ctrace filename', async () => {
+        jest.spyOn(cbuildRunFileLocator, 'getCBuildRunFileName').mockResolvedValue(undefined);
+
+        await expect(cbuildRunFileLocator.getCTraceFileNameFromCBuildRunPath(undefined, 'Release'))
+            .rejects.toThrow('No cbuild run file path provided.');
+    });
+
+    it('gets the ctrace URI from the supplied workspace and cbuild-run URIs', async () => {
+        const result = await cbuildRunFileLocator.getCTraceUriFromCBuildRunUri(
+            vscode.Uri.file('/build/out/project+target.cbuild-run.yml'),
+            'Release',
+            vscode.Uri.file('/workspace')
+        );
+
+        expect(result.fsPath).toBe(path.join('/workspace', '.cmsis', 'project+target@Release.ctrace.yml'));
+    });
+
+    it('gets the ctrace URI from the active solution and located cbuild-run file', async () => {
+        jest.spyOn(cbuildRunFileLocator, 'getActiveSolutionFilePath').mockResolvedValue('/workspace/project.csolution.yml');
+        const getCBuildRunFileName = jest.spyOn(cbuildRunFileLocator, 'getCBuildRunFileName')
+            .mockResolvedValue('/build/out/project+target.cbuild-run.yml');
+
+        const result = await cbuildRunFileLocator.getCTraceUriFromCBuildRunUri(undefined, 'Release');
+
+        expect(result.fsPath).toBe(path.join('/workspace', '.cmsis', 'project+target@Release.ctrace.yml'));
+        expect(getCBuildRunFileName).toHaveBeenCalledWith(undefined, true);
+    });
+
+    it('gets the ctrace URI from the first workspace folder when there is no active solution', async () => {
+        mutableWorkspace.workspaceFolders = [{
+            uri: vscode.Uri.file('/workspace'),
+            name: 'workspace',
+            index: 0
+        }];
+        jest.spyOn(cbuildRunFileLocator, 'getActiveSolutionFilePath').mockResolvedValue(undefined);
+
+        const result = await cbuildRunFileLocator.getCTraceUriFromCBuildRunUri(
+            vscode.Uri.file('/build/out/project+target.cbuild-run.yml'),
+            'Release'
+        );
+
+        expect(result.fsPath).toBe(path.join('/workspace', '.cmsis', 'project+target@Release.ctrace.yml'));
+    });
+
+    it('rejects when no workspace or active solution path can be located for a ctrace URI', async () => {
+        mutableWorkspace.workspaceFolders = undefined;
+        jest.spyOn(cbuildRunFileLocator, 'getActiveSolutionFilePath').mockResolvedValue(undefined);
+
+        await expect(cbuildRunFileLocator.getCTraceUriFromCBuildRunUri())
+            .rejects.toThrow('No workspace or active solution path provided.');
     });
 
     it('supports separate CBuildRunFileLocator instances', async () => {

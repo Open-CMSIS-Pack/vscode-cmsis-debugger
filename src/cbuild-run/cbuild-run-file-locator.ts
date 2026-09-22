@@ -41,7 +41,10 @@ export class CBuildRunFileLocator {
      * projects whose index was generated before a filesystem watcher started.
      */
     public async findExistingCBuildIndexFile(): Promise<vscode.Uri | undefined> {
-        return this.findFile(CBUILD_INDEX_FILE_GLOB);
+        const activeSolutionFolder = await this.getActiveSolutionFolder();
+        return activeSolutionFolder
+            ? this.findFile(CBUILD_INDEX_FILE_GLOB, activeSolutionFolder)
+            : undefined;
     }
 
     /**
@@ -55,12 +58,8 @@ export class CBuildRunFileLocator {
      * Finds a pre-existing cbuild index in the main workspace. This covers
      * projects whose index was generated before a filesystem watcher started.
      */
-    private async findFile(filePattern: string): Promise<vscode.Uri | undefined> {
-        const mainWorkspaceFolder = vscode.workspace.workspaceFolders?.[0];
-        if (!mainWorkspaceFolder) {
-            return undefined;
-        }
-        const pattern = new vscode.RelativePattern(mainWorkspaceFolder, filePattern);
+    private async findFile(filePattern: string, folder?: vscode.Uri): Promise<vscode.Uri | undefined> {
+        const pattern = folder ? new vscode.RelativePattern(folder, filePattern) : filePattern;
         const files = await vscode.workspace.findFiles(pattern, null, 1);
         return files.at(0);
     }
@@ -134,7 +133,7 @@ export class CBuildRunFileLocator {
         }
     }
 
-    public async getActiveSolutionPath(): Promise<string | undefined> {
+    public async getActiveSolutionFilePath(): Promise<string | undefined> {
         const cmsisJsonFile = await this.findCmsisJsonFile();
         if (cmsisJsonFile) {
             return await this.readActiveSolutionPath(cmsisJsonFile);
@@ -143,7 +142,7 @@ export class CBuildRunFileLocator {
     }
 
     public async getCbuildIndexPath(): Promise<string | undefined> {
-        const solutionPath = await this.getActiveSolutionPath();
+        const solutionPath = await this.getActiveSolutionFilePath();
         if (!solutionPath) {
             return undefined;
         }
@@ -194,6 +193,45 @@ export class CBuildRunFileLocator {
         return indexedCBuildRunFileName ?? cbuildRunFileName;
     }
 
+    /**
+     * Gets the generated ctrace filename associated with a cbuild-run file and
+     * target set. When no cbuild-run path is supplied, the active generated
+     * cbuild-run file is resolved first.
+    */
+    public async getCTraceFileNameFromCBuildRunPath(
+        cbuildRunFilePath?: string | undefined,
+        targetSet?: string | undefined
+    ): Promise<string> {
+        const resolvedCbuildRunFilePath = cbuildRunFilePath ?? await this.getCBuildRunFileName(undefined, true);
+        const trimmedPath = resolvedCbuildRunFilePath?.trim();
+        if (!trimmedPath) {
+            throw new Error('No cbuild run file path provided.');
+        }
+        const baseName = path.basename(trimmedPath);
+        const suffix = '.cbuild-run.yml';
+        const name = baseName.endsWith(suffix) ? baseName.slice(0, -suffix.length) : path.parse(baseName).name;
+        const targetSetSuffix = targetSet && targetSet !== '<default>' ? `@${targetSet}` : '';
+        return `${name}${targetSetSuffix}.ctrace.yml`;
+    }
+
+    /**
+     * Gets the ctrace file URI in the active solution folder's .cmsis directory.
+     * When that folder is omitted, the active solution directory or first VS Code
+     * workspace folder is used.
+    */
+    public async getCTraceUriFromCBuildRunUri(
+        cbuildRunFileUri?: vscode.Uri | undefined,
+        targetSet?: string | undefined,
+        activeSolutionFolder?: vscode.Uri | undefined
+    ): Promise<vscode.Uri> {
+        const resolvedActiveSolutionFolder = activeSolutionFolder ?? await this.getActiveSolutionFolder();
+        if (!resolvedActiveSolutionFolder) {
+            throw new Error('No workspace or active solution path provided.');
+        }
+        const traceFileName = await this.getCTraceFileNameFromCBuildRunPath(cbuildRunFileUri?.fsPath, targetSet);
+        return vscode.Uri.file(path.join(resolvedActiveSolutionFolder.fsPath, '.cmsis', traceFileName));
+    }
+
     public async getDefaultSolutionSet(cbuildRunFilePath: string | undefined): Promise<string> {
         const resolvedCbuildRunFilePath = cbuildRunFilePath ?? await this.getCBuildRunFileName();
         const trimmedPath = resolvedCbuildRunFilePath?.trim();
@@ -215,5 +253,16 @@ export class CBuildRunFileLocator {
             return undefined;
         }
         return Reflect.get(value, key);
+    }
+
+    /**
+     * Gets the folder that owns the active CMSIS Solution, falling back to the
+    * first workspace folder when CMSIS Solution has not selected one.
+    */
+    public async getActiveSolutionFolder(): Promise<vscode.Uri | undefined> {
+        const activeSolutionPath = await this.getActiveSolutionFilePath();
+        return activeSolutionPath
+            ? vscode.Uri.file(path.dirname(activeSolutionPath))
+            : vscode.workspace.workspaceFolders?.at(0)?.uri;
     }
 }

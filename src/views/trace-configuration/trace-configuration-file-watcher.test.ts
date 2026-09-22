@@ -72,6 +72,7 @@ function createMockCTraceYamlFile(): MockCTraceYamlFile {
 
 function createCBuildRunFileLocator(getCBuildRunFileNameFromCommand: jest.Mock): CBuildRunFileLocator {
     const cbuildRunFileLocator = new CBuildRunFileLocator();
+    jest.spyOn(cbuildRunFileLocator, 'getActiveSolutionFolder').mockResolvedValue(vscode.Uri.file('/workspace'));
     jest.spyOn(cbuildRunFileLocator, 'getCBuildRunFileNameFromCommand').mockImplementation(getCBuildRunFileNameFromCommand);
     return cbuildRunFileLocator;
 }
@@ -85,7 +86,7 @@ describe('TraceConfigurationFileWatcher', () => {
         mutableWorkspace.workspaceFolders = originalWorkspaceFolders;
     });
 
-    it('registers and removes every trace configuration watch through the manager', () => {
+    it('registers and removes every trace configuration watch through the manager', async () => {
         const watchedFile = createMockCTraceYamlFile();
         const addWatch = jest.fn();
         const removeWatch = jest.fn();
@@ -101,7 +102,7 @@ describe('TraceConfigurationFileWatcher', () => {
             fileWatchManager
         );
 
-        watcher.watchGeneratedCBuildRunFiles();
+        await watcher.watchGeneratedCBuildRunFiles();
         watcher.watchCurrentFile();
         watcher.dispose();
 
@@ -132,7 +133,7 @@ describe('TraceConfigurationFileWatcher', () => {
         const events: GeneratedCBuildRunFileChangeEvent[] = [];
         watcher.onDidChangeGeneratedCBuildRunFile(event => events.push(event));
 
-        watcher.watchGeneratedCBuildRunFiles();
+        await watcher.watchGeneratedCBuildRunFiles();
 
         const cbuildIndexWatcher = getLastCreatedFileSystemWatcher();
         const cbuildIndexPattern = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls[0]?.[0] as { pattern: string };
@@ -183,7 +184,7 @@ describe('TraceConfigurationFileWatcher', () => {
         };
         const watcher = new TraceConfigurationFileWatcher(callbacks, createCBuildRunFileLocator(getCBuildRunFileNameFromCommand));
 
-        watcher.watchGeneratedCBuildRunFiles();
+        await watcher.watchGeneratedCBuildRunFiles();
         const cbuildIndexWatcher = getLastCreatedFileSystemWatcher();
         cbuildIndexWatcher._handlers.create[0]?.(vscode.Uri.file('/workspace/project.cbuild-idx.yml'));
         await waitForCondition('existing cbuild-run processing', () =>
@@ -234,7 +235,7 @@ describe('TraceConfigurationFileWatcher', () => {
         };
         const watcher = new TraceConfigurationFileWatcher(callbacks, createCBuildRunFileLocator(getCBuildRunFileNameFromCommand));
 
-        watcher.watchGeneratedCBuildRunFiles();
+        await watcher.watchGeneratedCBuildRunFiles();
         const cbuildIndexWatcher = getLastCreatedFileSystemWatcher();
         cbuildIndexWatcher._handlers.change[0]?.(vscode.Uri.file('/workspace/project.cbuild-idx.yml'));
         await waitForCondition('indexed cbuild-run processing', () =>
@@ -283,20 +284,16 @@ describe('TraceConfigurationFileWatcher', () => {
         };
         const watcher = new TraceConfigurationFileWatcher(callbacks, createCBuildRunFileLocator(getCBuildRunFileNameFromCommand));
 
-        watcher.watchGeneratedCBuildRunFiles();
+        await watcher.watchGeneratedCBuildRunFiles();
         await expect(watcher.processActiveCBuildRunFile()).resolves.toBe(true);
 
-        const cmsisJsonPattern = (vscode.workspace.findFiles as jest.Mock).mock.calls[0]?.[0] as {
-            base: vscode.WorkspaceFolder;
-            pattern: string;
-        };
+        const cmsisJsonPattern = (vscode.workspace.findFiles as jest.Mock).mock.calls[0]?.[0] as string;
         const indexPattern = (vscode.workspace.findFiles as jest.Mock).mock.calls[1]?.[0] as {
-            base: vscode.WorkspaceFolder;
+            base: vscode.Uri;
             pattern: string;
         };
-        expect(cmsisJsonPattern.base.uri.fsPath).toBe(normalizeFsPath('/workspace'));
-        expect(cmsisJsonPattern.pattern).toBe(CMSIS_JSON_FILE_GLOB);
-        expect(indexPattern.base.uri.fsPath).toBe(normalizeFsPath('/workspace'));
+        expect(cmsisJsonPattern).toBe(CMSIS_JSON_FILE_GLOB);
+        expect(indexPattern.base.fsPath).toBe(normalizeFsPath('/workspace'));
         expect(indexPattern.pattern).toBe(CBUILD_INDEX_FILE_GLOB);
         expect(getCBuildRunFileNameFromCommand).toHaveBeenCalledTimes(1);
         const changeEvent = onGeneratedCBuildRunFileChanged.mock.calls.at(-1)?.[0] as
@@ -323,7 +320,7 @@ describe('TraceConfigurationFileWatcher', () => {
         };
         const watcher = new TraceConfigurationFileWatcher(callbacks, createCBuildRunFileLocator(getCBuildRunFileNameFromCommand));
 
-        watcher.watchGeneratedCBuildRunFiles();
+        await watcher.watchGeneratedCBuildRunFiles();
         const cbuildIndexWatcher = getLastCreatedFileSystemWatcher();
         const watcherCount = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls.length;
         const cbuildIndexFile = vscode.Uri.file('/workspace/project.cbuild-idx.yml');
@@ -381,7 +378,7 @@ describe('TraceConfigurationFileWatcher', () => {
         expect(firstFileSystemWatcher.dispose).toHaveBeenCalledTimes(1);
     });
 
-    it('keeps current and generated file watchers alive when only the webview is disposed', () => {
+    it('keeps current and generated file watchers alive when only the webview is disposed', async () => {
         const watchedFile = createMockCTraceYamlFile();
         const callbacks: TraceConfigurationFileWatcherCallbacks = {
             getCurrentFile: () => watchedFile.file,
@@ -391,7 +388,7 @@ describe('TraceConfigurationFileWatcher', () => {
         };
         const watcher = new TraceConfigurationFileWatcher(callbacks);
 
-        watcher.watchGeneratedCBuildRunFiles();
+        await watcher.watchGeneratedCBuildRunFiles();
         watcher.watchCurrentFile();
         const fileSystemWatcher = getLastCreatedFileSystemWatcher();
 
@@ -402,7 +399,7 @@ describe('TraceConfigurationFileWatcher', () => {
         expect(fileSystemWatcher.dispose).toHaveBeenCalledTimes(1);
     });
 
-    it('keeps an existing cbuild index watcher when startup discovery is armed again', () => {
+    it('keeps an existing cbuild index watcher when startup discovery is armed again', async () => {
         const callbacks: TraceConfigurationFileWatcherCallbacks = {
             getCurrentFile: jest.fn(),
             onCurrentFileReloaded: jest.fn(),
@@ -411,9 +408,9 @@ describe('TraceConfigurationFileWatcher', () => {
         };
         const watcher = new TraceConfigurationFileWatcher(callbacks);
 
-        watcher.watchGeneratedCBuildRunFiles();
+        await watcher.watchGeneratedCBuildRunFiles();
         const cbuildIndexWatcher = getLastCreatedFileSystemWatcher();
-        watcher.watchGeneratedCBuildRunFiles();
+        await watcher.watchGeneratedCBuildRunFiles();
 
         expect(vscode.workspace.createFileSystemWatcher).toHaveBeenCalledTimes(1);
         expect(cbuildIndexWatcher.dispose).not.toHaveBeenCalled();

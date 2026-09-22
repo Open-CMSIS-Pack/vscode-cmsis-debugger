@@ -73,7 +73,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             }),
             { dispose: () => this.model.dispose() }
         );
-        this.model.watchForGeneratedCBuildRunFiles();
+        await this.model.watchForGeneratedCBuildRunFiles();
         await this.initializeAfterCmsisSolutionActivation(context);
     }
 

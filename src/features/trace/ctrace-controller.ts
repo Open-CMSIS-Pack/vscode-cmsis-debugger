@@ -16,6 +16,7 @@
 // generated with AI
 
 import * as vscode from 'vscode';
+import { CBuildRunFileLocator } from '../../cbuild-run';
 import {
     GDBTargetDebugSession,
     GDBTargetDebugTracker
@@ -44,6 +45,7 @@ export class CTraceController {
     private traceEnabled = false;
     private readonly pendingDecodes = new Map<string, PendingDecode>();
     private readonly rawTraceSaves = new Map<string, number>();
+    private readonly cbuildRunFileLocator = new CBuildRunFileLocator();
 
     public constructor(
         private readonly options: CTraceProcessManagerOptions = {},
@@ -51,20 +53,24 @@ export class CTraceController {
         private readonly now: () => number = Date.now
     ) {}
 
-    public activate(context: vscode.ExtensionContext, tracker: GDBTargetDebugTracker, fileWatchManager: FileWatchManager): void {
+    public async activate(
+        context: vscode.ExtensionContext,
+        tracker: GDBTargetDebugTracker,
+        fileWatchManager: FileWatchManager
+    ): Promise<void> {
         this.fileWatchManager = fileWatchManager;
         context.subscriptions.push(
             tracker.onDidChangeActiveDebugSession(session => this.handleActiveSessionChanged(session)),
             tracker.onStopped(event => this.handleDecodeTrigger(event.session)),
             tracker.onWillStopSession(session => this.handleDecodeTrigger(session)),
-            vscode.workspace.onDidChangeConfiguration(event => {
+            vscode.workspace.onDidChangeConfiguration(async event => {
                 if (event.affectsConfiguration(ENABLE_TRACE_GENERATION_VIEW_SETTING)) {
-                    this.updateRawTraceWatcher();
+                    await this.updateRawTraceWatcher();
                 }
             }),
             { dispose: () => this.removeRawTraceWatcher() }
         );
-        this.updateRawTraceWatcher();
+        await this.updateRawTraceWatcher();
     }
 
     public async run(options: CTraceProcessManagerLaunchOptions = {}): Promise<number | null> {
@@ -149,10 +155,10 @@ export class CTraceController {
         }
     }
 
-    private updateRawTraceWatcher(): void {
+    private async updateRawTraceWatcher(): Promise<void> {
         this.traceEnabled = vscode.workspace.getConfiguration().get<boolean>(ENABLE_TRACE_GENERATION_VIEW_SETTING, false);
         if (this.traceEnabled) {
-            this.addRawTraceWatcher();
+            await this.addRawTraceWatcher();
         } else {
             this.removeRawTraceWatcher();
             this.pendingDecodes.clear();
@@ -160,14 +166,23 @@ export class CTraceController {
         }
     }
 
-    private addRawTraceWatcher(): void {
-        if (this.fileWatchManager === undefined) {
+    private async addRawTraceWatcher(): Promise<void> {
+        const fileWatchManager = this.fileWatchManager;
+        // A watcher cannot be registered before activation supplies its manager.
+        if (fileWatchManager === undefined) {
             return;
         }
-        const ws = vscode.workspace.workspaceFolders?.[0];
-        this.fileWatchManager.addWatch({
+        const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
+        // Ignore a stale registration after tracing was disabled or reactivation supplied a new manager.
+        if (!this.traceEnabled || fileWatchManager !== this.fileWatchManager) {
+            return;
+        }
+        const globPattern = activeSolutionFolder
+            ? new vscode.RelativePattern(activeSolutionFolder, RAW_TRACE_GLOB)
+            : RAW_TRACE_GLOB;
+        fileWatchManager.addWatch({
             id: RAW_TRACE_WATCH_ID,
-            globPattern: ws ? new vscode.RelativePattern(ws, RAW_TRACE_GLOB) : RAW_TRACE_GLOB,
+            globPattern,
             onDidCreate: uri => this.handleRawTraceFileChanged(uri),
             onDidChange: uri => this.handleRawTraceFileChanged(uri)
         });

@@ -79,8 +79,8 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     fileWatchManager.activate(context);
     // Activate generic commands
     genericCommands.activate(context);
-    pyTsController.activate(context, gdbtargetDebugTracker, fileWatchManager);
-    cTraceController.activate(context, gdbtargetDebugTracker, fileWatchManager);
+    await pyTsController.activate(context, gdbtargetDebugTracker, fileWatchManager);
+    await cTraceController.activate(context, gdbtargetDebugTracker, fileWatchManager);
     // Activate trace commands
     traceCommands.activate(context);
     // Activate components

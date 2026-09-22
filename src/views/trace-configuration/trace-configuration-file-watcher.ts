@@ -68,6 +68,7 @@ const CURRENT_CTRACE_WATCH_ID = 'trace-configuration.current-ctrace';
  */
 export class TraceConfigurationFileWatcher {
     private generatedCBuildIndexWatchInstalled = false;
+    private generatedCBuildIndexWatchInstallation: Promise<void> | undefined;
     private generatedCBuildRunFileName: string | undefined;
     private generatedWatchVersion = 0;
     private cbuildRunResolutionVersion = 0;
@@ -95,22 +96,29 @@ export class TraceConfigurationFileWatcher {
      * watchGeneratedCBuildRunFiles rebuilds the main workspace watcher for
      * cbuild index files. A created or changed index file is the stable signal
      * used to resolve and watch the active generated cbuild-run file.
-     */
-    public watchGeneratedCBuildRunFiles(): void {
-        if (this.generatedCBuildIndexWatchInstalled) {
+    */
+    public async watchGeneratedCBuildRunFiles(): Promise<void> {
+        // Folder resolution is asynchronous, so retain its promise to prevent concurrent calls
+        // from installing duplicate watchers.
+        if (this.generatedCBuildIndexWatchInstalled || this.generatedCBuildIndexWatchInstallation !== undefined) {
             return;
         }
-        this.generatedWatchVersion += 1;
+        this.generatedCBuildIndexWatchInstallation = this.installGeneratedCBuildIndexWatch();
+        await this.generatedCBuildIndexWatchInstallation;
+    }
+
+    private async installGeneratedCBuildIndexWatch(): Promise<void> {
+        const watchVersion = ++this.generatedWatchVersion;
         this.cbuildRunResolutionVersion += 1;
         this.disposeGeneratedCBuildFileWatchers();
 
-        const mainWorkspaceFolder = vscode.workspace.workspaceFolders?.[0];
-        if (!mainWorkspaceFolder) {
+        const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
+        if (!activeSolutionFolder || watchVersion !== this.generatedWatchVersion) {
+            this.generatedCBuildIndexWatchInstallation = undefined;
             return;
         }
 
-        const watchVersion = this.generatedWatchVersion;
-        const pattern = new vscode.RelativePattern(mainWorkspaceFolder, CBUILD_INDEX_FILE_GLOB);
+        const pattern = new vscode.RelativePattern(activeSolutionFolder, CBUILD_INDEX_FILE_GLOB);
         this.fileWatchManager.addWatch({
             id: CBUILD_INDEX_WATCH_ID,
             globPattern: pattern,
@@ -122,6 +130,7 @@ export class TraceConfigurationFileWatcher {
             }
         });
         this.generatedCBuildIndexWatchInstalled = true;
+        this.generatedCBuildIndexWatchInstallation = undefined;
     }
 
     /**
