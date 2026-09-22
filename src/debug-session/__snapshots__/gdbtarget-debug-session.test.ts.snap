@@ -183,7 +183,10 @@ exports[`GDBTargetDebugSession with launch configuration returns a cbuild object
     "target-type": "My-Test-Target-Type",
   },
   "cbuildRunDir": Any<String>,
+  "cbuildRunFileLocator": CBuildRunFileLocator {},
   "cbuildRunFilePath": "test-data/multi-core.cbuild-run.yml",
-  "reader": VscodeFileReader {},
+  "reader": VscodeFileReader {
+    "cbuildRunFileLocator": CBuildRunFileLocator {},
+  },
 }
 `;

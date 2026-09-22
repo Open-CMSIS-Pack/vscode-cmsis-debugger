@@ -17,6 +17,9 @@
 
 import * as vscode from 'vscode';
 
+import { CmsisJsonWatcher } from '../../cmsis-files';
+import { CBuildRunFileLocator } from '../../cbuild-run';
+import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
 import {
     TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING,
     TRACE_CONFIGURATION_VIEW_ID
@@ -49,9 +52,20 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
      */
     public constructor(
         private readonly extensionUri: vscode.Uri,
-        model?: TraceConfigurationModel
+        model?: TraceConfigurationModel,
+        fileWatchManager: FileWatchManager = new FileWatchManager(),
+        cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator(),
+        cmsisJsonWatcher?: CmsisJsonWatcher
     ) {
-        this.model = model ?? new TraceConfigurationModel();
+        this.model = model ?? new TraceConfigurationModel(
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            fileWatchManager,
+            cbuildRunFileLocator,
+            cmsisJsonWatcher
+        );
         this.model.setOnDidChange(() => this.postState());
     }
 
@@ -71,7 +85,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             }),
             { dispose: () => this.model.dispose() }
         );
-        this.model.watchForGeneratedCBuildRunFiles();
+        await this.model.watchForGeneratedCBuildRunFiles();
         await this.initializeAfterCmsisSolutionActivation(context);
     }
 

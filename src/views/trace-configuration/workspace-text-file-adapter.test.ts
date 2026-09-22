@@ -23,30 +23,12 @@ import * as vscode from 'vscode';
 
 import { WorkspaceTextFileAdapter } from './workspace-text-file-adapter';
 
-interface MockFileSystemWatcher {
-    dispose: jest.Mock;
-    onDidCreate: jest.Mock;
-    onDidChange: jest.Mock;
-    onDidDelete: jest.Mock;
-    _handlers: {
-        create: Array<(uri: vscode.Uri) => void>;
-        change: Array<(uri: vscode.Uri) => void>;
-        delete: Array<(uri: vscode.Uri) => void>;
-    };
-}
-
 const temporaryWorkspaceRoots: string[] = [];
 
 async function createTemporaryWorkspace(): Promise<string> {
     const workspaceRoot = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'workspace-text-file-adapter-'));
     temporaryWorkspaceRoots.push(workspaceRoot);
     return workspaceRoot;
-}
-
-function getLastCreatedFileSystemWatcher(): MockFileSystemWatcher {
-    const watcher = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.results.at(-1)?.value as MockFileSystemWatcher | undefined;
-    expect(watcher).toBeDefined();
-    return watcher as MockFileSystemWatcher;
 }
 
 function getLastWorkspaceFsUri(method: 'readFile' | 'writeFile' | 'stat'): vscode.Uri | undefined {
@@ -140,33 +122,4 @@ describe('WorkspaceTextFileAdapter', () => {
         await expect(adapter.stat('/workspace/target.ctrace.yaml')).rejects.toThrow('permission denied');
     });
 
-    it('watches create, change, and delete events through a VS Code file system watcher', () => {
-        const fileName = path.join('/workspace', '.cmsis', 'target.ctrace.yaml');
-        const onDidChange = jest.fn();
-        const adapter = new WorkspaceTextFileAdapter();
-
-        const disposable = adapter.watch(fileName, onDidChange);
-        const watcher = getLastCreatedFileSystemWatcher();
-        const pattern = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls.at(-1)?.[0] as { base: string; pattern: string };
-
-        expect(pattern.base).toBe(path.dirname(fileName));
-        expect(pattern.pattern).toBe(path.basename(fileName));
-
-        watcher._handlers.create[0]?.(vscode.Uri.file(fileName));
-        watcher._handlers.change[0]?.(vscode.Uri.file(fileName));
-        watcher._handlers.delete[0]?.(vscode.Uri.file(fileName));
-
-        expect(onDidChange).toHaveBeenCalledTimes(3);
-
-        const createSubscription = watcher.onDidCreate.mock.results[0]?.value as { dispose: jest.Mock };
-        const changeSubscription = watcher.onDidChange.mock.results[0]?.value as { dispose: jest.Mock };
-        const deleteSubscription = watcher.onDidDelete.mock.results[0]?.value as { dispose: jest.Mock };
-
-        disposable.dispose();
-
-        expect(createSubscription.dispose).toHaveBeenCalledTimes(1);
-        expect(changeSubscription.dispose).toHaveBeenCalledTimes(1);
-        expect(deleteSubscription.dispose).toHaveBeenCalledTimes(1);
-        expect(watcher.dispose).toHaveBeenCalledTimes(1);
-    });
 });

@@ -22,7 +22,7 @@ import { EXTENSION_NAME } from '../../manifest';
 import { logger } from '../../logger';
 import { TraceConfigurationGeneratedCTraceFileManager } from './trace-configuration-generated-ctrace-file-manager';
 
-type CBuildRunFileNameProvider = Pick<CBuildRunFileLocator, 'getCBuildRunFileNameFromCommand'>;
+type CBuildRunFileNameProvider = Pick<CBuildRunFileLocator, 'getCBuildRunFileName'>;
 type DefaultCTraceFileCreator = Pick<TraceConfigurationGeneratedCTraceFileManager, 'createDefaultCTraceFile'>;
 
 /**
@@ -45,7 +45,7 @@ export class TraceConfigurationCommands {
     }
 
     private async generateDefaultCtraceFile(): Promise<void> {
-        const cbuildRunFileName = await this.cbuildRunFileLocator.getCBuildRunFileNameFromCommand();
+        const cbuildRunFileName = await this.cbuildRunFileLocator.getCBuildRunFileName(undefined, true);
         if (!cbuildRunFileName) {
             await vscode.window.showErrorMessage(
                 'No active cbuild-run file was found. Generate the project and try again.'
