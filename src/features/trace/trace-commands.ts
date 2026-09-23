@@ -45,7 +45,7 @@ export class TraceCommands {
 
     protected async handleLaunchPyTs(): Promise<void> {
         try {
-            const exitCode = await this.pyTsController.run({}, true);
+            const exitCode = await this.pyTsController.run();
             if (exitCode !== 0) {
                 logger.error(`pyTS process exited with code ${exitCode}`);
             }
@@ -66,7 +66,13 @@ export class TraceCommands {
     }
 
     protected async handleReloadCTrace(): Promise<void> {
-        await this.pyTsController.reloadCTrace();
+        const session = vscode.debug.activeDebugSession;
+        if (session) {
+            await session.customRequest('evaluate', {
+                expression: '> monitor ctrace reload',
+                context: 'repl'
+            });
+        }
     }
 
 }

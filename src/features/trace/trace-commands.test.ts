@@ -52,13 +52,13 @@ describe('TraceCommands', () => {
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith(TraceCommands.reloadCTraceID, expect.any(Function));
     });
 
-    it('requests a ctrace reload after pyTS completes', async () => {
+    it('runs pyTS when its command is invoked', async () => {
         const run = jest.spyOn(pyTsController, 'run').mockResolvedValue(0);
         commands.activate(extensionContextFactory());
 
         await registeredCommands.get(TraceCommands.launchPyTsID)!();
 
-        expect(run).toHaveBeenCalledWith({}, true);
+        expect(run).toHaveBeenCalledWith();
     });
 
     it('runs ctrace when its command is invoked', async () => {
@@ -78,7 +78,7 @@ describe('TraceCommands', () => {
 
         await registeredCommands.get(TraceCommands.launchPyTsID)!();
 
-        expect(run).toHaveBeenCalledWith({}, true);
+        expect(run).toHaveBeenCalledWith();
         expect(loggerError).toHaveBeenCalledWith('Failed to launch pyTS process:', error);
     });
 
@@ -107,12 +107,25 @@ describe('TraceCommands', () => {
         expect(loggerError).toHaveBeenCalledWith('ctrace process exited with code null');
     });
 
-    it('delegates the ctrace reload command to the pyTS controller', async () => {
-        const reloadCTrace = jest.spyOn(pyTsController, 'reloadCTrace').mockResolvedValue();
+    it('sends a ctrace reload request to the active debug session', async () => {
+        const session = {
+            customRequest: jest.fn()
+        };
+        Object.defineProperty(vscode.debug, 'activeDebugSession', { configurable: true, value: session });
         commands.activate(extensionContextFactory());
 
         await registeredCommands.get(TraceCommands.reloadCTraceID)!();
 
-        expect(reloadCTrace).toHaveBeenCalledTimes(1);
+        expect(session.customRequest).toHaveBeenCalledWith('evaluate', {
+            expression: '> monitor ctrace reload',
+            context: 'repl'
+        });
+    });
+
+    it('does nothing when no debug session is active', async () => {
+        Object.defineProperty(vscode.debug, 'activeDebugSession', { configurable: true, value: undefined });
+        commands.activate(extensionContextFactory());
+
+        await expect(registeredCommands.get(TraceCommands.reloadCTraceID)!()).resolves.toBeUndefined();
     });
 });
