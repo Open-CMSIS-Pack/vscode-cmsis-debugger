@@ -82,28 +82,14 @@ export class PyTsController {
         await this.updateCTraceConfigurationWatcher();
     }
 
-    public async run(options: PyTsProcessManagerLaunchOptions = {}, shouldReloadCTrace: boolean = false): Promise<number | null> {
+    public async run(options: PyTsProcessManagerLaunchOptions = {}): Promise<number | null> {
         const processManager = new PyTsProcessManager(this.options);
         const cbuildRunFilePath = options.cbuildRunFilePath ?? this.activeSession?.getCbuildRunPath();
         const launchOptions: PyTsProcessManagerLaunchOptions = cbuildRunFilePath === undefined
             ? options
             : { ...options, cbuildRunFilePath };
         await processManager.launch(launchOptions);
-        const exitCode = await processManager.waitForExit();
-        if (shouldReloadCTrace && exitCode === 0) {  // Only reload if pyTS exited successfully
-            await this.reloadCTrace();
-        }
-        return exitCode;
-    }
-
-    public async reloadCTrace(): Promise<void> {
-        const session = vscode.debug.activeDebugSession;
-        if (session) {
-            await session.customRequest('evaluate', {
-                expression: '> monitor ctrace reload',
-                context: 'repl'
-            });
-        }
+        return processManager.waitForExit();
     }
 
     protected handleActiveSessionChanged(session: GDBTargetDebugSession | undefined): void {
@@ -174,7 +160,7 @@ export class PyTsController {
                     ? {}
                     : { cbuildRunFilePath: pendingConversion.cbuildRunFilePath };
                 try {
-                    const exitCode = await this.run(launchOptions, true);
+                    const exitCode = await this.run(launchOptions);
                     if (exitCode !== 0) {
                         logger.error(`pyTS process exited with code ${exitCode}`);
                     }
