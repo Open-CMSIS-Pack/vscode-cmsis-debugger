@@ -128,7 +128,8 @@ async function waitForWatcherWork(): Promise<void> {
 }
 
 function expectSameFsPath(actual: string | undefined, expected: string): void {
-    expect(normalizeFsPath(actual)).toBe(normalizeFsPath(expected));
+    expect(actual).toBeDefined();
+    expect(normalizeFsPath(actual as string)).toBe(normalizeFsPath(expected));
 }
 
 function createProcessor(core: string, pname?: string): ProcessorType {
@@ -251,14 +252,30 @@ describe('TraceConfigurationModel', () => {
         });
     });
 
-    it('watches cbuild index files when CMSIS Solution has no active cbuild-run file', async () => {
-        (vscode.commands.executeCommand as jest.Mock).mockResolvedValue(undefined);
-        (vscode.workspace.findFiles as jest.Mock).mockResolvedValue([]);
+    it('keeps a loaded ctrace filename absolute', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const fileName = path.join(workspaceRoot, '.cmsis', 'target.ctrace.yml');
+        const { model } = await createModelFromText('created-by: CMSIS Debugger\n');
+        (model as unknown as TraceConfigurationModelPrivate).ctraceFile = new CTraceYamlFile(fileName, new MemoryTextFileAdapter('created-by: CMSIS Debugger\n'));
+
+        expect(model.createState().fileName).toBe(fileName);
+        model.dispose();
+    });
+
+    it('keeps a loaded ctrace filename absolute', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const fileName = path.join(workspaceRoot, '.cmsis', 'target.ctrace.yml');
+        const { model } = await createModelFromText('created-by: CMSIS Debugger\n');
+        (model as unknown as TraceConfigurationModelPrivate).ctraceFile = new CTraceYamlFile(fileName, new MemoryTextFileAdapter('created-by: CMSIS Debugger\n'));
+
+        expect(model.createState().fileName).toBe(fileName);
+        model.dispose();
+    });
+
+    it('watches generated cbuild-run files in the top-level out folder', async () => {
         const model = new TraceConfigurationModel();
 
-        expect(vscode.workspace.createFileSystemWatcher).not.toHaveBeenCalled();
-
-        await model.loadInitialFile();
+        await model.watchForGeneratedCBuildRunFiles();
 
         expect(vscode.workspace.createFileSystemWatcher).toHaveBeenCalledTimes(1);
         const pattern = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls[0]?.[0] as { pattern: string };
@@ -267,6 +284,7 @@ describe('TraceConfigurationModel', () => {
         model.dispose();
         expect(getLastCreatedFileSystemWatcher().dispose).toHaveBeenCalledTimes(1);
     });
+
 
     it.each([
         { handlerName: 'create', expectedType: 'created' },

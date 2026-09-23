@@ -23,7 +23,7 @@ import {
     TRACE_CONFIGURATION_VIEW_ID
 } from '../../manifest';
 import { TraceConfigurationModel } from './trace-configuration-model';
-import { TraceWebviewToHostMessage } from './trace-configuration-protocol';
+import { TraceConfigurationState, TraceWebviewToHostMessage } from './trace-configuration-protocol';
 import { TraceConfigurationWebviewProvider } from './trace-configuration-webview-provider';
 
 type MessageHandler = (message: TraceWebviewToHostMessage) => void;
@@ -56,10 +56,10 @@ class FakeTraceConfigurationModel {
     public readonly addItem = jest.fn().mockResolvedValue(undefined);
     public readonly removeItem = jest.fn().mockResolvedValue(undefined);
     public readonly reportError = jest.fn();
-    public readonly createState = jest.fn(() => ({
+    public readonly createState = jest.fn<TraceConfigurationState, []>(() => ({
         fileName: 'target.ctrace.yml',
+        loading: false,
         dirty: false,
-        diagnostics: [],
         rows: []
     }));
     private onDidChange: (() => void) | undefined;
@@ -78,7 +78,8 @@ function createWebviewView(): {
     fake: FakeWebviewView;
     sendMessage: (message: TraceWebviewToHostMessage) => void;
     disposeView: () => void;
-    } {
+    // eslint-disable-next-line indent
+} {
     let messageHandler: MessageHandler | undefined;
     let disposeHandler: DisposeHandler | undefined;
     const fake: FakeWebviewView = {
@@ -112,6 +113,7 @@ describe('TraceConfigurationWebviewProvider', () => {
     beforeEach(() => {
         vscode.Uri.joinPath = jest.fn((base: vscode.Uri, ...pathSegments: string[]) =>
             vscode.Uri.file([base.fsPath, ...pathSegments].join('/')));
+        (vscode.commands.registerCommand as jest.Mock).mockReturnValue({ dispose: jest.fn() });
         (vscode.extensions.onDidChange as jest.Mock).mockReset().mockReturnValue({ dispose: jest.fn() });
         (vscode.extensions.getExtension as jest.Mock).mockReturnValue({
             isActive: true,
@@ -133,10 +135,77 @@ describe('TraceConfigurationWebviewProvider', () => {
         context.subscriptions.forEach(disposable => disposable.dispose());
 
         expect(vscode.window.registerWebviewViewProvider).toHaveBeenCalledWith(TRACE_CONFIGURATION_VIEW_ID, provider);
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
+            'vscode-cmsis-debugger.traceConfiguration.save',
+            expect.any(Function)
+        );
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
+            'vscode-cmsis-debugger.traceConfiguration.openFile',
+            expect.any(Function)
+        );
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
+            'vscode-cmsis-debugger.traceConfiguration.expandAll',
+            expect.any(Function)
+        );
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
+            'vscode-cmsis-debugger.traceConfiguration.collapseAll',
+            expect.any(Function)
+        );
         expect(vscode.extensions.getExtension).toHaveBeenCalledWith('Arm.cmsis-csolution');
         expect(model.watchForGeneratedCBuildRunFiles).toHaveBeenCalledTimes(1);
         expect(model.loadInitialFile).toHaveBeenCalledTimes(1);
         expect(model.dispose).toHaveBeenCalledTimes(1);
+    });
+
+    it('routes trace configuration title commands to model operations', async () => {
+        const model = new FakeTraceConfigurationModel();
+        model.createState.mockReturnValue({
+            fileName: 'target.ctrace.yml',
+            dirty: false,
+            loading: false,
+            rows: [
+                {
+                    id: 'parent',
+                    label: 'Parent',
+                    path: ['parent'],
+                    depth: 0,
+                    kind: 'map',
+                    control: 'none',
+                    hasChildren: true,
+                    expanded: false,
+                    removable: false
+                },
+                {
+                    id: 'leaf',
+                    label: 'Leaf',
+                    path: ['parent', 'leaf'],
+                    depth: 1,
+                    kind: 'scalar',
+                    control: 'none',
+                    hasChildren: false,
+                    expanded: false,
+                    removable: false
+                }
+            ]
+        });
+        const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
+        const context = extensionContextFactory();
+        provider.activate(context);
+        const findCommand = (command: string): (() => Promise<void> | void) => {
+            const entry = (vscode.commands.registerCommand as jest.Mock).mock.calls.find(([registeredCommand]) => registeredCommand === command);
+            expect(entry).toBeDefined();
+            return entry?.[1] as () => Promise<void> | void;
+        };
+
+        await findCommand('vscode-cmsis-debugger.traceConfiguration.save')();
+        await findCommand('vscode-cmsis-debugger.traceConfiguration.openFile')();
+        findCommand('vscode-cmsis-debugger.traceConfiguration.expandAll')();
+        findCommand('vscode-cmsis-debugger.traceConfiguration.collapseAll')();
+
+        expect(model.saveCurrentDocument).toHaveBeenCalledTimes(1);
+        expect(vscode.window.showOpenDialog).toHaveBeenCalledTimes(1);
+        expect(model.updateExpandedState).toHaveBeenNthCalledWith(1, 'parent', true);
+        expect(model.updateExpandedState).toHaveBeenNthCalledWith(2, 'parent', false);
     });
 
     it('awaits activation of an available inactive CMSIS Solution', async () => {
@@ -258,6 +327,12 @@ describe('TraceConfigurationWebviewProvider', () => {
         const model = new FakeTraceConfigurationModel();
         const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
         const { view, fake, sendMessage } = createWebviewView();
+        const workspaceUri = vscode.Uri.file('/workspace');
+        jest.spyOn(vscode.workspace, 'getWorkspaceFolder').mockReturnValue({
+            uri: workspaceUri,
+            name: 'workspace',
+            index: 0
+        });
         provider.resolveWebviewView(view, {} as vscode.WebviewViewResolveContext, {} as vscode.CancellationToken);
 
         sendMessage({ type: 'ready' });
@@ -268,8 +343,9 @@ describe('TraceConfigurationWebviewProvider', () => {
             type: 'update',
             state: {
                 fileName: 'target.ctrace.yml',
+                workspaceFolderPath: workspaceUri.fsPath,
+                loading: false,
                 dirty: false,
-                diagnostics: [],
                 rows: []
             }
         });
