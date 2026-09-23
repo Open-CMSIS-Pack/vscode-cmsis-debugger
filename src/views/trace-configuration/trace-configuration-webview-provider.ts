@@ -31,6 +31,8 @@ import {
 import { TraceConfigurationModel } from './trace-configuration-model';
 
 const CMSIS_SOLUTION_EXTENSION_ID = 'Arm.cmsis-csolution';
+const TRACE_CONFIGURATION_VIEW_TITLE = 'Trace Generation';
+const TRACE_CONFIGURATION_MODIFIED_VIEW_TITLE = `${TRACE_CONFIGURATION_VIEW_TITLE} ●`;
 
 /**
  * The TraceConfigurationWebviewProvider owns the VS Code sidebar webview shell
@@ -283,6 +285,9 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             return;
         }
         const state = this.model.createState();
+        this.webviewView.title = state.dirty
+            ? TRACE_CONFIGURATION_MODIFIED_VIEW_TITLE
+            : TRACE_CONFIGURATION_VIEW_TITLE;
         const workspaceFolder = state.fileName
             ? vscode.workspace.getWorkspaceFolder(vscode.Uri.file(state.fileName))
             : undefined;

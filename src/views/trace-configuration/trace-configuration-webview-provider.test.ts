@@ -30,6 +30,7 @@ type MessageHandler = (message: TraceWebviewToHostMessage) => void;
 type DisposeHandler = () => void;
 
 interface FakeWebviewView {
+    title?: string;
     webview: {
         options?: vscode.WebviewOptions;
         html?: string;
@@ -343,6 +344,7 @@ describe('TraceConfigurationWebviewProvider', () => {
         model.fireDidChange();
 
         expect(fake.webview.postMessage).toHaveBeenCalledTimes(2);
+        expect(fake.title).toBe('Trace Generation');
         expect(fake.webview.postMessage).toHaveBeenCalledWith({
             type: 'update',
             state: {
@@ -353,6 +355,34 @@ describe('TraceConfigurationWebviewProvider', () => {
                 rows: []
             }
         });
+    });
+
+    it('shows a modified indicator in the view title while the model is dirty', () => {
+        const model = new FakeTraceConfigurationModel();
+        const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
+        const { view, fake, sendMessage } = createWebviewView();
+        provider.resolveWebviewView(view, {} as vscode.WebviewViewResolveContext, {} as vscode.CancellationToken);
+
+        sendMessage({ type: 'ready' });
+        expect(fake.title).toBe('Trace Generation');
+
+        model.createState.mockReturnValue({
+            fileName: 'target.ctrace.yml',
+            loading: false,
+            dirty: true,
+            rows: []
+        });
+        model.fireDidChange();
+        expect(fake.title).toBe('Trace Generation ●');
+
+        model.createState.mockReturnValue({
+            fileName: 'target.ctrace.yml',
+            loading: false,
+            dirty: false,
+            rows: []
+        });
+        model.fireDidChange();
+        expect(fake.title).toBe('Trace Generation');
     });
 
     it('posts fresh state when the ctrace-ref tooltip setting changes', async () => {
