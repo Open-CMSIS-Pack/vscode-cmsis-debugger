@@ -199,6 +199,7 @@ module.exports = {
             }))
         },
         findFiles: jest.fn(() => Promise.resolve([])),
+        getWorkspaceFolder: jest.fn(() => undefined),
         createFileSystemWatcher: jest.fn(() => createMockFileSystemWatcher()),
         workspaceFolders: [
             {
