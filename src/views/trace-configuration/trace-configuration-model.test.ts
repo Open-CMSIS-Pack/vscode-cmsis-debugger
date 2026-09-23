@@ -272,10 +272,10 @@ describe('TraceConfigurationModel', () => {
         model.dispose();
     });
 
-    it('watches generated cbuild-run files in the top-level out folder', () => {
+    it('watches generated cbuild-run files in the top-level out folder', async () => {
         const model = new TraceConfigurationModel();
 
-        model.watchForGeneratedCBuildRunFiles();
+        await model.watchForGeneratedCBuildRunFiles();
 
         expect(vscode.workspace.createFileSystemWatcher).toHaveBeenCalledTimes(1);
         const pattern = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls[0]?.[0] as { pattern: string };
