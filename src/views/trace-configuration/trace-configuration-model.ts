@@ -19,6 +19,9 @@ import * as path from 'node:path';
 
 import * as vscode from 'vscode';
 
+import { CmsisJsonWatcher } from '../../cmsis-files';
+import { CBuildRunFileLocator } from '../../cbuild-run';
+import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
 import { isYamlMapItem, isYamlScalarItem, isYamlSequenceItem, YamlTreeItem, yamlScalarToString } from '../../desktop/yaml-dom';
 import { logger } from '../../logger';
 import { CTRACE_FILE_GLOB, TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING } from '../../manifest';
@@ -69,7 +72,10 @@ export class TraceConfigurationModel {
         private onDidChange: () => void = () => { },
         processorCapabilities?: TraceConfigurationProcessorCapabilities,
         rowBuilder?: TraceConfigurationRowBuilder,
-        generatedCTraceFileManager?: TraceConfigurationGeneratedCTraceFileManager
+        generatedCTraceFileManager?: TraceConfigurationGeneratedCTraceFileManager,
+        fileWatchManager: FileWatchManager = new FileWatchManager(),
+        cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator(),
+        cmsisJsonWatcher?: CmsisJsonWatcher
     ) {
         this.generatedCTraceFileManager = generatedCTraceFileManager ?? new TraceConfigurationGeneratedCTraceFileManager();
         this.processorCapabilities = processorCapabilities ?? new TraceConfigurationProcessorCapabilities(() => this.ctraceFile);
@@ -82,12 +88,17 @@ export class TraceConfigurationModel {
             this.processorCapabilities.capabilities,
             () => vscode.workspace.getConfiguration().get<boolean>(TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING, false)
         );
-        this.fileWatcher = new TraceConfigurationFileWatcher({
-            getCurrentFile: () => this.ctraceFile,
-            onCurrentFileReloaded: document => this.acceptDiskDocument(document),
-            onCurrentFileReloadFailed: error => this.reportCurrentFileReloadError(error),
-            onGeneratedCBuildRunFileChanged: event => this.refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event)
-        });
+        this.fileWatcher = new TraceConfigurationFileWatcher(
+            {
+                getCurrentFile: () => this.ctraceFile,
+                onCurrentFileReloaded: document => this.acceptDiskDocument(document),
+                onCurrentFileReloadFailed: error => this.reportCurrentFileReloadError(error),
+                onGeneratedCBuildRunFileChanged: event => this.refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event)
+            },
+            cbuildRunFileLocator,
+            fileWatchManager,
+            cmsisJsonWatcher
+        );
         this.onDidChangeGeneratedCBuildRunFile = this.fileWatcher.onDidChangeGeneratedCBuildRunFile;
     }
 
@@ -114,8 +125,8 @@ export class TraceConfigurationModel {
      * CMSIS Solution activation starts. This prevents generated-file events
      * emitted during companion-extension startup from being missed.
      */
-    public watchForGeneratedCBuildRunFiles(): void {
-        this.fileWatcher.watchGeneratedCBuildRunFiles();
+    public watchForGeneratedCBuildRunFiles(): Promise<void> {
+        return this.fileWatcher.watchGeneratedCBuildRunFiles();
     }
 
     /**
@@ -153,7 +164,7 @@ export class TraceConfigurationModel {
      * while any existing .cmsis/*.ctrace.yml file remains available to edit.
      */
     public async loadInitialFile(): Promise<void> {
-        this.watchForGeneratedCBuildRunFiles();
+        await this.watchForGeneratedCBuildRunFiles();
         this.loading = true;
         this.errorMessage = undefined;
         this.emptyMessage = undefined;

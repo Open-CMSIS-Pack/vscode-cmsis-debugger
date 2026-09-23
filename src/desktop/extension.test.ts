@@ -15,12 +15,14 @@
  */
 
 import * as vscode from 'vscode';
+import { CmsisJsonWatcher } from '../cmsis-files';
 import { extensionContextFactory } from '../__test__/vscode.factory';
 import { logger } from '../logger';
 import { activate, deactivate } from './extension';
 import { ComponentViewerTreeDataProvider } from '../views/component-viewer/component-viewer-tree-view';
 import { LiveWatchTreeDataProvider } from '../views/live-watch/live-watch';
 import { TraceConfigurationWebviewProvider } from '../views/trace-configuration/trace-configuration-webview-provider';
+import { FileWatchManager } from './filesystem/file-watch-manager';
 
 describe('extension', () => {
     const extensionContexts: vscode.ExtensionContext[] = [];
@@ -83,6 +85,28 @@ describe('extension', () => {
                 expect(debuggerActivationCompleted).toBe(true);
             } finally {
                 traceConfigurationActivateSpy.mockRestore();
+            }
+        });
+
+        it('activates and disposes one shared cmsis.json watcher', async () => {
+            const cmsisJsonWatcherActivateSpy = jest.spyOn(CmsisJsonWatcher.prototype, 'activate');
+            const cmsisJsonWatcherDisposeSpy = jest.spyOn(CmsisJsonWatcher.prototype, 'dispose');
+            const context = createExtensionContext();
+
+            try {
+                await activate(context);
+
+                expect(cmsisJsonWatcherActivateSpy).toHaveBeenCalledTimes(1);
+                expect(cmsisJsonWatcherActivateSpy).toHaveBeenCalledWith(context, expect.any(FileWatchManager));
+
+                (context.subscriptions as Array<vscode.Disposable | undefined>)
+                    .forEach(disposable => disposable?.dispose());
+
+                expect(cmsisJsonWatcherDisposeSpy).toHaveBeenCalledTimes(1);
+                extensionContexts.splice(extensionContexts.indexOf(context), 1);
+            } finally {
+                cmsisJsonWatcherActivateSpy.mockRestore();
+                cmsisJsonWatcherDisposeSpy.mockRestore();
             }
         });
 

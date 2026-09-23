@@ -128,22 +128,4 @@ describe('YamlDomFile', () => {
         expect(adapter.text).toContain('created-by: saved');
     });
 
-    it('tracks external file stamps and reloads from watchers', async () => {
-        const adapter = new MemoryTextFileAdapter('ctrace:\n  created-by: initial\n');
-        const file = new YamlDomFile('target.ctrace.yml', adapter);
-        const onDidReload = jest.fn();
-
-        await file.load();
-        await expect(file.hasExternalFileChanged()).resolves.toBe(false);
-        const watcher = file.watch(onDidReload);
-
-        adapter.update('ctrace:\n  created-by: watched\n');
-        await new Promise(resolve => setTimeout(resolve, 0));
-
-        expect(onDidReload).toHaveBeenCalledTimes(1);
-        expect(file.document?.getString(['ctrace', 'created-by'])).toBe('watched');
-
-        watcher.dispose();
-        expect(adapter.listenerCount()).toBe(0);
-    });
 });

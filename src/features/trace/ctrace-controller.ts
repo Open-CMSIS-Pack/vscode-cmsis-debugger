@@ -16,6 +16,9 @@
 // generated with AI
 
 import * as vscode from 'vscode';
+
+import { CmsisJsonWatcher } from '../../cmsis-files';
+import { CBuildRunFileLocator } from '../../cbuild-run';
 import {
     GDBTargetDebugSession,
     GDBTargetDebugTracker
@@ -42,29 +45,40 @@ export class CTraceController {
     private activeSession: GDBTargetDebugSession | undefined;
     private fileWatchManager: FileWatchManager | undefined;
     private traceEnabled = false;
+    private rawTraceWatcherGeneration = 0;
     private readonly pendingDecodes = new Map<string, PendingDecode>();
     private readonly rawTraceSaves = new Map<string, number>();
 
     public constructor(
         private readonly options: CTraceProcessManagerOptions = {},
         // Injected to make timing-based behavior deterministic in tests.
-        private readonly now: () => number = Date.now
+        private readonly now: () => number = Date.now,
+        private readonly cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator(),
+        private readonly cmsisJsonWatcher?: CmsisJsonWatcher
     ) {}
 
-    public activate(context: vscode.ExtensionContext, tracker: GDBTargetDebugTracker, fileWatchManager: FileWatchManager): void {
+    public async activate(
+        context: vscode.ExtensionContext,
+        tracker: GDBTargetDebugTracker,
+        fileWatchManager: FileWatchManager
+    ): Promise<void> {
         this.fileWatchManager = fileWatchManager;
+        const activeSolutionChangeSubscription = this.cmsisJsonWatcher?.onDidChangeActiveSolution(() => {
+            void this.handleActiveSolutionPathChanged();
+        });
         context.subscriptions.push(
             tracker.onDidChangeActiveDebugSession(session => this.handleActiveSessionChanged(session)),
             tracker.onStopped(event => this.handleDecodeTrigger(event.session)),
             tracker.onWillStopSession(session => this.handleDecodeTrigger(session)),
-            vscode.workspace.onDidChangeConfiguration(event => {
+            vscode.workspace.onDidChangeConfiguration(async event => {
                 if (event.affectsConfiguration(ENABLE_TRACE_GENERATION_VIEW_SETTING)) {
-                    this.updateRawTraceWatcher();
+                    await this.updateRawTraceWatcher();
                 }
             }),
-            { dispose: () => this.removeRawTraceWatcher() }
+            { dispose: () => this.removeRawTraceWatcher() },
+            ...(activeSolutionChangeSubscription ? [activeSolutionChangeSubscription] : [])
         );
-        this.updateRawTraceWatcher();
+        await this.updateRawTraceWatcher();
     }
 
     public async run(options: CTraceProcessManagerLaunchOptions = {}): Promise<number | null> {
@@ -81,8 +95,11 @@ export class CTraceController {
         this.activeSession = session;
     }
 
-    protected async handleRawTraceFileChanged(uri: vscode.Uri): Promise<void> {
-        if (!this.traceEnabled) {
+    protected async handleRawTraceFileChanged(
+        uri: vscode.Uri,
+        watcherGeneration: number = this.rawTraceWatcherGeneration
+    ): Promise<void> {
+        if (!this.traceEnabled || watcherGeneration !== this.rawTraceWatcherGeneration) {
             return;
         }
         const savedAt = this.now();
@@ -149,10 +166,10 @@ export class CTraceController {
         }
     }
 
-    private updateRawTraceWatcher(): void {
+    private async updateRawTraceWatcher(): Promise<void> {
         this.traceEnabled = vscode.workspace.getConfiguration().get<boolean>(ENABLE_TRACE_GENERATION_VIEW_SETTING, false);
         if (this.traceEnabled) {
-            this.addRawTraceWatcher();
+            await this.addRawTraceWatcher();
         } else {
             this.removeRawTraceWatcher();
             this.pendingDecodes.clear();
@@ -160,23 +177,44 @@ export class CTraceController {
         }
     }
 
-    private addRawTraceWatcher(): void {
-        if (this.fileWatchManager === undefined) {
+    private async addRawTraceWatcher(): Promise<void> {
+        const fileWatchManager = this.fileWatchManager;
+        // A watcher cannot be registered before activation supplies its manager.
+        if (fileWatchManager === undefined) {
             return;
         }
-        const ws = vscode.workspace.workspaceFolders?.[0];
-        this.fileWatchManager.addWatch({
+        const watcherGeneration = this.rawTraceWatcherGeneration;
+        const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
+        // Ignore a stale registration after tracing was disabled or reactivation supplied a new manager.
+        if (!this.traceEnabled || watcherGeneration !== this.rawTraceWatcherGeneration || fileWatchManager !== this.fileWatchManager) {
+            return;
+        }
+        const globPattern = activeSolutionFolder
+            ? new vscode.RelativePattern(activeSolutionFolder, RAW_TRACE_GLOB)
+            : RAW_TRACE_GLOB;
+        fileWatchManager.addWatch({
             id: RAW_TRACE_WATCH_ID,
-            globPattern: ws ? new vscode.RelativePattern(ws, RAW_TRACE_GLOB) : RAW_TRACE_GLOB,
-            onDidCreate: uri => this.handleRawTraceFileChanged(uri),
-            onDidChange: uri => this.handleRawTraceFileChanged(uri)
+            globPattern,
+            onDidCreate: uri => this.handleRawTraceFileChanged(uri, watcherGeneration),
+            onDidChange: uri => this.handleRawTraceFileChanged(uri, watcherGeneration)
         });
     }
 
     private removeRawTraceWatcher(): void {
+        this.rawTraceWatcherGeneration += 1;
         if (this.fileWatchManager === undefined) {
             return;
         }
         this.fileWatchManager.removeWatch(RAW_TRACE_WATCH_ID);
+    }
+
+    private async handleActiveSolutionPathChanged(): Promise<void> {
+        if (!this.traceEnabled) {
+            return;
+        }
+        this.removeRawTraceWatcher();
+        this.pendingDecodes.clear();
+        this.rawTraceSaves.clear();
+        await this.addRawTraceWatcher();
     }
 }
