@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- /* generated with AI */
+/* generated with AI */
 
 * {
     box-sizing: border-box;
@@ -113,7 +113,7 @@ button {
 }
 
 .add-button-wrapper {
-    display: inline-flex;
+    display: flex;
     position: relative;
 }
 
@@ -130,9 +130,10 @@ button {
 .tooltip-wrapper::after {
     position: absolute;
     bottom: calc(100% + 6px);
-    left: 50%;
+    right: 0px;
+    left: auto;
     z-index: 10;
-    display: none;
+    display: block;
     max-width: min(220px, 70vw);
     padding: 3px 5px;
     border: 1px solid var(--vscode-editorHoverWidget-border, #454545);
@@ -142,9 +143,10 @@ button {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
     content: attr(data-tooltip);
     font: 11px/1.4 var(--vscode-font-family, "Segoe UI", system-ui, sans-serif);
+    opacity: 0;
     overflow-wrap: anywhere;
     pointer-events: none;
-    transform: translateX(-50%);
+    transition: opacity 600ms ease;
     white-space: normal;
     width: max-content;
 }
@@ -152,12 +154,22 @@ button {
 .tooltip-wrapper:hover::after,
 .tooltip-wrapper:focus-visible::after,
 .tooltip-wrapper:focus-within::after {
-    display: block;
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tooltip-wrapper::after {
+        transition: none;
+    }
 }
 
 .add-button {
-    width: 22px;
-    height: 22px;
+    width: 14px;
+    height: 14px;
+
+    & .codicon-add {
+        font-size: 9px !important;
+    }
 }
 
 .node-action {
@@ -232,6 +244,16 @@ select:disabled {
     cursor: pointer;
 }
 
+.multi-select-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.multi-select-summary .codicon {
+    flex: none;
+}
+
 .multi-select-menu {
     position: absolute;
     z-index: 3;
@@ -272,14 +294,13 @@ input[type="checkbox"] {
 
 .option-tree-table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
     table-layout: fixed;
 }
 
 .option-tree-table th,
 .option-tree-table td {
-    border-bottom: 1px solid rgba(128, 128, 128, 0.22);
-    padding: 6px 7px;
+    padding: 0px 7px;
     text-align: left;
     vertical-align: middle;
 }
@@ -318,6 +339,8 @@ input[type="checkbox"] {
 .tree-label,
 .selection-cell {
     min-width: 0;
+    height: 2em;
+    line-height: 2em;
 }
 
 .node-title {
@@ -340,9 +363,11 @@ input[type="checkbox"] {
 
 .node-text {
     min-width: 0;
+    line-height: 2em;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    padding-left: 0.3em;
 }
 
 .node-meta {
@@ -419,14 +444,18 @@ input[type="checkbox"] {
     color: var(--vscode-errorForeground, #f48771);
 }
 
+.codicon.trace-config.chevron {
+    display: block;
+}
+
 @container (max-width: 360px) {
     .option-tree-table th:first-child {
-        width: 48%;
+        width: fit-content;
     }
 
     .option-tree-table th,
     .option-tree-table td {
-        padding: 5px;
+        padding: 0px;
     }
 
     .node-prefix {

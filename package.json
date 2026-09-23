@@ -119,6 +119,30 @@
         "enablement": "inDebugMode && config.vscode-cmsis-debugger.enableTraceGenerationView"
       },
       {
+        "command": "vscode-cmsis-debugger.traceConfiguration.save",
+        "title": "Save ctrace.yml",
+        "icon": "$(save)",
+        "category": "Trace Generation"
+      },
+      {
+        "command": "vscode-cmsis-debugger.traceConfiguration.openFile",
+        "title": "Open ctrace.yml",
+        "icon": "$(folder-opened)",
+        "category": "Trace Generation"
+      },
+      {
+        "command": "vscode-cmsis-debugger.traceConfiguration.expandAll",
+        "title": "Expand All",
+        "icon": "$(expand-all)",
+        "category": "Trace Generation"
+      },
+      {
+        "command": "vscode-cmsis-debugger.traceConfiguration.collapseAll",
+        "title": "Collapse All",
+        "icon": "$(collapse-all)",
+        "category": "Trace Generation"
+      },
+      {
         "title": "CPU Time",
         "shortTitle": "CPU Time",
         "command": "vscode-cmsis-debugger.showCpuTimeHistory",
@@ -156,6 +180,16 @@
         "command": "vscode-cmsis-debugger.liveWatch.deleteAll",
         "title": "Delete All Expressions",
         "icon": "$(close-all)",
+        "category": "Live Watch"
+      },
+      {
+        "command": "cdt.debug.setOutputRadixToDecimal",
+        "title": "Set Output Radix to Decimal",
+        "category": "Live Watch"
+      },
+      {
+        "command": "cdt.debug.setOutputRadixToHex",
+        "title": "Set Output Radix to Hexadecimal",
         "category": "Live Watch"
       },
       {
@@ -654,6 +688,26 @@
           "command": "vscode-cmsis-debugger.corePeripherals.enablePeriodicUpdate",
           "when": "inDebugMode && view == cmsis-debugger.corePeripherals && corePeripherals.canAccessWhileRunning && !corePeripherals.periodicUpdateEnabled",
           "group": "navigation@3"
+        },
+        {
+          "command": "vscode-cmsis-debugger.traceConfiguration.save",
+          "when": "view == cmsis-debugger.traceConfiguration",
+          "group": "navigation@1"
+        },
+        {
+          "command": "vscode-cmsis-debugger.traceConfiguration.openFile",
+          "when": "view == cmsis-debugger.traceConfiguration",
+          "group": "navigation@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.traceConfiguration.expandAll",
+          "when": "view == cmsis-debugger.traceConfiguration",
+          "group": "navigation@3"
+        },
+        {
+          "command": "vscode-cmsis-debugger.traceConfiguration.collapseAll",
+          "when": "view == cmsis-debugger.traceConfiguration",
+          "group": "navigation@4"
         }
       ],
       "view/item/context": [
