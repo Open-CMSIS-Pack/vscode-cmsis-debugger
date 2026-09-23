@@ -16,21 +16,24 @@
 // generated with AI
 
 import { spawn } from 'child_process';
-import * as vscode from 'vscode';
 import { childProcessFactory } from '../../__test__/child-process.factory';
+import { CBuildRunFileLocator } from '../../cbuild-run';
 import { PyTsProcessManager } from './pyts-process-manager';
 
 jest.mock('child_process');
 
 describe('PyTsProcessManager', () => {
     const mockSpawn = jest.mocked(spawn);
+    let getCBuildRunFileName: jest.SpiedFunction<CBuildRunFileLocator['getCBuildRunFileName']>;
 
     beforeEach(() => {
         mockSpawn.mockReturnValue(childProcessFactory());
-        jest.mocked(vscode.commands.executeCommand).mockReset();
+        getCBuildRunFileName = jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileName')
+            .mockResolvedValue(undefined);
     });
 
     afterEach(() => {
+        jest.restoreAllMocks();
         jest.clearAllMocks();
     });
 
@@ -40,7 +43,7 @@ describe('PyTsProcessManager', () => {
         await processManager.launch({ args: ['custom', 'arguments'] });
 
         expect(mockSpawn).toHaveBeenCalledWith('pyts-path', ['custom', 'arguments'], expect.any(Object));
-        expect(vscode.commands.executeCommand).not.toHaveBeenCalled();
+        expect(getCBuildRunFileName).not.toHaveBeenCalled();
     });
 
     it('uses and trims the provided cbuild run file path', async () => {
@@ -53,11 +56,11 @@ describe('PyTsProcessManager', () => {
             ['/workspace/example.cbuild-run.yml', '--allow-missing'],
             expect.any(Object)
         );
-        expect(vscode.commands.executeCommand).not.toHaveBeenCalled();
+        expect(getCBuildRunFileName).not.toHaveBeenCalled();
     });
 
-    it('uses the active cbuild run file when no path is provided', async () => {
-        jest.mocked(vscode.commands.executeCommand).mockResolvedValue(' /workspace/example.cbuild-run.yml ');
+    it('uses the cbuild run file locator when no path is provided', async () => {
+        getCBuildRunFileName.mockResolvedValue('/workspace/example.cbuild-run.yml');
         const processManager = new PyTsProcessManager({ pyTsPath: 'pyts-path' });
 
         await processManager.launch();
@@ -67,7 +70,7 @@ describe('PyTsProcessManager', () => {
             ['/workspace/example.cbuild-run.yml', '--allow-missing'],
             expect.any(Object)
         );
-        expect(vscode.commands.executeCommand).toHaveBeenCalledWith('cmsis-csolution.getCbuildRunFile');
+        expect(getCBuildRunFileName).toHaveBeenCalledWith(undefined, true);
     });
 
     it('rejects launch when no cbuild run file is available', async () => {

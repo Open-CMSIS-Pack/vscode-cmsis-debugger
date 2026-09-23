@@ -345,6 +345,13 @@ You can add expressions to this view that are updated while the application is r
 
 ![Displaying a variable in the LIVE WATCH](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main//images/lw-counter.gif)
 
+> 📝 **Notes:**
+>
+> Live Watch may stop updating when the processor enters a low-power state, for example after executing `WFI`, because
+> some devices make SRAM inaccessible to the debugger while sleeping. If continuous updates are required, configure the
+> application to avoid sleep states while debugging. This is particularly relevant for RTOS applications such as
+> Zephyr, which typically execute `WFI` from the idle thread.
+
 #### COMPONENT VIEWER
 
 This view shows detailed information to help analyze the operation of software components. The required

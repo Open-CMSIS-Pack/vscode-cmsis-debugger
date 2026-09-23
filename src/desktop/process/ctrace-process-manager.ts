@@ -16,7 +16,7 @@
 // generated with AI
 
 import * as path from 'path';
-import * as vscode from 'vscode';
+
 import { CBuildRunFileLocator } from '../../cbuild-run';
 import { logger } from '../../logger';
 import { BuiltinToolPath } from '../builtin-tool-path';
@@ -53,13 +53,13 @@ export class CTraceProcessManager extends ProcessManager {
     }
 
     public override async launch(options: CTraceProcessManagerLaunchOptions = {}): Promise<void> {
-        const workspacePath = vscode.workspace.workspaceFolders?.at(0)?.uri.fsPath;
-        if (!workspacePath) {
+        const cbuildRunFileLocator = new CBuildRunFileLocator();
+        const activeSolutionFolder = await cbuildRunFileLocator.getActiveSolutionFolder();
+        if (!activeSolutionFolder) {
             throw new Error('No workspace folder is open.');
         }
-        const cbuildRunFileLocator = new CBuildRunFileLocator();
         const args = options.args ?? [
-            options.traceDir ?? path.join(workspacePath, '.trace'),
+            options.traceDir ?? path.join(activeSolutionFolder.fsPath, '.trace'),
             '-t', options.solutionSet ?? await cbuildRunFileLocator.getDefaultSolutionSet(options.cbuildRunFilePath),
             '--csv'
         ];

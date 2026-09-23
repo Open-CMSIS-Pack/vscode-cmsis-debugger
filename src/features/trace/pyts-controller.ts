@@ -17,6 +17,9 @@
 
 import * as path from 'path';
 import * as vscode from 'vscode';
+
+import { CmsisJsonWatcher } from '../../cmsis-files';
+import { CBuildRunFileLocator } from '../../cbuild-run';
 import {
     GDBTargetDebugSession,
     GDBTargetDebugTracker
@@ -49,45 +52,44 @@ export class PyTsController {
     private pendingConversion: PendingCTraceConversion | undefined;
     private conversionPromise: Promise<void> | undefined;
     private watcherGeneration = 0;
+    private traceEnabled = false;
 
-    public constructor(private readonly options: PyTsProcessManagerOptions = {}) { }
+    public constructor(
+        private readonly options: PyTsProcessManagerOptions = {},
+        private readonly cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator(),
+        private readonly cmsisJsonWatcher?: CmsisJsonWatcher
+    ) { }
 
-    public activate(context: vscode.ExtensionContext, tracker: GDBTargetDebugTracker, fileWatchManager: FileWatchManager): void {
+    public async activate(
+        context: vscode.ExtensionContext,
+        tracker: GDBTargetDebugTracker,
+        fileWatchManager: FileWatchManager
+    ): Promise<void> {
         this.fileWatchManager = fileWatchManager;
+        const activeSolutionChangeSubscription = this.cmsisJsonWatcher?.onDidChangeActiveSolution(() => {
+            void this.handleActiveSolutionPathChanged();
+        });
         context.subscriptions.push(
             tracker.onDidChangeActiveDebugSession(session => this.handleActiveSessionChanged(session)),
-            vscode.workspace.onDidChangeConfiguration(event => {
+            vscode.workspace.onDidChangeConfiguration(async event => {
                 if (event.affectsConfiguration(ENABLE_TRACE_GENERATION_VIEW_SETTING)) {
-                    this.updateCTraceConfigurationWatcher();
+                    await this.updateCTraceConfigurationWatcher();
                 }
             }),
-            { dispose: () => this.removeCTraceConfigurationWatcher() }
+            { dispose: () => this.removeCTraceConfigurationWatcher() },
+            ...(activeSolutionChangeSubscription ? [activeSolutionChangeSubscription] : [])
         );
-        this.updateCTraceConfigurationWatcher();
+        await this.updateCTraceConfigurationWatcher();
     }
 
-    public async run(options: PyTsProcessManagerLaunchOptions = {}, shouldReloadCTrace: boolean = false): Promise<number | null> {
+    public async run(options: PyTsProcessManagerLaunchOptions = {}): Promise<number | null> {
         const processManager = new PyTsProcessManager(this.options);
         const cbuildRunFilePath = options.cbuildRunFilePath ?? this.activeSession?.getCbuildRunPath();
         const launchOptions: PyTsProcessManagerLaunchOptions = cbuildRunFilePath === undefined
             ? options
             : { ...options, cbuildRunFilePath };
         await processManager.launch(launchOptions);
-        const exitCode = await processManager.waitForExit();
-        if (shouldReloadCTrace && exitCode === 0) {  // Only reload if pyTS exited successfully
-            await this.reloadCTrace();
-        }
-        return exitCode;
-    }
-
-    public async reloadCTrace(): Promise<void> {
-        const session = vscode.debug.activeDebugSession;
-        if (session) {
-            await session.customRequest('evaluate', {
-                expression: '> monitor ctrace reload',
-                context: 'repl'
-            });
-        }
+        return processManager.waitForExit();
     }
 
     protected handleActiveSessionChanged(session: GDBTargetDebugSession | undefined): void {
@@ -98,6 +100,9 @@ export class PyTsController {
         uri: vscode.Uri,
         watcherGeneration: number = this.watcherGeneration
     ): Promise<void> {
+        if (watcherGeneration !== this.watcherGeneration) {
+            return;
+        }
         const cbuildRunFilePath = this.activeSession?.getCbuildRunPath();
         if (!this.isCTraceFileForCBuildRun(uri, cbuildRunFilePath)) {
             return;
@@ -148,11 +153,14 @@ export class PyTsController {
             while (this.pendingConversion !== undefined) {
                 const pendingConversion = this.pendingConversion;
                 this.pendingConversion = undefined;
+                if (pendingConversion.watcherGeneration !== this.watcherGeneration) {
+                    continue;
+                }
                 const launchOptions: PyTsProcessManagerLaunchOptions = pendingConversion.cbuildRunFilePath === undefined
                     ? {}
                     : { cbuildRunFilePath: pendingConversion.cbuildRunFilePath };
                 try {
-                    const exitCode = await this.run(launchOptions, true);
+                    const exitCode = await this.run(launchOptions);
                     if (exitCode !== 0) {
                         logger.error(`pyTS process exited with code ${exitCode}`);
                     }
@@ -214,24 +222,32 @@ export class PyTsController {
             previous.every((value, index) => value === current.at(index));
     }
 
-    private updateCTraceConfigurationWatcher(): void {
-        const traceEnabled = vscode.workspace.getConfiguration().get<boolean>(ENABLE_TRACE_GENERATION_VIEW_SETTING, false);
-        if (traceEnabled) {
-            this.addCTraceConfigurationWatcher();
+    private async updateCTraceConfigurationWatcher(): Promise<void> {
+        this.traceEnabled = vscode.workspace.getConfiguration().get<boolean>(ENABLE_TRACE_GENERATION_VIEW_SETTING, false);
+        if (this.traceEnabled) {
+            await this.addCTraceConfigurationWatcher();
         } else {
             this.removeCTraceConfigurationWatcher();
         }
     }
 
-    protected addCTraceConfigurationWatcher(): void {
-        if (this.fileWatchManager === undefined) {
+    protected async addCTraceConfigurationWatcher(): Promise<void> {
+        const fileWatchManager = this.fileWatchManager;
+        // A watcher cannot be registered before activation supplies its manager.
+        if (fileWatchManager === undefined) {
             return;
         }
-        const ws = vscode.workspace.workspaceFolders?.[0];
         const watcherGeneration = this.watcherGeneration;
-        this.fileWatchManager.addWatch({
+        const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
+        // Ignore a stale registration after removal or reactivation changes the watcher context.
+        if (!this.traceEnabled || watcherGeneration !== this.watcherGeneration || fileWatchManager !== this.fileWatchManager) {
+            return;
+        }
+        fileWatchManager.addWatch({
             id: CTRACE_CONFIGURATION_WATCH_ID,
-            globPattern: ws ? new vscode.RelativePattern(ws, CTRACE_CONFIGURATION_GLOB) : CTRACE_CONFIGURATION_GLOB,
+            globPattern: activeSolutionFolder
+                ? new vscode.RelativePattern(activeSolutionFolder, CTRACE_CONFIGURATION_GLOB)
+                : CTRACE_CONFIGURATION_GLOB,
             onDidCreate: uri => this.handleCTraceFileChanged(uri, watcherGeneration),
             onDidChange: uri => this.handleCTraceFileChanged(uri, watcherGeneration)
         });
@@ -245,5 +261,13 @@ export class PyTsController {
         this.observedCTraceContents.clear();
         this.contentReadPromises.clear();
         this.pendingConversion = undefined;
+    }
+
+    private async handleActiveSolutionPathChanged(): Promise<void> {
+        if (!this.traceEnabled) {
+            return;
+        }
+        this.removeCTraceConfigurationWatcher();
+        await this.addCTraceConfigurationWatcher();
     }
 }

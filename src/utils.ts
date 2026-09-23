@@ -124,6 +124,13 @@ export const normalizeFsPath = (fileName: string | undefined): string | undefine
     return isWindows ? normalized.toLowerCase() : normalized;
 };
 
+export const getObjectProperty = (value: unknown, key: string): unknown => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return undefined;
+    }
+    return Reflect.get(value, key);
+};
+
 export const isFileNotFoundError = (error: unknown): boolean => {
     if (!error || typeof error !== 'object') {
         return false;
