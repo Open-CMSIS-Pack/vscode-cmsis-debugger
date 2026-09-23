@@ -31,17 +31,19 @@ async function createTemporaryWorkspace(): Promise<string> {
     return workspaceRoot;
 }
 
-function getLastWorkspaceFsUri(method: 'readFile' | 'writeFile' | 'stat'): vscode.Uri | undefined {
+function getLastWorkspaceFsUri(method: 'readFile' | 'writeFile' | 'delete' | 'stat'): vscode.Uri | undefined {
     const calls = getWorkspaceFsMock(method).mock.calls;
     return calls.at(-1)?.[0] as vscode.Uri | undefined;
 }
 
-function getWorkspaceFsMock(method: 'readFile' | 'writeFile' | 'stat'): jest.Mock {
+function getWorkspaceFsMock(method: 'readFile' | 'writeFile' | 'delete' | 'stat'): jest.Mock {
     switch (method) {
         case 'readFile':
             return vscode.workspace.fs.readFile as jest.Mock;
         case 'writeFile':
             return vscode.workspace.fs.writeFile as jest.Mock;
+        case 'delete':
+            return vscode.workspace.fs.delete as jest.Mock;
         case 'stat':
             return vscode.workspace.fs.stat as jest.Mock;
     }
@@ -105,6 +107,20 @@ describe('WorkspaceTextFileAdapter', () => {
         });
         expect(stamp?.mtimeMs).toEqual(expect.any(Number));
         expectSameFsPath(getLastWorkspaceFsUri('stat')?.fsPath, fileName);
+    });
+
+    it('deletes files and ignores missing files', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const fileName = path.join(workspaceRoot, '~target.ctrace.yaml');
+        const adapter = new WorkspaceTextFileAdapter();
+        await adapter.writeTextFile(fileName, 'ctrace:\n');
+
+        await adapter.deleteTextFile(fileName);
+        // Test paths are created under this suite's temporary workspace root.
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
+        await expect(fsPromises.stat(fileName)).rejects.toMatchObject({ code: 'ENOENT' });
+        expectSameFsPath(getLastWorkspaceFsUri('delete')?.fsPath, fileName);
+        await expect(adapter.deleteTextFile(fileName)).resolves.toBeUndefined();
     });
 
     it('returns undefined when stat reports a missing file', async () => {

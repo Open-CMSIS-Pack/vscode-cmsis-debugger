@@ -46,6 +46,7 @@ class FakeTraceConfigurationModel {
         this.onDidChange = callback;
     });
     public readonly dispose = jest.fn();
+    public readonly deactivate = jest.fn().mockResolvedValue(undefined);
     public readonly watchForGeneratedCBuildRunFiles = jest.fn();
     public readonly loadInitialFile = jest.fn().mockResolvedValue(undefined);
     public readonly refreshFile = jest.fn().mockResolvedValue(undefined);
@@ -140,10 +141,6 @@ describe('TraceConfigurationWebviewProvider', () => {
             expect.any(Function)
         );
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
-            'vscode-cmsis-debugger.traceConfiguration.openFile',
-            expect.any(Function)
-        );
-        expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
             'vscode-cmsis-debugger.traceConfiguration.expandAll',
             expect.any(Function)
         );
@@ -190,7 +187,7 @@ describe('TraceConfigurationWebviewProvider', () => {
         });
         const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
         const context = extensionContextFactory();
-        provider.activate(context);
+        await provider.activate(context);
         const findCommand = (command: string): (() => Promise<void> | void) => {
             const entry = (vscode.commands.registerCommand as jest.Mock).mock.calls.find(([registeredCommand]) => registeredCommand === command);
             expect(entry).toBeDefined();
@@ -198,14 +195,21 @@ describe('TraceConfigurationWebviewProvider', () => {
         };
 
         await findCommand('vscode-cmsis-debugger.traceConfiguration.save')();
-        await findCommand('vscode-cmsis-debugger.traceConfiguration.openFile')();
         findCommand('vscode-cmsis-debugger.traceConfiguration.expandAll')();
         findCommand('vscode-cmsis-debugger.traceConfiguration.collapseAll')();
 
         expect(model.saveCurrentDocument).toHaveBeenCalledTimes(1);
-        expect(vscode.window.showOpenDialog).toHaveBeenCalledTimes(1);
         expect(model.updateExpandedState).toHaveBeenNthCalledWith(1, 'parent', true);
         expect(model.updateExpandedState).toHaveBeenNthCalledWith(2, 'parent', false);
+    });
+
+    it('awaits model deactivation', async () => {
+        const model = new FakeTraceConfigurationModel();
+        const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
+
+        await provider.deactivate();
+
+        expect(model.deactivate).toHaveBeenCalledTimes(1);
     });
 
     it('awaits activation of an available inactive CMSIS Solution', async () => {

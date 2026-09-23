@@ -101,6 +101,11 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
         await this.initializeAfterCmsisSolutionActivation(context);
     }
 
+    /** Flushes the latest dirty-file backup before the extension host stops. */
+    public async deactivate(): Promise<void> {
+        await this.model.deactivate();
+    }
+
     /**
      * resolveWebviewView is called by VS Code when the sidebar view is first
      * opened. The method configures CSP-safe HTML, installs message handlers,

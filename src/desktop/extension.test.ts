@@ -155,11 +155,13 @@ describe('extension', () => {
         });
 
         it('deactivates extension after activation', async () => {
+            const traceConfigurationDeactivateSpy = jest.spyOn(TraceConfigurationWebviewProvider.prototype, 'deactivate');
             await activate(createExtensionContext());
             await deactivate();
             expect(loggerSpy).toHaveBeenCalledWith('CMSIS Debugger deactivated');
             expect(treeDataProviderClearSpy).toHaveBeenCalledTimes(2); // Component Viewer and Core Peripherals
             expect(liveWatchDeactivateSpy).toHaveBeenCalled();
+            expect(traceConfigurationDeactivateSpy).toHaveBeenCalled();
         });
 
         // Cannot test deactivation without activation due to global variables in

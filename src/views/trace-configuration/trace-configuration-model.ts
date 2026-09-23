@@ -27,6 +27,12 @@ import { logger } from '../../logger';
 import { CTRACE_FILE_GLOB, TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING } from '../../manifest';
 import { CTraceYamlFile } from './ctrace-yaml';
 import {
+    DebouncedTraceConfigurationBackup,
+    isTraceConfigurationBackupFileName,
+    TraceConfigurationBackupStore,
+    WorkspaceTraceConfigurationBackupStore
+} from './trace-configuration-backup';
+import {
     GeneratedCBuildRunFileChangeEvent,
     TraceConfigurationFileWatcher
 } from './trace-configuration-file-watcher';
@@ -63,6 +69,9 @@ export class TraceConfigurationModel {
     private readonly expandedRows = new Set<string>();
     private readonly processorCapabilities: TraceConfigurationProcessorCapabilities;
     private readonly rowBuilder: TraceConfigurationRowBuilder;
+    private readonly backupStore: TraceConfigurationBackupStore;
+    private readonly backup: DebouncedTraceConfigurationBackup;
+    private deactivationPromise: Promise<void> | undefined;
 
     private set dirty(value: boolean) {
         if (this._dirty !== value) {
@@ -86,9 +95,12 @@ export class TraceConfigurationModel {
         generatedCTraceFileManager?: TraceConfigurationGeneratedCTraceFileManager,
         fileWatchManager: FileWatchManager = new FileWatchManager(),
         cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator(),
-        cmsisJsonWatcher?: CmsisJsonWatcher
+        cmsisJsonWatcher?: CmsisJsonWatcher,
+        backupStore?: TraceConfigurationBackupStore
     ) {
         this.generatedCTraceFileManager = generatedCTraceFileManager ?? new TraceConfigurationGeneratedCTraceFileManager();
+        this.backupStore = backupStore ?? new WorkspaceTraceConfigurationBackupStore();
+        this.backup = new DebouncedTraceConfigurationBackup(this.backupStore, error => this.reportBackupError(error));
         this.processorCapabilities = processorCapabilities ?? new TraceConfigurationProcessorCapabilities(() => this.ctraceFile);
         this.rowBuilder = rowBuilder ?? new TraceConfigurationRowBuilder(
             () => this.ctraceFile,
@@ -128,7 +140,18 @@ export class TraceConfigurationModel {
      * cannot continue reacting to stale ctrace.yml watcher events.
      */
     public dispose(): void {
+        void this.deactivate();
+    }
+
+    /**
+     * deactivate flushes the latest recovery snapshot before extension shutdown.
+     * The returned promise lets the extension host keep running until the write
+     * has completed, while dispose remains compatible with vscode.Disposable.
+     */
+    public deactivate(): Promise<void> {
         this.fileWatcher.dispose();
+        this.deactivationPromise ??= this.backup.dispose();
+        return this.deactivationPromise;
     }
 
     /**
@@ -153,6 +176,7 @@ export class TraceConfigurationModel {
                     await this.loadFile(result.uri.fsPath);
                     break;
                 case 'trace-off':
+                    await this.backup.flush();
                     this.clearCurrentFile();
                     this.emptyMessage = TRACE_OFF_MESSAGE;
                     break;
@@ -229,8 +253,9 @@ export class TraceConfigurationModel {
      */
     public static isCTraceFileName(fileName: string): boolean {
         const baseName = path.basename(fileName).toLowerCase();
-        return baseName.endsWith('.ctrace.yml')
-            || baseName.endsWith('.ctrace.yaml');
+        return !isTraceConfigurationBackupFileName(baseName)
+            && (baseName.endsWith('.ctrace.yml')
+                || baseName.endsWith('.ctrace.yaml'));
     }
 
     /**
@@ -240,14 +265,24 @@ export class TraceConfigurationModel {
      * state snapshot is posted.
      */
     private async loadFile(fileName: string): Promise<void> {
+        await this.backup.flush();
         const nextFile = new CTraceYamlFile(fileName, new WorkspaceTextFileAdapter());
-        const document = await nextFile.load(fileName);
+        const originalDocument = await nextFile.load(fileName);
+        const backupDocument = await this.backupStore.restore(fileName);
+        const document = backupDocument ?? originalDocument;
+        if (backupDocument) {
+            nextFile.document = backupDocument;
+        }
         this.fileWatcher.disposeCurrentFileWatcher();
         this.ctraceFile = nextFile;
         document.assignCTraceRefs();
         await this.loadProcessorCapabilities();
-        this.fileWatcher.watchCurrentFile();
-        this.dirty = false;
+        this.dirty = backupDocument !== undefined;
+        if (this.dirty) {
+            this.fileWatcher.disposeCurrentFileWatcher();
+        } else {
+            this.fileWatcher.watchCurrentFile();
+        }
         this.emptyMessage = undefined;
     }
 
@@ -273,6 +308,8 @@ export class TraceConfigurationModel {
         this.loading = true;
         this.notifyStateChanged();
         try {
+            await this.backup.cancelAndWait();
+            await this.backupStore.delete(this.ctraceFile.fileName);
             const document = await this.ctraceFile.load();
             document.assignCTraceRefs();
             await this.loadProcessorCapabilities();
@@ -343,6 +380,12 @@ export class TraceConfigurationModel {
     private reportCurrentFileReloadError(error: unknown): void {
         this.errorMessage = this.errorToString(error);
         logger.error(`Trace Configuration: Failed to reload ctrace file after disk change: ${this.errorMessage}`);
+        this.notifyStateChanged();
+    }
+
+    private reportBackupError(error: unknown): void {
+        this.errorMessage = this.errorToString(error);
+        logger.error(`Trace Configuration: Failed to back up unsaved changes: ${this.errorMessage}`);
         this.notifyStateChanged();
     }
 
@@ -608,7 +651,7 @@ export class TraceConfigurationModel {
         this.errorMessage = undefined;
         this.fileWatcher.disposeCurrentFileWatcher();
         this.notifyStateChanged();
-        this.ctraceFile.saveAs('~'+this.ctraceFile!.fileName);
+        this.backup.schedule(this.requireFile().fileName, document.toString());
     }
 
     /**
@@ -786,7 +829,18 @@ export class TraceConfigurationModel {
             file.document.normalizeDocumentOrder();
             file.document.assignCTraceRefs();
         }
-        await file.save();
+        const backupContents = file.document?.toString();
+        await this.backup.cancelAndWait();
+        try {
+            await file.save();
+        } catch (error) {
+            if (backupContents !== undefined) {
+                this.backup.schedule(file.fileName, backupContents);
+                await this.backup.flush();
+            }
+            throw error;
+        }
+        await this.backupStore.delete(file.fileName);
         await this.loadProcessorCapabilities();
         this.fileWatcher.watchCurrentFile();
         this.dirty = false;

@@ -182,6 +182,7 @@ module.exports = {
                 fs.mkdirSync(uri.fsPath, { recursive: true });
                 return Promise.resolve();
             }),
+            delete: jest.fn(uri => fs.promises.rm(uri.fsPath, { force: true })),
             stat: jest.fn(uri => new Promise((resolve, reject) => {
                 fs.stat(uri.fsPath, (error, stats) => {
                     if (error) {
