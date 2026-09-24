@@ -65,8 +65,8 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
  * shell loads codicon.css, so the browser bundle only needs to create the
  * standard codicon class names.
  */
-function createIcon(name: string): HTMLSpanElement {
-    const icon = createElement('span', `codicon codicon-${name}`);
+function createIcon(name: string, extraClass?: string): HTMLSpanElement {
+    const icon = createElement('span', `codicon codicon-${name} trace-config${extraClass ? ' ' + extraClass : ''}`);
     icon.setAttribute('aria-hidden', 'true');
     return icon;
 }
@@ -157,46 +157,7 @@ function createHeader(state: TraceConfigurationState): HTMLElement {
  * rendered in the table.
  */
 function createToolbar(): HTMLElement {
-    const toolbar = createElement('div', 'tree-toolbar');
-    toolbar.setAttribute('role', 'toolbar');
-    toolbar.setAttribute('aria-label', 'Trace configuration controls');
-    toolbar.append(
-        createToolbarButton('save', 'Save ctrace.yml', () => post({ type: 'save' })),
-        createToolbarButton('folder-opened', 'Open ctrace.yml', () => post({ type: 'openFile' })),
-        createToolbarButton('expand-all', 'Expand all', () => toggleAllRows(true)),
-        createToolbarButton('collapse-all', 'Collapse all', () => toggleAllRows(false))
-    );
-    return toolbar;
-}
-
-/**
- * createToolbarButton creates a consistent icon button for the toolbar. The
- * callback is attached directly because toolbar buttons do not need row path
- * metadata.
- */
-function createToolbarButton(iconName: string, title: string, onClick: () => void): HTMLButtonElement {
-    const button = createElement('button', 'icon-button');
-    button.type = 'button';
-    button.title = title;
-    button.setAttribute('aria-label', title);
-    button.append(createIcon(iconName));
-    button.addEventListener('click', onClick);
-    return button;
-}
-
-/**
- * toggleAllRows broadcasts expand/collapse messages for each expandable row in
- * the rendered table. The host owns expansion state, so the webview reports
- * each requested transition and waits for the next state update.
- */
-function toggleAllRows(expanded: boolean): void {
-    document.querySelectorAll<HTMLTableRowElement>('tr[data-row-id][data-has-children="true"]').forEach(row => {
-        post({
-            type: 'toggle',
-            id: row.dataset.rowId ?? '',
-            expanded
-        });
-    });
+    return createElement('span', 'tree-toolbar-hidden');
 }
 
 /**
@@ -207,11 +168,23 @@ function toggleAllRows(expanded: boolean): void {
 function createStatus(state: TraceConfigurationState): HTMLElement {
     const status = createElement('div', 'trace-status');
     const file = createElement('span', 'trace-file');
-    file.textContent = state.fileName ?? 'No ctrace.yml selected';
+    file.textContent = getFileNameDisplayText(state);
+    file.title = state.fileName ?? '';
     const dirty = createElement('span', state.dirty ? 'status-warn' : 'status-ok');
     dirty.textContent = state.dirty ? 'Unsaved' : 'Synced';
     status.append(file, dirty);
     return status;
+}
+
+/**
+ * getFileNameDisplayText preserves the absolute filename in state while
+ * shortening the status label for files inside the active workspace.
+ */
+function getFileNameDisplayText(state: TraceConfigurationState): string {
+    if (!state.fileName || !state.workspaceFolderPath) {
+        return state.fileName ?? 'No ctrace.yml selected';
+    }
+    return state.fileName.slice(state.workspaceFolderPath.length + 1);
 }
 
 /**
@@ -242,15 +215,7 @@ function createTable(rows: TraceConfigurationRow[]): HTMLTableElement {
  * a function to mirror createTableBody and keep renderApp easy to scan.
  */
 function createTableHead(): HTMLTableSectionElement {
-    const thead = createElement('thead');
-    const row = createElement('tr');
-    const label = createElement('th');
-    label.textContent = 'Label';
-    const selection = createElement('th');
-    selection.textContent = 'Selection';
-    row.append(label, selection);
-    thead.append(row);
-    return thead;
+    return createElement('thead');
 }
 
 /**
@@ -317,7 +282,9 @@ function createLabelCell(row: TraceConfigurationRow): HTMLTableCellElement {
     const wrapper = createElement('div', 'tree-label');
     const title = createElement('div', `node-title depth-${Math.min(row.depth, 5)}`);
     const prefix = createElement('span', 'node-prefix');
-    prefix.textContent = row.hasChildren ? row.expanded ? 'v' : '>' : '';
+    if (row.hasChildren) {
+        prefix.append(createIcon(row.expanded ? 'chevron-down' : 'chevron-right', 'chevron'));
+    }
     const label = createElement('span', 'node-text');
     label.textContent = row.label;
     if (row.labelTooltip) {
@@ -498,6 +465,7 @@ function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
     details.dataset.rowId = row.id;
     details.open = openMultiSelectId === row.id;
     const summary = createElement('summary', 'multi-select-summary');
+    summary.append(createElement('span', 'multi-select-label'), createIcon('chevron-down'));
     const selectedValues = new Set(row.selectedOptions ?? []);
 
     /**
@@ -506,9 +474,12 @@ function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
      * opening each multi-select control.
      */
     const updateSummary = () => {
-        summary.textContent = selectedValues.size > 0
-            ? Array.from(selectedValues).join(', ')
-            : 'None';
+        const label = summary.querySelector('.multi-select-label') as HTMLElement;
+        if (label) {
+            label.textContent = selectedValues.size > 0
+                ? Array.from(selectedValues).join(', ')
+                : 'None';
+        }
     };
     updateSummary();
     details.addEventListener('toggle', () => {
