@@ -17,8 +17,8 @@
 
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { parse } from 'yaml';
 
+import { YamlDomDocument } from '../../desktop/yaml-dom';
 import type { CsvTableRow } from './csv-table';
 
 interface CTraceRunReference {
@@ -26,13 +26,6 @@ interface CTraceRunReference {
     readonly type?: unknown;
     readonly stream?: unknown;
     readonly source?: unknown;
-}
-
-
-interface CTraceRunFile {
-    readonly 'ctrace-run'?: {
-        readonly 'ctrace-refs'?: unknown;
-    };
 }
 
 export interface CTraceRunMatch {
@@ -61,13 +54,13 @@ export async function resolveCTraceRunReference(
     const source = parseOptionalNumber(getCell(columns, row, 'source'));
     const runFileUri = vscode.Uri.file(path.join(path.dirname(csvUri.fsPath), `${solutionSet}.ctrace-run.yml`));
     const content = await vscode.workspace.fs.readFile(runFileUri);
-    const parsed = parse(new TextDecoder().decode(content)) as CTraceRunFile;
-    const references = parsed['ctrace-run']?.['ctrace-refs'];
-    if (!Array.isArray(references)) {
+    const document = YamlDomDocument.parse(new TextDecoder().decode(content), runFileUri.fsPath);
+    const references = document.getArray<CTraceRunReference>(['ctrace-run', 'ctrace-refs']);
+    if (references.length === 0) {
         return undefined;
     }
 
-    for (const candidate of references as CTraceRunReference[]) {
+    for (const candidate of references) {
         if (candidate.type !== type || typeof candidate['ctrace-ref'] !== 'string') {
             continue;
         }
