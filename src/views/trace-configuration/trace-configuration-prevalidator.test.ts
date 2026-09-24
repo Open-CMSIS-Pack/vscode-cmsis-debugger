@@ -15,6 +15,8 @@
  */
 // generated with AI
 
+import * as path from 'node:path';
+
 import * as vscode from 'vscode';
 
 import { CbuildRunReader, CBuildRunFileLocator } from '../../cbuild-run';
@@ -23,6 +25,12 @@ import { logger } from '../../logger';
 import { waitForCondition } from '../../utils';
 import { TraceConfigurationRunMessageReader } from './ctrace-run-validation-message-reader';
 import { PyTsTraceConfigurationPrevalidator } from './trace-configuration-prevalidator';
+
+const CBUILD_RUN_FILE_NAME = path.join('/workspace', 'out', 'project+target.cbuild-run.yml');
+const CTRACE_FILE_NAME = path.join('/workspace', '.cmsis', 'project+target.ctrace.yml');
+const OTHER_CTRACE_FILE_NAME = path.join('/workspace', '.cmsis', 'other.ctrace.yml');
+const PRODUCTION_CTRACE_RUN_FILE_NAME = path.join('/workspace', '.trace', 'project+target.ctrace-run.yml');
+const BACKUP_CTRACE_RUN_FILE_NAME = path.join('/workspace', '.trace', '~project+target.ctrace-run.yml');
 
 interface FakeProcessManager {
     launch: jest.Mock<Promise<void>, [object?]>;
@@ -55,9 +63,9 @@ function createDependencies(): {
     processManager: FakeProcessManager;
     } {
     const locator = new CBuildRunFileLocator();
-    jest.spyOn(locator, 'getCBuildRunFileName').mockResolvedValue('/workspace/out/project+target.cbuild-run.yml');
+    jest.spyOn(locator, 'getCBuildRunFileName').mockResolvedValue(CBUILD_RUN_FILE_NAME);
     jest.spyOn(locator, 'getCTraceUriFromCBuildRunUri')
-        .mockResolvedValue(vscode.Uri.file('/workspace/.cmsis/project+target.ctrace.yml'));
+        .mockResolvedValue(vscode.Uri.file(CTRACE_FILE_NAME));
     const reader = new CbuildRunReader();
     jest.spyOn(reader, 'parse').mockResolvedValue();
     jest.spyOn(reader, 'getTargetSet').mockReturnValue('<default>');
@@ -77,16 +85,16 @@ describe('PyTsTraceConfigurationPrevalidator', () => {
             () => asProcessManager(processManager)
         );
 
-        await expect(prevalidator.validate('/workspace/.cmsis/project+target.ctrace.yml'))
+        await expect(prevalidator.validate(CTRACE_FILE_NAME))
             .resolves.toEqual({ status: 'passed', referenceMessages: [] });
 
-        expect(reader.parse).toHaveBeenCalledWith('/workspace/out/project+target.cbuild-run.yml');
+        expect(reader.parse).toHaveBeenCalledWith(CBUILD_RUN_FILE_NAME);
         expect(locator.getCTraceUriFromCBuildRunUri).toHaveBeenCalledWith(
-            vscode.Uri.file('/workspace/out/project+target.cbuild-run.yml'),
+            vscode.Uri.file(CBUILD_RUN_FILE_NAME),
             '<default>'
         );
         expect(processManager.launch).toHaveBeenCalledWith({
-            cbuildRunFilePath: '/workspace/out/project+target.cbuild-run.yml'
+            cbuildRunFilePath: CBUILD_RUN_FILE_NAME
         });
     });
 
@@ -103,14 +111,12 @@ describe('PyTsTraceConfigurationPrevalidator', () => {
             runMessageReader
         );
 
-        await expect(prevalidator.validate('/workspace/.cmsis/project+target.ctrace.yml')).resolves.toEqual({
+        await expect(prevalidator.validate(CTRACE_FILE_NAME)).resolves.toEqual({
             status: 'passed',
             referenceMessages: backupMessages
         });
         expect(runMessageReader.readIfExists).toHaveBeenCalledTimes(1);
-        expect(runMessageReader.readIfExists).toHaveBeenCalledWith(
-            '/workspace/.trace/~project+target.ctrace-run.yml'
-        );
+        expect(runMessageReader.readIfExists).toHaveBeenCalledWith(BACKUP_CTRACE_RUN_FILE_NAME);
     });
 
     it('falls back to production messages when backup output is missing', async () => {
@@ -128,13 +134,13 @@ describe('PyTsTraceConfigurationPrevalidator', () => {
             runMessageReader
         );
 
-        await expect(prevalidator.validate('/workspace/.cmsis/project+target.ctrace.yml')).resolves.toEqual({
+        await expect(prevalidator.validate(CTRACE_FILE_NAME)).resolves.toEqual({
             status: 'passed',
             referenceMessages: productionMessages
         });
         expect(runMessageReader.readIfExists.mock.calls.map(call => call[0])).toEqual([
-            '/workspace/.trace/~project+target.ctrace-run.yml',
-            '/workspace/.trace/project+target.ctrace-run.yml'
+            BACKUP_CTRACE_RUN_FILE_NAME,
+            PRODUCTION_CTRACE_RUN_FILE_NAME
         ]);
     });
 
@@ -149,12 +155,10 @@ describe('PyTsTraceConfigurationPrevalidator', () => {
             runMessageReader
         );
 
-        await prevalidator.validate('/workspace/.cmsis/project+target.ctrace.yml');
+        await prevalidator.validate(CTRACE_FILE_NAME);
 
         expect(runMessageReader.readIfExists).toHaveBeenCalledTimes(1);
-        expect(runMessageReader.readIfExists).toHaveBeenCalledWith(
-            '/workspace/.trace/project+target.ctrace-run.yml'
-        );
+        expect(runMessageReader.readIfExists).toHaveBeenCalledWith(PRODUCTION_CTRACE_RUN_FILE_NAME);
     });
 
     it.each([
@@ -170,7 +174,7 @@ describe('PyTsTraceConfigurationPrevalidator', () => {
             () => asProcessManager(processManager)
         );
 
-        await expect(prevalidator.validate('/workspace/.cmsis/project+target.ctrace.yml')).resolves.toEqual({
+        await expect(prevalidator.validate(CTRACE_FILE_NAME)).resolves.toEqual({
             status: 'failed',
             message: `pyTS validation exited with code ${exitDescription}.`
         });
@@ -188,7 +192,7 @@ describe('PyTsTraceConfigurationPrevalidator', () => {
             () => asProcessManager(processManager)
         );
 
-        await expect(prevalidator.validate('/workspace/.cmsis/project+target.ctrace.yml')).resolves.toEqual({
+        await expect(prevalidator.validate(CTRACE_FILE_NAME)).resolves.toEqual({
             status: 'failed',
             message: 'spawn failed'
         });
@@ -204,9 +208,9 @@ describe('PyTsTraceConfigurationPrevalidator', () => {
             () => asProcessManager(processManager)
         );
 
-        await expect(prevalidator.validate('/workspace/.cmsis/other.ctrace.yml')).resolves.toEqual({
+        await expect(prevalidator.validate(OTHER_CTRACE_FILE_NAME)).resolves.toEqual({
             status: 'unavailable',
-            message: 'The selected trace configuration is not the active pyTS input. Expected /workspace/.cmsis/project+target.ctrace.yml.'
+            message: `The selected trace configuration is not the active pyTS input. Expected ${CTRACE_FILE_NAME}.`
         });
         expect(processManager.launch).not.toHaveBeenCalled();
         expect(error).toHaveBeenCalledWith(expect.stringContaining('pyTS validation unavailable'));
@@ -224,9 +228,9 @@ describe('PyTsTraceConfigurationPrevalidator', () => {
             () => asProcessManager(processManager)
         );
 
-        const validation = prevalidator.validate('/workspace/.cmsis/project+target.ctrace.yml');
+        const validation = prevalidator.validate(CTRACE_FILE_NAME);
         await prevalidator.cancel();
-        completeDiscovery?.('/workspace/out/project+target.cbuild-run.yml');
+        completeDiscovery?.(CBUILD_RUN_FILE_NAME);
 
         await expect(validation).resolves.toEqual({ status: 'cancelled' });
         expect(processManager.launch).not.toHaveBeenCalled();
@@ -246,7 +250,7 @@ describe('PyTsTraceConfigurationPrevalidator', () => {
             () => reader,
             () => asProcessManager(processManager)
         );
-        const validation = prevalidator.validate('/workspace/.cmsis/project+target.ctrace.yml');
+        const validation = prevalidator.validate(CTRACE_FILE_NAME);
         await waitForCondition('pyTS validation to start', () => processManager.waitForExit.mock.calls.length > 0);
 
         await prevalidator.cancel();
