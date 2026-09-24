@@ -16,7 +16,11 @@
 // generated with AI
 
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
-import { TraceConfigurationRow, TraceConfigurationState } from './trace-configuration-protocol';
+import {
+    TraceConfigurationReferenceValidationMessage,
+    TraceConfigurationRow,
+    TraceConfigurationState
+} from './trace-configuration-protocol';
 import { TraceConfigurationRowBuilder } from './trace-configuration-row-builder';
 import * as TraceConfigurationTypes from './trace-configuration-types';
 
@@ -63,6 +67,7 @@ function createStateFromYaml(
         capabilities?: Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities>;
         fileName?: string;
         showCTraceRefsInTooltips?: boolean;
+        referenceValidationMessages?: Map<string, TraceConfigurationReferenceValidationMessage>;
     } = {}
 ): TraceConfigurationState {
     const file = new CTraceYamlFile('target.ctrace.yml');
@@ -76,7 +81,10 @@ function createStateFromYaml(
         () => options.errorMessage,
         options.expandedRows ?? new AllRowsExpandedSet(),
         options.capabilities ?? createCapabilities(),
-        () => options.showCTraceRefsInTooltips ?? false
+        () => options.showCTraceRefsInTooltips ?? false,
+        undefined,
+        undefined,
+        () => options.referenceValidationMessages ?? new Map()
     ).createState();
 }
 
@@ -165,6 +173,160 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(findRow(debugState, ['ctrace', 'setup', 0]).labelTooltip).toBe('ctrace-ref: cm33');
         expect(findRow(debugState, ['ctrace', 'setup', 0, 'data']).labelTooltip).toBe('ctrace-ref: data');
         expect(findRow(debugState, ['ctrace', 'setup', 0, 'data', 0]).labelTooltip).toBe('ctrace-ref: data#0');
+    });
+
+    it('adds exact validator messages and summarizes them on parent rows', () => {
+        const text = [
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: watchSymbol',
+            ''
+        ].join('\n');
+        const referenceValidationMessages = new Map<string, TraceConfigurationReferenceValidationMessage>([
+            ['data#0', { ctraceRef: 'data#0', severity: 'error', message: 'unsupported comparator' }],
+            ['unknown', { ctraceRef: 'unknown', severity: 'warning', message: 'ignored' }]
+        ]);
+
+        const state = createStateFromYaml(text, { referenceValidationMessages });
+
+        expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0]).validation).toEqual({
+            severity: 'error',
+            message: 'unsupported comparator'
+        });
+        expect(findRow(state, ['ctrace', 'setup', 0, 'data']).validation).toEqual({
+            severity: 'error',
+            message: 'unsupported comparator'
+        });
+        expect(findRow(state, ['ctrace', 'setup', 0]).validation).toEqual({
+            severity: 'error',
+            message: 'unsupported comparator'
+        });
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'data', 0, 'location'])).toBe(false);
+    });
+
+    it('selects the highest child severity and keeps the first equal-severity child', () => {
+        const text = [
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: firstSymbol',
+            '        - location: secondSymbol',
+            '      instructions:',
+            '        start:',
+            '          - location: main',
+            ''
+        ].join('\n');
+        const referenceValidationMessages = new Map<string, TraceConfigurationReferenceValidationMessage>([
+            ['data#0', { ctraceRef: 'data#0', severity: 'warning', message: 'first warning' }],
+            ['data#1', { ctraceRef: 'data#1', severity: 'warning', message: 'second warning' }],
+            ['instructions:start#0', {
+                ctraceRef: 'instructions:start#0',
+                severity: 'error',
+                message: 'instruction error'
+            }]
+        ]);
+
+        const state = createStateFromYaml(text, { referenceValidationMessages });
+
+        expect(findRow(state, ['ctrace', 'setup', 0, 'data']).validation).toEqual({
+            severity: 'warning',
+            message: 'first warning'
+        });
+        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions']).validation).toEqual({
+            severity: 'error',
+            message: 'instruction error'
+        });
+        expect(findRow(state, ['ctrace', 'setup', 0]).validation).toEqual({
+            severity: 'error',
+            message: 'instruction error'
+        });
+    });
+
+    it('summarizes hidden children on collapsed parents', () => {
+        const text = [
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: watchSymbol',
+            ''
+        ].join('\n');
+        const referenceValidationMessages = new Map<string, TraceConfigurationReferenceValidationMessage>([
+            ['data#0', { ctraceRef: 'data#0', severity: 'info', message: 'hidden child info' }]
+        ]);
+
+        const state = createStateFromYaml(text, {
+            expandedRows: new Set<string>(),
+            referenceValidationMessages
+        });
+
+        expect(findRow(state, ['ctrace', 'setup', 0]).validation).toEqual({
+            severity: 'info',
+            message: 'hidden child info'
+        });
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'data'])).toBe(false);
+    });
+
+    it('summarizes real validation messages on the synthetic Advanced Settings parent', () => {
+        const text = [
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      timesync:',
+            '      synchronization:',
+            '        DWT: 1024',
+            ''
+        ].join('\n');
+        const referenceValidationMessages = new Map<string, TraceConfigurationReferenceValidationMessage>([
+            ['timesync', { ctraceRef: 'timesync', severity: 'warning', message: 'time source unavailable' }]
+        ]);
+
+        const state = createStateFromYaml(text, { referenceValidationMessages });
+
+        expect(findRow(state, ['ctrace', 'setup', 0, 'advanced-settings']).validation).toEqual({
+            severity: 'warning',
+            message: 'time source unavailable'
+        });
+    });
+
+    it('maps validator messages to their exact processor in multi-core files', () => {
+        const text = [
+            'ctrace:',
+            '  setup:',
+            '    - pname: Core0',
+            '      data:',
+            '        - location: firstSymbol',
+            '    - pname: Core1',
+            '      data:',
+            '        - location: secondSymbol',
+            ''
+        ].join('\n');
+        const referenceValidationMessages = new Map<string, TraceConfigurationReferenceValidationMessage>([
+            ['Core0/data#0', { ctraceRef: 'Core0/data#0', severity: 'warning', message: 'first core' }],
+            ['Core1/data#0', { ctraceRef: 'Core1/data#0', severity: 'info', message: 'second core' }]
+        ]);
+
+        const state = createStateFromYaml(text, { referenceValidationMessages });
+
+        expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0]).validation).toEqual({
+            severity: 'warning',
+            message: 'first core'
+        });
+        expect(findRow(state, ['ctrace', 'setup', 0]).validation).toEqual({
+            severity: 'warning',
+            message: 'first core'
+        });
+        expect(findRow(state, ['ctrace', 'setup', 1, 'data', 0]).validation).toEqual({
+            severity: 'info',
+            message: 'second core'
+        });
+        expect(findRow(state, ['ctrace', 'setup', 1]).validation).toEqual({
+            severity: 'info',
+            message: 'second core'
+        });
     });
 
     it('collapses rows by default and hides their children until expanded', () => {

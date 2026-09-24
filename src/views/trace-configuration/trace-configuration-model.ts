@@ -27,21 +27,29 @@ import { logger } from '../../logger';
 import { CTRACE_FILE_GLOB, TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING } from '../../manifest';
 import { CTraceYamlFile } from './ctrace-yaml';
 import {
+    CTraceRunValidationMessageReader,
+    TraceConfigurationRunMessageReader
+} from './ctrace-run-validation-message-reader';
+import {
     DebouncedTraceConfigurationBackup,
     isTraceConfigurationBackupFileName,
+    TraceConfigurationValidationDetails,
     TraceConfigurationBackupStore,
     WorkspaceTraceConfigurationBackupStore
 } from './trace-configuration-backup';
 import {
     GeneratedCBuildRunFileChangeEvent,
+    TraceConfigurationRunFileChangeEvent,
     TraceConfigurationFileWatcher
 } from './trace-configuration-file-watcher';
+import { getTraceConfigurationArtifactFileNames } from './trace-configuration-file-names';
 import {
     TRACE_OFF_MESSAGE,
     TraceConfigurationGeneratedCTraceFileManager
 } from './trace-configuration-generated-ctrace-file-manager';
 import {
     TraceConfigurationRow,
+    TraceConfigurationReferenceValidationMessage,
     TraceConfigurationState,
     TraceConfigurationValidationState
 } from './trace-configuration-protocol';
@@ -82,6 +90,8 @@ export class TraceConfigurationModel {
     private deactivationPromise: Promise<void> | undefined;
     private validationState: TraceConfigurationValidationState = 'idle';
     private validationMessage: string | undefined;
+    private referenceValidationMessages = new Map<string, TraceConfigurationReferenceValidationMessage>();
+    private readonly runMessageReader: TraceConfigurationRunMessageReader;
 
     private set dirty(value: boolean) {
         if (this._dirty !== value) {
@@ -101,15 +111,47 @@ export class TraceConfigurationModel {
 
     private acceptValidationState(
         state: TraceConfigurationValidationState,
-        message?: string
+        details: TraceConfigurationValidationDetails = {}
     ): void {
-        if (this.validationState === state && this.validationMessage === message) {
+        const message = details.message;
+        const referenceMessagesChanged = this.replaceReferenceValidationMessages(
+            state === 'passed' ? details.referenceMessages ?? [] : []
+        );
+        if (
+            this.validationState === state
+            && this.validationMessage === message
+            && !referenceMessagesChanged
+        ) {
             return;
         }
         this.validationState = state;
         this.validationMessage = message;
         this.updateValidationContexts();
         this.notifyStateChanged();
+    }
+
+    private replaceReferenceValidationMessages(
+        messages: readonly TraceConfigurationReferenceValidationMessage[]
+    ): boolean {
+        const nextMessages = new Map(messages.map(message => [message.ctraceRef, message]));
+        const unchanged = nextMessages.size === this.referenceValidationMessages.size
+            && [...nextMessages].every(([ctraceRef, message]) => {
+                const current = this.referenceValidationMessages.get(ctraceRef);
+                return current?.severity === message.severity && current.message === message.message;
+            });
+        if (unchanged) {
+            return false;
+        }
+        this.referenceValidationMessages = nextMessages;
+        return true;
+    }
+
+    private acceptReferenceValidationMessages(
+        messages: readonly TraceConfigurationReferenceValidationMessage[]
+    ): void {
+        if (this.replaceReferenceValidationMessages(messages)) {
+            this.notifyStateChanged();
+        }
     }
 
     private updateValidationContexts(): void {
@@ -138,16 +180,23 @@ export class TraceConfigurationModel {
         cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator(),
         cmsisJsonWatcher?: CmsisJsonWatcher,
         backupStore?: TraceConfigurationBackupStore,
-        prevalidator?: TraceConfigurationPrevalidator
+        prevalidator?: TraceConfigurationPrevalidator,
+        runMessageReader?: TraceConfigurationRunMessageReader
     ) {
+        this.runMessageReader = runMessageReader ?? new CTraceRunValidationMessageReader();
         this.generatedCTraceFileManager = generatedCTraceFileManager ?? new TraceConfigurationGeneratedCTraceFileManager();
         this.backupStore = backupStore ?? new WorkspaceTraceConfigurationBackupStore();
         this.backup = new DebouncedTraceConfigurationBackup(
             this.backupStore,
             error => this.reportBackupError(error),
             {
-                prevalidator: prevalidator ?? new PyTsTraceConfigurationPrevalidator(cbuildRunFileLocator),
-                onValidationStateChanged: (state, message) => this.acceptValidationState(state, message)
+                prevalidator: prevalidator ?? new PyTsTraceConfigurationPrevalidator(
+                    cbuildRunFileLocator,
+                    undefined,
+                    undefined,
+                    this.runMessageReader
+                ),
+                onValidationStateChanged: (state, details) => this.acceptValidationState(state, details)
             }
         );
         this.processorCapabilities = processorCapabilities ?? new TraceConfigurationProcessorCapabilities(() => this.ctraceFile);
@@ -160,14 +209,16 @@ export class TraceConfigurationModel {
             this.processorCapabilities.capabilities,
             () => vscode.workspace.getConfiguration().get<boolean>(TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING, false),
             () => this.validationState,
-            () => this.validationMessage
+            () => this.validationMessage,
+            () => this.referenceValidationMessages
         );
         this.fileWatcher = new TraceConfigurationFileWatcher(
             {
                 getCurrentFile: () => this.ctraceFile,
                 onCurrentFileReloaded: document => this.acceptDiskDocument(document),
                 onCurrentFileReloadFailed: error => this.reportCurrentFileReloadError(error),
-                onGeneratedCBuildRunFileChanged: event => this.refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event)
+                onGeneratedCBuildRunFileChanged: event => this.refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event),
+                onCurrentRunFileChanged: event => this.handleCurrentRunFileChanged(event)
             },
             cbuildRunFileLocator,
             fileWatchManager,
@@ -293,6 +344,7 @@ export class TraceConfigurationModel {
      */
     private clearCurrentFile(): void {
         this.fileWatcher.disposeCurrentFileWatcher();
+        this.fileWatcher.disposeCurrentRunFileWatchers();
         this.ctraceFile = undefined;
         this.processorCapabilities.clear();
         this.dirty = false;
@@ -331,6 +383,7 @@ export class TraceConfigurationModel {
         document.assignCTraceRefs();
         await this.loadProcessorCapabilities();
         this.dirty = backupDocument !== undefined;
+        this.fileWatcher.watchCurrentRunFiles();
         if (this.dirty) {
             this.fileWatcher.disposeCurrentFileWatcher();
         } else {
@@ -341,6 +394,7 @@ export class TraceConfigurationModel {
             this.backup.validateExisting(fileName);
         } else {
             this.acceptValidationState('idle');
+            await this.loadProductionReferenceValidationMessages();
         }
     }
 
@@ -374,6 +428,7 @@ export class TraceConfigurationModel {
             this.fileWatcher.watchCurrentFile();
             this.dirty = false;
             this.acceptValidationState('idle');
+            await this.loadProductionReferenceValidationMessages();
             this.errorMessage = undefined;
         } finally {
             this.loading = false;
@@ -430,6 +485,56 @@ export class TraceConfigurationModel {
         this.acceptValidationState('idle');
         this.errorMessage = undefined;
         this.notifyStateChanged();
+    }
+
+    /** Loads persisted validator messages when no in-memory backup is active. */
+    private async loadProductionReferenceValidationMessages(): Promise<void> {
+        const currentFile = this.ctraceFile;
+        if (!currentFile || this.dirty) {
+            return;
+        }
+        try {
+            const artifacts = getTraceConfigurationArtifactFileNames(currentFile.fileName);
+            const messages = await this.runMessageReader.readIfExists(
+                artifacts.productionCTraceRunFileName
+            ) ?? [];
+            if (this.ctraceFile === currentFile && !this.dirty) {
+                this.acceptReferenceValidationMessages(messages);
+            }
+        } catch (error) {
+            if (this.ctraceFile === currentFile && !this.dirty) {
+                this.acceptReferenceValidationMessages([]);
+            }
+            logger.error('Trace Configuration: Failed to read production ctrace-run validation messages:', error);
+        }
+    }
+
+    /** Applies only the output that corresponds to the model's current source. */
+    private async handleCurrentRunFileChanged(event: TraceConfigurationRunFileChangeEvent): Promise<void> {
+        const currentFile = this.ctraceFile;
+        const expectsBackup = this.dirty;
+        if (!currentFile || (event.kind === 'backup') !== expectsBackup) {
+            return;
+        }
+        if (event.type === 'deleted') {
+            this.acceptReferenceValidationMessages([]);
+            return;
+        }
+        try {
+            const messages = await this.runMessageReader.readIfExists(event.uri.fsPath) ?? [];
+            if (
+                this.ctraceFile === currentFile
+                && this.dirty === expectsBackup
+                && (event.kind === 'backup') === this.dirty
+            ) {
+                this.acceptReferenceValidationMessages(messages);
+            }
+        } catch (error) {
+            if (this.ctraceFile === currentFile && this.dirty === expectsBackup) {
+                this.acceptReferenceValidationMessages([]);
+            }
+            logger.error(`Trace Configuration: Failed to read ${event.kind} ctrace-run validation messages:`, error);
+        }
     }
 
     /**

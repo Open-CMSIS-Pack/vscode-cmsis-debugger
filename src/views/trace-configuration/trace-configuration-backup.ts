@@ -18,7 +18,11 @@
 import * as path from 'node:path';
 
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
-import { TraceConfigurationValidationState } from './trace-configuration-protocol';
+import { getTraceConfigurationBackupFileName } from './trace-configuration-file-names';
+import {
+    TraceConfigurationReferenceValidationMessage,
+    TraceConfigurationValidationState
+} from './trace-configuration-protocol';
 import {
     TraceConfigurationPrevalidationResult,
     TraceConfigurationPrevalidator
@@ -27,9 +31,7 @@ import { WorkspaceTextFileAdapter } from './workspace-text-file-adapter';
 
 export const TRACE_CONFIGURATION_BACKUP_DEBOUNCE_MS = 500;
 
-export function getTraceConfigurationBackupFileName(fileName: string): string {
-    return path.join(path.dirname(fileName), `~${path.basename(fileName)}`);
-}
+export { getTraceConfigurationBackupFileName } from './trace-configuration-file-names';
 
 export function isTraceConfigurationBackupFileName(fileName: string): boolean {
     return path.basename(fileName).startsWith('~');
@@ -86,9 +88,14 @@ export interface DebouncedTraceConfigurationBackupOptions {
     readonly prevalidator?: TraceConfigurationPrevalidator;
     readonly onValidationStateChanged?: (
         state: TraceConfigurationValidationState,
-        message?: string
+        details?: TraceConfigurationValidationDetails
     ) => void;
     readonly debounceMs?: number;
+}
+
+export interface TraceConfigurationValidationDetails {
+    readonly message?: string;
+    readonly referenceMessages?: readonly TraceConfigurationReferenceValidationMessage[];
 }
 
 /**
@@ -106,7 +113,7 @@ export class DebouncedTraceConfigurationBackup {
     private readonly prevalidator: TraceConfigurationPrevalidator | undefined;
     private readonly onValidationStateChanged: (
         state: TraceConfigurationValidationState,
-        message?: string
+        details?: TraceConfigurationValidationDetails
     ) => void;
     private readonly debounceMs: number;
 
@@ -210,7 +217,7 @@ export class DebouncedTraceConfigurationBackup {
                 await this.store.write(snapshot.fileName, snapshot.contents);
             } catch (error) {
                 if (snapshot.revision === this.revision) {
-                    this.onValidationStateChanged('failed', this.errorToString(error));
+                    this.onValidationStateChanged('failed', { message: this.errorToString(error) });
                 }
                 this.onError(error);
                 return;
@@ -237,11 +244,15 @@ export class DebouncedTraceConfigurationBackup {
     private acceptValidationResult(result: Exclude<TraceConfigurationPrevalidationResult, { status: 'cancelled' }>): void {
         switch (result.status) {
             case 'passed':
-                this.onValidationStateChanged('passed');
+                if (result.referenceMessages?.length) {
+                    this.onValidationStateChanged('passed', { referenceMessages: result.referenceMessages });
+                } else {
+                    this.onValidationStateChanged('passed');
+                }
                 break;
             case 'failed':
             case 'unavailable':
-                this.onValidationStateChanged(result.status, result.message);
+                this.onValidationStateChanged(result.status, { message: result.message });
                 break;
         }
     }

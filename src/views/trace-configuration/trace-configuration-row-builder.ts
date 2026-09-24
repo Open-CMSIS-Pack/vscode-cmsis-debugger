@@ -27,6 +27,7 @@ import {
 } from '../../desktop/yaml-dom';
 
 import {
+    TraceConfigurationReferenceValidationMessage,
     TraceConfigurationRow,
     TraceConfigurationState,
     TraceConfigurationValidationState
@@ -35,6 +36,11 @@ import * as TraceConfigurationTypes from './trace-configuration-types';
 import { CTraceYamlFile } from './ctrace-yaml';
 
 type TraceNodeEntry = { label: string; path: (string | number)[]; node: YamlTreeItem };
+type TraceRowValidation = NonNullable<TraceConfigurationRow['validation']>;
+
+interface TraceRowBuildContext extends TraceConfigurationTypes.RowBuildContext {
+    readonly aggregatedValidations: ReadonlyMap<string, TraceRowValidation>;
+}
 
 /**
  * TraceConfigurationRowBuilder is responsible for projecting the ctrace YAML DOM into the
@@ -58,7 +64,8 @@ export class TraceConfigurationRowBuilder {
         private readonly processorCapabilities: ReadonlyMap<string, TraceConfigurationTypes.ProcessorTraceCapabilities>,
         private readonly getShowCTraceRefsInTooltips: () => boolean,
         private readonly getValidationState: () => TraceConfigurationValidationState = () => 'idle',
-        private readonly getValidationMessage: () => string | undefined = () => undefined
+        private readonly getValidationMessage: () => string | undefined = () => undefined,
+        private readonly getReferenceValidationMessages: () => ReadonlyMap<string, TraceConfigurationReferenceValidationMessage> = () => new Map()
     ) { }
 
     /**
@@ -96,10 +103,11 @@ export class TraceConfigurationRowBuilder {
         if (!root) {
             return [];
         }
-        const context: TraceConfigurationTypes.RowBuildContext = {
+        const context: TraceRowBuildContext = {
             rows: [],
             expandedRows: this.expandedRows,
-            showCTraceRefsInTooltips: this.getShowCTraceRefsInTooltips()
+            showCTraceRefsInTooltips: this.getShowCTraceRefsInTooltips(),
+            aggregatedValidations: this.createAggregatedValidations(root)
         };
         const ctraceRoot = this.getCTraceFile()?.document?.yaml.getItem(['ctrace']);
         if (ctraceRoot) {
@@ -119,7 +127,7 @@ export class TraceConfigurationRowBuilder {
      * the webview because the available processors are discovered elsewhere.
      */
     private appendNodeRows(
-        context: TraceConfigurationTypes.RowBuildContext,
+        context: TraceRowBuildContext,
         node: YamlTreeItem,
         nodePath: (string | number)[],
         label: string,
@@ -149,7 +157,7 @@ export class TraceConfigurationRowBuilder {
             depth,
             hasChildren,
             expanded,
-            context.showCTraceRefsInTooltips
+            context
         ));
         if (!hasChildren || !expanded) {
             return;
@@ -166,7 +174,7 @@ export class TraceConfigurationRowBuilder {
      * gives Time Syncronization and Stream Syncronization a clearer home in the
      * webview tree.
      */
-    private appendAdvancedSettingsRows(context: TraceConfigurationTypes.RowBuildContext, node: YamlTreeItem, nodePath: (string | number)[], depth: number): void {
+    private appendAdvancedSettingsRows(context: TraceRowBuildContext, node: YamlTreeItem, nodePath: (string | number)[], depth: number): void {
         if (!this.isProcessorPath(nodePath) || !isYamlMapItem(node)) {
             return;
         }
@@ -176,9 +184,13 @@ export class TraceConfigurationRowBuilder {
         }
         const advancedPath = [...nodePath, 'advanced-settings'];
         const expanded = context.expandedRows.has(this.pathToId(advancedPath));
+        const validation = this.selectHighestPriorityValidation(
+            childEntries.map(child => context.aggregatedValidations.get(this.pathToId(child.path)))
+        );
         context.rows.push({
             id: this.pathToId(advancedPath),
             label: 'Advanced Settings',
+            ...(validation ? { validation } : {}),
             path: advancedPath,
             depth,
             kind: 'map',
@@ -203,7 +215,7 @@ export class TraceConfigurationRowBuilder {
      * the DWT dropdown changes.
      */
     private appendStreamSynchronizationRows(
-        context: TraceConfigurationTypes.RowBuildContext,
+        context: TraceRowBuildContext,
         node: YamlTreeItem,
         nodePath: (string | number)[],
         label: string,
@@ -212,7 +224,7 @@ export class TraceConfigurationRowBuilder {
         const id = this.pathToId(nodePath);
         const expanded = context.expandedRows.has(id);
         context.rows.push({
-            ...this.createRow(node, nodePath, label, depth, true, expanded, context.showCTraceRefsInTooltips),
+            ...this.createRow(node, nodePath, label, depth, true, expanded, context),
             addChildKind: undefined,
             control: 'none',
         });
@@ -247,17 +259,19 @@ export class TraceConfigurationRowBuilder {
         depth: number,
         hasChildren: boolean,
         expanded: boolean,
-        showCTraceRefsInTooltips: boolean
+        context: TraceRowBuildContext
     ): TraceConfigurationRow {
         const kind = isYamlMapItem(node) ? 'map' : isYamlSequenceItem(node) || this.isBareSequenceNode(node, nodePath) ? 'sequence' : 'scalar';
         const scalarValue = isYamlScalarItem(node) ? this.scalarToString(node) : undefined;
         const valuePath = this.getRowValuePath(nodePath);
         const placeholder = this.getRowPlaceholder(nodePath);
-        const labelTooltip = this.getCTraceRefTooltip(nodePath, showCTraceRefsInTooltips);
+        const labelTooltip = this.getCTraceRefTooltip(nodePath, context.showCTraceRefsInTooltips);
+        const validation = context.aggregatedValidations.get(this.pathToId(nodePath));
         const row: TraceConfigurationRow = {
             id: this.pathToId(nodePath),
             label: this.getRowLabel(node, label, nodePath),
             ...(labelTooltip ? { labelTooltip } : {}),
+            ...(validation ? { validation } : {}),
             path: nodePath,
             ...(valuePath ? { valuePath } : {}),
             depth,
@@ -278,6 +292,75 @@ export class TraceConfigurationRowBuilder {
             description: this.describeNode(node, nodePath)
         };
         return row;
+    }
+
+    /** Selects the highest-priority validator message for every real YAML subtree. */
+    private createAggregatedValidations(root: YamlTreeItem): ReadonlyMap<string, TraceRowValidation> {
+        const validations = new Map<string, TraceRowValidation>();
+        const visit = (node: YamlTreeItem, nodePath: (string | number)[]): TraceRowValidation | undefined => {
+            const ctraceRef = this.getCTraceFile()?.document?.getCTraceRef(nodePath);
+            const exactValidation = ctraceRef ? this.getReferenceValidationMessages().get(ctraceRef) : undefined;
+            let selected = exactValidation
+                ? { severity: exactValidation.severity, message: exactValidation.message }
+                : undefined;
+            this.getDocumentChildEntries(node, nodePath).forEach(child => {
+                selected = this.selectHigherPriorityValidation(selected, visit(child.node, child.path));
+            });
+            if (selected) {
+                validations.set(this.pathToId(nodePath), selected);
+            }
+            return selected;
+        };
+        visit(root, []);
+        return validations;
+    }
+
+    /** Returns real document children without display filtering or synthetic rows. */
+    private getDocumentChildEntries(node: YamlTreeItem, nodePath: (string | number)[]): TraceNodeEntry[] {
+        if (isYamlMapItem(node)) {
+            return node.getChildren().flatMap(child => {
+                const label = child.getTag();
+                return label ? [{ label, path: [...nodePath, label], node: child }] : [];
+            });
+        }
+        if (isYamlSequenceItem(node)) {
+            return node.getChildren().map((child, index) => ({
+                label: String(index),
+                path: [...nodePath, index],
+                node: child
+            }));
+        }
+        return [];
+    }
+
+    private selectHighestPriorityValidation(
+        validations: readonly (TraceRowValidation | undefined)[]
+    ): TraceRowValidation | undefined {
+        return validations.reduce<TraceRowValidation | undefined>(
+            (selected, validation) => this.selectHigherPriorityValidation(selected, validation),
+            undefined
+        );
+    }
+
+    private selectHigherPriorityValidation(
+        selected: TraceRowValidation | undefined,
+        candidate: TraceRowValidation | undefined
+    ): TraceRowValidation | undefined {
+        if (!selected || (candidate && this.validationPriority(candidate) > this.validationPriority(selected))) {
+            return candidate;
+        }
+        return selected;
+    }
+
+    private validationPriority(validation: TraceRowValidation): number {
+        switch (validation.severity) {
+            case 'error':
+                return 2;
+            case 'warning':
+                return 1;
+            case 'info':
+                return 0;
+        }
     }
 
     /**

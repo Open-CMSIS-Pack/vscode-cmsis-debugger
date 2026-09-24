@@ -21,11 +21,17 @@ import { CbuildRunReader, CBuildRunFileLocator } from '../../cbuild-run';
 import { PyTsProcessManager } from '../../desktop/process/pyts-process-manager';
 import { logger } from '../../logger';
 import { normalizeFsPath } from '../../utils';
+import {
+    CTraceRunValidationMessageReader,
+    TraceConfigurationRunMessageReader
+} from './ctrace-run-validation-message-reader';
+import { getTraceConfigurationArtifactFileNames } from './trace-configuration-file-names';
+import { TraceConfigurationReferenceValidationMessage } from './trace-configuration-protocol';
 
 const PYTS_STOP_TIMEOUT_MS = 250;
 
 export type TraceConfigurationPrevalidationResult =
-    | { status: 'passed' }
+    | { status: 'passed'; referenceMessages?: readonly TraceConfigurationReferenceValidationMessage[] }
     | { status: 'failed'; message: string }
     | { status: 'unavailable'; message: string }
     | { status: 'cancelled' };
@@ -51,7 +57,8 @@ export class PyTsTraceConfigurationPrevalidator implements TraceConfigurationPre
     public constructor(
         private readonly cbuildRunFileLocator = new CBuildRunFileLocator(),
         private readonly cbuildRunReaderFactory: CbuildRunReaderFactory = () => new CbuildRunReader(),
-        private readonly processManagerFactory: PyTsProcessManagerFactory = () => new PyTsProcessManager()
+        private readonly processManagerFactory: PyTsProcessManagerFactory = () => new PyTsProcessManager(),
+        private readonly runMessageReader: TraceConfigurationRunMessageReader = new CTraceRunValidationMessageReader()
     ) {}
 
     public async validate(fileName: string): Promise<TraceConfigurationPrevalidationResult> {
@@ -84,6 +91,12 @@ export class PyTsTraceConfigurationPrevalidator implements TraceConfigurationPre
                 );
             }
 
+            const artifactFileNames = getTraceConfigurationArtifactFileNames(fileName);
+            const validatesBackup = await this.runMessageReader.exists(artifactFileNames.backupCTraceFileName);
+            if (!this.isCurrent(generation)) {
+                return { status: 'cancelled' };
+            }
+
             const processManager = this.processManagerFactory();
             this.activeProcess = processManager;
             await processManager.launch({ cbuildRunFilePath });
@@ -97,7 +110,11 @@ export class PyTsTraceConfigurationPrevalidator implements TraceConfigurationPre
                 return { status: 'cancelled' };
             }
             if (exitCode === 0) {
-                return { status: 'passed' };
+                const referenceMessages = await this.readReferenceMessages(artifactFileNames, validatesBackup);
+                if (!this.isCurrent(generation)) {
+                    return { status: 'cancelled' };
+                }
+                return { status: 'passed', referenceMessages };
             }
             const message = `pyTS validation exited with code ${exitCode ?? 'null'}.`;
             logger.error(`Trace Configuration: ${message}`);
@@ -132,6 +149,28 @@ export class PyTsTraceConfigurationPrevalidator implements TraceConfigurationPre
     private unavailable(message: string): TraceConfigurationPrevalidationResult {
         logger.error(`Trace Configuration: pyTS validation unavailable: ${message}`);
         return { status: 'unavailable', message };
+    }
+
+    private async readReferenceMessages(
+        artifactFileNames: ReturnType<typeof getTraceConfigurationArtifactFileNames>,
+        validatesBackup: boolean
+    ): Promise<readonly TraceConfigurationReferenceValidationMessage[]> {
+        try {
+            if (validatesBackup) {
+                const backupMessages = await this.runMessageReader.readIfExists(
+                    artifactFileNames.backupCTraceRunFileName
+                );
+                if (backupMessages !== undefined) {
+                    return backupMessages;
+                }
+            }
+            return await this.runMessageReader.readIfExists(
+                artifactFileNames.productionCTraceRunFileName
+            ) ?? [];
+        } catch (error) {
+            logger.error('Trace Configuration: Failed to read ctrace-run validation messages:', error);
+            return [];
+        }
     }
 
     private async stopProcess(processManager: PyTsProcessManager): Promise<void> {

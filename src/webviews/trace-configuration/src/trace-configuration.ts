@@ -217,7 +217,7 @@ function createEmptyState(message: string, isError = false): HTMLElement {
 }
 
 /**
- * createTable builds the two-column tree table shown in the mockup. Rows are
+ * createTable builds the label and selection columns. Rows are
  * already flattened by the host, so this function only creates headers and one
  * table row per TraceConfigurationRow.
  */
@@ -296,7 +296,7 @@ function isRowToggleInteractiveTarget(target: EventTarget | null): boolean {
  * on YAML values.
  */
 function createLabelCell(row: TraceConfigurationRow): HTMLTableCellElement {
-    const cell = createElement('td');
+    const cell = createElement('td', 'label-cell');
     const wrapper = createElement('div', 'tree-label');
     const title = createElement('div', `node-title depth-${Math.min(row.depth, 5)}`);
     const prefix = createElement('span', 'node-prefix');
@@ -308,7 +308,11 @@ function createLabelCell(row: TraceConfigurationRow): HTMLTableCellElement {
     if (row.labelTooltip) {
         label.title = row.labelTooltip;
     }
-    title.append(prefix, label);
+    title.append(prefix);
+    if (row.validation) {
+        title.append(createValidationIcon(row.validation.severity, row.validation.message));
+    }
+    title.append(label);
     if (row.removable) {
         title.append(createRemoveButton(row));
     }
@@ -320,6 +324,16 @@ function createLabelCell(row: TraceConfigurationRow): HTMLTableCellElement {
     }
     cell.append(wrapper);
     return cell;
+}
+
+/** Creates the accessible, severity-colored validator marker for one row. */
+function createValidationIcon(severity: 'info' | 'warning' | 'error', message: string): HTMLSpanElement {
+    const wrapper = createElement('span', `tooltip-wrapper validation-icon validation-${severity}`);
+    wrapper.tabIndex = 0;
+    wrapper.dataset.tooltip = message;
+    wrapper.setAttribute('aria-label', `${severity}: ${message}`);
+    wrapper.append(createIcon(severity));
+    return wrapper;
 }
 
 /**
