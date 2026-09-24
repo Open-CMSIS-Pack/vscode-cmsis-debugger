@@ -39,6 +39,16 @@ export class WorkspaceTextFileAdapter implements TextFileAdapter {
         await vscode.workspace.fs.writeFile(vscode.Uri.file(fileName), this.encoder.encode(contents));
     }
 
+    public async deleteTextFile(fileName: string): Promise<void> {
+        try {
+            await vscode.workspace.fs.delete(vscode.Uri.file(fileName));
+        } catch (error) {
+            if (!isFileNotFoundError(error)) {
+                throw error;
+            }
+        }
+    }
+
     public async stat(fileName: string): Promise<TextFileStamp | undefined> {
         try {
             const stat = await vscode.workspace.fs.stat(vscode.Uri.file(fileName));

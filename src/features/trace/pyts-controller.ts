@@ -34,7 +34,7 @@ import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
 import { logger } from '../..';
 import { normalizeFsPath } from '../../utils';
 
-const CTRACE_CONFIGURATION_GLOB = '.cmsis/*.ctrace.{yml,yaml}';
+const CTRACE_CONFIGURATION_GLOB = '.cmsis/[!~]*.ctrace.{yml,yaml}';
 const CTRACE_CONFIGURATION_WATCH_ID = 'pyts-ctrace-configuration';
 
 interface PendingCTraceConversion {
@@ -189,6 +189,9 @@ export class PyTsController {
     }
 
     private isCTraceFileForCBuildRun(uri: vscode.Uri, cbuildRunFilePath: string | undefined): boolean {
+        if (path.basename(uri.fsPath).startsWith('~')) {
+            return false;
+        }
         const cbuildRunDirectoryName = cbuildRunFilePath === undefined
             ? undefined
             : normalizeFsPath(path.basename(path.dirname(cbuildRunFilePath)));
