@@ -876,7 +876,7 @@ describe('TraceConfigurationModel', () => {
             '  setup:',
             '    - pname: cm33',
             '      data:',
-            '        - location: newSymbol',
+            '        - location: updatedSymbol',
             ''
         ].join('\n'));
         fireWatcherHandler(sourceWatcher, 'change', vscode.Uri.file(fileName));
