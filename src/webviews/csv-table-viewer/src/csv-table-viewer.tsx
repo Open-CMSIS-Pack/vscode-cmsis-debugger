@@ -296,10 +296,12 @@ export const CsvTableViewer = (): JSX.Element => {
     const updateRowSelection = (event: ReactMouseEvent<HTMLButtonElement>, rowIndex: number): void => {
         setSelection(current => event.shiftKey
             ? selectRowRange(current, rowIndex)
-            : event.ctrlKey || event.metaKey
+            : event.altKey
                 ? toggleRow(current, rowIndex)
                 : selectSingleRow(rowIndex));
-        scrollElementRef.current?.focus({ preventScroll: true });
+        if (event.ctrlKey) {
+            scrollElementRef.current?.focus({ preventScroll: true });
+        }
     };
 
     const moveSelection = (destination: number, movement: RowSelectionMovement): void => {
@@ -453,7 +455,9 @@ export const CsvTableViewer = (): JSX.Element => {
                                 tabIndex={-1}
                                 onClick={event => {
                                     updateRowSelection(event, rowIndex);
-                                    vscode.postMessage({ type: 'cellSelected', sourceRowIndex: row.sourceRowIndex, columnIndex, columnName: tableState.columns[columnIndex], cellValue });
+                                    if (event.ctrlKey) {
+                                        vscode.postMessage({ type: 'cellSelected', sourceRowIndex: row.sourceRowIndex, columnIndex, columnName: tableState.columns[columnIndex], cellValue });
+                                    }
                                 }}
                             >{cellValue}</button>)}
                         </div>;
