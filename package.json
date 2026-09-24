@@ -77,8 +77,7 @@
           "id": "cmsis-debugger.traceConfiguration",
           "type": "webview",
           "name": "Trace Generation",
-          "icon": "media/trace-and-live-light.svg",
-          "when": "config.vscode-cmsis-debugger.enableTraceGenerationView"
+          "icon": "media/trace-and-live-light.svg"
         }
       ]
     },
@@ -91,8 +90,7 @@
       {
         "command": "vscode-cmsis-debugger.generateDefaultCTraceFile",
         "title": "Generate Default Ctrace File",
-        "category": "CMSIS Debugger",
-        "enablement": "config.vscode-cmsis-debugger.enableTraceGenerationView"
+        "category": "CMSIS Debugger"
       },
       {
         "command": "vscode-cmsis-debugger.openDisassemblyView",
@@ -103,20 +101,18 @@
       {
         "command": "vscode-cmsis-debugger.launchPyTs",
         "title": "Convert *.ctrace.yml to *.ctrace-run.yml",
-        "category": "CMSIS Debugger",
-        "enablement": "config.vscode-cmsis-debugger.enableTraceGenerationView"
+        "category": "CMSIS Debugger"
       },
       {
         "command": "vscode-cmsis-debugger.launchCTrace",
         "title": "Decode raw trace file",
-        "category": "CMSIS Debugger",
-        "enablement": "config.vscode-cmsis-debugger.enableTraceGenerationView"
+        "category": "CMSIS Debugger"
       },
       {
         "command": "vscode-cmsis-debugger.reloadCTrace",
         "title": "Reload ctrace",
         "category": "CMSIS Debugger",
-        "enablement": "inDebugMode && config.vscode-cmsis-debugger.enableTraceGenerationView"
+        "enablement": "inDebugMode"
       },
       {
         "command": "vscode-cmsis-debugger.traceConfiguration.save",
@@ -422,7 +418,7 @@
         },
         {
           "command": "vscode-cmsis-debugger.generateDefaultCTraceFile",
-          "when": "config.vscode-cmsis-debugger.enableTraceGenerationView"
+          "when": "true"
         },
         {
           "command": "vscode-cmsis-debugger.openDisassemblyView",
@@ -582,15 +578,15 @@
         },
         {
           "command": "vscode-cmsis-debugger.launchPyTs",
-          "when": "config.vscode-cmsis-debugger.enableTraceGenerationView"
+          "when": "true"
         },
         {
           "command": "vscode-cmsis-debugger.launchCTrace",
-          "when": "config.vscode-cmsis-debugger.enableTraceGenerationView"
+          "when": "true"
         },
         {
           "command": "vscode-cmsis-debugger.reloadCTrace",
-          "when": "inDebugMode && config.vscode-cmsis-debugger.enableTraceGenerationView"
+          "when": "inDebugMode"
         }
       ],
       "view/title": [
@@ -972,11 +968,6 @@
       {
         "title": "Trace Generation View",
         "properties": {
-          "vscode-cmsis-debugger.enableTraceGenerationView": {
-            "type": "boolean",
-            "default": false,
-            "description": "Show the Trace Generation view and load trace configuration from .cmsis/*.ctrace.yml when available."
-          },
           "vscode-cmsis-debugger.showCTraceRefsInTooltips": {
             "type": "boolean",
             "default": false,
