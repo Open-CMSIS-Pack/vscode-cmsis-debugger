@@ -31,6 +31,10 @@ import {
 } from '../../manifest';
 import { containsSubstringsInOrder, normalizeFsPath, waitForCondition, waitForImmediate } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
+import {
+    getTraceConfigurationBackupFileName,
+    TraceConfigurationBackupStore
+} from './trace-configuration-backup';
 import { TRACE_OFF_MESSAGE } from './trace-configuration-generated-ctrace-file-manager';
 import { TraceConfigurationModel } from './trace-configuration-model';
 import { TraceConfigurationProcessorCapabilities } from './trace-configuration-processor-capabilities';
@@ -208,7 +212,11 @@ async function createModelFromText(
     text: string,
     capabilities?: Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities>,
     fileName = 'target.ctrace.yml'
-): Promise<{ adapter: MemoryTextFileAdapter; model: TraceConfigurationModel }> {
+): Promise<{
+    adapter: MemoryTextFileAdapter;
+    backupStore: jest.Mocked<TraceConfigurationBackupStore>;
+    model: TraceConfigurationModel;
+}> {
     const adapter = new MemoryTextFileAdapter(text);
     const file = new CTraceYamlFile(fileName, adapter);
     const document = await file.load();
@@ -218,9 +226,23 @@ async function createModelFromText(
         const privateCapabilities = processorCapabilities as unknown as TraceConfigurationProcessorCapabilitiesPrivate;
         capabilities?.forEach((value, key) => privateCapabilities.processorCapabilities.set(key, value));
     }
-    const model = new TraceConfigurationModel(() => { }, processorCapabilities);
+    const backupStore: jest.Mocked<TraceConfigurationBackupStore> = {
+        restore: jest.fn().mockResolvedValue(undefined),
+        write: jest.fn().mockResolvedValue(undefined),
+        delete: jest.fn().mockResolvedValue(undefined)
+    };
+    const model = new TraceConfigurationModel(
+        () => { },
+        processorCapabilities,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        backupStore
+    );
     (model as unknown as TraceConfigurationModelPrivate).ctraceFile = file;
-    return { adapter, model };
+    return { adapter, backupStore, model };
 }
 
 describe('TraceConfigurationModel', () => {
@@ -236,6 +258,8 @@ describe('TraceConfigurationModel', () => {
         { fileName: 'ctrace.yaml', expected: false },
         { fileName: 'board.ctrace.yml', expected: true },
         { fileName: 'board.ctrace.yaml', expected: true },
+        { fileName: '~board.ctrace.yml', expected: false },
+        { fileName: '~board.ctrace.yaml', expected: false },
         { fileName: 'trace.yml', expected: false },
         { fileName: 'ctrace.json', expected: false },
     ])('recognizes ctrace file names: $fileName', ({ fileName, expected }) => {
@@ -625,6 +649,158 @@ describe('TraceConfigurationModel', () => {
         expect(adapter.text).toContain('access: W');
         expect(adapter.text.match(/access: X/g) ?? []).toHaveLength(2);
         expect(model.createState().dirty).toBe(false);
+    });
+
+    it('writes a delayed backup without changing the active file', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
+        const fileName = path.join(ctraceDirectory, 'target.ctrace.yml');
+        const backupFileName = getTraceConfigurationBackupFileName(fileName);
+        const originalText = [
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            ''
+        ].join('\n');
+        await createTemporaryDirectory(ctraceDirectory);
+        await writeTemporaryTextFile(fileName, originalText);
+        const model = new TraceConfigurationModel();
+        await model.openFile(fileName);
+
+        await model.addItem(['ctrace', 'setup', 0, 'data'], 'data');
+
+        await expect(readTemporaryTextFile(backupFileName)).rejects.toThrow('ENOENT');
+        const backupText = await waitForTemporaryTextFile(backupFileName, contents => contents.includes('access: W'));
+        expect(backupText).toContain('access: W');
+        await expect(readTemporaryTextFile(fileName)).resolves.toBe(originalText);
+        expect(model.createState().dirty).toBe(true);
+        await model.deactivate();
+    });
+
+    it('flushes a pending backup before opening another file', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
+        const firstFileName = path.join(ctraceDirectory, 'first.ctrace.yml');
+        const secondFileName = path.join(ctraceDirectory, 'second.ctrace.yml');
+        await createTemporaryDirectory(ctraceDirectory);
+        await writeTemporaryTextFile(firstFileName, 'ctrace:\n  setup:\n    - pname: cm33\n      data:\n');
+        await writeTemporaryTextFile(secondFileName, 'ctrace:\n  setup:\n    - pname: cm55\n');
+        const model = new TraceConfigurationModel();
+        await model.openFile(firstFileName);
+        await model.addItem(['ctrace', 'setup', 0, 'data'], 'data');
+
+        await model.openFile(secondFileName);
+
+        await expect(readTemporaryTextFile(getTraceConfigurationBackupFileName(firstFileName)))
+            .resolves.toContain('access: W');
+        expect(model.createState().fileName).toBe(secondFileName);
+        expect(model.createState().dirty).toBe(false);
+        await model.deactivate();
+    });
+
+    it('restores a backup as dirty even when the active file is newer, then removes it on save', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
+        const fileName = path.join(ctraceDirectory, 'target.ctrace.yml');
+        const backupFileName = getTraceConfigurationBackupFileName(fileName);
+        await createTemporaryDirectory(ctraceDirectory);
+        await writeTemporaryTextFile(backupFileName, [
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      timestamps:',
+            '        clock: 200000000',
+            ''
+        ].join('\n'));
+        await writeTemporaryTextFile(fileName, [
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      timestamps:',
+            '        clock: 100000000',
+            ''
+        ].join('\n'));
+        const model = new TraceConfigurationModel();
+
+        await model.openFile(fileName);
+
+        const document = (model as unknown as TraceConfigurationModelPrivate).ctraceFile?.document;
+        expect(document?.toString()).toContain('clock: 200000000');
+        expect(model.createState().dirty).toBe(true);
+
+        await model.saveCurrentDocument();
+
+        await expect(readTemporaryTextFile(fileName)).resolves.toContain('clock: 200000000');
+        await expect(readTemporaryTextFile(backupFileName)).rejects.toThrow('ENOENT');
+        expect(model.createState().dirty).toBe(false);
+        await model.deactivate();
+    });
+
+    it('discards an invalid backup and opens the active file clean', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
+        const fileName = path.join(ctraceDirectory, 'target.ctrace.yml');
+        const backupFileName = getTraceConfigurationBackupFileName(fileName);
+        await createTemporaryDirectory(ctraceDirectory);
+        await writeTemporaryTextFile(fileName, 'ctrace:\n  created-by: original\n');
+        await writeTemporaryTextFile(backupFileName, 'ctrace:\n  setup: [unterminated\n');
+        const model = new TraceConfigurationModel();
+
+        await model.openFile(fileName);
+
+        const document = (model as unknown as TraceConfigurationModelPrivate).ctraceFile?.document;
+        expect(document?.toString()).toContain('created-by: original');
+        expect(model.createState().dirty).toBe(false);
+        await expect(readTemporaryTextFile(backupFileName)).rejects.toThrow('ENOENT');
+        await model.deactivate();
+    });
+
+    it('cancels a pending backup and deletes it when reverting', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
+        const fileName = path.join(ctraceDirectory, 'target.ctrace.yml');
+        const backupFileName = getTraceConfigurationBackupFileName(fileName);
+        await createTemporaryDirectory(ctraceDirectory);
+        await writeTemporaryTextFile(fileName, [
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            ''
+        ].join('\n'));
+        const model = new TraceConfigurationModel();
+        await model.openFile(fileName);
+        await model.addItem(['ctrace', 'setup', 0, 'data'], 'data');
+
+        await model.refreshFile();
+
+        await new Promise(resolve => setTimeout(resolve, 550));
+        await expect(readTemporaryTextFile(backupFileName)).rejects.toThrow('ENOENT');
+        expect((model as unknown as TraceConfigurationModelPrivate).ctraceFile?.document?.toString())
+            .not.toContain('access: W');
+        expect(model.createState().dirty).toBe(false);
+        await model.deactivate();
+    });
+
+    it('flushes the latest snapshot when saving the active file fails', async () => {
+        const { adapter, backupStore, model } = await createModelFromText([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            ''
+        ].join('\n'));
+        await model.addItem(['ctrace', 'setup', 0, 'data'], 'data');
+        jest.spyOn(adapter, 'writeTextFile').mockRejectedValueOnce(new Error('save failed'));
+
+        await expect(model.saveCurrentDocument()).rejects.toThrow('save failed');
+
+        expect(backupStore.write).toHaveBeenCalledTimes(1);
+        expect(backupStore.write.mock.calls[0]?.[1]).toContain('access: W');
+        expect(backupStore.delete).not.toHaveBeenCalled();
+        expect(model.createState().dirty).toBe(true);
+        await model.deactivate();
     });
 
     it('serializes emptied editable sequences as bare keys', async () => {
