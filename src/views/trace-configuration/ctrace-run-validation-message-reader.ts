@@ -25,7 +25,6 @@ import {
 import { WorkspaceTextFileAdapter } from './workspace-text-file-adapter';
 
 export interface TraceConfigurationRunMessageReader {
-    exists(fileName: string): Promise<boolean>;
     readIfExists(fileName: string): Promise<readonly TraceConfigurationReferenceValidationMessage[] | undefined>;
 }
 
@@ -33,12 +32,8 @@ export interface TraceConfigurationRunMessageReader {
 export class CTraceRunValidationMessageReader implements TraceConfigurationRunMessageReader {
     public constructor(private readonly fileAdapter: TextFileAdapter = new WorkspaceTextFileAdapter()) {}
 
-    public async exists(fileName: string): Promise<boolean> {
-        return await this.fileAdapter.stat(fileName) !== undefined;
-    }
-
     public async readIfExists(fileName: string): Promise<readonly TraceConfigurationReferenceValidationMessage[] | undefined> {
-        if (!await this.exists(fileName)) {
+        if (!await this.fileAdapter.stat(fileName)) {
             return undefined;
         }
         return parseCTraceRunValidationMessages(await this.fileAdapter.readTextFile(fileName));
