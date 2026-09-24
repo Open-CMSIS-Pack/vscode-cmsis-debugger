@@ -35,9 +35,10 @@ export interface GeneratedCBuildRunFileChangeEvent {
 }
 
 export type TraceConfigurationRunFileKind = 'production' | 'backup';
+export type TraceConfigurationRunFileChangeType = 'created' | 'changed';
 
 export interface TraceConfigurationRunFileChangeEvent {
-    readonly type: GeneratedCBuildRunFileChangeType;
+    readonly type: TraceConfigurationRunFileChangeType;
     readonly kind: TraceConfigurationRunFileKind;
     readonly uri: vscode.Uri;
 }
@@ -412,8 +413,7 @@ export class TraceConfigurationFileWatcher {
             id: watchId,
             globPattern: pattern,
             onDidCreate: uri => this.handleCurrentRunFileChange(watchedFile, watchVersion, kind, 'created', uri),
-            onDidChange: uri => this.handleCurrentRunFileChange(watchedFile, watchVersion, kind, 'changed', uri),
-            onDidDelete: uri => this.handleCurrentRunFileChange(watchedFile, watchVersion, kind, 'deleted', uri)
+            onDidChange: uri => this.handleCurrentRunFileChange(watchedFile, watchVersion, kind, 'changed', uri)
         });
     }
 
@@ -421,7 +421,7 @@ export class TraceConfigurationFileWatcher {
         watchedFile: CTraceYamlFile,
         watchVersion: number,
         kind: TraceConfigurationRunFileKind,
-        type: GeneratedCBuildRunFileChangeType,
+        type: TraceConfigurationRunFileChangeType,
         uri: vscode.Uri
     ): Promise<void> {
         if (

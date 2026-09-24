@@ -37,6 +37,7 @@ import { TraceConfigurationBackupStore } from './trace-configuration-backup';
 import { getTraceConfigurationBackupFileName } from './trace-configuration-file-names';
 import { TRACE_OFF_MESSAGE } from './trace-configuration-generated-ctrace-file-manager';
 import { TraceConfigurationModel } from './trace-configuration-model';
+import { TraceConfigurationReferenceValidationMessage } from './trace-configuration-protocol';
 import {
     TraceConfigurationPrevalidationResult,
     TraceConfigurationPrevalidator
@@ -82,7 +83,6 @@ function createPassingPrevalidator(): jest.Mocked<TraceConfigurationPrevalidator
 
 function createRunMessageReader(): jest.Mocked<TraceConfigurationRunMessageReader> {
     return {
-        exists: jest.fn().mockResolvedValue(false),
         readIfExists: jest.fn().mockResolvedValue(undefined)
     };
 }
@@ -749,18 +749,12 @@ describe('TraceConfigurationModel', () => {
             true
         );
 
-        completeValidation?.({
-            status: 'passed',
-            referenceMessages: [{ ctraceRef: 'data#0', severity: 'warning', message: 'aligned range' }]
-        });
+        completeValidation?.({ status: 'passed' });
         await waitForCondition('pyTS prevalidation to pass', () => model.createState().validationState === 'passed');
 
         const passedState = model.createState();
         expect(passedState.validationState).toBe('passed');
-        expect(passedState.rows.find(row => row.path.join('.') === 'ctrace.setup.0.data.0')?.validation).toEqual({
-            severity: 'warning',
-            message: 'aligned range'
-        });
+        expect(passedState.rows.find(row => row.path.join('.') === 'ctrace.setup.0.data.0')?.validation).toBeUndefined();
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
             'setContext',
             'vscode-cmsis-debugger.traceConfiguration.validationSucceeded',
@@ -789,6 +783,72 @@ describe('TraceConfigurationModel', () => {
             validationState: 'failed',
             validationMessage: 'conversion failed'
         });
+        await model.deactivate();
+    });
+
+    it('keeps watched backup messages regardless of whether they arrive before or after validation failure', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
+        const fileName = path.join(ctraceDirectory, 'target.ctrace.yml');
+        await createTemporaryDirectory(ctraceDirectory);
+        await writeTemporaryTextFile(fileName, [
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: counter',
+            ''
+        ].join('\n'));
+        const prevalidator = createPassingPrevalidator();
+        let completeValidation: ((result: TraceConfigurationPrevalidationResult) => void) | undefined;
+        prevalidator.validate
+            .mockImplementationOnce(() => new Promise(resolve => {
+                completeValidation = resolve;
+            }))
+            .mockResolvedValueOnce({ status: 'failed', message: 'second validation failed' });
+        let backupMessage = 'message before exit';
+        const runMessageReader = createRunMessageReader();
+        runMessageReader.readIfExists.mockImplementation(async runFileName =>
+            path.basename(runFileName).startsWith('~')
+                ? [{ ctraceRef: 'data#0', severity: 'error', message: backupMessage }]
+                : []);
+        const model = createWorkspaceModel(() => {}, prevalidator, runMessageReader);
+        const watcherStartIndex = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls.length;
+
+        await model.openFile(fileName);
+        model.updateExpandedState(JSON.stringify(['ctrace', 'setup', 0]), true);
+        model.updateExpandedState(JSON.stringify(['ctrace', 'setup', 0, 'data']), true);
+        const getDataValidation = () => model.createState().rows.find(row =>
+            JSON.stringify(row.path) === JSON.stringify(['ctrace', 'setup', 0, 'data', 0]))?.validation;
+        const backupWatcher = (vscode.workspace.createFileSystemWatcher as jest.Mock)
+            .mock.results.at(watcherStartIndex + 1)?.value as MockFileSystemWatcher;
+
+        await model.updateValue(['ctrace', 'setup', 0, 'data', 0, 'location'], 'firstEdit');
+        const firstSave = model.saveCurrentDocument();
+        await waitForCondition('first pyTS validation to start', () => prevalidator.validate.mock.calls.length === 1);
+        await backupWatcher._handlers.change[0]?.(vscode.Uri.file(
+            path.join(workspaceRoot, '.trace', '~target.ctrace-run.yml')
+        ));
+        expect(getDataValidation()).toEqual({ severity: 'error', message: 'message before exit' });
+        completeValidation?.({ status: 'failed', message: 'first validation failed' });
+        await firstSave;
+        expect(model.createState()).toMatchObject({
+            validationState: 'failed',
+            validationMessage: 'first validation failed'
+        });
+        expect(getDataValidation()).toEqual({ severity: 'error', message: 'message before exit' });
+
+        await model.updateValue(['ctrace', 'setup', 0, 'data', 0, 'location'], 'secondEdit');
+        await model.saveCurrentDocument();
+        expect(model.createState()).toMatchObject({
+            validationState: 'failed',
+            validationMessage: 'second validation failed'
+        });
+        backupMessage = 'message after exit';
+        await backupWatcher._handlers.change[0]?.(vscode.Uri.file(
+            path.join(workspaceRoot, '.trace', '~target.ctrace-run.yml')
+        ));
+        expect(getDataValidation()).toEqual({ severity: 'error', message: 'message after exit' });
         await model.deactivate();
     });
 
@@ -835,45 +895,102 @@ describe('TraceConfigurationModel', () => {
         expect(getDataValidation()).toEqual({ severity: 'info', message: 'production message' });
 
         await model.updateValue(['ctrace', 'setup', 0, 'data', 0, 'location'], 'nextCounter');
-        expect(getDataValidation()).toBeUndefined();
+        expect(getDataValidation()).toEqual({ severity: 'info', message: 'production message' });
         await productionWatcher._handlers.change[0]?.(vscode.Uri.file(
             path.join(workspaceRoot, '.trace', 'target.ctrace-run.yml')
         ));
-        expect(getDataValidation()).toBeUndefined();
-        await backupWatcher._handlers.change[0]?.(vscode.Uri.file(
-            path.join(workspaceRoot, '.trace', '~target.ctrace-run.yml')
-        ));
-        expect(getDataValidation()).toEqual({ severity: 'error', message: 'backup message' });
-
-        await backupWatcher._handlers.delete[0]?.(vscode.Uri.file(
-            path.join(workspaceRoot, '.trace', '~target.ctrace-run.yml')
-        ));
-        expect(getDataValidation()).toBeUndefined();
-
+        expect(getDataValidation()).toEqual({ severity: 'info', message: 'production message' });
         await backupWatcher._handlers.change[0]?.(vscode.Uri.file(
             path.join(workspaceRoot, '.trace', '~target.ctrace-run.yml')
         ));
         expect(getDataValidation()).toEqual({ severity: 'error', message: 'backup message' });
         await model.saveCurrentDocument();
         expect(model.createState().dirty).toBe(false);
-        expect(getDataValidation()).toBeUndefined();
+        expect(getDataValidation()).toEqual({ severity: 'error', message: 'backup message' });
 
         await backupWatcher._handlers.change[0]?.(vscode.Uri.file(
             path.join(workspaceRoot, '.trace', '~target.ctrace-run.yml')
         ));
-        expect(getDataValidation()).toBeUndefined();
+        expect(getDataValidation()).toEqual({ severity: 'error', message: 'backup message' });
         await productionWatcher._handlers.create[0]?.(vscode.Uri.file(
             path.join(workspaceRoot, '.trace', 'target.ctrace-run.yml')
         ));
         expect(getDataValidation()).toEqual({ severity: 'info', message: 'production message' });
-        await productionWatcher._handlers.delete[0]?.(vscode.Uri.file(
+
+        runMessageReader.readIfExists.mockRejectedValueOnce(new Error('temporary read failure'));
+        await productionWatcher._handlers.change[0]?.(vscode.Uri.file(
+            path.join(workspaceRoot, '.trace', 'target.ctrace-run.yml')
+        ));
+        expect(getDataValidation()).toEqual({ severity: 'info', message: 'production message' });
+        expect(productionWatcher._handlers.delete).toHaveLength(0);
+
+        runMessageReader.readIfExists.mockResolvedValueOnce(undefined);
+        await productionWatcher._handlers.change[0]?.(vscode.Uri.file(
+            path.join(workspaceRoot, '.trace', 'target.ctrace-run.yml')
+        ));
+        expect(getDataValidation()).toEqual({ severity: 'info', message: 'production message' });
+
+        runMessageReader.readIfExists.mockResolvedValueOnce([]);
+        await productionWatcher._handlers.change[0]?.(vscode.Uri.file(
             path.join(workspaceRoot, '.trace', 'target.ctrace-run.yml')
         ));
         expect(getDataValidation()).toBeUndefined();
         await model.deactivate();
     });
 
-    it('clears production messages after a manual ctrace edit until pyTS updates its output', async () => {
+    it('discards a run-file read when its source becomes inactive', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
+        const fileName = path.join(ctraceDirectory, 'target.ctrace.yml');
+        await createTemporaryDirectory(ctraceDirectory);
+        await writeTemporaryTextFile(fileName, [
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: counter',
+            ''
+        ].join('\n'));
+        const runMessageReader = createRunMessageReader();
+        const productionMessages = [
+            { ctraceRef: 'data#0', severity: 'info' as const, message: 'current production message' }
+        ];
+        let completeRead: ((messages: readonly TraceConfigurationReferenceValidationMessage[] | undefined) => void)
+            | undefined;
+        runMessageReader.readIfExists
+            .mockResolvedValueOnce(productionMessages)
+            .mockImplementationOnce(() => new Promise(resolve => {
+                completeRead = resolve;
+            }));
+        const model = createWorkspaceModel(() => {}, createPassingPrevalidator(), runMessageReader);
+        const watcherStartIndex = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls.length;
+
+        await model.openFile(fileName);
+        model.updateExpandedState(JSON.stringify(['ctrace', 'setup', 0]), true);
+        model.updateExpandedState(JSON.stringify(['ctrace', 'setup', 0, 'data']), true);
+        const getDataValidation = () => model.createState().rows.find(row =>
+            JSON.stringify(row.path) === JSON.stringify(['ctrace', 'setup', 0, 'data', 0]))?.validation;
+        const productionWatcher = (vscode.workspace.createFileSystemWatcher as jest.Mock)
+            .mock.results.at(watcherStartIndex)?.value as MockFileSystemWatcher;
+
+        productionWatcher._handlers.change[0]?.(vscode.Uri.file(
+            path.join(workspaceRoot, '.trace', 'target.ctrace-run.yml')
+        ));
+        await waitForCondition('production run-file read to start', () =>
+            runMessageReader.readIfExists.mock.calls.length === 2);
+        await model.updateValue(['ctrace', 'setup', 0, 'data', 0, 'location'], 'nextCounter');
+        completeRead?.([{
+            ctraceRef: 'data#0',
+            severity: 'warning',
+            message: 'stale production message'
+        }]);
+        await waitForWatcherWork();
+
+        expect(getDataValidation()).toEqual({ severity: 'info', message: 'current production message' });
+        await model.deactivate();
+    });
+
+    it('retains production messages after a manual ctrace edit until pyTS updates its output', async () => {
         const workspaceRoot = await createTemporaryWorkspace();
         const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
         const fileName = path.join(ctraceDirectory, 'target.ctrace.yml');
@@ -913,7 +1030,10 @@ describe('TraceConfigurationModel', () => {
             ''
         ].join('\n'));
         fireWatcherHandler(sourceWatcher, 'change', vscode.Uri.file(fileName));
-        await waitForCondition('manual ctrace edit reload', () => getDataValidation() === undefined);
+        await waitForCondition('manual ctrace edit reload', () =>
+            (model as unknown as TraceConfigurationModelPrivate).ctraceFile?.document?.toString()
+                .includes('updatedSymbol') === true);
+        expect(getDataValidation()).toEqual({ severity: 'warning', message: 'old production message' });
 
         runMessageReader.readIfExists.mockResolvedValue([
             { ctraceRef: 'data#0', severity: 'error', message: 'new production message' }

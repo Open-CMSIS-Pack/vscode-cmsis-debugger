@@ -35,7 +35,6 @@ import {
 import {
     DebouncedTraceConfigurationBackup,
     isTraceConfigurationBackupFileName,
-    TraceConfigurationValidationDetails,
     TraceConfigurationBackupStore,
     WorkspaceTraceConfigurationBackupStore
 } from './trace-configuration-backup';
@@ -113,17 +112,9 @@ export class TraceConfigurationModel {
 
     private acceptValidationState(
         state: TraceConfigurationValidationState,
-        details: TraceConfigurationValidationDetails = {}
+        message?: string
     ): void {
-        const message = details.message;
-        const referenceMessagesChanged = this.replaceReferenceValidationMessages(
-            state === 'passed' ? details.referenceMessages ?? [] : []
-        );
-        if (
-            this.validationState === state
-            && this.validationMessage === message
-            && !referenceMessagesChanged
-        ) {
+        if (this.validationState === state && this.validationMessage === message) {
             return;
         }
         this.validationState = state;
@@ -193,13 +184,8 @@ export class TraceConfigurationModel {
             this.backupStore,
             error => this.reportBackupError(error),
             {
-                prevalidator: prevalidator ?? new PyTsTraceConfigurationPrevalidator(
-                    cbuildRunFileLocator,
-                    undefined,
-                    undefined,
-                    this.runMessageReader
-                ),
-                onValidationStateChanged: (state, details) => this.acceptValidationState(state, details)
+                prevalidator: prevalidator ?? new PyTsTraceConfigurationPrevalidator(cbuildRunFileLocator),
+                onValidationStateChanged: (state, message) => this.acceptValidationState(state, message)
             }
         );
         this.processorCapabilities = processorCapabilities ?? new TraceConfigurationProcessorCapabilities(() => this.ctraceFile);
@@ -498,16 +484,11 @@ export class TraceConfigurationModel {
         }
         try {
             const artifacts = getTraceConfigurationArtifactFileNames(currentFile.fileName);
-            const messages = await this.runMessageReader.readIfExists(
-                artifacts.productionCTraceRunFileName
-            ) ?? [];
-            if (this.ctraceFile === currentFile && !this.dirty) {
+            const messages = await this.runMessageReader.readIfExists(artifacts.productionCTraceRunFileName);
+            if (messages !== undefined && this.ctraceFile === currentFile && !this.dirty) {
                 this.acceptReferenceValidationMessages(messages);
             }
         } catch (error) {
-            if (this.ctraceFile === currentFile && !this.dirty) {
-                this.acceptReferenceValidationMessages([]);
-            }
             logger.error('Trace Configuration: Failed to read production ctrace-run validation messages:', error);
         }
     }
@@ -519,23 +500,17 @@ export class TraceConfigurationModel {
         if (!currentFile || (event.kind === 'backup') !== expectsBackup) {
             return;
         }
-        if (event.type === 'deleted') {
-            this.acceptReferenceValidationMessages([]);
-            return;
-        }
         try {
-            const messages = await this.runMessageReader.readIfExists(event.uri.fsPath) ?? [];
+            const messages = await this.runMessageReader.readIfExists(event.uri.fsPath);
             if (
-                this.ctraceFile === currentFile
+                messages !== undefined
+                && this.ctraceFile === currentFile
                 && this.dirty === expectsBackup
                 && (event.kind === 'backup') === this.dirty
             ) {
                 this.acceptReferenceValidationMessages(messages);
             }
         } catch (error) {
-            if (this.ctraceFile === currentFile && this.dirty === expectsBackup) {
-                this.acceptReferenceValidationMessages([]);
-            }
             logger.error(`Trace Configuration: Failed to read ${event.kind} ctrace-run validation messages:`, error);
         }
     }
