@@ -126,6 +126,13 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
         });
     }
 
+    public async focusCTraceReference(solutionSet: string, ctraceRef: string, ctraceFilePath?: string): Promise<boolean> {
+        await vscode.commands.executeCommand(`${TRACE_CONFIGURATION_VIEW_ID}.focus`);
+        return ctraceFilePath
+            ? await this.model.focusCTraceReference(solutionSet, ctraceRef, ctraceFilePath)
+            : await this.model.focusCTraceReference(solutionSet, ctraceRef);
+    }
+
     /**
      * initializeAfterCmsisSolutionActivation activates an available CMSIS
      * Solution extension before loading initial state. Disabled or unavailable

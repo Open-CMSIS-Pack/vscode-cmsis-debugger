@@ -55,6 +55,7 @@ class FakeTraceConfigurationModel {
     public readonly updateValue = jest.fn().mockResolvedValue(undefined);
     public readonly addItem = jest.fn().mockResolvedValue(undefined);
     public readonly removeItem = jest.fn().mockResolvedValue(undefined);
+    public readonly focusCTraceReference = jest.fn().mockResolvedValue(true);
     public readonly reportError = jest.fn();
     public readonly createState = jest.fn<TraceConfigurationState, []>(() => ({
         fileName: 'target.ctrace.yml',
@@ -155,6 +156,19 @@ describe('TraceConfigurationWebviewProvider', () => {
         expect(model.watchForGeneratedCBuildRunFiles).toHaveBeenCalledTimes(1);
         expect(model.loadInitialFile).toHaveBeenCalledTimes(1);
         expect(model.dispose).toHaveBeenCalledTimes(1);
+    });
+
+    it('reveals the view before focusing a ctrace reference', async () => {
+        const model = new FakeTraceConfigurationModel();
+        const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
+        (vscode.commands.executeCommand as jest.Mock).mockResolvedValue(undefined);
+
+        await expect(provider.focusCTraceReference('demo+target', 'data#0')).resolves.toBe(true);
+
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith(`${TRACE_CONFIGURATION_VIEW_ID}.focus`);
+        expect(model.focusCTraceReference).toHaveBeenCalledWith('demo+target', 'data#0');
+        expect((vscode.commands.executeCommand as jest.Mock).mock.invocationCallOrder[0])
+            .toBeLessThan(model.focusCTraceReference.mock.invocationCallOrder[0]);
     });
 
     it('routes trace configuration title commands to model operations', async () => {

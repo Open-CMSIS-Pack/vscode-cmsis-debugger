@@ -18,8 +18,10 @@
 import * as vscode from 'vscode';
 import { createReadStream } from 'fs';
 import { stat } from 'node:fs/promises';
+import * as path from 'node:path';
 import { logger } from '../../logger';
 import { copySwoCsvRows } from './copy-swo-csv-rows';
+import { resolveCTraceRunReference } from './ctrace-run-resolver';
 import { IndexedSwoCsvRowStore } from './indexed-swo-csv-row-store';
 import { InMemorySwoCsvRowStore, type SwoCsvRowStore } from './swo-csv-row-store';
 import { parseSwoCsv, parseSwoCsvChunks, type SwoCsvFilter, type SwoCsvSort } from './swo-csv-table';
@@ -43,7 +45,10 @@ interface PendingViewRender {
 }
 
 export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider {
-    public constructor(private readonly extensionUri: vscode.Uri) { }
+    public constructor(
+        private readonly extensionUri: vscode.Uri,
+        private readonly focusCTraceReference?: (solutionSet: string, ctraceRef: string, ctraceFilePath?: string) => Promise<boolean>
+    ) { }
 
     public async openCustomDocument(uri: vscode.Uri): Promise<vscode.CustomDocument> {
         return { uri, dispose: () => undefined };
@@ -259,7 +264,7 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
                     void updateRowsWithProgress('Sorting CSV...', 'sort');
                     break;
                 case 'cellSelected':
-                    await this.logCellSelection(message, rowStore);
+                    await this.handleCellSelection(document.uri, message, rowStore);
                     break;
                 case 'copyRows': {
                     if (message.viewRevision !== viewRevision) {
@@ -344,13 +349,30 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
         }
     }
 
-    private async logCellSelection(message: Extract<SwoCsvWebviewMessage, { type: 'cellSelected' }>, rowStore: SwoCsvRowStore): Promise<void> {
+    private async handleCellSelection(
+        uri: vscode.Uri,
+        message: Extract<SwoCsvWebviewMessage, { type: 'cellSelected' }>,
+        rowStore: SwoCsvRowStore
+    ): Promise<void> {
         const row = await rowStore.getSourceRow(message.sourceRowIndex);
         if (row === undefined || rowStore.columns[message.columnIndex] !== message.columnName || row.cells[message.columnIndex] !== message.cellValue) {
             logger.warn('[SwoCsvEditor] Ignored invalid cell selection message');
             return;
         }
         logger.debug(`[SwoCsvEditor] Cell selected: row=${message.sourceRowIndex} column=${message.columnIndex} name=${message.columnName} value=${message.cellValue}`);
+        try {
+            const match = await resolveCTraceRunReference(uri, rowStore.columns, row);
+            if (match) {
+                const solutionFolder = path.dirname(path.dirname(uri.fsPath));
+                const ctraceFilePath = path.join(solutionFolder, '.cmsis', `${match.solutionSet}.ctrace.yml`);
+                const focused = await this.focusCTraceReference?.(match.solutionSet, match.ctraceRef, ctraceFilePath);
+                if (focused === false) {
+                    logger.warn(`[SwoCsvEditor] Failed to focus trace configuration reference: ${match.ctraceRef}`);
+                }
+            }
+        } catch (error) {
+            logger.error(`[SwoCsvEditor] Failed to resolve trace configuration: ${error instanceof Error ? error.message : String(error)}`);
+        }
     }
 
 }

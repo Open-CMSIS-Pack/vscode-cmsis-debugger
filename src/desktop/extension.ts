@@ -85,7 +85,10 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
         cmsisJsonWatcher
     );
     const traceConfigurationCommands = new TraceConfigurationCommands();
-    const swoCsvEditorProvider = new SwoCsvEditorProvider(context.extensionUri);
+    const swoCsvEditorProvider = new SwoCsvEditorProvider(
+        context.extensionUri,
+        (solutionSet, ctraceRef) => traceConfiguration.focusCTraceReference(solutionSet, ctraceRef)
+    );
 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);
     fileWatchManager.activate(context);

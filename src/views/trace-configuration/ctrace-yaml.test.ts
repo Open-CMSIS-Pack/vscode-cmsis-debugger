@@ -157,6 +157,8 @@ describe('CTraceYamlDocument', () => {
         expect(document.getCTraceRef(['ctrace', 'setup', 1, 'events'])).toBe('Core1/events');
         expect(document.getCTraceRef(['ctrace', 'setup', 1, 'events', 0])).toBe('Core1/events#0');
         expect(document.getCTraceRef(['ctrace', 'setup', 1, 'tracehalt', 0])).toBe('Core1/tracehalt#0');
+        expect(document.getPathForCTraceRef('Core0/data#0')).toEqual(['ctrace', 'setup', 0, 'data', 0]);
+        expect(document.getPathForCTraceRef('Core1/events#0')).toEqual(['ctrace', 'setup', 1, 'events', 0]);
         expect(document.toString()).not.toContain('ctrace-ref');
     });
 

@@ -206,10 +206,11 @@ async function createTemporaryDirectory(directoryName: string): Promise<void> {
 
 async function createModelFromText(
     text: string,
-    capabilities?: Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities>
+    capabilities?: Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities>,
+    fileName = 'target.ctrace.yml'
 ): Promise<{ adapter: MemoryTextFileAdapter; model: TraceConfigurationModel }> {
     const adapter = new MemoryTextFileAdapter(text);
-    const file = new CTraceYamlFile('target.ctrace.yml', adapter);
+    const file = new CTraceYamlFile(fileName, adapter);
     const document = await file.load();
     document.assignCTraceRefs();
     const processorCapabilities = capabilities ? new TraceConfigurationProcessorCapabilities(() => file) : undefined;
@@ -888,6 +889,97 @@ describe('TraceConfigurationModel', () => {
         expect(dataRow?.expanded).toBe(true);
         expect(focusedState.focusedRowId).toBe(JSON.stringify(['ctrace', 'setup', 0, 'data', 1]));
         expect(focusedState.rows.some(row => JSON.stringify(row.path) === JSON.stringify(['ctrace', 'setup', 0, 'data', 1]))).toBe(true);
+        expect(model.createState().focusedRowId).toBeUndefined();
+    });
+
+    it('focuses a ctrace reference in the matching solution set', async () => {
+        const { model } = await createModelFromText([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      core: Cortex-M33',
+            '      data:',
+            '        - location: watchMe',
+            ''
+        ].join('\n'), createCapabilities(), 'demo+target.ctrace.yml');
+
+        await expect(model.focusCTraceReference('demo+target', 'data#0')).resolves.toBe(true);
+
+        const focusedState = model.createState();
+        expect(focusedState.focusedRowId).toBe(JSON.stringify(['ctrace', 'setup', 0, 'data', 0]));
+        expect(focusedState.rows.find(row => JSON.stringify(row.path) === JSON.stringify(['ctrace', 'setup', 0, 'data']))?.expanded).toBe(true);
+        expect(model.createState().focusedRowId).toBeUndefined();
+    });
+
+    it('focuses an event reference on the visible event counters row', async () => {
+        const { model } = await createModelFromText([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      core: Cortex-M33',
+            '      events:',
+            '        - event: EXCCNT',
+            ''
+        ].join('\n'), createCapabilities(), 'demo+target.ctrace.yml');
+
+        await expect(model.focusCTraceReference('demo+target', 'events#0')).resolves.toBe(true);
+
+        const focusedState = model.createState();
+        const eventsPath = ['ctrace', 'setup', 0, 'events'];
+        expect(focusedState.focusedRowId).toBe(JSON.stringify(eventsPath));
+        expect(focusedState.rows.some(row => JSON.stringify(row.path) === JSON.stringify(eventsPath))).toBe(true);
+    });
+
+    it('loads the matching solution set before focusing a ctrace reference', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
+        const ctraceFileName = path.join(ctraceDirectory, 'demo+target.ctrace.yml');
+        await createTemporaryDirectory(ctraceDirectory);
+        await writeTemporaryTextFile(ctraceFileName, [
+            'ctrace:',
+            '  setup:',
+            '    - data:',
+            '        - location: watchMe',
+            ''
+        ].join('\n'));
+        const { model } = await createModelFromText('ctrace:\n  setup: []\n', createCapabilities(), 'other.ctrace.yml');
+        (vscode.workspace.findFiles as jest.Mock).mockResolvedValue([vscode.Uri.file(ctraceFileName)]);
+
+        await expect(model.focusCTraceReference('demo+target', 'data#0')).resolves.toBe(true);
+
+        const focusedState = model.createState();
+        expectSameFsPath(focusedState.fileName, ctraceFileName);
+        expect(focusedState.focusedRowId).toBe(JSON.stringify(['ctrace', 'setup', 0, 'data', 0]));
+        expect(vscode.workspace.findFiles).toHaveBeenCalledWith(CTRACE_FILE_GLOB, null, 10);
+    });
+
+    it('loads a matching ctrace file outside the workspace from its direct path', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const ctraceFileName = path.join(workspaceRoot, 'external', '.cmsis', 'demo+target.ctrace.yml');
+        await createTemporaryDirectory(path.dirname(ctraceFileName));
+        await writeTemporaryTextFile(ctraceFileName, [
+            'ctrace:',
+            '  setup:',
+            '    - itm:',
+            '        enable: 1',
+            ''
+        ].join('\n'));
+        const { model } = await createModelFromText('ctrace:\n  setup: []\n', createCapabilities(), 'other.ctrace.yml');
+        (vscode.workspace.findFiles as jest.Mock).mockClear();
+
+        await expect(model.focusCTraceReference('demo+target', 'itm', ctraceFileName)).resolves.toBe(true);
+
+        const focusedState = model.createState();
+        expectSameFsPath(focusedState.fileName, ctraceFileName);
+        expect(focusedState.focusedRowId).toBe(JSON.stringify(['ctrace', 'setup', 0, 'itm']));
+    });
+
+    it('does not focus a ctrace reference from another solution set', async () => {
+        const { model } = await createModelFromText('ctrace:\n  setup:\n    - data:\n        - location: watchMe\n', createCapabilities(), 'demo+target.ctrace.yml');
+
+        (vscode.workspace.findFiles as jest.Mock).mockResolvedValue([]);
+
+        await expect(model.focusCTraceReference('other+target', 'data#0')).resolves.toBe(false);
         expect(model.createState().focusedRowId).toBeUndefined();
     });
 

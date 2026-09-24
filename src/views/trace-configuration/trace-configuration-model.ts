@@ -25,6 +25,7 @@ import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
 import { isYamlMapItem, isYamlScalarItem, isYamlSequenceItem, YamlTreeItem, yamlScalarToString } from '../../desktop/yaml-dom';
 import { logger } from '../../logger';
 import { CTRACE_FILE_GLOB, TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING } from '../../manifest';
+import { fileExists } from '../../utils';
 import { CTraceYamlFile } from './ctrace-yaml';
 import {
     GeneratedCBuildRunFileChangeEvent,
@@ -514,6 +515,34 @@ export class TraceConfigurationModel {
         this.expandPath(pathToUpdate);
         this.focusedRowId = this.pathToId([...pathToUpdate, newItemIndex]);
         await this.acceptInMemoryEdit();
+    }
+
+    public async focusCTraceReference(solutionSet: string, ctraceRef: string, ctraceFilePath?: string): Promise<boolean> {
+        const expectedFileName = `${solutionSet}.ctrace.yml`.toLowerCase();
+        if (path.basename(this.ctraceFile?.fileName ?? '').toLowerCase() !== expectedFileName) {
+            const directFile = ctraceFilePath ? vscode.Uri.file(ctraceFilePath) : undefined;
+            const files = directFile && await fileExists(directFile)
+                ? [directFile]
+                : await vscode.workspace.findFiles(CTRACE_FILE_GLOB, null, 10);
+            const matchingFile = files.find(file => path.basename(file.fsPath).toLowerCase() === expectedFileName);
+            if (!matchingFile) {
+                return false;
+            }
+            await this.loadFile(matchingFile.fsPath);
+        }
+        const file = this.ctraceFile;
+        if (!file?.document) {
+            return false;
+        }
+        const targetPath = file.document.getPathForCTraceRef(ctraceRef);
+        if (!targetPath) {
+            return false;
+        }
+        const rowPath = this.rowBuilder.getVisibleRowPath(targetPath);
+        this.expandPath(rowPath);
+        this.focusedRowId = this.pathToId(rowPath);
+        this.notifyStateChanged();
+        return true;
     }
 
     /**

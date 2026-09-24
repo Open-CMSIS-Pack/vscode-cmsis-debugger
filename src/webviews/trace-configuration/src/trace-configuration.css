@@ -164,11 +164,11 @@ button {
 }
 
 .add-button {
-    width: 14px;
-    height: 14px;
+    width: 15px;
+    height: 15px;
 
     & .codicon-add {
-        font-size: 9px !important;
+        font-size: 11px !important;
     }
 }
 
@@ -191,7 +191,9 @@ button {
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
-tr:focus-visible {
+tr:focus-visible,
+tr:focus-within,
+tr:focus {
     outline: 1px solid var(--vscode-focusBorder, #007acc);
     outline-offset: 1px;
 }
