@@ -31,6 +31,8 @@ import {
 import { TraceConfigurationModel } from './trace-configuration-model';
 
 const CMSIS_SOLUTION_EXTENSION_ID = 'Arm.cmsis-csolution';
+const TRACE_CONFIGURATION_VIEW_TITLE = 'Trace Generation';
+const TRACE_CONFIGURATION_MODIFIED_VIEW_TITLE = `${TRACE_CONFIGURATION_VIEW_TITLE} ●`;
 
 /**
  * The TraceConfigurationWebviewProvider owns the VS Code sidebar webview shell
@@ -86,8 +88,8 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.save', async () => {
                 await this.handleCommand(() => this.model.saveCurrentDocument());
             }),
-            vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.openFile', async () => {
-                await this.handleCommand(() => this.promptAndOpenFile());
+            vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.revert', async () => {
+                await this.handleCommand(() => this.model.refreshFile());
             }),
             vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.expandAll', () => {
                 this.toggleAllRows(true);
@@ -99,6 +101,11 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
         );
         await this.model.watchForGeneratedCBuildRunFiles();
         await this.initializeAfterCmsisSolutionActivation(context);
+    }
+
+    /** Flushes the latest dirty-file backup before the extension host stops. */
+    public async deactivate(): Promise<void> {
+        await this.model.deactivate();
     }
 
     /**
@@ -278,6 +285,9 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             return;
         }
         const state = this.model.createState();
+        this.webviewView.title = state.dirty
+            ? TRACE_CONFIGURATION_MODIFIED_VIEW_TITLE
+            : TRACE_CONFIGURATION_VIEW_TITLE;
         const workspaceFolder = state.fileName
             ? vscode.workspace.getWorkspaceFolder(vscode.Uri.file(state.fileName))
             : undefined;

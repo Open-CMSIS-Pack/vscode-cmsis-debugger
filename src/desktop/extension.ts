@@ -48,6 +48,7 @@ const BUILTIN_TOOLS_PATHS = [
 let liveWatchTreeDataProvider: LiveWatchTreeDataProvider;
 let componentViewerTreeDataProvider: ComponentViewerTreeDataProvider;
 let corePeripheralsTreeDataProvider: ComponentViewerTreeDataProvider;
+let traceConfiguration: TraceConfigurationWebviewProvider | undefined;
 
 const askForReload = async (): Promise<void> => {
     const result = await vscode.window.showWarningMessage('Cannot activate all Arm CMSIS Debugger views. Please reload the window.', 'Reload Window');
@@ -76,7 +77,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     corePeripheralsTreeDataProvider = new ComponentViewerTreeDataProvider();
     const componentViewer = new ComponentViewer(context, componentViewerTreeDataProvider);
     const corePeripherals = new CorePeripherals(context, corePeripheralsTreeDataProvider);
-    const traceConfiguration = new TraceConfigurationWebviewProvider(
+    traceConfiguration = new TraceConfigurationWebviewProvider(
         context.extensionUri,
         undefined,
         fileWatchManager,
@@ -155,6 +156,9 @@ export const deactivate = async (): Promise<void> => {
     }
     if (corePeripheralsTreeDataProvider) {
         corePeripheralsTreeDataProvider.clear();
+    }
+    if (traceConfiguration) {
+        await traceConfiguration.deactivate();
     }
     logger.debug('CMSIS Debugger deactivated');
 };
