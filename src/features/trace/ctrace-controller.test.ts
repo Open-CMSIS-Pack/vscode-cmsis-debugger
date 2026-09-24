@@ -21,7 +21,7 @@ import { extensionContextFactory } from '../../__test__/vscode.factory';
 import { traceWatchFactory } from '../../__test__/trace-watch.factory';
 import { CBuildRunFileLocator } from '../../cbuild-run';
 import { GDBTargetDebugSession } from '../../debug-session';
-import { debugTrackerFactory, gdbTargetDebugSessionFactory } from '../../debug-session/__test__/debug-session.factory';
+import { debugTrackerFactory } from '../../debug-session/__test__/debug-session.factory';
 import { CTraceProcessManager } from '../../desktop/process/ctrace-process-manager';
 import { logger } from '../../logger';
 import { waitForCondition } from '../../utils';
@@ -31,7 +31,6 @@ const CBUILD_RUN_FILE_PATH = '/workspace/solution+target.cbuild-run.yml';
 const RAW_TRACE_URI = vscode.Uri.file('/workspace/.trace/solution.SWO.raw');
 
 type CTraceControllerTestAccess = {
-    traceEnabled: boolean;
     addRawTraceWatcher(): Promise<void>;
     handleDecodeTrigger(session: GDBTargetDebugSession | undefined): Promise<void>;
     handleActiveSessionChanged(session: GDBTargetDebugSession | undefined): void;
@@ -58,7 +57,6 @@ describe('CTraceController', () => {
         run = jest.spyOn(controller, 'run').mockResolvedValue(0);
         session = createSession('session-1', CBUILD_RUN_FILE_PATH);
         testAccess = controller as unknown as CTraceControllerTestAccess;
-        testAccess.traceEnabled = true;
     });
 
     afterEach(() => {
@@ -128,13 +126,7 @@ describe('CTraceController', () => {
         expect(run).not.toHaveBeenCalled();
     });
 
-    it('ignores trace events while disabled or without a debug session', async () => {
-        testAccess.traceEnabled = false;
-
-        await testAccess.handleRawTraceFileChanged(RAW_TRACE_URI);
-        await testAccess.handleDecodeTrigger(session);
-
-        testAccess.traceEnabled = true;
+    it('ignores a decode trigger without a debug session', async () => {
         await testAccess.handleDecodeTrigger(undefined);
 
         expect(run).not.toHaveBeenCalled();
@@ -162,29 +154,18 @@ describe('CTraceController', () => {
         expect(run).toHaveBeenCalledWith({ cbuildRunFilePath: newerCbuildRunFilePath });
     });
 
-    it('adds and removes its raw trace watch when the trace setting changes', async () => {
+    it('adds its raw trace watch on activation', async () => {
         const tracker = debugTrackerFactory();
         const traceWatch = traceWatchFactory();
 
         await controller.activate(extensionContextFactory(), tracker, traceWatch.fileWatchManager);
-        expect(traceWatch.addWatch).not.toHaveBeenCalled();
 
-        traceWatch.fireConfigurationChange(false);
-        expect(traceWatch.addWatch).not.toHaveBeenCalled();
-
-        traceWatch.setTraceEnabled(true);
-        traceWatch.fireConfigurationChange(true);
-        await waitForCondition('the raw trace watcher to be registered', () => traceWatch.addWatch.mock.calls.length === 1);
         expect(traceWatch.addWatch).toHaveBeenCalledTimes(1);
-
-        traceWatch.setTraceEnabled(false);
-        traceWatch.fireConfigurationChange(true);
-        expect(traceWatch.removeWatch).toHaveBeenCalledWith('ctrace-raw-trace');
     });
 
     it('routes registered tracker events and removes its watch when disposed', async () => {
         const tracker = debugTrackerFactory();
-        const trackerSession = gdbTargetDebugSessionFactory('tracker-session');
+        const trackerSession = createSession('tracker-session', CBUILD_RUN_FILE_PATH);
         const traceWatch = traceWatchFactory();
         const context = extensionContextFactory();
 
@@ -201,7 +182,6 @@ describe('CTraceController', () => {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         const tracker = debugTrackerFactory();
         const traceWatch = traceWatchFactory();
-        traceWatch.setTraceEnabled(true);
         Object.defineProperty(vscode.workspace, 'workspaceFolders', { configurable: true, value: undefined });
 
         try {
@@ -225,7 +205,7 @@ describe('CTraceController', () => {
         }
     });
 
-    it('replaces the enabled raw trace watch when the active solution changes', async () => {
+    it('replaces the raw trace watch when the active solution changes', async () => {
         const locator = new CBuildRunFileLocator();
         jest.spyOn(locator, 'getActiveSolutionFolder')
             .mockResolvedValueOnce(vscode.Uri.file('/workspace/first'))
@@ -233,7 +213,6 @@ describe('CTraceController', () => {
         const activeSolutionWatch = activeSolutionWatchFactory();
         const solutionController = new CTraceController({}, () => now, locator, activeSolutionWatch.cmsisJsonWatcher);
         const traceWatch = traceWatchFactory();
-        traceWatch.setTraceEnabled(true);
 
         await solutionController.activate(extensionContextFactory(), debugTrackerFactory(), traceWatch.fileWatchManager);
         const firstWatch = traceWatch.getLatestWatch();
@@ -248,21 +227,6 @@ describe('CTraceController', () => {
         expect(traceWatch.removeWatch).toHaveBeenCalledWith('ctrace-raw-trace');
         expect(firstWatch?.globPattern).toEqual(expect.objectContaining({ base: vscode.Uri.file('/workspace/first') }));
         expect(secondWatch?.globPattern).toEqual(expect.objectContaining({ base: vscode.Uri.file('/workspace/second') }));
-    });
-
-    it('does not add a raw trace watch for an active-solution change while tracing is disabled', async () => {
-        const activeSolutionWatch = activeSolutionWatchFactory();
-        const solutionController = new CTraceController({}, () => now, undefined, activeSolutionWatch.cmsisJsonWatcher);
-        const traceWatch = traceWatchFactory();
-
-        await solutionController.activate(extensionContextFactory(), debugTrackerFactory(), traceWatch.fileWatchManager);
-        activeSolutionWatch.fireActiveSolutionChange({
-            previousActiveSolutionPath: '/workspace/first.csolution.yml',
-            activeSolutionPath: '/workspace/second.csolution.yml',
-            generation: 1
-        });
-
-        expect(traceWatch.addWatch).not.toHaveBeenCalled();
     });
 
     it('does not require a file watch manager before activation', async () => {
