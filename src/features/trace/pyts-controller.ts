@@ -24,7 +24,6 @@ import {
     GDBTargetDebugSession,
     GDBTargetDebugTracker
 } from '../../debug-session';
-import { ENABLE_TRACE_GENERATION_VIEW_SETTING } from '../../manifest';
 import {
     PyTsProcessManager,
     PyTsProcessManagerLaunchOptions,
@@ -52,7 +51,6 @@ export class PyTsController {
     private pendingConversion: PendingCTraceConversion | undefined;
     private conversionPromise: Promise<void> | undefined;
     private watcherGeneration = 0;
-    private traceEnabled = false;
 
     public constructor(
         private readonly options: PyTsProcessManagerOptions = {},
@@ -71,15 +69,10 @@ export class PyTsController {
         });
         context.subscriptions.push(
             tracker.onDidChangeActiveDebugSession(session => this.handleActiveSessionChanged(session)),
-            vscode.workspace.onDidChangeConfiguration(async event => {
-                if (event.affectsConfiguration(ENABLE_TRACE_GENERATION_VIEW_SETTING)) {
-                    await this.updateCTraceConfigurationWatcher();
-                }
-            }),
             { dispose: () => this.removeCTraceConfigurationWatcher() },
             ...(activeSolutionChangeSubscription ? [activeSolutionChangeSubscription] : [])
         );
-        await this.updateCTraceConfigurationWatcher();
+        await this.addCTraceConfigurationWatcher();
     }
 
     public async run(options: PyTsProcessManagerLaunchOptions = {}): Promise<number | null> {
@@ -225,15 +218,6 @@ export class PyTsController {
             previous.every((value, index) => value === current.at(index));
     }
 
-    private async updateCTraceConfigurationWatcher(): Promise<void> {
-        this.traceEnabled = vscode.workspace.getConfiguration().get<boolean>(ENABLE_TRACE_GENERATION_VIEW_SETTING, false);
-        if (this.traceEnabled) {
-            await this.addCTraceConfigurationWatcher();
-        } else {
-            this.removeCTraceConfigurationWatcher();
-        }
-    }
-
     protected async addCTraceConfigurationWatcher(): Promise<void> {
         const fileWatchManager = this.fileWatchManager;
         // A watcher cannot be registered before activation supplies its manager.
@@ -243,7 +227,7 @@ export class PyTsController {
         const watcherGeneration = this.watcherGeneration;
         const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
         // Ignore a stale registration after removal or reactivation changes the watcher context.
-        if (!this.traceEnabled || watcherGeneration !== this.watcherGeneration || fileWatchManager !== this.fileWatchManager) {
+        if (watcherGeneration !== this.watcherGeneration || fileWatchManager !== this.fileWatchManager) {
             return;
         }
         fileWatchManager.addWatch({
@@ -267,9 +251,6 @@ export class PyTsController {
     }
 
     private async handleActiveSolutionPathChanged(): Promise<void> {
-        if (!this.traceEnabled) {
-            return;
-        }
         this.removeCTraceConfigurationWatcher();
         await this.addCTraceConfigurationWatcher();
     }
