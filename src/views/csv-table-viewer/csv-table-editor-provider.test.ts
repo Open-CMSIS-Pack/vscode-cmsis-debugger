@@ -18,19 +18,19 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 
-import { InMemorySwoCsvRowStore, type SwoCsvRowStore } from './swo-csv-row-store';
-import { SwoCsvEditorProvider } from './swo-csv-editor-provider';
-import type { SwoCsvWebviewMessage } from './swo-csv-protocol';
+import { InMemoryCsvTableRowStore, type CsvTableRowStore } from './csv-table-row-store';
+import { CsvTableEditorProvider } from './csv-table-editor-provider';
+import type { CsvTableWebviewMessage } from './csv-table-protocol';
 
-interface TestableSwoCsvEditorProvider {
+interface TestableCsvTableEditorProvider {
     handleCellSelection(
         uri: vscode.Uri,
-        message: Extract<SwoCsvWebviewMessage, { type: 'cellSelected' }>,
-        rowStore: SwoCsvRowStore
+        message: Extract<CsvTableWebviewMessage, { type: 'cellSelected' }>,
+        rowStore: CsvTableRowStore
     ): Promise<void>;
 }
 
-describe('SwoCsvEditorProvider', () => {
+describe('CsvTableEditorProvider', () => {
     afterEach(() => jest.restoreAllMocks());
 
     it('focuses the first trace configuration reference matching a selected CSV row', async () => {
@@ -48,13 +48,13 @@ describe('SwoCsvEditorProvider', () => {
             ''
         ].join('\n')));
         const focusCTraceReference = jest.fn().mockResolvedValue(true);
-        const provider = new SwoCsvEditorProvider(vscode.Uri.file('/extension'), focusCTraceReference);
-        const rowStore = new InMemorySwoCsvRowStore({
+        const provider = new CsvTableEditorProvider(vscode.Uri.file('/extension'), focusCTraceReference);
+        const rowStore = new InMemoryCsvTableRowStore({
             columns: ['cycles', 'stream', 'type', 'source'],
             rows: [{ sourceRowIndex: 0, cells: ['1', '1', 'dwt', '0'] }],
             malformedRowCount: 0
         });
-        const message: Extract<SwoCsvWebviewMessage, { type: 'cellSelected' }> = {
+        const message: Extract<CsvTableWebviewMessage, { type: 'cellSelected' }> = {
             type: 'cellSelected',
             sourceRowIndex: 0,
             columnIndex: 2,
@@ -62,7 +62,7 @@ describe('SwoCsvEditorProvider', () => {
             cellValue: 'dwt'
         };
 
-        await (provider as unknown as TestableSwoCsvEditorProvider).handleCellSelection(
+        await (provider as unknown as TestableCsvTableEditorProvider).handleCellSelection(
             vscode.Uri.file('/workspace/.trace/demo+target.SWO.csv'),
             message,
             rowStore

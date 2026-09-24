@@ -15,10 +15,10 @@
  */
 // generated with AI
 
-import type { SwoCsvFilter, SwoCsvRow, SwoCsvSort } from './swo-csv-table';
+import type { CsvTableFilter, CsvTableRow, CsvTableSort } from './csv-table';
 import type { RowSelectionInterval } from './row-selection';
 
-export interface SwoCsvTableState {
+export interface CsvTableState {
     readonly type: 'tableState';
     readonly viewRevision: number;
     readonly columns: readonly string[];
@@ -31,22 +31,22 @@ export interface SwoCsvTableState {
     readonly error?: string;
 }
 
-export interface SwoCsvRows {
+export interface CsvTableRows {
     readonly type: 'rows';
     readonly requestId: number;
     readonly viewRevision: number;
     readonly start: number;
-    readonly rows: readonly SwoCsvRow[];
+    readonly rows: readonly CsvTableRow[];
     readonly totalRowCount: number;
 }
 
-export type SwoCsvHostMessage = SwoCsvTableState | SwoCsvRows;
+export type CsvTableHostMessage = CsvTableState | CsvTableRows;
 
-export interface SwoCsvReady {
+export interface CsvTableReady {
     readonly type: 'ready';
 }
 
-export interface SwoCsvRequestRows {
+export interface CsvTableRequestRows {
     readonly type: 'requestRows';
     readonly requestId: number;
     readonly viewRevision: number;
@@ -54,21 +54,21 @@ export interface SwoCsvRequestRows {
     readonly end: number;
 }
 
-export interface SwoCsvSetFilters {
+export interface CsvTableSetFilters {
     readonly type: 'setFilters';
-    readonly filters: readonly SwoCsvFilter[];
+    readonly filters: readonly CsvTableFilter[];
 }
 
-export interface SwoCsvCancelViewUpdate {
+export interface CsvTableCancelViewUpdate {
     readonly type: 'cancelViewUpdate';
 }
 
-export interface SwoCsvSetSort {
+export interface CsvTableSetSort {
     readonly type: 'setSort';
-    readonly sort: SwoCsvSort | null;
+    readonly sort: CsvTableSort | null;
 }
 
-export interface SwoCsvCellSelected {
+export interface CsvTableCellSelected {
     readonly type: 'cellSelected';
     readonly sourceRowIndex: number;
     readonly columnIndex: number;
@@ -76,15 +76,15 @@ export interface SwoCsvCellSelected {
     readonly cellValue: string;
 }
 
-export interface SwoCsvRowsRendered {
+export interface CsvTableRowsRendered {
     readonly type: 'rowsRendered';
     readonly requestId: number;
 }
 
-export interface SwoCsvCopyRows {
+export interface CsvTableCopyRows {
     readonly type: 'copyRows';
     readonly viewRevision: number;
     readonly intervals: readonly RowSelectionInterval[];
 }
 
-export type SwoCsvWebviewMessage = SwoCsvReady | SwoCsvRequestRows | SwoCsvSetFilters | SwoCsvCancelViewUpdate | SwoCsvSetSort | SwoCsvCellSelected | SwoCsvRowsRendered | SwoCsvCopyRows;
+export type CsvTableWebviewMessage = CsvTableReady | CsvTableRequestRows | CsvTableSetFilters | CsvTableCancelViewUpdate | CsvTableSetSort | CsvTableCellSelected | CsvTableRowsRendered | CsvTableCopyRows;

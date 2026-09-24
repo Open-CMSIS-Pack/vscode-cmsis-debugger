@@ -20,15 +20,15 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { IndexedSwoCsvRowStore } from './indexed-swo-csv-row-store';
+import { IndexedCsvTableRowStore } from './indexed-csv-table-row-store';
 
-describe('IndexedSwoCsvRowStore', () => {
+describe('IndexedCsvTableRowStore', () => {
     it('indexes and reads quoted records from disk', async () => {
-        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'swo-csv-row-store-'));
+        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'csv-table-csv-row-store-'));
         const filePath = join(temporaryDirectory, 'trace.swo.csv');
         await writeFile(filePath, 'cycles,note\r\n12,"first line\nsecond line"\r\n13,"said ""retry"""\r\n14,extra,value\r\n', 'utf8');
 
-        const store = await IndexedSwoCsvRowStore.create(filePath);
+        const store = await IndexedCsvTableRowStore.create(filePath);
         try {
             await store.waitForIndexing();
             expect(store.columns).toEqual(['cycles', 'note']);
@@ -46,11 +46,11 @@ describe('IndexedSwoCsvRowStore', () => {
     });
 
     it('counts fields around quoted commas and multiline values without decoding data records', async () => {
-        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'swo-csv-row-store-'));
+        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'csv-table-csv-row-store-'));
         const filePath = join(temporaryDirectory, 'trace.swo.csv');
         await writeFile(filePath, 'cycles,type,note\r\n1,Event,"a, b"\r\n2,Message,"said ""retry""\nagain"\r\n3,Event\r\n4,Event,one,extra\r\n', 'utf8');
 
-        const store = await IndexedSwoCsvRowStore.create(filePath);
+        const store = await IndexedCsvTableRowStore.create(filePath);
         try {
             await store.waitForIndexing();
             expect(store.rowCount).toBe(4);
@@ -68,12 +68,12 @@ describe('IndexedSwoCsvRowStore', () => {
     });
 
     it('exposes the header before background indexing completes', async () => {
-        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'swo-csv-row-store-'));
+        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'csv-table-csv-row-store-'));
         const filePath = join(temporaryDirectory, 'trace.swo.csv');
         const rows = Array.from({ length: 500_000 }, (_, index) => `${index},Event\n`);
         await writeFile(filePath, `cycles,type\n${rows.join('')}`, 'utf8');
 
-        const store = await IndexedSwoCsvRowStore.create(filePath);
+        const store = await IndexedCsvTableRowStore.create(filePath);
         try {
             expect(store.columns).toEqual(['cycles', 'type']);
             expect(store.isIndexing).toBe(true);
@@ -94,12 +94,12 @@ describe('IndexedSwoCsvRowStore', () => {
     }, 30_000);
 
     it('refreshes a partial filter after indexing without reusing incomplete cache data', async () => {
-        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'swo-csv-row-store-'));
+        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'csv-table-csv-row-store-'));
         const filePath = join(temporaryDirectory, 'trace.swo.csv');
         const rows = Array.from({ length: 500_000 }, (_, index) => `${index},${index % 2 === 0 ? 'Event' : 'Message'}\n`);
         await writeFile(filePath, `cycles,type\n${rows.join('')}`, 'utf8');
 
-        const store = await IndexedSwoCsvRowStore.create(filePath);
+        const store = await IndexedCsvTableRowStore.create(filePath);
         try {
             expect(store.isIndexing).toBe(true);
             await store.applyView([{ columnIndex: 1, value: 'event' }], null);
@@ -120,11 +120,11 @@ describe('IndexedSwoCsvRowStore', () => {
     }, 30_000);
 
     it('filters and sorts an indexed view while preserving source row indexes', async () => {
-        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'swo-csv-row-store-'));
+        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'csv-table-csv-row-store-'));
         const filePath = join(temporaryDirectory, 'trace.swo.csv');
         await writeFile(filePath, 'cycles,type\n10,Event\n2,Message\n2,Event\n', 'utf8');
 
-        const store = await IndexedSwoCsvRowStore.create(filePath);
+        const store = await IndexedCsvTableRowStore.create(filePath);
         try {
             await store.waitForIndexing();
             expect(store.sourceRowCount).toBe(3);
@@ -149,12 +149,12 @@ describe('IndexedSwoCsvRowStore', () => {
     });
 
     it('keeps the most recently requested view when updates overlap', async () => {
-        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'swo-csv-row-store-'));
+        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'csv-table-row-store-'));
         const filePath = join(temporaryDirectory, 'trace.swo.csv');
         const rows = Array.from({ length: 5_000 }, (_, index) => `${index},${index % 2 === 0 ? 'Event' : 'Message'}\n`);
         await writeFile(filePath, `cycles,type\n${rows.join('')}`, 'utf8');
 
-        const store = await IndexedSwoCsvRowStore.create(filePath);
+        const store = await IndexedCsvTableRowStore.create(filePath);
         try {
             await store.waitForIndexing();
             const filteringView = store.applyView([{ columnIndex: 1, value: 'event' }], null);
@@ -171,12 +171,12 @@ describe('IndexedSwoCsvRowStore', () => {
     });
 
     it('cancels an active index when disposed', async () => {
-        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'swo-csv-row-store-'));
+        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'csv-table-row-store-'));
         const filePath = join(temporaryDirectory, 'trace.swo.csv');
         const rows = Array.from({ length: 500_000 }, (_, index) => `${index},Event\n`);
         await writeFile(filePath, `cycles,type\n${rows.join('')}`, 'utf8');
 
-        const store = await IndexedSwoCsvRowStore.create(filePath);
+        const store = await IndexedCsvTableRowStore.create(filePath);
         expect(store.isIndexing).toBe(true);
         await store.dispose();
         await store.waitForIndexing();

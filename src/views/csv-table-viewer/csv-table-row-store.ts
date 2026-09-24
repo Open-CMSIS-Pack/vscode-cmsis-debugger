@@ -15,24 +15,24 @@
  */
 // generated with AI
 
-import { filterSwoCsvRows, sortSwoCsvRows, type SwoCsvFilter, type SwoCsvRow, type SwoCsvSort, type SwoCsvTable } from './swo-csv-table';
+import { filterCsvTableRows, sortCsvTableRows, type CsvTableFilter, type CsvTableRow, type CsvTableSort, type CsvTableTable } from './csv-table';
 
-export interface SwoCsvRowStore {
+export interface CsvTableRowStore {
     readonly columns: readonly string[];
     readonly sourceRowCount: number;
     readonly rowCount: number;
     readonly malformedRowCount: number;
     readonly isIndexing: boolean;
 
-    applyView(filters: readonly SwoCsvFilter[], sort: SwoCsvSort | null, signal?: AbortSignal): Promise<SwoCsvViewTiming>;
-    getRows(start: number, end: number): Promise<readonly SwoCsvRow[]>;
-    getSourceRow(sourceRowIndex: number): Promise<SwoCsvRow | undefined>;
+    applyView(filters: readonly CsvTableFilter[], sort: CsvTableSort | null, signal?: AbortSignal): Promise<CsvTableViewTiming>;
+    getRows(start: number, end: number): Promise<readonly CsvTableRow[]>;
+    getSourceRow(sourceRowIndex: number): Promise<CsvTableRow | undefined>;
     onDidIndexProgress(listener: () => void): () => void;
     waitForIndexing(): Promise<void>;
     dispose(): Promise<void>;
 }
 
-export interface SwoCsvViewTiming {
+export interface CsvTableViewTiming {
     readonly store: 'in-memory' | 'indexed' | 'external-merge';
     readonly scanMs: number;
     readonly sortMs: number;
@@ -41,21 +41,21 @@ export interface SwoCsvViewTiming {
     readonly runCount?: number;
     readonly writeRunsMs?: number;
     readonly mergeRunsMs?: number;
-    readonly columnCache?: readonly SwoCsvColumnCacheTiming[];
+    readonly columnCache?: readonly CsvTableColumnCacheTiming[];
     readonly exactIndexColumns?: readonly number[];
 }
 
-export interface SwoCsvColumnCacheTiming {
+export interface CsvTableColumnCacheTiming {
     readonly columnIndex: number;
     readonly hits: number;
     readonly misses: number;
     readonly loadMs: number;
 }
 
-export class InMemorySwoCsvRowStore implements SwoCsvRowStore {
-    private viewRows: readonly SwoCsvRow[];
+export class InMemoryCsvTableRowStore implements CsvTableRowStore {
+    private viewRows: readonly CsvTableRow[];
 
-    public constructor(private readonly table: SwoCsvTable) {
+    public constructor(private readonly table: CsvTableTable) {
         this.viewRows = table.rows;
     }
 
@@ -79,13 +79,13 @@ export class InMemorySwoCsvRowStore implements SwoCsvRowStore {
         return false;
     }
 
-    public async applyView(filters: readonly SwoCsvFilter[], sort: SwoCsvSort | null, signal?: AbortSignal): Promise<SwoCsvViewTiming> {
+    public async applyView(filters: readonly CsvTableFilter[], sort: CsvTableSort | null, signal?: AbortSignal): Promise<CsvTableViewTiming> {
         signal?.throwIfAborted();
         const scanStartedAt = performance.now();
-        const filteredRows = filterSwoCsvRows(this.table.rows, filters);
+        const filteredRows = filterCsvTableRows(this.table.rows, filters);
         const scanMs = performance.now() - scanStartedAt;
         const sortStartedAt = performance.now();
-        this.viewRows = sortSwoCsvRows(filteredRows, sort);
+        this.viewRows = sortCsvTableRows(filteredRows, sort);
         return {
             store: 'in-memory',
             scanMs,
@@ -95,11 +95,11 @@ export class InMemorySwoCsvRowStore implements SwoCsvRowStore {
         };
     }
 
-    public async getRows(start: number, end: number): Promise<readonly SwoCsvRow[]> {
+    public async getRows(start: number, end: number): Promise<readonly CsvTableRow[]> {
         return this.viewRows.slice(start, end);
     }
 
-    public async getSourceRow(sourceRowIndex: number): Promise<SwoCsvRow | undefined> {
+    public async getSourceRow(sourceRowIndex: number): Promise<CsvTableRow | undefined> {
         return this.table.rows.at(sourceRowIndex);
     }
 

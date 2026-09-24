@@ -16,6 +16,6 @@
 // generated with AI
 
 import { createRoot } from 'react-dom/client';
-import { SwoCsvViewer } from './swo-csv-viewer';
+import { CsvTableViewer } from './csv-table-viewer';
 
-createRoot(document.getElementById('root')!).render(<SwoCsvViewer />);
+createRoot(document.getElementById('root')!).render(<CsvTableViewer />);

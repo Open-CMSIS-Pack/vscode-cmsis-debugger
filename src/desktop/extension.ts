@@ -36,7 +36,7 @@ import { CTraceController } from '../features/trace/ctrace-controller';
 import { CBuildRunFileLocator } from '../cbuild-run';
 import { CmsisJsonWatcher } from '../cmsis-files';
 import { FileWatchManager } from './filesystem/file-watch-manager';
-import { SWO_CSV_EDITOR_VIEW_TYPE, SwoCsvEditorProvider } from '../views/swo-csv-viewer/swo-csv-editor-provider';
+import { CSV_TABLE_EDITOR_VIEW_TYPE, CsvTableEditorProvider } from '../views/csv-table-viewer/csv-table-editor-provider';
 
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
@@ -85,7 +85,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
         cmsisJsonWatcher
     );
     const traceConfigurationCommands = new TraceConfigurationCommands();
-    const swoCsvEditorProvider = new SwoCsvEditorProvider(
+    const csvTableEditorProvider = new CsvTableEditorProvider(
         context.extensionUri,
         (solutionSet, ctraceRef) => traceConfiguration.focusCTraceReference(solutionSet, ctraceRef)
     );
@@ -126,7 +126,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     await traceConfiguration.activate(context);
     traceConfigurationCommands.activate(context);
     context.subscriptions.push(
-        vscode.window.registerCustomEditorProvider(SWO_CSV_EDITOR_VIEW_TYPE, swoCsvEditorProvider, {
+        vscode.window.registerCustomEditorProvider(CSV_TABLE_EDITOR_VIEW_TYPE, csvTableEditorProvider, {
             webviewOptions: {
                 retainContextWhenHidden: true,
             },

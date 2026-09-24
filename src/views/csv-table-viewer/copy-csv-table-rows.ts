@@ -17,21 +17,21 @@
 
 import { EOL } from 'node:os';
 import { areValidRowSelectionIntervals, type RowSelectionInterval } from './row-selection';
-import type { SwoCsvRowStore } from './swo-csv-row-store';
-import { serializeSwoCsvRow } from './swo-csv-table';
+import type { CsvTableRowStore } from './csv-table-row-store';
+import { serializeCsvTableRow } from './csv-table';
 
 const MAX_COPY_BYTES = 50 * 1024 * 1024;
 
-export type CopySwoCsvRowsResult = 'copied' | 'invalid' | 'cancelled' | 'too-large';
+export type CopyCsvTableRowsResult = 'copied' | 'invalid' | 'cancelled' | 'too-large';
 
-export const copySwoCsvRows = async (
+export const copyCsvTableRows = async (
     intervals: readonly RowSelectionInterval[],
-    rowStore: SwoCsvRowStore,
+    rowStore: CsvTableRowStore,
     writeText: (value: string) => Thenable<void>,
     isActive: () => boolean,
     batchSize = 10_000,
     maxBytes = MAX_COPY_BYTES,
-): Promise<CopySwoCsvRowsResult> => {
+): Promise<CopyCsvTableRowsResult> => {
     if (!areValidRowSelectionIntervals(intervals, rowStore.rowCount)
         || !Number.isInteger(batchSize) || batchSize <= 0
         || !Number.isInteger(maxBytes) || maxBytes <= 0) {
@@ -46,7 +46,7 @@ export const copySwoCsvRows = async (
                 return 'cancelled';
             }
             for (const row of rows) {
-                const line = serializeSwoCsvRow(row);
+                const line = serializeCsvTableRow(row);
                 byteLength += Buffer.byteLength(line, 'utf8') + Buffer.byteLength(EOL, 'utf8');
                 if (byteLength > maxBytes) {
                     return 'too-large';

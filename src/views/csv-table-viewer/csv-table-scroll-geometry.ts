@@ -15,8 +15,8 @@
  */
 // generated with AI
 
-export const SWO_CSV_ROW_HEIGHT = 24;
-export const SWO_CSV_MAX_SCROLL_HEIGHT = 30_000_000;
+export const CSV_TABLE_ROW_HEIGHT = 24;
+export const CSV_TABLE_MAX_SCROLL_HEIGHT = 30_000_000;
 
 export interface SwoCsvScrollGeometry {
     readonly logicalTableHeight: number;
@@ -26,9 +26,9 @@ export interface SwoCsvScrollGeometry {
     readonly firstVisibleRow: number;
 }
 
-export const getSwoCsvScrollGeometry = (totalRowCount: number, scrollTop: number, viewportHeight: number): SwoCsvScrollGeometry => {
-    const logicalTableHeight = totalRowCount * SWO_CSV_ROW_HEIGHT;
-    const scrollHeight = Math.min(logicalTableHeight, SWO_CSV_MAX_SCROLL_HEIGHT);
+export const getCsvTableScrollGeometry = (totalRowCount: number, scrollTop: number, viewportHeight: number): SwoCsvScrollGeometry => {
+    const logicalTableHeight = totalRowCount * CSV_TABLE_ROW_HEIGHT;
+    const scrollHeight = Math.min(logicalTableHeight, CSV_TABLE_MAX_SCROLL_HEIGHT);
     const physicalScrollRange = Math.max(0, scrollHeight - viewportHeight);
     const logicalScrollRange = Math.max(0, logicalTableHeight - viewportHeight);
     const scrollScale = physicalScrollRange > 0
@@ -42,6 +42,6 @@ export const getSwoCsvScrollGeometry = (totalRowCount: number, scrollTop: number
         scrollHeight,
         scrollScale,
         logicalScrollTop,
-        firstVisibleRow: Math.max(0, Math.floor(logicalScrollTop / SWO_CSV_ROW_HEIGHT)),
+        firstVisibleRow: Math.max(0, Math.floor(logicalScrollTop / CSV_TABLE_ROW_HEIGHT)),
     };
 };

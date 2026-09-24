@@ -47,8 +47,8 @@
   "contributes": {
     "customEditors": [
       {
-        "viewType": "vscode-cmsis-debugger.swoCsvTableViewer",
-        "displayName": "CSV SWO Table Viewer",
+        "viewType": "vscode-cmsis-debugger.csvTableViewer",
+        "displayName": "Trace Data",
         "selector": [
             {
             "filenamePattern": "*.swo.csv"
@@ -57,7 +57,7 @@
                 "filenamePattern": "*.tb.csv"
             },
             {
-                "filenamePattern": "*.tb-*.csv"
+                "filenamePattern": "*.tb_*.csv"
             }
         ],
         "priority": "default"

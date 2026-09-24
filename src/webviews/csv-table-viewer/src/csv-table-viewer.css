@@ -10,7 +10,7 @@ body {
     padding: 0px;
 }
 
-.swo-csv-viewer {
+.csv-table-viewer {
     position: relative;
     height: 100vh;
     display: flex;

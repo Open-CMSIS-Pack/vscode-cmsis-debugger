@@ -15,7 +15,7 @@
  */
 // generated with AI
 
-import { ExternalRowIdIndex, type ExternalSortEntry } from './external-swo-csv-sort';
+import { ExternalRowIdIndex, type ExternalSortEntry } from './external-csv-table-sort';
 
 describe('ExternalRowIdIndex', () => {
     it('merges bounded runs using natural order and stable row IDs', async () => {

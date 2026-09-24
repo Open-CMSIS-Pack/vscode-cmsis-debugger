@@ -19,8 +19,8 @@
 import { mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { IndexedSwoCsvRowStore } from './indexed-swo-csv-row-store';
-import { getSwoCsvScrollGeometry, SWO_CSV_MAX_SCROLL_HEIGHT } from './swo-csv-scroll-geometry';
+import { IndexedCsvTableRowStore } from './indexed-csv-table-row-store';
+import { getCsvTableScrollGeometry, CSV_TABLE_MAX_SCROLL_HEIGHT } from './csv-table-scroll-geometry';
 
 const ROW_BLOCK_SIZE = 10_000;
 const ROW_BLOCK_COUNT = 125;
@@ -36,9 +36,9 @@ describe('SWO CSV generated-file performance integration', () => {
         ).join('');
         await writeFile(filePath, `cycles,type\n${rowBlock.repeat(ROW_BLOCK_COUNT)}final,Target\n`, 'utf8');
 
-        let store: IndexedSwoCsvRowStore | undefined;
+        let store: IndexedCsvTableRowStore | undefined;
         try {
-            store = await IndexedSwoCsvRowStore.create(filePath);
+            store = await IndexedCsvTableRowStore.create(filePath);
             await store.waitForIndexing();
 
             expect(store.sourceRowCount).toBe(TOTAL_ROW_COUNT);
@@ -49,9 +49,9 @@ describe('SWO CSV generated-file performance integration', () => {
                 { sourceRowIndex: 65_537, cells: ['5537', 'Event'] },
             ]);
 
-            const geometry = getSwoCsvScrollGeometry(store.rowCount, SWO_CSV_MAX_SCROLL_HEIGHT / 2, 600);
-            expect(geometry.logicalTableHeight).toBeGreaterThan(SWO_CSV_MAX_SCROLL_HEIGHT);
-            expect(geometry.scrollHeight).toBe(SWO_CSV_MAX_SCROLL_HEIGHT);
+            const geometry = getCsvTableScrollGeometry(store.rowCount, CSV_TABLE_MAX_SCROLL_HEIGHT / 2, 600);
+            expect(geometry.logicalTableHeight).toBeGreaterThan(CSV_TABLE_MAX_SCROLL_HEIGHT);
+            expect(geometry.scrollHeight).toBe(CSV_TABLE_MAX_SCROLL_HEIGHT);
             expect(geometry.scrollScale).toBeGreaterThan(1);
             await expect(store.getRows(geometry.firstVisibleRow, geometry.firstVisibleRow + 2)).resolves.toEqual([
                 { sourceRowIndex: 625_000, cells: ['5000', 'Event'] },
@@ -79,7 +79,7 @@ describe('SWO CSV generated-file performance integration', () => {
 
             await store.dispose();
             store = undefined;
-            const cancellingStore = await IndexedSwoCsvRowStore.create(filePath);
+            const cancellingStore = await IndexedCsvTableRowStore.create(filePath);
             expect(cancellingStore.isIndexing).toBe(true);
             await cancellingStore.dispose();
             await cancellingStore.waitForIndexing();

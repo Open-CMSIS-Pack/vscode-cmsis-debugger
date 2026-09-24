@@ -20,14 +20,14 @@ import { createReadStream } from 'fs';
 import { stat } from 'node:fs/promises';
 import * as path from 'node:path';
 import { logger } from '../../logger';
-import { copySwoCsvRows } from './copy-swo-csv-rows';
+import { copyCsvTableRows } from './copy-csv-table-rows';
 import { resolveCTraceRunReference } from './ctrace-run-resolver';
-import { IndexedSwoCsvRowStore } from './indexed-swo-csv-row-store';
-import { InMemorySwoCsvRowStore, type SwoCsvRowStore } from './swo-csv-row-store';
-import { parseSwoCsv, parseSwoCsvChunks, type SwoCsvFilter, type SwoCsvSort } from './swo-csv-table';
-import type { SwoCsvHostMessage, SwoCsvWebviewMessage } from './swo-csv-protocol';
+import { IndexedCsvTableRowStore } from './indexed-csv-table-row-store';
+import { InMemoryCsvTableRowStore, type CsvTableRowStore } from './csv-table-row-store';
+import { parseCsvTable, parseCsvTableChunks, type CsvTableFilter, type CsvTableSort } from './csv-table';
+import type { CsvTableHostMessage, CsvTableWebviewMessage } from './csv-table-protocol';
 
-export const SWO_CSV_EDITOR_VIEW_TYPE = 'vscode-cmsis-debugger.swoCsvTableViewer';
+export const CSV_TABLE_EDITOR_VIEW_TYPE = 'vscode-cmsis-debugger.csvTableViewer';
 const IN_MEMORY_FILE_SIZE_LIMIT = 20 * 1024 * 1024;
 const INDEX_PROGRESS_UPDATE_INTERVAL_MS = 250;
 
@@ -44,7 +44,7 @@ interface PendingViewRender {
     readonly rowsRequestedAt: number;
 }
 
-export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider {
+export class CsvTableEditorProvider implements vscode.CustomReadonlyEditorProvider {
     public constructor(
         private readonly extensionUri: vscode.Uri,
         private readonly focusCTraceReference?: (solutionSet: string, ctraceRef: string, ctraceFilePath?: string) => Promise<boolean>
@@ -63,9 +63,9 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
             enableScripts: true,
             localResourceRoots: [this.extensionUri],
         };
-        let rowStore: SwoCsvRowStore = new InMemorySwoCsvRowStore({ columns: [], rows: [], malformedRowCount: 0 });
-        let filters: readonly SwoCsvFilter[] = [];
-        let sort: SwoCsvSort | null = null;
+        let rowStore: CsvTableRowStore = new InMemoryCsvTableRowStore({ columns: [], rows: [], malformedRowCount: 0 });
+        let filters: readonly CsvTableFilter[] = [];
+        let sort: CsvTableSort | null = null;
         let loadGeneration = 0;
         let updateGeneration = 0;
         let viewRevision = 0;
@@ -78,11 +78,11 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
         let indexProgressTimer: ReturnType<typeof setTimeout> | undefined;
         let viewUpdateController: AbortController | undefined;
 
-        const postMessage = (message: SwoCsvHostMessage): void => {
+        const postMessage = (message: CsvTableHostMessage): void => {
             void webviewPanel.webview.postMessage(message);
         };
         const postState = (loading: boolean, error?: string, loadingMessage?: string, updating = false): void => {
-            const message: SwoCsvHostMessage = {
+            const message: CsvTableHostMessage = {
                 type: 'tableState',
                 viewRevision,
                 columns: rowStore.columns,
@@ -129,7 +129,7 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
             const requestedStore = rowStore;
             const activeFilters = filters.filter(filter => filter.value.length > 0);
             postState(false, undefined, loadingMessage, true);
-            logger.debug(`[SwoCsvEditor] ${operationLabel} ${generation} started: column=${sort?.columnIndex ?? 'sourceRowIndex'} direction=${sort?.direction ?? 'none'} filters=${activeFilters.length} filterLengths=${activeFilters.map(filter => filter.value.length).join(',') || 'none'} indexedSourceRows=${rowStore.sourceRowCount} activeViewRows=${rowStore.rowCount} partial=${rowStore.isIndexing}`);
+            logger.debug(`[CsvTableEditor] ${operationLabel} ${generation} started: column=${sort?.columnIndex ?? 'sourceRowIndex'} direction=${sort?.direction ?? 'none'} filters=${activeFilters.length} filterLengths=${activeFilters.map(filter => filter.value.length).join(',') || 'none'} indexedSourceRows=${rowStore.sourceRowCount} activeViewRows=${rowStore.rowCount} partial=${rowStore.isIndexing}`);
             await new Promise<void>(resolve => setTimeout(resolve, 0));
             if (operation === 'sort' && requestedStore.isIndexing) {
                 await requestedStore.waitForIndexing();
@@ -158,7 +158,7 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
             const externalTiming = timing.store === 'external-merge'
                 ? ` runs=${timing.runCount} runCreation=${formatMilliseconds(timing.writeRunsMs ?? 0)} mergeRuns=${formatMilliseconds(timing.mergeRunsMs ?? 0)}`
                 : '';
-            logger.debug(`[SwoCsvEditor] ${operationLabel} ${generation} host complete: total=${formatMilliseconds(performance.now() - updateStartedAt)} store=${timing.store} scan=${formatMilliseconds(timing.scanMs)} sort=${formatMilliseconds(timing.sortMs)} materialize=${formatMilliseconds(timing.materializeMs)} indexedSourceRows=${rowStore.sourceRowCount} activeViewRows=${rowStore.rowCount} matchedRows=${timing.matchedRows} partial=${rowStore.isIndexing}${externalTiming}`);
+            logger.debug(`[CsvTableEditor] ${operationLabel} ${generation} host complete: total=${formatMilliseconds(performance.now() - updateStartedAt)} store=${timing.store} scan=${formatMilliseconds(timing.scanMs)} sort=${formatMilliseconds(timing.sortMs)} materialize=${formatMilliseconds(timing.materializeMs)} indexedSourceRows=${rowStore.sourceRowCount} activeViewRows=${rowStore.rowCount} matchedRows=${timing.matchedRows} partial=${rowStore.isIndexing}${externalTiming}`);
             postState(false);
         };
         const load = async (): Promise<void> => {
@@ -167,7 +167,7 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
             const generation = ++loadGeneration;
             const loadStartedAt = performance.now();
             postState(true);
-            logger.debug(`[SwoCsvEditor] Load ${generation} started: uri=${document.uri.toString()}`);
+            logger.debug(`[CsvTableEditor] Load ${generation} started: uri=${document.uri.toString()}`);
             try {
                 const readStartedAt = performance.now();
                 const loadedStore = await this.readRowStore(document.uri);
@@ -187,7 +187,7 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
                 const initializeRowsMs = performance.now() - initializeRowsStartedAt;
                 postState(false);
                 pendingFirstRender = { loadGeneration: generation, loadStartedAt };
-                logger.debug(`[SwoCsvEditor] Load ${generation} host complete: total=${formatMilliseconds(performance.now() - loadStartedAt)} readAndParse=${formatMilliseconds(readAndParseMs)} initializeRows=${formatMilliseconds(initializeRowsMs)} rows=${rowStore.rowCount} malformedRows=${rowStore.malformedRowCount}`);
+                logger.debug(`[CsvTableEditor] Load ${generation} host complete: total=${formatMilliseconds(performance.now() - loadStartedAt)} readAndParse=${formatMilliseconds(readAndParseMs)} initializeRows=${formatMilliseconds(initializeRowsMs)} rows=${rowStore.rowCount} malformedRows=${rowStore.malformedRowCount}`);
             } catch (error) {
                 if (generation === loadGeneration) {
                     postState(false, `Unable to load CSV: ${error instanceof Error ? error.message : String(error)}`);
@@ -195,7 +195,7 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
             }
         };
 
-        webviewPanel.webview.onDidReceiveMessage(async (message: SwoCsvWebviewMessage) => {
+        webviewPanel.webview.onDidReceiveMessage(async (message: CsvTableWebviewMessage) => {
             switch (message.type) {
                 case 'ready':
                     void load();
@@ -239,13 +239,13 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
                     const timing = firstRenderRequests.get(message.requestId);
                     if (timing !== undefined) {
                         const renderedAt = performance.now();
-                        logger.debug(`[SwoCsvEditor] Load ${timing.loadGeneration} first rows rendered: total=${formatMilliseconds(renderedAt - timing.loadStartedAt)} requestToRender=${formatMilliseconds(renderedAt - timing.rowsRequestedAt)}`);
+                        logger.debug(`[CsvTableEditor] Load ${timing.loadGeneration} first rows rendered: total=${formatMilliseconds(renderedAt - timing.loadStartedAt)} requestToRender=${formatMilliseconds(renderedAt - timing.rowsRequestedAt)}`);
                         firstRenderRequests.delete(message.requestId);
                     }
                     const viewTiming = viewRenderRequests.get(message.requestId);
                     if (viewTiming !== undefined) {
                         const renderedAt = performance.now();
-                        logger.debug(`[SwoCsvEditor] ${viewTiming.operation} ${viewTiming.generation} first rows rendered: total=${formatMilliseconds(renderedAt - viewTiming.operationStartedAt)} requestToRender=${formatMilliseconds(renderedAt - viewTiming.rowsRequestedAt)}`);
+                        logger.debug(`[CsvTableEditor] ${viewTiming.operation} ${viewTiming.generation} first rows rendered: total=${formatMilliseconds(renderedAt - viewTiming.operationStartedAt)} requestToRender=${formatMilliseconds(renderedAt - viewTiming.rowsRequestedAt)}`);
                         viewRenderRequests.delete(message.requestId);
                     }
                     break;
@@ -268,19 +268,19 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
                     break;
                 case 'copyRows': {
                     if (message.viewRevision !== viewRevision) {
-                        logger.warn('[SwoCsvEditor] Ignored stale copy rows message');
+                        logger.warn('[CsvTableEditor] Ignored stale copy rows message');
                         break;
                     }
                     const requestedStore = rowStore;
                     const requestedRevision = viewRevision;
-                    const result = await copySwoCsvRows(
+                    const result = await copyCsvTableRows(
                         message.intervals,
                         requestedStore,
                         value => vscode.env.clipboard.writeText(value),
                         () => !disposed && requestedStore === rowStore && requestedRevision === viewRevision,
                     );
                     if (result === 'invalid') {
-                        logger.warn('[SwoCsvEditor] Ignored invalid copy rows message');
+                        logger.warn('[CsvTableEditor] Ignored invalid copy rows message');
                     } else if (result === 'too-large') {
                         void vscode.window.showWarningMessage('The selected rows are too large to copy. Refine the selection or export the rows to a file.');
                     }
@@ -309,8 +309,8 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
     }
 
     private buildShell(webview: vscode.Webview): string {
-        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'dist', 'webviews', 'swo-csv-viewer.js'));
-        const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'dist', 'webviews', 'swo-csv-viewer.css'));
+        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'dist', 'webviews', 'csv-table-viewer.js'));
+        const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'dist', 'webviews', 'csv-table-viewer.css'));
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -326,24 +326,24 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
 </html>`;
     }
 
-    private async readRowStore(uri: vscode.Uri): Promise<SwoCsvRowStore> {
+    private async readRowStore(uri: vscode.Uri): Promise<CsvTableRowStore> {
         if (uri.scheme !== 'file') {
             const bytes = await vscode.workspace.fs.readFile(uri);
-            return new InMemorySwoCsvRowStore(parseSwoCsv(new TextDecoder().decode(bytes)));
+            return new InMemoryCsvTableRowStore(parseCsvTable(new TextDecoder().decode(bytes)));
         }
 
         // The URI originates from VS Code's custom-editor lifecycle.
         // eslint-disable-next-line security/detect-non-literal-fs-filename
         const fileStat = await stat(uri.fsPath);
         if (fileStat.size > IN_MEMORY_FILE_SIZE_LIMIT) {
-            return await IndexedSwoCsvRowStore.create(uri.fsPath);
+            return await IndexedCsvTableRowStore.create(uri.fsPath);
         }
 
         // The URI originates from VS Code's custom-editor lifecycle.
         // eslint-disable-next-line security/detect-non-literal-fs-filename
         const stream = createReadStream(uri.fsPath, { encoding: 'utf8' });
         try {
-            return new InMemorySwoCsvRowStore(await parseSwoCsvChunks(stream));
+            return new InMemoryCsvTableRowStore(await parseCsvTableChunks(stream));
         } finally {
             stream.destroy();
         }
@@ -351,15 +351,15 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
 
     private async handleCellSelection(
         uri: vscode.Uri,
-        message: Extract<SwoCsvWebviewMessage, { type: 'cellSelected' }>,
-        rowStore: SwoCsvRowStore
+        message: Extract<CsvTableWebviewMessage, { type: 'cellSelected' }>,
+        rowStore: CsvTableRowStore
     ): Promise<void> {
         const row = await rowStore.getSourceRow(message.sourceRowIndex);
         if (row === undefined || rowStore.columns[message.columnIndex] !== message.columnName || row.cells[message.columnIndex] !== message.cellValue) {
-            logger.warn('[SwoCsvEditor] Ignored invalid cell selection message');
+            logger.warn('[CsvTableEditor] Ignored invalid cell selection message');
             return;
         }
-        logger.debug(`[SwoCsvEditor] Cell selected: row=${message.sourceRowIndex} column=${message.columnIndex} name=${message.columnName} value=${message.cellValue}`);
+        logger.debug(`[CsvTableEditor] Cell selected: row=${message.sourceRowIndex} column=${message.columnIndex} name=${message.columnName} value=${message.cellValue}`);
         try {
             const match = await resolveCTraceRunReference(uri, rowStore.columns, row);
             if (match) {
@@ -367,11 +367,11 @@ export class SwoCsvEditorProvider implements vscode.CustomReadonlyEditorProvider
                 const ctraceFilePath = path.join(solutionFolder, '.cmsis', `${match.solutionSet}.ctrace.yml`);
                 const focused = await this.focusCTraceReference?.(match.solutionSet, match.ctraceRef, ctraceFilePath);
                 if (focused === false) {
-                    logger.warn(`[SwoCsvEditor] Failed to focus trace configuration reference: ${match.ctraceRef}`);
+                    logger.warn(`[CsvTableEditor] Failed to focus trace configuration reference: ${match.ctraceRef}`);
                 }
             }
         } catch (error) {
-            logger.error(`[SwoCsvEditor] Failed to resolve trace configuration: ${error instanceof Error ? error.message : String(error)}`);
+            logger.error(`[CsvTableEditor] Failed to resolve trace configuration: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
 

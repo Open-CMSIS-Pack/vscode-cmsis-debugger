@@ -21,7 +21,7 @@ import { logger } from '../logger';
 import { activate, deactivate } from './extension';
 import { ComponentViewerTreeDataProvider } from '../views/component-viewer/component-viewer-tree-view';
 import { LiveWatchTreeDataProvider } from '../views/live-watch/live-watch';
-import { SWO_CSV_EDITOR_VIEW_TYPE, SwoCsvEditorProvider } from '../views/swo-csv-viewer/swo-csv-editor-provider';
+import { CSV_TABLE_EDITOR_VIEW_TYPE, CsvTableEditorProvider } from '../views/csv-table-viewer/csv-table-editor-provider';
 import { TraceConfigurationWebviewProvider } from '../views/trace-configuration/trace-configuration-webview-provider';
 import { FileWatchManager } from './filesystem/file-watch-manager';
 
@@ -57,8 +57,8 @@ describe('extension', () => {
             await activate(createExtensionContext());
 
             expect(vscode.window.registerCustomEditorProvider).toHaveBeenCalledWith(
-                SWO_CSV_EDITOR_VIEW_TYPE,
-                expect.any(SwoCsvEditorProvider),
+                CSV_TABLE_EDITOR_VIEW_TYPE,
+                expect.any(CsvTableEditorProvider),
                 { webviewOptions: { retainContextWhenHidden: true } },
             );
         });

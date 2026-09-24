@@ -19,7 +19,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { parse } from 'yaml';
 
-import type { SwoCsvRow } from './swo-csv-table';
+import type { CsvTableRow } from './csv-table';
 
 interface CTraceRunReference {
     readonly 'ctrace-ref'?: unknown;
@@ -46,7 +46,7 @@ const SOURCE_MATCHED_TYPES = new Set(['dwt', 'itm']);
 export async function resolveCTraceRunReference(
     csvUri: vscode.Uri,
     columns: readonly string[],
-    row: SwoCsvRow
+    row: CsvTableRow
 ): Promise<CTraceRunMatch | undefined> {
     if (csvUri.scheme !== 'file') {
         return undefined;
@@ -87,7 +87,7 @@ function getSolutionSet(csvFilePath: string): string | undefined {
     return match?.groups?.solutionSet;
 }
 
-function getCell(columns: readonly string[], row: SwoCsvRow, name: string): string | undefined {
+function getCell(columns: readonly string[], row: CsvTableRow, name: string): string | undefined {
     const index = columns.findIndex(column => column.toLowerCase() === name);
     return index < 0 ? undefined : row.cells.at(index)?.trim();
 }

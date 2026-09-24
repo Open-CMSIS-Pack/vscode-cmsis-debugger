@@ -18,13 +18,13 @@
 import * as vscode from 'vscode';
 
 import { resolveCTraceRunReference } from './ctrace-run-resolver';
-import type { SwoCsvRow } from './swo-csv-table';
+import type { CsvTableRow } from './csv-table';
 
 describe('resolveCTraceRunReference', () => {
     const columns = ['cycles', 'stream', 'type', 'source'];
     const csvUri = vscode.Uri.file('/workspace/.trace/demo+target.SWO.csv');
 
-    function row(stream: string, type: string, source: string): SwoCsvRow {
+    function row(stream: string, type: string, source: string): CsvTableRow {
         return { sourceRowIndex: 0, cells: ['1', stream, type, source] };
     }
 

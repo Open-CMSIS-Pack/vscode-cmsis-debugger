@@ -15,20 +15,20 @@
  */
 // generated with AI
 
-import { filterSwoCsvRows, parseSwoCsv, parseSwoCsvAsyncLines, parseSwoCsvChunks, parseSwoCsvLines, serializeSwoCsvRow, sortSwoCsvRows } from './swo-csv-table';
+import { filterCsvTableRows, parseCsvTable, parseCsvTableAsyncLines, parseCsvTableChunks, parseCsvTableLines, serializeCsvTableRow, sortCsvTableRows } from './csv-table';
 
-describe('serializeSwoCsvRow', () => {
+describe('serializeCsvTableRow', () => {
     it('quotes commas, quotes, and line breaks', () => {
-        expect(serializeSwoCsvRow({
+        expect(serializeCsvTableRow({
             sourceRowIndex: 0,
             cells: ['plain', 'with,comma', 'with "quote"', 'line\nbreak'],
         })).toBe('plain,"with,comma","with ""quote""","line\nbreak"');
     });
 });
 
-describe('parseSwoCsv', () => {
+describe('parseCsvTable', () => {
     it('parses known unquoted rows and preserves source row indexes', () => {
-        const table = parseSwoCsv('cycles,stream,type\n12,main,event\n13,worker,message\n');
+        const table = parseCsvTable('cycles,stream,type\n12,main,event\n13,worker,message\n');
 
         expect(table.columns).toEqual(['cycles', 'stream', 'type']);
         expect(table.rows).toEqual([
@@ -39,7 +39,7 @@ describe('parseSwoCsv', () => {
     });
 
     it('pads short rows and combines surplus values into the final column', () => {
-        const table = parseSwoCsv('cycles,stream,note\n12,main\n13,worker,a,b\n');
+        const table = parseCsvTable('cycles,stream,note\n12,main\n13,worker,a,b\n');
 
         expect(table.rows).toEqual([
             { sourceRowIndex: 0, cells: ['12', 'main', ''] },
@@ -49,7 +49,7 @@ describe('parseSwoCsv', () => {
     });
 
     it('parses quoted commas and escaped quotes without marking rows malformed', () => {
-        const table = parseSwoCsv('cycles,stream,note\n12,main,"decoder received a,b and said ""retry"""\n');
+        const table = parseCsvTable('cycles,stream,note\n12,main,"decoder received a,b and said ""retry"""\n');
 
         expect(table.rows).toEqual([
             { sourceRowIndex: 0, cells: ['12', 'main', 'decoder received a,b and said "retry"'] },
@@ -58,7 +58,7 @@ describe('parseSwoCsv', () => {
     });
 
     it('parses line iterables without concatenating their input', () => {
-        const table = parseSwoCsvLines(['cycles,type', '12,event', '13,message']);
+        const table = parseCsvTableLines(['cycles,type', '12,event', '13,message']);
 
         expect(table.rows).toHaveLength(2);
         expect(table.rows[1]).toEqual({ sourceRowIndex: 1, cells: ['13', 'message'] });
@@ -71,7 +71,7 @@ describe('parseSwoCsv', () => {
             yield '13,message';
         }
 
-        const table = await parseSwoCsvAsyncLines(lines());
+        const table = await parseCsvTableAsyncLines(lines());
 
         expect(table.rows).toHaveLength(2);
         expect(table.rows[1]).toEqual({ sourceRowIndex: 1, cells: ['13', 'message'] });
@@ -86,7 +86,7 @@ describe('parseSwoCsv', () => {
             yield '\n13,done';
         }
 
-        const table = await parseSwoCsvChunks(chunks());
+        const table = await parseCsvTableChunks(chunks());
 
         expect(table.rows).toEqual([
             { sourceRowIndex: 0, cells: ['12', 'first line\nsecond line with "quoted" text'] },
@@ -97,32 +97,32 @@ describe('parseSwoCsv', () => {
 });
 
 
-describe('filterSwoCsvRows', () => {
+describe('filterCsvTableRows', () => {
     it('uses case-insensitive substring matching and AND semantics', () => {
-        const table = parseSwoCsv('stream,type\nMain,Event\nmain,Message\nworker,Event\n');
+        const table = parseCsvTable('stream,type\nMain,Event\nmain,Message\nworker,Event\n');
 
-        expect(filterSwoCsvRows(table.rows, [
+        expect(filterCsvTableRows(table.rows, [
             { columnIndex: 0, value: 'main' },
             { columnIndex: 1, value: 'event' },
         ])).toEqual([{ sourceRowIndex: 0, cells: ['Main', 'Event'] }]);
     });
 
     it('supports case-insensitive exact matching without changing substring defaults', () => {
-        const table = parseSwoCsv('type\nEvent\nEventStart\nmessage\n');
+        const table = parseCsvTable('type\nEvent\nEventStart\nmessage\n');
 
-        expect(filterSwoCsvRows(table.rows, [{ columnIndex: 0, value: 'EVENT', match: 'exact' }])).toEqual([table.rows[0]]);
-        expect(filterSwoCsvRows(table.rows, [{ columnIndex: 0, value: 'EVENT' }])).toEqual([table.rows[0], table.rows[1]]);
+        expect(filterCsvTableRows(table.rows, [{ columnIndex: 0, value: 'EVENT', match: 'exact' }])).toEqual([table.rows[0]]);
+        expect(filterCsvTableRows(table.rows, [{ columnIndex: 0, value: 'EVENT' }])).toEqual([table.rows[0], table.rows[1]]);
     });
 });
 
-describe('sortSwoCsvRows', () => {
-    const rows = parseSwoCsv('value,type\n10,event\n2,message\n2,event\n').rows;
+describe('sortCsvTableRows', () => {
+    const rows = parseCsvTable('value,type\n10,event\n2,message\n2,event\n').rows;
 
     it('sorts values naturally and preserves file order for equal values', () => {
-        expect(sortSwoCsvRows(rows, { columnIndex: 0, direction: 'ascending' }).map(row => row.sourceRowIndex)).toEqual([1, 2, 0]);
+        expect(sortCsvTableRows(rows, { columnIndex: 0, direction: 'ascending' }).map(row => row.sourceRowIndex)).toEqual([1, 2, 0]);
     });
 
     it('sorts by source row index', () => {
-        expect(sortSwoCsvRows(rows, { columnIndex: null, direction: 'descending' }).map(row => row.sourceRowIndex)).toEqual([2, 1, 0]);
+        expect(sortCsvTableRows(rows, { columnIndex: null, direction: 'descending' }).map(row => row.sourceRowIndex)).toEqual([2, 1, 0]);
     });
 });

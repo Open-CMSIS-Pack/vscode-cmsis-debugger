@@ -18,7 +18,7 @@
 import { open, mkdtemp, rm, writeFile, type FileHandle } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { compareSwoCsvSortValues, type SwoCsvSortDirection } from './swo-csv-table';
+import { compareCsvTableSortValues, type CsvTableSortDirection } from './csv-table';
 
 const RUN_ROW_LIMIT = 50_000;
 const RUN_KEY_BYTES_LIMIT = 16 * 1024 * 1024;
@@ -48,10 +48,10 @@ export class ExternalRowIdIndex {
 
     public static async create(
         entries: AsyncIterable<ExternalSortEntry>,
-        direction: SwoCsvSortDirection,
+        direction: CsvTableSortDirection,
         options: ExternalSortOptions = {},
     ): Promise<ExternalRowIdIndex> {
-        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'vscode-cmsis-debugger-swo-csv-'));
+        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'vscode-cmsis-debugger-csv-table-'));
         try {
             const { runPaths, scanMs, writeRunsMs } = await writeSortedRuns(temporaryDirectory, entries, direction, options);
             const indexPath = join(temporaryDirectory, 'row-ids.bin');
@@ -95,7 +95,7 @@ export class ExternalRowIdIndex {
 const writeSortedRuns = async (
     temporaryDirectory: string,
     entries: AsyncIterable<ExternalSortEntry>,
-    direction: SwoCsvSortDirection,
+    direction: CsvTableSortDirection,
     options: ExternalSortOptions,
 ): Promise<{ readonly runPaths: readonly string[]; readonly scanMs: number; readonly writeRunsMs: number }> => {
     const runPaths: string[] = [];
@@ -148,7 +148,7 @@ const writeSortedRuns = async (
 const mergeRuns = async (
     runPaths: readonly string[],
     indexPath: string,
-    direction: SwoCsvSortDirection,
+    direction: CsvTableSortDirection,
 ): Promise<number> => {
     // The path is created in this store's private temporary directory.
     // eslint-disable-next-line security/detect-non-literal-fs-filename
@@ -255,8 +255,8 @@ const encodeEntry = (entry: ExternalSortEntry): Buffer => {
     return buffer;
 };
 
-const compareEntries = (left: ExternalSortEntry, right: ExternalSortEntry, direction: SwoCsvSortDirection): number => {
-    const comparison = compareSwoCsvSortValues(left.sortValue, right.sortValue);
+const compareEntries = (left: ExternalSortEntry, right: ExternalSortEntry, direction: CsvTableSortDirection): number => {
+    const comparison = compareCsvTableSortValues(left.sortValue, right.sortValue);
     const directionMultiplier = direction === 'ascending' ? 1 : -1;
     return comparison === 0 ? left.rowId - right.rowId : comparison * directionMultiplier;
 };

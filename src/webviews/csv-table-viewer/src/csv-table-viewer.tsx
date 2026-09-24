@@ -30,13 +30,13 @@ import {
     toggleRow,
     type RowSelectionMovement,
     type RowSelectionState,
-} from '../../../views/swo-csv-viewer/row-selection';
-import type { SwoCsvFilter, SwoCsvRow, SwoCsvSort } from '../../../views/swo-csv-viewer/swo-csv-table';
-import type { SwoCsvHostMessage, SwoCsvWebviewMessage } from '../../../views/swo-csv-viewer/swo-csv-protocol';
-import { getSwoCsvScrollGeometry, SWO_CSV_ROW_HEIGHT } from '../../../views/swo-csv-viewer/swo-csv-scroll-geometry';
-import './swo-csv-viewer.css';
+} from '../../../views/csv-table-viewer/row-selection';
+import type { CsvTableFilter, CsvTableRow, CsvTableSort } from '../../../views/csv-table-viewer/csv-table';
+import type { CsvTableHostMessage, CsvTableWebviewMessage } from '../../../views/csv-table-viewer/csv-table-protocol';
+import { getCsvTableScrollGeometry, CSV_TABLE_ROW_HEIGHT } from '../../../views/csv-table-viewer/csv-table-scroll-geometry';
+import './csv-table-viewer.css';
 
-declare function acquireVsCodeApi(): { postMessage: (message: SwoCsvWebviewMessage) => void };
+declare function acquireVsCodeApi(): { postMessage: (message: CsvTableWebviewMessage) => void };
 
 const vscode = acquireVsCodeApi();
 const ROW_OVERSCAN = 16;
@@ -74,14 +74,14 @@ const INITIAL_STATE: TableState = {
 };
 
 
-export const SwoCsvViewer = (): JSX.Element => {
+export const CsvTableViewer = (): JSX.Element => {
     const scrollElementRef = useRef<HTMLDivElement>(null);
     const tableHeaderRef = useRef<HTMLDivElement>(null);
     const [tableState, setTableState] = useState<TableState>(INITIAL_STATE);
-    const [rows, setRows] = useState<readonly SwoCsvRow[]>([]);
+    const [rows, setRows] = useState<readonly CsvTableRow[]>([]);
     const [rowStart, setRowStart] = useState(0);
-    const [filters, setFilters] = useState<readonly SwoCsvFilter[]>([]);
-    const [sort, setSort] = useState<SwoCsvSort | null>(null);
+    const [filters, setFilters] = useState<readonly CsvTableFilter[]>([]);
+    const [sort, setSort] = useState<CsvTableSort | null>(null);
     const [columnWidths, setColumnWidths] = useState<readonly number[]>([]);
     const [selection, setSelection] = useState<RowSelectionState>(EMPTY_ROW_SELECTION);
     const [copyButtonReady, setCopyButtonReady] = useState(false);
@@ -98,14 +98,14 @@ export const SwoCsvViewer = (): JSX.Element => {
     const clearSortSuppressionTimer = useRef<number | null>(null);
     const filterTimer = useRef<number | null>(null);
     const copyButtonTimer = useRef<number | null>(null);
-    const rowViewportHeight = Math.max(SWO_CSV_ROW_HEIGHT, (scrollElementRef.current?.clientHeight ?? SWO_CSV_ROW_HEIGHT) - (tableHeaderRef.current?.offsetHeight ?? 0));
-    const { scrollHeight, scrollScale, logicalScrollTop, firstVisibleRow } = getSwoCsvScrollGeometry(tableState.totalRowCount, scrollTop, rowViewportHeight);
-    const visibleRowCount = Math.max(1, Math.ceil(rowViewportHeight / SWO_CSV_ROW_HEIGHT));
+    const rowViewportHeight = Math.max(CSV_TABLE_ROW_HEIGHT, (scrollElementRef.current?.clientHeight ?? CSV_TABLE_ROW_HEIGHT) - (tableHeaderRef.current?.offsetHeight ?? 0));
+    const { scrollHeight, scrollScale, logicalScrollTop, firstVisibleRow } = getCsvTableScrollGeometry(tableState.totalRowCount, scrollTop, rowViewportHeight);
+    const visibleRowCount = Math.max(1, Math.ceil(rowViewportHeight / CSV_TABLE_ROW_HEIGHT));
     const renderedRowStart = Math.max(0, firstVisibleRow - ROW_OVERSCAN);
     const renderedRowEnd = Math.min(tableState.totalRowCount, firstVisibleRow + visibleRowCount + ROW_OVERSCAN);
 
     useEffect(() => {
-        const receiveMessage = (event: MessageEvent<SwoCsvHostMessage>): void => {
+        const receiveMessage = (event: MessageEvent<CsvTableHostMessage>): void => {
             const message = event.data;
             if (message.type === 'tableState') {
                 viewRevision.current = message.viewRevision;
@@ -305,7 +305,7 @@ export const SwoCsvViewer = (): JSX.Element => {
     const moveSelection = (destination: number, movement: RowSelectionMovement): void => {
         const clampedDestination = Math.max(0, Math.min(destination, tableState.totalRowCount - 1));
         setSelection(current => moveRowCaret(current, clampedDestination, tableState.totalRowCount, movement));
-        scrollElementRef.current?.scrollTo({ top: clampedDestination * SWO_CSV_ROW_HEIGHT / scrollScale });
+        scrollElementRef.current?.scrollTo({ top: clampedDestination * CSV_TABLE_ROW_HEIGHT / scrollScale });
     };
 
     const handleTableKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
@@ -338,8 +338,8 @@ export const SwoCsvViewer = (): JSX.Element => {
             setSelection(current => toggleRow(current, current.caret ?? firstVisibleRow));
             return;
         }
-        const visibleHeight = Math.max(SWO_CSV_ROW_HEIGHT, (scrollElementRef.current?.clientHeight ?? SWO_CSV_ROW_HEIGHT) - (tableHeaderRef.current?.offsetHeight ?? 0));
-        const pageSize = Math.max(1, Math.floor(visibleHeight / SWO_CSV_ROW_HEIGHT));
+        const visibleHeight = Math.max(CSV_TABLE_ROW_HEIGHT, (scrollElementRef.current?.clientHeight ?? CSV_TABLE_ROW_HEIGHT) - (tableHeaderRef.current?.offsetHeight ?? 0));
+        const pageSize = Math.max(1, Math.floor(visibleHeight / CSV_TABLE_ROW_HEIGHT));
         let destination: number;
         switch (event.key) {
             case 'ArrowUp':
@@ -391,8 +391,8 @@ export const SwoCsvViewer = (): JSX.Element => {
         : null;
     const copyButtonTop = copyButtonRow === null
         ? 0
-        : Math.max(4, (tableHeaderRef.current?.offsetHeight ?? 0) + copyButtonRow * SWO_CSV_ROW_HEIGHT - scrollTop - 30);
-    return <main className="swo-csv-viewer">
+        : Math.max(4, (tableHeaderRef.current?.offsetHeight ?? 0) + copyButtonRow * CSV_TABLE_ROW_HEIGHT - scrollTop - 30);
+    return <main className="csv-table-viewer">
         <section className="table-frame" aria-label="CSV table">
             <div
                 className="table-scroll"
@@ -402,7 +402,7 @@ export const SwoCsvViewer = (): JSX.Element => {
                 aria-colcount={tableState.columns.length + 1}
                 aria-rowcount={tableState.totalRowCount + 1}
                 aria-multiselectable="true"
-                aria-activedescendant={activeRowIsRendered ? `swo-csv-row-${selection.caret}` : undefined}
+                aria-activedescendant={activeRowIsRendered ? `csv-table-row-${selection.caret}` : undefined}
                 tabIndex={0}
                 onKeyDown={handleTableKeyDown}
                 onKeyUp={handleTableKeyUp}
@@ -433,10 +433,10 @@ export const SwoCsvViewer = (): JSX.Element => {
                         }
                         const selected = isRowSelected(selection, rowIndex);
                         const caret = selection.caret === rowIndex;
-                        const rowTop = scrollTop + rowIndex * SWO_CSV_ROW_HEIGHT - logicalScrollTop;
+                        const rowTop = scrollTop + rowIndex * CSV_TABLE_ROW_HEIGHT - logicalScrollTop;
                         return <div
                             className={`table-row${selected ? ' selected' : ''}${caret ? ' caret' : ''}`}
-                            id={`swo-csv-row-${rowIndex}`}
+                            id={`csv-table-row-${rowIndex}`}
                             key={row.sourceRowIndex}
                             role="row"
                             aria-rowindex={rowIndex + 2}

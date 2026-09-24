@@ -16,12 +16,12 @@
 // generated with AI
 
 import { EOL } from 'node:os';
-import { copySwoCsvRows } from './copy-swo-csv-rows';
-import { InMemorySwoCsvRowStore, type SwoCsvRowStore } from './swo-csv-row-store';
+import { copyCsvTableRows } from './copy-csv-table-rows';
+import { InMemoryCsvTableRowStore, type CsvTableRowStore } from './csv-table-row-store';
 
-describe('copySwoCsvRows', () => {
+describe('copyCsvTableRows', () => {
     it('copies selected rows in current display order as valid CSV', async () => {
-        const store = new InMemorySwoCsvRowStore({
+        const store = new InMemoryCsvTableRowStore({
             columns: ['value', 'note'],
             rows: [
                 { sourceRowIndex: 0, cells: ['10', 'plain'] },
@@ -33,28 +33,28 @@ describe('copySwoCsvRows', () => {
         await store.applyView([], { columnIndex: 0, direction: 'ascending' });
         const writeText = jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined);
 
-        await expect(copySwoCsvRows([{ start: 0, end: 0 }, { start: 2, end: 2 }], store, writeText, () => true))
+        await expect(copyCsvTableRows([{ start: 0, end: 0 }, { start: 2, end: 2 }], store, writeText, () => true))
             .resolves.toBe('copied');
         expect(writeText).toHaveBeenCalledWith(`2,"with,comma"${EOL}10,plain${EOL}`);
     });
 
     it('reads large intervals in bounded batches', async () => {
-        const getRows: jest.MockedFunction<SwoCsvRowStore['getRows']> = jest.fn();
+        const getRows: jest.MockedFunction<CsvTableRowStore['getRows']> = jest.fn();
         getRows
             .mockResolvedValueOnce([{ sourceRowIndex: 0, cells: ['a'] }, { sourceRowIndex: 1, cells: ['b'] }])
             .mockResolvedValueOnce([{ sourceRowIndex: 2, cells: ['c'] }]);
         const store = createRowStore(3, getRows);
 
-        await expect(copySwoCsvRows([{ start: 0, end: 2 }], store, async () => undefined, () => true, 2))
+        await expect(copyCsvTableRows([{ start: 0, end: 2 }], store, async () => undefined, () => true, 2))
             .resolves.toBe('copied');
         expect(getRows.mock.calls).toEqual([[0, 2], [2, 3]]);
     });
 
     it('rejects invalid intervals without reading or writing', async () => {
-        const getRows: jest.MockedFunction<SwoCsvRowStore['getRows']> = jest.fn();
+        const getRows: jest.MockedFunction<CsvTableRowStore['getRows']> = jest.fn();
         const writeText = jest.fn<Promise<void>, [string]>();
 
-        await expect(copySwoCsvRows([{ start: 0, end: 3 }], createRowStore(3, getRows), writeText, () => true))
+        await expect(copyCsvTableRows([{ start: 0, end: 3 }], createRowStore(3, getRows), writeText, () => true))
             .resolves.toBe('invalid');
         expect(getRows).not.toHaveBeenCalled();
         expect(writeText).not.toHaveBeenCalled();
@@ -64,7 +64,7 @@ describe('copySwoCsvRows', () => {
         const store = createRowStore(1, async () => [{ sourceRowIndex: 0, cells: ['value'] }]);
         const writeText = jest.fn<Promise<void>, [string]>();
 
-        await expect(copySwoCsvRows([{ start: 0, end: 0 }], store, writeText, () => false)).resolves.toBe('cancelled');
+        await expect(copyCsvTableRows([{ start: 0, end: 0 }], store, writeText, () => false)).resolves.toBe('cancelled');
         expect(writeText).not.toHaveBeenCalled();
     });
 
@@ -72,13 +72,13 @@ describe('copySwoCsvRows', () => {
         const store = createRowStore(1, async () => [{ sourceRowIndex: 0, cells: ['multibyte value'] }]);
         const writeText = jest.fn<Promise<void>, [string]>();
 
-        await expect(copySwoCsvRows([{ start: 0, end: 0 }], store, writeText, () => true, 1, 10))
+        await expect(copyCsvTableRows([{ start: 0, end: 0 }], store, writeText, () => true, 1, 10))
             .resolves.toBe('too-large');
         expect(writeText).not.toHaveBeenCalled();
     });
 });
 
-const createRowStore = (rowCount: number, getRows: SwoCsvRowStore['getRows']): SwoCsvRowStore => ({
+const createRowStore = (rowCount: number, getRows: CsvTableRowStore['getRows']): CsvTableRowStore => ({
     columns: ['value'],
     sourceRowCount: rowCount,
     rowCount,

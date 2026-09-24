@@ -16,26 +16,26 @@
 // generated with AI
 
 import {
-    getSwoCsvScrollGeometry,
-    SWO_CSV_MAX_SCROLL_HEIGHT,
-    SWO_CSV_ROW_HEIGHT,
-} from './swo-csv-scroll-geometry';
+    getCsvTableScrollGeometry,
+    CSV_TABLE_MAX_SCROLL_HEIGHT,
+    CSV_TABLE_ROW_HEIGHT,
+} from './csv-table-scroll-geometry';
 
-describe('getSwoCsvScrollGeometry', () => {
+describe('getCsvTableScrollGeometry', () => {
     const viewportHeight = 600;
 
     it('maps the end of a compressed 10-million-row scrollbar to the final viewport', () => {
         const totalRowCount = 10_000_000;
-        const maximumScrollTop = SWO_CSV_MAX_SCROLL_HEIGHT - viewportHeight;
+        const maximumScrollTop = CSV_TABLE_MAX_SCROLL_HEIGHT - viewportHeight;
 
-        const geometry = getSwoCsvScrollGeometry(totalRowCount, maximumScrollTop, viewportHeight);
+        const geometry = getCsvTableScrollGeometry(totalRowCount, maximumScrollTop, viewportHeight);
 
-        expect(geometry.logicalScrollTop).toBe(totalRowCount * SWO_CSV_ROW_HEIGHT - viewportHeight);
-        expect(geometry.firstVisibleRow).toBe(totalRowCount - viewportHeight / SWO_CSV_ROW_HEIGHT);
+        expect(geometry.logicalScrollTop).toBe(totalRowCount * CSV_TABLE_ROW_HEIGHT - viewportHeight);
+        expect(geometry.firstVisibleRow).toBe(totalRowCount - viewportHeight / CSV_TABLE_ROW_HEIGHT);
     });
 
     it('keeps uncompressed scrolling at a one-to-one scale', () => {
-        const geometry = getSwoCsvScrollGeometry(200_000, 12_345, viewportHeight);
+        const geometry = getCsvTableScrollGeometry(200_000, 12_345, viewportHeight);
 
         expect(geometry.scrollScale).toBe(1);
         expect(geometry.logicalScrollTop).toBe(12_345);

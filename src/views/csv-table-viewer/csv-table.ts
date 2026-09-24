@@ -15,63 +15,63 @@
  */
 // generated with AI
 
-export interface SwoCsvRow {
+export interface CsvTableRow {
     readonly sourceRowIndex: number;
     readonly cells: readonly string[];
 }
 
-export interface SwoCsvTable {
+export interface CsvTableTable {
     readonly columns: readonly string[];
-    readonly rows: readonly SwoCsvRow[];
+    readonly rows: readonly CsvTableRow[];
     readonly malformedRowCount: number;
 }
 
-export interface SwoCsvFilter {
+export interface CsvTableFilter {
     readonly columnIndex: number;
     readonly value: string;
     readonly match?: 'substring' | 'exact';
 }
 
-export type SwoCsvSortDirection = 'ascending' | 'descending';
+export type CsvTableSortDirection = 'ascending' | 'descending';
 
-export interface SwoCsvSort {
+export interface CsvTableSort {
     readonly columnIndex: number | null;
-    readonly direction: SwoCsvSortDirection;
+    readonly direction: CsvTableSortDirection;
 }
 
 const NATURAL_SORT_COLLATOR = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
-export const compareSwoCsvSortValues = (left: string, right: string): number => NATURAL_SORT_COLLATOR.compare(left, right);
+export const compareCsvTableSortValues = (left: string, right: string): number => NATURAL_SORT_COLLATOR.compare(left, right);
 
-export const serializeSwoCsvRow = (row: SwoCsvRow): string => row.cells.map(escapeSwoCsvCell).join(',');
+export const serializeCsvTableRow = (row: CsvTableRow): string => row.cells.map(escapeCsvTableCell).join(',');
 
-const escapeSwoCsvCell = (value: string): string => /[",\r\n]/.test(value)
+const escapeCsvTableCell = (value: string): string => /[",\r\n]/.test(value)
     ? `"${value.replaceAll('"', '""')}"`
     : value;
 
-export const parseSwoCsv = (contents: string): SwoCsvTable => {
-    return parseSwoCsvLines(contents.split(/\r?\n/));
+export const parseCsvTable = (contents: string): CsvTableTable => {
+    return parseCsvTableLines(contents.split(/\r?\n/));
 };
 
 
-export const parseSwoCsvLines = (lines: Iterable<string>): SwoCsvTable => {
-    const builder = new SwoCsvTableBuilder();
+export const parseCsvTableLines = (lines: Iterable<string>): CsvTableTable => {
+    const builder = new CsvTableTableBuilder();
     for (const line of lines) {
         builder.addLine(line);
     }
     return builder.build();
 };
 
-export const parseSwoCsvAsyncLines = async (lines: AsyncIterable<string>): Promise<SwoCsvTable> => {
-    const builder = new SwoCsvTableBuilder();
+export const parseCsvTableAsyncLines = async (lines: AsyncIterable<string>): Promise<CsvTableTable> => {
+    const builder = new CsvTableTableBuilder();
     for await (const line of lines) {
         builder.addLine(line);
     }
     return builder.build();
 };
 
-export const parseSwoCsvChunks = async (chunks: AsyncIterable<string>): Promise<SwoCsvTable> => {
-    const builder = new SwoCsvTableBuilder();
+export const parseCsvTableChunks = async (chunks: AsyncIterable<string>): Promise<CsvTableTable> => {
+    const builder = new CsvTableTableBuilder();
     let cells: string[] = [];
     let cellParts: string[] = [];
     let insideQuotes = false;
@@ -170,13 +170,13 @@ export const parseSwoCsvChunks = async (chunks: AsyncIterable<string>): Promise<
     return builder.build();
 };
 
-class SwoCsvTableBuilder {
+class CsvTableTableBuilder {
     private columns: readonly string[] | undefined;
-    private readonly rows: SwoCsvRow[] = [];
+    private readonly rows: CsvTableRow[] = [];
     private malformedRowCount = 0;
 
     public addLine(line: string): void {
-        this.addCells(line.length === 0 ? [] : parseSwoCsvRecord(line));
+        this.addCells(line.length === 0 ? [] : parseCsvTableRecord(line));
     }
 
     public addCells(rawCells: readonly string[]): void {
@@ -197,7 +197,7 @@ class SwoCsvTableBuilder {
         });
     }
 
-    public build(): SwoCsvTable {
+    public build(): CsvTableTable {
         return {
             columns: this.columns ?? [],
             rows: this.rows,
@@ -206,26 +206,26 @@ class SwoCsvTableBuilder {
     }
 }
 
-export const filterSwoCsvRows = (rows: readonly SwoCsvRow[], filters: readonly SwoCsvFilter[]): readonly SwoCsvRow[] => {
+export const filterCsvTableRows = (rows: readonly CsvTableRow[], filters: readonly CsvTableFilter[]): readonly CsvTableRow[] => {
     const activeFilters = filters
         .filter(filter => filter.value.length > 0)
-        .map(filter => ({ ...filter, value: normalizeSwoCsvFilterValue(filter.value) }));
+        .map(filter => ({ ...filter, value: normalizeCsvTableFilterValue(filter.value) }));
     if (activeFilters.length === 0) {
         return rows;
     }
 
     return rows.filter(row => activeFilters.every(filter =>
-        matchesSwoCsvFilter(normalizeSwoCsvFilterValue(row.cells[filter.columnIndex] ?? ''), filter)
+        matchesCsvTableFilter(normalizeCsvTableFilterValue(row.cells[filter.columnIndex] ?? ''), filter)
     ));
 };
 
-export const normalizeSwoCsvFilterValue = (value: string): string => value.toLocaleLowerCase();
+export const normalizeCsvTableFilterValue = (value: string): string => value.toLocaleLowerCase();
 
-export const matchesSwoCsvFilter = (normalizedValue: string, filter: SwoCsvFilter): boolean => filter.match === 'exact'
+export const matchesCsvTableFilter = (normalizedValue: string, filter: CsvTableFilter): boolean => filter.match === 'exact'
     ? normalizedValue === filter.value
     : normalizedValue.includes(filter.value);
 
-export const sortSwoCsvRows = (rows: readonly SwoCsvRow[], sort: SwoCsvSort | null): readonly SwoCsvRow[] => {
+export const sortCsvTableRows = (rows: readonly CsvTableRow[], sort: CsvTableSort | null): readonly CsvTableRow[] => {
     if (sort === null) {
         return rows;
     }
@@ -234,7 +234,7 @@ export const sortSwoCsvRows = (rows: readonly SwoCsvRow[], sort: SwoCsvSort | nu
     return [...rows].sort((left, right) => {
         const comparison = sort.columnIndex === null
             ? left.sourceRowIndex - right.sourceRowIndex
-            : compareSwoCsvSortValues(left.cells[sort.columnIndex] ?? '', right.cells[sort.columnIndex] ?? '');
+            : compareCsvTableSortValues(left.cells[sort.columnIndex] ?? '', right.cells[sort.columnIndex] ?? '');
         return comparison === 0
             ? left.sourceRowIndex - right.sourceRowIndex
             : comparison * direction;
@@ -256,7 +256,7 @@ const normalizeCells = (rawCells: readonly string[], columnCount: number): reado
     ];
 };
 
-export const parseSwoCsvRecord = (record: string): readonly string[] => {
+export const parseCsvTableRecord = (record: string): readonly string[] => {
     const cells: string[] = [];
     let cell = '';
     let insideQuotes = false;
