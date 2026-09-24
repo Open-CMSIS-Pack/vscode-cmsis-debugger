@@ -128,7 +128,7 @@
       {
         "command": "vscode-cmsis-debugger.traceConfiguration.revert",
         "title": "Revert ctrace.yml",
-        "icon": "$(history)",
+        "icon": "$(discard)",
         "category": "Trace Generation",
         "enablement": "vscode-cmsis-debugger.traceConfiguration.isModified"
       },
