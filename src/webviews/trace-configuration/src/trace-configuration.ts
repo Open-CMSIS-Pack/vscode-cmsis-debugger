@@ -97,8 +97,7 @@ function closeOpenMultiSelect(): void {
 
 /**
  * renderApp is the top-level renderer for each host update. It creates the
- * toolbar, status line, and table for the current state and replaces the root
- * contents in one pass.
+ * table for the current state and replaces the root contents in one pass.
  */
 function renderApp(state: TraceConfigurationState): void {
     if (!root) {
@@ -109,7 +108,6 @@ function renderApp(state: TraceConfigurationState): void {
     const scrollLeft = previousScrollRegion?.scrollLeft ?? 0;
     clearElement(root);
     const surface = createElement('main', 'table-surface');
-    surface.append(createHeader(state));
     const scrollRegion = createElement('div', 'option-tree-scroll');
     if (state.loading) {
         scrollRegion.append(createEmptyState('Loading ctrace.yml...'));
@@ -145,60 +143,6 @@ function focusRow(rowId: string | undefined): void {
     }
     row.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     row.focus({ preventScroll: true });
-}
-
-/**
- * createHeader places the file status above the scrolling tree body.
- */
-function createHeader(state: TraceConfigurationState): HTMLElement {
-    const header = createElement('div', 'trace-header');
-    header.append(createStatus(state));
-    return header;
-}
-
-/**
- * createStatus renders the selected filename, dirty state, and pyTS validation
- * lifecycle without hiding the editable rows when validation fails.
- */
-function createStatus(state: TraceConfigurationState): HTMLElement {
-    const status = createElement('div', 'trace-status');
-    const file = createElement('span', 'trace-file');
-    file.textContent = getFileNameDisplayText(state);
-    file.title = state.fileName ?? '';
-    const validationFailed = state.validationState === 'failed' || state.validationState === 'unavailable';
-    const dirty = createElement(
-        'span',
-        validationFailed ? 'status-error' : state.dirty ? 'status-warn' : 'status-ok'
-    );
-    switch (state.validationState) {
-        case 'pending':
-        case 'running':
-            dirty.textContent = 'Validating…';
-            break;
-        case 'failed':
-            dirty.textContent = 'Validation failed';
-            break;
-        case 'unavailable':
-            dirty.textContent = 'Validation unavailable';
-            break;
-        default:
-            dirty.textContent = state.dirty ? 'Unsaved' : 'Synced';
-            break;
-    }
-    dirty.title = state.validationMessage ?? '';
-    status.append(file, dirty);
-    return status;
-}
-
-/**
- * getFileNameDisplayText preserves the absolute filename in state while
- * shortening the status label for files inside the active workspace.
- */
-function getFileNameDisplayText(state: TraceConfigurationState): string {
-    if (!state.fileName || !state.workspaceFolderPath) {
-        return state.fileName ?? 'No ctrace.yml selected';
-    }
-    return state.fileName.slice(state.workspaceFolderPath.length + 1);
 }
 
 /**
