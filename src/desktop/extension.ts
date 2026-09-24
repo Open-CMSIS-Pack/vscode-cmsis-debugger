@@ -88,7 +88,9 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     const traceConfigurationCommands = new TraceConfigurationCommands();
     const csvTableEditorProvider = new CsvTableEditorProvider(
         context.extensionUri,
-        (solutionSet, ctraceRef) => traceConfiguration.focusCTraceReference(solutionSet, ctraceRef)
+        (solutionSet, ctraceRef, ctraceFilePath) =>
+            traceConfiguration?.focusCTraceReference(solutionSet, ctraceRef, ctraceFilePath)
+            ?? Promise.resolve(false)
     );
 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);
