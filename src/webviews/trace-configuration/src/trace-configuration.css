@@ -48,42 +48,6 @@ button {
     container-type: inline-size;
 }
 
-.trace-header {
-    position: sticky;
-    top: 0;
-    z-index: 5;
-    background: var(--vscode-sideBarSectionHeader-background, #252526);
-}
-
-.tree-toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 6px;
-    min-height: 36px;
-    padding: 6px 8px;
-    border-bottom: 1px solid var(--vscode-panel-border, #3c3c3c);
-    background: var(--vscode-sideBarSectionHeader-background, #252526);
-}
-
-.trace-status {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    min-height: 30px;
-    padding: 5px 8px;
-    border-bottom: 1px solid var(--vscode-panel-border, #3c3c3c);
-    color: var(--vscode-descriptionForeground, #969696);
-}
-
-.trace-file {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
 .icon-button {
     display: inline-flex;
     align-items: center;
@@ -407,9 +371,7 @@ input[type="checkbox"] {
     min-width: 0;
 }
 
-.pill,
-.status-ok,
-.status-warn {
+.pill {
     display: inline-flex;
     align-items: center;
     height: 20px;
@@ -423,16 +385,6 @@ input[type="checkbox"] {
     border: 1px solid var(--vscode-button-border, #555555);
     color: var(--vscode-descriptionForeground, #c7c7c7);
     text-transform: uppercase;
-}
-
-.status-ok {
-    color: var(--vscode-testing-iconPassed, #89d185);
-    background: rgba(137, 209, 133, 0.11);
-}
-
-.status-warn {
-    color: var(--vscode-editorWarning-foreground, #dcdcaa);
-    background: rgba(220, 220, 170, 0.12);
 }
 
 .empty-state {

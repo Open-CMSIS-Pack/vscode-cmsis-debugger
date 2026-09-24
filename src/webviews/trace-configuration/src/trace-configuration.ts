@@ -97,8 +97,7 @@ function closeOpenMultiSelect(): void {
 
 /**
  * renderApp is the top-level renderer for each host update. It creates the
- * toolbar, status line, and table for the current state and replaces the root
- * contents in one pass.
+ * table for the current state and replaces the root contents in one pass.
  */
 function renderApp(state: TraceConfigurationState): void {
     if (!root) {
@@ -106,7 +105,6 @@ function renderApp(state: TraceConfigurationState): void {
     }
     clearElement(root);
     const surface = createElement('main', 'table-surface');
-    surface.append(createHeader(state));
     if (state.loading) {
         surface.append(createEmptyState('Loading ctrace.yml...'));
     } else if (state.errorMessage) {
@@ -138,53 +136,6 @@ function focusRow(rowId: string | undefined): void {
     }
     row.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     row.focus({ preventScroll: true });
-}
-
-/**
- * createHeader keeps the toolbar and save state together in the sticky region
- * so the file status remains visible while the tree body scrolls.
- */
-function createHeader(state: TraceConfigurationState): HTMLElement {
-    const header = createElement('div', 'trace-header');
-    header.append(createToolbar(), createStatus(state));
-    return header;
-}
-
-/**
- * createToolbar builds the view-level controls. Save asks the extension host
- * to persist the current ctrace document, Open lets the user choose a ctrace
- * file, and Expand/Collapse send row toggle messages for every row currently
- * rendered in the table.
- */
-function createToolbar(): HTMLElement {
-    return createElement('span', 'tree-toolbar-hidden');
-}
-
-/**
- * createStatus renders the selected filename and unsaved/saved state. Saves are
- * currently immediate, but the flag is still shown so future debounced writes
- * can reuse the same status surface.
- */
-function createStatus(state: TraceConfigurationState): HTMLElement {
-    const status = createElement('div', 'trace-status');
-    const file = createElement('span', 'trace-file');
-    file.textContent = getFileNameDisplayText(state);
-    file.title = state.fileName ?? '';
-    const dirty = createElement('span', state.dirty ? 'status-warn' : 'status-ok');
-    dirty.textContent = state.dirty ? 'Unsaved' : 'Synced';
-    status.append(file, dirty);
-    return status;
-}
-
-/**
- * getFileNameDisplayText preserves the absolute filename in state while
- * shortening the status label for files inside the active workspace.
- */
-function getFileNameDisplayText(state: TraceConfigurationState): string {
-    if (!state.fileName || !state.workspaceFolderPath) {
-        return state.fileName ?? 'No ctrace.yml selected';
-    }
-    return state.fileName.slice(state.workspaceFolderPath.length + 1);
 }
 
 /**
