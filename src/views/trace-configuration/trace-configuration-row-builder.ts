@@ -29,6 +29,7 @@ import {
 import {
     TraceConfigurationRow,
     TraceConfigurationState,
+    TraceConfigurationValidationState
 } from './trace-configuration-protocol';
 import * as TraceConfigurationTypes from './trace-configuration-types';
 import { CTraceYamlFile } from './ctrace-yaml';
@@ -55,7 +56,9 @@ export class TraceConfigurationRowBuilder {
         private readonly getErrorMessage: () => string | undefined,
         private readonly expandedRows: Set<string>,
         private readonly processorCapabilities: ReadonlyMap<string, TraceConfigurationTypes.ProcessorTraceCapabilities>,
-        private readonly getShowCTraceRefsInTooltips: () => boolean
+        private readonly getShowCTraceRefsInTooltips: () => boolean,
+        private readonly getValidationState: () => TraceConfigurationValidationState = () => 'idle',
+        private readonly getValidationMessage: () => string | undefined = () => undefined
     ) { }
 
     /**
@@ -74,6 +77,8 @@ export class TraceConfigurationRowBuilder {
             rows,
             loading: this.getLoading(),
             dirty: this.getDirty(),
+            validationState: this.getValidationState(),
+            validationMessage: this.getValidationMessage(),
             emptyMessage,
             errorMessage: this.getErrorMessage()
         };

@@ -91,6 +91,9 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.revert', async () => {
                 await this.handleCommand(() => this.model.refreshFile());
             }),
+            vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.revertValidating', async () => {
+                await this.handleCommand(() => this.model.refreshFile());
+            }),
             vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.expandAll', () => {
                 this.toggleAllRows(true);
             }),
@@ -103,7 +106,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
         await this.initializeAfterCmsisSolutionActivation(context);
     }
 
-    /** Flushes the latest dirty-file backup before the extension host stops. */
+    /** Flushes the latest dirty-file backup and cancels validation before shutdown. */
     public async deactivate(): Promise<void> {
         await this.model.deactivate();
     }

@@ -25,12 +25,20 @@ import {
     TraceConfigurationBackupStore,
     WorkspaceTraceConfigurationBackupStore
 } from './trace-configuration-backup';
+import { TraceConfigurationPrevalidator } from './trace-configuration-prevalidator';
 
 function createStore(): jest.Mocked<TraceConfigurationBackupStore> {
     return {
         restore: jest.fn().mockResolvedValue(undefined),
         write: jest.fn().mockResolvedValue(undefined),
         delete: jest.fn().mockResolvedValue(undefined)
+    };
+}
+
+function createPrevalidator(): jest.Mocked<TraceConfigurationPrevalidator> {
+    return {
+        validate: jest.fn().mockResolvedValue({ status: 'passed' }),
+        cancel: jest.fn().mockResolvedValue(undefined)
     };
 }
 
@@ -131,12 +139,19 @@ describe('DebouncedTraceConfigurationBackup', () => {
         const error = new Error('backup failed');
         store.write.mockRejectedValueOnce(error);
         const onError = jest.fn();
-        const backup = new DebouncedTraceConfigurationBackup(store, onError);
+        const prevalidator = createPrevalidator();
+        const onValidationStateChanged = jest.fn();
+        const backup = new DebouncedTraceConfigurationBackup(store, onError, {
+            prevalidator,
+            onValidationStateChanged
+        });
 
         backup.schedule('/workspace/target.ctrace.yml', 'contents');
 
         await expect(backup.flush()).resolves.toBeUndefined();
         expect(onError).toHaveBeenCalledWith(error);
+        expect(prevalidator.validate).not.toHaveBeenCalled();
+        expect(onValidationStateChanged).toHaveBeenLastCalledWith('failed', 'backup failed');
     });
 
     it('flushes the latest snapshot when disposed', async () => {
@@ -151,6 +166,118 @@ describe('DebouncedTraceConfigurationBackup', () => {
         jest.advanceTimersByTime(500);
         await flushPromises();
         expect(store.write).toHaveBeenCalledTimes(1);
+    });
+
+    it('cancels active validation and resets its state when disposed', async () => {
+        const prevalidator = createPrevalidator();
+        let completeValidation: ((result: { status: 'cancelled' }) => void) | undefined;
+        prevalidator.validate.mockImplementationOnce(() => new Promise(resolve => {
+            completeValidation = resolve;
+        }));
+        prevalidator.cancel.mockImplementation(async () => {
+            completeValidation?.({ status: 'cancelled' });
+        });
+        const onValidationStateChanged = jest.fn();
+        const backup = new DebouncedTraceConfigurationBackup(createStore(), jest.fn(), {
+            prevalidator,
+            onValidationStateChanged
+        });
+        backup.schedule('/workspace/target.ctrace.yml', 'contents');
+        jest.advanceTimersByTime(500);
+        await flushPromises();
+        expect(prevalidator.validate).toHaveBeenCalledTimes(1);
+
+        await backup.dispose();
+
+        expect(prevalidator.cancel).toHaveBeenCalledTimes(2);
+        expect(onValidationStateChanged).toHaveBeenLastCalledWith('idle');
+    });
+
+    it('runs validation after a successful backup write and publishes its lifecycle', async () => {
+        const store = createStore();
+        const prevalidator = createPrevalidator();
+        const onValidationStateChanged = jest.fn();
+        const backup = new DebouncedTraceConfigurationBackup(store, jest.fn(), {
+            prevalidator,
+            onValidationStateChanged
+        });
+
+        backup.schedule('/workspace/target.ctrace.yml', 'contents');
+        expect(onValidationStateChanged).toHaveBeenLastCalledWith('pending');
+
+        jest.advanceTimersByTime(500);
+        await backup.flush();
+
+        expect(store.write).toHaveBeenCalledTimes(1);
+        expect(prevalidator.validate).toHaveBeenCalledWith('/workspace/target.ctrace.yml');
+        expect(store.write.mock.invocationCallOrder[0]).toBeLessThan(prevalidator.validate.mock.invocationCallOrder[0] ?? 0);
+        expect(onValidationStateChanged.mock.calls).toEqual([
+            ['pending'],
+            ['running'],
+            ['passed']
+        ]);
+    });
+
+    it.each([
+        { result: { status: 'failed' as const, message: 'conversion failed' }, state: 'failed' },
+        { result: { status: 'unavailable' as const, message: 'wrong input' }, state: 'unavailable' }
+    ])('keeps validation blocked when pyTS is $state', async ({ result, state }) => {
+        const prevalidator = createPrevalidator();
+        prevalidator.validate.mockResolvedValue(result);
+        const onValidationStateChanged = jest.fn();
+        const backup = new DebouncedTraceConfigurationBackup(createStore(), jest.fn(), {
+            prevalidator,
+            onValidationStateChanged
+        });
+
+        backup.schedule('/workspace/target.ctrace.yml', 'contents');
+        await backup.flush();
+
+        expect(onValidationStateChanged).toHaveBeenLastCalledWith(state, result.message);
+    });
+
+    it('cancels an obsolete validation and only accepts the latest result', async () => {
+        const store = createStore();
+        const prevalidator = createPrevalidator();
+        let completeFirstValidation: ((result: { status: 'passed' }) => void) | undefined;
+        prevalidator.validate
+            .mockImplementationOnce(() => new Promise(resolve => {
+                completeFirstValidation = resolve;
+            }))
+            .mockResolvedValueOnce({ status: 'passed' });
+        const onValidationStateChanged = jest.fn();
+        const backup = new DebouncedTraceConfigurationBackup(store, jest.fn(), {
+            prevalidator,
+            onValidationStateChanged
+        });
+
+        backup.schedule('/workspace/target.ctrace.yml', 'first');
+        jest.advanceTimersByTime(500);
+        await flushPromises();
+        expect(prevalidator.validate).toHaveBeenCalledTimes(1);
+
+        backup.schedule('/workspace/target.ctrace.yml', 'latest');
+        expect(prevalidator.cancel).toHaveBeenCalledTimes(2);
+        completeFirstValidation?.({ status: 'passed' });
+        await flushPromises();
+        jest.advanceTimersByTime(500);
+        await backup.flush();
+
+        expect(prevalidator.validate).toHaveBeenCalledTimes(2);
+        expect(store.write).toHaveBeenLastCalledWith('/workspace/target.ctrace.yml', 'latest');
+        expect(onValidationStateChanged).toHaveBeenLastCalledWith('passed');
+    });
+
+    it('validates a restored backup without rewriting it', async () => {
+        const store = createStore();
+        const prevalidator = createPrevalidator();
+        const backup = new DebouncedTraceConfigurationBackup(store, jest.fn(), { prevalidator });
+
+        backup.validateExisting('/workspace/target.ctrace.yml');
+        await backup.flush();
+
+        expect(store.write).not.toHaveBeenCalled();
+        expect(prevalidator.validate).toHaveBeenCalledWith('/workspace/target.ctrace.yml');
     });
 });
 

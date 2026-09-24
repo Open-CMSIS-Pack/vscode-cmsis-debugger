@@ -123,12 +123,19 @@
         "title": "Save ctrace.yml",
         "icon": "$(save)",
         "category": "Trace Generation",
-        "enablement": "vscode-cmsis-debugger.traceConfiguration.isModified"
+        "enablement": "vscode-cmsis-debugger.traceConfiguration.isModified && vscode-cmsis-debugger.traceConfiguration.validationSucceeded"
       },
       {
         "command": "vscode-cmsis-debugger.traceConfiguration.revert",
         "title": "Revert ctrace.yml",
         "icon": "$(discard)",
+        "category": "Trace Generation",
+        "enablement": "vscode-cmsis-debugger.traceConfiguration.isModified"
+      },
+      {
+        "command": "vscode-cmsis-debugger.traceConfiguration.revertValidating",
+        "title": "Revert ctrace.yml (validating)",
+        "icon": "$(sync~spin)",
         "category": "Trace Generation",
         "enablement": "vscode-cmsis-debugger.traceConfiguration.isModified"
       },
@@ -417,6 +424,10 @@
       ],
       "commandPalette": [
         {
+          "command": "vscode-cmsis-debugger.traceConfiguration.revertValidating",
+          "when": "false"
+        },
+        {
           "command": "vscode-cmsis-debugger.resetDynamicViewState",
           "when": "true"
         },
@@ -698,7 +709,12 @@
         },
         {
           "command": "vscode-cmsis-debugger.traceConfiguration.revert",
-          "when": "view == cmsis-debugger.traceConfiguration",
+          "when": "view == cmsis-debugger.traceConfiguration && !vscode-cmsis-debugger.traceConfiguration.isValidating",
+          "group": "navigation@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.traceConfiguration.revertValidating",
+          "when": "view == cmsis-debugger.traceConfiguration && vscode-cmsis-debugger.traceConfiguration.isValidating",
           "group": "navigation@2"
         },
         {

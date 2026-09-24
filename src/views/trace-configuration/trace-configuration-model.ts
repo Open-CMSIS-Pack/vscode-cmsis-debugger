@@ -43,13 +43,21 @@ import {
 import {
     TraceConfigurationRow,
     TraceConfigurationState,
+    TraceConfigurationValidationState
 } from './trace-configuration-protocol';
+import {
+    PyTsTraceConfigurationPrevalidator,
+    TraceConfigurationPrevalidator
+} from './trace-configuration-prevalidator';
 import { TraceConfigurationProcessorCapabilities } from './trace-configuration-processor-capabilities';
 import { TraceConfigurationRowBuilder } from './trace-configuration-row-builder';
 import { DEFAULT_ITM_PRESCALER } from './trace-configuration-types';
 import { WorkspaceTextFileAdapter } from './workspace-text-file-adapter';
 
 const BUILD_REQUIRED_MESSAGE = 'Build/Rebuild csolution project to enable trace configuration';
+const TRACE_CONFIGURATION_IS_MODIFIED_CONTEXT = 'vscode-cmsis-debugger.traceConfiguration.isModified';
+const TRACE_CONFIGURATION_IS_VALIDATING_CONTEXT = 'vscode-cmsis-debugger.traceConfiguration.isValidating';
+const TRACE_CONFIGURATION_VALIDATION_SUCCEEDED_CONTEXT = 'vscode-cmsis-debugger.traceConfiguration.validationSucceeded';
 
 /**
  * TraceConfigurationModel owns the ctrace.yml document lifecycle and file mutations for the trace
@@ -72,16 +80,49 @@ export class TraceConfigurationModel {
     private readonly backupStore: TraceConfigurationBackupStore;
     private readonly backup: DebouncedTraceConfigurationBackup;
     private deactivationPromise: Promise<void> | undefined;
+    private validationState: TraceConfigurationValidationState = 'idle';
+    private validationMessage: string | undefined;
 
     private set dirty(value: boolean) {
         if (this._dirty !== value) {
             this._dirty = value;
-            vscode.commands.executeCommand('setContext', 'vscode-cmsis-debugger.traceConfiguration.isModified', value);
+            void vscode.commands.executeCommand('setContext', TRACE_CONFIGURATION_IS_MODIFIED_CONTEXT, value);
+            this.updateValidationContexts();
         }
     }
 
     private get dirty(): boolean {
         return this._dirty;
+    }
+
+    private get validationSucceeded(): boolean {
+        return this.validationState === 'passed';
+    }
+
+    private acceptValidationState(
+        state: TraceConfigurationValidationState,
+        message?: string
+    ): void {
+        if (this.validationState === state && this.validationMessage === message) {
+            return;
+        }
+        this.validationState = state;
+        this.validationMessage = message;
+        this.updateValidationContexts();
+        this.notifyStateChanged();
+    }
+
+    private updateValidationContexts(): void {
+        void vscode.commands.executeCommand(
+            'setContext',
+            TRACE_CONFIGURATION_IS_VALIDATING_CONTEXT,
+            this.dirty && this.validationState === 'running'
+        );
+        void vscode.commands.executeCommand(
+            'setContext',
+            TRACE_CONFIGURATION_VALIDATION_SUCCEEDED_CONTEXT,
+            this.dirty && this.validationSucceeded
+        );
     }
 
     /**
@@ -96,11 +137,19 @@ export class TraceConfigurationModel {
         fileWatchManager: FileWatchManager = new FileWatchManager(),
         cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator(),
         cmsisJsonWatcher?: CmsisJsonWatcher,
-        backupStore?: TraceConfigurationBackupStore
+        backupStore?: TraceConfigurationBackupStore,
+        prevalidator?: TraceConfigurationPrevalidator
     ) {
         this.generatedCTraceFileManager = generatedCTraceFileManager ?? new TraceConfigurationGeneratedCTraceFileManager();
         this.backupStore = backupStore ?? new WorkspaceTraceConfigurationBackupStore();
-        this.backup = new DebouncedTraceConfigurationBackup(this.backupStore, error => this.reportBackupError(error));
+        this.backup = new DebouncedTraceConfigurationBackup(
+            this.backupStore,
+            error => this.reportBackupError(error),
+            {
+                prevalidator: prevalidator ?? new PyTsTraceConfigurationPrevalidator(cbuildRunFileLocator),
+                onValidationStateChanged: (state, message) => this.acceptValidationState(state, message)
+            }
+        );
         this.processorCapabilities = processorCapabilities ?? new TraceConfigurationProcessorCapabilities(() => this.ctraceFile);
         this.rowBuilder = rowBuilder ?? new TraceConfigurationRowBuilder(
             () => this.ctraceFile,
@@ -109,7 +158,9 @@ export class TraceConfigurationModel {
             () => this.errorMessage,
             this.expandedRows,
             this.processorCapabilities.capabilities,
-            () => vscode.workspace.getConfiguration().get<boolean>(TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING, false)
+            () => vscode.workspace.getConfiguration().get<boolean>(TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING, false),
+            () => this.validationState,
+            () => this.validationMessage
         );
         this.fileWatcher = new TraceConfigurationFileWatcher(
             {
@@ -144,9 +195,10 @@ export class TraceConfigurationModel {
     }
 
     /**
-     * deactivate flushes the latest recovery snapshot before extension shutdown.
-     * The returned promise lets the extension host keep running until the write
-     * has completed, while dispose remains compatible with vscode.Disposable.
+     * deactivate flushes the latest recovery snapshot and cancels validation
+     * before extension shutdown. The returned promise lets the extension host
+     * keep running until the write has completed, while dispose remains
+     * compatible with vscode.Disposable.
      */
     public deactivate(): Promise<void> {
         this.fileWatcher.dispose();
@@ -176,7 +228,7 @@ export class TraceConfigurationModel {
                     await this.loadFile(result.uri.fsPath);
                     break;
                 case 'trace-off':
-                    await this.backup.flush();
+                    await this.backup.cancelValidationAndFlush();
                     this.clearCurrentFile();
                     this.emptyMessage = TRACE_OFF_MESSAGE;
                     break;
@@ -244,6 +296,7 @@ export class TraceConfigurationModel {
         this.ctraceFile = undefined;
         this.processorCapabilities.clear();
         this.dirty = false;
+        this.acceptValidationState('idle');
     }
 
     /**
@@ -265,7 +318,7 @@ export class TraceConfigurationModel {
      * state snapshot is posted.
      */
     private async loadFile(fileName: string): Promise<void> {
-        await this.backup.flush();
+        await this.backup.cancelValidationAndFlush();
         const nextFile = new CTraceYamlFile(fileName, new WorkspaceTextFileAdapter());
         const originalDocument = await nextFile.load(fileName);
         const backupDocument = await this.backupStore.restore(fileName);
@@ -284,6 +337,11 @@ export class TraceConfigurationModel {
             this.fileWatcher.watchCurrentFile();
         }
         this.emptyMessage = undefined;
+        if (backupDocument) {
+            this.backup.validateExisting(fileName);
+        } else {
+            this.acceptValidationState('idle');
+        }
     }
 
     /**
@@ -315,6 +373,7 @@ export class TraceConfigurationModel {
             await this.loadProcessorCapabilities();
             this.fileWatcher.watchCurrentFile();
             this.dirty = false;
+            this.acceptValidationState('idle');
             this.errorMessage = undefined;
         } finally {
             this.loading = false;
@@ -368,6 +427,7 @@ export class TraceConfigurationModel {
         document.assignCTraceRefs();
         await this.loadProcessorCapabilities();
         this.dirty = false;
+        this.acceptValidationState('idle');
         this.errorMessage = undefined;
         this.notifyStateChanged();
     }
@@ -646,12 +706,12 @@ export class TraceConfigurationModel {
         const document = this.requireDocument();
         document.normalizeDocumentOrder();
         document.assignCTraceRefs();
-        await this.loadProcessorCapabilities();
         this.dirty = true;
         this.errorMessage = undefined;
         this.fileWatcher.disposeCurrentFileWatcher();
-        this.notifyStateChanged();
         this.backup.schedule(this.requireFile().fileName, document.toString());
+        await this.loadProcessorCapabilities();
+        this.notifyStateChanged();
     }
 
     /**
@@ -812,6 +872,12 @@ export class TraceConfigurationModel {
      */
     public async saveCurrentDocument(options: { reloadBeforeSave?: boolean; skipWhenReloaded?: boolean; abortIfDiskChanged?: boolean } = {}): Promise<void> {
         const file = this.requireFile();
+        if (this.dirty && !this.validationSucceeded) {
+            await this.backup.flush();
+            if (!this.validationSucceeded) {
+                return;
+            }
+        }
         if (options.reloadBeforeSave) {
             const reloaded = await this.reloadCurrentFileIfChanged();
             if (reloaded && options.skipWhenReloaded) {
@@ -844,6 +910,7 @@ export class TraceConfigurationModel {
         await this.loadProcessorCapabilities();
         this.fileWatcher.watchCurrentFile();
         this.dirty = false;
+        this.acceptValidationState('idle');
         this.errorMessage = undefined;
         this.notifyStateChanged();
     }

@@ -17,6 +17,14 @@
 
 export type TraceControlKind = 'none' | 'text' | 'checkbox' | 'select' | 'multi-select' | 'readonly';
 
+export type TraceConfigurationValidationState =
+    | 'idle'
+    | 'pending'
+    | 'running'
+    | 'passed'
+    | 'failed'
+    | 'unavailable';
+
 export interface TraceConfigurationRow {
     id: string;
     label: string;
@@ -47,6 +55,8 @@ export interface TraceConfigurationState {
     rows: TraceConfigurationRow[];
     loading: boolean;
     dirty: boolean;
+    validationState: TraceConfigurationValidationState;
+    validationMessage?: string | undefined;
     emptyMessage?: string | undefined;
     errorMessage?: string | undefined;
     focusedRowId?: string | undefined;

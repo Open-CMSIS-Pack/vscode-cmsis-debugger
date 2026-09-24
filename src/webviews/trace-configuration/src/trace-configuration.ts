@@ -161,17 +161,35 @@ function createToolbar(): HTMLElement {
 }
 
 /**
- * createStatus renders the selected filename and unsaved/saved state. Saves are
- * currently immediate, but the flag is still shown so future debounced writes
- * can reuse the same status surface.
+ * createStatus renders the selected filename, dirty state, and pyTS validation
+ * lifecycle without hiding the editable rows when validation fails.
  */
 function createStatus(state: TraceConfigurationState): HTMLElement {
     const status = createElement('div', 'trace-status');
     const file = createElement('span', 'trace-file');
     file.textContent = getFileNameDisplayText(state);
     file.title = state.fileName ?? '';
-    const dirty = createElement('span', state.dirty ? 'status-warn' : 'status-ok');
-    dirty.textContent = state.dirty ? 'Unsaved' : 'Synced';
+    const validationFailed = state.validationState === 'failed' || state.validationState === 'unavailable';
+    const dirty = createElement(
+        'span',
+        validationFailed ? 'status-error' : state.dirty ? 'status-warn' : 'status-ok'
+    );
+    switch (state.validationState) {
+        case 'pending':
+        case 'running':
+            dirty.textContent = 'Validating…';
+            break;
+        case 'failed':
+            dirty.textContent = 'Validation failed';
+            break;
+        case 'unavailable':
+            dirty.textContent = 'Validation unavailable';
+            break;
+        default:
+            dirty.textContent = state.dirty ? 'Unsaved' : 'Synced';
+            break;
+    }
+    dirty.title = state.validationMessage ?? '';
     status.append(file, dirty);
     return status;
 }
