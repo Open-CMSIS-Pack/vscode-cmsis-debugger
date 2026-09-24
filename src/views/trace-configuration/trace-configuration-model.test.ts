@@ -32,10 +32,8 @@ import {
 import { containsSubstringsInOrder, normalizeFsPath, waitForCondition, waitForImmediate } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import { TraceConfigurationRunMessageReader } from './ctrace-run-validation-message-reader';
-import {
-    getTraceConfigurationBackupFileName,
-    TraceConfigurationBackupStore
-} from './trace-configuration-backup';
+import { TraceConfigurationBackupStore } from './trace-configuration-backup';
+import { getTraceConfigurationBackupFileName } from './trace-configuration-file-names';
 import { TRACE_OFF_MESSAGE } from './trace-configuration-generated-ctrace-file-manager';
 import { TraceConfigurationModel } from './trace-configuration-model';
 import {

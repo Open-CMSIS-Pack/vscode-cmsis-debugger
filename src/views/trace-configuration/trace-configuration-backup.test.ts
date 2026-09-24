@@ -21,10 +21,10 @@ import * as path from 'node:path';
 
 import {
     DebouncedTraceConfigurationBackup,
-    getTraceConfigurationBackupFileName,
     TraceConfigurationBackupStore,
     WorkspaceTraceConfigurationBackupStore
 } from './trace-configuration-backup';
+import { getTraceConfigurationBackupFileName } from './trace-configuration-file-names';
 import { TraceConfigurationPrevalidator } from './trace-configuration-prevalidator';
 
 function createStore(): jest.Mocked<TraceConfigurationBackupStore> {

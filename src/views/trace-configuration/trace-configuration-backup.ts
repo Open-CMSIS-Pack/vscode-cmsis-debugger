@@ -31,8 +31,6 @@ import { WorkspaceTextFileAdapter } from './workspace-text-file-adapter';
 
 export const TRACE_CONFIGURATION_BACKUP_DEBOUNCE_MS = 500;
 
-export { getTraceConfigurationBackupFileName } from './trace-configuration-file-names';
-
 export function isTraceConfigurationBackupFileName(fileName: string): boolean {
     return path.basename(fileName).startsWith('~');
 }
