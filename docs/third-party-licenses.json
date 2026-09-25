@@ -21,6 +21,13 @@
         "license": "https://github.com/Open-CMSIS-Pack/devtools/blob/main/LICENSE"
     },
     {
+        "name": "@open-cmsis-pack/cmsis-common",
+        "version": "0.1.0",
+        "spdx": "Apache-2.0",
+        "url": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-solution/tree/main/packages/cmsis-common",
+        "license": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-solution/blob/main/LICENSE"
+    },
+    {
         "name": "jsonc-parser",
         "version": "3.3.1",
         "spdx": "MIT",
@@ -43,7 +50,7 @@
     },
     {
         "name": "pyTS",
-        "version": "0.4.0",
+        "version": "0.5.0",
         "spdx": "Apache-2.0",
         "url": "https://github.com/Open-CMSIS-Pack/pyTS/releases",
         "license": "https://github.com/Open-CMSIS-Pack/pyTS/blob/main/LICENSE"
@@ -91,8 +98,8 @@
         "license": "https://github.com/eemeli/yaml/blob/main/LICENSE"
     },
     {
-        "name": "react-virtual",
-        "version": "2.9.0",
+        "name": "@tanstack/react-virtual",
+        "version": "3.13.18",
         "spdx": "MIT",
         "url": "https://github.com/tanstack/react-virtual",
         "license": "https://github.com/tanstack/react-virtual/blob/main/LICENSE"
