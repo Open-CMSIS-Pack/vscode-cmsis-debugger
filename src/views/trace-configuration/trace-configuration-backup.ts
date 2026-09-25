@@ -18,13 +18,18 @@
 import * as path from 'node:path';
 
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
+import { getTraceConfigurationBackupFileName } from './trace-configuration-file-names';
+import {
+    TraceConfigurationReferenceValidationMessage,
+    TraceConfigurationValidationState
+} from './trace-configuration-protocol';
+import {
+    TraceConfigurationPrevalidationResult,
+    TraceConfigurationPrevalidator
+} from './trace-configuration-prevalidator';
 import { WorkspaceTextFileAdapter } from './workspace-text-file-adapter';
 
 export const TRACE_CONFIGURATION_BACKUP_DEBOUNCE_MS = 500;
-
-export function getTraceConfigurationBackupFileName(fileName: string): string {
-    return path.join(path.dirname(fileName), `~${path.basename(fileName)}`);
-}
 
 export function isTraceConfigurationBackupFileName(fileName: string): boolean {
     return path.basename(fileName).startsWith('~');
@@ -77,6 +82,20 @@ interface BackupSnapshot {
     revision: number;
 }
 
+export interface DebouncedTraceConfigurationBackupOptions {
+    readonly prevalidator?: TraceConfigurationPrevalidator;
+    readonly onValidationStateChanged?: (
+        state: TraceConfigurationValidationState,
+        details?: TraceConfigurationValidationDetails
+    ) => void;
+    readonly debounceMs?: number;
+}
+
+export interface TraceConfigurationValidationDetails {
+    readonly message?: string;
+    readonly referenceMessages?: readonly TraceConfigurationReferenceValidationMessage[];
+}
+
 /**
  * Coalesces recovery writes without delaying model edits. Workspace writes are
  * not cancellable once started, so revisions skip obsolete queued snapshots
@@ -88,12 +107,23 @@ export class DebouncedTraceConfigurationBackup {
     private writeQueue = Promise.resolve();
     private revision = 0;
     private disposePromise: Promise<void> | undefined;
+    private disposing = false;
+    private readonly prevalidator: TraceConfigurationPrevalidator | undefined;
+    private readonly onValidationStateChanged: (
+        state: TraceConfigurationValidationState,
+        details?: TraceConfigurationValidationDetails
+    ) => void;
+    private readonly debounceMs: number;
 
     public constructor(
         private readonly store: TraceConfigurationBackupStore,
         private readonly onError: (error: unknown) => void,
-        private readonly debounceMs = TRACE_CONFIGURATION_BACKUP_DEBOUNCE_MS
-    ) {}
+        options: DebouncedTraceConfigurationBackupOptions = {}
+    ) {
+        this.prevalidator = options.prevalidator;
+        this.onValidationStateChanged = options.onValidationStateChanged ?? (() => {});
+        this.debounceMs = options.debounceMs ?? TRACE_CONFIGURATION_BACKUP_DEBOUNCE_MS;
+    }
 
     public schedule(fileName: string, contents: string): void {
         if (this.disposePromise) {
@@ -102,6 +132,8 @@ export class DebouncedTraceConfigurationBackup {
 
         this.revision += 1;
         this.pendingSnapshot = { fileName, contents, revision: this.revision };
+        this.onValidationStateChanged('pending');
+        this.cancelValidation();
         this.clearTimer();
         this.timer = setTimeout(() => {
             this.timer = undefined;
@@ -125,12 +157,48 @@ export class DebouncedTraceConfigurationBackup {
         this.clearTimer();
         this.pendingSnapshot = undefined;
         this.revision += 1;
-        await this.writeQueue;
+        this.onValidationStateChanged('idle');
+        await Promise.all([this.writeQueue, this.prevalidator?.cancel()]);
+    }
+
+    /** Cancels active validation before flushing a backup needed by a file transition. */
+    public async cancelValidationAndFlush(): Promise<void> {
+        await this.prevalidator?.cancel();
+        await this.flush();
+    }
+
+    /** Runs validation for a restored backup without rewriting the file. */
+    public validateExisting(fileName: string): void {
+        if (this.disposePromise || !this.prevalidator) {
+            return;
+        }
+        this.revision += 1;
+        const revision = this.revision;
+        this.onValidationStateChanged('pending');
+        this.cancelValidation();
+        this.writeQueue = this.writeQueue.then(async () => {
+            if (revision === this.revision) {
+                await this.validate(fileName, revision);
+            }
+        });
     }
 
     public dispose(): Promise<void> {
-        this.disposePromise ??= this.flush();
+        if (!this.disposePromise) {
+            this.disposing = true;
+            this.clearTimer();
+            this.enqueuePendingSnapshot();
+            this.disposePromise = this.finishDisposal();
+        }
         return this.disposePromise;
+    }
+
+    private async finishDisposal(): Promise<void> {
+        try {
+            await Promise.all([this.writeQueue, this.prevalidator?.cancel()]);
+        } finally {
+            this.onValidationStateChanged('idle');
+        }
     }
 
     private enqueuePendingSnapshot(): void {
@@ -146,9 +214,49 @@ export class DebouncedTraceConfigurationBackup {
             try {
                 await this.store.write(snapshot.fileName, snapshot.contents);
             } catch (error) {
+                if (snapshot.revision === this.revision) {
+                    this.onValidationStateChanged('failed', { message: this.errorToString(error) });
+                }
                 this.onError(error);
+                return;
+            }
+            if (snapshot.revision === this.revision && !this.disposing) {
+                await this.validate(snapshot.fileName, snapshot.revision);
             }
         });
+    }
+
+    private async validate(fileName: string, revision: number): Promise<void> {
+        const prevalidator = this.prevalidator;
+        if (!prevalidator) {
+            return;
+        }
+        this.onValidationStateChanged('running');
+        const result = await prevalidator.validate(fileName);
+        if (revision !== this.revision || result.status === 'cancelled') {
+            return;
+        }
+        this.acceptValidationResult(result);
+    }
+
+    private acceptValidationResult(result: Exclude<TraceConfigurationPrevalidationResult, { status: 'cancelled' }>): void {
+        switch (result.status) {
+            case 'passed':
+                if (result.referenceMessages?.length) {
+                    this.onValidationStateChanged('passed', { referenceMessages: result.referenceMessages });
+                } else {
+                    this.onValidationStateChanged('passed');
+                }
+                break;
+            case 'failed':
+            case 'unavailable':
+                this.onValidationStateChanged(result.status, { message: result.message });
+                break;
+        }
+    }
+
+    private cancelValidation(): void {
+        void this.prevalidator?.cancel().catch(error => this.onError(error));
     }
 
     private clearTimer(): void {
@@ -156,5 +264,9 @@ export class DebouncedTraceConfigurationBackup {
             clearTimeout(this.timer);
             this.timer = undefined;
         }
+    }
+
+    private errorToString(error: unknown): string {
+        return error instanceof Error ? error.message : String(error);
     }
 }

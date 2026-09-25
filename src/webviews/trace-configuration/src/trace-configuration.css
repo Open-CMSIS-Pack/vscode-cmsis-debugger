@@ -127,6 +127,34 @@ button {
     outline: none;
 }
 
+.validation-icon {
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    line-height: 1;
+}
+
+.validation-info {
+    color: var(--vscode-editorInfo-foreground, #75beff);
+}
+
+.validation-warning {
+    color: var(--vscode-editorWarning-foreground, #cca700);
+}
+
+.validation-error {
+    color: var(--vscode-editorError-foreground, #f14c4c);
+}
+
+.validation-icon:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder, #007acc);
+    outline-offset: 1px;
+}
+
 .tooltip-wrapper::after {
     position: absolute;
     bottom: calc(100% + 6px);
@@ -149,6 +177,11 @@ button {
     transition: opacity 600ms ease;
     white-space: normal;
     width: max-content;
+}
+
+.validation-icon::after {
+    right: auto;
+    left: 0;
 }
 
 .tooltip-wrapper:hover::after,
@@ -411,7 +444,8 @@ input[type="checkbox"] {
 
 .pill,
 .status-ok,
-.status-warn {
+.status-warn,
+.status-error {
     display: inline-flex;
     align-items: center;
     height: 20px;
@@ -435,6 +469,11 @@ input[type="checkbox"] {
 .status-warn {
     color: var(--vscode-editorWarning-foreground, #dcdcaa);
     background: rgba(220, 220, 170, 0.12);
+}
+
+.status-error {
+    color: var(--vscode-errorForeground, #f48771);
+    background: rgba(244, 135, 113, 0.12);
 }
 
 .empty-state {

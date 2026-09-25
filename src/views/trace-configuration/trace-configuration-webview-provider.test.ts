@@ -63,6 +63,7 @@ class FakeTraceConfigurationModel {
         fileName: 'target.ctrace.yml',
         loading: false,
         dirty: false,
+        validationState: 'idle',
         rows: []
     }));
     private onDidChange: (() => void) | undefined;
@@ -143,6 +144,10 @@ describe('TraceConfigurationWebviewProvider', () => {
             expect.any(Function)
         );
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
+            'vscode-cmsis-debugger.traceConfiguration.revertValidating',
+            expect.any(Function)
+        );
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
             'vscode-cmsis-debugger.traceConfiguration.expandAll',
             expect.any(Function)
         );
@@ -175,6 +180,7 @@ describe('TraceConfigurationWebviewProvider', () => {
             fileName: 'target.ctrace.yml',
             dirty: false,
             loading: false,
+            validationState: 'idle',
             rows: [
                 {
                     id: 'parent',
@@ -210,10 +216,13 @@ describe('TraceConfigurationWebviewProvider', () => {
         };
 
         await findCommand('vscode-cmsis-debugger.traceConfiguration.save')();
+        await findCommand('vscode-cmsis-debugger.traceConfiguration.revert')();
+        await findCommand('vscode-cmsis-debugger.traceConfiguration.revertValidating')();
         findCommand('vscode-cmsis-debugger.traceConfiguration.expandAll')();
         findCommand('vscode-cmsis-debugger.traceConfiguration.collapseAll')();
 
         expect(model.saveCurrentDocument).toHaveBeenCalledTimes(1);
+        expect(model.refreshFile).toHaveBeenCalledTimes(2);
         expect(model.updateExpandedState).toHaveBeenNthCalledWith(1, 'parent', true);
         expect(model.updateExpandedState).toHaveBeenNthCalledWith(2, 'parent', false);
     });
@@ -366,6 +375,7 @@ describe('TraceConfigurationWebviewProvider', () => {
                 workspaceFolderPath: workspaceUri.fsPath,
                 loading: false,
                 dirty: false,
+                validationState: 'idle',
                 rows: []
             }
         });
@@ -384,6 +394,7 @@ describe('TraceConfigurationWebviewProvider', () => {
             fileName: 'target.ctrace.yml',
             loading: false,
             dirty: true,
+            validationState: 'pending',
             rows: []
         });
         model.fireDidChange();
@@ -393,6 +404,7 @@ describe('TraceConfigurationWebviewProvider', () => {
             fileName: 'target.ctrace.yml',
             loading: false,
             dirty: false,
+            validationState: 'idle',
             rows: []
         });
         model.fireDidChange();
