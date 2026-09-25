@@ -25,12 +25,21 @@ import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
 import { CBUILD_INDEX_FILE_GLOB } from '../../manifest';
 import { fileExists, normalizeFsPath } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
+import { getTraceConfigurationArtifactFileNames } from './trace-configuration-file-names';
 
 export type GeneratedCBuildRunFileChangeType = 'created' | 'changed' | 'deleted';
 
 export interface GeneratedCBuildRunFileChangeEvent {
     type: GeneratedCBuildRunFileChangeType;
     uri: vscode.Uri;
+}
+
+export type TraceConfigurationRunFileKind = 'production' | 'backup';
+
+export interface TraceConfigurationRunFileChangeEvent {
+    readonly type: GeneratedCBuildRunFileChangeType;
+    readonly kind: TraceConfigurationRunFileKind;
+    readonly uri: vscode.Uri;
 }
 
 export interface TraceConfigurationFileWatcherCallbacks {
@@ -57,11 +66,16 @@ export interface TraceConfigurationFileWatcherCallbacks {
      * files and configuration state after a generated cbuild-run file event.
      */
     onGeneratedCBuildRunFileChanged(event: GeneratedCBuildRunFileChangeEvent): void | Promise<void>;
+
+    /** Publishes changes to the production or temporary ctrace-run output. */
+    onCurrentRunFileChanged?(event: TraceConfigurationRunFileChangeEvent): void | Promise<void>;
 }
 
 const CBUILD_INDEX_WATCH_ID = 'trace-configuration.cbuild-index';
 const GENERATED_CBUILD_RUN_WATCH_ID = 'trace-configuration.generated-cbuild-run';
 const CURRENT_CTRACE_WATCH_ID = 'trace-configuration.current-ctrace';
+const PRODUCTION_CTRACE_RUN_WATCH_ID = 'trace-configuration.production-ctrace-run';
+const BACKUP_CTRACE_RUN_WATCH_ID = 'trace-configuration.backup-ctrace-run';
 
 /**
  * TraceConfigurationFileWatcher owns all file-system subscriptions used by the
@@ -74,6 +88,7 @@ export class TraceConfigurationFileWatcher {
     private generatedWatchVersion = 0;
     private cbuildRunResolutionVersion = 0;
     private currentFileWatchVersion = 0;
+    private currentRunFileWatchVersion = 0;
     private activeSolutionGeneration = 0;
     private readonly activeSolutionChangeSubscription: vscode.Disposable | undefined;
     private readonly _onDidChangeGeneratedCBuildRunFileEmitter = new vscode.EventEmitter<GeneratedCBuildRunFileChangeEvent>();
@@ -187,6 +202,40 @@ export class TraceConfigurationFileWatcher {
     public disposeCurrentFileWatcher(): void {
         this.currentFileWatchVersion += 1;
         this.fileWatchManager.removeWatch(CURRENT_CTRACE_WATCH_ID);
+    }
+
+    /**
+     * Watches both possible pyTS outputs independently from the source watcher.
+     * These watches remain installed while in-memory edits pause source reloads.
+     */
+    public watchCurrentRunFiles(): void {
+        this.disposeCurrentRunFileWatchers();
+        const watchVersion = ++this.currentRunFileWatchVersion;
+        const watchedFile = this.callbacks.getCurrentFile();
+        if (!watchedFile) {
+            return;
+        }
+        const artifacts = getTraceConfigurationArtifactFileNames(watchedFile.fileName);
+        this.watchCurrentRunFile(
+            watchedFile,
+            watchVersion,
+            'production',
+            artifacts.productionCTraceRunFileName,
+            PRODUCTION_CTRACE_RUN_WATCH_ID
+        );
+        this.watchCurrentRunFile(
+            watchedFile,
+            watchVersion,
+            'backup',
+            artifacts.backupCTraceRunFileName,
+            BACKUP_CTRACE_RUN_WATCH_ID
+        );
+    }
+
+    public disposeCurrentRunFileWatchers(): void {
+        this.currentRunFileWatchVersion += 1;
+        this.fileWatchManager.removeWatch(PRODUCTION_CTRACE_RUN_WATCH_ID);
+        this.fileWatchManager.removeWatch(BACKUP_CTRACE_RUN_WATCH_ID);
     }
 
     /**
@@ -326,6 +375,7 @@ export class TraceConfigurationFileWatcher {
         this.generatedWatchVersion += 1;
         this.cbuildRunResolutionVersion += 1;
         this.disposeCurrentFileWatcher();
+        this.disposeCurrentRunFileWatchers();
         this.disposeGeneratedCBuildFileWatchers();
         this.generatedCBuildIndexWatchInstallation = undefined;
     }
@@ -348,6 +398,39 @@ export class TraceConfigurationFileWatcher {
         const event: GeneratedCBuildRunFileChangeEvent = { type, uri };
         this._onDidChangeGeneratedCBuildRunFileEmitter.fire(event);
         await this.callbacks.onGeneratedCBuildRunFileChanged(event);
+    }
+
+    private watchCurrentRunFile(
+        watchedFile: CTraceYamlFile,
+        watchVersion: number,
+        kind: TraceConfigurationRunFileKind,
+        fileName: string,
+        watchId: string
+    ): void {
+        const pattern = new vscode.RelativePattern(path.dirname(fileName), path.basename(fileName));
+        this.fileWatchManager.addWatch({
+            id: watchId,
+            globPattern: pattern,
+            onDidCreate: uri => this.handleCurrentRunFileChange(watchedFile, watchVersion, kind, 'created', uri),
+            onDidChange: uri => this.handleCurrentRunFileChange(watchedFile, watchVersion, kind, 'changed', uri),
+            onDidDelete: uri => this.handleCurrentRunFileChange(watchedFile, watchVersion, kind, 'deleted', uri)
+        });
+    }
+
+    private async handleCurrentRunFileChange(
+        watchedFile: CTraceYamlFile,
+        watchVersion: number,
+        kind: TraceConfigurationRunFileKind,
+        type: GeneratedCBuildRunFileChangeType,
+        uri: vscode.Uri
+    ): Promise<void> {
+        if (
+            watchVersion !== this.currentRunFileWatchVersion
+            || this.callbacks.getCurrentFile() !== watchedFile
+        ) {
+            return;
+        }
+        await this.callbacks.onCurrentRunFileChanged?.({ type, kind, uri });
     }
 
     /**

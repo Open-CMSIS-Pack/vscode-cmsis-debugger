@@ -17,10 +17,30 @@
 
 export type TraceControlKind = 'none' | 'text' | 'checkbox' | 'select' | 'multi-select' | 'readonly';
 
+export type TraceConfigurationValidationState =
+    | 'idle'
+    | 'pending'
+    | 'running'
+    | 'passed'
+    | 'failed'
+    | 'unavailable';
+
+export type TraceConfigurationValidationSeverity = 'info' | 'warning' | 'error';
+
+export interface TraceConfigurationValidationMessage {
+    severity: TraceConfigurationValidationSeverity;
+    message: string;
+}
+
+export interface TraceConfigurationReferenceValidationMessage extends TraceConfigurationValidationMessage {
+    ctraceRef: string;
+}
+
 export interface TraceConfigurationRow {
     id: string;
     label: string;
     labelTooltip?: string | undefined;
+    validation?: TraceConfigurationValidationMessage | undefined;
     path: (string | number)[];
     valuePath?: (string | number)[] | undefined;
     depth: number;
@@ -47,6 +67,8 @@ export interface TraceConfigurationState {
     rows: TraceConfigurationRow[];
     loading: boolean;
     dirty: boolean;
+    validationState: TraceConfigurationValidationState;
+    validationMessage?: string | undefined;
     emptyMessage?: string | undefined;
     errorMessage?: string | undefined;
     focusedRowId?: string | undefined;
