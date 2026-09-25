@@ -19,6 +19,7 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 
 import { extensionContextFactory } from '../../__test__/vscode.factory';
+import { sortCsvTableRows, type CsvTableFilter, type CsvTableRow, type CsvTableSort } from './csv-table';
 import { InMemoryCsvTableRowStore, type CsvTableRowStore } from './csv-table-row-store';
 import { CSV_TABLE_EDITOR_VIEW_TYPE, CsvTableEditorProvider } from './csv-table-editor-provider';
 import type { CsvTableHostMessage, CsvTableWebviewMessage } from './csv-table-protocol';
@@ -33,6 +34,71 @@ interface TestableCsvTableEditorProvider {
 
 type MessageHandler = (message: CsvTableWebviewMessage) => Promise<void>;
 
+class IndexingCsvTableRowStore implements CsvTableRowStore {
+    private viewRows: readonly CsvTableRow[] = [];
+    private indexing = true;
+    private resolveIndexing: (() => void) | undefined;
+    private readonly indexingComplete = new Promise<void>(resolve => {
+        this.resolveIndexing = resolve;
+    });
+
+    public readonly columns = ['value'];
+    public readonly malformedRowCount = 0;
+
+    public constructor(private readonly rows: readonly CsvTableRow[]) {
+        this.viewRows = rows.slice(0, 1);
+    }
+
+    public get sourceRowCount(): number {
+        return this.indexing ? 1 : this.rows.length;
+    }
+
+    public get rowCount(): number {
+        return this.viewRows.length;
+    }
+
+    public get isIndexing(): boolean {
+        return this.indexing;
+    }
+
+    public completeIndexing(): void {
+        this.indexing = false;
+        this.resolveIndexing?.();
+    }
+
+    public async applyView(_filters: readonly CsvTableFilter[], sort: CsvTableSort | null): Promise<{ store: 'indexed'; scanMs: number; sortMs: number; materializeMs: number; matchedRows: number }> {
+        this.viewRows = sortCsvTableRows(this.indexing ? this.rows.slice(0, 1) : this.rows, sort);
+        return { store: 'indexed', scanMs: 0, sortMs: 0, materializeMs: 0, matchedRows: this.viewRows.length };
+    }
+
+    public async getRows(start: number, end: number): Promise<readonly CsvTableRow[]> {
+        return this.viewRows.slice(start, end);
+    }
+
+    public async getSourceRow(sourceRowIndex: number): Promise<CsvTableRow | undefined> {
+        return this.rows.at(sourceRowIndex);
+    }
+
+    public onDidIndexProgress(_listener: () => void): () => void {
+        return () => undefined;
+    }
+
+    public async waitForIndexing(): Promise<void> {
+        await this.indexingComplete;
+    }
+
+    public async dispose(): Promise<void> {
+        this.completeIndexing();
+        this.viewRows = [];
+    }
+}
+
+interface MockFileSystemWatcher {
+    readonly _handlers: {
+        readonly change: Array<(uri: vscode.Uri) => void>;
+    };
+}
+
 function createWebviewPanel(): {
     readonly panel: vscode.WebviewPanel;
     readonly webview: {
@@ -42,6 +108,7 @@ function createWebviewPanel(): {
     };
     sendMessage(message: CsvTableWebviewMessage): Promise<void>;
     dispose(): void;
+    // eslint-disable-next-line indent
 } {
     let messageHandler: MessageHandler | undefined;
     let disposeHandler: (() => void) | undefined;
@@ -197,6 +264,49 @@ describe('CsvTableEditorProvider', () => {
         expect(fixture.webview.postMessage).toHaveBeenLastCalledWith({
             type: 'rows', requestId: 5, viewRevision: 2, start: 0,
             rows: [{ sourceRowIndex: 1, cells: ['stop'] }], totalRowCount: 1,
+        } satisfies CsvTableHostMessage);
+    });
+
+    it('rebuilds a retained sort after an indexed CSV reload completes', async () => {
+        const provider = new CsvTableEditorProvider(vscode.Uri.file('/extension'));
+        const initialStore = new InMemoryCsvTableRowStore({
+            columns: ['value'],
+            rows: [{ sourceRowIndex: 0, cells: ['0'] }],
+            malformedRowCount: 0,
+        });
+        const reloadedStore = new IndexingCsvTableRowStore([
+            { sourceRowIndex: 0, cells: ['30'] },
+            { sourceRowIndex: 1, cells: ['10'] },
+            { sourceRowIndex: 2, cells: ['20'] },
+        ]);
+        jest.spyOn(provider as unknown as { readRowStore(uri: vscode.Uri): Promise<CsvTableRowStore> }, 'readRowStore')
+            .mockResolvedValueOnce(initialStore)
+            .mockResolvedValueOnce(reloadedStore);
+        const fixture = createWebviewPanel();
+        const document = { uri: vscode.Uri.file('/workspace/.trace/demo.SWO.csv'), dispose: jest.fn() };
+
+        await provider.resolveCustomEditor(document, fixture.panel, {} as vscode.CancellationToken);
+        await fixture.sendMessage({ type: 'ready' });
+        await waitFor(() => expect(fixture.webview.postMessage).toHaveBeenCalledTimes(2));
+        await fixture.sendMessage({ type: 'setSort', sort: { columnIndex: 0, direction: 'ascending' } });
+        await waitFor(() => expect(fixture.webview.postMessage).toHaveBeenCalledTimes(4));
+
+        const watcher = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.results.at(-1)?.value as MockFileSystemWatcher;
+        watcher._handlers.change[0]?.(document.uri);
+        await waitFor(() => expect(fixture.webview.postMessage).toHaveBeenCalledTimes(5));
+        expect(reloadedStore.rowCount).toBe(1);
+
+        reloadedStore.completeIndexing();
+        await waitFor(() => expect(fixture.webview.postMessage).toHaveBeenCalledTimes(6));
+        await fixture.sendMessage({ type: 'requestRows', requestId: 8, viewRevision: 3, start: 0, end: 3 });
+
+        expect(fixture.webview.postMessage).toHaveBeenLastCalledWith({
+            type: 'rows', requestId: 8, viewRevision: 3, start: 0, totalRowCount: 3,
+            rows: [
+                { sourceRowIndex: 1, cells: ['10'] },
+                { sourceRowIndex: 2, cells: ['20'] },
+                { sourceRowIndex: 0, cells: ['30'] },
+            ],
         } satisfies CsvTableHostMessage);
     });
 

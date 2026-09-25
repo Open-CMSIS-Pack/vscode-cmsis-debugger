@@ -194,6 +194,12 @@ export class CsvTableEditorProvider implements vscode.CustomReadonlyEditorProvid
                 disposeIndexProgressListener = rowStore.onDidIndexProgress(() => scheduleIndexProgressUpdate(generation));
                 await previousStore.dispose();
                 const initializeRowsStartedAt = performance.now();
+                if (sort !== null && rowStore.isIndexing) {
+                    await rowStore.waitForIndexing();
+                }
+                if (disposed || generation !== loadGeneration || rowStore !== loadedStore) {
+                    return;
+                }
                 await rowStore.applyView(filters, sort);
                 const initializeRowsMs = performance.now() - initializeRowsStartedAt;
                 postState(false);
