@@ -702,7 +702,7 @@ describe('TraceConfigurationModel', () => {
             '    - pname: cm33',
             '      data:',
             ''
-        ].join('\n'), undefined, prevalidator);
+        ].join('\n'), undefined, undefined, prevalidator);
 
         await model.addItem(['ctrace', 'setup', 0, 'data'], 'data');
         expect(model.createState().validationState).toBe('pending');
@@ -744,7 +744,7 @@ describe('TraceConfigurationModel', () => {
             '    - pname: cm33',
             '      data:',
             ''
-        ].join('\n'), undefined, prevalidator);
+        ].join('\n'), undefined, undefined, prevalidator);
         await model.addItem(['ctrace', 'setup', 0, 'data'], 'data');
 
         await model.saveCurrentDocument();
