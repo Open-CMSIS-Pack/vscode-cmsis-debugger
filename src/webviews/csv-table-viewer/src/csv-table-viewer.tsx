@@ -131,7 +131,9 @@ export const CsvTableViewer = (): JSX.Element => {
                         setSelection(EMPTY_ROW_SELECTION);
                         setTableRevision(revision => revision + 1);
                         setRowRequestVersion(version => version + 1);
-                        setColumnWidths(widths => widths.length === message.columns.length + 1 ? widths : [72, ...message.columns.map(() => 180)]);
+                        setColumnWidths(widths => widths.length === message.columns.length + 1
+                            ? widths
+                            : Array.from({ length: message.columns.length + 1 }, (_, columnIndex) => getMinimumColumnWidth(columnIndex)));
                     }
                     return message;
                 });
@@ -401,7 +403,7 @@ export const CsvTableViewer = (): JSX.Element => {
 
     const effectiveColumnWidths = columnWidths.length === tableState.columns.length + 1
         ? columnWidths
-        : [72, ...tableState.columns.map(() => 180)];
+        : Array.from({ length: tableState.columns.length + 1 }, (_, columnIndex) => getMinimumColumnWidth(columnIndex));
     const gridTemplateColumns = effectiveColumnWidths.map((width, index) => index === effectiveColumnWidths.length - 1
         ? `minmax(${width}px, 1fr)`
         : `${width}px`).join(' ');
