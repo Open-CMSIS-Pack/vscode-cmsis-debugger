@@ -105,15 +105,92 @@ describe('TraceConfigurationFileWatcher', () => {
 
         await watcher.watchGeneratedCBuildRunFiles();
         watcher.watchCurrentFile();
+        watcher.watchCurrentRunFiles();
         watcher.dispose();
 
         expect(addWatch.mock.calls.map(call => (call[0] as FileWatchRegistrationOptions).id)).toEqual([
             'trace-configuration.cbuild-index',
-            'trace-configuration.current-ctrace'
+            'trace-configuration.current-ctrace',
+            'trace-configuration.production-ctrace-run',
+            'trace-configuration.backup-ctrace-run'
         ]);
         expect(removeWatch).toHaveBeenCalledWith('trace-configuration.cbuild-index');
         expect(removeWatch).toHaveBeenCalledWith('trace-configuration.generated-cbuild-run');
         expect(removeWatch).toHaveBeenCalledWith('trace-configuration.current-ctrace');
+        expect(removeWatch).toHaveBeenCalledWith('trace-configuration.production-ctrace-run');
+        expect(removeWatch).toHaveBeenCalledWith('trace-configuration.backup-ctrace-run');
+    });
+
+    it('watches both ctrace-run outputs and ignores callbacks from a replaced file', async () => {
+        const firstWatchedFile = createMockCTraceYamlFile();
+        const secondWatchedFile = createMockCTraceYamlFile();
+        secondWatchedFile.file.fileName = '/workspace/.cmsis/other.ctrace.yml';
+        let currentFile = firstWatchedFile.file;
+        const onCurrentRunFileChanged = jest.fn();
+        const registrations: FileWatchRegistrationOptions[] = [];
+        const fileWatchManager = {
+            addWatch: jest.fn((options: FileWatchRegistrationOptions) => registrations.push(options)),
+            removeWatch: jest.fn()
+        } as unknown as FileWatchManager;
+        const watcher = new TraceConfigurationFileWatcher(
+            {
+                getCurrentFile: () => currentFile,
+                onCurrentFileReloaded: jest.fn(),
+                onCurrentFileReloadFailed: jest.fn(),
+                onGeneratedCBuildRunFileChanged: jest.fn(),
+                onCurrentRunFileChanged
+            },
+            undefined,
+            fileWatchManager
+        );
+
+        watcher.watchCurrentRunFiles();
+        const productionWatch = registrations[0];
+        const backupWatch = registrations[1];
+        await productionWatch?.onDidCreate?.(vscode.Uri.file('/workspace/.trace/target.ctrace-run.yml'));
+        await productionWatch?.onDidChange?.(vscode.Uri.file('/workspace/.trace/target.ctrace-run.yml'));
+        await productionWatch?.onDidDelete?.(vscode.Uri.file('/workspace/.trace/target.ctrace-run.yml'));
+        await backupWatch?.onDidCreate?.(vscode.Uri.file('/workspace/.trace/~target.ctrace-run.yml'));
+        await backupWatch?.onDidChange?.(vscode.Uri.file('/workspace/.trace/~target.ctrace-run.yml'));
+        await backupWatch?.onDidDelete?.(vscode.Uri.file('/workspace/.trace/~target.ctrace-run.yml'));
+
+        expect(onCurrentRunFileChanged.mock.calls.map(call => call[0])).toEqual([
+            {
+                type: 'created',
+                kind: 'production',
+                uri: vscode.Uri.file('/workspace/.trace/target.ctrace-run.yml')
+            },
+            {
+                type: 'changed',
+                kind: 'production',
+                uri: vscode.Uri.file('/workspace/.trace/target.ctrace-run.yml')
+            },
+            {
+                type: 'deleted',
+                kind: 'production',
+                uri: vscode.Uri.file('/workspace/.trace/target.ctrace-run.yml')
+            },
+            {
+                type: 'created',
+                kind: 'backup',
+                uri: vscode.Uri.file('/workspace/.trace/~target.ctrace-run.yml')
+            },
+            {
+                type: 'changed',
+                kind: 'backup',
+                uri: vscode.Uri.file('/workspace/.trace/~target.ctrace-run.yml')
+            },
+            {
+                type: 'deleted',
+                kind: 'backup',
+                uri: vscode.Uri.file('/workspace/.trace/~target.ctrace-run.yml')
+            }
+        ]);
+
+        currentFile = secondWatchedFile.file;
+        watcher.watchCurrentRunFiles();
+        await productionWatch?.onDidDelete?.(vscode.Uri.file('/workspace/.trace/target.ctrace-run.yml'));
+        expect(onCurrentRunFileChanged).toHaveBeenCalledTimes(6);
     });
 
     it('resolves and watches the generated cbuild-run file after a cbuild index file is created', async () => {

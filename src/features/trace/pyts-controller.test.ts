@@ -191,7 +191,7 @@ describe('PyTsController', () => {
             if (watch === undefined) {
                 throw new Error('Expected a ctrace configuration watch.');
             }
-            expect(watch.globPattern).toBe('.cmsis/*.ctrace.{yml,yaml}');
+            expect(watch.globPattern).toBe('.cmsis/[!~]*.ctrace.{yml,yaml}');
             await Promise.all([
                 watch.onDidCreate?.(ctraceUri),
                 watch.onDidChange?.(ctraceUri)
@@ -338,7 +338,8 @@ describe('PyTsController', () => {
     it.each([
         'inactive.ctrace.yml',
         'active-copy.ctrace.yml',
-        'active@.ctrace.yml'
+        'active@.ctrace.yml',
+        '~active.ctrace.yml'
     ])('ignores another ctrace file in the generated project: %s', async ctraceFileName => {
         const controller = new PyTsController();
         const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
