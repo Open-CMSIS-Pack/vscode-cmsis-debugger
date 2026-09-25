@@ -104,19 +104,26 @@ function renderApp(state: TraceConfigurationState): void {
     if (!root) {
         return;
     }
+    const previousScrollRegion = root.querySelector<HTMLElement>('.option-tree-scroll');
+    const scrollTop = previousScrollRegion?.scrollTop ?? 0;
+    const scrollLeft = previousScrollRegion?.scrollLeft ?? 0;
     clearElement(root);
     const surface = createElement('main', 'table-surface');
     surface.append(createHeader(state));
+    const scrollRegion = createElement('div', 'option-tree-scroll');
     if (state.loading) {
-        surface.append(createEmptyState('Loading ctrace.yml...'));
+        scrollRegion.append(createEmptyState('Loading ctrace.yml...'));
     } else if (state.errorMessage) {
-        surface.append(createEmptyState(state.errorMessage, true));
+        scrollRegion.append(createEmptyState(state.errorMessage, true));
     } else if (state.rows.length === 0) {
-        surface.append(createEmptyState(state.emptyMessage ?? 'No trace configuration loaded.'));
+        scrollRegion.append(createEmptyState(state.emptyMessage ?? 'No trace configuration loaded.'));
     } else {
-        surface.append(createTable(state.rows));
+        scrollRegion.append(createTable(state.rows));
     }
+    surface.append(scrollRegion);
     root.append(surface);
+    scrollRegion.scrollTop = scrollTop;
+    scrollRegion.scrollLeft = scrollLeft;
     focusRow(state.focusedRowId);
 }
 
@@ -141,8 +148,7 @@ function focusRow(rowId: string | undefined): void {
 }
 
 /**
- * createHeader keeps the toolbar and save state together in the sticky region
- * so the file status remains visible while the tree body scrolls.
+ * createHeader keeps the toolbar and file status above the scrolling tree body.
  */
 function createHeader(state: TraceConfigurationState): HTMLElement {
     const header = createElement('div', 'trace-header');

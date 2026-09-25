@@ -21,11 +21,15 @@
 
 body {
     margin: 0;
-    min-height: 100vh;
-    overflow: auto;
+    height: 100vh;
+    overflow: hidden;
     background: var(--vscode-sideBar-background, #1e1e1e);
     color: var(--vscode-foreground, #cccccc);
     font: 13px/1.45 var(--vscode-font-family, "Segoe UI", system-ui, sans-serif);
+}
+
+#root {
+    height: 100%;
 }
 
 button,
@@ -43,16 +47,22 @@ button {
 
 .table-surface {
     width: 100%;
-    min-height: 100vh;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
     background: var(--vscode-sideBar-background, #1e1e1e);
     container-type: inline-size;
 }
 
 .trace-header {
-    position: sticky;
-    top: 0;
-    z-index: 5;
+    flex: none;
     background: var(--vscode-sideBarSectionHeader-background, #252526);
+}
+
+.option-tree-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
 }
 
 .tree-toolbar {
