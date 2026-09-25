@@ -63,6 +63,11 @@ interface ActiveColumnResize {
     readonly startWidth: number;
 }
 
+interface ContextMenuPosition {
+    readonly x: number;
+    readonly y: number;
+}
+
 const INITIAL_STATE: TableState = {
     viewRevision: 0,
     columns: [],
@@ -85,6 +90,7 @@ export const CsvTableViewer = (): JSX.Element => {
     const [columnWidths, setColumnWidths] = useState<readonly number[]>([]);
     const [selection, setSelection] = useState<RowSelectionState>(EMPTY_ROW_SELECTION);
     const [copyButtonReady, setCopyButtonReady] = useState(false);
+    const [contextMenuPosition, setContextMenuPosition] = useState<ContextMenuPosition | null>(null);
     const [scrollTop, setScrollTop] = useState(0);
     const [tableRevision, setTableRevision] = useState(0);
     const [renderedRequestId, setRenderedRequestId] = useState<number | null>(null);
@@ -310,6 +316,18 @@ export const CsvTableViewer = (): JSX.Element => {
         scrollElementRef.current?.scrollTo({ top: clampedDestination * CSV_TABLE_ROW_HEIGHT / scrollScale });
     };
 
+    const copySelectedRows = (): void => {
+        if (selection.intervals.length === 0) {
+            return;
+        }
+        vscode.postMessage({ type: 'copyRows', viewRevision: tableState.viewRevision, intervals: selection.intervals });
+    };
+
+    const showContextMenu = (event: ReactMouseEvent<HTMLDivElement>): void => {
+        event.preventDefault();
+        setContextMenuPosition({ x: event.clientX, y: event.clientY });
+    };
+
     const handleTableKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
         if (event.target instanceof HTMLElement && event.target.closest('.table-header') !== null) {
             return;
@@ -322,11 +340,12 @@ export const CsvTableViewer = (): JSX.Element => {
         }
         if (controlPressed && event.key.toLowerCase() === 'c' && selection.intervals.length > 0) {
             event.preventDefault();
-            vscode.postMessage({ type: 'copyRows', viewRevision: tableState.viewRevision, intervals: selection.intervals });
+            copySelectedRows();
             return;
         }
         if (event.key === 'Escape') {
             event.preventDefault();
+            setContextMenuPosition(null);
             setSelection(clearSelectedRows);
             return;
         }
@@ -408,6 +427,8 @@ export const CsvTableViewer = (): JSX.Element => {
                 tabIndex={0}
                 onKeyDown={handleTableKeyDown}
                 onKeyUp={handleTableKeyUp}
+                onContextMenu={showContextMenu}
+                onPointerDown={() => setContextMenuPosition(null)}
                 onScroll={event => setScrollTop(event.currentTarget.scrollTop)}
             >
                 <div className="table-header" ref={tableHeaderRef} role="row" aria-rowindex={1} style={{ gridTemplateColumns, width: tableLayoutWidth }}>
@@ -468,7 +489,7 @@ export const CsvTableViewer = (): JSX.Element => {
                 type="button"
                 className="copy-selection-tooltip"
                 aria-label="Copy selected rows"
-                onClick={() => vscode.postMessage({ type: 'copyRows', viewRevision: tableState.viewRevision, intervals: selection.intervals })}
+                onClick={copySelectedRows}
                 style={{ top: `${copyButtonTop}px` }}
             >
                 <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -476,6 +497,22 @@ export const CsvTableViewer = (): JSX.Element => {
                 </svg>
                 <span>Copy</span>
             </button>}
+            {contextMenuPosition !== null && <div
+                className="table-context-menu"
+                role="menu"
+                aria-label="Table actions"
+                style={{ left: `${contextMenuPosition.x}px`, top: `${contextMenuPosition.y}px` }}
+            >
+                <button
+                    type="button"
+                    role="menuitem"
+                    disabled={selection.intervals.length === 0}
+                    onClick={() => {
+                        copySelectedRows();
+                        setContextMenuPosition(null);
+                    }}
+                >Copy</button>
+            </div>}
         </section>
         {tableState.loading && <div className="loading-overlay" role="status" aria-live="polite">
             <span className="loading-spinner" aria-hidden="true" />

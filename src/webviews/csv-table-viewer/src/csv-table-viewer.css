@@ -226,6 +226,36 @@ body {
     outline-offset: -1px;
 }
 
+.table-context-menu {
+    position: fixed;
+    z-index: 2;
+    min-width: 120px;
+    padding: 4px;
+    border: 1px solid var(--vscode-menu-border, var(--vscode-editorWidget-border));
+    background: var(--vscode-menu-background, var(--vscode-editorWidget-background));
+    box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+}
+
+.table-context-menu button {
+    width: 100%;
+    padding: 5px 10px;
+    border: 0;
+    color: var(--vscode-menu-foreground, var(--vscode-foreground));
+    background: transparent;
+    text-align: left;
+}
+
+.table-context-menu button:hover:not(:disabled),
+.table-context-menu button:focus-visible:not(:disabled) {
+    color: var(--vscode-menu-selectionForeground);
+    background: var(--vscode-menu-selectionBackground);
+    outline: 0;
+}
+
+.table-context-menu button:disabled {
+    color: var(--vscode-disabledForeground);
+}
+
 .copy-selection-tooltip svg {
     width: 14px;
     height: 14px;
