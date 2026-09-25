@@ -1,4 +1,3 @@
-/* eslint-disable security/detect-non-literal-fs-filename */
 /**
  * Copyright 2026 Arm Limited
  *
@@ -34,6 +33,7 @@ describe('Trace Data generated-file performance integration', () => {
             { length: ROW_BLOCK_SIZE },
             (_, rowIndex) => `${rowIndex},${rowIndex === ROW_BLOCK_SIZE - 1 ? 'Target' : 'Event'}\n`,
         ).join('');
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
         await writeFile(filePath, `cycles,type\n${rowBlock.repeat(ROW_BLOCK_COUNT)}final,Target\n`, 'utf8');
 
         let store: IndexedCsvTableRowStore | undefined;
@@ -89,6 +89,7 @@ describe('Trace Data generated-file performance integration', () => {
             await rm(temporaryDirectory, { recursive: true, force: true });
         }
 
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
         await expect(stat(temporaryDirectory)).rejects.toMatchObject({ code: 'ENOENT' });
     }, 60_000);
 });

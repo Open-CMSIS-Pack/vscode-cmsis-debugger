@@ -31,6 +31,7 @@ export const CSV_TABLE_EDITOR_VIEW_TYPE = 'vscode-cmsis-debugger.csvTableViewer'
 const IN_MEMORY_FILE_SIZE_LIMIT = 20 * 1024 * 1024;
 const INDEX_PROGRESS_UPDATE_INTERVAL_MS = 250;
 
+const formatMilliseconds = (milliseconds: number): string => `${milliseconds.toFixed(1)}ms`;
 interface PendingFirstRender {
     readonly loadGeneration: number;
     readonly loadStartedAt: number;
@@ -49,6 +50,16 @@ export class CsvTableEditorProvider implements vscode.CustomReadonlyEditorProvid
         private readonly extensionUri: vscode.Uri,
         private readonly focusCTraceReference?: (solutionSet: string, ctraceRef: string, ctraceFilePath?: string) => Promise<boolean>
     ) { }
+
+    public activate(context: vscode.ExtensionContext): void {
+        context.subscriptions.push(
+            vscode.window.registerCustomEditorProvider(CSV_TABLE_EDITOR_VIEW_TYPE, this, {
+                webviewOptions: {
+                    retainContextWhenHidden: true,
+                },
+            }),
+        );
+    }
 
     public async openCustomDocument(uri: vscode.Uri): Promise<vscode.CustomDocument> {
         return { uri, dispose: () => undefined };
@@ -376,5 +387,3 @@ export class CsvTableEditorProvider implements vscode.CustomReadonlyEditorProvid
     }
 
 }
-
-const formatMilliseconds = (milliseconds: number): string => `${milliseconds.toFixed(1)}ms`;

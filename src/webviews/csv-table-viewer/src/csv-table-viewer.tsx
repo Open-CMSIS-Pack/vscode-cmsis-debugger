@@ -112,6 +112,9 @@ export const CsvTableViewer = (): JSX.Element => {
 
     useEffect(() => {
         const receiveMessage = (event: MessageEvent<CsvTableHostMessage>): void => {
+            if (event.origin !== window.location.origin) {
+                return;
+            }
             const message = event.data;
             if (message.type === 'tableState') {
                 viewRevision.current = message.viewRevision;

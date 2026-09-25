@@ -89,5 +89,12 @@
         "spdx": "ISC",
         "url": "https://github.com/eemeli/yaml",
         "license": "https://github.com/eemeli/yaml/blob/main/LICENSE"
+    },
+    {
+        "name": "react-virtual",
+        "version": "2.9.0",
+        "spdx": "MIT",
+        "url": "https://github.com/tanstack/react-virtual",
+        "license": "https://github.com/tanstack/react-virtual/blob/main/LICENSE"
     }
 ]

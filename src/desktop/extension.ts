@@ -36,7 +36,7 @@ import { CTraceController } from '../features/trace/ctrace-controller';
 import { CBuildRunFileLocator } from '../cbuild-run';
 import { CmsisJsonWatcher } from '../cmsis-files';
 import { FileWatchManager } from './filesystem/file-watch-manager';
-import { CSV_TABLE_EDITOR_VIEW_TYPE, CsvTableEditorProvider } from '../views/csv-table-viewer/csv-table-editor-provider';
+import { CsvTableEditorProvider } from '../views/csv-table-viewer/csv-table-editor-provider';
 
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
@@ -128,13 +128,7 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     logger.debug('Activating CMSIS Trace Configuration');
     await traceConfiguration.activate(context);
     traceConfigurationCommands.activate(context);
-    context.subscriptions.push(
-        vscode.window.registerCustomEditorProvider(CSV_TABLE_EDITOR_VIEW_TYPE, csvTableEditorProvider, {
-            webviewOptions: {
-                retainContextWhenHidden: true,
-            },
-        }),
-    );
+    csvTableEditorProvider.activate(context);
 
     // Register reset dynamic view state command
     context.subscriptions.push(
