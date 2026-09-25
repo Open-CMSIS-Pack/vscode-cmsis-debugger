@@ -45,6 +45,24 @@
     "onStartupFinished"
   ],
   "contributes": {
+    "customEditors": [
+      {
+        "viewType": "vscode-cmsis-debugger.csvTableViewer",
+        "displayName": "Trace Data",
+        "selector": [
+            {
+            "filenamePattern": "*.swo.csv"
+            },
+            {
+                "filenamePattern": "*.tb.csv"
+            },
+            {
+                "filenamePattern": "*.tb_*.csv"
+            }
+        ],
+        "priority": "default"
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {
@@ -1025,7 +1043,8 @@
     "baseContentUrl": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/blob/main/README.md"
   },
   "dependencies": {
-    "@open-cmsis-pack/cmsis-common": "^0.1.0",
+    "@open-cmsis-pack/cmsis-common": "0.1.0",
+    "@tanstack/react-virtual": "3.13.18",
     "@vscode/codicons": "0.0.45",
     "react": "18.3.1",
     "react-dom": "18.3.1",

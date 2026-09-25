@@ -21,6 +21,7 @@ import { logger } from '../logger';
 import { activate, deactivate } from './extension';
 import { ComponentViewerTreeDataProvider } from '../views/component-viewer/component-viewer-tree-view';
 import { LiveWatchTreeDataProvider } from '../views/live-watch/live-watch';
+import { CSV_TABLE_EDITOR_VIEW_TYPE, CsvTableEditorProvider } from '../views/csv-table-viewer/csv-table-editor-provider';
 import { TraceConfigurationWebviewProvider } from '../views/trace-configuration/trace-configuration-webview-provider';
 import { FileWatchManager } from './filesystem/file-watch-manager';
 
@@ -41,15 +42,25 @@ describe('extension', () => {
     });
 
     describe('activate', () => {
-        const liveWatchCommands = [ 'cmsis-debugger.liveWatch.open', 'cmsis-debugger.liveWatch.focus' ];
-        const componentViewerCommands = [ 'cmsis-debugger.componentViewer.open', 'cmsis-debugger.componentViewer.focus' ];
-        const corePeripheralsCommands = [ 'cmsis-debugger.corePeripherals.open', 'cmsis-debugger.corePeripherals.focus' ];
+        const liveWatchCommands = ['cmsis-debugger.liveWatch.open', 'cmsis-debugger.liveWatch.focus'];
+        const componentViewerCommands = ['cmsis-debugger.componentViewer.open', 'cmsis-debugger.componentViewer.focus'];
+        const corePeripheralsCommands = ['cmsis-debugger.corePeripherals.open', 'cmsis-debugger.corePeripherals.focus'];
 
         it('activates extension without asking to reload', async () => {
             const loggerSpy = jest.spyOn(logger, 'debug');
             await activate(createExtensionContext());
             expect(loggerSpy).toHaveBeenCalledWith('CMSIS Debugger activated');
             expect(vscode.window.showWarningMessage).not.toHaveBeenCalledWith('Cannot activate all Arm CMSIS Debugger views. Please reload the window.', 'Reload Window');
+        });
+
+        it('retains the Trace Data table while its editor tab is hidden', async () => {
+            await activate(createExtensionContext());
+
+            expect(vscode.window.registerCustomEditorProvider).toHaveBeenCalledWith(
+                CSV_TABLE_EDITOR_VIEW_TYPE,
+                expect.any(CsvTableEditorProvider),
+                { webviewOptions: { retainContextWhenHidden: true } },
+            );
         });
 
         it('awaits trace configuration initialization before completing activation', async () => {
@@ -111,9 +122,9 @@ describe('extension', () => {
         });
 
         it.each([
-            { missingView: 'Live Watch view', availableCommands: [ ...componentViewerCommands, ...corePeripheralsCommands ] },
-            { missingView: 'Component Viewer', availableCommands: [ ...liveWatchCommands, ...corePeripheralsCommands ] },
-            { missingView: 'Core Peripherals', availableCommands: [ ...liveWatchCommands, ...componentViewerCommands ] }
+            { missingView: 'Live Watch view', availableCommands: [...componentViewerCommands, ...corePeripheralsCommands] },
+            { missingView: 'Component Viewer', availableCommands: [...liveWatchCommands, ...corePeripheralsCommands] },
+            { missingView: 'Core Peripherals', availableCommands: [...liveWatchCommands, ...componentViewerCommands] }
         ])('activates extension and asks to reload because $missingView is not loaded', async ({ availableCommands }) => {
             const loggerSpy = jest.spyOn(logger, 'debug');
             // Resolve once per each view in extension, do not permanently overload global mock

@@ -24,6 +24,6 @@
         "src"
     ],
     "exclude": [
-        "src/webviews/tree-table/src/**/*.tsx"
+        "src/webviews/**/*"
     ]
 }

@@ -1452,6 +1452,17 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
+     * getVisibleRowPath maps YAML children folded into an inline control back
+     * to the parent row that represents them in the webview.
+     */
+    public getVisibleRowPath(nodePath: readonly (string | number)[]): (string | number)[] {
+        const parentPath = nodePath.slice(0, -1);
+        return typeof nodePath.at(-1) === 'number' && this.isEventsPath(parentPath)
+            ? parentPath
+            : [...nodePath];
+    }
+
+    /**
      * isInstructionsPath identifies the instruction trace map. The webview
      * renames it to Instruction Trace and represents the map's presence as an
      * enable/disable checkbox.

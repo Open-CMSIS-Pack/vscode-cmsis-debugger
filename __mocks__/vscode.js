@@ -131,6 +131,7 @@ module.exports = {
         })),
         registerTreeDataProvider: jest.fn(() => ({ dispose: jest.fn() })),
         registerWebviewViewProvider: jest.fn(() => ({ dispose: jest.fn() })),
+        registerCustomEditorProvider: jest.fn(() => ({ dispose: jest.fn() })),
         showErrorMessage: jest.fn(),
         showInformationMessage: jest.fn(() => Promise.resolve(undefined)),
         showWarningMessage: jest.fn(),

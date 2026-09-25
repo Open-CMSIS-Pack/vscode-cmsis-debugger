@@ -1,0 +1,298 @@
+:root {
+    color: var(--vscode-editor-foreground);
+    background: var(--vscode-editor-background);
+    font-family: var(--vscode-editor-font-family);
+    font-size: var(--vscode-editor-font-size);
+}
+
+body {
+    margin: 0px;
+    padding: 0px;
+}
+
+.csv-table-viewer {
+    position: relative;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.loading-overlay {
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--vscode-foreground);
+    background: color-mix(in srgb, var(--vscode-editor-background) 82%, transparent);
+}
+
+.loading-spinner {
+    box-sizing: border-box;
+    width: 24px;
+    height: 24px;
+    border: 3px solid var(--vscode-progressBar-background);
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: loading-spinner-rotation 800ms linear infinite;
+}
+
+@keyframes loading-spinner-rotation {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .loading-spinner {
+        animation-duration: 1600ms;
+    }
+
+    .copy-selection-tooltip {
+        animation: none;
+    }
+}
+
+.table-frame {
+    position: relative;
+    min-height: 0;
+    flex: 1;
+    overflow: hidden;
+    margin: 5px;
+}
+
+.table-header,
+.table-row {
+    display: grid;
+}
+
+.table-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    min-width: max-content;
+    background: var(--vscode-editorActionList-background);
+    border-bottom: 1px solid var(--vscode-editorWidget-border);
+}
+
+.table-header label,
+.index-header {
+    position: relative;
+    min-width: 0;
+    padding: 5px 6px;
+    border-right: 1px solid var(--vscode-editorWidget-border);
+}
+
+.column-resize {
+    position: absolute;
+    top: 0;
+    right: -3px;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    background: transparent;
+    border: 0;
+}
+
+.sort-button {
+    display: block;
+    overflow: hidden;
+    width: 100%;
+    padding-bottom: 4px;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    font: inherit;
+    font-weight: 600;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sort-button.ascending::after,
+.sort-button.descending::after {
+    display: inline-block;
+    margin-left: 6px;
+    border-right: 4px solid transparent;
+    border-left: 4px solid transparent;
+    content: "";
+}
+
+.sort-button.ascending::after {
+    border-bottom: 6px solid currentColor;
+}
+
+.sort-button.descending::after {
+    border-top: 6px solid currentColor;
+}
+
+.filter-spacer {
+    display: block;
+    height: 19px;
+}
+
+.table-header input {
+    box-sizing: border-box;
+    width: 100%;
+    color: var(--vscode-input-foreground);
+    background: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border);
+}
+
+.table-scroll {
+    overflow: auto;
+    height: 100%;
+    outline: none;
+    border-radius: 4px;
+}
+
+.table-rows {
+    position: relative;
+    min-width: max-content;
+}
+
+.table-row {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 24px;
+}
+
+.table-cell,
+.row-index-cell {
+    overflow: hidden;
+    padding: 2px 6px;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    border-right: 1px solid var(--vscode-editorWidget-border);
+    border-bottom: 1px solid var(--vscode-editorWidget-border);
+    font: inherit;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.row-index-cell {
+    position: sticky;
+    left: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--vscode-editorLineNumber-foreground);
+    background: var(--vscode-editor-background);
+}
+
+.copy-selection-tooltip {
+    position: absolute;
+    z-index: 3;
+    left: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 24px;
+    padding: 0 7px 0 5px;
+    color: var(--vscode-editorWidget-foreground);
+    background: var(--vscode-editorWidget-background);
+    border: 1px solid var(--vscode-editorWidget-border);
+    border-radius: 3px;
+    box-shadow: 0 2px 6px var(--vscode-widget-shadow);
+    font: inherit;
+    cursor: pointer;
+    animation: copy-selection-tooltip-appear 160ms ease-out both;
+}
+
+@keyframes copy-selection-tooltip-appear {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.copy-selection-tooltip:hover {
+    background: var(--vscode-actionBar-toggledBackground);
+}
+
+.copy-selection-tooltip:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: -1px;
+}
+
+.table-context-menu {
+    position: fixed;
+    z-index: 2;
+    min-width: 120px;
+    padding: 4px;
+    border: 1px solid var(--vscode-menu-border, var(--vscode-editorWidget-border));
+    background: var(--vscode-menu-background, var(--vscode-editorWidget-background));
+    box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+}
+
+.table-context-menu button {
+    width: 100%;
+    padding: 5px 10px;
+    border: 0;
+    color: var(--vscode-menu-foreground, var(--vscode-foreground));
+    background: transparent;
+    text-align: left;
+}
+
+.table-context-menu button:hover:not(:disabled),
+.table-context-menu button:focus-visible:not(:disabled) {
+    color: var(--vscode-menu-selectionForeground);
+    background: var(--vscode-menu-selectionBackground);
+    outline: 0;
+}
+
+.table-context-menu button:disabled {
+    color: var(--vscode-disabledForeground);
+}
+
+.copy-selection-tooltip svg {
+    width: 14px;
+    height: 14px;
+}
+
+.table-row:hover {
+    background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.04));
+}
+
+.table-row.selected {
+    color: var(--vscode-list-inactiveSelectionForeground, inherit);
+    background: var(--vscode-list-inactiveSelectionBackground, rgba(255, 255, 255, 0.08));
+}
+
+.table-scroll:focus .table-row.caret {
+    color: var(--vscode-list-activeSelectionForeground, inherit);
+    background: var(--vscode-list-activeSelectionBackground, rgba(0, 127, 212, 0.35));
+    outline: 1px solid var(--vscode-focusBorder, #007fd4);
+    outline-offset: -1px;
+}
+
+.table-row.selected .row-index-cell,
+.table-scroll:focus .table-row.caret .row-index-cell {
+    color: inherit;
+    background: inherit;
+}
+
+.table-status {
+    margin: 0;
+    padding: 6px 10px;
+    background: var(--vscode-editorWidget-background);
+}
+
+.error {
+    color: var(--vscode-errorForeground);
+}
+
+.warning {
+    color: var(--vscode-editorWarning-foreground);
+}
