@@ -24,7 +24,7 @@ import { copyCsvTableRows } from './copy-csv-table-rows';
 import { resolveCTraceRunReference } from './ctrace-run-resolver';
 import { IndexedCsvTableRowStore } from './indexed-csv-table-row-store';
 import { InMemoryCsvTableRowStore, type CsvTableRowStore } from './csv-table-row-store';
-import { parseCsvTable, parseCsvTableChunks, type CsvTableFilter, type CsvTableSort } from './csv-table';
+import { parseCsvTableChunks, type CsvTableFilter, type CsvTableSort } from './csv-table';
 import type { CsvTableHostMessage, CsvTableWebviewMessage } from './csv-table-protocol';
 
 export const CSV_TABLE_EDITOR_VIEW_TYPE = 'vscode-cmsis-debugger.csvTableViewer';
@@ -346,7 +346,11 @@ export class CsvTableEditorProvider implements vscode.CustomReadonlyEditorProvid
     private async readRowStore(uri: vscode.Uri): Promise<CsvTableRowStore> {
         if (uri.scheme !== 'file') {
             const bytes = await vscode.workspace.fs.readFile(uri);
-            return new InMemoryCsvTableRowStore(parseCsvTable(new TextDecoder().decode(bytes)));
+            const content = new TextDecoder().decode(bytes);
+            const chunks = (async function* () {
+                yield content;
+            })();
+            return new InMemoryCsvTableRowStore(await parseCsvTableChunks(chunks));
         }
 
         // The URI originates from VS Code's custom-editor lifecycle.

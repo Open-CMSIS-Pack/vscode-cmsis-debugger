@@ -326,6 +326,19 @@ describe('CsvTableEditorProvider', () => {
         }));
     });
 
+    it('parses quoted multiline cells from a non-file URI', async () => {
+        const provider = new CsvTableEditorProvider(vscode.Uri.file('/extension'));
+        const uri = vscode.Uri.parse('untitled:remote.SWO.csv');
+        jest.spyOn(vscode.workspace.fs, 'readFile').mockResolvedValue(Buffer.from('id,note\n1,"first\nsecond"\n'));
+
+        const rowStore = await (provider as unknown as { readRowStore(resource: vscode.Uri): Promise<CsvTableRowStore> }).readRowStore(uri);
+
+        expect(rowStore.columns).toEqual(['id', 'note']);
+        expect(await rowStore.getRows(0, 10)).toEqual([
+            { sourceRowIndex: 0, cells: ['1', 'first\nsecond'] },
+        ]);
+    });
+
     it('disposes the active row store when the editor panel closes', async () => {
         const provider = new CsvTableEditorProvider(vscode.Uri.file('/extension'));
         const rowStore = new InMemoryCsvTableRowStore({ columns: ['time'], rows: [], malformedRowCount: 0 });
