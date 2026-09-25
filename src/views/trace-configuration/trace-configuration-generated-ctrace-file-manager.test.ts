@@ -22,6 +22,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 
 import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
+import { PyTsProcessManager } from '../../desktop/process/pyts-process-manager';
 import { ENABLE_TRACE_GENERATION_VIEW_SETTING } from '../../manifest';
 import { containsSubstringsInOrder, normalizeFsPath } from '../../utils';
 import { TraceConfigurationGeneratedCTraceFileManager } from './trace-configuration-generated-ctrace-file-manager';
@@ -184,6 +185,34 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         expect(generatedText).toContain('location: existingWatch');
         expect(generatedText).toContain('pname: core1');
         expect(generatedText).toContain('core: Cortex-M33');
+    });
+
+    it('runs pyTS for an existing target-set ctrace only when its ctrace-run is missing', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M55', 'core0')], 'Release');
+        const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
+        const generatedTraceFile = path.join(ctraceDirectory, 'demo@Release.ctrace.yml');
+        await createTemporaryDirectory(ctraceDirectory);
+        await writeTemporaryTextFile(generatedTraceFile, 'ctrace:\n  setup:\n    - pname: core0\n      core: Cortex-M55\n');
+        const pyTsProcessManager = new PyTsProcessManager({ pyTsPath: 'pyTS' });
+        const launch = jest.spyOn(pyTsProcessManager, 'launch').mockResolvedValue();
+        const waitForExit = jest.spyOn(pyTsProcessManager, 'waitForExit').mockResolvedValue(0);
+        const manager = new TraceConfigurationGeneratedCTraceFileManager(() => pyTsProcessManager);
+        const cbuildRunFile = vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml'));
+
+        const result = await manager.processGeneratedCBuildRunFileChange({ type: 'changed', uri: cbuildRunFile });
+
+        expect(result.status).toBe('generated');
+        expectSameFsPath(result.status === 'generated' ? result.uri.fsPath : undefined, generatedTraceFile);
+        expect(launch).toHaveBeenCalledWith({ cbuildRunFilePath: cbuildRunFile.fsPath });
+        expect(waitForExit).toHaveBeenCalledTimes(1);
+
+        const traceDirectory = path.join(workspaceRoot, '.trace');
+        await createTemporaryDirectory(traceDirectory);
+        await writeTemporaryTextFile(path.join(traceDirectory, 'demo@Release.ctrace-run.yml'), 'ctrace-run:\n');
+        await manager.processGeneratedCBuildRunFileChange({ type: 'changed', uri: cbuildRunFile });
+
+        expect(launch).toHaveBeenCalledTimes(1);
     });
 
     it.each([
