@@ -217,6 +217,7 @@ function joinReference(prefix: string | undefined, suffix: string): string {
 
 export class CTraceYamlDocument {
     private readonly ctraceRefs = new Map<string, string>();
+    private readonly ctracePaths = new Map<string, YamlPath>();
     private useProcessorReferencePrefix = false;
 
     constructor(private readonly yamlDomDocument: YamlDomDocument) { }
@@ -333,6 +334,7 @@ export class CTraceYamlDocument {
 
     public assignCTraceRefs(): void {
         this.ctraceRefs.clear();
+        this.ctracePaths.clear();
         this.useProcessorReferencePrefix = false;
         const root = this.yamlDomDocument.getItem(CTRACE_PATH);
         if (!isYamlMapItem(root)) {
@@ -346,6 +348,10 @@ export class CTraceYamlDocument {
 
     public getCTraceRef(path: YamlPath): string | undefined {
         return this.ctraceRefs.get(this.pathToReferenceKey(path));
+    }
+
+    public getPathForCTraceRef(reference: string): YamlPath | undefined {
+        return this.ctracePaths.get(reference);
     }
 
     public toObject(): CTraceRoot {
@@ -445,6 +451,7 @@ export class CTraceYamlDocument {
 
     private setInternalCTraceRef(path: YamlPath, reference: string): void {
         this.ctraceRefs.set(this.pathToReferenceKey(path), reference);
+        this.ctracePaths.set(reference, [...path]);
     }
 
     private pathToReferenceKey(path: YamlPath): string {
