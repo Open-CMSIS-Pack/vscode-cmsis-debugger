@@ -34,6 +34,7 @@ import {
 import type { CsvTableFilter, CsvTableRow, CsvTableSort } from '../../../views/csv-table-viewer/csv-table';
 import type { CsvTableHostMessage, CsvTableWebviewMessage } from '../../../views/csv-table-viewer/csv-table-protocol';
 import { getCsvTableScrollGeometry, CSV_TABLE_ROW_HEIGHT } from '../../../views/csv-table-viewer/csv-table-scroll-geometry';
+import { shouldRequestRows, type LoadedRowRange } from './csv-table-row-request';
 import './csv-table-viewer.css';
 
 declare function acquireVsCodeApi(): { postMessage: (message: CsvTableWebviewMessage) => void };
@@ -98,6 +99,7 @@ export const CsvTableViewer = (): JSX.Element => {
     const latestRequestId = useRef(0);
     const viewRevision = useRef(0);
     const rowRequestInFlight = useRef<number | null>(null);
+    const loadedRowRange = useRef<LoadedRowRange | null>(null);
     const activeColumnResize = useRef<ActiveColumnResize | null>(null);
     const suppressSort = useRef(false);
     const keyboardRangeActive = useRef(false);
@@ -127,6 +129,7 @@ export const CsvTableViewer = (): JSX.Element => {
                     if (!isProgressUpdate) {
                         latestRequestId.current += 1;
                         rowRequestInFlight.current = null;
+                        loadedRowRange.current = null;
                         setRows([]);
                         setSelection(EMPTY_ROW_SELECTION);
                         setTableRevision(revision => revision + 1);
@@ -144,6 +147,11 @@ export const CsvTableViewer = (): JSX.Element => {
                     return;
                 }
                 rowRequestInFlight.current = null;
+                loadedRowRange.current = {
+                    viewRevision: message.viewRevision,
+                    start: message.start,
+                    end: message.start + message.rows.length,
+                };
                 setRows(message.rows);
                 setRowStart(message.start);
                 setRenderedRequestId(message.requestId);
@@ -205,7 +213,14 @@ export const CsvTableViewer = (): JSX.Element => {
     }, [renderedRequestId]);
 
     useEffect(() => {
-        if (tableState.loading || renderedRowEnd <= renderedRowStart || rowRequestInFlight.current !== null) {
+        if (!shouldRequestRows(
+            tableState.loading,
+            rowRequestInFlight.current !== null,
+            loadedRowRange.current,
+            tableState.viewRevision,
+            renderedRowStart,
+            renderedRowEnd,
+        )) {
             return;
         }
         const nextRequestId = latestRequestId.current + 1;
