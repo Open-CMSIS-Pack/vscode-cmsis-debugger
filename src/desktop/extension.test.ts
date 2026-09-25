@@ -53,7 +53,7 @@ describe('extension', () => {
             expect(vscode.window.showWarningMessage).not.toHaveBeenCalledWith('Cannot activate all Arm CMSIS Debugger views. Please reload the window.', 'Reload Window');
         });
 
-        it('retains the SWO CSV table while its editor tab is hidden', async () => {
+        it('retains the Trace Data table while its editor tab is hidden', async () => {
             await activate(createExtensionContext());
 
             expect(vscode.window.registerCustomEditorProvider).toHaveBeenCalledWith(

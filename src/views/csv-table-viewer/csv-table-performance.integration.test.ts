@@ -26,7 +26,7 @@ const ROW_BLOCK_SIZE = 10_000;
 const ROW_BLOCK_COUNT = 125;
 const TOTAL_ROW_COUNT = ROW_BLOCK_SIZE * ROW_BLOCK_COUNT + 1;
 
-describe('SWO CSV generated-file performance integration', () => {
+describe('Trace Data generated-file performance integration', () => {
     it('covers segmented indexing, compressed visible reads, views, cancellation, and cleanup', async () => {
         const temporaryDirectory = await mkdtemp(join(tmpdir(), 'swo-csv-performance-'));
         const filePath = join(temporaryDirectory, 'generated.swo.csv');

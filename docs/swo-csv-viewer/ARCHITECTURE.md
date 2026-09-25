@@ -1,6 +1,6 @@
-# SWO CSV Viewer Architecture
+# Trace Data Viewer Architecture
 
-The SWO CSV viewer is a read-only VS Code custom editor. The Extension Host is
+The Trace Data viewer is a read-only VS Code custom editor. The Extension Host is
 authoritative for file access, parsing, filtering, sorting, and row ordering.
 The React webview requests and renders only the visible rows plus a small
 overscan.
