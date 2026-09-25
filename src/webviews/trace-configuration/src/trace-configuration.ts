@@ -148,22 +148,12 @@ function focusRow(rowId: string | undefined): void {
 }
 
 /**
- * createHeader keeps the toolbar and file status above the scrolling tree body.
+ * createHeader places the file status above the scrolling tree body.
  */
 function createHeader(state: TraceConfigurationState): HTMLElement {
     const header = createElement('div', 'trace-header');
-    header.append(createToolbar(), createStatus(state));
+    header.append(createStatus(state));
     return header;
-}
-
-/**
- * createToolbar builds the view-level controls. Save asks the extension host
- * to persist the current ctrace document, Open lets the user choose a ctrace
- * file, and Expand/Collapse send row toggle messages for every row currently
- * rendered in the table.
- */
-function createToolbar(): HTMLElement {
-    return createElement('span', 'tree-toolbar-hidden');
 }
 
 /**

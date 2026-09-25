@@ -251,8 +251,8 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
     }
 
     /**
-     * toggleAllRows applies the current webview toolbar behavior to native
-     * title-bar commands by updating every expandable rendered row.
+     * toggleAllRows handles native title-bar commands by updating every
+     * expandable rendered row.
      */
     private toggleAllRows(expanded: boolean): void {
         for (const row of this.model.createState().rows) {
