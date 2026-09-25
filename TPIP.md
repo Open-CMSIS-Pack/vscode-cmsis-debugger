@@ -19,3 +19,4 @@ Generated for release: 1.8.0
 | xml2js | 0.6.2 | https://github.com/Leonidas-from-XIV/node-xml2js | [MIT](https://github.com/Leonidas-from-XIV/node-xml2js/blob/master/LICENSE) |
 | yaml | 2.9.0 | https://github.com/eemeli/yaml | [ISC](https://github.com/eemeli/yaml/blob/main/LICENSE) |
 | @tanstack/react-virtual | 3.13.18 | https://github.com/tanstack/react-virtual | [MIT](https://github.com/tanstack/react-virtual/blob/main/LICENSE) |
+| react-virtual | 2.9.0 | https://github.com/tanstack/react-virtual | [MIT](https://github.com/tanstack/react-virtual/blob/main/LICENSE) |
