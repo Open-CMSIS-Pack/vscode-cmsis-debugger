@@ -336,7 +336,7 @@ describe('TraceConfigurationModel', () => {
         model.dispose();
     });
 
-    it('watches generated cbuild-run files in the top-level out folder', async () => {
+    it('watches cbuild indexes to discover generated cbuild-run files', async () => {
         const model = new TraceConfigurationModel();
 
         await model.watchForGeneratedCBuildRunFiles();

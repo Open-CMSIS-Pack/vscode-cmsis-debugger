@@ -56,12 +56,12 @@ describe('PyTsController', () => {
             cmsis: { cbuildRunFile: cbuildRunFilePath }
         })
     );
-    const generatedCTraceUri = (session: GDBTargetDebugSession, fileName: string): vscode.Uri => {
-        const cbuildRunFilePath = session.getCbuildRunPath();
-        if (cbuildRunFilePath === undefined) {
-            throw new Error('Expected the debug session to provide a cbuild-run path.');
-        }
-        return vscode.Uri.file(path.join(path.dirname(path.dirname(cbuildRunFilePath)), '.cmsis', fileName));
+    const ctraceUriInSolution = (fileName: string, solutionFolder = '/workspace'): vscode.Uri =>
+        vscode.Uri.file(path.join(solutionFolder, '.cmsis', fileName));
+    const controllerForSolution = (solutionFolder = '/workspace'): PyTsController => {
+        const locator = new CBuildRunFileLocator();
+        jest.spyOn(locator, 'getActiveSolutionFolder').mockResolvedValue(vscode.Uri.file(solutionFolder));
+        return new PyTsController({}, locator);
     };
 
     beforeEach(() => {
@@ -139,10 +139,10 @@ describe('PyTsController', () => {
     });
 
     it('converts unchanged ctrace content for a different cbuild-run context', async () => {
-        const controller = new PyTsController();
+        const controller = controllerForSolution();
         const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
-        const firstSession = gdbTargetDebugSessionFactory('/workspace/build/first.cbuild-run.yml');
-        const secondSession = gdbTargetDebugSessionFactory('/workspace/build/second.cbuild-run.yml');
+        const firstSession = gdbTargetDebugSessionFactory('/workspace/build/trace.cbuild-run.yml');
+        const secondSession = gdbTargetDebugSessionFactory('/workspace/alternate/trace.cbuild-run.yml');
 
         controller.handleActiveSessionChanged(firstSession);
         await controller.handleCTraceFileChanged(ctraceUri);
@@ -305,24 +305,37 @@ describe('PyTsController', () => {
     });
 
     it.each(['yml', 'yaml'])('converts the matching generated .ctrace.%s file', async extension => {
-        const controller = new PyTsController();
+        const controller = controllerForSolution();
         const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
         const activeSession = gdbTargetDebugSessionFactory('/workspace/out/active.cbuild-run.yml');
         controller.handleActiveSessionChanged(activeSession);
 
-        await controller.handleCTraceFileChanged(generatedCTraceUri(activeSession, `active.ctrace.${extension}`));
+        await controller.handleCTraceFileChanged(ctraceUriInSolution(`active.ctrace.${extension}`));
 
         expect(run).toHaveBeenCalledWith({ cbuildRunFilePath: activeSession.getCbuildRunPath() });
     });
 
     it.each(['yml', 'yaml'])('converts a named target-set .ctrace.%s file', async extension => {
-        const controller = new PyTsController();
+        const controller = controllerForSolution();
         const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
         const activeSession = gdbTargetDebugSessionFactory('/workspace/out/active.cbuild-run.yml');
         controller.handleActiveSessionChanged(activeSession);
 
-        await controller.handleCTraceFileChanged(generatedCTraceUri(activeSession, `active@targetSet.ctrace.${extension}`));
+        await controller.handleCTraceFileChanged(ctraceUriInSolution(`active@targetSet.ctrace.${extension}`));
 
+        expect(run).toHaveBeenCalledWith({ cbuildRunFilePath: activeSession.getCbuildRunPath() });
+    });
+
+    it('ignores an unrelated ctrace file and converts the active project\'s ctrace file', async () => {
+        const controller = controllerForSolution();
+        const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
+        const activeSession = gdbTargetDebugSessionFactory('/build/artifacts/active.cbuild-run.yml');
+        controller.handleActiveSessionChanged(activeSession);
+
+        await controller.handleCTraceFileChanged(ctraceUriInSolution('other.ctrace.yml'));
+        await controller.handleCTraceFileChanged(ctraceUriInSolution('active.ctrace.yml'));
+
+        expect(vscode.workspace.fs.readFile).toHaveBeenCalledTimes(1);
         expect(run).toHaveBeenCalledWith({ cbuildRunFilePath: activeSession.getCbuildRunPath() });
     });
 
@@ -341,30 +354,25 @@ describe('PyTsController', () => {
         'active@.ctrace.yml',
         '~active.ctrace.yml'
     ])('ignores another ctrace file in the generated project: %s', async ctraceFileName => {
-        const controller = new PyTsController();
+        const controller = controllerForSolution();
         const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
         const activeSession = gdbTargetDebugSessionFactory('/workspace/out/active.cbuild-run.yml');
         controller.handleActiveSessionChanged(activeSession);
 
-        await controller.handleCTraceFileChanged(generatedCTraceUri(activeSession, ctraceFileName));
+        await controller.handleCTraceFileChanged(ctraceUriInSolution(ctraceFileName));
 
         expect(vscode.workspace.fs.readFile).not.toHaveBeenCalled();
         expect(run).not.toHaveBeenCalled();
     });
 
     it('ignores a matching ctrace file outside the active generated project', async () => {
-        const controller = new PyTsController();
+        const controller = controllerForSolution();
         const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
         const activeSession = gdbTargetDebugSessionFactory('/workspace/out/active.cbuild-run.yml');
-        const activeCbuildRunPath = activeSession.getCbuildRunPath();
-        if (activeCbuildRunPath === undefined) {
-            throw new Error('Expected the debug session to provide a cbuild-run path.');
-        }
-        const projectRoot = path.dirname(path.dirname(activeCbuildRunPath));
         controller.handleActiveSessionChanged(activeSession);
 
         await controller.handleCTraceFileChanged(
-            vscode.Uri.file(path.join(projectRoot, 'other', '.cmsis', 'active.ctrace.yml'))
+            ctraceUriInSolution('active.ctrace.yml', '/workspace/other')
         );
 
         expect(vscode.workspace.fs.readFile).not.toHaveBeenCalled();
@@ -375,7 +383,7 @@ describe('PyTsController', () => {
         if (!isWindows) {
             return;
         }
-        const controller = new PyTsController();
+        const controller = controllerForSolution('C:/Workspace/Project');
         const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
         const activeSession = gdbTargetDebugSessionFactory('C:/Workspace/Project/out/ACTIVE.cbuild-run.yml');
         controller.handleActiveSessionChanged(activeSession);
@@ -405,12 +413,12 @@ describe('PyTsController', () => {
     });
 
     it('ignores generated ctrace files for another active project', async () => {
-        const controller = new PyTsController();
+        const controller = controllerForSolution();
         const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
         const activeSession = gdbTargetDebugSessionFactory('/workspace/out/active.cbuild-run.yml');
         controller.handleActiveSessionChanged(activeSession);
 
-        await controller.handleCTraceFileChanged(generatedCTraceUri(activeSession, 'other.ctrace.yml'));
+        await controller.handleCTraceFileChanged(ctraceUriInSolution('other.ctrace.yml'));
 
         expect(vscode.workspace.fs.readFile).not.toHaveBeenCalled();
         expect(run).not.toHaveBeenCalled();

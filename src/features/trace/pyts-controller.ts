@@ -104,11 +104,10 @@ export class PyTsController {
             return;
         }
         const cbuildRunFilePath = this.activeSession?.getCbuildRunPath();
-        if (!this.isCTraceFileForCBuildRun(uri, cbuildRunFilePath)) {
-            return;
-        }
-
         try {
+            if (!await this.isCTraceFileForCBuildRun(uri, cbuildRunFilePath)) {
+                return;
+            }
             const normalizedPath = normalizeFsPath(uri.fsPath) ?? uri.fsPath;
             const conversionKey = this.getConversionKey(normalizedPath, cbuildRunFilePath);
             const previousRead = this.contentReadPromises.get(conversionKey) ?? Promise.resolve(false);
@@ -188,36 +187,39 @@ export class PyTsController {
         return `${ctracePath}\0${normalizedCbuildRunPath}`;
     }
 
-    private isCTraceFileForCBuildRun(uri: vscode.Uri, cbuildRunFilePath: string | undefined): boolean {
-        if (path.basename(uri.fsPath).startsWith('~')) {
+    private async isCTraceFileForCBuildRun(ctraceUri: vscode.Uri, cbuildRunFilePath: string | undefined): Promise<boolean> {
+        if (path.basename(ctraceUri.fsPath).startsWith('~')) {
             return false;
         }
-        const cbuildRunDirectoryName = cbuildRunFilePath === undefined
-            ? undefined
-            : normalizeFsPath(path.basename(path.dirname(cbuildRunFilePath)));
-
         if (cbuildRunFilePath === undefined) {
             return true;
         }
-
-        if (cbuildRunDirectoryName !== normalizeFsPath('out')) {
-            return true; // Cannot apply generated-project filtering.
-        }
-
         const suffix = '.cbuild-run.yml';
         const cbuildRunName = normalizeFsPath(path.basename(cbuildRunFilePath)) ?? path.basename(cbuildRunFilePath);
         if (!cbuildRunName.endsWith(suffix)) {
             return true;
         }
-        const projectName = cbuildRunName.slice(0, -suffix.length);
-        const expectedDirectory = path.join(path.dirname(path.dirname(cbuildRunFilePath)), '.cmsis');
-        const ctraceName = normalizeFsPath(path.basename(uri.fsPath)) ?? path.basename(uri.fsPath);
+        const cbuildRunProjectName = cbuildRunName.slice(0, -suffix.length);
+        const ctraceUriBasename = path.basename(ctraceUri.fsPath);
+        const ctraceName = normalizeFsPath(ctraceUriBasename) ?? ctraceUriBasename;
         const ctraceSuffix = ctraceName.endsWith('.ctrace.yaml') ? '.ctrace.yaml' : '.ctrace.yml';
-        const solutionSetName = ctraceName.slice(0, -ctraceSuffix.length);
-        const namedTargetSetPrefix = `${projectName}@`;
-        return normalizeFsPath(path.dirname(uri.fsPath)) === normalizeFsPath(expectedDirectory) &&
-            (solutionSetName === projectName ||
-                solutionSetName.startsWith(namedTargetSetPrefix) && solutionSetName.length > namedTargetSetPrefix.length);
+        const ctraceSolutionSetName = ctraceName.slice(0, -ctraceSuffix.length);
+        const cbuildRunTargetSetPrefix = `${cbuildRunProjectName}@`;
+        // Check whether the ctrace could belong to this cbuild-run based on their
+        // filename stems.
+        const exactBaseMatch = ctraceSolutionSetName === cbuildRunProjectName;
+        const ctraceCanBelongToCbuildRun = ctraceSolutionSetName.startsWith(cbuildRunTargetSetPrefix) && ctraceSolutionSetName.length > cbuildRunTargetSetPrefix.length;
+        if (!exactBaseMatch && !ctraceCanBelongToCbuildRun) {
+            return false;
+        }
+        // Check if location of ctrace file matches the expected location within
+        // the active solution folder.
+        const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
+        if (activeSolutionFolder === undefined) {
+            return true;
+        }
+        return normalizeFsPath(path.dirname(ctraceUri.fsPath)) ===
+                normalizeFsPath(path.join(activeSolutionFolder.fsPath, '.cmsis'));
     }
 
     private contentsEqual(previous: Uint8Array | undefined, current: Uint8Array): boolean {
