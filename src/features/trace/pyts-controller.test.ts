@@ -101,6 +101,108 @@ describe('PyTsController', () => {
         expect(waitForExit).toHaveBeenCalledTimes(3);
     });
 
+    it('converts an explicit request without an active ctrace watcher', async () => {
+        const controller = new PyTsController();
+        const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
+        const cbuildRunFilePath = '/workspace/build/trace.cbuild-run.yml';
+
+        await controller.convertCTrace(ctraceUri, cbuildRunFilePath);
+
+        expect(vscode.workspace.fs.readFile).toHaveBeenCalledWith(ctraceUri);
+        expect(run).toHaveBeenCalledWith({ cbuildRunFilePath });
+    });
+
+    it('coalesces explicit and watched requests for one context while serializing another', async () => {
+        const controller = controllerForSolution();
+        const activeSession = gdbTargetDebugSessionFactory('/workspace/build/trace.cbuild-run.yml');
+        const cbuildRunFilePath = activeSession.getCbuildRunPath();
+        if (cbuildRunFilePath === undefined) {
+            throw new Error('Expected a cbuild-run file path.');
+        }
+        controller.handleActiveSessionChanged(activeSession);
+        let finishFirstRun: ((exitCode: number) => void) | undefined;
+        const firstRun = new Promise<number>(resolve => {
+            finishFirstRun = resolve;
+        });
+        const run = jest.spyOn(controller, 'run')
+            .mockReturnValueOnce(firstRun)
+            .mockResolvedValue(0);
+
+        let firstRequestCompleted = false;
+        const firstRequest = controller.convertCTrace(ctraceUri, cbuildRunFilePath).then(() => {
+            firstRequestCompleted = true;
+        });
+        await waitForCondition('the explicit pyTS conversion to start', () => run.mock.calls.length === 1);
+        const watchedChange = controller.handleCTraceFileChanged(ctraceUri);
+        const duplicateRequest = controller.convertCTrace(ctraceUri, cbuildRunFilePath);
+        const otherCbuildRunFilePath = '/workspace/build/other.cbuild-run.yml';
+        const otherRequest = controller.convertCTrace(
+            ctraceUriInSolution('other.ctrace.yml'), otherCbuildRunFilePath
+        );
+        await waitForCondition(
+            'all conversion requests to read ctrace',
+            () => jest.mocked(vscode.workspace.fs.readFile).mock.calls.length === 4
+        );
+        await Promise.resolve();
+        expect(run).toHaveBeenCalledTimes(1);
+        expect(firstRequestCompleted).toBe(false);
+        finishFirstRun?.(0);
+        await Promise.all([firstRequest, watchedChange, duplicateRequest, otherRequest]);
+
+        expect(firstRequestCompleted).toBe(true);
+        expect(run).toHaveBeenCalledTimes(2);
+        expect(run).toHaveBeenNthCalledWith(2, { cbuildRunFilePath: otherCbuildRunFilePath });
+    });
+
+    it('keeps an explicit queued request when the ctrace watcher is removed', async () => {
+        const controller = new PyTsController();
+        let finishFirstRun: ((exitCode: number) => void) | undefined;
+        const firstRun = new Promise<number>(resolve => {
+            finishFirstRun = resolve;
+        });
+        const run = jest.spyOn(controller, 'run')
+            .mockReturnValueOnce(firstRun)
+            .mockResolvedValue(0);
+
+        const watchedChange = controller.handleCTraceFileChanged(ctraceUri);
+        await waitForCondition('the watched pyTS conversion to start', () => run.mock.calls.length === 1);
+        const cbuildRunFilePath = '/workspace/build/other.cbuild-run.yml';
+        const explicitRequest = controller.convertCTrace(
+            ctraceUriInSolution('other.ctrace.yml'), cbuildRunFilePath
+        );
+        await waitForCondition(
+            'the explicit ctrace contents to be read',
+            () => jest.mocked(vscode.workspace.fs.readFile).mock.calls.length === 2
+        );
+        controller.removeCTraceConfigurationWatcher();
+        finishFirstRun?.(0);
+        await Promise.all([watchedChange, explicitRequest]);
+
+        expect(run).toHaveBeenCalledTimes(2);
+        expect(run).toHaveBeenNthCalledWith(2, { cbuildRunFilePath });
+    });
+
+    it('logs a failed pyTS exit for an explicit request', async () => {
+        const controller = new PyTsController();
+        jest.spyOn(controller, 'run').mockResolvedValue(7);
+        const error = jest.spyOn(logger, 'error').mockImplementation();
+
+        await controller.convertCTrace(ctraceUri, '/workspace/build/trace.cbuild-run.yml');
+
+        expect(error).toHaveBeenCalledWith('pyTS process exited with code 7');
+    });
+
+    it('logs a pyTS launch failure for an explicit request', async () => {
+        const controller = new PyTsController();
+        const launchError = new Error('launch failed');
+        jest.spyOn(controller, 'run').mockRejectedValue(launchError);
+        const error = jest.spyOn(logger, 'error').mockImplementation();
+
+        await controller.convertCTrace(ctraceUri, '/workspace/build/trace.cbuild-run.yml');
+
+        expect(error).toHaveBeenCalledWith('Failed to launch pyTS process:', launchError);
+    });
+
     it('converts ctrace after a ctrace configuration file changes', async () => {
         const controller = new PyTsController();
         const run = jest.spyOn(controller, 'run').mockResolvedValue(0);

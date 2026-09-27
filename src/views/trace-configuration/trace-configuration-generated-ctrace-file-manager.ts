@@ -21,7 +21,7 @@ import { TextDecoder, TextEncoder } from 'node:util';
 import * as vscode from 'vscode';
 
 import { CbuildRunReader, CBuildRunFileLocator, ProcessorType } from '../../cbuild-run';
-import { PyTsProcessManager } from '../../desktop/process/pyts-process-manager';
+import { PyTsController } from '../../features/trace/pyts-controller';
 import { logger } from '../../logger';
 import { isFileNotFoundError } from '../../utils';
 import { CTraceProcessorTraceSetup, CTraceYamlDocument } from './ctrace-yaml';
@@ -57,7 +57,7 @@ export class TraceConfigurationGeneratedCTraceFileManager {
     private readonly decoder = new TextDecoder();
     private readonly encoder = new TextEncoder();
 
-    public constructor(private readonly pyTsProcessManagerFactory: () => PyTsProcessManager = () => new PyTsProcessManager()) {}
+    public constructor(private readonly pyTsController: PyTsController = new PyTsController()) {}
 
     /**
      * processGeneratedCBuildRunFileChange updates generated trace files and the
@@ -134,14 +134,9 @@ export class TraceConfigurationGeneratedCTraceFileManager {
             return;
         }
         try {
-            const processManager = this.pyTsProcessManagerFactory();
-            await processManager.launch({ cbuildRunFilePath: cbuildRunUri.fsPath });
-            const exitCode = await processManager.waitForExit();
-            if (exitCode !== 0) {
-                logger.error(`pyTS process exited with code ${exitCode}`);
-            }
+            await this.pyTsController.convertCTrace(ctraceUri, cbuildRunUri.fsPath);
         } catch (error) {
-            logger.error('Failed to launch pyTS process:', error);
+            logger.error('Failed to request pyTS conversion:', error);
         }
     }
 

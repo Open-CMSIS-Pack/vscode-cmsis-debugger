@@ -57,16 +57,17 @@ flowchart TD
     Update --> Written{"Was ctrace written?"}
     Written -->|yes| File["pyTS via ctrace file watch<br/><code>(PyTsController)</code>"]
     Written -->|no| Missing{"Production ctrace-run missing?"}
-    Missing -->|yes| Direct["Call pyTS directly"]
-    Missing -->|no| Skip["No direct pyTS call"]
+    Missing -->|yes| Direct["Queue pyTS through controller<br/><code>(PyTsController.convertCTrace())</code>"]
+    Missing -->|no| Skip["No pyTS request"]
     File --> Load["Load ctrace in view"]
     Direct --> Load
     Skip --> Load
 ```
 
-This branch's direct call occurs only for an unchanged existing ctrace file
-whose production ctrace-run file is missing. A ctrace write can still start
-pyTS through the separate `PyTsController` watcher below.
+The explicit queue request occurs only for an unchanged existing ctrace file
+whose production ctrace-run file is missing. It does not require a watcher
+event. A ctrace write can still start pyTS through the separate
+`PyTsController` watcher below.
 
 ## ctrace file events
 
