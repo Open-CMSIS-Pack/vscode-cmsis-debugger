@@ -27,8 +27,7 @@ import { PyTsController } from '../../features/trace/pyts-controller';
 import {
     CBUILD_INDEX_FILE_GLOB,
     CMSIS_JSON_FILE_GLOB,
-    CTRACE_FILE_GLOB,
-    ENABLE_TRACE_GENERATION_VIEW_SETTING
+    CTRACE_FILE_GLOB
 } from '../../manifest';
 import { containsSubstringsInOrder, normalizeFsPath, waitForCondition, waitForImmediate } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
@@ -187,17 +186,6 @@ function mockGeneratedCBuildRunProcessors(processors: ProcessorType[], targetSet
     jest.spyOn(CbuildRunReader.prototype, 'getTraceMode').mockReturnValue('server');
     jest.spyOn(CbuildRunReader.prototype, 'getProcessors').mockReturnValue(processors);
     jest.spyOn(CbuildRunReader.prototype, 'getTargetSet').mockReturnValue(targetSet);
-}
-
-function mockTraceGenerationConfiguration(): jest.Mock {
-    const update = jest.fn().mockResolvedValue(undefined);
-    jest.spyOn(vscode.workspace, 'getConfiguration').mockReturnValue({
-        get: jest.fn(),
-        update,
-        inspect: jest.fn().mockReturnValue(undefined),
-        has: jest.fn()
-    } as unknown as vscode.WorkspaceConfiguration);
-    return update;
 }
 
 async function createTemporaryWorkspace(): Promise<string> {
@@ -374,7 +362,6 @@ describe('TraceConfigurationModel', () => {
 
     it('creates a generated ctrace file with processors disabled by default when a cbuild-run file is created', async () => {
         const workspaceRoot = await createTemporaryWorkspace();
-        const updateConfiguration = mockTraceGenerationConfiguration();
         const onDidChange = jest.fn();
         mockGeneratedCBuildRunProcessors([
             createProcessor('Cortex-M55', 'core0'),
@@ -388,16 +375,6 @@ describe('TraceConfigurationModel', () => {
 
         const generatedTraceFile = path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yml');
         const generatedText = await waitForTemporaryTextFile(generatedTraceFile);
-        await waitForCondition('trace generation view to be enabled', () => updateConfiguration.mock.calls.some(call =>
-            call[0] === ENABLE_TRACE_GENERATION_VIEW_SETTING
-            && call[1] === true
-            && call[2] === vscode.ConfigurationTarget.Workspace
-        ));
-        expect(updateConfiguration).toHaveBeenCalledWith(
-            ENABLE_TRACE_GENERATION_VIEW_SETTING,
-            true,
-            vscode.ConfigurationTarget.Workspace
-        );
         expect(generatedText).toContain('created-by: CMSIS Debugger');
         expect(containsSubstringsInOrder(generatedText, [
             'pname: core0',
@@ -502,7 +479,6 @@ describe('TraceConfigurationModel', () => {
 
     it('clears the active ctrace file and shows guidance when trace mode is off', async () => {
         const workspaceRoot = await createTemporaryWorkspace();
-        const updateConfiguration = mockTraceGenerationConfiguration();
         jest.spyOn(CbuildRunReader.prototype, 'parse').mockResolvedValue();
         jest.spyOn(CbuildRunReader.prototype, 'getTraceMode').mockReturnValue('off');
         const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
@@ -540,11 +516,6 @@ describe('TraceConfigurationModel', () => {
             dirty: false,
             emptyMessage: TRACE_OFF_MESSAGE
         });
-        expect(updateConfiguration).toHaveBeenCalledWith(
-            ENABLE_TRACE_GENERATION_VIEW_SETTING,
-            true,
-            vscode.ConfigurationTarget.Workspace
-        );
         await expect(readTemporaryTextFile(ctraceFileName)).resolves.toContain('pname: core0');
         model.dispose();
     });
@@ -593,7 +564,6 @@ describe('TraceConfigurationModel', () => {
 
     it('adds only new processor pnames when a generated cbuild-run file changes', async () => {
         const workspaceRoot = await createTemporaryWorkspace();
-        const updateConfiguration = mockTraceGenerationConfiguration();
         mockGeneratedCBuildRunProcessors([
             createProcessor('Cortex-M55', 'core0'),
             createProcessor('Cortex-M33', 'core1'),
@@ -619,16 +589,6 @@ describe('TraceConfigurationModel', () => {
         fireWatcherHandler(watcher, 'change', cbuildRunFile);
 
         const generatedText = await waitForTemporaryTextFile(generatedTraceFile, contents => contents.includes('pname: core1'));
-        await waitForCondition('trace generation view to be enabled', () => updateConfiguration.mock.calls.some(call =>
-            call[0] === ENABLE_TRACE_GENERATION_VIEW_SETTING
-            && call[1] === true
-            && call[2] === vscode.ConfigurationTarget.Workspace
-        ));
-        expect(updateConfiguration).toHaveBeenCalledWith(
-            ENABLE_TRACE_GENERATION_VIEW_SETTING,
-            true,
-            vscode.ConfigurationTarget.Workspace
-        );
         expect(generatedText.match(/pname: core0/g) ?? []).toHaveLength(1);
         expect(generatedText).toContain('created-by: user');
         expect(generatedText).toContain('location: existingWatch');
@@ -637,9 +597,8 @@ describe('TraceConfigurationModel', () => {
         model.dispose();
     });
 
-    it('disables trace generation and leaves the ctrace file untouched when a generated cbuild-run file is deleted', async () => {
+    it('leaves the ctrace file untouched when a generated cbuild-run file is deleted', async () => {
         const workspaceRoot = await createTemporaryWorkspace();
-        const updateConfiguration = mockTraceGenerationConfiguration();
         const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
         const generatedTraceFile = path.join(ctraceDirectory, 'demo.ctrace.yml');
         const originalText = [
@@ -659,17 +618,8 @@ describe('TraceConfigurationModel', () => {
 
         fireWatcherHandler(watcher, 'delete', cbuildRunFile);
 
-        await waitForCondition('trace generation view to be disabled', () => updateConfiguration.mock.calls.some(call =>
-            call[0] === ENABLE_TRACE_GENERATION_VIEW_SETTING
-            && call[1] === false
-            && call[2] === vscode.ConfigurationTarget.Workspace
-        ));
+        await waitForWatcherWork();
         await expect(readTemporaryTextFile(generatedTraceFile)).resolves.toBe(originalText);
-        expect(updateConfiguration).toHaveBeenCalledWith(
-            ENABLE_TRACE_GENERATION_VIEW_SETTING,
-            false,
-            vscode.ConfigurationTarget.Workspace
-        );
         expect(parseSpy).not.toHaveBeenCalled();
         model.dispose();
     });
@@ -1730,7 +1680,6 @@ describe('TraceConfigurationModel', () => {
         await createTemporaryDirectory(cbuildRunDirectory);
         await writeTemporaryTextFile(cbuildRunFile.fsPath, 'cbuild-run:\n');
         mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M55', 'core0')]);
-        mockTraceGenerationConfiguration();
         (vscode.commands.executeCommand as jest.Mock).mockResolvedValue(cbuildRunFile.fsPath);
         const model = new TraceConfigurationModel();
 
@@ -1757,7 +1706,6 @@ describe('TraceConfigurationModel', () => {
             ''
         ].join('\n'));
         mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M55', 'core0')]);
-        mockTraceGenerationConfiguration();
         (vscode.commands.executeCommand as jest.Mock).mockResolvedValue(undefined);
         (vscode.workspace.findFiles as jest.Mock).mockImplementation((include: vscode.GlobPattern) => {
             const pattern = typeof include === 'string' ? include : include.pattern;

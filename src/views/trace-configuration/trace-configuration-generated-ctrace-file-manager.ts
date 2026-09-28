@@ -28,7 +28,6 @@ import { CTraceProcessorTraceSetup, CTraceYamlDocument } from './ctrace-yaml';
 import { GeneratedCBuildRunFileChangeEvent } from './trace-configuration-file-watcher';
 import { getTraceConfigurationArtifactFileNames } from './trace-configuration-file-names';
 import * as TraceConfigurationTypes from './trace-configuration-types';
-import { ENABLE_TRACE_GENERATION_VIEW_SETTING } from '../../manifest';
 
 interface GeneratedTraceProcessor {
     core: string;
@@ -60,10 +59,9 @@ export class TraceConfigurationGeneratedCTraceFileManager {
     public constructor(private readonly pyTsController: PyTsController = new PyTsController()) {}
 
     /**
-     * processGeneratedCBuildRunFileChange updates generated trace files and the
-     * trace generation setting for a generated cbuild-run watcher event, then
-     * reports whether a ctrace file was generated, tracing is off, or the source
-     * file was deleted.
+     * processGeneratedCBuildRunFileChange updates generated trace files for a
+     * generated cbuild-run watcher event, then reports whether a ctrace file was
+     * generated, tracing is off, or the source file was deleted.
      */
     public async processGeneratedCBuildRunFileChange(
         event: GeneratedCBuildRunFileChangeEvent
@@ -73,7 +71,6 @@ export class TraceConfigurationGeneratedCTraceFileManager {
             case 'created':
             case 'changed': {
                 const traceFile = await this.createOrUpdateGeneratedCTraceFile(event.uri);
-                await this.setTraceGenerationWebviewEnabled(true);
                 if (traceFile && !traceFile.written) {
                     await this.convertExistingCTraceIfMissingRun(traceFile.uri, event.uri);
                 }
@@ -82,7 +79,6 @@ export class TraceConfigurationGeneratedCTraceFileManager {
                     : { status: 'trace-off' };
             }
             case 'deleted':
-                await this.setTraceGenerationWebviewEnabled(false);
                 return { status: 'deleted' };
         }
     }
@@ -349,15 +345,5 @@ export class TraceConfigurationGeneratedCTraceFileManager {
         }
 
         return setup;
-    }
-
-    /**
-     * setTraceGenerationWebviewEnabled persists whether the trace generation
-     * webview should be enabled for the current workspace.
-     */
-    private async setTraceGenerationWebviewEnabled(enabled: boolean): Promise<void> {
-        await vscode.workspace
-            .getConfiguration()
-            .update(ENABLE_TRACE_GENERATION_VIEW_SETTING, enabled, vscode.ConfigurationTarget.Workspace);
     }
 }

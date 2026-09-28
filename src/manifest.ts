@@ -27,6 +27,3 @@ export const TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING = `${EXTENSION_NAME}.s
 export const CTRACE_FILE_GLOB = '.cmsis/[!~]*.ctrace.yml';
 export const CBUILD_INDEX_FILE_GLOB = '*.cbuild-idx.yml';
 export const CMSIS_JSON_FILE_GLOB = '.vscode/cmsis.json';
-
-// Extension configuration setting identifiers.
-export const ENABLE_TRACE_GENERATION_VIEW_SETTING = `${EXTENSION_NAME}.enableTraceGenerationView`;

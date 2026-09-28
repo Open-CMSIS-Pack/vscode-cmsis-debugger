@@ -23,7 +23,6 @@ import {
     GDBTargetDebugSession,
     GDBTargetDebugTracker
 } from '../../debug-session';
-import { ENABLE_TRACE_GENERATION_VIEW_SETTING } from '../../manifest';
 import {
     CTraceProcessManager,
     CTraceProcessManagerLaunchOptions,
@@ -44,7 +43,6 @@ interface PendingDecode {
 export class CTraceController {
     private activeSession: GDBTargetDebugSession | undefined;
     private fileWatchManager: FileWatchManager | undefined;
-    private traceEnabled = false;
     private rawTraceWatcherGeneration = 0;
     private readonly pendingDecodes = new Map<string, PendingDecode>();
     private readonly rawTraceSaves = new Map<string, number>();
@@ -70,15 +68,10 @@ export class CTraceController {
             tracker.onDidChangeActiveDebugSession(session => this.handleActiveSessionChanged(session)),
             tracker.onStopped(event => this.handleDecodeTrigger(event.session)),
             tracker.onWillStopSession(session => this.handleDecodeTrigger(session)),
-            vscode.workspace.onDidChangeConfiguration(async event => {
-                if (event.affectsConfiguration(ENABLE_TRACE_GENERATION_VIEW_SETTING)) {
-                    await this.updateRawTraceWatcher();
-                }
-            }),
             { dispose: () => this.removeRawTraceWatcher() },
             ...(activeSolutionChangeSubscription ? [activeSolutionChangeSubscription] : [])
         );
-        await this.updateRawTraceWatcher();
+        await this.addRawTraceWatcher();
     }
 
     public async run(options: CTraceProcessManagerLaunchOptions = {}): Promise<number | null> {
@@ -99,7 +92,7 @@ export class CTraceController {
         uri: vscode.Uri,
         watcherGeneration: number = this.rawTraceWatcherGeneration
     ): Promise<void> {
-        if (!this.traceEnabled || watcherGeneration !== this.rawTraceWatcherGeneration) {
+        if (watcherGeneration !== this.rawTraceWatcherGeneration) {
             return;
         }
         const savedAt = this.now();
@@ -109,9 +102,6 @@ export class CTraceController {
     }
 
     protected async handleDecodeTrigger(session: GDBTargetDebugSession | undefined): Promise<void> {
-        if (!this.traceEnabled) {
-            return;
-        }
         const effectiveSession = session ?? this.activeSession;
         if (effectiveSession === undefined) {
             return;
@@ -166,17 +156,6 @@ export class CTraceController {
         }
     }
 
-    private async updateRawTraceWatcher(): Promise<void> {
-        this.traceEnabled = vscode.workspace.getConfiguration().get<boolean>(ENABLE_TRACE_GENERATION_VIEW_SETTING, false);
-        if (this.traceEnabled) {
-            await this.addRawTraceWatcher();
-        } else {
-            this.removeRawTraceWatcher();
-            this.pendingDecodes.clear();
-            this.rawTraceSaves.clear();
-        }
-    }
-
     private async addRawTraceWatcher(): Promise<void> {
         const fileWatchManager = this.fileWatchManager;
         // A watcher cannot be registered before activation supplies its manager.
@@ -185,8 +164,8 @@ export class CTraceController {
         }
         const watcherGeneration = this.rawTraceWatcherGeneration;
         const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
-        // Ignore a stale registration after tracing was disabled or reactivation supplied a new manager.
-        if (!this.traceEnabled || watcherGeneration !== this.rawTraceWatcherGeneration || fileWatchManager !== this.fileWatchManager) {
+        // Ignore a stale registration after removal or reactivation supplied a new manager.
+        if (watcherGeneration !== this.rawTraceWatcherGeneration || fileWatchManager !== this.fileWatchManager) {
             return;
         }
         const globPattern = activeSolutionFolder
@@ -209,9 +188,6 @@ export class CTraceController {
     }
 
     private async handleActiveSolutionPathChanged(): Promise<void> {
-        if (!this.traceEnabled) {
-            return;
-        }
         this.removeRawTraceWatcher();
         this.pendingDecodes.clear();
         this.rawTraceSaves.clear();
