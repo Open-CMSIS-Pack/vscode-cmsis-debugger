@@ -411,7 +411,7 @@ describe('TraceConfigurationModel', () => {
             'pcsampling:',
             'period: 0',
             'synchronization:',
-            'DWT: 256M',
+            'DWT: 16M',
             'pname: core1',
             'core: Cortex-M23',
             'disable:'
@@ -437,7 +437,7 @@ describe('TraceConfigurationModel', () => {
         expect(state.rows.find(row => JSON.stringify(row.path) === JSON.stringify(['ctrace', 'setup', 0, 'timesync'])))
             .toMatchObject({ checked: false });
         expect(state.rows.find(row => JSON.stringify(row.path) === JSON.stringify(['ctrace', 'setup', 0, 'synchronization', 'DWT'])))
-            .toMatchObject({ value: '256M' });
+            .toMatchObject({ value: '16M' });
         expect(generatedText).not.toContain('timestamps: {}');
         expect(generatedText).not.toContain('instructions: {}');
         expect(generatedText).not.toContain('data: []');
