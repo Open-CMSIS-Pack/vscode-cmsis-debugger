@@ -37,19 +37,25 @@ import { normalizeFsPath } from '../../utils';
 const CTRACE_CONFIGURATION_GLOB = '.cmsis/[!~]*.ctrace.{yml,yaml}';
 const CTRACE_CONFIGURATION_WATCH_ID = 'pyts-ctrace-configuration';
 
-interface PendingCTraceConversion {
+interface CTraceConversionRequest {
     readonly cbuildRunFilePath: string | undefined;
     readonly conversionKey: string;
-    readonly contents: Uint8Array;
-    readonly watcherGeneration: number;
+    contents: Uint8Array;
+    watcherGeneration: number | undefined;
+    explicit: boolean;
+}
+
+interface PendingCTraceConversion extends CTraceConversionRequest {
+    readonly resolveWaiters: Array<() => void>;
 }
 
 export class PyTsController {
     private activeSession: GDBTargetDebugSession | undefined;
     private fileWatchManager: FileWatchManager | undefined;
     private readonly observedCTraceContents = new Map<string, Uint8Array>();
-    private readonly contentReadPromises = new Map<string, Promise<boolean>>();
-    private pendingConversion: PendingCTraceConversion | undefined;
+    private readonly contentReadPromises = new Map<string, Promise<Uint8Array | undefined>>();
+    private readonly pendingConversions = new Map<string, PendingCTraceConversion>();
+    private activeConversion: PendingCTraceConversion | undefined;
     private conversionPromise: Promise<void> | undefined;
     private watcherGeneration = 0;
     private traceEnabled = false;
@@ -92,6 +98,11 @@ export class PyTsController {
         return processManager.waitForExit();
     }
 
+    /** Requests a conversion independently of the ctrace file watcher and waits for its completion. */
+    public convertCTrace(ctraceUri: vscode.Uri, cbuildRunFilePath: string): Promise<void> {
+        return this.processConversionRequest(ctraceUri, cbuildRunFilePath, undefined, true);
+    }
+
     protected handleActiveSessionChanged(session: GDBTargetDebugSession | undefined): void {
         this.activeSession = session;
     }
@@ -104,58 +115,93 @@ export class PyTsController {
             return;
         }
         const cbuildRunFilePath = this.activeSession?.getCbuildRunPath();
-        if (!this.isCTraceFileForCBuildRun(uri, cbuildRunFilePath)) {
-            return;
-        }
-
         try {
-            const normalizedPath = normalizeFsPath(uri.fsPath) ?? uri.fsPath;
-            const conversionKey = this.getConversionKey(normalizedPath, cbuildRunFilePath);
-            const previousRead = this.contentReadPromises.get(conversionKey) ?? Promise.resolve(false);
-            // catching any file errors from the previous read to ensure the chain continues
-            const contentReadPromise = previousRead.catch(() => false).then(async () => {
-                const contents = await vscode.workspace.fs.readFile(uri);
-                if (watcherGeneration !== this.watcherGeneration) {
-                    return false;
-                }
-                if (this.contentsEqual(this.observedCTraceContents.get(conversionKey), contents)) {
-                    return false;
-                }
-                this.observedCTraceContents.set(conversionKey, contents);
-                return true;
-            });
-            this.contentReadPromises.set(conversionKey, contentReadPromise);
-            let contentsChanged: boolean;
-            try {
-                contentsChanged = await contentReadPromise;
-            } finally {
-                if (this.contentReadPromises.get(conversionKey) === contentReadPromise) {
-                    this.contentReadPromises.delete(conversionKey);
-                }
-            }
-            if (!contentsChanged) {
+            if (!await this.isCTraceFileForCBuildRun(uri, cbuildRunFilePath)) {
                 return;
             }
-            const contents = this.observedCTraceContents.get(conversionKey);
-            if (contents === undefined) {
-                return;
-            }
-            this.pendingConversion = { cbuildRunFilePath, conversionKey, contents, watcherGeneration };
-            this.conversionPromise ??= this.processPendingConversions();
-            await this.conversionPromise;
+            await this.processConversionRequest(uri, cbuildRunFilePath, watcherGeneration, false);
         } catch (error) {
             logger.error('Failed to process ctrace configuration change:', error);
         }
     }
 
+    private async processConversionRequest(
+        uri: vscode.Uri,
+        cbuildRunFilePath: string | undefined,
+        watcherGeneration: number | undefined,
+        explicit: boolean
+    ): Promise<void> {
+        const normalizedPath = normalizeFsPath(uri.fsPath) ?? uri.fsPath;
+        const conversionKey = this.getConversionKey(normalizedPath, cbuildRunFilePath);
+        const previousRead = this.contentReadPromises.get(conversionKey) ?? Promise.resolve(undefined);
+        // Catch a previous read failure so a later request can still proceed.
+        const contentReadPromise = previousRead.catch(() => undefined).then(async () => {
+            const contents = await vscode.workspace.fs.readFile(uri);
+            if (watcherGeneration !== undefined && watcherGeneration !== this.watcherGeneration) {
+                return undefined;
+            }
+            if (!explicit && this.contentsEqual(this.observedCTraceContents.get(conversionKey), contents)) {
+                return undefined;
+            }
+            this.observedCTraceContents.set(conversionKey, contents);
+            return contents;
+        });
+        this.contentReadPromises.set(conversionKey, contentReadPromise);
+        let contents: Uint8Array | undefined;
+        try {
+            contents = await contentReadPromise;
+        } finally {
+            if (this.contentReadPromises.get(conversionKey) === contentReadPromise) {
+                this.contentReadPromises.delete(conversionKey);
+            }
+        }
+        if (contents === undefined) {
+            return;
+        }
+        await this.submitConversion({
+            cbuildRunFilePath,
+            conversionKey,
+            contents,
+            watcherGeneration,
+            explicit
+        });
+    }
+
+    private submitConversion(request: CTraceConversionRequest): Promise<void> {
+        const completion = new Promise<void>(resolve => {
+            const activeConversion = this.activeConversion;
+            if (activeConversion?.conversionKey === request.conversionKey
+                && this.contentsEqual(activeConversion.contents, request.contents)) {
+                activeConversion.resolveWaiters.push(resolve);
+                return;
+            }
+            const pendingConversion = this.pendingConversions.get(request.conversionKey);
+            if (pendingConversion !== undefined) {
+                pendingConversion.contents = request.contents;
+                pendingConversion.explicit ||= request.explicit;
+                pendingConversion.watcherGeneration = request.watcherGeneration ?? pendingConversion.watcherGeneration;
+                pendingConversion.resolveWaiters.push(resolve);
+                return;
+            }
+            this.pendingConversions.set(request.conversionKey, { ...request, resolveWaiters: [resolve] });
+        });
+        this.conversionPromise ??= this.processPendingConversions();
+        return completion;
+    }
+
     private async processPendingConversions(): Promise<void> {
         try {
-            while (this.pendingConversion !== undefined) {
-                const pendingConversion = this.pendingConversion;
-                this.pendingConversion = undefined;
-                if (pendingConversion.watcherGeneration !== this.watcherGeneration) {
+            while (this.pendingConversions.size > 0) {
+                const pendingConversion = this.pendingConversions.values().next().value;
+                if (pendingConversion === undefined) {
+                    break;
+                }
+                this.pendingConversions.delete(pendingConversion.conversionKey);
+                if (!pendingConversion.explicit && pendingConversion.watcherGeneration !== this.watcherGeneration) {
+                    pendingConversion.resolveWaiters.forEach(resolve => resolve());
                     continue;
                 }
+                this.activeConversion = pendingConversion;
                 const launchOptions: PyTsProcessManagerLaunchOptions = pendingConversion.cbuildRunFilePath === undefined
                     ? {}
                     : { cbuildRunFilePath: pendingConversion.cbuildRunFilePath };
@@ -167,13 +213,15 @@ export class PyTsController {
                 } catch (error) {
                     logger.error('Failed to launch pyTS process:', error);
                 } finally {
-                    await this.contentReadPromises.get(pendingConversion.conversionKey)?.catch(() => false);
+                    await this.contentReadPromises.get(pendingConversion.conversionKey)?.catch(() => undefined);
                     if (this.contentsEqual(
                         this.observedCTraceContents.get(pendingConversion.conversionKey),
                         pendingConversion.contents
                     )) {
                         this.observedCTraceContents.delete(pendingConversion.conversionKey);
                     }
+                    pendingConversion.resolveWaiters.forEach(resolve => resolve());
+                    this.activeConversion = undefined;
                 }
             }
         } finally {
@@ -188,36 +236,39 @@ export class PyTsController {
         return `${ctracePath}\0${normalizedCbuildRunPath}`;
     }
 
-    private isCTraceFileForCBuildRun(uri: vscode.Uri, cbuildRunFilePath: string | undefined): boolean {
-        if (path.basename(uri.fsPath).startsWith('~')) {
+    private async isCTraceFileForCBuildRun(ctraceUri: vscode.Uri, cbuildRunFilePath: string | undefined): Promise<boolean> {
+        if (path.basename(ctraceUri.fsPath).startsWith('~')) {
             return false;
         }
-        const cbuildRunDirectoryName = cbuildRunFilePath === undefined
-            ? undefined
-            : normalizeFsPath(path.basename(path.dirname(cbuildRunFilePath)));
-
         if (cbuildRunFilePath === undefined) {
             return true;
         }
-
-        if (cbuildRunDirectoryName !== normalizeFsPath('out')) {
-            return true; // Cannot apply generated-project filtering.
-        }
-
         const suffix = '.cbuild-run.yml';
         const cbuildRunName = normalizeFsPath(path.basename(cbuildRunFilePath)) ?? path.basename(cbuildRunFilePath);
         if (!cbuildRunName.endsWith(suffix)) {
             return true;
         }
-        const projectName = cbuildRunName.slice(0, -suffix.length);
-        const expectedDirectory = path.join(path.dirname(path.dirname(cbuildRunFilePath)), '.cmsis');
-        const ctraceName = normalizeFsPath(path.basename(uri.fsPath)) ?? path.basename(uri.fsPath);
+        const cbuildRunProjectName = cbuildRunName.slice(0, -suffix.length);
+        const ctraceUriBasename = path.basename(ctraceUri.fsPath);
+        const ctraceName = normalizeFsPath(ctraceUriBasename) ?? ctraceUriBasename;
         const ctraceSuffix = ctraceName.endsWith('.ctrace.yaml') ? '.ctrace.yaml' : '.ctrace.yml';
-        const solutionSetName = ctraceName.slice(0, -ctraceSuffix.length);
-        const namedTargetSetPrefix = `${projectName}@`;
-        return normalizeFsPath(path.dirname(uri.fsPath)) === normalizeFsPath(expectedDirectory) &&
-            (solutionSetName === projectName ||
-                solutionSetName.startsWith(namedTargetSetPrefix) && solutionSetName.length > namedTargetSetPrefix.length);
+        const ctraceSolutionSetName = ctraceName.slice(0, -ctraceSuffix.length);
+        const cbuildRunTargetSetPrefix = `${cbuildRunProjectName}@`;
+        // Check whether the ctrace could belong to this cbuild-run based on their
+        // filename stems.
+        const exactBaseMatch = ctraceSolutionSetName === cbuildRunProjectName;
+        const ctraceCanBelongToCbuildRun = ctraceSolutionSetName.startsWith(cbuildRunTargetSetPrefix) && ctraceSolutionSetName.length > cbuildRunTargetSetPrefix.length;
+        if (!exactBaseMatch && !ctraceCanBelongToCbuildRun) {
+            return false;
+        }
+        // Check if location of ctrace file matches the expected location within
+        // the active solution folder.
+        const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
+        if (activeSolutionFolder === undefined) {
+            return true;
+        }
+        return normalizeFsPath(path.dirname(ctraceUri.fsPath)) ===
+                normalizeFsPath(path.join(activeSolutionFolder.fsPath, '.cmsis'));
     }
 
     private contentsEqual(previous: Uint8Array | undefined, current: Uint8Array): boolean {
@@ -263,7 +314,12 @@ export class PyTsController {
         this.watcherGeneration += 1;
         this.observedCTraceContents.clear();
         this.contentReadPromises.clear();
-        this.pendingConversion = undefined;
+        for (const [conversionKey, pendingConversion] of this.pendingConversions) {
+            if (!pendingConversion.explicit) {
+                this.pendingConversions.delete(conversionKey);
+                pendingConversion.resolveWaiters.forEach(resolve => resolve());
+            }
+        }
     }
 
     private async handleActiveSolutionPathChanged(): Promise<void> {

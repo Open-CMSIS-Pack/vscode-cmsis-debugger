@@ -104,19 +104,26 @@ function renderApp(state: TraceConfigurationState): void {
     if (!root) {
         return;
     }
+    const previousScrollRegion = root.querySelector<HTMLElement>('.option-tree-scroll');
+    const scrollTop = previousScrollRegion?.scrollTop ?? 0;
+    const scrollLeft = previousScrollRegion?.scrollLeft ?? 0;
     clearElement(root);
     const surface = createElement('main', 'table-surface');
     surface.append(createHeader(state));
+    const scrollRegion = createElement('div', 'option-tree-scroll');
     if (state.loading) {
-        surface.append(createEmptyState('Loading ctrace.yml...'));
+        scrollRegion.append(createEmptyState('Loading ctrace.yml...'));
     } else if (state.errorMessage) {
-        surface.append(createEmptyState(state.errorMessage, true));
+        scrollRegion.append(createEmptyState(state.errorMessage, true));
     } else if (state.rows.length === 0) {
-        surface.append(createEmptyState(state.emptyMessage ?? 'No trace configuration loaded.'));
+        scrollRegion.append(createEmptyState(state.emptyMessage ?? 'No trace configuration loaded.'));
     } else {
-        surface.append(createTable(state.rows));
+        scrollRegion.append(createTable(state.rows));
     }
+    surface.append(scrollRegion);
     root.append(surface);
+    scrollRegion.scrollTop = scrollTop;
+    scrollRegion.scrollLeft = scrollLeft;
     focusRow(state.focusedRowId);
 }
 
@@ -141,23 +148,12 @@ function focusRow(rowId: string | undefined): void {
 }
 
 /**
- * createHeader keeps the toolbar and save state together in the sticky region
- * so the file status remains visible while the tree body scrolls.
+ * createHeader places the file status above the scrolling tree body.
  */
 function createHeader(state: TraceConfigurationState): HTMLElement {
     const header = createElement('div', 'trace-header');
-    header.append(createToolbar(), createStatus(state));
+    header.append(createStatus(state));
     return header;
-}
-
-/**
- * createToolbar builds the view-level controls. Save asks the extension host
- * to persist the current ctrace document, Open lets the user choose a ctrace
- * file, and Expand/Collapse send row toggle messages for every row currently
- * rendered in the table.
- */
-function createToolbar(): HTMLElement {
-    return createElement('span', 'tree-toolbar-hidden');
 }
 
 /**
