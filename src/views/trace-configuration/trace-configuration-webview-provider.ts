@@ -20,6 +20,7 @@ import * as vscode from 'vscode';
 import { CmsisJsonWatcher } from '../../cmsis-files';
 import { CBuildRunFileLocator } from '../../cbuild-run';
 import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
+import type { PyTsController } from '../../features/trace/pyts-controller';
 import {
     TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING,
     TRACE_CONFIGURATION_VIEW_ID
@@ -57,7 +58,8 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
         model?: TraceConfigurationModel,
         fileWatchManager: FileWatchManager = new FileWatchManager(),
         cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator(),
-        cmsisJsonWatcher?: CmsisJsonWatcher
+        cmsisJsonWatcher?: CmsisJsonWatcher,
+        pyTsController?: PyTsController
     ) {
         this.model = model ?? new TraceConfigurationModel(
             undefined,
@@ -66,7 +68,11 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             undefined,
             fileWatchManager,
             cbuildRunFileLocator,
-            cmsisJsonWatcher
+            cmsisJsonWatcher,
+            undefined,
+            undefined,
+            undefined,
+            pyTsController
         );
         this.model.setOnDidChange(() => this.postState());
     }

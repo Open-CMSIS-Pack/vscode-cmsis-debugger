@@ -83,7 +83,8 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
         undefined,
         fileWatchManager,
         cbuildRunFileLocator,
-        cmsisJsonWatcher
+        cmsisJsonWatcher,
+        pyTsController
     );
     const traceConfigurationCommands = new TraceConfigurationCommands();
     const csvTableEditorProvider = new CsvTableEditorProvider(

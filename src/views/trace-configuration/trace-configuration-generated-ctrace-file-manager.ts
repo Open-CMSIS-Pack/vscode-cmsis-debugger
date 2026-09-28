@@ -21,10 +21,12 @@ import { TextDecoder, TextEncoder } from 'node:util';
 import * as vscode from 'vscode';
 
 import { CbuildRunReader, CBuildRunFileLocator, ProcessorType } from '../../cbuild-run';
+import { PyTsController } from '../../features/trace/pyts-controller';
 import { logger } from '../../logger';
 import { isFileNotFoundError } from '../../utils';
 import { CTraceProcessorTraceSetup, CTraceYamlDocument } from './ctrace-yaml';
 import { GeneratedCBuildRunFileChangeEvent } from './trace-configuration-file-watcher';
+import { getTraceConfigurationArtifactFileNames } from './trace-configuration-file-names';
 import * as TraceConfigurationTypes from './trace-configuration-types';
 import { ENABLE_TRACE_GENERATION_VIEW_SETTING } from '../../manifest';
 
@@ -55,6 +57,8 @@ export class TraceConfigurationGeneratedCTraceFileManager {
     private readonly decoder = new TextDecoder();
     private readonly encoder = new TextEncoder();
 
+    public constructor(private readonly pyTsController: PyTsController = new PyTsController()) {}
+
     /**
      * processGeneratedCBuildRunFileChange updates generated trace files and the
      * trace generation setting for a generated cbuild-run watcher event, then
@@ -68,10 +72,13 @@ export class TraceConfigurationGeneratedCTraceFileManager {
         switch (event.type) {
             case 'created':
             case 'changed': {
-                const traceFileUri = await this.createDefaultCTraceFile(event.uri);
+                const traceFile = await this.createOrUpdateGeneratedCTraceFile(event.uri);
                 await this.setTraceGenerationWebviewEnabled(true);
-                return traceFileUri
-                    ? { status: 'generated', uri: traceFileUri }
+                if (traceFile && !traceFile.written) {
+                    await this.convertExistingCTraceIfMissingRun(traceFile.uri, event.uri);
+                }
+                return traceFile
+                    ? { status: 'generated', uri: traceFile.uri }
                     : { status: 'trace-off' };
             }
             case 'deleted':
@@ -86,7 +93,7 @@ export class TraceConfigurationGeneratedCTraceFileManager {
      * missing processor setup entries.
      */
     public async createDefaultCTraceFile(cbuildRunFileUri: vscode.Uri): Promise<vscode.Uri | undefined> {
-        return this.createOrUpdateGeneratedCTraceFile(cbuildRunFileUri);
+        return (await this.createOrUpdateGeneratedCTraceFile(cbuildRunFileUri))?.uri;
     }
 
     /**
@@ -94,7 +101,9 @@ export class TraceConfigurationGeneratedCTraceFileManager {
      * cbuild-run file, creates the matching .cmsis ctrace file when needed, and
      * returns the generated ctrace file URI.
     */
-    private async createOrUpdateGeneratedCTraceFile(cbuildRunFileUri: vscode.Uri): Promise<vscode.Uri | undefined> {
+    private async createOrUpdateGeneratedCTraceFile(
+        cbuildRunFileUri: vscode.Uri
+    ): Promise<{ uri: vscode.Uri; written: boolean } | undefined> {
         const cbuildRun = await this.readGeneratedCBuildRun(cbuildRunFileUri);
         if (!cbuildRun) {
             logger.debug(`${TRACE_OFF_MESSAGE}: ${cbuildRunFileUri.fsPath}`);
@@ -111,11 +120,24 @@ export class TraceConfigurationGeneratedCTraceFileManager {
 
         const changed = this.addMissingProcessorTraceSetups(document, cbuildRun.processors);
 
-        if (!traceFileExists || changed) {
+        const written = !traceFileExists || changed;
+        if (written) {
             await this.writeCTraceDocument(traceFileUri, document);
         }
 
-        return traceFileUri;
+        return { uri: traceFileUri, written };
+    }
+
+    private async convertExistingCTraceIfMissingRun(ctraceUri: vscode.Uri, cbuildRunUri: vscode.Uri): Promise<void> {
+        const artifacts = getTraceConfigurationArtifactFileNames(ctraceUri.fsPath);
+        if (await this.fileExists(vscode.Uri.file(artifacts.productionCTraceRunFileName))) {
+            return;
+        }
+        try {
+            await this.pyTsController.convertCTrace(ctraceUri, cbuildRunUri.fsPath);
+        } catch (error) {
+            logger.error('Failed to request pyTS conversion:', error);
+        }
     }
 
     /**

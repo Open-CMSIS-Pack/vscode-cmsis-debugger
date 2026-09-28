@@ -22,6 +22,7 @@ import * as vscode from 'vscode';
 import { CmsisJsonWatcher } from '../../cmsis-files';
 import { CBuildRunFileLocator } from '../../cbuild-run';
 import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
+import type { PyTsController } from '../../features/trace/pyts-controller';
 import { isYamlMapItem, isYamlScalarItem, isYamlSequenceItem, YamlTreeItem, yamlScalarToString } from '../../desktop/yaml-dom';
 import { logger } from '../../logger';
 import { CTRACE_FILE_GLOB, TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING } from '../../manifest';
@@ -182,10 +183,11 @@ export class TraceConfigurationModel {
         cmsisJsonWatcher?: CmsisJsonWatcher,
         backupStore?: TraceConfigurationBackupStore,
         prevalidator?: TraceConfigurationPrevalidator,
-        runMessageReader?: TraceConfigurationRunMessageReader
+        runMessageReader?: TraceConfigurationRunMessageReader,
+        pyTsController?: PyTsController
     ) {
         this.runMessageReader = runMessageReader ?? new CTraceRunValidationMessageReader();
-        this.generatedCTraceFileManager = generatedCTraceFileManager ?? new TraceConfigurationGeneratedCTraceFileManager();
+        this.generatedCTraceFileManager = generatedCTraceFileManager ?? new TraceConfigurationGeneratedCTraceFileManager(pyTsController);
         this.backupStore = backupStore ?? new WorkspaceTraceConfigurationBackupStore();
         this.backup = new DebouncedTraceConfigurationBackup(
             this.backupStore,

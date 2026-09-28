@@ -23,6 +23,7 @@ import * as vscode from 'vscode';
 
 import { MemoryTextFileAdapter } from '../../__test__/memory-text-file-adapter';
 import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
+import { PyTsController } from '../../features/trace/pyts-controller';
 import {
     CBUILD_INDEX_FILE_GLOB,
     CMSIS_JSON_FILE_GLOB,
@@ -336,7 +337,7 @@ describe('TraceConfigurationModel', () => {
         model.dispose();
     });
 
-    it('watches generated cbuild-run files in the top-level out folder', async () => {
+    it('watches cbuild indexes to discover generated cbuild-run files', async () => {
         const model = new TraceConfigurationModel();
 
         await model.watchForGeneratedCBuildRunFiles();
@@ -444,6 +445,39 @@ describe('TraceConfigurationModel', () => {
         expect(generatedText).not.toContain('events: []');
         expect(generatedText).not.toContain('pname: core1\n      core: Cortex-M23\n      timestamps');
         expect(onDidChange).toHaveBeenCalled();
+        model.dispose();
+    });
+
+    it('uses the supplied pyTS controller for an existing ctrace with no ctrace-run', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M55', 'core0')]);
+        const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
+        const ctraceFile = path.join(ctraceDirectory, 'demo.ctrace.yml');
+        await createTemporaryDirectory(ctraceDirectory);
+        await writeTemporaryTextFile(ctraceFile, 'ctrace:\n  setup:\n    - pname: core0\n      core: Cortex-M55\n');
+        const cbuildRunFile = vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml'));
+        const pyTsController = new PyTsController();
+        const convertCTrace = jest.spyOn(pyTsController, 'convertCTrace').mockResolvedValue();
+        const model = new TraceConfigurationModel(
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            pyTsController
+        );
+        const watcher = await resolveGeneratedCBuildRunWatcher(model, cbuildRunFile);
+
+        fireWatcherHandler(watcher, 'change', cbuildRunFile);
+        await waitForCondition('the missing ctrace-run conversion request', () => convertCTrace.mock.calls.length === 1);
+
+        expectSameFsPath(convertCTrace.mock.calls[0]?.[0].fsPath, ctraceFile);
+        expect(convertCTrace).toHaveBeenCalledWith(expect.any(vscode.Uri), cbuildRunFile.fsPath);
         model.dispose();
     });
 
