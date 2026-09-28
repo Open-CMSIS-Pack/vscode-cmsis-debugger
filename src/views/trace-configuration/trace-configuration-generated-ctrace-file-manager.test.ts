@@ -130,7 +130,7 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
             'pcsampling:',
             'period: 0',
             'synchronization:',
-            'DWT: 256M',
+            'DWT: 16M',
             'pname: core1',
             'core: Cortex-M23',
             'disable:'
