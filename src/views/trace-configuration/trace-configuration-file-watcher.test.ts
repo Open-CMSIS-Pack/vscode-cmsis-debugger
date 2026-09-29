@@ -149,8 +149,10 @@ describe('TraceConfigurationFileWatcher', () => {
         const backupWatch = registrations[1];
         await productionWatch?.onDidCreate?.(vscode.Uri.file('/workspace/.trace/target.ctrace-run.yml'));
         await productionWatch?.onDidChange?.(vscode.Uri.file('/workspace/.trace/target.ctrace-run.yml'));
+        await productionWatch?.onDidDelete?.(vscode.Uri.file('/workspace/.trace/target.ctrace-run.yml'));
         await backupWatch?.onDidCreate?.(vscode.Uri.file('/workspace/.trace/~target.ctrace-run.yml'));
         await backupWatch?.onDidChange?.(vscode.Uri.file('/workspace/.trace/~target.ctrace-run.yml'));
+        await backupWatch?.onDidDelete?.(vscode.Uri.file('/workspace/.trace/~target.ctrace-run.yml'));
 
         expect(onCurrentRunFileChanged.mock.calls.map(call => call[0])).toEqual([
             {
@@ -164,6 +166,11 @@ describe('TraceConfigurationFileWatcher', () => {
                 uri: vscode.Uri.file('/workspace/.trace/target.ctrace-run.yml')
             },
             {
+                type: 'deleted',
+                kind: 'production',
+                uri: vscode.Uri.file('/workspace/.trace/target.ctrace-run.yml')
+            },
+            {
                 type: 'created',
                 kind: 'backup',
                 uri: vscode.Uri.file('/workspace/.trace/~target.ctrace-run.yml')
@@ -172,13 +179,18 @@ describe('TraceConfigurationFileWatcher', () => {
                 type: 'changed',
                 kind: 'backup',
                 uri: vscode.Uri.file('/workspace/.trace/~target.ctrace-run.yml')
+            },
+            {
+                type: 'deleted',
+                kind: 'backup',
+                uri: vscode.Uri.file('/workspace/.trace/~target.ctrace-run.yml')
             }
         ]);
 
         currentFile = secondWatchedFile.file;
         watcher.watchCurrentRunFiles();
         await productionWatch?.onDidChange?.(vscode.Uri.file('/workspace/.trace/target.ctrace-run.yml'));
-        expect(onCurrentRunFileChanged).toHaveBeenCalledTimes(4);
+        expect(onCurrentRunFileChanged).toHaveBeenCalledTimes(6);
     });
 
     it('resolves and watches the generated cbuild-run file after a cbuild index file is created', async () => {

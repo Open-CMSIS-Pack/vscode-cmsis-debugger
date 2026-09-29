@@ -35,7 +35,7 @@ export interface GeneratedCBuildRunFileChangeEvent {
 }
 
 export type TraceConfigurationRunFileKind = 'production' | 'backup';
-export type TraceConfigurationRunFileChangeType = 'created' | 'changed';
+export type TraceConfigurationRunFileChangeType = 'created' | 'changed' | 'deleted';
 
 export interface TraceConfigurationRunFileChangeEvent {
     readonly type: TraceConfigurationRunFileChangeType;
@@ -413,7 +413,8 @@ export class TraceConfigurationFileWatcher {
             id: watchId,
             globPattern: pattern,
             onDidCreate: uri => this.handleCurrentRunFileChange(watchedFile, watchVersion, kind, 'created', uri),
-            onDidChange: uri => this.handleCurrentRunFileChange(watchedFile, watchVersion, kind, 'changed', uri)
+            onDidChange: uri => this.handleCurrentRunFileChange(watchedFile, watchVersion, kind, 'changed', uri),
+            onDidDelete: uri => this.handleCurrentRunFileChange(watchedFile, watchVersion, kind, 'deleted', uri)
         });
     }
 
