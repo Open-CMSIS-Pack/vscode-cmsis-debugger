@@ -816,6 +816,9 @@ describe('TraceConfigurationModel', () => {
             path.join(workspaceRoot, '.trace', 'target.ctrace-run.yml')
         ));
         expect(getDataValidation()).toEqual({ severity: 'info', message: 'production message' });
+        expect(runMessageReader.readIfExists).toHaveBeenLastCalledWith(
+            path.join(workspaceRoot, '.trace', 'target.ctrace-run.yml')
+        );
         await productionWatcher._handlers.delete[0]?.(vscode.Uri.file(
             path.join(workspaceRoot, '.trace', 'target.ctrace-run.yml')
         ));
@@ -1043,6 +1046,25 @@ describe('TraceConfigurationModel', () => {
         await model.deactivate();
     });
 
+    it('deletes backup artifacts before writing the active file', async () => {
+        const { adapter, backupStore, model } = await createModelFromText([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            ''
+        ].join('\n'));
+        await model.addItem(['ctrace', 'setup', 0, 'data'], 'data');
+        const writeTextFile = jest.spyOn(adapter, 'writeTextFile');
+
+        await model.saveCurrentDocument();
+
+        expect(backupStore.delete).toHaveBeenCalledWith('target.ctrace.yml');
+        expect(backupStore.delete.mock.invocationCallOrder[0])
+            .toBeLessThan(writeTextFile.mock.invocationCallOrder[0] ?? 0);
+        await model.deactivate();
+    });
+
     it('flushes the latest snapshot when saving the active file fails', async () => {
         const { adapter, backupStore, model, prevalidator } = await createModelFromText([
             'ctrace:',
@@ -1059,7 +1081,7 @@ describe('TraceConfigurationModel', () => {
         expect(backupStore.write).toHaveBeenCalledTimes(2);
         expect(backupStore.write.mock.calls[0]?.[1]).toContain('access: W');
         expect(backupStore.write.mock.calls[1]?.[1]).toContain('access: W');
-        expect(backupStore.delete).not.toHaveBeenCalled();
+        expect(backupStore.delete).toHaveBeenCalledWith('target.ctrace.yml');
         expect(prevalidator.validate).toHaveBeenCalledTimes(2);
         expect(model.createState()).toMatchObject({ dirty: true, validationState: 'passed' });
         await model.deactivate();
