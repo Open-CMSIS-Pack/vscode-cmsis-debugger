@@ -76,10 +76,8 @@ export class WorkspaceTraceConfigurationBackupStore implements TraceConfiguratio
 
     public async delete(fileName: string): Promise<void> {
         const artifacts = getTraceConfigurationArtifactFileNames(fileName);
-        await Promise.allSettled([
-            this.fileAdapter.deleteTextFile(artifacts.backupCTraceFileName),
-            this.fileAdapter.deleteTextFile(artifacts.backupCTraceRunFileName)
-        ]);
+        await this.fileAdapter.deleteTextFile(artifacts.backupCTraceFileName);
+        await this.fileAdapter.deleteTextFile(artifacts.backupCTraceRunFileName);
     }
 }
 
