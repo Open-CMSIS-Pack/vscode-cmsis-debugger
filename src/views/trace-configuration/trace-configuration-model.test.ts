@@ -371,10 +371,14 @@ describe('TraceConfigurationModel', () => {
         const model = new TraceConfigurationModel(onDidChange);
         const watcher = await resolveGeneratedCBuildRunWatcher(model, cbuildRunFile);
 
+        onDidChange.mockClear();
         fireWatcherHandler(watcher, 'create', cbuildRunFile);
 
         const generatedTraceFile = path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yml');
         const generatedText = await waitForTemporaryTextFile(generatedTraceFile);
+        await waitForCondition('generated ctrace model load', () =>
+            onDidChange.mock.calls.length > 0
+            && normalizeFsPath(model.createState().fileName) === normalizeFsPath(generatedTraceFile));
         expect(generatedText).toContain('created-by: CMSIS Debugger');
         expect(containsSubstringsInOrder(generatedText, [
             'pname: core0',
