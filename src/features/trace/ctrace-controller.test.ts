@@ -26,6 +26,8 @@ import { CTraceProcessManager } from '../../desktop/process/ctrace-process-manag
 import { logger } from '../../logger';
 import { waitForCondition } from '../../utils';
 import { CTraceController } from './ctrace-controller';
+import { CapturedTraceResolver } from './captured-trace-resolver';
+import { OPEN_CAPTURED_TRACE_AFTER_DECODE_SETTING } from '../../manifest';
 
 const CBUILD_RUN_FILE_PATH = '/workspace/solution+target.cbuild-run.yml';
 const RAW_TRACE_URI = vscode.Uri.file('/workspace/.trace/solution.SWO.raw');
@@ -48,12 +50,19 @@ describe('CTraceController', () => {
     let now: number;
     let controller: CTraceController;
     let run: jest.SpiedFunction<CTraceController['run']>;
+    let capturedTraceResolver: CapturedTraceResolver;
+    let openCapturedTrace: jest.SpiedFunction<CapturedTraceResolver['open']>;
     let session: GDBTargetDebugSession;
     let testAccess: CTraceControllerTestAccess;
 
     beforeEach(() => {
         now = 10_000;
-        controller = new CTraceController({}, () => now);
+        (vscode.workspace.getConfiguration as jest.Mock).mockReturnValue({
+            get: jest.fn().mockImplementation((_setting: string, defaultValue: unknown) => defaultValue)
+        });
+        capturedTraceResolver = new CapturedTraceResolver();
+        openCapturedTrace = jest.spyOn(capturedTraceResolver, 'open').mockResolvedValue();
+        controller = new CTraceController({}, () => now, new CBuildRunFileLocator(), undefined, capturedTraceResolver);
         run = jest.spyOn(controller, 'run').mockResolvedValue(0);
         session = createSession('session-1', CBUILD_RUN_FILE_PATH);
         testAccess = controller as unknown as CTraceControllerTestAccess;
@@ -88,6 +97,7 @@ describe('CTraceController', () => {
 
         expect(run).toHaveBeenCalledTimes(1);
         expect(run).toHaveBeenCalledWith({ cbuildRunFilePath: CBUILD_RUN_FILE_PATH });
+        expect(openCapturedTrace).toHaveBeenCalledWith(CBUILD_RUN_FILE_PATH);
     });
 
     it('logs a failed ctrace decode', async () => {
@@ -99,6 +109,31 @@ describe('CTraceController', () => {
         await testAccess.handleRawTraceFileChanged(RAW_TRACE_URI);
 
         expect(error).toHaveBeenCalledWith('ctrace process exited with code 11');
+        expect(openCapturedTrace).not.toHaveBeenCalled();
+    });
+
+    it('does not open a captured trace when automatic opening is disabled', async () => {
+        (vscode.workspace.getConfiguration as jest.Mock).mockReturnValue({
+            get: jest.fn().mockImplementation((setting: string) => setting === OPEN_CAPTURED_TRACE_AFTER_DECODE_SETTING ? false : undefined)
+        });
+
+        await testAccess.handleDecodeTrigger(session);
+        now += 250;
+        await testAccess.handleRawTraceFileChanged(RAW_TRACE_URI);
+
+        expect(openCapturedTrace).not.toHaveBeenCalled();
+    });
+
+    it('logs captured-trace opening failures without failing decoding', async () => {
+        const error = new Error('capture unavailable');
+        openCapturedTrace.mockRejectedValue(error);
+        const loggerError = jest.spyOn(logger, 'error').mockImplementation();
+
+        await testAccess.handleDecodeTrigger(session);
+        now += 250;
+        await expect(testAccess.handleRawTraceFileChanged(RAW_TRACE_URI)).resolves.toBeUndefined();
+
+        expect(loggerError).toHaveBeenCalledWith('Failed to open captured trace:', error);
     });
 
     it('decodes when the target stops shortly after a raw trace file is saved', async () => {

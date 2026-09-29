@@ -29,7 +29,9 @@ import {
     CTraceProcessManagerOptions
 } from '../../desktop/process/ctrace-process-manager';
 import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
+import { OPEN_CAPTURED_TRACE_AFTER_DECODE_SETTING } from '../../manifest';
 import { logger } from '../..';
+import { CapturedTraceResolver } from './captured-trace-resolver';
 
 const RAW_TRACE_SAVE_WINDOW_MS = 2_000;
 const RAW_TRACE_GLOB = '.trace/*.{SWO,TB}.raw';
@@ -52,8 +54,13 @@ export class CTraceController {
         // Injected to make timing-based behavior deterministic in tests.
         private readonly now: () => number = Date.now,
         private readonly cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator(),
-        private readonly cmsisJsonWatcher?: CmsisJsonWatcher
+        private readonly cmsisJsonWatcher?: CmsisJsonWatcher,
+        private readonly capturedTraceResolver: CapturedTraceResolver = new CapturedTraceResolver(cbuildRunFileLocator)
     ) {}
+
+    public getActiveCbuildRunFilePath(): string | undefined {
+        return this.activeSession?.getCbuildRunPath();
+    }
 
     public async activate(
         context: vscode.ExtensionContext,
@@ -148,6 +155,16 @@ export class CTraceController {
                 const exitCode = await this.run({ cbuildRunFilePath: pendingDecode.cbuildRunFilePath });
                 if (exitCode !== 0) {
                     logger.error(`ctrace process exited with code ${exitCode}`);
+                    return;
+                }
+                const openCapturedTrace = vscode.workspace.getConfiguration()
+                    .get<boolean>(OPEN_CAPTURED_TRACE_AFTER_DECODE_SETTING, true) ?? true;
+                if (openCapturedTrace) {
+                    try {
+                        await this.capturedTraceResolver.open(pendingDecode.cbuildRunFilePath);
+                    } catch (error) {
+                        logger.error('Failed to open captured trace:', error);
+                    }
                 }
                 return;
             } catch (error) {

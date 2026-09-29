@@ -19,6 +19,7 @@ import * as vscode from 'vscode';
 import { EXTENSION_NAME } from '../../manifest';
 import { PyTsController } from './pyts-controller';
 import { CTraceController } from './ctrace-controller';
+import { CapturedTraceResolver } from './captured-trace-resolver';
 import { logger } from '../..';
 
 /**
@@ -28,10 +29,12 @@ export class TraceCommands {
     public static readonly launchPyTsID = `${EXTENSION_NAME}.launchPyTs`;
     public static readonly launchCTraceID = `${EXTENSION_NAME}.launchCTrace`;
     public static readonly reloadCTraceID = `${EXTENSION_NAME}.reloadCTrace`;
+    public static readonly showCapturedTraceID = `${EXTENSION_NAME}.showCapturedTrace`;
 
     public constructor(
         private readonly pyTsController: PyTsController,
-        private readonly cTraceController: CTraceController
+        private readonly cTraceController: CTraceController,
+        private readonly capturedTraceResolver: CapturedTraceResolver = new CapturedTraceResolver()
     ) {}
 
     public activate(context: vscode.ExtensionContext): void {
@@ -40,6 +43,7 @@ export class TraceCommands {
             vscode.commands.registerCommand(TraceCommands.launchPyTsID, () => this.handleLaunchPyTs()),
             vscode.commands.registerCommand(TraceCommands.launchCTraceID, () => this.handleLaunchCTrace()),
             vscode.commands.registerCommand(TraceCommands.reloadCTraceID, () => this.handleReloadCTrace()),
+            vscode.commands.registerCommand(TraceCommands.showCapturedTraceID, () => this.handleShowCapturedTrace()),
         );
     }
 
@@ -72,6 +76,14 @@ export class TraceCommands {
                 expression: '> monitor ctrace reload',
                 context: 'repl'
             });
+        }
+    }
+
+    protected async handleShowCapturedTrace(): Promise<void> {
+        try {
+            await this.capturedTraceResolver.open(this.cTraceController.getActiveCbuildRunFilePath());
+        } catch (error) {
+            logger.error('Failed to open captured trace:', error);
         }
     }
 
