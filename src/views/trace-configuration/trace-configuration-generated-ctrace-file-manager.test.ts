@@ -21,8 +21,9 @@ import * as path from 'node:path';
 
 import * as vscode from 'vscode';
 
-import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
+import { CbuildRunReader, CBuildRunFileLocator, ProcessorType } from '../../cbuild-run';
 import { PyTsController } from '../../features/trace/pyts-controller';
+import { logger } from '../../logger';
 import { ENABLE_TRACE_GENERATION_VIEW_SETTING } from '../../manifest';
 import { containsSubstringsInOrder, normalizeFsPath } from '../../utils';
 import { TraceConfigurationGeneratedCTraceFileManager } from './trace-configuration-generated-ctrace-file-manager';
@@ -212,17 +213,98 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
 
         expect(result.status).toBe('generated');
         expectSameFsPath(result.status === 'generated' ? result.uri.fsPath : undefined, generatedTraceFile);
+        if (result.status !== 'generated') {
+            throw new Error('Expected a generated ctrace file.');
+        }
+        await manager.ensureProductionCTraceRunFile(result.uri, { cbuildRunUri: cbuildRunFile });
         expect(convertCTrace).toHaveBeenCalledWith(
-            result.status === 'generated' ? result.uri : undefined,
+            result.uri,
             cbuildRunFile.fsPath
         );
 
         const traceDirectory = path.join(workspaceRoot, '.trace');
         await createTemporaryDirectory(traceDirectory);
         await writeTemporaryTextFile(path.join(traceDirectory, 'demo@Release.ctrace-run.yml'), 'ctrace-run:\n');
-        await manager.processGeneratedCBuildRunFileChange({ type: 'changed', uri: cbuildRunFile });
+        await manager.ensureProductionCTraceRunFile(result.uri, { cbuildRunUri: cbuildRunFile });
 
         expect(convertCTrace).toHaveBeenCalledTimes(1);
+    });
+
+    it('resolves the active cbuild-run before generating a missing production ctrace-run', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M55', 'core0')]);
+        const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
+        const ctraceFile = vscode.Uri.file(path.join(ctraceDirectory, 'demo.ctrace.yml'));
+        await createTemporaryDirectory(ctraceDirectory);
+        await writeTemporaryTextFile(ctraceFile.fsPath, 'ctrace:\n');
+        const cbuildRunFile = path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml');
+        const locator = new CBuildRunFileLocator();
+        jest.spyOn(locator, 'getCBuildRunFileName').mockResolvedValue(cbuildRunFile);
+        const pyTsController = new PyTsController();
+        const convertCTrace = jest.spyOn(pyTsController, 'convertCTrace').mockResolvedValue();
+        const manager = new TraceConfigurationGeneratedCTraceFileManager(pyTsController, locator);
+
+        await manager.ensureProductionCTraceRunFile(ctraceFile);
+
+        expect(locator.getCBuildRunFileName).toHaveBeenCalledWith(undefined, true);
+        expect(convertCTrace).toHaveBeenCalledWith(ctraceFile, cbuildRunFile);
+    });
+
+    it('does not generate output for a ctrace file outside the active cbuild-run context', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M55', 'core0')]);
+        const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
+        const ctraceFile = vscode.Uri.file(path.join(ctraceDirectory, 'other.ctrace.yml'));
+        await createTemporaryDirectory(ctraceDirectory);
+        await writeTemporaryTextFile(ctraceFile.fsPath, 'ctrace:\n');
+        const cbuildRunFile = vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml'));
+        const { manager, convertCTrace } = createManagerWithConversionSpy();
+
+        await manager.ensureProductionCTraceRunFile(ctraceFile, { cbuildRunUri: cbuildRunFile });
+
+        expect(convertCTrace).not.toHaveBeenCalled();
+    });
+
+    it('abandons a stale missing-output request before launching pyTS', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
+        const ctraceFile = vscode.Uri.file(path.join(ctraceDirectory, 'demo.ctrace.yml'));
+        await createTemporaryDirectory(ctraceDirectory);
+        await writeTemporaryTextFile(ctraceFile.fsPath, 'ctrace:\n');
+        const cbuildRunFile = vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml'));
+        const { manager, convertCTrace } = createManagerWithConversionSpy();
+        const isCurrent = jest.fn()
+            .mockReturnValueOnce(true)
+            .mockReturnValue(false);
+
+        await manager.ensureProductionCTraceRunFile(ctraceFile, { cbuildRunUri: cbuildRunFile, isCurrent });
+
+        expect(convertCTrace).not.toHaveBeenCalled();
+    });
+
+    it('logs a pyTS request failure without rejecting file loading', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M55', 'core0')]);
+        const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
+        const ctraceFile = vscode.Uri.file(path.join(ctraceDirectory, 'demo.ctrace.yml'));
+        await createTemporaryDirectory(ctraceDirectory);
+        await writeTemporaryTextFile(ctraceFile.fsPath, 'ctrace:\n');
+        const cbuildRunFile = vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml'));
+        const pyTsController = new PyTsController();
+        const conversionError = new Error('conversion failed');
+        jest.spyOn(pyTsController, 'convertCTrace').mockRejectedValue(conversionError);
+        const error = jest.spyOn(logger, 'error').mockImplementation();
+        const manager = new TraceConfigurationGeneratedCTraceFileManager(pyTsController);
+
+        await expect(manager.ensureProductionCTraceRunFile(
+            ctraceFile,
+            { cbuildRunUri: cbuildRunFile }
+        )).resolves.toBeUndefined();
+
+        expect(error).toHaveBeenCalledWith(
+            'Trace Configuration: Failed to request pyTS conversion for missing ctrace-run output:',
+            conversionError
+        );
     });
 
     it.each([

@@ -26,7 +26,7 @@ import type { PyTsController } from '../../features/trace/pyts-controller';
 import { isYamlMapItem, isYamlScalarItem, isYamlSequenceItem, YamlTreeItem, yamlScalarToString } from '../../desktop/yaml-dom';
 import { logger } from '../../logger';
 import { CTRACE_FILE_GLOB, TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING } from '../../manifest';
-import { fileExists } from '../../utils';
+import { fileExists, normalizeFsPath } from '../../utils';
 import { CTraceYamlFile } from './ctrace-yaml';
 import {
     CTraceRunValidationMessageReader,
@@ -178,7 +178,8 @@ export class TraceConfigurationModel {
         pyTsController?: PyTsController
     ) {
         this.runMessageReader = runMessageReader ?? new CTraceRunValidationMessageReader();
-        this.generatedCTraceFileManager = generatedCTraceFileManager ?? new TraceConfigurationGeneratedCTraceFileManager(pyTsController);
+        this.generatedCTraceFileManager = generatedCTraceFileManager
+            ?? new TraceConfigurationGeneratedCTraceFileManager(pyTsController, cbuildRunFileLocator);
         this.backupStore = backupStore ?? new WorkspaceTraceConfigurationBackupStore();
         this.backup = new DebouncedTraceConfigurationBackup(
             this.backupStore,
@@ -338,6 +339,7 @@ export class TraceConfigurationModel {
         this.processorCapabilities.clear();
         this.dirty = false;
         this.acceptValidationState('idle');
+        this.acceptReferenceValidationMessages([]);
     }
 
     /**
@@ -368,7 +370,11 @@ export class TraceConfigurationModel {
             nextFile.document = backupDocument;
         }
         this.fileWatcher.disposeCurrentFileWatcher();
+        const previousFileName = this.ctraceFile?.fileName;
         this.ctraceFile = nextFile;
+        if (normalizeFsPath(previousFileName) !== normalizeFsPath(nextFile.fileName)) {
+            this.acceptReferenceValidationMessages([]);
+        }
         document.assignCTraceRefs();
         await this.loadProcessorCapabilities();
         this.dirty = backupDocument !== undefined;
@@ -487,6 +493,8 @@ export class TraceConfigurationModel {
             const messages = await this.runMessageReader.readIfExists(artifacts.productionCTraceRunFileName);
             if (messages !== undefined && this.ctraceFile === currentFile && !this.dirty) {
                 this.acceptReferenceValidationMessages(messages);
+            } else if (messages === undefined && this.ctraceFile === currentFile && !this.dirty) {
+                await this.ensureProductionCTraceRunFile(currentFile);
             }
         } catch (error) {
             logger.error('Trace Configuration: Failed to read production ctrace-run validation messages:', error);
@@ -498,6 +506,10 @@ export class TraceConfigurationModel {
         const currentFile = this.ctraceFile;
         const expectsBackup = this.dirty;
         if (!currentFile || (event.kind === 'backup') !== expectsBackup) {
+            return;
+        }
+        if (event.type === 'deleted') {
+            await this.regenerateCurrentRunFile(currentFile, event.kind);
             return;
         }
         try {
@@ -513,6 +525,36 @@ export class TraceConfigurationModel {
         } catch (error) {
             logger.error(`Trace Configuration: Failed to read ${event.kind} ctrace-run validation messages:`, error);
         }
+    }
+
+    private async regenerateCurrentRunFile(
+        currentFile: CTraceYamlFile,
+        kind: TraceConfigurationRunFileChangeEvent['kind']
+    ): Promise<void> {
+        if (!this.isCurrentRunFileSource(currentFile, kind)) {
+            return;
+        }
+        if (kind === 'backup') {
+            if (this.validationState !== 'pending' && this.validationState !== 'running') {
+                this.backup.validateExisting(currentFile.fileName);
+            }
+            return;
+        }
+        await this.ensureProductionCTraceRunFile(currentFile);
+    }
+
+    private async ensureProductionCTraceRunFile(currentFile: CTraceYamlFile): Promise<void> {
+        await this.generatedCTraceFileManager.ensureProductionCTraceRunFile(
+            vscode.Uri.file(currentFile.fileName),
+            { isCurrent: () => this.isCurrentRunFileSource(currentFile, 'production') }
+        );
+    }
+
+    private isCurrentRunFileSource(
+        currentFile: CTraceYamlFile,
+        kind: TraceConfigurationRunFileChangeEvent['kind']
+    ): boolean {
+        return this.ctraceFile === currentFile && (kind === 'backup') === this.dirty;
     }
 
     /**
@@ -1022,6 +1064,7 @@ export class TraceConfigurationModel {
         this.fileWatcher.watchCurrentFile();
         this.dirty = false;
         this.acceptValidationState('idle');
+        await this.ensureProductionCTraceRunFile(file);
         this.errorMessage = undefined;
         this.notifyStateChanged();
     }
