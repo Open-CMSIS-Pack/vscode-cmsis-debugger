@@ -34,6 +34,7 @@ import { containsSubstringsInOrder, normalizeFsPath, waitForCondition, waitForIm
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import { TraceConfigurationRunMessageReader } from './ctrace-run-validation-message-reader';
 import { TraceConfigurationBackupStore } from './trace-configuration-backup';
+import { TraceConfigurationRunFileChangeEvent } from './trace-configuration-file-watcher';
 import { getTraceConfigurationBackupFileName } from './trace-configuration-file-names';
 import {
     TRACE_OFF_MESSAGE,
@@ -50,6 +51,7 @@ import * as TraceConfigurationTypes from './trace-configuration-types';
 
 interface TraceConfigurationModelPrivate {
     ctraceFile: CTraceYamlFile | undefined;
+    handleCurrentRunFileChanged(event: TraceConfigurationRunFileChangeEvent): Promise<void>;
     setProcessorDisable(document: CTraceYamlDocument, processorPath: (string | number)[]): void;
 }
 
@@ -252,7 +254,8 @@ async function createModelFromText(
     text: string,
     capabilities?: Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities>,
     fileName = 'target.ctrace.yml',
-    prevalidator: jest.Mocked<TraceConfigurationPrevalidator> = createPassingPrevalidator()
+    prevalidator: jest.Mocked<TraceConfigurationPrevalidator> = createPassingPrevalidator(),
+    runMessageReader: jest.Mocked<TraceConfigurationRunMessageReader> = createRunMessageReader()
 ): Promise<{
     adapter: MemoryTextFileAdapter;
     backupStore: jest.Mocked<TraceConfigurationBackupStore>;
@@ -282,7 +285,8 @@ async function createModelFromText(
         undefined,
         undefined,
         backupStore,
-        prevalidator
+        prevalidator,
+        runMessageReader
     );
     (model as unknown as TraceConfigurationModelPrivate).ctraceFile = file;
     return { adapter, backupStore, model, prevalidator };
@@ -941,6 +945,125 @@ describe('TraceConfigurationModel', () => {
         await model.deactivate();
     });
 
+    it('accepts a production ctrace-run event buffered while saving without requesting conversion directly', async () => {
+        const runMessageReader = createRunMessageReader();
+        runMessageReader.readIfExists.mockImplementation(async runFileName =>
+            path.basename(runFileName).startsWith('~')
+                ? [{ ctraceRef: 'data#0', severity: 'warning', message: 'backup message' }]
+                : [{ ctraceRef: 'data#0', severity: 'error', message: 'production message' }]);
+        const { adapter, model } = await createModelFromText([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: counter',
+            ''
+        ].join('\n'), undefined, undefined, createPassingPrevalidator(), runMessageReader);
+        const privateModel = model as unknown as TraceConfigurationModelPrivate;
+        const ensureProductionCTraceRunFile = jest.spyOn(
+            TraceConfigurationGeneratedCTraceFileManager.prototype,
+            'ensureProductionCTraceRunFile'
+        ).mockResolvedValue();
+        model.updateExpandedState(JSON.stringify(['ctrace', 'setup', 0]), true);
+        model.updateExpandedState(JSON.stringify(['ctrace', 'setup', 0, 'data']), true);
+        const getDataValidation = () => model.createState().rows.find(row =>
+            JSON.stringify(row.path) === JSON.stringify(['ctrace', 'setup', 0, 'data', 0]))?.validation;
+        await model.updateValue(['ctrace', 'setup', 0, 'data', 0, 'location'], 'updatedCounter');
+        await privateModel.handleCurrentRunFileChanged({
+            type: 'changed',
+            kind: 'backup',
+            uri: vscode.Uri.file('~target.ctrace-run.yml')
+        });
+        expect(getDataValidation()).toEqual({ severity: 'warning', message: 'backup message' });
+
+        const originalWriteTextFile = adapter.writeTextFile.bind(adapter);
+        let reportWriteStarted: (() => void) | undefined;
+        let releaseWrite: (() => void) | undefined;
+        const writeStarted = new Promise<void>(resolve => {
+            reportWriteStarted = resolve;
+        });
+        const writeGate = new Promise<void>(resolve => {
+            releaseWrite = resolve;
+        });
+        jest.spyOn(adapter, 'writeTextFile').mockImplementationOnce(async (fileName, contents) => {
+            reportWriteStarted?.();
+            await writeGate;
+            await originalWriteTextFile(fileName, contents);
+        });
+
+        const save = model.saveCurrentDocument();
+        await writeStarted;
+        await privateModel.handleCurrentRunFileChanged({
+            type: 'created',
+            kind: 'production',
+            uri: vscode.Uri.file('target.ctrace-run.yml')
+        });
+
+        expect(getDataValidation()).toEqual({ severity: 'warning', message: 'backup message' });
+        expect(runMessageReader.readIfExists).toHaveBeenCalledTimes(1);
+        releaseWrite?.();
+        await save;
+
+        expect(model.createState().dirty).toBe(false);
+        expect(getDataValidation()).toEqual({ severity: 'error', message: 'production message' });
+        expect(runMessageReader.readIfExists).toHaveBeenCalledTimes(2);
+        expect(ensureProductionCTraceRunFile).not.toHaveBeenCalled();
+        await model.deactivate();
+    });
+
+    it('discards a production ctrace-run event buffered while a save fails', async () => {
+        const runMessageReader = createRunMessageReader();
+        runMessageReader.readIfExists.mockImplementation(async runFileName =>
+            path.basename(runFileName).startsWith('~')
+                ? [{ ctraceRef: 'data#0', severity: 'warning', message: 'backup message' }]
+                : [{ ctraceRef: 'data#0', severity: 'error', message: 'production message' }]);
+        const { adapter, model } = await createModelFromText([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: counter',
+            ''
+        ].join('\n'), undefined, undefined, createPassingPrevalidator(), runMessageReader);
+        const privateModel = model as unknown as TraceConfigurationModelPrivate;
+        model.updateExpandedState(JSON.stringify(['ctrace', 'setup', 0]), true);
+        model.updateExpandedState(JSON.stringify(['ctrace', 'setup', 0, 'data']), true);
+        const getDataValidation = () => model.createState().rows.find(row =>
+            JSON.stringify(row.path) === JSON.stringify(['ctrace', 'setup', 0, 'data', 0]))?.validation;
+        await model.updateValue(['ctrace', 'setup', 0, 'data', 0, 'location'], 'updatedCounter');
+        await privateModel.handleCurrentRunFileChanged({
+            type: 'changed',
+            kind: 'backup',
+            uri: vscode.Uri.file('~target.ctrace-run.yml')
+        });
+
+        let reportWriteStarted: (() => void) | undefined;
+        let rejectWrite: ((error: Error) => void) | undefined;
+        const writeStarted = new Promise<void>(resolve => {
+            reportWriteStarted = resolve;
+        });
+        jest.spyOn(adapter, 'writeTextFile').mockImplementationOnce(() => new Promise<void>((_resolve, reject) => {
+            rejectWrite = reject;
+            reportWriteStarted?.();
+        }));
+
+        const save = model.saveCurrentDocument();
+        const expectedSaveFailure = expect(save).rejects.toThrow('save failed');
+        await writeStarted;
+        await privateModel.handleCurrentRunFileChanged({
+            type: 'changed',
+            kind: 'production',
+            uri: vscode.Uri.file('target.ctrace-run.yml')
+        });
+        rejectWrite?.(new Error('save failed'));
+        await expectedSaveFailure;
+
+        expect(model.createState().dirty).toBe(true);
+        expect(getDataValidation()).toEqual({ severity: 'warning', message: 'backup message' });
+        expect(runMessageReader.readIfExists).toHaveBeenCalledTimes(1);
+        await model.deactivate();
+    });
+
     it('clears diagnostics and generates output when a newly active ctrace file has no ctrace-run', async () => {
         const workspaceRoot = await createTemporaryWorkspace();
         const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
@@ -1330,10 +1453,7 @@ describe('TraceConfigurationModel', () => {
         await expect(readTemporaryTextFile(fileName)).resolves.toContain('clock: 200000000');
         await expect(readTemporaryTextFile(backupFileName)).rejects.toThrow('ENOENT');
         expect(model.createState().dirty).toBe(false);
-        expect(ensureProductionCTraceRunFile).toHaveBeenCalledWith(
-            vscode.Uri.file(fileName),
-            { isCurrent: expect.any(Function) }
-        );
+        expect(ensureProductionCTraceRunFile).not.toHaveBeenCalled();
         await model.deactivate();
     });
 

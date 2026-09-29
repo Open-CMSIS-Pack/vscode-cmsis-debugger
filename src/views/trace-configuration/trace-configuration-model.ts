@@ -68,6 +68,11 @@ const TRACE_CONFIGURATION_IS_MODIFIED_CONTEXT = 'vscode-cmsis-debugger.traceConf
 const TRACE_CONFIGURATION_IS_VALIDATING_CONTEXT = 'vscode-cmsis-debugger.traceConfiguration.isValidating';
 const TRACE_CONFIGURATION_VALIDATION_SUCCEEDED_CONTEXT = 'vscode-cmsis-debugger.traceConfiguration.validationSucceeded';
 
+interface TraceConfigurationSaveTransition {
+    readonly file: CTraceYamlFile;
+    pendingProductionRunFileEvent?: TraceConfigurationRunFileChangeEvent;
+}
+
 /**
  * TraceConfigurationModel owns the ctrace.yml document lifecycle and file mutations for the trace
  * configuration webview. It deliberately delegates processor capability lookup and row projection to
@@ -93,6 +98,7 @@ export class TraceConfigurationModel {
     private validationMessage: string | undefined;
     private referenceValidationMessages = new Map<string, TraceConfigurationReferenceValidationMessage>();
     private readonly runMessageReader: TraceConfigurationRunMessageReader;
+    private saveTransition: TraceConfigurationSaveTransition | undefined;
 
     private set dirty(value: boolean) {
         if (this._dirty !== value) {
@@ -503,6 +509,37 @@ export class TraceConfigurationModel {
 
     /** Applies only the output that corresponds to the model's current source. */
     private async handleCurrentRunFileChanged(event: TraceConfigurationRunFileChangeEvent): Promise<void> {
+        const currentFile = this.ctraceFile;
+        if (
+            event.kind === 'production'
+            && currentFile
+            && this.saveTransition?.file === currentFile
+        ) {
+            this.saveTransition.pendingProductionRunFileEvent = event;
+            return;
+        }
+        await this.processCurrentRunFileChanged(event);
+    }
+
+    /**
+     * Replays production output events that arrived while ctrace.yml was being
+     * saved. New events are coalesced while an earlier event is processed, so
+     * the last watcher notification always observes the committed clean source.
+     */
+    private async completeSaveTransition(transition: TraceConfigurationSaveTransition): Promise<void> {
+        while (this.saveTransition === transition) {
+            const event = transition.pendingProductionRunFileEvent;
+            if (!event) {
+                this.saveTransition = undefined;
+                return;
+            }
+            delete transition.pendingProductionRunFileEvent;
+            await this.processCurrentRunFileChanged(event);
+        }
+    }
+
+    /** Applies a watcher event after save-transition buffering is resolved. */
+    private async processCurrentRunFileChanged(event: TraceConfigurationRunFileChangeEvent): Promise<void> {
         const currentFile = this.ctraceFile;
         const expectsBackup = this.dirty;
         if (!currentFile || (event.kind === 'backup') !== expectsBackup) {
@@ -1050,21 +1087,33 @@ export class TraceConfigurationModel {
         }
         const backupContents = file.document?.toString();
         await this.backup.cancelAndWait();
+        const saveTransition: TraceConfigurationSaveTransition = { file };
+        this.saveTransition = saveTransition;
         try {
             await file.save();
         } catch (error) {
+            if (this.saveTransition === saveTransition) {
+                this.saveTransition = undefined;
+            }
             if (backupContents !== undefined) {
                 this.backup.schedule(file.fileName, backupContents);
                 await this.backup.flush();
             }
             throw error;
         }
+        if (this.ctraceFile !== file) {
+            if (this.saveTransition === saveTransition) {
+                this.saveTransition = undefined;
+            }
+            await this.backupStore.delete(file.fileName);
+            return;
+        }
+        this.dirty = false;
+        await this.completeSaveTransition(saveTransition);
         await this.backupStore.delete(file.fileName);
         await this.loadProcessorCapabilities();
         this.fileWatcher.watchCurrentFile();
-        this.dirty = false;
         this.acceptValidationState('idle');
-        await this.ensureProductionCTraceRunFile(file);
         this.errorMessage = undefined;
         this.notifyStateChanged();
     }
