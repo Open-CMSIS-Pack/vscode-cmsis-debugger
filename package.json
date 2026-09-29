@@ -107,7 +107,7 @@
       },
       {
         "command": "vscode-cmsis-debugger.generateDefaultCTraceFile",
-        "title": "Generate Default Ctrace File",
+        "title": "Generate Default *.ctrace.yml",
         "category": "CMSIS Debugger"
       },
       {
@@ -123,32 +123,32 @@
       },
       {
         "command": "vscode-cmsis-debugger.launchCTrace",
-        "title": "Decode raw trace file",
+        "title": "Decode Raw Trace File",
         "category": "CMSIS Debugger"
       },
       {
         "command": "vscode-cmsis-debugger.reloadCTrace",
-        "title": "Reload ctrace",
+        "title": "Reload *.ctrace.yml",
         "category": "CMSIS Debugger",
         "enablement": "inDebugMode"
       },
       {
         "command": "vscode-cmsis-debugger.traceConfiguration.save",
-        "title": "Save ctrace.yml",
+        "title": "Save *.ctrace.yml",
         "icon": "$(save)",
         "category": "Trace Generation",
         "enablement": "vscode-cmsis-debugger.traceConfiguration.isModified && vscode-cmsis-debugger.traceConfiguration.validationSucceeded"
       },
       {
         "command": "vscode-cmsis-debugger.traceConfiguration.revert",
-        "title": "Revert ctrace.yml",
+        "title": "Revert *.ctrace.yml",
         "icon": "$(discard)",
         "category": "Trace Generation",
         "enablement": "vscode-cmsis-debugger.traceConfiguration.isModified"
       },
       {
         "command": "vscode-cmsis-debugger.traceConfiguration.revertValidating",
-        "title": "Revert ctrace.yml (validating)",
+        "title": "Revert *.ctrace.yml (validating)",
         "icon": "$(sync~spin)",
         "category": "Trace Generation",
         "enablement": "vscode-cmsis-debugger.traceConfiguration.isModified"
