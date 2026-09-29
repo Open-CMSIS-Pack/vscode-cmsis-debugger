@@ -26,7 +26,6 @@ import { logger } from '../../logger';
 import { isFileNotFoundError } from '../../utils';
 import { CTraceProcessorTraceSetup, CTraceYamlDocument } from './ctrace-yaml';
 import { GeneratedCBuildRunFileChangeEvent } from './trace-configuration-file-watcher';
-import { getTraceConfigurationArtifactFileNames } from './trace-configuration-file-names';
 import * as TraceConfigurationTypes from './trace-configuration-types';
 
 interface GeneratedTraceProcessor {
@@ -72,7 +71,7 @@ export class TraceConfigurationGeneratedCTraceFileManager {
             case 'changed': {
                 const traceFile = await this.createOrUpdateGeneratedCTraceFile(event.uri);
                 if (traceFile && !traceFile.written) {
-                    await this.convertExistingCTraceIfMissingRun(traceFile.uri, event.uri);
+                    await this.convertExistingCTrace(traceFile.uri, event.uri);
                 }
                 return traceFile
                     ? { status: 'generated', uri: traceFile.uri }
@@ -124,11 +123,7 @@ export class TraceConfigurationGeneratedCTraceFileManager {
         return { uri: traceFileUri, written };
     }
 
-    private async convertExistingCTraceIfMissingRun(ctraceUri: vscode.Uri, cbuildRunUri: vscode.Uri): Promise<void> {
-        const artifacts = getTraceConfigurationArtifactFileNames(ctraceUri.fsPath);
-        if (await this.fileExists(vscode.Uri.file(artifacts.productionCTraceRunFileName))) {
-            return;
-        }
+    private async convertExistingCTrace(ctraceUri: vscode.Uri, cbuildRunUri: vscode.Uri): Promise<void> {
         try {
             await this.pyTsController.convertCTrace(ctraceUri, cbuildRunUri.fsPath);
         } catch (error) {
