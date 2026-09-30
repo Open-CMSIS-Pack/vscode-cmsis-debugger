@@ -41,11 +41,11 @@ describe('resolveCTraceRunReference', () => {
 
     it('returns the first matching reference in file order', async () => {
         mockRunFile([
-            '    - ctrace-ref: data#0',
+            '    - ref: data#0',
             '      type: dwt',
             '      stream: 1',
             '      source: [0, 1]',
-            '    - ctrace-ref: data#1',
+            '    - ref: data#1',
             '      type: dwt',
             '      stream: 1',
             '      source: 1'
@@ -57,7 +57,7 @@ describe('resolveCTraceRunReference', () => {
 
     it('does not filter by stream when the CSV stream is empty', async () => {
         mockRunFile([
-            '    - ctrace-ref: itm',
+            '    - ref: itm',
             '      type: itm',
             '      stream: 7',
             '      source: 3'
@@ -69,7 +69,7 @@ describe('resolveCTraceRunReference', () => {
 
     it('ignores source for exception records', async () => {
         mockRunFile([
-            '    - ctrace-ref: exceptions',
+            '    - ref: exceptions',
             '      type: exception',
             '      stream: 1'
         ].join('\n'));

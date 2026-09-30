@@ -22,7 +22,7 @@ import { YamlDomDocument } from '../../desktop/yaml-dom';
 import type { CsvTableRow } from './csv-table';
 
 interface CTraceRunReference {
-    readonly 'ctrace-ref'?: unknown;
+    readonly ref?: unknown;
     readonly type?: unknown;
     readonly stream?: unknown;
     readonly source?: unknown;
@@ -61,7 +61,7 @@ export async function resolveCTraceRunReference(
     }
 
     for (const candidate of references) {
-        if (candidate.type !== type || typeof candidate['ctrace-ref'] !== 'string') {
+        if (candidate.type !== type || typeof candidate.ref !== 'string') {
             continue;
         }
         if (stream !== undefined && parseRunNumber(candidate.stream) !== stream) {
@@ -70,7 +70,7 @@ export async function resolveCTraceRunReference(
         if (SOURCE_MATCHED_TYPES.has(type) && (source === undefined || !matchesSource(candidate.source, source))) {
             continue;
         }
-        return { solutionSet, ctraceRef: candidate['ctrace-ref'] };
+        return { solutionSet, ctraceRef: candidate.ref };
     }
     return undefined;
 }

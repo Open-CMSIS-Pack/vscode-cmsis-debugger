@@ -361,11 +361,11 @@ describe('CsvTableEditorProvider', () => {
         jest.spyOn(vscode.workspace.fs, 'readFile').mockResolvedValue(Buffer.from([
             'ctrace-run:',
             '  ctrace-refs:',
-            '    - ctrace-ref: data#0',
+            '    - ref: data#0',
             '      type: dwt',
             '      stream: 1',
             '      source: 0',
-            '    - ctrace-ref: data#1',
+            '    - ref: data#1',
             '      type: dwt',
             '      stream: 1',
             '      source: 0',

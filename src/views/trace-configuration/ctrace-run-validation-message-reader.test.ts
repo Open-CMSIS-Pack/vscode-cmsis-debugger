@@ -25,20 +25,20 @@ import {
 import { getTraceConfigurationArtifactFileNames } from './trace-configuration-file-names';
 
 describe('parseCTraceRunValidationMessages', () => {
-    it('keeps the first message at the highest severity for each ctrace-ref', () => {
+    it('keeps the first message at the highest severity for each ref', () => {
         const messages = parseCTraceRunValidationMessages([
             'ctrace-run:',
             '  ctrace-refs:',
-            '    - ctrace-ref: data#0',
+            '    - ref: data#0',
             '      info: inferred type',
             '      warning: aligned range',
-            '    - ctrace-ref: data#0',
+            '    - ref: data#0',
             '      warning: later warning',
-            '    - ctrace-ref: events#0',
+            '    - ref: events#0',
             '      info: event info',
-            '    - ctrace-ref: data#0',
+            '    - ref: data#0',
             '      error: unsupported comparator',
-            '    - ctrace-ref: data#0',
+            '    - ref: data#0',
             '      error: later error',
             ''
         ].join('\n'));
@@ -54,9 +54,9 @@ describe('parseCTraceRunValidationMessages', () => {
             'ctrace-run:',
             '  ctrace-refs:',
             '    - invalid',
-            '    - ctrace-ref: 17',
+            '    - ref: 17',
             '      error: ignored',
-            '    - ctrace-ref: timestamps',
+            '    - ref: timestamps',
             '      error: "  "',
             '      warning: 3',
             '      info: usable',
@@ -68,7 +68,7 @@ describe('parseCTraceRunValidationMessages', () => {
         ]);
     });
 
-    it('rejects documents without a ctrace-ref sequence', () => {
+    it('rejects documents without a ctrace-refs sequence', () => {
         expect(() => parseCTraceRunValidationMessages('ctrace-run:\n  generated-by: pyTS\n'))
             .toThrow('expected ctrace-run.ctrace-refs to be a sequence');
     });
