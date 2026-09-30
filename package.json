@@ -1046,7 +1046,7 @@
   "devDependencies": {
     "@eclipse-cdt-cloud/vscode-peripheral-inspector": "0.0.0",
     "@eslint/js": "10.0.1",
-    "@open-cmsis-pack/vsce-helper": "0.4.1",
+    "@open-cmsis-pack/vsce-helper": "0.4.2",
     "@types/fs-extra": "11.0.4",
     "@types/jest": "30.0.0",
     "@types/minimist": "1.2.5",
@@ -1064,7 +1064,6 @@
     "css-loader": "7.1.5",
     "eslint": "10.11.0",
     "eslint-plugin-security": "4.1.0",
-    "extract-zip": "2.0.1",
     "file-type": "22.1.1",
     "fs-extra": "11.4.1",
     "glob": "13.0.6",
