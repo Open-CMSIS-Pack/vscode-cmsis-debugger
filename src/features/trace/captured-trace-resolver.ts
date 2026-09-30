@@ -20,6 +20,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 
 import { CBuildRunFileLocator } from '../../cbuild-run';
+import { CSV_TABLE_EDITOR_VIEW_TYPE } from '../../views/csv-table-viewer/csv-table-editor-provider';
 
 interface CapturedTrace {
     readonly uri: vscode.Uri;
@@ -55,7 +56,7 @@ export class CapturedTraceResolver {
             return;
         }
         if (captures.length === 1) {
-            await vscode.window.showTextDocument(captures[0].uri);
+            await this.openCapture(captures[0].uri);
             return;
         }
 
@@ -64,8 +65,12 @@ export class CapturedTraceResolver {
             { placeHolder: 'Select a captured trace to open' }
         );
         if (selected !== undefined) {
-            await vscode.window.showTextDocument(selected.trace.uri);
+            await this.openCapture(selected.trace.uri);
         }
+    }
+
+    private async openCapture(uri: vscode.Uri): Promise<void> {
+        await vscode.commands.executeCommand('vscode.openWith', uri, CSV_TABLE_EDITOR_VIEW_TYPE);
     }
 
     private async findCaptures(activeSolutionFolder: vscode.Uri, solutionSet: string): Promise<CapturedTrace[]> {

@@ -18,6 +18,7 @@
 import * as vscode from 'vscode';
 
 import { CBuildRunFileLocator } from '../../cbuild-run';
+import { CSV_TABLE_EDITOR_VIEW_TYPE } from '../../views/csv-table-viewer/csv-table-editor-provider';
 import { CapturedTraceResolver } from './captured-trace-resolver';
 
 const ACTIVE_SOLUTION_FOLDER = vscode.Uri.file('/workspace/solution');
@@ -47,7 +48,7 @@ describe('CapturedTraceResolver', () => {
 
         await resolver.open(CBUILD_RUN_FILE_PATH);
 
-        expect(vscode.window.showTextDocument).not.toHaveBeenCalled();
+        expect(vscode.commands.executeCommand).not.toHaveBeenCalled();
         expect(vscode.window.showQuickPick).not.toHaveBeenCalled();
     });
 
@@ -57,7 +58,7 @@ describe('CapturedTraceResolver', () => {
         await expect(resolver.open()).resolves.toBeUndefined();
 
         expect(vscode.workspace.fs.readDirectory).not.toHaveBeenCalled();
-        expect(vscode.window.showTextDocument).not.toHaveBeenCalled();
+        expect(vscode.commands.executeCommand).not.toHaveBeenCalled();
     });
 
     it('opens a single supported capture directly', async () => {
@@ -68,8 +69,10 @@ describe('CapturedTraceResolver', () => {
 
         await resolver.open(CBUILD_RUN_FILE_PATH);
 
-        expect(vscode.window.showTextDocument).toHaveBeenCalledWith(
-            vscode.Uri.file(`/workspace/solution/.trace/${SOLUTION_SET}.SWO.csv`)
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+            'vscode.openWith',
+            vscode.Uri.file(`/workspace/solution/.trace/${SOLUTION_SET}.SWO.csv`),
+            CSV_TABLE_EDITOR_VIEW_TYPE,
         );
         expect(vscode.window.showQuickPick).not.toHaveBeenCalled();
     });
@@ -94,8 +97,10 @@ describe('CapturedTraceResolver', () => {
             expect.objectContaining({ label: expect.stringMatching(/^TB - /), detail: `${SOLUTION_SET}.TB.csv` }),
             expect.objectContaining({ label: expect.stringMatching(/^SWO - /), detail: `${SOLUTION_SET}.SWO.csv` }),
         ]), expect.any(Object));
-        expect(vscode.window.showTextDocument).toHaveBeenCalledWith(
-            expect.objectContaining({ path: `/workspace/solution/.trace/${SOLUTION_SET}.TB_0.csv` })
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+            'vscode.openWith',
+            expect.objectContaining({ path: `/workspace/solution/.trace/${SOLUTION_SET}.TB_0.csv` }),
+            CSV_TABLE_EDITOR_VIEW_TYPE,
         );
     });
 
@@ -108,6 +113,6 @@ describe('CapturedTraceResolver', () => {
 
         await resolver.open(CBUILD_RUN_FILE_PATH);
 
-        expect(vscode.window.showTextDocument).not.toHaveBeenCalled();
+        expect(vscode.commands.executeCommand).not.toHaveBeenCalled();
     });
 });
