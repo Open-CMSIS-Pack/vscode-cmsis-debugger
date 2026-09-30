@@ -56,17 +56,17 @@ flowchart TD
     Mode -->|yes| Update["Create or update ctrace if needed"]
     Update --> Written{"Was ctrace written?"}
     Written -->|yes| File["pyTS via ctrace file watch<br/><code>(PyTsController)</code>"]
-    Written -->|no| Missing{"Production ctrace-run missing?"}
-    Missing -->|yes| Direct["Queue pyTS through controller<br/><code>(PyTsController.convertCTrace())</code>"]
-    Missing -->|no| Skip["No pyTS request"]
+    Written -->|no| Direct["Queue pyTS through controller<br/><code>(PyTsController.convertCTrace())</code>"]
     File --> Load["Load ctrace in view"]
     Direct --> Load
-    Skip --> Load
 ```
 
-The explicit queue request occurs only for an unchanged existing ctrace file
-whose production ctrace-run file is missing. It does not require a watcher
-event. A ctrace write can still start pyTS through the separate
+For an unchanged existing ctrace file, every forwarded cbuild-run event queues
+an explicit conversion, even when the production ctrace-run file already
+exists. The cbuild-run input may have changed while the ctrace input stayed the
+same, making the existing output stale. Equivalent requests that overlap are
+coalesced by `PyTsController`; sequential events after a conversion completes
+remain distinct. A ctrace write can still start pyTS through the separate
 `PyTsController` watcher below.
 
 ## ctrace file events
