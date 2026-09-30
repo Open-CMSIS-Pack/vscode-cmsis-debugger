@@ -22,7 +22,6 @@ import * as vscode from 'vscode';
 import { activeSolutionWatchFactory } from '../__test__/active-solution-watch.factory';
 import { extensionContextFactory } from '../__test__/vscode.factory';
 import { CMSIS_JSON_FILE_GLOB } from '../manifest';
-import { normalizeFsPath } from '../utils';
 import { CmsisJsonWatcher } from './cmsis-json-watcher';
 
 interface MutableWorkspace {
@@ -96,8 +95,8 @@ describe('CmsisJsonWatcher', () => {
         await activeSolutionWatch.getWatch().onDidCreate?.(cmsisJsonFile);
 
         expect(events).toEqual([{
-            previousActiveSolutionPath: normalizeFsPath(path.resolve('/workspace/.vscode', '../first.csolution.yml')),
-            activeSolutionPath: normalizeFsPath(path.resolve('/workspace/.vscode', '../second.csolution.yml')),
+            previousActiveSolutionPath: expect.toEqualFsPath(path.resolve('/workspace/.vscode', '../first.csolution.yml')),
+            activeSolutionPath: expect.toEqualFsPath(path.resolve('/workspace/.vscode', '../second.csolution.yml')),
             generation: 1
         }]);
     });
@@ -139,7 +138,7 @@ describe('CmsisJsonWatcher', () => {
         await activeSolutionWatch.getWatch().onDidChange?.(cmsisJsonFile);
 
         expect(events).toEqual([{
-            previousActiveSolutionPath: normalizeFsPath(path.resolve('/workspace/.vscode', '../project.csolution.yml')),
+            previousActiveSolutionPath: expect.toEqualFsPath(path.resolve('/workspace/.vscode', '../project.csolution.yml')),
             activeSolutionPath: undefined,
             generation: 1
         }]);
@@ -161,7 +160,7 @@ describe('CmsisJsonWatcher', () => {
         await activeSolutionWatch.getWatch().onDidDelete?.(cmsisJsonFile);
 
         expect(events).toEqual([{
-            previousActiveSolutionPath: normalizeFsPath(path.resolve('/workspace/.vscode', '../project.csolution.yml')),
+            previousActiveSolutionPath: expect.toEqualFsPath(path.resolve('/workspace/.vscode', '../project.csolution.yml')),
             activeSolutionPath: undefined,
             generation: 1
         }]);
@@ -185,8 +184,8 @@ describe('CmsisJsonWatcher', () => {
         await activeSolutionWatch.getWatch().onDidChange?.(cmsisJsonFile);
 
         expect(events).toEqual([{
-            previousActiveSolutionPath: normalizeFsPath(path.resolve('/workspace/.vscode', '../first.csolution.yml')),
-            activeSolutionPath: normalizeFsPath(path.resolve('/workspace/.vscode', '../second.csolution.yml')),
+            previousActiveSolutionPath: expect.toEqualFsPath(path.resolve('/workspace/.vscode', '../first.csolution.yml')),
+            activeSolutionPath: expect.toEqualFsPath(path.resolve('/workspace/.vscode', '../second.csolution.yml')),
             generation: 1
         }]);
     });

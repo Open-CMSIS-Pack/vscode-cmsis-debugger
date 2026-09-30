@@ -23,7 +23,7 @@ import { activeSolutionWatchFactory } from '../../__test__/active-solution-watch
 import { CBuildRunFileLocator } from '../../cbuild-run';
 import { FileWatchManager, FileWatchRegistrationOptions } from '../../desktop/filesystem/file-watch-manager';
 import { CBUILD_INDEX_FILE_GLOB, CMSIS_JSON_FILE_GLOB } from '../../manifest';
-import { normalizeFsPath, waitForCondition } from '../../utils';
+import { waitForCondition } from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import {
     GeneratedCBuildRunFileChangeEvent,
@@ -270,11 +270,11 @@ describe('TraceConfigurationFileWatcher', () => {
 
         const cbuildRunWatcher = getLastCreatedFileSystemWatcher();
         const inspectedUri = (vscode.workspace.fs.stat as jest.Mock).mock.calls.at(-1)?.[0] as vscode.Uri | undefined;
-        expect(normalizeFsPath(inspectedUri?.fsPath)).toBe(normalizeFsPath(cbuildRunFile.fsPath));
+        expect(inspectedUri?.fsPath).toEqualFsPath(cbuildRunFile.fsPath);
         const changeEvent = onGeneratedCBuildRunFileChanged.mock.calls.at(-1)?.[0] as
             GeneratedCBuildRunFileChangeEvent | undefined;
         expect(changeEvent?.type).toBe('changed');
-        expect(normalizeFsPath(changeEvent?.uri.fsPath)).toBe(normalizeFsPath(cbuildRunFile.fsPath));
+        expect(changeEvent?.uri.fsPath).toEqualFsPath(cbuildRunFile.fsPath);
 
         cbuildRunWatcher._handlers.change[0]?.(cbuildRunFile);
 
@@ -325,12 +325,12 @@ describe('TraceConfigurationFileWatcher', () => {
             pattern: string;
         };
         expect(getCBuildRunFileNameFromCommand).toHaveBeenCalledTimes(1);
-        expect(cbuildRunPattern.base).toBe(path.dirname(cbuildRunFile.fsPath));
+        expect(cbuildRunPattern.base).toEqualFsPath(path.dirname(cbuildRunFile.fsPath));
         expect(cbuildRunPattern.pattern).toBe(path.basename(cbuildRunFile.fsPath));
         const changeEvent = onGeneratedCBuildRunFileChanged.mock.calls.at(-1)?.[0] as
             GeneratedCBuildRunFileChangeEvent | undefined;
         expect(changeEvent?.type).toBe('changed');
-        expect(normalizeFsPath(changeEvent?.uri.fsPath)).toBe(normalizeFsPath(cbuildRunFile.fsPath));
+        expect(changeEvent?.uri.fsPath).toEqualFsPath(cbuildRunFile.fsPath);
 
         watcher.dispose();
         expect(cbuildRunWatcher.dispose).toHaveBeenCalledTimes(1);
@@ -371,13 +371,13 @@ describe('TraceConfigurationFileWatcher', () => {
             pattern: string;
         };
         expect(cmsisJsonPattern).toBe(CMSIS_JSON_FILE_GLOB);
-        expect(indexPattern.base.fsPath).toBe(normalizeFsPath('/workspace'));
+        expect(indexPattern.base.fsPath).toEqualFsPath('/workspace');
         expect(indexPattern.pattern).toBe(CBUILD_INDEX_FILE_GLOB);
         expect(getCBuildRunFileNameFromCommand).toHaveBeenCalledTimes(1);
         const changeEvent = onGeneratedCBuildRunFileChanged.mock.calls.at(-1)?.[0] as
             GeneratedCBuildRunFileChangeEvent | undefined;
         expect(changeEvent?.type).toBe('changed');
-        expect(normalizeFsPath(changeEvent?.uri.fsPath)).toBe(normalizeFsPath(cbuildRunFile.fsPath));
+        expect(changeEvent?.uri.fsPath).toEqualFsPath(cbuildRunFile.fsPath);
 
         watcher.dispose();
     });
@@ -581,7 +581,7 @@ describe('TraceConfigurationFileWatcher', () => {
 
         const changeEvent = onGeneratedCBuildRunFileChanged.mock.calls.at(0)?.[0] as GeneratedCBuildRunFileChangeEvent;
         expect(changeEvent.type).toBe('changed');
-        expect(normalizeFsPath(changeEvent.uri.fsPath)).toBe(normalizeFsPath(cbuildRunFile.fsPath));
+        expect(changeEvent.uri.fsPath).toEqualFsPath(cbuildRunFile.fsPath);
         expect((vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls.map(call => {
             const pattern = call[0] as { pattern?: string };
             return pattern.pattern;

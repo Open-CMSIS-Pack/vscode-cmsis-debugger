@@ -88,13 +88,13 @@ describe('PyTsTraceConfigurationPrevalidator', () => {
         await expect(prevalidator.validate(CTRACE_FILE_NAME))
             .resolves.toEqual({ status: 'passed', referenceMessages: [] });
 
-        expect(reader.parse).toHaveBeenCalledWith(CBUILD_RUN_FILE_NAME);
+        expect(reader.parse).toHaveBeenCalledWith(expect.toEqualFsPath(CBUILD_RUN_FILE_NAME));
         expect(locator.getCTraceUriFromCBuildRunUri).toHaveBeenCalledWith(
             vscode.Uri.file(CBUILD_RUN_FILE_NAME),
             '<default>'
         );
         expect(processManager.launch).toHaveBeenCalledWith({
-            cbuildRunFilePath: CBUILD_RUN_FILE_NAME
+            cbuildRunFilePath: expect.toEqualFsPath(CBUILD_RUN_FILE_NAME)
         });
     });
 

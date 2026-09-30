@@ -118,7 +118,7 @@ describe('CBuildRunFileLocator', () => {
 
         const result = await cbuildRunFileLocator.readCBuildRunFileNameFromIndex(cbuildIndexFile);
 
-        expect(result).toBe(path.resolve(path.dirname(cbuildIndexFile.fsPath), 'out/project.cbuild-run.yml'));
+        expect(result).toEqualFsPath(path.resolve(path.dirname(cbuildIndexFile.fsPath), 'out/project.cbuild-run.yml'));
     });
 
     it('returns undefined and logs when a cbuild index cannot be read', async () => {
@@ -140,7 +140,7 @@ describe('CBuildRunFileLocator', () => {
 
         const result = await cbuildRunFileLocator.readActiveSolutionPath(cmsisJsonFile);
 
-        expect(result).toBe(path.resolve(path.dirname(cmsisJsonFile.fsPath), '../project.csolution.yml'));
+        expect(result).toEqualFsPath(path.resolve(path.dirname(cmsisJsonFile.fsPath), '../project.csolution.yml'));
     });
 
     it('returns undefined and logs when cmsis.json cannot be read', async () => {
@@ -159,7 +159,7 @@ describe('CBuildRunFileLocator', () => {
 
         const result = await cbuildRunFileLocator.getCbuildIndexPath();
 
-        expect(result).toBe('/workspace/project.cbuild-idx.yml');
+        expect(result).toEqualFsPath('/workspace/project.cbuild-idx.yml');
     });
 
     it('returns cbuild-run file path from CMSIS Solution command', async () => {
@@ -167,7 +167,7 @@ describe('CBuildRunFileLocator', () => {
 
         const result = await cbuildRunFileLocator.getCBuildRunFileNameFromCommand();
 
-        expect(result).toBe('/workspace/project/example.cbuild-run.yml');
+        expect(result).toEqualFsPath('/workspace/project/example.cbuild-run.yml');
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith('cmsis-csolution.getCbuildRunFile');
     });
 
@@ -202,7 +202,7 @@ describe('CBuildRunFileLocator', () => {
 
         const result = await cbuildRunFileLocator.getCBuildRunFileName(vscode.Uri.file('/workspace/project.cbuild-idx.yml'));
 
-        expect(result).toBe(cbuildRunFileName);
+        expect(result).toEqualFsPath(cbuildRunFileName);
         expect(readFromIndexSpy).not.toHaveBeenCalled();
     });
 
@@ -223,7 +223,7 @@ describe('CBuildRunFileLocator', () => {
 
         const result = await cbuildRunFileLocator.getCBuildRunFileName(cbuildIndexFile);
 
-        expect(result).toBe(indexedCBuildRunFileName);
+        expect(result).toEqualFsPath(indexedCBuildRunFileName);
         expect(cbuildRunFileLocator.readCBuildRunFileNameFromIndex).toHaveBeenCalledWith(cbuildIndexFile);
         expect(getCbuildIndexPathSpy).not.toHaveBeenCalled();
     });
@@ -240,7 +240,7 @@ describe('CBuildRunFileLocator', () => {
 
         const result = await cbuildRunFileLocator.getCBuildRunFileName(cbuildIndexFile);
 
-        expect(result).toBe(cbuildRunFileName);
+        expect(result).toEqualFsPath(cbuildRunFileName);
         expect(getCbuildIndexPathSpy).not.toHaveBeenCalled();
         expect(readFromIndexSpy).not.toHaveBeenCalled();
     });
@@ -261,7 +261,7 @@ describe('CBuildRunFileLocator', () => {
 
         const result = await cbuildRunFileLocator.getCBuildRunFileName(undefined, true);
 
-        expect(result).toBe(indexedCBuildRunFileName);
+        expect(result).toEqualFsPath(indexedCBuildRunFileName);
         expect(cbuildRunFileLocator.readCBuildRunFileNameFromIndex).toHaveBeenCalledWith(vscode.Uri.file(activeSolutionIndexFile));
         expect(cbuildRunFileLocator.readCBuildRunFileNameFromIndex).toHaveBeenCalledTimes(1);
     });
@@ -275,7 +275,7 @@ describe('CBuildRunFileLocator', () => {
 
         const result = await cbuildRunFileLocator.getCBuildRunFileName(undefined, true);
 
-        expect(result).toBe(indexedCBuildRunFileName);
+        expect(result).toEqualFsPath(indexedCBuildRunFileName);
     });
 
     it('returns a missing command file when no index fallback is available', async () => {
@@ -285,7 +285,7 @@ describe('CBuildRunFileLocator', () => {
 
         const result = await cbuildRunFileLocator.getCBuildRunFileName();
 
-        expect(result).toBe(cbuildRunFileName);
+        expect(result).toEqualFsPath(cbuildRunFileName);
     });
 
     it.each([
@@ -324,7 +324,7 @@ describe('CBuildRunFileLocator', () => {
             vscode.Uri.file('/workspace')
         );
 
-        expect(result.fsPath).toBe(path.join('/workspace', '.cmsis', 'project+target@Release.ctrace.yml'));
+        expect(result.fsPath).toEqualFsPath(path.join('/workspace', '.cmsis', 'project+target@Release.ctrace.yml'));
     });
 
     it('gets the ctrace URI from the active solution and located cbuild-run file', async () => {
@@ -334,7 +334,7 @@ describe('CBuildRunFileLocator', () => {
 
         const result = await cbuildRunFileLocator.getCTraceUriFromCBuildRunUri(undefined, 'Release');
 
-        expect(result.fsPath).toBe(path.join('/workspace', '.cmsis', 'project+target@Release.ctrace.yml'));
+        expect(result.fsPath).toEqualFsPath(path.join('/workspace', '.cmsis', 'project+target@Release.ctrace.yml'));
         expect(getCBuildRunFileName).toHaveBeenCalledWith(undefined, true);
     });
 
@@ -351,7 +351,7 @@ describe('CBuildRunFileLocator', () => {
             'Release'
         );
 
-        expect(result.fsPath).toBe(path.join('/workspace', '.cmsis', 'project+target@Release.ctrace.yml'));
+        expect(result.fsPath).toEqualFsPath(path.join('/workspace', '.cmsis', 'project+target@Release.ctrace.yml'));
     });
 
     it('rejects when no workspace or active solution path can be located for a ctrace URI', async () => {
@@ -367,7 +367,7 @@ describe('CBuildRunFileLocator', () => {
 
         const result = await new CBuildRunFileLocator().getCBuildRunFileNameFromCommand();
 
-        expect(result).toBe('/workspace/project/example.cbuild-run.yml');
+        expect(result).toEqualFsPath('/workspace/project/example.cbuild-run.yml');
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith('cmsis-csolution.getCbuildRunFile');
     });
 });

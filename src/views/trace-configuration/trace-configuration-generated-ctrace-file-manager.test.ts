@@ -23,7 +23,7 @@ import * as vscode from 'vscode';
 
 import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
 import { PyTsController } from '../../features/trace/pyts-controller';
-import { containsSubstringsInOrder, normalizeFsPath } from '../../utils';
+import { containsSubstringsInOrder } from '../../utils';
 import { TraceConfigurationGeneratedCTraceFileManager } from './trace-configuration-generated-ctrace-file-manager';
 
 interface MutableWorkspace {
@@ -79,10 +79,6 @@ async function createTemporaryDirectory(directoryName: string): Promise<void> {
     await fsPromises.mkdir(directoryName, { recursive: true });
 }
 
-function expectSameFsPath(actual: string | undefined, expected: string): void {
-    expect(normalizeFsPath(actual)).toBe(normalizeFsPath(expected));
-}
-
 function createManagerWithConversionSpy() {
     const pyTsController = new PyTsController();
     const convertCTrace = jest.spyOn(pyTsController, 'convertCTrace').mockResolvedValue();
@@ -114,7 +110,7 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         const expectedTraceFile = path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yml');
         const generatedText = await readTemporaryTextFile(expectedTraceFile);
         expect(result.status).toBe('generated');
-        expectSameFsPath(result.status === 'generated' ? result.uri.fsPath : undefined, expectedTraceFile);
+        expect(result.status === 'generated' ? result.uri.fsPath : undefined).toEqualFsPath(expectedTraceFile);
         expect(generatedText).toContain('created-by: CMSIS Debugger');
         expect(convertCTrace).not.toHaveBeenCalled();
         expect(containsSubstringsInOrder(generatedText, [
@@ -171,7 +167,7 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
 
         const generatedText = await readTemporaryTextFile(generatedTraceFile);
         expect(result.status).toBe('generated');
-        expectSameFsPath(result.status === 'generated' ? result.uri.fsPath : undefined, generatedTraceFile);
+        expect(result.status === 'generated' ? result.uri.fsPath : undefined).toEqualFsPath(generatedTraceFile);
         expect(generatedText.match(/pname: core0/g) ?? []).toHaveLength(1);
         expect(generatedText).toContain('created-by: user');
         expect(generatedText).toContain('location: existingWatch');
@@ -193,7 +189,7 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         const result = await manager.processGeneratedCBuildRunFileChange({ type: 'changed', uri: cbuildRunFile });
 
         expect(result.status).toBe('generated');
-        expectSameFsPath(result.status === 'generated' ? result.uri.fsPath : undefined, generatedTraceFile);
+        expect(result.status === 'generated' ? result.uri.fsPath : undefined).toEqualFsPath(generatedTraceFile);
         expect(convertCTrace).toHaveBeenCalledWith(
             result.status === 'generated' ? result.uri : undefined,
             cbuildRunFile.fsPath
@@ -224,8 +220,8 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         const generatedTraceFile = await manager.createDefaultCTraceFile(cbuildRunFile);
 
         const expectedTraceFile = path.join(workspaceRoot, '.cmsis', expectedName);
-        expect(CbuildRunReader.prototype.parse).toHaveBeenCalledWith(cbuildRunFile.fsPath);
-        expectSameFsPath(generatedTraceFile?.fsPath, expectedTraceFile);
+        expect(CbuildRunReader.prototype.parse).toHaveBeenCalledWith(expect.toEqualFsPath(cbuildRunFile.fsPath));
+        expect(generatedTraceFile?.fsPath).toEqualFsPath(expectedTraceFile);
         await expect(readTemporaryTextFile(expectedTraceFile)).resolves.toContain('pname: core0');
     });
 

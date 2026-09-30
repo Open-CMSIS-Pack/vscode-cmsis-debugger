@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import * as vscode from 'vscode';
 import { URI } from 'vscode-uri';
 import { debugConfigurationFactory, gdbTargetConfiguration } from './debug-configuration.factory';
 import { BuiltinToolPath } from '../desktop/builtin-tool-path';
-import { isWindows, waitForMs } from '../utils';
+import { waitForMs } from '../utils';
 import { GDBTargetDebugSession, GDBTargetDebugTracker } from '../debug-session';
 
 jest.mock('../desktop/builtin-tool-path');
@@ -84,13 +84,12 @@ describe('GDBTargetConfigurationProvider', () => {
             undefined) as GDBTargetConfiguration;
 
         expect(resolvedDebugConfig).toBeDefined();
-        expect(resolvedDebugConfig.gdb).toEqual(absoluteGdbPath);
+        expect(resolvedDebugConfig.gdb).toEqualFsPath(absoluteGdbPath);
         expect(getAbsolutePathSpy).not.toHaveBeenCalled();
     });
 
     it('resolves debug configuration and replaces \'arm-none-eabi-gdb\' with built-in tool path', async () => {
         const absoluteGdbPath = '/absolute/path/to/gdb/arm-none-eabi-gdb';
-        const expectedGdbPath = isWindows ? absoluteGdbPath.replaceAll('/', '\\') : absoluteGdbPath;
         const gdbUri = URI.parse(absoluteGdbPath);
         const debugConfig = debugConfigurationFactory({
             gdb: 'arm-none-eabi-gdb'
@@ -108,7 +107,7 @@ describe('GDBTargetConfigurationProvider', () => {
             undefined) as GDBTargetConfiguration;
 
         expect(resolvedDebugConfig).toBeDefined();
-        expect(resolvedDebugConfig.gdb).toEqual(expectedGdbPath);
+        expect(resolvedDebugConfig.gdb).toEqualFsPath(absoluteGdbPath);
     });
 
     describe('tests with sessions', () => {

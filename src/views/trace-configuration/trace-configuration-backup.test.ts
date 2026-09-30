@@ -304,7 +304,7 @@ describe('WorkspaceTraceConfigurationBackupStore', () => {
 
     it('derives the backup name beside the active file', () => {
         expect(getTraceConfigurationBackupFileName(path.join('/workspace', '.cmsis', 'target.ctrace.yml')))
-            .toBe(path.join('/workspace', '.cmsis', '~target.ctrace.yml'));
+            .toEqualFsPath(path.join('/workspace', '.cmsis', '~target.ctrace.yml'));
     });
 
     it('writes, restores, and deletes recovery artifacts', async () => {
