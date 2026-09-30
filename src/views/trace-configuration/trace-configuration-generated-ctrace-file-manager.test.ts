@@ -225,7 +225,7 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         await manager.ensureProductionCTraceRunFile(ctraceFile);
 
         expect(locator.getCBuildRunFileName).toHaveBeenCalledWith(undefined, true);
-        expect(convertCTrace).toHaveBeenCalledWith(ctraceFile, cbuildRunFile);
+        expect(convertCTrace).toHaveBeenCalledWith(ctraceFile, expect.toEqualFsPath(cbuildRunFile));
     });
 
     it('does not generate output for a ctrace file outside the active cbuild-run context', async () => {
