@@ -154,7 +154,7 @@ describe('DebouncedTraceConfigurationBackup', () => {
         await expect(backup.flush()).resolves.toBeUndefined();
         expect(onError).toHaveBeenCalledWith(error);
         expect(prevalidator.validate).not.toHaveBeenCalled();
-        expect(onValidationStateChanged).toHaveBeenLastCalledWith('failed', { message: 'backup failed' });
+        expect(onValidationStateChanged).toHaveBeenLastCalledWith('failed', 'backup failed');
     });
 
     it('flushes the latest snapshot when disposed', async () => {
@@ -236,7 +236,7 @@ describe('DebouncedTraceConfigurationBackup', () => {
         backup.schedule('/workspace/target.ctrace.yml', 'contents');
         await backup.flush();
 
-        expect(onValidationStateChanged).toHaveBeenLastCalledWith(state, { message: result.message });
+        expect(onValidationStateChanged).toHaveBeenLastCalledWith(state, result.message);
     });
 
     it('cancels an obsolete validation and only accepts the latest result', async () => {

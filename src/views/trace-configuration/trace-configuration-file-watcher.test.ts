@@ -189,7 +189,7 @@ describe('TraceConfigurationFileWatcher', () => {
 
         currentFile = secondWatchedFile.file;
         watcher.watchCurrentRunFiles();
-        await productionWatch?.onDidDelete?.(vscode.Uri.file('/workspace/.trace/target.ctrace-run.yml'));
+        await productionWatch?.onDidChange?.(vscode.Uri.file('/workspace/.trace/target.ctrace-run.yml'));
         expect(onCurrentRunFileChanged).toHaveBeenCalledTimes(6);
     });
 

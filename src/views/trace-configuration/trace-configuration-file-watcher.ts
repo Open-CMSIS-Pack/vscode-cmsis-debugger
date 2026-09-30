@@ -35,9 +35,10 @@ export interface GeneratedCBuildRunFileChangeEvent {
 }
 
 export type TraceConfigurationRunFileKind = 'production' | 'backup';
+export type TraceConfigurationRunFileChangeType = 'created' | 'changed' | 'deleted';
 
 export interface TraceConfigurationRunFileChangeEvent {
-    readonly type: GeneratedCBuildRunFileChangeType;
+    readonly type: TraceConfigurationRunFileChangeType;
     readonly kind: TraceConfigurationRunFileKind;
     readonly uri: vscode.Uri;
 }
@@ -421,7 +422,7 @@ export class TraceConfigurationFileWatcher {
         watchedFile: CTraceYamlFile,
         watchVersion: number,
         kind: TraceConfigurationRunFileKind,
-        type: GeneratedCBuildRunFileChangeType,
+        type: TraceConfigurationRunFileChangeType,
         uri: vscode.Uri
     ): Promise<void> {
         if (
