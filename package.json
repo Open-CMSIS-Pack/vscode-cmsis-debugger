@@ -1046,7 +1046,7 @@
   "devDependencies": {
     "@eclipse-cdt-cloud/vscode-peripheral-inspector": "0.0.0",
     "@eslint/js": "10.0.1",
-    "@open-cmsis-pack/vsce-helper": "0.3.0",
+    "@open-cmsis-pack/vsce-helper": "0.4.1",
     "@types/fs-extra": "11.0.4",
     "@types/jest": "30.0.0",
     "@types/minimist": "1.2.5",
