@@ -306,7 +306,7 @@ describe('TraceConfigurationModel', () => {
         const { model } = await createModelFromText('created-by: CMSIS Debugger\n');
         (model as unknown as TraceConfigurationModelPrivate).ctraceFile = new CTraceYamlFile(fileName, new MemoryTextFileAdapter('created-by: CMSIS Debugger\n'));
 
-        expect(model.createState().fileName).toBe(fileName);
+        expect(model.createState().fileName).toEqualFsPath(fileName);
         model.dispose();
     });
 
@@ -316,7 +316,7 @@ describe('TraceConfigurationModel', () => {
         const { model } = await createModelFromText('created-by: CMSIS Debugger\n');
         (model as unknown as TraceConfigurationModelPrivate).ctraceFile = new CTraceYamlFile(fileName, new MemoryTextFileAdapter('created-by: CMSIS Debugger\n'));
 
-        expect(model.createState().fileName).toBe(fileName);
+        expect(model.createState().fileName).toEqualFsPath(fileName);
         model.dispose();
     });
 
@@ -453,7 +453,10 @@ describe('TraceConfigurationModel', () => {
         await waitForCondition('the missing ctrace-run conversion request', () => convertCTrace.mock.calls.length === 1);
 
         expect(convertCTrace.mock.calls[0]?.[0].fsPath).toEqualFsPath(ctraceFile);
-        expect(convertCTrace).toHaveBeenCalledWith(expect.any(vscode.Uri), cbuildRunFile.fsPath);
+        expect(convertCTrace).toHaveBeenCalledWith(
+            expect.any(vscode.Uri),
+            expect.toEqualFsPath(cbuildRunFile.fsPath)
+        );
         model.dispose();
     });
 
@@ -921,7 +924,7 @@ describe('TraceConfigurationModel', () => {
 
         await expect(readTemporaryTextFile(getTraceConfigurationBackupFileName(firstFileName)))
             .resolves.toContain('access: W');
-        expect(model.createState().fileName).toBe(secondFileName);
+        expect(model.createState().fileName).toEqualFsPath(secondFileName);
         expect(model.createState().dirty).toBe(false);
         await model.deactivate();
     });
@@ -952,7 +955,7 @@ describe('TraceConfigurationModel', () => {
 
         expect(prevalidator.cancel.mock.calls.length).toBeGreaterThan(cancellationCount);
         expect(model.createState()).toMatchObject({
-            fileName: secondFileName,
+            fileName: expect.toEqualFsPath(secondFileName),
             dirty: false,
             validationState: 'idle'
         });
@@ -992,7 +995,7 @@ describe('TraceConfigurationModel', () => {
 
         await model.saveCurrentDocument();
 
-        expect(prevalidator.validate).toHaveBeenCalledWith(fileName);
+        expect(prevalidator.validate).toHaveBeenCalledWith(expect.toEqualFsPath(fileName));
         await expect(readTemporaryTextFile(fileName)).resolves.toContain('clock: 200000000');
         await expect(readTemporaryTextFile(backupFileName)).rejects.toThrow('ENOENT');
         expect(model.createState().dirty).toBe(false);

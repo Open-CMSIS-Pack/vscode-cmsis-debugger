@@ -103,9 +103,9 @@ describe('getCmsisPackRoot', () => {
         delete process.env['CMSIS_PACK_ROOT'];
         const returnValue = getCmsisPackRootPath();
         if (isWindows) {
-            expect(returnValue).toBe(path.join(process.env['LOCALAPPDATA'] ?? os.homedir(), 'Arm', 'Packs'));
+            expect(returnValue).toEqualFsPath(path.join(process.env['LOCALAPPDATA'] ?? os.homedir(), 'Arm', 'Packs'));
         } else {
-            expect(returnValue).toBe(path.join(os.homedir(), '.cache', 'arm', 'packs'));
+            expect(returnValue).toEqualFsPath(path.join(os.homedir(), '.cache', 'arm', 'packs'));
         }
         process.env = originalProcessEnv;
     });

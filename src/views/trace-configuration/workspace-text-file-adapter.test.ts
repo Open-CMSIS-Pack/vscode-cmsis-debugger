@@ -49,19 +49,6 @@ function getWorkspaceFsMock(method: 'readFile' | 'writeFile' | 'delete' | 'stat'
     }
 }
 
-function normalizeTestFsPath(fileName: string | undefined): string | undefined {
-    if (!fileName) {
-        return undefined;
-    }
-
-    const normalized = path.normalize(fileName);
-    return process.platform === 'win32' ? normalized.toLowerCase() : normalized;
-}
-
-function expectSameFsPath(actual: string | undefined, expected: string): void {
-    expect(normalizeTestFsPath(actual)).toBe(normalizeTestFsPath(expected));
-}
-
 function createCodedError(message: string, code: string): Error & { code: string } {
     return Object.assign(new Error(message), { code });
 }
@@ -89,8 +76,8 @@ describe('WorkspaceTextFileAdapter', () => {
         await adapter.writeTextFile(fileName, text);
         await expect(adapter.readTextFile(fileName)).resolves.toBe(text);
 
-        expectSameFsPath(getLastWorkspaceFsUri('writeFile')?.fsPath, fileName);
-        expectSameFsPath(getLastWorkspaceFsUri('readFile')?.fsPath, fileName);
+        expect(getLastWorkspaceFsUri('writeFile')?.fsPath).toEqualFsPath(fileName);
+        expect(getLastWorkspaceFsUri('readFile')?.fsPath).toEqualFsPath(fileName);
     });
 
     it('returns file stamps from VS Code workspace fs stat', async () => {
@@ -106,7 +93,7 @@ describe('WorkspaceTextFileAdapter', () => {
             size: Buffer.byteLength(text)
         });
         expect(stamp?.mtimeMs).toEqual(expect.any(Number));
-        expectSameFsPath(getLastWorkspaceFsUri('stat')?.fsPath, fileName);
+        expect(getLastWorkspaceFsUri('stat')?.fsPath).toEqualFsPath(fileName);
     });
 
     it('deletes files and ignores missing files', async () => {
@@ -119,7 +106,7 @@ describe('WorkspaceTextFileAdapter', () => {
         // Test paths are created under this suite's temporary workspace root.
         // eslint-disable-next-line security/detect-non-literal-fs-filename
         await expect(fsPromises.stat(fileName)).rejects.toMatchObject({ code: 'ENOENT' });
-        expectSameFsPath(getLastWorkspaceFsUri('delete')?.fsPath, fileName);
+        expect(getLastWorkspaceFsUri('delete')?.fsPath).toEqualFsPath(fileName);
         await expect(adapter.deleteTextFile(fileName)).resolves.toBeUndefined();
     });
 

@@ -52,7 +52,7 @@ describe('CTraceProcessManager', () => {
 
         expect(mockSpawn).toHaveBeenCalledWith(
             'ctrace-path',
-            ['/workspace/trace', '-t', 'solution+target', '--csv'],
+            [expect.toEqualFsPath('/workspace/trace'), '-t', 'solution+target', '--csv'],
             expect.any(Object)
         );
         expect(vscode.commands.executeCommand).not.toHaveBeenCalled();

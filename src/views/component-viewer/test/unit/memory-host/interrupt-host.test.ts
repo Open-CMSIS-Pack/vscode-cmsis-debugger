@@ -104,7 +104,7 @@ describe('InterruptHost', () => {
         const name = await host.getName(0);
         expect(name).toBe('WWDG_IRQn');
         expect(host.isFetched).toBe(true);
-        expect(getInterruptTable).toHaveBeenCalledWith('/path/to/file.svd');
+        expect(getInterruptTable).toHaveBeenCalledWith(expect.toEqualFsPath('/path/to/file.svd'));
 
         // Second call should use cache, not call getInterruptTable again
         const name2 = await host.getName(16);

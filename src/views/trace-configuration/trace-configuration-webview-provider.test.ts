@@ -473,7 +473,7 @@ describe('TraceConfigurationWebviewProvider', () => {
             },
             title: 'Open CMSIS Trace Configuration'
         });
-        expect(model.openFile).toHaveBeenCalledWith(selectedFile.fsPath);
+        expect(model.openFile).toHaveBeenCalledWith(expect.toEqualFsPath(selectedFile.fsPath));
     });
 
     it('does not open a file when the user cancels the picker', async () => {
