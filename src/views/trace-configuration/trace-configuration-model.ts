@@ -1034,6 +1034,7 @@ export class TraceConfigurationModel {
         const backupContents = file.document?.toString();
         await this.backup.cancelAndWait();
         try {
+            await this.backupStore.delete(file.fileName);
             await file.save();
         } catch (error) {
             if (backupContents !== undefined) {
@@ -1042,11 +1043,10 @@ export class TraceConfigurationModel {
             }
             throw error;
         }
-        await this.backupStore.delete(file.fileName);
-        await this.loadProcessorCapabilities();
-        this.fileWatcher.watchCurrentFile();
         this.dirty = false;
         this.acceptValidationState('idle');
+        await this.loadProcessorCapabilities();
+        this.fileWatcher.watchCurrentFile();
         this.errorMessage = undefined;
         this.notifyStateChanged();
     }

@@ -18,7 +18,10 @@
 import * as path from 'node:path';
 
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
-import { getTraceConfigurationBackupFileName } from './trace-configuration-file-names';
+import {
+    getTraceConfigurationArtifactFileNames,
+    getTraceConfigurationBackupFileName
+} from './trace-configuration-file-names';
 import {
     TraceConfigurationReferenceValidationMessage,
     TraceConfigurationValidationState
@@ -72,7 +75,9 @@ export class WorkspaceTraceConfigurationBackupStore implements TraceConfiguratio
     }
 
     public async delete(fileName: string): Promise<void> {
-        await this.fileAdapter.deleteTextFile(getTraceConfigurationBackupFileName(fileName));
+        const artifacts = getTraceConfigurationArtifactFileNames(fileName);
+        await this.fileAdapter.deleteTextFile(artifacts.backupCTraceFileName);
+        await this.fileAdapter.deleteTextFile(artifacts.backupCTraceRunFileName);
     }
 }
 

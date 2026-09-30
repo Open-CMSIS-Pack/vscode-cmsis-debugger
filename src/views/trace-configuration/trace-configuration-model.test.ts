@@ -167,11 +167,6 @@ async function waitForWatcherWork(): Promise<void> {
     }
 }
 
-function expectSameFsPath(actual: string | undefined, expected: string): void {
-    expect(actual).toBeDefined();
-    expect(normalizeFsPath(actual as string)).toBe(normalizeFsPath(expected));
-}
-
 function createProcessor(core: string, pname?: string): ProcessorType {
     return {
         core,
@@ -371,10 +366,14 @@ describe('TraceConfigurationModel', () => {
         const model = new TraceConfigurationModel(onDidChange);
         const watcher = await resolveGeneratedCBuildRunWatcher(model, cbuildRunFile);
 
+        onDidChange.mockClear();
         fireWatcherHandler(watcher, 'create', cbuildRunFile);
 
         const generatedTraceFile = path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yml');
         const generatedText = await waitForTemporaryTextFile(generatedTraceFile);
+        await waitForCondition('generated ctrace model load', () =>
+            onDidChange.mock.calls.length > 0
+            && normalizeFsPath(model.createState().fileName) === normalizeFsPath(generatedTraceFile));
         expect(generatedText).toContain('created-by: CMSIS Debugger');
         expect(containsSubstringsInOrder(generatedText, [
             'pname: core0',
@@ -403,7 +402,7 @@ describe('TraceConfigurationModel', () => {
             ['ctrace', 'setup', 0, 'synchronization'],
         ].forEach(pathToExpand => model.updateExpandedState(JSON.stringify(pathToExpand), true));
         const state = model.createState();
-        expectSameFsPath(state.fileName, generatedTraceFile);
+        expect(state.fileName).toEqualFsPath(generatedTraceFile);
         expect(state.rows
             .filter(row => row.path.at(-2) === 'setup' && typeof row.path.at(-1) === 'number')
             .map(row => row.checked))
@@ -453,7 +452,7 @@ describe('TraceConfigurationModel', () => {
         fireWatcherHandler(watcher, 'change', cbuildRunFile);
         await waitForCondition('the missing ctrace-run conversion request', () => convertCTrace.mock.calls.length === 1);
 
-        expectSameFsPath(convertCTrace.mock.calls[0]?.[0].fsPath, ctraceFile);
+        expect(convertCTrace.mock.calls[0]?.[0].fsPath).toEqualFsPath(ctraceFile);
         expect(convertCTrace).toHaveBeenCalledWith(expect.any(vscode.Uri), cbuildRunFile.fsPath);
         model.dispose();
     });
@@ -473,7 +472,7 @@ describe('TraceConfigurationModel', () => {
         const generatedText = await waitForTemporaryTextFile(generatedTraceFile);
         expect(generatedText).toContain('created-by: CMSIS Debugger');
         expect(generatedText).toContain('pname: core0');
-        expectSameFsPath(model.createState().fileName, generatedTraceFile);
+        expect(model.createState().fileName).toEqualFsPath(generatedTraceFile);
         model.dispose();
     });
 
@@ -816,6 +815,9 @@ describe('TraceConfigurationModel', () => {
             path.join(workspaceRoot, '.trace', 'target.ctrace-run.yml')
         ));
         expect(getDataValidation()).toEqual({ severity: 'info', message: 'production message' });
+        expect(runMessageReader.readIfExists).toHaveBeenLastCalledWith(
+            expect.toEqualFsPath(path.join(workspaceRoot, '.trace', 'target.ctrace-run.yml'))
+        );
         await productionWatcher._handlers.delete[0]?.(vscode.Uri.file(
             path.join(workspaceRoot, '.trace', 'target.ctrace-run.yml')
         ));
@@ -1043,6 +1045,25 @@ describe('TraceConfigurationModel', () => {
         await model.deactivate();
     });
 
+    it('deletes backup artifacts before writing the active file', async () => {
+        const { adapter, backupStore, model } = await createModelFromText([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            ''
+        ].join('\n'));
+        await model.addItem(['ctrace', 'setup', 0, 'data'], 'data');
+        const writeTextFile = jest.spyOn(adapter, 'writeTextFile');
+
+        await model.saveCurrentDocument();
+
+        expect(backupStore.delete).toHaveBeenCalledWith('target.ctrace.yml');
+        expect(backupStore.delete.mock.invocationCallOrder[0])
+            .toBeLessThan(writeTextFile.mock.invocationCallOrder[0] ?? 0);
+        await model.deactivate();
+    });
+
     it('flushes the latest snapshot when saving the active file fails', async () => {
         const { adapter, backupStore, model, prevalidator } = await createModelFromText([
             'ctrace:',
@@ -1059,7 +1080,7 @@ describe('TraceConfigurationModel', () => {
         expect(backupStore.write).toHaveBeenCalledTimes(2);
         expect(backupStore.write.mock.calls[0]?.[1]).toContain('access: W');
         expect(backupStore.write.mock.calls[1]?.[1]).toContain('access: W');
-        expect(backupStore.delete).not.toHaveBeenCalled();
+        expect(backupStore.delete).toHaveBeenCalledWith('target.ctrace.yml');
         expect(prevalidator.validate).toHaveBeenCalledTimes(2);
         expect(model.createState()).toMatchObject({ dirty: true, validationState: 'passed' });
         await model.deactivate();
@@ -1386,7 +1407,7 @@ describe('TraceConfigurationModel', () => {
         await expect(model.focusCTraceReference('demo+target', 'data#0')).resolves.toBe(true);
 
         const focusedState = model.createState();
-        expectSameFsPath(focusedState.fileName, ctraceFileName);
+        expect(focusedState.fileName).toEqualFsPath(ctraceFileName);
         expect(focusedState.focusedRowId).toBe(JSON.stringify(['ctrace', 'setup', 0, 'data', 0]));
         expect(vscode.workspace.findFiles).toHaveBeenCalledWith(CTRACE_FILE_GLOB, null, 10);
     });
@@ -1408,7 +1429,7 @@ describe('TraceConfigurationModel', () => {
         await expect(model.focusCTraceReference('demo+target', 'itm', ctraceFileName)).resolves.toBe(true);
 
         const focusedState = model.createState();
-        expectSameFsPath(focusedState.fileName, ctraceFileName);
+        expect(focusedState.fileName).toEqualFsPath(ctraceFileName);
         expect(focusedState.focusedRowId).toBe(JSON.stringify(['ctrace', 'setup', 0, 'itm']));
     });
 
@@ -1645,7 +1666,7 @@ describe('TraceConfigurationModel', () => {
         await model.loadInitialFile();
 
         expect(model.createState().loading).toBe(false);
-        expectSameFsPath(model.createState().fileName, ctraceFileName);
+        expect(model.createState().fileName).toEqualFsPath(ctraceFileName);
         expect(model.createState().rows.length).toBeGreaterThan(0);
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith('cmsis-csolution.getCbuildRunFile');
         expect(vscode.workspace.findFiles).toHaveBeenCalledWith(CTRACE_FILE_GLOB, null, 10);
@@ -1687,7 +1708,7 @@ describe('TraceConfigurationModel', () => {
 
         const generatedTraceFile = path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yml');
         await expect(readTemporaryTextFile(generatedTraceFile)).resolves.toContain('pname: core0');
-        expectSameFsPath(model.createState().fileName, generatedTraceFile);
+        expect(model.createState().fileName).toEqualFsPath(generatedTraceFile);
         expect(model.createState().rows.length).toBeGreaterThan(0);
         expect(vscode.workspace.findFiles).toHaveBeenCalledWith(CMSIS_JSON_FILE_GLOB, null, 1);
         model.dispose();
@@ -1718,7 +1739,7 @@ describe('TraceConfigurationModel', () => {
 
         const generatedTraceFile = path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yml');
         await expect(readTemporaryTextFile(generatedTraceFile)).resolves.toContain('pname: core0');
-        expectSameFsPath(model.createState().fileName, generatedTraceFile);
+        expect(model.createState().fileName).toEqualFsPath(generatedTraceFile);
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith('cmsis-csolution.getCbuildRunFile');
         expect(vscode.workspace.findFiles).toHaveBeenCalledWith(
             expect.objectContaining({ pattern: CBUILD_INDEX_FILE_GLOB }),

@@ -24,7 +24,10 @@ import {
     TraceConfigurationBackupStore,
     WorkspaceTraceConfigurationBackupStore
 } from './trace-configuration-backup';
-import { getTraceConfigurationBackupFileName } from './trace-configuration-file-names';
+import {
+    getTraceConfigurationArtifactFileNames,
+    getTraceConfigurationBackupFileName
+} from './trace-configuration-file-names';
 import { TraceConfigurationPrevalidator } from './trace-configuration-prevalidator';
 
 function createStore(): jest.Mocked<TraceConfigurationBackupStore> {
@@ -292,7 +295,11 @@ describe('WorkspaceTraceConfigurationBackupStore', () => {
     async function createTemporaryFileName(): Promise<string> {
         const directory = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'trace-configuration-backup-'));
         temporaryDirectories.push(directory);
-        return path.join(directory, 'target.ctrace.yml');
+        const ctraceDirectory = path.join(directory, '.cmsis');
+        // Test paths are created under this suite's temporary directory.
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
+        await fsPromises.mkdir(ctraceDirectory);
+        return path.join(ctraceDirectory, 'target.ctrace.yml');
     }
 
     it('derives the backup name beside the active file', () => {
@@ -300,17 +307,22 @@ describe('WorkspaceTraceConfigurationBackupStore', () => {
             .toBe(path.join('/workspace', '.cmsis', '~target.ctrace.yml'));
     });
 
-    it('writes, restores, and deletes a recovery document', async () => {
+    it('writes, restores, and deletes recovery artifacts', async () => {
         const fileName = await createTemporaryFileName();
-        const backupFileName = getTraceConfigurationBackupFileName(fileName);
+        const artifacts = getTraceConfigurationArtifactFileNames(fileName);
         const store = new WorkspaceTraceConfigurationBackupStore();
 
         await store.write(fileName, 'ctrace:\n  created-by: backup\n');
+        // Test paths are created under this suite's temporary directory.
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
+        await fsPromises.mkdir(path.dirname(artifacts.backupCTraceRunFileName));
+        await writeTemporaryFile(artifacts.backupCTraceRunFileName, 'ctrace-run:\n');
         const restored = await store.restore(fileName);
         expect(restored?.toString()).toContain('created-by: backup');
 
         await store.delete(fileName);
-        await expectFileMissing(backupFileName);
+        await expectFileMissing(artifacts.backupCTraceFileName);
+        await expectFileMissing(artifacts.backupCTraceRunFileName);
         await expect(store.delete(fileName)).resolves.toBeUndefined();
     });
 
