@@ -180,7 +180,7 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         expect(convertCTrace).not.toHaveBeenCalled();
     });
 
-    it('runs pyTS for an existing target-set ctrace only when its ctrace-run is missing', async () => {
+    it('runs pyTS after each cbuild-run change regardless of an existing ctrace-run', async () => {
         const workspaceRoot = await createTemporaryWorkspace();
         mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M55', 'core0')], 'Release');
         const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
@@ -204,7 +204,7 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         await writeTemporaryTextFile(path.join(traceDirectory, 'demo@Release.ctrace-run.yml'), 'ctrace-run:\n');
         await manager.processGeneratedCBuildRunFileChange({ type: 'changed', uri: cbuildRunFile });
 
-        expect(convertCTrace).toHaveBeenCalledTimes(1);
+        expect(convertCTrace).toHaveBeenCalledTimes(2);
     });
 
     it.each([
