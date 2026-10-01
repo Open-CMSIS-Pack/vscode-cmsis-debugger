@@ -129,7 +129,7 @@
       {
         "command": "vscode-cmsis-debugger.showCapturedTrace",
         "title": "Show Captured Trace",
-        "icon": "$(graph-line)",
+        "icon": "$(layers-active)",
         "category": "Run and Debug"
       },
       {
@@ -463,7 +463,7 @@
         {
           "command": "vscode-cmsis-debugger.showCapturedTrace",
           "when": "inDebugMode",
-          "group": "navigation"
+          "group": "navigation@100"
         }
       ],
       "commandPalette": [
