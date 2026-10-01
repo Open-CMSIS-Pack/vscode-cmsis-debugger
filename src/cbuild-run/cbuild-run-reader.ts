@@ -54,6 +54,16 @@ export class CbuildRunReader {
         return this.cbuildRun?.['target-set'];
     }
 
+    /**
+     * Returns the processor that starts first and boots the system. When the
+     * generated debugger metadata does not provide a start processor, the
+     * first processor in system resources is used as the default.
+     */
+    public getStartPname(): string | undefined {
+        return this.cbuildRun?.debugger?.['start-pname']
+            ?? this.cbuildRun?.['system-resources']?.processors?.[0]?.pname;
+    }
+
     public async parse(filePath: string): Promise<void> {
         const fileContents = await this.reader.readFileToString(filePath);
         const fileRoot = yaml.parse(fileContents) as CbuildRunRootType;
