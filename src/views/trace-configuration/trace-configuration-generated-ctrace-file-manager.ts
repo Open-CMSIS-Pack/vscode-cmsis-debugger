@@ -36,6 +36,7 @@ interface GeneratedTraceProcessor {
 
 interface GeneratedCBuildRunData {
     processors: GeneratedTraceProcessor[];
+    startPname: string | undefined;
     targetSet: string | undefined;
 }
 
@@ -179,7 +180,11 @@ export class TraceConfigurationGeneratedCTraceFileManager {
             ? await this.readCTraceDocument(traceFileUri)
             : CTraceYamlDocument.create('CMSIS Debugger');
 
-        const changed = this.addMissingProcessorTraceSetups(document, cbuildRun.processors);
+        const changed = this.addMissingProcessorTraceSetups(
+            document,
+            cbuildRun.processors,
+            cbuildRun.startPname
+        );
 
         const written = !traceFileExists || changed;
         if (written) {
@@ -226,6 +231,7 @@ export class TraceConfigurationGeneratedCTraceFileManager {
                 core: processor.core,
                 ...(processor.pname ? { pname: processor.pname } : {})
             })),
+            startPname: reader.getStartPname(),
             targetSet: reader.getTargetSet()
         };
     }
@@ -323,7 +329,11 @@ export class TraceConfigurationGeneratedCTraceFileManager {
      * addMissingProcessorTraceSetups appends setup entries for generated
      * processors that are not already represented in the ctrace document.
      */
-    private addMissingProcessorTraceSetups(document: CTraceYamlDocument, processors: GeneratedTraceProcessor[]): boolean {
+    private addMissingProcessorTraceSetups(
+        document: CTraceYamlDocument,
+        processors: GeneratedTraceProcessor[],
+        startPname: string | undefined
+    ): boolean {
         const existingProcessorKeys = new Set(document.yaml
             .getArray<CTraceProcessorTraceSetup>(['ctrace', 'setup'])
             .flatMap(setup => {
@@ -339,7 +349,11 @@ export class TraceConfigurationGeneratedCTraceFileManager {
                 continue;
             }
 
-            document.yaml.append(['ctrace', 'setup'], this.createProcessorTraceSetup(processor));
+            const isStartProcessor = processor.pname === startPname;
+            document.yaml.append(
+                ['ctrace', 'setup'],
+                this.createProcessorTraceSetup(processor, isStartProcessor)
+            );
             if (key) {
                 existingProcessorKeys.add(key);
             }
@@ -382,11 +396,14 @@ export class TraceConfigurationGeneratedCTraceFileManager {
      * createProcessorTraceSetup builds the default ctrace setup object for a
      * generated processor based on that core's trace capabilities.
      */
-    private createProcessorTraceSetup(processor: GeneratedTraceProcessor): CTraceProcessorTraceSetup {
+    private createProcessorTraceSetup(
+        processor: GeneratedTraceProcessor,
+        isStartProcessor: boolean
+    ): CTraceProcessorTraceSetup {
         const setup: CTraceProcessorTraceSetup = {
             core: processor.core,
             ...(processor.pname ? { pname: processor.pname } : {}),
-            disable: null
+            ...(isStartProcessor ? {} : { disable: null })
         };
         const capabilities = TraceConfigurationTypes.TRACE_CAPABILITIES_BY_CORE.get(processor.core)
             ?? TraceConfigurationTypes.NO_TRACE_CAPABILITIES;
