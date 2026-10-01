@@ -22,7 +22,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
-import extract from 'extract-zip';
+import { extractZip } from '@open-cmsis-pack/cmsis-common/extract-zip';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -379,7 +379,7 @@ async function main() {
         await fs.mkdir(tempDir, { recursive: true });
 
         // Extract VSIX (it's a ZIP file)
-        await extract(vsixPath, { dir: tempDir });
+        await extractZip(vsixPath, tempDir);
 
         // VSIX structure: extension/ contains the actual extension files
         workDir = path.join(tempDir, 'extension');
