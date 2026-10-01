@@ -34,7 +34,7 @@ export interface CTraceRunMatch {
 }
 
 const NON_NAVIGABLE_TYPES = new Set(['error', 'overflow']);
-const SOURCE_MATCHED_TYPES = new Set(['dwt', 'itm']);
+const INDEX_MATCHED_TYPES = new Set(['dwt', 'itm']);
 
 export async function resolveCTraceRunReference(
     csvUri: vscode.Uri,
@@ -51,7 +51,7 @@ export async function resolveCTraceRunReference(
     }
 
     const stream = parseOptionalNumber(getCell(columns, row, 'stream'));
-    const source = parseOptionalNumber(getCell(columns, row, 'source'));
+    const index = parseOptionalNumber(getCell(columns, row, 'index'));
     const runFileUri = vscode.Uri.file(path.join(path.dirname(csvUri.fsPath), `${solutionSet}.ctrace-run.yml`));
     const content = await vscode.workspace.fs.readFile(runFileUri);
     const document = YamlDomDocument.parse(new TextDecoder().decode(content), runFileUri.fsPath);
@@ -67,7 +67,7 @@ export async function resolveCTraceRunReference(
         if (stream !== undefined && parseRunNumber(candidate.stream) !== stream) {
             continue;
         }
-        if (SOURCE_MATCHED_TYPES.has(type) && (source === undefined || !matchesSource(candidate.index, source))) {
+        if (INDEX_MATCHED_TYPES.has(type) && (index === undefined || !matchesIndex(candidate.index, index))) {
             continue;
         }
         return { solutionSet, ctraceRef: candidate.ref };
@@ -100,7 +100,7 @@ function parseRunNumber(value: unknown): number | undefined {
     return typeof value === 'string' ? parseOptionalNumber(value) : undefined;
 }
 
-function matchesSource(value: unknown, expected: number): boolean {
-    const sources = Array.isArray(value) ? value : [value];
-    return sources.some(source => parseRunNumber(source) === expected);
+function matchesIndex(value: unknown, expected: number): boolean {
+    const indexes = Array.isArray(value) ? value : [value];
+    return indexes.some(index => parseRunNumber(index) === expected);
 }

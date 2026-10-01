@@ -368,13 +368,13 @@ describe('CsvTableEditorProvider', () => {
             '    - ref: data#1',
             '      type: dwt',
             '      stream: 1',
-            '      index: 0',
+            '      index: 1',
             ''
         ].join('\n')));
         const focusCTraceReference = jest.fn().mockResolvedValue(true);
         const provider = new CsvTableEditorProvider(vscode.Uri.file('/extension'), focusCTraceReference);
         const rowStore = new InMemoryCsvTableRowStore({
-            columns: ['cycles', 'stream', 'type', 'source'],
+            columns: ['cycles', 'stream', 'type', 'index'],
             rows: [{ sourceRowIndex: 0, cells: ['1', '1', 'dwt', '0'] }],
             malformedRowCount: 0
         });
