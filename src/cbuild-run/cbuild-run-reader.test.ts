@@ -141,6 +141,43 @@ describe('CbuildRunReader', () => {
             expect(reader.getTargetSet()).toBe('Release');
         });
 
+        it('returns the processor that starts first', async () => {
+            const reader = new CbuildRunReader(new MockFileReader([
+                'cbuild-run:',
+                '  debugger:',
+                '    name: <default>',
+                '    start-pname: Core0',
+            ].join('\n')));
+
+            await reader.parse('test.cbuild-run.yml');
+
+            expect(reader.getStartPname()).toBe('Core0');
+        });
+
+        it('defaults to the first system processor when no start processor is specified', async () => {
+            const reader = new CbuildRunReader(new MockFileReader([
+                'cbuild-run:',
+                '  system-resources:',
+                '    processors:',
+                '      - pname: Core0',
+                '        core: Cortex-M33',
+                '        revision: r0p0',
+                '        max-clock: 100000000',
+                '      - pname: Core1',
+                '        core: Cortex-M55',
+                '        revision: r0p0',
+                '        max-clock: 100000000',
+            ].join('\n')));
+
+            await reader.parse('test.cbuild-run.yml');
+
+            expect(reader.getStartPname()).toBe('Core0');
+        });
+
+        it('returns no start processor when no cbuild-run has been parsed', () => {
+            expect(cbuildRunReader.getStartPname()).toBeUndefined();
+        });
+
         it('returns no target set when no cbuild-run has been parsed', () => {
             expect(cbuildRunReader.getTargetSet()).toBeUndefined();
         });

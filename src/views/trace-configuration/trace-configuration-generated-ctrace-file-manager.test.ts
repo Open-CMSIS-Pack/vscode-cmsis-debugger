@@ -44,10 +44,15 @@ function createProcessor(core: string, pname?: string): ProcessorType {
     };
 }
 
-function mockGeneratedCBuildRunProcessors(processors: ProcessorType[], targetSet = '<default>'): void {
+function mockGeneratedCBuildRunProcessors(
+    processors: ProcessorType[],
+    targetSet = '<default>',
+    startPname = processors.at(0)?.pname
+): void {
     jest.spyOn(CbuildRunReader.prototype, 'parse').mockResolvedValue();
     jest.spyOn(CbuildRunReader.prototype, 'getTraceMode').mockReturnValue('server');
     jest.spyOn(CbuildRunReader.prototype, 'getProcessors').mockReturnValue(processors);
+    jest.spyOn(CbuildRunReader.prototype, 'getStartPname').mockReturnValue(startPname);
     jest.spyOn(CbuildRunReader.prototype, 'getTargetSet').mockReturnValue(targetSet);
 }
 
@@ -97,7 +102,7 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
             fsPromises.rm(workspaceRoot, { recursive: true, force: true })));
     });
 
-    it('creates a generated ctrace file with processors disabled by default', async () => {
+    it('creates a generated ctrace file with only the first processor enabled by default', async () => {
         const workspaceRoot = await createTemporaryWorkspace();
         mockGeneratedCBuildRunProcessors([
             createProcessor('Cortex-M55', 'core0'),
@@ -117,7 +122,6 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         expect(containsSubstringsInOrder(generatedText, [
             'pname: core0',
             'core: Cortex-M55',
-            'disable:',
             'timestamps:',
             'itm-prescaler: 1',
             'data:',
@@ -132,13 +136,30 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
             'core: Cortex-M23',
             'disable:'
         ])).toBe(true);
-        expect(generatedText.match(/disable:/g) ?? []).toHaveLength(2);
+        expect(generatedText.match(/disable:/g) ?? []).toHaveLength(1);
         expect(generatedText).not.toMatch(/timesync|exceptions|instructions/);
         expect(generatedText).not.toContain('timestamps: {}');
         expect(generatedText).not.toContain('instructions: {}');
         expect(generatedText).not.toContain('data: []');
         expect(generatedText).not.toContain('events: []');
         expect(generatedText).not.toContain('pname: core1\n      core: Cortex-M23\n      timestamps');
+    });
+
+    it('enables the processor selected by start-pname', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        mockGeneratedCBuildRunProcessors([
+            createProcessor('Cortex-M55', 'core0'),
+            createProcessor('Cortex-M23', 'core1'),
+        ], '<default>', 'core1');
+        const cbuildRunFile = vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml'));
+        const { manager } = createManagerWithConversionSpy();
+
+        await manager.processGeneratedCBuildRunFileChange({ type: 'created', uri: cbuildRunFile });
+
+        const generatedText = await readTemporaryTextFile(path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yml'));
+        expect(generatedText.match(/disable:/g) ?? []).toHaveLength(1);
+        expect(generatedText).toContain('pname: core0\n      core: Cortex-M55\n      disable:');
+        expect(generatedText).toContain('pname: core1\n      core: Cortex-M23\n');
     });
 
     it('updates an existing generated ctrace file without duplicating existing processors', async () => {
