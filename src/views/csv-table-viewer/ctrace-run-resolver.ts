@@ -25,7 +25,7 @@ interface CTraceRunReference {
     readonly ref?: unknown;
     readonly type?: unknown;
     readonly stream?: unknown;
-    readonly source?: unknown;
+    readonly index?: unknown;
 }
 
 export interface CTraceRunMatch {
@@ -67,7 +67,7 @@ export async function resolveCTraceRunReference(
         if (stream !== undefined && parseRunNumber(candidate.stream) !== stream) {
             continue;
         }
-        if (SOURCE_MATCHED_TYPES.has(type) && (source === undefined || !matchesSource(candidate.source, source))) {
+        if (SOURCE_MATCHED_TYPES.has(type) && (source === undefined || !matchesSource(candidate.index, source))) {
             continue;
         }
         return { solutionSet, ctraceRef: candidate.ref };

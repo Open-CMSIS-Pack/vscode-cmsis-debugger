@@ -44,11 +44,11 @@ describe('resolveCTraceRunReference', () => {
             '    - ref: data#0',
             '      type: dwt',
             '      stream: 1',
-            '      source: [0, 1]',
+            '      index: [0, 1]',
             '    - ref: data#1',
             '      type: dwt',
             '      stream: 1',
-            '      source: 1'
+            '      index: 1'
         ].join('\n'));
 
         await expect(resolveCTraceRunReference(csvUri, columns, row('1', 'dwt', '1')))
@@ -60,7 +60,7 @@ describe('resolveCTraceRunReference', () => {
             '    - ref: itm',
             '      type: itm',
             '      stream: 7',
-            '      source: 3'
+            '      index: 3'
         ].join('\n'));
 
         await expect(resolveCTraceRunReference(csvUri, columns, row('', 'itm', '3')))
