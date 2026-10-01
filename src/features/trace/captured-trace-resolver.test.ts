@@ -52,6 +52,26 @@ describe('CapturedTraceResolver', () => {
         expect(vscode.window.showQuickPick).not.toHaveBeenCalled();
     });
 
+    it('reports whether the active solution set has an SWO capture file', async () => {
+        (vscode.workspace.fs.stat as jest.Mock)
+            .mockResolvedValueOnce({ type: vscode.FileType.File } as vscode.FileStat)
+            .mockRejectedValueOnce(new Error('File not found'));
+
+        await expect(resolver.hasSwoCapture(CBUILD_RUN_FILE_PATH)).resolves.toBe(true);
+        await expect(resolver.hasSwoCapture(CBUILD_RUN_FILE_PATH)).resolves.toBe(false);
+
+        expect(vscode.workspace.fs.stat).toHaveBeenNthCalledWith(
+            1,
+            vscode.Uri.file(`/workspace/solution/.trace/${SOLUTION_SET}.SWO.csv`)
+        );
+    });
+
+    it('rejects a non-file SWO capture path', async () => {
+        (vscode.workspace.fs.stat as jest.Mock).mockResolvedValue({ type: vscode.FileType.Directory } as vscode.FileStat);
+
+        await expect(resolver.hasSwoCapture(CBUILD_RUN_FILE_PATH)).resolves.toBe(false);
+    });
+
     it('silently does nothing when the active cbuild-run file is unavailable', async () => {
         jest.spyOn(locator, 'getDefaultSolutionSet').mockRejectedValue(new Error('No cbuild run file path provided.'));
 

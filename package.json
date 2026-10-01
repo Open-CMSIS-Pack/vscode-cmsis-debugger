@@ -462,7 +462,7 @@
       "debug/toolBar": [
         {
           "command": "vscode-cmsis-debugger.showCapturedTrace",
-          "when": "inDebugMode",
+          "when": "inDebugMode && vscode-cmsis-debugger.hasCapturedTrace",
           "group": "navigation@100"
         }
       ],
@@ -767,7 +767,7 @@
         },
         {
           "command": "vscode-cmsis-debugger.showCapturedTrace",
-          "when": "view == cmsis-debugger.traceConfiguration",
+          "when": "view == cmsis-debugger.traceConfiguration && vscode-cmsis-debugger.hasCapturedTrace",
           "group": "navigation@3"
         },
         {

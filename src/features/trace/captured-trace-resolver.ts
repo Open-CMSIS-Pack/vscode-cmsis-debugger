@@ -69,6 +69,21 @@ export class CapturedTraceResolver {
         }
     }
 
+    public async hasSwoCapture(cbuildRunFilePath?: string): Promise<boolean> {
+        const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
+        if (activeSolutionFolder === undefined) {
+            return false;
+        }
+        try {
+            const solutionSet = await this.cbuildRunFileLocator.getDefaultSolutionSet(cbuildRunFilePath);
+            const uri = vscode.Uri.joinPath(activeSolutionFolder, '.trace', `${solutionSet}.SWO.csv`);
+            const stat = await vscode.workspace.fs.stat(uri);
+            return (stat.type & vscode.FileType.File) !== 0;
+        } catch {
+            return false;
+        }
+    }
+
     private async openCapture(uri: vscode.Uri): Promise<void> {
         await vscode.commands.executeCommand('vscode.openWith', uri, CSV_TABLE_EDITOR_VIEW_TYPE);
     }
