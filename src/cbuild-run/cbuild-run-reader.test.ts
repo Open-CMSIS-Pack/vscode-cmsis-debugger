@@ -34,36 +34,6 @@ class MockFileReader implements FileReader {
     }
 }
 
-// Compare function that compares path and allows differing drive letter casing on Windows.
-const comparePath = (received: string|undefined, expected: string): boolean => {
-    if (!received) {
-        return false;
-    }
-    // Exact match first, majority of cases.
-    if (received === expected) {
-        return true;
-    }
-    // Exit if not Windows, no match
-    if (process.platform !== 'win32') {
-        return false;
-    }
-    // Split drive letter from path. Assumption: no URLs, no other colons in folder names.
-    const receivedFragments = received.split(':');
-    const expectedFragments = expected.split(':');
-    if (receivedFragments.length !== expectedFragments.length) {
-        return false;
-    }
-    return receivedFragments.every((receivedFragment, index) => {
-        // eslint-disable-next-line security/detect-object-injection
-        const expectedFragment = expectedFragments[index];
-        if (index === 0) {
-            // Drive letter
-            return receivedFragment.toLowerCase() === expectedFragment.toLowerCase();
-        }
-        return receivedFragment === expectedFragment;
-    });
-};
-
 describe('CbuildRunReader', () => {
 
     describe('Parser', () => {
@@ -135,14 +105,8 @@ describe('CbuildRunReader', () => {
         ])('returns SVD file path ($info)', async ({ pname, expectedSvdPaths }) => {
             await cbuildRunReader.parse(TEST_CBUILD_RUN_FILE);
             const svdFilePaths = cbuildRunReader.getSvdFilePaths('/my/pack/root', pname);
-            expect(svdFilePaths.length).toEqual(expectedSvdPaths.length);
-            for (let i = 0; i < svdFilePaths.length; i++) {
-                // eslint-disable-next-line security/detect-object-injection
-                const expectedPath = path.normalize(path.resolve(expectedSvdPaths[i]));
-                // eslint-disable-next-line security/detect-object-injection
-                const actualPath = svdFilePaths[i];
-                expect(comparePath(actualPath, expectedPath)).toBe(true);
-            }
+            expect(svdFilePaths).toEqual(expectedSvdPaths.map(expectedPath =>
+                expect.toEqualFsPath(path.resolve(expectedPath))));
         });
 
         it('returns empty SVD file path list if nothing is parsed', () => {
@@ -322,8 +286,7 @@ describe('CbuildRunReader', () => {
                 ),
                 path.normalize(EXPECTED_CUSTOM_SVD),
             ];
-            // eslint-disable-next-line security/detect-object-injection
-            svdPaths.forEach((svdPath, index) => expect(comparePath(svdPath, expectedSvdPaths[index])).toBe(true));
+            expect(svdPaths).toEqual(expectedSvdPaths.map(expectedPath => expect.toEqualFsPath(expectedPath)));
         });
 
         it('includes descriptors without pname when filtering by pname (SVD)', async () => {
@@ -337,8 +300,7 @@ describe('CbuildRunReader', () => {
                 path.normalize(path.resolve(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SVD', 'MyDevice_generic.svd')),
                 path.normalize(EXPECTED_CUSTOM_SVD),
             ];
-            // eslint-disable-next-line security/detect-object-injection
-            svdPaths.forEach((svdPath, index) => expect(comparePath(svdPath, expectedSvdPaths[index])).toBe(true));
+            expect(svdPaths).toEqual(expectedSvdPaths.map(expectedPath => expect.toEqualFsPath(expectedPath)));
         });
 
         it('includes descriptors without pname when filtering by pname (SCVD)', async () => {
@@ -352,8 +314,7 @@ describe('CbuildRunReader', () => {
                 path.normalize(EXPECTED_CUSTOM_SCVD),
                 path.normalize(path.resolve(PACK_ROOT, 'MyVendor', 'MyDevice', '1.0.0', 'Debug', 'SCVD', 'Core1.scvd')),
             ];
-            // eslint-disable-next-line security/detect-object-injection
-            scvdPaths.forEach((scvdPath, index) => expect(comparePath(scvdPath, expectedScvdPaths[index])).toBe(true));
+            expect(scvdPaths).toEqual(expectedScvdPaths.map(expectedPath => expect.toEqualFsPath(expectedPath)));
         });
 
         it.each([
@@ -368,7 +329,7 @@ describe('CbuildRunReader', () => {
             const svdFilePaths = cbuildRunReader.getSvdFilePaths(PACK_ROOT);
             const expectedTail = path.normalize(path.join('MyDevice', 'multi-core-custom.svd'));
             const resolvedCustom = svdFilePaths.find((p: string) => p.endsWith(expectedTail));
-            expect(comparePath(resolvedCustom, path.normalize(EXPECTED_CUSTOM_SVD))).toBe(true);
+            expect(resolvedCustom).toEqualFsPath(EXPECTED_CUSTOM_SVD);
         });
 
         it.each([
@@ -383,7 +344,7 @@ describe('CbuildRunReader', () => {
             const scvdFilePaths = cbuildRunReader.getScvdFilePaths(PACK_ROOT);
             const expectedTail = path.normalize(path.join('MyDevice', 'multi-core-custom.scvd'));
             const resolvedCustom = scvdFilePaths.find((p: string) => p.endsWith(expectedTail));
-            expect(comparePath(resolvedCustom, path.normalize(EXPECTED_CUSTOM_SCVD))).toBe(true);
+            expect(resolvedCustom).toEqualFsPath(EXPECTED_CUSTOM_SCVD);
         });
     });
 });

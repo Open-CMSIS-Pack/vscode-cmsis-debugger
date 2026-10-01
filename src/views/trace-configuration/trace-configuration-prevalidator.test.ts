@@ -23,14 +23,11 @@ import { CbuildRunReader, CBuildRunFileLocator } from '../../cbuild-run';
 import { PyTsProcessManager } from '../../desktop/process/pyts-process-manager';
 import { logger } from '../../logger';
 import { waitForCondition } from '../../utils';
-import { TraceConfigurationRunMessageReader } from './ctrace-run-validation-message-reader';
 import { PyTsTraceConfigurationPrevalidator } from './trace-configuration-prevalidator';
 
 const CBUILD_RUN_FILE_NAME = path.join('/workspace', 'out', 'project+target.cbuild-run.yml');
 const CTRACE_FILE_NAME = path.join('/workspace', '.cmsis', 'project+target.ctrace.yml');
 const OTHER_CTRACE_FILE_NAME = path.join('/workspace', '.cmsis', 'other.ctrace.yml');
-const PRODUCTION_CTRACE_RUN_FILE_NAME = path.join('/workspace', '.trace', 'project+target.ctrace-run.yml');
-const BACKUP_CTRACE_RUN_FILE_NAME = path.join('/workspace', '.trace', '~project+target.ctrace-run.yml');
 
 interface FakeProcessManager {
     launch: jest.Mock<Promise<void>, [object?]>;
@@ -48,13 +45,6 @@ function createProcessManager(exitCode: number | null = 0): FakeProcessManager {
 
 function asProcessManager(processManager: FakeProcessManager): PyTsProcessManager {
     return processManager as unknown as PyTsProcessManager;
-}
-
-function createRunMessageReader(): jest.Mocked<TraceConfigurationRunMessageReader> {
-    return {
-        exists: jest.fn().mockResolvedValue(false),
-        readIfExists: jest.fn().mockResolvedValue(undefined)
-    };
 }
 
 function createDependencies(): {
@@ -86,79 +76,16 @@ describe('PyTsTraceConfigurationPrevalidator', () => {
         );
 
         await expect(prevalidator.validate(CTRACE_FILE_NAME))
-            .resolves.toEqual({ status: 'passed', referenceMessages: [] });
+            .resolves.toEqual({ status: 'passed' });
 
-        expect(reader.parse).toHaveBeenCalledWith(CBUILD_RUN_FILE_NAME);
+        expect(reader.parse).toHaveBeenCalledWith(expect.toEqualFsPath(CBUILD_RUN_FILE_NAME));
         expect(locator.getCTraceUriFromCBuildRunUri).toHaveBeenCalledWith(
             vscode.Uri.file(CBUILD_RUN_FILE_NAME),
             '<default>'
         );
         expect(processManager.launch).toHaveBeenCalledWith({
-            cbuildRunFilePath: CBUILD_RUN_FILE_NAME
+            cbuildRunFilePath: expect.toEqualFsPath(CBUILD_RUN_FILE_NAME)
         });
-    });
-
-    it('prefers messages from the backup ctrace-run generated for a backup input', async () => {
-        const { locator, reader, processManager } = createDependencies();
-        const runMessageReader = createRunMessageReader();
-        const backupMessages = [{ ctraceRef: 'data#0', severity: 'warning' as const, message: 'aligned' }];
-        runMessageReader.exists.mockResolvedValue(true);
-        runMessageReader.readIfExists.mockResolvedValue(backupMessages);
-        const prevalidator = new PyTsTraceConfigurationPrevalidator(
-            locator,
-            () => reader,
-            () => asProcessManager(processManager),
-            runMessageReader
-        );
-
-        await expect(prevalidator.validate(CTRACE_FILE_NAME)).resolves.toEqual({
-            status: 'passed',
-            referenceMessages: backupMessages
-        });
-        expect(runMessageReader.readIfExists).toHaveBeenCalledTimes(1);
-        expect(runMessageReader.readIfExists).toHaveBeenCalledWith(BACKUP_CTRACE_RUN_FILE_NAME);
-    });
-
-    it('falls back to production messages when backup output is missing', async () => {
-        const { locator, reader, processManager } = createDependencies();
-        const runMessageReader = createRunMessageReader();
-        const productionMessages = [{ ctraceRef: 'events#0', severity: 'info' as const, message: 'enabled' }];
-        runMessageReader.exists.mockResolvedValue(true);
-        runMessageReader.readIfExists
-            .mockResolvedValueOnce(undefined)
-            .mockResolvedValueOnce(productionMessages);
-        const prevalidator = new PyTsTraceConfigurationPrevalidator(
-            locator,
-            () => reader,
-            () => asProcessManager(processManager),
-            runMessageReader
-        );
-
-        await expect(prevalidator.validate(CTRACE_FILE_NAME)).resolves.toEqual({
-            status: 'passed',
-            referenceMessages: productionMessages
-        });
-        expect(runMessageReader.readIfExists.mock.calls.map(call => call[0])).toEqual([
-            BACKUP_CTRACE_RUN_FILE_NAME,
-            PRODUCTION_CTRACE_RUN_FILE_NAME
-        ]);
-    });
-
-    it('ignores a stale backup output when no backup input exists', async () => {
-        const { locator, reader, processManager } = createDependencies();
-        const runMessageReader = createRunMessageReader();
-        runMessageReader.readIfExists.mockResolvedValue([]);
-        const prevalidator = new PyTsTraceConfigurationPrevalidator(
-            locator,
-            () => reader,
-            () => asProcessManager(processManager),
-            runMessageReader
-        );
-
-        await prevalidator.validate(CTRACE_FILE_NAME);
-
-        expect(runMessageReader.readIfExists).toHaveBeenCalledTimes(1);
-        expect(runMessageReader.readIfExists).toHaveBeenCalledWith(PRODUCTION_CTRACE_RUN_FILE_NAME);
     });
 
     it.each([

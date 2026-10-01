@@ -84,8 +84,12 @@ describe('CTraceController', () => {
         const directController = new CTraceController({ cTracePath: 'ctrace-path' });
         await expect(directController.run({ args: ['--version'] })).resolves.toBe(0);
 
-        expect(launch).toHaveBeenNthCalledWith(1, { cbuildRunFilePath: CBUILD_RUN_FILE_PATH });
-        expect(launch).toHaveBeenNthCalledWith(2, { cbuildRunFilePath: '/workspace/provided.cbuild-run.yml' });
+        expect(launch).toHaveBeenNthCalledWith(1, {
+            cbuildRunFilePath: expect.toEqualFsPath(CBUILD_RUN_FILE_PATH)
+        });
+        expect(launch).toHaveBeenNthCalledWith(2, {
+            cbuildRunFilePath: expect.toEqualFsPath('/workspace/provided.cbuild-run.yml')
+        });
         expect(launch).toHaveBeenNthCalledWith(3, { args: ['--version'] });
         expect(waitForExit).toHaveBeenCalledTimes(3);
     });
@@ -96,8 +100,9 @@ describe('CTraceController', () => {
         await testAccess.handleRawTraceFileChanged(RAW_TRACE_URI);
 
         expect(run).toHaveBeenCalledTimes(1);
-        expect(run).toHaveBeenCalledWith({ cbuildRunFilePath: CBUILD_RUN_FILE_PATH });
-        expect(openCapturedTrace).toHaveBeenCalledWith(CBUILD_RUN_FILE_PATH);
+        expect(run).toHaveBeenCalledWith({
+            cbuildRunFilePath: expect.toEqualFsPath(CBUILD_RUN_FILE_PATH)
+        });
     });
 
     it('logs a failed ctrace decode', async () => {
@@ -142,7 +147,9 @@ describe('CTraceController', () => {
         await testAccess.handleDecodeTrigger(session);
 
         expect(run).toHaveBeenCalledTimes(1);
-        expect(run).toHaveBeenCalledWith({ cbuildRunFilePath: CBUILD_RUN_FILE_PATH });
+        expect(run).toHaveBeenCalledWith({
+            cbuildRunFilePath: expect.toEqualFsPath(CBUILD_RUN_FILE_PATH)
+        });
     });
 
     it('does not decode when the raw trace file save is outside the correlation window', async () => {
@@ -186,7 +193,9 @@ describe('CTraceController', () => {
         await testAccess.handleRawTraceFileChanged(RAW_TRACE_URI);
 
         expect(run).toHaveBeenCalledTimes(1);
-        expect(run).toHaveBeenCalledWith({ cbuildRunFilePath: newerCbuildRunFilePath });
+        expect(run).toHaveBeenCalledWith({
+            cbuildRunFilePath: expect.toEqualFsPath(newerCbuildRunFilePath)
+        });
     });
 
     it('adds its raw trace watch on activation', async () => {

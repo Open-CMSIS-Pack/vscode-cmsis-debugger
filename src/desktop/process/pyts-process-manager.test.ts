@@ -53,7 +53,7 @@ describe('PyTsProcessManager', () => {
 
         expect(mockSpawn).toHaveBeenCalledWith(
             'pyts-path',
-            ['/workspace/example.cbuild-run.yml', '--allow-missing'],
+            [expect.toEqualFsPath('/workspace/example.cbuild-run.yml'), '--allow-missing'],
             expect.any(Object)
         );
         expect(getCBuildRunFileName).not.toHaveBeenCalled();
@@ -67,7 +67,7 @@ describe('PyTsProcessManager', () => {
 
         expect(mockSpawn).toHaveBeenCalledWith(
             'pyts-path',
-            ['/workspace/example.cbuild-run.yml', '--allow-missing'],
+            [expect.toEqualFsPath('/workspace/example.cbuild-run.yml'), '--allow-missing'],
             expect.any(Object)
         );
         expect(getCBuildRunFileName).toHaveBeenCalledWith(undefined, true);

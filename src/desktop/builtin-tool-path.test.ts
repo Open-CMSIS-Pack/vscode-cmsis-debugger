@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ describe('BuiltinToolPath', () => {
 
         const expected = vscode.Uri.file(`${testFolder}/tools/pyocd/pyocd${TOOL_EXTENSION}`);
         const result = builtinToolPath.getAbsolutePath();
-        expect(result?.fsPath).toBe(expected.fsPath);
+        expect(result?.fsPath).toEqualFsPath(expected.fsPath);
     });
 
     it('should return undefined if tool does not exist', () => {
@@ -67,7 +67,7 @@ describe('BuiltinToolPath', () => {
 
         const expected = vscode.Uri.file(`${testFolder}/tools/pyocd`);
         const result = builtinToolPath.getAbsolutePathDir();
-        expect(result).toBe(expected.fsPath);
+        expect(result).toEqualFsPath(expected.fsPath);
     });
 
     it('should return undefined if tool does not exist', () => {

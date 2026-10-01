@@ -1115,7 +1115,7 @@ describe('ComponentViewerBase', () => {
         const readScvdFiles = getReadScvdFiles(controller);
         await readScvdFiles(tracker, session);
 
-        expect(setSvdPathSpy).toHaveBeenCalledWith('/path/to/device.svd');
+        expect(setSvdPathSpy).toHaveBeenCalledWith(expect.toEqualFsPath('/path/to/device.svd'));
     });
 
     it('handleOnStackTrace throws when session id does not match active session', async () => {

@@ -94,7 +94,7 @@ describe('CorePeripheralsScvdCollector', () => {
         const scvdFilePaths = await corePeripheralsScvdCollector.getScvdFilePaths(debugSession);
         expect(scvdFilePaths.length).toBe(EXPECTED_DEFAULT_CORE_PERIPHERAL_FILE_PATHS.length);
         EXPECTED_DEFAULT_CORE_PERIPHERAL_FILE_PATHS.forEach(filePath => {
-            expect(scvdFilePaths.includes(filePath)).toBe(true);
+            expect(scvdFilePaths).toContainEqual(expect.toEqualFsPath(filePath));
         });
     });
 
@@ -131,7 +131,7 @@ describe('CorePeripheralsScvdCollector', () => {
         const cbuildRunReader = await debugSession.getCbuildRun();
         (cbuildRunReader?.getContents as jest.Mock).mockReturnValue({ 'system-resources': { processors: TEST_PROCESSORS } });
         const scvdFilePaths = await corePeripheralsScvdCollector.getScvdFilePaths(debugSession);
-        expect(scvdFilePaths).toEqual(resolvedExpected);
+        expect(scvdFilePaths).toEqual(resolvedExpected.map(filePath => expect.toEqualFsPath(filePath)));
     });
 
     it.each([
@@ -146,7 +146,7 @@ describe('CorePeripheralsScvdCollector', () => {
         const cbuildRunReader = await debugSession.getCbuildRun();
         (cbuildRunReader?.getContents as jest.Mock).mockReturnValue({ 'system-resources': { processors: [ TEST_PROCESSOR_M0P ] } });
         const scvdFilePaths = await corePeripheralsScvdCollector.getScvdFilePaths(debugSession);
-        expect(scvdFilePaths).toEqual(resolvedExpected);
+        expect(scvdFilePaths).toEqual(resolvedExpected.map(filePath => expect.toEqualFsPath(filePath)));
     });
 
 });

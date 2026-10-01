@@ -24,7 +24,10 @@ import {
     TraceConfigurationBackupStore,
     WorkspaceTraceConfigurationBackupStore
 } from './trace-configuration-backup';
-import { getTraceConfigurationBackupFileName } from './trace-configuration-file-names';
+import {
+    getTraceConfigurationArtifactFileNames,
+    getTraceConfigurationBackupFileName
+} from './trace-configuration-file-names';
 import { TraceConfigurationPrevalidator } from './trace-configuration-prevalidator';
 
 function createStore(): jest.Mocked<TraceConfigurationBackupStore> {
@@ -151,7 +154,7 @@ describe('DebouncedTraceConfigurationBackup', () => {
         await expect(backup.flush()).resolves.toBeUndefined();
         expect(onError).toHaveBeenCalledWith(error);
         expect(prevalidator.validate).not.toHaveBeenCalled();
-        expect(onValidationStateChanged).toHaveBeenLastCalledWith('failed', { message: 'backup failed' });
+        expect(onValidationStateChanged).toHaveBeenLastCalledWith('failed', 'backup failed');
     });
 
     it('flushes the latest snapshot when disposed', async () => {
@@ -233,7 +236,7 @@ describe('DebouncedTraceConfigurationBackup', () => {
         backup.schedule('/workspace/target.ctrace.yml', 'contents');
         await backup.flush();
 
-        expect(onValidationStateChanged).toHaveBeenLastCalledWith(state, { message: result.message });
+        expect(onValidationStateChanged).toHaveBeenLastCalledWith(state, result.message);
     });
 
     it('cancels an obsolete validation and only accepts the latest result', async () => {
@@ -292,25 +295,34 @@ describe('WorkspaceTraceConfigurationBackupStore', () => {
     async function createTemporaryFileName(): Promise<string> {
         const directory = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'trace-configuration-backup-'));
         temporaryDirectories.push(directory);
-        return path.join(directory, 'target.ctrace.yml');
+        const ctraceDirectory = path.join(directory, '.cmsis');
+        // Test paths are created under this suite's temporary directory.
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
+        await fsPromises.mkdir(ctraceDirectory);
+        return path.join(ctraceDirectory, 'target.ctrace.yml');
     }
 
     it('derives the backup name beside the active file', () => {
         expect(getTraceConfigurationBackupFileName(path.join('/workspace', '.cmsis', 'target.ctrace.yml')))
-            .toBe(path.join('/workspace', '.cmsis', '~target.ctrace.yml'));
+            .toEqualFsPath(path.join('/workspace', '.cmsis', '~target.ctrace.yml'));
     });
 
-    it('writes, restores, and deletes a recovery document', async () => {
+    it('writes, restores, and deletes recovery artifacts', async () => {
         const fileName = await createTemporaryFileName();
-        const backupFileName = getTraceConfigurationBackupFileName(fileName);
+        const artifacts = getTraceConfigurationArtifactFileNames(fileName);
         const store = new WorkspaceTraceConfigurationBackupStore();
 
         await store.write(fileName, 'ctrace:\n  created-by: backup\n');
+        // Test paths are created under this suite's temporary directory.
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
+        await fsPromises.mkdir(path.dirname(artifacts.backupCTraceRunFileName));
+        await writeTemporaryFile(artifacts.backupCTraceRunFileName, 'ctrace-run:\n');
         const restored = await store.restore(fileName);
         expect(restored?.toString()).toContain('created-by: backup');
 
         await store.delete(fileName);
-        await expectFileMissing(backupFileName);
+        await expectFileMissing(artifacts.backupCTraceFileName);
+        await expectFileMissing(artifacts.backupCTraceRunFileName);
         await expect(store.delete(fileName)).resolves.toBeUndefined();
     });
 
