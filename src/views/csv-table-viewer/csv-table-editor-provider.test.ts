@@ -405,20 +405,20 @@ describe('CsvTableEditorProvider', () => {
         jest.spyOn(vscode.workspace.fs, 'readFile').mockResolvedValue(Buffer.from([
             'ctrace-run:',
             '  ctrace-refs:',
-            '    - ctrace-ref: data#0',
+            '    - ref: data#0',
             '      type: dwt',
             '      stream: 1',
-            '      source: 0',
-            '    - ctrace-ref: data#1',
+            '      index: 0',
+            '    - ref: data#1',
             '      type: dwt',
             '      stream: 1',
-            '      source: 0',
+            '      index: 1',
             ''
         ].join('\n')));
         const focusCTraceReference = jest.fn().mockResolvedValue(true);
         const provider = new CsvTableEditorProvider(vscode.Uri.file('/extension'), focusCTraceReference);
         const rowStore = new InMemoryCsvTableRowStore({
-            columns: ['cycles', 'stream', 'type', 'source'],
+            columns: ['cycles', 'stream', 'type', 'index'],
             rows: [{ sourceRowIndex: 0, cells: ['1', '1', 'dwt', '0'] }],
             malformedRowCount: 0
         });

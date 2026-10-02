@@ -28,7 +28,7 @@ export interface TraceConfigurationRunMessageReader {
     readIfExists(fileName: string): Promise<readonly TraceConfigurationReferenceValidationMessage[] | undefined>;
 }
 
-/** Reads and reduces validator messages embedded in pyTS ctrace-ref entries. */
+/** Reads and reduces validator messages embedded in pyTS ctrace-run reference entries. */
 export class CTraceRunValidationMessageReader implements TraceConfigurationRunMessageReader {
     public constructor(private readonly fileAdapter: TextFileAdapter = new WorkspaceTextFileAdapter()) {}
 
@@ -41,7 +41,7 @@ export class CTraceRunValidationMessageReader implements TraceConfigurationRunMe
 }
 
 /**
- * Selects the highest-severity message for each ctrace-ref. Equal severities
+ * Selects the highest-severity message for each ctrace-run reference. Equal severities
  * keep the first entry in file order.
  */
 export function parseCTraceRunValidationMessages(text: string): readonly TraceConfigurationReferenceValidationMessage[] {
@@ -56,10 +56,10 @@ export function parseCTraceRunValidationMessages(text: string): readonly TraceCo
 
     const selected = new Map<string, TraceConfigurationReferenceValidationMessage>();
     run['ctrace-refs'].forEach(candidate => {
-        if (!isObject(candidate) || typeof candidate['ctrace-ref'] !== 'string') {
+        if (!isObject(candidate) || typeof candidate.ref !== 'string') {
             return;
         }
-        const ctraceRef = candidate['ctrace-ref'].trim();
+        const ctraceRef = candidate.ref.trim();
         if (!ctraceRef) {
             return;
         }
