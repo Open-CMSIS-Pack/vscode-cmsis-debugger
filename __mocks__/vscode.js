@@ -19,6 +19,8 @@ const { URI } = require('vscode-uri');
 const path = require('path');
 const fs = require('fs');
 
+URI.joinPath = (base, ...paths) => URI.file(path.join(base.fsPath, ...paths));
+
 const EnvironmentVariableMutatorType = {
     Replace: 1,
     Append: 2,
@@ -138,6 +140,7 @@ module.exports = {
         showInputBox: jest.fn(),
         showOpenDialog: jest.fn(),
         showQuickPick: jest.fn(),
+        showTextDocument: jest.fn(),
         createInputBox: jest.fn(() => {
             const handlers = { onDidChangeValue: [], onDidAccept: [], onDidHide: [] };
             return {
@@ -184,6 +187,7 @@ module.exports = {
                 return Promise.resolve();
             }),
             delete: jest.fn(uri => fs.promises.rm(uri.fsPath, { force: true })),
+            readDirectory: jest.fn(() => Promise.resolve([])),
             stat: jest.fn(uri => new Promise((resolve, reject) => {
                 fs.stat(uri.fsPath, (error, stats) => {
                     if (error) {

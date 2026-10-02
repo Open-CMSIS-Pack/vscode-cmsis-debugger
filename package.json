@@ -127,6 +127,12 @@
         "category": "CMSIS Debugger"
       },
       {
+        "command": "vscode-cmsis-debugger.showCapturedTrace",
+        "title": "Show Captured Trace",
+        "icon": "$(layers-active)",
+        "category": "Run and Debug"
+      },
+      {
         "command": "vscode-cmsis-debugger.reloadCTrace",
         "title": "Reload *.ctrace.yml",
         "category": "CMSIS Debugger",
@@ -410,12 +416,22 @@
     "menus": {
       "editor/context": [
         {
+          "command": "vscode-cmsis-debugger.showCapturedTrace",
+          "when": "editorTextFocus",
+          "group": "z_commands"
+        },
+        {
           "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromTextEditor",
           "when": "editorTextFocus",
           "group": "z_commands"
         }
       ],
       "editor/lineNumber/context": [
+        {
+          "command": "vscode-cmsis-debugger.showCapturedTrace",
+          "when": "editorTextFocus",
+          "group": "z_commands"
+        },
         {
           "command": "vscode-cmsis-debugger.openDisassemblyView",
           "when": "inDebugMode",
@@ -434,6 +450,20 @@
           "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromWatchWindow",
           "when": "inDebugMode",
           "group": "z_commands"
+        }
+      ],
+      "debug/callstack/context": [
+        {
+          "command": "vscode-cmsis-debugger.showCapturedTrace",
+          "when": "inDebugMode",
+          "group": "z_commands"
+        }
+      ],
+      "debug/toolBar": [
+        {
+          "command": "vscode-cmsis-debugger.showCapturedTrace",
+          "when": "inDebugMode && vscode-cmsis-debugger.hasCapturedTrace",
+          "group": "custom"
         }
       ],
       "commandPalette": [
@@ -614,6 +644,10 @@
           "when": "true"
         },
         {
+          "command": "vscode-cmsis-debugger.showCapturedTrace",
+          "when": "true"
+        },
+        {
           "command": "vscode-cmsis-debugger.reloadCTrace",
           "when": "inDebugMode"
         }
@@ -732,14 +766,19 @@
           "group": "navigation@2"
         },
         {
+          "command": "vscode-cmsis-debugger.showCapturedTrace",
+          "when": "view == cmsis-debugger.traceConfiguration && vscode-cmsis-debugger.hasCapturedTrace",
+          "group": "navigation@3"
+        },
+        {
           "command": "vscode-cmsis-debugger.traceConfiguration.expandAll",
           "when": "view == cmsis-debugger.traceConfiguration",
-          "group": "navigation@3"
+          "group": "navigation@4"
         },
         {
           "command": "vscode-cmsis-debugger.traceConfiguration.collapseAll",
           "when": "view == cmsis-debugger.traceConfiguration",
-          "group": "navigation@4"
+          "group": "navigation@5"
         }
       ],
       "view/item/context": [
@@ -1006,6 +1045,11 @@
             "type": "boolean",
             "default": false,
             "description": "Show internal ctrace-ref values in label tooltips for diagnostic purposes."
+          },
+          "vscode-cmsis-debugger.openCapturedTraceAfterDecode": {
+            "type": "boolean",
+            "default": true,
+            "description": "Open the decoded trace capture after a target pause triggers trace decoding."
           }
         }
       }

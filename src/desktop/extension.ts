@@ -33,6 +33,7 @@ import { TraceConfigurationCommands } from '../views/trace-configuration/trace-c
 import { TraceCommands } from '../features/trace/trace-commands';
 import { PyTsController } from '../features/trace/pyts-controller';
 import { CTraceController } from '../features/trace/ctrace-controller';
+import { CapturedTraceResolver } from '../features/trace/captured-trace-resolver';
 import { CBuildRunFileLocator } from '../cbuild-run';
 import { CmsisJsonWatcher } from '../cmsis-files';
 import { FileWatchManager } from './filesystem/file-watch-manager';
@@ -66,8 +67,9 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     const cbuildRunFileLocator = new CBuildRunFileLocator();
     const cmsisJsonWatcher = new CmsisJsonWatcher(cbuildRunFileLocator);
     const pyTsController = new PyTsController({}, cbuildRunFileLocator, cmsisJsonWatcher);
-    const cTraceController = new CTraceController({}, Date.now, cbuildRunFileLocator, cmsisJsonWatcher);
-    const traceCommands = new TraceCommands(pyTsController, cTraceController);
+    const capturedTraceResolver = new CapturedTraceResolver(cbuildRunFileLocator);
+    const cTraceController = new CTraceController({}, Date.now, cbuildRunFileLocator, cmsisJsonWatcher, capturedTraceResolver);
+    const traceCommands = new TraceCommands(pyTsController, cTraceController, capturedTraceResolver);
     const gdbtargetConfigurationProvider = new GDBTargetConfigurationProvider();
     const cpuStates = new CpuStates();
     const cpuStatesCommands = new CpuStatesCommands();

@@ -95,6 +95,7 @@ class IndexingCsvTableRowStore implements CsvTableRowStore {
 
 interface MockFileSystemWatcher {
     readonly _handlers: {
+        readonly create: Array<(uri: vscode.Uri) => void>;
         readonly change: Array<(uri: vscode.Uri) => void>;
     };
 }
@@ -292,6 +293,10 @@ describe('CsvTableEditorProvider', () => {
         await waitFor(() => expect(fixture.webview.postMessage).toHaveBeenCalledTimes(4));
 
         const watcher = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.results.at(-1)?.value as MockFileSystemWatcher;
+        expect(vscode.workspace.createFileSystemWatcher).toHaveBeenLastCalledWith(expect.objectContaining({
+            baseUri: vscode.Uri.file('/workspace/.trace'),
+            pattern: '*',
+        }));
         watcher._handlers.change[0]?.(document.uri);
         await waitFor(() => expect(fixture.webview.postMessage).toHaveBeenCalledTimes(5));
         expect(reloadedStore.rowCount).toBe(1);
@@ -308,6 +313,45 @@ describe('CsvTableEditorProvider', () => {
                 { sourceRowIndex: 0, cells: ['30'] },
             ],
         } satisfies CsvTableHostMessage);
+    });
+
+    it('reloads when the CSV file is replaced', async () => {
+        const provider = new CsvTableEditorProvider(vscode.Uri.file('/extension'));
+        const initialStore = new InMemoryCsvTableRowStore({
+            columns: ['event'],
+            rows: [{ sourceRowIndex: 0, cells: ['initial'] }],
+            malformedRowCount: 0,
+        });
+        const replacementStore = new InMemoryCsvTableRowStore({
+            columns: ['event'],
+            rows: [{ sourceRowIndex: 0, cells: ['replacement'] }],
+            malformedRowCount: 0,
+        });
+        jest.spyOn(provider as unknown as { readRowStore(uri: vscode.Uri): Promise<CsvTableRowStore> }, 'readRowStore')
+            .mockResolvedValueOnce(initialStore)
+            .mockResolvedValueOnce(replacementStore);
+        const fixture = createWebviewPanel();
+        const document = { uri: vscode.Uri.file('/workspace/.trace/demo.SWO.csv'), dispose: jest.fn() };
+
+        await provider.resolveCustomEditor(document, fixture.panel, {} as vscode.CancellationToken);
+        await fixture.sendMessage({ type: 'ready' });
+        await waitFor(() => expect(fixture.webview.postMessage).toHaveBeenCalledTimes(2));
+
+        const watcher = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.results.at(-1)?.value as MockFileSystemWatcher;
+        watcher._handlers.create[0]?.(document.uri);
+        await waitFor(() => expect(fixture.webview.postMessage).toHaveBeenCalledTimes(4));
+
+        expect(fixture.webview.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({
+            type: 'tableState',
+            viewRevision: 2,
+            totalRowCount: 1,
+            loading: false,
+        }));
+        await fixture.sendMessage({ type: 'requestRows', requestId: 9, viewRevision: 2, start: 0, end: 1 });
+        expect(fixture.webview.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({
+            type: 'rows',
+            rows: [{ sourceRowIndex: 0, cells: ['replacement'] }],
+        }));
     });
 
     it('reports a row-store loading error to the webview', async () => {

@@ -21,18 +21,21 @@ import { CTraceController } from './ctrace-controller';
 import { logger } from '../../logger';
 import { PyTsController } from './pyts-controller';
 import { TraceCommands } from './trace-commands';
+import { CapturedTraceResolver } from './captured-trace-resolver';
 
 describe('TraceCommands', () => {
     let commands: TraceCommands;
     // Kept at describe scope so individual tests can spy on its methods.
     let pyTsController: PyTsController;
     let cTraceController: CTraceController;
+    let capturedTraceResolver: CapturedTraceResolver;
     let registeredCommands: Map<string, () => Promise<void>>;
 
     beforeEach(() => {
         pyTsController = new PyTsController();
         cTraceController = new CTraceController();
-        commands = new TraceCommands(pyTsController, cTraceController);
+        capturedTraceResolver = new CapturedTraceResolver();
+        commands = new TraceCommands(pyTsController, cTraceController, capturedTraceResolver);
         registeredCommands = new Map();
         (vscode.commands.registerCommand as jest.Mock).mockImplementation((command: string, handler: () => Promise<void>) => {
             registeredCommands.set(command, handler);
@@ -48,7 +51,8 @@ describe('TraceCommands', () => {
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith(TraceCommands.reloadCTraceID, expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith(TraceCommands.launchPyTsID, expect.any(Function));
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith(TraceCommands.launchCTraceID, expect.any(Function));
-        expect(context.subscriptions).toHaveLength(3);
+        expect(vscode.commands.registerCommand).toHaveBeenCalledWith(TraceCommands.showCapturedTraceID, expect.any(Function));
+        expect(context.subscriptions).toHaveLength(4);
         expect(vscode.commands.registerCommand).toHaveBeenCalledWith(TraceCommands.reloadCTraceID, expect.any(Function));
     });
 
@@ -68,6 +72,17 @@ describe('TraceCommands', () => {
         await registeredCommands.get(TraceCommands.launchCTraceID)!();
 
         expect(run).toHaveBeenCalledWith();
+    });
+
+    it('opens the captured trace for the active debug session', async () => {
+        const cbuildRunFilePath = '/workspace/solution+target.cbuild-run.yml';
+        const open = jest.spyOn(capturedTraceResolver, 'open').mockResolvedValue();
+        jest.spyOn(cTraceController, 'getActiveCbuildRunFilePath').mockReturnValue(cbuildRunFilePath);
+        commands.activate(extensionContextFactory());
+
+        await registeredCommands.get(TraceCommands.showCapturedTraceID)!();
+
+        expect(open).toHaveBeenCalledWith(cbuildRunFilePath);
     });
 
     it('reports a pyTS launch failure', async () => {
