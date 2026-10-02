@@ -21,11 +21,11 @@ import { resolveCTraceRunReference } from './ctrace-run-resolver';
 import type { CsvTableRow } from './csv-table';
 
 describe('resolveCTraceRunReference', () => {
-    const columns = ['cycles', 'stream', 'type', 'source'];
+    const columns = ['cycles', 'stream', 'type', 'index'];
     const csvUri = vscode.Uri.file('/workspace/.trace/demo+target.SWO.csv');
 
-    function row(stream: string, type: string, source: string): CsvTableRow {
-        return { sourceRowIndex: 0, cells: ['1', stream, type, source] };
+    function row(stream: string, type: string, index: string): CsvTableRow {
+        return { sourceRowIndex: 0, cells: ['1', stream, type, index] };
     }
 
     function mockRunFile(references: string): void {
@@ -41,14 +41,14 @@ describe('resolveCTraceRunReference', () => {
 
     it('returns the first matching reference in file order', async () => {
         mockRunFile([
-            '    - ctrace-ref: data#0',
+            '    - ref: data#0',
             '      type: dwt',
             '      stream: 1',
-            '      source: [0, 1]',
-            '    - ctrace-ref: data#1',
+            '      index: [0, 1]',
+            '    - ref: data#1',
             '      type: dwt',
             '      stream: 1',
-            '      source: 1'
+            '      index: 1'
         ].join('\n'));
 
         await expect(resolveCTraceRunReference(csvUri, columns, row('1', 'dwt', '1')))
@@ -57,25 +57,52 @@ describe('resolveCTraceRunReference', () => {
 
     it('does not filter by stream when the CSV stream is empty', async () => {
         mockRunFile([
-            '    - ctrace-ref: itm',
+            '    - ref: itm',
             '      type: itm',
             '      stream: 7',
-            '      source: 3'
+            '      index: 3'
         ].join('\n'));
 
         await expect(resolveCTraceRunReference(csvUri, columns, row('', 'itm', '3')))
             .resolves.toEqual({ solutionSet: 'demo+target', ctraceRef: 'itm' });
     });
 
-    it('ignores source for exception records', async () => {
+    it('ignores index for exception records', async () => {
         mockRunFile([
-            '    - ctrace-ref: exceptions',
+            '    - ref: exceptions',
             '      type: exception',
             '      stream: 1'
         ].join('\n'));
 
         await expect(resolveCTraceRunReference(csvUri, columns, row('1', 'exception', '11')))
             .resolves.toEqual({ solutionSet: 'demo+target', ctraceRef: 'exceptions' });
+    });
+
+    it('does not resolve an index-matched record without a CSV index', async () => {
+        mockRunFile([
+            '    - ref: data#0',
+            '      type: dwt',
+            '      stream: 1',
+            '      index: 0'
+        ].join('\n'));
+
+        await expect(resolveCTraceRunReference(csvUri, columns, row('1', 'dwt', '')))
+            .resolves.toBeUndefined();
+    });
+
+    it('does not use the legacy source column as an index', async () => {
+        mockRunFile([
+            '    - ref: data#0',
+            '      type: dwt',
+            '      stream: 1',
+            '      index: 0'
+        ].join('\n'));
+
+        await expect(resolveCTraceRunReference(
+            csvUri,
+            ['cycles', 'stream', 'type', 'source'],
+            row('1', 'dwt', '0')
+        )).resolves.toBeUndefined();
     });
 
     it.each(['overflow', 'error'])('does not resolve %s records', async type => {

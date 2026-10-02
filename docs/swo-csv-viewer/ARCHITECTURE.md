@@ -227,8 +227,10 @@ scroll state because the custom editor retains its webview context.
 A clicked cell still emits a singular integration event rather than the full
 row selection. The webview sends its source coordinates and value to the
 provider. The provider reads the authoritative source row and verifies the row,
-column name, and value before writing an extension log event. Invalid or stale
-cell events are discarded with a warning.
+column name, and value. For navigable trace records, it resolves the matching
+trace configuration reference from the CSV `type`, `stream`, and `index`
+columns and focuses that reference in the Trace Configuration view. Invalid or
+stale cell events are discarded with a warning.
 
 Ctrl/Cmd+C sends the selected display-index intervals to the provider. The
 provider validates their normalized bounds, reads rows from the active store
