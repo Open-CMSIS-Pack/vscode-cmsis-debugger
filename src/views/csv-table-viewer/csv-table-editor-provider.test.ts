@@ -149,7 +149,7 @@ async function waitFor(assertion: () => void): Promise<void> {
             if (attempt === 9) {
                 throw error;
             }
-            await new Promise(resolve => setImmediate(resolve));
+            await new Promise(resolve => setTimeout(resolve, 0));
         }
     }
 }
