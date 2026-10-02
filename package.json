@@ -463,7 +463,7 @@
         {
           "command": "vscode-cmsis-debugger.showCapturedTrace",
           "when": "inDebugMode && vscode-cmsis-debugger.hasCapturedTrace",
-          "group": "navigation@100"
+          "group": "custom"
         }
       ],
       "commandPalette": [

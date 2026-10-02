@@ -308,12 +308,15 @@ export class CsvTableEditorProvider implements vscode.CustomReadonlyEditorProvid
 
         webviewPanel.webview.html = this.buildShell(webviewPanel.webview);
 
-        const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(document.uri, '*'));
-        watcher.onDidChange(uri => {
+        const parentUri = document.uri.with({ path: path.posix.dirname(document.uri.path) });
+        const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(parentUri, '*'));
+        const reloadChangedDocument = (uri: vscode.Uri): void => {
             if (uri.toString() === document.uri.toString()) {
                 void load();
             }
-        });
+        };
+        watcher.onDidCreate(reloadChangedDocument);
+        watcher.onDidChange(reloadChangedDocument);
         webviewPanel.onDidDispose(() => {
             disposed = true;
             loadGeneration += 1;
