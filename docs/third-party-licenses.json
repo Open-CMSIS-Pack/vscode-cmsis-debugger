@@ -15,7 +15,7 @@
     },
     {
         "name": "ctrace",
-        "version": "0.3.1",
+        "version": "0.4.0",
         "spdx": "Apache-2.0",
         "url": "https://github.com/Open-CMSIS-Pack/devtools/tree/main/tools/ctrace",
         "license": "https://github.com/Open-CMSIS-Pack/devtools/blob/main/LICENSE"
