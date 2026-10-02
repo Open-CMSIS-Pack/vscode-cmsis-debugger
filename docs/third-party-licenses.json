@@ -50,7 +50,7 @@
     },
     {
         "name": "pyTS",
-        "version": "0.5.0",
+        "version": "0.6.1",
         "spdx": "Apache-2.0",
         "url": "https://github.com/Open-CMSIS-Pack/pyTS/releases",
         "license": "https://github.com/Open-CMSIS-Pack/pyTS/blob/main/LICENSE"

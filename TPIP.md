@@ -11,7 +11,7 @@ Generated for release: 1.8.0
 | jsonc-parser | 3.3.1 | https://github.com/microsoft/node-jsonc-parser | [MIT](https://github.com/microsoft/node-jsonc-parser/blob/main/LICENSE.md) |
 | lodash | 4.18.1 | https://github.com/lodash/lodash | [MIT](https://github.com/lodash/lodash/blob/main/LICENSE) |
 | pyocd | 0.45.1 | https://github.com/pyocd/pyOCD | [Apache-2.0](https://github.com/pyocd/pyOCD/blob/v0.45.1/LICENSE) |
-| pyTS | 0.5.0 | https://github.com/Open-CMSIS-Pack/pyTS/releases | [Apache-2.0](https://github.com/Open-CMSIS-Pack/pyTS/blob/main/LICENSE) |
+| pyTS | 0.6.1 | https://github.com/Open-CMSIS-Pack/pyTS/releases | [Apache-2.0](https://github.com/Open-CMSIS-Pack/pyTS/blob/main/LICENSE) |
 | react | 18.3.1 | https://github.com/facebook/react | [MIT](https://github.com/facebook/react/blob/main/LICENSE) |
 | react-dom | 18.3.1 | https://github.com/facebook/react | [MIT](https://github.com/facebook/react/blob/main/LICENSE) |
 | sax-ts | 1.2.13 | https://github.com/Maxim-Mazurok/sax-ts | [ISC](https://github.com/Maxim-Mazurok/sax-ts/blob/master/LICENSE.md) |
