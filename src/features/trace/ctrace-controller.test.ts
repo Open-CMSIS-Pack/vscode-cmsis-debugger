@@ -119,6 +119,23 @@ describe('CTraceController', () => {
         expect(openCapturedTrace).not.toHaveBeenCalled();
     });
 
+    it.each([
+        ['the default setting', undefined],
+        ['automatic opening is enabled', true],
+    ])('opens the captured trace after a successful decode with %s', async (_description, setting) => {
+        (vscode.workspace.getConfiguration as jest.Mock).mockReturnValue({
+            get: jest.fn().mockImplementation((name: string, defaultValue: unknown) =>
+                name === OPEN_CAPTURED_TRACE_AFTER_DECODE_SETTING ? setting ?? defaultValue : defaultValue)
+        });
+
+        await testAccess.handleDecodeTrigger(session);
+        now += 250;
+        await testAccess.handleRawTraceFileChanged(RAW_TRACE_URI);
+
+        expect(openCapturedTrace).toHaveBeenCalledTimes(1);
+        expect(openCapturedTrace).toHaveBeenCalledWith(CBUILD_RUN_FILE_PATH);
+    });
+
     it('does not open a captured trace when automatic opening is disabled', async () => {
         (vscode.workspace.getConfiguration as jest.Mock).mockReturnValue({
             get: jest.fn().mockImplementation((setting: string) => setting === OPEN_CAPTURED_TRACE_AFTER_DECODE_SETTING ? false : undefined)
