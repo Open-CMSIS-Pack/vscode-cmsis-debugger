@@ -52,7 +52,7 @@ describe('CTraceController', () => {
     let run: jest.SpiedFunction<CTraceController['run']>;
     let capturedTraceResolver: CapturedTraceResolver;
     let openCapturedTrace: jest.SpiedFunction<CapturedTraceResolver['open']>;
-    let hasSwoCapture: jest.SpiedFunction<CapturedTraceResolver['hasSwoCapture']>;
+    let hasCapture: jest.SpiedFunction<CapturedTraceResolver['hasCapture']>;
     let session: GDBTargetDebugSession;
     let testAccess: CTraceControllerTestAccess;
 
@@ -63,7 +63,7 @@ describe('CTraceController', () => {
         });
         capturedTraceResolver = new CapturedTraceResolver();
         openCapturedTrace = jest.spyOn(capturedTraceResolver, 'open').mockResolvedValue();
-        hasSwoCapture = jest.spyOn(capturedTraceResolver, 'hasSwoCapture').mockResolvedValue(false);
+        hasCapture = jest.spyOn(capturedTraceResolver, 'hasCapture').mockResolvedValue(false);
         controller = new CTraceController({}, () => now, new CBuildRunFileLocator(), undefined, capturedTraceResolver);
         run = jest.spyOn(controller, 'run').mockResolvedValue(0);
         session = createSession('session-1', CBUILD_RUN_FILE_PATH);
@@ -316,8 +316,8 @@ describe('CTraceController', () => {
             .toBe(vscode.Uri.file('/workspace/second').fsPath);
     });
 
-    it('refreshes captured trace availability when the SWO CSV changes', async () => {
-        hasSwoCapture.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    it('refreshes captured trace availability when a captured CSV changes', async () => {
+        hasCapture.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
         const traceWatch = traceWatchFactory();
 
         await controller.activate(extensionContextFactory(), debugTrackerFactory(), traceWatch.fileWatchManager);
@@ -327,7 +327,7 @@ describe('CTraceController', () => {
         if (watch === undefined) {
             throw new Error('Expected a captured trace file watch.');
         }
-        await watch.onDidCreate?.(vscode.Uri.file('/workspace/.trace/solution+target.SWO.csv'));
+        await watch.onDidCreate?.(vscode.Uri.file('/workspace/.trace/solution+target.TB_0.csv'));
 
         expect(vscode.commands.executeCommand).toHaveBeenLastCalledWith(
             'setContext',
