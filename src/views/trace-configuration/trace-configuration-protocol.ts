@@ -63,6 +63,7 @@ export interface TraceConfigurationRow {
 
 export interface TraceConfigurationState {
     fileName?: string | undefined;
+    solutionFolderPath?: string | undefined;
     workspaceFolderPath?: string | undefined;
     rows: TraceConfigurationRow[];
     loading: boolean;
@@ -88,6 +89,10 @@ export interface TraceSaveMessage {
 
 export interface TraceOpenFileMessage {
     type: 'openFile';
+}
+
+export interface TraceOpenCurrentFileMessage {
+    type: 'openCurrentFile';
 }
 
 export interface TraceToggleMessage {
@@ -118,6 +123,7 @@ export type TraceWebviewToHostMessage =
     | TraceRefreshMessage
     | TraceSaveMessage
     | TraceOpenFileMessage
+    | TraceOpenCurrentFileMessage
     | TraceToggleMessage
     | TraceUpdateValueMessage
     | TraceAddItemMessage

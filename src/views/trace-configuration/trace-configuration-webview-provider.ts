@@ -33,6 +33,7 @@ import { TraceConfigurationModel } from './trace-configuration-model';
 
 const CMSIS_SOLUTION_EXTENSION_ID = 'Arm.cmsis-csolution';
 const TRACE_CONFIGURATION_VIEW_TITLE = 'Trace Generation';
+// WebviewView.title is rendered as plain text and does not expand Codicon markup.
 const TRACE_CONFIGURATION_MODIFIED_VIEW_TITLE = `${TRACE_CONFIGURATION_VIEW_TITLE} ●`;
 
 /**
@@ -226,6 +227,9 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
                 case 'openFile':
                     await this.promptAndOpenFile();
                     break;
+                case 'openCurrentFile':
+                    await this.openCurrentFile();
+                    break;
                 case 'toggle':
                     this.model.updateExpandedState(message.id, message.expanded);
                     break;
@@ -289,6 +293,14 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             return;
         }
         await this.model.openFile(file.fsPath);
+    }
+
+    /** Opens the ctrace file currently represented by the view in the editor. */
+    private async openCurrentFile(): Promise<void> {
+        const fileName = this.model.createState().fileName;
+        if (fileName) {
+            await vscode.window.showTextDocument(vscode.Uri.file(fileName));
+        }
     }
 
     /**
