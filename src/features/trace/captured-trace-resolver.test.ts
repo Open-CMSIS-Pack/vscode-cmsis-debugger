@@ -52,24 +52,23 @@ describe('CapturedTraceResolver', () => {
         expect(vscode.window.showQuickPick).not.toHaveBeenCalled();
     });
 
-    it('reports whether the active solution set has an SWO capture file', async () => {
-        (vscode.workspace.fs.stat as jest.Mock)
-            .mockResolvedValueOnce({ type: vscode.FileType.File } as vscode.FileStat)
-            .mockRejectedValueOnce(new Error('File not found'));
+    it('reports whether the active solution set has an SWO or TB capture file', async () => {
+        (vscode.workspace.fs.readDirectory as jest.Mock)
+            .mockResolvedValueOnce([
+                [`${SOLUTION_SET}.TB_0.csv`, vscode.FileType.File],
+            ])
+            .mockResolvedValueOnce([]);
 
-        await expect(resolver.hasSwoCapture(CBUILD_RUN_FILE_PATH)).resolves.toBe(true);
-        await expect(resolver.hasSwoCapture(CBUILD_RUN_FILE_PATH)).resolves.toBe(false);
-
-        expect(vscode.workspace.fs.stat).toHaveBeenNthCalledWith(
-            1,
-            vscode.Uri.file(`/workspace/solution/.trace/${SOLUTION_SET}.SWO.csv`)
-        );
+        await expect(resolver.hasCapture(CBUILD_RUN_FILE_PATH)).resolves.toBe(true);
+        await expect(resolver.hasCapture(CBUILD_RUN_FILE_PATH)).resolves.toBe(false);
     });
 
-    it('rejects a non-file SWO capture path', async () => {
-        (vscode.workspace.fs.stat as jest.Mock).mockResolvedValue({ type: vscode.FileType.Directory } as vscode.FileStat);
+    it('rejects a supported capture path that is not a file', async () => {
+        (vscode.workspace.fs.readDirectory as jest.Mock).mockResolvedValue([
+            [`${SOLUTION_SET}.SWO.csv`, vscode.FileType.Directory],
+        ]);
 
-        await expect(resolver.hasSwoCapture(CBUILD_RUN_FILE_PATH)).resolves.toBe(false);
+        await expect(resolver.hasCapture(CBUILD_RUN_FILE_PATH)).resolves.toBe(false);
     });
 
     it('silently does nothing when the active cbuild-run file is unavailable', async () => {
@@ -97,42 +96,35 @@ describe('CapturedTraceResolver', () => {
         expect(vscode.window.showQuickPick).not.toHaveBeenCalled();
     });
 
-    it('sorts multiple supported captures newest first and opens the selected one', async () => {
+    it('prefers the SWO capture when SWO and TB captures exist', async () => {
         (vscode.workspace.fs.readDirectory as jest.Mock).mockResolvedValue([
-            [`${SOLUTION_SET}.SWO.csv`, vscode.FileType.File],
             [`${SOLUTION_SET}.TB_0.csv`, vscode.FileType.File],
+            [`${SOLUTION_SET}.SWO.csv`, vscode.FileType.File],
             [`${SOLUTION_SET}.TB.csv`, vscode.FileType.File],
-            [`${SOLUTION_SET}.TB_invalid.txt`, vscode.FileType.File],
         ]);
-        (vscode.workspace.fs.stat as jest.Mock)
-            .mockResolvedValueOnce({ mtime: 1_000 } as vscode.FileStat)
-            .mockResolvedValueOnce({ mtime: 3_000 } as vscode.FileStat)
-            .mockResolvedValueOnce({ mtime: 2_000 } as vscode.FileStat);
-        (vscode.window.showQuickPick as jest.Mock).mockImplementation((items: vscode.QuickPickItem[]) => items[0]);
 
         await resolver.open(CBUILD_RUN_FILE_PATH);
 
-        expect(vscode.window.showQuickPick).toHaveBeenCalledWith(expect.arrayContaining([
-            expect.objectContaining({ label: expect.stringMatching(/^TB - /), detail: `${SOLUTION_SET}.TB_0.csv` }),
-            expect.objectContaining({ label: expect.stringMatching(/^TB - /), detail: `${SOLUTION_SET}.TB.csv` }),
-            expect.objectContaining({ label: expect.stringMatching(/^SWO - /), detail: `${SOLUTION_SET}.SWO.csv` }),
-        ]), expect.any(Object));
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
             'vscode.openWith',
-            expect.objectContaining({ path: `/workspace/solution/.trace/${SOLUTION_SET}.TB_0.csv` }),
+            vscode.Uri.file(`/workspace/solution/.trace/${SOLUTION_SET}.SWO.csv`),
             CSV_TABLE_EDITOR_VIEW_TYPE,
         );
     });
 
-    it('silently does nothing when the capture picker is cancelled', async () => {
+    it('opens the first indexed TB capture when multiple buffers exist', async () => {
         (vscode.workspace.fs.readDirectory as jest.Mock).mockResolvedValue([
-            [`${SOLUTION_SET}.SWO.csv`, vscode.FileType.File],
+            [`${SOLUTION_SET}.TB_1.csv`, vscode.FileType.File],
+            [`${SOLUTION_SET}.TB_0.csv`, vscode.FileType.File],
             [`${SOLUTION_SET}.TB.csv`, vscode.FileType.File],
         ]);
-        (vscode.window.showQuickPick as jest.Mock).mockResolvedValue(undefined);
 
         await resolver.open(CBUILD_RUN_FILE_PATH);
 
-        expect(vscode.commands.executeCommand).not.toHaveBeenCalled();
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+            'vscode.openWith',
+            vscode.Uri.file(`/workspace/solution/.trace/${SOLUTION_SET}.TB_0.csv`),
+            CSV_TABLE_EDITOR_VIEW_TYPE,
+        );
     });
 });
