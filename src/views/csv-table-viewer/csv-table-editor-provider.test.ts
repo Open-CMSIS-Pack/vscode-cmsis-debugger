@@ -215,6 +215,52 @@ describe('CsvTableEditorProvider', () => {
         } satisfies CsvTableHostMessage);
     });
 
+    it.each(['unique', 'duplicate', 'missing'])('preserves selected rows across filtering and sorting (%s cycles)', async cyclesMode => {
+        const provider = new CsvTableEditorProvider(vscode.Uri.file('/extension'));
+        const rowStore = new InMemoryCsvTableRowStore({
+            columns: [cyclesMode === 'missing' ? 'value' : 'cycles', 'event'],
+            rows: Array.from({ length: 20 }, (_, sourceRowIndex) => ({
+                sourceRowIndex,
+                cells: [cyclesMode === 'duplicate' ? '10' : String(sourceRowIndex), sourceRowIndex % 2 === 0 ? 'hidden' : 'selected'],
+            })),
+            malformedRowCount: 0,
+        });
+        jest.spyOn(provider as unknown as { readRowStore(uri: vscode.Uri): Promise<CsvTableRowStore> }, 'readRowStore')
+            .mockResolvedValue(rowStore);
+        const fixture = createWebviewPanel();
+        const document = { uri: vscode.Uri.file('/workspace/.trace/demo.SWO.csv'), dispose: jest.fn() };
+
+        await provider.resolveCustomEditor(document, fixture.panel, {} as vscode.CancellationToken);
+        await fixture.sendMessage({ type: 'ready' });
+        await waitFor(() => expect(fixture.webview.postMessage).toHaveBeenCalledTimes(2));
+        await fixture.sendMessage({ type: 'setFilters', filters: [{ columnIndex: 1, value: 'selected' }] });
+        await waitFor(() => expect(fixture.webview.postMessage).toHaveBeenCalledTimes(4));
+        await fixture.sendMessage({ type: 'selectionChanged', intervals: [{ start: 0, end: 9 }], caret: 9, anchor: 0 });
+
+        await fixture.sendMessage({ type: 'setFilters', filters: [] });
+
+        await waitFor(() => expect(fixture.webview.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({
+            type: 'tableState',
+            viewRevision: 3,
+            selection: {
+                intervals: Array.from({ length: 10 }, (_, index) => ({ start: index * 2 + 1, end: index * 2 + 1 })),
+                caret: 19,
+                anchor: 1,
+            },
+            updating: false,
+        })));
+
+        await fixture.sendMessage({ type: 'setSort', sort: { columnIndex: 1, direction: 'descending' } });
+
+        await waitFor(() => expect(fixture.webview.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({
+            type: 'tableState',
+            viewRevision: 4,
+            selection: { intervals: [{ start: 0, end: 9 }], caret: 9, anchor: 0 },
+            updating: false,
+        })));
+        fixture.dispose();
+    });
+
     it('ignores row requests that do not match the current view revision', async () => {
         const provider = new CsvTableEditorProvider(vscode.Uri.file('/extension'));
         const rowStore = new InMemoryCsvTableRowStore({ columns: ['time'], rows: [], malformedRowCount: 0 });

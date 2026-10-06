@@ -154,7 +154,16 @@ export class CsvTableEditorProvider implements vscode.CustomReadonlyEditorProvid
             }
             let timing;
             try {
+                const selectionIdentity = await getCsvTableSelectionIdentity(selection, requestedStore, 'sourceRowIndex');
+                if (generation !== updateGeneration || requestedStore !== rowStore || controller.signal.aborted) {
+                    return;
+                }
                 timing = await requestedStore.applyView(filters, sort, controller.signal);
+                const restoredSelection = await restoreCsvTableSelection(selectionIdentity, requestedStore);
+                if (generation !== updateGeneration || requestedStore !== rowStore || controller.signal.aborted) {
+                    return;
+                }
+                selection = restoredSelection;
             } catch (error) {
                 if (controller.signal.aborted) {
                     return;
