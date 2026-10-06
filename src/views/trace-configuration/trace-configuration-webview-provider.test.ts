@@ -476,6 +476,18 @@ describe('TraceConfigurationWebviewProvider', () => {
         expect(model.openFile).toHaveBeenCalledWith(expect.toEqualFsPath(selectedFile.fsPath));
     });
 
+    it('opens the currently loaded ctrace file in the editor', async () => {
+        const model = new FakeTraceConfigurationModel();
+        const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
+        const { view, sendMessage } = createWebviewView();
+        provider.resolveWebviewView(view, {} as vscode.WebviewViewResolveContext, {} as vscode.CancellationToken);
+
+        sendMessage({ type: 'openCurrentFile' });
+        await Promise.resolve();
+
+        expect(vscode.window.showTextDocument).toHaveBeenCalledWith(vscode.Uri.file('target.ctrace.yml'));
+    });
+
     it('does not open a file when the user cancels the picker', async () => {
         const model = new FakeTraceConfigurationModel();
         const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));

@@ -162,43 +162,57 @@ function createHeader(state: TraceConfigurationState): HTMLElement {
  */
 function createStatus(state: TraceConfigurationState): HTMLElement {
     const status = createElement('div', 'trace-status');
-    const file = createElement('span', 'trace-file');
+    const file = createElement('button', 'trace-file');
+    file.type = 'button';
     file.textContent = getFileNameDisplayText(state);
     file.title = state.fileName ?? '';
-    const validationFailed = state.validationState === 'failed' || state.validationState === 'unavailable';
-    const dirty = createElement(
-        'span',
-        validationFailed ? 'status-error' : state.dirty ? 'status-warn' : 'status-ok'
-    );
-    switch (state.validationState) {
-        case 'pending':
-        case 'running':
-            dirty.textContent = 'Validating…';
-            break;
-        case 'failed':
-            dirty.textContent = 'Validation failed';
-            break;
-        case 'unavailable':
-            dirty.textContent = 'Validation unavailable';
-            break;
-        default:
-            dirty.textContent = state.dirty ? 'Unsaved' : 'Synced';
-            break;
-    }
-    dirty.title = state.validationMessage ?? '';
-    status.append(file, dirty);
+    file.disabled = !state.fileName;
+    file.setAttribute('aria-label', state.fileName ? `Open ${state.fileName}` : 'No ctrace.yml selected');
+    file.addEventListener('click', () => post({ type: 'openCurrentFile' }));
+    status.append(file, createStatusIcon(state));
     return status;
+}
+
+function createStatusIcon(state: TraceConfigurationState): HTMLSpanElement {
+    const validating = state.dirty
+        && (state.validationState === 'pending' || state.validationState === 'running');
+    const iconName = state.validationState === 'failed'
+        ? 'error'
+        : validating
+            ? 'sync'
+            : state.dirty
+                ? 'diff-modified'
+                : 'pass-filled';
+    const label = state.validationState === 'failed'
+        ? 'error'
+        : validating
+            ? 'validating'
+            : state.dirty
+                ? 'modified'
+                : 'saved';
+    const icon = createIcon(iconName, `status-icon status-${label}`);
+    icon.title = state.validationMessage ? `${label}: ${state.validationMessage}` : label;
+    icon.removeAttribute('aria-hidden');
+    icon.setAttribute('aria-label', label);
+    icon.setAttribute('role', 'img');
+    return icon;
 }
 
 /**
  * getFileNameDisplayText preserves the absolute filename in state while
- * shortening the status label for files inside the active workspace.
+ * shortening the status label relative to the active solution or workspace.
  */
 function getFileNameDisplayText(state: TraceConfigurationState): string {
-    if (!state.fileName || !state.workspaceFolderPath) {
-        return state.fileName ?? 'No ctrace.yml selected';
+    const basePath = state.solutionFolderPath ?? state.workspaceFolderPath;
+    if (!state.fileName) {
+        return 'No ctrace.yml selected';
     }
-    return state.fileName.slice(state.workspaceFolderPath.length + 1);
+    const displayPath = basePath && state.fileName.startsWith(basePath)
+        ? state.fileName.slice(basePath.length + 1)
+        : state.fileName;
+    // Keep leading punctuation, such as the dot in `.cmsis`, attached to the
+    // left-to-right path while CSS uses RTL direction for left-side ellipsis.
+    return `\u200e${displayPath}`;
 }
 
 /**
