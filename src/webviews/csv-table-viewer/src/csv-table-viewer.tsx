@@ -35,6 +35,7 @@ import type { CsvTableFilter, CsvTableRow, CsvTableSort } from '../../../views/c
 import type { CsvTableHostMessage, CsvTableWebviewMessage } from '../../../views/csv-table-viewer/csv-table-protocol';
 import { getCsvTableScrollGeometry, CSV_TABLE_ROW_HEIGHT } from '../../../views/csv-table-viewer/csv-table-scroll-geometry';
 import { shouldRequestRows, type LoadedRowRange } from './csv-table-row-request';
+import { isPrimaryModifierPressed } from './csv-table-modifiers';
 import './csv-table-viewer.css';
 
 declare function acquireVsCodeApi(): { postMessage: (message: CsvTableWebviewMessage) => void };
@@ -325,7 +326,7 @@ export const CsvTableViewer = (): JSX.Element => {
             : event.altKey
                 ? toggleRow(current, rowIndex)
                 : selectSingleRow(rowIndex));
-        if (event.ctrlKey) {
+        if (isPrimaryModifierPressed(event, navigator.platform)) {
             scrollElementRef.current?.focus({ preventScroll: true });
         }
     };
@@ -352,7 +353,7 @@ export const CsvTableViewer = (): JSX.Element => {
         if (event.target instanceof HTMLElement && event.target.closest('.table-header') !== null) {
             return;
         }
-        const controlPressed = event.ctrlKey || event.metaKey;
+        const controlPressed = isPrimaryModifierPressed(event, navigator.platform);
         if (controlPressed && event.key.toLowerCase() === 'a') {
             event.preventDefault();
             setSelection(current => selectAllRows(current, tableState.totalRowCount));
@@ -496,7 +497,7 @@ export const CsvTableViewer = (): JSX.Element => {
                                 tabIndex={-1}
                                 onClick={event => {
                                     updateRowSelection(event, rowIndex);
-                                    if (event.ctrlKey) {
+                                    if (isPrimaryModifierPressed(event, navigator.platform)) {
                                         vscode.postMessage({ type: 'cellSelected', sourceRowIndex: row.sourceRowIndex, columnIndex, columnName: tableState.columns[columnIndex], cellValue });
                                     }
                                 }}
