@@ -77,10 +77,46 @@ button {
 }
 
 .trace-file {
+    flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--vscode-foreground, #cccccc);
+    direction: rtl;
+    text-align: left;
+    cursor: pointer;
+}
+
+.trace-file:disabled {
+    color: var(--vscode-descriptionForeground, #969696);
+    cursor: default;
+}
+
+.trace-file:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder, #007acc);
+    outline-offset: 1px;
+}
+
+.status-icon {
+    flex: 0 0 auto;
+    font-size: 16px;
+}
+
+.status-saved {
+    color: var(--vscode-foreground, #cccccc);
+}
+
+.status-modified,
+.status-validating {
+    color: var(--vscode-editorWarning-foreground, #cca700);
+}
+
+.status-error {
+    color: var(--vscode-editorError-foreground, #f14c4c);
 }
 
 .icon-button {
@@ -441,10 +477,7 @@ input[type="checkbox"] {
     min-width: 0;
 }
 
-.pill,
-.status-ok,
-.status-warn,
-.status-error {
+.pill {
     display: inline-flex;
     align-items: center;
     height: 20px;
@@ -458,21 +491,6 @@ input[type="checkbox"] {
     border: 1px solid var(--vscode-button-border, #555555);
     color: var(--vscode-descriptionForeground, #c7c7c7);
     text-transform: uppercase;
-}
-
-.status-ok {
-    color: var(--vscode-testing-iconPassed, #89d185);
-    background: rgba(137, 209, 133, 0.11);
-}
-
-.status-warn {
-    color: var(--vscode-editorWarning-foreground, #dcdcaa);
-    background: rgba(220, 220, 170, 0.12);
-}
-
-.status-error {
-    color: var(--vscode-errorForeground, #f48771);
-    background: rgba(244, 135, 113, 0.12);
 }
 
 .empty-state {

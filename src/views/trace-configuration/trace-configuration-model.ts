@@ -99,6 +99,7 @@ export class TraceConfigurationModel {
     private referenceValidationMessages = new Map<string, TraceConfigurationReferenceValidationMessage>();
     private readonly runMessageReader: TraceConfigurationRunMessageReader;
     private saveTransition: TraceConfigurationSaveTransition | undefined;
+    private activeSolutionFileName: string | undefined;
 
     private set dirty(value: boolean) {
         if (this._dirty !== value) {
@@ -176,7 +177,7 @@ export class TraceConfigurationModel {
         rowBuilder?: TraceConfigurationRowBuilder,
         generatedCTraceFileManager?: TraceConfigurationGeneratedCTraceFileManager,
         fileWatchManager: FileWatchManager = new FileWatchManager(),
-        cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator(),
+        private readonly cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator(),
         cmsisJsonWatcher?: CmsisJsonWatcher,
         backupStore?: TraceConfigurationBackupStore,
         prevalidator?: TraceConfigurationPrevalidator,
@@ -342,6 +343,7 @@ export class TraceConfigurationModel {
         this.fileWatcher.disposeCurrentFileWatcher();
         this.fileWatcher.disposeCurrentRunFileWatchers();
         this.ctraceFile = undefined;
+        this.activeSolutionFileName = undefined;
         this.processorCapabilities.clear();
         this.dirty = false;
         this.acceptValidationState('idle');
@@ -378,6 +380,7 @@ export class TraceConfigurationModel {
         this.fileWatcher.disposeCurrentFileWatcher();
         const previousFileName = this.ctraceFile?.fileName;
         this.ctraceFile = nextFile;
+        this.activeSolutionFileName = await this.cbuildRunFileLocator.getActiveSolutionFilePath();
         if (normalizeFsPath(previousFileName) !== normalizeFsPath(nextFile.fileName)) {
             this.acceptReferenceValidationMessages([]);
         }
@@ -1168,6 +1171,9 @@ export class TraceConfigurationModel {
         const state: TraceConfigurationState = this.emptyMessage
             ? { ...rowBuilderState, emptyMessage: this.emptyMessage }
             : rowBuilderState;
+        if (this.activeSolutionFileName) {
+            state.solutionFolderPath = path.dirname(this.activeSolutionFileName);
+        }
         if (!this.focusedRowId) {
             return state;
         }
