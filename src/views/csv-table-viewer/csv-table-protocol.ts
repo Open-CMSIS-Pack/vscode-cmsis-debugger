@@ -16,11 +16,12 @@
 // generated with AI
 
 import type { CsvTableFilter, CsvTableRow, CsvTableSort } from './csv-table';
-import type { RowSelectionInterval } from './row-selection';
+import type { RowSelectionInterval, RowSelectionState } from './row-selection';
 
 export interface CsvTableState {
     readonly type: 'tableState';
     readonly viewRevision: number;
+    readonly selection?: RowSelectionState;
     readonly columns: readonly string[];
     readonly totalRowCount: number;
     readonly malformedRowCount: number;
@@ -81,10 +82,17 @@ export interface CsvTableRowsRendered {
     readonly requestId: number;
 }
 
+export interface CsvTableSelectionChanged {
+    readonly type: 'selectionChanged';
+    readonly intervals: readonly RowSelectionInterval[];
+    readonly caret: number | null;
+    readonly anchor: number | null;
+}
+
 export interface CsvTableCopyRows {
     readonly type: 'copyRows';
     readonly viewRevision: number;
     readonly intervals: readonly RowSelectionInterval[];
 }
 
-export type CsvTableWebviewMessage = CsvTableReady | CsvTableRequestRows | CsvTableSetFilters | CsvTableCancelViewUpdate | CsvTableSetSort | CsvTableCellSelected | CsvTableRowsRendered | CsvTableCopyRows;
+export type CsvTableWebviewMessage = CsvTableReady | CsvTableRequestRows | CsvTableSetFilters | CsvTableCancelViewUpdate | CsvTableSetSort | CsvTableCellSelected | CsvTableRowsRendered | CsvTableSelectionChanged | CsvTableCopyRows;
