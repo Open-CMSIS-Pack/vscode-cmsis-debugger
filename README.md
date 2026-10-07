@@ -455,6 +455,8 @@ Save `csolution.yml`. The **Trace Generation** view now shows the trace capabili
 
 Open the **Trace And Live View** and scroll down until the **Trace Generation**.
 
+![Trace Generation](./images/trace-generation.png)
+
 Enable the processor as a trace source and select the information that you want to capture. The available options depend on the trace capabilities of the processor.
 
 **Timestamps**
