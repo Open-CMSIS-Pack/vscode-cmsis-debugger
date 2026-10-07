@@ -107,6 +107,10 @@ function renderApp(state: TraceConfigurationState): void {
     const previousScrollRegion = root.querySelector<HTMLElement>('.option-tree-scroll');
     const scrollTop = previousScrollRegion?.scrollTop ?? 0;
     const scrollLeft = previousScrollRegion?.scrollLeft ?? 0;
+    const activeElement = document.activeElement;
+    const focusedRowId = activeElement instanceof HTMLTableRowElement && root.contains(activeElement)
+        ? activeElement.dataset.rowId
+        : undefined;
     clearElement(root);
     const surface = createElement('main', 'table-surface');
     surface.append(createHeader(state));
@@ -124,7 +128,7 @@ function renderApp(state: TraceConfigurationState): void {
     root.append(surface);
     scrollRegion.scrollTop = scrollTop;
     scrollRegion.scrollLeft = scrollLeft;
-    focusRow(state.focusedRowId);
+    focusRow(state.focusedRowId ?? focusedRowId);
 }
 
 /**
