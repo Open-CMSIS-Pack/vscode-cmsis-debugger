@@ -522,7 +522,7 @@ export class TraceConfigurationRowBuilder {
             const entries: TraceNodeEntry[] = [];
             node.getChildren().forEach(child => {
                 const label = child.getTag();
-                if (!label || this.shouldHideNode(label, nodePath)) {
+                if (!label || this.shouldHideNode(label, nodePath, child)) {
                     return;
                 }
                 entries.push({
@@ -571,7 +571,7 @@ export class TraceConfigurationRowBuilder {
      */
     private getFilteredSyntheticChildEntries(parentPath: (string | number)[]): TraceNodeEntry[] {
         return this.getSyntheticChildEntries(parentPath)
-            .filter(entry => !this.shouldHideNode(entry.label, parentPath) && this.shouldShowTraceNode(entry.label, entry.path));
+            .filter(entry => !this.shouldHideNode(entry.label, parentPath, entry.node) && this.shouldShowTraceNode(entry.label, entry.path));
     }
 
     /**
@@ -908,7 +908,15 @@ export class TraceConfigurationRowBuilder {
      * channel checklist, and processor identity fields are folded into processor
      * row labels.
      */
-    private shouldHideNode(label: string, parentPath: (string | number)[]): boolean {
+    private shouldHideNode(label: string, parentPath: (string | number)[], node: YamlTreeItem): boolean {
+        // Hide unset labels in the UI for this release without changing the YAML.
+        if (label === 'label') {
+            if (isYamlScalarItem(node)) {
+                const labelValue: unknown = node.toObject();
+                return labelValue === undefined || labelValue === null || labelValue === '';
+            }
+            return false;
+        }
         if (label === 'ctrace-ref' || label === 'created-by' || label === 'generated-by') {
             return true;
         }
