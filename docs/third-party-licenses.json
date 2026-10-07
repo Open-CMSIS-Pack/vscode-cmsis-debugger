@@ -22,7 +22,7 @@
     },
     {
         "name": "@open-cmsis-pack/cmsis-common",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "spdx": "Apache-2.0",
         "url": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-solution/tree/main/packages/cmsis-common",
         "license": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-solution/blob/main/LICENSE"
@@ -92,14 +92,14 @@
     },
     {
         "name": "yaml",
-        "version": "2.9.0",
+        "version": "2.9.1",
         "spdx": "ISC",
         "url": "https://github.com/eemeli/yaml",
         "license": "https://github.com/eemeli/yaml/blob/main/LICENSE"
     },
     {
         "name": "@tanstack/react-virtual",
-        "version": "3.13.18",
+        "version": "3.14.13",
         "spdx": "MIT",
         "url": "https://github.com/tanstack/react-virtual",
         "license": "https://github.com/tanstack/react-virtual/blob/main/LICENSE"
