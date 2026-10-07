@@ -19,7 +19,7 @@
 
 
 import { componentViewerLogger } from '../../../logger';
-import { ParseResult } from '../parser-evaluator/parser';
+import type { Diagnostic, ParseResult } from '../parser-evaluator/parser';
 import { EvaluateResult } from '../parser-evaluator/evaluator';
 import { ScvdNode } from './scvd-node';
 
@@ -27,6 +27,8 @@ export class ScvdExpression extends ScvdNode {
     private _expression: string | undefined;
     private _scvdVarName: string | undefined;
     private _expressionAst: ParseResult | undefined;
+    private _parseDiagnostics: readonly Diagnostic[] = [];
+    private _parseErrorReported: boolean = false;
     private _isPrintExpression: boolean = false;
 
     constructor(
@@ -50,7 +52,13 @@ export class ScvdExpression extends ScvdNode {
         return this._expressionAst;
     }
     public set expressionAst(ast: ParseResult | undefined) {
-        this._expressionAst = ast;
+        this._parseDiagnostics = ast?.diagnostics ?? [];
+        this._parseErrorReported = false;
+        this._expressionAst = this.hasParseDiagnostics ? undefined : ast;
+    }
+
+    public get hasParseDiagnostics(): boolean {
+        return this._parseDiagnostics.length > 0;
     }
 
     public get isPrintExpression(): boolean {
@@ -62,7 +70,7 @@ export class ScvdExpression extends ScvdNode {
     }
     public set expression(expression: string | undefined) {
         this._expression = expression;
-        this._expressionAst = undefined;
+        this.expressionAst = undefined;
     }
 
     private async evaluateExpression(): Promise<EvaluateResult> {
@@ -89,6 +97,10 @@ export class ScvdExpression extends ScvdNode {
     }
 
     public async evaluate(): Promise<EvaluateResult> {
+        if (this.hasParseDiagnostics) {
+            this.logParseDiagnostics('evaluate');
+            return undefined;
+        }
         if (this.expressionAst === undefined) {
             return undefined;
         }
@@ -111,7 +123,8 @@ export class ScvdExpression extends ScvdNode {
             return false;
         }
 
-        if (this.expressionAst === undefined) {  // if already parsed by dependency, skip parsing
+        // Reuse successful and failed parse results until the expression changes.
+        if (this.expressionAst === undefined && !this.hasParseDiagnostics) {
             const executionContext = this.getExecutionContext();
             if (executionContext && this._executionContext !== executionContext) {
                 this._executionContext = executionContext;
@@ -121,10 +134,7 @@ export class ScvdExpression extends ScvdNode {
                 componentViewerLogger.error(`${this.getLineInfoStr()} Expression parsing missing execution context or parser`);
                 return false;
             }
-            const expressionAst = parser.parseExpression(expression, this.isPrintExpression);
-            if (expressionAst !== undefined && expressionAst.diagnostics.length === 0) {
-                this.expressionAst = expressionAst;
-            }
+            this.expressionAst = parser.parseExpression(expression, this.isPrintExpression);
         }
 
         return true;
@@ -135,6 +145,23 @@ export class ScvdExpression extends ScvdNode {
         return super.configure();
     }
 
+    private logParseDiagnostics(action: 'validate' | 'evaluate'): void {
+        const expression = this.expression ?? '';
+        const details = this._parseDiagnostics.map(diagnostic => {
+            const token = expression.slice(diagnostic.start, diagnostic.end);
+            const location = `at position ${diagnostic.start + 1}`;
+            return `${diagnostic.message} ${location}${token ? `: ${JSON.stringify(token)}` : ''}`;
+        }).join('; ');
+        const message = `expression ${JSON.stringify(expression)}: ${details}`;
+        if (!this._parseErrorReported) {
+            componentViewerLogger.error(`${this.getLineInfoStr()} Invalid ${message}`);
+            this._parseErrorReported = true;
+        }
+        if (action === 'evaluate') {
+            componentViewerLogger.debug(`${this.getLineInfoStr()} Skipping invalid ${message}`);
+        }
+    }
+
     public override validate(prevResult: boolean): boolean {
         const expression = this.expression;
         if (expression === undefined) {
@@ -142,16 +169,15 @@ export class ScvdExpression extends ScvdNode {
             return super.validate(false);
         }
 
+        if (this.hasParseDiagnostics) {
+            this.logParseDiagnostics('validate');
+            return super.validate(false);
+        }
         const expressionAst = this.expressionAst;
         if (expressionAst === undefined) {
             componentViewerLogger.error(this.getLineInfoStr(), 'Expression AST is undefined for expression: ', expression);
             return super.validate(false);
         }
-        if (expressionAst.diagnostics.length > 0) {
-            componentViewerLogger.error(this.getLineInfoStr(), 'Expression AST has diagnostics for expression: ', expression, '\nDiagnostics: ', expressionAst.diagnostics);
-            return super.validate(false);
-        }
-
         return super.validate(prevResult && true);
     }
 
