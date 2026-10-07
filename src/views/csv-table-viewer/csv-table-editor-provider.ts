@@ -23,7 +23,9 @@ import { logger } from '../../logger';
 import { copyCsvTableRows } from './copy-csv-table-rows';
 import { resolveCTraceRunReference } from './ctrace-run-resolver';
 import { IndexedCsvTableRowStore } from './indexed-csv-table-row-store';
+import { getCsvTableSelectionIdentity, restoreCsvTableSelection } from './csv-table-selection-retention';
 import { InMemoryCsvTableRowStore, type CsvTableRowStore } from './csv-table-row-store';
+import { EMPTY_ROW_SELECTION, type RowSelectionState } from './row-selection';
 import { parseCsvTableChunks, type CsvTableFilter, type CsvTableSort } from './csv-table';
 import type { CsvTableHostMessage, CsvTableWebviewMessage } from './csv-table-protocol';
 
@@ -77,6 +79,7 @@ export class CsvTableEditorProvider implements vscode.CustomReadonlyEditorProvid
         let rowStore: CsvTableRowStore = new InMemoryCsvTableRowStore({ columns: [], rows: [], malformedRowCount: 0 });
         let filters: readonly CsvTableFilter[] = [];
         let sort: CsvTableSort | null = null;
+        let selection: RowSelectionState = EMPTY_ROW_SELECTION;
         let loadGeneration = 0;
         let updateGeneration = 0;
         let viewRevision = 0;
@@ -96,6 +99,7 @@ export class CsvTableEditorProvider implements vscode.CustomReadonlyEditorProvid
             const message: CsvTableHostMessage = {
                 type: 'tableState',
                 viewRevision,
+                selection,
                 columns: rowStore.columns,
                 totalRowCount: rowStore.rowCount,
                 malformedRowCount: rowStore.malformedRowCount,
@@ -150,7 +154,16 @@ export class CsvTableEditorProvider implements vscode.CustomReadonlyEditorProvid
             }
             let timing;
             try {
+                const selectionIdentity = await getCsvTableSelectionIdentity(selection, requestedStore, 'sourceRowIndex');
+                if (generation !== updateGeneration || requestedStore !== rowStore || controller.signal.aborted) {
+                    return;
+                }
                 timing = await requestedStore.applyView(filters, sort, controller.signal);
+                const restoredSelection = await restoreCsvTableSelection(selectionIdentity, requestedStore);
+                if (generation !== updateGeneration || requestedStore !== rowStore || controller.signal.aborted) {
+                    return;
+                }
+                selection = restoredSelection;
             } catch (error) {
                 if (controller.signal.aborted) {
                     return;
@@ -180,6 +193,7 @@ export class CsvTableEditorProvider implements vscode.CustomReadonlyEditorProvid
             postState(true);
             logger.debug(`[CsvTableEditor] Load ${generation} started: uri=${document.uri.toString()}`);
             try {
+                const selectionIdentity = await getCsvTableSelectionIdentity(selection, rowStore);
                 const readStartedAt = performance.now();
                 const loadedStore = await this.readRowStore(document.uri);
                 const readAndParseMs = performance.now() - readStartedAt;
@@ -201,6 +215,7 @@ export class CsvTableEditorProvider implements vscode.CustomReadonlyEditorProvid
                     return;
                 }
                 await rowStore.applyView(filters, sort);
+                selection = await restoreCsvTableSelection(selectionIdentity, rowStore);
                 const initializeRowsMs = performance.now() - initializeRowsStartedAt;
                 postState(false);
                 pendingFirstRender = { loadGeneration: generation, loadStartedAt };
@@ -282,6 +297,13 @@ export class CsvTableEditorProvider implements vscode.CustomReadonlyEditorProvid
                     break;
                 case 'cellSelected':
                     await this.handleCellSelection(document.uri, message, rowStore);
+                    break;
+                case 'selectionChanged':
+                    selection = {
+                        intervals: message.intervals,
+                        caret: message.caret,
+                        anchor: message.anchor,
+                    };
                     break;
                 case 'copyRows': {
                     if (message.viewRevision !== viewRevision) {

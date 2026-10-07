@@ -132,7 +132,7 @@ export const CsvTableViewer = (): JSX.Element => {
                         rowRequestInFlight.current = null;
                         loadedRowRange.current = null;
                         setRows([]);
-                        setSelection(EMPTY_ROW_SELECTION);
+                        setSelection(message.selection ?? EMPTY_ROW_SELECTION);
                         setTableRevision(revision => revision + 1);
                         setRowRequestVersion(version => version + 1);
                         setColumnWidths(widths => widths.length === message.columns.length + 1
@@ -175,6 +175,15 @@ export const CsvTableViewer = (): JSX.Element => {
             window.clearTimeout(copyButtonTimer.current);
         }
     }, []);
+
+    useEffect(() => {
+        vscode.postMessage({
+            type: 'selectionChanged',
+            intervals: selection.intervals,
+            caret: selection.caret,
+            anchor: selection.anchor,
+        });
+    }, [selection]);
 
     useEffect(() => {
         setCopyButtonReady(false);
