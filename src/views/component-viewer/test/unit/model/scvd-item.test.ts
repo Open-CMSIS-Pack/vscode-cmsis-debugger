@@ -19,12 +19,16 @@
  * Unit test for ScvdItem.
  */
 
+import { parseStringPromise } from 'xml2js';
+
 import { ScvdCondition } from '../../../model/scvd-condition';
+import { ScvdComponentViewer } from '../../../model/scvd-component-viewer';
 import { ScvdItem } from '../../../model/scvd-item';
 import { ScvdListOut } from '../../../model/scvd-list-out';
 import { ScvdPrint } from '../../../model/scvd-print';
 import { Json } from '../../../model/scvd-base';
 import { ScvdCalc } from '../../../model/scvd-calc';
+import { ScvdEvalContext } from '../../../scvd-eval-context';
 
 describe('ScvdItem', () => {
     it('returns false when XML is undefined', () => {
@@ -92,6 +96,33 @@ describe('ScvdItem', () => {
         (item as unknown as { _value?: undefined })._value = undefined;
         await expect(item.getGuiName()).resolves.toBeUndefined();
         await expect(item.getGuiValue()).resolves.toBeUndefined();
+    });
+
+    it.each([
+        { invstateBit: 0, expected: '' },
+        { invstateBit: 1, expected: 'INVSTATE ' },
+    ])('formats the XML ternary from issue #989 when INVSTATE_bit is $invstateBit', async ({ invstateBit, expected }) => {
+        const xml: Json = await parseStringPromise(`
+            <component_viewer>
+                <objects>
+                    <object name="Faults">
+                        <var name="INVSTATE_bit" type="uint8_t" />
+                        <out name="Fault">
+                            <item value="%t[INVSTATE_bit ? &quot;INVSTATE &quot; : &quot;&quot;]" />
+                        </out>
+                    </object>
+                </objects>
+            </component_viewer>`, { explicitArray: false, mergeAttrs: true });
+        const viewer = new ScvdComponentViewer(undefined);
+        expect(viewer.readXml(xml)).toBe(true);
+        const context = new ScvdEvalContext(viewer).getExecutionContext();
+        viewer.setExecutionContextAll(context);
+        expect(viewer.configureAll()).toBe(true);
+        context.memoryHost.setVariable('INVSTATE_bit', 1, new Uint8Array([invstateBit]), 0);
+
+        const item = viewer.objects?.objects[0].out[0].item[0];
+        expect(item).toBeDefined();
+        await expect(item?.getGuiValue()).resolves.toBe(expected);
     });
 
     it('defaults condition result when no cond is set', async () => {
