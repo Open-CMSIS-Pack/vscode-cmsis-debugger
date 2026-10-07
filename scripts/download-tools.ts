@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { ArchiveFileAsset, Downloadable, Downloader, GitHubReleaseAsset, GitHubWorkflowAsset, WebFileAsset  } from '@open-cmsis-pack/vsce-helper';
+import { Asset, ArchiveFileAsset, Downloadable, Downloader, GitHubReleaseAsset, GitHubWorkflowAsset, WebFileAsset  } from '@open-cmsis-pack/vsce-helper';
 import { PackageJson } from 'type-fest';
 import process from 'node:process';
 import fs from 'node:fs/promises';
@@ -201,6 +201,163 @@ const gdb : Downloadable = new Downloadable(
     },
 );
 
+class ArchiveFileAssetEx extends ArchiveFileAsset {
+    public constructor(subject: Asset, strip?: number) {
+        super(subject, strip);
+    }
+
+    public async copyTo(dest?: string): Promise<string> {
+        dest = await super.copyTo(dest);
+        await this.normalizeSymlinks(dest);
+        return dest;
+    }
+
+    private async normalizeSymlinks(rootPath: string): Promise<void> {
+        console.log(`Normalizing symlinks in directory: ${rootPath}`);
+        const resolvedRootPath = await fs.realpath(rootPath);
+        await this.normalizeDirectory(resolvedRootPath, resolvedRootPath, new Set<string>());
+    }
+
+    private async normalizeDirectory(
+        directoryPath: string,
+        rootPath: string,
+        activeDirectoryPaths: Set<string>
+    ): Promise<void> {
+        console.debug(`Normalizing directory: ${directoryPath}`);
+
+        const resolvedDirectoryPath = await fs.realpath(directoryPath);
+        this.assertNoDirectoryCycle(resolvedDirectoryPath, activeDirectoryPaths);
+        activeDirectoryPaths.add(resolvedDirectoryPath);
+
+        try {
+            const entries = await fs.readdir(directoryPath);
+            for (const entry of entries) {
+                const entryPath = path.join(directoryPath, entry);
+                const entryStats = await fs.lstat(entryPath);
+
+                if (entryStats.isSymbolicLink()) {
+                    await this.materializeSymlink(entryPath, entryPath, rootPath, activeDirectoryPaths);
+                } else if (entryStats.isDirectory()) {
+                    await this.normalizeDirectory(entryPath, rootPath, activeDirectoryPaths);
+                } else if (!entryStats.isFile()) {
+                    throw new Error(`Unsupported filesystem entry in downloaded archive: ${entryPath}`);
+                }
+            }
+        } finally {
+            activeDirectoryPaths.delete(resolvedDirectoryPath);
+        }
+    }
+
+    private async materializeSymlink(
+        symlinkPath: string,
+        destinationPath: string,
+        rootPath: string,
+        activeDirectoryPaths: Set<string>
+    ): Promise<void> {
+        console.debug(`Materializing symlink: ${symlinkPath}`);
+        
+        const targetPath = await this.resolveSymlinkTarget(symlinkPath, rootPath);
+        const targetStats = await fs.stat(targetPath);
+
+        if (symlinkPath === destinationPath) {
+            await fs.unlink(symlinkPath);
+        }
+
+        if (targetStats.isFile()) {
+            await this.createHardLink(targetPath, destinationPath);
+        } else if (targetStats.isDirectory()) {
+            await this.materializeDirectory(targetPath, destinationPath, rootPath, activeDirectoryPaths);
+        } else {
+            throw new Error(`Unsupported symbolic link target in downloaded archive: ${symlinkPath} -> ${targetPath}`);
+        }
+    }
+
+    private async materializeDirectory(
+        sourcePath: string,
+        destinationPath: string,
+        rootPath: string,
+        activeDirectoryPaths: Set<string>
+    ): Promise<void> {
+        console.debug(`Materializing directory: ${sourcePath}`);
+        
+        const resolvedSourcePath = await fs.realpath(sourcePath);
+        this.assertNoDirectoryCycle(resolvedSourcePath, activeDirectoryPaths);
+        activeDirectoryPaths.add(resolvedSourcePath);
+
+        try {
+            const sourceStats = await fs.stat(resolvedSourcePath);
+            await fs.mkdir(destinationPath, { mode: sourceStats.mode & 0o7777 });
+
+            const entries = await fs.readdir(resolvedSourcePath);
+            for (const entry of entries) {
+                const sourceEntryPath = path.join(resolvedSourcePath, entry);
+                const destinationEntryPath = path.join(destinationPath, entry);
+                const entryStats = await fs.lstat(sourceEntryPath);
+
+                if (entryStats.isSymbolicLink()) {
+                    await this.materializeSymlink(
+                        sourceEntryPath,
+                        destinationEntryPath,
+                        rootPath,
+                        activeDirectoryPaths
+                    );
+                } else if (entryStats.isDirectory()) {
+                    await this.materializeDirectory(
+                        sourceEntryPath,
+                        destinationEntryPath,
+                        rootPath,
+                        activeDirectoryPaths
+                    );
+                } else if (entryStats.isFile()) {
+                    await this.createHardLink(sourceEntryPath, destinationEntryPath);
+                } else {
+                    throw new Error(`Unsupported filesystem entry in symbolic link target: ${sourceEntryPath}`);
+                }
+            }
+
+            await fs.chmod(destinationPath, sourceStats.mode & 0o7777);
+        } finally {
+            activeDirectoryPaths.delete(resolvedSourcePath);
+        }
+    }
+
+    private async resolveSymlinkTarget(symlinkPath: string, rootPath: string): Promise<string> {
+        console.debug(`Resolving symlink target for: ${symlinkPath}`);
+
+        let targetPath: string;
+        try {
+            targetPath = await fs.realpath(symlinkPath);
+        } catch (error) {
+            throw new Error(`Failed to resolve symbolic link in downloaded archive: ${symlinkPath}`, { cause: error });
+        }
+
+        const relativeTargetPath = path.relative(rootPath, targetPath);
+        const isOutsideRoot = relativeTargetPath === '..' ||
+            relativeTargetPath.startsWith(`..${path.sep}`) ||
+            path.isAbsolute(relativeTargetPath);
+        if (isOutsideRoot) {
+            throw new Error(`Symbolic link target is outside the downloaded archive: ${symlinkPath} -> ${targetPath}`);
+        }
+
+        return targetPath;
+    }
+
+    private assertNoDirectoryCycle(directoryPath: string, activeDirectoryPaths: Set<string>): void {
+        if (activeDirectoryPaths.has(directoryPath)) {
+            throw new Error(`Symbolic link directory cycle detected in downloaded archive: ${directoryPath}`);
+        }
+    }
+
+    private async createHardLink(sourcePath: string, destinationPath: string): Promise<void> {
+        console.debug(`Materializing hard link: ${sourcePath} -> ${destinationPath}`);
+        try {
+            await fs.link(sourcePath, destinationPath);
+        } catch (error) {
+            throw new Error(`Failed to create hard link ${destinationPath} -> ${sourcePath}`, { cause: error });
+        }
+    }
+}
+
 const pyts : Downloadable = new Downloadable(
     'pyTS', 'pyts',
     async (target) => {
@@ -223,7 +380,7 @@ const pyts : Downloadable = new Downloadable(
             owner, repo, reference,
             `pyTS-${reference}-${os}-${arch}.${ext}`,
             { token: process.env.GITHUB_TOKEN });
-        return new ArchiveFileAsset(releaseAsset);
+        return new ArchiveFileAssetEx(releaseAsset);
     },
 );
 

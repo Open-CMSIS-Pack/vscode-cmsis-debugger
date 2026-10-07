@@ -15,8 +15,6 @@
  */
 // generated with AI
 
-import * as path from 'node:path';
-
 import * as vscode from 'vscode';
 
 import { CBuildRunFileLocator } from '../../cbuild-run';
@@ -25,11 +23,6 @@ import { CSV_TABLE_EDITOR_VIEW_TYPE } from '../../views/csv-table-viewer/csv-tab
 interface CapturedTrace {
     readonly uri: vscode.Uri;
     readonly type: 'SWO' | 'TB';
-    readonly modifiedAt: number;
-}
-
-interface CapturedTraceQuickPickItem extends vscode.QuickPickItem {
-    readonly trace: CapturedTrace;
 }
 
 /**
@@ -52,33 +45,20 @@ export class CapturedTraceResolver {
             return;
         }
         const captures = await this.findCaptures(activeSolutionFolder, solutionSet);
-        if (captures.length === 0) {
-            return;
-        }
-        if (captures.length === 1) {
-            await this.openCapture(captures[0].uri);
-            return;
-        }
-
-        const selected = await vscode.window.showQuickPick(
-            captures.map(capture => this.toQuickPickItem(capture)),
-            { placeHolder: 'Select a captured trace to open' }
-        );
-        if (selected !== undefined) {
-            await this.openCapture(selected.trace.uri);
+        const capture = captures.find(({ type }) => type === 'SWO') ?? captures[0];
+        if (capture !== undefined) {
+            await this.openCapture(capture.uri);
         }
     }
 
-    public async hasSwoCapture(cbuildRunFilePath?: string): Promise<boolean> {
+    public async hasCapture(cbuildRunFilePath?: string): Promise<boolean> {
         const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
         if (activeSolutionFolder === undefined) {
             return false;
         }
         try {
             const solutionSet = await this.cbuildRunFileLocator.getDefaultSolutionSet(cbuildRunFilePath);
-            const uri = vscode.Uri.joinPath(activeSolutionFolder, '.trace', `${solutionSet}.SWO.csv`);
-            const stat = await vscode.workspace.fs.stat(uri);
-            return (stat.type & vscode.FileType.File) !== 0;
+            return (await this.findCaptures(activeSolutionFolder, solutionSet)).length > 0;
         } catch {
             return false;
         }
@@ -100,12 +80,12 @@ export class CapturedTraceResolver {
             .filter(([, fileType]) => (fileType & vscode.FileType.File) !== 0)
             .map(([fileName]) => ({ fileName, type: this.getCaptureType(fileName, solutionSet) }))
             .filter((candidate): candidate is { fileName: string; type: 'SWO' | 'TB' } => candidate.type !== undefined);
-        const captures = await Promise.all(candidates.map(async candidate => {
-            const uri = vscode.Uri.joinPath(traceFolder, candidate.fileName);
-            const stat = await vscode.workspace.fs.stat(uri);
-            return { uri, type: candidate.type, modifiedAt: stat.mtime };
-        }));
-        return captures.sort((first, second) => second.modifiedAt - first.modifiedAt);
+        return candidates
+            .sort((first, second) => first.fileName.localeCompare(second.fileName))
+            .map(candidate => ({
+                uri: vscode.Uri.joinPath(traceFolder, candidate.fileName),
+                type: candidate.type
+            }));
     }
 
     private getCaptureType(fileName: string, solutionSet: string): 'SWO' | 'TB' | undefined {
@@ -118,11 +98,4 @@ export class CapturedTraceResolver {
             : undefined;
     }
 
-    private toQuickPickItem(trace: CapturedTrace): CapturedTraceQuickPickItem {
-        return {
-            label: `${trace.type} - ${new Date(trace.modifiedAt).toLocaleString()}`,
-            detail: path.basename(trace.uri.fsPath),
-            trace
-        };
-    }
 }

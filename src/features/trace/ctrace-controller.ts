@@ -36,7 +36,7 @@ import { CapturedTraceResolver } from './captured-trace-resolver';
 const RAW_TRACE_SAVE_WINDOW_MS = 2_000;
 const RAW_TRACE_GLOB = '.trace/*.{SWO,TB}.raw';
 const RAW_TRACE_WATCH_ID = 'ctrace-raw-trace';
-const CAPTURED_TRACE_GLOB = '.trace/*.SWO.csv';
+const CAPTURED_TRACE_GLOB = '.trace/*.{SWO,TB,TB_*}.csv';
 const CAPTURED_TRACE_WATCH_ID = 'ctrace-captured-trace';
 const HAS_CAPTURED_TRACE_CONTEXT = 'vscode-cmsis-debugger.hasCapturedTrace';
 
@@ -248,7 +248,7 @@ export class CTraceController {
     }
 
     private async updateCapturedTraceContext(): Promise<void> {
-        const hasCapturedTrace = await this.capturedTraceResolver.hasSwoCapture(this.activeSession?.getCbuildRunPath());
+        const hasCapturedTrace = await this.capturedTraceResolver.hasCapture(this.activeSession?.getCbuildRunPath());
         await vscode.commands.executeCommand('setContext', HAS_CAPTURED_TRACE_CONTEXT, hasCapturedTrace);
     }
 }
