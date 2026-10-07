@@ -122,6 +122,66 @@ function rowIndex(state: TraceConfigurationState, path: (string | number)[]): nu
 }
 
 describe('TraceConfigurationRowBuilder', () => {
+    it.each([
+        ['', undefined],
+        ['label:', undefined],
+        ['label: null', undefined],
+        ['label: ~', undefined],
+        ['label: ""', undefined],
+        ['label: watchLabel', 'watchLabel'],
+        ['label: "null"', 'null'],
+        ['label: " "', ' '],
+        ['label: "0"', '0'],
+    ])('shows a label field only when populated (%s)', (labelEntry, expectedValue) => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: watchSymbol',
+            `          ${labelEntry}`,
+            ''
+        ].join('\n'));
+
+        const labelPath = ['ctrace', 'setup', 0, 'data', 0, 'label'];
+        expect(hasRow(state, labelPath)).toBe(expectedValue !== undefined);
+        if (expectedValue !== undefined) {
+            expect(findRow(state, labelPath)).toMatchObject({ control: 'text', value: expectedValue });
+        }
+    });
+
+    it('hides a cleared label on refresh without changing the YAML document', () => {
+        const file = new CTraceYamlFile('target.ctrace.yml');
+        const document = CTraceYamlDocument.parse([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: watchSymbol',
+            '          label: watchLabel',
+            ''
+        ].join('\n'));
+        file.document = document;
+        const builder = new TraceConfigurationRowBuilder(
+            () => file,
+            () => false,
+            () => false,
+            () => undefined,
+            new AllRowsExpandedSet(),
+            createCapabilities(),
+            () => false
+        );
+        const labelPath = ['ctrace', 'setup', 0, 'data', 0, 'label'];
+        const originalValue = document.yaml.getValue();
+        expect(hasRow(builder.createState(), labelPath)).toBe(true);
+        expect(document.yaml.getValue()).toEqual(originalValue);
+
+        document.yaml.set(labelPath, '');
+        const clearedValue = document.yaml.getValue();
+        expect(hasRow(builder.createState(), labelPath)).toBe(false);
+        expect(document.yaml.getValue()).toEqual(clearedValue);
+    });
+
     it('reports status and empty messages when no file is loaded', () => {
         const state = createStateWithoutFile({
             loading: true,
@@ -425,7 +485,7 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(accessRow.options).not.toContain('');
         expect(accessRow.options).not.toContain('Execute');
 
-        expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'label']).label).toBe('Label');
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'data', 0, 'label'])).toBe(false);
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'size']).label).toBe('Size');
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'size']).placeholder).toBe('<Auto>');
         expect(findRow(state, ['ctrace', 'setup', 0, 'data', 0, 'output']).options).toEqual(TraceConfigurationTypes.DATA_OUTPUT_OPTIONS);
