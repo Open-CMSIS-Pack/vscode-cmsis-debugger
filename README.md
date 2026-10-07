@@ -95,15 +95,15 @@ while running. The following table shows target interaction capabilities while r
 pyOCD):
 
 | View | Read | Edit |
-|------|------|------|
-| [**Memory Inspector**](#memory-inspector) | &#9989;  | &#9989;  |
-| [**Peripherals**](#peripherals)           | &#9989;  | &#9989;  |
-| [**Live Watch**](#trace-and-live-view)    | &#9989;  | &#10060; |
-| [**Component Viewer**](#component-viewer) | &#9989;  | &#10060; |
-| [**Core Peripherals**](#core-peripherals) | &#9989;  | &#10060; |
-| [**VARIABLES**](#variables)               | &#10060; | &#10060; |
-| [**WATCH**](#watch)                       | &#10060; | &#10060; |
-| [**CALL STACK**](#call-stack)             | &#10060; | &#10060; |
+| ------ | ------ | ------ |
+| [**Memory Inspector**](#memory-inspector) | &#9989; | &#9989; |
+| [**Peripherals**](#peripherals) | &#9989; | &#9989; |
+| [**Live Watch**](#trace-and-live-view) | &#9989; | &#10060; |
+| [**Component Viewer**](#component-viewer) | &#9989; | &#10060; |
+| [**Core Peripherals**](#core-peripherals) | &#9989; | &#10060; |
+| [**VARIABLES**](#variables) | &#10060; | &#10060; |
+| [**WATCH**](#watch) | &#10060; | &#10060; |
+| [**CALL STACK**](#call-stack) | &#10060; | &#10060; |
 
 ### Number formats
 
@@ -118,7 +118,7 @@ change the radix, there are multiple ways to do so:
   format specifier):
 
 | Specifier | Format |
-|-----------|--------|
+| ----------- | -------- |
 | `x` | `hexadecimal` |
 | `d` | `decimal` |
 | `o` | `octal` |
@@ -142,7 +142,7 @@ During debugging, the **Debug toolbar** contains actions to control the flow of 
 ![Debug toolbar](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/debug-toolbar.png)
 
 | Action | Description |
-|--------|-------------|
+| -------- | ------------- |
 | Continue/Pause | **Continue**: Resume normal program execution (up to the next breakpoint).<br>**Pause**: Inspect code executing at the current location. |
 | Step Over | Execute the next statement as a single command without inspecting or following its component steps. |
 | Step Into | Enter the next statement to follow its execution line-by-line. |
@@ -312,10 +312,10 @@ and/or hit count.
 
 Most Arm Cortex-M processors (except Cortex-M0/M0+/M23) include a `DWT->CYCCNT` register that counts CPU states. In combination with the CMSIS variable [`SystemCoreClock`](https://arm-software.github.io/CMSIS_6/latest/Core/group__system__init__gr.html) the CMSIS Debugger calculates execution time and displays it along with the selected processor core in the CPU Time Status bar.  A click on the CPU Time Status bar opens the related [VS Code command palette](https://code.visualstudio.com/docs/getstarted/userinterface#_command-palette).
 
-|Command        | Description  |
-|:--------------|:-------------|
-|CPU Time       | Print CPU execution time and history of past program stops. |
-|Reset CPU Time | Reset CPU execution time and history. Set new reference time (zero point). |
+| Command        | Description                                                                |
+| -------------- | -------------------------------------------------------------------------- |
+| CPU Time       | Print CPU execution time and history of past program stops.                |
+| Reset CPU Time | Reset CPU execution time and history. Set new reference time (zero point). |
 
 ![CPU Time](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/CPU_Time.png)
 
@@ -372,7 +372,7 @@ The **Component Viewer toolbar** offers the following action buttons:
 ![Component Viewer Buttons](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/comp-viewer-buttons.png)
 
 | Button | Description |
-|--------|-------------|
+| -------- | ------------- |
 | Filter | Filter the displayed components and their entries |
 | Clear Filter | Remove component filtering |
 | Disable Periodic Update | Components are not updated while the target is running |
@@ -418,7 +418,7 @@ Before configuring individual trace sources, enable SWO trace for the target.
 
 For example, you can use an onboard ST-Link debug adapter with pyOCD.
 
-2. Enable SWO
+1. Enable SWO
 
 From **Manage Solution**, select **Edit csolution.yml** and add a `trace` section to the debugger configuration.
 
@@ -436,8 +436,8 @@ debugger:
       output-clock: 1500000
 ```
 
-|  Key  | Description |
-|-------|-------------|
+| Key | Description |
+| ------- | ------------- |
 | `swo-uart` | Selects SWO as the trace output. |
 | `mode: file` | Captures the trace to a file for subsequent analysis |
 | `input-clock` | Specifies the clock used by the target trace hardware. It must correspond to the actual processor or trace clock used by the application. |
@@ -459,7 +459,7 @@ Open the **Trace And Live View** and scroll down until the **Trace Generation**.
 
 Enable the processor as a trace source and select the information that you want to capture. The available options depend on the trace capabilities of the processor.
 
-**Timestamps**
+###### Timestamps
 
 Enable **Timestamps** and configure the **ITM Prescaler** to control how frequently timestamp information is generated.
 
@@ -467,26 +467,26 @@ Timestamps contribute to the cycle information in the decoded trace. They are no
 
 **todo** **Clock** setting?
 
-**Exception Trace**
+###### Exception Trace
 
 Enable **Exceptions** to record exception activity.
 
 In the decoded trace, **index** identifies the exception number and **value** identifies the exception event.
 
-**Event Counters**
+###### Event Counters
 
 Enable **Event Counters** to include supported processor events in the trace.
 
 The available counters depend on the processor.
 
-**Instrumentation Trace**
+###### Instrumentation Trace
 
 Enable **Instrumentation Trace** to capture information generated through ITM stimulus channels.
 
 - Select the required channels and configure their properties.
 - **Privileged** sets group access rights. Ports that are used by an operating system can be protected from being accessed through the user-code. When unchecked, accessing ports in User Mode is not allowed. Ports are always accessible when the device is in **Privileged Mode**.
 
-**DWT Data Trace**
+###### DWT Data Trace
 
 Use **DWT Data Trace** to monitor accesses to a variable or memory location without stopping program execution:
 
@@ -506,25 +506,25 @@ A data trace point can also be made sensitive to a particular value. Value-depen
 >
 > DWT data trace and data access breakpoints use the same underlying hardware resources. Enabling data trace can reduce the number of data access breakpoints available to the debugger.
 
-**Instruction Trace**
+###### Instruction Trace
 
-**todo**
+todo
 
-**Trace Halt**
+###### Trace Halt
 
-**todo**
+todo
 
-**PC Sampling**
+###### PC Sampling
 
 Enable **PC Sampling** to periodically record the program counter.
 
 The available sampling configuration depends on the processor.
 
-**Advanced Settings**
+###### Advanced Settings
 
-**Time Synchronization**
+###### Time Synchronization
 
-**Stream Synchronization**
+###### Stream Synchronization
 
 ##### Validate the trace configuration
 
@@ -589,7 +589,7 @@ For exception trace, **index** identifies the exception number and **value** ide
 
 Timestamp information is incorporated into the cycle information rather than being displayed as separate timestamp records.
 
-**Locate the source of a trace record**
+##### Locate the source of a trace record
 
 **todo** needs validation/does not work on macOS
 
@@ -622,7 +622,7 @@ When overflow occurs, consider reducing the amount of enabled trace information 
 > A trace capture file containing overflow records is incomplete. Take this into account when analyzing the captured
 > data.
 
-**Consider hardware resource limitations**
+### Consider hardware resource limitations
 
 Cortex-M trace functionality uses hardware resources that vary between processors. The number and capabilities of DWT comparators, trace sources, and supported trace combinations therefore depend on the selected target.
 
