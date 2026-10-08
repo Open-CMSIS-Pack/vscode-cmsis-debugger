@@ -17,12 +17,94 @@
 
 /* eslint-disable security/detect-non-literal-fs-filename -- fixture paths are created in test-owned temporary directories */
 
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { IndexedCsvTableRowStore } from './indexed-csv-table-row-store';
 
 describe('IndexedCsvTableRowStore', () => {
+    it('keeps indexing and row reads on the opened file when its path is replaced after stat', async () => {
+        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'csv-table-replacement-'));
+        const filePath = join(temporaryDirectory, 'trace.swo.csv');
+        await writeFile(filePath, 'cycles,type\n1,Event\n2,Message\n', 'utf8');
+        const fileSystem = jest.requireActual<typeof import('node:fs/promises')>('node:fs/promises');
+        const originalOpen = fileSystem.open;
+        let replaced = false;
+        const replaceFile = async (): Promise<void> => {
+            if (!replaced) {
+                await rename(filePath, join(temporaryDirectory, 'original.swo.csv'));
+                await writeFile(filePath, 'other,columns\n999,Replacement\n', 'utf8');
+                replaced = true;
+            }
+        };
+        const openSpy = jest.spyOn(fileSystem, 'open').mockImplementation(async (path, flags, mode) => {
+            const handle = await originalOpen(path, flags, mode);
+            const originalHandleStat = handle.stat.bind(handle);
+            jest.spyOn(handle, 'stat').mockImplementation(async () => {
+                const metadata = await originalHandleStat();
+                await replaceFile();
+                return metadata;
+            });
+            return handle;
+        });
+        let store: IndexedCsvTableRowStore | undefined;
+        try {
+            store = await IndexedCsvTableRowStore.create(filePath);
+            await store.waitForIndexing();
+            expect(replaced).toBe(true);
+            expect(store.columns).toEqual(['cycles', 'type']);
+            await expect(store.getRows(0, 2)).resolves.toEqual([
+                { sourceRowIndex: 0, cells: ['1', 'Event'] },
+                { sourceRowIndex: 1, cells: ['2', 'Message'] },
+            ]);
+        } finally {
+            openSpy.mockRestore();
+            await store?.dispose();
+            await rm(temporaryDirectory, { recursive: true, force: true });
+        }
+    });
+
+    it.each(['stat', 'read'] as const)('closes the opened handle when initialization fails during %s', async operation => {
+        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'csv-table-init-failure-'));
+        const filePath = join(temporaryDirectory, 'trace.swo.csv');
+        await writeFile(filePath, 'cycles,type\n1,Event\n', 'utf8');
+        const fileSystem = jest.requireActual<typeof import('node:fs/promises')>('node:fs/promises');
+        const handle = await fileSystem.open(filePath, 'r');
+        const failure = new Error(`Failed to ${operation}`);
+        const closeSpy = jest.spyOn(handle, 'close');
+        const operationSpy = jest.spyOn(handle, operation).mockRejectedValueOnce(failure);
+        const openSpy = jest.spyOn(fileSystem, 'open').mockResolvedValueOnce(handle);
+        try {
+            await expect(IndexedCsvTableRowStore.create(filePath)).rejects.toBe(failure);
+            expect(closeSpy).toHaveBeenCalledTimes(1);
+            expect(handle.fd).toBe(-1);
+        } finally {
+            openSpy.mockRestore();
+            operationSpy.mockRestore();
+            closeSpy.mockRestore();
+            await handle.close();
+            await rm(temporaryDirectory, { recursive: true, force: true });
+        }
+    });
+
+    it('preserves header bytes across indexing read buffers', async () => {
+        const temporaryDirectory = await mkdtemp(join(tmpdir(), 'csv-table-long-header-'));
+        const filePath = join(temporaryDirectory, 'trace.swo.csv');
+        const longColumn = 'header'.repeat(20_000);
+        await writeFile(filePath, `cycles,"${longColumn}\ncontinued"\n1,Event\n`, 'utf8');
+        const store = await IndexedCsvTableRowStore.create(filePath);
+        try {
+            await store.waitForIndexing();
+            expect(store.columns).toEqual(['cycles', `${longColumn}\ncontinued`]);
+            await expect(store.getRows(0, 1)).resolves.toEqual([
+                { sourceRowIndex: 0, cells: ['1', 'Event'] },
+            ]);
+        } finally {
+            await store.dispose();
+            await rm(temporaryDirectory, { recursive: true, force: true });
+        }
+    });
+
     it('indexes and reads quoted records from disk', async () => {
         const temporaryDirectory = await mkdtemp(join(tmpdir(), 'csv-table-csv-row-store-'));
         const filePath = join(temporaryDirectory, 'trace.swo.csv');
