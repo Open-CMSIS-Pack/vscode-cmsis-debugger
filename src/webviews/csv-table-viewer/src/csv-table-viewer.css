@@ -203,6 +203,11 @@ body {
     font: inherit;
     cursor: pointer;
     animation: copy-selection-tooltip-appear 160ms ease-out both;
+    transition: visibility 0s;
+}
+
+.table-frame:not(:has(.table-row.selected:hover)) .copy-selection-tooltip:not(:hover):not(:focus-visible) {
+    visibility: hidden;
 }
 
 @keyframes copy-selection-tooltip-appear {
