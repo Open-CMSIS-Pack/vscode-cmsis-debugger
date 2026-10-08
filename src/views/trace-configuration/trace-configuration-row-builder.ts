@@ -905,7 +905,8 @@ export class TraceConfigurationRowBuilder {
      * still preserved in the file but should not clutter the trace editor. The
      * metadata keys are always hidden, top-level disable is hidden because the
      * setting is processor-specific, ITM enable is folded into its parent row's
-     * channel checklist, and processor identity fields are folded into processor
+     * channel checklist, unset or empty settings unsupported by pyTS are hidden
+     * for this release, and processor identity fields are folded into processor
      * row labels.
      */
     private shouldHideNode(label: string, parentPath: (string | number)[], node: YamlTreeItem): boolean {
@@ -916,6 +917,16 @@ export class TraceConfigurationRowBuilder {
                 return labelValue === undefined || labelValue === null || labelValue === '';
             }
             return false;
+        }
+        // Hide unset or empty settings unsupported by pyTS in the UI without changing the YAML.
+        if (this.isProcessorPath(parentPath) && label === 'instructions') {
+            return this.getCTraceFile()?.document?.yaml.getItem([...parentPath, label]) === undefined;
+        }
+        if (this.isProcessorPath(parentPath) && label === 'tracehalt') {
+            const traceHaltNode = this.getCTraceFile()?.document?.yaml.getItem([...parentPath, label]);
+            return traceHaltNode === undefined
+                || (isYamlScalarItem(traceHaltNode) && traceHaltNode.toObject() === null)
+                || (isYamlSequenceItem(traceHaltNode) && traceHaltNode.getChildren().length === 0);
         }
         if (label === 'ctrace-ref' || label === 'created-by' || label === 'generated-by') {
             return true;
@@ -1471,9 +1482,8 @@ export class TraceConfigurationRowBuilder {
     }
 
     /**
-     * isInstructionsPath identifies the instruction trace map. The webview
-     * renames it to Instruction Trace and represents the map's presence as an
-     * enable/disable checkbox.
+     * isInstructionsPath identifies the instruction trace map. Manually
+     * configured maps remain editable while their synthetic row stays hidden.
      */
     public isInstructionsPath(nodePath: (string | number)[]): boolean {
         return nodePath.at(-1) === 'instructions';
