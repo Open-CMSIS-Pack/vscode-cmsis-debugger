@@ -127,4 +127,38 @@ describe('CapturedTraceResolver', () => {
             CSV_TABLE_EDITOR_VIEW_TYPE,
         );
     });
+
+    it('does not reopen an existing CSV tab during automatic opening', async () => {
+        const uri = vscode.Uri.file(`/workspace/solution/.trace/${SOLUTION_SET}.SWO.csv`);
+        const tabs: vscode.Tab[] = [];
+        const group: vscode.TabGroup = { isActive: false, viewColumn: vscode.ViewColumn.Two, activeTab: undefined, tabs };
+        tabs.push({
+            input: new vscode.TabInputCustom(uri, CSV_TABLE_EDITOR_VIEW_TYPE),
+            label: 'Trace', group, isActive: false, isDirty: false, isPinned: true, isPreview: false,
+        });
+        jest.spyOn(vscode.window.tabGroups, 'all', 'get').mockReturnValue([group]);
+        (vscode.workspace.fs.readDirectory as jest.Mock).mockResolvedValue([
+            [`${SOLUTION_SET}.SWO.csv`, vscode.FileType.File],
+        ]);
+
+        await resolver.open(CBUILD_RUN_FILE_PATH, { preserveFocus: true });
+
+        expect(vscode.commands.executeCommand).not.toHaveBeenCalled();
+    });
+
+    it('opens a new automatic capture beside the source without taking focus', async () => {
+        (vscode.workspace.fs.readDirectory as jest.Mock).mockResolvedValue([
+            [`${SOLUTION_SET}.SWO.csv`, vscode.FileType.File],
+        ]);
+
+        await resolver.open(CBUILD_RUN_FILE_PATH, { preserveFocus: true });
+
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+            'vscode.openWith',
+            vscode.Uri.file(`/workspace/solution/.trace/${SOLUTION_SET}.SWO.csv`),
+            CSV_TABLE_EDITOR_VIEW_TYPE,
+            { preserveFocus: true, viewColumn: vscode.ViewColumn.Beside },
+        );
+    });
+
 });

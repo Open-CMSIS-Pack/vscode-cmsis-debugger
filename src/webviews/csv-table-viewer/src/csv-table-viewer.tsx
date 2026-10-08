@@ -94,6 +94,7 @@ export const CsvTableViewer = (): JSX.Element => {
     const [copyButtonReady, setCopyButtonReady] = useState(false);
     const [contextMenuPosition, setContextMenuPosition] = useState<ContextMenuPosition | null>(null);
     const [scrollTop, setScrollTop] = useState(0);
+    const [rowViewportHeight, setRowViewportHeight] = useState(CSV_TABLE_ROW_HEIGHT);
     const [tableRevision, setTableRevision] = useState(0);
     const [renderedRequestId, setRenderedRequestId] = useState<number | null>(null);
     const [rowRequestVersion, setRowRequestVersion] = useState(0);
@@ -107,11 +108,26 @@ export const CsvTableViewer = (): JSX.Element => {
     const clearSortSuppressionTimer = useRef<number | null>(null);
     const filterTimer = useRef<number | null>(null);
     const copyButtonTimer = useRef<number | null>(null);
-    const rowViewportHeight = Math.max(CSV_TABLE_ROW_HEIGHT, (scrollElementRef.current?.clientHeight ?? CSV_TABLE_ROW_HEIGHT) - (tableHeaderRef.current?.offsetHeight ?? 0));
     const { scrollHeight, scrollScale, logicalScrollTop, firstVisibleRow } = getCsvTableScrollGeometry(tableState.totalRowCount, scrollTop, rowViewportHeight);
     const visibleRowCount = Math.max(1, Math.ceil(rowViewportHeight / CSV_TABLE_ROW_HEIGHT));
     const renderedRowStart = Math.max(0, firstVisibleRow - ROW_OVERSCAN);
     const renderedRowEnd = Math.min(tableState.totalRowCount, firstVisibleRow + visibleRowCount + ROW_OVERSCAN);
+
+    useEffect(() => {
+        const scrollElement = scrollElementRef.current;
+        const headerElement = tableHeaderRef.current;
+        if (scrollElement === null || headerElement === null) {
+            return;
+        }
+        const measure = (): void => {
+            setRowViewportHeight(Math.max(CSV_TABLE_ROW_HEIGHT, scrollElement.clientHeight - headerElement.offsetHeight));
+        };
+        const observer = new ResizeObserver(measure);
+        observer.observe(scrollElement);
+        observer.observe(headerElement);
+        measure();
+        return () => observer.disconnect();
+    }, []);
 
     useEffect(() => {
         const receiveMessage = (event: MessageEvent<CsvTableHostMessage>): void => {
