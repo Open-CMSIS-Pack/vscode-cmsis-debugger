@@ -15,13 +15,13 @@
  */
 // generated with AI
 
-import { createReadStream } from 'node:fs';
-import { open, stat, type FileHandle } from 'node:fs/promises';
+import { open, type FileHandle } from 'node:fs/promises';
 import { ExternalRowIdIndex, type ExternalSortEntry } from './external-csv-table-sort';
 import type { CsvTableColumnCacheTiming, CsvTableRowStore, CsvTableViewTiming } from './csv-table-row-store';
 import { compareCsvTableSortValues, matchesCsvTableFilter, normalizeCsvTableFilterValue, parseCsvTableRecord, type CsvTableFilter, type CsvTableRow, type CsvTableSort } from './csv-table';
 
 const VIEW_SCAN_BATCH_SIZE = 4096;
+const INDEX_READ_BUFFER_SIZE = 64 * 1024;
 const EXTERNAL_SORT_FILE_SIZE_LIMIT = 300 * 1024 * 1024;
 const INDEX_SEGMENT_SIZE = 65_536;
 const PARSED_COLUMN_CACHE_BYTES = 64 * 1024 * 1024;
@@ -171,15 +171,21 @@ export class IndexedCsvTableRowStore implements CsvTableRowStore {
     ) { }
 
     public static async create(filePath: string): Promise<IndexedCsvTableRowStore> {
-        const indexing = startCsvRecordIndexing(filePath);
-        // The path originates from a VS Code file URI.
-        // eslint-disable-next-line security/detect-non-literal-fs-filename
-        const fileStatPromise = stat(filePath);
-        const [index, fileStat] = await Promise.all([indexing.indexReady, fileStatPromise]);
         // The path originates from a VS Code file URI.
         // eslint-disable-next-line security/detect-non-literal-fs-filename
         const fileHandle = await open(filePath, 'r');
-        return new IndexedCsvTableRowStore(fileHandle, index, fileStat.size, indexing);
+        let indexing: CsvRecordIndexing | undefined;
+        try {
+            const fileStat = await fileHandle.stat();
+            indexing = startCsvRecordIndexing(fileHandle);
+            const index = await indexing.indexReady;
+            return new IndexedCsvTableRowStore(fileHandle, index, fileStat.size, indexing);
+        } catch (error) {
+            indexing?.cancel();
+            await indexing?.completion.catch(() => undefined);
+            await fileHandle.close();
+            throw error;
+        }
     }
 
     public get columns(): readonly string[] {
@@ -246,6 +252,7 @@ export class IndexedCsvTableRowStore implements CsvTableRowStore {
     public async dispose(): Promise<void> {
         this.disposed = true;
         this.indexing.cancel();
+        await this.indexing.completion.catch(() => undefined);
         this.viewRowIds = null;
         this.columnCache.clear();
         this.exactIndexes.clear();
@@ -543,13 +550,12 @@ interface CsvRecordIndexing {
     cancel(): void;
 }
 
-const startCsvRecordIndexing = (filePath: string): CsvRecordIndexing => {
+const startCsvRecordIndexing = (fileHandle: FileHandle): CsvRecordIndexing => {
     const records = new SegmentedRecordLocations();
     const index: CsvRecordIndex = { columns: [], locations: records, malformedRowCount: 0 };
     const listeners = new Set<() => void>();
     let cancelled = false;
     let indexing = true;
-    let stream: ReturnType<typeof createReadStream> | undefined;
     let resolveIndexReady: (index: CsvRecordIndex) => void = () => undefined;
     let rejectIndexReady: (reason: unknown) => void = () => undefined;
     const indexReady = new Promise<CsvRecordIndex>((resolve, reject) => {
@@ -589,15 +595,17 @@ const startCsvRecordIndexing = (filePath: string): CsvRecordIndexing => {
         }
     };
     const completion = (async (): Promise<void> => {
-        // The path originates from a VS Code file URI.
-        // eslint-disable-next-line security/detect-non-literal-fs-filename
-        stream = createReadStream(filePath);
         try {
-            for await (const chunk of stream) {
+            const readBuffer = Buffer.allocUnsafe(INDEX_READ_BUFFER_SIZE);
+            while (!cancelled) {
+                const { bytesRead } = await fileHandle.read(readBuffer, 0, readBuffer.length, byteOffset);
+                if (bytesRead === 0) {
+                    break;
+                }
                 if (cancelled) {
                     break;
                 }
-                const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+                const buffer = readBuffer.subarray(0, bytesRead);
                 let segmentStart = 0;
                 for (let byteIndex = 0; byteIndex < buffer.length; byteIndex += 1) {
                     const value = buffer.at(byteIndex)!;
@@ -633,7 +641,7 @@ const startCsvRecordIndexing = (filePath: string): CsvRecordIndexing => {
                         }
                     } else if ((value === 0x0a || value === 0x0d) && !insideQuotes) {
                         if (index.columns.length === 0 && segmentStart < byteIndex) {
-                            pendingHeaderParts.push(buffer.subarray(segmentStart, byteIndex));
+                            pendingHeaderParts.push(Buffer.from(buffer.subarray(segmentStart, byteIndex)));
                         }
                         addRecord(byteOffset + byteIndex);
                         pendingCarriageReturn = value === 0x0d;
@@ -647,7 +655,7 @@ const startCsvRecordIndexing = (filePath: string): CsvRecordIndexing => {
                     }
                 }
                 if (index.columns.length === 0 && segmentStart < buffer.length) {
-                    pendingHeaderParts.push(buffer.subarray(segmentStart));
+                    pendingHeaderParts.push(Buffer.from(buffer.subarray(segmentStart)));
                 }
                 byteOffset += buffer.length;
                 notifyProgress();
@@ -665,10 +673,10 @@ const startCsvRecordIndexing = (filePath: string): CsvRecordIndexing => {
             }
         } finally {
             indexing = false;
-            stream.destroy();
             notifyProgress();
         }
     })();
+    void completion.catch(() => undefined);
     return {
         indexReady,
         completion,
@@ -681,7 +689,6 @@ const startCsvRecordIndexing = (filePath: string): CsvRecordIndexing => {
         },
         cancel(): void {
             cancelled = true;
-            stream?.destroy();
         },
     };
 };

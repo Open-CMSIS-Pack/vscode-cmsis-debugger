@@ -204,7 +204,7 @@ export class ScvdFormatSpecifier {
                 case 't': {
                     if (typeof value === 'string') {
                         const sanitized = this.sanitizeLiteral(value);
-                        if (!sanitized) {
+                        if (sanitized === undefined) {
                             return 'bad literal - %t: text with embedded %format specifier(s)';
                         }
                         return this.escapeNonPrintable(sanitized);
