@@ -21,6 +21,7 @@
 
 import { type ParseResult } from '../../../parser-evaluator/parser';
 import { EvaluateResult } from '../../../parser-evaluator/evaluator';
+import { componentViewerLogger } from '../../../../../logger';
 import { ScvdExpression } from '../../../model/scvd-expression';
 import { createExecutionContext } from '../helpers/statement-engine-helpers';
 
@@ -168,5 +169,140 @@ describe('ScvdExpression', () => {
         expect(expr.configure()).toBe(true);
         expect(expr.expressionAst).toBeUndefined();
         parserSpy.mockRestore();
+    });
+
+    it('reports the trailing-colon diagnostic once and logs skipped evaluations at debug level', async () => {
+        const expr = new ScvdExpression(undefined, 'TestBit1=(TestVariable>>1)&0x1:', 'expression');
+        expr.lineNo = '9';
+        expr.tag = 'calc';
+        const ctx = createExecutionContext(expr);
+        expr.setExecutionContext(ctx);
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
+        const debugSpy = jest.spyOn(componentViewerLogger, 'debug').mockImplementation(() => {});
+        const evalSpy = jest.spyOn(ctx.evaluator, 'evaluateParseResult');
+
+        try {
+            expr.configure();
+            expect(expr.expressionAst).toBeUndefined();
+            expect(expr.validate(true)).toBe(false);
+            expect(expr.validate(true)).toBe(false);
+            expect(errorSpy).toHaveBeenCalledTimes(1);
+            expect(errorSpy).toHaveBeenCalledWith(
+                '[Line: 9 Tag: calc ] Invalid expression "TestBit1=(TestVariable>>1)&0x1:": Extra tokens after expression at position 31: ":"');
+
+            errorSpy.mockClear();
+            debugSpy.mockClear();
+            await expect(expr.evaluate()).resolves.toBeUndefined();
+            await expect(expr.evaluate()).resolves.toBeUndefined();
+
+            expect(errorSpy).not.toHaveBeenCalled();
+            expect(debugSpy).toHaveBeenCalledTimes(2);
+            expect(debugSpy).toHaveBeenNthCalledWith(1,
+                '[Line: 9 Tag: calc ] Skipping invalid expression "TestBit1=(TestVariable>>1)&0x1:": Extra tokens after expression at position 31: ":"');
+            expect(debugSpy).toHaveBeenNthCalledWith(2, debugSpy.mock.calls[0][0]);
+            expect(evalSpy).not.toHaveBeenCalled();
+        } finally {
+            evalSpy.mockRestore();
+            debugSpy.mockRestore();
+            errorSpy.mockRestore();
+        }
+    });
+
+    it.each(['1:', '1 +', '1 / 0', '1 << -1'])('reports unvalidated invalid expression %s once without evaluating it', async (expression) => {
+        const expr = new ScvdExpression(undefined, expression, 'value');
+        const ctx = createExecutionContext(expr);
+        expr.setExecutionContext(ctx);
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
+        const debugSpy = jest.spyOn(componentViewerLogger, 'debug').mockImplementation(() => {});
+        const evalSpy = jest.spyOn(ctx.evaluator, 'evaluateParseResult');
+
+        try {
+            expr.configure();
+            debugSpy.mockClear();
+
+            expect(expr.expressionAst).toBeUndefined();
+            await expect(expr.evaluate()).resolves.toBeUndefined();
+            await expect(expr.evaluate()).resolves.toBeUndefined();
+            expect(expr.validate(true)).toBe(false);
+
+            expect(errorSpy).toHaveBeenCalledTimes(1);
+            expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining(`Invalid expression "${expression}":`));
+            expect(debugSpy).toHaveBeenCalledTimes(2);
+            expect(debugSpy).toHaveBeenNthCalledWith(1, expect.stringContaining(`Skipping invalid expression "${expression}":`));
+            expect(debugSpy).toHaveBeenNthCalledWith(2, debugSpy.mock.calls[0][0]);
+            expect(evalSpy).not.toHaveBeenCalled();
+        } finally {
+            evalSpy.mockRestore();
+            debugSpy.mockRestore();
+            errorSpy.mockRestore();
+        }
+    });
+
+    it('clears diagnostics after correction and reports a new invalid expression once', async () => {
+        const expr = new ScvdExpression(undefined, '1:', 'value');
+        const ctx = createExecutionContext(expr);
+        expr.setExecutionContext(ctx);
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
+        const debugSpy = jest.spyOn(componentViewerLogger, 'debug').mockImplementation(() => {});
+
+        try {
+            expr.configure();
+            await expect(expr.evaluate()).resolves.toBeUndefined();
+            expect(errorSpy).toHaveBeenCalledTimes(1);
+
+            expr.expression = '1;';
+            expr.configure();
+            errorSpy.mockClear();
+            debugSpy.mockClear();
+
+            expect(expr.validate(true)).toBe(true);
+            await expect(expr.evaluate()).resolves.toBe(1);
+            expect(errorSpy).not.toHaveBeenCalled();
+            expect(debugSpy).not.toHaveBeenCalled();
+
+            expr.expression = '2:';
+            expr.configure();
+            await expect(expr.evaluate()).resolves.toBeUndefined();
+            await expect(expr.evaluate()).resolves.toBeUndefined();
+
+            expect(errorSpy).toHaveBeenCalledTimes(1);
+            expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid expression "2:":'));
+            expect(debugSpy).toHaveBeenCalledTimes(2);
+        } finally {
+            debugSpy.mockRestore();
+            errorSpy.mockRestore();
+        }
+    });
+
+    it('retains invalid parse results and reported diagnostics across repeated configuration', async () => {
+        const expr = new ScvdExpression(undefined, '1:', 'value');
+        const ctx = createExecutionContext(expr);
+        expr.setExecutionContext(ctx);
+        const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
+        const debugSpy = jest.spyOn(componentViewerLogger, 'debug').mockImplementation(() => {});
+        const parserSpy = jest.spyOn(ctx.parser, 'parseExpression');
+
+        try {
+            expr.configure();
+            expect(expr.validate(true)).toBe(false);
+            expr.configure();
+            expect(expr.validate(true)).toBe(false);
+            await expect(expr.evaluate()).resolves.toBeUndefined();
+
+            expect(parserSpy).toHaveBeenCalledTimes(1);
+            expect(errorSpy).toHaveBeenCalledTimes(1);
+            expect(debugSpy).toHaveBeenCalledWith(expect.stringContaining('Skipping invalid expression "1:":'));
+
+            expr.expression = '1;';
+            expr.configure();
+
+            expect(parserSpy).toHaveBeenCalledTimes(2);
+            expect(expr.validate(true)).toBe(true);
+            await expect(expr.evaluate()).resolves.toBe(1);
+        } finally {
+            parserSpy.mockRestore();
+            debugSpy.mockRestore();
+            errorSpy.mockRestore();
+        }
     });
 });
