@@ -400,17 +400,17 @@ The Core Peripherals view shows information about the following components if im
 
 CMSIS Debugger supports capturing trace information from Cortex-M processors using Serial Wire Output (SWO). You can configure which trace information the processor generates, capture the resulting trace without stopping program execution, and inspect the decoded trace data directly in Visual Studio Code.
 
-![Trace Generation](./images/trace-generation.png)
+![Trace Generation](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/trace-generation.png)
 
 ##### View captured trace data
 
-In the debug bar, use the ![Show captured trace](./images/trace-show-captured.png) button to open the generated `.csv`
+In the debug bar, use the ![Show captured trace](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/trace-show-captured.png) button to open the generated `.csv`
 trace file in Visual Studio Code.
 
 The trace viewer displays the decoded trace records in a table and supports filtering, sorting, keyboard and mouse
 navigation, selecting records, and copying trace data.
 
-![Trace Data View](./images/trace-data-view-csv.png)
+![Trace Data View](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/trace-data-view-csv.png)
 
 ### PERIPHERALS
 
