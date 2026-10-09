@@ -11,7 +11,7 @@
 - Adds support for multi-solution workspaces.
 - Adds [pyTS v0.7.0](https://github.com/Open-CMSIS-Pack/pyTS/releases/tag/v0.7.0) CLI tool that converts [`*.ctrace.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctraceyml) files into [`*.ctrace-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctrace-runyml) files with trace source programming instructions.
 - Adds [ctrace v0.4.0](https://github.com/Open-CMSIS-Pack/devtools/releases/tag/tools%2Fctrace%2F0.4.0) CLI tool that decodes raw trace captures into CSV and CTF output files utilizing the [OpenCSD Trace Decode Library](https://github.com/Linaro/OpenCSD).
-- Includes [pyOCD nightly development drop](https://github.com/pyocd/pyOCD/actions/runs/37752130470) of the upcoming v0.46.0 distribution.
+- Includes [pyOCD nightly development build 0.45.2.dev61+gf8ca7e4b7](https://github.com/pyocd/pyOCD/actions/runs/37920789985) of the upcoming v0.46.0 distribution.
     - Reads and applies SWO and Trace Buffer configurations from [`*.cbuild-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/pyOCD-Debugger/#content-of-cbuild-runyml) and [`*.ctrace-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctrace-runyml) files. Also supports trace-related DFP debug description enhancements.
         - Note: Trace Buffer support is at preview quality and requires changes to DFPs.
     - Adds `pyocd info` sub-command to display information about the connected target.
