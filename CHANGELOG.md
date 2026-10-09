@@ -12,7 +12,17 @@
 - Adds [pyTS v0.7.0](https://github.com/Open-CMSIS-Pack/pyTS/releases/tag/v0.7.0) CLI tool that converts `*.ctrace.yml` files into `*.ctrace-run.yml` files with trace source programming instructions.
 - Adds [ctrace v0.4.0](https://github.com/Open-CMSIS-Pack/devtools/releases/tag/tools%2Fctrace%2F0.4.0) CLI tool that decodes raw trace captures into CSV and CTF output files utilizing the [OpenCSD Trace Decode Library](https://github.com/Linaro/OpenCSD).
 - Includes [pyOCD nightly development drop](https://github.com/pyocd/pyOCD/actions/runs/37752130470) of the upcoming v0.46.0 distribution.
-    - ADD DETAILS!!!!
+    - Reads and applies SWO and Trace Buffer configurations from `*.cbuild-run.yml` and `*.ctrace-run.yml` files. Also supports trace-related DFP debug description enhancements.
+        - Note: Trace Buffer support is at preview quality and requires changes to DFPs.
+    - Adds `pyocd info` sub-command to display information about the connected target.
+    - Adds udev rules for the following debug units:
+        - Raspberry Pi Debug Probe (CMSIS-DAP)
+        - Artery Technology CMSIS-DAP
+        - Arduino UNO WiFi R4 CMSIS-DAP
+    - Adds SLEEPING mode to pyOCD-internal target state handling.
+    - Fixes pyOCD-internal DP and AP register cache handling which impacted reset debug sequences in DFPs.
+    - Fixes hanging HID debug unit connection on Windows.
+    - Fixes incorrect programming of DPv3 BASEPTR0 register.
 - Includes updated arm-none-eabi-gdb distribution ([arm-none-eabi-gdb v15.3.1](https://artifacts.tools.arm.com/arm-none-eabi-gdb/15.3.1/)). See the [release notes](https://gitlab.arm.com/tooling/gnu-toolchains-for-arm/-/blob/releases/15.3.rel1/release_notes.md).
 - Minimum extension versions required for CMSIS Debugger v1.9.0 pre-release:
     - [Arm CMSIS Solution extension v1.72.0](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution)
