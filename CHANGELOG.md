@@ -15,6 +15,12 @@
     - Reads and applies SWO and Trace Buffer configurations from [`*.cbuild-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/pyOCD-Debugger/#content-of-cbuild-runyml) and [`*.ctrace-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctrace-runyml) files. Also supports trace-related DFP debug description enhancements.
         - Note: Trace Buffer support is at preview quality and requires changes to DFPs.
     - Adds `pyocd info` sub-command to display information about the connected target.
+    - Extend support for SEGGER’s [RTT](https://www.segger.com/products/debug-probes/j-link/technology/about-real-time-transfer/) and [SystemView](https://www.segger.com/products/development-tools/systemview/) configuration via *.cbuild-run.yml to `gdbserver` mode.
+    - Enhances gdbserver mode
+        - Keep RTT and semihosting working even without a connected GDB client.
+        - Allow stepping and resuming past BKPT instructions.
+        - Preserve breakpoint and watchpoint stop reasons when they coincide with debugger interrupts.
+        - Improve connection, disconnection, and shutdown reliability.
     - Adds udev rules for the following debug units:
         - Raspberry Pi Debug Probe (CMSIS-DAP)
         - Artery Technology CMSIS-DAP
