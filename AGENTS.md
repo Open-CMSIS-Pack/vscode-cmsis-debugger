@@ -184,6 +184,8 @@ When guidelines conflict, apply this priority order:
 
 ## Code Review Rules
 
+- Review code changes for security risks and effects on surrounding codebase security.
+
 For dependency updates, including developer and Dependabot pull requests,
 check:
 
