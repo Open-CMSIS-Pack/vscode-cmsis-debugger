@@ -10,7 +10,7 @@ Generated for release: 1.9.0
 | @open-cmsis-pack/cmsis-common | 0.2.0 | https://github.com/Open-CMSIS-Pack/vscode-cmsis-solution/tree/main/packages/cmsis-common | [Apache-2.0](https://github.com/Open-CMSIS-Pack/vscode-cmsis-solution/blob/main/LICENSE) |
 | jsonc-parser | 3.3.1 | https://github.com/microsoft/node-jsonc-parser | [MIT](https://github.com/microsoft/node-jsonc-parser/blob/main/LICENSE.md) |
 | lodash | 4.18.1 | https://github.com/lodash/lodash | [MIT](https://github.com/lodash/lodash/blob/main/LICENSE) |
-| pyocd | 0.45.2.dev61+gf8ca7e4b7  | https://github.com/pyocd/pyOCD | [Apache-2.0](https://github.com/pyocd/pyOCD/blob/v0.45.1/LICENSE) |
+| pyocd | 0.45.2.dev61+gf8ca7e4b7 | https://github.com/pyocd/pyOCD | [Apache-2.0](https://github.com/pyocd/pyOCD/blob/v0.45.1/LICENSE) |
 | pyTS | 0.7.0 | https://github.com/Open-CMSIS-Pack/pyTS/releases | [Apache-2.0](https://github.com/Open-CMSIS-Pack/pyTS/blob/main/LICENSE) |
 | react | 18.3.1 | https://github.com/facebook/react | [MIT](https://github.com/facebook/react/blob/main/LICENSE) |
 | react-dom | 18.3.1 | https://github.com/facebook/react | [MIT](https://github.com/facebook/react/blob/main/LICENSE) |
