@@ -165,7 +165,7 @@ export class CTraceController {
                     .get<boolean>(OPEN_CAPTURED_TRACE_AFTER_DECODE_SETTING, true) ?? true;
                 if (openCapturedTrace) {
                     try {
-                        await this.capturedTraceResolver.open(pendingDecode.cbuildRunFilePath, { preserveFocus: true });
+                        await this.capturedTraceResolver.open(pendingDecode.cbuildRunFilePath, { preserveFocus: false });
                     } catch (error) {
                         logger.error('Failed to open captured trace:', error);
                     }

@@ -71,16 +71,13 @@ export class CapturedTraceResolver {
         uri: vscode.Uri,
         options: Pick<vscode.TextDocumentShowOptions, 'preserveFocus'>
     ): Promise<void> {
-        const alreadyOpen = options.preserveFocus && vscode.window.tabGroups.all.some(group => group.tabs.some(tab =>
+        const existingGroup = vscode.window.tabGroups.all.find(group => group.tabs.some(tab =>
             tab.input instanceof vscode.TabInputCustom
             && tab.input.viewType === CSV_TABLE_EDITOR_VIEW_TYPE
             && tab.input.uri.toString() === uri.toString()));
-        if (alreadyOpen) {
-            return;
-        }
-        if (options.preserveFocus) {
+        if (existingGroup !== undefined || options.preserveFocus !== undefined) {
             await vscode.commands.executeCommand('vscode.openWith', uri, CSV_TABLE_EDITOR_VIEW_TYPE,
-                { preserveFocus: true, viewColumn: vscode.ViewColumn.Beside });
+                { ...options, viewColumn: existingGroup?.viewColumn ?? vscode.ViewColumn.Beside });
         } else {
             await vscode.commands.executeCommand('vscode.openWith', uri, CSV_TABLE_EDITOR_VIEW_TYPE);
         }
