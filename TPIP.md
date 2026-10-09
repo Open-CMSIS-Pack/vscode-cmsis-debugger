@@ -3,7 +3,7 @@
 Generated for release: 1.8.0
 
 | *Package* | *Version* | *Repository* | *License* |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | @vscode/codicons | 0.0.45 | https://github.com/microsoft/vscode-codicons | [CC-BY-4.0](https://github.com/microsoft/vscode-codicons/blob/main/LICENSE) |
 | arm-none-eabi-gdb | 15.3.1 | https://artifacts.tools.arm.com/arm-none-eabi-gdb/15.3.1/ | [GPL-3.0-or-later](https://gitlab.arm.com/tooling/gnu-toolchains-for-arm/-/blob/releases/15.3.rel1/EULA.txt) |
 | ctrace | 0.4.0 | https://github.com/Open-CMSIS-Pack/devtools/tree/main/tools/ctrace | [Apache-2.0](https://github.com/Open-CMSIS-Pack/devtools/blob/main/LICENSE) |

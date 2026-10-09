@@ -95,15 +95,15 @@ while running. The following table shows target interaction capabilities while r
 pyOCD):
 
 | View | Read | Edit |
-|------|------|------|
-| [**Memory Inspector**](#memory-inspector) | &#9989;  | &#9989;  |
-| [**Peripherals**](#peripherals)           | &#9989;  | &#9989;  |
-| [**Live Watch**](#trace-and-live-view)    | &#9989;  | &#10060; |
-| [**Component Viewer**](#component-viewer) | &#9989;  | &#10060; |
-| [**Core Peripherals**](#core-peripherals) | &#9989;  | &#10060; |
-| [**VARIABLES**](#variables)               | &#10060; | &#10060; |
-| [**WATCH**](#watch)                       | &#10060; | &#10060; |
-| [**CALL STACK**](#call-stack)             | &#10060; | &#10060; |
+| ------ | ------ | ------ |
+| [**Memory Inspector**](#memory-inspector) | &#9989; | &#9989; |
+| [**Peripherals**](#peripherals) | &#9989; | &#9989; |
+| [**Live Watch**](#trace-and-live-view) | &#9989; | &#10060; |
+| [**Component Viewer**](#component-viewer) | &#9989; | &#10060; |
+| [**Core Peripherals**](#core-peripherals) | &#9989; | &#10060; |
+| [**VARIABLES**](#variables) | &#10060; | &#10060; |
+| [**WATCH**](#watch) | &#10060; | &#10060; |
+| [**CALL STACK**](#call-stack) | &#10060; | &#10060; |
 
 ### Number formats
 
@@ -118,7 +118,7 @@ change the radix, there are multiple ways to do so:
   format specifier):
 
 | Specifier | Format |
-|-----------|--------|
+| ----------- | -------- |
 | `x` | `hexadecimal` |
 | `d` | `decimal` |
 | `o` | `octal` |
@@ -142,7 +142,7 @@ During debugging, the **Debug toolbar** contains actions to control the flow of 
 ![Debug toolbar](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/debug-toolbar.png)
 
 | Action | Description |
-|--------|-------------|
+| -------- | ------------- |
 | Continue/Pause | **Continue**: Resume normal program execution (up to the next breakpoint).<br>**Pause**: Inspect code executing at the current location. |
 | Step Over | Execute the next statement as a single command without inspecting or following its component steps. |
 | Step Into | Enter the next statement to follow its execution line-by-line. |
@@ -312,10 +312,10 @@ and/or hit count.
 
 Most Arm Cortex-M processors (except Cortex-M0/M0+/M23) include a `DWT->CYCCNT` register that counts CPU states. In combination with the CMSIS variable [`SystemCoreClock`](https://arm-software.github.io/CMSIS_6/latest/Core/group__system__init__gr.html) the CMSIS Debugger calculates execution time and displays it along with the selected processor core in the CPU Time Status bar.  A click on the CPU Time Status bar opens the related [VS Code command palette](https://code.visualstudio.com/docs/getstarted/userinterface#_command-palette).
 
-|Command        | Description  |
-|:--------------|:-------------|
-|CPU Time       | Print CPU execution time and history of past program stops. |
-|Reset CPU Time | Reset CPU execution time and history. Set new reference time (zero point). |
+| Command        | Description                                                                |
+| -------------- | -------------------------------------------------------------------------- |
+| CPU Time       | Print CPU execution time and history of past program stops.                |
+| Reset CPU Time | Reset CPU execution time and history. Set new reference time (zero point). |
 
 ![CPU Time](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/CPU_Time.png)
 
@@ -372,7 +372,7 @@ The **Component Viewer toolbar** offers the following action buttons:
 ![Component Viewer Buttons](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/comp-viewer-buttons.png)
 
 | Button | Description |
-|--------|-------------|
+| -------- | ------------- |
 | Filter | Filter the displayed components and their entries |
 | Clear Filter | Remove component filtering |
 | Disable Periodic Update | Components are not updated while the target is running |
