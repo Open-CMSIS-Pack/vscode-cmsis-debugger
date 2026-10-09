@@ -6,13 +6,13 @@
     - Workflows are based on the proposal for the [CMSIS Trace solution](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#trace).
     - Trace Buffer support is at preview quality and requires updates to trace support in DFPs.
     - Feedback is welcome through [GitHub issues](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues).
-- Adds the `Trace Generation` view to create and edit `*.ctrace.yml` files for the active CMSIS solution. It follows solution and target changes, validates edited settings, and allows to apply changes even during a running debug session.
+- Adds the `Trace Generation` view to create and edit [`*.ctrace.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctraceyml) files for the active CMSIS solution. It follows solution and target changes, validates edited settings, and allows to apply changes even during a running debug session.
 - Adds `Trace Data` view which supports display of trace CSV files, filtering, sorting, and linking from CSV records back to their configurations in the `Trace Generation` view.
 - Adds support for multi-solution workspaces.
-- Adds [pyTS v0.7.0](https://github.com/Open-CMSIS-Pack/pyTS/releases/tag/v0.7.0) CLI tool that converts `*.ctrace.yml` files into `*.ctrace-run.yml` files with trace source programming instructions.
+- Adds [pyTS v0.7.0](https://github.com/Open-CMSIS-Pack/pyTS/releases/tag/v0.7.0) CLI tool that converts [`*.ctrace.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctraceyml) files into [`*.ctrace-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctrace-runyml) files with trace source programming instructions.
 - Adds [ctrace v0.4.0](https://github.com/Open-CMSIS-Pack/devtools/releases/tag/tools%2Fctrace%2F0.4.0) CLI tool that decodes raw trace captures into CSV and CTF output files utilizing the [OpenCSD Trace Decode Library](https://github.com/Linaro/OpenCSD).
 - Includes [pyOCD nightly development drop](https://github.com/pyocd/pyOCD/actions/runs/37752130470) of the upcoming v0.46.0 distribution.
-    - Reads and applies SWO and Trace Buffer configurations from `*.cbuild-run.yml` and `*.ctrace-run.yml` files. Also supports trace-related DFP debug description enhancements.
+    - Reads and applies SWO and Trace Buffer configurations from [`*.cbuild-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/pyOCD-Debugger/#content-of-cbuild-runyml) and [`*.ctrace-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctrace-runyml) files. Also supports trace-related DFP debug description enhancements.
         - Note: Trace Buffer support is at preview quality and requires changes to DFPs.
     - Adds `pyocd info` sub-command to display information about the connected target.
     - Adds udev rules for the following debug units:
