@@ -196,7 +196,6 @@ jobs:
           - darwin-arm64
     permissions:
       packages: read
-      actions: read # For fetching workflow artifacts with 'download-tools --nightly'
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
@@ -223,11 +222,9 @@ jobs:
           path: .
 
       - name: Download tools
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm ci
-          npm run download-tools:nightly -- --target ${{ matrix.target }} --no-cache
+          npm run download-tools -- --target ${{ matrix.target }} --no-cache
 
       - name: Create vsix package
         run: |
