@@ -55,6 +55,15 @@ they replace active row ordering, so unfinished scans cannot overwrite a newer
 filter or sort. The webview debounces filter input before sending it to the
 host. The row store and file watcher are disposed with the webview panel.
 
+Automatic opening after pause-triggered trace decoding is controlled by
+`vscode-cmsis-debugger.openCapturedTraceAfterDecode`, which defaults to `false`.
+Decoding still completes when this setting is disabled, but does not
+automatically open or focus the capture editor. When enabled, the trace
+controller asks the captured-trace resolver to open and focus the decoded
+capture. The resolver reuses an existing matching custom-editor tab's group,
+or opens a new capture beside the current editor. Explicit capture-opening
+actions remain available independently of the automatic-opening setting.
+
 ## Storage modes
 
 The provider selects a store from the source file size.
@@ -92,6 +101,14 @@ inside quoted fields.
 For indexed files, a requested row range is loaded by reading the corresponding
 byte span, decoding UTF-8, and parsing the records. Adjacent records are grouped
 into one read.
+
+The indexed store opens the local file once and uses that same handle for file
+metadata, record indexing, and subsequent row reads. Replacing the file at its
+path therefore cannot mix an index from one file with rows from another.
+Initialization failure cancels indexing, waits for it to settle, and closes
+the handle. Disposal likewise waits for indexing to stop before closing it.
+This protects against path replacement, not in-place modification of the open
+file; the handle is not an immutable content snapshot.
 
 Non-local URI schemes use `vscode.workspace.fs`, preserving compatibility with
 remote and contributed file-system providers. These resources use the
@@ -244,6 +261,21 @@ before restoring selection; they do not reuse old display indices as row
 identities. Hiding the editor does not clear selection or scroll state because
 the custom editor retains its webview context.
 
+Right-click selection is resolved by the row handler before its context-menu
+event bubbles to the grid handler, which opens the Copy-only menu:
+
+- Right-clicking a selected row preserves all selection intervals, the caret,
+  and the anchor, regardless of modifiers.
+- Right-clicking an unselected row without Shift or Alt replaces the selection
+  with that row and sets both caret and anchor to it.
+- Shift or Alt plus right-click on an unselected row adds only that row to the
+  existing selection and sets both caret and anchor to it. Shift does not
+  select an intervening range, and Alt never removes an already selected row.
+
+This policy applies to both the synthetic row-index cell and CSV data cells.
+Normal left-click range selection and toggling are unchanged. Right-click does
+not emit a cell-navigation event.
+
 A clicked cell still emits a singular integration event rather than the full
 row selection. The webview sends its source coordinates and value to the
 provider. The provider reads the authoritative source row and verifies the row,
@@ -253,8 +285,9 @@ columns and focuses that reference in the Trace Configuration view. Invalid or
 stale cell events are discarded with a warning.
 
 Ctrl/Cmd+C sends the selected display-index intervals to the provider. The
-provider validates their normalized bounds, reads rows from the active store
-in bounded batches, serializes data cells as CSV in current display order, and
+context-menu Copy action uses the same request. The provider validates their
+normalized bounds, reads rows from the active store in bounded batches,
+serializes data cells as CSV in current display order, and
 writes one CRLF-delimited value to the VS Code clipboard. Clipboard exports are
 limited to 50 MiB to avoid exhausting extension-host memory; larger selections
 show a warning without publishing partial content. The synthetic `#` column is
