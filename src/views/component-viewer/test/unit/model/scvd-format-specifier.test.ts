@@ -86,6 +86,10 @@ describe('ScvdFormatSpecifier', () => {
         expect(formatter.format_d('bad')).toBe('bad');
     });
 
+    it('formats an empty text literal without an error', () => {
+        expect(formatter.format('t', '')).toBe('');
+    });
+
     it('formats text and byte array variants', () => {
         expect(formatter.format_t('hi')).toBe('hi');
         expect(formatter.format_t(4)).toBe('4');

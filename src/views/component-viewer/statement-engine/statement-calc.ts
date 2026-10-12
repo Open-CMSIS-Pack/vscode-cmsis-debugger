@@ -39,6 +39,12 @@ export class StatementCalc extends StatementBase {
         const expressions = calcItem.expression;
         for (const expr of expressions) {
             const value = await expr.evaluate();
+            if (value === undefined) {
+                if (!expr.hasParseDiagnostics) {
+                    componentViewerLogger.debug(`Line: ${this.line}: Failed executing <${this.scvdItem.tag}>, ${expr.expression}`);
+                }
+                continue;
+            }
             componentViewerLogger.debug(`Line: ${this.line}: Completed executing <${this.scvdItem.tag}>, ${expr.expression}, value: ${value}`);
         }
     }

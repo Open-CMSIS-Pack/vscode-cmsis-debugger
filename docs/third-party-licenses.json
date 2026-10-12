@@ -43,14 +43,14 @@
     },
     {
         "name": "pyocd",
-        "version": "0.45.1",
+        "version": "0.45.2.dev61+gf8ca7e4b7",
         "spdx": "Apache-2.0",
         "url": "https://github.com/pyocd/pyOCD",
         "license": "https://github.com/pyocd/pyOCD/blob/v0.45.1/LICENSE"
     },
     {
         "name": "pyTS",
-        "version": "0.6.1",
+        "version": "0.7.0",
         "spdx": "Apache-2.0",
         "url": "https://github.com/Open-CMSIS-Pack/pyTS/releases",
         "license": "https://github.com/Open-CMSIS-Pack/pyTS/blob/main/LICENSE"

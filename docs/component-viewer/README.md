@@ -22,7 +22,7 @@ ComponentViewer  (component-viewer-main.ts)
 ### Subsystems
 
 | Subsystem | Key files | Responsibility |
-|-----------|-----------|----------------|
+| ----------- | ----------- | ---------------- |
 | **Controller** | `component-viewer-main.ts` | Orchestrates the lifecycle: activates the tree view, subscribes to debug events, creates instances, schedules debounced updates, manages lock/unlock. |
 | **Instance** | `component-viewer-instance.ts` | Owns one SCVD file. Parses the XML into a model, initialises the evaluation context and statement engine, then re-executes statements on every update to populate a fresh `ScvdGuiTree`. |
 | **Tree view** | `component-viewer-tree-view.ts` | VS Code `TreeDataProvider<ScvdGuiInterface>`. Receives roots from the controller (`setRoots`), tracks expand/collapse state, and provides items to VS Code for rendering. |
@@ -45,7 +45,7 @@ ComponentViewer  (component-viewer-main.ts)
 The remaining draw.io files cover individual subsystems in more detail.
 
 | Diagram | Description |
-|---------|-------------|
+| --------- | ------------- |
 | [architecture.drawio](architecture.png) | High level overview. |
 | [all-subsystems.drawio](all-subsystems.drawio) | Single-canvas overview of all subsystems and their connections. |
 | [instance.drawio](instance.drawio) | Detail of `ComponentViewerInstance`: `readModel()` and `update()` call paths. |

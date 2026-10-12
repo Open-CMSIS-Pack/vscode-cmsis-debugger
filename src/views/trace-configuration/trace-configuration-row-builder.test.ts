@@ -182,6 +182,68 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(document.yaml.getValue()).toEqual(clearedValue);
     });
 
+    it('shows manually configured pyTS settings and hides their synthetic rows without changing the YAML document', () => {
+        const file = new CTraceYamlFile('target.ctrace.yml');
+        const document = CTraceYamlDocument.parse([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      instructions:',
+            '        start:',
+            '          - location: main',
+            '        stop:',
+            '          - location: endTrace',
+            '      tracehalt:',
+            '        - location: stopTrace',
+            '    - pname: cm55',
+            ''
+        ].join('\n'));
+        file.document = document;
+        const builder = new TraceConfigurationRowBuilder(
+            () => file,
+            () => false,
+            () => false,
+            () => undefined,
+            new AllRowsExpandedSet(),
+            new Map([
+                ...createCapabilities().entries(),
+                ...createCapabilities('cm55', TraceConfigurationTypes.CORTEX_M_DWT_4_TRACE_CAPABILITIES, 1).entries()
+            ]),
+            () => false
+        );
+        const originalValue = document.yaml.getValue();
+
+        const state = builder.createState();
+
+        expect(findRow(state, ['ctrace', 'setup', 0]).label).toBe('Processor:cm33');
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'instructions'])).toBe(true);
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'instructions', 'start'])).toBe(true);
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'instructions', 'stop'])).toBe(true);
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'tracehalt'])).toBe(true);
+        expect(findRow(state, ['ctrace', 'setup', 1]).label).toBe('Processor:cm55');
+        expect(hasRow(state, ['ctrace', 'setup', 1, 'instructions'])).toBe(false);
+        expect(hasRow(state, ['ctrace', 'setup', 1, 'tracehalt'])).toBe(false);
+        expect(document.yaml.getValue()).toEqual(originalValue);
+    });
+
+    it.each([
+        ['tracehalt:', false],
+        ['tracehalt: null', false],
+        ['tracehalt: ~', false],
+        ['tracehalt: []', false],
+        ['tracehalt:\n        - location: stopTrace', true],
+    ])('shows Trace Halt only for a non-empty array (%s)', (traceHaltEntry, expectedVisible) => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            `      ${traceHaltEntry}`,
+            ''
+        ].join('\n'));
+
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'tracehalt'])).toBe(expectedVisible);
+    });
+
     it('reports status and empty messages when no file is loaded', () => {
         const state = createStateWithoutFile({
             loading: true,
@@ -570,7 +632,7 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(dataItemRow.valuePath).toEqual(['ctrace', 'setup', 0, 'data', 0, 'location']);
     });
 
-    it('renders condition access options for instruction and tracehalt conditions', () => {
+    it('renders condition access options for manually configured instruction and tracehalt conditions', () => {
         const state = createStateFromYaml([
             'ctrace:',
             '  setup:',
@@ -685,7 +747,7 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(findRow(state, ['ctrace', 'setup', 0, 'data']).addChildTooltip).toBe(expectedTooltip);
         expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'start']).addChildTooltip).toBe(expectedTooltip);
         expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'stop']).addChildTooltip).toBe(expectedTooltip);
-        expect(findRow(state, ['ctrace', 'setup', 0, 'tracehalt']).addChildTooltip).toBe(expectedTooltip);
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'tracehalt'])).toBe(false);
     });
 
     it('disables empty match values when shared DWT comparators are exhausted', () => {
@@ -810,7 +872,8 @@ describe('TraceConfigurationRowBuilder', () => {
 
         expect(findRow(state, ['ctrace', 'setup', 0, 'timestamps']).checked).toBe(false);
         expect(findRow(state, ['ctrace', 'setup', 0, 'exceptions']).checked).toBe(false);
-        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions']).checked).toBe(false);
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'instructions'])).toBe(false);
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'tracehalt'])).toBe(false);
         expect(findRow(state, ['ctrace', 'setup', 0, 'timesync']).checked).toBe(false);
         expect(findRow(state, ['ctrace', 'setup', 0, 'advanced-settings']).label).toBe('Advanced Settings');
         const dwtSyncRow = findRow(state, ['ctrace', 'setup', 0, 'synchronization', 'DWT']);
@@ -929,6 +992,7 @@ describe('TraceConfigurationRowBuilder', () => {
 
         expect(noTraceState.rows).toHaveLength(0);
         expect(noTraceState.emptyMessage).toBe('No trace-capable processor configuration is available for this ctrace file.');
+        expect(hasRow(instructionOnlyState, ['ctrace', 'setup', 0])).toBe(true);
         expect(hasRow(instructionOnlyState, ['ctrace', 'setup', 0, 'instructions'])).toBe(true);
         expect(hasRow(instructionOnlyState, ['ctrace', 'setup', 0, 'timestamps'])).toBe(false);
         expect(hasRow(instructionOnlyState, ['ctrace', 'setup', 0, 'data'])).toBe(false);
@@ -988,13 +1052,14 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(builder.accessLabelToValue('Custom')).toBe('Custom');
     });
 
-    it('shows schema children for nullable object shorthand sections', () => {
+    it('shows schema children for manually configured nullable object shorthand sections', () => {
         const state = createStateFromYaml([
             'ctrace:',
             '  setup:',
             '    - pname: cm33',
             '      timestamps:',
             '      instructions:',
+            '      tracehalt:',
             ''
         ].join('\n'));
 
@@ -1009,5 +1074,6 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(instructionsRow.hasChildren).toBe(true);
         expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'start']).addChildKind).toBe('start');
         expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'stop']).addChildKind).toBe('stop');
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'tracehalt'])).toBe(false);
     });
 });

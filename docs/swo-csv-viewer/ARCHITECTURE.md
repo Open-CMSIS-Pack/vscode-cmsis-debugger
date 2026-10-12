@@ -161,7 +161,7 @@ The host and webview share a discriminated TypeScript message protocol.
 Host-to-webview messages:
 
 - `tableState` publishes columns, filtered row count, loading state, parse
-  warnings, and errors.
+  warnings, errors, and restored row selection.
 - `rows` returns a bounded range with its request identifier and starting
   offset.
 
@@ -170,6 +170,8 @@ Webview-to-host messages:
 - `requestRows` requests the currently visible row interval.
 - `setFilters` replaces the active per-column filters.
 - `setSort` replaces or clears the active sort.
+- `selectionChanged` reports row-selection intervals, caret, and anchor so the
+  host can retain selection across view updates and source reloads.
 - `cellSelected` reports the source row, CSV column, column name, and raw value.
 - `copyRows` requests clipboard serialization for compact display-index
   intervals.
@@ -213,16 +215,34 @@ filtering and selection messages.
 
 ## Selection boundary
 
-Multi-row selection is webview-local navigation state. It is represented by
+Multi-row selection is maintained by the webview and mirrored in the host for
+retention across updates. It is represented by
 normalized display-index intervals rather than a set of source rows, so large
 contiguous selections have constant memory cost. Pointer and keyboard
 navigation maintain a logical caret and range anchor. TanStack Virtual scrolls
 the caret into view while focus remains on the persistent grid container, so
 virtual row unmounting does not discard keyboard focus.
 
-Filtering, sorting, and source reloads change display-index meaning and
-therefore clear row selection. Hiding the editor does not clear selection or
-scroll state because the custom editor retains its webview context.
+Filtering, sorting, and source reloads change display-index meaning, so the host
+captures row identities before an update and restores selection, caret, and
+anchor at their new display positions afterward:
+
+- Filter and sort changes match rows by `sourceRowIndex`. Selected rows that
+  remain in the resulting view stay selected; rows filtered out are dropped.
+- Source reloads match rows by the raw `cycles` value and its occurrence order
+  within the active view. The `cycles` column name is matched case-insensitively.
+  Duplicate values are distinguished by occurrence order, not by full record
+  content. Missing selected identities are dropped, and missing caret or anchor
+  identities become unset.
+- A reload clears selection if either table lacks a `cycles` column or no
+  selected identities remain in the resulting view.
+
+This implements [issue #1189](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues/1189),
+which requires keeping row selection after view refresh, particularly after
+step, pause, or a breakpoint hit. Reloads reapply the active filters and sort
+before restoring selection; they do not reuse old display indices as row
+identities. Hiding the editor does not clear selection or scroll state because
+the custom editor retains its webview context.
 
 A clicked cell still emits a singular integration event rather than the full
 row selection. The webview sends its source coordinates and value to the
