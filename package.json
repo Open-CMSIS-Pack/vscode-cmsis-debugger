@@ -1049,7 +1049,7 @@
           },
           "vscode-cmsis-debugger.openCapturedTraceAfterDecode": {
             "type": "boolean",
-            "default": true,
+            "default": false,
             "description": "Open the decoded trace capture after a target pause triggers trace decoding."
           }
         }
