@@ -27,7 +27,7 @@ export function extensionContextFactory(): jest.Mocked<vscode.ExtensionContext> 
             get: jest.fn(),
             update: jest.fn(),
             setKeysForSync: jest.fn(),
-        } as unknown as vscode.Memento & { setKeysForSync(keys: readonly string[]): void } ,
+        } as unknown as vscode.Memento & { setKeysForSync(keys: readonly string[]): void },
         secrets: {
             store: jest.fn(),
             get: jest.fn(),
@@ -61,7 +61,7 @@ export function extensionContextFactory(): jest.Mocked<vscode.ExtensionContext> 
             activate: jest.fn(),
             exports: {},
             extensionKind: 2,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as unknown as vscode.Extension<any>,
         languageModelAccessInformation: {
             getLanguageModel: jest.fn(),

@@ -133,7 +133,7 @@ describe('CTraceController', () => {
         await testAccess.handleRawTraceFileChanged(RAW_TRACE_URI);
 
         expect(openCapturedTrace).toHaveBeenCalledTimes(1);
-        expect(openCapturedTrace).toHaveBeenCalledWith(CBUILD_RUN_FILE_PATH);
+        expect(openCapturedTrace).toHaveBeenCalledWith(CBUILD_RUN_FILE_PATH, { preserveFocus: false });
     });
 
     it('does not open a captured trace when automatic opening is disabled', async () => {

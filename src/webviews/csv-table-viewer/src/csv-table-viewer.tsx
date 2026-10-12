@@ -21,10 +21,10 @@ import {
     clearSelectedRows,
     commitRowSelectionCaret,
     EMPTY_ROW_SELECTION,
-    findFirstSelectedRowInRange,
     isRowSelected,
     moveRowCaret,
     selectAllRows,
+    selectRowForContextMenu,
     selectRowRange,
     selectSingleRow,
     toggleRow,
@@ -43,7 +43,6 @@ declare function acquireVsCodeApi(): { postMessage: (message: CsvTableWebviewMes
 const vscode = acquireVsCodeApi();
 const ROW_OVERSCAN = 16;
 const FILTER_DEBOUNCE_MS = 250;
-const COPY_BUTTON_DELAY_MS = 1_000;
 const getMinimumColumnWidth = (columnIndex: number): number => columnIndex === 0 ? 22 : 100;
 
 interface TableState {
@@ -91,9 +90,9 @@ export const CsvTableViewer = (): JSX.Element => {
     const [sort, setSort] = useState<CsvTableSort | null>(null);
     const [columnWidths, setColumnWidths] = useState<readonly number[]>([]);
     const [selection, setSelection] = useState<RowSelectionState>(EMPTY_ROW_SELECTION);
-    const [copyButtonReady, setCopyButtonReady] = useState(false);
     const [contextMenuPosition, setContextMenuPosition] = useState<ContextMenuPosition | null>(null);
     const [scrollTop, setScrollTop] = useState(0);
+    const [rowViewportHeight, setRowViewportHeight] = useState(CSV_TABLE_ROW_HEIGHT);
     const [tableRevision, setTableRevision] = useState(0);
     const [renderedRequestId, setRenderedRequestId] = useState<number | null>(null);
     const [rowRequestVersion, setRowRequestVersion] = useState(0);
@@ -106,12 +105,26 @@ export const CsvTableViewer = (): JSX.Element => {
     const keyboardRangeActive = useRef(false);
     const clearSortSuppressionTimer = useRef<number | null>(null);
     const filterTimer = useRef<number | null>(null);
-    const copyButtonTimer = useRef<number | null>(null);
-    const rowViewportHeight = Math.max(CSV_TABLE_ROW_HEIGHT, (scrollElementRef.current?.clientHeight ?? CSV_TABLE_ROW_HEIGHT) - (tableHeaderRef.current?.offsetHeight ?? 0));
     const { scrollHeight, scrollScale, logicalScrollTop, firstVisibleRow } = getCsvTableScrollGeometry(tableState.totalRowCount, scrollTop, rowViewportHeight);
     const visibleRowCount = Math.max(1, Math.ceil(rowViewportHeight / CSV_TABLE_ROW_HEIGHT));
     const renderedRowStart = Math.max(0, firstVisibleRow - ROW_OVERSCAN);
     const renderedRowEnd = Math.min(tableState.totalRowCount, firstVisibleRow + visibleRowCount + ROW_OVERSCAN);
+
+    useEffect(() => {
+        const scrollElement = scrollElementRef.current;
+        const headerElement = tableHeaderRef.current;
+        if (scrollElement === null || headerElement === null) {
+            return;
+        }
+        const measure = (): void => {
+            setRowViewportHeight(Math.max(CSV_TABLE_ROW_HEIGHT, scrollElement.clientHeight - headerElement.offsetHeight));
+        };
+        const observer = new ResizeObserver(measure);
+        observer.observe(scrollElement);
+        observer.observe(headerElement);
+        measure();
+        return () => observer.disconnect();
+    }, []);
 
     useEffect(() => {
         const receiveMessage = (event: MessageEvent<CsvTableHostMessage>): void => {
@@ -171,9 +184,6 @@ export const CsvTableViewer = (): JSX.Element => {
         if (filterTimer.current !== null) {
             window.clearTimeout(filterTimer.current);
         }
-        if (copyButtonTimer.current !== null) {
-            window.clearTimeout(copyButtonTimer.current);
-        }
     }, []);
 
     useEffect(() => {
@@ -184,27 +194,6 @@ export const CsvTableViewer = (): JSX.Element => {
             anchor: selection.anchor,
         });
     }, [selection]);
-
-    useEffect(() => {
-        setCopyButtonReady(false);
-        if (copyButtonTimer.current !== null) {
-            window.clearTimeout(copyButtonTimer.current);
-            copyButtonTimer.current = null;
-        }
-        if (selection.intervals.length === 0) {
-            return;
-        }
-        copyButtonTimer.current = window.setTimeout(() => {
-            setCopyButtonReady(true);
-            copyButtonTimer.current = null;
-        }, COPY_BUTTON_DELAY_MS);
-        return () => {
-            if (copyButtonTimer.current !== null) {
-                window.clearTimeout(copyButtonTimer.current);
-                copyButtonTimer.current = null;
-            }
-        };
-    }, [selection.intervals]);
 
     useEffect(() => {
         if (renderedRequestId === null) {
@@ -437,12 +426,6 @@ export const CsvTableViewer = (): JSX.Element => {
     const activeRowIsRendered = selection.caret !== null
         && selection.caret >= renderedRowStart
         && selection.caret < renderedRowEnd;
-    const copyButtonRow = copyButtonReady
-        ? findFirstSelectedRowInRange(selection.intervals, firstVisibleRow, firstVisibleRow + visibleRowCount - 1)
-        : null;
-    const copyButtonTop = copyButtonRow === null
-        ? 0
-        : Math.max(4, (tableHeaderRef.current?.offsetHeight ?? 0) + copyButtonRow * CSV_TABLE_ROW_HEIGHT - scrollTop - 30);
     return <main className="csv-table-viewer">
         <section className="table-frame" aria-label="CSV table">
             <div
@@ -494,6 +477,7 @@ export const CsvTableViewer = (): JSX.Element => {
                             role="row"
                             aria-rowindex={rowIndex + 2}
                             aria-selected={selected}
+                            onContextMenu={event => setSelection(current => selectRowForContextMenu(current, rowIndex, event.shiftKey || event.altKey))}
                             style={{ gridTemplateColumns, transform: `translateY(${rowTop}px)` }}
                         >
                             <span className="row-index-cell" role="gridcell" aria-colindex={1}>{row.sourceRowIndex}</span>
@@ -515,18 +499,6 @@ export const CsvTableViewer = (): JSX.Element => {
                     })}
                 </div>
             </div>
-            {copyButtonRow !== null && <button
-                type="button"
-                className="copy-selection-tooltip"
-                aria-label="Copy selected rows"
-                onClick={copySelectedRows}
-                style={{ top: `${copyButtonTop}px` }}
-            >
-                <svg viewBox="0 0 16 16" aria-hidden="true">
-                    <path fill="currentColor" d="M4 4V1h8v8H9v3H1V4h3Zm1 0h4v4h2V2H5v2Zm3 1H2v6h6V5Z" />
-                </svg>
-                <span>Copy</span>
-            </button>}
             {contextMenuPosition !== null && <div
                 className="table-context-menu"
                 role="menu"
