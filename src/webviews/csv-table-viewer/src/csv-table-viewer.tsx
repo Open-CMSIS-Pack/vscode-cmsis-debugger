@@ -25,6 +25,7 @@ import {
     isRowSelected,
     moveRowCaret,
     selectAllRows,
+    selectRowForContextMenu,
     selectRowRange,
     selectSingleRow,
     toggleRow,
@@ -510,6 +511,7 @@ export const CsvTableViewer = (): JSX.Element => {
                             role="row"
                             aria-rowindex={rowIndex + 2}
                             aria-selected={selected}
+                            onContextMenu={event => setSelection(current => selectRowForContextMenu(current, rowIndex, event.shiftKey || event.altKey))}
                             style={{ gridTemplateColumns, transform: `translateY(${rowTop}px)` }}
                         >
                             <span className="row-index-cell" role="gridcell" aria-colindex={1}>{row.sourceRowIndex}</span>

@@ -92,6 +92,13 @@ export const toggleRow = (state: RowSelectionState, rowIndex: number): RowSelect
     anchor: rowIndex,
 });
 
+export const selectRowForContextMenu = (state: RowSelectionState, rowIndex: number, additive: boolean): RowSelectionState => {
+    if (isRowSelected(state, rowIndex)) {
+        return state;
+    }
+    return additive ? toggleRow(state, rowIndex) : selectSingleRow(rowIndex);
+};
+
 export const moveRowCaret = (
     state: RowSelectionState,
     rowIndex: number,
