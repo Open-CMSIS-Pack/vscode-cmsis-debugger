@@ -743,7 +743,6 @@ configuration in the **Trace Generation** view.
 
 For example, selecting a DWT data trace record identifies the DWT data trace point that generated the record.
 
-
 ### Change trace settings during debugging
 
 You can modify trace source settings while a debug session is active.
@@ -790,7 +789,7 @@ preserves both target trace resources and available SWO bandwidth.
 > stops.
 
 ## Extension Functionality
-preserves both target trace resources and available SWO bandwidth.
+
 This extension adds functionality to work seamlessly with other extensions.
 
 - A [debug configuration provider](https://code.visualstudio.com/api/references/vscode-api#DebugConfigurationProvider)
