@@ -21,8 +21,13 @@ import type {
     TraceConfigurationRow,
     TraceConfigurationState,
     TraceHostToWebviewMessage,
-    TraceWebviewToHostMessage
+    TraceWebviewToHostMessage,
 } from '../../../views/trace-configuration/trace-configuration-protocol';
+
+type MultiSelectControl = {
+    signature: string;
+    updateSelectedOptions(selectedOptions: readonly string[]): void;
+};
 
 interface VsCodeApi {
     postMessage(message: TraceWebviewToHostMessage): void;
@@ -33,6 +38,7 @@ declare function acquireVsCodeApi(): VsCodeApi;
 const vscodeApi = acquireVsCodeApi();
 const root = document.getElementById('root');
 let openMultiSelectId: string | undefined;
+const multiSelectControls = new WeakMap<HTMLDetailsElement, MultiSelectControl>();
 
 /**
  * post sends one typed browser action to the extension host. Keeping all
@@ -97,8 +103,8 @@ function closeOpenMultiSelect(): void {
 
 /**
  * renderApp is the top-level renderer for each host update. It creates the
- * toolbar, status line, and table for the current state and replaces the root
- * contents in one pass.
+ * toolbar, status line, and table for the current state, reusing unchanged
+ * multi-select controls when replacing the root contents.
  */
 function renderApp(state: TraceConfigurationState): void {
     if (!root) {
@@ -107,11 +113,12 @@ function renderApp(state: TraceConfigurationState): void {
     const previousScrollRegion = root.querySelector<HTMLElement>('.option-tree-scroll');
     const scrollTop = previousScrollRegion?.scrollTop ?? 0;
     const scrollLeft = previousScrollRegion?.scrollLeft ?? 0;
+    const menuScrollPositions = Array.from(root.querySelectorAll<HTMLElement>('.multi-select-menu'))
+        .map(menu => ({ menu, scrollTop: menu.scrollTop, scrollLeft: menu.scrollLeft }));
     const activeElement = document.activeElement;
     const focusedRowId = activeElement instanceof HTMLTableRowElement && root.contains(activeElement)
         ? activeElement.dataset.rowId
         : undefined;
-    clearElement(root);
     const surface = createElement('main', 'table-surface');
     surface.append(createHeader(state));
     const scrollRegion = createElement('div', 'option-tree-scroll');
@@ -125,9 +132,19 @@ function renderApp(state: TraceConfigurationState): void {
         scrollRegion.append(createTable(state.rows));
     }
     surface.append(scrollRegion);
+    clearElement(root);
     root.append(surface);
     scrollRegion.scrollTop = scrollTop;
     scrollRegion.scrollLeft = scrollLeft;
+    if (!state.focusedRowId && activeElement instanceof HTMLElement && root.contains(activeElement)) {
+        activeElement.focus({ preventScroll: true });
+    }
+    menuScrollPositions.forEach(position => {
+        if (root.contains(position.menu)) {
+            position.menu.scrollTop = position.scrollTop;
+            position.menu.scrollLeft = position.scrollLeft;
+        }
+    });
     focusRow(state.focusedRowId ?? focusedRowId);
 }
 
@@ -502,11 +519,19 @@ function createSelect(row: TraceConfigurationRow): HTMLElement {
 
 /**
  * createMultiSelect renders a compact dropdown checklist for fields where the
- * ctrace schema accepts multiple choices. It keeps its checked values locally
- * while the dropdown is open and posts the full selected array after each
- * checkbox change so the host can rewrite the corresponding YAML structure.
+ * ctrace schema accepts multiple choices. Unchanged option lists retain their
+ * DOM across host updates, while checked values stay synchronized with the host.
+ * Each checkbox change posts the full selected array for the YAML update.
  */
 function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
+    const signature = JSON.stringify([row.options ?? [], getValuePath(row), row.label]);
+    const existingDetails = Array.from(root?.querySelectorAll<HTMLDetailsElement>('details.multi-select') ?? [])
+        .find(details => details.dataset.rowId === row.id);
+    const existingControl = existingDetails ? multiSelectControls.get(existingDetails) : undefined;
+    if (existingDetails && existingControl?.signature === signature) {
+        existingControl.updateSelectedOptions(row.selectedOptions ?? []);
+        return existingDetails;
+    }
     const details = createElement('details', 'multi-select');
     details.dataset.rowId = row.id;
     details.open = openMultiSelectId === row.id;
@@ -545,6 +570,7 @@ function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
         const label = createElement('label', 'multi-select-option');
         const checkbox = createElement('input');
         checkbox.type = 'checkbox';
+        checkbox.value = optionValue;
         checkbox.checked = selectedValues.has(optionValue);
         checkbox.setAttribute('aria-label', `${row.label} ${optionValue}`);
         checkbox.addEventListener('change', () => {
@@ -560,6 +586,17 @@ function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
         text.textContent = optionValue;
         label.append(checkbox, text);
         menu.append(label);
+    });
+    multiSelectControls.set(details, {
+        signature,
+        updateSelectedOptions(selectedOptions): void {
+            selectedValues.clear();
+            selectedOptions.forEach(optionValue => selectedValues.add(optionValue));
+            menu.querySelectorAll<HTMLInputElement>('input').forEach(checkbox => {
+                checkbox.checked = selectedValues.has(checkbox.value);
+            });
+            updateSummary();
+        }
     });
     details.append(summary, menu);
     return details;
