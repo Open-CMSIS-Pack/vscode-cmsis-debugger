@@ -635,7 +635,7 @@ Use **DWT Data Trace** to monitor accesses to a variable or memory location with
 - Select **Match** to only trigger recording when a certain value is matched.
 - Set the **Size** of the match (`<Auto>` determines the size by symbol information).
 
-Depending on the processor, 
+Depending on the processor,
 combinations of settings may bot be supported. The validation clearly flags unsupported combinations.
 
 For example, configuring a variable for write access generates a trace record whenever the processor writes to that
