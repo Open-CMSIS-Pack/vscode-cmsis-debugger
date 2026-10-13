@@ -107,7 +107,7 @@ export interface CTraceConfiguration {
     itm?: CTraceItmTrace | CTraceItmTrace[];
     pcsampling?: CTracePcSampling;
     synchronization?: CTraceSynchronization;
-    timesync?: CTraceTimeSync;
+    timesync?: CTraceTimeSync | null;
     tracehalt?: CTraceCondition[];
     'register-values'?: CTraceRegisterValues[];
 }
@@ -118,7 +118,7 @@ export interface CTraceProcessorTraceSetup {
     core?: string;
     disable?: null;
     timestamps?: CTraceTimestamps | null;
-    timesync?: CTraceTimeSync;
+    timesync?: CTraceTimeSync | null;
     data?: CTraceDataTrace[] | null;
     exceptions?: null;
     events?: CTraceEventTrace[] | null;
@@ -385,7 +385,9 @@ export class CTraceYamlDocument {
         [...map.getChildren()].forEach(child => {
             const key = child.getTag();
             if (key === 'ctrace-ref') {
-                map.removeChild(child);
+                if (currentPath.at(-1) !== 'timesync') {
+                    map.removeChild(child);
+                }
                 return;
             }
             if (!key) {

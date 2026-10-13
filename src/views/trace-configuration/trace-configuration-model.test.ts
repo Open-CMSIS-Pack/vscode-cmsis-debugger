@@ -276,6 +276,78 @@ async function createModelFromText(
 }
 
 describe('TraceConfigurationModel', () => {
+    describe.each([
+        { scope: 'root', path: ['ctrace', 'timesync'], prefix: 'ctrace:\n  setup: []\n', indent: '  ' },
+        { scope: 'processor', path: ['ctrace', 'setup', 0, 'timesync'], prefix: 'ctrace:\n  setup:\n    - pname: cm33\n', indent: '      ' },
+    ])('Time Synchronization editing at $scope scope', ({ path, prefix, indent }) => {
+        it.each(['off', '128', '8192', 'packet'])('saves and reloads selection %s while retaining siblings', async period => {
+            const { adapter, model } = await createModelFromText(`${prefix}${indent}timesync:\n${indent}  ctrace-ref: source\n${indent}  custom: retained\n${indent}  nested: { setting: preserved }\n${indent}  periods: [128, 8192]\n${indent}  ITM: off\n`, createCapabilities());
+            await model.updateValue([...path, 'ITM'], period);
+            await model.saveCurrentDocument();
+            const reloaded = CTraceYamlDocument.parse(adapter.text);
+            expect(reloaded.yaml.getItem(path)?.toObject()).toEqual({
+                'ctrace-ref': 'source', custom: 'retained', nested: { setting: 'preserved' }, periods: [128, 8192], ITM: period,
+            });
+            const { model: reopened } = await createModelFromText(adapter.text, createCapabilities());
+            reopened.updateExpandedState(JSON.stringify(['ctrace', 'setup', 0]), true);
+            reopened.updateExpandedState(JSON.stringify(['ctrace', 'setup', 0, 'advanced-settings']), true);
+            reopened.updateExpandedState(JSON.stringify(path), true);
+            expect(reopened.createState().rows.find(row => JSON.stringify(row.path) === JSON.stringify([...path, 'ITM'])))
+                .toMatchObject({ value: period, options: ['off', '128', '8192', 'packet'] });
+            expect(reopened.createState().dirty).toBe(false);
+        });
+
+        it('persists reference editing without replacing the ITM map', async () => {
+            const { adapter, model } = await createModelFromText(`${prefix}${indent}timesync: { ctrace-ref: source, ITM: 128 }\n`, createCapabilities());
+            await model.updateValue([...path, 'ctrace-ref'], 'updated-source');
+            await model.saveCurrentDocument();
+            expect(CTraceYamlDocument.parse(adapter.text).yaml.getItem(path)?.toObject()).toEqual({ 'ctrace-ref': 'updated-source', ITM: 128 });
+        });
+
+        it.each(['', `${indent}timesync:\n`, `${indent}timesync: {}\n`])('preserves initial semantics and safely edits %j', async entry => {
+            const original = `${prefix}${entry}`;
+            const { adapter, model } = await createModelFromText(original, createCapabilities());
+            model.createState();
+            expect(adapter.writeCount).toBe(0);
+            expect(model.createState().dirty).toBe(false);
+            await model.saveCurrentDocument();
+            expect(CTraceYamlDocument.parse(adapter.text).toObject()).toEqual(CTraceYamlDocument.parse(original).toObject());
+            await model.updateValue([...path, 'ITM'], '8192');
+            await model.saveCurrentDocument();
+            expect(CTraceYamlDocument.parse(adapter.text).yaml.getItem(path)?.toObject()).toEqual({ ITM: '8192' });
+        });
+
+        it.each(['timesync: unexpected', 'timesync: [128]', 'timesync: { ITM: [128], custom: retained }', 'timesync: { ITM: { nested: 128 } }'])('does not overwrite malformed %s', async entry => {
+            const original = `${prefix}${indent}${entry}\n`;
+            const { adapter, model } = await createModelFromText(original, createCapabilities());
+            expect(() => model.createState()).not.toThrow();
+            await model.updateValue([...path, 'ITM'], '128');
+            expect(model.createState().dirty).toBe(false);
+            expect(model.createState().errorMessage).toContain('in YAML');
+            await model.saveCurrentDocument();
+            expect(CTraceYamlDocument.parse(adapter.text).toObject()).toEqual(CTraceYamlDocument.parse(original).toObject());
+        });
+
+        it('preserves unsupported ITM input until explicitly changed', async () => {
+            const original = `${prefix}${indent}timesync: { ITM: custom-period }\n`;
+            const { adapter, model } = await createModelFromText(original, createCapabilities());
+            model.createState();
+            await model.saveCurrentDocument();
+            expect(CTraceYamlDocument.parse(adapter.text).toObject()).toEqual(CTraceYamlDocument.parse(original).toObject());
+            await model.updateValue([...path, 'ITM'], '128');
+            await model.saveCurrentDocument();
+            expect(CTraceYamlDocument.parse(adapter.text).yaml.getItem(path)?.toObject()).toEqual({ ITM: '128' });
+        });
+    });
+
+    it.each(['1', '4', '16', '64'])('saves timestamp prescaler option %s unchanged', async period => {
+        const { adapter, model } = await createModelFromText('ctrace:\n  setup:\n    - pname: cm33\n      timestamps:\n', createCapabilities());
+        const path = ['ctrace', 'setup', 0, 'timestamps', 'itm-prescaler'];
+        await model.updateValue(path, period);
+        await model.saveCurrentDocument();
+        expect(CTraceYamlDocument.parse(adapter.text).yaml.getItem(path)?.toObject()).toBe(Number(period));
+    });
+
     afterEach(async () => {
         jest.restoreAllMocks();
         mutableWorkspace.workspaceFolders = originalWorkspaceFolders;
@@ -771,7 +843,7 @@ describe('TraceConfigurationModel', () => {
             path.basename(runFileName).startsWith('~')
                 ? [{ ctraceRef: 'data#0', severity: 'error', message: backupMessage }]
                 : []);
-        const model = createWorkspaceModel(() => {}, prevalidator, runMessageReader);
+        const model = createWorkspaceModel(() => { }, prevalidator, runMessageReader);
         const watcherStartIndex = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls.length;
 
         await model.openFile(fileName);
@@ -1050,7 +1122,7 @@ describe('TraceConfigurationModel', () => {
             TraceConfigurationGeneratedCTraceFileManager.prototype,
             'ensureProductionCTraceRunFile'
         ).mockResolvedValue();
-        const model = createWorkspaceModel(() => {}, createPassingPrevalidator(), runMessageReader);
+        const model = createWorkspaceModel(() => { }, createPassingPrevalidator(), runMessageReader);
 
         await model.openFile(firstFileName);
         model.updateExpandedState(JSON.stringify(['ctrace', 'setup', 0]), true);
@@ -1101,7 +1173,7 @@ describe('TraceConfigurationModel', () => {
             TraceConfigurationGeneratedCTraceFileManager.prototype,
             'ensureProductionCTraceRunFile'
         ).mockResolvedValue();
-        const model = createWorkspaceModel(() => {}, createPassingPrevalidator(), runMessageReader);
+        const model = createWorkspaceModel(() => { }, createPassingPrevalidator(), runMessageReader);
         const watcherStartIndex = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls.length;
 
         await model.openFile(fileName);
@@ -1154,7 +1226,7 @@ describe('TraceConfigurationModel', () => {
             .mockResolvedValue({ status: 'passed' });
         const runMessageReader = createRunMessageReader();
         runMessageReader.readIfExists.mockResolvedValue([]);
-        const model = createWorkspaceModel(() => {}, prevalidator, runMessageReader);
+        const model = createWorkspaceModel(() => { }, prevalidator, runMessageReader);
         const watcherStartIndex = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls.length;
         await model.openFile(fileName);
         const backupWatcher = (vscode.workspace.createFileSystemWatcher as jest.Mock)
@@ -1202,7 +1274,7 @@ describe('TraceConfigurationModel', () => {
             .mockImplementationOnce(() => new Promise(resolve => {
                 completeRead = resolve;
             }));
-        const model = createWorkspaceModel(() => {}, createPassingPrevalidator(), runMessageReader);
+        const model = createWorkspaceModel(() => { }, createPassingPrevalidator(), runMessageReader);
         const watcherStartIndex = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls.length;
 
         await model.openFile(fileName);

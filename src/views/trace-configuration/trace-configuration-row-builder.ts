@@ -229,6 +229,7 @@ export class TraceConfigurationRowBuilder {
             return;
         }
         const itmPath = [...nodePath, 'ITM'];
+        const value = this.getTimeSyncItm(node, nodePath);
         context.rows.push({
             id: this.pathToId(itmPath),
             label: 'ITM',
@@ -236,12 +237,20 @@ export class TraceConfigurationRowBuilder {
             depth: depth + 1,
             kind: 'scalar',
             control: 'select',
-            value: this.getTimeSyncItm(node, nodePath),
-            options: TraceConfigurationTypes.TIME_SYNC_OPTIONS,
+            value,
+            options: TraceConfigurationTypes.TIME_SYNC_OPTIONS.includes(value)
+                ? TraceConfigurationTypes.TIME_SYNC_OPTIONS
+                : [...TraceConfigurationTypes.TIME_SYNC_OPTIONS, value],
+            controlDisabledReason: this.getTimeSyncItmDisabledReason(nodePath),
             hasChildren: false,
             expanded: false,
             removable: false,
         });
+        if (isYamlMapItem(node)) {
+            this.getChildEntries(node, nodePath).filter(child => child.label !== 'ITM').forEach(child => {
+                this.appendNodeRows(context, child.node, child.path, child.label, depth + 1);
+            });
+        }
     }
 
     /**
@@ -618,6 +627,10 @@ export class TraceConfigurationRowBuilder {
      * fields remain absent from YAML until edited.
      */
     private getSyntheticChildEntries(parentPath: (string | number)[]): TraceNodeEntry[] {
+        if (parentPath.length === 1 && parentPath[0] === 'ctrace'
+            && [...this.processorCapabilities.values()].some(capabilities => capabilities.timeSynchronization)) {
+            return [this.createSyntheticNullEntry(parentPath, 'timesync')];
+        }
         if (this.isProcessorPath(parentPath)) {
             return [
                 this.createSyntheticMapEntry(parentPath, 'timestamps'),
@@ -1826,6 +1839,20 @@ export class TraceConfigurationRowBuilder {
             }
         }
         return TraceConfigurationTypes.DEFAULT_TIME_SYNC_PERIOD;
+    }
+
+    public getTimeSyncItmDisabledReason(nodePath: (string | number)[]): string | undefined {
+        const node = this.getCTraceFile()?.document?.yaml.getItem(nodePath);
+        if (!node || (isYamlScalarItem(node) && node.toObject() === null)) {
+            return undefined;
+        }
+        if (isYamlMapItem(node)) {
+            const itm = node.getChild('ITM');
+            if (!itm || isYamlScalarItem(itm)) {
+                return undefined;
+            }
+        }
+        return 'Edit the malformed Time Synchronization configuration in YAML before selecting an ITM period.';
     }
 
     /**

@@ -19,7 +19,8 @@ import { CTraceConfiguration, CTraceTimeSync, CTraceYamlDocument, CTraceYamlFile
 import { MemoryTextFileAdapter } from '../../__test__/memory-text-file-adapter';
 
 describe('CTraceYamlDocument', () => {
-    const timeSyncConfigurations: CTraceTimeSync[] = [
+    const timeSyncConfigurations: (CTraceTimeSync | null)[] = [
+        null,
         {},
         { ITM: 'off' },
         { ITM: 128 },
