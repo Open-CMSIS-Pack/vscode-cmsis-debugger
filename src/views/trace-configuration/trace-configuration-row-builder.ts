@@ -780,11 +780,18 @@ export class TraceConfigurationRowBuilder {
             ['match', 40],
             ['pname', 50],
         ]);
+        const rankForTimestamps = new Map([
+            ['clock', 10],
+            ['item-prescaler', 20],
+        ]);
         if (this.isDataTraceItemPath(parentPath)) {
             return rankForDataTrace.get(label);
         }
         if (this.isConditionItemPath(parentPath)) {
             return rankForCondition.get(label);
+        }
+        if (this.isTimestampsPath(parentPath)) {
+            return rankForTimestamps.get(label);
         }
         return undefined;
     }
