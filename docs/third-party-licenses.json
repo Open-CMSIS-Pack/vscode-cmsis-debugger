@@ -1,38 +1,59 @@
 [
     {
+        "name": "@vscode/codicons",
+        "version": "0.0.45",
+        "spdx": "CC-BY-4.0",
+        "url": "https://github.com/microsoft/vscode-codicons",
+        "license": "https://github.com/microsoft/vscode-codicons/blob/main/LICENSE"
+    },
+    {
         "name": "arm-none-eabi-gdb",
-        "version": "15.2.1",
+        "version": "15.3.1",
         "spdx": "GPL-3.0-or-later",
-        "url": "https://artifacts.tools.arm.com/arm-none-eabi-gdb/15.2.1/",
-        "license": "https://developer.arm.com/GetEula?Id=a162e8bb-8565-45a5-bdf6-7249bf3afe43"
+        "url": "https://artifacts.tools.arm.com/arm-none-eabi-gdb/15.3.1/",
+        "license": "https://gitlab.arm.com/tooling/gnu-toolchains-for-arm/-/blob/releases/15.3.rel1/EULA.txt"
+    },
+    {
+        "name": "ctrace",
+        "version": "0.4.0",
+        "spdx": "Apache-2.0",
+        "url": "https://github.com/Open-CMSIS-Pack/devtools/tree/main/tools/ctrace",
+        "license": "https://github.com/Open-CMSIS-Pack/devtools/blob/main/LICENSE"
+    },
+    {
+        "name": "@open-cmsis-pack/cmsis-common",
+        "version": "0.2.0",
+        "spdx": "Apache-2.0",
+        "url": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-solution/tree/main/packages/cmsis-common",
+        "license": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-solution/blob/main/LICENSE"
+    },
+    {
+        "name": "jsonc-parser",
+        "version": "3.3.1",
+        "spdx": "MIT",
+        "url": "https://github.com/microsoft/node-jsonc-parser",
+        "license": "https://github.com/microsoft/node-jsonc-parser/blob/main/LICENSE.md"
+    },
+    {
+        "name": "lodash",
+        "version": "4.18.1",
+        "spdx": "MIT",
+        "url": "https://github.com/lodash/lodash",
+        "license": "https://github.com/lodash/lodash/blob/main/LICENSE"
     },
     {
         "name": "pyocd",
-        "version": "0.43.0",
+        "version": "0.45.2.dev61+gf8ca7e4b7",
         "spdx": "Apache-2.0",
         "url": "https://github.com/pyocd/pyOCD",
-        "license": "https://github.com/pyocd/pyOCD/blob/v0.43.0/LICENSE"
+        "license": "https://github.com/pyocd/pyOCD/blob/v0.45.1/LICENSE"
     },
     {
-        "name": "vscode-uri",
-        "version": "3.1.0",
-        "spdx": "MIT",
-        "url": "https://github.com/microsoft/vscode-uri",
-        "license": "https://github.com/microsoft/vscode-uri/blob/main/LICENSE.md"
-    },
-    {
-        "name": "xml2js",
-        "version": "0.6.2",
-        "spdx": "MIT",
-        "url": "https://github.com/Leonidas-from-XIV/node-xml2js",
-        "license": "https://github.com/Leonidas-from-XIV/node-xml2js/blob/master/LICENSE"
-    },
-    {
-        "name": "yaml",
-        "version": "2.8.3",
-        "spdx": "ISC",
-        "url": "https://github.com/eemeli/yaml",
-        "license": "https://github.com/eemeli/yaml/blob/main/LICENSE"
+        "name": "pyTS",
+        "version": "0.7.0",
+        "spdx": "Apache-2.0",
+        "url": "https://github.com/Open-CMSIS-Pack/pyTS/releases",
+        "license": "https://github.com/Open-CMSIS-Pack/pyTS/blob/main/LICENSE"
     },
     {
         "name": "react",
@@ -49,24 +70,38 @@
         "license": "https://github.com/facebook/react/blob/main/LICENSE"
     },
     {
-        "name": "css-loader",
-        "version": "7.1.4",
-        "spdx": "MIT",
-        "url": "https://github.com/webpack-contrib/css-loader",
-        "license": "https://github.com/webpack-contrib/css-loader/blob/master/LICENSE"
+        "name": "sax-ts",
+        "version": "1.2.13",
+        "spdx": "ISC",
+        "url": "https://github.com/Maxim-Mazurok/sax-ts",
+        "license": "https://github.com/Maxim-Mazurok/sax-ts/blob/master/LICENSE.md"
     },
     {
-        "name": "mini-css-extract-plugin",
-        "version": "2.10.2",
+        "name": "vscode-uri",
+        "version": "3.2.0",
         "spdx": "MIT",
-        "url": "https://github.com/webpack-contrib/mini-css-extract-plugin",
-        "license": "https://github.com/webpack-contrib/mini-css-extract-plugin/blob/master/LICENSE"
+        "url": "https://github.com/microsoft/vscode-uri",
+        "license": "https://github.com/microsoft/vscode-uri/blob/main/LICENSE.md"
     },
     {
-        "name": "@vscode/codicons",
-        "version": "0.0.45",
-        "spdx": "CC-BY-4.0",
-        "url": "https://github.com/microsoft/vscode-codicons",
-        "license": "https://github.com/microsoft/vscode-codicons/blob/main/LICENSE"
+        "name": "xml2js",
+        "version": "0.6.2",
+        "spdx": "MIT",
+        "url": "https://github.com/Leonidas-from-XIV/node-xml2js",
+        "license": "https://github.com/Leonidas-from-XIV/node-xml2js/blob/master/LICENSE"
+    },
+    {
+        "name": "yaml",
+        "version": "2.9.1",
+        "spdx": "ISC",
+        "url": "https://github.com/eemeli/yaml",
+        "license": "https://github.com/eemeli/yaml/blob/main/LICENSE"
+    },
+    {
+        "name": "@tanstack/react-virtual",
+        "version": "3.14.13",
+        "spdx": "MIT",
+        "url": "https://github.com/tanstack/react-virtual",
+        "license": "https://github.com/tanstack/react-virtual/blob/main/LICENSE"
     }
 ]

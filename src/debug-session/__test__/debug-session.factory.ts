@@ -30,6 +30,10 @@ export type TestInvalidatedEvent = {
     event: DebugProtocol.InvalidatedEvent;
 };
 
+export type TestStoppedEvent = {
+    session: Session;
+};
+
 export type Session = {
     session: { id: string; configuration?: { name: string } };
     getCbuildRun: () => Promise<{ getScvdFilePaths: () => string[]; getTargetType: () => string | undefined } | undefined>;
@@ -44,6 +48,7 @@ export type TrackerCallbacks = {
     onWillStopSession: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
     onConnected: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
     onDidChangeActiveDebugSession: (cb: (session: Session | undefined) => Promise<void>) => { dispose: jest.Mock };
+    onStopped: (cb: (event: TestStoppedEvent) => Promise<void>) => { dispose: jest.Mock };
     onStackTrace: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
     onDidChangeActiveStackItem: (cb: (session: { session: Session }) => Promise<void>) => { dispose: jest.Mock };
     onWillStartSession: (cb: (session: Session) => Promise<void>) => { dispose: jest.Mock };
@@ -53,6 +58,7 @@ export type TrackerCallbacks = {
         willStop: (session: Session) => Promise<void>;
         connected: (session: Session) => Promise<void>;
         activeSession: (session: Session | undefined) => Promise<void>;
+        stopped: (event: TestStoppedEvent) => Promise<void>;
         stackTrace: (session: { session: Session }) => Promise<void>;
         activeStackItem: (session: { session: Session }) => Promise<void>;
         willStart: (session: Session) => Promise<void>;
@@ -75,6 +81,10 @@ export const trackerFactory = (): TrackerCallbacks => {
         },
         onDidChangeActiveDebugSession: (cb) => {
             callbacks.activeSession = cb;
+            return { dispose: jest.fn() };
+        },
+        onStopped: (cb) => {
+            callbacks.stopped = cb;
             return { dispose: jest.fn() };
         },
         onStackTrace: (cb) => {
@@ -100,7 +110,9 @@ export const trackerFactory = (): TrackerCallbacks => {
     };
 };
 
-export const debugTrackerFactory = () => trackerFactory() as unknown as GDBTargetDebugTracker;
+export const debugTrackerFactory = (): GDBTargetDebugTracker & TrackerCallbacks => (
+    trackerFactory() as unknown as GDBTargetDebugTracker & TrackerCallbacks
+);
 
 export const debugSessionFactory = (
     id: string,
@@ -133,6 +145,6 @@ export const gdbTargetDebugSessionFactory = (
     targetState: Session['targetState'] = 'unknown',
     pname: string | undefined = undefined,
     hasCbuildRun = true
-): GDBTargetDebugSession => (
-    debugSessionFactory(id, paths, targetState, pname, hasCbuildRun) as unknown as GDBTargetDebugSession
+): GDBTargetDebugSession & Session => (
+    debugSessionFactory(id, paths, targetState, pname, hasCbuildRun) as unknown as GDBTargetDebugSession & Session
 );

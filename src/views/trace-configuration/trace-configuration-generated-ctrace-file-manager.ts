@@ -1,0 +1,436 @@
+/**
+ * Copyright 2026 Arm Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+// generated with AI
+
+import * as path from 'node:path';
+import { TextDecoder, TextEncoder } from 'node:util';
+
+import * as vscode from 'vscode';
+
+import { CbuildRunReader, CBuildRunFileLocator, ProcessorType } from '../../cbuild-run';
+import { PyTsController } from '../../features/trace/pyts-controller';
+import { logger } from '../../logger';
+import { isFileNotFoundError, normalizeFsPath } from '../../utils';
+import { CTraceProcessorTraceSetup, CTraceYamlDocument } from './ctrace-yaml';
+import { GeneratedCBuildRunFileChangeEvent } from './trace-configuration-file-watcher';
+import { getTraceConfigurationArtifactFileNames } from './trace-configuration-file-names';
+import * as TraceConfigurationTypes from './trace-configuration-types';
+
+interface GeneratedTraceProcessor {
+    core: string;
+    pname?: string | undefined;
+}
+
+interface GeneratedCBuildRunData {
+    processors: GeneratedTraceProcessor[];
+    startPname: string | undefined;
+    targetSet: string | undefined;
+}
+
+interface EnsureProductionCTraceRunFileOptions {
+    readonly cbuildRunUri?: vscode.Uri;
+    readonly isCurrent?: () => boolean;
+}
+
+export const TRACE_OFF_MESSAGE =
+    'Trace generation turned off, enable in debugger\'s trace settings';
+
+export type GeneratedCBuildRunFileProcessingResult =
+    | { status: 'generated'; uri: vscode.Uri; conversionRequested: boolean }
+    | { status: 'trace-off' }
+    | { status: 'deleted' };
+
+/**
+ * TraceConfigurationGeneratedCTraceFileManager owns the generated cbuild-run to
+ * generated ctrace.yml conversion flow.
+ */
+export class TraceConfigurationGeneratedCTraceFileManager {
+    private readonly decoder = new TextDecoder();
+    private readonly encoder = new TextEncoder();
+
+    public constructor(
+        private readonly pyTsController: PyTsController = new PyTsController(),
+        private readonly cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator()
+    ) {}
+
+    /**
+     * processGeneratedCBuildRunFileChange updates generated trace files for a
+     * generated cbuild-run watcher event, then reports whether a ctrace file was
+     * generated, tracing is off, or the source file was deleted.
+     */
+    public async processGeneratedCBuildRunFileChange(
+        event: GeneratedCBuildRunFileChangeEvent
+    ): Promise<GeneratedCBuildRunFileProcessingResult> {
+        logger.debug(`Trace Configuration: Generated cbuild-run file ${event.type}: ${event.uri.fsPath}`);
+        switch (event.type) {
+            case 'created':
+            case 'changed': {
+                const traceFile = await this.createOrUpdateGeneratedCTraceFile(event.uri);
+                if (traceFile && !traceFile.written) {
+                    await this.convertExistingCTrace(traceFile.uri, event.uri);
+                }
+                return traceFile
+                    ? { status: 'generated', uri: traceFile.uri, conversionRequested: !traceFile.written }
+                    : { status: 'trace-off' };
+            }
+            case 'deleted':
+                return { status: 'deleted' };
+        }
+    }
+
+    /**
+     * createDefaultCTraceFile creates the default trace configuration associated
+     * with a cbuild-run file. Existing files are preserved and receive only
+     * missing processor setup entries.
+     */
+    public async createDefaultCTraceFile(cbuildRunFileUri: vscode.Uri): Promise<vscode.Uri | undefined> {
+        return (await this.createOrUpdateGeneratedCTraceFile(cbuildRunFileUri))?.uri;
+    }
+
+    /**
+     * Ensures an existing production ctrace input has the corresponding pyTS
+     * output. The active cbuild-run mapping is checked before conversion so an
+     * explicitly opened, inactive ctrace file cannot launch an unrelated build.
+     */
+    public async ensureProductionCTraceRunFile(
+        ctraceUri: vscode.Uri,
+        options: EnsureProductionCTraceRunFileOptions = {}
+    ): Promise<void> {
+        const artifacts = getTraceConfigurationArtifactFileNames(ctraceUri.fsPath);
+        const outputUri = vscode.Uri.file(artifacts.productionCTraceRunFileName);
+        if (!this.isCurrent(options) || await this.fileExists(outputUri)) {
+            return;
+        }
+
+        try {
+            const cbuildRunUri = options.cbuildRunUri ?? await this.resolveActiveCBuildRunUri();
+            if (!cbuildRunUri) {
+                logger.debug(
+                    'Trace Configuration: Cannot generate missing ctrace-run output for '
+                    + `${ctraceUri.fsPath} without an active cbuild-run file.`
+                );
+                return;
+            }
+            if (!this.isCurrent(options)) {
+                return;
+            }
+            const reader = new CbuildRunReader();
+            await reader.parse(cbuildRunUri.fsPath);
+            if (!this.isCurrent(options)) {
+                return;
+            }
+            const traceMode = reader.getTraceMode();
+            if (traceMode === undefined || traceMode === 'off') {
+                return;
+            }
+            const expectedCTraceUri = await this.cbuildRunFileLocator.getCTraceUriFromCBuildRunUri(
+                cbuildRunUri,
+                reader.getTargetSet()
+            );
+            if (!this.isCurrent(options)) {
+                return;
+            }
+            if (normalizeFsPath(expectedCTraceUri.fsPath) !== normalizeFsPath(ctraceUri.fsPath)) {
+                logger.debug(
+                    `Trace Configuration: Skipping pyTS conversion for inactive ctrace file ${ctraceUri.fsPath}.`
+                );
+                return;
+            }
+            if (await this.fileExists(outputUri) || !this.isCurrent(options)) {
+                return;
+            }
+            await this.pyTsController.convertCTrace(ctraceUri, cbuildRunUri.fsPath);
+        } catch (error) {
+            logger.error('Trace Configuration: Failed to request pyTS conversion for missing ctrace-run output:', error);
+        }
+    }
+
+    /**
+     * createOrUpdateGeneratedCTraceFile reads processors from a generated
+     * cbuild-run file, creates the matching .cmsis ctrace file when needed, and
+     * returns the generated ctrace file URI.
+    */
+    private async createOrUpdateGeneratedCTraceFile(
+        cbuildRunFileUri: vscode.Uri
+    ): Promise<{ uri: vscode.Uri; written: boolean } | undefined> {
+        const cbuildRun = await this.readGeneratedCBuildRun(cbuildRunFileUri);
+        if (!cbuildRun) {
+            logger.debug(`${TRACE_OFF_MESSAGE}: ${cbuildRunFileUri.fsPath}`);
+            return undefined;
+        }
+        const traceFileUri = await this.cbuildRunFileLocator.getCTraceUriFromCBuildRunUri(
+            cbuildRunFileUri,
+            cbuildRun.targetSet
+        );
+        const traceFileExists = await this.fileExists(traceFileUri);
+        const document = traceFileExists
+            ? await this.readCTraceDocument(traceFileUri)
+            : CTraceYamlDocument.create('CMSIS Debugger');
+
+        const changed = this.addMissingProcessorTraceSetups(
+            document,
+            cbuildRun.processors,
+            cbuildRun.startPname
+        );
+
+        const written = !traceFileExists || changed;
+        if (written) {
+            await this.writeCTraceDocument(traceFileUri, document);
+        }
+
+        return { uri: traceFileUri, written };
+    }
+
+    private async convertExistingCTrace(ctraceUri: vscode.Uri, cbuildRunUri: vscode.Uri): Promise<void> {
+        try {
+            await this.pyTsController.convertCTrace(ctraceUri, cbuildRunUri.fsPath);
+        } catch (error) {
+            logger.error('Failed to request pyTS conversion:', error);
+        }
+    }
+
+    private async resolveActiveCBuildRunUri(): Promise<vscode.Uri | undefined> {
+        const fileName = (await this.cbuildRunFileLocator.getCBuildRunFileName(undefined, true))?.trim();
+        return fileName ? vscode.Uri.file(fileName) : undefined;
+    }
+
+    private isCurrent(options: EnsureProductionCTraceRunFileOptions): boolean {
+        return options.isCurrent?.() ?? true;
+    }
+
+    /**
+     * readGeneratedCBuildRun parses a generated cbuild-run file and returns the
+     * target set and processor subset needed to create the matching ctrace file.
+     */
+    private async readGeneratedCBuildRun(
+        cbuildRunFileUri: vscode.Uri
+    ): Promise<GeneratedCBuildRunData | undefined> {
+        const reader = new CbuildRunReader();
+        await reader.parse(cbuildRunFileUri.fsPath);
+        const traceMode = reader.getTraceMode();
+        if (traceMode === undefined || traceMode === 'off') {
+            return undefined;
+        }
+        const processors = reader.getProcessors();
+        this.validateGeneratedProcessors(processors);
+        return {
+            processors: processors.map(processor => ({
+                core: processor.core,
+                ...(processor.pname ? { pname: processor.pname } : {})
+            })),
+            startPname: reader.getStartPname(),
+            targetSet: reader.getTargetSet()
+        };
+    }
+
+    /**
+     * validateGeneratedProcessors rejects multi-core generated processor data
+     * when any processor is missing the pname needed to address it uniquely.
+     */
+    private validateGeneratedProcessors(processors: ProcessorType[]): void {
+        if (processors.length <= 1) {
+            return;
+        }
+
+        const missingPnameIndexes = processors.flatMap((processor, index) => processor.pname ? [] : [String(index + 1)]);
+
+        if (missingPnameIndexes.length > 0) {
+            throw new Error(
+                'Invalid multi-core cbuild-run processor data: processor entries '
+                + missingPnameIndexes.join(', ')
+                + ' are missing pname.'
+            );
+        }
+    }
+
+    /**
+     * readCTraceDocument reads an existing ctrace file through VS Code's
+     * workspace filesystem and parses it into a ctrace YAML document.
+     */
+    private async readCTraceDocument(traceFileUri: vscode.Uri): Promise<CTraceYamlDocument> {
+        const contents = await vscode.workspace.fs.readFile(traceFileUri);
+        return CTraceYamlDocument.parse(this.decoder.decode(contents), traceFileUri.fsPath);
+    }
+
+    /**
+     * writeCTraceDocument normalizes a ctrace document, creates its parent
+     * directory when needed, and writes the serialized YAML through VS Code.
+     */
+    private async writeCTraceDocument(traceFileUri: vscode.Uri, document: CTraceYamlDocument): Promise<void> {
+        document.normalizeDocumentOrder();
+        document.assignCTraceRefs();
+        await this.ensureDirectoryExists(vscode.Uri.file(path.dirname(traceFileUri.fsPath)));
+        await vscode.workspace.fs.writeFile(traceFileUri, this.encoder.encode(document.toString()));
+    }
+
+    /**
+     * fileExists returns whether VS Code can stat the URI without surfacing
+     * missing-file errors to the caller.
+     */
+    private async fileExists(uri: vscode.Uri): Promise<boolean> {
+        return await this.statIfExists(uri) !== undefined;
+    }
+
+    /**
+     * ensureDirectoryExists creates a missing directory and rejects paths that
+     * already exist as non-directory filesystem entries.
+     */
+    private async ensureDirectoryExists(uri: vscode.Uri): Promise<void> {
+        const stat = await this.statIfExists(uri);
+
+        if (!stat) {
+            await vscode.workspace.fs.createDirectory(uri);
+            return;
+        }
+
+        if (!this.isDirectoryStat(stat)) {
+            throw new Error(`${uri.fsPath} exists but is not a directory.`);
+        }
+    }
+
+    /**
+     * statIfExists returns a filesystem stat for an existing URI and converts
+     * expected missing-file errors into undefined.
+     */
+    private async statIfExists(uri: vscode.Uri): Promise<vscode.FileStat | undefined> {
+        try {
+            return await vscode.workspace.fs.stat(uri);
+        } catch (error) {
+            if (isFileNotFoundError(error)) {
+                return undefined;
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * isDirectoryStat handles both VS Code FileStat objects and Node-like stats
+     * to determine whether a stat describes a directory.
+     */
+    private isDirectoryStat(stat: vscode.FileStat): boolean {
+        const nodeStat = stat as vscode.FileStat & { isDirectory?: () => boolean };
+        return stat.type === vscode.FileType.Directory || nodeStat.isDirectory?.() === true;
+    }
+
+    /**
+     * addMissingProcessorTraceSetups appends setup entries for generated
+     * processors that are not already represented in the ctrace document.
+     */
+    private addMissingProcessorTraceSetups(
+        document: CTraceYamlDocument,
+        processors: GeneratedTraceProcessor[],
+        startPname: string | undefined
+    ): boolean {
+        const existingProcessorKeys = new Set(document.yaml
+            .getArray<CTraceProcessorTraceSetup>(['ctrace', 'setup'])
+            .flatMap(setup => {
+                const key = this.getProcessorTraceSetupKey(setup);
+                return key ? [key] : [];
+            }));
+        let changed = false;
+
+        for (const processor of processors) {
+            const key = this.getGeneratedTraceProcessorKey(processor);
+
+            if (key && existingProcessorKeys.has(key)) {
+                continue;
+            }
+
+            const isStartProcessor = processor.pname === startPname;
+            document.yaml.append(
+                ['ctrace', 'setup'],
+                this.createProcessorTraceSetup(processor, isStartProcessor)
+            );
+            if (key) {
+                existingProcessorKeys.add(key);
+            }
+            changed = true;
+        }
+
+        if (changed) {
+            document.normalizeDocumentOrder();
+            document.assignCTraceRefs();
+        }
+
+        return changed;
+    }
+
+    /**
+     * getProcessorTraceSetupKey returns the identity key used to match existing
+     * ctrace setup entries against generated processor data.
+     */
+    private getProcessorTraceSetupKey(setup: CTraceProcessorTraceSetup): string | undefined {
+        if (setup.pname) {
+            return `pname:${setup.pname}`;
+        }
+
+        return setup.core ? `core:${setup.core}` : undefined;
+    }
+
+    /**
+     * getGeneratedTraceProcessorKey returns the identity key used for a
+     * processor read from generated cbuild-run data.
+     */
+    private getGeneratedTraceProcessorKey(processor: GeneratedTraceProcessor): string | undefined {
+        if (processor.pname) {
+            return `pname:${processor.pname}`;
+        }
+
+        return processor.core ? `core:${processor.core}` : undefined;
+    }
+
+    /**
+     * createProcessorTraceSetup builds the default ctrace setup object for a
+     * generated processor based on that core's trace capabilities.
+     */
+    private createProcessorTraceSetup(
+        processor: GeneratedTraceProcessor,
+        isStartProcessor: boolean
+    ): CTraceProcessorTraceSetup {
+        const setup: CTraceProcessorTraceSetup = {
+            core: processor.core,
+            ...(processor.pname ? { pname: processor.pname } : {}),
+            ...(isStartProcessor ? {} : { disable: null })
+        };
+        const capabilities = TraceConfigurationTypes.TRACE_CAPABILITIES_BY_CORE.get(processor.core)
+            ?? TraceConfigurationTypes.NO_TRACE_CAPABILITIES;
+
+        if (!capabilities.supportsTrace) {
+            return setup;
+        }
+
+        if (capabilities.timestamps) {
+            setup.timestamps = { 'itm-prescaler': TraceConfigurationTypes.DEFAULT_ITM_PRESCALER };
+        }
+        if (capabilities.dwtComparators > 0) {
+            setup.data = null;
+        }
+        if (capabilities.eventCounters) {
+            setup.events = null;
+        }
+        if (capabilities.instrumentationTrace) {
+            setup.itm = { enable: '0x0' };
+        }
+        if (capabilities.pcSampling) {
+            setup.pcsampling = { period: 0 };
+        }
+        if (capabilities.streamSynchronization) {
+            setup.synchronization = { DWT: TraceConfigurationTypes.DEFAULT_STREAM_SYNC_PERIOD };
+        }
+
+        return setup;
+    }
+}

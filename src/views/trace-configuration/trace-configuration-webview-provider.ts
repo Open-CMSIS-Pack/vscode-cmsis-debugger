@@ -1,0 +1,363 @@
+/**
+ * Copyright 2026 Arm Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+// generated with AI
+
+import * as vscode from 'vscode';
+
+import { CmsisJsonWatcher } from '../../cmsis-files';
+import { CBuildRunFileLocator } from '../../cbuild-run';
+import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
+import type { PyTsController } from '../../features/trace/pyts-controller';
+import {
+    TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING,
+    TRACE_CONFIGURATION_VIEW_ID
+} from '../../manifest';
+import {
+    TraceHostToWebviewMessage,
+    TraceWebviewToHostMessage
+} from './trace-configuration-protocol';
+import { TraceConfigurationModel } from './trace-configuration-model';
+
+const CMSIS_SOLUTION_EXTENSION_ID = 'Arm.cmsis-csolution';
+const TRACE_CONFIGURATION_VIEW_TITLE = 'Trace Generation';
+// WebviewView.title is rendered as plain text and does not expand Codicon markup.
+const TRACE_CONFIGURATION_MODIFIED_VIEW_TITLE = `${TRACE_CONFIGURATION_VIEW_TITLE} ●`;
+
+/**
+ * The TraceConfigurationWebviewProvider owns the VS Code sidebar webview shell
+ * for editing ctrace.yml files. File discovery, YAML mutation, capability
+ * filtering, and row serialization live in TraceConfigurationModel so this
+ * class stays focused on webview lifecycle and message routing.
+ */
+export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProvider {
+    private webviewView: vscode.WebviewView | undefined;
+    private readonly model: TraceConfigurationModel;
+    private initialLoad: Promise<void> | undefined;
+    private cmsisSolutionExtensionChangeSubscription: vscode.Disposable | undefined;
+
+    /**
+     * The constructor stores the extension URI for webview asset loading and
+     * creates the model with a state-change callback. VS Code webviews cannot
+     * load arbitrary extension file paths directly, so buildShell later turns
+     * local extension files into webview-safe URIs.
+     */
+    public constructor(
+        private readonly extensionUri: vscode.Uri,
+        model?: TraceConfigurationModel,
+        fileWatchManager: FileWatchManager = new FileWatchManager(),
+        cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator(),
+        cmsisJsonWatcher?: CmsisJsonWatcher,
+        pyTsController?: PyTsController
+    ) {
+        this.model = model ?? new TraceConfigurationModel(
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            fileWatchManager,
+            cbuildRunFileLocator,
+            cmsisJsonWatcher,
+            undefined,
+            undefined,
+            undefined,
+            pyTsController
+        );
+        this.model.setOnDidChange(() => this.postState());
+    }
+
+    /**
+     * activate registers this object as the provider for the contributed view.
+     * The model is also registered for disposal so any active file watcher is
+     * released when the extension deactivates. Configuration changes that
+     * affect debugging tooltips immediately refresh an open webview.
+     */
+    public async activate(context: vscode.ExtensionContext): Promise<void> {
+        context.subscriptions.push(
+            vscode.window.registerWebviewViewProvider(TRACE_CONFIGURATION_VIEW_ID, this),
+            vscode.workspace.onDidChangeConfiguration(event => {
+                if (event.affectsConfiguration(TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING)) {
+                    this.postState();
+                }
+            }),
+            vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.save', async () => {
+                await this.handleCommand(() => this.model.saveCurrentDocument());
+            }),
+            vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.revert', async () => {
+                await this.handleCommand(() => this.model.refreshFile());
+            }),
+            vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.revertValidating', async () => {
+                await this.handleCommand(() => this.model.refreshFile());
+            }),
+            vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.expandAll', () => {
+                this.toggleAllRows(true);
+            }),
+            vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.collapseAll', () => {
+                this.toggleAllRows(false);
+            }),
+            { dispose: () => this.model.dispose() }
+        );
+        await this.model.watchForGeneratedCBuildRunFiles();
+        await this.initializeAfterCmsisSolutionActivation(context);
+    }
+
+    /** Flushes the latest dirty-file backup and cancels validation before shutdown. */
+    public async deactivate(): Promise<void> {
+        await this.model.deactivate();
+    }
+
+    /**
+     * resolveWebviewView is called by VS Code when the sidebar view is first
+     * opened. The method configures CSP-safe HTML, installs message handlers,
+     * cleans up webview-only state on dispose. Startup discovery begins after
+     * the CMSIS Solution activation promise completes.
+     */
+    public resolveWebviewView(
+        webviewView: vscode.WebviewView,
+        _context: vscode.WebviewViewResolveContext,
+        _token: vscode.CancellationToken
+    ): void {
+        this.webviewView = webviewView;
+        webviewView.webview.options = {
+            enableScripts: true,
+            localResourceRoots: [this.extensionUri],
+        };
+        webviewView.webview.html = this.buildShell(webviewView.webview);
+        webviewView.webview.onDidReceiveMessage((message: TraceWebviewToHostMessage) => {
+            void this.handleMessage(message);
+        });
+        webviewView.onDidDispose(() => {
+            this.webviewView = undefined;
+        });
+    }
+
+    public async focusCTraceReference(solutionSet: string, ctraceRef: string, ctraceFilePath?: string): Promise<boolean> {
+        await vscode.commands.executeCommand(`${TRACE_CONFIGURATION_VIEW_ID}.focus`);
+        return ctraceFilePath
+            ? await this.model.focusCTraceReference(solutionSet, ctraceRef, ctraceFilePath)
+            : await this.model.focusCTraceReference(solutionSet, ctraceRef);
+    }
+
+    /**
+     * initializeAfterCmsisSolutionActivation activates an available CMSIS
+     * Solution extension before loading initial state. Disabled or unavailable
+     * extensions are left untouched until an extension change makes them available.
+     */
+    private async initializeAfterCmsisSolutionActivation(context: vscode.ExtensionContext): Promise<void> {
+        const subscription = vscode.extensions.onDidChange(() => {
+            void this.activateCmsisSolutionIfAvailable();
+        });
+        this.cmsisSolutionExtensionChangeSubscription = subscription;
+        context.subscriptions.push(subscription);
+        await this.activateCmsisSolutionIfAvailable();
+    }
+
+    /**
+     * activateCmsisSolutionIfAvailable leaves disabled or unavailable
+     * installations untouched and initializes the first one exposed by VS Code.
+     */
+    private async activateCmsisSolutionIfAvailable(): Promise<void> {
+        const enabledExtension = vscode.extensions.getExtension<object>(CMSIS_SOLUTION_EXTENSION_ID);
+        if (!enabledExtension) {
+            return;
+        }
+        this.cmsisSolutionExtensionChangeSubscription?.dispose();
+        this.cmsisSolutionExtensionChangeSubscription = undefined;
+        await this.activateCmsisSolutionAndLoadInitialFile(enabledExtension);
+    }
+
+    /**
+     * activateCmsisSolutionAndLoadInitialFile ensures CMSIS Solution is active
+     * before starting initial generated trace configuration discovery.
+     */
+    private async activateCmsisSolutionAndLoadInitialFile(extension: vscode.Extension<object>): Promise<void> {
+        try {
+            if (!extension.isActive) {
+                await extension.activate();
+            }
+            await this.loadInitialFileOnce();
+        } catch (error) {
+            this.model.reportError(
+                error,
+                'Trace Configuration: Failed to initialize after CMSIS Solution activation'
+            );
+        }
+    }
+
+    /**
+     * loadInitialFileOnce handles CMSIS Solution activation completion without
+     * repeating startup discovery.
+     */
+    private loadInitialFileOnce(): Promise<void> {
+        if (!this.initialLoad) {
+            this.initialLoad = this.model.loadInitialFile();
+        }
+        return this.initialLoad;
+    }
+
+    /**
+     * handleMessage is the webview-to-extension dispatcher. It keeps browser
+     * protocol knowledge in the provider and delegates all trace data work to
+     * the model, which owns the non-webview behavior.
+     */
+    private async handleMessage(message: TraceWebviewToHostMessage): Promise<void> {
+        try {
+            switch (message.type) {
+                case 'ready':
+                    this.postState();
+                    break;
+                case 'refresh':
+                    await this.model.refreshFile();
+                    break;
+                case 'save':
+                    await this.model.saveCurrentDocument();
+                    break;
+                case 'openFile':
+                    await this.promptAndOpenFile();
+                    break;
+                case 'openCurrentFile':
+                    await this.openCurrentFile();
+                    break;
+                case 'toggle':
+                    this.model.updateExpandedState(message.id, message.expanded);
+                    break;
+                case 'updateValue':
+                    await this.model.updateValue(message.path, message.value);
+                    break;
+                case 'addItem':
+                    await this.model.addItem(message.path, message.addChildKind);
+                    break;
+                case 'removeItem':
+                    await this.model.removeItem(message.path);
+                    break;
+            }
+        } catch (error) {
+            this.model.reportError(error, 'Trace Configuration: Webview action failed');
+        }
+    }
+
+    /**
+     * handleCommand applies the same error reporting used for webview actions
+     * to commands invoked from the native view title.
+     */
+    private async handleCommand(action: () => Promise<void>): Promise<void> {
+        try {
+            await action();
+        } catch (error) {
+            this.model.reportError(error, 'Trace Configuration: Command failed');
+        }
+    }
+
+    /**
+     * toggleAllRows handles native title-bar commands by updating every
+     * expandable rendered row.
+     */
+    private toggleAllRows(expanded: boolean): void {
+        for (const row of this.model.createState().rows) {
+            if (row.hasChildren) {
+                this.model.updateExpandedState(row.id, expanded);
+            }
+        }
+    }
+
+    /**
+     * promptAndOpenFile lets the user manually pick a ctrace file when automatic
+     * discovery found nothing or chose the wrong file. The provider owns the VS
+     * Code dialog because it is UI plumbing, then hands the selected path to the
+     * model for validation and loading.
+     */
+    private async promptAndOpenFile(): Promise<void> {
+        const selected = await vscode.window.showOpenDialog({
+            canSelectFiles: true,
+            canSelectFolders: false,
+            canSelectMany: false,
+            filters: {
+                'CMSIS Trace YAML': ['yml', 'yaml']
+            },
+            title: 'Open CMSIS Trace Configuration'
+        });
+        const file = selected?.at(0);
+        if (!file) {
+            return;
+        }
+        await this.model.openFile(file.fsPath);
+    }
+
+    /** Opens the ctrace file currently represented by the view in the editor. */
+    private async openCurrentFile(): Promise<void> {
+        const fileName = this.model.createState().fileName;
+        if (fileName) {
+            await vscode.window.showTextDocument(vscode.Uri.file(fileName));
+        }
+    }
+
+    /**
+     * postState serializes the current model state and sends it to the webview.
+     * The browser side is intentionally stateless with respect to file contents:
+     * every host update replaces the rendered rows.
+     */
+    private postState(): void {
+        if (!this.webviewView) {
+            return;
+        }
+        const state = this.model.createState();
+        this.webviewView.title = state.dirty
+            ? TRACE_CONFIGURATION_MODIFIED_VIEW_TITLE
+            : TRACE_CONFIGURATION_VIEW_TITLE;
+        const workspaceFolder = state.fileName
+            ? vscode.workspace.getWorkspaceFolder(vscode.Uri.file(state.fileName))
+            : undefined;
+        const message: TraceHostToWebviewMessage = {
+            type: 'update',
+            state: {
+                ...state,
+                ...(workspaceFolder ? { workspaceFolderPath: workspaceFolder.uri.fsPath } : {})
+            }
+        };
+        void this.webviewView.webview.postMessage(message);
+    }
+
+    /**
+     * buildShell returns the static webview HTML that loads the compiled CSS and
+     * JavaScript bundle. It also sets a restrictive Content Security Policy so
+     * the webview can run only extension-provided scripts and styles.
+     */
+    private buildShell(webview: vscode.Webview): string {
+        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(
+            this.extensionUri, 'dist', 'webviews', 'trace-configuration.js'
+        ));
+        const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(
+            this.extensionUri, 'dist', 'webviews', 'trace-configuration.css'
+        ));
+        const codiconCssUri = webview.asWebviewUri(vscode.Uri.joinPath(
+            this.extensionUri, 'node_modules', '@vscode', 'codicons', 'dist', 'codicon.css'
+        ));
+        const cspSource = webview.cspSource ?? '';
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${cspSource}; script-src ${cspSource}; font-src ${cspSource};">
+<link rel="stylesheet" href="${codiconCssUri}">
+<link rel="stylesheet" href="${styleUri}">
+</head>
+<body>
+<div id="root"></div>
+<script src="${scriptUri}"></script>
+</body>
+</html>`;
+    }
+}

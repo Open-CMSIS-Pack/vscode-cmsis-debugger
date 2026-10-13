@@ -22,7 +22,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
-import extract from 'extract-zip';
+import { extractZip } from '@open-cmsis-pack/cmsis-common/extract-zip';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -74,6 +74,34 @@ const TOOLS: Record<string, ToolManifest> = {
         versionCheck: {
             args: ['--version'],
             expectedOutput: '0.',  // pyOCD outputs version like "0.42.0"
+            timeout: 5000,
+        },
+    },
+    pyts: {
+        toolPattern: /^pyts$/,
+        executablePath: 'pyTS',
+        requiredFiles: [
+            'pyTS',
+        ],
+        requiredDirs: [],
+        versionCheck: {
+            args: ['--version'],
+            expectedOutput: 'pyts',
+            timeout: 5000,
+        },
+    },
+    ctrace: {
+        toolPattern: /^ctrace$/,
+        executablePath: 'ctrace',
+        requiredFiles: [
+            'ctrace',
+        ],
+        requiredDirs: [
+            'THIRD_PARTY_LICENSES',
+        ],
+        versionCheck: {
+            args: ['--version'],
+            expectedOutput: 'ctrace',
             timeout: 5000,
         },
     },
@@ -351,7 +379,7 @@ async function main() {
         await fs.mkdir(tempDir, { recursive: true });
 
         // Extract VSIX (it's a ZIP file)
-        await extract(vsixPath, { dir: tempDir });
+        await extractZip(vsixPath, tempDir);
 
         // VSIX structure: extension/ contains the actual extension files
         workDir = path.join(tempDir, 'extension');

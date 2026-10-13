@@ -51,4 +51,3 @@ export function addToolsToPath(context: vscode.ExtensionContext, toolsToAdd: str
     // add updated path to PATH variable, but only for the terminal inside of vscode
     context.environmentVariableCollection.prepend('PATH', updatePath);
 }
-

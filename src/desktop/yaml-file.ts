@@ -1,0 +1,130 @@
+/**
+ * Copyright 2026 Arm Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import * as fsPromises from 'node:fs/promises';
+
+import { ITextFileSystem, TextFileSystem } from '@open-cmsis-pack/cmsis-common/text-file-system';
+
+import { YamlDomDocument } from '../desktop/yaml-dom';
+
+export interface TextFileStamp {
+    mtimeMs: number;
+    size: number;
+}
+
+export interface TextFileAdapter {
+    readTextFile(fileName: string): Promise<string>;
+    writeTextFile(fileName: string, contents: string): Promise<void>;
+    stat(fileName: string): Promise<TextFileStamp | undefined>;
+}
+
+export class NodeTextFileAdapter implements TextFileAdapter {
+    public constructor(private readonly fileSystem: ITextFileSystem = new TextFileSystem()) {}
+
+    public async readTextFile(fileName: string): Promise<string> {
+        if (!this.fileSystem.exists(fileName)) {
+            throw this.createFileNotFoundError(fileName);
+        }
+        return this.fileSystem.read(fileName);
+    }
+
+    public async writeTextFile(fileName: string, contents: string): Promise<void> {
+        this.fileSystem.write(fileName, contents);
+    }
+
+    public async stat(fileName: string): Promise<TextFileStamp | undefined> {
+        try {
+            // File names come from workspace/user-selected trace configuration paths.
+            // eslint-disable-next-line security/detect-non-literal-fs-filename
+            const stats = await fsPromises.stat(fileName);
+            return {
+                mtimeMs: stats.mtimeMs,
+                size: stats.size
+            };
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+                return undefined;
+            }
+            throw error;
+        }
+    }
+
+    private createFileNotFoundError(fileName: string): NodeJS.ErrnoException {
+        const error = new Error(`ENOENT: no such file or directory, open '${fileName}'`) as NodeJS.ErrnoException;
+        error.code = 'ENOENT';
+        error.path = fileName;
+        return error;
+    }
+}
+
+export class YamlDomFile {
+    private currentDocument: YamlDomDocument | undefined;
+    private externalStamp: TextFileStamp | undefined;
+
+    constructor(
+        public fileName: string = '',
+        private readonly fileAdapter: TextFileAdapter = new NodeTextFileAdapter()
+    ) {}
+
+    public get document(): YamlDomDocument | undefined {
+        return this.currentDocument;
+    }
+
+    public set document(document: YamlDomDocument | undefined) {
+        this.currentDocument = document;
+    }
+
+    public async load(fileName = this.fileName): Promise<YamlDomDocument> {
+        this.fileName = fileName;
+        const text = await this.fileAdapter.readTextFile(this.fileName);
+        this.currentDocument = YamlDomDocument.parse(text, this.fileName);
+        await this.refreshExternalStamp();
+        return this.currentDocument;
+    }
+
+    public async save(fileName = this.fileName): Promise<void> {
+        if (!this.currentDocument) {
+            throw new Error('Cannot save YAML before a document is loaded or assigned.');
+        }
+        this.fileName = fileName;
+        await this.fileAdapter.writeTextFile(this.fileName, this.currentDocument.toString());
+        await this.refreshExternalStamp();
+    }
+
+    public async refreshExternalStamp(): Promise<void> {
+        this.externalStamp = await this.fileAdapter.stat(this.fileName);
+    }
+
+    public async hasExternalFileChanged(): Promise<boolean> {
+        const stamp = await this.fileAdapter.stat(this.fileName);
+        if (!stamp && !this.externalStamp) {
+            return false;
+        }
+        if (!stamp || !this.externalStamp) {
+            return true;
+        }
+        return stamp.mtimeMs !== this.externalStamp.mtimeMs || stamp.size !== this.externalStamp.size;
+    }
+
+    public async reloadIfChanged(): Promise<boolean> {
+        if (!await this.hasExternalFileChanged()) {
+            return false;
+        }
+        await this.load();
+        return true;
+    }
+
+}

@@ -1,0 +1,456 @@
+/**
+ * Copyright 2026 Arm Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+// generated with AI
+
+import * as path from 'node:path';
+
+import * as vscode from 'vscode';
+
+import { ActiveSolutionChangeEvent, CmsisJsonWatcher } from '../../cmsis-files';
+import { CBuildRunFileLocator } from '../../cbuild-run';
+import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
+import { CBUILD_INDEX_FILE_GLOB } from '../../manifest';
+import { fileExists, normalizeFsPath } from '../../utils';
+import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
+import { getTraceConfigurationArtifactFileNames } from './trace-configuration-file-names';
+
+export type GeneratedCBuildRunFileChangeType = 'created' | 'changed' | 'deleted';
+
+export interface GeneratedCBuildRunFileChangeEvent {
+    type: GeneratedCBuildRunFileChangeType;
+    uri: vscode.Uri;
+}
+
+export type TraceConfigurationRunFileKind = 'production' | 'backup';
+export type TraceConfigurationRunFileChangeType = 'created' | 'changed' | 'deleted';
+
+export interface TraceConfigurationRunFileChangeEvent {
+    readonly type: TraceConfigurationRunFileChangeType;
+    readonly kind: TraceConfigurationRunFileKind;
+    readonly uri: vscode.Uri;
+}
+
+export interface TraceConfigurationFileWatcherCallbacks {
+    /**
+     * getCurrentFile returns the ctrace.yml file that should currently receive
+     * reload events from the watcher.
+     */
+    getCurrentFile(): CTraceYamlFile | undefined;
+
+    /**
+     * onCurrentFileReloaded lets the model accept a freshly reloaded ctrace.yml
+     * document after the watcher confirms the event belongs to the active file.
+     */
+    onCurrentFileReloaded(document: CTraceYamlDocument): void | Promise<void>;
+
+    /**
+     * onCurrentFileReloadFailed lets the model record a reload error after the
+     * watcher confirms the error belongs to the active file.
+     */
+    onCurrentFileReloadFailed(error: unknown): void;
+
+    /**
+     * onGeneratedCBuildRunFileChanged lets the model update generated ctrace
+     * files and configuration state after a generated cbuild-run file event.
+     */
+    onGeneratedCBuildRunFileChanged(event: GeneratedCBuildRunFileChangeEvent): void | Promise<void>;
+
+    /** Publishes changes to the production or temporary ctrace-run output. */
+    onCurrentRunFileChanged?(event: TraceConfigurationRunFileChangeEvent): void | Promise<void>;
+}
+
+const CBUILD_INDEX_WATCH_ID = 'trace-configuration.cbuild-index';
+const GENERATED_CBUILD_RUN_WATCH_ID = 'trace-configuration.generated-cbuild-run';
+const CURRENT_CTRACE_WATCH_ID = 'trace-configuration.current-ctrace';
+const PRODUCTION_CTRACE_RUN_WATCH_ID = 'trace-configuration.production-ctrace-run';
+const BACKUP_CTRACE_RUN_WATCH_ID = 'trace-configuration.backup-ctrace-run';
+
+/**
+ * TraceConfigurationFileWatcher owns all file-system subscriptions used by the
+ * trace configuration model.
+ */
+export class TraceConfigurationFileWatcher {
+    private generatedCBuildIndexWatchInstalled = false;
+    private generatedCBuildIndexWatchInstallation: Promise<void> | undefined;
+    private generatedCBuildRunFileName: string | undefined;
+    private generatedWatchVersion = 0;
+    private cbuildRunResolutionVersion = 0;
+    private currentFileWatchVersion = 0;
+    private currentRunFileWatchVersion = 0;
+    private activeSolutionGeneration = 0;
+    private readonly activeSolutionChangeSubscription: vscode.Disposable | undefined;
+    private readonly _onDidChangeGeneratedCBuildRunFileEmitter = new vscode.EventEmitter<GeneratedCBuildRunFileChangeEvent>();
+
+    /**
+     * onDidChangeGeneratedCBuildRunFile exposes generated cbuild-run file events
+     * to callers that need to observe watcher activity without processing YAML.
+     */
+    public readonly onDidChangeGeneratedCBuildRunFile = this._onDidChangeGeneratedCBuildRunFileEmitter.event;
+
+    /**
+     * The constructor stores callbacks that let watcher events update the model
+     * without this class knowing how YAML documents or webview state are managed.
+     * The file location manager resolves the active cbuild-run path through the
+     * CMSIS Solution extension after a cbuild index file changes.
+     */
+    public constructor(
+        private readonly callbacks: TraceConfigurationFileWatcherCallbacks,
+        private readonly cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator(),
+        private readonly fileWatchManager: FileWatchManager = new FileWatchManager(),
+        cmsisJsonWatcher?: CmsisJsonWatcher
+    ) {
+        this.activeSolutionChangeSubscription = cmsisJsonWatcher?.onDidChangeActiveSolution(event => {
+            void this.handleActiveSolutionChanged(event);
+        });
+    }
+
+    /**
+     * watchGeneratedCBuildRunFiles rebuilds the main workspace watcher for
+     * cbuild index files. A created or changed index file is the stable signal
+     * used to resolve and watch the active generated cbuild-run file.
+    */
+    public async watchGeneratedCBuildRunFiles(): Promise<void> {
+        // Folder resolution is asynchronous, so retain its promise to prevent concurrent calls
+        // from installing duplicate watchers.
+        if (this.generatedCBuildIndexWatchInstalled || this.generatedCBuildIndexWatchInstallation !== undefined) {
+            return;
+        }
+        this.generatedCBuildIndexWatchInstallation = this.installGeneratedCBuildIndexWatch();
+        await this.generatedCBuildIndexWatchInstallation;
+    }
+
+    private async installGeneratedCBuildIndexWatch(): Promise<void> {
+        const watchVersion = ++this.generatedWatchVersion;
+        this.cbuildRunResolutionVersion += 1;
+        this.disposeGeneratedCBuildFileWatchers();
+
+        const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
+        if (!activeSolutionFolder || watchVersion !== this.generatedWatchVersion) {
+            if (watchVersion === this.generatedWatchVersion) {
+                this.generatedCBuildIndexWatchInstallation = undefined;
+            }
+            return;
+        }
+
+        const pattern = new vscode.RelativePattern(activeSolutionFolder, CBUILD_INDEX_FILE_GLOB);
+        this.fileWatchManager.addWatch({
+            id: CBUILD_INDEX_WATCH_ID,
+            globPattern: pattern,
+            onDidCreate: uri => {
+                void this.resolveAndWatchGeneratedCBuildRunFile(watchVersion, uri);
+            },
+            onDidChange: uri => {
+                void this.resolveAndWatchGeneratedCBuildRunFile(watchVersion, uri);
+            }
+        });
+        this.generatedCBuildIndexWatchInstalled = true;
+        if (watchVersion === this.generatedWatchVersion) {
+            this.generatedCBuildIndexWatchInstallation = undefined;
+        }
+    }
+
+    /**
+     * processActiveCBuildRunFile asks CMSIS Solution for the active cbuild-run
+     * file, watches it, and processes it immediately when it already exists.
+     * When activation completed before CMSIS Solution finished loading its
+     * build data, an existing index supplies the prebuilt cbuild-run path. The
+     * result tells startup whether it must wait for a new index event instead.
+     */
+    public async processActiveCBuildRunFile(): Promise<boolean> {
+        return this.resolveAndWatchGeneratedCBuildRunFile(this.generatedWatchVersion, undefined, true);
+    }
+
+    /**
+     * watchCurrentFile replaces the active ctrace.yml watcher with one attached
+     * to the model's current file, or leaves no watcher when there is no loaded
+     * trace configuration file.
+     */
+    public watchCurrentFile(): void {
+        this.disposeCurrentFileWatcher();
+        const watchVersion = ++this.currentFileWatchVersion;
+        const watchedFile = this.callbacks.getCurrentFile();
+        if (!watchedFile) {
+            return;
+        }
+        const pattern = new vscode.RelativePattern(path.dirname(watchedFile.fileName), path.basename(watchedFile.fileName));
+        this.fileWatchManager.addWatch({
+            id: CURRENT_CTRACE_WATCH_ID,
+            globPattern: pattern,
+            onDidCreate: () => this.reloadCurrentFile(watchedFile, watchVersion),
+            onDidChange: () => this.reloadCurrentFile(watchedFile, watchVersion),
+            onDidDelete: () => this.reloadCurrentFile(watchedFile, watchVersion)
+        });
+    }
+
+    /**
+     * disposeCurrentFileWatcher releases the active ctrace.yml watcher so file
+     * events stop flowing while the view is closed, a different file is loaded,
+     * or unsaved webview edits are in memory.
+     */
+    public disposeCurrentFileWatcher(): void {
+        this.currentFileWatchVersion += 1;
+        this.fileWatchManager.removeWatch(CURRENT_CTRACE_WATCH_ID);
+    }
+
+    /**
+     * Watches both possible pyTS outputs independently from the source watcher.
+     * These watches remain installed while in-memory edits pause source reloads.
+     */
+    public watchCurrentRunFiles(): void {
+        this.disposeCurrentRunFileWatchers();
+        const watchVersion = ++this.currentRunFileWatchVersion;
+        const watchedFile = this.callbacks.getCurrentFile();
+        if (!watchedFile) {
+            return;
+        }
+        const artifacts = getTraceConfigurationArtifactFileNames(watchedFile.fileName);
+        this.watchCurrentRunFile(
+            watchedFile,
+            watchVersion,
+            'production',
+            artifacts.productionCTraceRunFileName,
+            PRODUCTION_CTRACE_RUN_WATCH_ID
+        );
+        this.watchCurrentRunFile(
+            watchedFile,
+            watchVersion,
+            'backup',
+            artifacts.backupCTraceRunFileName,
+            BACKUP_CTRACE_RUN_WATCH_ID
+        );
+    }
+
+    public disposeCurrentRunFileWatchers(): void {
+        this.currentRunFileWatchVersion += 1;
+        this.fileWatchManager.removeWatch(PRODUCTION_CTRACE_RUN_WATCH_ID);
+        this.fileWatchManager.removeWatch(BACKUP_CTRACE_RUN_WATCH_ID);
+    }
+
+    /**
+     * dispose releases every watcher and event emitter owned by this class when
+     * the trace configuration model is no longer needed.
+     */
+    public dispose(): void {
+        this.activeSolutionChangeSubscription?.dispose();
+        this.resetActiveSolutionWatches();
+        this._onDidChangeGeneratedCBuildRunFileEmitter.dispose();
+    }
+
+    private async handleActiveSolutionChanged(event: ActiveSolutionChangeEvent): Promise<void> {
+        if (event.generation <= this.activeSolutionGeneration) {
+            return;
+        }
+        this.activeSolutionGeneration = event.generation;
+        this.resetActiveSolutionWatches();
+
+        await this.watchGeneratedCBuildRunFiles();
+        if (event.generation !== this.activeSolutionGeneration) {
+            return;
+        }
+        await this.processActiveCBuildRunFile();
+    }
+
+    /**
+     * resolveAndWatchGeneratedCBuildRunFile asks CMSIS Solution for the active
+     * cbuild-run path and installs an exact-file watcher when this is still the
+     * newest index event for the active workspace watch. If CMSIS Solution is
+     * still loading its build files, an index event can supply the same path
+     * directly without waiting or polling.
+     */
+    private async resolveAndWatchGeneratedCBuildRunFile(
+        watchVersion: number,
+        cbuildIndexFile?: vscode.Uri,
+        findExistingCBuildIndex = false
+    ): Promise<boolean> {
+        const resolutionVersion = ++this.cbuildRunResolutionVersion;
+        const cbuildRunFileName = await this.cbuildRunFileLocator.getCBuildRunFileName(
+            cbuildIndexFile,
+            findExistingCBuildIndex
+        );
+        if (
+            !cbuildRunFileName
+            || watchVersion !== this.generatedWatchVersion
+            || resolutionVersion !== this.cbuildRunResolutionVersion
+        ) {
+            return false;
+        }
+
+        this.watchGeneratedCBuildRunFile(cbuildRunFileName, watchVersion);
+        const uri = vscode.Uri.file(cbuildRunFileName);
+        if (!await fileExists(uri)) {
+            return false;
+        }
+        if (
+            watchVersion !== this.generatedWatchVersion
+            || resolutionVersion !== this.cbuildRunResolutionVersion
+            || !this.isCurrentGeneratedCBuildRunFile(cbuildRunFileName)
+        ) {
+            return false;
+        }
+
+        await this.handleGeneratedCBuildRunFileChange('changed', uri);
+        return true;
+    }
+
+    private isCurrentGeneratedCBuildRunFile(cbuildRunFileName: string): boolean {
+        return normalizeFsPath(cbuildRunFileName) === normalizeFsPath(this.generatedCBuildRunFileName);
+    }
+
+    /**
+     * watchGeneratedCBuildRunFile replaces the active generated-file watcher
+     * with one scoped to the exact cbuild-run path returned by CMSIS Solution.
+     * Repeated index events that resolve to the same path keep the existing
+     * watcher and its subscriptions.
+     */
+    private watchGeneratedCBuildRunFile(cbuildRunFileName: string, watchVersion: number): void {
+        if (
+            this.generatedCBuildRunFileName !== undefined
+            && this.isCurrentGeneratedCBuildRunFile(cbuildRunFileName)
+        ) {
+            return;
+        }
+
+        this.disposeGeneratedCBuildRunFileWatchers();
+        this.generatedCBuildRunFileName = cbuildRunFileName;
+
+        const pattern = new vscode.RelativePattern(path.dirname(cbuildRunFileName), path.basename(cbuildRunFileName));
+        this.fileWatchManager.addWatch({
+            id: GENERATED_CBUILD_RUN_WATCH_ID,
+            globPattern: pattern,
+            onDidCreate: uri => this.handleWatchedGeneratedCBuildRunFileChange(watchVersion, cbuildRunFileName, 'created', uri),
+            onDidChange: uri => this.handleWatchedGeneratedCBuildRunFileChange(watchVersion, cbuildRunFileName, 'changed', uri),
+            onDidDelete: uri => this.handleWatchedGeneratedCBuildRunFileChange(watchVersion, cbuildRunFileName, 'deleted', uri)
+        });
+    }
+
+    /**
+     * handleWatchedGeneratedCBuildRunFileChange ignores delayed callbacks from
+     * replaced watchers and forwards events only for the currently resolved
+     * cbuild-run file.
+     */
+    private handleWatchedGeneratedCBuildRunFileChange(
+        watchVersion: number,
+        watchedFileName: string,
+        type: GeneratedCBuildRunFileChangeType,
+        uri: vscode.Uri
+    ): void {
+        if (
+            watchVersion !== this.generatedWatchVersion
+            || !this.isCurrentGeneratedCBuildRunFile(watchedFileName)
+        ) {
+            return;
+        }
+
+        void this.handleGeneratedCBuildRunFileChange(type, uri);
+    }
+
+    /**
+     * disposeGeneratedCBuildFileWatchers releases the cbuild index entry-point
+     * watcher and the currently resolved cbuild-run watcher during a workspace
+     * watch refresh or full model disposal.
+     */
+    private disposeGeneratedCBuildFileWatchers(): void {
+        this.fileWatchManager.removeWatch(CBUILD_INDEX_WATCH_ID);
+        this.generatedCBuildIndexWatchInstalled = false;
+        this.disposeGeneratedCBuildRunFileWatchers();
+    }
+
+    /**
+     * resetActiveSolutionWatches invalidates pending callbacks and removes the
+     * watches whose paths depend on the selected CMSIS solution.
+     */
+    private resetActiveSolutionWatches(): void {
+        this.generatedWatchVersion += 1;
+        this.cbuildRunResolutionVersion += 1;
+        this.disposeCurrentFileWatcher();
+        this.disposeCurrentRunFileWatchers();
+        this.disposeGeneratedCBuildFileWatchers();
+        this.generatedCBuildIndexWatchInstallation = undefined;
+    }
+
+    /**
+     * disposeGeneratedCBuildRunFileWatchers releases the exact cbuild-run
+     * watcher and its event subscriptions before the resolved path changes.
+     */
+    private disposeGeneratedCBuildRunFileWatchers(): void {
+        this.fileWatchManager.removeWatch(GENERATED_CBUILD_RUN_WATCH_ID);
+        this.generatedCBuildRunFileName = undefined;
+    }
+
+    /**
+     * handleGeneratedCBuildRunFileChange emits the public generated-file event
+     * and forwards the same event to the model callback that updates trace YAML
+     * and configuration state.
+     */
+    private async handleGeneratedCBuildRunFileChange(type: GeneratedCBuildRunFileChangeType, uri: vscode.Uri): Promise<void> {
+        const event: GeneratedCBuildRunFileChangeEvent = { type, uri };
+        this._onDidChangeGeneratedCBuildRunFileEmitter.fire(event);
+        await this.callbacks.onGeneratedCBuildRunFileChanged(event);
+    }
+
+    private watchCurrentRunFile(
+        watchedFile: CTraceYamlFile,
+        watchVersion: number,
+        kind: TraceConfigurationRunFileKind,
+        fileName: string,
+        watchId: string
+    ): void {
+        const pattern = new vscode.RelativePattern(path.dirname(fileName), path.basename(fileName));
+        this.fileWatchManager.addWatch({
+            id: watchId,
+            globPattern: pattern,
+            onDidCreate: uri => this.handleCurrentRunFileChange(watchedFile, watchVersion, kind, 'created', uri),
+            onDidChange: uri => this.handleCurrentRunFileChange(watchedFile, watchVersion, kind, 'changed', uri),
+            onDidDelete: uri => this.handleCurrentRunFileChange(watchedFile, watchVersion, kind, 'deleted', uri)
+        });
+    }
+
+    private async handleCurrentRunFileChange(
+        watchedFile: CTraceYamlFile,
+        watchVersion: number,
+        kind: TraceConfigurationRunFileKind,
+        type: TraceConfigurationRunFileChangeType,
+        uri: vscode.Uri
+    ): Promise<void> {
+        if (
+            watchVersion !== this.currentRunFileWatchVersion
+            || this.callbacks.getCurrentFile() !== watchedFile
+        ) {
+            return;
+        }
+        await this.callbacks.onCurrentRunFileChanged?.({ type, kind, uri });
+    }
+
+    /**
+     * reloadCurrentFile ignores delayed events from stale watchers and forwards
+     * a reload only after the file stamp confirms an external file change.
+     */
+    private async reloadCurrentFile(watchedFile: CTraceYamlFile, watchVersion: number): Promise<void> {
+        if (watchVersion !== this.currentFileWatchVersion || this.callbacks.getCurrentFile() !== watchedFile) {
+            return;
+        }
+        try {
+            if (!await watchedFile.reloadIfChanged() || watchVersion !== this.currentFileWatchVersion || this.callbacks.getCurrentFile() !== watchedFile || !watchedFile.document) {
+                return;
+            }
+            await this.callbacks.onCurrentFileReloaded(watchedFile.document);
+        } catch (error) {
+            if (watchVersion === this.currentFileWatchVersion && this.callbacks.getCurrentFile() === watchedFile) {
+                this.callbacks.onCurrentFileReloadFailed(error);
+            }
+        }
+    }
+}

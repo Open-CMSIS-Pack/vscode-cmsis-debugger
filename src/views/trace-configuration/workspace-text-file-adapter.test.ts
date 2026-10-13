@@ -1,0 +1,128 @@
+/**
+ * Copyright 2026 Arm Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+// generated with AI
+
+import * as fsPromises from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
+
+import * as vscode from 'vscode';
+
+import { WorkspaceTextFileAdapter } from './workspace-text-file-adapter';
+
+const temporaryWorkspaceRoots: string[] = [];
+
+async function createTemporaryWorkspace(): Promise<string> {
+    const workspaceRoot = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'workspace-text-file-adapter-'));
+    temporaryWorkspaceRoots.push(workspaceRoot);
+    return workspaceRoot;
+}
+
+function getLastWorkspaceFsUri(method: 'readFile' | 'writeFile' | 'delete' | 'stat'): vscode.Uri | undefined {
+    const calls = getWorkspaceFsMock(method).mock.calls;
+    return calls.at(-1)?.[0] as vscode.Uri | undefined;
+}
+
+function getWorkspaceFsMock(method: 'readFile' | 'writeFile' | 'delete' | 'stat'): jest.Mock {
+    switch (method) {
+        case 'readFile':
+            return vscode.workspace.fs.readFile as jest.Mock;
+        case 'writeFile':
+            return vscode.workspace.fs.writeFile as jest.Mock;
+        case 'delete':
+            return vscode.workspace.fs.delete as jest.Mock;
+        case 'stat':
+            return vscode.workspace.fs.stat as jest.Mock;
+    }
+}
+
+function createCodedError(message: string, code: string): Error & { code: string } {
+    return Object.assign(new Error(message), { code });
+}
+
+describe('WorkspaceTextFileAdapter', () => {
+    afterEach(async () => {
+        jest.restoreAllMocks();
+        await Promise.all(temporaryWorkspaceRoots.splice(0).map(workspaceRoot => {
+            // Test paths are created under this suite's temporary workspace root.
+            return fsPromises.rm(workspaceRoot, { recursive: true, force: true });
+        }));
+    });
+
+    it('reads and writes text through VS Code workspace fs', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const fileName = path.join(workspaceRoot, 'target.ctrace.yaml');
+        const text = [
+            'ctrace:',
+            '  setup:',
+            '    - pname: core0',
+            ''
+        ].join('\n');
+        const adapter = new WorkspaceTextFileAdapter();
+
+        await adapter.writeTextFile(fileName, text);
+        await expect(adapter.readTextFile(fileName)).resolves.toBe(text);
+
+        expect(getLastWorkspaceFsUri('writeFile')?.fsPath).toEqualFsPath(fileName);
+        expect(getLastWorkspaceFsUri('readFile')?.fsPath).toEqualFsPath(fileName);
+    });
+
+    it('returns file stamps from VS Code workspace fs stat', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const fileName = path.join(workspaceRoot, 'target.ctrace.yaml');
+        const text = 'ctrace:\n';
+        const adapter = new WorkspaceTextFileAdapter();
+
+        await adapter.writeTextFile(fileName, text);
+        const stamp = await adapter.stat(fileName);
+
+        expect(stamp).toMatchObject({
+            size: Buffer.byteLength(text)
+        });
+        expect(stamp?.mtimeMs).toEqual(expect.any(Number));
+        expect(getLastWorkspaceFsUri('stat')?.fsPath).toEqualFsPath(fileName);
+    });
+
+    it('deletes files and ignores missing files', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const fileName = path.join(workspaceRoot, '~target.ctrace.yaml');
+        const adapter = new WorkspaceTextFileAdapter();
+        await adapter.writeTextFile(fileName, 'ctrace:\n');
+
+        await adapter.deleteTextFile(fileName);
+        // Test paths are created under this suite's temporary workspace root.
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
+        await expect(fsPromises.stat(fileName)).rejects.toMatchObject({ code: 'ENOENT' });
+        expect(getLastWorkspaceFsUri('delete')?.fsPath).toEqualFsPath(fileName);
+        await expect(adapter.deleteTextFile(fileName)).resolves.toBeUndefined();
+    });
+
+    it('returns undefined when stat reports a missing file', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const fileName = path.join(workspaceRoot, 'missing.ctrace.yaml');
+        const adapter = new WorkspaceTextFileAdapter();
+
+        await expect(adapter.stat(fileName)).resolves.toBeUndefined();
+    });
+
+    it('rethrows stat failures that are not missing-file errors', async () => {
+        const adapter = new WorkspaceTextFileAdapter();
+        (vscode.workspace.fs.stat as jest.Mock).mockRejectedValueOnce(createCodedError('permission denied', 'EACCES'));
+
+        await expect(adapter.stat('/workspace/target.ctrace.yaml')).rejects.toThrow('permission denied');
+    });
+
+});

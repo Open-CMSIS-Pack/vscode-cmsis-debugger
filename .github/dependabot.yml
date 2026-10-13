@@ -1,4 +1,5 @@
 version: 2
+
 updates:
 - package-ecosystem: "npm"
   directory: "/"
@@ -12,6 +13,28 @@ updates:
     - dependency-name: "@types/node"
       update-types:
         - version-update:semver-major
+    - dependency-name: "react"
+      update-types:
+        - version-update:semver-major
+    - dependency-name: "@types/react"
+      update-types:
+        - version-update:semver-major
+    - dependency-name: "react-dom"
+      update-types:
+        - version-update:semver-major
+    - dependency-name: "@types/react-dom"
+      update-types:
+        - version-update:semver-major
+    - dependency-name: "typescript"
+      update-types:
+        - version-update:semver-major
+    - dependency-name: "@types/vscode"
+      versions:
+        - "*"
+  groups:
+    npm-dependencies:
+      patterns:
+        - "*"
 
 - package-ecosystem: "github-actions"
   directory: "/"
@@ -20,3 +43,10 @@ updates:
     time: "02:00"
   cooldown:
     default-days: 3
+  groups:
+    codeql-actions:
+      patterns:
+        - "github/codeql-action/*"
+    github-actions:
+      patterns:
+        - "*"

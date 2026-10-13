@@ -40,7 +40,9 @@ describe('ComponentViewerScvdCollector', () => {
         const cbuildRunGetScvdSpy = jest.spyOn(cbuildRunReader!, 'getScvdFilePaths');
         const receivedPaths = await componentViewerScvdCollector.getScvdFilePaths(session);
         expect(cbuildRunGetScvdSpy).toHaveBeenCalledWith(undefined, pname);
-        expect(receivedPaths).toEqual(expect.arrayContaining(inputFilePaths));
+        expect(receivedPaths).toEqual(expect.arrayContaining(
+            inputFilePaths.map(filePath => expect.toEqualFsPath(filePath))
+        ));
     });
 
     it('returns empty array if cbuildRun reader is undefined', async () => {

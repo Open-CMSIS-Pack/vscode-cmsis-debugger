@@ -52,17 +52,17 @@ jobs:
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
           egress-policy: audit
 
       - run: git config --global core.autocrlf false
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           submodules: true
 
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -81,7 +81,8 @@ jobs:
           fi
           BASE_TAG=$(printf '%s\n' "${DESCRIBE}" | grep -Eo '^v[0-9]+\.[0-9]+\.[0-9]+')
           # For non-release builds, increment the patch version by 1 (e.g. 1.64.1 -> 1.64.2)
-          NEXT_VERSION="$(printf '%s\n' "${BASE_TAG}" | awk -F. '{ printf "%d.%d.%d", $1, $2, $3 + 1 }')"
+          # Also discard the leading 'v' from the tag for the printf.
+          NEXT_VERSION="$(printf '%s\n' "${BASE_TAG}" | awk -F. '{ printf "%d.%d.%d", substr($1, 2), $2, $3 + 1 }')"
           PR_QUALIFIER=$(printf '%s\n' "${DESCRIBE}" | grep -Eo '\-g[0-9a-f]+$' || true)
           BRANCH_QUALIFIER=$(printf '%s\n' "${DESCRIBE}" | grep -Eo '[0-9]+\-g[0-9a-f]+$' || true)
           SAFE_REF_NAME="${{ github.ref_name }}"
@@ -168,8 +169,14 @@ jobs:
           path: ./test-report.html
 
       - name: Publish coverage report to QLTY
-        if: github.repository_owner == 'Open-CMSIS-Pack' && runner.os == 'Linux'
-        uses: qltysh/qlty-action/coverage@a19242102d17e497f437d7466aa01b528537e899 # v2.2.0
+        if: >
+          github.repository_owner == 'Open-CMSIS-Pack' &&
+          runner.os == 'Linux' &&
+          !(
+            github.event_name == 'pull_request' &&
+            github.event.pull_request.user.login == 'dependabot[bot]'
+          )
+        uses: qltysh/qlty-action/coverage@c9b09987143d1e4ac955f4803c7bea742102feb5 # v2.4.0
         with:
           token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
           files: coverage/lcov.info
@@ -189,18 +196,19 @@ jobs:
           - darwin-arm64
     permissions:
       packages: read
+      actions: read # For fetching workflow artifacts with 'download-tools --nightly'
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
           egress-policy: audit
 
       - name: Configure git settings
         run: git config --global core.autocrlf false
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -215,9 +223,11 @@ jobs:
           path: .
 
       - name: Download tools
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm ci
-          npm run download-tools -- --target ${{ matrix.target }} --no-cache
+          npm run download-tools:nightly -- --target ${{ matrix.target }} --no-cache
 
       - name: Create vsix package
         run: |
@@ -252,16 +262,16 @@ jobs:
       packages: read
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
           egress-policy: audit
 
       - name: Configure git settings
         run: git config --global core.autocrlf false
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -293,7 +303,7 @@ jobs:
       contents: write  # for softprops/action-gh-release to create a GitHub release
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
           egress-policy: audit
 
@@ -323,7 +333,7 @@ jobs:
         working-directory: test-coverage
          
       - name: Attach packages
-        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           files: |
             **/*.vsix

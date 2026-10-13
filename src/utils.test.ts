@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,21 +14,80 @@
  * limitations under the License.
  */
 
-jest.mock('path');
 import * as os from 'os';
 import * as path from 'path';
+import * as vscode from 'vscode';
+
+import { logger } from './logger';
 import {
     calculateTime,
+    containsSubstringsInOrder,
     extractPname,
+    fileExists,
     getCmsisPackRootPath,
-    isWindows
+    getObjectProperty,
+    isFileNotFoundError,
+    isWindows,
+    normalizeFsPath,
+    waitForCondition,
+    waitForImmediate
 } from './utils';
 
 const CMSIS_PACK_ROOT_DEFAULT = 'mock/path';
+
+describe('isFileNotFoundError', () => {
+    it.each(['ENOENT', 'FileNotFound'])('recognizes the %s error code', code => {
+        expect(isFileNotFoundError({ code })).toBe(true);
+    });
+
+    it('rejects unrelated and non-object errors', () => {
+        expect(isFileNotFoundError({ code: 'EACCES' })).toBe(false);
+        expect(isFileNotFoundError('ENOENT')).toBe(false);
+    });
+});
+
+describe('fileExists', () => {
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
+    it('returns true when the file can be inspected', async () => {
+        jest.spyOn(vscode.workspace.fs, 'stat').mockResolvedValue({
+            type: vscode.FileType.File,
+            ctime: 0,
+            mtime: 0,
+            size: 0
+        });
+
+        await expect(fileExists(vscode.Uri.file('/workspace/file'))).resolves.toBe(true);
+    });
+
+    it('returns false without logging when the file is missing', async () => {
+        const loggerSpy = jest.spyOn(logger, 'error');
+        const error = Object.assign(new Error('missing'), { code: 'FileNotFound' });
+        jest.spyOn(vscode.workspace.fs, 'stat').mockRejectedValue(error);
+
+        await expect(fileExists(vscode.Uri.file('/workspace/file'))).resolves.toBe(false);
+
+        expect(loggerSpy).not.toHaveBeenCalled();
+    });
+
+    it('returns false and logs unexpected inspection errors', async () => {
+        const loggerSpy = jest.spyOn(logger, 'error');
+        const uri = vscode.Uri.file('/workspace/file');
+        jest.spyOn(vscode.workspace.fs, 'stat').mockRejectedValue(new Error('access denied'));
+
+        await expect(fileExists(uri)).resolves.toBe(false);
+
+        expect(loggerSpy).toHaveBeenCalledWith(`Failed to find file '${uri.fsPath}': access denied`);
+    });
+});
+
 describe('getCmsisPackRoot', () => {
 
     afterEach(() => {
         jest.clearAllMocks();
+        jest.restoreAllMocks();
     });
 
     it('checks if CMSIS_PACK_ROOT already exists', () => {
@@ -42,12 +101,11 @@ describe('getCmsisPackRoot', () => {
     it('checks if CMSIS_PACK_ROOT has been added or not', () => {
         const originalProcessEnv = process.env;
         delete process.env['CMSIS_PACK_ROOT'];
-        const spy = jest.spyOn(path, 'join');
-        getCmsisPackRootPath();
+        const returnValue = getCmsisPackRootPath();
         if (isWindows) {
-            expect(spy).toHaveBeenCalledWith(process.env['LOCALAPPDATA'] ?? os.homedir(), 'Arm', 'Packs');
+            expect(returnValue).toEqualFsPath(path.join(process.env['LOCALAPPDATA'] ?? os.homedir(), 'Arm', 'Packs'));
         } else {
-            expect(spy).toHaveBeenCalledWith(os.homedir(), '.cache', 'arm', 'packs');
+            expect(returnValue).toEqualFsPath(path.join(os.homedir(), '.cache', 'arm', 'packs'));
         }
         process.env = originalProcessEnv;
     });
@@ -57,6 +115,7 @@ describe('extractPname', () => {
 
     afterEach(() => {
         jest.clearAllMocks();
+        jest.restoreAllMocks();
     });
 
     it('extracts pname if first part of string but with now pname list', () => {
@@ -94,6 +153,78 @@ describe('extractPname', () => {
         expect(result).toBeUndefined();
     });
 
+});
+
+describe('normalizeFsPath', () => {
+
+    it('normalizes path separators and case for filesystem comparisons', () => {
+        const fileName = path.join('workspace', 'folder', '..', 'Target.ctrace.yaml');
+        const expected = path.normalize(fileName);
+
+        expect(normalizeFsPath(fileName)).toBe(isWindows ? expected.toLowerCase() : expected);
+    });
+
+    it('preserves undefined paths', () => {
+        expect(normalizeFsPath(undefined)).toBeUndefined();
+    });
+});
+
+describe('getObjectProperty', () => {
+
+    it('gets a property from an object', () => {
+        expect(getObjectProperty({ selected: 'solution' }, 'selected')).toBe('solution');
+    });
+
+    it('returns undefined for non-object values and arrays', () => {
+        expect(getObjectProperty(undefined, 'selected')).toBeUndefined();
+        expect(getObjectProperty('solution', 'selected')).toBeUndefined();
+        expect(getObjectProperty(['solution'], '0')).toBeUndefined();
+    });
+});
+
+describe('waitForImmediate', () => {
+
+    it('resolves on a future event loop turn', async () => {
+        let resolved = false;
+        const promise = waitForImmediate().then(() => {
+            resolved = true;
+        });
+
+        expect(resolved).toBe(false);
+        await promise;
+        expect(resolved).toBe(true);
+    });
+});
+
+describe('waitForCondition', () => {
+
+    it('waits until the condition succeeds', async () => {
+        let attempts = 0;
+
+        await waitForCondition('test condition', () => {
+            attempts++;
+            return attempts === 2;
+        }, { timeoutMs: 100, intervalMs: 0 });
+
+        expect(attempts).toBe(2);
+    });
+
+    it('throws when the condition times out', async () => {
+        await expect(waitForCondition('test timeout', () => false, { timeoutMs: 0 }))
+            .rejects.toThrow('Timed out waiting for test timeout.');
+    });
+});
+
+describe('containsSubstringsInOrder', () => {
+
+    it('returns true when each substring appears after the previous one', () => {
+        expect(containsSubstringsInOrder('alpha beta gamma', ['alpha', 'beta', 'gamma'])).toBe(true);
+    });
+
+    it('returns false when a substring is missing or appears out of order', () => {
+        expect(containsSubstringsInOrder('alpha beta gamma', ['alpha', 'delta'])).toBe(false);
+        expect(containsSubstringsInOrder('alpha beta gamma', ['gamma', 'alpha'])).toBe(false);
+    });
 });
 
 describe('calculateTime', () => {

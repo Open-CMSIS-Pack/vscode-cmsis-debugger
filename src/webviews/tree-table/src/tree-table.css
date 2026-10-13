@@ -215,8 +215,7 @@ body.resizing * { cursor: col-resize !important; }
     color: var(--vscode-editorHoverWidget-foreground, #cccccc);
     border: 1px solid var(--vscode-editorHoverWidget-border, #454545);
     border-radius: 3px;
-    font-size: var(--font-size);
-    line-height: 1.4;
+    font: 11px/1.4 var(--vscode-font-family, "Segoe UI", system-ui, sans-serif);
     white-space: normal;
     word-wrap: break-word;
     overflow-wrap: break-word;

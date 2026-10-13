@@ -1,0 +1,646 @@
+/**
+ * Copyright 2026 Arm Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+// generated with AI
+
+import './trace-configuration.css';
+
+import type {
+    TraceConfigurationRow,
+    TraceConfigurationState,
+    TraceHostToWebviewMessage,
+    TraceWebviewToHostMessage
+} from '../../../views/trace-configuration/trace-configuration-protocol';
+
+interface VsCodeApi {
+    postMessage(message: TraceWebviewToHostMessage): void;
+}
+
+declare function acquireVsCodeApi(): VsCodeApi;
+
+const vscodeApi = acquireVsCodeApi();
+const root = document.getElementById('root');
+let openMultiSelectId: string | undefined;
+
+/**
+ * post sends one typed browser action to the extension host. Keeping all
+ * postMessage calls behind this small helper makes it obvious which messages
+ * leave the sandbox and keeps the rest of the renderer free of acquireVsCodeApi
+ * details.
+ */
+function post(message: TraceWebviewToHostMessage): void {
+    vscodeApi.postMessage(message);
+}
+
+/**
+ * createElement builds one DOM element with optional class names. The webview
+ * renders user-controlled YAML labels and values, so the code uses DOM text
+ * nodes instead of string-built HTML to avoid accidental markup injection.
+ */
+function createElement<K extends keyof HTMLElementTagNameMap>(
+    tagName: K,
+    className?: string
+): HTMLElementTagNameMap[K] {
+    const element = document.createElement(tagName);
+    if (className) {
+        element.className = className;
+    }
+    return element;
+}
+
+/**
+ * createIcon returns a codicon span for toolbar and row actions. The extension
+ * shell loads codicon.css, so the browser bundle only needs to create the
+ * standard codicon class names.
+ */
+function createIcon(name: string, extraClass?: string): HTMLSpanElement {
+    const icon = createElement('span', `codicon codicon-${name} trace-config${extraClass ? ' ' + extraClass : ''}`);
+    icon.setAttribute('aria-hidden', 'true');
+    return icon;
+}
+
+/**
+ * clearElement removes every child from an element before a fresh render. The
+ * state from the extension host is authoritative, so full replacement is
+ * simpler and less error-prone than incremental DOM patching for this view.
+ */
+function clearElement(element: HTMLElement): void {
+    while (element.firstChild) {
+        element.firstChild.remove();
+    }
+}
+
+/**
+ * closeOpenMultiSelect clears the persisted open dropdown and closes any
+ * rendered multi-select details elements. It is called for outside clicks and
+ * Escape so checkbox changes can keep the active dropdown open across host
+ * state refreshes.
+ */
+function closeOpenMultiSelect(): void {
+    openMultiSelectId = undefined;
+    document.querySelectorAll<HTMLDetailsElement>('details.multi-select[open]').forEach(details => {
+        details.open = false;
+    });
+}
+
+/**
+ * renderApp is the top-level renderer for each host update. It creates the
+ * toolbar, status line, and table for the current state and replaces the root
+ * contents in one pass.
+ */
+function renderApp(state: TraceConfigurationState): void {
+    if (!root) {
+        return;
+    }
+    const previousScrollRegion = root.querySelector<HTMLElement>('.option-tree-scroll');
+    const scrollTop = previousScrollRegion?.scrollTop ?? 0;
+    const scrollLeft = previousScrollRegion?.scrollLeft ?? 0;
+    const activeElement = document.activeElement;
+    const focusedRowId = activeElement instanceof HTMLTableRowElement && root.contains(activeElement)
+        ? activeElement.dataset.rowId
+        : undefined;
+    clearElement(root);
+    const surface = createElement('main', 'table-surface');
+    surface.append(createHeader(state));
+    const scrollRegion = createElement('div', 'option-tree-scroll');
+    if (state.loading) {
+        scrollRegion.append(createEmptyState('Loading ctrace.yml...'));
+    } else if (state.errorMessage) {
+        scrollRegion.append(createEmptyState(state.errorMessage, true));
+    } else if (state.rows.length === 0) {
+        scrollRegion.append(createEmptyState(state.emptyMessage ?? 'No trace configuration loaded.'));
+    } else {
+        scrollRegion.append(createTable(state.rows));
+    }
+    surface.append(scrollRegion);
+    root.append(surface);
+    scrollRegion.scrollTop = scrollTop;
+    scrollRegion.scrollLeft = scrollLeft;
+    focusRow(state.focusedRowId ?? focusedRowId);
+}
+
+/**
+ * focusRow brings a newly added row into view after a host-rendered state
+ * refresh. The lookup avoids CSS escaping issues by comparing dataset values.
+ */
+function focusRow(rowId: string | undefined): void {
+    if (!rowId) {
+        return;
+    }
+    const row = Array.from(document.querySelectorAll<HTMLTableRowElement>('tr[data-row-id]'))
+        .find(candidate => candidate.dataset.rowId === rowId);
+    if (!row) {
+        return;
+    }
+    if (row.tabIndex < 0) {
+        row.tabIndex = -1;
+    }
+    row.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    row.focus({ preventScroll: true });
+}
+
+/**
+ * createHeader places the file status above the scrolling tree body.
+ */
+function createHeader(state: TraceConfigurationState): HTMLElement {
+    const header = createElement('div', 'trace-header');
+    header.append(createStatus(state));
+    return header;
+}
+
+/**
+ * createStatus renders the selected filename, dirty state, and pyTS validation
+ * lifecycle without hiding the editable rows when validation fails.
+ */
+function createStatus(state: TraceConfigurationState): HTMLElement {
+    const status = createElement('div', 'trace-status');
+    const file = createElement('button', 'trace-file');
+    file.type = 'button';
+    file.textContent = getFileNameDisplayText(state);
+    file.title = state.fileName ?? '';
+    file.disabled = !state.fileName;
+    file.setAttribute('aria-label', state.fileName ? `Open ${state.fileName}` : 'No ctrace.yml selected');
+    file.addEventListener('click', () => post({ type: 'openCurrentFile' }));
+    status.append(file, createStatusIcon(state));
+    return status;
+}
+
+function createStatusIcon(state: TraceConfigurationState): HTMLSpanElement {
+    const validating = state.dirty
+        && (state.validationState === 'pending' || state.validationState === 'running');
+    const iconName = state.validationState === 'failed'
+        ? 'error'
+        : validating
+            ? 'sync'
+            : state.dirty
+                ? 'diff-modified'
+                : 'pass-filled';
+    const label = state.validationState === 'failed'
+        ? 'error'
+        : validating
+            ? 'validating'
+            : state.dirty
+                ? 'modified'
+                : 'saved';
+    const icon = createIcon(iconName, `status-icon status-${label}`);
+    icon.title = state.validationMessage ? `${label}: ${state.validationMessage}` : label;
+    icon.removeAttribute('aria-hidden');
+    icon.setAttribute('aria-label', label);
+    icon.setAttribute('role', 'img');
+    return icon;
+}
+
+/**
+ * getFileNameDisplayText preserves the absolute filename in state while
+ * shortening the status label relative to the active solution or workspace.
+ */
+function getFileNameDisplayText(state: TraceConfigurationState): string {
+    const basePath = state.solutionFolderPath ?? state.workspaceFolderPath;
+    if (!state.fileName) {
+        return 'No ctrace.yml selected';
+    }
+    const displayPath = basePath && state.fileName.startsWith(basePath)
+        ? state.fileName.slice(basePath.length + 1)
+        : state.fileName;
+    // Keep leading punctuation, such as the dot in `.cmsis`, attached to the
+    // left-to-right path while CSS uses RTL direction for left-side ellipsis.
+    return `\u200e${displayPath}`;
+}
+
+/**
+ * createEmptyState renders loading, empty, and error messages in the same table
+ * surface. The isError flag only changes styling; message text comes from the
+ * extension host.
+ */
+function createEmptyState(message: string, isError = false): HTMLElement {
+    const empty = createElement('div', isError ? 'empty-state error-state' : 'empty-state');
+    empty.textContent = message;
+    return empty;
+}
+
+/**
+ * createTable builds the label and selection columns. Rows are
+ * already flattened by the host, so this function only creates headers and one
+ * table row per TraceConfigurationRow.
+ */
+function createTable(rows: TraceConfigurationRow[]): HTMLTableElement {
+    const table = createElement('table', 'option-tree-table');
+    table.setAttribute('aria-label', 'CMSIS trace configuration');
+    table.append(createTableHead(), createTableBody(rows));
+    return table;
+}
+
+/**
+ * createTableHead creates the static Label/Selection header row. It is kept as
+ * a function to mirror createTableBody and keep renderApp easy to scan.
+ */
+function createTableHead(): HTMLTableSectionElement {
+    return createElement('thead');
+}
+
+/**
+ * createTableBody renders all rows from the host. It uses a document fragment
+ * style flow by appending to tbody directly, which is plenty small for trace
+ * configuration trees and keeps the code simple.
+ */
+function createTableBody(rows: TraceConfigurationRow[]): HTMLTableSectionElement {
+    const tbody = createElement('tbody');
+    rows.forEach(row => tbody.append(createRow(row)));
+    return tbody;
+}
+
+/**
+ * createRow renders one YAML node as a tree-table row. Group classes follow the
+ * mockup styling for maps/sequences, while scalar rows stay visually lighter.
+ */
+function createRow(row: TraceConfigurationRow): HTMLTableRowElement {
+    const tr = createElement('tr', row.kind === 'scalar' ? 'tree-row' : 'tree-row group-row section-row');
+    tr.dataset.rowId = row.id;
+    tr.dataset.hasChildren = String(row.hasChildren);
+    tr.append(createLabelCell(row), createSelectionCell(row));
+    if (row.hasChildren) {
+        tr.tabIndex = 0;
+        tr.setAttribute('aria-expanded', String(row.expanded));
+        tr.addEventListener('click', event => {
+            if (isRowToggleInteractiveTarget(event.target)) {
+                return;
+            }
+            post({ type: 'toggle', id: row.id, expanded: !row.expanded });
+        });
+        tr.addEventListener('keydown', event => {
+            if (isRowToggleInteractiveTarget(event.target)) {
+                return;
+            }
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                post({ type: 'toggle', id: row.id, expanded: !row.expanded });
+            }
+        });
+    }
+    return tr;
+}
+
+/**
+ * isRowToggleInteractiveTarget prevents clicks and key presses on controls from
+ * falling through to the row-level expand/collapse handler.
+ */
+function isRowToggleInteractiveTarget(target: EventTarget | null): boolean {
+    if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLButtonElement) {
+        return true;
+    }
+    return target instanceof HTMLElement && Boolean(target.closest('.multi-select, .add-button-wrapper, .tooltip-wrapper'));
+}
+
+/**
+ * createLabelCell renders indentation, expand/collapse affordance, row label,
+ * optional debugging tooltip, remove button, and metadata. It keeps all
+ * non-editing controls in the first column so the Selection column can focus
+ * on YAML values.
+ */
+function createLabelCell(row: TraceConfigurationRow): HTMLTableCellElement {
+    const cell = createElement('td', 'label-cell');
+    const wrapper = createElement('div', 'tree-label');
+    const title = createElement('div', `node-title depth-${Math.min(row.depth, 5)}`);
+    const prefix = createElement('span', 'node-prefix');
+    if (row.hasChildren) {
+        prefix.append(createIcon(row.expanded ? 'chevron-down' : 'chevron-right', 'chevron'));
+    }
+    const label = createElement('span', 'node-text');
+    label.textContent = row.label;
+    if (row.labelTooltip) {
+        label.title = row.labelTooltip;
+    }
+    title.append(prefix);
+    if (row.validation) {
+        title.append(createValidationIcon(row.validation.severity, row.validation.message));
+    }
+    title.append(label);
+    if (row.removable) {
+        title.append(createRemoveButton(row));
+    }
+    wrapper.append(title);
+    if (row.description) {
+        const meta = createElement('span', 'node-meta');
+        meta.textContent = row.description;
+        wrapper.append(meta);
+    }
+    cell.append(wrapper);
+    return cell;
+}
+
+/** Creates the accessible, severity-colored validator marker for one row. */
+function createValidationIcon(severity: 'info' | 'warning' | 'error', message: string): HTMLSpanElement {
+    const wrapper = createElement('span', `tooltip-wrapper validation-icon validation-${severity}`);
+    wrapper.tabIndex = 0;
+    wrapper.dataset.tooltip = message;
+    wrapper.setAttribute('aria-label', `${severity}: ${message}`);
+    wrapper.append(createIcon(severity));
+    return wrapper;
+}
+
+/**
+ * createRemoveButton builds the per-sequence-item delete button. It stops event
+ * propagation so clicking delete does not also toggle the row expansion state.
+ */
+function createRemoveButton(row: TraceConfigurationRow): HTMLButtonElement {
+    const button = createElement('button', 'icon-button node-action');
+    button.type = 'button';
+    button.title = 'Remove item';
+    button.setAttribute('aria-label', `Remove ${row.label}`);
+    button.append(createIcon('trash'));
+    button.addEventListener('click', event => {
+        event.stopPropagation();
+        post({ type: 'removeItem', path: row.path });
+    });
+    return button;
+}
+
+/**
+ * getValuePath returns the YAML path edited by the row's value control. Most
+ * rows edit their own node, while promoted controls edit a child scalar from
+ * their parent header row.
+ */
+function getValuePath(row: TraceConfigurationRow): (string | number)[] {
+    return row.valuePath ?? row.path;
+}
+
+/**
+ * createSelectionCell chooses the correct editor for a row. Maps and sequences
+ * mostly render add buttons or an intentionally empty value cell because their
+ * purpose is structural; scalars render text, checkbox, or select controls
+ * depending on host-provided metadata.
+ */
+function createSelectionCell(row: TraceConfigurationRow): HTMLTableCellElement {
+    const cell = createElement('td', 'selection-cell');
+    if (row.addChildKind) {
+        cell.append(createAddButton(row));
+        return cell;
+    }
+    switch (row.control) {
+        case 'checkbox':
+            cell.append(createCheckbox(row));
+            break;
+        case 'select':
+            cell.append(createSelect(row));
+            break;
+        case 'multi-select':
+            cell.append(createMultiSelect(row));
+            break;
+        case 'text':
+            cell.append(createTextInput(row));
+            break;
+        case 'readonly':
+            cell.append(createReadonly(row.value ?? ''));
+            break;
+        case 'none':
+        default:
+            break;
+    }
+    return cell;
+}
+
+/**
+ * createAddButton renders the plus button for editable YAML sequences. The
+ * host decides what placeholder object should be appended based on addChildKind.
+ */
+function createAddButton(row: TraceConfigurationRow): HTMLElement {
+    const wrapper = createElement('span', 'add-button-wrapper tooltip-wrapper');
+    const button = createElement('button', 'icon-button add-button');
+    button.type = 'button';
+    const disabledReason = row.addChildDisabledReason;
+    const tooltip = disabledReason ?? row.addChildTooltip ?? 'Add Item';
+    wrapper.dataset.tooltip = tooltip;
+    button.disabled = Boolean(disabledReason);
+    button.setAttribute('aria-label', tooltip);
+    button.append(createIcon('add'));
+    wrapper.addEventListener('click', event => {
+        event.stopPropagation();
+    });
+    wrapper.addEventListener('keydown', event => {
+        event.stopPropagation();
+    });
+    if (disabledReason) {
+        wrapper.tabIndex = 0;
+        wrapper.setAttribute('aria-label', disabledReason);
+    } else {
+        button.addEventListener('click', event => {
+            event.stopPropagation();
+            post({ type: 'addItem', path: row.path, addChildKind: row.addChildKind ?? 'generic-map' });
+        });
+    }
+    wrapper.append(button);
+    return wrapper;
+}
+
+/**
+ * createCheckbox renders boolean-like scalar values. The host accepts booleans
+ * directly and serializes them back to YAML.
+ */
+function createCheckbox(row: TraceConfigurationRow): HTMLLabelElement {
+    const label = createElement('label', 'control-line');
+    const checkbox = createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = row.checked ?? false;
+    checkbox.setAttribute('aria-label', row.label);
+    checkbox.addEventListener('change', () => {
+        post({ type: 'updateValue', path: getValuePath(row), value: checkbox.checked });
+    });
+    label.append(checkbox);
+    return label;
+}
+
+/**
+ * createSelect renders scalar fields with known small vocabularies, such as
+ * access and output. Changes are saved immediately through the host.
+ */
+function createSelect(row: TraceConfigurationRow): HTMLElement {
+    const disabledReason = row.controlDisabledReason;
+    const select = createElement('select');
+    select.disabled = Boolean(disabledReason);
+    select.setAttribute('aria-label', row.label);
+    if (row.placeholder && !row.value) {
+        const placeholderOption = createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.textContent = row.placeholder;
+        placeholderOption.disabled = true;
+        placeholderOption.selected = true;
+        select.classList.add('placeholder-selected');
+        select.append(placeholderOption);
+    }
+    (row.options ?? []).forEach(optionValue => {
+        const option = createElement('option');
+        option.value = optionValue;
+        option.textContent = optionValue;
+        option.selected = optionValue === row.value;
+        select.append(option);
+    });
+    select.addEventListener('change', () => {
+        post({ type: 'updateValue', path: getValuePath(row), value: select.value });
+    });
+    if (disabledReason) {
+        const wrapper = createElement('span', 'tooltip-wrapper control-tooltip-wrapper');
+        wrapper.dataset.tooltip = disabledReason;
+        wrapper.tabIndex = 0;
+        wrapper.setAttribute('aria-label', disabledReason);
+        wrapper.append(select);
+        return wrapper;
+    }
+    return select;
+}
+
+/**
+ * createMultiSelect renders a compact dropdown checklist for fields where the
+ * ctrace schema accepts multiple choices. It keeps its checked values locally
+ * while the dropdown is open and posts the full selected array after each
+ * checkbox change so the host can rewrite the corresponding YAML structure.
+ */
+function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
+    const details = createElement('details', 'multi-select');
+    details.dataset.rowId = row.id;
+    details.open = openMultiSelectId === row.id;
+    const summary = createElement('summary', 'multi-select-summary');
+    summary.append(createElement('span', 'multi-select-label'), createIcon('chevron-down'));
+    const selectedValues = new Set(row.selectedOptions ?? []);
+
+    /**
+     * updateSummary mirrors the selected checklist values into the collapsed
+     * dropdown label so users can scan the current configuration without
+     * opening each multi-select control.
+     */
+    const updateSummary = () => {
+        const label = summary.querySelector('.multi-select-label') as HTMLElement;
+        if (label) {
+            label.textContent = selectedValues.size > 0
+                ? Array.from(selectedValues).join(', ')
+                : 'None';
+        }
+    };
+    updateSummary();
+    details.addEventListener('toggle', () => {
+        if (details.open) {
+            openMultiSelectId = row.id;
+            document.querySelectorAll<HTMLDetailsElement>('details.multi-select[open]').forEach(openDetails => {
+                if (openDetails !== details) {
+                    openDetails.open = false;
+                }
+            });
+            return;
+        }
+        openMultiSelectId = openMultiSelectId === row.id ? undefined : openMultiSelectId;
+    });
+    const menu = createElement('div', 'multi-select-menu');
+    (row.options ?? []).forEach(optionValue => {
+        const label = createElement('label', 'multi-select-option');
+        const checkbox = createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = selectedValues.has(optionValue);
+        checkbox.setAttribute('aria-label', `${row.label} ${optionValue}`);
+        checkbox.addEventListener('change', () => {
+            if (checkbox.checked) {
+                selectedValues.add(optionValue);
+            } else {
+                selectedValues.delete(optionValue);
+            }
+            updateSummary();
+            post({ type: 'updateValue', path: getValuePath(row), value: Array.from(selectedValues) });
+        });
+        const text = createElement('span');
+        text.textContent = optionValue;
+        label.append(checkbox, text);
+        menu.append(label);
+    });
+    details.append(summary, menu);
+    return details;
+}
+
+/**
+ * createTextInput renders editable scalar text. It commits on blur or Enter so
+ * users can type without saving the file after every keystroke.
+ */
+function createTextInput(row: TraceConfigurationRow): HTMLElement {
+    const disabledReason = row.controlDisabledReason;
+    const input = createElement('input');
+    input.type = 'text';
+    input.value = row.value ?? '';
+    input.placeholder = row.placeholder ?? '';
+    input.disabled = Boolean(disabledReason);
+    input.spellcheck = false;
+    input.setAttribute('aria-label', row.label);
+    let lastCommittedValue = input.value;
+    const commit = () => {
+        if (input.value === lastCommittedValue) {
+            return;
+        }
+        lastCommittedValue = input.value;
+        post({ type: 'updateValue', path: getValuePath(row), value: input.value });
+    };
+    input.addEventListener('change', commit);
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+            commit();
+            input.blur();
+        }
+    });
+    if (disabledReason) {
+        const wrapper = createElement('span', 'tooltip-wrapper control-tooltip-wrapper');
+        wrapper.dataset.tooltip = disabledReason;
+        wrapper.tabIndex = 0;
+        wrapper.setAttribute('aria-label', disabledReason);
+        wrapper.append(input);
+        return wrapper;
+    }
+    return input;
+}
+
+/**
+ * createReadonly renders non-editable values as compact status pills. This is
+ * used mostly for map/sequence rows where the value column communicates node
+ * kind or future extension points rather than accepting direct edits.
+ */
+function createReadonly(text: string): HTMLSpanElement {
+    const span = createElement('span', 'pill');
+    span.textContent = text;
+    return span;
+}
+
+/**
+ * onMessage receives replacement state from the extension host. The host sends
+ * complete snapshots, so every trusted update simply re-renders the webview.
+ */
+function onMessage(event: MessageEvent<TraceHostToWebviewMessage>): void {
+    if (event.origin !== window.location.origin) {
+        return;
+    }
+    if (event.data.type === 'update') {
+        renderApp(event.data.state);
+    }
+}
+
+document.addEventListener('click', event => {
+    if (event.target instanceof HTMLElement && event.target.closest('.multi-select')) {
+        return;
+    }
+    closeOpenMultiSelect();
+});
+
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+        closeOpenMultiSelect();
+    }
+});
+
+window.addEventListener('message', onMessage);
+post({ type: 'ready' });

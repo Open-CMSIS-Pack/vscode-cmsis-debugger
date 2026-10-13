@@ -1,0 +1,346 @@
+/**
+ * Copyright 2026 Arm Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+// generated with AI
+
+import * as vscode from 'vscode';
+import { activeSolutionWatchFactory } from '../../__test__/active-solution-watch.factory';
+import { extensionContextFactory } from '../../__test__/vscode.factory';
+import { traceWatchFactory } from '../../__test__/trace-watch.factory';
+import { CBuildRunFileLocator } from '../../cbuild-run';
+import { GDBTargetDebugSession } from '../../debug-session';
+import { debugTrackerFactory } from '../../debug-session/__test__/debug-session.factory';
+import { CTraceProcessManager } from '../../desktop/process/ctrace-process-manager';
+import { logger } from '../../logger';
+import { waitForCondition } from '../../utils';
+import { CTraceController } from './ctrace-controller';
+import { CapturedTraceResolver } from './captured-trace-resolver';
+import { OPEN_CAPTURED_TRACE_AFTER_DECODE_SETTING } from '../../manifest';
+
+const CBUILD_RUN_FILE_PATH = '/workspace/solution+target.cbuild-run.yml';
+const RAW_TRACE_URI = vscode.Uri.file('/workspace/.trace/solution.SWO.raw');
+
+type CTraceControllerTestAccess = {
+    addRawTraceWatcher(): Promise<void>;
+    handleDecodeTrigger(session: GDBTargetDebugSession | undefined): Promise<void>;
+    handleActiveSessionChanged(session: GDBTargetDebugSession | undefined): void;
+    handleRawTraceFileChanged(uri: vscode.Uri): Promise<void>;
+    removeRawTraceWatcher(): void;
+};
+
+describe('CTraceController', () => {
+    const createSession = (id: string, cbuildRunFilePath: string): GDBTargetDebugSession => ({
+        session: { id },
+        getCbuildRun: jest.fn().mockResolvedValue({ getFilePath: () => cbuildRunFilePath }),
+        getCbuildRunPath: () => cbuildRunFilePath,
+    } as unknown as GDBTargetDebugSession);
+
+    let now: number;
+    let controller: CTraceController;
+    let run: jest.SpiedFunction<CTraceController['run']>;
+    let capturedTraceResolver: CapturedTraceResolver;
+    let openCapturedTrace: jest.SpiedFunction<CapturedTraceResolver['open']>;
+    let hasCapture: jest.SpiedFunction<CapturedTraceResolver['hasCapture']>;
+    let session: GDBTargetDebugSession;
+    let testAccess: CTraceControllerTestAccess;
+
+    beforeEach(() => {
+        now = 10_000;
+        (vscode.workspace.getConfiguration as jest.Mock).mockReturnValue({
+            get: jest.fn().mockImplementation((_setting: string, defaultValue: unknown) => defaultValue)
+        });
+        capturedTraceResolver = new CapturedTraceResolver();
+        openCapturedTrace = jest.spyOn(capturedTraceResolver, 'open').mockResolvedValue();
+        hasCapture = jest.spyOn(capturedTraceResolver, 'hasCapture').mockResolvedValue(false);
+        controller = new CTraceController({}, () => now, new CBuildRunFileLocator(), undefined, capturedTraceResolver);
+        run = jest.spyOn(controller, 'run').mockResolvedValue(0);
+        session = createSession('session-1', CBUILD_RUN_FILE_PATH);
+        testAccess = controller as unknown as CTraceControllerTestAccess;
+    });
+
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
+    it('runs ctrace with the active session cbuild run path unless the caller supplies one', async () => {
+        const launch = jest.spyOn(CTraceProcessManager.prototype, 'launch').mockResolvedValue();
+        const waitForExit = jest.spyOn(CTraceProcessManager.prototype, 'waitForExit').mockResolvedValue(0);
+        const runningController = new CTraceController({ cTracePath: 'ctrace-path' });
+        const runningControllerAccess = runningController as unknown as CTraceControllerTestAccess;
+        runningControllerAccess.handleActiveSessionChanged(session);
+
+        await expect(runningController.run()).resolves.toBe(0);
+        await expect(runningController.run({ cbuildRunFilePath: '/workspace/provided.cbuild-run.yml' })).resolves.toBe(0);
+        const directController = new CTraceController({ cTracePath: 'ctrace-path' });
+        await expect(directController.run({ args: ['--version'] })).resolves.toBe(0);
+
+        expect(launch).toHaveBeenNthCalledWith(1, {
+            cbuildRunFilePath: expect.toEqualFsPath(CBUILD_RUN_FILE_PATH)
+        });
+        expect(launch).toHaveBeenNthCalledWith(2, {
+            cbuildRunFilePath: expect.toEqualFsPath('/workspace/provided.cbuild-run.yml')
+        });
+        expect(launch).toHaveBeenNthCalledWith(3, { args: ['--version'] });
+        expect(waitForExit).toHaveBeenCalledTimes(3);
+    });
+
+    it('decodes when a raw trace file is saved after the target stops', async () => {
+        await testAccess.handleDecodeTrigger(session);
+        now += 250;
+        await testAccess.handleRawTraceFileChanged(RAW_TRACE_URI);
+
+        expect(run).toHaveBeenCalledTimes(1);
+        expect(run).toHaveBeenCalledWith({
+            cbuildRunFilePath: expect.toEqualFsPath(CBUILD_RUN_FILE_PATH)
+        });
+    });
+
+    it('logs a failed ctrace decode', async () => {
+        run.mockResolvedValue(11);
+        const error = jest.spyOn(logger, 'error').mockImplementation();
+
+        await testAccess.handleDecodeTrigger(session);
+        now += 250;
+        await testAccess.handleRawTraceFileChanged(RAW_TRACE_URI);
+
+        expect(error).toHaveBeenCalledWith('ctrace process exited with code 11');
+        expect(openCapturedTrace).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['the default setting', undefined],
+        ['automatic opening is enabled', true],
+    ])('opens the captured trace after a successful decode with %s', async (_description, setting) => {
+        (vscode.workspace.getConfiguration as jest.Mock).mockReturnValue({
+            get: jest.fn().mockImplementation((name: string, defaultValue: unknown) =>
+                name === OPEN_CAPTURED_TRACE_AFTER_DECODE_SETTING ? setting ?? defaultValue : defaultValue)
+        });
+
+        await testAccess.handleDecodeTrigger(session);
+        now += 250;
+        await testAccess.handleRawTraceFileChanged(RAW_TRACE_URI);
+
+        expect(openCapturedTrace).toHaveBeenCalledTimes(1);
+        expect(openCapturedTrace).toHaveBeenCalledWith(CBUILD_RUN_FILE_PATH, { preserveFocus: false });
+    });
+
+    it('does not open a captured trace when automatic opening is disabled', async () => {
+        (vscode.workspace.getConfiguration as jest.Mock).mockReturnValue({
+            get: jest.fn().mockImplementation((setting: string) => setting === OPEN_CAPTURED_TRACE_AFTER_DECODE_SETTING ? false : undefined)
+        });
+
+        await testAccess.handleDecodeTrigger(session);
+        now += 250;
+        await testAccess.handleRawTraceFileChanged(RAW_TRACE_URI);
+
+        expect(openCapturedTrace).not.toHaveBeenCalled();
+    });
+
+    it('logs captured-trace opening failures without failing decoding', async () => {
+        const error = new Error('capture unavailable');
+        openCapturedTrace.mockRejectedValue(error);
+        const loggerError = jest.spyOn(logger, 'error').mockImplementation();
+
+        await testAccess.handleDecodeTrigger(session);
+        now += 250;
+        await expect(testAccess.handleRawTraceFileChanged(RAW_TRACE_URI)).resolves.toBeUndefined();
+
+        expect(loggerError).toHaveBeenCalledWith('Failed to open captured trace:', error);
+    });
+
+    it('decodes when the target stops shortly after a raw trace file is saved', async () => {
+        await testAccess.handleRawTraceFileChanged(RAW_TRACE_URI);
+        now += 250;
+        await testAccess.handleDecodeTrigger(session);
+
+        expect(run).toHaveBeenCalledTimes(1);
+        expect(run).toHaveBeenCalledWith({
+            cbuildRunFilePath: expect.toEqualFsPath(CBUILD_RUN_FILE_PATH)
+        });
+    });
+
+    it('does not decode when the raw trace file save is outside the correlation window', async () => {
+        await testAccess.handleDecodeTrigger(session);
+        now += 2_001;
+        await testAccess.handleRawTraceFileChanged(RAW_TRACE_URI);
+
+        expect(run).not.toHaveBeenCalled();
+    });
+
+    it('expires raw trace saves that predate a stop event', async () => {
+        await testAccess.handleRawTraceFileChanged(RAW_TRACE_URI);
+        now += 2_001;
+        await testAccess.handleDecodeTrigger(session);
+
+        expect(run).not.toHaveBeenCalled();
+    });
+
+    it('ignores a decode trigger without a debug session', async () => {
+        await testAccess.handleDecodeTrigger(undefined);
+
+        expect(run).not.toHaveBeenCalled();
+    });
+
+    it('consumes a raw trace save after decoding to prevent duplicate decodes', async () => {
+        await testAccess.handleRawTraceFileChanged(RAW_TRACE_URI);
+        await testAccess.handleDecodeTrigger(session);
+        now += 50;
+        await testAccess.handleDecodeTrigger(session);
+
+        expect(run).toHaveBeenCalledTimes(1);
+    });
+
+    it('decodes only the most recent pending session for a raw trace save', async () => {
+        const newerCbuildRunFilePath = '/workspace/newer+target.cbuild-run.yml';
+        const newerSession = createSession('session-2', newerCbuildRunFilePath);
+        await testAccess.handleDecodeTrigger(session);
+        now += 100;
+        await testAccess.handleDecodeTrigger(newerSession);
+        now += 100;
+        await testAccess.handleRawTraceFileChanged(RAW_TRACE_URI);
+
+        expect(run).toHaveBeenCalledTimes(1);
+        expect(run).toHaveBeenCalledWith({
+            cbuildRunFilePath: expect.toEqualFsPath(newerCbuildRunFilePath)
+        });
+    });
+
+    it('adds raw and captured trace watches on activation', async () => {
+        const tracker = debugTrackerFactory();
+        const traceWatch = traceWatchFactory();
+
+        await controller.activate(extensionContextFactory(), tracker, traceWatch.fileWatchManager);
+
+        expect(traceWatch.addWatch).toHaveBeenCalledTimes(2);
+        expect(traceWatch.addWatch).toHaveBeenCalledWith(expect.objectContaining({ id: 'ctrace-raw-trace' }));
+        expect(traceWatch.addWatch).toHaveBeenCalledWith(expect.objectContaining({ id: 'ctrace-captured-trace' }));
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+            'setContext',
+            'vscode-cmsis-debugger.hasCapturedTrace',
+            false
+        );
+    });
+
+    it('routes registered tracker events and removes its watch when disposed', async () => {
+        const tracker = debugTrackerFactory();
+        const trackerSession = createSession('tracker-session', CBUILD_RUN_FILE_PATH);
+        const traceWatch = traceWatchFactory();
+        const context = extensionContextFactory();
+
+        await controller.activate(context, tracker, traceWatch.fileWatchManager);
+        await tracker.callbacks.activeSession?.(trackerSession);
+        await tracker.callbacks.stopped?.({ session: trackerSession });
+        await tracker.callbacks.willStop?.(trackerSession);
+        context.subscriptions.at(-1)?.dispose();
+
+        expect(traceWatch.removeWatch).toHaveBeenCalledWith('ctrace-raw-trace');
+        expect(traceWatch.removeWatch).toHaveBeenCalledWith('ctrace-captured-trace');
+    });
+
+    it('forwards raw trace file creation and changes through its registered watch', async () => {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        const tracker = debugTrackerFactory();
+        const traceWatch = traceWatchFactory();
+        Object.defineProperty(vscode.workspace, 'workspaceFolders', { configurable: true, value: undefined });
+
+        try {
+            await controller.activate(extensionContextFactory(), tracker, traceWatch.fileWatchManager);
+            await waitForCondition('the raw trace watcher to be registered', () => traceWatch.addWatch.mock.calls.length === 2);
+            const watch = traceWatch.addWatch.mock.calls
+                .map(([options]) => options)
+                .find(options => options.id === 'ctrace-raw-trace');
+            if (watch === undefined) {
+                throw new Error('Expected a raw trace file watch.');
+            }
+            expect(watch.globPattern).toBe('.trace/*.{SWO,TB}.raw');
+
+            await watch.onDidCreate?.(RAW_TRACE_URI);
+            await watch.onDidChange?.(RAW_TRACE_URI);
+
+            expect(run).not.toHaveBeenCalled();
+        } finally {
+            Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+                configurable: true,
+                value: workspaceFolders
+            });
+        }
+    });
+
+    it('replaces the raw trace watch when the active solution changes', async () => {
+        const locator = new CBuildRunFileLocator();
+        let activeSolutionFolder = vscode.Uri.file('/workspace/first');
+        jest.spyOn(locator, 'getActiveSolutionFolder').mockImplementation(async () => activeSolutionFolder);
+        const activeSolutionWatch = activeSolutionWatchFactory();
+        const solutionController = new CTraceController({}, () => now, locator, activeSolutionWatch.cmsisJsonWatcher);
+        const traceWatch = traceWatchFactory();
+
+        await solutionController.activate(extensionContextFactory(), debugTrackerFactory(), traceWatch.fileWatchManager);
+        const firstWatch = traceWatch.addWatch.mock.calls
+            .map(([options]) => options)
+            .find(options => options.id === 'ctrace-raw-trace');
+        activeSolutionFolder = vscode.Uri.file('/workspace/second');
+        activeSolutionWatch.fireActiveSolutionChange({
+            previousActiveSolutionPath: '/workspace/first/first.csolution.yml',
+            activeSolutionPath: '/workspace/second/second.csolution.yml',
+            generation: 1
+        });
+        await waitForCondition('the replacement raw trace watcher', () => traceWatch.addWatch.mock.calls
+            .map(([options]) => options)
+            .some(options => options.id === 'ctrace-raw-trace'
+                && options.globPattern instanceof vscode.RelativePattern
+                && options.globPattern.base.fsPath === vscode.Uri.file('/workspace/second').fsPath));
+        const secondWatch = traceWatch.addWatch.mock.calls
+            .map(([options]) => options)
+            .find(options => options.id === 'ctrace-raw-trace'
+                && options.globPattern instanceof vscode.RelativePattern
+                && options.globPattern.base.fsPath === vscode.Uri.file('/workspace/second').fsPath);
+
+        expect(traceWatch.removeWatch).toHaveBeenCalledWith('ctrace-raw-trace');
+        expect(firstWatch?.globPattern).toBeInstanceOf(vscode.RelativePattern);
+        expect((firstWatch?.globPattern as vscode.RelativePattern).baseUri.fsPath)
+            .toBe(vscode.Uri.file('/workspace/first').fsPath);
+        expect(secondWatch?.globPattern).toBeInstanceOf(vscode.RelativePattern);
+        expect((secondWatch?.globPattern as vscode.RelativePattern).baseUri.fsPath)
+            .toBe(vscode.Uri.file('/workspace/second').fsPath);
+    });
+
+    it('refreshes captured trace availability when a captured CSV changes', async () => {
+        hasCapture.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+        const traceWatch = traceWatchFactory();
+
+        await controller.activate(extensionContextFactory(), debugTrackerFactory(), traceWatch.fileWatchManager);
+        const watch = traceWatch.addWatch.mock.calls
+            .map(([options]) => options)
+            .find(options => options.id === 'ctrace-captured-trace');
+        if (watch === undefined) {
+            throw new Error('Expected a captured trace file watch.');
+        }
+        await watch.onDidCreate?.(vscode.Uri.file('/workspace/.trace/solution+target.TB_0.csv'));
+
+        expect(vscode.commands.executeCommand).toHaveBeenLastCalledWith(
+            'setContext',
+            'vscode-cmsis-debugger.hasCapturedTrace',
+            true
+        );
+    });
+
+    it('does not require a file watch manager before activation', async () => {
+        const unactivatedController = new CTraceController();
+        const unactivatedControllerAccess = unactivatedController as unknown as CTraceControllerTestAccess;
+
+        await unactivatedControllerAccess.addRawTraceWatcher();
+        unactivatedControllerAccess.removeRawTraceWatcher();
+    });
+});

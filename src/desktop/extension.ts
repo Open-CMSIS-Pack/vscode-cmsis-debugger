@@ -28,15 +28,29 @@ import { ComponentViewer } from '../views/component-viewer/component-viewer';
 import { ComponentViewerTreeDataProvider } from '../views/component-viewer/component-viewer-tree-view';
 import { CorePeripherals } from '../views/core-peripherals/core-peripherals';
 import { clearAllViewState } from '../views/dynamic-view-states';
+import { TraceConfigurationWebviewProvider } from '../views/trace-configuration/trace-configuration-webview-provider';
+import { TraceConfigurationCommands } from '../views/trace-configuration/trace-configuration-commands';
+import { TraceCommands } from '../features/trace/trace-commands';
+import { PyTsController } from '../features/trace/pyts-controller';
+import { CTraceController } from '../features/trace/ctrace-controller';
+import { CapturedTraceResolver } from '../features/trace/captured-trace-resolver';
+import { CBuildRunFileLocator } from '../cbuild-run';
+import { CmsisJsonWatcher } from '../cmsis-files';
+import { FileWatchManager } from './filesystem/file-watch-manager';
+import { CsvTableEditorProvider } from '../views/csv-table-viewer/csv-table-editor-provider';
 
 const BUILTIN_TOOLS_PATHS = [
     'tools/pyocd/pyocd',
-    'tools/gdb/bin/arm-none-eabi-gdb'
+    'tools/gdb/bin/arm-none-eabi-gdb',
+    // Temporary, these tools are expected to ship separately in future
+    'tools/ctrace/ctrace',
+    'tools/pyts/pyTS'
 ];
 
 let liveWatchTreeDataProvider: LiveWatchTreeDataProvider;
 let componentViewerTreeDataProvider: ComponentViewerTreeDataProvider;
 let corePeripheralsTreeDataProvider: ComponentViewerTreeDataProvider;
+let traceConfiguration: TraceConfigurationWebviewProvider | undefined;
 
 const askForReload = async (): Promise<void> => {
     const result = await vscode.window.showWarningMessage('Cannot activate all Arm CMSIS Debugger views. Please reload the window.', 'Reload Window');
@@ -49,6 +63,13 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     let canCompleteActivation = true;
     const genericCommands = new GenericCommands();
     const gdbtargetDebugTracker = new GDBTargetDebugTracker();
+    const fileWatchManager = new FileWatchManager();
+    const cbuildRunFileLocator = new CBuildRunFileLocator();
+    const cmsisJsonWatcher = new CmsisJsonWatcher(cbuildRunFileLocator);
+    const pyTsController = new PyTsController({}, cbuildRunFileLocator, cmsisJsonWatcher);
+    const capturedTraceResolver = new CapturedTraceResolver(cbuildRunFileLocator);
+    const cTraceController = new CTraceController({}, Date.now, cbuildRunFileLocator, cmsisJsonWatcher, capturedTraceResolver);
+    const traceCommands = new TraceCommands(pyTsController, cTraceController, capturedTraceResolver);
     const gdbtargetConfigurationProvider = new GDBTargetConfigurationProvider();
     const cpuStates = new CpuStates();
     const cpuStatesCommands = new CpuStatesCommands();
@@ -59,10 +80,31 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     corePeripheralsTreeDataProvider = new ComponentViewerTreeDataProvider();
     const componentViewer = new ComponentViewer(context, componentViewerTreeDataProvider);
     const corePeripherals = new CorePeripherals(context, corePeripheralsTreeDataProvider);
+    traceConfiguration = new TraceConfigurationWebviewProvider(
+        context.extensionUri,
+        undefined,
+        fileWatchManager,
+        cbuildRunFileLocator,
+        cmsisJsonWatcher,
+        pyTsController
+    );
+    const traceConfigurationCommands = new TraceConfigurationCommands();
+    const csvTableEditorProvider = new CsvTableEditorProvider(
+        context.extensionUri,
+        (solutionSet, ctraceRef, ctraceFilePath) =>
+            traceConfiguration?.focusCTraceReference(solutionSet, ctraceRef, ctraceFilePath)
+            ?? Promise.resolve(false)
+    );
 
     addToolsToPath(context, BUILTIN_TOOLS_PATHS);
+    fileWatchManager.activate(context);
+    await cmsisJsonWatcher.activate(context, fileWatchManager);
     // Activate generic commands
     genericCommands.activate(context);
+    await pyTsController.activate(context, gdbtargetDebugTracker, fileWatchManager);
+    await cTraceController.activate(context, gdbtargetDebugTracker, fileWatchManager);
+    // Activate trace commands
+    traceCommands.activate(context);
     // Activate components
     gdbtargetDebugTracker.activate(context);
     gdbtargetConfigurationProvider.activate(context, gdbtargetDebugTracker);
@@ -85,6 +127,11 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
     if (!await corePeripherals.activate(gdbtargetDebugTracker)) {
         canCompleteActivation = false;
     }
+    // Trace Configuration
+    logger.debug('Activating CMSIS Trace Configuration');
+    await traceConfiguration.activate(context);
+    traceConfigurationCommands.activate(context);
+    csvTableEditorProvider.activate(context);
 
     // Register reset dynamic view state command
     context.subscriptions.push(
@@ -120,6 +167,9 @@ export const deactivate = async (): Promise<void> => {
     }
     if (corePeripheralsTreeDataProvider) {
         corePeripheralsTreeDataProvider.clear();
+    }
+    if (traceConfiguration) {
+        await traceConfiguration.deactivate();
     }
     logger.debug('CMSIS Debugger deactivated');
 };

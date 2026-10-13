@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Arm Limited
+ * Copyright 2025-2026 Arm Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 import { VscodeFileReader } from './file-reader';
 
 const TEST_FILE_PATH = 'test-data/fileReaderTest.txt'; // Relative to repo root
-const TEST_FILE_CONTENTS = 'Simple file';
+const TEST_FILE_CONTENTS = 'Simple file\n';
 
 describe('FileReader', () => {
     it('parses a simple file', async () =>{

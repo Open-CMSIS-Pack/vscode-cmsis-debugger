@@ -15,30 +15,116 @@
  */
 
 import * as vscode from 'vscode';
+import { CmsisJsonWatcher } from '../cmsis-files';
 import { extensionContextFactory } from '../__test__/vscode.factory';
 import { logger } from '../logger';
 import { activate, deactivate } from './extension';
 import { ComponentViewerTreeDataProvider } from '../views/component-viewer/component-viewer-tree-view';
 import { LiveWatchTreeDataProvider } from '../views/live-watch/live-watch';
+import { CSV_TABLE_EDITOR_VIEW_TYPE, CsvTableEditorProvider } from '../views/csv-table-viewer/csv-table-editor-provider';
+import { TraceConfigurationWebviewProvider } from '../views/trace-configuration/trace-configuration-webview-provider';
+import { FileWatchManager } from './filesystem/file-watch-manager';
 
 describe('extension', () => {
+    const extensionContexts: vscode.ExtensionContext[] = [];
+
+    function createExtensionContext(): vscode.ExtensionContext {
+        const context = extensionContextFactory();
+        extensionContexts.push(context);
+        return context;
+    }
+
+    afterEach(() => {
+        extensionContexts.splice(0).forEach(context => {
+            (context.subscriptions as Array<vscode.Disposable | undefined>)
+                .forEach(disposable => disposable?.dispose());
+        });
+    });
 
     describe('activate', () => {
-        const liveWatchCommands = [ 'cmsis-debugger.liveWatch.open', 'cmsis-debugger.liveWatch.focus' ];
-        const componentViewerCommands = [ 'cmsis-debugger.componentViewer.open', 'cmsis-debugger.componentViewer.focus' ];
-        const corePeripheralsCommands = [ 'cmsis-debugger.corePeripherals.open', 'cmsis-debugger.corePeripherals.focus' ];
+        const liveWatchCommands = ['cmsis-debugger.liveWatch.open', 'cmsis-debugger.liveWatch.focus'];
+        const componentViewerCommands = ['cmsis-debugger.componentViewer.open', 'cmsis-debugger.componentViewer.focus'];
+        const corePeripheralsCommands = ['cmsis-debugger.corePeripherals.open', 'cmsis-debugger.corePeripherals.focus'];
 
         it('activates extension without asking to reload', async () => {
             const loggerSpy = jest.spyOn(logger, 'debug');
-            await activate(extensionContextFactory());
+            await activate(createExtensionContext());
             expect(loggerSpy).toHaveBeenCalledWith('CMSIS Debugger activated');
             expect(vscode.window.showWarningMessage).not.toHaveBeenCalledWith('Cannot activate all Arm CMSIS Debugger views. Please reload the window.', 'Reload Window');
         });
 
+        it('retains the Trace Data table while its editor tab is hidden', async () => {
+            await activate(createExtensionContext());
+
+            expect(vscode.window.registerCustomEditorProvider).toHaveBeenCalledWith(
+                CSV_TABLE_EDITOR_VIEW_TYPE,
+                expect.any(CsvTableEditorProvider),
+                { webviewOptions: { retainContextWhenHidden: true } },
+            );
+        });
+
+        it('awaits trace configuration initialization before completing activation', async () => {
+            let completeTraceConfigurationActivation: (() => void) | undefined;
+            let reportTraceConfigurationActivationStarted: (() => void) | undefined;
+            const traceConfigurationActivation = new Promise<void>(resolve => {
+                completeTraceConfigurationActivation = resolve;
+            });
+            const traceConfigurationActivationStarted = new Promise<void>(resolve => {
+                reportTraceConfigurationActivationStarted = resolve;
+            });
+            const traceConfigurationActivateSpy = jest
+                .spyOn(TraceConfigurationWebviewProvider.prototype, 'activate')
+                .mockImplementation(() => {
+                    reportTraceConfigurationActivationStarted?.();
+                    return traceConfigurationActivation;
+                });
+
+            try {
+                let debuggerActivationCompleted = false;
+                const debuggerActivation = activate(createExtensionContext());
+                void debuggerActivation.then(() => {
+                    debuggerActivationCompleted = true;
+                });
+
+                await traceConfigurationActivationStarted;
+
+                expect(debuggerActivationCompleted).toBe(false);
+
+                completeTraceConfigurationActivation?.();
+                await debuggerActivation;
+
+                expect(debuggerActivationCompleted).toBe(true);
+            } finally {
+                traceConfigurationActivateSpy.mockRestore();
+            }
+        });
+
+        it('activates and disposes one shared cmsis.json watcher', async () => {
+            const cmsisJsonWatcherActivateSpy = jest.spyOn(CmsisJsonWatcher.prototype, 'activate');
+            const cmsisJsonWatcherDisposeSpy = jest.spyOn(CmsisJsonWatcher.prototype, 'dispose');
+            const context = createExtensionContext();
+
+            try {
+                await activate(context);
+
+                expect(cmsisJsonWatcherActivateSpy).toHaveBeenCalledTimes(1);
+                expect(cmsisJsonWatcherActivateSpy).toHaveBeenCalledWith(context, expect.any(FileWatchManager));
+
+                (context.subscriptions as Array<vscode.Disposable | undefined>)
+                    .forEach(disposable => disposable?.dispose());
+
+                expect(cmsisJsonWatcherDisposeSpy).toHaveBeenCalledTimes(1);
+                extensionContexts.splice(extensionContexts.indexOf(context), 1);
+            } finally {
+                cmsisJsonWatcherActivateSpy.mockRestore();
+                cmsisJsonWatcherDisposeSpy.mockRestore();
+            }
+        });
+
         it.each([
-            { missingView: 'Live Watch view', availableCommands: [ ...componentViewerCommands, ...corePeripheralsCommands ] },
-            { missingView: 'Component Viewer', availableCommands: [ ...liveWatchCommands, ...corePeripheralsCommands ] },
-            { missingView: 'Core Peripherals', availableCommands: [ ...liveWatchCommands, ...componentViewerCommands ] }
+            { missingView: 'Live Watch view', availableCommands: [...componentViewerCommands, ...corePeripheralsCommands] },
+            { missingView: 'Component Viewer', availableCommands: [...liveWatchCommands, ...corePeripheralsCommands] },
+            { missingView: 'Core Peripherals', availableCommands: [...liveWatchCommands, ...componentViewerCommands] }
         ])('activates extension and asks to reload because $missingView is not loaded', async ({ availableCommands }) => {
             const loggerSpy = jest.spyOn(logger, 'debug');
             // Resolve once per each view in extension, do not permanently overload global mock
@@ -47,7 +133,7 @@ describe('extension', () => {
                 .mockResolvedValueOnce(availableCommands)
                 .mockResolvedValueOnce(availableCommands)
                 .mockResolvedValueOnce(availableCommands);
-            await activate(extensionContextFactory());
+            await activate(createExtensionContext());
             expect(loggerSpy).toHaveBeenCalledWith('CMSIS Debugger activation incomplete');
             expect(vscode.window.showWarningMessage).toHaveBeenCalledWith('Cannot activate all Arm CMSIS Debugger views. Please reload the window.', 'Reload Window');
         });
@@ -55,14 +141,14 @@ describe('extension', () => {
         it('reloads window if users clicks \'Reload Window\' button', async () => {
             (vscode.commands.getCommands as jest.Mock).mockResolvedValueOnce([]);
             (vscode.window.showWarningMessage as jest.Mock).mockResolvedValueOnce('Reload Window');
-            await activate(extensionContextFactory());
+            await activate(createExtensionContext());
             expect(vscode.commands.executeCommand).toHaveBeenCalledWith('workbench.action.reloadWindow');
         });
 
         it('does not reload window if users clicks \'x\' button', async () => {
             (vscode.commands.getCommands as jest.Mock).mockResolvedValueOnce([]);
             (vscode.window.showWarningMessage as jest.Mock).mockResolvedValueOnce(undefined);
-            await activate(extensionContextFactory());
+            await activate(createExtensionContext());
             expect(vscode.commands.executeCommand).not.toHaveBeenCalledWith('workbench.action.reloadWindow');
         });
 
@@ -80,11 +166,13 @@ describe('extension', () => {
         });
 
         it('deactivates extension after activation', async () => {
-            await activate(extensionContextFactory());
+            const traceConfigurationDeactivateSpy = jest.spyOn(TraceConfigurationWebviewProvider.prototype, 'deactivate');
+            await activate(createExtensionContext());
             await deactivate();
             expect(loggerSpy).toHaveBeenCalledWith('CMSIS Debugger deactivated');
             expect(treeDataProviderClearSpy).toHaveBeenCalledTimes(2); // Component Viewer and Core Peripherals
             expect(liveWatchDeactivateSpy).toHaveBeenCalled();
+            expect(traceConfigurationDeactivateSpy).toHaveBeenCalled();
         });
 
         // Cannot test deactivation without activation due to global variables in
@@ -92,4 +180,3 @@ describe('extension', () => {
 
     });
 });
-

@@ -38,7 +38,7 @@ describe('CorePeripheralsIndexReader', () => {
         const indexEntries = indexReader.getCorePeripherals().map(entry => path.resolve(TEST_INDEX_BASE_PATH, entry.file));
         expect(indexEntries.length).toBe(scvdFilePathsInDir.length);
         scvdFilePathsInDir.forEach(filePath => {
-            expect(indexEntries.includes(filePath)).toBe(true);
+            expect(indexEntries).toContainEqual(expect.toEqualFsPath(filePath));
         });
     });
 

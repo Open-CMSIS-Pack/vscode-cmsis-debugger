@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-// NOTE: Keep vscode imports out of this file.
-// Mocking path in this module's tests causes trouble with path-require in global vscode mock.
-// Can be merged once we found a better solution for path usage in global vscode mock.
-
 import * as os from 'os';
 import * as path from 'path';
+import * as vscode from 'vscode';
+
+import { logger } from './logger';
 
 export const isWindows = os.platform() === 'win32';
 
@@ -86,4 +85,81 @@ export const calculateTime = (states: bigint, frequency: number): string => {
 
 export const waitForMs = async (ms: number): Promise<void> => {
     return new Promise<void>(resolve => setTimeout(() => resolve(), ms));
+};
+
+export const waitForImmediate = async (): Promise<void> => {
+    return new Promise<void>(resolve => setImmediate(resolve));
+};
+
+export interface WaitForConditionOptions {
+    timeoutMs?: number;
+    intervalMs?: number;
+}
+
+export const waitForCondition = async (
+    description: string,
+    condition: () => boolean | Promise<boolean>,
+    options: WaitForConditionOptions = {}
+): Promise<void> => {
+    const timeoutAt = Date.now() + (options.timeoutMs ?? 2000);
+    const intervalMs = options.intervalMs ?? 10;
+
+    while (Date.now() < timeoutAt) {
+        if (await condition()) {
+            return;
+        }
+
+        await waitForMs(intervalMs);
+    }
+
+    throw new Error(`Timed out waiting for ${description}.`);
+};
+
+export const normalizeFsPath = (fileName: string | undefined): string | undefined => {
+    if (!fileName) {
+        return undefined;
+    }
+
+    const normalized = path.normalize(fileName);
+    return isWindows ? normalized.toLowerCase() : normalized;
+};
+
+export const getObjectProperty = (value: unknown, key: string): unknown => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return undefined;
+    }
+    return Reflect.get(value, key);
+};
+
+export const isFileNotFoundError = (error: unknown): boolean => {
+    if (!error || typeof error !== 'object') {
+        return false;
+    }
+    const errorWithCode = error as { code?: unknown };
+    return errorWithCode.code === 'ENOENT' || errorWithCode.code === 'FileNotFound';
+};
+
+export const fileExists = async (uri: vscode.Uri): Promise<boolean> => {
+    try {
+        await vscode.workspace.fs.stat(uri);
+    } catch (error) {
+        if (!isFileNotFoundError(error)) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logger.error(`Failed to find file '${uri.fsPath}': ${errorMessage}`);
+        }
+        return false;
+    }
+    return true;
+};
+
+export const containsSubstringsInOrder = (text: string, substrings: string[]): boolean => {
+    let previousIndex = -1;
+    return substrings.every(substring => {
+        const index = text.indexOf(substring, previousIndex + 1);
+        if (index <= previousIndex) {
+            return false;
+        }
+        previousIndex = index;
+        return true;
+    });
 };

@@ -19,6 +19,8 @@ const { URI } = require('vscode-uri');
 const path = require('path');
 const fs = require('fs');
 
+URI.joinPath = (base, ...paths) => URI.file(path.join(base.fsPath, ...paths));
+
 const EnvironmentVariableMutatorType = {
     Replace: 1,
     Append: 2,
@@ -35,10 +37,17 @@ const ConfigurationTarget = {
     Workspace: 2,
 };
 
-const MockTreeItemCollapsibleState = { 
-    None: 0, 
-    Collapsed: 1, 
-    Expanded: 2 
+const FileType = {
+    Unknown: 0,
+    File: 1,
+    Directory: 2,
+    SymbolicLink: 64,
+};
+
+const MockTreeItemCollapsibleState = {
+    None: 0,
+    Collapsed: 1,
+    Expanded: 2
 };
 
 class MockTreeItem {
@@ -50,6 +59,44 @@ class MockTreeItem {
         this.label = label;
         this.collapsibleState = collapsibleState;
     }
+}
+
+class MockRelativePattern {
+    baseUri;
+    base;
+    pattern;
+    constructor(base, pattern) {
+        this.baseUri = base.uri ?? base;
+        this.base = base;
+        this.pattern = pattern;
+    }
+}
+
+class MockTabInputCustom {
+    constructor(uri, viewType) {
+        this.uri = uri;
+        this.viewType = viewType;
+    }
+}
+
+function createMockFileSystemWatcher() {
+    const handlers = { create: [], change: [], delete: [] };
+    return {
+        onDidCreate: jest.fn(callback => {
+            handlers.create.push(callback);
+            return { dispose: jest.fn() };
+        }),
+        onDidChange: jest.fn(callback => {
+            handlers.change.push(callback);
+            return { dispose: jest.fn() };
+        }),
+        onDidDelete: jest.fn(callback => {
+            handlers.delete.push(callback);
+            return { dispose: jest.fn() };
+        }),
+        dispose: jest.fn(),
+        _handlers: handlers,
+    };
 }
 
 module.exports = {
@@ -65,9 +112,15 @@ module.exports = {
         };
     }),
     Uri: URI,
+    TabInputCustom: MockTabInputCustom,
+    ViewColumn: { Beside: -2, Two: 2 },
+    RelativePattern: MockRelativePattern,
     TreeItem: MockTreeItem,
     TreeItemCollapsibleState: MockTreeItemCollapsibleState,
     window: {
+        tabGroups: {
+            get all() { return []; },
+        },
         createOutputChannel: jest.fn(() => ({
             appendLine: jest.fn(),
             trace: jest.fn(),
@@ -77,8 +130,8 @@ module.exports = {
             error: jest.fn(),
         })),
         createStatusBarItem: jest.fn(() => ({
-    		id: 'mockStatusBarItem',
-		    alignment: StatusBarAlignment.Left,
+            id: 'mockStatusBarItem',
+            alignment: StatusBarAlignment.Left,
             text: '',
             show: jest.fn(),
             hide: jest.fn(),
@@ -92,11 +145,14 @@ module.exports = {
         })),
         registerTreeDataProvider: jest.fn(() => ({ dispose: jest.fn() })),
         registerWebviewViewProvider: jest.fn(() => ({ dispose: jest.fn() })),
+        registerCustomEditorProvider: jest.fn(() => ({ dispose: jest.fn() })),
         showErrorMessage: jest.fn(),
         showInformationMessage: jest.fn(() => Promise.resolve(undefined)),
         showWarningMessage: jest.fn(),
         showInputBox: jest.fn(),
+        showOpenDialog: jest.fn(),
         showQuickPick: jest.fn(),
+        showTextDocument: jest.fn(),
         createInputBox: jest.fn(() => {
             const handlers = { onDidChangeValue: [], onDidAccept: [], onDidHide: [] };
             return {
@@ -127,12 +183,41 @@ module.exports = {
             update: jest.fn().mockResolvedValue(undefined),
             inspect: jest.fn().mockReturnValue(undefined),
         })),
+        onDidChangeConfiguration: jest.fn(() => ({ dispose: jest.fn() })),
         fs: {
             readFile: jest.fn(uri => {
                 const buffer = fs.readFileSync(uri.fsPath);
                 return new Promise(resolve => resolve(new Uint8Array(buffer)));
-            })
+            }),
+            writeFile: jest.fn((uri, contents) => {
+                fs.mkdirSync(path.dirname(uri.fsPath), { recursive: true });
+                fs.writeFileSync(uri.fsPath, Buffer.from(contents));
+                return Promise.resolve();
+            }),
+            createDirectory: jest.fn(uri => {
+                fs.mkdirSync(uri.fsPath, { recursive: true });
+                return Promise.resolve();
+            }),
+            delete: jest.fn(uri => fs.promises.rm(uri.fsPath, { force: true })),
+            readDirectory: jest.fn(() => Promise.resolve([])),
+            stat: jest.fn(uri => new Promise((resolve, reject) => {
+                fs.stat(uri.fsPath, (error, stats) => {
+                    if (error) {
+                        reject(error);
+                        return;
+                    }
+                    resolve({
+                        type: stats.isDirectory() ? FileType.Directory : FileType.File,
+                        ctime: stats.ctimeMs,
+                        mtime: stats.mtimeMs,
+                        size: stats.size,
+                    });
+                });
+            }))
         },
+        findFiles: jest.fn(() => Promise.resolve([])),
+        getWorkspaceFolder: jest.fn(() => undefined),
+        createFileSystemWatcher: jest.fn(() => createMockFileSystemWatcher()),
         workspaceFolders: [
             {
                 uri: URI.file(path.join(__dirname, '..')),
@@ -143,6 +228,7 @@ module.exports = {
     },
     extensions: {
         getExtension: jest.fn(),
+        onDidChange: jest.fn(() => ({ dispose: jest.fn() })),
     },
     commands: {
         executeCommand: jest.fn(),
@@ -155,6 +241,8 @@ module.exports = {
             'cmsis-debugger.componentViewer.focus',
             'cmsis-debugger.corePeripherals.open',
             'cmsis-debugger.corePeripherals.focus',
+            'cmsis-debugger.traceConfiguration.open',
+            'cmsis-debugger.traceConfiguration.focus',
         ])),
         registerCommand: jest.fn(),
     },
@@ -172,4 +260,5 @@ module.exports = {
     EnvironmentVariableMutatorType,
     StatusBarAlignment,
     ConfigurationTarget,
+    FileType,
 };

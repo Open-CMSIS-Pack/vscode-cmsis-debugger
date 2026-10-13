@@ -255,7 +255,7 @@ export class ExpressionOptimizer {
         const cMap = new WeakMap<ASTNode, CValue>();
         const ast = this.fold(parsed.ast, diagnostics, stats, cMap);
         if (diagnostics.some((d) => d.type === 'error')) {
-            componentViewerLogger.error(`[expression-optimizer][fold] full=${stats.full} partial=${stats.partial} identity=${stats.identity}`);
+            componentViewerLogger.debug(`[expression-optimizer][fold] full=${stats.full} partial=${stats.partial} identity=${stats.identity}`);
         }
         const constValue = parsed.isPrintf ? undefined : ast.constValue;
         return {

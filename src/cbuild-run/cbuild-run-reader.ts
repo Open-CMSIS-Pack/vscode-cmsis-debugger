@@ -15,11 +15,16 @@
  */
 
 import * as path from 'path';
-import * as vscode from 'vscode';
 import * as yaml from 'yaml';
-import { CbuildRunRootType, CbuildRunType } from './cbuild-run-types';
+import {
+    CbuildRunRootType,
+    CbuildRunType,
+    ProcessorType,
+    TraceModeType
+} from './cbuild-run-types';
 import { FileReader, VscodeFileReader } from '../desktop/file-reader';
 import { getCmsisPackRootPath } from '../utils';
+import { CBuildRunFileLocator } from './cbuild-run-file-locator';
 
 const CMSIS_PACK_ROOT_ENVVAR = '${CMSIS_PACK_ROOT}';
 
@@ -28,14 +33,35 @@ export class CbuildRunReader {
     private cbuildRunFilePath: string | undefined;
     private cbuildRunDir: string | undefined;
 
-    constructor(private reader: FileReader = new VscodeFileReader()) {}
+    public constructor(
+        private readonly reader: FileReader = new VscodeFileReader(),
+        private readonly cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator()
+    ) {}
 
     public hasContents(): boolean {
         return !!this.cbuildRun;
     }
 
+    public getFilePath(): string | undefined {
+        return this.cbuildRunFilePath;
+    }
+
     public getContents(): CbuildRunType | undefined {
         return this.cbuildRun;
+    }
+
+    public getTargetSet(): string | undefined {
+        return this.cbuildRun?.['target-set'];
+    }
+
+    /**
+     * Returns the processor that starts first and boots the system. When the
+     * generated debugger metadata does not provide a start processor, the
+     * first processor in system resources is used as the default.
+     */
+    public getStartPname(): string | undefined {
+        return this.cbuildRun?.debugger?.['start-pname']
+            ?? this.cbuildRun?.['system-resources']?.processors?.[0]?.pname;
     }
 
     public async parse(filePath: string): Promise<void> {
@@ -47,9 +73,9 @@ export class CbuildRunReader {
         }
         this.cbuildRunFilePath = filePath;
         const dirName = path.dirname(this.cbuildRunFilePath);
-        const workspace = vscode.workspace.workspaceFolders?.at(0)?.uri.fsPath;
+        const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
         // Only considers workspace if dirName is not absolute.
-        this.cbuildRunDir = workspace ? path.resolve(workspace, dirName) : dirName;
+        this.cbuildRunDir = activeSolutionFolder ? path.resolve(activeSolutionFolder.fsPath, dirName) : dirName;
     }
 
     public getSvdFilePaths(cmsisPackRoot?: string, pname?: string): string[] {
@@ -106,6 +132,38 @@ export class CbuildRunReader {
             return [];
         }
         return pnameProcessors.map(p => p.pname!);
+    }
+
+    /**
+     * Returns processor metadata from system-resources.processors. Consumers
+     * that only need the generated core names can use this helper instead of
+     * reaching through getContents() and duplicating the cbuild-run shape.
+     */
+    public getProcessors(): ProcessorType[] {
+        return this.cbuildRun?.['system-resources']?.processors ?? [];
+    }
+
+    /**
+     * Returns the validated mode from the first known debugger.trace[] entry.
+     * Unsupported values, unknown entry types, and the legacy string trace shape are ignored.
+     */
+    public getTraceMode(): TraceModeType | undefined {
+        const trace = this.cbuildRun?.debugger?.trace;
+        if (!trace || typeof trace === 'string') {
+            return undefined;
+        }
+
+        for (const traceEntry of trace) {
+            if (!('swo-uart' in traceEntry) && !('trace-buffer' in traceEntry)) {
+                continue;
+            }
+            const mode = traceEntry.mode ?? 'off';
+            if (mode === 'off' || mode === 'server' || mode === 'file') {
+                return mode;
+            }
+        }
+
+        return undefined;
     }
 
     public getTargetType(): string | undefined {
