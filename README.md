@@ -542,43 +542,43 @@ Before configuring individual trace sources, enable SWO trace for the target.
 
 1. Select the debug adapter
 
-- Open **Manage Solution** and select the debug adapter to use with the target.
-- **Save** the solution configuration before continuing.
+    - Open **Manage Solution** and select the debug adapter to use with the target.
+    - **Save** the solution configuration before continuing.
 
-For example, you can use an onboard ST-Link debug adapter with pyOCD.
+    For example, you can use an onboard ST-Link debug adapter with pyOCD.
 
 2. Enable SWO
 
-From **Manage Solution**, select **Edit csolution.yml** and add a `trace` section to the debugger configuration.
+    From **Manage Solution**, select **Edit csolution.yml** and add a `trace` section to the debugger configuration.
 
-For example:
+    For example:
 
-```yaml
-debugger:
-  name: ST-Link@pyOCD
-  clock: 4000000
-  protocol: swd
-  trace:
-    - swo-uart:
-      mode: file
-      input-clock: 84000000
-      output-clock: 1500000
-```
+    ```yaml
+      debugger:
+        name: ST-Link@pyOCD
+        clock: 4000000
+        protocol: swd
+        trace:
+          - swo-uart:
+            mode: file
+            input-clock: 84000000
+            output-clock: 1500000
+    ```
 
-|  Key  | Description |
-|-------|-------------|
-| `swo-uart` | Selects SWO as the trace output. |
-| `mode: file` | Captures the trace to a file for subsequent analysis |
-| `input-clock` | Specifies the clock used by the target trace hardware. It must correspond to the actual processor or trace clock used by the application. |
-| `output-clock` | Specifies the SWO communication rate used to transfer trace data to the debug adapter. |
+    |  Key  | Description |
+    |-------|-------------|
+    | `swo-uart` | Selects SWO as the trace output. |
+    | `mode: file` | Captures the trace to a file for subsequent analysis |
+    | `input-clock` | Specifies the clock used by the target trace hardware. It must correspond to the actual processor or trace clock used by the application. |
+    | `output-clock` | Specifies the SWO communication rate used to transfer trace data to the debug adapter. |
 
-In the example above, the trace input clock is 84 MHz and the SWO output clock is 1.5 MHz.
+    In the example above, the trace input clock is 84 MHz and the SWO output clock is 1.5 MHz.
 
-> &#x26A0; **Important:**
->
-> The appropriate clock values depend on the target and application configuration. An incorrect `input-clock` can prevent SWO trace from being decoded correctly. Verify the processor clock used by your application.
+    > &#x26A0; **Important:**
+    >
+    > The appropriate clock values depend on the target and application configuration. An incorrect `input-clock` can prevent SWO trace from being decoded correctly. Verify the processor clock used by your application.
 
-Save `csolution.yml`. The [**Trace Generation**](#configure-trace-sources) view now shows the trace capabilities of the selected processor.
+    Save `csolution.yml`. The [**Trace Generation**](#configure-trace-sources) view now shows the trace capabilities of the selected processor.
 
 #### Hardware trace setup in dbgconf
 
