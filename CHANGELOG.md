@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.9.1
+
+- Includes updated [pyTS v0.8.0](https://github.com/Open-CMSIS-Pack/pyTS/releases/tag/v0.8.0).
+- Includes updated [ctrace v0.4.1](https://github.com/Open-CMSIS-Pack/devtools/releases/tag/tools%2Fctrace%2F0.4.1).
+- Includes pyOCD nightly development build v0.45.2.dev61+gf8ca7e4b7 of the upcoming v0.46.0 distribution.
+
 ## 1.9.0
 
 - Pre-release with early access to workflows for trace generation, SWO and Trace Buffer capture to raw binary files, and decode to CSV output files and their inspection.
