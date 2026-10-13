@@ -404,7 +404,7 @@ program execution, and inspect the decoded trace data directly in Visual Studio 
 
 ![Trace Generation](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/trace-generation.png)
 
-In the debug bar, use the
+In the debug toolbar, use the
 ![Show captured trace](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/trace-show-captured.png)
 button to open the generated `.csv` trace file in the [**Trace Data** view](#review-captured-trace-data).
 
