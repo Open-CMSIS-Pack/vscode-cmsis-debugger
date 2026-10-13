@@ -422,7 +422,7 @@ export const CsvTableViewer = (): JSX.Element => {
         ? `minmax(${width}px, 1fr)`
         : `${width}px`).join(' ');
     const tableWidth = effectiveColumnWidths.reduce((width, columnWidth) => width + columnWidth, 0);
-    const tableLayoutWidth = `max(99%, ${tableWidth}px)`;
+    const tableLayoutWidth = `max(100%, ${tableWidth}px)`;
     const activeRowIsRendered = selection.caret !== null
         && selection.caret >= renderedRowStart
         && selection.caret < renderedRowEnd;
