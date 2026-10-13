@@ -140,6 +140,10 @@ export class TraceConfigurationRowBuilder {
             this.appendStreamSynchronizationRows(context, node, nodePath, label, depth);
             return;
         }
+        if (this.isTimeSyncPath(nodePath)) {
+            this.appendTimeSyncRows(context, node, nodePath, label, depth);
+            return;
+        }
         const id = this.pathToId(nodePath);
         const childEntries = this.getChildEntries(node, nodePath);
         const hasChildren = childEntries.length > 0;
@@ -204,6 +208,39 @@ export class TraceConfigurationRowBuilder {
         }
         childEntries.forEach(child => {
             this.appendNodeRows(context, child.node, child.path, child.label, depth + 1);
+        });
+    }
+
+    private appendTimeSyncRows(
+        context: TraceRowBuildContext,
+        node: YamlTreeItem,
+        nodePath: (string | number)[],
+        label: string,
+        depth: number
+    ): void {
+        const id = this.pathToId(nodePath);
+        const expanded = context.expandedRows.has(id);
+        context.rows.push({
+            ...this.createRow(node, nodePath, label, depth, true, expanded, context),
+            addChildKind: undefined,
+            control: 'none',
+        });
+        if (!expanded) {
+            return;
+        }
+        const itmPath = [...nodePath, 'ITM'];
+        context.rows.push({
+            id: this.pathToId(itmPath),
+            label: 'ITM',
+            path: itmPath,
+            depth: depth + 1,
+            kind: 'scalar',
+            control: 'select',
+            value: this.getTimeSyncItm(node, nodePath),
+            options: TraceConfigurationTypes.TIME_SYNC_OPTIONS,
+            hasChildren: false,
+            expanded: false,
+            removable: false,
         });
     }
 
@@ -1106,6 +1143,9 @@ export class TraceConfigurationRowBuilder {
         if (this.isPresenceCheckboxPath(nodePath)) {
             return 'checkbox';
         }
+        if (this.isTimeSyncPath(nodePath)) {
+            return 'select';
+        }
         if (scalarValue === undefined) {
             return 'none';
         }
@@ -1172,10 +1212,13 @@ export class TraceConfigurationRowBuilder {
             return TraceConfigurationTypes.CONDITION_ACCESS_OPTIONS;
         }
         if (this.isTimestampsPrescalerPath(nodePath)) {
-            return ['1', '4', '16', '64'];
+            return TraceConfigurationTypes.TIME_STAMPS_PRESCALER_OPTIONS;
         }
         if (this.isDataOutputPath(nodePath)) {
             return TraceConfigurationTypes.DATA_OUTPUT_OPTIONS;
+        }
+        if (this.isTimeSyncPath(nodePath)) {
+            return TraceConfigurationTypes.TIME_SYNC_OPTIONS;
         }
         if (this.isMatchSizePath(nodePath)) {
             return TraceConfigurationTypes.MATCH_SIZE_OPTIONS;
@@ -1254,8 +1297,7 @@ export class TraceConfigurationRowBuilder {
             this.isProcessorPath(nodePath),
             this.isTimestampsPath(nodePath),
             this.isExceptionsPath(nodePath),
-            this.isInstructionsPath(nodePath),
-            this.isTimeSyncPath(nodePath)
+            this.isInstructionsPath(nodePath)
         ].some(Boolean);
     }
 
@@ -1771,6 +1813,19 @@ export class TraceConfigurationRowBuilder {
      */
     public isExceptionsPath(nodePath: (string | number)[]): boolean {
         return nodePath.at(-1) === 'exceptions';
+    }
+
+    private getTimeSyncItm(node: YamlTreeItem, nodePath: (string | number)[]): string {
+        if (!this.nodeExists(nodePath)) {
+            return 'off';
+        }
+        if (isYamlMapItem(node)) {
+            const itm = node.getChild('ITM');
+            if (isYamlScalarItem(itm)) {
+                return this.scalarToString(itm);
+            }
+        }
+        return TraceConfigurationTypes.DEFAULT_TIME_SYNC_PERIOD;
     }
 
     /**

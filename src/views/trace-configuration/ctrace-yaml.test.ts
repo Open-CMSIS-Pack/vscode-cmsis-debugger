@@ -15,10 +15,33 @@
  */
 // generated with AI
 
-import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
+import { CTraceConfiguration, CTraceTimeSync, CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import { MemoryTextFileAdapter } from '../../__test__/memory-text-file-adapter';
 
 describe('CTraceYamlDocument', () => {
+    const timeSyncConfigurations: CTraceTimeSync[] = [
+        {},
+        { ITM: 'off' },
+        { ITM: 128 },
+        { ITM: 8192 },
+        { ITM: '128' },
+        { ITM: '8192' },
+        { ITM: 'packet' }
+    ];
+
+    it.each(timeSyncConfigurations)('round-trips time synchronization maps at root and processor scope: %j', timesync => {
+        const configuration: CTraceConfiguration = {
+            timesync,
+            setup: [{ pname: 'cm33', timesync }]
+        };
+        const document = CTraceYamlDocument.create('CMSIS-Debugger v1.9.0');
+        document.yaml.set(['ctrace'], configuration);
+
+        const reloaded = CTraceYamlDocument.parse(document.toString());
+
+        expect(reloaded.yaml.toJS()).toEqual({ ctrace: configuration });
+    });
+
     it('reads and updates user-authored trace data entries', () => {
         const document = CTraceYamlDocument.parse([
             'ctrace:',

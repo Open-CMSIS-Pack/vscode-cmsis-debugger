@@ -82,6 +82,7 @@ export type CTraceConditionAccess = 'X' | 'R' | 'W' | 'RW';
 export type CTraceDataOutput = 'value' | 'offset' | 'PC' | 'match' | 'PC+value' | 'offset+value' | 'PC+offset';
 export type CTraceMatchSize = 1 | 2 | 4 | '1' | '2' | '4';
 export type CTraceSynchronizationPeriod = 'off' | '16M' | '64M' | '256M';
+export type CTraceTimeSyncPeriod = 'off' | 128 | 8192 | '128' | '8192' | 'packet';
 
 export interface CTraceRegisterBlock {
     [registerName: string]: CTraceScalar | CTraceRegisterBlock;
@@ -106,6 +107,7 @@ export interface CTraceConfiguration {
     itm?: CTraceItmTrace | CTraceItmTrace[];
     pcsampling?: CTracePcSampling;
     synchronization?: CTraceSynchronization;
+    timesync?: CTraceTimeSync;
     tracehalt?: CTraceCondition[];
     'register-values'?: CTraceRegisterValues[];
 }
@@ -116,7 +118,7 @@ export interface CTraceProcessorTraceSetup {
     core?: string;
     disable?: null;
     timestamps?: CTraceTimestamps | null;
-    timesync?: null;
+    timesync?: CTraceTimeSync;
     data?: CTraceDataTrace[] | null;
     exceptions?: null;
     events?: CTraceEventTrace[] | null;
@@ -131,6 +133,11 @@ export interface CTraceTimestamps {
     'ctrace-ref'?: string;
     clock?: number | string;
     'itm-prescaler'?: CTraceTimestampPrescaler;
+}
+
+export interface CTraceTimeSync {
+    'ctrace-ref'?: string;
+    ITM?: CTraceTimeSyncPeriod;
 }
 
 export interface CTraceInstructions {
