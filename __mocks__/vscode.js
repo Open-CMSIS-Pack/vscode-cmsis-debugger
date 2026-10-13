@@ -72,6 +72,13 @@ class MockRelativePattern {
     }
 }
 
+class MockTabInputCustom {
+    constructor(uri, viewType) {
+        this.uri = uri;
+        this.viewType = viewType;
+    }
+}
+
 function createMockFileSystemWatcher() {
     const handlers = { create: [], change: [], delete: [] };
     return {
@@ -105,10 +112,15 @@ module.exports = {
         };
     }),
     Uri: URI,
+    TabInputCustom: MockTabInputCustom,
+    ViewColumn: { Beside: -2, Two: 2 },
     RelativePattern: MockRelativePattern,
     TreeItem: MockTreeItem,
     TreeItemCollapsibleState: MockTreeItemCollapsibleState,
     window: {
+        tabGroups: {
+            get all() { return []; },
+        },
         createOutputChannel: jest.fn(() => ({
             appendLine: jest.fn(),
             trace: jest.fn(),
