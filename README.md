@@ -408,7 +408,7 @@ In the debug bar, use the
 ![Show captured trace](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/trace-show-captured.png)
 button to open the generated `.csv` trace file in the [**Trace Data** view](#review-captured-trace-data).
 
-For further details, refer to [Using trace](#using-trace).
+For further details on how to configure and inspect trace, refer to [Using trace](#using-trace).
 
 ### PERIPHERALS
 
@@ -531,7 +531,7 @@ CMSIS Debugger supports capturing trace information from Cortex-M processors usi
 Trace configuration consists of these parts:
 
 1. The CMSIS solution file (`csolution.yml`) configures the trace transport and capture method, including the SWO input and output clocks.
-2. The `./cmsis/<target>.dbgconf` file configures trace pins and clocks.
+2. The `./cmsis/<target>.dbgconf` file configures trace pins, clocks, and other device specific trace communication components.
 3. The **Trace Generation** view configures the trace sources in the processor, such as exception trace, instrumentation trace, DWT data trace, event counters, and PC sampling. The trace source configuration is stored separately in a target-specific `.cmsis/<target>.ctrace.yml` file.
 
 This separation allows the trace transport, such as SWO, to be configured independently from the processor trace sources that produce the data.
@@ -580,7 +580,7 @@ Before configuring individual trace sources, enable SWO trace for the target.
 
     Save `csolution.yml`. The [**Trace Generation**](#configure-trace-sources) view now shows the trace capabilities of the selected processor.
 
-#### Hardware trace setup in dbgconf
+#### Configure trace communication in .dbgconf
 
 Depending on the hardware target, a `.cmsis/<target>.dbgconf` file might exist that lets you configure the trace pin and clock
 settings using **Configuration Wizard** view. For example, if you are switching from an off-the-shelf development board
@@ -597,23 +597,23 @@ available options depend on the trace capabilities of the processor.
 
 ##### Timestamps
 
-Enable **Timestamps** for correct timing information. Timestamps contribute to the cycle information in the decoded
-trace. They are not normally displayed as individual trace records.
+Enable **Timestamps** for timing information. Timestamps contribute to the cycle information in the decoded
+trace. They are normally not displayed as individual trace records.
 
 - **Clock**: reserved for future use.
-- **ITM Prescaler**: defines the frequency to generate timestamps. The frequency is calculated by dividing the core clock through the prescaler value.
+- **ITM Prescaler**: defines the granularity and hence the number of generated timestamps. A higher value reduces the generated data but also means less accurate timestamps.
 
 ##### Exceptions
 
 Enable **Exceptions** to record exception activity.
 
-In the decoded trace, **index** identifies the exception number and **value** identifies the exception event.
+In the decoded trace, **index** identifies the exception number and **value** identifies the exception event (0x1 - Enter Exception, 0x2 - Exit Exception, 0x3 - Return to Exception/Thread mode).
 
 ##### Event Counters
 
 Enable **Event Counters** to include supported processor events in the trace.
 
-The available counters depend on the processor.
+Each bit in the decoded **value** indicates that a specific counter wrapped around (0x01 - DWT_CPICNT, 0x02 - DWT_EXCCNT, 0x04 - DWT_SLEEPCNT, 0x08 - DWT_LSUNCT, 0x10 - DWT_FOLDCNT, 0x11 - POSTCNT).
 
 ##### Instrumentation Trace
 
@@ -631,10 +631,10 @@ Use **DWT Data Trace** to monitor accesses to a variable or memory location with
 - Specify the **Location** to monitor (variable name or memory location).
 - Optionally, add a **Label**.
 - Select the required **Access** type (`Read`, `Write`, `Read Write`).
-- Set the **Size** of the variable/memory location (`<Auto>` is usually fine).
-- Select the **Output** type (`value`, `offset`, `PC`, `match`, `PC+value`, `offset+value`, `PC+offset`).
+- Set the **Size** of the variable/memory location (`<Auto>` determines the size by symbol information).
+- Select the generated **Output** packets (`value`, `offset`, `PC`, `match`, `PC+value`, `offset+value`, `PC+offset`).
 - Select **Match** to only trigger recording when a certain value is matched.
-- Set the **Size** of the match (`<Auto>` is usually fine).
+- Set the **Size** of the match (`<Auto>` determines the size by symbol information).
 
 Depending on the processor, additional information such as the program counter can be included in the generated trace.
 
@@ -658,7 +658,7 @@ The available sampling configuration depends on the processor.
 ##### Advanced Settings
 
 - **Time Synchronization**: reserved for future use.
-- **Stream Synchronization** determines how often a synchronization packet is generated. Default is every 16 M cycles.
+- **Stream Synchronization** determines how often a synchronization packet is generated to allow a decoder to synchronize into a captured trace stream. Default for ITM/DWT is every 16 M cycles.
 
 #### Validate the trace configuration
 
@@ -679,18 +679,18 @@ might support PC information for some DWT access types but not for others.
 
 #### Save the trace configuration
 
-After configuring the required trace sources, press the save button
+After configuring the required trace sources and successful validation, press the save button
 ![Save trace button](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/save-trace.png).
 
-CMSIS Debugger stores the trace source configuration in `.cmsis/<target>.ctrace.yml`. The filename corresponds to the
-active target.
+CMSIS Debugger stores the trace source configuration in `.cmsis/<solution-set>.ctrace.yml`. The filename corresponds to the
+active target and target-set.
 
 Use ![Revert](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/trace-revert.png) to discard
 unsaved changes and restore the previously saved trace configuration.
 
 > &#128221; **Note:**
 >
-> You normally do not need to edit the `<target>.ctrace.yml` file directly. Configure the required trace sources using
+> You normally do not need to edit the `<solution-set>.ctrace.yml` file directly. Configure the required trace sources using
 > the **Trace Generation** view.
 
 ### Capture SWO trace
@@ -703,7 +703,7 @@ After configuring and saving the trace settings:
 - Stop execution after the period that you want to analyze.
 
 With [`mode: file`](#configure-swo-trace-in-the-cmsis-solution), the SWO trace stream is captured and the decoded trace
-is made available as a CSV file.
+is automatically made available as a CSV file.
 
 > &#x26A0; **Important:**
 >
