@@ -707,12 +707,12 @@ is made available as a CSV file.
 
 > &#x26A0; **Important:**
 >
-> Starting a new trace capture overwrites the previous CSV trace file. Copy or rename the file before starting another
-> capture if you need to preserve the previous trace.
+> Newly captured SWO trace is appended during a debug session until trace source settings change. Copy or rename a CSV
+> file before you start the next capture if you need to preserve previous trace.
 
 ### Review captured trace data
 
-In the debug bar, use the ![Show captured trace](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/trace-show-captured.png) button to open the generated `.csv`
+In the debug toolbar, use the ![Show captured trace](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/trace-show-captured.png) button to open the generated `.csv`
 trace file in Visual Studio Code.
 
 ![Trace Data View](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/trace-data-view-csv.png)
@@ -743,8 +743,6 @@ configuration in the **Trace Generation** view.
 
 For example, selecting a DWT data trace record identifies the DWT data trace point that generated the record.
 
-The numeric **index** information in the captured trace is used to associate records with their configured trace
-sources.
 
 ### Change trace settings during debugging
 
@@ -754,8 +752,7 @@ Changes that have not yet been saved are indicated in the **Trace Generation** v
 
 Press ![Save button](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/save-trace.png) to store the updated configuration.
 
-The new configuration is used when execution is started again. Starting the new capture discards the previously
-captured trace data.
+The new configuration is used once execution is resumed.
 
 #### Handle trace overflow
 
@@ -782,10 +779,18 @@ configurations, such as value-dependent trace points, can consume additional har
 CMSIS Debugger validates the configuration and reports combinations that are not supported by the selected processor.
 
 When configuring several trace sources, enable only the information required for the current investigation. This
-conserves both target trace resources and available SWO bandwidth.
+preserves both target trace resources and available SWO bandwidth.
+
+> &#128221; **Note:**
+>
+> Trace-related DWT configuration is performed before GDB configures data access breakpoints. As a result, DWT
+> resources allocated for trace may prevent GDB from setting previously functional data access breakpoints.
+>
+> Note that GDB installs data access breakpoints immediately before execution resumes and removes them when execution
+> stops.
 
 ## Extension Functionality
-
+preserves both target trace resources and available SWO bandwidth.
 This extension adds functionality to work seamlessly with other extensions.
 
 - A [debug configuration provider](https://code.visualstudio.com/api/references/vscode-api#DebugConfigurationProvider)
