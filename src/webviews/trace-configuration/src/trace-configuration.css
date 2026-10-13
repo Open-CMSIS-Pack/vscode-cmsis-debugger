@@ -59,10 +59,44 @@ button {
     background: var(--vscode-sideBarSectionHeader-background, #252526);
 }
 
-.option-tree-scroll {
+.option-tree-body {
+    position: relative;
+    display: flex;
     flex: 1;
     min-height: 0;
+}
+
+.option-tree-scroll {
+    flex: 1;
+    min-width: 0;
     overflow: auto;
+}
+
+.column-resize-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    transform: translateX(-50%);
+    cursor: col-resize;
+    touch-action: none;
+    z-index: 2;
+}
+
+.column-resize-handle:focus-visible {
+    outline: none;
+}
+
+.column-resize-handle:hover,
+body.resizing .column-resize-handle {
+    border-left: 2px solid var(--vscode-focusBorder, #007acc);
+    outline: none;
+}
+
+body.resizing,
+body.resizing * {
+    cursor: col-resize !important;
+    user-select: none;
 }
 
 .trace-status {
@@ -365,6 +399,7 @@ input[type="checkbox"] {
 .option-tree-table {
     width: 100%;
     border-collapse: separate;
+    border-spacing: 0;
     table-layout: fixed;
 }
 
@@ -387,8 +422,8 @@ input[type="checkbox"] {
     text-transform: uppercase;
 }
 
-.option-tree-table th:first-child {
-    width: 52%;
+.option-tree-table .label-column {
+    width: var(--label-col-width, 52%);
 }
 
 .tree-row:hover td {
@@ -507,9 +542,6 @@ input[type="checkbox"] {
 }
 
 @container (max-width: 360px) {
-    .option-tree-table th:first-child {
-        width: fit-content;
-    }
 
     .option-tree-table th,
     .option-tree-table td {

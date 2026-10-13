@@ -29,8 +29,14 @@ type MultiSelectControl = {
     updateSelectedOptions(selectedOptions: readonly string[]): void;
 };
 
+interface TraceViewState {
+    labelColumnWidth?: number;
+}
+
 interface VsCodeApi {
     postMessage(message: TraceWebviewToHostMessage): void;
+    getState(): TraceViewState | undefined;
+    setState(state: TraceViewState): void;
 }
 
 declare function acquireVsCodeApi(): VsCodeApi;
@@ -39,6 +45,90 @@ const vscodeApi = acquireVsCodeApi();
 const root = document.getElementById('root');
 let openMultiSelectId: string | undefined;
 const multiSelectControls = new WeakMap<HTMLDetailsElement, MultiSelectControl>();
+const DEFAULT_LABEL_COLUMN_WIDTH = 52;
+const MIN_LABEL_COLUMN_WIDTH = 15;
+const MAX_LABEL_COLUMN_WIDTH = 85;
+const savedLabelColumnWidth = vscodeApi.getState()?.labelColumnWidth;
+let labelColumnWidth = typeof savedLabelColumnWidth === 'number' && Number.isFinite(savedLabelColumnWidth)
+    ? Math.min(MAX_LABEL_COLUMN_WIDTH, Math.max(MIN_LABEL_COLUMN_WIDTH, savedLabelColumnWidth))
+    : DEFAULT_LABEL_COLUMN_WIDTH;
+const columnResizeHandle = createColumnResizeHandle();
+const columnResizeObserver = new ResizeObserver(updateColumnResizeHandle);
+
+function updateColumnResizeHandle(): void {
+    document.documentElement.style.setProperty('--label-col-width', `${labelColumnWidth}%`);
+    const scrollRegion = root?.querySelector<HTMLElement>('.option-tree-scroll');
+    if (scrollRegion) {
+        columnResizeHandle.style.left = `${scrollRegion.clientWidth * labelColumnWidth / 100}px`;
+    }
+    columnResizeHandle.setAttribute('aria-valuenow', String(labelColumnWidth));
+}
+
+function setLabelColumnWidth(width: number): void {
+    labelColumnWidth = Math.min(MAX_LABEL_COLUMN_WIDTH, Math.max(MIN_LABEL_COLUMN_WIDTH, width));
+    updateColumnResizeHandle();
+    vscodeApi.setState({ ...vscodeApi.getState(), labelColumnWidth });
+}
+
+function createColumnResizeHandle(): HTMLDivElement {
+    const handle = createElement('div', 'column-resize-handle');
+    handle.tabIndex = 0;
+    handle.title = 'Resize columns. Double-click to reset.';
+    handle.setAttribute('role', 'separator');
+    handle.setAttribute('aria-label', 'Label column width');
+    handle.setAttribute('aria-orientation', 'vertical');
+    handle.setAttribute('aria-valuemin', String(MIN_LABEL_COLUMN_WIDTH));
+    handle.setAttribute('aria-valuemax', String(MAX_LABEL_COLUMN_WIDTH));
+    handle.addEventListener('dblclick', () => setLabelColumnWidth(DEFAULT_LABEL_COLUMN_WIDTH));
+    handle.addEventListener('keydown', event => {
+        const step = event.shiftKey ? 10 : 1;
+        switch (event.key) {
+            case 'ArrowLeft': setLabelColumnWidth(labelColumnWidth - step); break;
+            case 'ArrowRight': setLabelColumnWidth(labelColumnWidth + step); break;
+            case 'Home': setLabelColumnWidth(MIN_LABEL_COLUMN_WIDTH); break;
+            case 'End': setLabelColumnWidth(MAX_LABEL_COLUMN_WIDTH); break;
+            case 'Enter': setLabelColumnWidth(DEFAULT_LABEL_COLUMN_WIDTH); break;
+            default: return;
+        }
+        event.preventDefault();
+    });
+    handle.addEventListener('pointerdown', event => {
+        const scrollRegion = root?.querySelector<HTMLElement>('.option-tree-scroll');
+        if (event.button !== 0 || !event.isPrimary || !scrollRegion || scrollRegion.clientWidth === 0) {
+            return;
+        }
+        event.preventDefault();
+        handle.focus({ preventScroll: true });
+        const pointerId = event.pointerId;
+        const grabOffset = event.clientX - scrollRegion.getBoundingClientRect().left
+            - scrollRegion.clientWidth * labelColumnWidth / 100;
+        document.body.classList.add('resizing');
+        const stopResize = (): void => {
+            document.body.classList.remove('resizing');
+            document.removeEventListener('pointermove', moveResize);
+            document.removeEventListener('pointerup', endResize);
+            document.removeEventListener('pointercancel', endResize);
+            window.removeEventListener('blur', stopResize);
+        };
+        const moveResize = (moveEvent: PointerEvent): void => {
+            const currentScrollRegion = root?.querySelector<HTMLElement>('.option-tree-scroll');
+            if (moveEvent.pointerId === pointerId && currentScrollRegion && currentScrollRegion.clientWidth > 0) {
+                const width = moveEvent.clientX - currentScrollRegion.getBoundingClientRect().left - grabOffset;
+                setLabelColumnWidth(width / currentScrollRegion.clientWidth * 100);
+            }
+        };
+        const endResize = (endEvent: PointerEvent): void => {
+            if (endEvent.pointerId === pointerId) {
+                stopResize();
+            }
+        };
+        document.addEventListener('pointermove', moveResize);
+        document.addEventListener('pointerup', endResize);
+        document.addEventListener('pointercancel', endResize);
+        window.addEventListener('blur', stopResize);
+    });
+    return handle;
+}
 
 /**
  * post sends one typed browser action to the extension host. Keeping all
@@ -121,6 +211,7 @@ function renderApp(state: TraceConfigurationState): void {
         : undefined;
     const surface = createElement('main', 'table-surface');
     surface.append(createHeader(state));
+    const treeBody = createElement('div', 'option-tree-body');
     const scrollRegion = createElement('div', 'option-tree-scroll');
     if (state.loading) {
         scrollRegion.append(createEmptyState('Loading ctrace.yml...'));
@@ -131,9 +222,16 @@ function renderApp(state: TraceConfigurationState): void {
     } else {
         scrollRegion.append(createTable(state.rows));
     }
-    surface.append(scrollRegion);
+    treeBody.append(scrollRegion);
+    if (!state.loading && !state.errorMessage && state.rows.length > 0) {
+        treeBody.append(columnResizeHandle);
+    }
+    surface.append(treeBody);
+    columnResizeObserver.disconnect();
     clearElement(root);
     root.append(surface);
+    columnResizeObserver.observe(scrollRegion);
+    updateColumnResizeHandle();
     scrollRegion.scrollTop = scrollTop;
     scrollRegion.scrollLeft = scrollLeft;
     if (!state.focusedRowId && activeElement instanceof HTMLElement && root.contains(activeElement)) {
@@ -255,7 +353,9 @@ function createEmptyState(message: string, isError = false): HTMLElement {
 function createTable(rows: TraceConfigurationRow[]): HTMLTableElement {
     const table = createElement('table', 'option-tree-table');
     table.setAttribute('aria-label', 'CMSIS trace configuration');
-    table.append(createTableHead(), createTableBody(rows));
+    const columns = createElement('colgroup');
+    columns.append(createElement('col', 'label-column'), createElement('col'));
+    table.append(columns, createTableHead(), createTableBody(rows));
     return table;
 }
 
