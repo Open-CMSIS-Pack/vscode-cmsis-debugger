@@ -620,7 +620,7 @@ Each bit in the decoded **value** indicates that a specific counter wrapped arou
 Enable **Instrumentation Trace** to capture information generated through ITM stimulus channels.
 
 - Select the required channels (0 - 31).
-- **Privileged** sets group access rights. Ports that are used by an operating system can be protected from being
+- **Privileged** sets group access rights (eight channels at a time). Ports that are used by an operating system can be protected from being
 accessed through user-code. When unchecked, accessing ports in **User Mode** is not allowed. Ports are always
 accessible when the device is in **Privileged Mode**.
 
@@ -629,14 +629,14 @@ accessible when the device is in **Privileged Mode**.
 Use **DWT Data Trace** to monitor accesses to a variable or memory location without stopping program execution:
 
 - Specify the **Location** to monitor (variable name or memory location).
-- Optionally, add a **Label**.
 - Select the required **Access** type (`Read`, `Write`, `Read Write`).
 - Set the **Size** of the variable/memory location (`<Auto>` determines the size by symbol information).
 - Select the generated **Output** packets (`value`, `offset`, `PC`, `match`, `PC+value`, `offset+value`, `PC+offset`).
 - Select **Match** to only trigger recording when a certain value is matched.
 - Set the **Size** of the match (`<Auto>` determines the size by symbol information).
 
-Depending on the processor, additional information such as the program counter can be included in the generated trace.
+Depending on the processor, 
+combinations of settings may bot be supported. The validation clearly flags unsupported combinations.
 
 For example, configuring a variable for write access generates a trace record whenever the processor writes to that
 variable. The captured value is included in the decoded trace.
@@ -697,7 +697,7 @@ unsaved changes and restore the previously saved trace configuration.
 
 After configuring and saving the trace settings:
 
-- Build the application.
+- Build the application if not done already.
 - Start a debug session.
 - Run the application.
 - Stop execution after the period that you want to analyze.
@@ -764,7 +764,7 @@ generated trace data.
 
 > &#128221; **Note:**
 >
-> A trace capture file containing overflow records is incomplete. Take this into account when analyzing the captured
+> A capture file containing overflow records indicates gaps in the trace. Take this into account when analyzing the captured
 > data.
 
 #### Consider hardware resource limitations
