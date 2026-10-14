@@ -1,26 +1,16 @@
 # Change Log
 
-## 1.9.1
+## 1.10.0
 
-- Completes trace workflows, and [`Trace Generation`](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-generation) and [`Trace Data`](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#review-captured-trace-data) views for upcoming full release.
-- Extends [trace documentation](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#using-trace) in extension README.
-- Includes [pyTS v0.8.0](https://github.com/Open-CMSIS-Pack/pyTS/releases/tag/v0.8.0).
-- Includes [ctrace v0.4.1](https://github.com/Open-CMSIS-Pack/devtools/releases/tag/tools%2Fctrace%2F0.4.1).
-- Includes pyOCD nightly development build v0.45.2.dev71+gd6a9f5d43 of the upcoming v0.46.0 distribution.
-    - Improves trace support stability.
-    - Fixes handling of negative thread IDs from older GDB versions in `gdbserver` mode.
-
-## 1.9.0
-
-- Pre-release with early access to workflows for trace generation, SWO and Trace Buffer capture to raw binary files, and decode to CSV output files and their inspection.
+- Adds workflows for [trace generation](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#using-trace), SWO and Trace Buffer capture to raw binary files, and decode to CSV output files and their inspection.
     - Workflows are based on the proposal for the [CMSIS Trace solution](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#trace).
     - Trace Buffer support is at preview quality and requires updates to trace support in DFPs.
     - Feedback is welcome through [GitHub issues](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues).
-- Adds the `Trace Generation` view to create and edit [`*.ctrace.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctraceyml) files for the active CMSIS solution. It follows solution and target changes, validates edited settings, and allows to apply changes even during a running debug session.
-- Adds `Trace Data` view which supports display of trace CSV files, filtering, sorting, and linking from CSV records back to their configurations in the `Trace Generation` view.
-- Adds [pyTS v0.7.0](https://github.com/Open-CMSIS-Pack/pyTS/releases/tag/v0.7.0) CLI tool that converts [`*.ctrace.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctraceyml) files into [`*.ctrace-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctrace-runyml) files with trace source programming instructions for the debug adapter.
-- Adds [ctrace v0.4.0](https://github.com/Open-CMSIS-Pack/devtools/releases/tag/tools%2Fctrace%2F0.4.0) CLI tool that decodes raw trace captures into CSV and CTF output files utilizing the [OpenCSD Trace Decode Library](https://github.com/Linaro/OpenCSD).
-- Includes pyOCD nightly development build v0.45.2.dev61+gf8ca7e4b7 of the upcoming v0.46.0 distribution.
+- Adds the [`Trace Generation`](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-generation) view to create and edit [`*.ctrace.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctraceyml) files for the active CMSIS solution. It follows solution and target changes, validates edited settings, and allows to apply changes even during a running debug session.
+- Adds [`Trace Data`](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#review-captured-trace-data) view which supports display of trace CSV files, filtering, sorting, and linking from CSV records back to their configurations in the [`Trace Generation`](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-generation) view.
+- Adds [pyTS v0.8.0](https://github.com/Open-CMSIS-Pack/pyTS/releases/tag/v0.8.0) CLI tool that converts [`*.ctrace.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctraceyml) files into [`*.ctrace-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctrace-runyml) files with trace source programming instructions for the debug adapter.
+- Adds [ctrace v0.4.1](https://github.com/Open-CMSIS-Pack/devtools/releases/tag/tools%2Fctrace%2F0.4.1) CLI tool that decodes raw trace captures into CSV and CTF output files utilizing the [OpenCSD Trace Decode Library](https://github.com/Linaro/OpenCSD).
+- Includes updated pyOCD distribution ([pyOCD v0.46.0](https://github.com/pyocd/pyOCD/releases/tag/v0.46.0))
     - Reads SWO and Trace Buffer configurations from [`*.cbuild-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/pyOCD-Debugger/#content-of-cbuild-runyml) and [`*.ctrace-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctrace-runyml) files and applies the data for the setup/initialization of the debug session. Also supports trace-related DFP debug description enhancements.
         - Note: Trace Buffer support is at preview quality and requires changes to DFPs.
     - Adds `pyocd info` sub-command to display information about the connected target.
@@ -30,6 +20,7 @@
         - Allow stepping and resuming past BKPT instructions.
         - Preserve breakpoint and watchpoint stop reasons when they coincide with debugger interrupts.
         - Improve connection, disconnection, and shutdown reliability.
+        - Fixes handling of negative thread IDs from older GDB versions.
     - Adds udev rules for the following debug units:
         - Raspberry Pi Debug Probe (CMSIS-DAP)
         - Artery Technology CMSIS-DAP
@@ -46,8 +37,8 @@
     - [Peripheral Inspector v1.9.2](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector)
     - [Serial Monitor v0.13.1](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor)
     - [RTOS Views v0.0.16](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views)
-- See [v1.8.0...v1.9.0](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/compare/v1.8.0...v1.9.0) for the complete list
-of changes included in this pre-release.
+- See [CMSIS Debugger 1.10.0 project board](https://github.com/orgs/Open-CMSIS-Pack/projects/21/views/13) for a full list
+of enhancement requests and defects addressed in this release.
 
 ## 1.8.0
 
