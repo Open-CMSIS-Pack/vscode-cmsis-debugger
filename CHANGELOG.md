@@ -2,9 +2,12 @@
 
 ## 1.9.1
 
-- Includes updated [pyTS v0.8.0](https://github.com/Open-CMSIS-Pack/pyTS/releases/tag/v0.8.0).
-- Includes updated [ctrace v0.4.1](https://github.com/Open-CMSIS-Pack/devtools/releases/tag/tools%2Fctrace%2F0.4.1).
+- Completes trace workflows, and [`Trace Generation`](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-generation) and [`Trace Data`](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#review-captured-trace-data) views for upcoming full release.
+- Extends [trace documentation](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#using-trace) in extension README.
+- Includes [pyTS v0.8.0](https://github.com/Open-CMSIS-Pack/pyTS/releases/tag/v0.8.0).
+- Includes [ctrace v0.4.1](https://github.com/Open-CMSIS-Pack/devtools/releases/tag/tools%2Fctrace%2F0.4.1).
 - Includes pyOCD nightly development build v0.45.2.dev61+gf8ca7e4b7 of the upcoming v0.46.0 distribution.
+    - Improves trace support stability.
 
 ## 1.9.0
 
