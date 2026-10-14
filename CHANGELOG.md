@@ -8,7 +8,7 @@
 - Includes [ctrace v0.4.1](https://github.com/Open-CMSIS-Pack/devtools/releases/tag/tools%2Fctrace%2F0.4.1).
 - Includes pyOCD nightly development build v0.45.2.dev71+gd6a9f5d43 of the upcoming v0.46.0 distribution.
     - Improves trace support stability.
-    - Fixes handling of negative thread IDs from older GDB versions in `gdbserver` mode
+    - Fixes handling of negative thread IDs from older GDB versions in `gdbserver` mode.
 
 ## 1.9.0
 
