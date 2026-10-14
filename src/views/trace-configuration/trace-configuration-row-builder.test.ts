@@ -122,6 +122,101 @@ function rowIndex(state: TraceConfigurationState, path: (string | number)[]): nu
 }
 
 describe('TraceConfigurationRowBuilder', () => {
+    describe.each([
+        { scope: 'root', path: ['ctrace', 'timesync'], prefix: 'ctrace:\n  setup: []\n', indent: '  ' },
+        { scope: 'processor', path: ['ctrace', 'setup', 0, 'timesync'], prefix: 'ctrace:\n  setup:\n    - pname: cm33\n', indent: '      ' },
+    ])('Time Synchronization at $scope scope', ({ path, prefix, indent }) => {
+        it.each(['128', '"128"', '8192', '"8192"', 'off', 'packet'])(
+            'renders and normalizes ITM %s', period => {
+                const state = createStateFromYaml(`${prefix}${indent}timesync:\n${indent}  ITM: ${period}\n`);
+                expect(findRow(state, path)).toMatchObject({ expanded: true, hasChildren: true, control: 'none' });
+                expect(findRow(state, [...path, 'ITM'])).toMatchObject({
+                    path: [...path, 'ITM'], control: 'select', value: period.replaceAll('"', ''),
+                    options: ['off', '128', '8192', 'packet'],
+                });
+                const collapsed = createStateFromYaml(`${prefix}${indent}timesync:\n`, { expandedRows: new Set() });
+                expect(hasRow(collapsed, [...path, 'ITM'])).toBe(false);
+            }
+        );
+
+        it.each(['', `${indent}timesync:\n`, `${indent}timesync: {}\n`])('shows off without changing shorthand %j', entry => {
+            const state = createStateFromYaml(`${prefix}${entry}`);
+            if (entry === '' && path.length === 2) {
+                expect(hasRow(state, path)).toBe(false);
+                expect(hasRow(state, [...path, 'ITM'])).toBe(false);
+            } else {
+                expect(findRow(state, [...path, 'ITM']).value).toBe('off');
+            }
+            expect(state.dirty).toBe(false);
+        });
+
+        it('traverses non-ITM children while retaining standard metadata filtering', () => {
+            const state = createStateFromYaml(`${prefix}${indent}timesync:\n${indent}  ITM: 128\n${indent}  ctrace-ref: source\n${indent}  created-by: author\n${indent}  generated-by: tool\n${indent}  custom: retained\n${indent}  nested: { setting: preserved }\n${indent}  periods: [128, 8192]\n`);
+            expect(hasRow(state, [...path, 'ctrace-ref'])).toBe(false);
+            expect(hasRow(state, [...path, 'created-by'])).toBe(false);
+            expect(hasRow(state, [...path, 'generated-by'])).toBe(false);
+            expect(findRow(state, [...path, 'custom'])).toMatchObject({ control: 'text', value: 'retained' });
+            expect(findRow(state, [...path, 'nested'])).toMatchObject({ kind: 'map', hasChildren: true });
+            expect(findRow(state, [...path, 'nested', 'setting'])).toMatchObject({ control: 'text', value: 'preserved' });
+            expect(findRow(state, [...path, 'periods'])).toMatchObject({ kind: 'sequence', hasChildren: true });
+            expect(findRow(state, [...path, 'periods', 0]).value).toBe('128');
+            expect(findRow(state, [...path, 'periods', 1]).value).toBe('8192');
+            expect(state.rows.filter(row => JSON.stringify(row.path) === JSON.stringify([...path, 'ITM']))).toHaveLength(1);
+        });
+
+        it('shows an unsupported scalar ITM value without substituting a supported value', () => {
+            const state = createStateFromYaml(`${prefix}${indent}timesync:\n${indent}  ITM: custom-period\n`);
+            expect(findRow(state, [...path, 'ITM']).value).toBe('custom-period');
+            expect(findRow(state, [...path, 'ITM']).options).toContain('custom-period');
+        });
+
+        it.each(['unexpected', '[128]', '{ ITM: [128] }', '{ ITM: { nested: 128 } }'])(
+            'disables destructive ITM editing for malformed %s', value => {
+                const state = createStateFromYaml(`${prefix}${indent}timesync: ${value}\n`);
+                expect(findRow(state, [...path, 'ITM']).controlDisabledReason).toContain('in YAML');
+                expect(state.dirty).toBe(false);
+            }
+        );
+    });
+
+    it('does not synthesize root Time Synchronization for processor-only configuration', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  created-by: CMSIS Debugger',
+            '  setup:',
+            '    - core: Cortex-M7',
+            '      data:',
+            '        - location: osRtxInfo.kernel.tick',
+            '          access: R',
+            '          output: PC+value',
+            '      events:',
+            '      itm:',
+            '        enable: 0x20000000',
+            '      pcsampling:',
+            '        period: 0',
+            '      synchronization:',
+            '        DWT: 16M',
+            '      timesync:',
+            '        ITM: \'8192\'',
+            '',
+        ].join('\n'));
+
+        expect(hasRow(state, ['ctrace', 'timesync'])).toBe(false);
+        expect(hasRow(state, ['ctrace', 'timesync', 'ITM'])).toBe(false);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'timesync', 'ITM'])).toMatchObject({
+            control: 'select', value: '8192',
+        });
+        expect(state.rows.filter(row => row.label === 'Time Synchronization')).toHaveLength(1);
+        expect(state.dirty).toBe(false);
+    });
+
+    it.each(['1', '4', '16', '64', '"1"', '"4"', '"16"', '"64"'])('retains timestamp prescaler selection %s', period => {
+        const state = createStateFromYaml(`ctrace:\n  setup:\n    - pname: cm33\n      timestamps:\n        itm-prescaler: ${period}\n`);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'timestamps', 'itm-prescaler'])).toMatchObject({
+            control: 'select', value: period.replaceAll('"', ''), options: ['1', '4', '16', '64'],
+        });
+    });
+
     it.each([
         ['', undefined],
         ['label:', undefined],
