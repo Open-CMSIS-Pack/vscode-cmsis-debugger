@@ -141,7 +141,12 @@ describe('TraceConfigurationRowBuilder', () => {
 
         it.each(['', `${indent}timesync:\n`, `${indent}timesync: {}\n`])('shows off without changing shorthand %j', entry => {
             const state = createStateFromYaml(`${prefix}${entry}`);
-            expect(findRow(state, [...path, 'ITM']).value).toBe('off');
+            if (entry === '' && path.length === 2) {
+                expect(hasRow(state, path)).toBe(false);
+                expect(hasRow(state, [...path, 'ITM'])).toBe(false);
+            } else {
+                expect(findRow(state, [...path, 'ITM']).value).toBe('off');
+            }
             expect(state.dirty).toBe(false);
         });
 
@@ -172,6 +177,37 @@ describe('TraceConfigurationRowBuilder', () => {
                 expect(state.dirty).toBe(false);
             }
         );
+    });
+
+    it('does not synthesize root Time Synchronization for processor-only configuration', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  created-by: CMSIS Debugger',
+            '  setup:',
+            '    - core: Cortex-M7',
+            '      data:',
+            '        - location: osRtxInfo.kernel.tick',
+            '          access: R',
+            '          output: PC+value',
+            '      events:',
+            '      itm:',
+            '        enable: 0x20000000',
+            '      pcsampling:',
+            '        period: 0',
+            '      synchronization:',
+            '        DWT: 16M',
+            '      timesync:',
+            '        ITM: \'8192\'',
+            '',
+        ].join('\n'));
+
+        expect(hasRow(state, ['ctrace', 'timesync'])).toBe(false);
+        expect(hasRow(state, ['ctrace', 'timesync', 'ITM'])).toBe(false);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'timesync', 'ITM'])).toMatchObject({
+            control: 'select', value: '8192',
+        });
+        expect(state.rows.filter(row => row.label === 'Time Synchronization')).toHaveLength(1);
+        expect(state.dirty).toBe(false);
     });
 
     it.each(['1', '4', '16', '64', '"1"', '"4"', '"16"', '"64"'])('retains timestamp prescaler selection %s', period => {

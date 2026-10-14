@@ -627,10 +627,6 @@ export class TraceConfigurationRowBuilder {
      * fields remain absent from YAML until edited.
      */
     private getSyntheticChildEntries(parentPath: (string | number)[]): TraceNodeEntry[] {
-        if (parentPath.length === 1 && parentPath[0] === 'ctrace'
-            && [...this.processorCapabilities.values()].some(capabilities => capabilities.timeSynchronization)) {
-            return [this.createSyntheticNullEntry(parentPath, 'timesync')];
-        }
         if (this.isProcessorPath(parentPath)) {
             return [
                 this.createSyntheticMapEntry(parentPath, 'timestamps'),
