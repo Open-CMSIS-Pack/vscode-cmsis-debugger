@@ -29,6 +29,26 @@ type MultiSelectControl = {
     updateSelectedOptions(selectedOptions: readonly string[]): void;
 };
 
+interface ScrollPosition {
+    scrollTop: number;
+    scrollLeft: number;
+}
+
+interface RenderInteractionSnapshot {
+    fileName: string | undefined;
+    scroll: ScrollPosition;
+    focus: {
+        key: string;
+        row: TraceConfigurationRow | undefined;
+        text: Pick<HTMLInputElement, 'value' | 'selectionStart' | 'selectionEnd' | 'selectionDirection'> | undefined;
+    } | undefined;
+    dropdowns: {
+        row: TraceConfigurationRow;
+        open: boolean;
+        scroll: ScrollPosition;
+    }[];
+}
+
 interface TraceViewState {
     labelColumnWidth?: number;
 }
@@ -43,7 +63,6 @@ declare function acquireVsCodeApi(): VsCodeApi;
 
 const vscodeApi = acquireVsCodeApi();
 const root = document.getElementById('root');
-let openMultiSelectId: string | undefined;
 let renderedState: TraceConfigurationState | undefined;
 const multiSelectControls = new WeakMap<HTMLDetailsElement, MultiSelectControl>();
 const DEFAULT_LABEL_COLUMN_WIDTH = 52;
@@ -73,6 +92,7 @@ function setLabelColumnWidth(width: number): void {
 
 function createColumnResizeHandle(): HTMLDivElement {
     const handle = createElement('div', 'column-resize-handle');
+    setFocusKey(handle, 'divider');
     handle.tabIndex = 0;
     handle.title = 'Resize columns. Double-click to reset.';
     handle.setAttribute('role', 'separator');
@@ -180,44 +200,122 @@ function clearElement(element: HTMLElement): void {
 }
 
 /**
- * closeOpenMultiSelect clears the persisted open dropdown and closes any
- * rendered multi-select details elements. It is called for outside clicks and
- * Escape so checkbox changes can keep the active dropdown open across host
- * state refreshes.
+ * closeOpenMultiSelect closes rendered dropdowns on outside clicks and Escape.
+ * Subsequent refreshes capture the closed state directly from the DOM.
  */
 function closeOpenMultiSelect(): void {
-    openMultiSelectId = undefined;
-    document.querySelectorAll<HTMLDetailsElement>('details.multi-select[open]').forEach(details => {
+    root?.querySelectorAll<HTMLDetailsElement>('details.multi-select[open]').forEach(details => {
         details.open = false;
     });
 }
 
-/** Captures an active edit so validation refreshes retain its draft and caret. */
-function preserveTextInput(state: TraceConfigurationState): (() => void) | undefined {
-    const input = document.activeElement;
-    if (!(input instanceof HTMLInputElement) || input.type !== 'text' || !root?.contains(input)
-        || state.focusedRowId || renderedState?.fileName !== state.fileName) {
-        return;
-    }
-    const rowId = input.closest<HTMLTableRowElement>('tr[data-row-id]')?.dataset.rowId;
-    const previousRow = renderedState?.rows.find(row => row.id === rowId);
-    const nextRow = state.rows.find(row => row.id === rowId);
-    if (!previousRow || !nextRow || nextRow.control !== 'text' || nextRow.controlDisabledReason
-        || (previousRow.value ?? '') !== (nextRow.value ?? '')
-        || JSON.stringify(getValuePath(previousRow)) !== JSON.stringify(getValuePath(nextRow))) {
-        return;
-    }
-    const { value, selectionStart, selectionEnd, selectionDirection } = input;
-    return () => {
-        const row = Array.from(root.querySelectorAll<HTMLTableRowElement>('tr[data-row-id]'))
-            .find(candidate => candidate.dataset.rowId === rowId);
-        const replacement = row?.querySelector<HTMLInputElement>('input[type="text"]');
-        if (replacement) {
-            replacement.value = value;
-            replacement.focus({ preventScroll: true });
-            replacement.setSelectionRange(selectionStart, selectionEnd, selectionDirection ?? undefined);
-        }
+/** Focus identities use roles and values, never labels or DOM positions. */
+function setFocusKey(element: HTMLElement, role: string, row?: TraceConfigurationRow, option?: string): void {
+    element.dataset.focusKey = JSON.stringify([row?.id, role, option]);
+}
+
+function getScrollPosition(element: HTMLElement | null): ScrollPosition {
+    return { scrollTop: element?.scrollTop ?? 0, scrollLeft: element?.scrollLeft ?? 0 };
+}
+
+function findRow(container: HTMLElement, rowId: string): HTMLTableRowElement | undefined {
+    return Array.from(container.querySelectorAll<HTMLTableRowElement>('tr[data-row-id]'))
+        .find(row => row.dataset.rowId === rowId);
+}
+
+function isCompatibleRow(previous: TraceConfigurationRow, next: TraceConfigurationRow | undefined): boolean {
+    return next !== undefined && previous.control === next.control
+        && JSON.stringify(getValuePath(previous)) === JSON.stringify(getValuePath(next));
+}
+
+/** Capture transient browser state before any controls are moved or replaced. */
+function captureRenderInteraction(container: HTMLElement): RenderInteractionSnapshot {
+    const active = document.activeElement;
+    const focused = active instanceof HTMLElement && container.contains(active) && active.dataset.focusKey
+        ? active : undefined;
+    const focusKey = focused?.dataset.focusKey;
+    const focusedRowId = focused?.closest<HTMLTableRowElement>('tr[data-row-id]')?.dataset.rowId;
+    const textInput = focused instanceof HTMLInputElement && focused.type === 'text' ? focused : undefined;
+    return {
+        fileName: renderedState?.fileName,
+        scroll: getScrollPosition(container.querySelector('.option-tree-scroll')),
+        focus: focused && focusKey ? {
+            key: focusKey,
+            row: renderedState?.rows.find(row => row.id === focusedRowId),
+            text: textInput ? {
+                value: textInput.value,
+                selectionStart: textInput.selectionStart,
+                selectionEnd: textInput.selectionEnd,
+                selectionDirection: textInput.selectionDirection,
+            } : undefined,
+        } : undefined,
+        dropdowns: Array.from(container.querySelectorAll<HTMLDetailsElement>('details.multi-select'))
+            .flatMap(details => {
+                const row = renderedState?.rows.find(row => row.id === details.dataset.rowId);
+                return row ? [{
+                    row,
+                    open: details.open,
+                    scroll: getScrollPosition(details.querySelector('.multi-select-menu')),
+                }] : [];
+            }),
     };
+}
+
+/** Restore compatible state once, with explicit host focus taking precedence. */
+function restoreRenderInteraction(
+    container: HTMLElement,
+    snapshot: RenderInteractionSnapshot,
+    state: TraceConfigurationState
+): void {
+    const sameFile = snapshot.fileName === state.fileName;
+    if (sameFile) {
+        snapshot.dropdowns.forEach(dropdown => {
+            if (!isCompatibleRow(dropdown.row, state.rows.find(row => row.id === dropdown.row.id))) {
+                return;
+            }
+            const details = findRow(container, dropdown.row.id)?.querySelector<HTMLDetailsElement>('details.multi-select');
+            if (details) {
+                details.open = dropdown.open;
+                const menu = details.querySelector('.multi-select-menu');
+                if (menu) {
+                    Object.assign(menu, dropdown.scroll);
+                }
+            }
+        });
+        const scrollRegion = container.querySelector('.option-tree-scroll');
+        if (scrollRegion) {
+            Object.assign(scrollRegion, snapshot.scroll);
+        }
+    }
+    const focus = !state.focusedRowId && sameFile ? snapshot.focus : undefined;
+    const nextRow = focus?.row ? state.rows.find(row => row.id === focus.row?.id) : undefined;
+    if (focus?.row && !isCompatibleRow(focus.row, nextRow)) {
+        return;
+    }
+    const target = state.focusedRowId
+        ? findRow(container, state.focusedRowId)
+        : focus && Array.from(container.querySelectorAll<HTMLElement>('[data-focus-key]'))
+            .find(element => element.dataset.focusKey === focus.key);
+    if (!target || target.matches(':disabled')) {
+        return;
+    }
+    const textInput = focus?.text && target instanceof HTMLInputElement && target.type === 'text' ? target : undefined;
+    if (focus?.text) {
+        if (!textInput || !nextRow || (focus.row?.value ?? '') !== (nextRow.value ?? '')) {
+            return;
+        }
+        textInput.value = focus.text.value;
+    }
+    if (target instanceof HTMLTableRowElement && target.tabIndex < 0) {
+        target.tabIndex = -1;
+    }
+    if (state.focusedRowId) {
+        target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+    target.focus({ preventScroll: true });
+    if (textInput && focus?.text) {
+        textInput.setSelectionRange(focus.text.selectionStart, focus.text.selectionEnd, focus.text.selectionDirection ?? undefined);
+    }
 }
 
 /**
@@ -229,16 +327,8 @@ function renderApp(state: TraceConfigurationState): void {
     if (!root) {
         return;
     }
-    const previousScrollRegion = root.querySelector<HTMLElement>('.option-tree-scroll');
-    const scrollTop = previousScrollRegion?.scrollTop ?? 0;
-    const scrollLeft = previousScrollRegion?.scrollLeft ?? 0;
-    const menuScrollPositions = Array.from(root.querySelectorAll<HTMLElement>('.multi-select-menu'))
-        .map(menu => ({ menu, scrollTop: menu.scrollTop, scrollLeft: menu.scrollLeft }));
-    const activeElement = document.activeElement;
-    const restoreTextInput = preserveTextInput(state);
-    const focusedRowId = activeElement instanceof HTMLTableRowElement && root.contains(activeElement)
-        ? activeElement.dataset.rowId
-        : undefined;
+    const interaction = captureRenderInteraction(root);
+    renderedState = state;
     const surface = createElement('main', 'table-surface');
     surface.append(createHeader(state));
     const treeBody = createElement('div', 'option-tree-body');
@@ -262,40 +352,7 @@ function renderApp(state: TraceConfigurationState): void {
     root.append(surface);
     columnResizeObserver.observe(scrollRegion);
     updateColumnResizeHandle();
-    scrollRegion.scrollTop = scrollTop;
-    scrollRegion.scrollLeft = scrollLeft;
-    if (!state.focusedRowId && activeElement instanceof HTMLElement && root.contains(activeElement)) {
-        activeElement.focus({ preventScroll: true });
-    }
-    menuScrollPositions.forEach(position => {
-        if (root.contains(position.menu)) {
-            position.menu.scrollTop = position.scrollTop;
-            position.menu.scrollLeft = position.scrollLeft;
-        }
-    });
-    focusRow(state.focusedRowId ?? focusedRowId);
-    renderedState = state;
-    restoreTextInput?.();
-}
-
-/**
- * focusRow brings a newly added row into view after a host-rendered state
- * refresh. The lookup avoids CSS escaping issues by comparing dataset values.
- */
-function focusRow(rowId: string | undefined): void {
-    if (!rowId) {
-        return;
-    }
-    const row = Array.from(document.querySelectorAll<HTMLTableRowElement>('tr[data-row-id]'))
-        .find(candidate => candidate.dataset.rowId === rowId);
-    if (!row) {
-        return;
-    }
-    if (row.tabIndex < 0) {
-        row.tabIndex = -1;
-    }
-    row.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    row.focus({ preventScroll: true });
+    restoreRenderInteraction(root, interaction, state);
 }
 
 /**
@@ -314,6 +371,7 @@ function createHeader(state: TraceConfigurationState): HTMLElement {
 function createStatus(state: TraceConfigurationState): HTMLElement {
     const status = createElement('div', 'trace-status');
     const file = createElement('button', 'trace-file');
+    setFocusKey(file, 'file');
     file.type = 'button';
     file.textContent = getFileNameDisplayText(state);
     file.title = state.fileName ?? '';
@@ -417,6 +475,7 @@ function createTableBody(rows: TraceConfigurationRow[]): HTMLTableSectionElement
 function createRow(row: TraceConfigurationRow): HTMLTableRowElement {
     const tr = createElement('tr', row.kind === 'scalar' ? 'tree-row' : 'tree-row group-row section-row');
     tr.dataset.rowId = row.id;
+    setFocusKey(tr, 'row', row);
     tr.dataset.hasChildren = String(row.hasChildren);
     tr.append(createLabelCell(row), createSelectionCell(row));
     if (row.hasChildren) {
@@ -473,7 +532,9 @@ function createLabelCell(row: TraceConfigurationRow): HTMLTableCellElement {
     }
     title.append(prefix);
     if (row.validation) {
-        title.append(createValidationIcon(row.validation.severity, row.validation.message));
+        const validationIcon = createValidationIcon(row.validation.severity, row.validation.message);
+        setFocusKey(validationIcon, 'validation', row);
+        title.append(validationIcon);
     }
     title.append(label);
     if (row.removable) {
@@ -505,6 +566,7 @@ function createValidationIcon(severity: 'info' | 'warning' | 'error', message: s
  */
 function createRemoveButton(row: TraceConfigurationRow): HTMLButtonElement {
     const button = createElement('button', 'icon-button node-action');
+    setFocusKey(button, 'remove', row);
     button.type = 'button';
     button.title = 'Remove item';
     button.setAttribute('aria-label', `Remove ${row.label}`);
@@ -567,6 +629,7 @@ function createSelectionCell(row: TraceConfigurationRow): HTMLTableCellElement {
 function createAddButton(row: TraceConfigurationRow): HTMLElement {
     const wrapper = createElement('span', 'add-button-wrapper tooltip-wrapper');
     const button = createElement('button', 'icon-button add-button');
+    setFocusKey(button, 'add', row);
     button.type = 'button';
     const disabledReason = row.addChildDisabledReason;
     const tooltip = disabledReason ?? row.addChildTooltip ?? 'Add Item';
@@ -581,6 +644,7 @@ function createAddButton(row: TraceConfigurationRow): HTMLElement {
         event.stopPropagation();
     });
     if (disabledReason) {
+        setFocusKey(wrapper, 'add-disabled', row);
         wrapper.tabIndex = 0;
         wrapper.setAttribute('aria-label', disabledReason);
     } else {
@@ -600,6 +664,7 @@ function createAddButton(row: TraceConfigurationRow): HTMLElement {
 function createCheckbox(row: TraceConfigurationRow): HTMLLabelElement {
     const label = createElement('label', 'control-line');
     const checkbox = createElement('input');
+    setFocusKey(checkbox, 'value', row);
     checkbox.type = 'checkbox';
     checkbox.checked = row.checked ?? false;
     checkbox.setAttribute('aria-label', row.label);
@@ -617,6 +682,7 @@ function createCheckbox(row: TraceConfigurationRow): HTMLLabelElement {
 function createSelect(row: TraceConfigurationRow): HTMLElement {
     const disabledReason = row.controlDisabledReason;
     const select = createElement('select');
+    setFocusKey(select, 'value', row);
     select.disabled = Boolean(disabledReason);
     select.setAttribute('aria-label', row.label);
     if (row.placeholder && !row.value) {
@@ -640,6 +706,7 @@ function createSelect(row: TraceConfigurationRow): HTMLElement {
     });
     if (disabledReason) {
         const wrapper = createElement('span', 'tooltip-wrapper control-tooltip-wrapper');
+        setFocusKey(wrapper, 'value-disabled', row);
         wrapper.dataset.tooltip = disabledReason;
         wrapper.tabIndex = 0;
         wrapper.setAttribute('aria-label', disabledReason);
@@ -656,7 +723,7 @@ function createSelect(row: TraceConfigurationRow): HTMLElement {
  * Each checkbox change posts the full selected array for the YAML update.
  */
 function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
-    const signature = JSON.stringify([row.options ?? [], getValuePath(row), row.label]);
+    const signature = JSON.stringify([renderedState?.fileName, row.options ?? [], getValuePath(row), row.label]);
     const existingDetails = Array.from(root?.querySelectorAll<HTMLDetailsElement>('details.multi-select') ?? [])
         .find(details => details.dataset.rowId === row.id);
     const existingControl = existingDetails ? multiSelectControls.get(existingDetails) : undefined;
@@ -666,8 +733,8 @@ function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
     }
     const details = createElement('details', 'multi-select');
     details.dataset.rowId = row.id;
-    details.open = openMultiSelectId === row.id;
     const summary = createElement('summary', 'multi-select-summary');
+    setFocusKey(summary, 'summary', row);
     summary.append(createElement('span', 'multi-select-label'), createIcon('chevron-down'));
     const selectedValues = new Set(row.selectedOptions ?? []);
 
@@ -686,21 +753,19 @@ function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
     };
     updateSummary();
     details.addEventListener('toggle', () => {
-        if (details.open) {
-            openMultiSelectId = row.id;
-            document.querySelectorAll<HTMLDetailsElement>('details.multi-select[open]').forEach(openDetails => {
+        if (details.open && root?.contains(details)) {
+            root.querySelectorAll<HTMLDetailsElement>('details.multi-select[open]').forEach(openDetails => {
                 if (openDetails !== details) {
                     openDetails.open = false;
                 }
             });
-            return;
         }
-        openMultiSelectId = openMultiSelectId === row.id ? undefined : openMultiSelectId;
     });
     const menu = createElement('div', 'multi-select-menu');
     (row.options ?? []).forEach(optionValue => {
         const label = createElement('label', 'multi-select-option');
         const checkbox = createElement('input');
+        setFocusKey(checkbox, 'option', row, optionValue);
         checkbox.type = 'checkbox';
         checkbox.value = optionValue;
         checkbox.checked = selectedValues.has(optionValue);
@@ -741,6 +806,7 @@ function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
 function createTextInput(row: TraceConfigurationRow): HTMLElement {
     const disabledReason = row.controlDisabledReason;
     const input = createElement('input');
+    setFocusKey(input, 'value', row);
     input.type = 'text';
     input.value = row.value ?? '';
     input.placeholder = row.placeholder ?? '';
@@ -765,6 +831,7 @@ function createTextInput(row: TraceConfigurationRow): HTMLElement {
     });
     if (disabledReason) {
         const wrapper = createElement('span', 'tooltip-wrapper control-tooltip-wrapper');
+        setFocusKey(wrapper, 'value-disabled', row);
         wrapper.dataset.tooltip = disabledReason;
         wrapper.tabIndex = 0;
         wrapper.setAttribute('aria-label', disabledReason);
