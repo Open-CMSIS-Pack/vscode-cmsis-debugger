@@ -34,7 +34,7 @@
     - [Arm CMSIS Solution extension v1.72.0](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution)
     - [CDT GDB Adapter extension v2.9.1](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode)
     - [Memory Inspector v1.3.0](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector)
-    - [Peripheral Inspector v1.9.2](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector)
+    - [Peripheral Inspector v1.10.0](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.peripheral-inspector)
     - [Serial Monitor v0.13.1](https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-serial-monitor)
     - [RTOS Views v0.0.16](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views)
 - See [CMSIS Debugger 1.10.0 project board](https://github.com/orgs/Open-CMSIS-Pack/projects/21/views/13) for a full list
