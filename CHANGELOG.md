@@ -3,12 +3,12 @@
 ## 1.10.0
 
 - Adds workflows for [trace generation](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#using-trace), SWO and Trace Buffer capture to raw binary files, and decode to CSV output files and their inspection.
-    - Workflows are based on the proposal for the [CMSIS Trace solution](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#trace).
+    - Workflows are based on the proposal for the [CMSIS Trace solution](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#tools-and-extensions).
     - Trace Buffer support is at preview quality and requires updates to trace support in DFPs.
 - Adds the [`Trace Generation`](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-generation) view to create and edit [`*.ctrace.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctraceyml) files for the active CMSIS solution. It follows solution and target changes, validates edited settings, and allows to apply changes even during a running debug session.
 - Adds [`Trace Data`](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#review-captured-trace-data) view which supports display of trace CSV files, filtering, sorting, and linking from CSV records back to their configurations in the [`Trace Generation`](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-generation) view.
 - Adds [pyTS v1.0.0](https://github.com/Open-CMSIS-Pack/pyTS/releases/tag/v1.0.0) CLI tool that converts [`*.ctrace.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctraceyml) files into [`*.ctrace-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctrace-runyml) files with trace source programming instructions for the debug adapter.
-- Adds [ctrace v1.0.0](https://github.com/Open-CMSIS-Pack/devtools/releases/tag/tools%2Fctrace%2F1.0.0) CLI tool that decodes raw trace captures into CSV and CTF output files utilizing the [OpenCSD Trace Decode Library](https://github.com/Linaro/OpenCSD).
+- Adds [ctrace v1.0.0](https://github.com/Open-CMSIS-Pack/devtools/releases/tag/tools%2Fctrace%2F1.0.0) CLI tool that decodes raw trace captures into CSV output files utilizing the [OpenCSD Trace Decode Library](https://github.com/Linaro/OpenCSD).
 - Includes updated pyOCD distribution ([pyOCD v0.46.0](https://github.com/pyocd/pyOCD/releases/tag/v0.46.0))
     - Adds support for SWO and Trace Buffer setup using configurations from [`*.cbuild-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/pyOCD-Debugger/#content-of-cbuild-runyml) with raw trace output to files or TCP servers.
     - Adds trace generation setup using configuration from [`*.ctrace-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctrace-runyml) with synchronization on resume.
