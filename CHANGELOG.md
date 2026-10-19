@@ -10,17 +10,20 @@
 - Adds [pyTS v1.0.0](https://github.com/Open-CMSIS-Pack/pyTS/releases/tag/v1.0.0) CLI tool that converts [`*.ctrace.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctraceyml) files into [`*.ctrace-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctrace-runyml) files with trace source programming instructions for the debug adapter.
 - Adds [ctrace v1.0.0](https://github.com/Open-CMSIS-Pack/devtools/releases/tag/tools%2Fctrace%2F1.0.0) CLI tool that decodes raw trace captures into CSV and CTF output files utilizing the [OpenCSD Trace Decode Library](https://github.com/Linaro/OpenCSD).
 - Includes updated pyOCD distribution ([pyOCD v0.46.0](https://github.com/pyocd/pyOCD/releases/tag/v0.46.0))
-    - Adds support for SWO and Trace Buffer configurations from [`*.cbuild-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/pyOCD-Debugger/#content-of-cbuild-runyml) and [`*.ctrace-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctrace-runyml) files and applies the data for the setup/initialization of the debug session.
+    - Adds support for SWO and Trace Buffer setup using configurations from [`*.cbuild-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/pyOCD-Debugger/#content-of-cbuild-runyml) with raw trace output to files or TCP servers.
+    - Adds trace generation setup using configuration from [`*.ctrace-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctrace-runyml) with synchronization on resume.
     - Adds support for trace-related DFP debug description enhancements.
-    - Adds `pyocd info` sub-command to display debug probe and target information.
+    - Adds `info` sub-command to display debug probe and target information.
     - Enhances `gdbserver` mode:
         - Extends support for SEGGER’s [RTT](https://www.segger.com/products/debug-probes/j-link/technology/about-real-time-transfer/) and [SystemView](https://www.segger.com/products/development-tools/systemview/) to configuration via [`*.cbuild-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/pyOCD-Debugger/#content-of-cbuild-runyml).
-        - Keep RTT and semihosting working even without a connected GDB client.
-        - Allow stepping and resuming past BKPT instructions.
+        - Support RTT channels association with STDIO, files or TCP servers.
+        - Support SystemView recording to files, and live streaming to the SystemView application.
+        - Keep trace, RTT, SystemView and semihosting working even without a connected GDB client.
+        - Allow stepping and resuming over BKPT instructions.
         - Preserve breakpoint and watchpoint stop reasons when they coincide with debugger interrupts.
         - Improve connection, disconnection, and shutdown reliability.
         - Fixes handling of negative thread IDs from older GDB versions.
-    - Adds udev rules for the following debug units:
+    - Adds udev rules for the following debug units on Linux:
         - Raspberry Pi Debug Probe (CMSIS-DAP)
         - Artery Technology CMSIS-DAP
         - Arduino UNO WiFi R4 CMSIS-DAP
