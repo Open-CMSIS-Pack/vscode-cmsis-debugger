@@ -33,7 +33,10 @@ export class CapturedTraceResolver {
         private readonly cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator()
     ) { }
 
-    public async open(cbuildRunFilePath?: string): Promise<void> {
+    public async open(
+        cbuildRunFilePath?: string,
+        options: Pick<vscode.TextDocumentShowOptions, 'preserveFocus'> = {}
+    ): Promise<void> {
         const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
         if (activeSolutionFolder === undefined) {
             return;
@@ -47,7 +50,7 @@ export class CapturedTraceResolver {
         const captures = await this.findCaptures(activeSolutionFolder, solutionSet);
         const capture = captures.find(({ type }) => type === 'SWO') ?? captures[0];
         if (capture !== undefined) {
-            await this.openCapture(capture.uri);
+            await this.openCapture(capture.uri, options);
         }
     }
 
@@ -64,8 +67,20 @@ export class CapturedTraceResolver {
         }
     }
 
-    private async openCapture(uri: vscode.Uri): Promise<void> {
-        await vscode.commands.executeCommand('vscode.openWith', uri, CSV_TABLE_EDITOR_VIEW_TYPE);
+    private async openCapture(
+        uri: vscode.Uri,
+        options: Pick<vscode.TextDocumentShowOptions, 'preserveFocus'>
+    ): Promise<void> {
+        const existingGroup = vscode.window.tabGroups.all.find(group => group.tabs.some(tab =>
+            tab.input instanceof vscode.TabInputCustom
+            && tab.input.viewType === CSV_TABLE_EDITOR_VIEW_TYPE
+            && tab.input.uri.toString() === uri.toString()));
+        if (existingGroup !== undefined || options.preserveFocus !== undefined) {
+            await vscode.commands.executeCommand('vscode.openWith', uri, CSV_TABLE_EDITOR_VIEW_TYPE,
+                { ...options, viewColumn: existingGroup?.viewColumn ?? vscode.ViewColumn.Beside });
+        } else {
+            await vscode.commands.executeCommand('vscode.openWith', uri, CSV_TABLE_EDITOR_VIEW_TYPE);
+        }
     }
 
     private async findCaptures(activeSolutionFolder: vscode.Uri, solutionSet: string): Promise<CapturedTrace[]> {

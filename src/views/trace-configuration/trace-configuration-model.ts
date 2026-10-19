@@ -666,6 +666,14 @@ export class TraceConfigurationModel {
         if (!document) {
             return;
         }
+        if (pathToUpdate.at(-1) === 'ITM' && this.rowBuilder.isTimeSyncPath(pathToUpdate.slice(0, -1))) {
+            const disabledReason = this.rowBuilder.getTimeSyncItmDisabledReason(pathToUpdate.slice(0, -1));
+            if (disabledReason) {
+                this.errorMessage = disabledReason;
+                this.notifyStateChanged();
+                return;
+            }
+        }
         if (typeof value === 'string' && value.trim() === '' && this.rowBuilder.isOptionalScalarPath(pathToUpdate)) {
             this.deleteOptionalValue(document, pathToUpdate);
             await this.acceptInMemoryEdit();

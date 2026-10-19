@@ -8,3 +8,8 @@ tools
 coverage
 site/*
 test-report.html
+
+# AI files and directories
+.cmsis-dev/
+.agents/
+.codex/

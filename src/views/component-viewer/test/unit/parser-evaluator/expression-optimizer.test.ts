@@ -476,7 +476,7 @@ describe('expression-optimizer', () => {
         expect(foldedAssign.right.constValue).toBe(2);
     });
 
-    it('wraps optimizeParseResult and logs on errors', () => {
+    it('returns diagnostics and logs folding statistics at debug level', () => {
         const optimizer = new ExpressionOptimizer();
         const diagnostics: Diagnostic[] = [];
         const ast = bin('/', num('1', 1), num('0', 0));
@@ -487,13 +487,20 @@ describe('expression-optimizer', () => {
             isPrintf: false,
         };
         const errorSpy = jest.spyOn(componentViewerLogger, 'error').mockImplementation(() => {});
-        const optimized = optimizer.optimizeParseResult(parsed);
-        expect(optimized.diagnostics.some((d) => d.type === 'error')).toBe(true);
-        expect(errorSpy).toHaveBeenCalled();
-        errorSpy.mockRestore();
+        const debugSpy = jest.spyOn(componentViewerLogger, 'debug').mockImplementation(() => {});
 
-        const optimizedWrapped = optimizeParseResult(parsed);
-        expect(optimizedWrapped.ast).toBeDefined();
+        try {
+            const optimized = optimizer.optimizeParseResult(parsed);
+            expect(optimized.diagnostics.some((d) => d.type === 'error')).toBe(true);
+            expect(debugSpy).toHaveBeenCalledWith(expect.stringContaining('[expression-optimizer][fold]'));
+
+            const optimizedWrapped = optimizeParseResult(parsed);
+            expect(optimizedWrapped.ast).toBeDefined();
+            expect(errorSpy).not.toHaveBeenCalled();
+        } finally {
+            debugSpy.mockRestore();
+            errorSpy.mockRestore();
+        }
     });
 
     it('handles mocked failures in applyUnary and applyBinary', async () => {

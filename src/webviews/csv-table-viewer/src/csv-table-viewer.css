@@ -49,10 +49,6 @@ body {
     .loading-spinner {
         animation-duration: 1600ms;
     }
-
-    .copy-selection-tooltip {
-        animation: none;
-    }
 }
 
 .table-frame {
@@ -72,7 +68,7 @@ body {
     position: sticky;
     top: 0;
     z-index: 1;
-    min-width: max-content;
+    min-width: 0;
     background: var(--vscode-editorActionList-background);
     border-bottom: 1px solid var(--vscode-editorWidget-border);
 }
@@ -94,6 +90,10 @@ body {
     cursor: col-resize;
     background: transparent;
     border: 0;
+}
+
+.table-header > :last-child .column-resize {
+    right: 0;
 }
 
 .sort-button {
@@ -150,7 +150,7 @@ body {
 
 .table-rows {
     position: relative;
-    min-width: max-content;
+    min-width: 0;
 }
 
 .table-row {
@@ -162,6 +162,7 @@ body {
 
 .table-cell,
 .row-index-cell {
+    min-width: 0;
     overflow: hidden;
     padding: 2px 6px;
     color: inherit;
@@ -183,47 +184,6 @@ body {
     gap: 4px;
     color: var(--vscode-editorLineNumber-foreground);
     background: var(--vscode-editor-background);
-}
-
-.copy-selection-tooltip {
-    position: absolute;
-    z-index: 3;
-    left: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    height: 24px;
-    padding: 0 7px 0 5px;
-    color: var(--vscode-editorWidget-foreground);
-    background: var(--vscode-editorWidget-background);
-    border: 1px solid var(--vscode-editorWidget-border);
-    border-radius: 3px;
-    box-shadow: 0 2px 6px var(--vscode-widget-shadow);
-    font: inherit;
-    cursor: pointer;
-    animation: copy-selection-tooltip-appear 160ms ease-out both;
-}
-
-@keyframes copy-selection-tooltip-appear {
-    from {
-        opacity: 0;
-        transform: translateY(4px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.copy-selection-tooltip:hover {
-    background: var(--vscode-actionBar-toggledBackground);
-}
-
-.copy-selection-tooltip:focus-visible {
-    outline: 1px solid var(--vscode-focusBorder);
-    outline-offset: -1px;
 }
 
 .table-context-menu {
@@ -254,11 +214,6 @@ body {
 
 .table-context-menu button:disabled {
     color: var(--vscode-disabledForeground);
-}
-
-.copy-selection-tooltip svg {
-    width: 14px;
-    height: 14px;
 }
 
 .table-row:hover {

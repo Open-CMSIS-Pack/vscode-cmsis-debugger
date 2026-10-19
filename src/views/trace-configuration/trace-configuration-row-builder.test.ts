@@ -122,6 +122,101 @@ function rowIndex(state: TraceConfigurationState, path: (string | number)[]): nu
 }
 
 describe('TraceConfigurationRowBuilder', () => {
+    describe.each([
+        { scope: 'root', path: ['ctrace', 'timesync'], prefix: 'ctrace:\n  setup: []\n', indent: '  ' },
+        { scope: 'processor', path: ['ctrace', 'setup', 0, 'timesync'], prefix: 'ctrace:\n  setup:\n    - pname: cm33\n', indent: '      ' },
+    ])('Time Synchronization at $scope scope', ({ path, prefix, indent }) => {
+        it.each(['128', '"128"', '8192', '"8192"', 'off', 'packet'])(
+            'renders and normalizes ITM %s', period => {
+                const state = createStateFromYaml(`${prefix}${indent}timesync:\n${indent}  ITM: ${period}\n`);
+                expect(findRow(state, path)).toMatchObject({ expanded: true, hasChildren: true, control: 'none' });
+                expect(findRow(state, [...path, 'ITM'])).toMatchObject({
+                    path: [...path, 'ITM'], control: 'select', value: period.replaceAll('"', ''),
+                    options: ['off', '128', '8192', 'packet'],
+                });
+                const collapsed = createStateFromYaml(`${prefix}${indent}timesync:\n`, { expandedRows: new Set() });
+                expect(hasRow(collapsed, [...path, 'ITM'])).toBe(false);
+            }
+        );
+
+        it.each(['', `${indent}timesync:\n`, `${indent}timesync: {}\n`])('shows off without changing shorthand %j', entry => {
+            const state = createStateFromYaml(`${prefix}${entry}`);
+            if (entry === '' && path.length === 2) {
+                expect(hasRow(state, path)).toBe(false);
+                expect(hasRow(state, [...path, 'ITM'])).toBe(false);
+            } else {
+                expect(findRow(state, [...path, 'ITM']).value).toBe('off');
+            }
+            expect(state.dirty).toBe(false);
+        });
+
+        it('traverses non-ITM children while retaining standard metadata filtering', () => {
+            const state = createStateFromYaml(`${prefix}${indent}timesync:\n${indent}  ITM: 128\n${indent}  ctrace-ref: source\n${indent}  created-by: author\n${indent}  generated-by: tool\n${indent}  custom: retained\n${indent}  nested: { setting: preserved }\n${indent}  periods: [128, 8192]\n`);
+            expect(hasRow(state, [...path, 'ctrace-ref'])).toBe(false);
+            expect(hasRow(state, [...path, 'created-by'])).toBe(false);
+            expect(hasRow(state, [...path, 'generated-by'])).toBe(false);
+            expect(findRow(state, [...path, 'custom'])).toMatchObject({ control: 'text', value: 'retained' });
+            expect(findRow(state, [...path, 'nested'])).toMatchObject({ kind: 'map', hasChildren: true });
+            expect(findRow(state, [...path, 'nested', 'setting'])).toMatchObject({ control: 'text', value: 'preserved' });
+            expect(findRow(state, [...path, 'periods'])).toMatchObject({ kind: 'sequence', hasChildren: true });
+            expect(findRow(state, [...path, 'periods', 0]).value).toBe('128');
+            expect(findRow(state, [...path, 'periods', 1]).value).toBe('8192');
+            expect(state.rows.filter(row => JSON.stringify(row.path) === JSON.stringify([...path, 'ITM']))).toHaveLength(1);
+        });
+
+        it('shows an unsupported scalar ITM value without substituting a supported value', () => {
+            const state = createStateFromYaml(`${prefix}${indent}timesync:\n${indent}  ITM: custom-period\n`);
+            expect(findRow(state, [...path, 'ITM']).value).toBe('custom-period');
+            expect(findRow(state, [...path, 'ITM']).options).toContain('custom-period');
+        });
+
+        it.each(['unexpected', '[128]', '{ ITM: [128] }', '{ ITM: { nested: 128 } }'])(
+            'disables destructive ITM editing for malformed %s', value => {
+                const state = createStateFromYaml(`${prefix}${indent}timesync: ${value}\n`);
+                expect(findRow(state, [...path, 'ITM']).controlDisabledReason).toContain('in YAML');
+                expect(state.dirty).toBe(false);
+            }
+        );
+    });
+
+    it('does not synthesize root Time Synchronization for processor-only configuration', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  created-by: CMSIS Debugger',
+            '  setup:',
+            '    - core: Cortex-M7',
+            '      data:',
+            '        - location: osRtxInfo.kernel.tick',
+            '          access: R',
+            '          output: PC+value',
+            '      events:',
+            '      itm:',
+            '        enable: 0x20000000',
+            '      pcsampling:',
+            '        period: 0',
+            '      synchronization:',
+            '        DWT: 16M',
+            '      timesync:',
+            '        ITM: \'8192\'',
+            '',
+        ].join('\n'));
+
+        expect(hasRow(state, ['ctrace', 'timesync'])).toBe(false);
+        expect(hasRow(state, ['ctrace', 'timesync', 'ITM'])).toBe(false);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'timesync', 'ITM'])).toMatchObject({
+            control: 'select', value: '8192',
+        });
+        expect(state.rows.filter(row => row.label === 'Time Synchronization')).toHaveLength(1);
+        expect(state.dirty).toBe(false);
+    });
+
+    it.each(['1', '4', '16', '64', '"1"', '"4"', '"16"', '"64"'])('retains timestamp prescaler selection %s', period => {
+        const state = createStateFromYaml(`ctrace:\n  setup:\n    - pname: cm33\n      timestamps:\n        itm-prescaler: ${period}\n`);
+        expect(findRow(state, ['ctrace', 'setup', 0, 'timestamps', 'itm-prescaler'])).toMatchObject({
+            control: 'select', value: period.replaceAll('"', ''), options: ['1', '4', '16', '64'],
+        });
+    });
+
     it.each([
         ['', undefined],
         ['label:', undefined],
@@ -180,6 +275,68 @@ describe('TraceConfigurationRowBuilder', () => {
         const clearedValue = document.yaml.getValue();
         expect(hasRow(builder.createState(), labelPath)).toBe(false);
         expect(document.yaml.getValue()).toEqual(clearedValue);
+    });
+
+    it('shows manually configured pyTS settings and hides their synthetic rows without changing the YAML document', () => {
+        const file = new CTraceYamlFile('target.ctrace.yml');
+        const document = CTraceYamlDocument.parse([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      instructions:',
+            '        start:',
+            '          - location: main',
+            '        stop:',
+            '          - location: endTrace',
+            '      tracehalt:',
+            '        - location: stopTrace',
+            '    - pname: cm55',
+            ''
+        ].join('\n'));
+        file.document = document;
+        const builder = new TraceConfigurationRowBuilder(
+            () => file,
+            () => false,
+            () => false,
+            () => undefined,
+            new AllRowsExpandedSet(),
+            new Map([
+                ...createCapabilities().entries(),
+                ...createCapabilities('cm55', TraceConfigurationTypes.CORTEX_M_DWT_4_TRACE_CAPABILITIES, 1).entries()
+            ]),
+            () => false
+        );
+        const originalValue = document.yaml.getValue();
+
+        const state = builder.createState();
+
+        expect(findRow(state, ['ctrace', 'setup', 0]).label).toBe('Processor:cm33');
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'instructions'])).toBe(true);
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'instructions', 'start'])).toBe(true);
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'instructions', 'stop'])).toBe(true);
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'tracehalt'])).toBe(true);
+        expect(findRow(state, ['ctrace', 'setup', 1]).label).toBe('Processor:cm55');
+        expect(hasRow(state, ['ctrace', 'setup', 1, 'instructions'])).toBe(false);
+        expect(hasRow(state, ['ctrace', 'setup', 1, 'tracehalt'])).toBe(false);
+        expect(document.yaml.getValue()).toEqual(originalValue);
+    });
+
+    it.each([
+        ['tracehalt:', false],
+        ['tracehalt: null', false],
+        ['tracehalt: ~', false],
+        ['tracehalt: []', false],
+        ['tracehalt:\n        - location: stopTrace', true],
+    ])('shows Trace Halt only for a non-empty array (%s)', (traceHaltEntry, expectedVisible) => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            `      ${traceHaltEntry}`,
+            ''
+        ].join('\n'));
+
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'tracehalt'])).toBe(expectedVisible);
     });
 
     it('reports status and empty messages when no file is loaded', () => {
@@ -570,7 +727,7 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(dataItemRow.valuePath).toEqual(['ctrace', 'setup', 0, 'data', 0, 'location']);
     });
 
-    it('renders condition access options for instruction and tracehalt conditions', () => {
+    it('renders condition access options for manually configured instruction and tracehalt conditions', () => {
         const state = createStateFromYaml([
             'ctrace:',
             '  setup:',
@@ -685,7 +842,7 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(findRow(state, ['ctrace', 'setup', 0, 'data']).addChildTooltip).toBe(expectedTooltip);
         expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'start']).addChildTooltip).toBe(expectedTooltip);
         expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'stop']).addChildTooltip).toBe(expectedTooltip);
-        expect(findRow(state, ['ctrace', 'setup', 0, 'tracehalt']).addChildTooltip).toBe(expectedTooltip);
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'tracehalt'])).toBe(false);
     });
 
     it('disables empty match values when shared DWT comparators are exhausted', () => {
@@ -810,7 +967,8 @@ describe('TraceConfigurationRowBuilder', () => {
 
         expect(findRow(state, ['ctrace', 'setup', 0, 'timestamps']).checked).toBe(false);
         expect(findRow(state, ['ctrace', 'setup', 0, 'exceptions']).checked).toBe(false);
-        expect(findRow(state, ['ctrace', 'setup', 0, 'instructions']).checked).toBe(false);
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'instructions'])).toBe(false);
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'tracehalt'])).toBe(false);
         expect(findRow(state, ['ctrace', 'setup', 0, 'timesync']).checked).toBe(false);
         expect(findRow(state, ['ctrace', 'setup', 0, 'advanced-settings']).label).toBe('Advanced Settings');
         const dwtSyncRow = findRow(state, ['ctrace', 'setup', 0, 'synchronization', 'DWT']);
@@ -929,6 +1087,7 @@ describe('TraceConfigurationRowBuilder', () => {
 
         expect(noTraceState.rows).toHaveLength(0);
         expect(noTraceState.emptyMessage).toBe('No trace-capable processor configuration is available for this ctrace file.');
+        expect(hasRow(instructionOnlyState, ['ctrace', 'setup', 0])).toBe(true);
         expect(hasRow(instructionOnlyState, ['ctrace', 'setup', 0, 'instructions'])).toBe(true);
         expect(hasRow(instructionOnlyState, ['ctrace', 'setup', 0, 'timestamps'])).toBe(false);
         expect(hasRow(instructionOnlyState, ['ctrace', 'setup', 0, 'data'])).toBe(false);
@@ -988,13 +1147,14 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(builder.accessLabelToValue('Custom')).toBe('Custom');
     });
 
-    it('shows schema children for nullable object shorthand sections', () => {
+    it('shows schema children for manually configured nullable object shorthand sections', () => {
         const state = createStateFromYaml([
             'ctrace:',
             '  setup:',
             '    - pname: cm33',
             '      timestamps:',
             '      instructions:',
+            '      tracehalt:',
             ''
         ].join('\n'));
 
@@ -1009,5 +1169,6 @@ describe('TraceConfigurationRowBuilder', () => {
         expect(instructionsRow.hasChildren).toBe(true);
         expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'start']).addChildKind).toBe('start');
         expect(findRow(state, ['ctrace', 'setup', 0, 'instructions', 'stop']).addChildKind).toBe('stop');
+        expect(hasRow(state, ['ctrace', 'setup', 0, 'tracehalt'])).toBe(false);
     });
 });

@@ -21,11 +21,22 @@ import type {
     TraceConfigurationRow,
     TraceConfigurationState,
     TraceHostToWebviewMessage,
-    TraceWebviewToHostMessage
+    TraceWebviewToHostMessage,
 } from '../../../views/trace-configuration/trace-configuration-protocol';
+
+type MultiSelectControl = {
+    signature: string;
+    updateSelectedOptions(selectedOptions: readonly string[]): void;
+};
+
+interface TraceViewState {
+    labelColumnWidth?: number;
+}
 
 interface VsCodeApi {
     postMessage(message: TraceWebviewToHostMessage): void;
+    getState(): TraceViewState | undefined;
+    setState(state: TraceViewState): void;
 }
 
 declare function acquireVsCodeApi(): VsCodeApi;
@@ -33,6 +44,92 @@ declare function acquireVsCodeApi(): VsCodeApi;
 const vscodeApi = acquireVsCodeApi();
 const root = document.getElementById('root');
 let openMultiSelectId: string | undefined;
+let renderedState: TraceConfigurationState | undefined;
+const multiSelectControls = new WeakMap<HTMLDetailsElement, MultiSelectControl>();
+const DEFAULT_LABEL_COLUMN_WIDTH = 52;
+const MIN_LABEL_COLUMN_WIDTH = 15;
+const MAX_LABEL_COLUMN_WIDTH = 85;
+const savedLabelColumnWidth = vscodeApi.getState()?.labelColumnWidth;
+let labelColumnWidth = typeof savedLabelColumnWidth === 'number' && Number.isFinite(savedLabelColumnWidth)
+    ? Math.min(MAX_LABEL_COLUMN_WIDTH, Math.max(MIN_LABEL_COLUMN_WIDTH, savedLabelColumnWidth))
+    : DEFAULT_LABEL_COLUMN_WIDTH;
+const columnResizeHandle = createColumnResizeHandle();
+const columnResizeObserver = new ResizeObserver(updateColumnResizeHandle);
+
+function updateColumnResizeHandle(): void {
+    document.documentElement.style.setProperty('--label-col-width', `${labelColumnWidth}%`);
+    const scrollRegion = root?.querySelector<HTMLElement>('.option-tree-scroll');
+    if (scrollRegion) {
+        columnResizeHandle.style.left = `${scrollRegion.clientWidth * labelColumnWidth / 100}px`;
+    }
+    columnResizeHandle.setAttribute('aria-valuenow', String(labelColumnWidth));
+}
+
+function setLabelColumnWidth(width: number): void {
+    labelColumnWidth = Math.min(MAX_LABEL_COLUMN_WIDTH, Math.max(MIN_LABEL_COLUMN_WIDTH, width));
+    updateColumnResizeHandle();
+    vscodeApi.setState({ ...vscodeApi.getState(), labelColumnWidth });
+}
+
+function createColumnResizeHandle(): HTMLDivElement {
+    const handle = createElement('div', 'column-resize-handle');
+    handle.tabIndex = 0;
+    handle.title = 'Resize columns. Double-click to reset.';
+    handle.setAttribute('role', 'separator');
+    handle.setAttribute('aria-label', 'Label column width');
+    handle.setAttribute('aria-orientation', 'vertical');
+    handle.setAttribute('aria-valuemin', String(MIN_LABEL_COLUMN_WIDTH));
+    handle.setAttribute('aria-valuemax', String(MAX_LABEL_COLUMN_WIDTH));
+    handle.addEventListener('dblclick', () => setLabelColumnWidth(DEFAULT_LABEL_COLUMN_WIDTH));
+    handle.addEventListener('keydown', event => {
+        const step = event.shiftKey ? 10 : 1;
+        switch (event.key) {
+            case 'ArrowLeft': setLabelColumnWidth(labelColumnWidth - step); break;
+            case 'ArrowRight': setLabelColumnWidth(labelColumnWidth + step); break;
+            case 'Home': setLabelColumnWidth(MIN_LABEL_COLUMN_WIDTH); break;
+            case 'End': setLabelColumnWidth(MAX_LABEL_COLUMN_WIDTH); break;
+            case 'Enter': setLabelColumnWidth(DEFAULT_LABEL_COLUMN_WIDTH); break;
+            default: return;
+        }
+        event.preventDefault();
+    });
+    handle.addEventListener('pointerdown', event => {
+        const scrollRegion = root?.querySelector<HTMLElement>('.option-tree-scroll');
+        if (event.button !== 0 || !event.isPrimary || !scrollRegion || scrollRegion.clientWidth === 0) {
+            return;
+        }
+        event.preventDefault();
+        handle.focus({ preventScroll: true });
+        const pointerId = event.pointerId;
+        const grabOffset = event.clientX - scrollRegion.getBoundingClientRect().left
+            - scrollRegion.clientWidth * labelColumnWidth / 100;
+        document.body.classList.add('resizing');
+        const stopResize = (): void => {
+            document.body.classList.remove('resizing');
+            document.removeEventListener('pointermove', moveResize);
+            document.removeEventListener('pointerup', endResize);
+            document.removeEventListener('pointercancel', endResize);
+            window.removeEventListener('blur', stopResize);
+        };
+        const moveResize = (moveEvent: PointerEvent): void => {
+            const currentScrollRegion = root?.querySelector<HTMLElement>('.option-tree-scroll');
+            if (moveEvent.pointerId === pointerId && currentScrollRegion && currentScrollRegion.clientWidth > 0) {
+                const width = moveEvent.clientX - currentScrollRegion.getBoundingClientRect().left - grabOffset;
+                setLabelColumnWidth(width / currentScrollRegion.clientWidth * 100);
+            }
+        };
+        const endResize = (endEvent: PointerEvent): void => {
+            if (endEvent.pointerId === pointerId) {
+                stopResize();
+            }
+        };
+        document.addEventListener('pointermove', moveResize);
+        document.addEventListener('pointerup', endResize);
+        document.addEventListener('pointercancel', endResize);
+        window.addEventListener('blur', stopResize);
+    });
+    return handle;
+}
 
 /**
  * post sends one typed browser action to the extension host. Keeping all
@@ -95,10 +192,38 @@ function closeOpenMultiSelect(): void {
     });
 }
 
+/** Captures an active edit so validation refreshes retain its draft and caret. */
+function preserveTextInput(state: TraceConfigurationState): (() => void) | undefined {
+    const input = document.activeElement;
+    if (!(input instanceof HTMLInputElement) || input.type !== 'text' || !root?.contains(input)
+        || state.focusedRowId || renderedState?.fileName !== state.fileName) {
+        return;
+    }
+    const rowId = input.closest<HTMLTableRowElement>('tr[data-row-id]')?.dataset.rowId;
+    const previousRow = renderedState?.rows.find(row => row.id === rowId);
+    const nextRow = state.rows.find(row => row.id === rowId);
+    if (!previousRow || !nextRow || nextRow.control !== 'text' || nextRow.controlDisabledReason
+        || (previousRow.value ?? '') !== (nextRow.value ?? '')
+        || JSON.stringify(getValuePath(previousRow)) !== JSON.stringify(getValuePath(nextRow))) {
+        return;
+    }
+    const { value, selectionStart, selectionEnd, selectionDirection } = input;
+    return () => {
+        const row = Array.from(root.querySelectorAll<HTMLTableRowElement>('tr[data-row-id]'))
+            .find(candidate => candidate.dataset.rowId === rowId);
+        const replacement = row?.querySelector<HTMLInputElement>('input[type="text"]');
+        if (replacement) {
+            replacement.value = value;
+            replacement.focus({ preventScroll: true });
+            replacement.setSelectionRange(selectionStart, selectionEnd, selectionDirection ?? undefined);
+        }
+    };
+}
+
 /**
  * renderApp is the top-level renderer for each host update. It creates the
- * toolbar, status line, and table for the current state and replaces the root
- * contents in one pass.
+ * toolbar, status line, and table for the current state, reusing unchanged
+ * multi-select controls when replacing the root contents.
  */
 function renderApp(state: TraceConfigurationState): void {
     if (!root) {
@@ -107,13 +232,16 @@ function renderApp(state: TraceConfigurationState): void {
     const previousScrollRegion = root.querySelector<HTMLElement>('.option-tree-scroll');
     const scrollTop = previousScrollRegion?.scrollTop ?? 0;
     const scrollLeft = previousScrollRegion?.scrollLeft ?? 0;
+    const menuScrollPositions = Array.from(root.querySelectorAll<HTMLElement>('.multi-select-menu'))
+        .map(menu => ({ menu, scrollTop: menu.scrollTop, scrollLeft: menu.scrollLeft }));
     const activeElement = document.activeElement;
+    const restoreTextInput = preserveTextInput(state);
     const focusedRowId = activeElement instanceof HTMLTableRowElement && root.contains(activeElement)
         ? activeElement.dataset.rowId
         : undefined;
-    clearElement(root);
     const surface = createElement('main', 'table-surface');
     surface.append(createHeader(state));
+    const treeBody = createElement('div', 'option-tree-body');
     const scrollRegion = createElement('div', 'option-tree-scroll');
     if (state.loading) {
         scrollRegion.append(createEmptyState('Loading ctrace.yml...'));
@@ -124,11 +252,30 @@ function renderApp(state: TraceConfigurationState): void {
     } else {
         scrollRegion.append(createTable(state.rows));
     }
-    surface.append(scrollRegion);
+    treeBody.append(scrollRegion);
+    if (!state.loading && !state.errorMessage && state.rows.length > 0) {
+        treeBody.append(columnResizeHandle);
+    }
+    surface.append(treeBody);
+    columnResizeObserver.disconnect();
+    clearElement(root);
     root.append(surface);
+    columnResizeObserver.observe(scrollRegion);
+    updateColumnResizeHandle();
     scrollRegion.scrollTop = scrollTop;
     scrollRegion.scrollLeft = scrollLeft;
+    if (!state.focusedRowId && activeElement instanceof HTMLElement && root.contains(activeElement)) {
+        activeElement.focus({ preventScroll: true });
+    }
+    menuScrollPositions.forEach(position => {
+        if (root.contains(position.menu)) {
+            position.menu.scrollTop = position.scrollTop;
+            position.menu.scrollLeft = position.scrollLeft;
+        }
+    });
     focusRow(state.focusedRowId ?? focusedRowId);
+    renderedState = state;
+    restoreTextInput?.();
 }
 
 /**
@@ -238,7 +385,9 @@ function createEmptyState(message: string, isError = false): HTMLElement {
 function createTable(rows: TraceConfigurationRow[]): HTMLTableElement {
     const table = createElement('table', 'option-tree-table');
     table.setAttribute('aria-label', 'CMSIS trace configuration');
-    table.append(createTableHead(), createTableBody(rows));
+    const columns = createElement('colgroup');
+    columns.append(createElement('col', 'label-column'), createElement('col'));
+    table.append(columns, createTableHead(), createTableBody(rows));
     return table;
 }
 
@@ -502,11 +651,19 @@ function createSelect(row: TraceConfigurationRow): HTMLElement {
 
 /**
  * createMultiSelect renders a compact dropdown checklist for fields where the
- * ctrace schema accepts multiple choices. It keeps its checked values locally
- * while the dropdown is open and posts the full selected array after each
- * checkbox change so the host can rewrite the corresponding YAML structure.
+ * ctrace schema accepts multiple choices. Unchanged option lists retain their
+ * DOM across host updates, while checked values stay synchronized with the host.
+ * Each checkbox change posts the full selected array for the YAML update.
  */
 function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
+    const signature = JSON.stringify([row.options ?? [], getValuePath(row), row.label]);
+    const existingDetails = Array.from(root?.querySelectorAll<HTMLDetailsElement>('details.multi-select') ?? [])
+        .find(details => details.dataset.rowId === row.id);
+    const existingControl = existingDetails ? multiSelectControls.get(existingDetails) : undefined;
+    if (existingDetails && existingControl?.signature === signature) {
+        existingControl.updateSelectedOptions(row.selectedOptions ?? []);
+        return existingDetails;
+    }
     const details = createElement('details', 'multi-select');
     details.dataset.rowId = row.id;
     details.open = openMultiSelectId === row.id;
@@ -545,6 +702,7 @@ function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
         const label = createElement('label', 'multi-select-option');
         const checkbox = createElement('input');
         checkbox.type = 'checkbox';
+        checkbox.value = optionValue;
         checkbox.checked = selectedValues.has(optionValue);
         checkbox.setAttribute('aria-label', `${row.label} ${optionValue}`);
         checkbox.addEventListener('change', () => {
@@ -560,6 +718,17 @@ function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
         text.textContent = optionValue;
         label.append(checkbox, text);
         menu.append(label);
+    });
+    multiSelectControls.set(details, {
+        signature,
+        updateSelectedOptions(selectedOptions): void {
+            selectedValues.clear();
+            selectedOptions.forEach(optionValue => selectedValues.add(optionValue));
+            menu.querySelectorAll<HTMLInputElement>('input').forEach(checkbox => {
+                checkbox.checked = selectedValues.has(checkbox.value);
+            });
+            updateSummary();
+        }
     });
     details.append(summary, menu);
     return details;

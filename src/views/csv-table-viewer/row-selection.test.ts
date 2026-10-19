@@ -24,12 +24,39 @@ import {
     isRowSelected,
     moveRowCaret,
     selectAllRows,
+    selectRowForContextMenu,
     selectRowRange,
     selectSingleRow,
     toggleRow,
 } from './row-selection';
 
 describe('row selection', () => {
+    it.each([false, true])('preserves selection, caret, and anchor on a selected context-menu row (additive=%s)', additive => {
+        const state = toggleRow(selectRowRange(selectSingleRow(2), 4), 8);
+
+        expect(selectRowForContextMenu(state, 3, additive)).toBe(state);
+    });
+
+    it('replaces selection on an unselected context-menu row without modifiers', () => {
+        const state = toggleRow(selectSingleRow(2), 8);
+
+        expect(selectRowForContextMenu(state, 5, false)).toEqual(selectSingleRow(5));
+    });
+
+    it('adds only the unselected context-menu row when a selection modifier is held', () => {
+        const state = toggleRow(selectSingleRow(2), 8);
+
+        expect(selectRowForContextMenu(state, 5, true)).toEqual({
+            intervals: [{ start: 2, end: 2 }, { start: 5, end: 5 }, { start: 8, end: 8 }],
+            caret: 5,
+            anchor: 5,
+        });
+    });
+
+    it.each([false, true])('selects an unselected context-menu row from an empty selection (additive=%s)', additive => {
+        expect(selectRowForContextMenu(EMPTY_ROW_SELECTION, 5, additive)).toEqual(selectSingleRow(5));
+    });
+
     it('validates normalized selection intervals against the current view', () => {
         expect(areValidRowSelectionIntervals([{ start: 1, end: 3 }, { start: 5, end: 5 }], 6)).toBe(true);
         expect(areValidRowSelectionIntervals([], 6)).toBe(false);
