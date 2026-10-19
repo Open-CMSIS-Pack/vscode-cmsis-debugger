@@ -44,6 +44,7 @@ declare function acquireVsCodeApi(): VsCodeApi;
 const vscodeApi = acquireVsCodeApi();
 const root = document.getElementById('root');
 let openMultiSelectId: string | undefined;
+let renderedState: TraceConfigurationState | undefined;
 const multiSelectControls = new WeakMap<HTMLDetailsElement, MultiSelectControl>();
 const DEFAULT_LABEL_COLUMN_WIDTH = 52;
 const MIN_LABEL_COLUMN_WIDTH = 15;
@@ -191,6 +192,34 @@ function closeOpenMultiSelect(): void {
     });
 }
 
+/** Captures an active edit so validation refreshes retain its draft and caret. */
+function preserveTextInput(state: TraceConfigurationState): (() => void) | undefined {
+    const input = document.activeElement;
+    if (!(input instanceof HTMLInputElement) || input.type !== 'text' || !root?.contains(input)
+        || state.focusedRowId || renderedState?.fileName !== state.fileName) {
+        return;
+    }
+    const rowId = input.closest<HTMLTableRowElement>('tr[data-row-id]')?.dataset.rowId;
+    const previousRow = renderedState?.rows.find(row => row.id === rowId);
+    const nextRow = state.rows.find(row => row.id === rowId);
+    if (!previousRow || !nextRow || nextRow.control !== 'text' || nextRow.controlDisabledReason
+        || (previousRow.value ?? '') !== (nextRow.value ?? '')
+        || JSON.stringify(getValuePath(previousRow)) !== JSON.stringify(getValuePath(nextRow))) {
+        return;
+    }
+    const { value, selectionStart, selectionEnd, selectionDirection } = input;
+    return () => {
+        const row = Array.from(root.querySelectorAll<HTMLTableRowElement>('tr[data-row-id]'))
+            .find(candidate => candidate.dataset.rowId === rowId);
+        const replacement = row?.querySelector<HTMLInputElement>('input[type="text"]');
+        if (replacement) {
+            replacement.value = value;
+            replacement.focus({ preventScroll: true });
+            replacement.setSelectionRange(selectionStart, selectionEnd, selectionDirection ?? undefined);
+        }
+    };
+}
+
 /**
  * renderApp is the top-level renderer for each host update. It creates the
  * toolbar, status line, and table for the current state, reusing unchanged
@@ -206,6 +235,7 @@ function renderApp(state: TraceConfigurationState): void {
     const menuScrollPositions = Array.from(root.querySelectorAll<HTMLElement>('.multi-select-menu'))
         .map(menu => ({ menu, scrollTop: menu.scrollTop, scrollLeft: menu.scrollLeft }));
     const activeElement = document.activeElement;
+    const restoreTextInput = preserveTextInput(state);
     const focusedRowId = activeElement instanceof HTMLTableRowElement && root.contains(activeElement)
         ? activeElement.dataset.rowId
         : undefined;
@@ -244,6 +274,8 @@ function renderApp(state: TraceConfigurationState): void {
         }
     });
     focusRow(state.focusedRowId ?? focusedRowId);
+    renderedState = state;
+    restoreTextInput?.();
 }
 
 /**
