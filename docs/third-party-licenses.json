@@ -1,5 +1,19 @@
 [
     {
+        "name": "@open-cmsis-pack/cmsis-common",
+        "version": "0.2.0",
+        "spdx": "Apache-2.0",
+        "url": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-solution/tree/main/packages/cmsis-common",
+        "license": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-solution/blob/main/LICENSE"
+    },
+    {
+        "name": "@tanstack/react-virtual",
+        "version": "3.14.13",
+        "spdx": "MIT",
+        "url": "https://github.com/tanstack/react-virtual",
+        "license": "https://github.com/tanstack/react-virtual/blob/main/LICENSE"
+    },
+    {
         "name": "@vscode/codicons",
         "version": "0.0.45",
         "spdx": "CC-BY-4.0",
@@ -15,17 +29,10 @@
     },
     {
         "name": "ctrace",
-        "version": "0.4.1",
+        "version": "1.0.0",
         "spdx": "Apache-2.0",
         "url": "https://github.com/Open-CMSIS-Pack/devtools/tree/main/tools/ctrace",
-        "license": "https://github.com/Open-CMSIS-Pack/devtools/blob/main/LICENSE"
-    },
-    {
-        "name": "@open-cmsis-pack/cmsis-common",
-        "version": "0.2.0",
-        "spdx": "Apache-2.0",
-        "url": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-solution/tree/main/packages/cmsis-common",
-        "license": "https://github.com/Open-CMSIS-Pack/vscode-cmsis-solution/blob/main/LICENSE"
+        "license": "https://github.com/Open-CMSIS-Pack/devtools/blob/tools/ctrace/1.0.0/LICENSE"
     },
     {
         "name": "jsonc-parser",
@@ -43,17 +50,17 @@
     },
     {
         "name": "pyocd",
-        "version": "0.45.2.dev61+gf8ca7e4b7",
+        "version": "0.46.0",
         "spdx": "Apache-2.0",
         "url": "https://github.com/pyocd/pyOCD",
-        "license": "https://github.com/pyocd/pyOCD/blob/v0.45.1/LICENSE"
+        "license": "https://github.com/pyocd/pyOCD/blob/v0.46.0/LICENSE"
     },
     {
         "name": "pyTS",
         "version": "1.0.0",
         "spdx": "Apache-2.0",
         "url": "https://github.com/Open-CMSIS-Pack/pyTS/releases",
-        "license": "https://github.com/Open-CMSIS-Pack/pyTS/blob/main/LICENSE"
+        "license": "https://github.com/Open-CMSIS-Pack/pyTS/blob/v1.0.0/LICENSE"
     },
     {
         "name": "react",
@@ -96,12 +103,5 @@
         "spdx": "ISC",
         "url": "https://github.com/eemeli/yaml",
         "license": "https://github.com/eemeli/yaml/blob/main/LICENSE"
-    },
-    {
-        "name": "@tanstack/react-virtual",
-        "version": "3.14.13",
-        "spdx": "MIT",
-        "url": "https://github.com/tanstack/react-virtual",
-        "license": "https://github.com/tanstack/react-virtual/blob/main/LICENSE"
     }
 ]
