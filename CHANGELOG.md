@@ -5,17 +5,16 @@
 - Adds workflows for [trace generation](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#using-trace), SWO and Trace Buffer capture to raw binary files, and decode to CSV output files and their inspection.
     - Workflows are based on the proposal for the [CMSIS Trace solution](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#trace).
     - Trace Buffer support is at preview quality and requires updates to trace support in DFPs.
-    - Feedback is welcome through [GitHub issues](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/issues).
 - Adds the [`Trace Generation`](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-generation) view to create and edit [`*.ctrace.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctraceyml) files for the active CMSIS solution. It follows solution and target changes, validates edited settings, and allows to apply changes even during a running debug session.
 - Adds [`Trace Data`](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#review-captured-trace-data) view which supports display of trace CSV files, filtering, sorting, and linking from CSV records back to their configurations in the [`Trace Generation`](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#trace-generation) view.
 - Adds [pyTS v1.0.0](https://github.com/Open-CMSIS-Pack/pyTS/releases/tag/v1.0.0) CLI tool that converts [`*.ctrace.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctraceyml) files into [`*.ctrace-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctrace-runyml) files with trace source programming instructions for the debug adapter.
 - Adds [ctrace v1.0.0](https://github.com/Open-CMSIS-Pack/devtools/releases/tag/tools%2Fctrace%2F1.0.0) CLI tool that decodes raw trace captures into CSV and CTF output files utilizing the [OpenCSD Trace Decode Library](https://github.com/Linaro/OpenCSD).
 - Includes updated pyOCD distribution ([pyOCD v0.46.0](https://github.com/pyocd/pyOCD/releases/tag/v0.46.0))
-    - Reads SWO and Trace Buffer configurations from [`*.cbuild-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/pyOCD-Debugger/#content-of-cbuild-runyml) and [`*.ctrace-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctrace-runyml) files and applies the data for the setup/initialization of the debug session. Also supports trace-related DFP debug description enhancements.
-        - Note: Trace Buffer support is at preview quality and requires changes to DFPs.
-    - Adds `pyocd info` sub-command to display information about the connected target.
-    - Extends support for SEGGER’s [RTT](https://www.segger.com/products/debug-probes/j-link/technology/about-real-time-transfer/) and [SystemView](https://www.segger.com/products/development-tools/systemview/) configuration via *.cbuild-run.yml to `gdbserver` mode.
+    - Adds support for SWO and Trace Buffer configurations from [`*.cbuild-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/pyOCD-Debugger/#content-of-cbuild-runyml) and [`*.ctrace-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/Experimental-Features/#file-structure-of-ctrace-runyml) files and applies the data for the setup/initialization of the debug session.
+    - Adds support for trace-related DFP debug description enhancements.
+    - Adds `pyocd info` sub-command to display debug probe and target information.
     - Enhances `gdbserver` mode:
+        - Extends support for SEGGER’s [RTT](https://www.segger.com/products/debug-probes/j-link/technology/about-real-time-transfer/) and [SystemView](https://www.segger.com/products/development-tools/systemview/) to configuration via [`*.cbuild-run.yml`](https://open-cmsis-pack.github.io/cmsis-toolbox/pyOCD-Debugger/#content-of-cbuild-runyml).
         - Keep RTT and semihosting working even without a connected GDB client.
         - Allow stepping and resuming past BKPT instructions.
         - Preserve breakpoint and watchpoint stop reasons when they coincide with debugger interrupts.
@@ -30,7 +29,7 @@
     - Fixes hanging HID debug unit connection on Windows.
     - Fixes incorrect programming of DPv3 BASEPTR0 register.
 - Includes arm-none-eabi-gdb distribution ([arm-none-eabi-gdb v15.3.1](https://artifacts.tools.arm.com/arm-none-eabi-gdb/15.3.1/)). See the [release notes](https://gitlab.arm.com/tooling/gnu-toolchains-for-arm/-/blob/releases/15.3.rel1/release_notes.md).
-- Minimum extension versions required for CMSIS Debugger v1.9.0 pre-release:
+- Minimum extension versions required for CMSIS Debugger v1.10.0:
     - [Arm CMSIS Solution extension v1.72.0](https://marketplace.visualstudio.com/items?itemName=Arm.cmsis-csolution)
     - [CDT GDB Adapter extension v2.9.1](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.cdt-gdb-vscode)
     - [Memory Inspector v1.3.0](https://marketplace.visualstudio.com/items?itemName=eclipse-cdt.memory-inspector)
