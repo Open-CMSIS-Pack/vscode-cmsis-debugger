@@ -1141,7 +1141,7 @@
     }
   },
   "cmsis": {
-    "pyocd": "pyocd/pyOCD@0.45.1",
+    "pyocd": "pyocd/pyOCD@0.46.0",
     "pyocdNightly": "pyocd/pyOCD@nightly",
     "gdb": "15.3.1",
     "pyts": "Open-CMSIS-Pack/pyTS@1.0.0",
