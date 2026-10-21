@@ -26,7 +26,6 @@ Supported `<target>`s are:
 - win32-arm64 (Windows, Arm®, aarch64)
 - linux-x64 (Linux, x86-64)
 - linux-arm64 (Linux, Arm, aarch64)
-- darwin-x64 (macOS, x86-64)
 - darwin-arm64 (macOS, Arm, aarch64)
 
 1. Open a terminal and execute the following command to download NPM dependencies and tools, and
@@ -39,18 +38,87 @@ Supported `<target>`s are:
 2. Download binary tools
 
     ```sh
-    > npm run download-tools [--target <target>] [--no-cache]
+    > npm run download-tools -- [--channel release|nightly] [--target <target>]  [--no-cache]
     ```
 
+    The `--channel` can be used to switch between pinned version read from `package.json` and latest nightly builds, defaults to `release`.
+
     If no `<target>` is specified the local system's architecture is used by default.
-    By default, tool downloads are cached in the npm cache (see `npm cache dir`) to prevent
-    recurring downloads of exact same archives on clean builds.
+
+    Downloads use the helper's default package-manager cache unless `--no-cache` is given.
+    The helper records the prepared version and target, and replaces each changed tool directory.
 
 3. Package the extension as a locally installable VSIX file:
 
     ```sh
     > npm run package [--target <target>]
     ```
+
+## Selecting bundled tools
+
+`package.json` contains fixed release pins only. `download-tools` defaults to the
+`release` channel and uses `vsce-helper` release assets with those exact versions.
+Packaging consumes the tools already prepared in the workspace.
+
+```sh
+npm run download-tools -- --channel release --target linux-x64
+npm run package -- --target linux-x64 --out ./bundle.vsix
+npm run validate-tools -- --target linux-x64 --vsix ./bundle.vsix --structural
+```
+
+The `nightly` channel selects the latest successful run of each configured workflow
+on `main` that has a matching, unexpired platform artifact. It does not compare
+versions, commits or timestamps with the pinned release. A missing nightly artifact
+falls back to that release. API, authentication and extraction errors remain errors.
+GDB always uses its pinned release.
+
+```sh
+npm run download-tools -- --channel nightly --target linux-x64
+npm run download-tools -- --channel pr --ctrace-pr 123 --target linux-x64
+```
+
+| Tool | Nightly workflow (`main`) | PR workflow |
+| --- | --- | --- |
+| pyOCD | `nightly.yaml` | `nightly.yaml` |
+| pyTS | `ci.yml` | `ci.yml` |
+| ctrace (devtools) | `nightly.yml` | `ctrace.yml` |
+
+For PR selection, specify `--pyocd-pr`, `--pyts-pr` or `--ctrace-pr`. The selected
+workflow must have a successful run associated with that open PR's current head,
+or a dispatched run at the same head in its source repository. Other tools use
+nightly selection. Explicit PR overrides never fall back to a release. The `pr`
+channel requires at least one PR number; the `nightly` channel also accepts overrides.
+In particular, pyOCD PRs need executable artifacts from its selected workflow;
+ordinary pytest reports are insufficient.
+
+PR CI automatically selects dependency PRs linked in the PR description. Add full
+HTTPS links such as `https://github.com/Open-CMSIS-Pack/pyTS/pull/123` for pyTS,
+`https://github.com/pyocd/pyOCD/pull/123` for pyOCD, or
+`https://github.com/Open-CMSIS-Pack/devtools/pull/123` for ctrace. Only repositories
+configured in the release pins are considered. Repeated links to the same PR are
+accepted; links to different PRs of one tool produce a warning and use nightly
+selection for that tool. Unique PR links for other tools still apply. Editing the
+PR description starts CI again. PR comments are not inspected. Manual workflow
+dispatch continues to accept explicit PR numbers.
+
+The same `Downloadable` and archive wrappers handle every channel. Download,
+cache, version/target markers and directory replacement are provided by
+`@open-cmsis-pack/vsce-helper`. Workflow cache identities include run, attempt
+and artifact IDs. pyTS raw and ZIP-wrapped archives are supported. ctrace
+workflow binaries receive licenses from that run's source and pinned submodules.
+The selected platform is resolved independently; a complete five-platform matrix
+is not required to use an available artifact.
+
+Tools may also be selected positionally, for example `download-tools -- pyts`.
+Use `--force` to replace prepared tools even if their version/target markers match,
+`--no-cache` to disable the download cache, and `--dest <directory>` to prepare a
+separate workspace. For a clean release bundle, prepare all tools in release mode.
+PR CI without unique dependency links and nightly CI use nightly selection;
+release CI uses release mode.
+
+`--structural` validates layout, executable permissions and licenses without
+running a dependency binary. Otherwise the validator runs native version checks
+where possible. Structural checks alone do not prove execution on another platform.
 
 ## Release versioning
 
@@ -95,7 +163,7 @@ Use the following commands:
     > npm run test
     ```
 
-    **Note**: At this point, no tests have been added to this repository.
+    Jest includes deterministic tool source selection and archive security tests.
 
 ## 'all' script
 

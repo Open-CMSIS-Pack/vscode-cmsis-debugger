@@ -24,14 +24,18 @@ import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 import { extractZip } from '@open-cmsis-pack/cmsis-common/extract-zip';
 
+/** Script location used to resolve the default workspace and temporary extraction paths. */
 const __filename = fileURLToPath(import.meta.url);
+/** Directory containing this validation script. */
 const __dirname = dirname(__filename);
 
+/** Outcome and diagnostic message for one validation check. */
 type ValidationResult = {
     success: boolean;
     message: string;
 };
 
+/** Expected tool layout and version command used during validation. */
 type ToolManifest = {
     toolPattern: RegExp;    // Pattern to find the tool directory (e.g., gdb-*, pyocd)
     executablePath: string; // Path within the found directory
@@ -44,6 +48,7 @@ type ToolManifest = {
     };
 };
 
+/** Required files, directories and version checks for each bundled tool. */
 const TOOLS: Record<string, ToolManifest> = {
     gdb: {
         toolPattern: /^gdb(-\d+)?$/,  // Matches 'gdb' or 'gdb-<numbers>'
@@ -74,7 +79,7 @@ const TOOLS: Record<string, ToolManifest> = {
         versionCheck: {
             args: ['--version'],
             expectedOutput: '0.',  // pyOCD outputs version like "0.42.0"
-            timeout: 5000,
+            timeout: 10000,
         },
     },
     pyts: {
@@ -87,7 +92,7 @@ const TOOLS: Record<string, ToolManifest> = {
         versionCheck: {
             args: ['--version'],
             expectedOutput: 'pyts',
-            timeout: 5000,
+            timeout: 10000,
         },
     },
     ctrace: {
@@ -107,7 +112,9 @@ const TOOLS: Record<string, ToolManifest> = {
     },
 };
 
+/** Target selected by the CLI, used for executable names and host compatibility checks. */
 let targetPlatform: string = process.platform;
+/** Workspace or extracted VSIX extension directory containing the tools folder. */
 let validationBaseDir: string = path.join(__dirname, '..');
 
 /**
@@ -126,12 +133,14 @@ async function findToolDirectory(pattern: RegExp): Promise<string | undefined> {
     }
 }
 
+/** Resolves a tool executable path, adding the Windows suffix when needed. */
 function getExecutablePath(toolDir: string, execPath: string): string {
     const fullPath = path.join(toolDir, execPath);
     const isWindowsTarget = targetPlatform.startsWith('win32');
     return isWindowsTarget ? `${fullPath}.exe` : fullPath;
 }
 
+/** Checks for a regular file and, for Unix tools on Unix hosts, executable permission. */
 async function checkFileExists(filePath: string): Promise<ValidationResult> {
     try {
         const stats = await fs.stat(filePath);
@@ -168,6 +177,7 @@ async function checkFileExists(filePath: string): Promise<ValidationResult> {
     }
 }
 
+/** Checks that a required tool directory exists. */
 async function checkDirExists(dirPath: string): Promise<ValidationResult> {
     try {
         const stats = await fs.stat(dirPath);
@@ -189,6 +199,7 @@ async function checkDirExists(dirPath: string): Promise<ValidationResult> {
     }
 }
 
+/** Runs a bounded version command and checks its output for the expected tool identity. */
 async function runVersionCheck(
     execPath: string,
     args: string[],
@@ -267,6 +278,7 @@ async function runVersionCheck(
     });
 }
 
+/** Validates a tool's layout and licenses, then optionally checks its version on a compatible host. */
 async function validateTool(name: string, manifest: ToolManifest): Promise<boolean> {
     console.log(`\nValidating ${name}...`);
 
@@ -303,6 +315,17 @@ async function validateTool(name: string, manifest: ToolManifest): Promise<boole
         if (!result.success) allPassed = false;
     }
 
+    if (name === 'ctrace') {
+        for (const license of ['LICENSE.txt', 'THIRD_PARTY_NOTICES.md', 'THIRD_PARTY_LICENSES/cxxopts.txt', 'THIRD_PARTY_LICENSES/yaml-cpp.txt', 'THIRD_PARTY_LICENSES/OpenCSD.txt', 'THIRD_PARTY_LICENSES/OpenCSD-NOTICE.txt']) {
+            try {
+                if ((await fs.readFile(path.join(toolDir, license))).length === 0) throw new Error('empty license');
+            } catch {
+                console.log(`  ❌ Missing or empty ctrace license: ${license}`);
+                allPassed = false;
+            }
+        }
+    }
+
     // Level 2: Functional check (only if we can execute it)
     console.log('\n  Level 2: Functional check');
 
@@ -319,10 +342,10 @@ async function validateTool(name: string, manifest: ToolManifest): Promise<boole
         'darwin': 'darwin'
     };
 
-    const canExecute = platformMap[targetOs] === hostOs && targetArch === hostArch;
+    const canExecute = !process.argv.includes('--structural') && platformMap[targetOs] === hostOs && targetArch === hostArch;
 
     if (!canExecute) {
-        console.log(`\t⊘ Skipped (cannot execute ${targetPlatform} binaries on ${hostOs}-${hostArch})`);
+        console.log(`\t⊘ Skipped (--structural or cannot execute ${targetPlatform} on ${hostOs}-${hostArch})`);
     } else {
         const execPath = getExecutablePath(toolDir, manifest.executablePath);
         const versionResult = await runVersionCheck(
@@ -339,6 +362,7 @@ async function validateTool(name: string, manifest: ToolManifest): Promise<boole
     return allPassed;
 }
 
+/** Removes an optional extraction directory, reporting cleanup failures as warnings. */
 async function cleanupTempDir(dir: string | null) {
     if (dir) {
         try {
@@ -349,6 +373,7 @@ async function cleanupTempDir(dir: string | null) {
     }
 }
 
+/** Validates workspace tools or an extracted VSIX and exits with the combined result. */
 async function main() {
     console.log('Tool Dependency Validation');
     console.log('═'.repeat(50));
@@ -363,7 +388,6 @@ async function main() {
     const vsixIndex = args.indexOf('--vsix');
     const vsixPath = vsixIndex !== -1 && args[vsixIndex + 1] ? args[vsixIndex + 1] : null;
 
-    let workDir = __dirname;
     let cleanupDir: string | null = null;
 
     if (vsixPath) {
@@ -382,8 +406,7 @@ async function main() {
         await extractZip(vsixPath, tempDir);
 
         // VSIX structure: extension/ contains the actual extension files
-        workDir = path.join(tempDir, 'extension');
-        validationBaseDir = workDir;
+        validationBaseDir = path.join(tempDir, 'extension');
         cleanupDir = tempDir;
 
         console.log(`Extraction complete in ${tempDir}`);

@@ -1058,8 +1058,7 @@
   },
   "scripts": {
     "prepare": "npm run build",
-    "download-tools": "tsx scripts/download-tools.ts pyocd gdb pyts ctrace",
-    "download-tools:nightly": "tsx scripts/download-tools.ts pyocdNightly gdb pyts ctrace",
+    "download-tools": "tsx scripts/download-tools.ts",
     "validate-tools": "tsx scripts/validate-tools.ts",
     "clean": "git clean -f -x ./node_modules ./dist ./coverage ./tools",
     "build": "webpack --mode production && npm run lint",
@@ -1142,7 +1141,6 @@
   },
   "cmsis": {
     "pyocd": "pyocd/pyOCD@0.46.0",
-    "pyocdNightly": "pyocd/pyOCD@nightly",
     "gdb": "15.3.1",
     "pyts": "Open-CMSIS-Pack/pyTS@1.0.0",
     "ctrace": "Open-CMSIS-Pack/devtools@1.0.0"

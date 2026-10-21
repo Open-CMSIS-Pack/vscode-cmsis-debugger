@@ -22,3 +22,7 @@ tools/**/sha256.txt
 docs/component-viewer
 *.config.{mjs,js,mts,ts}
 *.setup.{mjs,js,mts,ts}
+
+artifacts/**
+AGENTS.md
+vsix-extracted-temp/**
