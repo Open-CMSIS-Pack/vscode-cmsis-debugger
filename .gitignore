@@ -13,3 +13,7 @@ test-report.html
 .cmsis-dev/
 .agents/
 .codex/
+
+# Local packaging outputs
+artifacts/
+vsix-extracted-temp/

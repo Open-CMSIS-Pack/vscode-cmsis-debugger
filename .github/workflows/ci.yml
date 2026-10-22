@@ -12,6 +12,7 @@ on:
       - '.github/workflows/nightly.yml'
       - '.github/ISSUE_TEMPLATE/**'
   pull_request:
+    types: [opened, synchronize, reopened, edited]
     branches:
       - main
     paths-ignore:
@@ -22,6 +23,16 @@ on:
       - '.github/workflows/nightly.yml'
       - '.github/ISSUE_TEMPLATE/**'
   workflow_dispatch:
+    inputs:
+      pyocd-pr:
+        description: 'Optional open pyOCD dependency PR number (requires executable artifacts)'
+        type: string
+      pyts-pr:
+        description: 'Optional open pyTS dependency PR number'
+        type: string
+      ctrace-pr:
+        description: 'Optional open devtools dependency PR number'
+        type: string
   merge_group:
   release:
     types: [published]
@@ -196,6 +207,7 @@ jobs:
           - darwin-arm64
     permissions:
       packages: read
+      actions: read
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
@@ -221,10 +233,44 @@ jobs:
           name: dist
           path: .
 
-      - name: Download tools
+      - name: Install dependencies
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: npm ci
+
+      - name: Resolve dependency PR links
+        if: github.event_name == 'pull_request'
+        id: dependency-prs
+        shell: bash
         run: |
-          npm ci
-          npm run download-tools -- --target ${{ matrix.target }} --no-cache
+          node --import tsx --input-type=module <<'JS'
+          import fs from 'node:fs/promises';
+          import { findDependencyPullRequests } from './scripts/dependency-prs.ts';
+
+          const event = JSON.parse(await fs.readFile(process.env.GITHUB_EVENT_PATH, 'utf8'));
+          const { cmsis } = JSON.parse(await fs.readFile('package.json', 'utf8'));
+          const prs = findDependencyPullRequests(event.pull_request.body ?? '', cmsis,
+            message => console.log(`::warning::${message}`));
+          const channel = Object.keys(prs).length > 0 ? 'pr' : 'nightly';
+          console.log(`Tool channel: ${channel}; dependency PRs: ${JSON.stringify(prs)}`);
+          const outputs = Object.entries({ channel, ...prs }).map(([key, value]) => `${key}=${value}\n`).join('');
+          await fs.appendFile(process.env.GITHUB_OUTPUT, outputs);
+          JS
+
+      - name: Download tools
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TOOL_CHANNEL: ${{ github.event_name == 'release' && 'release' || steps.dependency-prs.outputs.channel || 'nightly' }}
+          PYOCD_PR: ${{ steps.dependency-prs.outputs.pyocd || inputs.pyocd-pr }}
+          PYTS_PR: ${{ steps.dependency-prs.outputs.pyts || inputs.pyts-pr }}
+          CTRACE_PR: ${{ steps.dependency-prs.outputs.ctrace || inputs.ctrace-pr }}
+        shell: bash
+        run: |
+          args=()
+          [[ -z "$PYOCD_PR" ]] || args+=(--pyocd-pr "$PYOCD_PR")
+          [[ -z "$PYTS_PR" ]] || args+=(--pyts-pr "$PYTS_PR")
+          [[ -z "$CTRACE_PR" ]] || args+=(--ctrace-pr "$CTRACE_PR")
+          npm run download-tools -- --channel "$TOOL_CHANNEL" --target ${{ matrix.target }} --no-cache "${args[@]}"
 
       - name: Create vsix package
         run: |

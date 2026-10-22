@@ -19,6 +19,10 @@ import type { Config } from 'jest';
 const config: Config = {  
   testEnvironment: "node",
   preset: "ts-jest",
+  moduleNameMapper: {
+    // Resolve Node ESM imports to their TypeScript sources during tests.
+    "^(\\.{1,2}/.*)\\.js$": "$1",
+  },
   transform: {
     "^.+\\.tsx?$": [
       "ts-jest", {

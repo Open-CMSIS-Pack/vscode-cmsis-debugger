@@ -5,6 +5,7 @@
         "moduleResolution": "node16",
         "noEmit": true,
         "strict": true,
+        "exactOptionalPropertyTypes": true,
         "esModuleInterop": true,
         "noUnusedLocals": true,
         "noUnusedParameters": true,
