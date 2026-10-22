@@ -94,7 +94,8 @@ ordinary pytest reports are insufficient.
 PR CI automatically selects dependency PRs linked in the PR description. Add full
 HTTPS links such as `https://github.com/Open-CMSIS-Pack/pyTS/pull/123` for pyTS,
 `https://github.com/pyocd/pyOCD/pull/123` for pyOCD, or
-`https://github.com/Open-CMSIS-Pack/devtools/pull/123` for ctrace. Only repositories
+`https://github.com/Open-CMSIS-Pack/devtools/pull/123` for ctrace. GitHub shorthand
+references such as `Open-CMSIS-Pack/pyTS#71` are also supported. Only repositories
 configured in the release pins are considered. Repeated links to the same PR are
 accepted; links to different PRs of one tool produce a warning and use nightly
 selection for that tool. Unique PR links for other tools still apply. Editing the

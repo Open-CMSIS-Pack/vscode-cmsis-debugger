@@ -43,6 +43,32 @@ describe('dependency PR links', () => {
         },
     );
 
+    it.each([
+        ['pyocd/pyOCD#12', { pyocd: 12 }],
+        ['Open-CMSIS-Pack/pyTS#71', { pyts: 71 }],
+        ['Open-CMSIS-Pack/devtools#56', { ctrace: 56 }],
+        ['open-cmsis-pack/PYTS#71', { pyts: 71 }],
+    ])('selects dependency PRs from GitHub shorthand references: %s', (reference, expected) => {
+        const warn = jest.fn();
+        expect(findDependencyPullRequests(`Depends on ${reference} for workflow verification`, PINS, warn)).toEqual(expected);
+        expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('deduplicates shorthand and full URLs referring to the same PR', () => {
+        const warn = jest.fn();
+        const body = 'Open-CMSIS-Pack/pyTS#71 and https://github.com/Open-CMSIS-Pack/pyTS/pull/71';
+        expect(findDependencyPullRequests(body, PINS, warn)).toEqual({ pyts: 71 });
+        expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('warns and uses nightly when shorthand and full URLs select different PRs', () => {
+        const warn = jest.fn();
+        const body = 'Open-CMSIS-Pack/pyTS#71 and https://github.com/Open-CMSIS-Pack/pyTS/pull/72';
+        expect(findDependencyPullRequests(body, PINS, warn)).toEqual({});
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn).toHaveBeenCalledWith('Multiple dependency PRs linked for pyts (#71, #72); ignoring these links and using nightly selection.');
+    });
+
     it('deduplicates links to the same PR, ignoring repository and hostname case', () => {
         const warn = jest.fn();
         const body = [
@@ -55,7 +81,16 @@ describe('dependency PR links', () => {
     });
 
     it.each([
-        '', 'No dependency PRs.', 'Open-CMSIS-Pack/pyTS#12',
+        '', 'No dependency PRs.',
+        'unrelated/pyTS#12',
+        'Open-CMSIS-Pack/pyTS#0',
+        'Open-CMSIS-Pack/pyTS#-1',
+        'Open-CMSIS-Pack/pyTS#01',
+        'Open-CMSIS-Pack/pyTS#12abc',
+        'Open-CMSIS-Pack/pyTS#12-extra',
+        'other/Open-CMSIS-Pack/pyTS#12',
+        'https://evil.example/Open-CMSIS-Pack/pyTS#12',
+        'https://github.com/Open-CMSIS-Pack/pyTS#12',
         'https://github.com/unrelated/pyTS/pull/12',
         'https://github.com/Open-CMSIS-Pack/pyTS/issues/12',
         'https://github.com/Open-CMSIS-Pack/pyTS/pull/12abc',

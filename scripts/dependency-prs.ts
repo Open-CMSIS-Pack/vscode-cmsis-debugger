@@ -27,7 +27,10 @@ export function findDependencyPullRequests(
     warn: (message: string) => void,
 ): DependencyPullRequests {
     const candidates = new Map<DependencyTool, Set<number>>();
-    for (const [link] of body.matchAll(/https:\/\/[^\s<>()[\]`"']+/gi)) {
+    // GitHub renders owner/repo#number as a PR link without expanding the raw description.
+    const expandedBody = body.replace(/(?<![\w./@-])([\w.-]+\/[\w.-]+)#([1-9]\d*)(?![\w-])/g,
+        (_match: string, repository: string, number: string) => `https://github.com/${repository}/pull/${number}`);
+    for (const [link] of expandedBody.matchAll(/https:\/\/[^\s<>()[\]`"']+/gi)) {
         let url: URL;
         try {
             url = new URL(link.replace(/[.,;:!]+$/, ''));
