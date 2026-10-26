@@ -105,8 +105,8 @@ dispatch continues to accept explicit PR numbers.
 The same `Downloadable` and archive wrappers handle every channel. Download,
 cache, version/target markers and directory replacement are provided by
 `@open-cmsis-pack/vsce-helper`. Workflow cache identities include run, attempt
-and artifact IDs. pyTS raw and ZIP-wrapped archives are supported. ctrace
-workflow binaries receive licenses from that run's source and pinned submodules.
+and artifact IDs. pyTS raw and ZIP-wrapped archives are supported. All tool
+archives must include their license and notice files; no files are downloaded separately.
 The selected platform is resolved independently; a complete five-platform matrix
 is not required to use an available artifact.
 

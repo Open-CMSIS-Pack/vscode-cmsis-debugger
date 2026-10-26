@@ -27,13 +27,65 @@ import { pathToFileURL } from 'node:url';
 const execFile = promisify(execFileCallback);
 /** Archive module loaded by the child process to exercise the actual helper wrappers. */
 const MODULE_URL = pathToFileURL(path.resolve('scripts/tool-archives.ts')).href;
+/** Workflow module used to supply a local ctrace workflow archive. */
+const WORKFLOW_URL = pathToFileURL(path.resolve('scripts/workflow-assets.ts')).href;
+/** License and notice files that ctrace archives must supply. */
+const CTRACE_LICENSE_FILES = [
+    'LICENSE.txt',
+    'THIRD_PARTY_NOTICES.md',
+    'THIRD_PARTY_LICENSES/cxxopts.txt',
+    'THIRD_PARTY_LICENSES/yaml-cpp.txt',
+    'THIRD_PARTY_LICENSES/OpenCSD.txt',
+    'THIRD_PARTY_LICENSES/OpenCSD-NOTICE.txt',
+];
 
-/** Extracts a fixture through the pyTS wrapper without running any bundled executable. */
-async function extract(archive: string, destination: string, artifactName: string): Promise<void> {
+/** Extracts a local fixture through the selected wrapper without network access or executing tools. */
+async function extract(archive: string, destination: string, tool: 'pyts' | 'ctrace-release' | 'ctrace-workflow' = 'pyts'): Promise<void> {
     // Load the actual ESM helper in Node; no dependency executable is run by these tests.
-    await execFile(process.execPath, ['--import', 'tsx', '--input-type=module', '--eval',
-        `const { PyTSArchiveFileAsset } = await import(${JSON.stringify(MODULE_URL)}); const subject = { version: undefined, cacheId: undefined, withCacheDir() { return this; }, dispose() {}, async copyTo() { return process.argv[1]; } }; const asset = new PyTSArchiveFileAsset(subject); try { await asset.copyTo(process.argv[2]); } catch (error) { process.stderr.write(error.message + ': ' + (error.cause?.message ?? '')); process.exitCode = 1; } finally { await asset.dispose(); }`,
-        archive, destination, artifactName]);
+    const driver = `
+        const { PyTSArchiveFileAsset, CTraceArchiveFileAsset } = await import(${JSON.stringify(MODULE_URL)});
+        const { WorkflowArchiveAsset } = await import(${JSON.stringify(WORKFLOW_URL)});
+        class FixtureWorkflowAsset extends WorkflowArchiveAsset {
+            /** Supplies a local archive in place of a workflow artifact download. */
+            async copyTo() {
+                return process.argv[1];
+            }
+
+            /** Rejects additional GitHub requests during archive installation. */
+            async getOctokit() {
+                throw new Error('Unexpected GitHub request');
+            }
+        }
+        let subject = {
+            version: undefined,
+            cacheId: undefined,
+            withCacheDir() {
+                return this;
+            },
+            dispose() {},
+            async copyTo() {
+                return process.argv[1];
+            }
+        };
+        if (process.argv[3] === 'ctrace-workflow') {
+            subject = new FixtureWorkflowAsset('org', 'repo', 'ci.yml', 'ctrace-linux-amd64');
+        }
+        let asset;
+        if (process.argv[3] === 'pyts') {
+            asset = new PyTSArchiveFileAsset(subject);
+        } else {
+            asset = new CTraceArchiveFileAsset(subject, 'bin/linux-amd64/ctrace');
+        }
+        try {
+            await asset.copyTo(process.argv[2]);
+        } catch (error) {
+            process.stderr.write(error.message + ': ' + (error.cause?.message ?? ''));
+            process.exitCode = 1;
+        } finally {
+            await asset.dispose();
+        }
+    `;
+    await execFile(process.execPath, ['--import', 'tsx', '--input-type=module', '--eval', driver, archive, destination, tool]);
 }
 /** Creates a temporary executable and license fixture, then cleans up after the test. */
 async function withArchive(test: (root: string, source: string) => Promise<void>): Promise<void> {
@@ -65,7 +117,7 @@ describePosix('upstream executable archive formats', () => {
         await withArchive(async (root, source) => {
             const archive = await tar(root, source);
             const destination = path.join(root, 'dest');
-            await extract(archive, destination, path.basename(archive));
+            await extract(archive, destination);
             expect(await fs.readFile(path.join(destination, '_internal', 'LICENSE'), 'utf8')).toBe('license fixture');
             expect((await fs.stat(path.join(destination, 'pyTS'))).mode & 0o111).not.toBe(0);
         });
@@ -76,7 +128,7 @@ describePosix('upstream executable archive formats', () => {
             const wrapped = path.join(root, 'wrapped.tar.gz');
             await execFile('zip', [wrapped, path.basename(archive)], { cwd: root });
             const destination = path.join(root, 'dest');
-            await extract(wrapped, destination, path.basename(archive));
+            await extract(wrapped, destination);
             expect(await fs.readFile(path.join(destination, 'pyTS'), 'utf8')).toBe('binary fixture');
             expect(await fs.readdir(destination)).not.toContain(path.basename(archive));
         });
@@ -86,7 +138,7 @@ describePosix('upstream executable archive formats', () => {
             const archive = path.join(root, 'raw.zip');
             await execFile('zip', ['-r', archive, '.'], { cwd: source });
             const destination = path.join(root, 'dest');
-            await extract(archive, destination, 'pyTS-1.0.1-windows-amd64.zip');
+            await extract(archive, destination);
             expect(await fs.readFile(path.join(destination, 'pyTS'), 'utf8')).toBe('binary fixture');
         });
     });
@@ -94,7 +146,7 @@ describePosix('upstream executable archive formats', () => {
         await withArchive(async (root, source) => {
             await fs.symlink('_internal/LICENSE', path.join(source, 'license-link'));
             const destination = path.join(root, 'dest');
-            await extract(await tar(root, source), destination, 'irrelevant.tar.gz');
+            await extract(await tar(root, source), destination);
             expect((await fs.lstat(path.join(destination, 'license-link'))).isFile()).toBe(true);
             expect(await fs.readFile(path.join(destination, 'license-link'), 'utf8')).toBe('license fixture');
         });
@@ -103,13 +155,43 @@ describePosix('upstream executable archive formats', () => {
         await withArchive(async (root, source) => {
             await fs.writeFile(path.join(root, 'outside'), 'outside');
             await fs.symlink('../outside', path.join(source, 'escape'));
-            await expect(extract(await tar(root, source), path.join(root, 'dest'), 'archive.tar.gz')).rejects.toThrow(/escapes extraction directory|outside the downloaded archive/);
+            await expect(extract(await tar(root, source), path.join(root, 'dest'))).rejects.toThrow(/escapes extraction directory|outside the downloaded archive/);
         });
     });
     it('rejects directory cycles instead of recursively materializing them', async () => {
         await withArchive(async (root, source) => {
             await fs.symlink('.', path.join(source, 'cycle'));
-            await expect(extract(await tar(root, source), path.join(root, 'dest'), 'archive.tar.gz')).rejects.toThrow('cycle');
+            await expect(extract(await tar(root, source), path.join(root, 'dest'))).rejects.toThrow('cycle');
+        });
+    });
+    it.each(['ctrace-release', 'ctrace-workflow'] as const)('preserves bundled ctrace licenses and executable mode for %s', async tool => {
+        await withArchive(async (root, source) => {
+            let executablePath = path.join(source, 'ctrace');
+            if (tool === 'ctrace-release') {
+                const binaryDirectory = path.join(source, 'bin', 'linux-amd64');
+                await fs.mkdir(binaryDirectory, { recursive: true });
+                executablePath = path.join(binaryDirectory, 'ctrace');
+            }
+            await fs.rename(path.join(source, 'pyTS'), executablePath);
+            await fs.chmod(executablePath, 0o644);
+
+            for (const file of CTRACE_LICENSE_FILES) {
+                const licensePath = path.join(source, file);
+                await fs.mkdir(path.dirname(licensePath), { recursive: true });
+                await fs.writeFile(licensePath, `Bundled ${file}`);
+            }
+
+            const archive = path.join(root, 'ctrace.zip');
+            await execFile('zip', ['-r', archive, '.'], { cwd: source });
+            const destination = path.join(root, 'dest');
+            await extract(archive, destination, tool);
+
+            expect(await fs.readFile(path.join(destination, 'ctrace'), 'utf8')).toBe('binary fixture');
+            expect((await fs.stat(path.join(destination, 'ctrace'))).mode & 0o111).not.toBe(0);
+            expect(await fs.readdir(destination)).not.toContain('bin');
+            for (const file of CTRACE_LICENSE_FILES) {
+                expect(await fs.readFile(path.join(destination, file), 'utf8')).toBe(`Bundled ${file}`);
+            }
         });
     });
 });

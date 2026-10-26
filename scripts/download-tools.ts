@@ -21,7 +21,7 @@ import { PackageJson } from 'type-fest';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { ArchiveFileAssetEx, CTraceArchiveFileAsset, CTraceWorkflowAsset, GDBArchiveFileAsset, PyTSArchiveFileAsset } from './tool-archives.js';
+import { ArchiveFileAssetEx, CTraceArchiveFileAsset, GDBArchiveFileAsset, PyTSArchiveFileAsset } from './tool-archives.js';
 import { chooseAsset, WorkflowArchiveAsset } from './workflow-assets.js';
 
 /** Tool identifiers accepted by the CLI and used as download directory names. */
@@ -78,8 +78,7 @@ async function source(tool: GitHubTool, releaseName: string, developmentName: st
     if (values.channel === 'release') return release;
     const pr = prNumber(tool);
     const workflow = WORKFLOWS[tool][pr === undefined ? 'nightly' : 'pr'];
-    const development = tool === 'ctrace' ? new CTraceWorkflowAsset(owner, repo, workflow, developmentName, pr) :
-        new WorkflowArchiveAsset(owner, repo, workflow, developmentName, pr);
+    const development = new WorkflowArchiveAsset(owner, repo, workflow, developmentName, pr);
     return chooseAsset(release, development, pr !== undefined);
 }
 

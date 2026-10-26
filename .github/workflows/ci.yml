@@ -241,21 +241,7 @@ jobs:
       - name: Resolve dependency PR links
         if: github.event_name == 'pull_request'
         id: dependency-prs
-        shell: bash
-        run: |
-          node --import tsx --input-type=module <<'JS'
-          import fs from 'node:fs/promises';
-          import { findDependencyPullRequests } from './scripts/dependency-prs.ts';
-
-          const event = JSON.parse(await fs.readFile(process.env.GITHUB_EVENT_PATH, 'utf8'));
-          const { cmsis } = JSON.parse(await fs.readFile('package.json', 'utf8'));
-          const prs = findDependencyPullRequests(event.pull_request.body ?? '', cmsis,
-            message => console.log(`::warning::${message}`));
-          const channel = Object.keys(prs).length > 0 ? 'pr' : 'nightly';
-          console.log(`Tool channel: ${channel}; dependency PRs: ${JSON.stringify(prs)}`);
-          const outputs = Object.entries({ channel, ...prs }).map(([key, value]) => `${key}=${value}\n`).join('');
-          await fs.appendFile(process.env.GITHUB_OUTPUT, outputs);
-          JS
+        run: node --import tsx scripts/resolve-dependency-prs.ts
 
       - name: Download tools
         env:

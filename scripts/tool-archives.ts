@@ -16,7 +16,7 @@
 
 // generated with AI
 
-import { Asset, ArchiveFileAsset, WebFileAsset } from '@open-cmsis-pack/vsce-helper';
+import { Asset, ArchiveFileAsset } from '@open-cmsis-pack/vsce-helper';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { execFile as execFileCallback } from 'node:child_process';
@@ -255,52 +255,17 @@ export class PyTSArchiveFileAsset extends ArchiveFileAssetEx {
     }
 }
 
-/** Required ctrace license files and their source repositories or pinned submodules. */
-const CTRACE_LICENSES = [
-    { repository: 'Open-CMSIS-Pack/devtools', path: 'LICENSE', destination: 'LICENSE.txt', submodule: '' },
-    { repository: 'Open-CMSIS-Pack/devtools', path: 'tools/ctrace/docs/THIRD_PARTY_NOTICES.md', destination: 'THIRD_PARTY_NOTICES.md', submodule: '' },
-    { repository: 'Open-CMSIS-Pack/devtools', path: 'tools/ctrace/docs/OpenCSD-NOTICE.txt', destination: 'THIRD_PARTY_LICENSES/OpenCSD-NOTICE.txt', submodule: '' },
-    { repository: 'jarro2783/cxxopts', path: 'LICENSE', destination: 'THIRD_PARTY_LICENSES/cxxopts.txt', submodule: 'cxxopts' },
-    { repository: 'jbeder/yaml-cpp', path: 'LICENSE', destination: 'THIRD_PARTY_LICENSES/yaml-cpp.txt', submodule: 'yaml-cpp' },
-    { repository: 'Linaro/OpenCSD', path: 'LICENSE', destination: 'THIRD_PARTY_LICENSES/OpenCSD.txt', submodule: 'OpenCSD' },
-];
-
-/** Adds source-matched license files to ctrace workflow artifacts. */
-export class CTraceWorkflowAsset extends WorkflowArchiveAsset {
-    /** Fetches licenses at the selected run's commit and its recorded submodule commits. */
-    public async copyLicenses(destination: string): Promise<void> {
-        const { run } = await this.lastWorkflowRunArtifact;
-        const octokit = await this.getOctokit();
-        for (const license of CTRACE_LICENSES) {
-            let ref = run.head_sha;
-            if (license.submodule) {
-                const { data } = await octokit.rest.repos.getContent({ ...this.repoAndOwner,
-                    path: `external/${license.submodule}`, ref });
-                if (Array.isArray(data) || !('submodule_git_url' in data) ||
-                    data.submodule_git_url?.replace(/\.git$/, '') !== `https://github.com/${license.repository}`) {
-                    throw new Error(`Unexpected ctrace license submodule ${license.submodule}`);
-                }
-                ref = data.sha;
-            }
-            const asset = new WebFileAsset(new URL(`https://raw.githubusercontent.com/${license.repository}/${ref}/${license.path}`),
-                path.basename(license.destination), ref);
-            try { await asset.copyTo(path.join(destination, path.dirname(license.destination))); }
-            finally { await asset.dispose(); }
-        }
-    }
-}
-
 /** Produces a common ctrace executable and license layout for releases and workflow builds. */
 export class CTraceArchiveFileAsset extends ArchiveFileAssetEx {
     /** Records the executable location within the multi-platform release archive. */
-    public constructor(subject: Asset, private readonly releaseExecutablePath: string) { super(subject); }
+    public constructor(subject: Asset, private readonly releaseExecutablePath: string) {
+        super(subject);
+    }
 
-    /** Adds workflow licenses or flattens the release layout, then marks ctrace executable. */
+    /** Preserves bundled licenses, flattens the release layout and marks ctrace executable. */
     public override async copyTo(dest?: string): Promise<string> {
         const directory = await super.copyTo(dest);
-        if (this.subject instanceof CTraceWorkflowAsset) {
-            await this.subject.copyLicenses(directory);
-        } else {
+        if (!(this.subject instanceof WorkflowArchiveAsset)) {
             await fs.rename(path.join(directory, this.releaseExecutablePath), path.join(directory, path.basename(this.releaseExecutablePath)));
             await fs.rm(path.join(directory, 'bin'), { recursive: true, force: true });
         }

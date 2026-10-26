@@ -23,9 +23,8 @@ import { pathToFileURL } from 'node:url';
 
 /** Promise-based runner for isolated ESM test processes. */
 const execFile = promisify(execFileCallback);
-/** Module URLs loaded by the child process without mocking the helper implementation. */
+/** Module URL loaded by the child process without mocking the helper implementation. */
 const MODULE_URL = pathToFileURL(path.resolve('scripts/workflow-assets.ts')).href;
-const ARCHIVE_URL = pathToFileURL(path.resolve('scripts/tool-archives.ts')).href;
 /** Stable commit shared by matching workflow runs and the dependency PR fixture. */
 const HEAD = 'a'.repeat(40);
 
@@ -55,19 +54,16 @@ interface Fixture {
     prState?: string;
     fallback?: boolean;
     apiError?: boolean;
-    licenses?: boolean;
-    badSubmodule?: boolean;
 }
-interface Result { version?: string; cache?: string; error?: string; release?: boolean; licenses?: string[] }
+interface Result { version?: string; cache?: string; error?: string; release?: boolean }
 
 /** Exercises the actual ESM helper subclass in a fresh process with fixture-backed GitHub APIs. */
 async function resolve(fixture: Fixture): Promise<Result> {
     const driver = `
         const { WorkflowArchiveAsset, chooseAsset } = await import(${JSON.stringify(MODULE_URL)});
-        const { CTraceWorkflowAsset } = await import(${JSON.stringify(ARCHIVE_URL)});
         const fixture = JSON.parse(process.argv[1]);
         console.log = () => {};
-        class FixtureAsset extends (fixture.licenses ? CTraceWorkflowAsset : WorkflowArchiveAsset) {
+        class FixtureAsset extends WorkflowArchiveAsset {
             async getOctokit() {
                 return { rest: {
                     pulls: { get: async () => ({ data: { number: 12, state: fixture.prState ?? 'open',
@@ -78,28 +74,15 @@ async function resolve(fixture: Fixture): Promise<Result> {
                             return { data: { workflow_runs: fixture.runs } };
                         },
                         listWorkflowRunArtifacts: async ({ run_id }) => ({ data: { artifacts: fixture.artifacts[run_id] ?? [] } })
-                    },
-                    repos: { getContent: async ({ path }) => ({ data: { sha: '${'b'.repeat(40)}',
-                        submodule_git_url: 'https://github.com/' + (fixture.badSubmodule ? 'unexpected/repo' :
-                            ({ cxxopts: 'jarro2783/cxxopts', 'yaml-cpp': 'jbeder/yaml-cpp', OpenCSD: 'Linaro/OpenCSD' }[path.split('/').at(-1)])) + '.git' } }) }
+                    }
                 } };
             }
         }
         const asset = new FixtureAsset('org', 'repo', 'ci.yml', 'tool-linux-x64', fixture.prNumber);
         try {
-            if (fixture.licenses) {
-                const { WebFileAsset } = await import('@open-cmsis-pack/vsce-helper');
-                const urls = [];
-                const original = WebFileAsset.prototype.copyTo;
-                WebFileAsset.prototype.copyTo = async function () { urls.push(this.url.toString()); return '/fixture'; };
-                try { await asset.copyLicenses('/fixture'); }
-                finally { WebFileAsset.prototype.copyTo = original; }
-                process.stdout.write(JSON.stringify({ licenses: urls }));
-            } else {
-                const selected = fixture.fallback ? await chooseAsset({ release: true }, asset, fixture.prNumber !== undefined) : asset;
-                process.stdout.write(JSON.stringify(selected.release ? { release: true } :
-                    { version: await selected.version, cache: await selected.cacheId }));
-            }
+            const selected = fixture.fallback ? await chooseAsset({ release: true }, asset, fixture.prNumber !== undefined) : asset;
+            process.stdout.write(JSON.stringify(selected.release ? { release: true } :
+                { version: await selected.version, cache: await selected.cacheId }));
         } catch (error) { process.stdout.write(JSON.stringify({ error: error.message })); }
         finally { await asset.dispose(); }
     `;
@@ -157,16 +140,6 @@ describe('helper workflow asset selection', () => {
     it('includes attempt and artifact ID in version and cache identity', async () => {
         const result = await resolve({ runs: [run(2, { run_attempt: 3 })], artifacts: { 2: [artifact(23)] } });
         expect(result).toEqual({ version: 'ci.yml@2/3/23', cache: 'org/repo/ci.yml@2/3/23' });
-    });
-    it('copies ctrace license references from the selected run and pinned submodules', async () => {
-        const result = await resolve({ runs: [run(2)], artifacts: { 2: [artifact(20)] }, licenses: true });
-        expect(result.licenses).toHaveLength(6);
-        expect(result.licenses?.slice(0, 3).every(url => url.includes(HEAD))).toBe(true);
-        expect(result.licenses?.slice(3).every(url => url.includes('b'.repeat(40)))).toBe(true);
-    });
-    it('rejects a changed ctrace submodule repository', async () => {
-        const result = await resolve({ runs: [run(2)], artifacts: { 2: [artifact(20)] }, licenses: true, badSubmodule: true });
-        expect(result.error).toContain('Unexpected ctrace license submodule');
     });
 });
 
