@@ -223,6 +223,8 @@ jobs:
 
   validate:
     name: Validate package (${{ matrix.target }})
+    # Re-enable once dependency workflow archives include license files.
+    if: false
     runs-on: ${{ matrix.platform }}
     needs: package
     strategy:

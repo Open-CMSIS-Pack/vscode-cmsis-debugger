@@ -117,6 +117,10 @@ separate workspace. For a clean release bundle, prepare all tools in release mod
 PR CI without unique dependency links and nightly CI use nightly selection;
 release CI uses release mode.
 
+CI runs package validation only for release builds while dependency workflow
+archives are being updated to include license and notice files. Package validation
+is temporarily skipped for all other CI events and in the nightly workflow.
+
 `--structural` validates layout, executable permissions and licenses without
 running a dependency binary. Otherwise the validator runs native version checks
 where possible. Structural checks alone do not prove execution on another platform.

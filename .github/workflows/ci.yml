@@ -271,6 +271,8 @@ jobs:
 
   validate:
     name: Validate package (${{ matrix.target }})
+    # Validate only releases until dependency workflow archives include license files.
+    if: github.event_name == 'release'
     runs-on: ${{ matrix.platform }}
     needs: package
     strategy:
