@@ -166,8 +166,14 @@ function createRendererFixture() {
         }
 
         matches(selector: string): boolean {
+            if (selector.includes(', ')) {
+                return selector.split(', ').some(part => this.matches(part));
+            }
             if (selector.startsWith('.')) {
                 return this.className.split(' ').includes(selector.slice(1));
+            }
+            if (selector === 'details.multi-select[open]') {
+                return false;
             }
             if (selector === 'tr[data-row-id]') {
                 return this.tagName === 'tr' && this.dataset.rowId !== undefined;
@@ -221,15 +227,28 @@ function createRendererFixture() {
     }
 
     class RendererRow extends RendererElement { }
+    class RendererButton extends RendererElement { }
+    class RendererSelect extends RendererElement { }
 
     const root = new RendererElement('div');
     const windowEvents = Object.assign(new EventTarget(), { location: { origin: 'http://localhost' } });
     const postMessage = jest.fn<void, [TraceWebviewToHostMessage]>();
     const documentEvents = Object.assign(new EventTarget(), {
         getElementById: () => root,
-        createElement: (tagName: string) => tagName === 'input'
-            ? new RendererInput(tagName)
-            : tagName === 'tr' ? new RendererRow(tagName) : new RendererElement(tagName),
+        createElement: (tagName: string) => {
+            switch (tagName) {
+                case 'input':
+                    return new RendererInput(tagName);
+                case 'tr':
+                    return new RendererRow(tagName);
+                case 'button':
+                    return new RendererButton(tagName);
+                case 'select':
+                    return new RendererSelect(tagName);
+                default:
+                    return new RendererElement(tagName);
+            }
+        },
         querySelectorAll: (selector: string) => root.querySelectorAll(selector),
         documentElement: { style: { setProperty: jest.fn() } },
     });
@@ -240,6 +259,8 @@ function createRendererFixture() {
         HTMLElement: RendererElement,
         HTMLInputElement: RendererInput,
         HTMLTableRowElement: RendererRow,
+        HTMLButtonElement: RendererButton,
+        HTMLSelectElement: RendererSelect,
         ResizeObserver: jest.fn(() => ({ observe: jest.fn(), disconnect: jest.fn() })),
         acquireVsCodeApi: () => ({ postMessage, getState: () => undefined }),
     });
@@ -256,7 +277,7 @@ function createRendererFixture() {
         }
         return input;
     };
-    return { root, render, getInput, getActiveElement: () => documentState.activeElement, postMessage, restore };
+    return { root, render, getInput, documentEvents, windowEvents, getActiveElement: () => documentState.activeElement, postMessage, restore };
 }
 
 function withRenderer(check: (fixture: ReturnType<typeof createRendererFixture>) => void): void {
@@ -395,6 +416,74 @@ describe('Trace Generation text input refresh', () => {
             expect(getActiveElement()?.dataset.rowId).toBe(state.rows[0].id);
             expect(root.querySelector('.option-tree-scroll')?.scrollTop).toBe(120);
             expect(root.querySelector('.option-tree-scroll')?.scrollLeft).toBe(40);
+        });
+    });
+});
+
+/** Creates a DOM event with the target supplied by a bubbling browser gesture. */
+function targetedEvent(type: string, target: EventTarget, properties: Record<string, unknown> = {}): Event {
+    const event = Object.assign(new Event(type), properties);
+    Object.defineProperty(event, 'target', { value: target });
+    return event;
+}
+
+describe('Trace Generation row pointer gestures', () => {
+    it.each(['row', 'label'])('does not toggle when a text selection ends over the %s', targetKind => {
+        withRenderer(({ render, root, getInput, documentEvents, postMessage }) => {
+            render(createTraceState({}, { hasChildren: true }));
+            const row = root.querySelector('tr[data-row-id]');
+            const label = root.querySelector('.node-prefix');
+            if (!row || !label) {
+                throw new Error('Expected an expandable row');
+            }
+            documentEvents.dispatchEvent(targetedEvent('pointerdown', getInput(), { isPrimary: true }));
+            documentEvents.dispatchEvent(targetedEvent('pointerup', label, { isPrimary: true }));
+            row.dispatchEvent(targetedEvent('click', targetKind === 'row' ? row : label, { detail: 1 }));
+            expect(postMessage).toHaveBeenCalledTimes(1);
+
+            documentEvents.dispatchEvent(targetedEvent('click', row, { detail: 1 }));
+            documentEvents.dispatchEvent(targetedEvent('pointerdown', label, { isPrimary: true }));
+            row.dispatchEvent(targetedEvent('click', label, { detail: 1 }));
+            expect(postMessage).toHaveBeenLastCalledWith({ type: 'toggle', id: 'location["0"]', expanded: true });
+            expect(postMessage).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    it.each(['pointercancel', 'blur', 'next pointerdown'])('clears an interrupted selection on %s', action => {
+        withRenderer(({ render, root, getInput, documentEvents, windowEvents, postMessage }) => {
+            render(createTraceState({}, { hasChildren: true }));
+            const row = root.querySelector('tr[data-row-id]');
+            if (!row) {
+                throw new Error('Expected an expandable row');
+            }
+            documentEvents.dispatchEvent(targetedEvent('pointerdown', getInput(), { isPrimary: true }));
+            if (action === 'blur') {
+                windowEvents.dispatchEvent(new Event('blur'));
+            } else if (action === 'pointercancel') {
+                documentEvents.dispatchEvent(new Event('pointercancel'));
+            } else {
+                documentEvents.dispatchEvent(targetedEvent('pointerdown', row, { isPrimary: true }));
+            }
+            row.dispatchEvent(targetedEvent('click', row, { detail: 1 }));
+            expect(postMessage).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    it('preserves keyboard toggles and clicks on controls', () => {
+        withRenderer(({ render, root, getInput, documentEvents, postMessage }) => {
+            render(createTraceState({}, { hasChildren: true }));
+            const row = root.querySelector('tr[data-row-id]');
+            if (!row) {
+                throw new Error('Expected an expandable row');
+            }
+            documentEvents.dispatchEvent(targetedEvent('pointerdown', getInput(), { isPrimary: true }));
+            row.dispatchEvent(targetedEvent('click', getInput(), { detail: 1 }));
+            row.dispatchEvent(targetedEvent('keydown', getInput(), { key: 'Enter' }));
+            expect(postMessage).toHaveBeenCalledTimes(1);
+            row.dispatchEvent(targetedEvent('keydown', row, { key: 'Enter' }));
+            row.dispatchEvent(targetedEvent('keydown', row, { key: ' ' }));
+            row.dispatchEvent(targetedEvent('click', row, { detail: 0 }));
+            expect(postMessage).toHaveBeenCalledTimes(4);
         });
     });
 });
