@@ -62,6 +62,8 @@ export interface TraceConfigurationRow {
 }
 
 export interface TraceConfigurationState {
+    /** Explains an external source change while an unsaved draft remains authoritative. */
+    sourceConflictMessage?: string;
     fileName?: string | undefined;
     solutionFolderPath?: string | undefined;
     workspaceFolderPath?: string | undefined;

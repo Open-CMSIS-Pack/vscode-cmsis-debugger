@@ -90,6 +90,7 @@ function createManagerWithConversionSpy() {
     const convertCTrace = jest.spyOn(pyTsController, 'convertCTrace').mockResolvedValue();
     return {
         manager: new TraceConfigurationGeneratedCTraceFileManager(pyTsController),
+        pyTsController,
         convertCTrace
     };
 }
@@ -304,6 +305,64 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
             'Trace Configuration: Failed to request pyTS conversion for missing ctrace-run output:',
             conversionError
         );
+    });
+
+    it.each(['current', 'changed', 'missing output', 'unchanged output', 'failed', 'fresh errors'] as const)(
+        'explicitly regenerates existing output and checks the outcome: %s', async outcome => {
+            const workspaceRoot = await createTemporaryWorkspace();
+            mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M33', 'cm33')]);
+            const ctraceFile = vscode.Uri.file(path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yml'));
+            const runFile = path.join(workspaceRoot, '.trace', 'demo.ctrace-run.yml');
+            await createTemporaryDirectory(path.dirname(ctraceFile.fsPath));
+            await createTemporaryDirectory(path.dirname(runFile));
+            await writeTemporaryTextFile(ctraceFile.fsPath, 'ctrace: {}');
+            if (outcome !== 'missing output') {
+                await writeTemporaryTextFile(runFile, 'ctrace-run: {}');
+            }
+            const { manager, pyTsController, convertCTrace } = createManagerWithConversionSpy();
+            const convertWithResult = jest.spyOn(pyTsController, 'convertCTraceWithResult').mockImplementation(async () => {
+                if (outcome === 'current' || outcome === 'fresh errors') {
+                    await writeTemporaryTextFile(runFile, 'ctrace-run:\n  ctrace-refs: []\n');
+                }
+                if (outcome === 'failed') {
+                    return { status: 'failed', message: 'conversion failed' };
+                }
+                const contents = Buffer.from(outcome === 'changed' ? 'old source' : 'ctrace: {}');
+                if (outcome === 'fresh errors') {
+                    return { status: 'failed', message: 'validation errors', contents };
+                }
+                return { status: 'passed', contents };
+            });
+
+            const result = await manager.regenerateProductionCTraceRunFile(ctraceFile, {
+                cbuildRunUri: vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml')),
+            });
+
+            expect(convertWithResult).toHaveBeenCalledTimes(1);
+            expect(convertCTrace).not.toHaveBeenCalled();
+            const expectedStatuses = new Map([
+                ['current', 'passed'], ['changed', 'cancelled'], ['missing output', 'failed'],
+                ['unchanged output', 'failed'], ['failed', 'failed'], ['fresh errors', 'failed'],
+            ]);
+            expect(result.status).toBe(expectedStatuses.get(outcome));
+            if (outcome === 'fresh errors') {
+                expect(result).toMatchObject({ outputCurrent: true });
+            }
+        }
+    );
+
+    it('retains active-target checks when explicitly refreshing an existing output', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M33', 'cm33')]);
+        const { manager, pyTsController } = createManagerWithConversionSpy();
+        const convertWithResult = jest.spyOn(pyTsController, 'convertCTraceWithResult');
+        const result = await manager.regenerateProductionCTraceRunFile(
+            vscode.Uri.file(path.join(workspaceRoot, '.cmsis', 'other.ctrace.yml')),
+            { cbuildRunUri: vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml')) }
+        );
+
+        expect(result.status).toBe('unavailable');
+        expect(convertWithResult).not.toHaveBeenCalled();
     });
 
     it.each([

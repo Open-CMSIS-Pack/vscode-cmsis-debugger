@@ -26,7 +26,7 @@ import type { PyTsController } from '../../features/trace/pyts-controller';
 import { isYamlMapItem, isYamlScalarItem, isYamlSequenceItem, YamlTreeItem, yamlScalarToString } from '../../desktop/yaml-dom';
 import { logger } from '../../logger';
 import { CTRACE_FILE_GLOB, TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING } from '../../manifest';
-import { fileExists, normalizeFsPath } from '../../utils';
+import { fileExists } from '../../utils';
 import { CTraceYamlFile } from './ctrace-yaml';
 import {
     CTraceRunValidationMessageReader,
@@ -68,10 +68,9 @@ const TRACE_CONFIGURATION_IS_MODIFIED_CONTEXT = 'vscode-cmsis-debugger.traceConf
 const TRACE_CONFIGURATION_IS_VALIDATING_CONTEXT = 'vscode-cmsis-debugger.traceConfiguration.isValidating';
 const TRACE_CONFIGURATION_VALIDATION_SUCCEEDED_CONTEXT = 'vscode-cmsis-debugger.traceConfiguration.validationSucceeded';
 
-interface TraceConfigurationSaveTransition {
-    readonly file: CTraceYamlFile;
-    pendingProductionRunFileEvent?: TraceConfigurationRunFileChangeEvent;
-}
+/** Explains how to retain a draft or deliberately replace it with an external edit. */
+const SOURCE_CONFLICT_MESSAGE =
+    'The file changed outside Trace Generation. Your unsaved edits are retained. Revert to use the file on disk.';
 
 /**
  * TraceConfigurationModel owns the ctrace.yml document lifecycle and file mutations for the trace
@@ -98,8 +97,11 @@ export class TraceConfigurationModel {
     private validationMessage: string | undefined;
     private referenceValidationMessages = new Map<string, TraceConfigurationReferenceValidationMessage>();
     private readonly runMessageReader: TraceConfigurationRunMessageReader;
-    private saveTransition: TraceConfigurationSaveTransition | undefined;
     private activeSolutionFileName: string | undefined;
+    /** Invalidates asynchronous diagnostic reads whenever the effective document changes. */
+    private validationRevision = 0;
+    private productionOutputTrusted = true;
+    private sourceConflictMessage: string | undefined;
 
     private set dirty(value: boolean) {
         if (this._dirty !== value) {
@@ -193,7 +195,12 @@ export class TraceConfigurationModel {
             error => this.reportBackupError(error),
             {
                 prevalidator: prevalidator ?? new PyTsTraceConfigurationPrevalidator(cbuildRunFileLocator),
-                onValidationStateChanged: (state, message) => this.acceptValidationState(state, message)
+                onValidationStateChanged: (state, message) => {
+                    this.acceptValidationState(state, message);
+                    if (this.dirty && (state === 'passed' || state === 'failed')) {
+                        void this.readCurrentBackupDiagnostics();
+                    }
+                }
             }
         );
         this.processorCapabilities = processorCapabilities ?? new TraceConfigurationProcessorCapabilities(() => this.ctraceFile);
@@ -249,6 +256,7 @@ export class TraceConfigurationModel {
      * compatible with vscode.Disposable.
      */
     public deactivate(): Promise<void> {
+        this.invalidateDiagnostics();
         this.fileWatcher.dispose();
         this.deactivationPromise ??= this.backup.dispose();
         return this.deactivationPromise;
@@ -340,6 +348,8 @@ export class TraceConfigurationModel {
      * generated project discovery or the build-required empty state.
      */
     private clearCurrentFile(): void {
+        this.invalidateDiagnostics();
+        this.sourceConflictMessage = undefined;
         this.fileWatcher.disposeCurrentFileWatcher();
         this.fileWatcher.disposeCurrentRunFileWatchers();
         this.ctraceFile = undefined;
@@ -369,6 +379,7 @@ export class TraceConfigurationModel {
      * state snapshot is posted.
      */
     private async loadFile(fileName: string, requestMissingProductionOutput = true): Promise<void> {
+        this.invalidateDiagnostics();
         await this.backup.cancelValidationAndFlush();
         const nextFile = new CTraceYamlFile(fileName, new WorkspaceTextFileAdapter());
         const originalDocument = await nextFile.load(fileName);
@@ -378,12 +389,11 @@ export class TraceConfigurationModel {
             nextFile.document = backupDocument;
         }
         this.fileWatcher.disposeCurrentFileWatcher();
-        const previousFileName = this.ctraceFile?.fileName;
         this.ctraceFile = nextFile;
+        this.invalidateDiagnostics();
+        this.sourceConflictMessage = undefined;
+        this.productionOutputTrusted = backupDocument === undefined;
         this.activeSolutionFileName = await this.cbuildRunFileLocator.getActiveSolutionFilePath();
-        if (normalizeFsPath(previousFileName) !== normalizeFsPath(nextFile.fileName)) {
-            this.acceptReferenceValidationMessages([]);
-        }
         document.assignCTraceRefs();
         await this.loadProcessorCapabilities();
         this.dirty = backupDocument !== undefined;
@@ -421,23 +431,138 @@ export class TraceConfigurationModel {
             await this.loadInitialFile();
             return;
         }
+        const file = this.ctraceFile;
+        const revision = this.invalidateDiagnostics();
         this.loading = true;
         this.notifyStateChanged();
         try {
             await this.backup.cancelAndWait();
+            if (this.ctraceFile !== file || revision !== this.validationRevision) {
+                return;
+            }
             await this.backupStore.delete(this.ctraceFile.fileName);
-            const document = await this.ctraceFile.load();
+            const document = await file.load();
+            if (this.ctraceFile !== file || revision !== this.validationRevision) {
+                return;
+            }
             document.assignCTraceRefs();
             await this.loadProcessorCapabilities();
             this.fileWatcher.watchCurrentFile();
             this.dirty = false;
-            this.acceptValidationState('idle');
-            await this.loadProductionReferenceValidationMessages();
+            this.sourceConflictMessage = undefined;
             this.errorMessage = undefined;
+            await this.revalidateProduction(file);
         } finally {
             this.loading = false;
             this.notifyStateChanged();
         }
+    }
+
+    /** Reloads a clean source or revalidates the current draft without discarding unsaved edits. */
+    public async refreshConfiguration(): Promise<void> {
+        const file = this.ctraceFile;
+        if (!file) {
+            await this.loadInitialFile();
+            return;
+        }
+        const revision = this.validationRevision;
+        const externalChange = await file.hasExternalFileChanged();
+        if (this.ctraceFile !== file || revision !== this.validationRevision) {
+            return;
+        }
+        if (this.dirty) {
+            this.sourceConflictMessage = externalChange ? SOURCE_CONFLICT_MESSAGE : undefined;
+            const draftRevision = this.invalidateDiagnostics();
+            this.backup.schedule(file.fileName, this.requireDocument().toString());
+            await this.backup.flush();
+            const changedDuringValidation = await file.hasExternalFileChanged();
+            if (this.ctraceFile === file && this.dirty && draftRevision === this.validationRevision
+                && !this.deactivationPromise) {
+                this.sourceConflictMessage = changedDuringValidation ? SOURCE_CONFLICT_MESSAGE : undefined;
+                this.notifyStateChanged();
+            }
+            return;
+        }
+        if (!await this.reloadCurrentFileIfChanged() && this.ctraceFile === file && !this.dirty) {
+            await this.revalidateProduction(file);
+        }
+    }
+
+    /** Clears diagnoses for an obsolete document and returns the new revision. */
+    private invalidateDiagnostics(): number {
+        this.validationRevision += 1;
+        this.productionOutputTrusted = false;
+        this.replaceReferenceValidationMessages([]);
+        return this.validationRevision;
+    }
+
+    /** Converts the clean current source and accepts only results of this validation revision. */
+    private async revalidateProduction(file: CTraceYamlFile): Promise<void> {
+        const revision = this.invalidateDiagnostics();
+        const isCurrent = (): boolean => this.isCurrentRunFileSource(file, 'production')
+            && revision === this.validationRevision && !this.deactivationPromise;
+        this.acceptValidationState('running');
+        this.notifyStateChanged();
+        const result = await this.generatedCTraceFileManager.regenerateProductionCTraceRunFile(
+            vscode.Uri.file(file.fileName), { isCurrent }
+        );
+        if (!isCurrent()) {
+            return;
+        }
+        const externalChange = await file.hasExternalFileChanged();
+        if (!isCurrent()) {
+            return;
+        }
+        if (externalChange) {
+            await this.reloadCurrentFileIfChanged();
+            return;
+        }
+        if (result.status !== 'passed' && !(result.status === 'failed' && result.outputCurrent)) {
+            if (result.status === 'cancelled') {
+                this.acceptValidationState('unavailable', 'The configuration changed during validation. Refresh to validate again.');
+            } else {
+                this.acceptValidationState(result.status, result.message);
+            }
+            return;
+        }
+        try {
+            const artifacts = getTraceConfigurationArtifactFileNames(file.fileName);
+            const messages = await this.runMessageReader.readIfExists(artifacts.productionCTraceRunFileName);
+            if (!isCurrent()) {
+                return;
+            }
+            const changedDuringRead = await file.hasExternalFileChanged();
+            if (!isCurrent()) {
+                return;
+            }
+            if (changedDuringRead) {
+                await this.reloadCurrentFileIfChanged();
+                return;
+            }
+            if (messages === undefined) {
+                this.acceptValidationState('failed', 'pyTS produced no ctrace-run validation output.');
+                return;
+            }
+            this.productionOutputTrusted = true;
+            this.replaceReferenceValidationMessages(messages);
+            this.acceptValidationState(result.status, result.status === 'failed' ? result.message : undefined);
+        } catch (error) {
+            if (isCurrent()) {
+                this.acceptValidationState('failed', this.errorToString(error));
+            }
+        }
+    }
+
+    /** Reads backup output only after the current revision's validator has completed. */
+    private async readCurrentBackupDiagnostics(): Promise<void> {
+        const file = this.ctraceFile;
+        if (!file) {
+            return;
+        }
+        const artifacts = getTraceConfigurationArtifactFileNames(file.fileName);
+        await this.handleCurrentRunFileChanged({
+            type: 'changed', kind: 'backup', uri: vscode.Uri.file(artifacts.backupCTraceRunFileName)
+        });
     }
 
     /**
@@ -464,6 +589,9 @@ export class TraceConfigurationModel {
      * shape or overwriting a user's hand edit.
      */
     private async requireFreshDocumentForEdit(): Promise<NonNullable<CTraceYamlFile['document']> | undefined> {
+        if (this.loading) {
+            return;
+        }
         if (this.dirty) {
             return this.requireDocument();
         }
@@ -483,30 +611,37 @@ export class TraceConfigurationModel {
             this.notifyStateChanged();
             return;
         }
+        const file = this.requireFile();
+        const revision = this.invalidateDiagnostics();
         document.assignCTraceRefs();
         await this.loadProcessorCapabilities();
-        this.dirty = false;
-        this.acceptValidationState('idle');
+        if (this.ctraceFile !== file || this.dirty || revision !== this.validationRevision) {
+            return;
+        }
         this.errorMessage = undefined;
-        this.notifyStateChanged();
+        await this.revalidateProduction(file);
     }
 
     /** Loads persisted validator messages when no in-memory backup is active. */
     private async loadProductionReferenceValidationMessages(requestMissingProductionOutput = true): Promise<void> {
         const currentFile = this.ctraceFile;
-        if (!currentFile || this.dirty) {
+        const revision = this.validationRevision;
+        if (!currentFile || this.dirty || !this.productionOutputTrusted) {
             return;
         }
         try {
             const artifacts = getTraceConfigurationArtifactFileNames(currentFile.fileName);
             const messages = await this.runMessageReader.readIfExists(artifacts.productionCTraceRunFileName);
-            if (messages !== undefined && this.ctraceFile === currentFile && !this.dirty) {
+            if (messages !== undefined && this.ctraceFile === currentFile && !this.dirty
+                && revision === this.validationRevision && this.productionOutputTrusted) {
                 this.acceptReferenceValidationMessages(messages);
             } else if (
                 messages === undefined
                 && requestMissingProductionOutput
                 && this.ctraceFile === currentFile
                 && !this.dirty
+                && revision === this.validationRevision
+                && this.productionOutputTrusted
             ) {
                 await this.ensureProductionCTraceRunFile(currentFile);
             }
@@ -515,42 +650,22 @@ export class TraceConfigurationModel {
         }
     }
 
-    /** Applies only the output that corresponds to the model's current source. */
+    /** Accepts diagnostics only from the effective source and current completed validation revision. */
     private async handleCurrentRunFileChanged(event: TraceConfigurationRunFileChangeEvent): Promise<void> {
         const currentFile = this.ctraceFile;
-        if (
-            event.kind === 'production'
-            && currentFile
-            && this.saveTransition?.file === currentFile
-        ) {
-            this.saveTransition.pendingProductionRunFileEvent = event;
+        const expectsBackup = this.dirty;
+        const revision = this.validationRevision;
+        if (!currentFile || (event.kind === 'backup') !== expectsBackup
+            || (!expectsBackup && !this.productionOutputTrusted)
+            || (expectsBackup && (this.validationState === 'pending' || this.validationState === 'running'))) {
             return;
         }
-        await this.processCurrentRunFileChanged(event);
-    }
-
-    /**
-     * Replays production output events that arrived while ctrace.yml was being
-     * saved. New events are coalesced while an earlier event is processed, so
-     * the last watcher notification always observes the committed clean source.
-     */
-    private async completeSaveTransition(transition: TraceConfigurationSaveTransition): Promise<void> {
-        while (this.saveTransition === transition) {
-            const event = transition.pendingProductionRunFileEvent;
-            if (!event) {
-                this.saveTransition = undefined;
-                return;
-            }
-            delete transition.pendingProductionRunFileEvent;
-            await this.processCurrentRunFileChanged(event);
+        const externalChange = !expectsBackup && await currentFile.hasExternalFileChanged();
+        if (revision !== this.validationRevision || this.ctraceFile !== currentFile) {
+            return;
         }
-    }
-
-    /** Applies a watcher event after save-transition buffering is resolved. */
-    private async processCurrentRunFileChanged(event: TraceConfigurationRunFileChangeEvent): Promise<void> {
-        const currentFile = this.ctraceFile;
-        const expectsBackup = this.dirty;
-        if (!currentFile || (event.kind === 'backup') !== expectsBackup) {
+        if (externalChange) {
+            await this.reloadCurrentFileIfChanged();
             return;
         }
         if (event.type === 'deleted') {
@@ -563,6 +678,7 @@ export class TraceConfigurationModel {
                 messages !== undefined
                 && this.ctraceFile === currentFile
                 && this.dirty === expectsBackup
+                && revision === this.validationRevision
                 && (event.kind === 'backup') === this.dirty
             ) {
                 this.acceptReferenceValidationMessages(messages);
@@ -589,9 +705,11 @@ export class TraceConfigurationModel {
     }
 
     private async ensureProductionCTraceRunFile(currentFile: CTraceYamlFile): Promise<void> {
+        const revision = this.validationRevision;
         await this.generatedCTraceFileManager.ensureProductionCTraceRunFile(
             vscode.Uri.file(currentFile.fileName),
-            { isCurrent: () => this.isCurrentRunFileSource(currentFile, 'production') }
+            { isCurrent: () => this.isCurrentRunFileSource(currentFile, 'production')
+                && revision === this.validationRevision }
         );
     }
 
@@ -906,12 +1024,13 @@ export class TraceConfigurationModel {
     /**
      * acceptInMemoryEdit refreshes derived state after a webview edit without
      * writing to disk. While dirty, the file watcher is paused so unsaved
-     * in-memory edits stay authoritative until the user clicks Save or Refresh.
+     * in-memory edits stay authoritative until the user saves or reverts.
      */
     private async acceptInMemoryEdit(): Promise<void> {
         const document = this.requireDocument();
         document.normalizeDocumentOrder();
         document.assignCTraceRefs();
+        this.invalidateDiagnostics();
         this.dirty = true;
         this.errorMessage = undefined;
         this.fileWatcher.disposeCurrentFileWatcher();
@@ -1103,15 +1222,11 @@ export class TraceConfigurationModel {
         }
         const backupContents = file.document?.toString();
         await this.backup.cancelAndWait();
-        const saveTransition: TraceConfigurationSaveTransition = { file };
-        this.saveTransition = saveTransition;
+        this.invalidateDiagnostics();
         try {
             await this.backupStore.delete(file.fileName);
             await file.save();
         } catch (error) {
-            if (this.saveTransition === saveTransition) {
-                this.saveTransition = undefined;
-            }
             if (backupContents !== undefined) {
                 this.backup.schedule(file.fileName, backupContents);
                 await this.backup.flush();
@@ -1119,17 +1234,14 @@ export class TraceConfigurationModel {
             throw error;
         }
         if (this.ctraceFile !== file) {
-            if (this.saveTransition === saveTransition) {
-                this.saveTransition = undefined;
-            }
             return;
         }
+        this.sourceConflictMessage = undefined;
         this.dirty = false;
-        await this.completeSaveTransition(saveTransition);
         await this.loadProcessorCapabilities();
         this.fileWatcher.watchCurrentFile();
-        this.acceptValidationState('idle');
         this.errorMessage = undefined;
+        await this.revalidateProduction(file);
         this.notifyStateChanged();
     }
 
@@ -1179,6 +1291,9 @@ export class TraceConfigurationModel {
         const state: TraceConfigurationState = this.emptyMessage
             ? { ...rowBuilderState, emptyMessage: this.emptyMessage }
             : rowBuilderState;
+        if (this.sourceConflictMessage) {
+            state.sourceConflictMessage = this.sourceConflictMessage;
+        }
         if (this.activeSolutionFileName) {
             state.solutionFolderPath = path.dirname(this.activeSolutionFileName);
         }

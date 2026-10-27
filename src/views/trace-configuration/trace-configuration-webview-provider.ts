@@ -92,6 +92,9 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
                     this.postState();
                 }
             }),
+            vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.refresh', async () => {
+                await this.handleCommand(() => this.model.refreshConfiguration());
+            }),
             vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.save', async () => {
                 await this.handleCommand(() => this.model.saveCurrentDocument());
             }),
@@ -219,7 +222,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
                     this.postState();
                     break;
                 case 'refresh':
-                    await this.model.refreshFile();
+                    await this.model.refreshConfiguration();
                     break;
                 case 'save':
                     await this.model.saveCurrentDocument();
