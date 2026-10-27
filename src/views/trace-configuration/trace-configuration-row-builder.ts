@@ -190,6 +190,7 @@ export class TraceConfigurationRowBuilder {
         const expanded = context.expandedRows.has(this.pathToId(advancedPath));
         const validation = this.selectHighestPriorityValidation(
             childEntries.map(child => context.aggregatedValidations.get(this.pathToId(child.path)))
+                .filter(validation => validation?.severity !== 'info')
         );
         context.rows.push({
             id: this.pathToId(advancedPath),
@@ -340,7 +341,7 @@ export class TraceConfigurationRowBuilder {
         return row;
     }
 
-    /** Selects the highest-priority validator message for every real YAML subtree. */
+    /** Keeps direct info messages on their rows and aggregates only warnings and errors to ancestors. */
     private createAggregatedValidations(root: YamlTreeItem): ReadonlyMap<string, TraceRowValidation> {
         const validations = new Map<string, TraceRowValidation>();
         const visit = (node: YamlTreeItem, nodePath: (string | number)[]): TraceRowValidation | undefined => {
@@ -355,7 +356,7 @@ export class TraceConfigurationRowBuilder {
             if (selected) {
                 validations.set(this.pathToId(nodePath), selected);
             }
-            return selected;
+            return selected?.severity === 'info' ? undefined : selected;
         };
         visit(root, []);
         return validations;

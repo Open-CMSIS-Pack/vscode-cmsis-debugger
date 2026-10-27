@@ -462,7 +462,7 @@ describe('TraceConfigurationRowBuilder', () => {
         });
     });
 
-    it('summarizes hidden children on collapsed parents', () => {
+    it.each(['info', 'warning', 'error'] as const)('propagates only warnings and errors from collapsed children: %s', severity => {
         const text = [
             'ctrace:',
             '  setup:',
@@ -472,7 +472,7 @@ describe('TraceConfigurationRowBuilder', () => {
             ''
         ].join('\n');
         const referenceValidationMessages = new Map<string, TraceConfigurationReferenceValidationMessage>([
-            ['data#0', { ctraceRef: 'data#0', severity: 'info', message: 'hidden child info' }]
+            ['data#0', { ctraceRef: 'data#0', severity, message: 'hidden child message' }]
         ]);
 
         const state = createStateFromYaml(text, {
@@ -480,10 +480,8 @@ describe('TraceConfigurationRowBuilder', () => {
             referenceValidationMessages
         });
 
-        expect(findRow(state, ['ctrace', 'setup', 0]).validation).toEqual({
-            severity: 'info',
-            message: 'hidden child info'
-        });
+        const expected = severity === 'info' ? undefined : { severity, message: 'hidden child message' };
+        expect(findRow(state, ['ctrace', 'setup', 0]).validation).toEqual(expected);
         expect(hasRow(state, ['ctrace', 'setup', 0, 'data'])).toBe(false);
     });
 
@@ -507,6 +505,60 @@ describe('TraceConfigurationRowBuilder', () => {
             severity: 'warning',
             message: 'time source unavailable'
         });
+    });
+
+    it('keeps an info on the affected Location row without duplicating it on ancestors', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: watchSymbol',
+        ].join('\n'), {
+            referenceValidationMessages: new Map([
+                ['data#0', { ctraceRef: 'data#0', severity: 'info', message: 'defaulted data type' }],
+            ]),
+        });
+
+        expect(state.rows.filter(row => row.validation)).toEqual([
+            expect.objectContaining({ label: 'Location', validation: { severity: 'info', message: 'defaulted data type' } }),
+        ]);
+    });
+
+    it.each([true, false])('does not aggregate info on Advanced Settings when its details are expanded: %s', expanded => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      timesync:',
+        ].join('\n'), {
+            expandedRows: expanded ? new AllRowsExpandedSet() : new Set([JSON.stringify(['ctrace', 'setup', 0])]),
+            referenceValidationMessages: new Map([
+                ['timesync', { ctraceRef: 'timesync', severity: 'info', message: 'default time source' }],
+            ]),
+        });
+
+        expect(findRow(state, ['ctrace', 'setup', 0, 'advanced-settings']).validation).toBeUndefined();
+        expect(findRow(state, ['ctrace', 'setup', 0]).validation).toBeUndefined();
+        expect(state.rows.filter(row => row.validation)).toHaveLength(expanded ? 1 : 0);
+    });
+
+    it('propagates a child warning over a direct parent info', () => {
+        const state = createStateFromYaml([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      data:',
+            '        - location: watchSymbol',
+        ].join('\n'), {
+            referenceValidationMessages: new Map([
+                ['data', { ctraceRef: 'data', severity: 'info', message: 'group info' }],
+                ['data#0', { ctraceRef: 'data#0', severity: 'warning', message: 'child warning' }],
+            ]),
+        });
+
+        expect(findRow(state, ['ctrace', 'setup', 0, 'data']).validation).toEqual({ severity: 'warning', message: 'child warning' });
+        expect(findRow(state, ['ctrace', 'setup', 0]).validation).toEqual({ severity: 'warning', message: 'child warning' });
     });
 
     it('maps validator messages to their exact processor in multi-core files', () => {
@@ -540,10 +592,7 @@ describe('TraceConfigurationRowBuilder', () => {
             severity: 'info',
             message: 'second core'
         });
-        expect(findRow(state, ['ctrace', 'setup', 1]).validation).toEqual({
-            severity: 'info',
-            message: 'second core'
-        });
+        expect(findRow(state, ['ctrace', 'setup', 1]).validation).toBeUndefined();
     });
 
     it('collapses rows by default and hides their children until expanded', () => {
