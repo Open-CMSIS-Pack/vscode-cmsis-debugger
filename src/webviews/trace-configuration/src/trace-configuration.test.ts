@@ -145,8 +145,10 @@ function createRendererFixture() {
         }
 
         remove(): void {
-            if (this.contains(documentState.activeElement)) {
+            const activeElement = documentState.activeElement;
+            if (this.contains(activeElement)) {
                 documentState.activeElement = null;
+                activeElement?.dispatchEvent(new Event('blur'));
             }
             if (this.parentElement) {
                 const siblings = this.parentElement.children;
@@ -354,6 +356,7 @@ describe('Trace Generation text input refresh', () => {
                 replacement.blur();
             }
             replacement.dispatchEvent(new Event('change'));
+            render(createTraceState({ validationState: 'running' }, { value: 'my_variable' }));
             expect(postMessage.mock.calls.map(([message]) => message)).toEqual([
                 { type: 'ready' },
                 { type: 'updateValue', path: ['data', 0, 'location'], value: 'my_variable' },
@@ -384,12 +387,13 @@ describe('Trace Generation text input refresh', () => {
         { name: 'the value path changes', row: { valuePath: ['data', 1, 'location'] } },
         { name: 'the host value changes', row: { value: 'host_value' } },
     ])('does not restore a stale edit when $name', ({ state, row }) => {
-        withRenderer(({ render, getInput, getActiveElement, root }) => {
+        withRenderer(({ render, getInput, getActiveElement, root, postMessage }) => {
             render(createTraceState());
             getInput().focus();
             getInput().value = 'draft';
             render(createTraceState(state, row));
             expect(getActiveElement()).toBeNull();
+            expect(postMessage).toHaveBeenCalledTimes(1);
             if (root.querySelector('input[type="text"]')) {
                 expect(getInput().value).toBe(row?.value ?? '');
                 expect(getInput().focus).not.toHaveBeenCalled();

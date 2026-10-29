@@ -45,6 +45,8 @@ const vscodeApi = acquireVsCodeApi();
 const root = document.getElementById('root');
 let openMultiSelectId: string | undefined;
 let renderedState: TraceConfigurationState | undefined;
+/** Prevents DOM replacement from committing an unfinished user edit. */
+let replacingContents = false;
 const multiSelectControls = new WeakMap<HTMLDetailsElement, MultiSelectControl>();
 const DEFAULT_LABEL_COLUMN_WIDTH = 52;
 const MIN_LABEL_COLUMN_WIDTH = 15;
@@ -258,24 +260,29 @@ function renderApp(state: TraceConfigurationState): void {
     }
     surface.append(treeBody);
     columnResizeObserver.disconnect();
-    clearElement(root);
-    root.append(surface);
-    columnResizeObserver.observe(scrollRegion);
-    updateColumnResizeHandle();
-    scrollRegion.scrollTop = scrollTop;
-    scrollRegion.scrollLeft = scrollLeft;
-    if (!state.focusedRowId && activeElement instanceof HTMLElement && root.contains(activeElement)) {
-        activeElement.focus({ preventScroll: true });
-    }
-    menuScrollPositions.forEach(position => {
-        if (root.contains(position.menu)) {
-            position.menu.scrollTop = position.scrollTop;
-            position.menu.scrollLeft = position.scrollLeft;
+    replacingContents = true;
+    try {
+        clearElement(root);
+        root.append(surface);
+        columnResizeObserver.observe(scrollRegion);
+        updateColumnResizeHandle();
+        scrollRegion.scrollTop = scrollTop;
+        scrollRegion.scrollLeft = scrollLeft;
+        if (!state.focusedRowId && activeElement instanceof HTMLElement && root.contains(activeElement)) {
+            activeElement.focus({ preventScroll: true });
         }
-    });
-    focusRow(state.focusedRowId ?? focusedRowId);
-    renderedState = state;
-    restoreTextInput?.();
+        menuScrollPositions.forEach(position => {
+            if (root.contains(position.menu)) {
+                position.menu.scrollTop = position.scrollTop;
+                position.menu.scrollLeft = position.scrollLeft;
+            }
+        });
+        focusRow(state.focusedRowId ?? focusedRowId);
+        renderedState = state;
+        restoreTextInput?.();
+    } finally {
+        replacingContents = false;
+    }
 }
 
 /**
@@ -749,7 +756,7 @@ function createTextInput(row: TraceConfigurationRow): HTMLElement {
     input.setAttribute('aria-label', row.label);
     let lastCommittedValue = input.value;
     const commit = () => {
-        if (input.value === lastCommittedValue) {
+        if (replacingContents || input.value === lastCommittedValue) {
             return;
         }
         lastCommittedValue = input.value;
