@@ -26,6 +26,7 @@ import {
     ProcessManagerOptions
 } from './process-manager';
 
+/** Locates the bundled trace decoder relative to the extension directory. */
 export const DEFAULT_CTRACE_PATH = 'tools/ctrace/ctrace';
 
 export interface CTraceProcessManagerOptions {
@@ -39,6 +40,7 @@ export interface CTraceProcessManagerLaunchOptions extends ProcessManagerLaunchO
 }
 
 export class CTraceProcessManager extends ProcessManager {
+    /** Resolves the decoder executable and forwards process output to the extension logger. */
     public constructor(options: CTraceProcessManagerOptions = {}) {
         const cTracePath = options.cTracePath ?? new BuiltinToolPath(DEFAULT_CTRACE_PATH).getAbsolutePath()?.fsPath;
         if (!cTracePath) {
@@ -52,17 +54,25 @@ export class CTraceProcessManager extends ProcessManager {
         super(processOptions);
     }
 
+    /** Launches with pinned arguments when supplied, resolving only missing defaults. */
     public override async launch(options: CTraceProcessManagerLaunchOptions = {}): Promise<void> {
-        const cbuildRunFileLocator = new CBuildRunFileLocator();
-        const activeSolutionFolder = await cbuildRunFileLocator.getActiveSolutionFolder();
-        if (!activeSolutionFolder) {
-            throw new Error('No workspace folder is open.');
+        let args = options.args;
+        if (args === undefined) {
+            const cbuildRunFileLocator = new CBuildRunFileLocator();
+            let traceDir = options.traceDir;
+            if (traceDir === undefined) {
+                const activeSolutionFolder = await cbuildRunFileLocator.getActiveSolutionFolder();
+                if (!activeSolutionFolder) {
+                    throw new Error('No workspace folder is open.');
+                }
+                traceDir = path.join(activeSolutionFolder.fsPath, '.trace');
+            }
+            args = [
+                traceDir,
+                '-t', options.solutionSet ?? await cbuildRunFileLocator.getDefaultSolutionSet(options.cbuildRunFilePath),
+                '--csv'
+            ];
         }
-        const args = options.args ?? [
-            options.traceDir ?? path.join(activeSolutionFolder.fsPath, '.trace'),
-            '-t', options.solutionSet ?? await cbuildRunFileLocator.getDefaultSolutionSet(options.cbuildRunFilePath),
-            '--csv'
-        ];
         super.launch({
             ...options,
             args

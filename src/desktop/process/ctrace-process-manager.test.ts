@@ -17,6 +17,7 @@
 
 import { spawn } from 'child_process';
 import * as vscode from 'vscode';
+import { CBuildRunFileLocator } from '../../cbuild-run';
 import { childProcessFactory } from '../../__test__/child-process.factory';
 import { BuiltinToolPath } from '../builtin-tool-path';
 import { CTraceProcessManager } from './ctrace-process-manager';
@@ -72,6 +73,24 @@ describe('CTraceProcessManager', () => {
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith('cmsis-csolution.getActiveTargetSet');
     });
 
+    it('resolves manual defaults through CMSIS Solution without activeTarget metadata', async () => {
+        jest.spyOn(CBuildRunFileLocator.prototype, 'getActiveSolutionFolder').mockResolvedValue(vscode.Uri.file('/workspace'));
+        jest.spyOn(vscode.workspace.fs, 'stat').mockResolvedValue({
+            type: vscode.FileType.File, ctime: 0, mtime: 0, size: 1
+        });
+        jest.mocked(vscode.commands.executeCommand)
+            .mockResolvedValueOnce('/workspace/Demo+Board.cbuild-run.yml')
+            .mockResolvedValueOnce('Board@Release');
+
+        await new CTraceProcessManager({ cTracePath: 'ctrace-path' }).launch();
+
+        expect(mockSpawn).toHaveBeenCalledWith(
+            'ctrace-path',
+            [expect.toEqualFsPath('/workspace/.trace'), '-t', 'Demo+Board@Release', '--csv'],
+            expect.any(Object)
+        );
+    });
+
     it('rejects construction when the bundled ctrace path cannot be resolved', () => {
         jest.spyOn(BuiltinToolPath.prototype, 'getAbsolutePath').mockReturnValue(undefined);
 
@@ -91,5 +110,18 @@ describe('CTraceProcessManager', () => {
                 value: workspaceFolders
             });
         }
+    });
+
+    it.each([
+        { args: ['--version'] },
+        { traceDir: '/pinned/.trace', solutionSet: 'Pinned+Board@Release' }
+    ])('bypasses active selection resolution for explicit launch options: %j', async options => {
+        const folder = jest.spyOn(CBuildRunFileLocator.prototype, 'getActiveSolutionFolder')
+            .mockRejectedValue(new Error('must not resolve active selection'));
+        const solutionSet = jest.spyOn(CBuildRunFileLocator.prototype, 'getDefaultSolutionSet')
+            .mockRejectedValue(new Error('must not resolve active selection'));
+        await new CTraceProcessManager({ cTracePath: 'ctrace-path' }).launch(options);
+        expect(folder).not.toHaveBeenCalled();
+        expect(solutionSet).not.toHaveBeenCalled();
     });
 });

@@ -15,6 +15,7 @@
  */
 // generated with AI
 
+import * as path from 'node:path';
 import * as vscode from 'vscode';
 
 import { CmsisJsonWatcher } from '../../cmsis-files';
@@ -31,40 +32,47 @@ import {
 import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
 import { OPEN_CAPTURED_TRACE_AFTER_DECODE_SETTING } from '../../manifest';
 import { logger } from '../..';
+import { fileExists, normalizeFsPath } from '../../utils';
 import { CapturedTraceResolver } from './captured-trace-resolver';
 
-const RAW_TRACE_SAVE_WINDOW_MS = 2_000;
+/** Waits for one second without raw-file writes before decoding. */
+const RAW_TRACE_DEBOUNCE_MS = 1_000;
+/** Observes both raw trace channels in the active solution folder. */
 const RAW_TRACE_GLOB = '.trace/*.{SWO,TB}.raw';
+/** Identifies the shared raw trace watch. */
 const RAW_TRACE_WATCH_ID = 'ctrace-raw-trace';
+/** Observes decoded captures for command availability. */
 const CAPTURED_TRACE_GLOB = '.trace/*.{SWO,TB,TB_*}.csv';
+/** Identifies the decoded capture watch. */
 const CAPTURED_TRACE_WATCH_ID = 'ctrace-captured-trace';
+/** Controls whether the captured-trace command is available. */
 const HAS_CAPTURED_TRACE_CONTEXT = 'vscode-cmsis-debugger.hasCapturedTrace';
 
-interface PendingDecode {
-    readonly cbuildRunFilePath: string | undefined;
-    readonly stoppedAt: number;
-}
-
+/** Decodes raw-file updates independently of debugger stop events. */
 export class CTraceController {
     private activeSession: GDBTargetDebugSession | undefined;
     private fileWatchManager: FileWatchManager | undefined;
     private rawTraceWatcherGeneration = 0;
-    private readonly pendingDecodes = new Map<string, PendingDecode>();
-    private readonly rawTraceSaves = new Map<string, number>();
+    private capturedTraceContextVersion = 0;
+    private debounceTimer: ReturnType<typeof setTimeout> | undefined;
+    private readonly pendingRawFiles = new Map<string, vscode.Uri>();
+    private queuedDecodeGeneration: number | undefined;
+    private conversionQueue: Promise<unknown> = Promise.resolve();
 
+    /** Shares solution discovery while preserving session defaults for manual commands. */
     public constructor(
         private readonly options: CTraceProcessManagerOptions = {},
-        // Injected to make timing-based behavior deterministic in tests.
-        private readonly now: () => number = Date.now,
         private readonly cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator(),
         private readonly cmsisJsonWatcher?: CmsisJsonWatcher,
         private readonly capturedTraceResolver: CapturedTraceResolver = new CapturedTraceResolver(cbuildRunFileLocator)
     ) { }
 
+    /** Returns the active debugger's build path for existing manual commands. */
     public getActiveCbuildRunFilePath(): string | undefined {
         return this.activeSession?.getCbuildRunPath();
     }
 
+    /** Installs solution-scoped watches without requiring a debug session. */
     public async activate(
         context: vscode.ExtensionContext,
         tracker: GDBTargetDebugTracker,
@@ -72,183 +80,178 @@ export class CTraceController {
     ): Promise<void> {
         this.fileWatchManager = fileWatchManager;
         const activeSolutionChangeSubscription = this.cmsisJsonWatcher?.onDidChangeActiveSolution(() => {
-            void this.handleActiveSolutionPathChanged();
+            this.removeTraceWatchers();
+            void this.addTraceWatchers();
         });
         context.subscriptions.push(
             tracker.onDidChangeActiveDebugSession(session => this.handleActiveSessionChanged(session)),
-            tracker.onStopped(event => this.handleDecodeTrigger(event.session)),
-            tracker.onWillStopSession(session => this.handleDecodeTrigger(session)),
-            { dispose: () => this.removeTraceWatchers() },
+            { dispose: () => {
+                this.removeTraceWatchers();
+                this.fileWatchManager = undefined;
+            } },
             ...(activeSolutionChangeSubscription ? [activeSolutionChangeSubscription] : [])
         );
         await this.addTraceWatchers();
     }
 
-    public async run(options: CTraceProcessManagerLaunchOptions = {}): Promise<number | null> {
-        const processManager = new CTraceProcessManager(this.options);
+    /** Serializes manual conversions while retaining caller and active-session defaults. */
+    public run(options: CTraceProcessManagerLaunchOptions = {}): Promise<number | null> {
         const cbuildRunFilePath = options.cbuildRunFilePath ?? this.activeSession?.getCbuildRunPath();
-        const launchOptions: CTraceProcessManagerLaunchOptions = cbuildRunFilePath === undefined
-            ? options
-            : { ...options, cbuildRunFilePath };
-        await processManager.launch(launchOptions);
-        return processManager.waitForExit();
+        const launchOptions = cbuildRunFilePath === undefined ? options : { ...options, cbuildRunFilePath };
+        return this.enqueueConversion(() => this.launch(launchOptions));
     }
 
+    /** Refreshes command availability when the active debugger changes. */
     protected async handleActiveSessionChanged(session: GDBTargetDebugSession | undefined): Promise<void> {
         this.activeSession = session;
         await this.updateCapturedTraceContext();
     }
 
-    protected async handleRawTraceFileChanged(
-        uri: vscode.Uri,
-        watcherGeneration: number = this.rawTraceWatcherGeneration
-    ): Promise<void> {
-        if (watcherGeneration !== this.rawTraceWatcherGeneration) {
+    /** Coalesces raw-file events across both channels into one quiet period. */
+    private handleRawTraceFileChanged(uri: vscode.Uri, generation: number): void {
+        if (!this.isCurrent(generation)) {
             return;
         }
-        const savedAt = this.now();
-        this.rawTraceSaves.set(uri.fsPath, savedAt);
-        this.removeExpiredEvents(savedAt);
-        await this.decodePendingTrace();
-    }
-
-    protected async handleDecodeTrigger(session: GDBTargetDebugSession | undefined): Promise<void> {
-        const effectiveSession = session ?? this.activeSession;
-        if (effectiveSession === undefined) {
-            return;
-        }
-        const cbuildRunFile = await effectiveSession.getCbuildRun();
-        const cbuildRunFilePath = cbuildRunFile?.getFilePath();
-        const stoppedAt = this.now();
-        this.removeExpiredEvents(stoppedAt);
-        this.pendingDecodes.delete(effectiveSession.session.id);
-        this.pendingDecodes.set(effectiveSession.session.id, {
-            cbuildRunFilePath,
-            stoppedAt,
-        });
-        await this.decodePendingTrace();
-    }
-
-    private removeExpiredEvents(now: number): void {
-        const rawTraceSaves = [...this.rawTraceSaves.entries()];
-        const expiredRawTraceSaves = rawTraceSaves
-            .filter(([, savedAt]) => savedAt < now - RAW_TRACE_SAVE_WINDOW_MS);
-        expiredRawTraceSaves.forEach(([filePath]) => this.rawTraceSaves.delete(filePath));
-        const pendingDecodes = [...this.pendingDecodes.entries()];
-        const expiredPendingDecodes = pendingDecodes
-            .filter(([, pendingDecode]) => pendingDecode.stoppedAt < now - RAW_TRACE_SAVE_WINDOW_MS);
-        expiredPendingDecodes.forEach(([sessionId]) => this.pendingDecodes.delete(sessionId));
-    }
-
-    private consumeNearbyRawTraceSaves(stoppedAt: number): boolean {
-        const rawTraceSaves = [...this.rawTraceSaves.entries()];
-        const nearbyRawTraceSaves = rawTraceSaves
-            .filter(([, savedAt]) => Math.abs(savedAt - stoppedAt) <= RAW_TRACE_SAVE_WINDOW_MS);
-        nearbyRawTraceSaves.forEach(([filePath]) => this.rawTraceSaves.delete(filePath));
-        return nearbyRawTraceSaves.length > 0;
-    }
-
-    private async decodePendingTrace(): Promise<void> {
-        const pendingDecodes = [...this.pendingDecodes.entries()].reverse();
-        for (const [sessionId, pendingDecode] of pendingDecodes) {
-            if (!this.consumeNearbyRawTraceSaves(pendingDecode.stoppedAt)) {
-                continue;
+        this.pendingRawFiles.set(uri.fsPath, uri);
+        clearTimeout(this.debounceTimer);
+        this.debounceTimer = setTimeout(() => {
+            this.debounceTimer = undefined;
+            if (this.queuedDecodeGeneration === generation) {
+                return;
             }
-            this.pendingDecodes.delete(sessionId);
-            try {
-                const exitCode = await this.run({ cbuildRunFilePath: pendingDecode.cbuildRunFilePath });
-                if (exitCode !== 0) {
-                    logger.error(`ctrace process exited with code ${exitCode}`);
+            this.queuedDecodeGeneration = generation;
+            void this.enqueueConversion(async () => {
+                if (this.queuedDecodeGeneration !== generation) {
                     return;
                 }
-                const openCapturedTrace = vscode.workspace.getConfiguration()
-                    .get<boolean>(OPEN_CAPTURED_TRACE_AFTER_DECODE_SETTING, true) ?? true;
-                if (openCapturedTrace) {
-                    try {
-                        await this.capturedTraceResolver.open(pendingDecode.cbuildRunFilePath, { preserveFocus: false });
-                    } catch (error) {
-                        logger.error('Failed to open captured trace:', error);
+                this.queuedDecodeGeneration = undefined;
+                await this.decodePendingTrace(generation);
+            }).catch(error => logger.error('Failed to launch ctrace process:', error));
+        }, RAW_TRACE_DEBOUNCE_MS);
+    }
+
+    /** Resolves the selected target when queued work starts and pins its conversion arguments. */
+    private async decodePendingTrace(generation: number): Promise<void> {
+        if (!this.isReadyToDecode(generation)) {
+            return;
+        }
+        const files = [...this.pendingRawFiles.values()];
+        const existingFiles = await Promise.all(files.map(async uri => await fileExists(uri) ? uri : undefined));
+        if (!this.isReadyToDecode(generation)) {
+            return;
+        }
+        if (!existingFiles.some(uri => uri !== undefined)) {
+            this.pendingRawFiles.clear();
+            return;
+        }
+        const cbuildRunFilePath = await this.cbuildRunFileLocator.getCBuildRunFileName(undefined, true);
+        const solutionSet = await this.cbuildRunFileLocator.getDefaultSolutionSet(cbuildRunFilePath);
+        const rawFile = existingFiles.find(uri => uri !== undefined && ['SWO', 'TB'].some(channel =>
+            normalizeFsPath(path.basename(uri.fsPath)) === normalizeFsPath(`${solutionSet}.${channel}.raw`)));
+        if (!this.isReadyToDecode(generation)) {
+            return;
+        }
+        this.pendingRawFiles.clear();
+        if (rawFile === undefined) {
+            return;
+        }
+        const exitCode = await this.launch({ traceDir: path.dirname(rawFile.fsPath), solutionSet });
+        if (exitCode !== 0) {
+            logger.error(`ctrace process exited with code ${exitCode}`);
+            return;
+        }
+        if (!this.isCurrent(generation)) {
+            return;
+        }
+        await this.updateCapturedTraceContext(generation);
+        const openCapturedTrace = vscode.workspace.getConfiguration()
+            .get<boolean>(OPEN_CAPTURED_TRACE_AFTER_DECODE_SETTING, false);
+        if (openCapturedTrace && this.isCurrent(generation) && this.pendingRawFiles.size === 0) {
+            try {
+                await this.capturedTraceResolver.open(cbuildRunFilePath, { preserveFocus: false }, async resolvedSolutionSet => {
+                    if (!this.isCurrent(generation) || resolvedSolutionSet !== solutionSet) {
+                        return false;
                     }
-                }
-                return;
+                    const activeSolutionSet = await this.cbuildRunFileLocator.getDefaultSolutionSet(cbuildRunFilePath);
+                    return this.isCurrent(generation) && this.pendingRawFiles.size === 0 && activeSolutionSet === solutionSet;
+                });
             } catch (error) {
-                logger.error('Failed to launch ctrace process:', error);
+                logger.error('Failed to open captured trace:', error);
             }
         }
     }
 
-    private async addTraceWatchers(): Promise<void> {
-        const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
-        await this.addRawTraceWatcher(activeSolutionFolder);
-        await this.addCapturedTraceWatcher(activeSolutionFolder);
+    /** Runs one decoder with arguments already selected by its caller. */
+    private async launch(options: CTraceProcessManagerLaunchOptions): Promise<number | null> {
+        const processManager = new CTraceProcessManager(this.options);
+        await processManager.launch(options);
+        return processManager.waitForExit();
     }
 
-    private async addRawTraceWatcher(activeSolutionFolder?: vscode.Uri): Promise<void> {
+    /** Keeps later conversions runnable after a rejected conversion. */
+    private enqueueConversion<T>(convert: () => Promise<T>): Promise<T> {
+        const conversion = this.conversionQueue.then(convert);
+        this.conversionQueue = conversion.catch(() => undefined);
+        return conversion;
+    }
+
+    /** Registers both existing folder-wide watches, rejecting delayed registrations after a switch. */
+    private async addTraceWatchers(): Promise<void> {
         const fileWatchManager = this.fileWatchManager;
-        // A watcher cannot be registered before activation supplies its manager.
+        const generation = this.rawTraceWatcherGeneration;
         if (fileWatchManager === undefined) {
             return;
         }
-        const watcherGeneration = this.rawTraceWatcherGeneration;
-        const resolvedActiveSolutionFolder = activeSolutionFolder ?? await this.cbuildRunFileLocator.getActiveSolutionFolder();
-        // Ignore a stale registration after removal or reactivation supplied a new manager.
-        if (watcherGeneration !== this.rawTraceWatcherGeneration || fileWatchManager !== this.fileWatchManager) {
+        const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
+        if (!this.isCurrent(generation)) {
             return;
         }
-        const globPattern = resolvedActiveSolutionFolder
-            ? new vscode.RelativePattern(resolvedActiveSolutionFolder, RAW_TRACE_GLOB)
-            : RAW_TRACE_GLOB;
         fileWatchManager.addWatch({
             id: RAW_TRACE_WATCH_ID,
-            globPattern,
-            onDidCreate: uri => this.handleRawTraceFileChanged(uri, watcherGeneration),
-            onDidChange: uri => this.handleRawTraceFileChanged(uri, watcherGeneration)
+            globPattern: activeSolutionFolder ? new vscode.RelativePattern(activeSolutionFolder, RAW_TRACE_GLOB) : RAW_TRACE_GLOB,
+            onDidCreate: uri => this.handleRawTraceFileChanged(uri, generation),
+            onDidChange: uri => this.handleRawTraceFileChanged(uri, generation)
         });
-    }
-
-    private async addCapturedTraceWatcher(activeSolutionFolder?: vscode.Uri): Promise<void> {
-        const fileWatchManager = this.fileWatchManager;
-        if (fileWatchManager === undefined) {
-            return;
-        }
-        const resolvedActiveSolutionFolder = activeSolutionFolder ?? await this.cbuildRunFileLocator.getActiveSolutionFolder();
-        if (fileWatchManager !== this.fileWatchManager) {
-            return;
-        }
         fileWatchManager.addWatch({
             id: CAPTURED_TRACE_WATCH_ID,
-            globPattern: resolvedActiveSolutionFolder
-                ? new vscode.RelativePattern(resolvedActiveSolutionFolder, CAPTURED_TRACE_GLOB)
-                : CAPTURED_TRACE_GLOB,
-            onDidCreate: () => this.updateCapturedTraceContext(),
-            onDidChange: () => this.updateCapturedTraceContext(),
-            onDidDelete: () => this.updateCapturedTraceContext()
+            globPattern: activeSolutionFolder ? new vscode.RelativePattern(activeSolutionFolder, CAPTURED_TRACE_GLOB) : CAPTURED_TRACE_GLOB,
+            onDidCreate: () => this.updateCapturedTraceContext(generation),
+            onDidChange: () => this.updateCapturedTraceContext(generation),
+            onDidDelete: () => this.updateCapturedTraceContext(generation)
         });
-        await this.updateCapturedTraceContext();
+        await this.updateCapturedTraceContext(generation);
     }
 
+    /** Cancels pending automatic work and invalidates callbacks from removed watches. */
     private removeTraceWatchers(): void {
-        this.removeRawTraceWatcher();
-        if (this.fileWatchManager === undefined) {
+        this.rawTraceWatcherGeneration += 1;
+        clearTimeout(this.debounceTimer);
+        this.debounceTimer = undefined;
+        this.pendingRawFiles.clear();
+        this.queuedDecodeGeneration = undefined;
+        this.fileWatchManager?.removeWatch(RAW_TRACE_WATCH_ID);
+        this.fileWatchManager?.removeWatch(CAPTURED_TRACE_WATCH_ID);
+    }
+
+    /** Tests whether automatic work still belongs to the active watch lifetime. */
+    private isCurrent(generation: number): boolean {
+        return this.fileWatchManager !== undefined && generation === this.rawTraceWatcherGeneration;
+    }
+
+    /** Defers asynchronous lookups superseded by another raw-file quiet period. */
+    private isReadyToDecode(generation: number): boolean {
+        return this.isCurrent(generation) && this.debounceTimer === undefined && this.queuedDecodeGeneration !== generation;
+    }
+
+    /** Prevents delayed capture lookups from overwriting newer availability. */
+    private async updateCapturedTraceContext(generation = this.rawTraceWatcherGeneration): Promise<void> {
+        if (!this.isCurrent(generation)) {
             return;
         }
-        this.fileWatchManager.removeWatch(CAPTURED_TRACE_WATCH_ID);
-    }
-
-    private removeRawTraceWatcher(): void {
-        this.rawTraceWatcherGeneration += 1;
-        this.fileWatchManager?.removeWatch(RAW_TRACE_WATCH_ID);
-    }
-
-    private async handleActiveSolutionPathChanged(): Promise<void> {
-        this.removeTraceWatchers();
-        this.pendingDecodes.clear();
-        this.rawTraceSaves.clear();
-        await this.addTraceWatchers();
-    }
-
-    private async updateCapturedTraceContext(): Promise<void> {
+        const version = ++this.capturedTraceContextVersion;
         const hasCapturedTrace = await this.capturedTraceResolver.hasCapture(this.activeSession?.getCbuildRunPath());
-        await vscode.commands.executeCommand('setContext', HAS_CAPTURED_TRACE_CONTEXT, hasCapturedTrace);
+        if (this.isCurrent(generation) && version === this.capturedTraceContextVersion) {
+            await vscode.commands.executeCommand('setContext', HAS_CAPTURED_TRACE_CONTEXT, hasCapturedTrace);
+        }
     }
 }

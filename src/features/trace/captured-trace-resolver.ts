@@ -33,9 +33,11 @@ export class CapturedTraceResolver {
         private readonly cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator()
     ) { }
 
+    /** Opens a capture if the optional asynchronous guard still accepts its resolved selection. */
     public async open(
         cbuildRunFilePath?: string,
-        options: Pick<vscode.TextDocumentShowOptions, 'preserveFocus'> = {}
+        options: Pick<vscode.TextDocumentShowOptions, 'preserveFocus'> = {},
+        canOpen: (solutionSet: string) => boolean | Promise<boolean> = () => true
     ): Promise<void> {
         const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
         if (activeSolutionFolder === undefined) {
@@ -49,7 +51,7 @@ export class CapturedTraceResolver {
         }
         const captures = await this.findCaptures(activeSolutionFolder, solutionSet);
         const capture = captures.find(({ type }) => type === 'SWO') ?? captures[0];
-        if (capture !== undefined) {
+        if (capture !== undefined && await canOpen(solutionSet)) {
             await this.openCapture(capture.uri, options);
         }
     }
