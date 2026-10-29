@@ -423,7 +423,7 @@ function createRow(row: TraceConfigurationRow): HTMLTableRowElement {
         tr.tabIndex = 0;
         tr.setAttribute('aria-expanded', String(row.expanded));
         tr.addEventListener('click', event => {
-            if (isRowToggleInteractiveTarget(event.target)) {
+            if (isRowToggleInteractiveTarget(event.target) || (event.detail !== 0 && pointerStartedInControl)) {
                 return;
             }
             post({ type: 'toggle', id: row.id, expanded: !row.expanded });
@@ -798,7 +798,25 @@ function onMessage(event: MessageEvent<TraceHostToWebviewMessage>): void {
     }
 }
 
+/** Tracks whether the current primary pointer gesture began in a control. */
+let pointerStartedInControl = false;
+
+document.addEventListener('pointerdown', event => {
+    if (event.isPrimary) {
+        pointerStartedInControl = isRowToggleInteractiveTarget(event.target);
+    }
+}, true);
+
+document.addEventListener('pointercancel', () => {
+    pointerStartedInControl = false;
+});
+
+window.addEventListener('blur', () => {
+    pointerStartedInControl = false;
+});
+
 document.addEventListener('click', event => {
+    pointerStartedInControl = false;
     if (event.target instanceof HTMLElement && event.target.closest('.multi-select')) {
         return;
     }
