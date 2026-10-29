@@ -1057,8 +1057,10 @@
     ]
   },
   "scripts": {
+    "preprepare": "node -e \"if (process.env.npm_command === 'install') { process.exit(1); }\" || npm run download-tools:nightly",
     "prepare": "npm run build",
     "download-tools": "tsx scripts/download-tools.ts",
+    "download-tools:nightly": "tsx scripts/download-tools.ts --channel nightly",
     "validate-tools": "tsx scripts/validate-tools.ts",
     "clean": "git clean -f -x ./node_modules ./dist ./coverage ./tools",
     "build": "webpack --mode production && npm run lint",
