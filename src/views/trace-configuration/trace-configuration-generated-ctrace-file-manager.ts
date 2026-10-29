@@ -27,6 +27,7 @@ import { isFileNotFoundError, normalizeFsPath } from '../../utils';
 import { CTraceProcessorTraceSetup, CTraceYamlDocument } from './ctrace-yaml';
 import { GeneratedCBuildRunFileChangeEvent } from './trace-configuration-file-watcher';
 import { getTraceConfigurationArtifactFileNames } from './trace-configuration-file-names';
+import type { TraceConfigurationPrevalidationResult } from './trace-configuration-prevalidator';
 import * as TraceConfigurationTypes from './trace-configuration-types';
 
 interface GeneratedTraceProcessor {
@@ -44,6 +45,9 @@ interface EnsureProductionCTraceRunFileOptions {
     readonly cbuildRunUri?: vscode.Uri;
     readonly isCurrent?: () => boolean;
 }
+
+/** Identifies newly written diagnostic output even when pyTS reports validation errors. */
+export type ProductionCTraceValidationResult = TraceConfigurationPrevalidationResult & { readonly outputCurrent?: boolean };
 
 export const TRACE_OFF_MESSAGE =
     'Trace generation turned off, enable in debugger\'s trace settings';
@@ -109,10 +113,27 @@ export class TraceConfigurationGeneratedCTraceFileManager {
         ctraceUri: vscode.Uri,
         options: EnsureProductionCTraceRunFileOptions = {}
     ): Promise<void> {
+        await this.requestProductionCTraceRunFile(ctraceUri, options, false);
+    }
+
+    /** Regenerates existing output and reports whether it still belongs to the current source. */
+    public regenerateProductionCTraceRunFile(
+        ctraceUri: vscode.Uri,
+        options: EnsureProductionCTraceRunFileOptions = {}
+    ): Promise<ProductionCTraceValidationResult> {
+        return this.requestProductionCTraceRunFile(ctraceUri, options, true);
+    }
+
+    /** Shares active-target checks between missing-output generation and explicit revalidation. */
+    private async requestProductionCTraceRunFile(
+        ctraceUri: vscode.Uri,
+        options: EnsureProductionCTraceRunFileOptions,
+        force: boolean
+    ): Promise<ProductionCTraceValidationResult> {
         const artifacts = getTraceConfigurationArtifactFileNames(ctraceUri.fsPath);
         const outputUri = vscode.Uri.file(artifacts.productionCTraceRunFileName);
-        if (!this.isCurrent(options) || await this.fileExists(outputUri)) {
-            return;
+        if (!this.isCurrent(options) || (!force && await this.fileExists(outputUri))) {
+            return { status: 'cancelled' };
         }
 
         try {
@@ -122,39 +143,88 @@ export class TraceConfigurationGeneratedCTraceFileManager {
                     'Trace Configuration: Cannot generate missing ctrace-run output for '
                     + `${ctraceUri.fsPath} without an active cbuild-run file.`
                 );
-                return;
+                return { status: 'unavailable', message: 'No active cbuild-run file is available for pyTS validation.' };
             }
             if (!this.isCurrent(options)) {
-                return;
+                return { status: 'cancelled' };
             }
             const reader = new CbuildRunReader();
             await reader.parse(cbuildRunUri.fsPath);
             if (!this.isCurrent(options)) {
-                return;
+                return { status: 'cancelled' };
             }
             const traceMode = reader.getTraceMode();
             if (traceMode === undefined || traceMode === 'off') {
-                return;
+                return { status: 'unavailable', message: TRACE_OFF_MESSAGE };
             }
             const expectedCTraceUri = await this.cbuildRunFileLocator.getCTraceUriFromCBuildRunUri(
                 cbuildRunUri,
                 reader.getTargetSet()
             );
             if (!this.isCurrent(options)) {
-                return;
+                return { status: 'cancelled' };
             }
             if (normalizeFsPath(expectedCTraceUri.fsPath) !== normalizeFsPath(ctraceUri.fsPath)) {
                 logger.debug(
                     `Trace Configuration: Skipping pyTS conversion for inactive ctrace file ${ctraceUri.fsPath}.`
                 );
-                return;
+                return { status: 'unavailable', message: 'The selected trace configuration is not the active pyTS input.' };
             }
-            if (await this.fileExists(outputUri) || !this.isCurrent(options)) {
-                return;
+            if ((!force && await this.fileExists(outputUri)) || !this.isCurrent(options)) {
+                return { status: 'cancelled' };
             }
-            await this.pyTsController.convertCTrace(ctraceUri, cbuildRunUri.fsPath);
+            if (!force) {
+                await this.pyTsController.convertCTrace(ctraceUri, cbuildRunUri.fsPath);
+                return { status: 'passed' };
+            }
+            const previousOutputStamp = await this.getOutputStamp(outputUri);
+            if (!this.isCurrent(options)) {
+                return { status: 'cancelled' };
+            }
+            const result = await this.pyTsController.convertCTraceWithResult(ctraceUri, cbuildRunUri.fsPath);
+            if (!this.isCurrent(options)) {
+                return { status: 'cancelled' };
+            }
+            if (result.status === 'cancelled' || result.contents === undefined) {
+                return result;
+            }
+            const convertedContents = result.contents;
+            const currentContents = await vscode.workspace.fs.readFile(ctraceUri);
+            if (!this.isCurrent(options) || currentContents.length !== convertedContents.length
+                || !currentContents.every((value, index) => value === convertedContents.at(index))) {
+                return { status: 'cancelled' };
+            }
+            const outputStamp = await this.getOutputStamp(outputUri);
+            if (!this.isCurrent(options)) {
+                return { status: 'cancelled' };
+            }
+            const outputCurrent = outputStamp !== undefined && outputStamp !== previousOutputStamp;
+            if (result.status === 'failed') {
+                return { status: 'failed', message: result.message, outputCurrent };
+            }
+            if (!outputCurrent) {
+                return { status: 'failed', message: 'pyTS produced no fresh ctrace-run validation output.' };
+            }
+            return { status: 'passed', outputCurrent: true };
         } catch (error) {
-            logger.error('Trace Configuration: Failed to request pyTS conversion for missing ctrace-run output:', error);
+            const message = force
+                ? 'Trace Configuration: Failed to refresh ctrace-run output:'
+                : 'Trace Configuration: Failed to request pyTS conversion for missing ctrace-run output:';
+            logger.error(message, error);
+            return { status: 'failed', message: error instanceof Error ? error.message : String(error) };
+        }
+    }
+
+    /** Detects a newly written output; source identity and conversion outcome are checked separately. */
+    private async getOutputStamp(uri: vscode.Uri): Promise<string | undefined> {
+        try {
+            const stat = await vscode.workspace.fs.stat(uri);
+            return `${stat.mtime}:${stat.ctime}:${stat.size}`;
+        } catch (error) {
+            if (isFileNotFoundError(error)) {
+                return;
+            }
+            throw error;
         }
     }
 

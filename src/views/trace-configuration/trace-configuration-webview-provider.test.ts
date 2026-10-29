@@ -50,6 +50,7 @@ class FakeTraceConfigurationModel {
     public readonly deactivate = jest.fn().mockResolvedValue(undefined);
     public readonly watchForGeneratedCBuildRunFiles = jest.fn();
     public readonly loadInitialFile = jest.fn().mockResolvedValue(undefined);
+    public readonly refreshConfiguration = jest.fn().mockResolvedValue(undefined);
     public readonly refreshFile = jest.fn().mockResolvedValue(undefined);
     public readonly saveCurrentDocument = jest.fn().mockResolvedValue(undefined);
     public readonly openFile = jest.fn().mockResolvedValue(undefined);
@@ -215,6 +216,7 @@ describe('TraceConfigurationWebviewProvider', () => {
             return entry?.[1] as () => Promise<void> | void;
         };
 
+        await findCommand('vscode-cmsis-debugger.traceConfiguration.refresh')();
         await findCommand('vscode-cmsis-debugger.traceConfiguration.save')();
         await findCommand('vscode-cmsis-debugger.traceConfiguration.revert')();
         await findCommand('vscode-cmsis-debugger.traceConfiguration.revertValidating')();
@@ -223,6 +225,7 @@ describe('TraceConfigurationWebviewProvider', () => {
 
         expect(model.saveCurrentDocument).toHaveBeenCalledTimes(1);
         expect(model.refreshFile).toHaveBeenCalledTimes(2);
+        expect(model.refreshConfiguration).toHaveBeenCalledTimes(1);
         expect(model.updateExpandedState).toHaveBeenNthCalledWith(1, 'parent', true);
         expect(model.updateExpandedState).toHaveBeenNthCalledWith(2, 'parent', false);
     });
@@ -445,7 +448,7 @@ describe('TraceConfigurationWebviewProvider', () => {
         sendMessage({ type: 'removeItem', path: ['ctrace', 'setup', 0, 'data', 0] });
         await Promise.resolve();
 
-        expect(model.refreshFile).toHaveBeenCalledTimes(1);
+        expect(model.refreshConfiguration).toHaveBeenCalledTimes(1);
         expect(model.saveCurrentDocument).toHaveBeenCalledTimes(1);
         expect(model.updateExpandedState).toHaveBeenCalledWith('row-1', true);
         expect(model.updateValue).toHaveBeenCalledWith(['ctrace', 'setup', 0, 'pname'], 'cm33');

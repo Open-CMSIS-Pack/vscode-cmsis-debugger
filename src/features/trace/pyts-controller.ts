@@ -44,8 +44,15 @@ interface CTraceConversionRequest {
     explicit: boolean;
 }
 
+/** Reports conversion provenance and failure without changing legacy callers. */
+export type CTraceConversionResult =
+    | { status: 'passed'; contents: Uint8Array }
+    | { status: 'failed'; message: string; contents?: Uint8Array }
+    | { status: 'cancelled' };
+
 interface PendingCTraceConversion extends CTraceConversionRequest {
-    readonly resolveWaiters: Array<() => void>;
+    readonly resolveWaiters: Array<(result: CTraceConversionResult) => void>;
+    superseded?: boolean;
 }
 
 export class PyTsController {
@@ -92,7 +99,12 @@ export class PyTsController {
     }
 
     /** Requests a conversion independently of the ctrace file watcher and waits for its completion. */
-    public convertCTrace(ctraceUri: vscode.Uri, cbuildRunFilePath: string): Promise<void> {
+    public async convertCTrace(ctraceUri: vscode.Uri, cbuildRunFilePath: string): Promise<void> {
+        await this.convertCTraceWithResult(ctraceUri, cbuildRunFilePath);
+    }
+
+    /** Returns the outcome and input snapshot of an explicitly requested conversion. */
+    public convertCTraceWithResult(ctraceUri: vscode.Uri, cbuildRunFilePath: string): Promise<CTraceConversionResult> {
         return this.processConversionRequest(ctraceUri, cbuildRunFilePath, undefined, true);
     }
 
@@ -123,7 +135,7 @@ export class PyTsController {
         cbuildRunFilePath: string | undefined,
         watcherGeneration: number | undefined,
         explicit: boolean
-    ): Promise<void> {
+    ): Promise<CTraceConversionResult> {
         const normalizedPath = normalizeFsPath(uri.fsPath) ?? uri.fsPath;
         const conversionKey = this.getConversionKey(normalizedPath, cbuildRunFilePath);
         const previousRead = this.contentReadPromises.get(conversionKey) ?? Promise.resolve(undefined);
@@ -149,9 +161,9 @@ export class PyTsController {
             }
         }
         if (contents === undefined) {
-            return;
+            return { status: 'cancelled' };
         }
-        await this.submitConversion({
+        return this.submitConversion({
             cbuildRunFilePath,
             conversionKey,
             contents,
@@ -160,13 +172,18 @@ export class PyTsController {
         });
     }
 
-    private submitConversion(request: CTraceConversionRequest): Promise<void> {
-        const completion = new Promise<void>(resolve => {
+    /** Coalesces current requests while keeping superseded conversions from reporting success. */
+    private submitConversion(request: CTraceConversionRequest): Promise<CTraceConversionResult> {
+        const completion = new Promise<CTraceConversionResult>(resolve => {
             const activeConversion = this.activeConversion;
             if (activeConversion?.conversionKey === request.conversionKey
+                && !activeConversion.superseded
                 && this.contentsEqual(activeConversion.contents, request.contents)) {
                 activeConversion.resolveWaiters.push(resolve);
                 return;
+            }
+            if (activeConversion?.conversionKey === request.conversionKey) {
+                activeConversion.superseded = true;
             }
             const pendingConversion = this.pendingConversions.get(request.conversionKey);
             if (pendingConversion !== undefined) {
@@ -191,19 +208,24 @@ export class PyTsController {
                 }
                 this.pendingConversions.delete(pendingConversion.conversionKey);
                 if (!pendingConversion.explicit && pendingConversion.watcherGeneration !== this.watcherGeneration) {
-                    pendingConversion.resolveWaiters.forEach(resolve => resolve());
+                    pendingConversion.resolveWaiters.forEach(resolve => resolve({ status: 'cancelled' }));
                     continue;
                 }
                 this.activeConversion = pendingConversion;
                 const launchOptions: PyTsProcessManagerLaunchOptions = pendingConversion.cbuildRunFilePath === undefined
                     ? {}
                     : { cbuildRunFilePath: pendingConversion.cbuildRunFilePath };
+                let result: CTraceConversionResult = { status: 'cancelled' };
                 try {
                     const exitCode = await this.run(launchOptions);
+                    result = exitCode === 0
+                        ? { status: 'passed', contents: pendingConversion.contents }
+                        : { status: 'failed', message: `pyTS conversion exited with code ${exitCode ?? 'null'}.`, contents: pendingConversion.contents };
                     if (exitCode !== 0) {
                         logger.error(`pyTS process exited with code ${exitCode}`);
                     }
                 } catch (error) {
+                    result = { status: 'failed', message: error instanceof Error ? error.message : String(error) };
                     logger.error('Failed to launch pyTS process:', error);
                 } finally {
                     await this.contentReadPromises.get(pendingConversion.conversionKey)?.catch(() => undefined);
@@ -213,7 +235,8 @@ export class PyTsController {
                     )) {
                         this.observedCTraceContents.delete(pendingConversion.conversionKey);
                     }
-                    pendingConversion.resolveWaiters.forEach(resolve => resolve());
+                    const outcome = pendingConversion.superseded ? { status: 'cancelled' as const } : result;
+                    pendingConversion.resolveWaiters.forEach(resolve => resolve(outcome));
                     this.activeConversion = undefined;
                 }
             }
@@ -301,7 +324,7 @@ export class PyTsController {
         for (const [conversionKey, pendingConversion] of this.pendingConversions) {
             if (!pendingConversion.explicit) {
                 this.pendingConversions.delete(conversionKey);
-                pendingConversion.resolveWaiters.forEach(resolve => resolve());
+                pendingConversion.resolveWaiters.forEach(resolve => resolve({ status: 'cancelled' }));
             }
         }
     }

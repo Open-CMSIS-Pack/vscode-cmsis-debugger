@@ -595,6 +595,11 @@ Open the **Trace And Live View** and scroll down to **Trace Generation**.
 By default, the start processor is enabled as a trace source. Select the information that you want to capture. The
 available options depend on the trace capabilities of the processor.
 
+Use **Refresh Trace Configuration** in the view toolbar to reload a saved configuration and regenerate its validation
+results. If the view has unsaved edits, Refresh preserves and revalidates that draft. A notice appears if the file also
+changed outside the view; use **Revert** to discard the draft and load the version on disk. Refresh is available without
+an active debug session.
+
 ##### Timestamps
 
 Enable **Timestamps** for timing information. Timestamps contribute to the cycle information in the decoded

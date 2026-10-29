@@ -144,6 +144,7 @@ body.resizing * {
     color: var(--vscode-foreground, #cccccc);
 }
 
+.status-unavailable,
 .status-modified,
 .status-validating {
     color: var(--vscode-editorWarning-foreground, #cca700);
@@ -571,4 +572,8 @@ input[type="checkbox"] {
     .depth-5 {
         padding-left: 33px;
     }
+}
+.trace-notice {
+    color: var(--vscode-editorWarning-foreground);
+    padding: 4px 0;
 }

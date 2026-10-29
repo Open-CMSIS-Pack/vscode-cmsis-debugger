@@ -315,6 +315,31 @@ function createTraceState(
     };
 }
 
+describe('Trace Generation refresh status', () => {
+    it.each(['pending', 'running', 'failed', 'unavailable'] as const)(
+        'shows %s validation for a clean source', validationState => {
+            withRenderer(({ render, root }) => {
+                render(createTraceState({ dirty: false, validationState, validationMessage: 'validation details' }));
+                const icon = root.querySelector('.status-icon');
+                const labels = new Map([
+                    ['pending', 'validating'], ['running', 'validating'], ['failed', 'error'], ['unavailable', 'validation unavailable'],
+                ]);
+                const label = labels.get(validationState);
+                expect(icon?.attributes.get('aria-label')).toBe(label);
+                expect(icon?.title).toContain('validation details');
+            });
+        }
+    );
+
+    it('shows an external-change notice while leaving the draft editable', () => {
+        withRenderer(({ render, root, getInput }) => {
+            render(createTraceState({ sourceConflictMessage: 'Revert to use external changes.' }, { value: 'draft' }));
+            expect(root.querySelector('.trace-notice')).toMatchObject({ textContent: 'Revert to use external changes.' });
+            expect(getInput()).toMatchObject({ value: 'draft', disabled: false });
+        });
+    });
+});
+
 describe('Trace Generation text input refresh', () => {
     it('retains focus on an empty location while validation and row diagnostics update', () => {
         withRenderer(({ render, getInput, getActiveElement, postMessage, root }) => {

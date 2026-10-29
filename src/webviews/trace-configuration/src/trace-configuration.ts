@@ -311,6 +311,12 @@ function focusRow(rowId: string | undefined): void {
 function createHeader(state: TraceConfigurationState): HTMLElement {
     const header = createElement('div', 'trace-header');
     header.append(createStatus(state));
+    if (state.sourceConflictMessage) {
+        const notice = createElement('div', 'trace-notice');
+        notice.textContent = state.sourceConflictMessage;
+        notice.setAttribute('role', 'status');
+        header.append(notice);
+    }
     return header;
 }
 
@@ -331,24 +337,29 @@ function createStatus(state: TraceConfigurationState): HTMLElement {
     return status;
 }
 
+/** Displays validation progress and failures for both saved configurations and unsaved drafts. */
 function createStatusIcon(state: TraceConfigurationState): HTMLSpanElement {
-    const validating = state.dirty
-        && (state.validationState === 'pending' || state.validationState === 'running');
-    const iconName = state.validationState === 'failed'
-        ? 'error'
-        : validating
-            ? 'sync'
-            : state.dirty
-                ? 'diff-modified'
-                : 'pass-filled';
-    const label = state.validationState === 'failed'
-        ? 'error'
-        : validating
-            ? 'validating'
-            : state.dirty
-                ? 'modified'
-                : 'saved';
-    const icon = createIcon(iconName, `status-icon status-${label}`);
+    let iconName = 'pass-filled';
+    let label = 'saved';
+    let statusClass = 'saved';
+    if (state.validationState === 'failed') {
+        iconName = 'error';
+        label = 'error';
+        statusClass = 'error';
+    } else if (state.validationState === 'unavailable') {
+        iconName = 'warning';
+        label = 'validation unavailable';
+        statusClass = 'unavailable';
+    } else if (state.validationState === 'pending' || state.validationState === 'running') {
+        iconName = 'sync';
+        label = 'validating';
+        statusClass = 'validating';
+    } else if (state.dirty) {
+        iconName = 'diff-modified';
+        label = 'modified';
+        statusClass = 'modified';
+    }
+    const icon = createIcon(iconName, `status-icon status-${statusClass}`);
     icon.title = state.validationMessage ? `${label}: ${state.validationMessage}` : label;
     icon.removeAttribute('aria-hidden');
     icon.setAttribute('aria-label', label);

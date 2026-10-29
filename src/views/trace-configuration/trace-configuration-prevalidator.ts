@@ -21,6 +21,8 @@ import { CbuildRunReader, CBuildRunFileLocator } from '../../cbuild-run';
 import { PyTsProcessManager } from '../../desktop/process/pyts-process-manager';
 import { logger } from '../../logger';
 import { normalizeFsPath } from '../../utils';
+import { getTraceConfigurationArtifactFileNames } from './trace-configuration-file-names';
+import { WorkspaceTextFileAdapter } from './workspace-text-file-adapter';
 
 const PYTS_STOP_TIMEOUT_MS = 250;
 
@@ -82,6 +84,13 @@ export class PyTsTraceConfigurationPrevalidator implements TraceConfigurationPre
                 return this.unavailable(
                     `The selected trace configuration is not the active pyTS input. Expected ${expectedCTraceUri.fsPath}.`
                 );
+            }
+
+            // A failed launch must not leave diagnostics from the previous draft available.
+            const artifacts = getTraceConfigurationArtifactFileNames(fileName);
+            await new WorkspaceTextFileAdapter().deleteTextFile(artifacts.backupCTraceRunFileName);
+            if (!this.isCurrent(generation)) {
+                return { status: 'cancelled' };
             }
 
             const processManager = this.processManagerFactory();

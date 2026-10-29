@@ -126,6 +126,48 @@ describe('PyTsController', () => {
         });
     });
 
+    it.each([0, 7, null])('reports conversion outcome and provenance for exit code %s', async exitCode => {
+        const controller = new PyTsController();
+        jest.spyOn(controller, 'run').mockResolvedValue(exitCode);
+        const result = await controller.convertCTraceWithResult(ctraceUri, '/workspace/build/trace.cbuild-run.yml');
+
+        if (exitCode === 0) {
+            expect(result).toEqual({ status: 'passed', contents: new TextEncoder().encode('trace: initial') });
+        } else {
+            expect(result).toEqual({ status: 'failed', message: `pyTS conversion exited with code ${exitCode ?? 'null'}.`,
+                contents: new TextEncoder().encode('trace: initial') });
+        }
+    });
+
+    it('does not reuse a superseded active conversion when the input changes back', async () => {
+        const controller = new PyTsController();
+        const gate = Promise.withResolvers<number>();
+        const run = jest.spyOn(controller, 'run').mockReturnValueOnce(gate.promise).mockResolvedValue(0);
+        const buildPath = '/workspace/build/trace.cbuild-run.yml';
+        const first = controller.convertCTraceWithResult(ctraceUri, buildPath);
+        await waitForCondition('first conversion', () => run.mock.calls.length === 1);
+        jest.mocked(vscode.workspace.fs.readFile).mockResolvedValue(new TextEncoder().encode('trace: changed'));
+        const changed = controller.convertCTraceWithResult(ctraceUri, buildPath);
+        await waitForCondition('changed contents read', () => jest.mocked(vscode.workspace.fs.readFile).mock.calls.length === 2);
+        await Promise.resolve();
+        jest.mocked(vscode.workspace.fs.readFile).mockResolvedValue(new TextEncoder().encode('trace: initial'));
+        const reverted = controller.convertCTraceWithResult(ctraceUri, buildPath);
+        await waitForCondition('reverted contents read', () => jest.mocked(vscode.workspace.fs.readFile).mock.calls.length === 3);
+        gate.resolve(0);
+
+        expect(await first).toEqual({ status: 'cancelled' });
+        await changed;
+        expect(await reverted).toEqual({ status: 'passed', contents: new TextEncoder().encode('trace: initial') });
+        expect(run).toHaveBeenCalledTimes(2);
+    });
+
+    it('reports a launch failure to result-aware callers', async () => {
+        const controller = new PyTsController();
+        jest.spyOn(controller, 'run').mockRejectedValue(new Error('launch failed'));
+        await expect(controller.convertCTraceWithResult(ctraceUri, '/workspace/build/trace.cbuild-run.yml'))
+            .resolves.toEqual({ status: 'failed', message: 'launch failed' });
+    });
+
     it('coalesces explicit and watched requests for one context while serializing another', async () => {
         const controller = controllerForSolution();
         const activeSession = gdbTargetDebugSessionFactory('/workspace/build/trace.cbuild-run.yml');

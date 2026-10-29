@@ -24,6 +24,7 @@ import { PyTsProcessManager } from '../../desktop/process/pyts-process-manager';
 import { logger } from '../../logger';
 import { waitForCondition } from '../../utils';
 import { PyTsTraceConfigurationPrevalidator } from './trace-configuration-prevalidator';
+import { WorkspaceTextFileAdapter } from './workspace-text-file-adapter';
 
 const CBUILD_RUN_FILE_NAME = path.join('/workspace', 'out', 'project+target.cbuild-run.yml');
 const CTRACE_FILE_NAME = path.join('/workspace', '.cmsis', 'project+target.ctrace.yml');
@@ -124,6 +125,25 @@ describe('PyTsTraceConfigurationPrevalidator', () => {
             message: 'spawn failed'
         });
         expect(error).toHaveBeenCalledWith('Trace Configuration: Failed to run pyTS validation:', launchError);
+    });
+
+    it('removes obsolete backup diagnostics before a conversion that fails to launch', async () => {
+        const { locator, reader, processManager } = createDependencies();
+        const removeOutput = jest.spyOn(WorkspaceTextFileAdapter.prototype, 'deleteTextFile').mockResolvedValue();
+        processManager.launch.mockImplementation(async () => {
+            expect(removeOutput).toHaveBeenCalledWith(
+                expect.toEqualFsPath(path.join('/workspace', '.trace', '~project+target.ctrace-run.yml'))
+            );
+            throw new Error('spawn failed');
+        });
+        const prevalidator = new PyTsTraceConfigurationPrevalidator(
+            locator,
+            () => reader,
+            () => asProcessManager(processManager)
+        );
+
+        await expect(prevalidator.validate(CTRACE_FILE_NAME)).resolves.toMatchObject({ status: 'failed' });
+        expect(processManager.launch).toHaveBeenCalledTimes(1);
     });
 
     it('fails closed when the selected file is not the active pyTS input', async () => {
