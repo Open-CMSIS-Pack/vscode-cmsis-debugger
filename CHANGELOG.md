@@ -2,13 +2,20 @@
 
 ## 1.10.1
 
-- Fixes automatic conversion of raw trace captures to CSV when the raw trace file is updated.
-- Fixes input focus in the Trace Generation view during validation updates.
-- Prevents unintended row expansion or collapse in the Trace Generation view after selecting input text.
-- Limits informational diagnostics in the Trace Generation view to the affected rows.
-- Includes updated pyOCD distribution ([pyOCD v0.46.1](https://github.com/pyocd/pyOCD/releases/tag/v0.46.1)).
+- Changes automatic decode of raw trace capture to CSV to execute on raw trace file updates.
+- Improves user interaction with Trace Generation view controls.
 - Includes updated ctrace distribution ([ctrace v1.0.1](https://github.com/Open-CMSIS-Pack/devtools/releases/tag/tools%2Fctrace%2F1.0.1))
-    - Fixes missing ITM port 0 data in CSV and CTF output.
+    - Fixes missing ITM channel 0 data in CSV output.
+    - Adds CLI argument `-c, --channel` to explicitly select which captured channels (`SWO`, `TB`) to decode.
+- Includes updated pyOCD distribution ([pyOCD v0.46.1](https://github.com/pyocd/pyOCD/releases/tag/v0.46.1)).
+    - Fixes `gdbserver` resume and step operations when BKPT instruction check cannot read memory for current PC.
+    - Enhances CMSIS debug sequence support
+        - Adds handling for `__connection` bit 18 which indicates that the target must halt after a reset sequence.
+        - Fixes `Message` debug access function execution errors by adding support for missing format specifiers.
+        - Exits debug sequence execution when calling `Message` with parameter `2` (error message).
+    - Enhances CMSIS-DAP support
+        - Recovers from SWD transfer errors.
+        - Gracefully handles unexpected zero-length USB packets after full-size USB responses.
 
 ## 1.10.0
 
