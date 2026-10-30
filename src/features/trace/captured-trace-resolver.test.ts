@@ -21,8 +21,11 @@ import { CBuildRunFileLocator } from '../../cbuild-run';
 import { CSV_TABLE_EDITOR_VIEW_TYPE } from '../../views/csv-table-viewer/csv-table-editor-provider';
 import { CapturedTraceResolver } from './captured-trace-resolver';
 
+/** Locates the trace directory used by resolver tests. */
 const ACTIVE_SOLUTION_FOLDER = vscode.Uri.file('/workspace/solution');
+/** Pins the build file supplied by existing callers. */
 const CBUILD_RUN_FILE_PATH = '/workspace/solution+target.cbuild-run.yml';
+/** Identifies matching capture filenames. */
 const SOLUTION_SET = 'solution+target';
 
 describe('CapturedTraceResolver', () => {
@@ -164,4 +167,27 @@ describe('CapturedTraceResolver', () => {
         );
     });
 
+    it('checks the resolved selection after asynchronous capture discovery', async () => {
+        const directory = Promise.withResolvers<[string, vscode.FileType][]>();
+        jest.mocked(vscode.workspace.fs.readDirectory).mockReturnValue(directory.promise);
+        const canOpen = jest.fn().mockResolvedValue(false);
+        const opening = resolver.open(CBUILD_RUN_FILE_PATH, {}, canOpen);
+
+        directory.resolve([[`${SOLUTION_SET}.SWO.csv`, vscode.FileType.File]]);
+        await opening;
+
+        expect(canOpen).toHaveBeenCalledWith(SOLUTION_SET);
+        expect(vscode.commands.executeCommand).not.toHaveBeenCalled();
+    });
+
+    it('opens a capture accepted by the asynchronous selection guard', async () => {
+        jest.mocked(vscode.workspace.fs.readDirectory).mockResolvedValue([
+            [`${SOLUTION_SET}.SWO.csv`, vscode.FileType.File]
+        ]);
+
+        await resolver.open(CBUILD_RUN_FILE_PATH, {}, async () => true);
+
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+            'vscode.openWith', expect.anything(), CSV_TABLE_EDITOR_VIEW_TYPE);
+    });
 });

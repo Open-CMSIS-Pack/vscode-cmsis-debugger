@@ -22,14 +22,18 @@ export interface TraceWatchFixture {
     readonly addWatch: jest.Mock;
     readonly removeWatch: jest.Mock;
     getLatestWatch(): FileWatchRegistrationOptions | undefined;
+    getWatch(id: string): FileWatchRegistrationOptions | undefined;
 }
 
+/** Tracks registered watches so tests can exercise public filesystem callbacks by watch ID. */
 export function traceWatchFactory(): TraceWatchFixture {
     let latestWatch: FileWatchRegistrationOptions | undefined;
+    const watches = new Map<string, FileWatchRegistrationOptions>();
     const addWatch = jest.fn((options: FileWatchRegistrationOptions) => {
         latestWatch = options;
+        watches.set(options.id, options);
     });
-    const removeWatch = jest.fn();
+    const removeWatch = jest.fn((id: string) => watches.delete(id));
     const fileWatchManager = { addWatch, removeWatch } as unknown as FileWatchManager;
 
     return {
@@ -37,5 +41,6 @@ export function traceWatchFactory(): TraceWatchFixture {
         addWatch,
         removeWatch,
         getLatestWatch: () => latestWatch,
+        getWatch: id => watches.get(id),
     };
 }
