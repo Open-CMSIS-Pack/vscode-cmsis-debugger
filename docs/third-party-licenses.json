@@ -50,10 +50,10 @@
     },
     {
         "name": "pyocd",
-        "version": "0.46.0",
+        "version": "0.46.1",
         "spdx": "Apache-2.0",
         "url": "https://github.com/pyocd/pyOCD",
-        "license": "https://github.com/pyocd/pyOCD/blob/v0.46.0/LICENSE"
+        "license": "https://github.com/pyocd/pyOCD/blob/v0.46.1/LICENSE"
     },
     {
         "name": "pyTS",

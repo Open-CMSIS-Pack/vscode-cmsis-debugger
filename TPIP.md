@@ -11,7 +11,7 @@ Generated for release: 1.10.1
 | ctrace | 1.0.1 | https://github.com/Open-CMSIS-Pack/devtools/tree/main/tools/ctrace | [Apache-2.0](https://github.com/Open-CMSIS-Pack/devtools/blob/tools/ctrace/1.0.1/LICENSE) |
 | jsonc-parser | 3.3.1 | https://github.com/microsoft/node-jsonc-parser | [MIT](https://github.com/microsoft/node-jsonc-parser/blob/main/LICENSE.md) |
 | lodash | 4.18.1 | https://github.com/lodash/lodash | [MIT](https://github.com/lodash/lodash/blob/main/LICENSE) |
-| pyocd | 0.46.0 | https://github.com/pyocd/pyOCD | [Apache-2.0](https://github.com/pyocd/pyOCD/blob/v0.46.0/LICENSE) |
+| pyocd | 0.46.1 | https://github.com/pyocd/pyOCD | [Apache-2.0](https://github.com/pyocd/pyOCD/blob/v0.46.1/LICENSE) |
 | pyTS | 1.0.0 | https://github.com/Open-CMSIS-Pack/pyTS/releases | [Apache-2.0](https://github.com/Open-CMSIS-Pack/pyTS/blob/v1.0.0/LICENSE) |
 | react | 18.3.1 | https://github.com/facebook/react | [MIT](https://github.com/facebook/react/blob/main/LICENSE) |
 | react-dom | 18.3.1 | https://github.com/facebook/react | [MIT](https://github.com/facebook/react/blob/main/LICENSE) |
