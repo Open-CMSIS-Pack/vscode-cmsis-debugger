@@ -1,5 +1,15 @@
 # Change Log
 
+## 1.10.1
+
+- Fixes automatic conversion of raw trace captures to CSV when the raw trace file is updated.
+- Fixes input focus in the Trace Generation view during validation updates.
+- Prevents unintended row expansion or collapse in the Trace Generation view after selecting input text.
+- Limits informational diagnostics in the Trace Generation view to the affected rows.
+- Includes updated pyOCD distribution ([pyOCD v0.46.1](https://github.com/pyocd/pyOCD/releases/tag/v0.46.1)).
+- Includes updated ctrace distribution ([ctrace v1.0.1](https://github.com/Open-CMSIS-Pack/devtools/releases/tag/tools%2Fctrace%2F1.0.1))
+    - Fixes missing ITM port 0 data in CSV and CTF output.
+
 ## 1.10.0
 
 - Adds workflows for [trace generation](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger?tab=readme-ov-file#using-trace), SWO and Trace Buffer capture to raw binary files, and decode to CSV output files and their inspection.
