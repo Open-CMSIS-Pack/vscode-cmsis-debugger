@@ -1090,7 +1090,7 @@
     "yaml": "2.9.1"
   },
   "devDependencies": {
-    "@eclipse-cdt-cloud/vscode-peripheral-inspector": "0.0.0",
+    "@eclipse-cdt-cloud/vscode-peripheral-inspector": "1.11.0",
     "@eslint/js": "10.0.1",
     "@open-cmsis-pack/vsce-helper": "0.4.2",
     "@types/fs-extra": "11.0.4",
