@@ -12,7 +12,7 @@
     - Enhances CMSIS debug sequence support
         - Adds handling for `__connection` bit 18 which indicates that the target must halt after a reset sequence.
         - Fixes `Message` debug access function execution errors by adding support for missing format specifiers.
-        - Exits debug sequence execution when calling `Message` with parameter `2` (error message).
+        - Aborts debug sequence execution when calling `Message` with parameter `2` (error message).
     - Enhances CMSIS-DAP support
         - Recovers from SWD transfer errors.
         - Gracefully handles unexpected zero-length USB packets after full-size USB responses.
