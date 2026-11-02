@@ -245,6 +245,10 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             }
         } catch (error) {
             this.model.reportError(error, 'Trace Configuration: Webview action failed');
+        } finally {
+            if (message.type === 'updateValue' && message.editId !== undefined) {
+                this.postState(message.editId);
+            }
         }
     }
 
@@ -305,10 +309,11 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
 
     /**
      * postState serializes the current model state and sends it to the webview.
-     * The browser side is intentionally stateless with respect to file contents:
-     * every host update replaces the rendered rows.
+     * Every update replaces the rendered rows. An optional completed edit ID
+     * lets the browser retain its active draft until the host finishes the edit,
+     * including any normalization of the submitted value.
      */
-    private postState(): void {
+    private postState(completedEditId?: number): void {
         if (!this.webviewView) {
             return;
         }
@@ -321,6 +326,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             : undefined;
         const message: TraceHostToWebviewMessage = {
             type: 'update',
+            ...(completedEditId !== undefined ? { completedEditId } : {}),
             state: {
                 ...state,
                 ...(workspaceFolder ? { workspaceFolderPath: workspaceFolder.uri.fsPath } : {})
