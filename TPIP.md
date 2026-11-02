@@ -5,7 +5,7 @@ Generated for release: 1.10.1
 | *Package* | *Version* | *Repository* | *License* |
 |---|---|---|---|
 | @open-cmsis-pack/cmsis-common | 0.2.0 | https://github.com/Open-CMSIS-Pack/vscode-cmsis-solution/tree/main/packages/cmsis-common | [Apache-2.0](https://github.com/Open-CMSIS-Pack/vscode-cmsis-solution/blob/main/LICENSE) |
-| @tanstack/react-virtual | 3.14.13 | https://github.com/tanstack/react-virtual | [MIT](https://github.com/tanstack/react-virtual/blob/main/LICENSE) |
+| @tanstack/react-virtual | 3.14.24 | https://github.com/tanstack/react-virtual | [MIT](https://github.com/tanstack/react-virtual/blob/main/LICENSE) |
 | @vscode/codicons | 0.0.45 | https://github.com/microsoft/vscode-codicons | [CC-BY-4.0](https://github.com/microsoft/vscode-codicons/blob/main/LICENSE) |
 | arm-none-eabi-gdb | 15.3.1 | https://artifacts.tools.arm.com/arm-none-eabi-gdb/15.3.1/ | [GPL-3.0-or-later](https://gitlab.arm.com/tooling/gnu-toolchains-for-arm/-/blob/releases/15.3.rel1/EULA.txt) |
 | ctrace | 1.0.1 | https://github.com/Open-CMSIS-Pack/devtools/tree/main/tools/ctrace | [Apache-2.0](https://github.com/Open-CMSIS-Pack/devtools/blob/tools/ctrace/1.0.1/LICENSE) |
