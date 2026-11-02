@@ -293,6 +293,7 @@ body.resizing * {
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
+.multi-select-summary:focus-visible,
 tr:focus-visible,
 tr:focus-within,
 tr:focus {
@@ -327,7 +328,23 @@ select:disabled {
     cursor: default;
 }
 
+.multi-select-control {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+}
+
+.multi-select-clear {
+    flex: none;
+    height: 26px;
+    border-color: var(--vscode-input-border, #555555);
+    background: var(--vscode-input-background, #3c3c3c);
+    color: var(--vscode-input-foreground, #ffffff);
+}
+
 .multi-select {
+    flex: 1;
     position: relative;
     min-width: 0;
 }
@@ -356,6 +373,12 @@ select:disabled {
 
 .multi-select-summary .codicon {
     flex: none;
+}
+
+.multi-select-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .multi-select-menu {

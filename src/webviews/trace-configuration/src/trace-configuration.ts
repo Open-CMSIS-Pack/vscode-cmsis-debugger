@@ -25,6 +25,7 @@ import type {
 } from '../../../views/trace-configuration/trace-configuration-protocol';
 
 type MultiSelectControl = {
+    element: HTMLElement;
     signature: string;
     updateSelectedOptions(selectedOptions: readonly string[]): void;
 };
@@ -471,7 +472,7 @@ function isRowToggleInteractiveTarget(target: EventTarget | null): boolean {
     if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLButtonElement) {
         return true;
     }
-    return target instanceof HTMLElement && Boolean(target.closest('.multi-select, .add-button-wrapper, .tooltip-wrapper'));
+    return target instanceof HTMLElement && Boolean(target.closest('.multi-select-control, .add-button-wrapper, .tooltip-wrapper'));
 }
 
 /**
@@ -675,7 +676,8 @@ function createSelect(row: TraceConfigurationRow): HTMLElement {
  * createMultiSelect renders a compact dropdown checklist for fields where the
  * ctrace schema accepts multiple choices. Unchanged option lists retain their
  * DOM across host updates, while checked values stay synchronized with the host.
- * Each checkbox change posts the full selected array for the YAML update.
+ * Checkbox changes post the full selected array; the separate clear button
+ * posts an empty array and returns focus to the dropdown.
  */
 function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
     const signature = JSON.stringify([row.options ?? [], getValuePath(row), row.label]);
@@ -684,27 +686,31 @@ function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
     const existingControl = existingDetails ? multiSelectControls.get(existingDetails) : undefined;
     if (existingDetails && existingControl?.signature === signature) {
         existingControl.updateSelectedOptions(row.selectedOptions ?? []);
-        return existingDetails;
+        return existingControl.element;
     }
+    const control = createElement('div', 'multi-select-control');
     const details = createElement('details', 'multi-select');
     details.dataset.rowId = row.id;
     details.open = openMultiSelectId === row.id;
     const summary = createElement('summary', 'multi-select-summary');
-    summary.append(createElement('span', 'multi-select-label'), createIcon('chevron-down'));
+    const summaryLabel = createElement('span', 'multi-select-label');
+    summary.append(summaryLabel, createIcon('chevron-down'));
+    const clearButton = createElement('button', 'icon-button multi-select-clear');
+    clearButton.type = 'button';
+    clearButton.title = 'Clear all selections';
+    clearButton.setAttribute('aria-label', `Clear all ${row.label} selections`);
+    clearButton.append(createIcon('close'));
     const selectedValues = new Set(row.selectedOptions ?? []);
 
     /**
      * updateSummary mirrors the selected checklist values into the collapsed
-     * dropdown label so users can scan the current configuration without
-     * opening each multi-select control.
+     * dropdown label and disables clearing when there are no selections.
      */
-    const updateSummary = () => {
-        const label = summary.querySelector('.multi-select-label') as HTMLElement;
-        if (label) {
-            label.textContent = selectedValues.size > 0
-                ? Array.from(selectedValues).join(', ')
-                : 'None';
-        }
+    const updateSummary = (): void => {
+        summaryLabel.textContent = selectedValues.size > 0
+            ? Array.from(selectedValues).join(', ')
+            : 'None';
+        clearButton.disabled = selectedValues.size === 0;
     };
     updateSummary();
     details.addEventListener('toggle', () => {
@@ -741,19 +747,24 @@ function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
         label.append(checkbox, text);
         menu.append(label);
     });
-    multiSelectControls.set(details, {
-        signature,
-        updateSelectedOptions(selectedOptions): void {
-            selectedValues.clear();
-            selectedOptions.forEach(optionValue => selectedValues.add(optionValue));
-            menu.querySelectorAll<HTMLInputElement>('input').forEach(checkbox => {
-                checkbox.checked = selectedValues.has(checkbox.value);
-            });
-            updateSummary();
-        }
+    /** Synchronizes the checklist, summary, and clear button with a selection. */
+    const updateSelectedOptions = (selectedOptions: readonly string[]): void => {
+        selectedValues.clear();
+        selectedOptions.forEach(optionValue => selectedValues.add(optionValue));
+        menu.querySelectorAll<HTMLInputElement>('input').forEach(checkbox => {
+            checkbox.checked = selectedValues.has(checkbox.value);
+        });
+        updateSummary();
+    };
+    clearButton.addEventListener('click', () => {
+        summary.focus({ preventScroll: true });
+        updateSelectedOptions([]);
+        post({ type: 'updateValue', path: getValuePath(row), value: [] });
     });
+    multiSelectControls.set(details, { element: control, signature, updateSelectedOptions });
     details.append(summary, menu);
-    return details;
+    control.append(details, clearButton);
+    return control;
 }
 
 /**
@@ -843,7 +854,7 @@ window.addEventListener('blur', () => {
 
 document.addEventListener('click', event => {
     pointerStartedInControl = false;
-    if (event.target instanceof HTMLElement && event.target.closest('.multi-select')) {
+    if (event.target instanceof HTMLElement && event.target.closest('.multi-select-control')) {
         return;
     }
     closeOpenMultiSelect();
