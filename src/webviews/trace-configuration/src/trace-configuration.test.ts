@@ -282,14 +282,14 @@ function createRendererFixture() {
         ResizeObserver: jest.fn(() => ({ observe: jest.fn(), disconnect: jest.fn() })),
         acquireVsCodeApi: () => ({ postMessage, getState: () => undefined }),
     });
-    const render = (state: TraceConfigurationState): void => {
+    const render = (state: TraceConfigurationState, completedEditId?: number): void => {
         windowEvents.dispatchEvent(new MessageEvent('message', {
             origin: windowEvents.location.origin,
-            data: { type: 'update', state },
+            data: { type: 'update', state, ...(completedEditId !== undefined ? { completedEditId } : {}) },
         }));
     };
-    const getInput = (): RendererInput => {
-        const input = root.querySelector('input[type="text"]');
+    const getInput = (index = 0): RendererInput => {
+        const input = root.querySelectorAll('input[type="text"]').at(index);
         if (!(input instanceof RendererInput)) {
             throw new Error('Expected a rendered text input');
         }
@@ -347,6 +347,19 @@ function createTraceState(
     };
 }
 
+/** Covers host changes that invalidate the identity or availability of an active input. */
+const TEXT_INPUT_IDENTITY_CHANGES: readonly {
+    name: string;
+    state?: Partial<TraceConfigurationState>;
+    row?: Partial<TraceConfigurationRow>;
+}[] = [
+    { name: 'the file changes', state: { fileName: '/workspace/other.ctrace.yml' } },
+    { name: 'the field is removed', state: { rows: [] } },
+    { name: 'the field becomes disabled', row: { controlDisabledReason: 'Unavailable' } },
+    { name: 'the control changes', row: { control: 'readonly' } },
+    { name: 'the value path changes', row: { valuePath: ['data', 1, 'location'] } },
+];
+
 describe('Trace Generation text input refresh', () => {
     it('retains focus on an empty location while validation and row diagnostics update', () => {
         withRenderer(({ render, getInput, getActiveElement, postMessage, root }) => {
@@ -391,8 +404,209 @@ describe('Trace Generation text input refresh', () => {
             render(createTraceState({ validationState: 'running' }, { value: 'my_variable' }));
             expect(postMessage.mock.calls.map(([message]) => message)).toEqual([
                 { type: 'ready' },
-                { type: 'updateValue', path: ['data', 0, 'location'], value: 'my_variable' },
+                { type: 'updateValue', path: ['data', 0, 'location'], value: 'my_variable', editId: 1 },
             ]);
+        });
+    });
+
+    it.each([
+        { submittedValue: 'my_variable', hostValue: 'my_variable' },
+        { submittedValue: '0016', hostValue: '16' },
+    ])('commits $submittedValue and retains focus and selection through host completion', ({ submittedValue, hostValue }) => {
+        withRenderer(({ render, getInput, getActiveElement, postMessage }) => {
+            render(createTraceState());
+            const input = getInput();
+            input.focus();
+            input.value = submittedValue;
+            input.setSelectionRange(1, 3, 'backward');
+            const enter = keyEvent('Enter');
+
+            input.dispatchEvent(enter);
+
+            expect(enter.defaultPrevented).toBe(true);
+            expect(getActiveElement()).toBe(input);
+            expect(postMessage).toHaveBeenLastCalledWith({
+                type: 'updateValue', path: ['data', 0, 'location'], value: submittedValue, editId: 1,
+            });
+
+            render(createTraceState({ validationState: 'running' }, { value: hostValue }));
+            render(createTraceState({ validationState: 'running' }, { value: hostValue }), 1);
+            render(createTraceState({ validationState: 'passed' }, { value: hostValue }));
+
+            const replacement = getInput();
+            expect(getActiveElement()).toBe(replacement);
+            expect(replacement.value).toBe(submittedValue);
+            expect([replacement.selectionStart, replacement.selectionEnd, replacement.selectionDirection])
+                .toEqual([1, 3, 'backward']);
+
+            replacement.dispatchEvent(keyEvent('Enter'));
+            replacement.dispatchEvent(new Event('change'));
+            replacement.blur();
+            expect(postMessage).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    it.each(['my_variable', '16'])('retains further typing while the host applies %s', hostValue => {
+        withRenderer(({ render, getInput, getActiveElement, postMessage }) => {
+            render(createTraceState());
+            const input = getInput();
+            input.focus();
+            input.value = hostValue === '16' ? '0016' : hostValue;
+            input.dispatchEvent(keyEvent('Enter'));
+            input.value = 'corrected_variable';
+            input.setSelectionRange(3, 3);
+
+            render(createTraceState({ validationState: 'running' }));
+            render(createTraceState({ validationState: 'running' }, { value: hostValue }));
+            render(createTraceState({ validationState: 'running' }, { value: hostValue }), 1);
+            render(createTraceState({ validationState: 'passed' }, { value: hostValue }));
+
+            expect(getActiveElement()).toBe(getInput());
+            expect(getInput().value).toBe('corrected_variable');
+            expect([getInput().selectionStart, getInput().selectionEnd]).toEqual([3, 3]);
+            expect(postMessage).toHaveBeenCalledTimes(2);
+
+            getInput().dispatchEvent(keyEvent('Enter'));
+            expect(postMessage).toHaveBeenLastCalledWith({
+                type: 'updateValue', path: ['data', 0, 'location'], value: 'corrected_variable', editId: 2,
+            });
+        });
+    });
+
+    it('does not resend a submitted value after a validation refresh before host completion', () => {
+        withRenderer(({ render, getInput, postMessage }) => {
+            render(createTraceState());
+            getInput().focus();
+            getInput().value = 'my_variable';
+            getInput().dispatchEvent(keyEvent('Enter'));
+
+            render(createTraceState({ validationState: 'running' }));
+            getInput().dispatchEvent(keyEvent('Enter'));
+            getInput().blur();
+
+            expect(postMessage).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    it('retains the newest edit across completion of multiple submitted corrections', () => {
+        withRenderer(({ render, getInput, getActiveElement, postMessage }) => {
+            render(createTraceState());
+            getInput().focus();
+            getInput().value = 'first';
+            getInput().dispatchEvent(keyEvent('Enter'));
+            getInput().value = 'second';
+            getInput().dispatchEvent(keyEvent('Enter'));
+            getInput().value = 'third';
+            getInput().setSelectionRange(2, 2);
+
+            render(createTraceState({}, { value: 'first' }), 1);
+            render(createTraceState({}, { value: 'second' }), 2);
+
+            expect(getActiveElement()).toBe(getInput());
+            expect(getInput().value).toBe('third');
+            expect(getInput().selectionStart).toBe(2);
+            getInput().blur();
+
+            expect(postMessage.mock.calls.map(([message]) => message)).toEqual([
+                { type: 'ready' },
+                { type: 'updateValue', path: ['data', 0, 'location'], value: 'first', editId: 1 },
+                { type: 'updateValue', path: ['data', 0, 'location'], value: 'second', editId: 2 },
+                { type: 'updateValue', path: ['data', 0, 'location'], value: 'third', editId: 3 },
+            ]);
+        });
+    });
+
+    it('keeps focus on Enter without changes and leaves other editing keys to the browser', () => {
+        withRenderer(({ render, getInput, getActiveElement, postMessage }) => {
+            render(createTraceState());
+            getInput().focus();
+
+            for (const key of ['Enter', 'ArrowLeft', 'ArrowRight', 'Tab']) {
+                const event = keyEvent(key);
+                getInput().dispatchEvent(event);
+                expect(event.defaultPrevented).toBe(key === 'Enter');
+                expect(getActiveElement()).toBe(getInput());
+            }
+
+            expect(postMessage).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    it('leaves Enter during input composition to the browser', () => {
+        withRenderer(({ render, getInput, getActiveElement, postMessage }) => {
+            render(createTraceState());
+            getInput().focus();
+            getInput().value = 'composing';
+            const event = Object.assign(keyEvent('Enter'), { isComposing: true });
+            getInput().dispatchEvent(event);
+
+            expect(event.defaultPrevented).toBe(false);
+            expect(getActiveElement()).toBe(getInput());
+            expect(postMessage).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    it('does not restore input focus after the user leaves a submitted field', () => {
+        withRenderer(({ render, getInput, getActiveElement, postMessage }) => {
+            render(createTraceState());
+            getInput().focus();
+            getInput().value = 'my_variable';
+            getInput().dispatchEvent(keyEvent('Enter'));
+            getInput().blur();
+
+            render(createTraceState({}, { value: 'my_variable' }), 1);
+
+            expect(getActiveElement()).toBeNull();
+            expect(getInput().focus).not.toHaveBeenCalled();
+            expect(postMessage).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    it('honors a later authoritative value once the submitted edit has completed', () => {
+        withRenderer(({ render, getInput, getActiveElement }) => {
+            render(createTraceState());
+            getInput().focus();
+            getInput().value = 'my_variable';
+            getInput().dispatchEvent(keyEvent('Enter'));
+            render(createTraceState({}, { value: 'my_variable' }), 1);
+            getInput().value = 'unfinished';
+
+            render(createTraceState({}, { value: 'external_value' }));
+
+            expect(getActiveElement()).toBeNull();
+            expect(getInput().value).toBe('external_value');
+        });
+    });
+
+    it('keeps focus in another input when a submitted edit finishes', () => {
+        withRenderer(({ render, getInput, getActiveElement, postMessage }) => {
+            const state = createTraceState();
+            const otherRow = { ...state.rows[0], id: 'other', path: ['other'] };
+            render({ ...state, rows: [...state.rows, otherRow] });
+            getInput().focus();
+            getInput().value = 'my_variable';
+            getInput().dispatchEvent(keyEvent('Enter'));
+            getInput().blur();
+            getInput(1).focus();
+
+            render({ ...state, rows: [{ ...state.rows[0], value: 'my_variable' }, otherRow] }, 1);
+
+            expect(getActiveElement()).toBe(getInput(1));
+            expect(postMessage).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    it.each(TEXT_INPUT_IDENTITY_CHANGES)('does not restore a submitted edit when $name', ({ state, row }) => {
+        withRenderer(({ render, getInput, getActiveElement, postMessage }) => {
+            render(createTraceState());
+            getInput().focus();
+            getInput().value = 'my_variable';
+            getInput().dispatchEvent(keyEvent('Enter'));
+
+            render(createTraceState(state, row), 1);
+
+            expect(getActiveElement()).toBeNull();
+            expect(postMessage).toHaveBeenCalledTimes(2);
         });
     });
 
@@ -407,16 +621,8 @@ describe('Trace Generation text input refresh', () => {
         });
     });
 
-    it.each<{
-        name: string;
-        state?: Partial<TraceConfigurationState>;
-        row?: Partial<TraceConfigurationRow>;
-    }>([
-        { name: 'the file changes', state: { fileName: '/workspace/other.ctrace.yml' } },
-        { name: 'the field is removed', state: { rows: [] } },
-        { name: 'the field becomes disabled', row: { controlDisabledReason: 'Unavailable' } },
-        { name: 'the control changes', row: { control: 'readonly' } },
-        { name: 'the value path changes', row: { valuePath: ['data', 1, 'location'] } },
+    it.each([
+        ...TEXT_INPUT_IDENTITY_CHANGES,
         { name: 'the host value changes', row: { value: 'host_value' } },
     ])('does not restore a stale edit when $name', ({ state, row }) => {
         withRenderer(({ render, getInput, getActiveElement, root, postMessage }) => {

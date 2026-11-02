@@ -453,7 +453,7 @@ The command **Open Disassembly View** (available from [command palette](https://
 
 For RTOS awareness, the [RTOS Views](https://marketplace.visualstudio.com/items?itemName=mcu-debug.rtos-views)
 extension needs to be added to VS Code. This extension supports a wide range of real-time operating systems, such as
-FreeRTOS, Zephyr, embOS,and Keil RTX5.
+FreeRTOS, Zephyr, embOS, and Keil RTX5.
 
 ![RTOS Views with FreeRTOS](https://github.com/Open-CMSIS-Pack/vscode-cmsis-debugger/raw/main/images/rtos-views.png)
 
