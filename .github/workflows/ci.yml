@@ -48,13 +48,13 @@ jobs:
   build:
     strategy:
       matrix:
-        platform: [ubuntu-24.04, windows-2022, macos-14]
+        platform: [ubuntu-24.04, windows-2022, macos-15]
         include:
           - platform: ubuntu-24.04
             target: linux
           - platform: windows-2022
             target: windows
-          - platform: macos-14
+          - platform: macos-15
             target: darwin
     runs-on: ${{ matrix.platform }}
     permissions:
@@ -288,7 +288,7 @@ jobs:
           - target: linux-arm64
             platform: ubuntu-24.04
           - target: darwin-arm64
-            platform: macos-14
+            platform: macos-15
     permissions:
       packages: read
     steps:
