@@ -8,7 +8,7 @@
     },
     {
         "name": "@tanstack/react-virtual",
-        "version": "3.14.13",
+        "version": "3.14.24",
         "spdx": "MIT",
         "url": "https://github.com/tanstack/react-virtual",
         "license": "https://github.com/tanstack/react-virtual/blob/main/LICENSE"
