@@ -2,7 +2,7 @@
 
 ## 1.10.1
 
-- Changes automatic decode of raw trace capture to CSV to execute on raw trace file updates.
+- Enables automatic decode of raw trace capture to CSV on raw trace file updates.
 - Improves user interaction with Trace Generation view controls.
 - Includes updated ctrace distribution ([ctrace v1.0.1](https://github.com/Open-CMSIS-Pack/devtools/releases/tag/tools%2Fctrace%2F1.0.1))
     - Fixes missing ITM channel 0 data in CSV output.
