@@ -1797,6 +1797,54 @@ describe('TraceConfigurationModel', () => {
         expect(adapter.text).not.toContain('      timestamps: {}\n');
     });
 
+    it.each([
+        {
+            label: 'event counters',
+            selectionPath: ['events'],
+            removed: ['events:', 'event: CYCCNT', 'event: EXCCNT'],
+            retained: ['enable: 0x80000001', 'privileged: 0xf'],
+        },
+        {
+            label: 'ITM channels',
+            selectionPath: ['itm'],
+            removed: ['itm:', 'enable:', 'privileged:'],
+            retained: ['event: CYCCNT', 'event: EXCCNT'],
+        },
+        {
+            label: 'ITM privilege ranges',
+            selectionPath: ['itm', 'privileged'],
+            removed: ['privileged:'],
+            retained: ['enable: 0x80000001', 'event: CYCCNT', 'event: EXCCNT'],
+        },
+    ])('clears $label in memory and persists the disabled selection on save', async ({ selectionPath, removed, retained }) => {
+        const { adapter, model } = await createModelFromText([
+            'ctrace:',
+            '  setup:',
+            '    - pname: cm33',
+            '      timestamps:',
+            '        itm-prescaler: 4',
+            '      events:',
+            '        - event: CYCCNT',
+            '        - event: EXCCNT',
+            '      itm:',
+            '        enable: 0x80000001',
+            '        privileged: 0xf',
+            ''
+        ].join('\n'), createCapabilities());
+
+        await model.updateValue(['ctrace', 'setup', 0, ...selectionPath], []);
+
+        expect(adapter.writeCount).toBe(0);
+        expect(model.createState().dirty).toBe(true);
+
+        await model.saveCurrentDocument();
+
+        removed.forEach(text => expect(adapter.text).not.toContain(text));
+        retained.forEach(text => expect(adapter.text).toContain(text));
+        expect(adapter.text).toContain('itm-prescaler: 4');
+        expect(model.createState().dirty).toBe(false);
+    });
+
     it('writes the PC Sampling off selection as zero', async () => {
         const { adapter, model } = await createModelFromText([
             'ctrace:',

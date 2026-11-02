@@ -115,6 +115,7 @@ function pointerEvent(type: string, clientX: number, pointerId = 1): Event {
     });
 }
 
+/** Creates an isolated DOM fixture for rendering and interacting with the webview. */
 function createRendererFixture() {
     const documentState: { activeElement: RendererElement | null } = { activeElement: null };
 
@@ -125,6 +126,7 @@ function createRendererFixture() {
         readonly scrollIntoView = jest.fn();
         readonly focus = jest.fn((_options?: FocusOptions) => { documentState.activeElement = this; });
         parentElement: RendererElement | null = null;
+        textContent = '';
         scrollTop = 0;
         scrollLeft = 0;
 
@@ -165,6 +167,7 @@ function createRendererFixture() {
             this.attributes.delete(name);
         }
 
+        /** Matches the selectors used by the renderer and its interaction tests. */
         matches(selector: string): boolean {
             if (selector.includes(', ')) {
                 return selector.split(', ').some(part => this.matches(part));
@@ -172,14 +175,20 @@ function createRendererFixture() {
             if (selector.startsWith('.')) {
                 return this.className.split(' ').includes(selector.slice(1));
             }
-            if (selector === 'details.multi-select[open]') {
-                return false;
+            if (selector === 'details.multi-select' || selector === 'details.multi-select[open]') {
+                return this instanceof RendererDetails && (selector === 'details.multi-select' || this.open);
             }
             if (selector === 'tr[data-row-id]') {
                 return this.tagName === 'tr' && this.dataset.rowId !== undefined;
             }
             if (selector === 'input[type="text"]') {
                 return this instanceof RendererInput && this.type === 'text';
+            }
+            if (selector === 'input') {
+                return this instanceof RendererInput;
+            }
+            if (selector === 'summary') {
+                return this.tagName === 'summary';
             }
             throw new Error(`Unsupported test selector: ${selector}`);
         }
@@ -204,6 +213,7 @@ function createRendererFixture() {
         type = '';
         value = '';
         disabled = false;
+        checked = false;
         selectionStart: number | null = 0;
         selectionEnd: number | null = 0;
         selectionDirection: 'forward' | 'backward' | 'none' | null = 'none';
@@ -227,8 +237,14 @@ function createRendererFixture() {
     }
 
     class RendererRow extends RendererElement { }
-    class RendererButton extends RendererElement { }
+    class RendererButton extends RendererElement {
+        disabled = false;
+        type = '';
+    }
     class RendererSelect extends RendererElement { }
+    class RendererDetails extends RendererElement {
+        open = false;
+    }
 
     const root = new RendererElement('div');
     const windowEvents = Object.assign(new EventTarget(), { location: { origin: 'http://localhost' } });
@@ -245,6 +261,8 @@ function createRendererFixture() {
                     return new RendererButton(tagName);
                 case 'select':
                     return new RendererSelect(tagName);
+                case 'details':
+                    return new RendererDetails(tagName);
                 default:
                     return new RendererElement(tagName);
             }
@@ -277,7 +295,21 @@ function createRendererFixture() {
         }
         return input;
     };
-    return { root, render, getInput, documentEvents, windowEvents, getActiveElement: () => documentState.activeElement, postMessage, restore };
+
+    /** Returns the rendered checklist and its separate clear button. */
+    const getMultiSelect = () => {
+        const control = root.querySelector('.multi-select-control');
+        const details = control?.querySelector('details.multi-select');
+        const summary = details?.querySelector('summary');
+        const clearButton = control?.querySelector('.multi-select-clear');
+        if (!control || !(details instanceof RendererDetails) || !summary || !(clearButton instanceof RendererButton)) {
+            throw new Error('Expected a multi-select control with a clear button');
+        }
+        const checkboxes = details.querySelectorAll('input')
+            .filter((input): input is RendererInput => input instanceof RendererInput);
+        return { control, details, summary, clearButton, checkboxes };
+    };
+    return { root, render, getInput, getMultiSelect, documentEvents, windowEvents, getActiveElement: () => documentState.activeElement, postMessage, restore };
 }
 
 function withRenderer(check: (fixture: ReturnType<typeof createRendererFixture>) => void): void {
@@ -426,6 +458,116 @@ function targetedEvent(type: string, target: EventTarget, properties: Record<str
     Object.defineProperty(event, 'target', { value: target });
     return event;
 }
+
+describe('Trace Generation multi-select clearing', () => {
+    it.each([
+        { label: 'Instrumentation Trace', path: ['ctrace', 'setup', 0, 'itm'], options: ['0', '2', '31'] },
+        { label: 'Event Counters', path: ['ctrace', 'setup', 0, 'events'], options: ['CYCCNT', 'EXCCNT'] },
+        { label: 'Privileged channels', path: ['ctrace', 'setup', 0, 'itm', 'privileged'], options: ['0-7', '24-31'] },
+    ])('clears all $label selections in a single update', ({ label, path, options }) => {
+        withRenderer(({ render, getMultiSelect, postMessage, getActiveElement }) => {
+            render(createTraceState({}, { label, path, control: 'multi-select', options, selectedOptions: options }));
+            const { clearButton, summary, checkboxes } = getMultiSelect();
+            expect(clearButton.attributes.get('aria-label')).toBe(`Clear all ${label} selections`);
+            expect(clearButton.title).toBe('Clear all selections');
+            expect(clearButton.type).toBe('button');
+            expect(clearButton.disabled).toBe(false);
+            clearButton.focus();
+            postMessage.mockClear();
+
+            clearButton.dispatchEvent(new Event('click'));
+
+            expect(postMessage.mock.calls).toEqual([[{ type: 'updateValue', path, value: [] }]]);
+            expect(checkboxes.every(checkbox => !checkbox.checked)).toBe(true);
+            expect(summary.querySelector('.multi-select-label')?.textContent).toBe('None');
+            expect(clearButton.disabled).toBe(true);
+            expect(getActiveElement()).toBe(summary);
+        });
+    });
+
+    it('synchronizes the separate button with host changes while retaining the control', () => {
+        withRenderer(({ render, getMultiSelect, postMessage }) => {
+            const state = createTraceState({}, { control: 'multi-select', options: ['0', '31'], selectedOptions: [] });
+            render(state);
+            const original = getMultiSelect();
+            expect(original.clearButton.disabled).toBe(true);
+
+            for (const selectedOptions of [['31'], []]) {
+                render({ ...state, rows: [{ ...state.rows[0], selectedOptions }] });
+                const current = getMultiSelect();
+                expect(current.control).toBe(original.control);
+                expect(current.clearButton).toBe(original.clearButton);
+                expect(current.clearButton.disabled).toBe(selectedOptions.length === 0);
+                expect(current.checkboxes.filter(checkbox => checkbox.checked).map(checkbox => checkbox.value)).toEqual(selectedOptions);
+            }
+            expect(postMessage).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    it('keeps the open dropdown, scroll position, and focus after clearing and a host refresh', () => {
+        withRenderer(({ render, getMultiSelect, getActiveElement, documentEvents }) => {
+            const state = createTraceState({}, { control: 'multi-select', options: ['0', '31'], selectedOptions: ['0', '31'] });
+            render(state);
+            const { details, clearButton, summary } = getMultiSelect();
+            const menu = details.querySelector('.multi-select-menu');
+            if (!menu) {
+                throw new Error('Expected a checklist menu');
+            }
+            details.open = true;
+            details.dispatchEvent(new Event('toggle'));
+            menu.scrollTop = 120;
+
+            clearButton.dispatchEvent(new Event('click'));
+            documentEvents.dispatchEvent(targetedEvent('click', clearButton));
+            render({ ...state, rows: [{ ...state.rows[0], selectedOptions: [] }] });
+
+            expect(getMultiSelect().details).toBe(details);
+            expect(details.open).toBe(true);
+            expect(menu.scrollTop).toBe(120);
+            expect(getActiveElement()).toBe(summary);
+            documentEvents.dispatchEvent(keyEvent('Escape'));
+            expect(details.open).toBe(false);
+        });
+    });
+
+    it('re-enables clearing after a checkbox is selected again and honors the value path', () => {
+        withRenderer(({ render, getMultiSelect, postMessage }) => {
+            const valuePath = ['ctrace', 'setup', 0, 'events'];
+            render(createTraceState({}, {
+                control: 'multi-select', options: ['CYCCNT', 'EXCCNT'], selectedOptions: ['CYCCNT'], valuePath,
+            }));
+            const { clearButton, checkboxes } = getMultiSelect();
+            clearButton.dispatchEvent(new Event('click'));
+            const checkbox = checkboxes[1];
+            checkbox.checked = true;
+            checkbox.dispatchEvent(new Event('change'));
+            expect(postMessage).toHaveBeenLastCalledWith({ type: 'updateValue', path: valuePath, value: ['EXCCNT'] });
+            expect(clearButton.disabled).toBe(false);
+
+            checkbox.checked = false;
+            checkbox.dispatchEvent(new Event('change'));
+            expect(clearButton.disabled).toBe(true);
+        });
+    });
+
+    it('does not expand the row when the clear icon is clicked or activated with the keyboard', () => {
+        withRenderer(({ render, getMultiSelect, root, postMessage }) => {
+            render(createTraceState({}, {
+                control: 'multi-select', options: ['0'], selectedOptions: ['0'], hasChildren: true,
+            }));
+            const { clearButton } = getMultiSelect();
+            const row = root.querySelector('tr[data-row-id]');
+            const icon = clearButton.firstChild;
+            if (!row || !icon) {
+                throw new Error('Expected an expandable row and clear icon');
+            }
+            row.dispatchEvent(targetedEvent('click', icon, { detail: 1 }));
+            row.dispatchEvent(targetedEvent('keydown', clearButton, { key: 'Enter' }));
+            row.dispatchEvent(targetedEvent('keydown', clearButton, { key: ' ' }));
+            expect(postMessage).toHaveBeenCalledTimes(1);
+        });
+    });
+});
 
 describe('Trace Generation row pointer gestures', () => {
     it.each(['row', 'label'])('does not toggle when a text selection ends over the %s', targetKind => {
