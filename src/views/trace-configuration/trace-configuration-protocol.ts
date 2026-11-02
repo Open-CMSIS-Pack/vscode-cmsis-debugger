@@ -105,6 +105,8 @@ export interface TraceUpdateValueMessage {
     type: 'updateValue';
     path: (string | number)[];
     value: string | boolean | string[];
+    /** Identifies a text edit whose completion must preserve the active draft. */
+    editId?: number;
 }
 
 export interface TraceAddItemMessage {
@@ -132,6 +134,8 @@ export type TraceWebviewToHostMessage =
 export interface TraceUpdateMessage {
     type: 'update';
     state: TraceConfigurationState;
+    /** Confirms that the host has finished handling this text edit. */
+    completedEditId?: number;
 }
 
 export type TraceHostToWebviewMessage = TraceUpdateMessage;
