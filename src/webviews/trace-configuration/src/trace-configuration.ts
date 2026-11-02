@@ -29,6 +29,12 @@ type MultiSelectControl = {
     updateSelectedOptions(selectedOptions: readonly string[]): void;
 };
 
+/** Tracks submitted text separately from drafts across host renders. */
+interface TextInputEditState {
+    lastCommittedValue: string;
+    pendingEditIds: number[];
+}
+
 interface TraceViewState {
     labelColumnWidth?: number;
 }
@@ -47,6 +53,10 @@ let openMultiSelectId: string | undefined;
 let renderedState: TraceConfigurationState | undefined;
 /** Prevents DOM replacement from committing an unfinished user edit. */
 let replacingContents = false;
+/** Retains each input's commit state when its DOM element is replaced. */
+const TEXT_INPUT_EDITS = new WeakMap<HTMLInputElement, TextInputEditState>();
+/** Assigns unique IDs to text edits during this webview's lifetime. */
+let nextTextEditId = 0;
 const multiSelectControls = new WeakMap<HTMLDetailsElement, MultiSelectControl>();
 const DEFAULT_LABEL_COLUMN_WIDTH = 52;
 const MIN_LABEL_COLUMN_WIDTH = 15;
@@ -194,8 +204,8 @@ function closeOpenMultiSelect(): void {
     });
 }
 
-/** Captures an active edit so validation refreshes retain its draft and caret. */
-function preserveTextInput(state: TraceConfigurationState): (() => void) | undefined {
+/** Retains the active draft, commit state and caret until its host updates finish. */
+function preserveTextInput(state: TraceConfigurationState, completedEditId?: number): (() => void) | undefined {
     const input = document.activeElement;
     if (!(input instanceof HTMLInputElement) || input.type !== 'text' || !root?.contains(input)
         || state.focusedRowId || renderedState?.fileName !== state.fileName) {
@@ -204,17 +214,22 @@ function preserveTextInput(state: TraceConfigurationState): (() => void) | undef
     const rowId = input.closest<HTMLTableRowElement>('tr[data-row-id]')?.dataset.rowId;
     const previousRow = renderedState?.rows.find(row => row.id === rowId);
     const nextRow = state.rows.find(row => row.id === rowId);
+    const editState = TEXT_INPUT_EDITS.get(input);
     if (!previousRow || !nextRow || nextRow.control !== 'text' || nextRow.controlDisabledReason
-        || (previousRow.value ?? '') !== (nextRow.value ?? '')
+        || !editState
+        || ((previousRow.value ?? '') !== (nextRow.value ?? '') && editState.pendingEditIds.length === 0)
         || JSON.stringify(getValuePath(previousRow)) !== JSON.stringify(getValuePath(nextRow))) {
         return;
     }
+    editState.pendingEditIds = editState.pendingEditIds.filter(editId => editId !== completedEditId);
     const { value, selectionStart, selectionEnd, selectionDirection } = input;
     return () => {
         const row = Array.from(root.querySelectorAll<HTMLTableRowElement>('tr[data-row-id]'))
             .find(candidate => candidate.dataset.rowId === rowId);
         const replacement = row?.querySelector<HTMLInputElement>('input[type="text"]');
-        if (replacement) {
+        const replacementEditState = replacement ? TEXT_INPUT_EDITS.get(replacement) : undefined;
+        if (replacement && replacementEditState) {
+            Object.assign(replacementEditState, editState);
             replacement.value = value;
             replacement.focus({ preventScroll: true });
             replacement.setSelectionRange(selectionStart, selectionEnd, selectionDirection ?? undefined);
@@ -227,7 +242,7 @@ function preserveTextInput(state: TraceConfigurationState): (() => void) | undef
  * toolbar, status line, and table for the current state, reusing unchanged
  * multi-select controls when replacing the root contents.
  */
-function renderApp(state: TraceConfigurationState): void {
+function renderApp(state: TraceConfigurationState, completedEditId?: number): void {
     if (!root) {
         return;
     }
@@ -237,7 +252,7 @@ function renderApp(state: TraceConfigurationState): void {
     const menuScrollPositions = Array.from(root.querySelectorAll<HTMLElement>('.multi-select-menu'))
         .map(menu => ({ menu, scrollTop: menu.scrollTop, scrollLeft: menu.scrollLeft }));
     const activeElement = document.activeElement;
-    const restoreTextInput = preserveTextInput(state);
+    const restoreTextInput = preserveTextInput(state, completedEditId);
     const focusedRowId = activeElement instanceof HTMLTableRowElement && root.contains(activeElement)
         ? activeElement.dataset.rowId
         : undefined;
@@ -743,7 +758,8 @@ function createMultiSelect(row: TraceConfigurationRow): HTMLElement {
 
 /**
  * createTextInput renders editable scalar text. It commits on blur or Enter so
- * users can type without saving the file after every keystroke.
+ * users can type without saving the file after every keystroke. Enter keeps
+ * focus and the caret in the input, including while the host applies the edit.
  */
 function createTextInput(row: TraceConfigurationRow): HTMLElement {
     const disabledReason = row.controlDisabledReason;
@@ -754,20 +770,23 @@ function createTextInput(row: TraceConfigurationRow): HTMLElement {
     input.disabled = Boolean(disabledReason);
     input.spellcheck = false;
     input.setAttribute('aria-label', row.label);
-    let lastCommittedValue = input.value;
+    const editState: TextInputEditState = { lastCommittedValue: input.value, pendingEditIds: [] };
+    TEXT_INPUT_EDITS.set(input, editState);
     const commit = () => {
-        if (replacingContents || input.value === lastCommittedValue) {
+        if (replacingContents || input.value === editState.lastCommittedValue) {
             return;
         }
-        lastCommittedValue = input.value;
-        post({ type: 'updateValue', path: getValuePath(row), value: input.value });
+        editState.lastCommittedValue = input.value;
+        const editId = ++nextTextEditId;
+        editState.pendingEditIds.push(editId);
+        post({ type: 'updateValue', path: getValuePath(row), value: input.value, editId });
     };
     input.addEventListener('change', commit);
     input.addEventListener('blur', commit);
     input.addEventListener('keydown', event => {
-        if (event.key === 'Enter') {
+        if (event.key === 'Enter' && !event.isComposing) {
+            event.preventDefault();
             commit();
-            input.blur();
         }
     });
     if (disabledReason) {
@@ -801,7 +820,7 @@ function onMessage(event: MessageEvent<TraceHostToWebviewMessage>): void {
         return;
     }
     if (event.data.type === 'update') {
-        renderApp(event.data.state);
+        renderApp(event.data.state, event.data.completedEditId);
     }
 }
 

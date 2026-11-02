@@ -453,6 +453,65 @@ describe('TraceConfigurationWebviewProvider', () => {
         expect(model.removeItem).toHaveBeenCalledWith(['ctrace', 'setup', 0, 'data', 0]);
     });
 
+    it('confirms a text edit only after the model finishes handling it', async () => {
+        const model = new FakeTraceConfigurationModel();
+        const completion = Promise.withResolvers<void>();
+        model.updateValue.mockReturnValueOnce(completion.promise);
+        const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
+        const { view, fake, sendMessage } = createWebviewView();
+        provider.resolveWebviewView(view, {} as vscode.WebviewViewResolveContext, {} as vscode.CancellationToken);
+
+        sendMessage({ type: 'updateValue', path: ['location'], value: 'variable', editId: 1 });
+        model.fireDidChange();
+
+        expect(fake.webview.postMessage).toHaveBeenCalledTimes(1);
+        expect(fake.webview.postMessage).toHaveBeenLastCalledWith({
+            type: 'update', state: expect.objectContaining(model.createState()),
+        });
+
+        completion.resolve();
+        await completion.promise;
+
+        expect(model.updateValue).toHaveBeenCalledWith(['location'], 'variable');
+        expect(fake.webview.postMessage).toHaveBeenCalledTimes(2);
+        expect(fake.webview.postMessage).toHaveBeenLastCalledWith({
+            type: 'update', state: expect.objectContaining(model.createState()), completedEditId: 1,
+        });
+    });
+
+    it('finishes a failed text edit after reporting the error', async () => {
+        const model = new FakeTraceConfigurationModel();
+        const error = new Error('update failed');
+        model.updateValue.mockRejectedValueOnce(error);
+        const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
+        const { view, fake, sendMessage } = createWebviewView();
+        provider.resolveWebviewView(view, {} as vscode.WebviewViewResolveContext, {} as vscode.CancellationToken);
+
+        sendMessage({ type: 'updateValue', path: ['location'], value: 'variable', editId: 2 });
+        await Promise.resolve();
+
+        expect(model.reportError).toHaveBeenCalledWith(error, 'Trace Configuration: Webview action failed');
+        expect(fake.webview.postMessage).toHaveBeenLastCalledWith({
+            type: 'update', state: expect.objectContaining(model.createState()), completedEditId: 2,
+        });
+    });
+
+    it('does not send a text edit completion after the webview is disposed', async () => {
+        const model = new FakeTraceConfigurationModel();
+        const completion = Promise.withResolvers<void>();
+        model.updateValue.mockReturnValueOnce(completion.promise);
+        const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
+        const { view, fake, sendMessage, disposeView } = createWebviewView();
+        provider.resolveWebviewView(view, {} as vscode.WebviewViewResolveContext, {} as vscode.CancellationToken);
+
+        sendMessage({ type: 'updateValue', path: ['location'], value: 'variable', editId: 1 });
+        disposeView();
+        completion.resolve();
+        await completion.promise;
+
+        expect(fake.webview.postMessage).not.toHaveBeenCalled();
+    });
+
     it('opens the file selected by the user', async () => {
         const model = new FakeTraceConfigurationModel();
         const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
