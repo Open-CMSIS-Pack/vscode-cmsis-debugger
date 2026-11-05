@@ -1,5 +1,9 @@
 # Change Log
 
+## Unreleased
+
+- Adds Cortex-M42 core peripheral and trace capability mappings based on STAR-MC3.
+
 ## 1.10.1
 
 - Enables automatic decode of raw trace capture to CSV on raw trace file updates.

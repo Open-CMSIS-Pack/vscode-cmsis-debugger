@@ -4,6 +4,7 @@ core-peripherals:
       - Cortex-M23
       - Cortex-M33
       - Cortex-M35P
+      - Cortex-M42
       - Cortex-M52 
       - Cortex-M55
       - Cortex-M85
