@@ -147,7 +147,7 @@
          </item>
          <item property="Status (MMFSR)" value="%x[StandardFaultRegisters.MMFSR]">
            <item property="IACCVIOL" value="%d[IACCVIOL_bit]"/>
-           <item property="DACCVIOL" value="%d[DACCVIOL_bit"/>
+           <item property="DACCVIOL" value="%d[DACCVIOL_bit]"/>
            <item property="MUNSTKERR" value="%d[MUNSTKERR_bit]"/>
            <item property="MSTKERR" value="%d[MSTKERR_bit]"/>
            <item property="MLSPERR" value="%d[MLSPERR_bit]"/>
