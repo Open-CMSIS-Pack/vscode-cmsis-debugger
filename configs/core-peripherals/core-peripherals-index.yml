@@ -31,3 +31,16 @@ core-peripherals:
     cpu-type: "*"
   - file: Fault_Reports.scvd
     cpu-type: "*"
+  - file: Security_Attribution_Unit.scvd
+    cpu-type:
+      - Cortex-M23
+      - Cortex-M33
+      - Cortex-M35P
+      - Cortex-M52
+      - Cortex-M55
+      - Cortex-M85
+      - Star-MC1
+      - Star-MC3
+      - ARMV8MBL
+      - ARMV8MML
+      - ARMV81MML
