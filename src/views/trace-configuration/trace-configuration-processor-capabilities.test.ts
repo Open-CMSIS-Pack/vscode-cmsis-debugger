@@ -175,6 +175,22 @@ describe('TraceConfigurationProcessorCapabilities', () => {
         expect(capabilities.capabilities.has('1')).toBe(false);
     });
 
+    it.each(['Cortex-M42', 'Star-MC3'])('uses the STAR-MC3 trace capabilities for %s', async (core) => {
+        jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileName').mockResolvedValue(undefined);
+        const ctraceFile = createCTraceFile(`ctrace:\n  setup:\n    - core: ${core}\n`);
+        const capabilities = new TraceConfigurationProcessorCapabilities(() => ctraceFile);
+
+        await capabilities.load();
+
+        expect(capabilities.capabilities.get('0')).toMatchObject({
+            displayName: core,
+            core,
+            supportsTrace: true,
+            pmuEvents: true,
+            dwtComparators: 8
+        });
+    });
+
     it('supports non-Cortex-A/R Dcore aliases with Cortex-M trace capability equivalents', async () => {
         jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileName').mockResolvedValue(undefined);
         const ctraceFile = createCTraceFile([
