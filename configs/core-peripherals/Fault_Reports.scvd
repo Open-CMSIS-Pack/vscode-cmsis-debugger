@@ -41,77 +41,177 @@
         ShowSecureFaults=1&amp;&amp;(ID_PFR1&amp;0xF0);
       </calc>
       <read name="SecureFaultRegisters" cond="ShowSecureFaults" type="SecureFaultRegisters_t" offset="0xE000EDE4"/>
+      <!-- Memory Manage Faults bits -->
+      <var name="IACCVIOL_bit" type="uint8_t" value="0"/>
+      <var name="DACCVIOL_bit" type="uint8_t" value="0"/>
+      <var name="MUNSTKERR_bit" type="uint8_t" value="0"/>
+      <var name="MSTKERR_bit" type="uint8_t" value="0"/>
+      <var name="MLSPERR_bit" type="uint8_t" value="0"/>
+      <var name="MMFARVALID_bit" type="uint8_t" value="0"/>
+      <!-- Bus Faults bits -->
+      <var name="IBUSERR_bit" type="uint8_t" value="0"/>
+      <var name="PRECISERR_bit" type="uint8_t" value="0"/>
+      <var name="IMPRECISERR_bit" type="uint8_t" value="0"/>
+      <var name="UNSTKERR_bit" type="uint8_t" value="0"/>
+      <var name="STKERR_bit" type="uint8_t" value="0"/>
+      <var name="LSPERR_bit" type="uint8_t" value="0"/>
+      <var name="BFARVALID_bit" type="uint8_t" value="0"/>
+      <!-- Usage Faults bits -->
+      <var name="UNDEFINSTR_bit" type="uint8_t" value="0"/>
+      <var name="INVSTATE_bit" type="uint8_t" value="0"/>
+      <var name="INVPC_bit" type="uint8_t" value="0"/>
+      <var name="NOCP_bit" type="uint8_t" value="0"/>
+      <var name="STKOF_bit" type="uint8_t" value="0"/>
+      <var name="UNALIGNED_bit" type="uint8_t" value="0"/>
+      <var name="DIVBYZERO_bit" type="uint8_t" value="0"/>
+      <!-- Hard Faults bits -->
+      <var name="VECTTBL_bit" type="uint8_t" value="0"/>
+      <var name="FORCED_bit" type="uint8_t" value="0"/>
+      <var name="DEBUGEVT_bit" type="uint8_t" value="0"/>
+      <!-- Debug Faults bits -->
+      <var name="HALTED_bit" type="uint8_t" value="0"/>
+      <var name="BKPT_bit" type="uint8_t" value="0"/>
+      <var name="DWTTRAP_bit" type="uint8_t" value="0"/>
+      <var name="VCATCH_bit" type="uint8_t" value="0"/>
+      <var name="EXTERNAL_bit" type="uint8_t" value="0"/>
+      <var name="PMU_bit" type="uint8_t" value="0"/>
+      <!-- Secure Faults bits -->
+      <var name="INVEP_bit" type="uint8_t" value="0"/>
+      <var name="INVIS_bit" type="uint8_t" value="0"/>
+      <var name="INVER_bit" type="uint8_t" value="0"/>
+      <var name="AUVIOL_bit" type="uint8_t" value="0"/>
+      <var name="INVTRAN_bit" type="uint8_t" value="0"/>
+      <var name="LSPERR_bit" type="uint8_t" value="0"/>
+      <var name="SFARVALID_bit" type="uint8_t" value="0"/>
+      <var name="LSERR_bit" type="uint8_t" value="0"/>
+
+      <!-- Memory Manage Faults bits calculation -->
+      <calc>
+        IACCVIOL_bit=(StandardFaultRegisters.MMFSR&gt;&gt;0)&amp;0x1;
+        DACCVIOL_bit=(StandardFaultRegisters.MMFSR&gt;&gt;1)&amp;0x1;
+        MUNSTKERR_bit=(StandardFaultRegisters.MMFSR&gt;&gt;3)&amp;0x1;
+        MSTKERR_bit=(StandardFaultRegisters.MMFSR&gt;&gt;4)&amp;0x1;
+        MLSPERR_bit=(StandardFaultRegisters.MMFSR&gt;&gt;5)&amp;0x1;
+        MMFARVALID_bit=(StandardFaultRegisters.MMFSR&gt;&gt;7)&amp;0x1;
+      </calc>
+      <!-- Bus Faults bits calculation -->
+      <calc>
+        IBUSERR_bit=(StandardFaultRegisters.BFSR&gt;&gt;0)&amp;0x1;
+        PRECISERR_bit=(StandardFaultRegisters.BFSR&gt;&gt;1)&amp;0x1;
+        IMPRECISERR_bit=(StandardFaultRegisters.BFSR&gt;&gt;2)&amp;0x1;
+        UNSTKERR_bit=(StandardFaultRegisters.BFSR&gt;&gt;3)&amp;0x1;
+        STKERR_bit=(StandardFaultRegisters.BFSR&gt;&gt;4)&amp;0x1;
+        LSPERR_bit=(StandardFaultRegisters.BFSR&gt;&gt;5)&amp;0x1;
+        BFARVALID_bit=(StandardFaultRegisters.BFSR&gt;&gt;7)&amp;0x1;
+      </calc>
+      <!-- Usage Faults bits calculation -->
+      <calc>
+        UNDEFINSTR_bit=(StandardFaultRegisters.UFSR&gt;&gt;0)&amp;0x1;
+        INVSTATE_bit=(StandardFaultRegisters.UFSR&gt;&gt;1)&amp;0x1;
+        INVPC_bit=(StandardFaultRegisters.UFSR&gt;&gt;2)&amp;0x1;
+        NOCP_bit=(StandardFaultRegisters.UFSR&gt;&gt;3)&amp;0x1;
+        STKOF_bit=(StandardFaultRegisters.UFSR&gt;&gt;4)&amp;0x1;
+        UNALIGNED_bit=(StandardFaultRegisters.UFSR&gt;&gt;8)&amp;0x1;
+        DIVBYZERO_bit=(StandardFaultRegisters.UFSR&gt;&gt;9)&amp;0x1;
+      </calc>
+      <!-- Hard Faults bits calculation -->
+      <calc>
+        VECTTBL_bit=(StandardFaultRegisters.HFSR&gt;&gt;1)&amp;0x1;
+        FORCED_bit=(StandardFaultRegisters.HFSR&gt;&gt;30)&amp;0x1;
+        DEBUGEVT_bit=(StandardFaultRegisters.HFSR&gt;&gt;31)&amp;0x1;
+      </calc>
+      <!-- Debug Faults bits calculation -->
+      <calc>
+        HALTED_bit=(StandardFaultRegisters.DFSR&gt;&gt;0)&amp;0x1;
+        BKPT_bit=(StandardFaultRegisters.DFSR&gt;&gt;1)&amp;0x1;
+        DWTTRAP_bit=(StandardFaultRegisters.DFSR&gt;&gt;2)&amp;0x1;
+        VCATCH_bit=(StandardFaultRegisters.DFSR&gt;&gt;3)&amp;0x1;
+        EXTERNAL_bit=(StandardFaultRegisters.DFSR&gt;&gt;4)&amp;0x1;
+        PMU_bit=(StandardFaultRegisters.DFSR&gt;&gt;5)&amp;0x1;
+      </calc>
+      <!-- Secure Faults bits calculation -->
+      <calc cond="ShowSecureFaults">
+        INVEP_bit=(SecureFaultRegisters.SFSR&gt;&gt;0)&amp;0x1;
+        INVIS_bit=(SecureFaultRegisters.SFSR&gt;&gt;1)&amp;0x1;
+        INVER_bit=(SecureFaultRegisters.SFSR&gt;&gt;2)&amp;0x1;
+        AUVIOL_bit=(SecureFaultRegisters.SFSR&gt;&gt;3)&amp;0x1;
+        INVTRAN_bit=(SecureFaultRegisters.SFSR&gt;&gt;4)&amp;0x1;
+        LSPERR_bit=(SecureFaultRegisters.SFSR&gt;&gt;5)&amp;0x1;
+        SFARVALID_bit=(SecureFaultRegisters.SFSR&gt;&gt;6)&amp;0x1;
+        LSERR_bit=(SecureFaultRegisters.SFSR&gt;&gt;7)&amp;0x1;
+      </calc>
+
       <out name="Fault Reports">
-       <item property="Memory Manage Faults" value="">
-         <item property="Address (MMFAR)" value="%x[StandardFaultRegisters.MMFAR]">    
-         </item>       
-         <item property="Status (MMFSR)" value="%x[StandardFaultRegisters.MMFSR]">    
-           <item property="IACCVIOL" value="%d[(StandardFaultRegisters.MMFSR&gt;&gt;0)&amp;0x1]"/>
-           <item property="DACCVIOL" value="%d[(StandardFaultRegisters.MMFSR&gt;&gt;1)&amp;0x1]"/>
-           <item property="MUNSTKERR" value="%d[(StandardFaultRegisters.MMFSR&gt;&gt;3)&amp;0x1]"/>
-           <item property="MSTKERR" value="%d[(StandardFaultRegisters.MMFSR&gt;&gt;4)&amp;0x1]"/>
-           <item property="MLSPERR" value="%d[(StandardFaultRegisters.MMFSR&gt;&gt;5)&amp;0x1]"/>
-           <item property="MMFARVALID" value="%d[(StandardFaultRegisters.MMFSR&gt;&gt;7)&amp;0x1]"/>
-         </item>       
+       <item property="Memory Manage Faults" value="%t[IACCVIOL_bit ? &quot;IACCVIOL &quot; : &quot;&quot;]%t[DACCVIOL_bit ? &quot;DACCVIOL &quot; : &quot;&quot;]%t[MUNSTKERR_bit ? &quot;MUNSTKERR &quot; : &quot;&quot;]%t[MSTKERR_bit ? &quot;MSTKERR &quot; : &quot;&quot;]%t[MLSPERR_bit ? &quot;MLSPERR &quot; : &quot;&quot;]%t[MMFARVALID_bit ? &quot;MMFARVALID &quot; : &quot;&quot;]">
+         <item property="Address (MMFAR)" value="%x[StandardFaultRegisters.MMFAR]">
+         </item>
+         <item property="Status (MMFSR)" value="%x[StandardFaultRegisters.MMFSR]">
+           <item property="IACCVIOL" value="%d[IACCVIOL_bit]"/>
+           <item property="DACCVIOL" value="%d[DACCVIOL_bit]"/>
+           <item property="MUNSTKERR" value="%d[MUNSTKERR_bit]"/>
+           <item property="MSTKERR" value="%d[MSTKERR_bit]"/>
+           <item property="MLSPERR" value="%d[MLSPERR_bit]"/>
+           <item property="MMFARVALID" value="%d[MMFARVALID_bit]"/>
+         </item>
        </item>
-       <item property="Bus Faults" value="">
-         <item property="Address (BFAR)" value="%x[StandardFaultRegisters.BFAR]">    
-         </item>       
-         <item property="Status (BFSR)" value="%x[StandardFaultRegisters.BFSR]">    
-           <item property="IBUSERR" value="%d[(StandardFaultRegisters.BFSR&gt;&gt;0)&amp;0x1]"/>
-           <item property="PRECISERR" value="%d[(StandardFaultRegisters.BFSR&gt;&gt;1)&amp;0x1]"/>
-           <item property="IMPRECISERR" value="%d[(StandardFaultRegisters.BFSR&gt;&gt;2)&amp;0x1]"/>
-           <item property="UNSTKERR" value="%d[(StandardFaultRegisters.BFSR&gt;&gt;3)&amp;0x1]"/>
-           <item property="STKERR" value="%d[(StandardFaultRegisters.BFSR&gt;&gt;4)&amp;0x1]"/>
-           <item property="LSPERR" value="%d[(StandardFaultRegisters.BFSR&gt;&gt;5)&amp;0x1]"/>
-           <item property="BFARVALID" value="%d[(StandardFaultRegisters.BFSR&gt;&gt;7)&amp;0x1]"/>
-         </item>       
+       <item property="Bus Faults" value="%t[IBUSERR_bit ? &quot;IBUSERR &quot; : &quot;&quot;]%t[PRECISERR_bit ? &quot;PRECISERR &quot; : &quot;&quot;]%t[IMPRECISERR_bit ? &quot;IMPRECISERR &quot; : &quot;&quot;]%t[UNSTKERR_bit ? &quot;UNSTKERR &quot; : &quot;&quot;]%t[STKERR_bit ? &quot;STKERR &quot; : &quot;&quot;]%t[LSPERR_bit ? &quot;LSPERR &quot; : &quot;&quot;]%t[BFARVALID_bit ? &quot;BFARVALID&quot; : &quot;&quot;]">
+         <item property="Address (BFAR)" value="%x[StandardFaultRegisters.BFAR]">
+         </item>
+         <item property="Status (BFSR)" value="%x[StandardFaultRegisters.BFSR]">
+           <item property="IBUSERR" value="%d[IBUSERR_bit]"/>
+           <item property="PRECISERR" value="%d[PRECISERR_bit]"/>
+           <item property="IMPRECISERR" value="%d[IMPRECISERR_bit]"/>
+           <item property="UNSTKERR" value="%d[UNSTKERR_bit]"/>
+           <item property="STKERR" value="%d[STKERR_bit]"/>
+           <item property="LSPERR" value="%d[LSPERR_bit]"/>
+           <item property="BFARVALID" value="%d[BFARVALID_bit]"/>
+         </item>
        </item>
-       <item property="Usage Faults" value="">
-         <item property="Status (UFSR)" value="%x[StandardFaultRegisters.UFSR]">    
-           <item property="UNDEFINSTR" value="%d[(StandardFaultRegisters.UFSR&gt;&gt;0)&amp;0x1]"/>
-           <item property="INVSTATE" value="%d[(StandardFaultRegisters.UFSR&gt;&gt;1)&amp;0x1]"/>
-           <item property="INVPC" value="%d[(StandardFaultRegisters.UFSR&gt;&gt;2)&amp;0x1]"/>
-           <item property="NOCP" value="%d[(StandardFaultRegisters.UFSR&gt;&gt;3)&amp;0x1]"/>
-           <item property="STKOF" value="%d[(StandardFaultRegisters.UFSR&gt;&gt;4)&amp;0x1]"/>
-           <item property="UNALIGNED" value="%d[(StandardFaultRegisters.UFSR&gt;&gt;8)&amp;0x1]"/>
-           <item property="DIVBYZERO" value="%d[(StandardFaultRegisters.UFSR&gt;&gt;9)&amp;0x1]"/>
-         </item>       
+       <item property="Usage Faults" value="%t[UNDEFINSTR_bit ? &quot;UNDEFINSTR &quot; : &quot;&quot;]%t[INVSTATE_bit ? &quot;INVSTATE &quot; : &quot;&quot;]%t[INVPC_bit ? &quot;INVPC &quot; : &quot;&quot;]%t[NOCP_bit ? &quot;NOCP &quot; : &quot;&quot;]%t[STKOF_bit ? &quot;STKOF &quot; : &quot;&quot;]%t[UNALIGNED_bit ? &quot;UNALIGNED &quot; : &quot;&quot;]%t[DIVBYZERO_bit ? &quot;DIVBYZERO &quot; : &quot;&quot;]">
+         <item property="Status (UFSR)" value="%x[StandardFaultRegisters.UFSR]">
+           <item property="UNDEFINSTR" value="%d[UNDEFINSTR_bit]"/>
+           <item property="INVSTATE" value="%d[INVSTATE_bit]"/>
+           <item property="INVPC" value="%d[INVPC_bit]"/>
+           <item property="NOCP" value="%d[NOCP_bit]"/>
+           <item property="STKOF" value="%d[STKOF_bit]"/>
+           <item property="UNALIGNED" value="%d[UNALIGNED_bit]"/>
+           <item property="DIVBYZERO" value="%d[DIVBYZERO_bit]"/>
+         </item>
        </item>
-       <item property="Hard Faults" value="">
-         <item property="Status (HFSR)" value="%x[StandardFaultRegisters.HFSR]">    
-           <item property="VECTTBL" value="%d[(StandardFaultRegisters.HFSR&gt;&gt;1)&amp;0x1]"/>
-           <item property="FORCED" value="%d[(StandardFaultRegisters.HFSR&gt;&gt;30)&amp;0x1]"/>
-           <item property="DEBUGEVT" value="%d[(StandardFaultRegisters.HFSR&gt;&gt;31)&amp;0x1]"/>
-        </item>       
+       <item property="Hard Faults" value="%t[VECTTBL_bit ? &quot;VECTTBL &quot; : &quot;&quot;]%t[FORCED_bit ? &quot;FORCED &quot; : &quot;&quot;]%t[DEBUGEVT_bit ? &quot;DEBUGEVT &quot; : &quot;&quot;]">
+         <item property="Status (HFSR)" value="%x[StandardFaultRegisters.HFSR]">
+           <item property="VECTTBL" value="%d[VECTTBL_bit]"/>
+           <item property="FORCED" value="%d[FORCED_bit]"/>
+           <item property="DEBUGEVT" value="%d[DEBUGEVT_bit]"/>
+        </item>
        </item>
-       <item property="Debug Faults" value="">
-         <item property="Status (DFSR)" value="%x[StandardFaultRegisters.DFSR]">    
-           <item property="HALTED" value="%d[(StandardFaultRegisters.DFSR&gt;&gt;0)&amp;0x1]"/>
-           <item property="BKPT" value="%d[(StandardFaultRegisters.DFSR&gt;&gt;1)&amp;0x1]"/>
-           <item property="DWTTRAP" value="%d[(StandardFaultRegisters.DFSR&gt;&gt;2)&amp;0x1]"/>
-           <item property="VCATCH" value="%d[(StandardFaultRegisters.DFSR&gt;&gt;3)&amp;0x1]"/>
-           <item property="EXTERNAL" value="%d[(StandardFaultRegisters.DFSR&gt;&gt;4)&amp;0x1]"/>
-           <item property="PMU" value="%d[(StandardFaultRegisters.DFSR&gt;&gt;5)&amp;0x1]"/>
-        </item>       
+       <item property="Debug Faults" value="%t[HALTED_bit ? &quot;HALTED &quot; : &quot;&quot;]%t[BKPT_bit ? &quot;BKPT &quot; : &quot;&quot;]%t[DWTTRAP_bit ? &quot;DWTTRAP &quot; : &quot;&quot;]%t[VCATCH_bit ? &quot;VCATCH &quot; : &quot;&quot;]%t[EXTERNAL_bit ? &quot;EXTERNAL &quot; : &quot;&quot;]%t[PMU_bit ? &quot;PMU &quot; : &quot;&quot;]">
+         <item property="Status (DFSR)" value="%x[StandardFaultRegisters.DFSR]">
+           <item property="HALTED" value="%d[HALTED_bit]"/>
+           <item property="BKPT" value="%d[BKPT_bit]"/>
+           <item property="DWTTRAP" value="%d[DWTTRAP_bit]"/>
+           <item property="VCATCH" value="%d[VCATCH_bit]"/>
+           <item property="EXTERNAL" value="%d[EXTERNAL_bit]"/>
+           <item property="PMU" value="%d[PMU_bit]"/>
+        </item>
        </item>
-       <item property="Auxiliary Faults" value="">
-         <item property="Status (AFSR)" value="%x[StandardFaultRegisters.AFSR]">    
-         </item>       
+       <item property="Auxiliary Faults" value="%t[StandardFaultRegisters.AFSR ? &quot;[StandardFaultRegisters.AFSR&quot; : &quot;&quot;]">
+         <item property="Status (AFSR)" value="%x[StandardFaultRegisters.AFSR]">
+         </item>
        </item>
-       <item property="Secure Faults" cond="ShowSecureFaults">
-         <item property="Address (SFAR)" value="%x[SecureFaultRegisters.SFAR]">    
-         </item>       
-         <item property="Status (SFSR)" value="%x[SecureFaultRegisters.SFSR]">    
-           <item property="INVEP" value="%d[(SecureFaultRegisters.SFSR&gt;&gt;0)&amp;0x1]"/>
-           <item property="INVIS" value="%d[(SecureFaultRegisters.SFSR&gt;&gt;1)&amp;0x1]"/>
-           <item property="INVER" value="%d[(SecureFaultRegisters.SFSR&gt;&gt;2)&amp;0x1]"/>
-           <item property="AUVIOL" value="%d[(SecureFaultRegisters.SFSR&gt;&gt;3)&amp;0x1]"/>
-           <item property="INVTRAN" value="%d[(SecureFaultRegisters.SFSR&gt;&gt;4)&amp;0x1]"/>
-           <item property="LSPERR" value="%d[(SecureFaultRegisters.SFSR&gt;&gt;5)&amp;0x1]"/>
-           <item property="SFARVALID" value="%d[(SecureFaultRegisters.SFSR&gt;&gt;6)&amp;0x1]"/>
-           <item property="LSERR" value="%d[(SecureFaultRegisters.SFSR&gt;&gt;7)&amp;0x1]"/>
-         </item>       
+       <item property="Secure Faults" cond="ShowSecureFaults" value="%t[INVEP_bit ? &quot;INVEP &quot; : &quot;&quot;]%t[INVIS_bit ? &quot;INVIS &quot; : &quot;&quot;]%t[INVER_bit ? &quot;INVER &quot; : &quot;&quot;]%t[AUVIOL_bit ? &quot;AUVIOL &quot; : &quot;&quot;]%t[INVTRAN_bit ? &quot;INVTRAN &quot; : &quot;&quot;]%t[LSPERR_bit ? &quot;LSPERR &quot; : &quot;&quot;]%t[SFARVALID_bit ? &quot;SFARVALID &quot; : &quot;&quot;]%t[LSERR_bit ? &quot;LSERR &quot; : &quot;&quot;]">
+         <item property="Address (SFAR)" value="%x[SecureFaultRegisters.SFAR]">
+         </item>
+         <item property="Status (SFSR)" value="%x[SecureFaultRegisters.SFSR]">
+           <item property="INVEP" value="%d[INVEP_bit]"/>
+           <item property="INVIS" value="%d[INVIS_bit]"/>
+           <item property="INVER" value="%d[INVER_bit]"/>
+           <item property="AUVIOL" value="%d[AUVIOL_bit]"/>
+           <item property="INVTRAN" value="%d[INVTRAN_bit]"/>
+           <item property="LSPERR" value="%d[LSPERR_bit]"/>
+           <item property="SFARVALID" value="%d[SFARVALID_bit]"/>
+           <item property="LSERR" value="%d[LSERR_bit]"/>
+         </item>
        </item>
      </out>
    </object>

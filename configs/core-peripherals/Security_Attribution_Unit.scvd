@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Copyright 2026 Arm Limited
+  
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       https://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+-->
+<component_viewer schemaVersion="0.1" xmlns:xs="https://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="Component_Viewer.xsd">
+  <component name="SecurityAttributionUnitComponent" version="1.0.0"/>
+  <typedefs>
+    <typedef name="SAU_Region_t" size="8">
+      <member name="SAU_RBAR_value" type="uint32_t" size="1" offset="0"/>
+      <member name="SAU_RLAR_value" type="uint32_t" size="1" offset="4"/>
+      <var name="Number" type="uint8_t" size="1"/>
+      <var name="Enable" type="uint8_t" size="1"/>
+      <var name="StartAddress" type="uint32_t" size="1"/>
+      <var name="EndAddress" type="uint32_t" size="1"/>
+      <var name="Security" type="uint8_t" size="1">
+        <enum name="Non-secure" value="0x0"/>
+        <enum name="Secure and Non-secure callable" value="0x1"/>
+      </var>
+    </typedef>
+  </typedefs>
+  <objects>
+    <object name="SecurityAttributionUnitObject">
+      <var name="WithSecureExtension" type="uint8_t" value="0"/> 
+      <read name="ID_PFR1_value" type="uint32_t" offset="0xE000ED44"/>
+      <calc>
+        WithSecureExtension=1&amp;&amp;(ID_PFR1_value&amp;0xF0);
+      </calc>
+      <read name="SAU_CTRL_value" type="uint32_t" offset="0xE000EDD0" cond="WithSecureExtension"/>
+      <read name="SAU_TYPE_value" type="uint32_t" offset="0xE000EDD4" cond="WithSecureExtension"/>
+      <read name="SAU_RNR_value" type="uint32_t" offset="0xE000EDD8" cond="WithSecureExtension"/>
+      <read name="SAU_Region" type="SAU_Region_t" offset="0xE000EDDC" cond="WithSecureExtension"/>
+      <calc cond="WithSecureExtension">
+        SAU_Region.Number=(SAU_RNR_value&gt;&gt;0)&amp;0xFF;
+        SAU_Region.Enable=(SAU_Region.SAU_RLAR_value&gt;&gt;0)&amp;0x1;
+        SAU_Region.StartAddress=(SAU_Region.SAU_RBAR_value&amp;0xFFFFFFE0);
+        SAU_Region.EndAddress=(SAU_Region.SAU_RLAR_value|0x1F);
+        SAU_Region.Security=(SAU_Region.SAU_RLAR_value&gt;&gt;1)&amp;0x1;
+      </calc>
+      <out name="Security Attribution Unit" cond="WithSecureExtension">
+        <item property="Type (SAU_TYPE)" value="%x[SAU_TYPE_value]">
+          <item property="SREGION" value="%d[(SAU_TYPE_value&gt;&gt;0)&amp;0xFF]" info="Number of regions supported by the SAU."/>
+        </item>
+        <item property="Control (SAU_CTRL)" value="%x[SAU_CTRL_value]">
+          <item property="ENABLE" value="%d[(SAU_CTRL_value&gt;&gt;0)&amp;0x1]"/>
+          <item property="ALLNS" value="%t[((SAU_CTRL_value&gt;&gt;0)&amp;0x1 ) ? &quot;secure, when not covered by enabled SAU region&quot; : (((SAU_CTRL_value&gt;&gt;1)&amp;0x1) ? &quot;1 (all nonsecure)&quot; : &quot;0 (all secure)&quot;)]"/>
+        </item>
+        <item property="Region Number (SAU_RNR)" value="%x[SAU_RNR_value]">
+          <item property="REGION" value="%d[(SAU_RNR_value&gt;&gt;0)&amp;0xFF]"/>
+        </item>
+        <item property="Region Base Address (SAU_RBAR)" value="%x[SAU_Region.SAU_RBAR_value]">
+          <item property="BADDR" value="%x[(SAU_Region.SAU_RBAR_value&gt;&gt;5)&amp;0x7FFFFFF]"/>
+        </item>
+        <item property="Region Limit Address (SAU_RLAR)" value="%x[SAU_Region.SAU_RLAR_value]">
+          <item property="ENABLE" value="%d[(SAU_Region.SAU_RLAR_value&gt;&gt;0)&amp;0x1]"/>
+          <item property="NSC" value="%d[(SAU_Region.SAU_RLAR_value&gt;&gt;1)&amp;0x1]"/>
+          <item property="LADDR" value="%x[(SAU_Region.SAU_RLAR_value&gt;&gt;5)&amp;0x7FFFFFF]"/>
+        </item>
+        <item property="Current Region" value="">
+          <item property="Number" value="%d[SAU_Region.Number]"/>
+          <item property="Enable" value="%t[SAU_Region.Enable ? &quot;yes&quot; : &quot;no&quot;]"/>
+          <item property="Start Address" value="%x[SAU_Region.StartAddress]"/>
+          <item property="End Address" value="%x[SAU_Region.EndAddress]"/>
+          <item property="Security" value="%E[SAU_Region.Security]"/>
+        </item>
+      </out>
+    </object>
+  </objects>
+</component_viewer>

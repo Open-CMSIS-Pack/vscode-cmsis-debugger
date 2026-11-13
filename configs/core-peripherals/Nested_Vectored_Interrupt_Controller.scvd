@@ -42,16 +42,16 @@
     </typedef>
     <typedef name="Vector_t">
       <var name="Enable" type="uint8_t" size="512">
-        <enum name="enabled: no" value="0"/>
-        <enum name="enabled: yes" value="1"/>
+        <enum name="E 0" value="0"/>
+        <enum name="E 1" value="1"/>
       </var>
       <var name="Pending" type="uint8_t" size="512">
-        <enum name="pending: no" value="0"/>
-        <enum name="pending: yes" value="1"/>
+        <enum name="P 0" value="0"/>
+        <enum name="P 1" value="1"/>
       </var>
       <var name="Active" type="uint8_t" size="512">
-        <enum name="active: no" value="0"/>
-        <enum name="active: yes" value="1"/>
+        <enum name="A 0" value="0"/>
+        <enum name="A 1" value="1"/>
       </var>
       <var name="Priority" type="uint8_t"  size="512"/>
       <var name="Displayed" type="uint8_t"  size="512"/>
