@@ -31,6 +31,22 @@ describe('TraceConfigurationProcessorCapabilities', () => {
         jest.restoreAllMocks();
     });
 
+    it('does not commit capabilities from an invalidated load', async () => {
+        let finishLookup: (() => void) | undefined;
+        jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileName').mockReturnValueOnce(
+            new Promise<undefined>(resolve => { finishLookup = () => resolve(undefined); })
+        );
+        const file = createCTraceFile('ctrace:\n  setup:\n    - core: Cortex-M33\n');
+        const capabilities = new TraceConfigurationProcessorCapabilities(() => file);
+        let current = true;
+        const loading = capabilities.load(() => current);
+        current = false;
+        capabilities.clear();
+        finishLookup?.();
+        await loading;
+        expect(capabilities.capabilities.size).toBe(0);
+    });
+
     it('loads processor capabilities from cbuild-run cores by pname and keeps ctrace.yml display names', async () => {
         const getCBuildRunFileName = jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileName')
             .mockResolvedValue('project.cbuild-run.yml');

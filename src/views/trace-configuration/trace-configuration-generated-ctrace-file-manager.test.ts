@@ -229,6 +229,48 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         expect(convertCTrace).toHaveBeenCalledTimes(2);
     });
 
+    it('returns generated configuration while pyTS conversion is still running', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M55', 'core0')]);
+        const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
+        await createTemporaryDirectory(ctraceDirectory);
+        await writeTemporaryTextFile(path.join(ctraceDirectory, 'demo.ctrace.yml'),
+            'ctrace:\n  setup:\n    - pname: core0\n      core: Cortex-M55\n');
+        const { manager, convertCTrace } = createManagerWithConversionSpy();
+        let failConversion: ((error: Error) => void) | undefined;
+        convertCTrace.mockReturnValueOnce(new Promise<void>((_resolve, reject) => { failConversion = reject; }));
+        const errorLog = jest.spyOn(logger, 'error').mockImplementation();
+
+        const result = await manager.processGeneratedCBuildRunFileChange({
+            type: 'changed', uri: vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml'))
+        });
+        expect(result).toMatchObject({ status: 'generated', conversionRequested: true });
+        expect(convertCTrace).toHaveBeenCalledTimes(1);
+        failConversion?.(new Error('background conversion failed'));
+        await Promise.resolve();
+        expect(errorLog).toHaveBeenCalledWith('Failed to request pyTS conversion:', expect.any(Error));
+    });
+
+    it('does not write generated configuration after its request becomes obsolete', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M55', 'core0')]);
+        let finishParse: (() => void) | undefined;
+        jest.spyOn(CbuildRunReader.prototype, 'parse').mockReturnValueOnce(
+            new Promise<void>(resolve => { finishParse = resolve; })
+        );
+        const write = jest.spyOn(vscode.workspace.fs, 'writeFile');
+        const { manager, convertCTrace } = createManagerWithConversionSpy();
+        let current = true;
+        const processing = manager.processGeneratedCBuildRunFileChange({
+            type: 'changed', uri: vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml'))
+        }, () => current);
+        current = false;
+        finishParse?.();
+        await processing;
+        expect(write).not.toHaveBeenCalled();
+        expect(convertCTrace).not.toHaveBeenCalled();
+    });
+
     it('resolves the active cbuild-run before generating a missing production ctrace-run', async () => {
         const workspaceRoot = await createTemporaryWorkspace();
         mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M55', 'core0')]);

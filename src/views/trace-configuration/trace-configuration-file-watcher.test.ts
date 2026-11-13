@@ -238,7 +238,11 @@ describe('TraceConfigurationFileWatcher', () => {
             { type: 'changed', uri },
             { type: 'deleted', uri }
         ]);
-        expect(onGeneratedCBuildRunFileChanged).toHaveBeenCalledTimes(3);
+        await waitForCondition('coalesced generated events', () => onGeneratedCBuildRunFileChanged.mock.calls.length === 2);
+        expect(onGeneratedCBuildRunFileChanged.mock.calls.map(call => call[0])).toEqual([
+            { type: 'created', uri },
+            { type: 'deleted', uri }
+        ]);
 
         watcher.dispose();
         expect(cbuildIndexWatcher.dispose).toHaveBeenCalledTimes(1);
@@ -420,6 +424,36 @@ describe('TraceConfigurationFileWatcher', () => {
             uri: vscode.Uri.file('/workspace/out/second.cbuild-run.yml')
         }]);
 
+        watcher.dispose();
+    });
+
+    it.each([false, true])('coalesces slow source reloads and drops pending work on disposal: %s', async dispose => {
+        const watchedFile = createMockCTraceYamlFile();
+        let finishReload: (() => void) | undefined;
+        watchedFile.reloadIfChanged.mockReturnValueOnce(new Promise<boolean>(resolve => {
+            finishReload = () => resolve(true);
+        }));
+        const onCurrentFileReloaded = jest.fn();
+        const watcher = new TraceConfigurationFileWatcher({
+            getCurrentFile: () => watchedFile.file,
+            onCurrentFileReloaded,
+            onCurrentFileReloadFailed: jest.fn(),
+            onGeneratedCBuildRunFileChanged: jest.fn()
+        });
+        watcher.watchCurrentFile();
+        const sourceWatcher = getLastCreatedFileSystemWatcher();
+        const uri = vscode.Uri.file(watchedFile.file.fileName);
+        const first = sourceWatcher._handlers.change[0]?.(uri);
+        sourceWatcher._handlers.change[0]?.(uri);
+        const last = sourceWatcher._handlers.change[0]?.(uri);
+        expect(watchedFile.reloadIfChanged).toHaveBeenCalledTimes(1);
+        if (dispose) {
+            watcher.dispose();
+        }
+        finishReload?.();
+        await Promise.all([first, last]);
+        expect(watchedFile.reloadIfChanged).toHaveBeenCalledTimes(dispose ? 1 : 2);
+        expect(onCurrentFileReloaded).toHaveBeenCalledTimes(dispose ? 0 : 2);
         watcher.dispose();
     });
 
