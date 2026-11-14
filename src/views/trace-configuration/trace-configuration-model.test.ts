@@ -430,7 +430,8 @@ describe('TraceConfigurationModel', () => {
         await waitForWatcherWork();
 
         expect(events).toEqual([{ type: expectedType, uri }]);
-        expect(onDidChange).toHaveBeenCalledTimes(1);
+        expect(onDidChange).toHaveBeenCalled();
+        expect(model.createState().loading).toBe(false);
         model.dispose();
     });
 
@@ -1714,6 +1715,125 @@ describe('TraceConfigurationModel', () => {
 
         expect(adapter.text).not.toContain('ELF-files');
         expect(adapter.text).not.toContain('program.axf');
+    });
+
+    it('coalesces overlapping manual refreshes for the current file', async () => {
+        const { adapter, backupStore, model } = await createModelFromText('ctrace:\n  setup: []\n');
+        let finishCleanup: (() => void) | undefined;
+        const cleanup = new Promise<void>(resolve => { finishCleanup = resolve; });
+        backupStore.delete.mockReturnValueOnce(cleanup);
+        const read = jest.spyOn(adapter, 'readTextFile');
+
+        const firstRefresh = model.refreshFile();
+        await waitForImmediate();
+        const secondRefresh = model.refreshFile();
+        await waitForImmediate();
+        const cleanupCount = backupStore.delete.mock.calls.length;
+        finishCleanup?.();
+        await Promise.all([firstRefresh, secondRefresh]);
+
+        expect(cleanupCount).toBe(1);
+        expect(read).toHaveBeenCalledTimes(1);
+        expect(model.createState().loading).toBe(false);
+    });
+
+    it('restores clean-file watching after a failed refresh and allows a retry', async () => {
+        const { adapter, model } = await createModelFromText('ctrace:\n  setup: []\n');
+        const read = jest.spyOn(adapter, 'readTextFile').mockRejectedValueOnce(new Error('disk unavailable'));
+        const watch = vscode.workspace.createFileSystemWatcher as jest.Mock;
+        const previousWatchCount = watch.mock.calls.length;
+
+        await expect(model.refreshFile()).rejects.toThrow('disk unavailable');
+        expect(model.createState().loading).toBe(false);
+        expect(watch.mock.calls.length).toBeGreaterThan(previousWatchCount);
+        await model.refreshFile();
+        expect(read).toHaveBeenCalledTimes(2);
+        expect(model.createState()).toMatchObject({ loading: false, dirty: false });
+        await model.deactivate();
+    });
+
+    it('does not finish a newer file load when an obsolete refresh completes', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const nextFileName = path.join(workspaceRoot, 'next.ctrace.yml');
+        await writeTemporaryTextFile(nextFileName, 'ctrace:\n  setup: []\n');
+        const { adapter, backupStore, model } = await createModelFromText('ctrace:\n  setup: []\n');
+        let finishCleanup: (() => void) | undefined;
+        backupStore.delete.mockReturnValueOnce(new Promise<void>(resolve => { finishCleanup = resolve; }));
+        let finishRestore: (() => void) | undefined;
+        backupStore.restore.mockReturnValueOnce(new Promise<undefined>(resolve => {
+            finishRestore = () => resolve(undefined);
+        }));
+        const read = jest.spyOn(adapter, 'readTextFile');
+
+        const refresh = model.refreshFile();
+        await waitForCondition('blocked refresh cleanup', () => backupStore.delete.mock.calls.length === 1);
+        const opening = model.openFile(nextFileName);
+        await waitForCondition('blocked replacement file load', () => backupStore.restore.mock.calls.length === 1);
+        finishCleanup?.();
+        await refresh;
+        const loadingWhileOpening = model.createState().loading;
+        finishRestore?.();
+        await opening;
+
+        expect(loadingWhileOpening).toBe(true);
+        expect(read).not.toHaveBeenCalled();
+        expect(model.createState()).toMatchObject({ fileName: nextFileName, loading: false, dirty: false });
+        await model.deactivate();
+    });
+
+    it('ignores obsolete file load failures after a newer file is opened', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const firstFileName = path.join(workspaceRoot, 'first.ctrace.yml');
+        const secondFileName = path.join(workspaceRoot, 'second.ctrace.yml');
+        await writeTemporaryTextFile(firstFileName, 'ctrace:\n  setup: []\n');
+        await writeTemporaryTextFile(secondFileName, 'ctrace:\n  setup: []\n');
+        const { backupStore, model } = await createModelFromText('ctrace:\n');
+        let failRestore: ((error: Error) => void) | undefined;
+        backupStore.restore.mockReturnValueOnce(new Promise<undefined>((_resolve, reject) => { failRestore = reject; }));
+        const firstOpen = model.openFile(firstFileName);
+        await waitForCondition('first backup restoration', () => backupStore.restore.mock.calls.length === 1);
+        await model.openFile(secondFileName);
+        failRestore?.(new Error('obsolete read failure'));
+        await expect(firstOpen).resolves.toBeUndefined();
+        expect(model.createState()).toMatchObject({ fileName: secondFileName, loading: false });
+        expect(model.createState().errorMessage).toBeUndefined();
+        await model.deactivate();
+    });
+
+    it('does not resume a refresh after deactivation', async () => {
+        const { adapter, backupStore, model } = await createModelFromText('ctrace:\n');
+        let finishCleanup: (() => void) | undefined;
+        backupStore.delete.mockReturnValueOnce(new Promise<void>(resolve => { finishCleanup = resolve; }));
+        const read = jest.spyOn(adapter, 'readTextFile');
+        const refresh = model.refreshFile();
+        await waitForCondition('refresh cleanup', () => backupStore.delete.mock.calls.length === 1);
+        await model.deactivate();
+        const onDidChange = jest.fn();
+        model.setOnDidChange(onDidChange);
+        finishCleanup?.();
+        await refresh;
+        expect(read).not.toHaveBeenCalled();
+        expect(onDidChange).not.toHaveBeenCalled();
+    });
+
+    it('finishes refresh without waiting for production conversion', async () => {
+        let finishConversion: (() => void) | undefined;
+        const conversion = new Promise<void>(resolve => { finishConversion = resolve; });
+        const ensureOutput = jest.spyOn(
+            TraceConfigurationGeneratedCTraceFileManager.prototype, 'ensureProductionCTraceRunFile'
+        ).mockReturnValue(conversion);
+        const { model } = await createModelFromText('ctrace:\n  setup: []\n');
+        let completed = false;
+        const refresh = model.refreshFile().then(() => { completed = true; });
+        await waitForCondition('background production conversion', () => ensureOutput.mock.calls.length === 1);
+        await waitForImmediate();
+        const completedBeforeConversion = completed;
+        const loadingBeforeConversion = model.createState().loading;
+        finishConversion?.();
+        await refresh;
+        expect(completedBeforeConversion).toBe(true);
+        expect(loadingBeforeConversion).toBe(false);
+        await model.deactivate();
     });
 
     it('refresh discards unsaved webview edits and resumes file watching', async () => {

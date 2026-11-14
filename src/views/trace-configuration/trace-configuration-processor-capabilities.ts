@@ -71,11 +71,13 @@ export class TraceConfigurationProcessorCapabilities {
      * Setup entries whose cores cannot be resolved are left unrestricted so their existing ctrace
      * configuration remains visible when cbuild-run data is unavailable.
      */
-    public async load(): Promise<void> {
-        this.processorCapabilities.clear();
-
+    public async load(isCurrent: () => boolean = () => true): Promise<void> {
         try {
             const processors = await this.getCBuildRunProcessors();
+            if (!isCurrent()) {
+                return;
+            }
+            this.processorCapabilities.clear();
             const configuredProcessors = this.getConfiguredProcessors();
 
             for (const configuredProcessor of configuredProcessors) {
@@ -90,6 +92,10 @@ export class TraceConfigurationProcessorCapabilities {
                 );
             }
         } catch (error) {
+            if (!isCurrent()) {
+                return;
+            }
+            this.processorCapabilities.clear();
             logger.warn('Unable to load processor trace capabilities: ' + this.errorToString(error));
 
             for (const configuredProcessor of this.getConfiguredProcessors()) {
