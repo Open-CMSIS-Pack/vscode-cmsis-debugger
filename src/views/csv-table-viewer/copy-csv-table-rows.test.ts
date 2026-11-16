@@ -28,6 +28,44 @@ describe('copyCsvTableRows', () => {
         expect(writeText).toHaveBeenCalledWith(value);
     });
 
+    it.each([
+        { value: 'a', maxBytes: 1, result: 'copied' },
+        { value: 'ab', maxBytes: 1, result: 'too-large' },
+        { value: '\u00e9', maxBytes: 2, result: 'copied' },
+        { value: '\u00e9', maxBytes: 1, result: 'too-large' },
+    ])('counts only cell payload bytes: $value, limit $maxBytes', async ({ value, maxBytes, result }) => {
+        const store = createRowStore(1, async () => [{ sourceRowIndex: 0, cells: [value] }]);
+        const writeText = jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined);
+
+        await expect(copyCsvTableRows([{ start: 0, end: 0 }], store, writeText, () => true,
+            { columnIndex: 0, maxBytes })).resolves.toBe(result);
+
+        if (result === 'copied') {
+            expect(writeText).toHaveBeenCalledWith(value);
+        } else {
+            expect(writeText).not.toHaveBeenCalled();
+        }
+    });
+
+    it.each([0, -1])('counts every row newline with a byte-limit offset of %s', async offset => {
+        const store = createRowStore(2, async () => [
+            { sourceRowIndex: 0, cells: ['a'] },
+            { sourceRowIndex: 1, cells: ['b'] },
+        ]);
+        const payload = `a${EOL}b${EOL}`;
+        const maxBytes = Buffer.byteLength(payload, 'utf8') + offset;
+        const writeText = jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined);
+
+        await expect(copyCsvTableRows([{ start: 0, end: 1 }], store, writeText, () => true, { maxBytes }))
+            .resolves.toBe(offset === 0 ? 'copied' : 'too-large');
+
+        if (offset === 0) {
+            expect(writeText).toHaveBeenCalledWith(payload);
+        } else {
+            expect(writeText).not.toHaveBeenCalled();
+        }
+    });
+
     it('rejects a cell copy spanning multiple rows', async () => {
         const getRows: jest.MockedFunction<CsvTableRowStore['getRows']> = jest.fn();
         await expect(copyCsvTableRows([{ start: 0, end: 1 }], createRowStore(2, getRows), async () => undefined,

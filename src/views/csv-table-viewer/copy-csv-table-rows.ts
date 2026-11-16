@@ -57,7 +57,8 @@ export const copyCsvTableRows = async (
             }
             for (const row of rows) {
                 const line = columnIndex === undefined ? serializeCsvTableRow(row) : row.cells.at(columnIndex) ?? '';
-                byteLength += Buffer.byteLength(line, 'utf8') + Buffer.byteLength(EOL, 'utf8');
+                byteLength += Buffer.byteLength(line, 'utf8')
+                    + (columnIndex === undefined ? Buffer.byteLength(EOL, 'utf8') : 0);
                 if (byteLength > maxBytes) {
                     return 'too-large';
                 }
