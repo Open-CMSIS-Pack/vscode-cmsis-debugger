@@ -285,8 +285,13 @@ export class TraceConfigurationModel {
      * trace files and replaces file-backed state with guidance when tracing is off.
      */
     private async refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event: GeneratedCBuildRunFileChangeEvent): Promise<void> {
+        const previousProcessing = this.generatedFileProcessing;
         this.cancelImageValidation();
-        const processing: GeneratedFileProcessing = { cbuildRunUri: event.uri, imageChanged: false };
+        const processing: GeneratedFileProcessing = {
+            cbuildRunUri: event.uri,
+            imageChanged: previousProcessing?.imageChanged === true
+                && normalizeFsPath(previousProcessing.cbuildRunUri.fsPath) === normalizeFsPath(event.uri.fsPath)
+        };
         this.generatedFileProcessing = processing;
         try {
             const hadUnsavedEdits = this.dirty;

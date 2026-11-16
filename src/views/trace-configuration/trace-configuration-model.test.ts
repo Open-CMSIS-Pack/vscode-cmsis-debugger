@@ -706,6 +706,43 @@ describe('TraceConfigurationModel', () => {
         }
     );
 
+    it.each([1, 3])('preserves a buffered image change across %i duplicate build notifications', async duplicateCount => {
+        const { cbuildRunFile, elfFile, convert, traceWatch, model } = await createImageWatchModel();
+        let finishConversion: (() => void) | undefined;
+        const conversion = new Promise<void>(resolve => {
+            finishConversion = resolve;
+        });
+        const processing: Array<void | Promise<void>> = [];
+        try {
+            await model.loadInitialFile();
+            convert.mockImplementation(() => conversion);
+            const buildWatch = traceWatch.getWatch('trace-configuration.generated-cbuild-run');
+            const buildUri = vscode.Uri.file(cbuildRunFile);
+            processing.push(buildWatch?.onDidChange?.(buildUri));
+            await waitForCondition('initial build conversion to start', () => convert.mock.calls.length === 2);
+            const imageWatch = traceWatch.addWatch.mock.calls.map(([watch]) => watch)
+                .find(watch => watch.id.startsWith('trace-configuration.elf:'));
+            expect(imageWatch).toBeDefined();
+            await imageWatch?.onDidChange?.(vscode.Uri.file(elfFile));
+            for (let index = 0; index < duplicateCount; index += 1) {
+                processing.push(buildWatch?.onDidChange?.(buildUri));
+                await waitForCondition('duplicate build conversion to start', () => convert.mock.calls.length === index + 3);
+            }
+            jest.useFakeTimers();
+            finishConversion?.();
+            await Promise.all(processing);
+            await jest.advanceTimersByTimeAsync(499);
+            expect(convert).toHaveBeenCalledTimes(duplicateCount + 2);
+            await jest.advanceTimersByTimeAsync(1);
+            expect(convert).toHaveBeenCalledTimes(duplicateCount + 3);
+        } finally {
+            finishConversion?.();
+            await Promise.all(processing);
+            await model.deactivate();
+            jest.useRealTimers();
+        }
+    });
+
     it('debounces saved-image rebuilds and refreshes existing production output', async () => {
         const { workspaceRoot, elfFile, convert, traceWatch, model } = await createImageWatchModel();
         jest.useFakeTimers();
