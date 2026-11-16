@@ -63,6 +63,9 @@ import { TraceConfigurationRowBuilder } from './trace-configuration-row-builder'
 import { DEFAULT_ITM_PRESCALER } from './trace-configuration-types';
 import { WorkspaceTextFileAdapter } from './workspace-text-file-adapter';
 
+/** Quiet time in milliseconds before refreshing production output after image events. */
+const IMAGE_VALIDATION_DEBOUNCE_MS = 500;
+
 const BUILD_REQUIRED_MESSAGE = 'Build/Rebuild csolution project to enable trace configuration';
 const TRACE_CONFIGURATION_IS_MODIFIED_CONTEXT = 'vscode-cmsis-debugger.traceConfiguration.isModified';
 const TRACE_CONFIGURATION_IS_VALIDATING_CONTEXT = 'vscode-cmsis-debugger.traceConfiguration.isValidating';
@@ -100,9 +103,12 @@ export class TraceConfigurationModel {
     private readonly runMessageReader: TraceConfigurationRunMessageReader;
     private saveTransition: TraceConfigurationSaveTransition | undefined;
     private activeSolutionFileName: string | undefined;
+    private imageValidationTimer: ReturnType<typeof setTimeout> | undefined;
+    private imageValidationVersion = 0;
 
     private set dirty(value: boolean) {
         if (this._dirty !== value) {
+            this.cancelImageValidation();
             this._dirty = value;
             void vscode.commands.executeCommand('setContext', TRACE_CONFIGURATION_IS_MODIFIED_CONTEXT, value);
             this.updateValidationContexts();
@@ -215,7 +221,9 @@ export class TraceConfigurationModel {
                 onCurrentFileReloaded: document => this.acceptDiskDocument(document),
                 onCurrentFileReloadFailed: error => this.reportCurrentFileReloadError(error),
                 onGeneratedCBuildRunFileChanged: event => this.refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event),
-                onCurrentRunFileChanged: event => this.handleCurrentRunFileChanged(event)
+                onCurrentRunFileChanged: event => this.handleCurrentRunFileChanged(event),
+                onImageFilesChanged: uri => this.handleImageFilesChanged(uri),
+                onBuildContextChanged: () => this.cancelImageValidation()
             },
             cbuildRunFileLocator,
             fileWatchManager,
@@ -249,6 +257,7 @@ export class TraceConfigurationModel {
      * compatible with vscode.Disposable.
      */
     public deactivate(): Promise<void> {
+        this.cancelImageValidation();
         this.fileWatcher.dispose();
         this.deactivationPromise ??= this.backup.dispose();
         return this.deactivationPromise;
@@ -270,10 +279,20 @@ export class TraceConfigurationModel {
      */
     private async refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event: GeneratedCBuildRunFileChangeEvent): Promise<void> {
         try {
-            const result = await this.generatedCTraceFileManager.processGeneratedCBuildRunFileChange(event);
+            this.cancelImageValidation();
+            const hadUnsavedEdits = this.dirty;
+            const result = await this.generatedCTraceFileManager.processGeneratedCBuildRunFileChange(event, !hadUnsavedEdits);
             switch (result.status) {
                 case 'generated':
-                    await this.loadFile(result.uri.fsPath, !result.conversionRequested);
+                    if (this.dirty && normalizeFsPath(this.ctraceFile?.fileName) === normalizeFsPath(result.uri.fsPath)) {
+                        await this.loadProcessorCapabilities();
+                        this.handleImageFilesChanged(event.uri);
+                    } else {
+                        await this.loadFile(result.uri.fsPath, !result.conversionRequested);
+                        if (hadUnsavedEdits) {
+                            this.handleImageFilesChanged(event.uri);
+                        }
+                    }
                     break;
                 case 'trace-off':
                     await this.backup.cancelValidationAndFlush();
@@ -340,6 +359,7 @@ export class TraceConfigurationModel {
      * generated project discovery or the build-required empty state.
      */
     private clearCurrentFile(): void {
+        this.cancelImageValidation();
         this.fileWatcher.disposeCurrentFileWatcher();
         this.fileWatcher.disposeCurrentRunFileWatchers();
         this.ctraceFile = undefined;
@@ -369,6 +389,7 @@ export class TraceConfigurationModel {
      * state snapshot is posted.
      */
     private async loadFile(fileName: string, requestMissingProductionOutput = true): Promise<void> {
+        this.cancelImageValidation();
         await this.backup.cancelValidationAndFlush();
         const nextFile = new CTraceYamlFile(fileName, new WorkspaceTextFileAdapter());
         const originalDocument = await nextFile.load(fileName);
@@ -417,6 +438,7 @@ export class TraceConfigurationModel {
      * tab and then ask the webview to reflect the latest file contents.
      */
     public async refreshFile(): Promise<void> {
+        this.cancelImageValidation();
         if (!this.ctraceFile) {
             await this.loadInitialFile();
             return;
@@ -593,6 +615,43 @@ export class TraceConfigurationModel {
             vscode.Uri.file(currentFile.fileName),
             { isCurrent: () => this.isCurrentRunFileSource(currentFile, 'production') }
         );
+    }
+
+    /** Revalidates the latest edits or debounces a guarded refresh of production output. */
+    private handleImageFilesChanged(cbuildRunUri: vscode.Uri): void {
+        this.cancelImageValidation();
+        const currentFile = this.ctraceFile;
+        if (!currentFile?.document) {
+            return;
+        }
+        if (this.dirty) {
+            this.backup.schedule(currentFile.fileName, currentFile.document.toString());
+            return;
+        }
+
+        const version = this.imageValidationVersion;
+        const isCurrent = () => version === this.imageValidationVersion
+            && this.isCurrentRunFileSource(currentFile, 'production');
+        this.imageValidationTimer = setTimeout(async () => {
+            this.imageValidationTimer = undefined;
+            await this.generatedCTraceFileManager.ensureProductionCTraceRunFile(vscode.Uri.file(currentFile.fileName), {
+                cbuildRunUri,
+                force: true,
+                isCurrent
+            });
+            if (isCurrent()) {
+                await this.loadProductionReferenceValidationMessages(false);
+            }
+        }, IMAGE_VALIDATION_DEBOUNCE_MS);
+    }
+
+    /** Invalidates delayed image work when its file, edits, or build context changes. */
+    private cancelImageValidation(): void {
+        this.imageValidationVersion += 1;
+        if (this.imageValidationTimer !== undefined) {
+            clearTimeout(this.imageValidationTimer);
+            this.imageValidationTimer = undefined;
+        }
     }
 
     private isCurrentRunFileSource(

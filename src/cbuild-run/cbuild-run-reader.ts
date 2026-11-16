@@ -23,7 +23,7 @@ import {
     TraceModeType
 } from './cbuild-run-types';
 import { FileReader, VscodeFileReader } from '../desktop/file-reader';
-import { getCmsisPackRootPath } from '../utils';
+import { getCmsisPackRootPath, normalizeFsPath } from '../utils';
 import { CBuildRunFileLocator } from './cbuild-run-file-locator';
 
 const CMSIS_PACK_ROOT_ENVVAR = '${CMSIS_PACK_ROOT}';
@@ -76,6 +76,19 @@ export class CbuildRunReader {
         const activeSolutionFolder = await this.cbuildRunFileLocator.getActiveSolutionFolder();
         // Only considers workspace if dirName is not absolute.
         this.cbuildRunDir = activeSolutionFolder ? path.resolve(activeSolutionFolder.fsPath, dirName) : dirName;
+    }
+
+    /** Returns unique ELF output paths, including missing files and AXF-named ELFs. */
+    public getElfFilePaths(): string[] {
+        const paths = new Map<string, string>();
+        for (const output of this.cbuildRun?.output ?? []) {
+            if (output.type !== 'elf' || !output.file) {
+                continue;
+            }
+            const fileName = path.resolve(this.cbuildRunDir ?? '.', output.file);
+            paths.set(normalizeFsPath(fileName) ?? fileName, fileName);
+        }
+        return [...paths.values()];
     }
 
     public getSvdFilePaths(cmsisPackRoot?: string, pname?: string): string[] {

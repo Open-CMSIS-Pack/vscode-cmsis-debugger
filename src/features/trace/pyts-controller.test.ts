@@ -90,6 +90,28 @@ describe('PyTsController', () => {
         expect(session.customRequest).not.toHaveBeenCalled();
     });
 
+    it('leaves a concurrent manual conversion running when automatic watchers are removed', async () => {
+        jest.spyOn(PyTsProcessManager.prototype, 'launch').mockResolvedValue();
+        let finishRuns: ((code: number) => void) | undefined;
+        const exit = new Promise<number>(resolve => {
+            finishRuns = resolve;
+        });
+        const waitForExit = jest.spyOn(PyTsProcessManager.prototype, 'waitForExit').mockReturnValue(exit);
+        const stop = jest.spyOn(PyTsProcessManager.prototype, 'stop').mockResolvedValue();
+        const controller = new PyTsController({ pyTsPath: 'pyTS' });
+        const automatic = controller.handleCTraceFileChanged(ctraceUri);
+        await waitForCondition('the automatic conversion to start', () => waitForExit.mock.calls.length === 1);
+        const manual = controller.run();
+        try {
+            await waitForCondition('the manual conversion to start', () => waitForExit.mock.calls.length === 2);
+            controller.removeCTraceConfigurationWatcher();
+            expect(stop).not.toHaveBeenCalled();
+        } finally {
+            finishRuns?.(0);
+            await Promise.all([automatic, manual]);
+        }
+    });
+
     it('uses the active session cbuild run path unless the caller supplies one', async () => {
         const launch = jest.spyOn(PyTsProcessManager.prototype, 'launch').mockResolvedValue();
         const waitForExit = jest.spyOn(PyTsProcessManager.prototype, 'waitForExit').mockResolvedValue(0);

@@ -264,6 +264,18 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         expect(convertCTrace).not.toHaveBeenCalled();
     });
 
+    it.each(['off' as const, undefined])('does not force image refresh when trace mode is %s', async traceMode => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M55', 'core0')]);
+        jest.mocked(CbuildRunReader.prototype.getTraceMode).mockReturnValue(traceMode);
+        const { manager, convertCTrace } = createManagerWithConversionSpy();
+        await manager.ensureProductionCTraceRunFile(
+            vscode.Uri.file(path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yml')),
+            { cbuildRunUri: vscode.Uri.file(path.join(workspaceRoot, 'demo.cbuild-run.yml')), force: true }
+        );
+        expect(convertCTrace).not.toHaveBeenCalled();
+    });
+
     it('abandons a stale missing-output request before launching pyTS', async () => {
         const workspaceRoot = await createTemporaryWorkspace();
         const ctraceDirectory = path.join(workspaceRoot, '.cmsis');

@@ -21,8 +21,9 @@ import * as path from 'node:path';
 
 import * as vscode from 'vscode';
 
+import { traceWatchFactory } from '../../__test__/trace-watch.factory';
 import { MemoryTextFileAdapter } from '../../__test__/memory-text-file-adapter';
-import { CbuildRunReader, ProcessorType } from '../../cbuild-run';
+import { CbuildRunReader, CBuildRunFileLocator, ProcessorType } from '../../cbuild-run';
 import { PyTsController } from '../../features/trace/pyts-controller';
 import {
     CBUILD_INDEX_FILE_GLOB,
@@ -231,6 +232,33 @@ async function createTemporaryDirectory(directoryName: string): Promise<void> {
     // Test paths are created under this suite's temporary workspace root.
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     await fsPromises.mkdir(directoryName, { recursive: true });
+}
+
+/** Creates an active build with observable ELF watches and independent validation paths. */
+async function createImageWatchModel() {
+    const workspaceRoot = await createTemporaryWorkspace();
+    mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M33', 'cm33')]);
+    const cbuildRunFile = path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml');
+    const elfFile = path.join(workspaceRoot, 'out', 'app.axf');
+    const ctraceFile = path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yml');
+    await createTemporaryDirectory(path.dirname(cbuildRunFile));
+    await createTemporaryDirectory(path.dirname(ctraceFile));
+    await writeTemporaryTextFile(cbuildRunFile, 'cbuild-run:\n');
+    const original = 'ctrace:\n  setup:\n    - pname: cm33\n      core: Cortex-M33\n      data:\n        - location: counter\n';
+    await writeTemporaryTextFile(ctraceFile, original);
+    jest.spyOn(CbuildRunReader.prototype, 'getElfFilePaths').mockReturnValue([elfFile]);
+    const locator = new CBuildRunFileLocator();
+    jest.spyOn(locator, 'getActiveSolutionFolder').mockResolvedValue(vscode.Uri.file(workspaceRoot));
+    jest.spyOn(locator, 'getCBuildRunFileName').mockResolvedValue(cbuildRunFile);
+    const controller = new PyTsController({}, locator);
+    const convert = jest.spyOn(controller, 'convertCTrace').mockResolvedValue();
+    const prevalidator = createPassingPrevalidator();
+    const traceWatch = traceWatchFactory();
+    const model = new TraceConfigurationModel(
+        () => {}, undefined, undefined, undefined, traceWatch.fileWatchManager,
+        locator, undefined, undefined, prevalidator, createRunMessageReader(), controller
+    );
+    return { workspaceRoot, cbuildRunFile, elfFile, ctraceFile, original, locator, convert, prevalidator, traceWatch, model };
 }
 
 async function createModelFromText(
@@ -623,6 +651,104 @@ describe('TraceConfigurationModel', () => {
             'Invalid multi-core cbuild-run processor data: processor entries 2 are missing pname.'
         );
         model.dispose();
+    });
+
+    it('debounces saved-image rebuilds and refreshes existing production output', async () => {
+        const { workspaceRoot, elfFile, convert, traceWatch, model } = await createImageWatchModel();
+        jest.useFakeTimers();
+        try {
+            await model.loadInitialFile();
+            expect(convert).toHaveBeenCalledTimes(1);
+            const output = path.join(workspaceRoot, '.trace', 'demo.ctrace-run.yml');
+            await createTemporaryDirectory(path.dirname(output));
+            await writeTemporaryTextFile(output, 'ctrace-run: {}');
+            // Source and generated-output watches are also installed during initial loading.
+            const imageWatch = traceWatch.addWatch.mock.calls.map(([watch]) => watch)
+                .find(watch => watch.id.startsWith('trace-configuration.elf:'));
+            expect(imageWatch).toBeDefined();
+            await imageWatch?.onDidDelete?.(vscode.Uri.file(elfFile));
+            await jest.advanceTimersByTimeAsync(300);
+            await imageWatch?.onDidCreate?.(vscode.Uri.file(elfFile));
+            await imageWatch?.onDidChange?.(vscode.Uri.file(elfFile));
+            await jest.advanceTimersByTimeAsync(499);
+            expect(convert).toHaveBeenCalledTimes(1);
+            await jest.advanceTimersByTimeAsync(1);
+            expect(convert).toHaveBeenCalledTimes(2);
+            await imageWatch?.onDidChange?.(vscode.Uri.file(elfFile));
+            await model.deactivate();
+            await jest.advanceTimersByTimeAsync(500);
+            expect(convert).toHaveBeenCalledTimes(2);
+        } finally {
+            await model.deactivate();
+            jest.useRealTimers();
+        }
+    });
+
+    it('does not convert the active build when opening or rebuilding an inactive trace file', async () => {
+        const { workspaceRoot, elfFile, convert, traceWatch, model } = await createImageWatchModel();
+        jest.useFakeTimers();
+        try {
+            await model.loadInitialFile();
+            convert.mockClear();
+            const inactiveFile = path.join(workspaceRoot, '.cmsis', 'inactive.ctrace.yml');
+            await writeTemporaryTextFile(inactiveFile, 'ctrace: { setup: [] }');
+            const imageWatch = traceWatch.addWatch.mock.calls.map(([watch]) => watch)
+                .find(watch => watch.id.startsWith('trace-configuration.elf:'));
+            await imageWatch?.onDidChange?.(vscode.Uri.file(elfFile));
+            await model.openFile(inactiveFile);
+            await jest.advanceTimersByTimeAsync(500);
+            expect(convert).not.toHaveBeenCalled();
+            await imageWatch?.onDidChange?.(vscode.Uri.file(elfFile));
+            await jest.advanceTimersByTimeAsync(500);
+            expect(convert).not.toHaveBeenCalled();
+        } finally {
+            await model.deactivate();
+            jest.useRealTimers();
+        }
+    });
+
+    it('recovers from a missing ELF after rebuild while preserving and validating unsaved edits', async () => {
+        const { workspaceRoot, cbuildRunFile, elfFile, ctraceFile, original, convert, prevalidator, traceWatch, model } = await createImageWatchModel();
+        jest.useFakeTimers();
+        prevalidator.validate.mockResolvedValueOnce({ status: 'failed', message: 'missing ELF' });
+        try {
+            await model.loadInitialFile();
+            await jest.advanceTimersByTimeAsync(500);
+            expect(convert).toHaveBeenCalledTimes(1);
+            await model.updateValue(['ctrace', 'setup', 0, 'data', 0, 'location'], 'unsavedCounter');
+            await traceWatch.getWatch('trace-configuration.generated-cbuild-run')?.onDidChange?.(vscode.Uri.file(cbuildRunFile));
+            await jest.advanceTimersByTimeAsync(500);
+            expect(prevalidator.validate).toHaveBeenCalledTimes(1);
+            expect(model.createState()).toMatchObject({ dirty: true, validationState: 'failed' });
+            await expect(readTemporaryTextFile(ctraceFile)).resolves.toBe(original);
+            await expect(readTemporaryTextFile(getTraceConfigurationBackupFileName(ctraceFile))).resolves.toContain('unsavedCounter');
+
+            const elfWatch = traceWatch.addWatch.mock.calls
+                .map(([watch]) => watch)
+                .find(watch => watch.id.startsWith('trace-configuration.elf:'));
+            await elfWatch?.onDidDelete?.(vscode.Uri.file(elfFile));
+            await jest.advanceTimersByTimeAsync(100);
+            await elfWatch?.onDidCreate?.(vscode.Uri.file(elfFile));
+            await elfWatch?.onDidChange?.(vscode.Uri.file(elfFile));
+            await jest.advanceTimersByTimeAsync(499);
+            expect(prevalidator.validate).toHaveBeenCalledTimes(1);
+            await jest.advanceTimersByTimeAsync(1);
+            expect(prevalidator.validate).toHaveBeenCalledTimes(2);
+            expect(model.createState()).toMatchObject({ dirty: true, validationState: 'passed' });
+            expect(convert).toHaveBeenCalledTimes(1);
+
+            const output = traceWatch.getWatch('trace-configuration.backup-ctrace-run');
+            await output?.onDidChange?.(vscode.Uri.file(path.join(workspaceRoot, '.trace', '~demo.ctrace-run.yml')));
+            await jest.advanceTimersByTimeAsync(500);
+            expect(prevalidator.validate).toHaveBeenCalledTimes(2);
+            await elfWatch?.onDidChange?.(vscode.Uri.file(elfFile));
+            await model.deactivate();
+            await jest.advanceTimersByTimeAsync(500);
+            expect(prevalidator.validate).toHaveBeenCalledTimes(2);
+        } finally {
+            await model.deactivate();
+            jest.useRealTimers();
+        }
     });
 
     it('reuses an existing .cmsis folder when a generated cbuild-run file is created', async () => {
