@@ -21,6 +21,7 @@ import * as path from 'node:path';
 
 import * as vscode from 'vscode';
 
+import { activeSolutionWatchFactory } from '../../__test__/active-solution-watch.factory';
 import { traceWatchFactory } from '../../__test__/trace-watch.factory';
 import { MemoryTextFileAdapter } from '../../__test__/memory-text-file-adapter';
 import { CbuildRunReader, CBuildRunFileLocator, ProcessorType } from '../../cbuild-run';
@@ -254,11 +255,12 @@ async function createImageWatchModel() {
     const convert = jest.spyOn(controller, 'convertCTrace').mockResolvedValue();
     const prevalidator = createPassingPrevalidator();
     const traceWatch = traceWatchFactory();
+    const activeSolutionWatch = activeSolutionWatchFactory();
     const model = new TraceConfigurationModel(
         () => {}, undefined, undefined, undefined, traceWatch.fileWatchManager,
-        locator, undefined, undefined, prevalidator, createRunMessageReader(), controller
+        locator, activeSolutionWatch.cmsisJsonWatcher, undefined, prevalidator, createRunMessageReader(), controller
     );
-    return { workspaceRoot, cbuildRunFile, elfFile, ctraceFile, original, locator, convert, prevalidator, traceWatch, model };
+    return { workspaceRoot, cbuildRunFile, elfFile, ctraceFile, original, locator, convert, prevalidator, traceWatch, activeSolutionWatch, model };
 }
 
 async function createModelFromText(
@@ -652,6 +654,57 @@ describe('TraceConfigurationModel', () => {
         );
         model.dispose();
     });
+
+    it.each(['unchanged', 'opened another file', 'changed build', 'deactivated'])(
+        'replays an image change received during generated-file conversion only while current: %s', async transition => {
+            const { workspaceRoot, cbuildRunFile, elfFile, locator, convert, traceWatch, activeSolutionWatch, model } = await createImageWatchModel();
+            let finishConversion: (() => void) | undefined;
+            const conversion = new Promise<void>(resolve => {
+                finishConversion = resolve;
+            });
+            try {
+                await model.loadInitialFile();
+                convert.mockImplementationOnce(() => conversion);
+                const processing = traceWatch.getWatch('trace-configuration.generated-cbuild-run')
+                    ?.onDidChange?.(vscode.Uri.file(cbuildRunFile));
+                await waitForCondition('generated-file conversion to start', () => convert.mock.calls.length === 2);
+                jest.useFakeTimers();
+                const imageWatch = traceWatch.addWatch.mock.calls.map(([watch]) => watch)
+                    .find(watch => watch.id.startsWith('trace-configuration.elf:'));
+                expect(imageWatch).toBeDefined();
+                await imageWatch?.onDidChange?.(vscode.Uri.file(elfFile));
+                switch (transition) {
+                    case 'opened another file': {
+                        const inactiveFile = path.join(workspaceRoot, '.cmsis', 'inactive.ctrace.yml');
+                        await writeTemporaryTextFile(inactiveFile, 'ctrace: { setup: [] }');
+                        await model.openFile(inactiveFile);
+                        break;
+                    }
+                    case 'changed build':
+                        jest.mocked(locator.getCBuildRunFileName).mockResolvedValue(path.join(workspaceRoot, 'missing.cbuild-run.yml'));
+                        activeSolutionWatch.fireActiveSolutionChange({
+                            previousActiveSolutionPath: path.join(workspaceRoot, 'demo.csolution.yml'),
+                            activeSolutionPath: path.join(workspaceRoot, 'other.csolution.yml'),
+                            generation: 1
+                        });
+                        break;
+                    case 'deactivated':
+                        await model.deactivate();
+                        break;
+                }
+                finishConversion?.();
+                await processing;
+                await jest.advanceTimersByTimeAsync(499);
+                expect(convert).toHaveBeenCalledTimes(2);
+                await jest.advanceTimersByTimeAsync(1);
+                expect(convert).toHaveBeenCalledTimes(transition === 'unchanged' ? 3 : 2);
+            } finally {
+                finishConversion?.();
+                await model.deactivate();
+                jest.useRealTimers();
+            }
+        }
+    );
 
     it('debounces saved-image rebuilds and refreshes existing production output', async () => {
         const { workspaceRoot, elfFile, convert, traceWatch, model } = await createImageWatchModel();

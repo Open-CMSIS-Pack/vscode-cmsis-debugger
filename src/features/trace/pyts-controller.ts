@@ -42,6 +42,7 @@ interface CTraceConversionRequest {
     contents: Uint8Array;
     watcherGeneration: number | undefined;
     explicit: boolean;
+    readonly forceRerun: boolean;
 }
 
 interface PendingCTraceConversion extends CTraceConversionRequest {
@@ -91,9 +92,16 @@ export class PyTsController {
         return processManager.waitForExit();
     }
 
-    /** Requests a conversion independently of the ctrace file watcher and waits for its completion. */
-    public convertCTrace(ctraceUri: vscode.Uri, cbuildRunFilePath: string): Promise<void> {
-        return this.processConversionRequest(ctraceUri, cbuildRunFilePath, undefined, true);
+    /**
+     * Requests a conversion independently of the watcher and waits for completion.
+     * Force a rerun when external dependencies changed after an active conversion started.
+     */
+    public convertCTrace(
+        ctraceUri: vscode.Uri,
+        cbuildRunFilePath: string,
+        options: { readonly forceRerun?: boolean } = {}
+    ): Promise<void> {
+        return this.processConversionRequest(ctraceUri, cbuildRunFilePath, undefined, true, options.forceRerun ?? false);
     }
 
     protected handleActiveSessionChanged(session: GDBTargetDebugSession | undefined): void {
@@ -118,11 +126,13 @@ export class PyTsController {
         }
     }
 
+    /** Reads the current source and queues it unless a watcher request is stale or redundant. */
     private async processConversionRequest(
         uri: vscode.Uri,
         cbuildRunFilePath: string | undefined,
         watcherGeneration: number | undefined,
-        explicit: boolean
+        explicit: boolean,
+        forceRerun = false
     ): Promise<void> {
         const normalizedPath = normalizeFsPath(uri.fsPath) ?? uri.fsPath;
         const conversionKey = this.getConversionKey(normalizedPath, cbuildRunFilePath);
@@ -156,14 +166,17 @@ export class PyTsController {
             conversionKey,
             contents,
             watcherGeneration,
-            explicit
+            explicit,
+            forceRerun
         });
     }
 
+    /** Coalesces queued requests while preserving dependency changes that require a later run. */
     private submitConversion(request: CTraceConversionRequest): Promise<void> {
         const completion = new Promise<void>(resolve => {
             const activeConversion = this.activeConversion;
-            if (activeConversion?.conversionKey === request.conversionKey
+            if (!request.forceRerun
+                && activeConversion?.conversionKey === request.conversionKey
                 && this.contentsEqual(activeConversion.contents, request.contents)) {
                 activeConversion.resolveWaiters.push(resolve);
                 return;

@@ -24,7 +24,7 @@ import * as vscode from 'vscode';
 import { CbuildRunReader, CBuildRunFileLocator, ProcessorType } from '../../cbuild-run';
 import { PyTsController } from '../../features/trace/pyts-controller';
 import { logger } from '../../logger';
-import { containsSubstringsInOrder } from '../../utils';
+import { containsSubstringsInOrder, waitForCondition, waitForImmediate } from '../../utils';
 import { TraceConfigurationGeneratedCTraceFileManager } from './trace-configuration-generated-ctrace-file-manager';
 
 interface MutableWorkspace {
@@ -229,6 +229,39 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         expect(convertCTrace).toHaveBeenCalledTimes(2);
     });
 
+    it('queues a follow-up conversion when an image refresh arrives during an unchanged active conversion', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M55', 'core0')]);
+        const locator = new CBuildRunFileLocator();
+        jest.spyOn(locator, 'getActiveSolutionFolder').mockResolvedValue(vscode.Uri.file(workspaceRoot));
+        const controller = new PyTsController();
+        let finishConversion: ((exitCode: number) => void) | undefined;
+        const conversion = new Promise<number>(resolve => {
+            finishConversion = resolve;
+        });
+        const run = jest.spyOn(controller, 'run').mockReturnValueOnce(conversion).mockResolvedValue(0);
+        const reads = jest.spyOn(vscode.workspace.fs, 'readFile')
+            .mockResolvedValue(new TextEncoder().encode('ctrace: {}'));
+        const manager = new TraceConfigurationGeneratedCTraceFileManager(controller, locator);
+        const ctraceUri = vscode.Uri.file(path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yml'));
+        const cbuildRunUri = vscode.Uri.file(path.join(workspaceRoot, 'demo.cbuild-run.yml'));
+        const initial = manager.ensureProductionCTraceRunFile(ctraceUri, { cbuildRunUri });
+        let refreshed: Promise<void> | undefined;
+        try {
+            await waitForCondition('initial conversion to start', () => run.mock.calls.length === 1);
+            refreshed = manager.ensureProductionCTraceRunFile(ctraceUri, { cbuildRunUri, force: true });
+            await waitForCondition('the rebuilt image request to read its source', () => reads.mock.calls.length === 2);
+            await waitForImmediate();
+            expect(run).toHaveBeenCalledTimes(1);
+            finishConversion?.(0);
+            await Promise.all([initial, refreshed]);
+            expect(run).toHaveBeenCalledTimes(2);
+        } finally {
+            finishConversion?.(0);
+            await Promise.all([initial, refreshed]);
+        }
+    });
+
     it('resolves the active cbuild-run before generating a missing production ctrace-run', async () => {
         const workspaceRoot = await createTemporaryWorkspace();
         mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M55', 'core0')]);
@@ -246,7 +279,9 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         await manager.ensureProductionCTraceRunFile(ctraceFile);
 
         expect(locator.getCBuildRunFileName).toHaveBeenCalledWith(undefined, true);
-        expect(convertCTrace).toHaveBeenCalledWith(ctraceFile, expect.toEqualFsPath(cbuildRunFile));
+        expect(convertCTrace).toHaveBeenCalledWith(
+            ctraceFile, expect.toEqualFsPath(cbuildRunFile), { forceRerun: false }
+        );
     });
 
     it('does not generate output for a ctrace file outside the active cbuild-run context', async () => {

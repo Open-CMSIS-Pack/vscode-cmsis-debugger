@@ -25,7 +25,7 @@ import { GDBTargetDebugSession } from '../../debug-session';
 import { debugTrackerFactory } from '../../debug-session/__test__/debug-session.factory';
 import { PyTsProcessManager } from '../../desktop/process/pyts-process-manager';
 import { logger } from '../../logger';
-import { isWindows, waitForCondition } from '../../utils';
+import { isWindows, waitForCondition, waitForImmediate } from '../../utils';
 import { PyTsController as BasePyTsController } from './pyts-controller';
 
 class PyTsController extends BasePyTsController {
@@ -187,6 +187,34 @@ describe('PyTsController', () => {
         expect(run).toHaveBeenNthCalledWith(2, {
             cbuildRunFilePath: expect.toEqualFsPath(otherCbuildRunFilePath)
         });
+    });
+
+    it.each([1, 3])('coalesces %i forced dependency refreshes into one follow-up run', async refreshCount => {
+        const controller = new PyTsController();
+        const cbuildRunFilePath = '/workspace/build/trace.cbuild-run.yml';
+        let finishConversion: ((exitCode: number) => void) | undefined;
+        const conversion = new Promise<number>(resolve => {
+            finishConversion = resolve;
+        });
+        const run = jest.spyOn(controller, 'run').mockReturnValueOnce(conversion).mockResolvedValue(0);
+        const initial = controller.convertCTrace(ctraceUri, cbuildRunFilePath);
+        const refreshes: Promise<void>[] = [];
+        try {
+            await waitForCondition('initial conversion to start', () => run.mock.calls.length === 1);
+            for (let index = 0; index < refreshCount; index += 1) {
+                refreshes.push(controller.convertCTrace(ctraceUri, cbuildRunFilePath, { forceRerun: true }));
+            }
+            await waitForCondition('refresh source reads to finish', () =>
+                jest.mocked(vscode.workspace.fs.readFile).mock.calls.length === refreshCount + 1);
+            await waitForImmediate();
+            expect(run).toHaveBeenCalledTimes(1);
+            finishConversion?.(0);
+            await Promise.all([initial, ...refreshes]);
+            expect(run).toHaveBeenCalledTimes(2);
+        } finally {
+            finishConversion?.(0);
+            await Promise.all([initial, ...refreshes]);
+        }
     });
 
     it('keeps an explicit queued request when the ctrace watcher is removed', async () => {

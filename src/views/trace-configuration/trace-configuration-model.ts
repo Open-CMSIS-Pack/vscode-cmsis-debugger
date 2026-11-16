@@ -76,6 +76,12 @@ interface TraceConfigurationSaveTransition {
     pendingProductionRunFileEvent?: TraceConfigurationRunFileChangeEvent;
 }
 
+/** Holds image events until the generated source has been loaded for this build. */
+interface GeneratedFileProcessing {
+    readonly cbuildRunUri: vscode.Uri;
+    imageChanged: boolean;
+}
+
 /**
  * TraceConfigurationModel owns the ctrace.yml document lifecycle and file mutations for the trace
  * configuration webview. It deliberately delegates processor capability lookup and row projection to
@@ -105,10 +111,11 @@ export class TraceConfigurationModel {
     private activeSolutionFileName: string | undefined;
     private imageValidationTimer: ReturnType<typeof setTimeout> | undefined;
     private imageValidationVersion = 0;
+    private generatedFileProcessing: GeneratedFileProcessing | undefined;
 
     private set dirty(value: boolean) {
         if (this._dirty !== value) {
-            this.cancelImageValidation();
+            this.cancelImageValidation(true);
             this._dirty = value;
             void vscode.commands.executeCommand('setContext', TRACE_CONFIGURATION_IS_MODIFIED_CONTEXT, value);
             this.updateValidationContexts();
@@ -278,17 +285,23 @@ export class TraceConfigurationModel {
      * trace files and replaces file-backed state with guidance when tracing is off.
      */
     private async refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event: GeneratedCBuildRunFileChangeEvent): Promise<void> {
+        this.cancelImageValidation();
+        const processing: GeneratedFileProcessing = { cbuildRunUri: event.uri, imageChanged: false };
+        this.generatedFileProcessing = processing;
         try {
-            this.cancelImageValidation();
             const hadUnsavedEdits = this.dirty;
             const result = await this.generatedCTraceFileManager.processGeneratedCBuildRunFileChange(event, !hadUnsavedEdits);
+            if (this.generatedFileProcessing !== processing) {
+                return;
+            }
+            this.errorMessage = undefined;
             switch (result.status) {
                 case 'generated':
                     if (this.dirty && normalizeFsPath(this.ctraceFile?.fileName) === normalizeFsPath(result.uri.fsPath)) {
                         await this.loadProcessorCapabilities();
                         this.handleImageFilesChanged(event.uri);
                     } else {
-                        await this.loadFile(result.uri.fsPath, !result.conversionRequested);
+                        await this.loadFile(result.uri.fsPath, !result.conversionRequested, true);
                         if (hadUnsavedEdits) {
                             this.handleImageFilesChanged(event.uri);
                         }
@@ -302,11 +315,21 @@ export class TraceConfigurationModel {
                 case 'deleted':
                     break;
             }
-            this.errorMessage = undefined;
+            if (this.generatedFileProcessing === processing) {
+                this.generatedFileProcessing = undefined;
+                if (result.status === 'generated' && processing.imageChanged) {
+                    this.handleImageFilesChanged(event.uri);
+                }
+            }
         } catch (error) {
-            this.errorMessage = this.errorToString(error);
-            logger.error(`Trace Configuration: Failed to process generated cbuild-run file change: ${this.errorMessage}`);
+            if (this.generatedFileProcessing === processing) {
+                this.errorMessage = this.errorToString(error);
+                logger.error(`Trace Configuration: Failed to process generated cbuild-run file change: ${this.errorMessage}`);
+            }
         } finally {
+            if (this.generatedFileProcessing === processing) {
+                this.generatedFileProcessing = undefined;
+            }
             this.notifyStateChanged();
         }
     }
@@ -386,10 +409,15 @@ export class TraceConfigurationModel {
      * loadFile creates the CTraceYamlFile wrapper and parses the supplied file.
      * It also assigns internal ctrace references and loads processor trace
      * capabilities so the webview can hide unsupported controls before the first
-     * state snapshot is posted.
+     * state snapshot is posted. Generated-file processing preserves image events
+     * for replay after this load finishes.
      */
-    private async loadFile(fileName: string, requestMissingProductionOutput = true): Promise<void> {
-        this.cancelImageValidation();
+    private async loadFile(
+        fileName: string,
+        requestMissingProductionOutput = true,
+        preserveImageEvents = false
+    ): Promise<void> {
+        this.cancelImageValidation(preserveImageEvents);
         await this.backup.cancelValidationAndFlush();
         const nextFile = new CTraceYamlFile(fileName, new WorkspaceTextFileAdapter());
         const originalDocument = await nextFile.load(fileName);
@@ -619,6 +647,12 @@ export class TraceConfigurationModel {
 
     /** Revalidates the latest edits or debounces a guarded refresh of production output. */
     private handleImageFilesChanged(cbuildRunUri: vscode.Uri): void {
+        if (this.generatedFileProcessing) {
+            if (normalizeFsPath(this.generatedFileProcessing.cbuildRunUri.fsPath) === normalizeFsPath(cbuildRunUri.fsPath)) {
+                this.generatedFileProcessing.imageChanged = true;
+            }
+            return;
+        }
         this.cancelImageValidation();
         const currentFile = this.ctraceFile;
         if (!currentFile?.document) {
@@ -645,8 +679,11 @@ export class TraceConfigurationModel {
         }, IMAGE_VALIDATION_DEBOUNCE_MS);
     }
 
-    /** Invalidates delayed image work when its file, edits, or build context changes. */
-    private cancelImageValidation(): void {
+    /** Invalidates delayed image work, optionally retaining events for the current generated-file load. */
+    private cancelImageValidation(preserveImageEvents = false): void {
+        if (!preserveImageEvents) {
+            this.generatedFileProcessing = undefined;
+        }
         this.imageValidationVersion += 1;
         if (this.imageValidationTimer !== undefined) {
             clearTimeout(this.imageValidationTimer);

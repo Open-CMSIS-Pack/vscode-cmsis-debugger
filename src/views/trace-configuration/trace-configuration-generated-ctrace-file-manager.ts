@@ -43,7 +43,7 @@ interface GeneratedCBuildRunData {
 interface EnsureProductionCTraceRunFileOptions {
     readonly cbuildRunUri?: vscode.Uri;
     readonly isCurrent?: () => boolean;
-    /** Regenerates existing output after an image dependency changes. */
+    /** Regenerates output after an image change, queuing a rerun behind any active conversion. */
     readonly force?: boolean;
 }
 
@@ -157,7 +157,7 @@ export class TraceConfigurationGeneratedCTraceFileManager {
             if ((!options.force && await this.fileExists(outputUri)) || !this.isCurrent(options)) {
                 return;
             }
-            await this.pyTsController.convertCTrace(ctraceUri, cbuildRunUri.fsPath);
+            await this.pyTsController.convertCTrace(ctraceUri, cbuildRunUri.fsPath, { forceRerun: options.force ?? false });
         } catch (error) {
             logger.error('Trace Configuration: Failed to request pyTS conversion for missing ctrace-run output:', error);
         }
