@@ -232,6 +232,16 @@ filtering and selection messages.
 
 ## Selection boundary
 
+Plain clicks on CSV data cells select a single cell. Arrow keys move that
+selection between cells while focus stays on the grid, including across virtual
+row windows. Escape clears the selection. Cell selection is cleared on a new
+table view after filtering, sorting, or source reloads; indexing progress and
+row-window responses do not clear it.
+
+Clicking the synthetic row index selects a row. Shift-click extends the row
+range and Alt-click toggles a row, including when clicking a data cell.
+Ctrl/Command-click retains the trace-navigation integration described below.
+
 Multi-row selection is maintained by the webview and mirrored in the host for
 retention across updates. It is represented by
 normalized display-index intervals rather than a set of source rows, so large
@@ -261,8 +271,7 @@ before restoring selection; they do not reuse old display indices as row
 identities. Hiding the editor does not clear selection or scroll state because
 the custom editor retains its webview context.
 
-Right-click selection is resolved by the row handler before its context-menu
-event bubbles to the grid handler, which opens the Copy-only menu:
+Right-click selection is resolved before opening the clipboard context menu:
 
 - Right-clicking a selected row preserves all selection intervals, the caret,
   and the anchor, regardless of modifiers.
@@ -272,11 +281,12 @@ event bubbles to the grid handler, which opens the Copy-only menu:
   existing selection and sets both caret and anchor to it. Shift does not
   select an intervening range, and Alt never removes an already selected row.
 
-This policy applies to both the synthetic row-index cell and CSV data cells.
-Normal left-click range selection and toggling are unchanged. Right-click does
-not emit a cell-navigation event.
+This policy applies to the synthetic row-index cell and to Shift/Alt-right-click
+on CSV data cells. A plain right-click on a data cell preserves an existing row
+selection if that row is selected; otherwise it selects that single cell.
+Right-click does not emit a cell-navigation event.
 
-A clicked cell still emits a singular integration event rather than the full
+Ctrl/Command-click on a cell emits a singular integration event rather than the full
 row selection. The webview sends its source coordinates and value to the
 provider. The provider reads the authoritative source row and verifies the row,
 column name, and value. For navigable trace records, it resolves the matching
@@ -285,13 +295,25 @@ columns and focuses that reference in the Trace Configuration view. Invalid or
 stale cell events are discarded with a warning.
 
 Ctrl/Cmd+C sends the selected display-index intervals to the provider. The
-context-menu Copy action uses the same request. The provider validates their
+context-menu actions use the same request. The provider validates their
 normalized bounds, reads rows from the active store in bounded batches,
 serializes data cells as CSV in current display order, and
 writes one CRLF-delimited value to the VS Code clipboard. Clipboard exports are
 limited to 50 MiB to avoid exhausting extension-host memory; larger selections
 show a warning without publishing partial content. The synthetic `#` column is
 excluded. A reload or panel disposal cancels clipboard publication.
+
+When a single cell is selected, the same copy request includes its column index
+and a single-row interval. The provider validates both coordinates and reads the
+cell from the active store. It copies the raw cell value without CSV quoting or
+a trailing newline, including empty cells, subject to the same stale-view and
+clipboard-size checks.
+
+The context menu offers **Copy Value** for the right-clicked data cell and
+**Copy Row** for its complete CSV row, regardless of the current selection.
+Copy Value is disabled on the synthetic row index. Both actions are disabled
+when right-clicking outside a row. A new table view closes the menu so its
+coordinates cannot refer to a different row after sorting, filtering, or reload.
 
 ## Build boundaries
 
