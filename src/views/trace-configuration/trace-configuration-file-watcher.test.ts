@@ -474,6 +474,7 @@ describe('TraceConfigurationFileWatcher', () => {
         watcher.watchCurrentFile();
         const firstFileSystemWatcher = getLastCreatedFileSystemWatcher();
 
+        await firstFileSystemWatcher._handlers.create[0]?.(vscode.Uri.file(firstWatchedFile.file.fileName));
         await firstFileSystemWatcher._handlers.change[0]?.(vscode.Uri.file(firstWatchedFile.file.fileName));
         firstWatchedFile.reloadIfChanged.mockRejectedValueOnce(new Error('first failure'));
         await firstFileSystemWatcher._handlers.delete[0]?.(vscode.Uri.file(firstWatchedFile.file.fileName));
@@ -482,7 +483,7 @@ describe('TraceConfigurationFileWatcher', () => {
         watcher.watchCurrentFile();
         await firstFileSystemWatcher._handlers.change[0]?.(vscode.Uri.file(firstWatchedFile.file.fileName));
 
-        expect(onCurrentFileReloaded).toHaveBeenCalledTimes(1);
+        expect(onCurrentFileReloaded).toHaveBeenCalledTimes(2);
         expect(onCurrentFileReloaded).toHaveBeenCalledWith(firstWatchedFile.file.document);
         expect(onCurrentFileReloadFailed).toHaveBeenCalledTimes(1);
 

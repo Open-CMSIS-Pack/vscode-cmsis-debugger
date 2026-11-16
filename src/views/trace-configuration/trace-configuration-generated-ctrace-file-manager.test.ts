@@ -25,7 +25,12 @@ import { CbuildRunReader, CBuildRunFileLocator, ProcessorType } from '../../cbui
 import { PyTsController } from '../../features/trace/pyts-controller';
 import { logger } from '../../logger';
 import { containsSubstringsInOrder } from '../../utils';
+import { CTraceYamlDocument } from './ctrace-yaml';
 import { TraceConfigurationGeneratedCTraceFileManager } from './trace-configuration-generated-ctrace-file-manager';
+
+interface CTraceDocumentWriter {
+    writeCTraceDocument(traceFileUri: vscode.Uri, document: CTraceYamlDocument): Promise<void>;
+}
 
 interface MutableWorkspace {
     workspaceFolders: vscode.WorkspaceFolder[] | undefined;
@@ -269,6 +274,58 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         await processing;
         expect(write).not.toHaveBeenCalled();
         expect(convertCTrace).not.toHaveBeenCalled();
+    });
+
+    it.each(['read', 'directory'] as const)('does not publish configuration invalidated during %s', async boundary => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M55', 'core0')]);
+        const ctraceDirectory = path.join(workspaceRoot, '.cmsis');
+        const ctraceFile = path.join(ctraceDirectory, 'demo.ctrace.yml');
+        const originalText = 'ctrace:\n  setup: []\n';
+        let current = true;
+        if (boundary === 'read') {
+            await createTemporaryDirectory(ctraceDirectory);
+            await writeTemporaryTextFile(ctraceFile, originalText);
+            const readFile = vscode.workspace.fs.readFile.bind(vscode.workspace.fs);
+            jest.spyOn(vscode.workspace.fs, 'readFile').mockImplementationOnce(async uri => {
+                const contents = await readFile(uri);
+                current = false;
+                return contents;
+            });
+        } else {
+            const createDirectory = vscode.workspace.fs.createDirectory.bind(vscode.workspace.fs);
+            jest.spyOn(vscode.workspace.fs, 'createDirectory').mockImplementationOnce(async uri => {
+                await createDirectory(uri);
+                current = false;
+            });
+        }
+        const write = jest.spyOn(vscode.workspace.fs, 'writeFile');
+        const { manager, convertCTrace } = createManagerWithConversionSpy();
+
+        await manager.processGeneratedCBuildRunFileChange({
+            type: 'changed', uri: vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml'))
+        }, () => current);
+
+        expect(current).toBe(false);
+        expect(write).not.toHaveBeenCalled();
+        expect(convertCTrace).not.toHaveBeenCalled();
+        if (boundary === 'read') {
+            await expect(readTemporaryTextFile(ctraceFile)).resolves.toBe(originalText);
+        } else {
+            await expect(readTemporaryTextFile(ctraceFile)).rejects.toMatchObject({ code: 'ENOENT' });
+        }
+    });
+
+    it('normalizes and writes a document when no currency guard is supplied', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const traceFileUri = vscode.Uri.file(path.join(workspaceRoot, '.cmsis', 'demo.ctrace.yml'));
+        const document = CTraceYamlDocument.parse('ctrace:\n  setup:\n    - core: Cortex-M33\n      pname: cm33\n');
+        const { manager } = createManagerWithConversionSpy();
+
+        await (manager as unknown as CTraceDocumentWriter).writeCTraceDocument(traceFileUri, document);
+
+        const contents = await readTemporaryTextFile(traceFileUri.fsPath);
+        expect(containsSubstringsInOrder(contents, ['pname: cm33', 'core: Cortex-M33'])).toBe(true);
     });
 
     it('resolves the active cbuild-run before generating a missing production ctrace-run', async () => {
