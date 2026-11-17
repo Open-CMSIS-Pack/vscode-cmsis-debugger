@@ -165,8 +165,12 @@ export const CsvTableViewer = (): JSX.Element => {
                         loadedRowRange.current = null;
                         setRows([]);
                         setSelection(message.selection ?? EMPTY_ROW_SELECTION);
-                        setSelectedCell(null);
-                        setContextMenuPosition(null);
+                        if (message.viewRevision !== previousState.viewRevision || message.loading
+                            || message.columns.length !== previousState.columns.length
+                            || message.columns.some((column, index) => column !== previousState.columns[index])) {
+                            setSelectedCell(null);
+                            setContextMenuPosition(null);
+                        }
                         setTableRevision(revision => revision + 1);
                         setRowRequestVersion(version => version + 1);
                         setColumnWidths(widths => widths.length === message.columns.length + 1
@@ -405,6 +409,22 @@ export const CsvTableViewer = (): JSX.Element => {
         if (event.target instanceof HTMLElement && event.target.closest('.table-header') !== null) {
             return;
         }
+        if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+            event.preventDefault();
+            const rowIndex = selectedCell?.rowIndex ?? selection.caret;
+            const targetId = selectedCell === null
+                ? `csv-table-row-${rowIndex}`
+                : `csv-table-cell-${selectedCell.rowIndex}-${selectedCell.columnIndex}`;
+            const target = event.currentTarget.querySelector(`#${targetId}`) ?? event.currentTarget;
+            const bounds = target.getBoundingClientRect();
+            setContextMenuPosition({
+                x: bounds.left,
+                y: bounds.bottom,
+                ...(rowIndex === null ? {} : { rowIndex }),
+                ...(selectedCell === null ? {} : { columnIndex: selectedCell.columnIndex }),
+            });
+            return;
+        }
         const controlPressed = isPrimaryModifierPressed(event, navigator.platform);
         if (controlPressed && event.key.toLowerCase() === 'a') {
             event.preventDefault();
@@ -443,6 +463,12 @@ export const CsvTableViewer = (): JSX.Element => {
         }
 
         const currentRow = selection.caret ?? firstVisibleRow;
+        if (selectedCell === null && !event.shiftKey && !controlPressed && tableState.columns.length > 0
+            && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+            event.preventDefault();
+            selectCell(currentRow, 0);
+            return;
+        }
         if (controlPressed && (event.key === ' ' || event.code === 'Space')) {
             event.preventDefault();
             setSelectedCell(null);
@@ -514,6 +540,7 @@ export const CsvTableViewer = (): JSX.Element => {
                 tabIndex={0}
                 onKeyDown={handleTableKeyDown}
                 onKeyUp={handleTableKeyUp}
+                style={{ scrollPaddingLeft: effectiveColumnWidths[0] }}
                 onContextMenu={event => showContextMenu(event)}
                 onPointerDown={() => setContextMenuPosition(null)}
                 onScroll={event => setScrollTop(event.currentTarget.scrollTop)}

@@ -232,7 +232,9 @@ filtering and selection messages.
 
 ## Selection boundary
 
-Plain clicks on CSV data cells select a single cell. Arrow keys move that
+Plain clicks on CSV data cells select a single cell. With the grid focused,
+unmodified Left or Right enters cell selection at the first data column of the
+row caret, or the first visible row when no caret exists. Arrow keys move that
 selection between cells while focus stays on the grid, including across virtual
 row windows. Escape clears the selection. Cell selection is cleared on a new
 table view after filtering, sorting, or source reloads; indexing progress and
@@ -241,6 +243,10 @@ row-window responses do not clear it.
 Clicking the synthetic row index selects a row. Shift-click extends the row
 range and Alt-click toggles a row, including when clicking a data cell.
 Ctrl/Command-click retains the trace-navigation integration described below.
+
+Shift+F10 and the Context Menu key open the grid context menu at the active
+cell or row caret. Copy Value requires a cell target; Copy Row requires a row
+target. Mouse context menus outside rows leave both actions disabled.
 
 Multi-row selection is maintained by the webview and mirrored in the host for
 retention across updates. It is represented by
