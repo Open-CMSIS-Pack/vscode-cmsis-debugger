@@ -1102,7 +1102,7 @@
     "eslint-plugin-security": "4.2.1",
     "file-type": "22.3.0",
     "fs-extra": "11.4.1",
-    "glob": "14.0.5",
+    "glob": "14.0.6",
     "globby": "16.2.4",
     "jest": "30.5.2",
     "jest-html-reporter": "4.4.2",
