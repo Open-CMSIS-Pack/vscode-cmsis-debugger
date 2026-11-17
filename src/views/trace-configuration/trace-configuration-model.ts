@@ -222,6 +222,8 @@ export class TraceConfigurationModel {
                 onActiveSolutionChanged: () => {
                     this.invalidateLoad();
                     this.clearCurrentFile();
+                    this.errorMessage = undefined;
+                    this.emptyMessage = BUILD_REQUIRED_MESSAGE;
                     this.notifyStateChanged();
                 }
             },
