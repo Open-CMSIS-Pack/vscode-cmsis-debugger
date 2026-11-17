@@ -2175,6 +2175,64 @@ describe('TraceConfigurationModel', () => {
         await model.deactivate();
     });
 
+    it.each(['before', 'after'] as const)(
+        'restores surviving clean-file watching when a superseded refresh finishes %s a replacement fails', async completionOrder => {
+            const workspaceRoot = await createTemporaryWorkspace();
+            const originalFileName = path.join(workspaceRoot, 'original.ctrace.yml');
+            const nextFileName = path.join(workspaceRoot, 'next.ctrace.yml');
+            await writeTemporaryTextFile(originalFileName, 'ctrace:\n  setup:\n    - core: Cortex-M33\n');
+            await writeTemporaryTextFile(nextFileName, 'ctrace:\n  setup: []\n');
+            const runMessageReader = createRunMessageReader();
+            runMessageReader.readIfExists.mockResolvedValue([]);
+            const { backupStore, model } = await createModelFromText(
+                'ctrace:\n  setup: []\n', undefined, originalFileName, undefined, runMessageReader
+            );
+            await model.openFile(originalFileName);
+            const originalRows = model.createState().rows;
+            const sourceWatcher = getLastCreatedFileSystemWatcher();
+            let finishCleanup: (() => void) | undefined;
+            backupStore.delete.mockReturnValueOnce(new Promise<void>(resolve => { finishCleanup = resolve; }));
+            let failRestore: ((error: Error) => void) | undefined;
+            backupStore.restore.mockReturnValueOnce(new Promise<undefined>((_resolve, reject) => { failRestore = reject; }));
+            const watchCurrentFile = jest.spyOn(TraceConfigurationFileWatcher.prototype, 'watchCurrentFile');
+            const restoreCount = backupStore.restore.mock.calls.length;
+            const refresh = model.refreshFile();
+            await waitForCondition('blocked refresh cleanup', () => backupStore.delete.mock.calls.length === 1);
+            const opening = expect(model.openFile(nextFileName)).rejects.toThrow('replacement unavailable');
+
+            try {
+                await waitForCondition('blocked replacement restoration', () => backupStore.restore.mock.calls.length > restoreCount);
+                expect(sourceWatcher.dispose).toHaveBeenCalled();
+                if (completionOrder === 'before') {
+                    finishCleanup?.();
+                    await refresh;
+                }
+                expect(watchCurrentFile).not.toHaveBeenCalled();
+                expect(model.createState().loading).toBe(true);
+                failRestore?.(new Error('replacement unavailable'));
+                await opening;
+                expect(model.createState()).toMatchObject({ fileName: originalFileName, loading: false, dirty: false });
+                expect(watchCurrentFile).toHaveBeenCalledTimes(1);
+                const restoredWatcher = getLastCreatedFileSystemWatcher();
+                finishCleanup?.();
+                await refresh;
+                expect(watchCurrentFile).toHaveBeenCalledTimes(1);
+                expect(restoredWatcher.dispose).not.toHaveBeenCalled();
+
+                await writeTemporaryTextFile(originalFileName, 'ctrace:\n  setup:\n    - core: Cortex-M55\n      pname: updated\n');
+                fireWatcherHandler(restoredWatcher, 'change', vscode.Uri.file(originalFileName));
+                await waitForCondition('restored source watcher disk update', () =>
+                    model.createState().rows.some(row => row.label === 'Processor:updated'));
+                expect(model.createState().rows).not.toEqual(originalRows);
+            } finally {
+                finishCleanup?.();
+                failRestore?.(new Error('replacement unavailable'));
+                await Promise.all([refresh, opening]);
+                await model.deactivate();
+            }
+        }
+    );
+
     it('does not finish a newer file load when an obsolete refresh completes', async () => {
         const workspaceRoot = await createTemporaryWorkspace();
         const nextFileName = path.join(workspaceRoot, 'next.ctrace.yml');

@@ -101,6 +101,7 @@ export class TraceConfigurationModel {
     private saveTransition: TraceConfigurationSaveTransition | undefined;
     private activeSolutionFileName: string | undefined;
     private refreshPromise: Promise<void> | undefined;
+    private sourceWatcherPausedFor: CTraceYamlFile | undefined;
     private loadGeneration = 0;
     private disposed = false;
 
@@ -366,6 +367,11 @@ export class TraceConfigurationModel {
             }
         } finally {
             if (isCurrent()) {
+                const pausedFile = this.sourceWatcherPausedFor;
+                this.sourceWatcherPausedFor = undefined;
+                if (pausedFile && this.ctraceFile === pausedFile && !this.dirty) {
+                    this.fileWatcher.watchCurrentFile();
+                }
                 this.loading = false;
                 this.notifyStateChanged();
             }
@@ -389,6 +395,7 @@ export class TraceConfigurationModel {
     private clearCurrentFile(): void {
         this.fileWatcher.disposeCurrentFileWatcher();
         this.fileWatcher.disposeCurrentRunFileWatchers();
+        this.sourceWatcherPausedFor = undefined;
         this.ctraceFile = undefined;
         this.activeSolutionFileName = undefined;
         this.processorCapabilities.clear();
@@ -489,33 +496,28 @@ export class TraceConfigurationModel {
         }
         const currentFile = this.ctraceFile;
         const refresh = currentFile ? this.runFileLoad(async isCurrent => {
+            this.sourceWatcherPausedFor = currentFile;
             this.fileWatcher.disposeCurrentFileWatcher();
-            try {
-                await this.backup.cancelAndWait();
-                if (!isCurrent()) {
-                    return;
-                }
-                await this.backupStore.delete(currentFile.fileName);
-                if (!isCurrent()) {
-                    return;
-                }
-                const document = await currentFile.load();
-                if (!isCurrent()) {
-                    return;
-                }
-                document.assignCTraceRefs();
-                await this.loadProcessorCapabilities(isCurrent);
-                if (!isCurrent()) {
-                    return;
-                }
-                this.dirty = false;
-                this.acceptValidationState('idle');
-                await this.loadProductionReferenceValidationMessages();
-            } finally {
-                if (isCurrent() && !this.dirty) {
-                    this.fileWatcher.watchCurrentFile();
-                }
+            await this.backup.cancelAndWait();
+            if (!isCurrent()) {
+                return;
             }
+            await this.backupStore.delete(currentFile.fileName);
+            if (!isCurrent()) {
+                return;
+            }
+            const document = await currentFile.load();
+            if (!isCurrent()) {
+                return;
+            }
+            document.assignCTraceRefs();
+            await this.loadProcessorCapabilities(isCurrent);
+            if (!isCurrent()) {
+                return;
+            }
+            this.dirty = false;
+            this.acceptValidationState('idle');
+            await this.loadProductionReferenceValidationMessages();
         }) : this.loadInitialFile();
         const completion = refresh.finally(() => {
             if (this.refreshPromise === completion) {
