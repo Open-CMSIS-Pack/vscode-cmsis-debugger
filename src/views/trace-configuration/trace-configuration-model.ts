@@ -437,18 +437,16 @@ export class TraceConfigurationModel {
         if (backupDocument) {
             nextFile.document = backupDocument;
         }
+        document.assignCTraceRefs();
+        const capabilities = await this.processorCapabilities.resolve(nextFile, isCurrent);
+        if (!isCurrent()) {
+            return;
+        }
         this.fileWatcher.disposeCurrentFileWatcher();
         const previousFileName = this.ctraceFile?.fileName;
         this.ctraceFile = nextFile;
         this.activeSolutionFileName = activeSolutionFileName;
-        if (normalizeFsPath(previousFileName) !== normalizeFsPath(nextFile.fileName)) {
-            this.acceptReferenceValidationMessages([]);
-        }
-        document.assignCTraceRefs();
-        await this.loadProcessorCapabilities(isCurrent);
-        if (!isCurrent()) {
-            return;
-        }
+        this.processorCapabilities.replace(capabilities);
         this.dirty = backupDocument !== undefined;
         this.fileWatcher.watchCurrentRunFiles();
         if (this.dirty) {
@@ -457,6 +455,9 @@ export class TraceConfigurationModel {
             this.fileWatcher.watchCurrentFile();
         }
         this.emptyMessage = undefined;
+        if (normalizeFsPath(previousFileName) !== normalizeFsPath(nextFile.fileName)) {
+            this.acceptReferenceValidationMessages([]);
+        }
         if (backupDocument) {
             this.backup.validateExisting(fileName);
         } else {

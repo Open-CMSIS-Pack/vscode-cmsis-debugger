@@ -31,6 +31,23 @@ describe('TraceConfigurationProcessorCapabilities', () => {
         jest.restoreAllMocks();
     });
 
+    it('stages capabilities for another file without changing the active map until committed', async () => {
+        jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileName').mockResolvedValue(undefined);
+        const file = createCTraceFile('ctrace:\n  setup:\n    - core: Cortex-M33\n');
+        const nextFile = createCTraceFile('ctrace:\n  setup:\n    - core: Cortex-M55\n');
+        const capabilities = new TraceConfigurationProcessorCapabilities(() => file);
+        const activeMap = capabilities.capabilities;
+        await capabilities.load();
+
+        const staged = await capabilities.resolve(nextFile);
+
+        expect(activeMap.get('0')).toMatchObject({ core: 'Cortex-M33' });
+        expect(staged.get('0')).toMatchObject({ core: 'Cortex-M55' });
+        capabilities.replace(staged);
+        expect(capabilities.capabilities).toBe(activeMap);
+        expect(activeMap.get('0')).toMatchObject({ core: 'Cortex-M55' });
+    });
+
     it('does not commit capabilities from an invalidated load', async () => {
         let finishLookup: (() => void) | undefined;
         jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileName').mockReturnValueOnce(
