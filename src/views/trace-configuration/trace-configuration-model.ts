@@ -77,7 +77,7 @@ interface TraceConfigurationSaveTransition {
     pendingImageChange?: vscode.Uri;
 }
 
-/** Retains the build associated with a debounced production refresh. */
+/** Retains the build associated with a production refresh from debounce through completion. */
 interface PendingImageValidation {
     readonly cbuildRunUri: vscode.Uri;
     readonly timer: ReturnType<typeof setTimeout>;
@@ -689,17 +689,23 @@ export class TraceConfigurationModel {
         const isCurrent = () => version === this.imageValidationVersion
             && this.isCurrentRunFileSource(currentFile, 'production');
         const timer = setTimeout(async () => {
-            this.pendingImageValidation = undefined;
-            await this.generatedCTraceFileManager.ensureProductionCTraceRunFile(vscode.Uri.file(currentFile.fileName), {
-                cbuildRunUri,
-                force: true,
-                isCurrent
-            });
-            if (isCurrent()) {
-                await this.loadProductionReferenceValidationMessages(false);
+            try {
+                await this.generatedCTraceFileManager.ensureProductionCTraceRunFile(vscode.Uri.file(currentFile.fileName), {
+                    cbuildRunUri,
+                    force: true,
+                    isCurrent
+                });
+                if (isCurrent()) {
+                    await this.loadProductionReferenceValidationMessages(false);
+                }
+            } finally {
+                if (this.pendingImageValidation === pendingValidation) {
+                    this.pendingImageValidation = undefined;
+                }
             }
         }, IMAGE_VALIDATION_DEBOUNCE_MS);
-        this.pendingImageValidation = { cbuildRunUri, timer };
+        const pendingValidation: PendingImageValidation = { cbuildRunUri, timer };
+        this.pendingImageValidation = pendingValidation;
     }
 
     /** Invalidates delayed image work, optionally retaining buffered events for the current file transition. */

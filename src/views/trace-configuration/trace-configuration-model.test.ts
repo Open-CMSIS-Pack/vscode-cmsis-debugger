@@ -779,6 +779,77 @@ describe('TraceConfigurationModel', () => {
         }
     });
 
+    it('replays a queued image refresh when a same-build notification joins an older conversion', async () => {
+        const { cbuildRunFile, ctraceFile, elfFile, controller, convert, traceWatch, model } = await createImageWatchModel();
+        const firstRun = Promise.withResolvers<number>();
+        const processing: Array<void | Promise<void>> = [];
+        try {
+            await model.loadInitialFile();
+            convert.mockRestore();
+            const requests = jest.spyOn(controller, 'convertCTrace');
+            const run = jest.spyOn(controller, 'run').mockReturnValueOnce(firstRun.promise).mockResolvedValue(0);
+            processing.push(controller.convertCTrace(vscode.Uri.file(ctraceFile), cbuildRunFile));
+            await waitForCondition('older conversion to start', () => run.mock.calls.length === 1);
+            jest.useFakeTimers();
+            const imageWatch = traceWatch.addWatch.mock.calls.map(([watch]) => watch)
+                .find(watch => watch.id.startsWith('trace-configuration.elf:'));
+            expect(imageWatch).toBeDefined();
+            await imageWatch?.onDidChange?.(vscode.Uri.file(elfFile));
+            await jest.advanceTimersByTimeAsync(500);
+            expect(requests).toHaveBeenCalledTimes(2);
+            expect(run).toHaveBeenCalledTimes(1);
+            processing.push(requests.mock.results[1]?.value);
+            jest.useRealTimers();
+            processing.push(traceWatch.getWatch('trace-configuration.generated-cbuild-run')
+                ?.onDidChange?.(vscode.Uri.file(cbuildRunFile)));
+            await waitForCondition('same-build conversion to join the older run', () => requests.mock.calls.length === 3);
+            await waitForImmediate();
+            jest.useFakeTimers();
+            firstRun.resolve(0);
+            await Promise.all(processing);
+            await jest.advanceTimersByTimeAsync(500);
+
+            expect(run).toHaveBeenCalledTimes(2);
+        } finally {
+            firstRun.resolve(0);
+            await Promise.all(processing);
+            await model.deactivate();
+            jest.useRealTimers();
+        }
+    });
+
+    it('retains a newer image refresh when an older refresh completes', async () => {
+        const { cbuildRunFile, elfFile, convert, traceWatch, model } = await createImageWatchModel();
+        const older = Promise.withResolvers<void>();
+        const newer = Promise.withResolvers<void>();
+        try {
+            await model.loadInitialFile();
+            convert.mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise);
+            jest.useFakeTimers();
+            const imageWatch = traceWatch.addWatch.mock.calls.map(([watch]) => watch)
+                .find(watch => watch.id.startsWith('trace-configuration.elf:'));
+            expect(imageWatch).toBeDefined();
+            await imageWatch?.onDidChange?.(vscode.Uri.file(elfFile));
+            await jest.advanceTimersByTimeAsync(500);
+            await imageWatch?.onDidChange?.(vscode.Uri.file(elfFile));
+            await jest.advanceTimersByTimeAsync(500);
+            expect(convert).toHaveBeenCalledTimes(3);
+            older.resolve();
+            await jest.advanceTimersByTimeAsync(0);
+            await traceWatch.getWatch('trace-configuration.generated-cbuild-run')
+                ?.onDidChange?.(vscode.Uri.file(cbuildRunFile));
+            expect(convert).toHaveBeenCalledTimes(4);
+            await jest.advanceTimersByTimeAsync(500);
+
+            expect(convert).toHaveBeenCalledTimes(5);
+        } finally {
+            older.resolve();
+            newer.resolve();
+            await model.deactivate();
+            jest.useRealTimers();
+        }
+    });
+
     it.each(['backup cancellation', 'backup deletion', 'source write'])(
         'buffers image events during save %s without recreating a recovery backup', async stage => {
             const { ctraceFile, elfFile, convert, traceWatch, backupStore, prevalidator, model } = await createImageWatchModel();
