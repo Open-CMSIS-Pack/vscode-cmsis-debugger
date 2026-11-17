@@ -33,7 +33,7 @@ import {
 } from '../../../views/csv-table-viewer/row-selection';
 import type { CsvTableFilter, CsvTableRow, CsvTableSort } from '../../../views/csv-table-viewer/csv-table';
 import type { CsvTableHostMessage, CsvTableWebviewMessage } from '../../../views/csv-table-viewer/csv-table-protocol';
-import { getCsvTableScrollGeometry, CSV_TABLE_ROW_HEIGHT } from '../../../views/csv-table-viewer/csv-table-scroll-geometry';
+import { getCsvTableRowRevealScrollTop, getCsvTableScrollGeometry, CSV_TABLE_ROW_HEIGHT } from '../../../views/csv-table-viewer/csv-table-scroll-geometry';
 import { shouldRequestRows, type LoadedRowRange } from './csv-table-row-request';
 import { isPrimaryModifierPressed } from './csv-table-modifiers';
 import './csv-table-viewer.css';
@@ -120,14 +120,27 @@ export const CsvTableViewer = (): JSX.Element => {
     const renderedRowEnd = Math.min(tableState.totalRowCount, firstVisibleRow + visibleRowCount + ROW_OVERSCAN);
 
     useEffect(() => {
-        if (selectedCell !== null && revealedCell.current !== selectedCell) {
-            const cell = scrollElementRef.current?.querySelector(`#csv-table-cell-${selectedCell.rowIndex}-${selectedCell.columnIndex}`);
-            if (cell !== null && cell !== undefined) {
-                cell.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-                revealedCell.current = selectedCell;
-            }
+        const scrollElement = scrollElementRef.current;
+        if (selectedCell === null || revealedCell.current === selectedCell || scrollElement === null) {
+            return;
         }
-    }, [selectedCell, rows]);
+        const top = getCsvTableRowRevealScrollTop(tableState.totalRowCount, scrollElement.scrollTop, rowViewportHeight, selectedCell.rowIndex);
+        const cell = scrollElement.querySelector(`#csv-table-cell-${selectedCell.rowIndex}-${selectedCell.columnIndex}`);
+        let left = scrollElement.scrollLeft;
+        if (cell !== null) {
+            const cellBounds = cell.getBoundingClientRect();
+            const viewportLeft = scrollElement.getBoundingClientRect().left + scrollElement.clientLeft;
+            const contentLeft = viewportLeft + (columnWidths[0] ?? getMinimumColumnWidth(0));
+            const contentRight = viewportLeft + scrollElement.clientWidth;
+            if (cellBounds.left < contentLeft) {
+                left += cellBounds.left - contentLeft;
+            } else if (cellBounds.right > contentRight) {
+                left += cellBounds.right - contentRight;
+            }
+            revealedCell.current = selectedCell;
+        }
+        scrollElement.scrollTo({ top, left });
+    }, [selectedCell, rows, scrollTop, rowViewportHeight, tableState.totalRowCount, columnWidths]);
 
     useEffect(() => {
         const scrollElement = scrollElementRef.current;
@@ -455,9 +468,6 @@ export const CsvTableViewer = (): JSX.Element => {
                 const rowIndex = Math.max(0, Math.min(tableState.totalRowCount - 1, selectedCell.rowIndex + rowDelta));
                 const columnIndex = Math.max(0, Math.min(tableState.columns.length - 1, selectedCell.columnIndex + columnDelta));
                 selectCell(rowIndex, columnIndex);
-                if (rowIndex < firstVisibleRow || rowIndex >= firstVisibleRow + visibleRowCount) {
-                    scrollElementRef.current?.scrollTo({ top: rowIndex * CSV_TABLE_ROW_HEIGHT / scrollScale });
-                }
                 return;
             }
         }
