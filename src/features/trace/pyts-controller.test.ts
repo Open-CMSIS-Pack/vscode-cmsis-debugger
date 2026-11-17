@@ -126,6 +126,23 @@ describe('PyTsController', () => {
         });
     });
 
+    it('retries an explicit conversion after a cbuild-run input read fails', async () => {
+        const controller = new PyTsController();
+        const run = jest.spyOn(controller, 'run').mockResolvedValue(0);
+        const cbuildRunFilePath = '/workspace/build/trace.cbuild-run.yml';
+        const failure = new Error('build input unavailable');
+        jest.mocked(vscode.workspace.fs.readFile)
+            .mockResolvedValueOnce(new TextEncoder().encode('trace: initial'))
+            .mockRejectedValueOnce(failure);
+
+        await expect(controller.convertCTrace(ctraceUri, cbuildRunFilePath)).rejects.toThrow(failure);
+        expect(run).not.toHaveBeenCalled();
+
+        await controller.convertCTrace(ctraceUri, cbuildRunFilePath);
+
+        expect(run).toHaveBeenCalledTimes(1);
+    });
+
     it('coalesces explicit and watched requests for one context while serializing another', async () => {
         const controller = controllerForSolution();
         const activeSession = gdbTargetDebugSessionFactory('/workspace/build/trace.cbuild-run.yml');
@@ -152,7 +169,7 @@ describe('PyTsController', () => {
         );
         await waitForCondition(
             'all conversion requests to read ctrace',
-            () => jest.mocked(vscode.workspace.fs.readFile).mock.calls.length === 4
+            () => jest.mocked(vscode.workspace.fs.readFile).mock.calls.length === 8
         );
         await Promise.resolve();
         expect(run).toHaveBeenCalledTimes(1);
@@ -165,6 +182,86 @@ describe('PyTsController', () => {
         expect(run).toHaveBeenNthCalledWith(2, {
             cbuildRunFilePath: expect.toEqualFsPath(otherCbuildRunFilePath)
         });
+    });
+
+    it.each(['explicit', 'watched'] as const)('queues one latest conversion for changed cbuild-run contents from %s requests', async source => {
+        const controller = controllerForSolution();
+        const activeSession = gdbTargetDebugSessionFactory('/workspace/build/trace.cbuild-run.yml');
+        const cbuildRunFilePath = getCbuildRunFilePath(activeSession);
+        controller.handleActiveSessionChanged(activeSession);
+        let buildContents = 'build: initial';
+        jest.mocked(vscode.workspace.fs.readFile).mockImplementation(async uri =>
+            new TextEncoder().encode(uri.fsPath === ctraceUri.fsPath ? 'trace: unchanged' : buildContents));
+        let finishFirstRun: ((exitCode: number) => void) | undefined;
+        const firstRun = new Promise<number>(resolve => { finishFirstRun = resolve; });
+        const convertedBuilds: string[] = [];
+        const run = jest.spyOn(controller, 'run').mockImplementation(() => {
+            convertedBuilds.push(buildContents);
+            return convertedBuilds.length === 1 ? firstRun : Promise.resolve(0);
+        });
+        const request = (): Promise<void> => source === 'explicit'
+            ? controller.convertCTrace(ctraceUri, cbuildRunFilePath)
+            : controller.handleCTraceFileChanged(ctraceUri);
+        const requests: Promise<void>[] = [];
+
+        try {
+            requests.push(request());
+            await waitForCondition('initial conversion', () => run.mock.calls.length === 1);
+            for (const contents of ['build: intermediate', 'build: latest', 'build: latest']) {
+                buildContents = contents;
+                requests.push(request());
+                await waitForCondition('conversion input read', () =>
+                    jest.mocked(vscode.workspace.fs.readFile).mock.calls.filter(([uri]) => uri.fsPath !== ctraceUri.fsPath).length
+                    === requests.length);
+            }
+            expect(run).toHaveBeenCalledTimes(1);
+            finishFirstRun?.(0);
+            await Promise.all(requests);
+
+            expect(convertedBuilds).toEqual(['build: initial', 'build: latest']);
+        } finally {
+            finishFirstRun?.(0);
+            await Promise.all(requests);
+        }
+    });
+
+    it('replaces older pending build input even when the latest input matches the active conversion', async () => {
+        const controller = new PyTsController();
+        const cbuildRunFilePath = '/workspace/build/trace.cbuild-run.yml';
+        let buildContents = 'build: initial';
+        jest.mocked(vscode.workspace.fs.readFile).mockImplementation(async uri =>
+            new TextEncoder().encode(uri.fsPath === ctraceUri.fsPath ? 'trace: unchanged' : buildContents));
+        let finishFirstRun: ((exitCode: number) => void) | undefined;
+        const firstRun = new Promise<number>(resolve => { finishFirstRun = resolve; });
+        let finishSecondRun: ((exitCode: number) => void) | undefined;
+        const secondRun = new Promise<number>(resolve => { finishSecondRun = resolve; });
+        const run = jest.spyOn(controller, 'run').mockReturnValueOnce(firstRun).mockReturnValueOnce(secondRun).mockResolvedValue(0);
+        const requests = [controller.convertCTrace(ctraceUri, cbuildRunFilePath)];
+
+        try {
+            await waitForCondition('initial conversion', () => run.mock.calls.length === 1);
+            buildContents = 'build: intermediate';
+            requests.push(controller.convertCTrace(ctraceUri, cbuildRunFilePath));
+            await waitForCondition('intermediate build input', () =>
+                jest.mocked(vscode.workspace.fs.readFile).mock.calls.filter(([uri]) => uri.fsPath !== ctraceUri.fsPath).length === 2);
+            buildContents = 'build: initial';
+            requests.push(controller.convertCTrace(ctraceUri, cbuildRunFilePath));
+            await waitForCondition('latest build input', () =>
+                jest.mocked(vscode.workspace.fs.readFile).mock.calls.filter(([uri]) => uri.fsPath !== ctraceUri.fsPath).length === 3);
+            finishFirstRun?.(0);
+            await waitForCondition('trailing conversion', () => run.mock.calls.length === 2);
+            requests.push(controller.convertCTrace(ctraceUri, cbuildRunFilePath));
+            await waitForCondition('duplicate latest build input', () =>
+                jest.mocked(vscode.workspace.fs.readFile).mock.calls.filter(([uri]) => uri.fsPath !== ctraceUri.fsPath).length === 4);
+            finishSecondRun?.(0);
+            await Promise.all(requests);
+
+            expect(run).toHaveBeenCalledTimes(2);
+        } finally {
+            finishFirstRun?.(0);
+            finishSecondRun?.(0);
+            await Promise.all(requests);
+        }
     });
 
     it('keeps an explicit queued request when the ctrace watcher is removed', async () => {
@@ -185,7 +282,7 @@ describe('PyTsController', () => {
         );
         await waitForCondition(
             'the explicit ctrace contents to be read',
-            () => jest.mocked(vscode.workspace.fs.readFile).mock.calls.length === 2
+            () => jest.mocked(vscode.workspace.fs.readFile).mock.calls.length === 3
         );
         controller.removeCTraceConfigurationWatcher();
         finishFirstRun?.(0);
@@ -453,7 +550,13 @@ describe('PyTsController', () => {
         await controller.handleCTraceFileChanged(ctraceUriInSolution('other.ctrace.yml'));
         await controller.handleCTraceFileChanged(ctraceUriInSolution('active.ctrace.yml'));
 
-        expect(vscode.workspace.fs.readFile).toHaveBeenCalledTimes(1);
+        expect(vscode.workspace.fs.readFile).toHaveBeenCalledTimes(2);
+        expect(vscode.workspace.fs.readFile).toHaveBeenNthCalledWith(1, expect.objectContaining({
+            fsPath: expect.toEqualFsPath(ctraceUriInSolution('active.ctrace.yml').fsPath)
+        }));
+        expect(vscode.workspace.fs.readFile).toHaveBeenNthCalledWith(2, expect.objectContaining({
+            fsPath: expect.toEqualFsPath(activeCbuildRunFilePath)
+        }));
         expect(run).toHaveBeenCalledWith({
             cbuildRunFilePath: expect.toEqualFsPath(activeCbuildRunFilePath)
         });
