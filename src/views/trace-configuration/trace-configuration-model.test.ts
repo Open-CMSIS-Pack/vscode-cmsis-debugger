@@ -2035,6 +2035,38 @@ describe('TraceConfigurationModel', () => {
         expect(model.createState().loading).toBe(false);
     });
 
+    it.each(['open', 'refresh'] as const)('does not supersede an active %s when a generated cbuild-run file is deleted', async operation => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const nextFileName = path.join(workspaceRoot, 'next.ctrace.yml');
+        await writeTemporaryTextFile(nextFileName, 'ctrace:\n  setup: []\n');
+        const { backupStore, model } = await createModelFromText('ctrace:\n  setup: []\n');
+        const expectedFileName = operation === 'open' ? nextFileName : model.createState().fileName;
+        let finishBackupWork: (() => void) | undefined;
+        const blockedBackupWork = new Promise<undefined>(resolve => { finishBackupWork = () => resolve(undefined); });
+        const backupOperation = operation === 'open' ? backupStore.restore : backupStore.delete;
+        backupOperation.mockReturnValueOnce(blockedBackupWork);
+        const watchCurrentFile = jest.spyOn(TraceConfigurationFileWatcher.prototype, 'watchCurrentFile');
+        const loading = operation === 'open' ? model.openFile(nextFileName) : model.refreshFile();
+
+        try {
+            await waitForCondition('blocked file load backup work', () => backupOperation.mock.calls.length === 1);
+            await (model as unknown as TraceConfigurationModelPrivate).refreshProcessorCapabilitiesFromGeneratedCBuildRunFile({
+                type: 'deleted', uri: vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml'))
+            });
+
+            expect(model.createState().loading).toBe(true);
+            finishBackupWork?.();
+            await loading;
+
+            expect(model.createState()).toMatchObject({ fileName: expectedFileName, loading: false, dirty: false });
+            expect(watchCurrentFile).toHaveBeenCalledTimes(1);
+        } finally {
+            finishBackupWork?.();
+            await loading;
+            await model.deactivate();
+        }
+    });
+
     it('restores clean-file watching after a failed refresh and allows a retry', async () => {
         const { adapter, model } = await createModelFromText('ctrace:\n  setup: []\n');
         const read = jest.spyOn(adapter, 'readTextFile').mockRejectedValueOnce(new Error('disk unavailable'));

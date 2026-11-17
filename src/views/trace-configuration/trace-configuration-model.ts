@@ -281,6 +281,10 @@ export class TraceConfigurationModel {
      * trace files and replaces file-backed state with guidance when tracing is off.
      */
     private refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event: GeneratedCBuildRunFileChangeEvent): Promise<void> {
+        if (event.type === 'deleted') {
+            this.notifyStateChanged();
+            return Promise.resolve();
+        }
         return this.runFileLoad(async isCurrent => {
             const result = await this.generatedCTraceFileManager.processGeneratedCBuildRunFileChange(event, isCurrent);
             if (!isCurrent()) {
