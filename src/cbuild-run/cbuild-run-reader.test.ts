@@ -36,6 +36,23 @@ class MockFileReader implements FileReader {
 
 describe('CbuildRunReader', () => {
 
+    it('resolves and deduplicates every ELF output independently of its extension or load mode', async () => {
+        const directory = path.resolve('test-data/out');
+        const absoluteElf = path.join(directory, 'absolute.axf');
+        const reader = new CbuildRunReader(new MockFileReader([
+            'cbuild-run:',
+            '  output:',
+            '    - { file: app.elf, type: elf, load: none }',
+            '    - { file: ./app.elf, type: elf, load: image }',
+            `    - { file: ${JSON.stringify(absoluteElf)}, type: elf, load: symbols }`,
+            '    - { file: ignored.elf, type: bin, load: image+symbols }',
+            '    - { file: "", type: elf }'
+        ].join('\n')));
+        expect(reader.getElfFilePaths()).toEqual([]);
+        await reader.parse(path.join(directory, 'demo.cbuild-run.yml'));
+        expect(reader.getElfFilePaths()).toEqual([path.join(directory, 'app.elf'), absoluteElf]);
+    });
+
     describe('Parser', () => {
         it('successfully parses a *.cbuild-run.yml file', async () => {
             const cbuildRunReader = new CbuildRunReader();

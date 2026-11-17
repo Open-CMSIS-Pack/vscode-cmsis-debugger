@@ -20,7 +20,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 
 import { ActiveSolutionChangeEvent, CmsisJsonWatcher } from '../../cmsis-files';
-import { CBuildRunFileLocator } from '../../cbuild-run';
+import { CbuildRunReader, CBuildRunFileLocator } from '../../cbuild-run';
 import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
 import { CBUILD_INDEX_FILE_GLOB } from '../../manifest';
 import { fileExists, normalizeFsPath } from '../../utils';
@@ -68,6 +68,12 @@ export interface TraceConfigurationFileWatcherCallbacks {
      */
     onGeneratedCBuildRunFileChanged(event: GeneratedCBuildRunFileChangeEvent): void | Promise<void>;
 
+    /** Requests validation when a referenced ELF changes, without synthesizing a YAML event. */
+    onImageFilesChanged?(cbuildRunUri: vscode.Uri): void;
+
+    /** Invalidates delayed work when the active solution or resolved build path changes. */
+    onBuildContextChanged?(): void;
+
     /** Publishes changes to the production or temporary ctrace-run output. */
     onCurrentRunFileChanged?(event: TraceConfigurationRunFileChangeEvent): void | Promise<void>;
 }
@@ -83,6 +89,9 @@ const BACKUP_CTRACE_RUN_WATCH_ID = 'trace-configuration.backup-ctrace-run';
  * trace configuration model.
  */
 export class TraceConfigurationFileWatcher {
+    private readonly elfWatches = new Map<string, string>();
+    private elfReadVersion = 0;
+    private elfWatchSequence = 0;
     private generatedCBuildIndexWatchInstalled = false;
     private generatedCBuildIndexWatchInstallation: Promise<void> | undefined;
     private generatedCBuildRunFileName: string | undefined;
@@ -341,12 +350,12 @@ export class TraceConfigurationFileWatcher {
      * replaced watchers and forwards events only for the currently resolved
      * cbuild-run file.
      */
-    private handleWatchedGeneratedCBuildRunFileChange(
+    private async handleWatchedGeneratedCBuildRunFileChange(
         watchVersion: number,
         watchedFileName: string,
         type: GeneratedCBuildRunFileChangeType,
         uri: vscode.Uri
-    ): void {
+    ): Promise<void> {
         if (
             watchVersion !== this.generatedWatchVersion
             || !this.isCurrentGeneratedCBuildRunFile(watchedFileName)
@@ -354,7 +363,7 @@ export class TraceConfigurationFileWatcher {
             return;
         }
 
-        void this.handleGeneratedCBuildRunFileChange(type, uri);
+        await this.handleGeneratedCBuildRunFileChange(type, uri);
     }
 
     /**
@@ -386,6 +395,12 @@ export class TraceConfigurationFileWatcher {
      * watcher and its event subscriptions before the resolved path changes.
      */
     private disposeGeneratedCBuildRunFileWatchers(): void {
+        this.callbacks.onBuildContextChanged?.();
+        this.elfReadVersion += 1;
+        for (const watchId of this.elfWatches.values()) {
+            this.fileWatchManager.removeWatch(watchId);
+        }
+        this.elfWatches.clear();
         this.fileWatchManager.removeWatch(GENERATED_CBUILD_RUN_WATCH_ID);
         this.generatedCBuildRunFileName = undefined;
     }
@@ -398,7 +413,53 @@ export class TraceConfigurationFileWatcher {
     private async handleGeneratedCBuildRunFileChange(type: GeneratedCBuildRunFileChangeType, uri: vscode.Uri): Promise<void> {
         const event: GeneratedCBuildRunFileChangeEvent = { type, uri };
         this._onDidChangeGeneratedCBuildRunFileEmitter.fire(event);
-        await this.callbacks.onGeneratedCBuildRunFileChanged(event);
+        const version = ++this.elfReadVersion;
+        if (type !== 'deleted') {
+            try {
+                const reader = new CbuildRunReader();
+                await reader.parse(uri.fsPath);
+                if (version !== this.elfReadVersion || !this.isCurrentGeneratedCBuildRunFile(uri.fsPath)) {
+                    return;
+                }
+                this.watchElfFiles(reader.getElfFilePaths(), uri);
+            } catch {
+                // Preserve existing dependencies during a partial write; the model reports parse errors.
+            }
+        }
+        if (version === this.elfReadVersion && this.isCurrentGeneratedCBuildRunFile(uri.fsPath)) {
+            await this.callbacks.onGeneratedCBuildRunFileChanged(event);
+        }
+    }
+
+    /** Reconciles exact ELF watches without requiring the build outputs to exist yet. */
+    private watchElfFiles(fileNames: string[], cbuildRunUri: vscode.Uri): void {
+        const paths = new Set(fileNames.map(fileName => normalizeFsPath(fileName) ?? fileName));
+        for (const [fileName, id] of this.elfWatches) {
+            if (!paths.has(fileName)) {
+                this.fileWatchManager.removeWatch(id);
+                this.elfWatches.delete(fileName);
+            }
+        }
+        for (const fileName of fileNames) {
+            const key = normalizeFsPath(fileName) ?? fileName;
+            if (this.elfWatches.has(key)) {
+                continue;
+            }
+            const id = `trace-configuration.elf:${++this.elfWatchSequence}:${key}`;
+            this.elfWatches.set(key, id);
+            const changed = () => {
+                if (this.elfWatches.get(key) === id && this.isCurrentGeneratedCBuildRunFile(cbuildRunUri.fsPath)) {
+                    this.callbacks.onImageFilesChanged?.(cbuildRunUri);
+                }
+            };
+            this.fileWatchManager.addWatch({
+                id,
+                globPattern: new vscode.RelativePattern(path.dirname(fileName), path.basename(fileName)),
+                onDidCreate: changed,
+                onDidChange: changed,
+                onDidDelete: changed
+            });
+        }
     }
 
     private watchCurrentRunFile(

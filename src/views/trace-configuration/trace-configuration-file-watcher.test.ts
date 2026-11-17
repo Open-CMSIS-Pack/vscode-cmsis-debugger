@@ -19,8 +19,9 @@ import * as path from 'node:path';
 
 import * as vscode from 'vscode';
 
+import { traceWatchFactory } from '../../__test__/trace-watch.factory';
 import { activeSolutionWatchFactory } from '../../__test__/active-solution-watch.factory';
-import { CBuildRunFileLocator } from '../../cbuild-run';
+import { CbuildRunReader, CBuildRunFileLocator } from '../../cbuild-run';
 import { FileWatchManager, FileWatchRegistrationOptions } from '../../desktop/filesystem/file-watch-manager';
 import { CBUILD_INDEX_FILE_GLOB, CMSIS_JSON_FILE_GLOB } from '../../manifest';
 import { waitForCondition } from '../../utils';
@@ -85,6 +86,45 @@ describe('TraceConfigurationFileWatcher', () => {
     afterEach(() => {
         jest.restoreAllMocks();
         mutableWorkspace.workspaceFolders = originalWorkspaceFolders;
+    });
+
+    it('watches missing ELF paths, reconciles replacements and rejects removed callbacks', async () => {
+        const traceWatch = traceWatchFactory();
+        const locator = createCBuildRunFileLocator(jest.fn().mockResolvedValue('/workspace/out/demo.cbuild-run.yml'));
+        jest.spyOn(vscode.workspace.fs, 'stat').mockResolvedValue({ type: vscode.FileType.File, size: 1, ctime: 0, mtime: 0 });
+        jest.spyOn(CbuildRunReader.prototype, 'parse').mockResolvedValue();
+        const elfFiles = jest.spyOn(CbuildRunReader.prototype, 'getElfFilePaths').mockReturnValue(['/workspace/out/app.axf']);
+        const onImageFilesChanged = jest.fn();
+        const onGeneratedCBuildRunFileChanged = jest.fn();
+        const watcher = new TraceConfigurationFileWatcher({
+            getCurrentFile: () => undefined,
+            onCurrentFileReloaded: jest.fn(),
+            onCurrentFileReloadFailed: jest.fn(),
+            onGeneratedCBuildRunFileChanged,
+            onImageFilesChanged
+        }, locator, traceWatch.fileWatchManager);
+        await watcher.processActiveCBuildRunFile();
+        const elfWatch = traceWatch.getLatestWatch();
+        expect(elfWatch?.globPattern).toMatchObject({ pattern: 'app.axf' });
+        const elfUri = vscode.Uri.file('/workspace/out/app.axf');
+        await elfWatch?.onDidCreate?.(elfUri);
+        await elfWatch?.onDidChange?.(elfUri);
+        await elfWatch?.onDidDelete?.(elfUri);
+        expect(onGeneratedCBuildRunFileChanged).toHaveBeenCalledTimes(1);
+        expect(onImageFilesChanged).toHaveBeenCalledTimes(3);
+
+        elfFiles.mockReturnValue(['/workspace/other/new.elf']);
+        const cbuildWatch = traceWatch.getWatch('trace-configuration.generated-cbuild-run');
+        await cbuildWatch?.onDidChange?.(vscode.Uri.file('/workspace/out/demo.cbuild-run.yml'));
+        expect(traceWatch.removeWatch).toHaveBeenCalledWith(elfWatch?.id);
+        expect(traceWatch.getLatestWatch()?.globPattern).toMatchObject({ pattern: 'new.elf' });
+        const count = onImageFilesChanged.mock.calls.length;
+        await elfWatch?.onDidCreate?.(elfUri);
+        expect(onImageFilesChanged).toHaveBeenCalledTimes(count);
+        const replacement = traceWatch.getLatestWatch();
+        watcher.dispose();
+        await replacement?.onDidChange?.(vscode.Uri.file('/workspace/other/new.elf'));
+        expect(onImageFilesChanged).toHaveBeenCalledTimes(count);
     });
 
     it('registers and removes every trace configuration watch through the manager', async () => {
@@ -225,20 +265,22 @@ describe('TraceConfigurationFileWatcher', () => {
             pattern: string;
         };
         const uri = vscode.Uri.file('/workspace/out/project.cbuild-run.yml');
-        cbuildRunWatcher._handlers.create[0]?.(uri);
-        cbuildRunWatcher._handlers.change[0]?.(uri);
-        cbuildRunWatcher._handlers.delete[0]?.(uri);
+        await waitForCondition('initial cbuild-run processing', () => onGeneratedCBuildRunFileChanged.mock.calls.length === 1);
+        await cbuildRunWatcher._handlers.create[0]?.(uri);
+        await cbuildRunWatcher._handlers.change[0]?.(uri);
+        await cbuildRunWatcher._handlers.delete[0]?.(uri);
 
         expect(cbuildIndexPattern.pattern).toBe(CBUILD_INDEX_FILE_GLOB);
         expect(getCBuildRunFileNameFromCommand).toHaveBeenCalledTimes(1);
         expect(cbuildRunPattern.base).toBe('/workspace/out');
         expect(cbuildRunPattern.pattern).toBe('project.cbuild-run.yml');
         expect(events).toEqual([
+            { type: 'changed', uri },
             { type: 'created', uri },
             { type: 'changed', uri },
             { type: 'deleted', uri }
         ]);
-        expect(onGeneratedCBuildRunFileChanged).toHaveBeenCalledTimes(3);
+        expect(onGeneratedCBuildRunFileChanged).toHaveBeenCalledTimes(4);
 
         watcher.dispose();
         expect(cbuildIndexWatcher.dispose).toHaveBeenCalledTimes(1);
@@ -268,7 +310,7 @@ describe('TraceConfigurationFileWatcher', () => {
         await waitForCondition('existing cbuild-run processing', () =>
             onGeneratedCBuildRunFileChanged.mock.calls.length === 1);
 
-        const cbuildRunWatcher = getLastCreatedFileSystemWatcher();
+        const cbuildRunWatcher = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.results[1]?.value as MockFileSystemWatcher;
         const inspectedUri = (vscode.workspace.fs.stat as jest.Mock).mock.calls.at(-1)?.[0] as vscode.Uri | undefined;
         expect(inspectedUri?.fsPath).toEqualFsPath(cbuildRunFile.fsPath);
         const changeEvent = onGeneratedCBuildRunFileChanged.mock.calls.at(-1)?.[0] as
@@ -276,7 +318,7 @@ describe('TraceConfigurationFileWatcher', () => {
         expect(changeEvent?.type).toBe('changed');
         expect(changeEvent?.uri.fsPath).toEqualFsPath(cbuildRunFile.fsPath);
 
-        cbuildRunWatcher._handlers.change[0]?.(cbuildRunFile);
+        await cbuildRunWatcher._handlers.change[0]?.(cbuildRunFile);
 
         expect(onGeneratedCBuildRunFileChanged).toHaveBeenCalledTimes(2);
         watcher.dispose();
@@ -411,14 +453,14 @@ describe('TraceConfigurationFileWatcher', () => {
         await waitForCondition('replacement cbuild-run watcher', () =>
             (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls.length >= watcherCount + 2);
         const secondCBuildRunWatcher = getLastCreatedFileSystemWatcher();
-        firstCBuildRunWatcher._handlers.change[0]?.(vscode.Uri.file('/workspace/out/first.cbuild-run.yml'));
-        secondCBuildRunWatcher._handlers.change[0]?.(vscode.Uri.file('/workspace/out/second.cbuild-run.yml'));
+        await firstCBuildRunWatcher._handlers.change[0]?.(vscode.Uri.file('/workspace/out/first.cbuild-run.yml'));
+        await secondCBuildRunWatcher._handlers.change[0]?.(vscode.Uri.file('/workspace/out/second.cbuild-run.yml'));
 
         expect(firstCBuildRunWatcher.dispose).toHaveBeenCalledTimes(1);
-        expect(onGeneratedCBuildRunFileChanged.mock.calls.map(call => call[0])).toEqual([{
-            type: 'changed',
-            uri: vscode.Uri.file('/workspace/out/second.cbuild-run.yml')
-        }]);
+        expect(onGeneratedCBuildRunFileChanged).toHaveBeenCalledTimes(1);
+        const event = onGeneratedCBuildRunFileChanged.mock.calls[0]?.[0] as GeneratedCBuildRunFileChangeEvent;
+        expect(event.type).toBe('changed');
+        expect(event.uri.fsPath).toEqualFsPath('/workspace/out/second.cbuild-run.yml');
 
         watcher.dispose();
     });
