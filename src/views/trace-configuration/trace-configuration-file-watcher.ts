@@ -119,7 +119,11 @@ export class TraceConfigurationFileWatcher {
     private readonly processGeneratedChange = coalesceFileEvents(async (request: {
         event: GeneratedCBuildRunFileChangeEvent; watchVersion: number; requestVersion: number;
     }) => {
-        if (request.watchVersion === this.generatedWatchVersion && request.requestVersion === this.generatedRequestVersion) {
+        if (
+            request.watchVersion === this.generatedWatchVersion
+            && request.requestVersion === this.generatedRequestVersion
+            && this.isCurrentGeneratedCBuildRunFile(request.event.uri.fsPath)
+        ) {
             await this.callbacks.onGeneratedCBuildRunFileChanged(request.event);
         }
     });
