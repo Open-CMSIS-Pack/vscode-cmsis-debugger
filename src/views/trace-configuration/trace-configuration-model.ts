@@ -74,6 +74,13 @@ const TRACE_CONFIGURATION_VALIDATION_SUCCEEDED_CONTEXT = 'vscode-cmsis-debugger.
 interface TraceConfigurationSaveTransition {
     readonly file: CTraceYamlFile;
     pendingProductionRunFileEvent?: TraceConfigurationRunFileChangeEvent;
+    pendingImageChange?: vscode.Uri;
+}
+
+/** Retains the build associated with a debounced production refresh. */
+interface PendingImageValidation {
+    readonly cbuildRunUri: vscode.Uri;
+    readonly timer: ReturnType<typeof setTimeout>;
 }
 
 /** Holds image events until the generated source has been loaded for this build. */
@@ -109,7 +116,7 @@ export class TraceConfigurationModel {
     private readonly runMessageReader: TraceConfigurationRunMessageReader;
     private saveTransition: TraceConfigurationSaveTransition | undefined;
     private activeSolutionFileName: string | undefined;
-    private imageValidationTimer: ReturnType<typeof setTimeout> | undefined;
+    private pendingImageValidation: PendingImageValidation | undefined;
     private imageValidationVersion = 0;
     private generatedFileProcessing: GeneratedFileProcessing | undefined;
 
@@ -286,11 +293,14 @@ export class TraceConfigurationModel {
      */
     private async refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event: GeneratedCBuildRunFileChangeEvent): Promise<void> {
         const previousProcessing = this.generatedFileProcessing;
+        const pendingImageChange = this.pendingImageValidation?.cbuildRunUri;
         this.cancelImageValidation();
         const processing: GeneratedFileProcessing = {
             cbuildRunUri: event.uri,
-            imageChanged: previousProcessing?.imageChanged === true
-                && normalizeFsPath(previousProcessing.cbuildRunUri.fsPath) === normalizeFsPath(event.uri.fsPath)
+            imageChanged: (previousProcessing?.imageChanged === true
+                && normalizeFsPath(previousProcessing.cbuildRunUri.fsPath) === normalizeFsPath(event.uri.fsPath))
+                || (pendingImageChange !== undefined
+                    && normalizeFsPath(pendingImageChange.fsPath) === normalizeFsPath(event.uri.fsPath))
         };
         this.generatedFileProcessing = processing;
         try {
@@ -585,15 +595,18 @@ export class TraceConfigurationModel {
     }
 
     /**
-     * Replays production output events that arrived while ctrace.yml was being
-     * saved. New events are coalesced while an earlier event is processed, so
-     * the last watcher notification always observes the committed clean source.
+     * Replays production output and image events after ctrace.yml is committed.
+     * Events are coalesced while earlier output notifications are processed, so
+     * image changes refresh production output without recreating recovery data.
      */
     private async completeSaveTransition(transition: TraceConfigurationSaveTransition): Promise<void> {
         while (this.saveTransition === transition) {
             const event = transition.pendingProductionRunFileEvent;
             if (!event) {
                 this.saveTransition = undefined;
+                if (transition.pendingImageChange && this.ctraceFile === transition.file) {
+                    this.handleImageFilesChanged(transition.pendingImageChange);
+                }
                 return;
             }
             delete transition.pendingProductionRunFileEvent;
@@ -652,6 +665,10 @@ export class TraceConfigurationModel {
 
     /** Revalidates the latest edits or debounces a guarded refresh of production output. */
     private handleImageFilesChanged(cbuildRunUri: vscode.Uri): void {
+        if (this.saveTransition && this.saveTransition.file === this.ctraceFile) {
+            this.saveTransition.pendingImageChange = cbuildRunUri;
+            return;
+        }
         if (this.generatedFileProcessing) {
             if (normalizeFsPath(this.generatedFileProcessing.cbuildRunUri.fsPath) === normalizeFsPath(cbuildRunUri.fsPath)) {
                 this.generatedFileProcessing.imageChanged = true;
@@ -671,8 +688,8 @@ export class TraceConfigurationModel {
         const version = this.imageValidationVersion;
         const isCurrent = () => version === this.imageValidationVersion
             && this.isCurrentRunFileSource(currentFile, 'production');
-        this.imageValidationTimer = setTimeout(async () => {
-            this.imageValidationTimer = undefined;
+        const timer = setTimeout(async () => {
+            this.pendingImageValidation = undefined;
             await this.generatedCTraceFileManager.ensureProductionCTraceRunFile(vscode.Uri.file(currentFile.fileName), {
                 cbuildRunUri,
                 force: true,
@@ -682,17 +699,21 @@ export class TraceConfigurationModel {
                 await this.loadProductionReferenceValidationMessages(false);
             }
         }, IMAGE_VALIDATION_DEBOUNCE_MS);
+        this.pendingImageValidation = { cbuildRunUri, timer };
     }
 
-    /** Invalidates delayed image work, optionally retaining events for the current generated-file load. */
+    /** Invalidates delayed image work, optionally retaining buffered events for the current file transition. */
     private cancelImageValidation(preserveImageEvents = false): void {
         if (!preserveImageEvents) {
             this.generatedFileProcessing = undefined;
+            if (this.saveTransition) {
+                delete this.saveTransition.pendingImageChange;
+            }
         }
         this.imageValidationVersion += 1;
-        if (this.imageValidationTimer !== undefined) {
-            clearTimeout(this.imageValidationTimer);
-            this.imageValidationTimer = undefined;
+        if (this.pendingImageValidation) {
+            clearTimeout(this.pendingImageValidation.timer);
+            this.pendingImageValidation = undefined;
         }
     }
 
@@ -1203,10 +1224,14 @@ export class TraceConfigurationModel {
             file.document.assignCTraceRefs();
         }
         const backupContents = file.document?.toString();
-        await this.backup.cancelAndWait();
         const saveTransition: TraceConfigurationSaveTransition = { file };
+        if (this.pendingImageValidation) {
+            saveTransition.pendingImageChange = this.pendingImageValidation.cbuildRunUri;
+        }
+        this.cancelImageValidation();
         this.saveTransition = saveTransition;
         try {
+            await this.backup.cancelAndWait();
             await this.backupStore.delete(file.fileName);
             await file.save();
         } catch (error) {

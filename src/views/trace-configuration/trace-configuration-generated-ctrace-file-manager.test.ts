@@ -229,7 +229,7 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         expect(convertCTrace).toHaveBeenCalledTimes(2);
     });
 
-    it('queues a follow-up conversion when an image refresh arrives during an unchanged active conversion', async () => {
+    it.each([true, false])('launches a queued image refresh only while its context remains current: %s', async remainsCurrent => {
         const workspaceRoot = await createTemporaryWorkspace();
         mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M55', 'core0')]);
         const locator = new CBuildRunFileLocator();
@@ -247,15 +247,17 @@ describe('TraceConfigurationGeneratedCTraceFileManager', () => {
         const cbuildRunUri = vscode.Uri.file(path.join(workspaceRoot, 'demo.cbuild-run.yml'));
         const initial = manager.ensureProductionCTraceRunFile(ctraceUri, { cbuildRunUri });
         let refreshed: Promise<void> | undefined;
+        let current = true;
         try {
             await waitForCondition('initial conversion to start', () => run.mock.calls.length === 1);
-            refreshed = manager.ensureProductionCTraceRunFile(ctraceUri, { cbuildRunUri, force: true });
+            refreshed = manager.ensureProductionCTraceRunFile(ctraceUri, { cbuildRunUri, force: true, isCurrent: () => current });
             await waitForCondition('the rebuilt image request to read its source', () => reads.mock.calls.length === 2);
             await waitForImmediate();
             expect(run).toHaveBeenCalledTimes(1);
+            current = remainsCurrent;
             finishConversion?.(0);
             await Promise.all([initial, refreshed]);
-            expect(run).toHaveBeenCalledTimes(2);
+            expect(run).toHaveBeenCalledTimes(remainsCurrent ? 2 : 1);
         } finally {
             finishConversion?.(0);
             await Promise.all([initial, refreshed]);

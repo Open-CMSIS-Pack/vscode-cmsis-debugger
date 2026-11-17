@@ -217,6 +217,78 @@ describe('PyTsController', () => {
         }
     });
 
+    it.each([
+        { survivor: 'manual', survivorFirst: true },
+        { survivor: 'manual', survivorFirst: false },
+        { survivor: 'current image refresh', survivorFirst: true },
+        { survivor: 'current image refresh', survivorFirst: false }
+    ])('retains a $survivor coalesced with a stale refresh (survivor first: $survivorFirst)', async ({ survivor, survivorFirst }) => {
+        const controller = new PyTsController();
+        const firstRun = Promise.withResolvers<number>();
+        const run = jest.spyOn(controller, 'run').mockReturnValueOnce(firstRun.promise).mockResolvedValue(0);
+        const initial = controller.convertCTrace(ctraceUri, '/workspace/build/initial.cbuild-run.yml');
+        const requests: Promise<void>[] = [];
+        let current = true;
+        const staleOptions = { forceRerun: true, isCurrent: () => current };
+        const survivorOptions = survivor === 'manual' ? {} : { forceRerun: true, isCurrent: () => true };
+        const options = survivorFirst ? [survivorOptions, staleOptions] : [staleOptions, survivorOptions];
+        const cbuildRunFilePath = '/workspace/build/other.cbuild-run.yml';
+
+        try {
+            await waitForCondition('initial conversion to start', () => run.mock.calls.length === 1);
+            for (const requestOptions of options) {
+                requests.push(controller.convertCTrace(ctraceUri, cbuildRunFilePath, requestOptions));
+            }
+            await waitForCondition('coalesced requests to read the source', () =>
+                jest.mocked(vscode.workspace.fs.readFile).mock.calls.length === 3);
+            await waitForImmediate();
+            current = false;
+            controller.removeCTraceConfigurationWatcher();
+            firstRun.resolve(0);
+            await Promise.all([initial, ...requests]);
+
+            expect(run).toHaveBeenCalledTimes(2);
+            expect(run).toHaveBeenLastCalledWith({ cbuildRunFilePath: expect.toEqualFsPath(cbuildRunFilePath) });
+        } finally {
+            firstRun.resolve(0);
+            await Promise.all([initial, ...requests]);
+        }
+    });
+
+    it('allows a watched request to retry contents from a discarded stale image refresh', async () => {
+        const controller = controllerForSolution();
+        const cbuildRunFilePath = '/workspace/build/trace.cbuild-run.yml';
+        controller.handleActiveSessionChanged(gdbTargetDebugSessionFactory(cbuildRunFilePath));
+        const firstRun = Promise.withResolvers<number>();
+        const run = jest.spyOn(controller, 'run').mockReturnValueOnce(firstRun.promise).mockResolvedValue(0);
+        const initial = controller.convertCTrace(ctraceUri, cbuildRunFilePath);
+        const requests: Promise<void>[] = [initial];
+        let current = true;
+
+        try {
+            await waitForCondition('initial conversion to start', () => run.mock.calls.length === 1);
+            jest.mocked(vscode.workspace.fs.readFile).mockResolvedValue(new TextEncoder().encode('trace: changed'));
+            requests.push(controller.convertCTrace(ctraceUri, cbuildRunFilePath, {
+                forceRerun: true,
+                isCurrent: () => current
+            }));
+            await waitForCondition('image refresh to read the changed source', () =>
+                jest.mocked(vscode.workspace.fs.readFile).mock.calls.length === 2);
+            await waitForImmediate();
+            current = false;
+            firstRun.resolve(0);
+            await Promise.all(requests);
+            expect(run).toHaveBeenCalledTimes(1);
+
+            await controller.handleCTraceFileChanged(ctraceUri);
+
+            expect(run).toHaveBeenCalledTimes(2);
+        } finally {
+            firstRun.resolve(0);
+            await Promise.all(requests);
+        }
+    });
+
     it('keeps an explicit queued request when the ctrace watcher is removed', async () => {
         const controller = new PyTsController();
         let finishFirstRun: ((exitCode: number) => void) | undefined;
