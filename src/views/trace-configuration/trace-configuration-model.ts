@@ -840,66 +840,6 @@ export class TraceConfigurationModel {
         }
     }
 
-    /** Revalidates the latest edits or debounces a guarded refresh of production output. */
-    private handleImageFilesChanged(cbuildRunUri: vscode.Uri): void {
-        if (this.saveTransition && this.saveTransition.file === this.ctraceFile) {
-            this.saveTransition.pendingImageChange = cbuildRunUri;
-            return;
-        }
-        if (this.generatedFileProcessing) {
-            if (normalizeFsPath(this.generatedFileProcessing.cbuildRunUri.fsPath) === normalizeFsPath(cbuildRunUri.fsPath)) {
-                this.generatedFileProcessing.imageChanged = true;
-            }
-            return;
-        }
-        this.cancelImageValidation();
-        const currentFile = this.ctraceFile;
-        if (!currentFile?.document) {
-            return;
-        }
-        if (this.dirty) {
-            this.backup.schedule(currentFile.fileName, currentFile.document.toString());
-            return;
-        }
-
-        const version = this.imageValidationVersion;
-        const isCurrent = () => version === this.imageValidationVersion
-            && this.isCurrentRunFileSource(currentFile, 'production');
-        const timer = setTimeout(async () => {
-            try {
-                await this.generatedCTraceFileManager.ensureProductionCTraceRunFile(vscode.Uri.file(currentFile.fileName), {
-                    cbuildRunUri,
-                    force: true,
-                    isCurrent
-                });
-                if (isCurrent()) {
-                    await this.loadProductionReferenceValidationMessages(false);
-                }
-            } finally {
-                if (this.pendingImageValidation === pendingValidation) {
-                    this.pendingImageValidation = undefined;
-                }
-            }
-        }, IMAGE_VALIDATION_DEBOUNCE_MS);
-        const pendingValidation: PendingImageValidation = { cbuildRunUri, timer };
-        this.pendingImageValidation = pendingValidation;
-    }
-
-    /** Invalidates delayed image work, optionally retaining buffered events for the current file transition. */
-    private cancelImageValidation(preserveImageEvents = false): void {
-        if (!preserveImageEvents) {
-            this.generatedFileProcessing = undefined;
-            if (this.saveTransition) {
-                delete this.saveTransition.pendingImageChange;
-            }
-        }
-        this.imageValidationVersion += 1;
-        if (this.pendingImageValidation) {
-            clearTimeout(this.pendingImageValidation.timer);
-            this.pendingImageValidation = undefined;
-        }
-    }
-
     private isCurrentRunFileSource(
         currentFile: CTraceYamlFile,
         kind: TraceConfigurationRunFileChangeEvent['kind']
