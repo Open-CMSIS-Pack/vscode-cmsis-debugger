@@ -41,16 +41,22 @@ interface CTraceConversionContents {
     readonly cbuildRun: Uint8Array | undefined;
 }
 
+/** Controls whether a conversion must rerun and whether its context is still current. */
+export interface CTraceConversionOptions {
+    readonly forceRerun?: boolean;
+    readonly isCurrent?: () => boolean;
+}
+
 interface CTraceConversionRequest {
     readonly cbuildRunFilePath: string | undefined;
     readonly conversionKey: string;
     contents: CTraceConversionContents;
-    watcherGeneration: number | undefined;
-    explicit: boolean;
+    readonly isCurrent: () => boolean;
+    readonly forceRerun: boolean;
 }
 
 interface PendingCTraceConversion extends CTraceConversionRequest {
-    readonly resolveWaiters: Array<() => void>;
+    readonly waiters: Array<{ readonly resolve: () => void; readonly isCurrent: () => boolean }>;
 }
 
 export class PyTsController {
@@ -96,9 +102,17 @@ export class PyTsController {
         return processManager.waitForExit();
     }
 
-    /** Requests a conversion independently of the ctrace file watcher and waits for its completion. */
-    public convertCTrace(ctraceUri: vscode.Uri, cbuildRunFilePath: string): Promise<void> {
-        return this.processConversionRequest(ctraceUri, cbuildRunFilePath, undefined, true);
+    /**
+     * Requests a conversion independently of the watcher and waits for completion.
+     * Force a rerun when external dependencies changed after an active conversion started.
+     * A freshness predicate discards obsolete requests after source reads and before queued launches.
+     */
+    public convertCTrace(
+        ctraceUri: vscode.Uri,
+        cbuildRunFilePath: string,
+        options: CTraceConversionOptions = {}
+    ): Promise<void> {
+        return this.processConversionRequest(ctraceUri, cbuildRunFilePath, undefined, true, options);
     }
 
     protected handleActiveSessionChanged(session: GDBTargetDebugSession | undefined): void {
@@ -123,12 +137,16 @@ export class PyTsController {
         }
     }
 
+    /** Reads the current source and queues it unless a watcher request is stale or redundant. */
     private async processConversionRequest(
         uri: vscode.Uri,
         cbuildRunFilePath: string | undefined,
         watcherGeneration: number | undefined,
-        explicit: boolean
+        explicit: boolean,
+        options: CTraceConversionOptions = {}
     ): Promise<void> {
+        const isCurrent = () => (watcherGeneration === undefined || watcherGeneration === this.watcherGeneration)
+            && (options.isCurrent?.() ?? true);
         const normalizedPath = normalizeFsPath(uri.fsPath) ?? uri.fsPath;
         const conversionKey = this.getConversionKey(normalizedPath, cbuildRunFilePath);
         const previousRead = this.contentReadPromises.get(conversionKey) ?? Promise.resolve(undefined);
@@ -140,7 +158,7 @@ export class PyTsController {
                     ? undefined
                     : await vscode.workspace.fs.readFile(vscode.Uri.file(cbuildRunFilePath))
             };
-            if (watcherGeneration !== undefined && watcherGeneration !== this.watcherGeneration) {
+            if (!isCurrent()) {
                 return undefined;
             }
             if (!explicit && this.conversionContentsEqual(this.observedConversionContents.get(conversionKey), contents)) {
@@ -165,33 +183,39 @@ export class PyTsController {
             cbuildRunFilePath,
             conversionKey,
             contents,
-            watcherGeneration,
-            explicit
+            isCurrent,
+            forceRerun: options.forceRerun ?? false
         });
     }
 
+    /** Coalesces queued requests while preserving dependency changes that require a later run. */
     private submitConversion(request: CTraceConversionRequest): Promise<void> {
         const completion = new Promise<void>(resolve => {
+            const waiter = { resolve, isCurrent: request.isCurrent };
             const pendingConversion = this.pendingConversions.get(request.conversionKey);
             if (pendingConversion !== undefined) {
-                pendingConversion.contents = request.contents;
-                pendingConversion.explicit ||= request.explicit;
-                pendingConversion.watcherGeneration = request.watcherGeneration ?? pendingConversion.watcherGeneration;
-                pendingConversion.resolveWaiters.push(resolve);
-                return;
+                if (pendingConversion.waiters.some(pendingWaiter => pendingWaiter.isCurrent())) {
+                    pendingConversion.contents = request.contents;
+                    pendingConversion.waiters.push(waiter);
+                    return;
+                }
+                this.pendingConversions.delete(request.conversionKey);
+                pendingConversion.waiters.forEach(pendingWaiter => pendingWaiter.resolve());
             }
             const activeConversion = this.activeConversion;
-            if (activeConversion?.conversionKey === request.conversionKey
+            if (!request.forceRerun
+                && activeConversion?.conversionKey === request.conversionKey
                 && this.conversionContentsEqual(activeConversion.contents, request.contents)) {
-                activeConversion.resolveWaiters.push(resolve);
+                activeConversion.waiters.push(waiter);
                 return;
             }
-            this.pendingConversions.set(request.conversionKey, { ...request, resolveWaiters: [resolve] });
+            this.pendingConversions.set(request.conversionKey, { ...request, waiters: [waiter] });
         });
         this.conversionPromise ??= this.processPendingConversions();
         return completion;
     }
 
+    /** Serializes conversions and rechecks every coalesced caller immediately before launch. */
     private async processPendingConversions(): Promise<void> {
         try {
             while (this.pendingConversions.size > 0) {
@@ -200,15 +224,14 @@ export class PyTsController {
                     break;
                 }
                 this.pendingConversions.delete(pendingConversion.conversionKey);
-                if (!pendingConversion.explicit && pendingConversion.watcherGeneration !== this.watcherGeneration) {
-                    pendingConversion.resolveWaiters.forEach(resolve => resolve());
-                    continue;
-                }
-                this.activeConversion = pendingConversion;
-                const launchOptions: PyTsProcessManagerLaunchOptions = pendingConversion.cbuildRunFilePath === undefined
-                    ? {}
-                    : { cbuildRunFilePath: pendingConversion.cbuildRunFilePath };
                 try {
+                    if (!pendingConversion.waiters.some(waiter => waiter.isCurrent())) {
+                        continue;
+                    }
+                    this.activeConversion = pendingConversion;
+                    const launchOptions: PyTsProcessManagerLaunchOptions = pendingConversion.cbuildRunFilePath === undefined
+                        ? {}
+                        : { cbuildRunFilePath: pendingConversion.cbuildRunFilePath };
                     const exitCode = await this.run(launchOptions);
                     if (exitCode !== 0) {
                         logger.error(`pyTS process exited with code ${exitCode}`);
@@ -223,7 +246,7 @@ export class PyTsController {
                     )) {
                         this.observedConversionContents.delete(pendingConversion.conversionKey);
                     }
-                    pendingConversion.resolveWaiters.forEach(resolve => resolve());
+                    pendingConversion.waiters.forEach(waiter => waiter.resolve());
                     this.activeConversion = undefined;
                 }
             }
@@ -307,6 +330,7 @@ export class PyTsController {
         });
     }
 
+    /** Invalidates watcher requests while retaining queued work with a current independent caller. */
     protected removeCTraceConfigurationWatcher(): void {
         if (this.fileWatchManager !== undefined) {
             this.fileWatchManager.removeWatch(CTRACE_CONFIGURATION_WATCH_ID);
@@ -315,9 +339,9 @@ export class PyTsController {
         this.observedConversionContents.clear();
         this.contentReadPromises.clear();
         for (const [conversionKey, pendingConversion] of this.pendingConversions) {
-            if (!pendingConversion.explicit) {
+            if (!pendingConversion.waiters.some(waiter => waiter.isCurrent())) {
                 this.pendingConversions.delete(conversionKey);
-                pendingConversion.resolveWaiters.forEach(resolve => resolve());
+                pendingConversion.waiters.forEach(waiter => waiter.resolve());
             }
         }
     }

@@ -25,7 +25,7 @@ import { GDBTargetDebugSession } from '../../debug-session';
 import { debugTrackerFactory } from '../../debug-session/__test__/debug-session.factory';
 import { PyTsProcessManager } from '../../desktop/process/pyts-process-manager';
 import { logger } from '../../logger';
-import { isWindows, waitForCondition } from '../../utils';
+import { isWindows, waitForCondition, waitForImmediate } from '../../utils';
 import { PyTsController as BasePyTsController } from './pyts-controller';
 
 class PyTsController extends BasePyTsController {
@@ -88,6 +88,28 @@ describe('PyTsController', () => {
         expect(launch).toHaveBeenCalledWith({});
         expect(waitForExit).toHaveBeenCalledTimes(1);
         expect(session.customRequest).not.toHaveBeenCalled();
+    });
+
+    it('leaves a concurrent manual conversion running when automatic watchers are removed', async () => {
+        jest.spyOn(PyTsProcessManager.prototype, 'launch').mockResolvedValue();
+        let finishRuns: ((code: number) => void) | undefined;
+        const exit = new Promise<number>(resolve => {
+            finishRuns = resolve;
+        });
+        const waitForExit = jest.spyOn(PyTsProcessManager.prototype, 'waitForExit').mockReturnValue(exit);
+        const stop = jest.spyOn(PyTsProcessManager.prototype, 'stop').mockResolvedValue();
+        const controller = new PyTsController({ pyTsPath: 'pyTS' });
+        const automatic = controller.handleCTraceFileChanged(ctraceUri);
+        await waitForCondition('the automatic conversion to start', () => waitForExit.mock.calls.length === 1);
+        const manual = controller.run();
+        try {
+            await waitForCondition('the manual conversion to start', () => waitForExit.mock.calls.length === 2);
+            controller.removeCTraceConfigurationWatcher();
+            expect(stop).not.toHaveBeenCalled();
+        } finally {
+            finishRuns?.(0);
+            await Promise.all([automatic, manual]);
+        }
     });
 
     it('uses the active session cbuild run path unless the caller supplies one', async () => {
@@ -260,6 +282,138 @@ describe('PyTsController', () => {
         } finally {
             finishFirstRun?.(0);
             finishSecondRun?.(0);
+            await Promise.all(requests);
+        }
+    });
+
+    it.each([1, 3])('coalesces %i forced dependency refreshes into one follow-up run', async refreshCount => {
+        const controller = new PyTsController();
+        const cbuildRunFilePath = '/workspace/build/trace.cbuild-run.yml';
+        let finishConversion: ((exitCode: number) => void) | undefined;
+        const conversion = new Promise<number>(resolve => {
+            finishConversion = resolve;
+        });
+        const run = jest.spyOn(controller, 'run').mockReturnValueOnce(conversion).mockResolvedValue(0);
+        const initial = controller.convertCTrace(ctraceUri, cbuildRunFilePath);
+        const refreshes: Promise<void>[] = [];
+        try {
+            await waitForCondition('initial conversion to start', () => run.mock.calls.length === 1);
+            for (let index = 0; index < refreshCount; index += 1) {
+                refreshes.push(controller.convertCTrace(ctraceUri, cbuildRunFilePath, { forceRerun: true }));
+            }
+            await waitForCondition('refresh source reads to finish', () =>
+                jest.mocked(vscode.workspace.fs.readFile).mock.calls.length === (refreshCount + 1) * 2);
+            await waitForImmediate();
+            expect(run).toHaveBeenCalledTimes(1);
+            finishConversion?.(0);
+            await Promise.all([initial, ...refreshes]);
+            expect(run).toHaveBeenCalledTimes(2);
+        } finally {
+            finishConversion?.(0);
+            await Promise.all([initial, ...refreshes]);
+        }
+    });
+
+    it('does not revive a stale queued refresh when a same-build request can join the active conversion', async () => {
+        const controller = new PyTsController();
+        const cbuildRunFilePath = '/workspace/build/trace.cbuild-run.yml';
+        const firstRun = Promise.withResolvers<number>();
+        const run = jest.spyOn(controller, 'run').mockReturnValueOnce(firstRun.promise).mockResolvedValue(0);
+        const requests = [controller.convertCTrace(ctraceUri, cbuildRunFilePath)];
+        let current = true;
+
+        try {
+            await waitForCondition('initial conversion to start', () => run.mock.calls.length === 1);
+            requests.push(controller.convertCTrace(ctraceUri, cbuildRunFilePath, {
+                forceRerun: true,
+                isCurrent: () => current
+            }));
+            await waitForCondition('image refresh source reads to finish', () =>
+                jest.mocked(vscode.workspace.fs.readFile).mock.calls.length === 4);
+            await waitForImmediate();
+            current = false;
+            requests.push(controller.convertCTrace(ctraceUri, cbuildRunFilePath));
+            await waitForCondition('same-build source reads to finish', () =>
+                jest.mocked(vscode.workspace.fs.readFile).mock.calls.length === 6);
+            await waitForImmediate();
+            firstRun.resolve(0);
+            await Promise.all(requests);
+
+            expect(run).toHaveBeenCalledTimes(1);
+        } finally {
+            firstRun.resolve(0);
+            await Promise.all(requests);
+        }
+    });
+
+    it.each([
+        { survivor: 'manual', survivorFirst: true },
+        { survivor: 'manual', survivorFirst: false },
+        { survivor: 'current image refresh', survivorFirst: true },
+        { survivor: 'current image refresh', survivorFirst: false }
+    ])('retains a $survivor coalesced with a stale refresh (survivor first: $survivorFirst)', async ({ survivor, survivorFirst }) => {
+        const controller = new PyTsController();
+        const firstRun = Promise.withResolvers<number>();
+        const run = jest.spyOn(controller, 'run').mockReturnValueOnce(firstRun.promise).mockResolvedValue(0);
+        const initial = controller.convertCTrace(ctraceUri, '/workspace/build/initial.cbuild-run.yml');
+        const requests: Promise<void>[] = [];
+        let current = true;
+        const staleOptions = { forceRerun: true, isCurrent: () => current };
+        const survivorOptions = survivor === 'manual' ? {} : { forceRerun: true, isCurrent: () => true };
+        const options = survivorFirst ? [survivorOptions, staleOptions] : [staleOptions, survivorOptions];
+        const cbuildRunFilePath = '/workspace/build/other.cbuild-run.yml';
+
+        try {
+            await waitForCondition('initial conversion to start', () => run.mock.calls.length === 1);
+            for (const requestOptions of options) {
+                requests.push(controller.convertCTrace(ctraceUri, cbuildRunFilePath, requestOptions));
+            }
+            await waitForCondition('coalesced requests to read the source', () =>
+                jest.mocked(vscode.workspace.fs.readFile).mock.calls.length === 6);
+            await waitForImmediate();
+            current = false;
+            controller.removeCTraceConfigurationWatcher();
+            firstRun.resolve(0);
+            await Promise.all([initial, ...requests]);
+
+            expect(run).toHaveBeenCalledTimes(2);
+            expect(run).toHaveBeenLastCalledWith({ cbuildRunFilePath: expect.toEqualFsPath(cbuildRunFilePath) });
+        } finally {
+            firstRun.resolve(0);
+            await Promise.all([initial, ...requests]);
+        }
+    });
+
+    it('allows a watched request to retry contents from a discarded stale image refresh', async () => {
+        const controller = controllerForSolution();
+        const cbuildRunFilePath = '/workspace/build/trace.cbuild-run.yml';
+        controller.handleActiveSessionChanged(gdbTargetDebugSessionFactory(cbuildRunFilePath));
+        const firstRun = Promise.withResolvers<number>();
+        const run = jest.spyOn(controller, 'run').mockReturnValueOnce(firstRun.promise).mockResolvedValue(0);
+        const initial = controller.convertCTrace(ctraceUri, cbuildRunFilePath);
+        const requests: Promise<void>[] = [initial];
+        let current = true;
+
+        try {
+            await waitForCondition('initial conversion to start', () => run.mock.calls.length === 1);
+            jest.mocked(vscode.workspace.fs.readFile).mockResolvedValue(new TextEncoder().encode('trace: changed'));
+            requests.push(controller.convertCTrace(ctraceUri, cbuildRunFilePath, {
+                forceRerun: true,
+                isCurrent: () => current
+            }));
+            await waitForCondition('image refresh to read the changed source', () =>
+                jest.mocked(vscode.workspace.fs.readFile).mock.calls.length === 4);
+            await waitForImmediate();
+            current = false;
+            firstRun.resolve(0);
+            await Promise.all(requests);
+            expect(run).toHaveBeenCalledTimes(1);
+
+            await controller.handleCTraceFileChanged(ctraceUri);
+
+            expect(run).toHaveBeenCalledTimes(2);
+        } finally {
+            firstRun.resolve(0);
             await Promise.all(requests);
         }
     });

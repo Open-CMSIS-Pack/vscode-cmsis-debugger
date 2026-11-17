@@ -43,6 +43,13 @@ interface GeneratedCBuildRunData {
 interface EnsureProductionCTraceRunFileOptions {
     readonly cbuildRunUri?: vscode.Uri;
     readonly isCurrent?: () => boolean;
+    /** Regenerates output after an image change, queuing a rerun behind any active conversion. */
+    readonly force?: boolean;
+}
+
+interface GeneratedCBuildRunFileProcessingOptions {
+    readonly isCurrent?: () => boolean;
+    readonly requestConversion?: boolean;
 }
 
 export const TRACE_OFF_MESSAGE =
@@ -69,22 +76,25 @@ export class TraceConfigurationGeneratedCTraceFileManager {
     /**
      * processGeneratedCBuildRunFileChange updates generated trace files for a
      * generated cbuild-run watcher event, then reports whether a ctrace file was
-     * generated, tracing is off, or the source file was deleted.
+     * generated, tracing is off, or the source file was deleted. Disable conversion
+     * while unsaved edits need validation through their recovery snapshot instead.
      */
     public async processGeneratedCBuildRunFileChange(
         event: GeneratedCBuildRunFileChangeEvent,
-        isCurrent: () => boolean = () => true
+        options: GeneratedCBuildRunFileProcessingOptions = {}
     ): Promise<GeneratedCBuildRunFileProcessingResult> {
+        const isCurrent = options.isCurrent ?? (() => true);
+        const requestConversion = options.requestConversion ?? true;
         logger.debug(`Trace Configuration: Generated cbuild-run file ${event.type}: ${event.uri.fsPath}`);
         switch (event.type) {
             case 'created':
             case 'changed': {
                 const traceFile = await this.createOrUpdateGeneratedCTraceFile(event.uri, isCurrent);
-                if (traceFile && !traceFile.written && isCurrent()) {
-                    void this.convertExistingCTrace(traceFile.uri, event.uri);
+                if (requestConversion && traceFile && !traceFile.written && isCurrent()) {
+                    void this.convertExistingCTrace(traceFile.uri, event.uri, options.isCurrent);
                 }
                 return traceFile
-                    ? { status: 'generated', uri: traceFile.uri, conversionRequested: !traceFile.written }
+                    ? { status: 'generated', uri: traceFile.uri, conversionRequested: requestConversion && !traceFile.written }
                     : { status: 'trace-off' };
             }
             case 'deleted':
@@ -103,8 +113,9 @@ export class TraceConfigurationGeneratedCTraceFileManager {
 
     /**
      * Ensures an existing production ctrace input has the corresponding pyTS
-     * output. The active cbuild-run mapping is checked before conversion so an
-     * explicitly opened, inactive ctrace file cannot launch an unrelated build.
+     * output, or refreshes existing output when forced. The active cbuild-run
+     * mapping is checked before conversion so an explicitly opened, inactive
+     * ctrace file cannot launch an unrelated build.
      */
     public async ensureProductionCTraceRunFile(
         ctraceUri: vscode.Uri,
@@ -112,7 +123,7 @@ export class TraceConfigurationGeneratedCTraceFileManager {
     ): Promise<void> {
         const artifacts = getTraceConfigurationArtifactFileNames(ctraceUri.fsPath);
         const outputUri = vscode.Uri.file(artifacts.productionCTraceRunFileName);
-        if (!this.isCurrent(options) || await this.fileExists(outputUri)) {
+        if (!this.isCurrent(options) || (!options.force && await this.fileExists(outputUri))) {
             return;
         }
 
@@ -150,10 +161,13 @@ export class TraceConfigurationGeneratedCTraceFileManager {
                 );
                 return;
             }
-            if (await this.fileExists(outputUri) || !this.isCurrent(options)) {
+            if ((!options.force && await this.fileExists(outputUri)) || !this.isCurrent(options)) {
                 return;
             }
-            await this.pyTsController.convertCTrace(ctraceUri, cbuildRunUri.fsPath);
+            await this.pyTsController.convertCTrace(ctraceUri, cbuildRunUri.fsPath, {
+                forceRerun: options.force ?? false,
+                ...(options.isCurrent ? { isCurrent: options.isCurrent } : {})
+            });
         } catch (error) {
             logger.error('Trace Configuration: Failed to request pyTS conversion for missing ctrace-run output:', error);
         }
@@ -202,9 +216,17 @@ export class TraceConfigurationGeneratedCTraceFileManager {
         return { uri: traceFileUri, written };
     }
 
-    private async convertExistingCTrace(ctraceUri: vscode.Uri, cbuildRunUri: vscode.Uri): Promise<void> {
+    private async convertExistingCTrace(
+        ctraceUri: vscode.Uri,
+        cbuildRunUri: vscode.Uri,
+        isCurrent?: () => boolean
+    ): Promise<void> {
         try {
-            await this.pyTsController.convertCTrace(ctraceUri, cbuildRunUri.fsPath);
+            if (isCurrent) {
+                await this.pyTsController.convertCTrace(ctraceUri, cbuildRunUri.fsPath, { isCurrent });
+            } else {
+                await this.pyTsController.convertCTrace(ctraceUri, cbuildRunUri.fsPath);
+            }
         } catch (error) {
             logger.error('Failed to request pyTS conversion:', error);
         }

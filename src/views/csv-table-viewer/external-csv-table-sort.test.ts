@@ -53,18 +53,25 @@ describe('ExternalRowIdIndex', () => {
     });
 
     it('profiles async entry production separately from run creation', async () => {
+        let elapsedMs = 0;
+        const clock = jest.spyOn(performance, 'now').mockImplementation(() => elapsedMs);
         async function* delayedEntries(): AsyncGenerator<ExternalSortEntry> {
-            await new Promise<void>(resolve => setTimeout(resolve, 30));
+            await Promise.resolve();
+            elapsedMs += 30;
             yield { rowId: 0, sortValue: 'value' };
         }
 
-        const index = await ExternalRowIdIndex.create(delayedEntries(), 'ascending');
         try {
-            expect(index.scanMs).toBeGreaterThanOrEqual(20);
-            expect(index.scanMs).toBeGreaterThan(index.writeRunsMs);
-            expect(index.mergeRunsMs).toBeGreaterThanOrEqual(0);
+            const index = await ExternalRowIdIndex.create(delayedEntries(), 'ascending');
+            try {
+                expect(index.scanMs).toBe(30);
+                expect(index.writeRunsMs).toBe(0);
+                expect(index.mergeRunsMs).toBe(0);
+            } finally {
+                await index.dispose();
+            }
         } finally {
-            await index.dispose();
+            clock.mockRestore();
         }
     });
 });
