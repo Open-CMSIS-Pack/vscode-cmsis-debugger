@@ -442,6 +442,42 @@ describe('TraceConfigurationModel', () => {
         model.dispose();
     });
 
+    it('keeps an explicitly opened file when an older startup lookup completes', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const generatedFileName = path.join(workspaceRoot, 'generated.ctrace.yml');
+        const selectedFileName = path.join(workspaceRoot, 'selected.ctrace.yml');
+        await writeTemporaryTextFile(generatedFileName, 'ctrace:\n  setup: []\n');
+        await writeTemporaryTextFile(selectedFileName, 'ctrace:\n  setup: []\n');
+        const cbuildRunFileName = path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml');
+        await createTemporaryDirectory(path.dirname(cbuildRunFileName));
+        await writeTemporaryTextFile(cbuildRunFileName, 'build-run:\n');
+        let finishLookup: ((fileName: string) => void) | undefined;
+        const blockedLookup = new Promise<string>(resolve => { finishLookup = resolve; });
+        const lookup = jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileName')
+            .mockResolvedValue(cbuildRunFileName).mockReturnValueOnce(blockedLookup);
+        const processGenerated = jest.spyOn(
+            TraceConfigurationGeneratedCTraceFileManager.prototype, 'processGeneratedCBuildRunFileChange'
+        ).mockResolvedValue({ status: 'generated', uri: vscode.Uri.file(generatedFileName), conversionRequested: true });
+        const runMessageReader = createRunMessageReader();
+        runMessageReader.readIfExists.mockResolvedValue([]);
+        const model = createWorkspaceModel(undefined, undefined, runMessageReader);
+        const discovery = model.loadInitialFile();
+
+        try {
+            await waitForCondition('blocked startup lookup', () => lookup.mock.calls.length === 1);
+            await model.openFile(selectedFileName);
+            finishLookup?.(cbuildRunFileName);
+            await discovery;
+
+            expect(processGenerated).not.toHaveBeenCalled();
+            expect(model.createState()).toMatchObject({ fileName: selectedFileName, loading: false });
+        } finally {
+            finishLookup?.(cbuildRunFileName);
+            await discovery;
+            await model.deactivate();
+        }
+    });
+
     it('keeps an explicitly opened file when older generated events are queued', async () => {
         const workspaceRoot = await createTemporaryWorkspace();
         const firstFileName = path.join(workspaceRoot, 'first.ctrace.yml');

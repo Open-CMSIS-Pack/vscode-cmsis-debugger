@@ -312,6 +312,7 @@ export class TraceConfigurationFileWatcher {
         findExistingCBuildIndex = false
     ): Promise<boolean> {
         const resolutionVersion = ++this.cbuildRunResolutionVersion;
+        const requestVersion = this.generatedRequestVersion;
         const cbuildRunFileName = await this.cbuildRunFileLocator.getCBuildRunFileName(
             cbuildIndexFile,
             findExistingCBuildIndex
@@ -332,12 +333,13 @@ export class TraceConfigurationFileWatcher {
         if (
             watchVersion !== this.generatedWatchVersion
             || resolutionVersion !== this.cbuildRunResolutionVersion
+            || requestVersion !== this.generatedRequestVersion
             || !this.isCurrentGeneratedCBuildRunFile(cbuildRunFileName)
         ) {
             return false;
         }
 
-        await this.handleGeneratedCBuildRunFileChange('changed', uri);
+        await this.handleGeneratedCBuildRunFileChange('changed', uri, requestVersion);
         return true;
     }
 
@@ -431,11 +433,15 @@ export class TraceConfigurationFileWatcher {
      * and forwards the same event to the model callback that updates trace YAML
      * and configuration state.
      */
-    private async handleGeneratedCBuildRunFileChange(type: GeneratedCBuildRunFileChangeType, uri: vscode.Uri): Promise<void> {
+    private async handleGeneratedCBuildRunFileChange(
+        type: GeneratedCBuildRunFileChangeType,
+        uri: vscode.Uri,
+        requestVersion = this.generatedRequestVersion
+    ): Promise<void> {
         const event: GeneratedCBuildRunFileChangeEvent = { type, uri };
         this._onDidChangeGeneratedCBuildRunFileEmitter.fire(event);
         await this.processGeneratedChange({
-            event, watchVersion: this.generatedWatchVersion, requestVersion: this.generatedRequestVersion
+            event, watchVersion: this.generatedWatchVersion, requestVersion
         });
     }
 

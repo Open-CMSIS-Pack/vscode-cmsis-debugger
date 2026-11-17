@@ -281,6 +281,77 @@ describe('TraceConfigurationFileWatcher', () => {
         }
     });
 
+    it.each(['lookup', 'existence check'])(
+        'invalidates discovery during %s without disabling subsequent generated events', async boundary => {
+            const cbuildRunFile = vscode.Uri.file(path.resolve('test-data/multi-core.cbuild-run.yml'));
+            const locator = createCBuildRunFileLocator(jest.fn());
+            let releaseDiscovery: (() => void) | undefined;
+            const blockedDiscovery = new Promise<void>(resolve => { releaseDiscovery = resolve; });
+            let reachedBoundary = false;
+            jest.spyOn(locator, 'getCBuildRunFileName').mockImplementation(async () => {
+                if (boundary === 'lookup') {
+                    reachedBoundary = true;
+                    await blockedDiscovery;
+                }
+                return cbuildRunFile.fsPath;
+            });
+            jest.spyOn(vscode.workspace.fs, 'stat').mockImplementation(async () => {
+                if (boundary === 'existence check') {
+                    reachedBoundary = true;
+                    await blockedDiscovery;
+                }
+                return { type: vscode.FileType.File, ctime: 0, mtime: 0, size: 0 };
+            });
+            const onGeneratedCBuildRunFileChanged = jest.fn();
+            const watcher = new TraceConfigurationFileWatcher({
+                getCurrentFile: jest.fn(),
+                onCurrentFileReloaded: jest.fn(),
+                onCurrentFileReloadFailed: jest.fn(),
+                onGeneratedCBuildRunFileChanged
+            }, locator);
+            const onGeneratedEvent = jest.fn();
+            watcher.onDidChangeGeneratedCBuildRunFile(onGeneratedEvent);
+            const processing = watcher.processActiveCBuildRunFile();
+
+            try {
+                await waitForCondition('blocked discovery', () => reachedBoundary);
+                watcher.invalidatePendingGeneratedChanges();
+                releaseDiscovery?.();
+
+                await expect(processing).resolves.toBe(false);
+                expect(onGeneratedCBuildRunFileChanged).not.toHaveBeenCalled();
+                expect(onGeneratedEvent).not.toHaveBeenCalled();
+
+                getLastCreatedFileSystemWatcher()._handlers.change[0]?.(cbuildRunFile);
+                await waitForCondition('new generated callback', () => onGeneratedCBuildRunFileChanged.mock.calls.length === 1);
+            } finally {
+                releaseDiscovery?.();
+                await processing;
+                watcher.dispose();
+            }
+        }
+    );
+
+    it('retains the request version when a public generated event invalidates selection', async () => {
+        const cbuildRunFile = vscode.Uri.file(path.resolve('test-data/multi-core.cbuild-run.yml'));
+        const onGeneratedCBuildRunFileChanged = jest.fn();
+        const watcher = new TraceConfigurationFileWatcher({
+            getCurrentFile: jest.fn(),
+            onCurrentFileReloaded: jest.fn(),
+            onCurrentFileReloadFailed: jest.fn(),
+            onGeneratedCBuildRunFileChanged
+        }, createCBuildRunFileLocator(jest.fn().mockResolvedValue(cbuildRunFile.fsPath)));
+        watcher.onDidChangeGeneratedCBuildRunFile(() => watcher.invalidatePendingGeneratedChanges());
+
+        try {
+            await watcher.processActiveCBuildRunFile();
+
+            expect(onGeneratedCBuildRunFileChanged).not.toHaveBeenCalled();
+        } finally {
+            watcher.dispose();
+        }
+    });
+
     it('processes an existing cbuild-run file after installing its watcher', async () => {
         mutableWorkspace.workspaceFolders = [{
             uri: vscode.Uri.file('/workspace'),
