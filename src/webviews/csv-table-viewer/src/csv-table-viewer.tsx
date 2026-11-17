@@ -35,7 +35,7 @@ import type { CsvTableFilter, CsvTableRow, CsvTableSort } from '../../../views/c
 import type { CsvTableHostMessage, CsvTableWebviewMessage } from '../../../views/csv-table-viewer/csv-table-protocol';
 import { getCsvTableRowRevealScrollTop, getCsvTableScrollGeometry, CSV_TABLE_ROW_HEIGHT } from '../../../views/csv-table-viewer/csv-table-scroll-geometry';
 import { shouldRequestRows, type LoadedRowRange } from './csv-table-row-request';
-import { isPrimaryModifierPressed } from './csv-table-modifiers';
+import { isContextMenuShortcut, isPrimaryModifierPressed } from './csv-table-modifiers';
 import './csv-table-viewer.css';
 
 declare function acquireVsCodeApi(): { postMessage: (message: CsvTableWebviewMessage) => void };
@@ -422,7 +422,7 @@ export const CsvTableViewer = (): JSX.Element => {
         if (event.target instanceof HTMLElement && event.target.closest('.table-header') !== null) {
             return;
         }
-        if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+        if (isContextMenuShortcut(event)) {
             event.preventDefault();
             const rowIndex = selectedCell?.rowIndex ?? selection.caret;
             const targetId = selectedCell === null
@@ -517,6 +517,9 @@ export const CsvTableViewer = (): JSX.Element => {
     };
 
     const handleTableKeyUp = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
+        if (event.target === event.currentTarget && isContextMenuShortcut(event)) {
+            event.preventDefault();
+        }
         if (event.key === 'Shift' && keyboardRangeActive.current) {
             keyboardRangeActive.current = false;
             setSelection(commitRowSelectionCaret);

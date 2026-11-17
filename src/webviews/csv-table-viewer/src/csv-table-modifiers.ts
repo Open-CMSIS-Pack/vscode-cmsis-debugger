@@ -19,3 +19,7 @@ export const isPrimaryModifierPressed = (
     event: Pick<MouseEvent, 'ctrlKey' | 'metaKey'>,
     platform: string,
 ): boolean => platform.startsWith('Mac') ? event.metaKey : event.ctrlKey;
+
+export const isContextMenuShortcut = (
+    event: Pick<KeyboardEvent, 'key' | 'shiftKey'>,
+): boolean => event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10');
