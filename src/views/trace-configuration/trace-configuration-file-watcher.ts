@@ -109,6 +109,7 @@ export class TraceConfigurationFileWatcher {
     private generatedCBuildIndexWatchInstallation: Promise<void> | undefined;
     private generatedCBuildRunFileName: string | undefined;
     private generatedWatchVersion = 0;
+    private generatedRequestVersion = 0;
     private cbuildRunResolutionVersion = 0;
     private currentFileWatchVersion = 0;
     private currentRunFileWatchVersion = 0;
@@ -116,9 +117,9 @@ export class TraceConfigurationFileWatcher {
     private readonly activeSolutionChangeSubscription: vscode.Disposable | undefined;
     private readonly _onDidChangeGeneratedCBuildRunFileEmitter = new vscode.EventEmitter<GeneratedCBuildRunFileChangeEvent>();
     private readonly processGeneratedChange = coalesceFileEvents(async (request: {
-        event: GeneratedCBuildRunFileChangeEvent; watchVersion: number;
+        event: GeneratedCBuildRunFileChangeEvent; watchVersion: number; requestVersion: number;
     }) => {
-        if (request.watchVersion === this.generatedWatchVersion) {
+        if (request.watchVersion === this.generatedWatchVersion && request.requestVersion === this.generatedRequestVersion) {
             await this.callbacks.onGeneratedCBuildRunFileChanged(request.event);
         }
     });
@@ -200,6 +201,10 @@ export class TraceConfigurationFileWatcher {
      */
     public async processActiveCBuildRunFile(): Promise<boolean> {
         return this.resolveAndWatchGeneratedCBuildRunFile(this.generatedWatchVersion, undefined, true);
+    }
+
+    public invalidatePendingGeneratedChanges(): void {
+        this.generatedRequestVersion += 1;
     }
 
     /**
@@ -429,7 +434,9 @@ export class TraceConfigurationFileWatcher {
     private async handleGeneratedCBuildRunFileChange(type: GeneratedCBuildRunFileChangeType, uri: vscode.Uri): Promise<void> {
         const event: GeneratedCBuildRunFileChangeEvent = { type, uri };
         this._onDidChangeGeneratedCBuildRunFileEmitter.fire(event);
-        await this.processGeneratedChange({ event, watchVersion: this.generatedWatchVersion });
+        await this.processGeneratedChange({
+            event, watchVersion: this.generatedWatchVersion, requestVersion: this.generatedRequestVersion
+        });
     }
 
     private watchCurrentRunFile(

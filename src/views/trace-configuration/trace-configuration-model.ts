@@ -726,6 +726,7 @@ export class TraceConfigurationModel {
         if (!TraceConfigurationModel.isCTraceFileName(fileName)) {
             throw new Error('Please select a *.ctrace.yml, or *.ctrace.yaml file.');
         }
+        this.fileWatcher.invalidatePendingGeneratedChanges();
         await this.runFileLoad(isCurrent => this.loadFile(fileName, isCurrent));
     }
 

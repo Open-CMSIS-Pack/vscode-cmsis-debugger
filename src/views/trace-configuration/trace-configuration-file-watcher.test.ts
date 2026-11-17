@@ -249,6 +249,38 @@ describe('TraceConfigurationFileWatcher', () => {
         expect(cbuildRunWatcher.dispose).toHaveBeenCalledTimes(1);
     });
 
+    it('invalidates queued generated events without disabling subsequent events', async () => {
+        const cbuildRunFile = vscode.Uri.file(path.resolve('test-data/multi-core.cbuild-run.yml'));
+        let finishGeneratedChange: (() => void) | undefined;
+        const blockedChange = new Promise<void>(resolve => { finishGeneratedChange = resolve; });
+        const onGeneratedCBuildRunFileChanged = jest.fn().mockResolvedValue(undefined)
+            .mockReturnValueOnce(blockedChange);
+        const watcher = new TraceConfigurationFileWatcher({
+            getCurrentFile: jest.fn(),
+            onCurrentFileReloaded: jest.fn(),
+            onCurrentFileReloadFailed: jest.fn(),
+            onGeneratedCBuildRunFileChanged
+        }, createCBuildRunFileLocator(jest.fn().mockResolvedValue(cbuildRunFile.fsPath)));
+
+        try {
+            const processing = watcher.processActiveCBuildRunFile();
+            await waitForCondition('blocked generated callback', () => onGeneratedCBuildRunFileChanged.mock.calls.length === 1);
+            const generatedWatcher = getLastCreatedFileSystemWatcher();
+            generatedWatcher._handlers.change[0]?.(cbuildRunFile);
+            watcher.invalidatePendingGeneratedChanges();
+            finishGeneratedChange?.();
+            await processing;
+
+            expect(onGeneratedCBuildRunFileChanged).toHaveBeenCalledTimes(1);
+            generatedWatcher._handlers.create[0]?.(cbuildRunFile);
+            await waitForCondition('new generated callback', () => onGeneratedCBuildRunFileChanged.mock.calls.length === 2);
+            expect(onGeneratedCBuildRunFileChanged.mock.calls.at(-1)?.[0]).toEqual({ type: 'created', uri: cbuildRunFile });
+        } finally {
+            finishGeneratedChange?.();
+            watcher.dispose();
+        }
+    });
+
     it('processes an existing cbuild-run file after installing its watcher', async () => {
         mutableWorkspace.workspaceFolders = [{
             uri: vscode.Uri.file('/workspace'),

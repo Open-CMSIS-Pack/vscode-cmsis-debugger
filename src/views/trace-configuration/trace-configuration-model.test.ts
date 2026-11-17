@@ -442,6 +442,44 @@ describe('TraceConfigurationModel', () => {
         model.dispose();
     });
 
+    it('keeps an explicitly opened file when older generated events are queued', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const firstFileName = path.join(workspaceRoot, 'first.ctrace.yml');
+        const secondFileName = path.join(workspaceRoot, 'second.ctrace.yml');
+        await writeTemporaryTextFile(firstFileName, 'ctrace:\n  setup: []\n');
+        await writeTemporaryTextFile(secondFileName, 'ctrace:\n  setup: []\n');
+        const cbuildRunFile = vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml'));
+        const model = createWorkspaceModel();
+        let finishGeneratedLoad: (() => void) | undefined;
+        const blockedLoad = new Promise<void>(resolve => { finishGeneratedLoad = resolve; });
+
+        try {
+            const watcher = await resolveGeneratedCBuildRunWatcher(model, cbuildRunFile);
+            await waitForWatcherWork();
+            const processGenerated = jest.spyOn(
+                TraceConfigurationGeneratedCTraceFileManager.prototype, 'processGeneratedCBuildRunFileChange'
+            ).mockResolvedValue({ status: 'generated', uri: vscode.Uri.file(firstFileName), conversionRequested: true })
+                .mockImplementationOnce(async () => {
+                    await blockedLoad;
+                    return { status: 'generated', uri: vscode.Uri.file(firstFileName), conversionRequested: true };
+                });
+
+            fireWatcherHandler(watcher, 'change', cbuildRunFile);
+            await waitForCondition('blocked generated load', () => processGenerated.mock.calls.length === 1);
+            fireWatcherHandler(watcher, 'change', cbuildRunFile);
+            await model.openFile(secondFileName);
+            finishGeneratedLoad?.();
+            await waitForWatcherWork();
+
+            expect(processGenerated).toHaveBeenCalledTimes(1);
+            expect(model.createState()).toMatchObject({ fileName: secondFileName, loading: false });
+        } finally {
+            finishGeneratedLoad?.();
+            await model.deactivate();
+            model.dispose();
+        }
+    });
+
     it('creates a generated ctrace file with processors disabled by default when a cbuild-run file is created', async () => {
         const workspaceRoot = await createTemporaryWorkspace();
         const onDidChange = jest.fn();
