@@ -20,10 +20,12 @@ import { Asset, GitHubWorkflowAsset } from '@open-cmsis-pack/vsce-helper';
 import path from 'node:path';
 
 /** Signals that no matching workflow artifact exists, allowing nightly release fallback. */
-export class MissingWorkflowArtifactError extends Error {}
+export class MissingWorkflowArtifactError extends Error { }
 
 /** Selects main or PR runs; downloading and caching stay in vsce-helper. */
 export class WorkflowArchiveAsset extends GitHubWorkflowAsset {
+    private artifactSelection: ReturnType<WorkflowArchiveAsset['findLastWorkflowRunArtifact']> | undefined;
+
     /** Configures a workflow artifact for main or an explicitly selected dependency PR. */
     public constructor(owner: string, repo: string, workflow: string, artifactName: string | RegExp,
         private readonly pullRequest?: number) {
@@ -32,7 +34,7 @@ export class WorkflowArchiveAsset extends GitHubWorkflowAsset {
     }
 
     /** Finds the latest successful matching run with an available artifact from its current attempt. */
-    protected override async findLastWorkflowRunArtifact() {
+    protected async findLastWorkflowRunArtifact() {
         const octokit = await this.getOctokit();
         const pr = this.pullRequest === undefined ? undefined :
             (await octokit.rest.pulls.get({ ...this.repoAndOwner, pull_number: this.pullRequest })).data;
@@ -62,9 +64,13 @@ export class WorkflowArchiveAsset extends GitHubWorkflowAsset {
         throw new MissingWorkflowArtifactError(`No successful ${this.owner}/${this.repo}/${this.workflow} run with ${String(this.artifactName)} artifacts for ${pr ? `PR #${pr.number} at ${pr.head.sha}` : 'main'}`);
     }
 
+    private get selectedArtifact() {
+        return this.artifactSelection ??= this.findLastWorkflowRunArtifact();
+    }
+
     /** Identifies the selected workflow run, attempt and artifact. */
     public override get version(): Promise<string> {
-        return this.lastWorkflowRunArtifact.then(({ run, artifact }) =>
+        return this.selectedArtifact.then(({ run, artifact }) =>
             `${this.workflow}@${run.id}/${run.run_attempt ?? 1}/${artifact.id}`);
     }
 
@@ -75,7 +81,7 @@ export class WorkflowArchiveAsset extends GitHubWorkflowAsset {
 
     /** Downloads the artifact as an archive file for the shared extraction wrappers. */
     public override async copyTo(dest?: string): Promise<string> {
-        const { artifact } = await this.lastWorkflowRunArtifact;
+        const { artifact } = await this.selectedArtifact;
         const directory = await this.mkDest(dest);
         // Keep uploads as files so the same ArchiveFileAsset wrappers handle every channel.
         const extension = artifact.name.endsWith('.tar.gz') ? '.tar.gz' : '.zip';
