@@ -232,29 +232,51 @@ filtering and selection messages.
 
 ## Selection boundary
 
-Plain clicks on CSV data cells select a single cell. With the grid focused,
-unmodified Left or Right enters cell selection at the first data column of the
-row caret, or the first visible row when no caret exists. Arrow keys move that
-selection between cells while focus stays on the grid, including across virtual
-row windows. Escape clears the selection. Cell selection is cleared on a new
-table view after filtering, sorting, or source reloads; indexing progress and
-row-window responses do not clear it.
+The browser-independent `csv-table-navigation.ts` module resolves click targets,
+row-selection changes, keyboard movement modes, and context-menu item indices.
+It reuses the shared row-selection helpers and accepts normalized modifier flags
+rather than React events. The React viewer applies the resulting state and owns
+event handling, DOM measurement, focus, scrolling, and host messages. Pure
+navigation tests cover modifier precedence and row/cell mode transitions.
 
-Clicking the synthetic row index selects a row. Shift-click extends the row
-range and Alt-click toggles a row, including when clicking a data cell.
-Ctrl/Command-click retains the trace-navigation integration described below.
+Plain clicks on CSV data cells first select their row. A later click on an
+already selected row enters cell selection at the clicked column. Further
+clicks within that row move the cell selection; clicking another row selects
+that row first. The second click of a double-click does not change selection;
+double-click actions are reserved for future use.
+
+With the grid focused, unmodified Left or Right enters cell selection at the
+first data column of the row caret, or the first visible row when no caret
+exists. Left and Right move between data columns. Left from the first data
+column returns to row selection. Up and Down always enter row selection and
+move one row; Page Up and Page Down enter row selection and move one visible
+page. Home and End select the first and last row in row mode. Shift extends the
+row range, while Ctrl/Command moves only the row caret. Navigation scrolls only
+when the destination is outside the visible viewport, including with compressed
+scrollbars for large tables. Escape clears the selection. Cell selection is
+cleared on a new table view after filtering, sorting, or source reloads;
+indexing progress and row-window responses do not clear it.
+
+Clicking the synthetic row index always enters row selection. Shift-click
+extends the row range and Alt-click toggles a row, including when clicking a
+data cell. Ctrl/Command-click retains the trace-navigation integration described
+below.
 
 Shift+F10 and the Context Menu key open the grid context menu at the active
-cell or row caret. Copy Value requires a cell target; Copy Row requires a row
-target. Mouse context menus outside rows leave both actions disabled.
+cell or row caret and focus its first enabled item. Up/Down and Home/End move
+between enabled menu items. Escape dismisses the menu without clearing the
+selection, and copying returns focus to the grid. Tab dismisses the menu and
+continues focus navigation. Copy Value requires a cell target; Copy Row
+requires a row target. Mouse context menus outside rows leave both actions
+disabled.
 
 Multi-row selection is maintained by the webview and mirrored in the host for
 retention across updates. It is represented by
 normalized display-index intervals rather than a set of source rows, so large
 contiguous selections have constant memory cost. Pointer and keyboard
-navigation maintain a logical caret and range anchor. TanStack Virtual scrolls
-the caret into view while focus remains on the persistent grid container, so
-virtual row unmounting does not discard keyboard focus.
+navigation maintain a logical caret and range anchor. The shared scroll-geometry
+helper reveals the caret while focus remains on the persistent grid container,
+so virtual row unmounting does not discard keyboard focus.
 
 Filtering, sorting, and source reloads change display-index meaning, so the host
 captures row identities before an update and restores selection, caret, and
