@@ -5,6 +5,29 @@ These diagrams show how the extension updates `ctrace.yml` and
 `.cmsis`; pyTS writes ctrace-run files in `.trace` under the active solution
 folder.
 
+## Refresh lifecycle
+
+Manual refreshes for the current file share one in-flight operation, including
+backup cleanup, YAML loading, capability loading, and validation-message reads.
+Another refresh can start after that operation settles, including after failure.
+
+Source, generated cbuild-run, and ctrace-run watchers process the first event
+immediately. While processing is active, they retain only the latest pending
+event and process it next. This bounds overlapping work without adding a fixed
+debounce delay. Public cbuild-run event notifications still include every event.
+
+Opening another file, switching the active solution, or deactivating the model
+invalidates earlier loads. Async completions check their generation before
+publishing state, capability, or validation updates. Old completions cannot
+clear a newer operation's loading indicator; disposed watches ignore queued
+events.
+
+Production pyTS conversion runs in the background. Loading or refreshing the
+displayed configuration does not wait for conversion to finish. Existing
+ctrace-run watchers update validation when output arrives. Superseded requests
+are discarded before conversion where possible; an already queued conversion
+is not terminated because other consumers may share it.
+
 ## Production file path
 
 The two ***ctrace*** watchers have different jobs.
@@ -66,8 +89,9 @@ an explicit conversion, even when the production ctrace-run file already
 exists. The cbuild-run input may have changed while the ctrace input stayed the
 same, making the existing output stale. Equivalent requests that overlap are
 coalesced by `PyTsController`; sequential events after a conversion completes
-remain distinct. A ctrace write can still start pyTS through the separate
-`PyTsController` watcher below.
+remain distinct. The generated-file manager queues conversion without waiting
+for it before loading the ctrace file in the view. A ctrace write can still
+start pyTS through the separate `PyTsController` watcher below.
 
 ## ctrace file events
 

@@ -31,6 +31,66 @@ describe('TraceConfigurationProcessorCapabilities', () => {
         jest.restoreAllMocks();
     });
 
+    it('stages capabilities for another file without changing the active map until committed', async () => {
+        jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileName').mockResolvedValue(undefined);
+        const file = createCTraceFile('ctrace:\n  setup:\n    - core: Cortex-M33\n');
+        const nextFile = createCTraceFile('ctrace:\n  setup:\n    - core: Cortex-M55\n');
+        const capabilities = new TraceConfigurationProcessorCapabilities(() => file);
+        const activeMap = capabilities.capabilities;
+        await capabilities.load();
+
+        const staged = await capabilities.resolve(nextFile);
+
+        expect(activeMap.get('0')).toMatchObject({ core: 'Cortex-M33' });
+        expect(staged.get('0')).toMatchObject({ core: 'Cortex-M55' });
+        capabilities.replace(staged);
+        expect(capabilities.capabilities).toBe(activeMap);
+        expect(activeMap.get('0')).toMatchObject({ core: 'Cortex-M55' });
+    });
+
+    it('does not commit capabilities from an invalidated load', async () => {
+        let finishLookup: (() => void) | undefined;
+        jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileName').mockReturnValueOnce(
+            new Promise<undefined>(resolve => { finishLookup = () => resolve(undefined); })
+        );
+        const file = createCTraceFile('ctrace:\n  setup:\n    - core: Cortex-M33\n');
+        const capabilities = new TraceConfigurationProcessorCapabilities(() => file);
+        let current = true;
+        const loading = capabilities.load(() => current);
+        current = false;
+        capabilities.clear();
+        finishLookup?.();
+        await loading;
+        expect(capabilities.capabilities.size).toBe(0);
+    });
+
+    it.each([false, true])('handles a failed capability lookup only while current: %s', async requestIsCurrent => {
+        const lookup = jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileName').mockResolvedValue(undefined);
+        const file = createCTraceFile('ctrace:\n  setup:\n    - core: Cortex-M33\n');
+        const capabilities = new TraceConfigurationProcessorCapabilities(() => file);
+        await capabilities.load();
+        const previousCapabilities = new Map(capabilities.capabilities);
+        expect(previousCapabilities.size).toBe(1);
+        let failLookup: ((error: Error) => void) | undefined;
+        lookup.mockReturnValueOnce(new Promise<undefined>((_resolve, reject) => { failLookup = reject; }));
+        const warn = jest.spyOn(logger, 'warn').mockImplementation();
+        let current = true;
+
+        const loading = capabilities.load(() => current);
+        file.document = CTraceYamlDocument.parse('ctrace:\n  setup:\n    - core: Cortex-M55\n');
+        current = requestIsCurrent;
+        failLookup?.(new Error('obsolete lookup failed'));
+        await loading;
+
+        if (requestIsCurrent) {
+            expect(capabilities.capabilities.get('0')).toMatchObject({ core: 'Cortex-M55' });
+            expect(warn).toHaveBeenCalledWith('Unable to load processor trace capabilities: obsolete lookup failed');
+        } else {
+            expect(capabilities.capabilities).toEqual(previousCapabilities);
+            expect(warn).not.toHaveBeenCalled();
+        }
+    });
+
     it('loads processor capabilities from cbuild-run cores by pname and keeps ctrace.yml display names', async () => {
         const getCBuildRunFileName = jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileName')
             .mockResolvedValue('project.cbuild-run.yml');

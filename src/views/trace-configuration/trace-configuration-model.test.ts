@@ -26,6 +26,7 @@ import { traceWatchFactory } from '../../__test__/trace-watch.factory';
 import { MemoryTextFileAdapter } from '../../__test__/memory-text-file-adapter';
 import { CbuildRunReader, CBuildRunFileLocator, ProcessorType } from '../../cbuild-run';
 import { PyTsController } from '../../features/trace/pyts-controller';
+import { logger } from '../../logger';
 import {
     CBUILD_INDEX_FILE_GLOB,
     CMSIS_JSON_FILE_GLOB,
@@ -35,7 +36,11 @@ import { containsSubstringsInOrder, normalizeFsPath, waitForCondition, waitForIm
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import { TraceConfigurationRunMessageReader } from './ctrace-run-validation-message-reader';
 import { TraceConfigurationBackupStore, WorkspaceTraceConfigurationBackupStore } from './trace-configuration-backup';
-import { TraceConfigurationRunFileChangeEvent } from './trace-configuration-file-watcher';
+import {
+    GeneratedCBuildRunFileChangeEvent,
+    TraceConfigurationFileWatcher,
+    TraceConfigurationRunFileChangeEvent
+} from './trace-configuration-file-watcher';
 import { getTraceConfigurationBackupFileName } from './trace-configuration-file-names';
 import {
     TRACE_OFF_MESSAGE,
@@ -53,6 +58,7 @@ import * as TraceConfigurationTypes from './trace-configuration-types';
 interface TraceConfigurationModelPrivate {
     ctraceFile: CTraceYamlFile | undefined;
     handleCurrentRunFileChanged(event: TraceConfigurationRunFileChangeEvent): Promise<void>;
+    refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event: GeneratedCBuildRunFileChangeEvent): Promise<void>;
     setProcessorDisable(document: CTraceYamlDocument, processorPath: (string | number)[]): void;
 }
 
@@ -258,7 +264,7 @@ async function createImageWatchModel() {
     const activeSolutionWatch = activeSolutionWatchFactory();
     const backupStore = new WorkspaceTraceConfigurationBackupStore();
     const model = new TraceConfigurationModel(
-        () => {}, undefined, undefined, undefined, traceWatch.fileWatchManager,
+        () => { }, undefined, undefined, undefined, traceWatch.fileWatchManager,
         locator, activeSolutionWatch.cmsisJsonWatcher, backupStore, prevalidator, createRunMessageReader(), controller
     );
     return { workspaceRoot, cbuildRunFile, elfFile, ctraceFile, original, locator, convert, prevalidator, traceWatch, activeSolutionWatch, backupStore, controller, model };
@@ -461,8 +467,83 @@ describe('TraceConfigurationModel', () => {
         await waitForWatcherWork();
 
         expect(events).toEqual([{ type: expectedType, uri }]);
-        expect(onDidChange).toHaveBeenCalledTimes(1);
+        expect(onDidChange).toHaveBeenCalled();
+        expect(model.createState().loading).toBe(false);
         model.dispose();
+    });
+
+    it('keeps an explicitly opened file when an older startup lookup completes', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const generatedFileName = path.join(workspaceRoot, 'generated.ctrace.yml');
+        const selectedFileName = path.join(workspaceRoot, 'selected.ctrace.yml');
+        await writeTemporaryTextFile(generatedFileName, 'ctrace:\n  setup: []\n');
+        await writeTemporaryTextFile(selectedFileName, 'ctrace:\n  setup: []\n');
+        const cbuildRunFileName = path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml');
+        await createTemporaryDirectory(path.dirname(cbuildRunFileName));
+        await writeTemporaryTextFile(cbuildRunFileName, 'build-run:\n');
+        let finishLookup: ((fileName: string) => void) | undefined;
+        const blockedLookup = new Promise<string>(resolve => { finishLookup = resolve; });
+        const lookup = jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileName')
+            .mockResolvedValue(cbuildRunFileName).mockReturnValueOnce(blockedLookup);
+        const processGenerated = jest.spyOn(
+            TraceConfigurationGeneratedCTraceFileManager.prototype, 'processGeneratedCBuildRunFileChange'
+        ).mockResolvedValue({ status: 'generated', uri: vscode.Uri.file(generatedFileName), conversionRequested: true });
+        const runMessageReader = createRunMessageReader();
+        runMessageReader.readIfExists.mockResolvedValue([]);
+        const model = createWorkspaceModel(undefined, undefined, runMessageReader);
+        const discovery = model.loadInitialFile();
+
+        try {
+            await waitForCondition('blocked startup lookup', () => lookup.mock.calls.length === 1);
+            await model.openFile(selectedFileName);
+            finishLookup?.(cbuildRunFileName);
+            await discovery;
+
+            expect(processGenerated).not.toHaveBeenCalled();
+            expect(model.createState()).toMatchObject({ fileName: selectedFileName, loading: false });
+        } finally {
+            finishLookup?.(cbuildRunFileName);
+            await discovery;
+            await model.deactivate();
+        }
+    });
+
+    it('keeps an explicitly opened file when older generated events are queued', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const firstFileName = path.join(workspaceRoot, 'first.ctrace.yml');
+        const secondFileName = path.join(workspaceRoot, 'second.ctrace.yml');
+        await writeTemporaryTextFile(firstFileName, 'ctrace:\n  setup: []\n');
+        await writeTemporaryTextFile(secondFileName, 'ctrace:\n  setup: []\n');
+        const cbuildRunFile = vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml'));
+        const model = createWorkspaceModel();
+        let finishGeneratedLoad: (() => void) | undefined;
+        const blockedLoad = new Promise<void>(resolve => { finishGeneratedLoad = resolve; });
+
+        try {
+            const watcher = await resolveGeneratedCBuildRunWatcher(model, cbuildRunFile);
+            await waitForWatcherWork();
+            const processGenerated = jest.spyOn(
+                TraceConfigurationGeneratedCTraceFileManager.prototype, 'processGeneratedCBuildRunFileChange'
+            ).mockResolvedValue({ status: 'generated', uri: vscode.Uri.file(firstFileName), conversionRequested: true })
+                .mockImplementationOnce(async () => {
+                    await blockedLoad;
+                    return { status: 'generated', uri: vscode.Uri.file(firstFileName), conversionRequested: true };
+                });
+
+            fireWatcherHandler(watcher, 'change', cbuildRunFile);
+            await waitForCondition('blocked generated load', () => processGenerated.mock.calls.length === 1);
+            fireWatcherHandler(watcher, 'change', cbuildRunFile);
+            await model.openFile(secondFileName);
+            finishGeneratedLoad?.();
+            await waitForWatcherWork();
+
+            expect(processGenerated).toHaveBeenCalledTimes(1);
+            expect(model.createState()).toMatchObject({ fileName: secondFileName, loading: false });
+        } finally {
+            finishGeneratedLoad?.();
+            await model.deactivate();
+            model.dispose();
+        }
     });
 
     it('creates a generated ctrace file with processors disabled by default when a cbuild-run file is created', async () => {
@@ -565,7 +646,8 @@ describe('TraceConfigurationModel', () => {
         expect(convertCTrace.mock.calls[0]?.[0].fsPath).toEqualFsPath(ctraceFile);
         expect(convertCTrace).toHaveBeenCalledWith(
             expect.any(vscode.Uri),
-            expect.toEqualFsPath(cbuildRunFile.fsPath)
+            expect.toEqualFsPath(cbuildRunFile.fsPath),
+            { isCurrent: expect.any(Function) }
         );
         model.dispose();
     });
@@ -724,12 +806,13 @@ describe('TraceConfigurationModel', () => {
             const imageWatch = traceWatch.addWatch.mock.calls.map(([watch]) => watch)
                 .find(watch => watch.id.startsWith('trace-configuration.elf:'));
             expect(imageWatch).toBeDefined();
+            jest.useFakeTimers();
             await imageWatch?.onDidChange?.(vscode.Uri.file(elfFile));
             for (let index = 0; index < duplicateCount; index += 1) {
                 processing.push(buildWatch?.onDidChange?.(buildUri));
-                await waitForCondition('duplicate build conversion to start', () => convert.mock.calls.length === index + 3);
+                await processing.at(-1);
+                expect(convert).toHaveBeenCalledTimes(index + 3);
             }
-            jest.useFakeTimers();
             finishConversion?.();
             await Promise.all(processing);
             await jest.advanceTimersByTimeAsync(499);
@@ -790,7 +873,7 @@ describe('TraceConfigurationModel', () => {
             const run = jest.spyOn(controller, 'run').mockReturnValueOnce(firstRun.promise).mockResolvedValue(0);
             processing.push(controller.convertCTrace(vscode.Uri.file(ctraceFile), cbuildRunFile));
             await waitForCondition('older conversion to start', () => run.mock.calls.length === 1);
-            jest.useFakeTimers();
+            jest.useFakeTimers({ doNotFake: ['setImmediate'] });
             const imageWatch = traceWatch.addWatch.mock.calls.map(([watch]) => watch)
                 .find(watch => watch.id.startsWith('trace-configuration.elf:'));
             expect(imageWatch).toBeDefined();
@@ -799,12 +882,11 @@ describe('TraceConfigurationModel', () => {
             expect(requests).toHaveBeenCalledTimes(2);
             expect(run).toHaveBeenCalledTimes(1);
             processing.push(requests.mock.results[1]?.value);
-            jest.useRealTimers();
             processing.push(traceWatch.getWatch('trace-configuration.generated-cbuild-run')
                 ?.onDidChange?.(vscode.Uri.file(cbuildRunFile)));
-            await waitForCondition('same-build conversion to join the older run', () => requests.mock.calls.length === 3);
+            await processing.at(-1);
+            expect(requests).toHaveBeenCalledTimes(3);
             await waitForImmediate();
-            jest.useFakeTimers();
             firstRun.resolve(0);
             await Promise.all(processing);
             await jest.advanceTimersByTimeAsync(500);
@@ -2099,6 +2181,527 @@ describe('TraceConfigurationModel', () => {
 
         expect(adapter.text).not.toContain('ELF-files');
         expect(adapter.text).not.toContain('program.axf');
+    });
+
+    it.each(['validation', 'file', 'backup', 'solution', 'capabilities'] as const)(
+        'stops opening a file when deactivated during %s', async boundary => {
+            const { backupStore, model, prevalidator } = await createModelFromText('ctrace:\n  setup: []\n');
+            const originalFileName = model.createState().fileName;
+            const document = CTraceYamlDocument.parse('ctrace:\n  setup:\n    - core: Cortex-M33\n');
+            const read = jest.spyOn(CTraceYamlFile.prototype, 'load').mockResolvedValue(document);
+            backupStore.restore.mockResolvedValue(document);
+            const solution = jest.spyOn(CBuildRunFileLocator.prototype, 'getActiveSolutionFilePath').mockResolvedValue(undefined);
+            const capabilities = jest.spyOn(TraceConfigurationProcessorCapabilities.prototype, 'resolve').mockResolvedValue(new Map());
+            const ensureOutput = jest.spyOn(TraceConfigurationGeneratedCTraceFileManager.prototype, 'ensureProductionCTraceRunFile')
+                .mockResolvedValue();
+            const watchCount = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls.length;
+            switch (boundary) {
+                case 'validation':
+                    prevalidator.cancel.mockImplementationOnce(() => model.deactivate());
+                    break;
+                case 'file':
+                    read.mockImplementationOnce(async () => {
+                        await model.deactivate();
+                        return document;
+                    });
+                    break;
+                case 'backup':
+                    backupStore.restore.mockImplementationOnce(async () => {
+                        await model.deactivate();
+                        return document;
+                    });
+                    break;
+                case 'solution':
+                    solution.mockImplementationOnce(async () => {
+                        await model.deactivate();
+                        return undefined;
+                    });
+                    break;
+                case 'capabilities':
+                    capabilities.mockImplementationOnce(async () => {
+                        await model.deactivate();
+                        return new Map();
+                    });
+                    break;
+            }
+
+            const nextFileName = path.resolve('next.ctrace.yml');
+            await model.openFile(nextFileName);
+
+            const completedSteps = ['validation', 'file', 'backup', 'solution', 'capabilities'].indexOf(boundary);
+            [read, backupStore.restore, solution, capabilities].forEach((operation, index) => {
+                expect(operation).toHaveBeenCalledTimes(index < completedSteps ? 1 : 0);
+            });
+            expect(model.createState()).toMatchObject({
+                fileName: originalFileName,
+                loading: false,
+                dirty: false,
+                errorMessage: undefined
+            });
+            expect(vscode.workspace.createFileSystemWatcher).toHaveBeenCalledTimes(watchCount);
+            expect(ensureOutput).not.toHaveBeenCalled();
+            expect(prevalidator.validate).not.toHaveBeenCalled();
+        }
+    );
+
+    it.each(['validation', 'file', 'capabilities'] as const)(
+        'stops refreshing a file when deactivated during %s', async boundary => {
+            const { adapter, backupStore, model, prevalidator } = await createModelFromText('ctrace:\n  setup: []\n');
+            const read = jest.spyOn(adapter, 'readTextFile');
+            const capabilities = jest.spyOn(TraceConfigurationProcessorCapabilities.prototype, 'load').mockResolvedValue();
+            const ensureOutput = jest.spyOn(TraceConfigurationGeneratedCTraceFileManager.prototype, 'ensureProductionCTraceRunFile')
+                .mockResolvedValue();
+            const watchCount = (vscode.workspace.createFileSystemWatcher as jest.Mock).mock.calls.length;
+            switch (boundary) {
+                case 'validation':
+                    prevalidator.cancel.mockImplementationOnce(() => model.deactivate());
+                    break;
+                case 'file':
+                    read.mockImplementationOnce(async () => {
+                        await model.deactivate();
+                        return adapter.text;
+                    });
+                    break;
+                case 'capabilities':
+                    capabilities.mockImplementationOnce(() => model.deactivate());
+                    break;
+            }
+
+            await model.refreshFile();
+
+            expect(backupStore.delete).toHaveBeenCalledTimes(boundary === 'validation' ? 0 : 1);
+            expect(read).toHaveBeenCalledTimes(boundary === 'validation' ? 0 : 1);
+            expect(capabilities).toHaveBeenCalledTimes(boundary === 'capabilities' ? 1 : 0);
+            expect(vscode.workspace.createFileSystemWatcher).toHaveBeenCalledTimes(watchCount);
+            expect(ensureOutput).not.toHaveBeenCalled();
+            expect(model.createState()).toMatchObject({ loading: false, dirty: false, errorMessage: undefined });
+        }
+    );
+
+    it.each(['watch setup', 'active file lookup', 'candidate search'] as const)(
+        'abandons initial discovery deactivated during %s', async boundary => {
+            const { model } = await createModelFromText('ctrace:\n  setup: []\n');
+            const originalFileName = model.createState().fileName;
+            const watch = jest.spyOn(model, 'watchForGeneratedCBuildRunFiles').mockResolvedValue();
+            const activeFile = jest.spyOn(TraceConfigurationFileWatcher.prototype, 'processActiveCBuildRunFile')
+                .mockResolvedValue(false);
+            const findFiles = jest.spyOn(vscode.workspace, 'findFiles').mockResolvedValue([]);
+            const read = jest.spyOn(CTraceYamlFile.prototype, 'load');
+            switch (boundary) {
+                case 'watch setup':
+                    watch.mockImplementationOnce(() => model.deactivate());
+                    break;
+                case 'active file lookup':
+                    activeFile.mockImplementationOnce(async () => {
+                        await model.deactivate();
+                        return false;
+                    });
+                    break;
+                case 'candidate search':
+                    findFiles.mockImplementationOnce(async () => {
+                        await model.deactivate();
+                        return [vscode.Uri.file('/workspace/next.ctrace.yml')];
+                    });
+                    break;
+            }
+
+            await model.loadInitialFile();
+
+            expect(activeFile).toHaveBeenCalledTimes(boundary === 'watch setup' ? 0 : 1);
+            expect(findFiles).toHaveBeenCalledTimes(boundary === 'candidate search' ? 1 : 0);
+            expect(read).not.toHaveBeenCalled();
+            expect(model.createState()).toMatchObject({
+                fileName: originalFileName, loading: false, errorMessage: undefined
+            });
+        }
+    );
+
+    it('reports a current startup discovery failure and finishes loading', async () => {
+        const model = createWorkspaceModel();
+        const failure = new Error('startup discovery failed');
+        jest.spyOn(model, 'watchForGeneratedCBuildRunFiles').mockRejectedValueOnce(failure);
+        const error = jest.spyOn(logger, 'error').mockImplementation();
+
+        await model.loadInitialFile();
+
+        expect(model.createState()).toMatchObject({ loading: false, errorMessage: failure.message });
+        expect(error).toHaveBeenCalledWith(expect.stringContaining(failure.message));
+        await model.deactivate();
+    });
+
+    it('does not start a file load after deactivation', async () => {
+        const { model } = await createModelFromText('ctrace:\n  setup: []\n');
+        await model.deactivate();
+        const onDidChange = jest.fn();
+        model.setOnDidChange(onDidChange);
+        const read = jest.spyOn(CTraceYamlFile.prototype, 'load');
+        const watch = jest.spyOn(model, 'watchForGeneratedCBuildRunFiles');
+
+        await model.openFile('/workspace/next.ctrace.yml');
+        await model.loadInitialFile();
+        await model.refreshFile();
+
+        expect(read).not.toHaveBeenCalled();
+        expect(watch).not.toHaveBeenCalled();
+        expect(onDidChange).not.toHaveBeenCalled();
+        expect(model.createState().loading).toBe(false);
+    });
+
+    it.each(['generation', 'validation'] as const)(
+        'ignores trace-off output invalidated during %s', async boundary => {
+            const { model, prevalidator } = await createModelFromText('ctrace:\n  setup: []\n');
+            const originalFileName = model.createState().fileName;
+            const processChange = jest.spyOn(
+                TraceConfigurationGeneratedCTraceFileManager.prototype, 'processGeneratedCBuildRunFileChange'
+            ).mockResolvedValue({ status: 'trace-off' });
+            if (boundary === 'generation') {
+                processChange.mockImplementationOnce(async () => {
+                    await model.deactivate();
+                    return { status: 'trace-off' };
+                });
+            } else {
+                prevalidator.cancel.mockImplementationOnce(() => model.deactivate());
+            }
+            const event: GeneratedCBuildRunFileChangeEvent = {
+                type: 'changed', uri: vscode.Uri.file('/workspace/out/demo.cbuild-run.yml')
+            };
+
+            await (model as unknown as TraceConfigurationModelPrivate).refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event);
+
+            expect(processChange).toHaveBeenCalledWith(event, {
+                isCurrent: expect.any(Function), requestConversion: true
+            });
+            expect(processChange.mock.calls[0]?.[1]?.isCurrent?.()).toBe(false);
+            expect(model.createState()).toMatchObject({
+                fileName: originalFileName, loading: false, errorMessage: undefined
+            });
+            expect(model.createState().emptyMessage).not.toBe(TRACE_OFF_MESSAGE);
+        }
+    );
+
+    it('clears file-backed state and notifies listeners when the active solution changes', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const fileName = path.join(workspaceRoot, 'demo.ctrace.yml');
+        await writeTemporaryTextFile(fileName, 'ctrace:\n  setup:\n    - core: Cortex-M33\n');
+        const locator = new CBuildRunFileLocator();
+        jest.spyOn(locator, 'getActiveSolutionFolder').mockResolvedValue(vscode.Uri.file(workspaceRoot));
+        jest.spyOn(locator, 'getCBuildRunFileName').mockResolvedValue(undefined);
+        jest.spyOn(TraceConfigurationGeneratedCTraceFileManager.prototype, 'ensureProductionCTraceRunFile').mockResolvedValue();
+        const activeSolutionWatch = activeSolutionWatchFactory();
+        const onDidChange = jest.fn();
+        const model = new TraceConfigurationModel(
+            onDidChange, undefined, undefined, undefined, activeSolutionWatch.fileWatchManager,
+            locator, activeSolutionWatch.cmsisJsonWatcher, undefined, createPassingPrevalidator(), createRunMessageReader()
+        );
+        await model.watchForGeneratedCBuildRunFiles();
+        await model.openFile(fileName);
+        expect(model.createState().rows.length).toBeGreaterThan(0);
+        onDidChange.mockClear();
+
+        activeSolutionWatch.fireActiveSolutionChange({
+            previousActiveSolutionPath: path.join(workspaceRoot, 'first.csolution.yml'),
+            activeSolutionPath: path.join(workspaceRoot, 'second.csolution.yml'),
+            generation: 1
+        });
+
+        expect(model.createState()).toMatchObject({ fileName: undefined, loading: false, dirty: false, rows: [] });
+        expect(onDidChange).toHaveBeenCalled();
+        await model.deactivate();
+    });
+
+    it('does not publish a disk reload invalidated during capability loading', async () => {
+        const { model } = await createModelFromText('ctrace:\n  setup:\n    - pname: original\n');
+        const originalRows = model.createState().rows;
+        const onDidChange = jest.fn();
+        model.setOnDidChange(onDidChange);
+        jest.spyOn(CTraceYamlFile.prototype, 'reloadIfChanged').mockResolvedValueOnce(true);
+        jest.spyOn(TraceConfigurationProcessorCapabilities.prototype, 'load').mockImplementationOnce(async () => {
+            await model.deactivate();
+            onDidChange.mockClear();
+        });
+
+        await model.updateValue(['ctrace', 'setup', 0, 'pname'], 'obsolete edit');
+
+        expect(model.createState().rows).toEqual(originalRows);
+        expect(model.createState().dirty).toBe(false);
+        expect(onDidChange).not.toHaveBeenCalled();
+    });
+
+    it('logs a background production conversion failure without failing refresh', async () => {
+        const { model } = await createModelFromText('ctrace:\n  setup: []\n');
+        const failure = new Error('background conversion failed');
+        jest.spyOn(TraceConfigurationGeneratedCTraceFileManager.prototype, 'ensureProductionCTraceRunFile')
+            .mockRejectedValueOnce(failure);
+        const error = jest.spyOn(logger, 'error').mockImplementation();
+
+        await model.refreshFile();
+
+        expect(error).toHaveBeenCalledWith('Trace Configuration: Failed to request production ctrace-run output:', failure);
+        expect(model.createState()).toMatchObject({ loading: false, dirty: false, errorMessage: undefined });
+        await model.deactivate();
+    });
+
+    it.each(['failed open', 'refresh'] as const)(
+        'retains the initialized file when capability loading is superseded by a %s', async operation => {
+            const workspaceRoot = await createTemporaryWorkspace();
+            const originalFileName = path.join(workspaceRoot, 'original.ctrace.yml');
+            const nextFileName = path.join(workspaceRoot, 'next.ctrace.yml');
+            await writeTemporaryTextFile(originalFileName, 'ctrace:\n  setup:\n    - core: Cortex-M33\n');
+            await writeTemporaryTextFile(nextFileName, 'ctrace:\n  setup:\n    - core: Cortex-M55\n');
+            const lookup = jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileName').mockResolvedValue(undefined);
+            const runMessageReader = createRunMessageReader();
+            runMessageReader.readIfExists.mockResolvedValue([]);
+            const { backupStore, model } = await createModelFromText(
+                'ctrace:\n  setup: []\n', undefined, originalFileName, undefined, runMessageReader
+            );
+            await model.openFile(originalFileName);
+            const originalRows = model.createState().rows;
+            const sourceWatcher = getLastCreatedFileSystemWatcher();
+            const productionWatcher = (vscode.workspace.createFileSystemWatcher as jest.Mock)
+                .mock.results.at(-3)?.value as MockFileSystemWatcher;
+            backupStore.restore.mockResolvedValueOnce(CTraceYamlDocument.parse('ctrace:\n  setup:\n    - core: Cortex-M55\n'));
+            let finishLookup: (() => void) | undefined;
+            const blockedLookup = new Promise<undefined>(resolve => { finishLookup = () => resolve(undefined); });
+            const lookupCount = lookup.mock.calls.length;
+            lookup.mockReturnValueOnce(blockedLookup);
+            const opening = model.openFile(nextFileName);
+
+            try {
+                await waitForCondition('blocked capability lookup', () => lookup.mock.calls.length > lookupCount);
+                expect(model.createState()).toMatchObject({ fileName: originalFileName, dirty: false, rows: originalRows });
+                expect(sourceWatcher.dispose).not.toHaveBeenCalled();
+                if (operation === 'refresh') {
+                    await model.refreshFile();
+                } else {
+                    await expect(model.openFile(path.join(workspaceRoot, 'missing.ctrace.yml'))).rejects.toThrow();
+                }
+                finishLookup?.();
+                await opening;
+
+                expect(model.createState()).toMatchObject({
+                    fileName: originalFileName, loading: false, dirty: false, rows: originalRows
+                });
+                expect(getLastCreatedFileSystemWatcher().dispose).not.toHaveBeenCalled();
+                expect(productionWatcher.dispose).not.toHaveBeenCalled();
+                const readCount = runMessageReader.readIfExists.mock.calls.length;
+                fireWatcherHandler(productionWatcher, 'change', vscode.Uri.file(originalFileName));
+                await waitForCondition('production validation output read', () =>
+                    runMessageReader.readIfExists.mock.calls.length > readCount);
+            } finally {
+                finishLookup?.();
+                await opening;
+                await model.deactivate();
+            }
+        }
+    );
+
+    it('coalesces overlapping manual refreshes for the current file', async () => {
+        const { adapter, backupStore, model } = await createModelFromText('ctrace:\n  setup: []\n');
+        let finishCleanup: (() => void) | undefined;
+        const cleanup = new Promise<void>(resolve => { finishCleanup = resolve; });
+        backupStore.delete.mockReturnValueOnce(cleanup);
+        const read = jest.spyOn(adapter, 'readTextFile');
+
+        const firstRefresh = model.refreshFile();
+        await waitForImmediate();
+        const secondRefresh = model.refreshFile();
+        await waitForImmediate();
+        const cleanupCount = backupStore.delete.mock.calls.length;
+        finishCleanup?.();
+        await Promise.all([firstRefresh, secondRefresh]);
+
+        expect(cleanupCount).toBe(1);
+        expect(read).toHaveBeenCalledTimes(1);
+        expect(model.createState().loading).toBe(false);
+    });
+
+    it.each(['open', 'refresh'] as const)('does not supersede an active %s when a generated cbuild-run file is deleted', async operation => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const nextFileName = path.join(workspaceRoot, 'next.ctrace.yml');
+        await writeTemporaryTextFile(nextFileName, 'ctrace:\n  setup: []\n');
+        const { backupStore, model } = await createModelFromText('ctrace:\n  setup: []\n');
+        const expectedFileName = operation === 'open' ? nextFileName : model.createState().fileName;
+        let finishBackupWork: (() => void) | undefined;
+        const blockedBackupWork = new Promise<undefined>(resolve => { finishBackupWork = () => resolve(undefined); });
+        const backupOperation = operation === 'open' ? backupStore.restore : backupStore.delete;
+        backupOperation.mockReturnValueOnce(blockedBackupWork);
+        const watchCurrentFile = jest.spyOn(TraceConfigurationFileWatcher.prototype, 'watchCurrentFile');
+        const loading = operation === 'open' ? model.openFile(nextFileName) : model.refreshFile();
+
+        try {
+            await waitForCondition('blocked file load backup work', () => backupOperation.mock.calls.length === 1);
+            await (model as unknown as TraceConfigurationModelPrivate).refreshProcessorCapabilitiesFromGeneratedCBuildRunFile({
+                type: 'deleted', uri: vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml'))
+            });
+
+            expect(model.createState().loading).toBe(true);
+            finishBackupWork?.();
+            await loading;
+
+            expect(model.createState()).toMatchObject({ fileName: expectedFileName, loading: false, dirty: false });
+            expect(watchCurrentFile).toHaveBeenCalledTimes(1);
+        } finally {
+            finishBackupWork?.();
+            await loading;
+            await model.deactivate();
+        }
+    });
+
+    it('restores clean-file watching after a failed refresh and allows a retry', async () => {
+        const { adapter, model } = await createModelFromText('ctrace:\n  setup: []\n');
+        const read = jest.spyOn(adapter, 'readTextFile').mockRejectedValueOnce(new Error('disk unavailable'));
+        const watch = vscode.workspace.createFileSystemWatcher as jest.Mock;
+        const previousWatchCount = watch.mock.calls.length;
+
+        await expect(model.refreshFile()).rejects.toThrow('disk unavailable');
+        expect(model.createState().loading).toBe(false);
+        expect(watch.mock.calls.length).toBeGreaterThan(previousWatchCount);
+        await model.refreshFile();
+        expect(read).toHaveBeenCalledTimes(2);
+        expect(model.createState()).toMatchObject({ loading: false, dirty: false });
+        await model.deactivate();
+    });
+
+    it.each(['before', 'after'] as const)(
+        'restores surviving clean-file watching when a superseded refresh finishes %s a replacement fails', async completionOrder => {
+            const workspaceRoot = await createTemporaryWorkspace();
+            const originalFileName = path.join(workspaceRoot, 'original.ctrace.yml');
+            const nextFileName = path.join(workspaceRoot, 'next.ctrace.yml');
+            await writeTemporaryTextFile(originalFileName, 'ctrace:\n  setup:\n    - core: Cortex-M33\n');
+            await writeTemporaryTextFile(nextFileName, 'ctrace:\n  setup: []\n');
+            const runMessageReader = createRunMessageReader();
+            runMessageReader.readIfExists.mockResolvedValue([]);
+            const { backupStore, model } = await createModelFromText(
+                'ctrace:\n  setup: []\n', undefined, originalFileName, undefined, runMessageReader
+            );
+            await model.openFile(originalFileName);
+            const originalRows = model.createState().rows;
+            const sourceWatcher = getLastCreatedFileSystemWatcher();
+            let finishCleanup: (() => void) | undefined;
+            backupStore.delete.mockReturnValueOnce(new Promise<void>(resolve => { finishCleanup = resolve; }));
+            let failRestore: ((error: Error) => void) | undefined;
+            backupStore.restore.mockReturnValueOnce(new Promise<undefined>((_resolve, reject) => { failRestore = reject; }));
+            const watchCurrentFile = jest.spyOn(TraceConfigurationFileWatcher.prototype, 'watchCurrentFile');
+            const restoreCount = backupStore.restore.mock.calls.length;
+            const refresh = model.refreshFile();
+            await waitForCondition('blocked refresh cleanup', () => backupStore.delete.mock.calls.length === 1);
+            const opening = expect(model.openFile(nextFileName)).rejects.toThrow('replacement unavailable');
+
+            try {
+                await waitForCondition('blocked replacement restoration', () => backupStore.restore.mock.calls.length > restoreCount);
+                expect(sourceWatcher.dispose).toHaveBeenCalled();
+                if (completionOrder === 'before') {
+                    finishCleanup?.();
+                    await refresh;
+                }
+                expect(watchCurrentFile).not.toHaveBeenCalled();
+                expect(model.createState().loading).toBe(true);
+                failRestore?.(new Error('replacement unavailable'));
+                await opening;
+                expect(model.createState()).toMatchObject({ fileName: originalFileName, loading: false, dirty: false });
+                expect(watchCurrentFile).toHaveBeenCalledTimes(1);
+                const restoredWatcher = getLastCreatedFileSystemWatcher();
+                finishCleanup?.();
+                await refresh;
+                expect(watchCurrentFile).toHaveBeenCalledTimes(1);
+                expect(restoredWatcher.dispose).not.toHaveBeenCalled();
+
+                await writeTemporaryTextFile(originalFileName, 'ctrace:\n  setup:\n    - core: Cortex-M55\n      pname: updated\n');
+                fireWatcherHandler(restoredWatcher, 'change', vscode.Uri.file(originalFileName));
+                await waitForCondition('restored source watcher disk update', () =>
+                    model.createState().rows.some(row => row.label === 'Processor:updated'));
+                expect(model.createState().rows).not.toEqual(originalRows);
+            } finally {
+                finishCleanup?.();
+                failRestore?.(new Error('replacement unavailable'));
+                await Promise.all([refresh, opening]);
+                await model.deactivate();
+            }
+        }
+    );
+
+    it('does not finish a newer file load when an obsolete refresh completes', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const nextFileName = path.join(workspaceRoot, 'next.ctrace.yml');
+        await writeTemporaryTextFile(nextFileName, 'ctrace:\n  setup: []\n');
+        const { adapter, backupStore, model } = await createModelFromText('ctrace:\n  setup: []\n');
+        let finishCleanup: (() => void) | undefined;
+        backupStore.delete.mockReturnValueOnce(new Promise<void>(resolve => { finishCleanup = resolve; }));
+        let finishRestore: (() => void) | undefined;
+        backupStore.restore.mockReturnValueOnce(new Promise<undefined>(resolve => {
+            finishRestore = () => resolve(undefined);
+        }));
+        const read = jest.spyOn(adapter, 'readTextFile');
+
+        const refresh = model.refreshFile();
+        await waitForCondition('blocked refresh cleanup', () => backupStore.delete.mock.calls.length === 1);
+        const opening = model.openFile(nextFileName);
+        await waitForCondition('blocked replacement file load', () => backupStore.restore.mock.calls.length === 1);
+        finishCleanup?.();
+        await refresh;
+        const loadingWhileOpening = model.createState().loading;
+        finishRestore?.();
+        await opening;
+
+        expect(loadingWhileOpening).toBe(true);
+        expect(read).not.toHaveBeenCalled();
+        expect(model.createState()).toMatchObject({ fileName: nextFileName, loading: false, dirty: false });
+        await model.deactivate();
+    });
+
+    it('ignores obsolete file load failures after a newer file is opened', async () => {
+        const workspaceRoot = await createTemporaryWorkspace();
+        const firstFileName = path.join(workspaceRoot, 'first.ctrace.yml');
+        const secondFileName = path.join(workspaceRoot, 'second.ctrace.yml');
+        await writeTemporaryTextFile(firstFileName, 'ctrace:\n  setup: []\n');
+        await writeTemporaryTextFile(secondFileName, 'ctrace:\n  setup: []\n');
+        const { backupStore, model } = await createModelFromText('ctrace:\n');
+        let failRestore: ((error: Error) => void) | undefined;
+        backupStore.restore.mockReturnValueOnce(new Promise<undefined>((_resolve, reject) => { failRestore = reject; }));
+        const firstOpen = model.openFile(firstFileName);
+        await waitForCondition('first backup restoration', () => backupStore.restore.mock.calls.length === 1);
+        await model.openFile(secondFileName);
+        failRestore?.(new Error('obsolete read failure'));
+        await expect(firstOpen).resolves.toBeUndefined();
+        expect(model.createState()).toMatchObject({ fileName: secondFileName, loading: false });
+        expect(model.createState().errorMessage).toBeUndefined();
+        await model.deactivate();
+    });
+
+    it('does not resume a refresh after deactivation', async () => {
+        const { adapter, backupStore, model } = await createModelFromText('ctrace:\n');
+        let finishCleanup: (() => void) | undefined;
+        backupStore.delete.mockReturnValueOnce(new Promise<void>(resolve => { finishCleanup = resolve; }));
+        const read = jest.spyOn(adapter, 'readTextFile');
+        const refresh = model.refreshFile();
+        await waitForCondition('refresh cleanup', () => backupStore.delete.mock.calls.length === 1);
+        await model.deactivate();
+        const onDidChange = jest.fn();
+        model.setOnDidChange(onDidChange);
+        finishCleanup?.();
+        await refresh;
+        expect(read).not.toHaveBeenCalled();
+        expect(onDidChange).not.toHaveBeenCalled();
+    });
+
+    it('finishes refresh without waiting for production conversion', async () => {
+        let finishConversion: (() => void) | undefined;
+        const conversion = new Promise<void>(resolve => { finishConversion = resolve; });
+        const ensureOutput = jest.spyOn(
+            TraceConfigurationGeneratedCTraceFileManager.prototype, 'ensureProductionCTraceRunFile'
+        ).mockReturnValue(conversion);
+        const { model } = await createModelFromText('ctrace:\n  setup: []\n');
+        let completed = false;
+        const refresh = model.refreshFile().then(() => { completed = true; });
+        await waitForCondition('background production conversion', () => ensureOutput.mock.calls.length === 1);
+        await waitForImmediate();
+        const completedBeforeConversion = completed;
+        const loadingBeforeConversion = model.createState().loading;
+        finishConversion?.();
+        await refresh;
+        expect(completedBeforeConversion).toBe(true);
+        expect(loadingBeforeConversion).toBe(false);
+        await model.deactivate();
     });
 
     it('refresh discards unsaved webview edits and resumes file watching', async () => {
