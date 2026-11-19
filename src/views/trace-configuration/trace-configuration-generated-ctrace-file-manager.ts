@@ -47,6 +47,11 @@ interface EnsureProductionCTraceRunFileOptions {
     readonly force?: boolean;
 }
 
+interface GeneratedCBuildRunFileProcessingOptions {
+    readonly isCurrent?: () => boolean;
+    readonly requestConversion?: boolean;
+}
+
 export const TRACE_OFF_MESSAGE =
     'Trace generation turned off, enable in debugger\'s trace settings';
 
@@ -66,7 +71,7 @@ export class TraceConfigurationGeneratedCTraceFileManager {
     public constructor(
         private readonly pyTsController: PyTsController = new PyTsController(),
         private readonly cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator()
-    ) {}
+    ) { }
 
     /**
      * processGeneratedCBuildRunFileChange updates generated trace files for a
@@ -76,15 +81,17 @@ export class TraceConfigurationGeneratedCTraceFileManager {
      */
     public async processGeneratedCBuildRunFileChange(
         event: GeneratedCBuildRunFileChangeEvent,
-        requestConversion = true
+        options: GeneratedCBuildRunFileProcessingOptions = {}
     ): Promise<GeneratedCBuildRunFileProcessingResult> {
+        const isCurrent = options.isCurrent ?? (() => true);
+        const requestConversion = options.requestConversion ?? true;
         logger.debug(`Trace Configuration: Generated cbuild-run file ${event.type}: ${event.uri.fsPath}`);
         switch (event.type) {
             case 'created':
             case 'changed': {
-                const traceFile = await this.createOrUpdateGeneratedCTraceFile(event.uri);
-                if (requestConversion && traceFile && !traceFile.written) {
-                    await this.convertExistingCTrace(traceFile.uri, event.uri);
+                const traceFile = await this.createOrUpdateGeneratedCTraceFile(event.uri, isCurrent);
+                if (requestConversion && traceFile && !traceFile.written && isCurrent()) {
+                    void this.convertExistingCTrace(traceFile.uri, event.uri, options.isCurrent);
                 }
                 return traceFile
                     ? { status: 'generated', uri: traceFile.uri, conversionRequested: requestConversion && !traceFile.written }
@@ -172,9 +179,13 @@ export class TraceConfigurationGeneratedCTraceFileManager {
      * returns the generated ctrace file URI.
     */
     private async createOrUpdateGeneratedCTraceFile(
-        cbuildRunFileUri: vscode.Uri
+        cbuildRunFileUri: vscode.Uri,
+        isCurrent: () => boolean = () => true
     ): Promise<{ uri: vscode.Uri; written: boolean } | undefined> {
         const cbuildRun = await this.readGeneratedCBuildRun(cbuildRunFileUri);
+        if (!isCurrent()) {
+            return undefined;
+        }
         if (!cbuildRun) {
             logger.debug(`${TRACE_OFF_MESSAGE}: ${cbuildRunFileUri.fsPath}`);
             return undefined;
@@ -187,6 +198,9 @@ export class TraceConfigurationGeneratedCTraceFileManager {
         const document = traceFileExists
             ? await this.readCTraceDocument(traceFileUri)
             : CTraceYamlDocument.create('CMSIS Debugger');
+        if (!isCurrent()) {
+            return undefined;
+        }
 
         const changed = this.addMissingProcessorTraceSetups(
             document,
@@ -196,15 +210,23 @@ export class TraceConfigurationGeneratedCTraceFileManager {
 
         const written = !traceFileExists || changed;
         if (written) {
-            await this.writeCTraceDocument(traceFileUri, document);
+            await this.writeCTraceDocument(traceFileUri, document, isCurrent);
         }
 
         return { uri: traceFileUri, written };
     }
 
-    private async convertExistingCTrace(ctraceUri: vscode.Uri, cbuildRunUri: vscode.Uri): Promise<void> {
+    private async convertExistingCTrace(
+        ctraceUri: vscode.Uri,
+        cbuildRunUri: vscode.Uri,
+        isCurrent?: () => boolean
+    ): Promise<void> {
         try {
-            await this.pyTsController.convertCTrace(ctraceUri, cbuildRunUri.fsPath);
+            if (isCurrent) {
+                await this.pyTsController.convertCTrace(ctraceUri, cbuildRunUri.fsPath, { isCurrent });
+            } else {
+                await this.pyTsController.convertCTrace(ctraceUri, cbuildRunUri.fsPath);
+            }
         } catch (error) {
             logger.error('Failed to request pyTS conversion:', error);
         }
@@ -277,10 +299,17 @@ export class TraceConfigurationGeneratedCTraceFileManager {
      * writeCTraceDocument normalizes a ctrace document, creates its parent
      * directory when needed, and writes the serialized YAML through VS Code.
      */
-    private async writeCTraceDocument(traceFileUri: vscode.Uri, document: CTraceYamlDocument): Promise<void> {
+    private async writeCTraceDocument(
+        traceFileUri: vscode.Uri,
+        document: CTraceYamlDocument,
+        isCurrent: () => boolean = () => true
+    ): Promise<void> {
         document.normalizeDocumentOrder();
         document.assignCTraceRefs();
         await this.ensureDirectoryExists(vscode.Uri.file(path.dirname(traceFileUri.fsPath)));
+        if (!isCurrent()) {
+            return;
+        }
         await vscode.workspace.fs.writeFile(traceFileUri, this.encoder.encode(document.toString()));
     }
 

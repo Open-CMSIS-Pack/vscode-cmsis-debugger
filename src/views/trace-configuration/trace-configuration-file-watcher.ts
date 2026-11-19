@@ -76,6 +76,7 @@ export interface TraceConfigurationFileWatcherCallbacks {
 
     /** Publishes changes to the production or temporary ctrace-run output. */
     onCurrentRunFileChanged?(event: TraceConfigurationRunFileChangeEvent): void | Promise<void>;
+    onActiveSolutionChanged?(): void;
 }
 
 const CBUILD_INDEX_WATCH_ID = 'trace-configuration.cbuild-index';
@@ -83,6 +84,27 @@ const GENERATED_CBUILD_RUN_WATCH_ID = 'trace-configuration.generated-cbuild-run'
 const CURRENT_CTRACE_WATCH_ID = 'trace-configuration.current-ctrace';
 const PRODUCTION_CTRACE_RUN_WATCH_ID = 'trace-configuration.production-ctrace-run';
 const BACKUP_CTRACE_RUN_WATCH_ID = 'trace-configuration.backup-ctrace-run';
+
+function coalesceFileEvents<Event>(processEvent: (event: Event) => Promise<void>): (event: Event) => Promise<void> {
+    let pending: { event: Event } | undefined;
+    let active: Promise<void> | undefined;
+    const enqueue = (event: Event): Promise<void> => {
+        pending = { event };
+        active ??= (async () => {
+            while (pending) {
+                const next = pending;
+                pending = undefined;
+                await processEvent(next.event);
+            }
+        })().finally(() => {
+            active = undefined;
+            const next = pending;
+            return next ? enqueue(next.event) : undefined;
+        });
+        return active;
+    };
+    return enqueue;
+}
 
 /**
  * TraceConfigurationFileWatcher owns all file-system subscriptions used by the
@@ -96,12 +118,39 @@ export class TraceConfigurationFileWatcher {
     private generatedCBuildIndexWatchInstallation: Promise<void> | undefined;
     private generatedCBuildRunFileName: string | undefined;
     private generatedWatchVersion = 0;
+    private generatedRequestVersion = 0;
     private cbuildRunResolutionVersion = 0;
     private currentFileWatchVersion = 0;
     private currentRunFileWatchVersion = 0;
     private activeSolutionGeneration = 0;
     private readonly activeSolutionChangeSubscription: vscode.Disposable | undefined;
     private readonly _onDidChangeGeneratedCBuildRunFileEmitter = new vscode.EventEmitter<GeneratedCBuildRunFileChangeEvent>();
+    private readonly processGeneratedChange = coalesceFileEvents(async (request: {
+        event: GeneratedCBuildRunFileChangeEvent; watchVersion: number; requestVersion: number; elfReadVersion: number;
+    }) => {
+        const isCurrent = () => request.watchVersion === this.generatedWatchVersion
+            && request.requestVersion === this.generatedRequestVersion
+            && request.elfReadVersion === this.elfReadVersion
+            && this.isCurrentGeneratedCBuildRunFile(request.event.uri.fsPath);
+        if (!isCurrent()) {
+            return;
+        }
+        if (request.event.type !== 'deleted') {
+            try {
+                const reader = new CbuildRunReader();
+                await reader.parse(request.event.uri.fsPath);
+                if (!isCurrent()) {
+                    return;
+                }
+                this.watchElfFiles(reader.getElfFilePaths(), request.event.uri);
+            } catch {
+                // Preserve existing dependencies during a partial write; the model reports parse errors.
+            }
+        }
+        if (isCurrent()) {
+            await this.callbacks.onGeneratedCBuildRunFileChanged(request.event);
+        }
+    });
 
     /**
      * onDidChangeGeneratedCBuildRunFile exposes generated cbuild-run file events
@@ -182,6 +231,10 @@ export class TraceConfigurationFileWatcher {
         return this.resolveAndWatchGeneratedCBuildRunFile(this.generatedWatchVersion, undefined, true);
     }
 
+    public invalidatePendingGeneratedChanges(): void {
+        this.generatedRequestVersion += 1;
+    }
+
     /**
      * watchCurrentFile replaces the active ctrace.yml watcher with one attached
      * to the model's current file, or leaves no watcher when there is no loaded
@@ -195,12 +248,13 @@ export class TraceConfigurationFileWatcher {
             return;
         }
         const pattern = new vscode.RelativePattern(path.dirname(watchedFile.fileName), path.basename(watchedFile.fileName));
+        const reload = coalesceFileEvents(async () => this.reloadCurrentFile(watchedFile, watchVersion));
         this.fileWatchManager.addWatch({
             id: CURRENT_CTRACE_WATCH_ID,
             globPattern: pattern,
-            onDidCreate: () => this.reloadCurrentFile(watchedFile, watchVersion),
-            onDidChange: () => this.reloadCurrentFile(watchedFile, watchVersion),
-            onDidDelete: () => this.reloadCurrentFile(watchedFile, watchVersion)
+            onDidCreate: () => reload(undefined),
+            onDidChange: () => reload(undefined),
+            onDidDelete: () => reload(undefined)
         });
     }
 
@@ -264,6 +318,7 @@ export class TraceConfigurationFileWatcher {
         }
         this.activeSolutionGeneration = event.generation;
         this.resetActiveSolutionWatches();
+        this.callbacks.onActiveSolutionChanged?.();
 
         await this.watchGeneratedCBuildRunFiles();
         if (event.generation !== this.activeSolutionGeneration) {
@@ -285,6 +340,7 @@ export class TraceConfigurationFileWatcher {
         findExistingCBuildIndex = false
     ): Promise<boolean> {
         const resolutionVersion = ++this.cbuildRunResolutionVersion;
+        const requestVersion = this.generatedRequestVersion;
         const cbuildRunFileName = await this.cbuildRunFileLocator.getCBuildRunFileName(
             cbuildIndexFile,
             findExistingCBuildIndex
@@ -305,12 +361,13 @@ export class TraceConfigurationFileWatcher {
         if (
             watchVersion !== this.generatedWatchVersion
             || resolutionVersion !== this.cbuildRunResolutionVersion
+            || requestVersion !== this.generatedRequestVersion
             || !this.isCurrentGeneratedCBuildRunFile(cbuildRunFileName)
         ) {
             return false;
         }
 
-        await this.handleGeneratedCBuildRunFileChange('changed', uri);
+        await this.handleGeneratedCBuildRunFileChange('changed', uri, requestVersion);
         return true;
     }
 
@@ -410,25 +467,16 @@ export class TraceConfigurationFileWatcher {
      * and forwards the same event to the model callback that updates trace YAML
      * and configuration state.
      */
-    private async handleGeneratedCBuildRunFileChange(type: GeneratedCBuildRunFileChangeType, uri: vscode.Uri): Promise<void> {
+    private async handleGeneratedCBuildRunFileChange(
+        type: GeneratedCBuildRunFileChangeType,
+        uri: vscode.Uri,
+        requestVersion = this.generatedRequestVersion
+    ): Promise<void> {
         const event: GeneratedCBuildRunFileChangeEvent = { type, uri };
         this._onDidChangeGeneratedCBuildRunFileEmitter.fire(event);
-        const version = ++this.elfReadVersion;
-        if (type !== 'deleted') {
-            try {
-                const reader = new CbuildRunReader();
-                await reader.parse(uri.fsPath);
-                if (version !== this.elfReadVersion || !this.isCurrentGeneratedCBuildRunFile(uri.fsPath)) {
-                    return;
-                }
-                this.watchElfFiles(reader.getElfFilePaths(), uri);
-            } catch {
-                // Preserve existing dependencies during a partial write; the model reports parse errors.
-            }
-        }
-        if (version === this.elfReadVersion && this.isCurrentGeneratedCBuildRunFile(uri.fsPath)) {
-            await this.callbacks.onGeneratedCBuildRunFileChanged(event);
-        }
+        await this.processGeneratedChange({
+            event, watchVersion: this.generatedWatchVersion, requestVersion, elfReadVersion: ++this.elfReadVersion
+        });
     }
 
     /** Reconciles exact ELF watches without requiring the build outputs to exist yet. */
@@ -470,12 +518,15 @@ export class TraceConfigurationFileWatcher {
         watchId: string
     ): void {
         const pattern = new vscode.RelativePattern(path.dirname(fileName), path.basename(fileName));
+        const processChange = coalesceFileEvents(async (event: TraceConfigurationRunFileChangeEvent) => {
+            await this.handleCurrentRunFileChange(watchedFile, watchVersion, event.kind, event.type, event.uri);
+        });
         this.fileWatchManager.addWatch({
             id: watchId,
             globPattern: pattern,
-            onDidCreate: uri => this.handleCurrentRunFileChange(watchedFile, watchVersion, kind, 'created', uri),
-            onDidChange: uri => this.handleCurrentRunFileChange(watchedFile, watchVersion, kind, 'changed', uri),
-            onDidDelete: uri => this.handleCurrentRunFileChange(watchedFile, watchVersion, kind, 'deleted', uri)
+            onDidCreate: uri => processChange({ kind, type: 'created', uri }),
+            onDidChange: uri => processChange({ kind, type: 'changed', uri }),
+            onDidDelete: uri => processChange({ kind, type: 'deleted', uri })
         });
     }
 

@@ -36,6 +36,11 @@ import { normalizeFsPath } from '../../utils';
 const CTRACE_CONFIGURATION_GLOB = '.cmsis/[!~]*.ctrace.{yml,yaml}';
 const CTRACE_CONFIGURATION_WATCH_ID = 'pyts-ctrace-configuration';
 
+interface CTraceConversionContents {
+    readonly ctrace: Uint8Array;
+    readonly cbuildRun: Uint8Array | undefined;
+}
+
 /** Controls whether a conversion must rerun and whether its context is still current. */
 export interface CTraceConversionOptions {
     readonly forceRerun?: boolean;
@@ -45,7 +50,7 @@ export interface CTraceConversionOptions {
 interface CTraceConversionRequest {
     readonly cbuildRunFilePath: string | undefined;
     readonly conversionKey: string;
-    contents: Uint8Array;
+    contents: CTraceConversionContents;
     readonly isCurrent: () => boolean;
     readonly forceRerun: boolean;
 }
@@ -57,8 +62,8 @@ interface PendingCTraceConversion extends CTraceConversionRequest {
 export class PyTsController {
     private activeSession: GDBTargetDebugSession | undefined;
     private fileWatchManager: FileWatchManager | undefined;
-    private readonly observedCTraceContents = new Map<string, Uint8Array>();
-    private readonly contentReadPromises = new Map<string, Promise<Uint8Array | undefined>>();
+    private readonly observedConversionContents = new Map<string, CTraceConversionContents>();
+    private readonly contentReadPromises = new Map<string, Promise<CTraceConversionContents | undefined>>();
     private readonly pendingConversions = new Map<string, PendingCTraceConversion>();
     private activeConversion: PendingCTraceConversion | undefined;
     private conversionPromise: Promise<void> | undefined;
@@ -147,18 +152,23 @@ export class PyTsController {
         const previousRead = this.contentReadPromises.get(conversionKey) ?? Promise.resolve(undefined);
         // Catch a previous read failure so a later request can still proceed.
         const contentReadPromise = previousRead.catch(() => undefined).then(async () => {
-            const contents = await vscode.workspace.fs.readFile(uri);
+            const contents: CTraceConversionContents = {
+                ctrace: await vscode.workspace.fs.readFile(uri),
+                cbuildRun: cbuildRunFilePath === undefined
+                    ? undefined
+                    : await vscode.workspace.fs.readFile(vscode.Uri.file(cbuildRunFilePath))
+            };
             if (!isCurrent()) {
                 return undefined;
             }
-            if (!explicit && this.contentsEqual(this.observedCTraceContents.get(conversionKey), contents)) {
+            if (!explicit && this.conversionContentsEqual(this.observedConversionContents.get(conversionKey), contents)) {
                 return undefined;
             }
-            this.observedCTraceContents.set(conversionKey, contents);
+            this.observedConversionContents.set(conversionKey, contents);
             return contents;
         });
         this.contentReadPromises.set(conversionKey, contentReadPromise);
-        let contents: Uint8Array | undefined;
+        let contents: CTraceConversionContents | undefined;
         try {
             contents = await contentReadPromise;
         } finally {
@@ -182,17 +192,21 @@ export class PyTsController {
     private submitConversion(request: CTraceConversionRequest): Promise<void> {
         const completion = new Promise<void>(resolve => {
             const waiter = { resolve, isCurrent: request.isCurrent };
+            const pendingConversion = this.pendingConversions.get(request.conversionKey);
+            if (pendingConversion !== undefined) {
+                if (pendingConversion.waiters.some(pendingWaiter => pendingWaiter.isCurrent())) {
+                    pendingConversion.contents = request.contents;
+                    pendingConversion.waiters.push(waiter);
+                    return;
+                }
+                this.pendingConversions.delete(request.conversionKey);
+                pendingConversion.waiters.forEach(pendingWaiter => pendingWaiter.resolve());
+            }
             const activeConversion = this.activeConversion;
             if (!request.forceRerun
                 && activeConversion?.conversionKey === request.conversionKey
-                && this.contentsEqual(activeConversion.contents, request.contents)) {
+                && this.conversionContentsEqual(activeConversion.contents, request.contents)) {
                 activeConversion.waiters.push(waiter);
-                return;
-            }
-            const pendingConversion = this.pendingConversions.get(request.conversionKey);
-            if (pendingConversion !== undefined) {
-                pendingConversion.contents = request.contents;
-                pendingConversion.waiters.push(waiter);
                 return;
             }
             this.pendingConversions.set(request.conversionKey, { ...request, waiters: [waiter] });
@@ -226,11 +240,11 @@ export class PyTsController {
                     logger.error('Failed to launch pyTS process:', error);
                 } finally {
                     await this.contentReadPromises.get(pendingConversion.conversionKey)?.catch(() => undefined);
-                    if (this.contentsEqual(
-                        this.observedCTraceContents.get(pendingConversion.conversionKey),
+                    if (this.conversionContentsEqual(
+                        this.observedConversionContents.get(pendingConversion.conversionKey),
                         pendingConversion.contents
                     )) {
-                        this.observedCTraceContents.delete(pendingConversion.conversionKey);
+                        this.observedConversionContents.delete(pendingConversion.conversionKey);
                     }
                     pendingConversion.waiters.forEach(waiter => waiter.resolve());
                     this.activeConversion = undefined;
@@ -280,7 +294,13 @@ export class PyTsController {
             return true;
         }
         return normalizeFsPath(path.dirname(ctraceUri.fsPath)) ===
-                normalizeFsPath(path.join(activeSolutionFolder.fsPath, '.cmsis'));
+            normalizeFsPath(path.join(activeSolutionFolder.fsPath, '.cmsis'));
+    }
+
+    private conversionContentsEqual(previous: CTraceConversionContents | undefined, current: CTraceConversionContents): boolean {
+        return previous !== undefined && this.contentsEqual(previous.ctrace, current.ctrace)
+            && (previous.cbuildRun === current.cbuildRun
+                || (current.cbuildRun !== undefined && this.contentsEqual(previous.cbuildRun, current.cbuildRun)));
     }
 
     private contentsEqual(previous: Uint8Array | undefined, current: Uint8Array): boolean {
@@ -316,7 +336,7 @@ export class PyTsController {
             this.fileWatchManager.removeWatch(CTRACE_CONFIGURATION_WATCH_ID);
         }
         this.watcherGeneration += 1;
-        this.observedCTraceContents.clear();
+        this.observedConversionContents.clear();
         this.contentReadPromises.clear();
         for (const [conversionKey, pendingConversion] of this.pendingConversions) {
             if (!pendingConversion.waiters.some(waiter => waiter.isCurrent())) {

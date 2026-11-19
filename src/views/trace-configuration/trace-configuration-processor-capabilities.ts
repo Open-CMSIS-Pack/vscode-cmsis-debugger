@@ -71,12 +71,29 @@ export class TraceConfigurationProcessorCapabilities {
      * Setup entries whose cores cannot be resolved are left unrestricted so their existing ctrace
      * configuration remains visible when cbuild-run data is unavailable.
      */
-    public async load(): Promise<void> {
-        this.processorCapabilities.clear();
+    public async load(isCurrent: () => boolean = () => true): Promise<void> {
+        const capabilities = await this.resolve(this.getCTraceFile(), isCurrent);
+        if (isCurrent()) {
+            this.replace(capabilities);
+        }
+    }
 
+    public replace(capabilities: ReadonlyMap<string, TraceConfigurationTypes.ProcessorTraceCapabilities>): void {
+        this.processorCapabilities.clear();
+        capabilities.forEach((value, key) => this.processorCapabilities.set(key, value));
+    }
+
+    public async resolve(
+        file: CTraceYamlFile | undefined,
+        isCurrent: () => boolean = () => true
+    ): Promise<ReadonlyMap<string, TraceConfigurationTypes.ProcessorTraceCapabilities>> {
+        const capabilities = new Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities>();
         try {
             const processors = await this.getCBuildRunProcessors();
-            const configuredProcessors = this.getConfiguredProcessors();
+            if (!isCurrent()) {
+                return capabilities;
+            }
+            const configuredProcessors = this.getConfiguredProcessors(file);
 
             for (const configuredProcessor of configuredProcessors) {
                 const core = this.getProcessorCoreForConfiguredProcessor(configuredProcessor, processors);
@@ -84,24 +101,29 @@ export class TraceConfigurationProcessorCapabilities {
                     continue;
                 }
 
-                this.processorCapabilities.set(
+                capabilities.set(
                     this.setupIndexToCapabilitiesKey(configuredProcessor.index),
                     this.createTraceCapabilities(configuredProcessor.displayName, core)
                 );
             }
         } catch (error) {
+            if (!isCurrent()) {
+                return capabilities;
+            }
+            capabilities.clear();
             logger.warn('Unable to load processor trace capabilities: ' + this.errorToString(error));
 
-            for (const configuredProcessor of this.getConfiguredProcessors()) {
+            for (const configuredProcessor of this.getConfiguredProcessors(file)) {
                 if (!configuredProcessor.core) {
                     continue;
                 }
-                this.processorCapabilities.set(
+                capabilities.set(
                     this.setupIndexToCapabilitiesKey(configuredProcessor.index),
                     this.createTraceCapabilities(configuredProcessor.displayName, configuredProcessor.core)
                 );
             }
         }
+        return capabilities;
     }
 
     /**
@@ -239,8 +261,8 @@ export class TraceConfigurationProcessorCapabilities {
      * getConfiguredProcessors scans the active ctrace.yml setup list for pnames and optional core
      * values. pname identifies cbuild-run processors and is also used as the webview display name.
      */
-    private getConfiguredProcessors(): ConfiguredProcessor[] {
-        const setup = this.getCTraceFile()?.document?.yaml.getItem(['ctrace', 'setup']);
+    private getConfiguredProcessors(file: CTraceYamlFile | undefined): ConfiguredProcessor[] {
+        const setup = file?.document?.yaml.getItem(['ctrace', 'setup']);
 
         if (!isYamlSequenceItem(setup)) {
             return [];
