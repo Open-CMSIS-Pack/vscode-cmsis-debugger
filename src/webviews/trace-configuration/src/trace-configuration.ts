@@ -365,7 +365,7 @@ function createStatusIcon(state: TraceConfigurationState): HTMLSpanElement {
                 ? 'modified'
                 : 'saved';
     const icon = createIcon(iconName, `status-icon status-${label}`);
-    icon.title = state.validationMessage ? `${label}: ${state.validationMessage}` : label;
+    icon.title = state.validationMessage ?? label;
     icon.removeAttribute('aria-hidden');
     icon.setAttribute('aria-label', label);
     icon.setAttribute('role', 'img');
