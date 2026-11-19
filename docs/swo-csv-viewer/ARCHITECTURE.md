@@ -161,6 +161,34 @@ rendered rows for both filtering and sorting. External sorts additionally
 report run creation and merge timings. These measurements distinguish host
 data processing from range retrieval and webview rendering.
 
+## Finding cell text
+
+The webview owns a VS Code-themed Find bar rather than enabling native webview
+Find. Native Find can only search rendered DOM text, whereas the table renders
+only a visible row window. Ctrl+F/Cmd+F opens the bar; next/previous navigation
+uses Enter/Shift+Enter or F3/Shift+F3 and wraps through the current filtered,
+sorted view. Searches match case-insensitive literal text in parsed data cells,
+not CSV delimiters, column headers, or the synthetic row-index column.
+
+The host searches through the row-store range API in bounded batches and
+retains only the current match, not a full-table match list. Search results
+contain display row index, stable source row identity, column index, and UTF-16
+text offsets. Periodic event-loop yields and abort checks allow newer queries,
+closing Find, table updates, reloads, and disposal to cancel obsolete work.
+Request IDs and view revisions prevent stale results from becoming active.
+Search waits while indexing, loading, or updating and restarts once the view
+is stable.
+
+The Find bar uses Codicon navigation buttons and disables them when no results
+are found. The no-results status uses the theme's error foreground color.
+Pending searches show a left-to-right gradient line above the status, using
+`progressBar.background`; reduced-motion preferences keep the line static.
+
+The webview scrolls the active match into view and highlights all occurrences
+in rendered cells. Active-cell and active-text styling is independent of row
+selection, so Find never changes selected rows, clipboard contents, or
+trace-configuration activation. Escape closes Find without clearing selection.
+
 ## Temporary files
 
 External indexes and merge runs use a unique directory created by Node.js
@@ -179,6 +207,8 @@ Host-to-webview messages:
 
 - `tableState` publishes columns, filtered row count, loading state, parse
   warnings, errors, and restored row selection.
+- `findResult` returns the current cell/text match or a no-match/error result,
+  correlated with the search request ID and view revision.
 - `rows` returns a bounded range with its request identifier and starting
   offset.
 
@@ -187,6 +217,8 @@ Webview-to-host messages:
 - `requestRows` requests the currently visible row interval.
 - `setFilters` replaces the active per-column filters.
 - `setSort` replaces or clears the active sort.
+- `find` requests a next/previous match for a query in the current view.
+- `cancelFind` aborts an outstanding search without changing row selection.
 - `selectionChanged` reports row-selection intervals, caret, and anchor so the
   host can retain selection across view updates and source reloads.
 - `cellSelected` reports the source row, CSV column, column name, and raw value.

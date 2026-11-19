@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Adds Ctrl+F/Cmd+F text search to the Trace Data table, with match highlighting and next/previous navigation across offscreen records.
 - Adds Cortex-M42 core peripheral and trace capability mappings based on STAR-MC3.
 
 ## 1.10.1

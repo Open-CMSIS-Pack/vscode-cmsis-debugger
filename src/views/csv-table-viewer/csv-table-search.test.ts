@@ -1,0 +1,138 @@
+/**
+ * Copyright 2026 Arm Limited
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+// generated with AI
+
+import { InMemoryCsvTableRowStore } from './csv-table-row-store';
+import { findCsvTableMatch, getCsvTableCellMatches, type CsvTableSearchMatch } from './csv-table-search';
+
+const createStore = (cells: readonly (readonly string[])[]): InMemoryCsvTableRowStore => new InMemoryCsvTableRowStore({
+    columns: ['event', 'value'],
+    malformedRowCount: 0,
+    rows: cells.map((rowCells, sourceRowIndex) => ({ sourceRowIndex, cells: rowCells })),
+});
+
+const find = (store: InMemoryCsvTableRowStore, direction: 'next' | 'previous' = 'next', after: CsvTableSearchMatch | null = null): Promise<CsvTableSearchMatch | null> => findCsvTableMatch(store, 'a', direction, after, new AbortController().signal);
+
+describe('getCsvTableCellMatches', () => {
+    it('searches literal text rather than regular expressions', () => {
+        expect(getCsvTableCellMatches('x [a].* X [A].*', '[a].*')).toEqual([{ start: 2, end: 7 }, { start: 10, end: 15 }]);
+        expect(getCsvTableCellMatches('a\\b a\\B', 'a\\b')).toEqual([{ start: 0, end: 3 }, { start: 4, end: 7 }]);
+    });
+
+    it('preserves original UTF-16 offsets with case folding and supplementary characters', () => {
+        expect(getCsvTableCellMatches('İ😀Aa', 'a')).toEqual([{ start: 3, end: 4 }, { start: 4, end: 5 }]);
+        expect(getCsvTableCellMatches('x😀😀', '😀')).toEqual([{ start: 1, end: 3 }, { start: 3, end: 5 }]);
+        expect(getCsvTableCellMatches('KKk', 'k')).toEqual([{ start: 0, end: 1 }, { start: 1, end: 2 }, { start: 2, end: 3 }]);
+    });
+
+    it('returns nonoverlapping matches and handles empty or missing queries', () => {
+        expect(getCsvTableCellMatches('aaaaa', 'aa')).toEqual([{ start: 0, end: 2 }, { start: 2, end: 4 }]);
+        expect(getCsvTableCellMatches('abc', '')).toEqual([]);
+        expect(getCsvTableCellMatches('', 'x')).toEqual([]);
+        expect(getCsvTableCellMatches('abc', 'missing')).toEqual([]);
+    });
+});
+
+describe('findCsvTableMatch', () => {
+    const expected: readonly CsvTableSearchMatch[] = [
+        { rowIndex: 0, sourceRowIndex: 0, columnIndex: 0, start: 0, end: 1 },
+        { rowIndex: 0, sourceRowIndex: 0, columnIndex: 0, start: 2, end: 3 },
+        { rowIndex: 0, sourceRowIndex: 0, columnIndex: 1, start: 1, end: 2 },
+        { rowIndex: 2, sourceRowIndex: 2, columnIndex: 1, start: 0, end: 1 },
+    ];
+
+    it.each(['next', 'previous'] as const)('navigates every occurrence in %s order and wraps', async direction => {
+        const store = createStore([['a a', 'xa'], ['none', ''], ['', 'A']]);
+        const ordered = direction === 'next' ? expected : expected.toReversed();
+        let match: CsvTableSearchMatch | null = null;
+        for (const target of [...ordered, ...ordered]) {
+            match = await find(store, direction, match);
+            expect(match).toEqual(target);
+        }
+    });
+
+    it.each(['next', 'previous'] as const)('wraps a sole result in %s direction', async direction => {
+        const store = createStore([['', 'A']]);
+        const match = await find(store, direction);
+        expect(match).not.toBeNull();
+        expect(await find(store, direction, match)).toEqual(match);
+    });
+
+    it('scans offscreen rows with bounded range requests and no retained match list', async () => {
+        const store = createStore(Array.from({ length: 1025 }, (_, row) => [row === 1024 ? 'a' : 'none', '']));
+        const getRows = jest.spyOn(store, 'getRows');
+        expect(await find(store)).toEqual({ rowIndex: 1024, sourceRowIndex: 1024, columnIndex: 0, start: 0, end: 1 });
+        expect(getRows.mock.calls.length).toBeGreaterThan(1);
+        expect(getRows.mock.calls.every(([start, end]) => end - start <= 128)).toBe(true);
+        expect(await find(store, 'previous')).toEqual({ rowIndex: 1024, sourceRowIndex: 1024, columnIndex: 0, start: 0, end: 1 });
+    });
+
+    it('reports no result for an empty view, empty query, or missing text', async () => {
+        expect(await find(createStore([]))).toBeNull();
+        const store = createStore([['none', '']]);
+        expect(await find(store)).toBeNull();
+        expect(await findCsvTableMatch(store, '', 'next', null, new AbortController().signal)).toBeNull();
+    });
+
+    it('keeps source identity when the visible rows are filtered and sorted', async () => {
+        const store = createStore([['z a', 'keep'], ['b a', 'drop'], ['c a', 'keep']]);
+        await store.applyView([{ columnIndex: 1, value: 'keep' }], { columnIndex: 0, direction: 'ascending' });
+        expect(await find(store)).toEqual({ rowIndex: 0, sourceRowIndex: 2, columnIndex: 0, start: 2, end: 3 });
+    });
+
+    it('checks cancellation before and after row I/O', async () => {
+        const store = createStore([['a', '']]);
+        const controller = new AbortController();
+        controller.abort();
+        const getRows = jest.spyOn(store, 'getRows');
+        await expect(findCsvTableMatch(store, 'a', 'next', null, controller.signal)).rejects.toThrow();
+        expect(getRows).not.toHaveBeenCalled();
+        const duringRead = new AbortController();
+        getRows.mockImplementationOnce(async () => {
+            duringRead.abort();
+            return [{ sourceRowIndex: 0, cells: ['a'] }];
+        });
+        await expect(findCsvTableMatch(store, 'a', 'next', null, duringRead.signal)).rejects.toThrow();
+    });
+
+    it('yields for cancellation during an in-memory scan', async () => {
+        const store = createStore(Array.from({ length: 2048 }, () => ['none', '']));
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 0);
+        try {
+            await expect(findCsvTableMatch(store, 'a', 'next', null, controller.signal)).rejects.toThrow();
+        } finally {
+            clearTimeout(timer);
+        }
+    });
+
+    it('yields for cancellation while scanning many occurrences in one cell backwards', async () => {
+        const store = createStore([['a'.repeat(20000), '']]);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 0);
+        try {
+            await expect(findCsvTableMatch(store, 'a', 'previous', null, controller.signal)).rejects.toThrow();
+        } finally {
+            clearTimeout(timer);
+        }
+    });
+
+    it('propagates row-store failures', async () => {
+        const store = createStore([['a', '']]);
+        jest.spyOn(store, 'getRows').mockRejectedValue(new Error('read failed'));
+        await expect(find(store)).rejects.toThrow('read failed');
+    });
+});

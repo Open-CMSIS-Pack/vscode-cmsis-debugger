@@ -725,6 +725,14 @@ trace order.
 
 Use filtering to locate specific records or values within the captured trace.
 
+Press **Ctrl+F** (**Cmd+F** on macOS) to find text across all cells in the current filtered and sorted table,
+including records outside the visible area. Find uses case-insensitive literal matching, not regular expressions.
+Use **Enter** or **F3** to move to the next occurrence, and **Shift+Enter** or **Shift+F3** to move to the previous
+occurrence. Navigation wraps at the ends of the table and scrolls the matching cell into view. Visible matches are
+highlighted, with a distinct outline around the current matching cell. Find does not change selected records or
+what copying those records includes. Press **Escape** to close Find. Searches wait until indexing or a table update
+has finished, and restart when filtering, sorting, or reloading changes the table.
+
 The meaning of **index** and **value** depends on the trace source that generated the record:
 
 - For DWT data trace, **value** contains the **value** captured when the configured memory location was accessed.
