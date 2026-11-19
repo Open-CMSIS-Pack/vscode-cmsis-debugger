@@ -267,8 +267,11 @@ describe('TraceConfigurationFileWatcher', () => {
         const uri = vscode.Uri.file('/workspace/out/project.cbuild-run.yml');
         await waitForCondition('initial cbuild-run processing', () => onGeneratedCBuildRunFileChanged.mock.calls.length === 1);
         await cbuildRunWatcher._handlers.create[0]?.(uri);
+        await waitForCondition('created cbuild-run processing', () => onGeneratedCBuildRunFileChanged.mock.calls.length === 2);
         await cbuildRunWatcher._handlers.change[0]?.(uri);
+        await waitForCondition('changed cbuild-run processing', () => onGeneratedCBuildRunFileChanged.mock.calls.length === 3);
         await cbuildRunWatcher._handlers.delete[0]?.(uri);
+        await waitForCondition('deleted cbuild-run processing', () => onGeneratedCBuildRunFileChanged.mock.calls.length === 4);
 
         expect(cbuildIndexPattern.pattern).toBe(CBUILD_INDEX_FILE_GLOB);
         expect(getCBuildRunFileNameFromCommand).toHaveBeenCalledTimes(1);
@@ -285,6 +288,154 @@ describe('TraceConfigurationFileWatcher', () => {
         watcher.dispose();
         expect(cbuildIndexWatcher.dispose).toHaveBeenCalledTimes(1);
         expect(cbuildRunWatcher.dispose).toHaveBeenCalledTimes(1);
+    });
+
+    it('invalidates queued generated events without disabling subsequent events', async () => {
+        const cbuildRunFile = vscode.Uri.file(path.resolve('test-data/multi-core.cbuild-run.yml'));
+        const traceWatch = traceWatchFactory();
+        let finishGeneratedChange: (() => void) | undefined;
+        const blockedChange = new Promise<void>(resolve => { finishGeneratedChange = resolve; });
+        const onGeneratedCBuildRunFileChanged = jest.fn().mockResolvedValue(undefined)
+            .mockReturnValueOnce(blockedChange);
+        const watcher = new TraceConfigurationFileWatcher({
+            getCurrentFile: jest.fn(),
+            onCurrentFileReloaded: jest.fn(),
+            onCurrentFileReloadFailed: jest.fn(),
+            onGeneratedCBuildRunFileChanged
+        }, createCBuildRunFileLocator(jest.fn().mockResolvedValue(cbuildRunFile.fsPath)), traceWatch.fileWatchManager);
+
+        try {
+            const processing = watcher.processActiveCBuildRunFile();
+            await waitForCondition('blocked generated callback', () => onGeneratedCBuildRunFileChanged.mock.calls.length === 1);
+            const generatedWatcher = traceWatch.getWatch('trace-configuration.generated-cbuild-run');
+            void generatedWatcher?.onDidChange?.(cbuildRunFile);
+            watcher.invalidatePendingGeneratedChanges();
+            finishGeneratedChange?.();
+            await processing;
+
+            expect(onGeneratedCBuildRunFileChanged).toHaveBeenCalledTimes(1);
+            await generatedWatcher?.onDidCreate?.(cbuildRunFile);
+            await waitForCondition('new generated callback', () => onGeneratedCBuildRunFileChanged.mock.calls.length === 2);
+            expect(onGeneratedCBuildRunFileChanged.mock.calls.at(-1)?.[0]).toEqual({ type: 'created', uri: cbuildRunFile });
+        } finally {
+            finishGeneratedChange?.();
+            watcher.dispose();
+        }
+    });
+
+    it('drops queued generated events when an index change replaces the watched file with a missing file', async () => {
+        const firstFile = vscode.Uri.file('/workspace/out/first.cbuild-run.yml');
+        const replacementFile = vscode.Uri.file('/workspace/out/replacement.cbuild-run.yml');
+        const locator = createCBuildRunFileLocator(jest.fn());
+        jest.spyOn(locator, 'getCBuildRunFileName')
+            .mockResolvedValueOnce(firstFile.fsPath).mockResolvedValue(replacementFile.fsPath);
+        const stat = jest.spyOn(vscode.workspace.fs, 'stat')
+            .mockResolvedValueOnce({ type: vscode.FileType.File, ctime: 0, mtime: 0, size: 0 })
+            .mockRejectedValue(new Error('replacement cbuild-run file does not exist'));
+        let finishGeneratedChange: (() => void) | undefined;
+        const blockedChange = new Promise<void>(resolve => { finishGeneratedChange = resolve; });
+        const onGeneratedCBuildRunFileChanged = jest.fn().mockResolvedValue(undefined)
+            .mockReturnValueOnce(blockedChange);
+        const watcher = new TraceConfigurationFileWatcher({
+            getCurrentFile: jest.fn(),
+            onCurrentFileReloaded: jest.fn(),
+            onCurrentFileReloadFailed: jest.fn(),
+            onGeneratedCBuildRunFileChanged
+        }, locator);
+        await watcher.watchGeneratedCBuildRunFiles();
+        const indexWatcher = getLastCreatedFileSystemWatcher();
+        const processing = watcher.processActiveCBuildRunFile();
+
+        try {
+            await waitForCondition('blocked generated callback', () => onGeneratedCBuildRunFileChanged.mock.calls.length === 1);
+            const firstWatcher = getLastCreatedFileSystemWatcher();
+            firstWatcher._handlers.change[0]?.(firstFile);
+            indexWatcher._handlers.change[0]?.(vscode.Uri.file('/workspace/project.cbuild-idx.yml'));
+            await waitForCondition('missing replacement file checked', () => stat.mock.calls.length === 2);
+            expect(firstWatcher.dispose).toHaveBeenCalledTimes(1);
+            finishGeneratedChange?.();
+            await processing;
+
+            expect(onGeneratedCBuildRunFileChanged).toHaveBeenCalledTimes(1);
+            getLastCreatedFileSystemWatcher()._handlers.create[0]?.(replacementFile);
+            await waitForCondition('replacement generated callback', () => onGeneratedCBuildRunFileChanged.mock.calls.length === 2);
+            expect(onGeneratedCBuildRunFileChanged.mock.calls.at(-1)?.[0]).toEqual({ type: 'created', uri: replacementFile });
+        } finally {
+            finishGeneratedChange?.();
+            await processing;
+            watcher.dispose();
+        }
+    });
+
+    it.each(['lookup', 'existence check'])(
+        'invalidates discovery during %s without disabling subsequent generated events', async boundary => {
+            const cbuildRunFile = vscode.Uri.file(path.resolve('test-data/multi-core.cbuild-run.yml'));
+            const locator = createCBuildRunFileLocator(jest.fn());
+            let releaseDiscovery: (() => void) | undefined;
+            const blockedDiscovery = new Promise<void>(resolve => { releaseDiscovery = resolve; });
+            let reachedBoundary = false;
+            jest.spyOn(locator, 'getCBuildRunFileName').mockImplementation(async () => {
+                if (boundary === 'lookup') {
+                    reachedBoundary = true;
+                    await blockedDiscovery;
+                }
+                return cbuildRunFile.fsPath;
+            });
+            jest.spyOn(vscode.workspace.fs, 'stat').mockImplementation(async () => {
+                if (boundary === 'existence check') {
+                    reachedBoundary = true;
+                    await blockedDiscovery;
+                }
+                return { type: vscode.FileType.File, ctime: 0, mtime: 0, size: 0 };
+            });
+            const onGeneratedCBuildRunFileChanged = jest.fn();
+            const watcher = new TraceConfigurationFileWatcher({
+                getCurrentFile: jest.fn(),
+                onCurrentFileReloaded: jest.fn(),
+                onCurrentFileReloadFailed: jest.fn(),
+                onGeneratedCBuildRunFileChanged
+            }, locator);
+            const onGeneratedEvent = jest.fn();
+            watcher.onDidChangeGeneratedCBuildRunFile(onGeneratedEvent);
+            const processing = watcher.processActiveCBuildRunFile();
+
+            try {
+                await waitForCondition('blocked discovery', () => reachedBoundary);
+                watcher.invalidatePendingGeneratedChanges();
+                releaseDiscovery?.();
+
+                await expect(processing).resolves.toBe(false);
+                expect(onGeneratedCBuildRunFileChanged).not.toHaveBeenCalled();
+                expect(onGeneratedEvent).not.toHaveBeenCalled();
+
+                getLastCreatedFileSystemWatcher()._handlers.change[0]?.(cbuildRunFile);
+                await waitForCondition('new generated callback', () => onGeneratedCBuildRunFileChanged.mock.calls.length === 1);
+            } finally {
+                releaseDiscovery?.();
+                await processing;
+                watcher.dispose();
+            }
+        }
+    );
+
+    it('retains the request version when a public generated event invalidates selection', async () => {
+        const cbuildRunFile = vscode.Uri.file(path.resolve('test-data/multi-core.cbuild-run.yml'));
+        const onGeneratedCBuildRunFileChanged = jest.fn();
+        const watcher = new TraceConfigurationFileWatcher({
+            getCurrentFile: jest.fn(),
+            onCurrentFileReloaded: jest.fn(),
+            onCurrentFileReloadFailed: jest.fn(),
+            onGeneratedCBuildRunFileChanged
+        }, createCBuildRunFileLocator(jest.fn().mockResolvedValue(cbuildRunFile.fsPath)));
+        watcher.onDidChangeGeneratedCBuildRunFile(() => watcher.invalidatePendingGeneratedChanges());
+
+        try {
+            await watcher.processActiveCBuildRunFile();
+
+            expect(onGeneratedCBuildRunFileChanged).not.toHaveBeenCalled();
+        } finally {
+            watcher.dispose();
+        }
     });
 
     it('processes an existing cbuild-run file after installing its watcher', async () => {
@@ -457,11 +608,41 @@ describe('TraceConfigurationFileWatcher', () => {
         await secondCBuildRunWatcher._handlers.change[0]?.(vscode.Uri.file('/workspace/out/second.cbuild-run.yml'));
 
         expect(firstCBuildRunWatcher.dispose).toHaveBeenCalledTimes(1);
-        expect(onGeneratedCBuildRunFileChanged).toHaveBeenCalledTimes(1);
-        const event = onGeneratedCBuildRunFileChanged.mock.calls[0]?.[0] as GeneratedCBuildRunFileChangeEvent;
-        expect(event.type).toBe('changed');
-        expect(event.uri.fsPath).toEqualFsPath('/workspace/out/second.cbuild-run.yml');
+        expect(onGeneratedCBuildRunFileChanged.mock.calls.map(call => call[0])).toEqual([{
+            type: 'changed',
+            uri: expect.objectContaining({ fsPath: expect.toEqualFsPath('/workspace/out/second.cbuild-run.yml') })
+        }]);
 
+        watcher.dispose();
+    });
+
+    it.each([false, true])('coalesces slow source reloads and drops pending work on disposal: %s', async dispose => {
+        const watchedFile = createMockCTraceYamlFile();
+        let finishReload: (() => void) | undefined;
+        watchedFile.reloadIfChanged.mockReturnValueOnce(new Promise<boolean>(resolve => {
+            finishReload = () => resolve(true);
+        }));
+        const onCurrentFileReloaded = jest.fn();
+        const watcher = new TraceConfigurationFileWatcher({
+            getCurrentFile: () => watchedFile.file,
+            onCurrentFileReloaded,
+            onCurrentFileReloadFailed: jest.fn(),
+            onGeneratedCBuildRunFileChanged: jest.fn()
+        });
+        watcher.watchCurrentFile();
+        const sourceWatcher = getLastCreatedFileSystemWatcher();
+        const uri = vscode.Uri.file(watchedFile.file.fileName);
+        const first = sourceWatcher._handlers.change[0]?.(uri);
+        sourceWatcher._handlers.change[0]?.(uri);
+        const last = sourceWatcher._handlers.change[0]?.(uri);
+        expect(watchedFile.reloadIfChanged).toHaveBeenCalledTimes(1);
+        if (dispose) {
+            watcher.dispose();
+        }
+        finishReload?.();
+        await Promise.all([first, last]);
+        expect(watchedFile.reloadIfChanged).toHaveBeenCalledTimes(dispose ? 1 : 2);
+        expect(onCurrentFileReloaded).toHaveBeenCalledTimes(dispose ? 0 : 2);
         watcher.dispose();
     });
 
@@ -482,6 +663,7 @@ describe('TraceConfigurationFileWatcher', () => {
         watcher.watchCurrentFile();
         const firstFileSystemWatcher = getLastCreatedFileSystemWatcher();
 
+        await firstFileSystemWatcher._handlers.create[0]?.(vscode.Uri.file(firstWatchedFile.file.fileName));
         await firstFileSystemWatcher._handlers.change[0]?.(vscode.Uri.file(firstWatchedFile.file.fileName));
         firstWatchedFile.reloadIfChanged.mockRejectedValueOnce(new Error('first failure'));
         await firstFileSystemWatcher._handlers.delete[0]?.(vscode.Uri.file(firstWatchedFile.file.fileName));
@@ -490,7 +672,7 @@ describe('TraceConfigurationFileWatcher', () => {
         watcher.watchCurrentFile();
         await firstFileSystemWatcher._handlers.change[0]?.(vscode.Uri.file(firstWatchedFile.file.fileName));
 
-        expect(onCurrentFileReloaded).toHaveBeenCalledTimes(1);
+        expect(onCurrentFileReloaded).toHaveBeenCalledTimes(2);
         expect(onCurrentFileReloaded).toHaveBeenCalledWith(firstWatchedFile.file.document);
         expect(onCurrentFileReloadFailed).toHaveBeenCalledTimes(1);
 
