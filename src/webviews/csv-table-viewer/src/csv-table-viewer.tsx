@@ -25,17 +25,16 @@ import {
     moveRowCaret,
     selectAllRows,
     selectRowForContextMenu,
-    selectRowRange,
-    selectSingleRow,
     toggleRow,
     type RowSelectionMovement,
     type RowSelectionState,
 } from '../../../views/csv-table-viewer/row-selection';
 import type { CsvTableFilter, CsvTableRow, CsvTableSort } from '../../../views/csv-table-viewer/csv-table';
 import type { CsvTableHostMessage, CsvTableWebviewMessage } from '../../../views/csv-table-viewer/csv-table-protocol';
-import { getCsvTableScrollGeometry, CSV_TABLE_ROW_HEIGHT } from '../../../views/csv-table-viewer/csv-table-scroll-geometry';
+import { getCsvTableRowRevealScrollTop, getCsvTableScrollGeometry, CSV_TABLE_ROW_HEIGHT } from '../../../views/csv-table-viewer/csv-table-scroll-geometry';
 import { shouldRequestRows, type LoadedRowRange } from './csv-table-row-request';
-import { isPrimaryModifierPressed } from './csv-table-modifiers';
+import { isContextMenuShortcut, isPrimaryModifierPressed } from './csv-table-modifiers';
+import { getCsvTableClickTarget, getCsvTableMenuItemIndex, getCsvTableNavigationTarget, type CsvTableSelectedCell } from './csv-table-navigation';
 import './csv-table-viewer.css';
 
 declare function acquireVsCodeApi(): { postMessage: (message: CsvTableWebviewMessage) => void };
@@ -67,6 +66,8 @@ interface ActiveColumnResize {
 interface ContextMenuPosition {
     readonly x: number;
     readonly y: number;
+    readonly rowIndex?: number;
+    readonly columnIndex?: number;
 }
 
 const INITIAL_STATE: TableState = {
@@ -90,7 +91,10 @@ export const CsvTableViewer = (): JSX.Element => {
     const [sort, setSort] = useState<CsvTableSort | null>(null);
     const [columnWidths, setColumnWidths] = useState<readonly number[]>([]);
     const [selection, setSelection] = useState<RowSelectionState>(EMPTY_ROW_SELECTION);
+    const [selectedCell, setSelectedCell] = useState<CsvTableSelectedCell | null>(null);
+    const revealedCell = useRef<CsvTableSelectedCell | null>(null);
     const [contextMenuPosition, setContextMenuPosition] = useState<ContextMenuPosition | null>(null);
+    const contextMenuRef = useRef<HTMLDivElement>(null);
     const [scrollTop, setScrollTop] = useState(0);
     const [rowViewportHeight, setRowViewportHeight] = useState(CSV_TABLE_ROW_HEIGHT);
     const [tableRevision, setTableRevision] = useState(0);
@@ -105,10 +109,41 @@ export const CsvTableViewer = (): JSX.Element => {
     const keyboardRangeActive = useRef(false);
     const clearSortSuppressionTimer = useRef<number | null>(null);
     const filterTimer = useRef<number | null>(null);
-    const { scrollHeight, scrollScale, logicalScrollTop, firstVisibleRow } = getCsvTableScrollGeometry(tableState.totalRowCount, scrollTop, rowViewportHeight);
+    const { scrollHeight, logicalScrollTop, firstVisibleRow } = getCsvTableScrollGeometry(tableState.totalRowCount, scrollTop, rowViewportHeight);
     const visibleRowCount = Math.max(1, Math.ceil(rowViewportHeight / CSV_TABLE_ROW_HEIGHT));
     const renderedRowStart = Math.max(0, firstVisibleRow - ROW_OVERSCAN);
     const renderedRowEnd = Math.min(tableState.totalRowCount, firstVisibleRow + visibleRowCount + ROW_OVERSCAN);
+
+    useEffect(() => {
+        if (contextMenuPosition !== null) {
+            const menu = contextMenuRef.current;
+            const firstItem = menu?.querySelector<HTMLButtonElement>('button:not(:disabled)');
+            (firstItem ?? menu)?.focus({ preventScroll: true });
+        }
+    }, [contextMenuPosition]);
+
+    useEffect(() => {
+        const scrollElement = scrollElementRef.current;
+        if (selectedCell === null || revealedCell.current === selectedCell || scrollElement === null) {
+            return;
+        }
+        const top = getCsvTableRowRevealScrollTop(tableState.totalRowCount, scrollElement.scrollTop, rowViewportHeight, selectedCell.rowIndex);
+        const cell = scrollElement.querySelector(`#csv-table-cell-${selectedCell.rowIndex}-${selectedCell.columnIndex}`);
+        let left = scrollElement.scrollLeft;
+        if (cell !== null) {
+            const cellBounds = cell.getBoundingClientRect();
+            const viewportLeft = scrollElement.getBoundingClientRect().left + scrollElement.clientLeft;
+            const contentLeft = viewportLeft + (columnWidths[0] ?? getMinimumColumnWidth(0));
+            const contentRight = viewportLeft + scrollElement.clientWidth;
+            if (cellBounds.left < contentLeft) {
+                left += cellBounds.left - contentLeft;
+            } else if (cellBounds.right > contentRight) {
+                left += cellBounds.right - contentRight;
+            }
+            revealedCell.current = selectedCell;
+        }
+        scrollElement.scrollTo({ top, left });
+    }, [selectedCell, rows, scrollTop, rowViewportHeight, tableState.totalRowCount, columnWidths]);
 
     useEffect(() => {
         const scrollElement = scrollElementRef.current;
@@ -146,6 +181,12 @@ export const CsvTableViewer = (): JSX.Element => {
                         loadedRowRange.current = null;
                         setRows([]);
                         setSelection(message.selection ?? EMPTY_ROW_SELECTION);
+                        if (message.viewRevision !== previousState.viewRevision || message.loading
+                            || message.columns.length !== previousState.columns.length
+                            || message.columns.some((column, index) => column !== previousState.columns[index])) {
+                            setSelectedCell(null);
+                            setContextMenuPosition(null);
+                        }
                         setTableRevision(revision => revision + 1);
                         setRowRequestVersion(version => version + 1);
                         setColumnWidths(widths => widths.length === message.columns.length + 1
@@ -318,46 +359,135 @@ export const CsvTableViewer = (): JSX.Element => {
         }, 0);
     };
 
-    const updateRowSelection = (event: ReactMouseEvent<HTMLButtonElement>, rowIndex: number): void => {
-        setSelection(current => event.shiftKey
-            ? selectRowRange(current, rowIndex)
-            : event.altKey
-                ? toggleRow(current, rowIndex)
-                : selectSingleRow(rowIndex));
-        if (isPrimaryModifierPressed(event, navigator.platform)) {
-            scrollElementRef.current?.focus({ preventScroll: true });
+    const updateClickSelection = (event: ReactMouseEvent<HTMLButtonElement>, rowIndex: number, columnIndex: number | null): boolean => {
+        const target = getCsvTableClickTarget({
+            selection,
+            selectedCell,
+            rowIndex,
+            columnIndex,
+            clickCount: event.detail,
+            shiftKey: event.shiftKey,
+            altKey: event.altKey,
+            primaryModifier: isPrimaryModifierPressed(event, navigator.platform),
+        });
+        if (target === null) {
+            return false;
         }
+        setSelection(target.selection);
+        setSelectedCell(target.columnIndex === null ? null : { rowIndex: target.rowIndex, columnIndex: target.columnIndex });
+        scrollElementRef.current?.focus({ preventScroll: true });
+        return true;
+    };
+
+    const selectCell = (rowIndex: number, columnIndex: number): void => {
+        setSelectedCell({ rowIndex, columnIndex });
+        setSelection({ intervals: [], caret: rowIndex, anchor: rowIndex });
+        scrollElementRef.current?.focus({ preventScroll: true });
     };
 
     const moveSelection = (destination: number, movement: RowSelectionMovement): void => {
         const clampedDestination = Math.max(0, Math.min(destination, tableState.totalRowCount - 1));
         setSelection(current => moveRowCaret(current, clampedDestination, tableState.totalRowCount, movement));
-        scrollElementRef.current?.scrollTo({ top: clampedDestination * CSV_TABLE_ROW_HEIGHT / scrollScale });
+        const scrollElement = scrollElementRef.current;
+        if (scrollElement !== null) {
+            const top = getCsvTableRowRevealScrollTop(tableState.totalRowCount, scrollElement.scrollTop, rowViewportHeight, clampedDestination);
+            scrollElement.scrollTo({ top });
+        }
     };
 
     const copySelectedRows = (): void => {
+        if (selectedCell !== null) {
+            vscode.postMessage({
+                type: 'copyRows', viewRevision: tableState.viewRevision,
+                intervals: [{ start: selectedCell.rowIndex, end: selectedCell.rowIndex }], columnIndex: selectedCell.columnIndex
+            });
+            return;
+        }
         if (selection.intervals.length === 0) {
             return;
         }
         vscode.postMessage({ type: 'copyRows', viewRevision: tableState.viewRevision, intervals: selection.intervals });
     };
 
-    const showContextMenu = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    const showContextMenu = (event: ReactMouseEvent<HTMLElement>, rowIndex?: number, columnIndex?: number): void => {
         event.preventDefault();
-        setContextMenuPosition({ x: event.clientX, y: event.clientY });
+        setContextMenuPosition({
+            x: event.clientX,
+            y: event.clientY,
+            ...(rowIndex === undefined ? {} : { rowIndex }),
+            ...(columnIndex === undefined ? {} : { columnIndex }),
+        });
+    };
+
+    const closeContextMenu = (): void => {
+        setContextMenuPosition(null);
+        scrollElementRef.current?.focus({ preventScroll: true });
+    };
+
+    const handleContextMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
+        if (event.key === 'Escape' || event.key === 'Tab') {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+            }
+            closeContextMenu();
+            return;
+        }
+        if (isContextMenuShortcut(event)) {
+            event.preventDefault();
+            return;
+        }
+        const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
+        const index = items.findIndex(item => item === document.activeElement);
+        const nextIndex = getCsvTableMenuItemIndex(event.key, index, items.length);
+        if (nextIndex === null) {
+            return;
+        }
+        event.preventDefault();
+        items[nextIndex]?.focus({ preventScroll: true });
+    };
+
+    const copyContextTarget = (valueOnly: boolean): void => {
+        if (contextMenuPosition?.rowIndex === undefined
+            || (valueOnly && contextMenuPosition.columnIndex === undefined)) {
+            return;
+        }
+        vscode.postMessage({
+            type: 'copyRows',
+            viewRevision: tableState.viewRevision,
+            intervals: [{ start: contextMenuPosition.rowIndex, end: contextMenuPosition.rowIndex }],
+            ...(valueOnly ? { columnIndex: contextMenuPosition.columnIndex } : {}),
+        });
+        closeContextMenu();
     };
 
     const handleTableKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
         if (event.target instanceof HTMLElement && event.target.closest('.table-header') !== null) {
             return;
         }
+        if (isContextMenuShortcut(event)) {
+            event.preventDefault();
+            const rowIndex = selectedCell?.rowIndex ?? selection.caret;
+            const targetId = selectedCell === null
+                ? `csv-table-row-${rowIndex}`
+                : `csv-table-cell-${selectedCell.rowIndex}-${selectedCell.columnIndex}`;
+            const target = event.currentTarget.querySelector(`#${targetId}`) ?? event.currentTarget;
+            const bounds = target.getBoundingClientRect();
+            setContextMenuPosition({
+                x: bounds.left,
+                y: bounds.bottom,
+                ...(rowIndex === null ? {} : { rowIndex }),
+                ...(selectedCell === null ? {} : { columnIndex: selectedCell.columnIndex }),
+            });
+            return;
+        }
         const controlPressed = isPrimaryModifierPressed(event, navigator.platform);
         if (controlPressed && event.key.toLowerCase() === 'a') {
             event.preventDefault();
+            setSelectedCell(null);
             setSelection(current => selectAllRows(current, tableState.totalRowCount));
             return;
         }
-        if (controlPressed && event.key.toLowerCase() === 'c' && selection.intervals.length > 0) {
+        if (controlPressed && event.key.toLowerCase() === 'c' && (selectedCell !== null || selection.intervals.length > 0)) {
             event.preventDefault();
             copySelectedRows();
             return;
@@ -365,50 +495,49 @@ export const CsvTableViewer = (): JSX.Element => {
         if (event.key === 'Escape') {
             event.preventDefault();
             setContextMenuPosition(null);
+            setSelectedCell(null);
             setSelection(clearSelectedRows);
             return;
         }
         if (tableState.totalRowCount === 0) {
             return;
         }
-
-        const currentRow = selection.caret ?? firstVisibleRow;
+        const currentRow = selectedCell?.rowIndex ?? selection.caret ?? firstVisibleRow;
         if (controlPressed && (event.key === ' ' || event.code === 'Space')) {
             event.preventDefault();
+            setSelectedCell(null);
             setSelection(current => toggleRow(current, current.caret ?? firstVisibleRow));
             return;
         }
         const visibleHeight = Math.max(CSV_TABLE_ROW_HEIGHT, (scrollElementRef.current?.clientHeight ?? CSV_TABLE_ROW_HEIGHT) - (tableHeaderRef.current?.offsetHeight ?? 0));
         const pageSize = Math.max(1, Math.floor(visibleHeight / CSV_TABLE_ROW_HEIGHT));
-        let destination: number;
-        switch (event.key) {
-            case 'ArrowUp':
-                destination = currentRow - 1;
-                break;
-            case 'ArrowDown':
-                destination = currentRow + 1;
-                break;
-            case 'PageUp':
-                destination = currentRow - pageSize;
-                break;
-            case 'PageDown':
-                destination = currentRow + pageSize;
-                break;
-            case 'Home':
-                destination = 0;
-                break;
-            case 'End':
-                destination = tableState.totalRowCount - 1;
-                break;
-            default:
-                return;
+        const target = getCsvTableNavigationTarget({
+            key: event.key,
+            rowIndex: currentRow,
+            columnIndex: selectedCell?.columnIndex ?? null,
+            rowCount: tableState.totalRowCount,
+            columnCount: tableState.columns.length,
+            pageSize,
+            shiftKey: event.shiftKey,
+            primaryModifier: controlPressed,
+        });
+        if (target === null) {
+            return;
         }
         event.preventDefault();
-        keyboardRangeActive.current = event.shiftKey;
-        moveSelection(destination, event.shiftKey ? 'extend' : controlPressed ? 'caret-only' : 'replace');
+        if (target.columnIndex !== null) {
+            selectCell(target.rowIndex, target.columnIndex);
+        } else {
+            setSelectedCell(null);
+            keyboardRangeActive.current = target.movement === 'extend';
+            moveSelection(target.rowIndex, target.movement);
+        }
     };
 
     const handleTableKeyUp = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
+        if (event.target === event.currentTarget && isContextMenuShortcut(event)) {
+            event.preventDefault();
+        }
         if (event.key === 'Shift' && keyboardRangeActive.current) {
             keyboardRangeActive.current = false;
             setSelection(commitRowSelectionCaret);
@@ -436,11 +565,14 @@ export const CsvTableViewer = (): JSX.Element => {
                 aria-colcount={tableState.columns.length + 1}
                 aria-rowcount={tableState.totalRowCount + 1}
                 aria-multiselectable="true"
-                aria-activedescendant={activeRowIsRendered ? `csv-table-row-${selection.caret}` : undefined}
+                aria-activedescendant={activeRowIsRendered
+                    ? selectedCell === null ? `csv-table-row-${selection.caret}` : `csv-table-cell-${selectedCell.rowIndex}-${selectedCell.columnIndex}`
+                    : undefined}
                 tabIndex={0}
                 onKeyDown={handleTableKeyDown}
                 onKeyUp={handleTableKeyUp}
-                onContextMenu={showContextMenu}
+                style={{ scrollPaddingLeft: effectiveColumnWidths[0] }}
+                onContextMenu={event => showContextMenu(event)}
                 onPointerDown={() => setContextMenuPosition(null)}
                 onScroll={event => setScrollTop(event.currentTarget.scrollTop)}
             >
@@ -468,7 +600,7 @@ export const CsvTableViewer = (): JSX.Element => {
                             return null;
                         }
                         const selected = isRowSelected(selection, rowIndex);
-                        const caret = selection.caret === rowIndex;
+                        const caret = selectedCell === null && selection.caret === rowIndex;
                         const rowTop = scrollTop + rowIndex * CSV_TABLE_ROW_HEIGHT - logicalScrollTop;
                         return <div
                             className={`table-row${selected ? ' selected' : ''}${caret ? ' caret' : ''}`}
@@ -477,19 +609,40 @@ export const CsvTableViewer = (): JSX.Element => {
                             role="row"
                             aria-rowindex={rowIndex + 2}
                             aria-selected={selected}
-                            onContextMenu={event => setSelection(current => selectRowForContextMenu(current, rowIndex, event.shiftKey || event.altKey))}
+                            onContextMenu={event => {
+                                event.stopPropagation();
+                                setSelectedCell(null);
+                                setSelection(current => selectRowForContextMenu(current, rowIndex, event.shiftKey || event.altKey));
+                                showContextMenu(event, rowIndex);
+                            }}
                             style={{ gridTemplateColumns, transform: `translateY(${rowTop}px)` }}
                         >
-                            <span className="row-index-cell" role="gridcell" aria-colindex={1}>{row.sourceRowIndex}</span>
+                            <button type="button" className="row-index-cell" role="gridcell" aria-colindex={1} tabIndex={-1}
+                                onClick={event => { updateClickSelection(event, rowIndex, null); }}
+                            >{row.sourceRowIndex}</button>
                             {row.cells.map((cellValue, columnIndex) => <button
                                 type="button"
-                                className="table-cell"
+                                className={`table-cell${selectedCell?.rowIndex === rowIndex && selectedCell.columnIndex === columnIndex ? ' selected-cell' : ''}`}
+                                id={`csv-table-cell-${rowIndex}-${columnIndex}`}
                                 key={`${row.sourceRowIndex}-${columnIndex}`}
                                 role="gridcell"
                                 aria-colindex={columnIndex + 2}
+                                aria-selected={selected || (selectedCell?.rowIndex === rowIndex && selectedCell.columnIndex === columnIndex)}
                                 tabIndex={-1}
+                                onContextMenu={event => {
+                                    event.stopPropagation();
+                                    if (event.shiftKey || event.altKey) {
+                                        setSelectedCell(null);
+                                        setSelection(current => selectRowForContextMenu(current, rowIndex, true));
+                                    } else if (selectedCell !== null || !selected) {
+                                        selectCell(rowIndex, columnIndex);
+                                    }
+                                    showContextMenu(event, rowIndex, columnIndex);
+                                }}
                                 onClick={event => {
-                                    updateRowSelection(event, rowIndex);
+                                    if (!updateClickSelection(event, rowIndex, columnIndex)) {
+                                        return;
+                                    }
                                     if (isPrimaryModifierPressed(event, navigator.platform)) {
                                         vscode.postMessage({ type: 'cellSelected', sourceRowIndex: row.sourceRowIndex, columnIndex, columnName: tableState.columns[columnIndex], cellValue });
                                     }
@@ -501,19 +654,36 @@ export const CsvTableViewer = (): JSX.Element => {
             </div>
             {contextMenuPosition !== null && <div
                 className="table-context-menu"
+                ref={contextMenuRef}
                 role="menu"
+                tabIndex={-1}
                 aria-label="Table actions"
                 style={{ left: `${contextMenuPosition.x}px`, top: `${contextMenuPosition.y}px` }}
+                onKeyDown={handleContextMenuKeyDown}
+                onKeyUp={event => {
+                    if (isContextMenuShortcut(event)) {
+                        event.preventDefault();
+                    }
+                    handleTableKeyUp(event);
+                }}
+                onBlur={event => {
+                    if (!event.currentTarget.contains(event.relatedTarget)) {
+                        setContextMenuPosition(null);
+                    }
+                }}
             >
                 <button
                     type="button"
                     role="menuitem"
-                    disabled={selection.intervals.length === 0}
-                    onClick={() => {
-                        copySelectedRows();
-                        setContextMenuPosition(null);
-                    }}
-                >Copy</button>
+                    disabled={contextMenuPosition.columnIndex === undefined}
+                    onClick={() => copyContextTarget(true)}
+                >Copy Value</button>
+                <button
+                    type="button"
+                    role="menuitem"
+                    disabled={contextMenuPosition.rowIndex === undefined}
+                    onClick={() => copyContextTarget(false)}
+                >Copy Row</button>
             </div>}
         </section>
         {tableState.loading && <div className="loading-overlay" role="status" aria-live="polite">

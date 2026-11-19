@@ -16,7 +16,7 @@
 // generated with AI
 
 import { describe, expect, it } from '@jest/globals';
-import { isPrimaryModifierPressed } from './csv-table-modifiers';
+import { isContextMenuShortcut, isPrimaryModifierPressed } from './csv-table-modifiers';
 
 describe('CSV table primary modifier', () => {
     it.each(['MacIntel', 'MacPPC', 'Win32', 'Linux x86_64'])(
@@ -28,4 +28,17 @@ describe('CSV table primary modifier', () => {
             expect(isPrimaryModifierPressed({ ctrlKey: true, metaKey: true }, platform)).toBe(true);
         },
     );
+});
+
+describe('CSV table context-menu shortcuts', () => {
+    it.each([
+        { key: 'ContextMenu', shiftKey: false, expected: true },
+        { key: 'ContextMenu', shiftKey: true, expected: true },
+        { key: 'F10', shiftKey: true, expected: true },
+        { key: 'F10', shiftKey: false, expected: false },
+        { key: 'F9', shiftKey: true, expected: false },
+        { key: 'ArrowDown', shiftKey: false, expected: false },
+    ])('recognizes $key with shiftKey=$shiftKey as $expected', ({ key, shiftKey, expected }) => {
+        expect(isContextMenuShortcut({ key, shiftKey })).toBe(expected);
+    });
 });

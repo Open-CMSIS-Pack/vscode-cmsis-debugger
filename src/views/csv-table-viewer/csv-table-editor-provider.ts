@@ -317,6 +317,7 @@ export class CsvTableEditorProvider implements vscode.CustomReadonlyEditorProvid
                         requestedStore,
                         value => vscode.env.clipboard.writeText(value),
                         () => !disposed && requestedStore === rowStore && requestedRevision === viewRevision,
+                        message.columnIndex === undefined ? {} : { columnIndex: message.columnIndex },
                     );
                     if (result === 'invalid') {
                         logger.warn('[CsvTableEditor] Ignored invalid copy rows message');
