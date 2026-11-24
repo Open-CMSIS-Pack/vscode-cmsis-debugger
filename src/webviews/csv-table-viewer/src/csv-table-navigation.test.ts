@@ -105,8 +105,22 @@ describe('CSV table keyboard navigation', () => {
         }
     });
 
-    it.each(['ArrowLeft', 'ArrowRight'])('enters the first data column from row mode with %s', key => {
-        expect(getCsvTableNavigationTarget({ ...NAVIGATION_OPTIONS, key })).toEqual({ rowIndex: 50, columnIndex: 0, movement: 'replace' });
+    it('enters the first data column from row mode only with Right', () => {
+        expect(getCsvTableNavigationTarget({ ...NAVIGATION_OPTIONS, key: 'ArrowRight' }))
+            .toEqual({ rowIndex: 50, columnIndex: 0, movement: 'replace' });
+        expect(getCsvTableNavigationTarget({ ...NAVIGATION_OPTIONS, key: 'ArrowLeft' }))
+            .toEqual({ rowIndex: 50, columnIndex: null, movement: 'replace' });
+    });
+
+    it('stays in row mode on repeated Left presses after leaving the first cell', () => {
+        let columnIndex: number | null = 0;
+        for (let press = 0; press < 3; press += 1) {
+            const target = getCsvTableNavigationTarget({ ...NAVIGATION_OPTIONS, key: 'ArrowLeft', columnIndex });
+            expect(target).toEqual({ rowIndex: 50, columnIndex: null, movement: 'replace' });
+            columnIndex = target?.columnIndex ?? null;
+        }
+        expect(getCsvTableNavigationTarget({ ...NAVIGATION_OPTIONS, key: 'ArrowRight', columnIndex }))
+            .toEqual({ rowIndex: 50, columnIndex: 0, movement: 'replace' });
     });
 
     it.each([

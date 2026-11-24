@@ -91,7 +91,7 @@ export const getCsvTableNavigationTarget = ({
             if (columnCount === 0 || shiftKey || primaryModifier) {
                 return null;
             }
-            const destinationColumn = columnIndex === null ? 0 : columnIndex + (key === 'ArrowLeft' ? -1 : 1);
+            const destinationColumn = (columnIndex ?? -1) + (key === 'ArrowLeft' ? -1 : 1);
             return {
                 rowIndex,
                 columnIndex: destinationColumn < 0 ? null : Math.min(columnCount - 1, destinationColumn),
