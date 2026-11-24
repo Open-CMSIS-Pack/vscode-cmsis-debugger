@@ -25,7 +25,7 @@ export const getCsvTableFindCommand = (
     open: boolean,
     inputFocused: boolean,
 ): 'open' | 'close' | CsvTableSearchDirection | null => {
-    if (isPrimaryModifierPressed(event, platform) && !event.altKey && event.key.toLowerCase() === 'f') {
+    if (isPrimaryModifierPressed(event, platform) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'f') {
         return 'open';
     }
     if (open && event.key === 'Escape') {
