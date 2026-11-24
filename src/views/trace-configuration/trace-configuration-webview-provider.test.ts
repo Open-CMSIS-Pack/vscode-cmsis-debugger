@@ -114,6 +114,15 @@ function createWebviewView(): {
     };
 }
 
+/** Invokes the registered Watch context action with an evaluatable expression. */
+async function addDebugExpression(expression = 'object.member'): Promise<void> {
+    const handler = jest.mocked(vscode.commands.registerCommand).mock.calls
+        .find(([command]) => command === 'vscode-cmsis-debugger.traceConfiguration.addFromDebugView')?.[1];
+
+    expect(handler).toBeDefined();
+    await handler?.({ variable: { evaluateName: expression } });
+}
+
 describe('TraceConfigurationWebviewProvider', () => {
     beforeEach(() => {
         vscode.Uri.joinPath = jest.fn((base: vscode.Uri, ...pathSegments: string[]) =>
@@ -179,15 +188,101 @@ describe('TraceConfigurationWebviewProvider', () => {
         const model = new FakeTraceConfigurationModel();
         const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
         await provider.activate(extensionContextFactory());
-        const handler = jest.mocked(vscode.commands.registerCommand).mock.calls
-            .find(([command]) => command === 'vscode-cmsis-debugger.traceConfiguration.addFromDebugView')?.[1];
 
-        expect(handler).toBeDefined();
-        await handler?.({ variable: { evaluateName: 'object.member' } });
+        await addDebugExpression();
 
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith(`${TRACE_CONFIGURATION_VIEW_ID}.focus`);
         expect(model.loadInitialFile).toHaveBeenCalledTimes(1);
         expect(model.addDataTraceExpression).toHaveBeenCalledWith('object.member');
+        expect(model.saveCurrentDocument).not.toHaveBeenCalled();
+    });
+
+    it.each(['workspace.ctrace.yml', undefined])(
+        'preserves a manually selected configuration when CMSIS Solution is unavailable and discovery would find %s',
+        async discoveredFile => {
+            jest.mocked(vscode.extensions.getExtension).mockReturnValue(undefined);
+            const model = new FakeTraceConfigurationModel();
+            let state: TraceConfigurationState = {
+                fileName: 'manually-selected.ctrace.yml',
+                loading: false,
+                dirty: true,
+                validationState: 'idle',
+                rows: []
+            };
+            model.createState.mockImplementation(() => state);
+            model.loadInitialFile.mockImplementation(async () => {
+                state = {
+                    ...(discoveredFile ? { fileName: discoveredFile } : {}),
+                    loading: false,
+                    dirty: false,
+                    validationState: 'idle',
+                    rows: []
+                };
+            });
+            const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
+            await provider.activate(extensionContextFactory());
+
+            await addDebugExpression();
+
+            expect(model.loadInitialFile).not.toHaveBeenCalled();
+            expect(model.createState()).toMatchObject({ fileName: 'manually-selected.ctrace.yml', dirty: true });
+            expect(model.addDataTraceExpression).toHaveBeenCalledWith('object.member');
+            expect(vscode.window.showOpenDialog).not.toHaveBeenCalled();
+        }
+    );
+
+    it('discovers a configuration before adding an expression when no file is loaded', async () => {
+        jest.mocked(vscode.extensions.getExtension).mockReturnValue(undefined);
+        const model = new FakeTraceConfigurationModel();
+        const emptyState: TraceConfigurationState = {
+            loading: false,
+            dirty: false,
+            validationState: 'idle',
+            rows: []
+        };
+        model.createState.mockReturnValue(emptyState);
+        model.loadInitialFile.mockImplementation(async () => {
+            model.createState.mockReturnValue({ ...emptyState, fileName: 'discovered.ctrace.yml' });
+        });
+        const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
+        await provider.activate(extensionContextFactory());
+
+        await addDebugExpression();
+
+        expect(model.loadInitialFile).toHaveBeenCalledTimes(1);
+        expect(model.addDataTraceExpression).toHaveBeenCalledWith('object.member');
+        expect(vscode.window.showOpenDialog).not.toHaveBeenCalled();
+    });
+
+    it.each([true, false])('handles the missing configuration picker when a file is selected: %s', async selected => {
+        jest.mocked(vscode.extensions.getExtension).mockReturnValue(undefined);
+        const model = new FakeTraceConfigurationModel();
+        const emptyState: TraceConfigurationState = {
+            loading: false,
+            dirty: false,
+            validationState: 'idle',
+            rows: []
+        };
+        model.createState.mockReturnValue(emptyState);
+        const selectedFile = vscode.Uri.file('/workspace/selected.ctrace.yml');
+        jest.mocked(vscode.window.showOpenDialog).mockResolvedValueOnce(selected ? [selectedFile] : undefined);
+        model.openFile.mockImplementation(async (fileName: string) => {
+            model.createState.mockReturnValue({ ...emptyState, fileName });
+        });
+        const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
+        await provider.activate(extensionContextFactory());
+
+        await addDebugExpression();
+
+        expect(model.loadInitialFile).toHaveBeenCalledTimes(1);
+        expect(vscode.window.showOpenDialog).toHaveBeenCalledTimes(1);
+        if (selected) {
+            expect(model.openFile).toHaveBeenCalledWith(selectedFile.fsPath);
+            expect(model.addDataTraceExpression).toHaveBeenCalledWith('object.member');
+        } else {
+            expect(model.openFile).not.toHaveBeenCalled();
+            expect(model.addDataTraceExpression).not.toHaveBeenCalled();
+        }
         expect(model.saveCurrentDocument).not.toHaveBeenCalled();
     });
 

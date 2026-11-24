@@ -156,7 +156,9 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
     private async addDataTraceExpression(expression: string): Promise<void> {
         await this.handleCommand(async () => {
             await vscode.commands.executeCommand(`${TRACE_CONFIGURATION_VIEW_ID}.focus`);
-            await this.loadInitialFileOnce();
+            if (!this.model.createState().fileName) {
+                await this.loadInitialFileOnce();
+            }
             if (!this.model.createState().fileName) {
                 await this.promptAndOpenFile();
             }

@@ -314,6 +314,29 @@ async function createModelFromText(
 
 describe('TraceConfigurationModel', () => {
     describe('adding expressions to Data Trace', () => {
+        it.each(['', ' \t\n '])('ignores a blank expression %j without modifying the configuration', async expression => {
+            const { model, adapter, backupStore } = await createModelFromText('ctrace:\n  setup:\n    - pname: cm33\n');
+
+            await model.addDataTraceExpression(expression);
+
+            expect(model.createState().dirty).toBe(false);
+            expect(adapter.writeCount).toBe(0);
+            expect(backupStore.write).not.toHaveBeenCalled();
+            await model.deactivate();
+        });
+
+        it('skips malformed processor entries and adds the expression to a valid processor', async () => {
+            const { model, adapter } = await createModelFromText('ctrace:\n  setup:\n    - invalid\n    - pname: cm33\n');
+
+            await model.addDataTraceExpression('counter');
+            await model.saveCurrentDocument();
+
+            const saved = CTraceYamlDocument.parse(adapter.text);
+            expect(saved.yaml.getItem(['ctrace', 'setup', 0])?.toObject()).toBe('invalid');
+            expect(saved.yaml.getItem(['ctrace', 'setup', 1, 'data', 0, 'location'])?.toObject()).toBe('counter');
+            await model.deactivate();
+        });
+
         it('prefills and focuses an unsaved entry while preserving earlier edits until Save', async () => {
             const { model, adapter } = await createModelFromText('ctrace:\n  setup:\n    - pname: cm33\n');
             await model.addDataTraceExpression('buffer[index].member');
