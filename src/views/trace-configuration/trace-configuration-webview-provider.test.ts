@@ -56,6 +56,7 @@ class FakeTraceConfigurationModel {
     public readonly updateExpandedState = jest.fn();
     public readonly updateValue = jest.fn().mockResolvedValue(undefined);
     public readonly addItem = jest.fn().mockResolvedValue(undefined);
+    public readonly addDataTraceExpression = jest.fn().mockResolvedValue(undefined);
     public readonly removeItem = jest.fn().mockResolvedValue(undefined);
     public readonly focusCTraceReference = jest.fn().mockResolvedValue(true);
     public readonly reportError = jest.fn();
@@ -172,6 +173,22 @@ describe('TraceConfigurationWebviewProvider', () => {
         expect(model.focusCTraceReference).toHaveBeenCalledWith('demo+target', 'data#0');
         expect((vscode.commands.executeCommand as jest.Mock).mock.invocationCallOrder[0])
             .toBeLessThan(model.focusCTraceReference.mock.invocationCallOrder[0]);
+    });
+
+    it('reveals Trace Generation and forwards a debug expression to its model', async () => {
+        const model = new FakeTraceConfigurationModel();
+        const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
+        await provider.activate(extensionContextFactory());
+        const handler = jest.mocked(vscode.commands.registerCommand).mock.calls
+            .find(([command]) => command === 'vscode-cmsis-debugger.traceConfiguration.addFromDebugView')?.[1];
+
+        expect(handler).toBeDefined();
+        await handler?.({ variable: { evaluateName: 'object.member' } });
+
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith(`${TRACE_CONFIGURATION_VIEW_ID}.focus`);
+        expect(model.loadInitialFile).toHaveBeenCalledTimes(1);
+        expect(model.addDataTraceExpression).toHaveBeenCalledWith('object.member');
+        expect(model.saveCurrentDocument).not.toHaveBeenCalled();
     });
 
     it('routes trace configuration title commands to model operations', async () => {

@@ -20,6 +20,7 @@ import { GDBTargetDebugSession, GDBTargetDebugTracker, SessionEvent } from '../.
 import { vscodeViewExists } from '../../vscode-utils';
 import { logger } from '../..';
 import { clearLiveWatchState, readLiveWatchState, writeLiveWatchState } from '../dynamic-view-states';
+import { getDebugExpression, getEditorExpression } from '../debug-expression';
 
 export interface LiveWatchNode {
   id: number;
@@ -339,15 +340,9 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         await vscode.env.clipboard.writeText(node.value.evaluateName ?? node.expression);
     }
 
+    /** Adds the selected expression or cursor identifier to Live Watch. */
     private async handleAddFromSelectionCommand() {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            return;
-        }
-        const selection = editor.selection;
-        const document = editor.document;
-        const range = document.getWordRangeAtPosition(selection.active);
-        const selectedText = range ? document.getText(range).trim() : '';
+        const selectedText = getEditorExpression(vscode.window.activeTextEditor);
         if (!selectedText) {
             return;
         }
@@ -358,7 +353,7 @@ export class LiveWatchTreeDataProvider implements vscode.TreeDataProvider<LiveWa
         if (!payload || !payload.variable) {
             return;
         }
-        await this.addToRoots(payload.variable.evaluateName ?? payload.variable.name);
+        await this.addToRoots(getDebugExpression(payload) ?? payload.variable.name);
     }
 
     private async handleShowInMemoryInspector(node: LiveWatchNode) {

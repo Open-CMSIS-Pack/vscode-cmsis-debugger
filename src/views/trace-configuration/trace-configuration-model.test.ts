@@ -313,6 +313,106 @@ async function createModelFromText(
 }
 
 describe('TraceConfigurationModel', () => {
+    describe('adding expressions to Data Trace', () => {
+        it('prefills and focuses an unsaved entry while preserving earlier edits until Save', async () => {
+            const { model, adapter } = await createModelFromText('ctrace:\n  setup:\n    - pname: cm33\n');
+            await model.addDataTraceExpression('buffer[index].member');
+            await model.addDataTraceExpression('counter');
+
+            expect(adapter.writeCount).toBe(0);
+            const state = model.createState();
+            expect(state.dirty).toBe(true);
+            expect(state.focusedRowId).toBe(JSON.stringify(['ctrace', 'setup', 0, 'data', 1]));
+            expect(state.rows).toEqual(expect.arrayContaining([
+                expect.objectContaining({ valuePath: ['ctrace', 'setup', 0, 'data', 0, 'location'], value: 'buffer[index].member' }),
+                expect.objectContaining({ valuePath: ['ctrace', 'setup', 0, 'data', 1, 'location'], value: 'counter' })
+            ]));
+
+            await model.saveCurrentDocument();
+            expect(adapter.text).toContain('location: buffer[index].member');
+            expect(adapter.text).toContain('location: counter');
+            expect(adapter.text).toContain('access: W');
+            await model.deactivate();
+        });
+
+        it('asks which processor should receive the expression', async () => {
+            const { model, adapter } = await createModelFromText('ctrace:\n  setup:\n    - pname: first\n    - pname: second\n');
+            jest.spyOn(vscode.window, 'showQuickPick').mockImplementationOnce(async items => {
+                const choices = await items;
+                return choices[1];
+            });
+
+            await model.addDataTraceExpression('counter');
+            await model.saveCurrentDocument();
+
+            const saved = CTraceYamlDocument.parse(adapter.text);
+            expect(saved.yaml.getItem(['ctrace', 'setup', 0, 'data', 0])).toBeUndefined();
+            expect(saved.yaml.getItem(['ctrace', 'setup', 1, 'data', 0, 'location'])?.toObject()).toBe('counter');
+            await model.deactivate();
+        });
+
+        it('leaves the configuration unchanged when the processor picker is cancelled', async () => {
+            const { model, adapter } = await createModelFromText('ctrace:\n  setup:\n    - pname: first\n    - pname: second\n');
+            jest.spyOn(vscode.window, 'showQuickPick').mockResolvedValueOnce(undefined);
+            await model.addDataTraceExpression('counter');
+            expect(model.createState().dirty).toBe(false);
+            expect(adapter.writeCount).toBe(0);
+            await model.deactivate();
+        });
+
+        it('does not apply a stale processor selection after the file changes', async () => {
+            const { model, adapter } = await createModelFromText('ctrace:\n  setup:\n    - pname: first\n    - pname: second\n');
+            jest.spyOn(vscode.window, 'showQuickPick').mockImplementationOnce(async items => {
+                const choices = await items;
+                adapter.simulateExternalChange('ctrace:\n  setup:\n    - pname: replacement\n');
+                await model.refreshFile();
+                return choices[1];
+            });
+
+            await expect(model.addDataTraceExpression('counter')).rejects.toThrow('configuration changed');
+            expect(model.createState().dirty).toBe(false);
+            expect(adapter.writeCount).toBe(0);
+            await model.deactivate();
+        });
+
+        it('automatically chooses the only processor that supports Data Trace', async () => {
+            const capabilities = createCapabilities();
+            capabilities.set('1', { displayName: 'cm0', core: 'Cortex-M0', ...TraceConfigurationTypes.NO_TRACE_CAPABILITIES });
+            const { model, adapter } = await createModelFromText('ctrace:\n  setup:\n    - pname: first\n    - pname: second\n', capabilities);
+            const picker = jest.spyOn(vscode.window, 'showQuickPick');
+
+            await model.addDataTraceExpression('counter');
+            expect(picker).not.toHaveBeenCalled();
+            await model.saveCurrentDocument();
+            expect(CTraceYamlDocument.parse(adapter.text).yaml.getItem(['ctrace', 'setup', 0, 'data', 0, 'location'])?.toObject()).toBe('counter');
+            await model.deactivate();
+        });
+
+        it('rejects processors without Data Trace support', async () => {
+            const { model } = await createModelFromText('ctrace:\n  setup:\n    - core: Cortex-M0\n', new Map([
+                ['0', { displayName: 'cm0', core: 'Cortex-M0', ...TraceConfigurationTypes.NO_TRACE_CAPABILITIES }]
+            ]));
+            await expect(model.addDataTraceExpression('counter')).rejects.toThrow('supports Data Trace');
+            await model.deactivate();
+        });
+
+        it('respects the shared comparator limit', async () => {
+            const { model, adapter } = await createModelFromText('ctrace:\n  setup:\n    - pname: cm33\n      data:\n        - location: one\n        - location: two\n        - location: three\n        - location: four\n', createCapabilities());
+            await model.addDataTraceExpression('five');
+            expect(model.createState()).toMatchObject({ dirty: false, errorMessage: expect.stringContaining('already use 4 of 4') });
+            expect(adapter.writeCount).toBe(0);
+            await model.deactivate();
+        });
+
+        it('adds expressions to legacy root Data Trace lists', async () => {
+            const { model, adapter } = await createModelFromText('ctrace:\n  data:\n');
+            await model.addDataTraceExpression('counter');
+            await model.saveCurrentDocument();
+            expect(CTraceYamlDocument.parse(adapter.text).yaml.getItem(['ctrace', 'data', 0, 'location'])?.toObject()).toBe('counter');
+            await model.deactivate();
+        });
+    });
+
     describe.each([
         { scope: 'root', path: ['ctrace', 'timesync'], prefix: 'ctrace:\n  setup: []\n', indent: '  ' },
         { scope: 'processor', path: ['ctrace', 'setup', 0, 'timesync'], prefix: 'ctrace:\n  setup:\n    - pname: cm33\n', indent: '      ' },
