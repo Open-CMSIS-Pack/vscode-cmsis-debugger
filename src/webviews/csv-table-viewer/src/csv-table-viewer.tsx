@@ -83,7 +83,7 @@ const INITIAL_STATE: TableState = {
 
 
 const renderCellText = (value: string, query: string, active: CsvTableSearchMatch | null): JSX.Element => {
-    const matches = getCsvTableCellMatches(value, query);
+    const matches = getCsvTableCellMatches(value, query, active);
     return <>{matches.map((match, index) => <Fragment key={match.start}>
         {value.slice(index === 0 ? 0 : matches[index - 1].end, match.start)}
         <mark className={active?.start === match.start && active.end === match.end ? 'find-match active' : 'find-match'}>{value.slice(match.start, match.end)}</mark>

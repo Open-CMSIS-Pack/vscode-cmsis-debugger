@@ -31,15 +31,30 @@ export interface CsvTableSearchMatch extends CsvTableTextMatch {
 export type CsvTableSearchDirection = 'next' | 'previous';
 
 const SEARCH_BATCH_SIZE = 128;
+const MAX_CELL_HIGHLIGHTS = 128;
 
 // eslint-disable-next-line security/detect-non-literal-regexp -- Escape all metacharacters so the query remains literal.
 const createPattern = (query: string): RegExp => new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'giu');
 
-export function getCsvTableCellMatches(value: string, query: string): readonly CsvTableTextMatch[] {
+export function getCsvTableCellMatches(value: string, query: string, active: CsvTableTextMatch | null = null): readonly CsvTableTextMatch[] {
     if (query.length === 0) {
         return [];
     }
-    return Array.from(value.matchAll(createPattern(query)), match => ({ start: match.index, end: match.index + match[0].length }));
+    const matches: CsvTableTextMatch[] = [];
+    for (const match of value.matchAll(createPattern(query))) {
+        matches.push({ start: match.index, end: match.index + match[0].length });
+        if (matches.length === MAX_CELL_HIGHLIGHTS) {
+            break;
+        }
+    }
+    if (active !== null && !matches.some(match => match.start === active.start && match.end === active.end)) {
+        if (matches.length === MAX_CELL_HIGHLIGHTS) {
+            matches.pop();
+        }
+        matches.push({ start: active.start, end: active.end });
+        matches.sort((left, right) => left.start - right.start);
+    }
+    return matches;
 }
 
 const compareMatches = (left: CsvTableSearchMatch, right: CsvTableSearchMatch): number => left.rowIndex - right.rowIndex

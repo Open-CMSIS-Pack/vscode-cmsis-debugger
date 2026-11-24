@@ -27,6 +27,33 @@ const createStore = (cells: readonly (readonly string[])[]): InMemoryCsvTableRow
 const find = (store: InMemoryCsvTableRowStore, direction: 'next' | 'previous' = 'next', after: CsvTableSearchMatch | null = null): Promise<CsvTableSearchMatch | null> => findCsvTableMatch(store, 'a', direction, after, new AbortController().signal);
 
 describe('getCsvTableCellMatches', () => {
+    it('stops collecting after 128 highlights even for a million occurrences', () => {
+        const value = 'a'.repeat(1_000_000);
+        const exec = jest.spyOn(RegExp.prototype, 'exec');
+        try {
+            const matches = getCsvTableCellMatches(value, 'a');
+            expect(exec.mock.calls.filter(([input]) => input === value)).toHaveLength(128);
+            expect(matches).toHaveLength(128);
+            expect(matches[0]).toEqual({ start: 0, end: 1 });
+            expect(matches.at(-1)).toEqual({ start: 127, end: 128 });
+        } finally {
+            exec.mockRestore();
+        }
+    });
+
+    it('preserves a late active occurrence within the highlight budget', () => {
+        const active = { start: 999_999, end: 1_000_000 };
+        const matches = getCsvTableCellMatches('a'.repeat(1_000_000), 'a', active);
+        expect(matches).toHaveLength(128);
+        expect(matches.at(-2)).toEqual({ start: 126, end: 127 });
+        expect(matches.at(-1)).toEqual(active);
+    });
+
+    it('does not duplicate an active occurrence already collected', () => {
+        const matches = getCsvTableCellMatches('a'.repeat(128), 'a', { start: 63, end: 64 });
+        expect(matches).toEqual(Array.from({ length: 128 }, (_, index) => ({ start: index, end: index + 1 })));
+    });
+
     it('searches literal text rather than regular expressions', () => {
         expect(getCsvTableCellMatches('x [a].* X [A].*', '[a].*')).toEqual([{ start: 2, end: 7 }, { start: 10, end: 15 }]);
         expect(getCsvTableCellMatches('a\\b a\\B', 'a\\b')).toEqual([{ start: 0, end: 3 }, { start: 4, end: 7 }]);
