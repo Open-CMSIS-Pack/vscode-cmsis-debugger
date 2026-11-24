@@ -259,6 +259,12 @@ export const CsvTableViewer = (): JSX.Element => {
         const mark = cell.querySelector<HTMLElement>('.find-match.active');
         if (mark !== null) {
             cell.scrollLeft += mark.getBoundingClientRect().left - cell.getBoundingClientRect().left - 6;
+            const matchBounds = mark.getBoundingClientRect();
+            if (matchBounds.left < leftEdge) {
+                element.scrollLeft += matchBounds.left - leftEdge;
+            } else if (matchBounds.right > viewport.right) {
+                element.scrollLeft += Math.min(matchBounds.left - leftEdge, matchBounds.right - viewport.right);
+            }
         }
     }, [rows, findState.match, columnWidths]);
 
