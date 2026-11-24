@@ -135,25 +135,55 @@ describe('findCsvTableMatch', () => {
         await expect(findCsvTableMatch(store, 'a', 'next', null, duringRead.signal)).rejects.toThrow();
     });
 
+    it.each(['next', 'previous'] as const)('does not schedule timers during a %s scan within the time budget', async direction => {
+        const store = createStore(Array.from({ length: 100_000 }, () => ['none', '']));
+        const now = jest.spyOn(performance, 'now').mockReturnValue(0);
+        const timer = jest.spyOn(globalThis, 'setTimeout');
+        try {
+            expect(await find(store, direction)).toBeNull();
+            expect(timer).not.toHaveBeenCalled();
+        } finally {
+            timer.mockRestore();
+            now.mockRestore();
+        }
+    });
+
+    it('resets the time budget after yielding instead of yielding at every checkpoint', async () => {
+        const store = createStore(Array.from({ length: 2048 }, () => ['none', '']));
+        const now = jest.spyOn(performance, 'now').mockReturnValueOnce(0).mockReturnValue(8);
+        const timer = jest.spyOn(globalThis, 'setTimeout');
+        try {
+            expect(await find(store)).toBeNull();
+            expect(timer).toHaveBeenCalledTimes(1);
+        } finally {
+            timer.mockRestore();
+            now.mockRestore();
+        }
+    });
+
     it('yields for cancellation during an in-memory scan', async () => {
         const store = createStore(Array.from({ length: 2048 }, () => ['none', '']));
         const controller = new AbortController();
+        const now = jest.spyOn(performance, 'now').mockReturnValueOnce(0).mockReturnValue(8);
         const timer = setTimeout(() => controller.abort(), 0);
         try {
             await expect(findCsvTableMatch(store, 'a', 'next', null, controller.signal)).rejects.toThrow();
         } finally {
             clearTimeout(timer);
+            now.mockRestore();
         }
     });
 
     it('yields for cancellation while scanning many occurrences in one cell backwards', async () => {
         const store = createStore([['a'.repeat(20000), '']]);
         const controller = new AbortController();
+        const now = jest.spyOn(performance, 'now').mockReturnValueOnce(0).mockReturnValue(8);
         const timer = setTimeout(() => controller.abort(), 0);
         try {
             await expect(findCsvTableMatch(store, 'a', 'previous', null, controller.signal)).rejects.toThrow();
         } finally {
             clearTimeout(timer);
+            now.mockRestore();
         }
     });
 

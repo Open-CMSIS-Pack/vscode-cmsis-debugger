@@ -31,6 +31,7 @@ export interface CsvTableSearchMatch extends CsvTableTextMatch {
 export type CsvTableSearchDirection = 'next' | 'previous';
 
 const SEARCH_BATCH_SIZE = 128;
+const SEARCH_YIELD_BUDGET_MS = 8;
 const MAX_CELL_HIGHLIGHTS = 128;
 
 // eslint-disable-next-line security/detect-non-literal-regexp -- Escape all metacharacters so the query remains literal.
@@ -73,9 +74,15 @@ export async function findCsvTableMatch(
     }
     const pattern = createPattern(query);
     const forward = direction === 'next';
+    let yieldDeadline = performance.now() + SEARCH_YIELD_BUDGET_MS;
     const yieldToCancellation = async (): Promise<void> => {
+        signal.throwIfAborted();
+        if (performance.now() < yieldDeadline) {
+            return;
+        }
         await new Promise<void>(resolve => setTimeout(resolve, 0));
         signal.throwIfAborted();
+        yieldDeadline = performance.now() + SEARCH_YIELD_BUDGET_MS;
     };
     let work = 0;
     const scan = async (start: number, end: number, wrapped: boolean): Promise<CsvTableSearchMatch | null> => {
