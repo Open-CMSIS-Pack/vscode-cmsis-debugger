@@ -41,7 +41,7 @@ export interface CsvTableRows {
     readonly totalRowCount: number;
 }
 
-export type CsvTableHostMessage = CsvTableState | CsvTableRows;
+export type CsvTableHostMessage = CsvTableState | CsvTableRows | { readonly type: 'restoreFocus' };
 
 export interface CsvTableReady {
     readonly type: 'ready';

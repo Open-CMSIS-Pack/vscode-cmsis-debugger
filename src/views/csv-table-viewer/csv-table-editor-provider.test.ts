@@ -124,6 +124,7 @@ function createWebviewPanel(): {
     };
     const panel = {
         webview,
+        active: true,
         onDidDispose: jest.fn((handler: () => void) => {
             disposeHandler = handler;
             return { dispose: jest.fn() };
@@ -175,6 +176,39 @@ describe('CsvTableEditorProvider', () => {
             { webviewOptions: { retainContextWhenHidden: true } },
         );
         expect(context.subscriptions).toHaveLength(1);
+    });
+
+    it('requests focus restoration only when the window regains focus with this panel active', async () => {
+        const provider = new CsvTableEditorProvider(vscode.Uri.file('/extension'));
+        const fixture = createWebviewPanel();
+        const document = { uri: vscode.Uri.file('/workspace/demo.SWO.csv'), dispose: jest.fn() };
+        const dispose = jest.fn();
+        let changeWindowState: ((state: vscode.WindowState) => void) | undefined;
+        jest.mocked(vscode.window.onDidChangeWindowState).mockImplementationOnce(listener => {
+            changeWindowState = listener;
+            return { dispose };
+        });
+        await provider.resolveCustomEditor(document, fixture.panel, {} as vscode.CancellationToken);
+        changeWindowState?.({ focused: true, active: false });
+        expect(fixture.webview.postMessage).not.toHaveBeenCalled();
+        changeWindowState?.({ focused: false, active: true });
+        expect(fixture.webview.postMessage).not.toHaveBeenCalled();
+        changeWindowState?.({ focused: true, active: true });
+        expect(fixture.webview.postMessage).toHaveBeenCalledTimes(1);
+        expect(fixture.webview.postMessage).toHaveBeenCalledWith({ type: 'restoreFocus' });
+        fixture.webview.postMessage.mockClear();
+        changeWindowState?.({ focused: true, active: false });
+        expect(fixture.webview.postMessage).not.toHaveBeenCalled();
+        jest.replaceProperty(fixture.panel, 'active', false);
+        changeWindowState?.({ focused: false, active: true });
+        changeWindowState?.({ focused: true, active: true });
+        expect(fixture.webview.postMessage).not.toHaveBeenCalled();
+        jest.replaceProperty(fixture.panel, 'active', true);
+        fixture.dispose();
+        expect(dispose).toHaveBeenCalledTimes(1);
+        changeWindowState?.({ focused: false, active: true });
+        changeWindowState?.({ focused: true, active: true });
+        expect(fixture.webview.postMessage).not.toHaveBeenCalled();
     });
 
     it('configures the webview, loads rows, and serves the active view', async () => {

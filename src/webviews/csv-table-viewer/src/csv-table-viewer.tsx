@@ -83,6 +83,7 @@ const INITIAL_STATE: TableState = {
 
 export const CsvTableViewer = (): JSX.Element => {
     const scrollElementRef = useRef<HTMLDivElement>(null);
+    const lastFocusedControl = useRef<HTMLElement | null>(null);
     const tableHeaderRef = useRef<HTMLDivElement>(null);
     const [tableState, setTableState] = useState<TableState>(INITIAL_STATE);
     const [rows, setRows] = useState<readonly CsvTableRow[]>([]);
@@ -113,6 +114,31 @@ export const CsvTableViewer = (): JSX.Element => {
     const visibleRowCount = Math.max(1, Math.ceil(rowViewportHeight / CSV_TABLE_ROW_HEIGHT));
     const renderedRowStart = Math.max(0, firstVisibleRow - ROW_OVERSCAN);
     const renderedRowEnd = Math.min(tableState.totalRowCount, firstVisibleRow + visibleRowCount + ROW_OVERSCAN);
+
+    useEffect(() => {
+        const grid = scrollElementRef.current;
+        if (grid === null) {
+            return;
+        }
+        const trackFocus = (event: FocusEvent): void => {
+            if (event.target instanceof HTMLElement && event.target !== document.body
+                && event.target !== document.documentElement) {
+                lastFocusedControl.current = event.target;
+            }
+        };
+        const restoreFocus = (): void => {
+            if (lastFocusedControl.current === grid && (document.activeElement === document.body
+                || document.activeElement === document.documentElement || document.activeElement === null)) {
+                grid.focus({ preventScroll: true });
+            }
+        };
+        document.addEventListener('focusin', trackFocus);
+        window.addEventListener('focus', restoreFocus);
+        return () => {
+            document.removeEventListener('focusin', trackFocus);
+            window.removeEventListener('focus', restoreFocus);
+        };
+    }, []);
 
     useEffect(() => {
         if (contextMenuPosition !== null) {
@@ -167,6 +193,13 @@ export const CsvTableViewer = (): JSX.Element => {
                 return;
             }
             const message = event.data;
+            if (message.type === 'restoreFocus') {
+                const control = lastFocusedControl.current;
+                if (control?.isConnected) {
+                    control.focus({ preventScroll: true });
+                }
+                return;
+            }
             if (message.type === 'tableState') {
                 viewRevision.current = message.viewRevision;
                 setTableState(previousState => {
@@ -464,6 +497,10 @@ export const CsvTableViewer = (): JSX.Element => {
         if (event.target instanceof HTMLElement && event.target.closest('.table-header') !== null) {
             return;
         }
+        if (event.key === 'Alt') {
+            event.preventDefault();
+            return;
+        }
         if (isContextMenuShortcut(event)) {
             event.preventDefault();
             const rowIndex = selectedCell?.rowIndex ?? selection.caret;
@@ -535,7 +572,7 @@ export const CsvTableViewer = (): JSX.Element => {
     };
 
     const handleTableKeyUp = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
-        if (event.target === event.currentTarget && isContextMenuShortcut(event)) {
+        if (event.target === event.currentTarget && (isContextMenuShortcut(event) || event.key === 'Alt')) {
             event.preventDefault();
         }
         if (event.key === 'Shift' && keyboardRangeActive.current) {

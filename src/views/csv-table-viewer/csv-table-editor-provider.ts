@@ -331,6 +331,14 @@ export class CsvTableEditorProvider implements vscode.CustomReadonlyEditorProvid
 
         webviewPanel.webview.html = this.buildShell(webviewPanel.webview);
 
+        let windowWasFocused = true;
+        const windowFocusListener = vscode.window.onDidChangeWindowState(state => {
+            const regainedFocus = state.focused && !windowWasFocused;
+            windowWasFocused = state.focused;
+            if (regainedFocus && webviewPanel.active && !disposed) {
+                postMessage({ type: 'restoreFocus' });
+            }
+        });
         const parentUri = document.uri.with({ path: path.posix.dirname(document.uri.path) });
         const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(parentUri, '*'));
         const reloadChangedDocument = (uri: vscode.Uri): void => {
@@ -345,6 +353,7 @@ export class CsvTableEditorProvider implements vscode.CustomReadonlyEditorProvid
             loadGeneration += 1;
             updateGeneration += 1;
             viewUpdateController?.abort();
+            windowFocusListener.dispose();
             watcher.dispose();
             clearIndexProgressUpdates();
             void rowStore.dispose();
