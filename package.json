@@ -402,6 +402,21 @@
         "command": "vscode-cmsis-debugger.corePeripherals.resetViewState",
         "title": "Reset View State",
         "category": "Core Peripherals"
+      },
+      {
+        "command": "vscode-cmsis-debugger.traceConfiguration.addFromEditor",
+        "title": "Add to Data Trace",
+        "category": "CMSIS Debugger"
+      },
+      {
+        "command": "vscode-cmsis-debugger.traceConfiguration.addFromDebugView",
+        "title": "Add to Data Trace",
+        "category": "CMSIS Debugger"
+      },
+      {
+        "command": "vscode-cmsis-debugger.traceConfiguration.addFromLiveWatch",
+        "title": "Add to Data Trace",
+        "category": "CMSIS Debugger"
       }
     ],
     "menus": {
@@ -415,6 +430,11 @@
           "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromTextEditor",
           "when": "editorTextFocus",
           "group": "z_commands"
+        },
+        {
+          "command": "vscode-cmsis-debugger.traceConfiguration.addFromEditor",
+          "when": "editorTextFocus && (editorLangId == c || editorLangId == cpp)",
+          "group": "z_commands@10"
         }
       ],
       "editor/lineNumber/context": [
@@ -441,6 +461,11 @@
           "command": "vscode-cmsis-debugger.liveWatch.addToLiveWatchFromWatchWindow",
           "when": "inDebugMode",
           "group": "z_commands"
+        },
+        {
+          "command": "vscode-cmsis-debugger.traceConfiguration.addFromDebugView",
+          "when": "inDebugMode && (debugType == gdb || debugType == gdbtarget)",
+          "group": "z_commands@10"
         }
       ],
       "debug/callstack/context": [
@@ -641,6 +666,18 @@
         {
           "command": "vscode-cmsis-debugger.reloadCTrace",
           "when": "inDebugMode"
+        },
+        {
+          "command": "vscode-cmsis-debugger.traceConfiguration.addFromEditor",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.traceConfiguration.addFromDebugView",
+          "when": "false"
+        },
+        {
+          "command": "vscode-cmsis-debugger.traceConfiguration.addFromLiveWatch",
+          "when": "false"
         }
       ],
       "view/title": [
@@ -867,6 +904,11 @@
           "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
           "when": "view == cmsis-debugger.corePeripherals && viewItem == locked.parentInstance",
           "group": "inline@2"
+        },
+        {
+          "command": "vscode-cmsis-debugger.traceConfiguration.addFromLiveWatch",
+          "when": "view == cmsis-debugger.liveWatch",
+          "group": "z_commands@10"
         }
       ],
       "webview/context": [

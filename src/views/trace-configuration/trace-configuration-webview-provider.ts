@@ -30,6 +30,7 @@ import {
     TraceWebviewToHostMessage
 } from './trace-configuration-protocol';
 import { TraceConfigurationModel } from './trace-configuration-model';
+import { TraceConfigurationExpressionCommands } from './trace-configuration-expression-commands';
 
 const CMSIS_SOLUTION_EXTENSION_ID = 'Arm.cmsis-csolution';
 const TRACE_CONFIGURATION_VIEW_TITLE = 'Trace Generation';
@@ -85,6 +86,7 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
      * affect debugging tooltips immediately refresh an open webview.
      */
     public async activate(context: vscode.ExtensionContext): Promise<void> {
+        new TraceConfigurationExpressionCommands(expression => this.addDataTraceExpression(expression)).activate(context);
         context.subscriptions.push(
             vscode.window.registerWebviewViewProvider(TRACE_CONFIGURATION_VIEW_ID, this),
             vscode.workspace.onDidChangeConfiguration(event => {
@@ -148,6 +150,22 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
         return ctraceFilePath
             ? await this.model.focusCTraceReference(solutionSet, ctraceRef, ctraceFilePath)
             : await this.model.focusCTraceReference(solutionSet, ctraceRef);
+    }
+
+    /** Reveals Trace Generation and adds an unsaved expression using its current configuration. */
+    private async addDataTraceExpression(expression: string): Promise<void> {
+        await this.handleCommand(async () => {
+            await vscode.commands.executeCommand(`${TRACE_CONFIGURATION_VIEW_ID}.focus`);
+            if (!this.model.createState().fileName) {
+                await this.loadInitialFileOnce();
+            }
+            if (!this.model.createState().fileName) {
+                await this.promptAndOpenFile();
+            }
+            if (this.model.createState().fileName) {
+                await this.model.addDataTraceExpression(expression);
+            }
+        });
     }
 
     /**

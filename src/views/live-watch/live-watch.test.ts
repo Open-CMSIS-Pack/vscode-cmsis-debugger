@@ -317,38 +317,50 @@ describe('LiveWatchTreeDataProvider', () => {
                     getWordRangeAtPosition: jest.fn().mockReturnValue(fakeRange)
                 },
                 selection: {
+                    isEmpty: false,
                     active: { line: 0, character: 5 },
                     start: { line: 0, character: 0 },
                     end: { line: 0, character: 17 }
                 }
             };
-            (vscode.window as any).activeTextEditor = mockEditor;
-            await (liveWatchTreeDataProvider as any).handleAddFromSelectionCommand();
-            const roots = (liveWatchTreeDataProvider as any).roots;
-            expect(mockEditor.document.getWordRangeAtPosition).toHaveBeenCalledWith(mockEditor.selection.active);
-            expect(mockEditor.document.getText).toHaveBeenCalledWith(fakeRange);
-            expect(roots.length).toBe(1);
-            expect(roots[0].expression).toBe('selected-expression');
-            expect(roots[0].value.result).toBe('5678');
+            const previousEditor = vscode.window.activeTextEditor;
+            try {
+                (vscode.window as any).activeTextEditor = mockEditor;
+                await (liveWatchTreeDataProvider as any).handleAddFromSelectionCommand();
+                const roots = (liveWatchTreeDataProvider as any).roots;
+                expect(mockEditor.document.getWordRangeAtPosition).not.toHaveBeenCalled();
+                expect(mockEditor.document.getText).toHaveBeenCalledWith(mockEditor.selection);
+                expect(roots.length).toBe(1);
+                expect(roots[0].expression).toBe('selected-expression');
+                expect(roots[0].value.result).toBe('5678');
+            } finally {
+                (vscode.window as any).activeTextEditor = previousEditor;
+            }
         });
 
-        it('AddFromSelection does nothing when selection spans multiple lines', async () => {
+        it('AddFromSelection does nothing when there is no identifier at the cursor', async () => {
             const mockEditor: any = {
                 document: {
                     getText: jest.fn().mockReturnValue('multi-line\nselection'),
                     getWordRangeAtPosition: jest.fn().mockReturnValue(undefined)
                 },
                 selection: {
+                    isEmpty: true,
                     active: { line: 0, character: 5 },
                     start: { line: 0, character: 0 },
                     end: { line: 1, character: 9 }
                 }
             };
-            (vscode.window as any).activeTextEditor = mockEditor;
-            await (liveWatchTreeDataProvider as any).handleAddFromSelectionCommand();
-            const roots = (liveWatchTreeDataProvider as any).roots;
-            expect(mockEditor.document.getWordRangeAtPosition).toHaveBeenCalledWith(mockEditor.selection.active);
-            expect(roots.length).toBe(0);
+            const previousEditor = vscode.window.activeTextEditor;
+            try {
+                (vscode.window as any).activeTextEditor = mockEditor;
+                await (liveWatchTreeDataProvider as any).handleAddFromSelectionCommand();
+                const roots = (liveWatchTreeDataProvider as any).roots;
+                expect(mockEditor.document.getWordRangeAtPosition).toHaveBeenCalledWith(mockEditor.selection.active);
+                expect(roots.length).toBe(0);
+            } finally {
+                (vscode.window as any).activeTextEditor = previousEditor;
+            }
         });
     });
 
