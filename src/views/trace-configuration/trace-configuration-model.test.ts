@@ -26,6 +26,8 @@ import { traceWatchFactory } from '../../__test__/trace-watch.factory';
 import { MemoryTextFileAdapter } from '../../__test__/memory-text-file-adapter';
 import { CbuildRunReader, CBuildRunFileLocator, ProcessorType } from '../../cbuild-run';
 import { PyTsController } from '../../features/trace/pyts-controller';
+import { SymbolMatch, SymbolResolver } from '../../symbols/symbol-service';
+import { deferred, symbolServiceFactory } from '../../symbols/__test__/symbol-test-support';
 import { logger } from '../../logger';
 import {
     CBUILD_INDEX_FILE_GLOB,
@@ -57,6 +59,7 @@ import * as TraceConfigurationTypes from './trace-configuration-types';
 
 interface TraceConfigurationModelPrivate {
     ctraceFile: CTraceYamlFile | undefined;
+    symbolTraceFileName: string | undefined;
     handleCurrentRunFileChanged(event: TraceConfigurationRunFileChangeEvent): Promise<void>;
     refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event: GeneratedCBuildRunFileChangeEvent): Promise<void>;
     setProcessorDisable(document: CTraceYamlDocument, processorPath: (string | number)[]): void;
@@ -151,13 +154,22 @@ function fireWatcherHandler(watcher: MockFileSystemWatcher, handlerName: 'create
     }
 }
 
+/** Resolves a generated-file watcher while keeping context commands separate from project discovery. */
 async function resolveGeneratedCBuildRunWatcher(
     model: TraceConfigurationModel,
     cbuildRunFile: vscode.Uri
 ): Promise<MockFileSystemWatcher> {
-    (vscode.commands.executeCommand as jest.Mock)
-        .mockResolvedValueOnce(undefined)
-        .mockResolvedValue(cbuildRunFile.fsPath);
+    let initialLookup = true;
+    jest.mocked(vscode.commands.executeCommand).mockImplementation(async command => {
+        if (command !== 'cmsis-csolution.getCbuildRunFile') {
+            return undefined;
+        }
+        if (initialLookup) {
+            initialLookup = false;
+            return undefined;
+        }
+        return cbuildRunFile.fsPath;
+    });
     await model.loadInitialFile();
 
     const cbuildIndexWatcher = getLastCreatedFileSystemWatcher();
@@ -242,7 +254,7 @@ async function createTemporaryDirectory(directoryName: string): Promise<void> {
 }
 
 /** Creates an active build with observable ELF watches and independent validation paths. */
-async function createImageWatchModel() {
+async function createImageWatchModel(symbolResolver?: SymbolResolver) {
     const workspaceRoot = await createTemporaryWorkspace();
     mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M33', 'cm33')]);
     const cbuildRunFile = path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml');
@@ -265,7 +277,7 @@ async function createImageWatchModel() {
     const backupStore = new WorkspaceTraceConfigurationBackupStore();
     const model = new TraceConfigurationModel(
         () => { }, undefined, undefined, undefined, traceWatch.fileWatchManager,
-        locator, activeSolutionWatch.cmsisJsonWatcher, backupStore, prevalidator, createRunMessageReader(), controller
+        locator, activeSolutionWatch.cmsisJsonWatcher, backupStore, prevalidator, createRunMessageReader(), controller, symbolResolver
     );
     return { workspaceRoot, cbuildRunFile, elfFile, ctraceFile, original, locator, convert, prevalidator, traceWatch, activeSolutionWatch, backupStore, controller, model };
 }
@@ -275,7 +287,8 @@ async function createModelFromText(
     capabilities?: Map<string, TraceConfigurationTypes.ProcessorTraceCapabilities>,
     fileName = 'target.ctrace.yml',
     prevalidator: jest.Mocked<TraceConfigurationPrevalidator> = createPassingPrevalidator(),
-    runMessageReader: jest.Mocked<TraceConfigurationRunMessageReader> = createRunMessageReader()
+    runMessageReader: jest.Mocked<TraceConfigurationRunMessageReader> = createRunMessageReader(),
+    symbolResolver?: SymbolResolver
 ): Promise<{
     adapter: MemoryTextFileAdapter;
     backupStore: jest.Mocked<TraceConfigurationBackupStore>;
@@ -306,9 +319,13 @@ async function createModelFromText(
         undefined,
         backupStore,
         prevalidator,
-        runMessageReader
+        runMessageReader,
+        undefined,
+        symbolResolver
     );
-    (model as unknown as TraceConfigurationModelPrivate).ctraceFile = file;
+    const privateModel = model as unknown as TraceConfigurationModelPrivate;
+    privateModel.ctraceFile = file;
+    privateModel.symbolTraceFileName = symbolResolver ? fileName : undefined;
     return { adapter, backupStore, model, prevalidator };
 }
 
@@ -371,6 +388,422 @@ describe('TraceConfigurationModel', () => {
             const saved = CTraceYamlDocument.parse(adapter.text);
             expect(saved.yaml.getItem(['ctrace', 'setup', 0, 'data', 0])).toBeUndefined();
             expect(saved.yaml.getItem(['ctrace', 'setup', 1, 'data', 0, 'location'])?.toObject()).toBe('counter');
+            await model.deactivate();
+        });
+
+        it.each([
+            { processors: [], expectedChoices: ['first', 'second', 'third'] },
+            { processors: ['first', 'third'], expectedChoices: ['first', 'third'] },
+            { processors: ['first', 'third', 'unrelated'], expectedChoices: ['first', 'third'] }
+        ])('offers $expectedChoices for offline symbol matches on $processors', async ({ processors, expectedChoices }) => {
+            const resolver = symbolServiceFactory();
+            resolver.resolveSymbol.mockResolvedValue(processors.map(pname => [pname, '0x1000']));
+            const { model } = await createModelFromText(
+                'ctrace:\n  setup:\n    - pname: first\n    - pname: second\n    - pname: third\n',
+                undefined, undefined, undefined, undefined, resolver
+            );
+            const picker = jest.spyOn(vscode.window, 'showQuickPick').mockResolvedValueOnce(undefined);
+
+            await model.addDataTraceExpression('counter');
+
+            expect(resolver.resolveSymbol).toHaveBeenCalledWith('counter', { signal: expect.any(AbortSignal) });
+            expect(picker.mock.calls[0]?.[0]).toEqual(expectedChoices.map(pname => expect.objectContaining({ pname })));
+            expect(model.createState().dirty).toBe(false);
+            await model.deactivate();
+        });
+
+        it('automatically uses the only matching processor, including a symbol at address zero', async () => {
+            const resolver = symbolServiceFactory();
+            resolver.resolveSymbol.mockResolvedValue([['second', '0x0']]);
+            const { model, adapter } = await createModelFromText(
+                'ctrace:\n  setup:\n    - pname: first\n    - pname: second\n',
+                undefined, undefined, undefined, undefined, resolver
+            );
+            const picker = jest.spyOn(vscode.window, 'showQuickPick');
+
+            await model.addDataTraceExpression('counter');
+            await model.saveCurrentDocument();
+
+            const saved = CTraceYamlDocument.parse(adapter.text);
+            expect(picker).not.toHaveBeenCalled();
+            expect(saved.yaml.getItem(['ctrace', 'setup', 0, 'data', 0])).toBeUndefined();
+            expect(saved.yaml.getItem(['ctrace', 'setup', 1, 'data', 0, 'location'])?.toObject()).toBe('counter');
+            await model.deactivate();
+        });
+
+        it('adds a match from an unnamed single processor', async () => {
+            const resolver = symbolServiceFactory();
+            resolver.resolveSymbol.mockResolvedValue([[undefined, '0x1234']]);
+            const { model, adapter } = await createModelFromText(
+                'ctrace:\n  data: []\n', undefined, undefined, undefined, undefined, resolver
+            );
+
+            await model.addDataTraceExpression('counter');
+            await model.saveCurrentDocument();
+
+            const saved = CTraceYamlDocument.parse(adapter.text);
+            expect(saved.yaml.getItem(['ctrace', 'data', 0, 'location'])?.toObject()).toBe('counter');
+            await model.deactivate();
+        });
+
+        it('falls back to all eligible processors when offline lookup fails', async () => {
+            const resolver = symbolServiceFactory();
+            resolver.resolveSymbol.mockRejectedValue(new Error('GDB unavailable'));
+            const { model } = await createModelFromText(
+                'ctrace:\n  setup:\n    - pname: first\n    - pname: second\n',
+                undefined, undefined, undefined, undefined, resolver
+            );
+            const picker = jest.spyOn(vscode.window, 'showQuickPick').mockResolvedValueOnce(undefined);
+
+            await model.addDataTraceExpression('counter');
+
+            expect(picker.mock.calls[0]?.[0]).toEqual(['first', 'second'].map(pname => expect.objectContaining({ pname })));
+            expect(model.createState().dirty).toBe(false);
+            await model.deactivate();
+        });
+
+        it.each([true, false])('retains unavailable destinations when a matched processor supports Data Trace: %s', async supportsTrace => {
+            const resolver = symbolServiceFactory();
+            resolver.lookupSymbol.mockResolvedValue({
+                matches: [['first', '0x1000']],
+                unavailableProcessors: ['second', 'third']
+            });
+            const capabilities = createCapabilities();
+            if (!supportsTrace) {
+                capabilities.set('0', { displayName: 'cm0', core: 'Cortex-M0', ...TraceConfigurationTypes.NO_TRACE_CAPABILITIES });
+            }
+            const { model, adapter } = await createModelFromText(
+                'ctrace:\n  setup:\n    - pname: first\n    - pname: second\n    - pname: third\n    - pname: confirmedMiss\n',
+                capabilities, undefined, undefined, undefined, resolver
+            );
+            const picker = jest.spyOn(vscode.window, 'showQuickPick').mockImplementationOnce(async items => {
+                const choices = await items;
+                expect(choices).toEqual((supportsTrace ? ['first', 'second', 'third'] : ['second', 'third'])
+                    .map(pname => expect.objectContaining({ pname })));
+                return choices[supportsTrace ? 1 : 0];
+            });
+
+            await model.addDataTraceExpression('counter');
+            await model.saveCurrentDocument();
+
+            expect(picker).toHaveBeenCalledTimes(1);
+            const saved = CTraceYamlDocument.parse(adapter.text);
+            expect(saved.yaml.getItem(['ctrace', 'setup', 0, 'data', 0])).toBeUndefined();
+            expect(saved.yaml.getItem(['ctrace', 'setup', 1, 'data', 0, 'location'])?.toObject()).toBe('counter');
+            await model.deactivate();
+        });
+
+        it('does not offer an unsupported processor when it is the only symbol match', async () => {
+            const resolver = symbolServiceFactory();
+            resolver.resolveSymbol.mockResolvedValue([['second', '0x1234']]);
+            const capabilities = createCapabilities();
+            capabilities.set('1', { displayName: 'cm0', core: 'Cortex-M0', ...TraceConfigurationTypes.NO_TRACE_CAPABILITIES });
+            const { model, adapter } = await createModelFromText(
+                'ctrace:\n  setup:\n    - pname: first\n    - pname: second\n',
+                capabilities, undefined, undefined, undefined, resolver
+            );
+            const picker = jest.spyOn(vscode.window, 'showQuickPick');
+
+            await expect(model.addDataTraceExpression('counter')).rejects.toThrow('No processor that resolves the expression supports Data Trace');
+
+            expect(picker).not.toHaveBeenCalled();
+            expect(adapter.writeCount).toBe(0);
+            await model.deactivate();
+        });
+
+        it('rejects a configuration change during symbol lookup before offering stale choices', async () => {
+            const resolver = symbolServiceFactory();
+            const { model, adapter } = await createModelFromText(
+                'ctrace:\n  setup:\n    - pname: first\n    - pname: second\n',
+                undefined, undefined, undefined, undefined, resolver
+            );
+            resolver.resolveSymbol.mockImplementationOnce(async () => {
+                adapter.simulateExternalChange('ctrace:\n  setup:\n    - pname: replacement\n');
+                await model.refreshFile();
+                return [['second', '0x1234']];
+            });
+            const picker = jest.spyOn(vscode.window, 'showQuickPick');
+
+            await expect(model.addDataTraceExpression('counter')).rejects.toThrow('configuration changed');
+
+            expect(picker).not.toHaveBeenCalled();
+            expect(adapter.writeCount).toBe(0);
+            await model.deactivate();
+        });
+
+        it.each(['lookup', 'picker'])('rejects a changed build during %s even when the trace document stays unchanged', async phase => {
+            const workspaceRoot = await createTemporaryWorkspace();
+            const resolver = symbolServiceFactory();
+            resolver.resolveSymbol.mockResolvedValue([['first', '0x1000'], ['second', '0x2000']]);
+            const { model, adapter } = await createModelFromText(
+                'ctrace:\n  setup:\n    - pname: first\n    - pname: second\n',
+                undefined, undefined, undefined, undefined, resolver
+            );
+            jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileName').mockResolvedValue(path.join(workspaceRoot, 'out', 'other.cbuild-run.yml'));
+            await model.watchForGeneratedCBuildRunFiles();
+            const privateModel = model as unknown as TraceConfigurationModelPrivate;
+            privateModel.symbolTraceFileName = privateModel.ctraceFile?.fileName;
+            const indexWatch = getLastCreatedFileSystemWatcher();
+            /** Selects an unbuilt context without reloading the current trace document. */
+            const changeBuild = async (): Promise<void> => {
+                fireWatcherHandler(indexWatch, 'change', vscode.Uri.file(path.resolve('other.cbuild-idx.yml')));
+                await waitForWatcherWork();
+            };
+            const picker = jest.spyOn(vscode.window, 'showQuickPick');
+            if (phase === 'lookup') {
+                resolver.resolveSymbol.mockImplementationOnce(async () => {
+                    await changeBuild();
+                    return [['first', '0x1000']];
+                });
+            } else {
+                picker.mockImplementationOnce(async items => {
+                    const choices = await items;
+                    await changeBuild();
+                    return choices[0];
+                });
+            }
+
+            await expect(model.addDataTraceExpression('counter')).rejects.toThrow('configuration changed');
+
+            expect(model.createState().dirty).toBe(false);
+            expect(adapter.writeCount).toBe(0);
+            await model.deactivate();
+        });
+
+
+        it.each([
+            { phase: 'lookup', edit: 'rename' },
+            { phase: 'picker', edit: 'rename' },
+            { phase: 'lookup', edit: 'remove' },
+            { phase: 'picker', edit: 'remove' },
+            { phase: 'lookup', edit: 'append' },
+            { phase: 'picker', edit: 'append' }
+        ])('invalidates a pending $phase after an accepted $edit edit', async ({ phase, edit }) => {
+            const resolver = symbolServiceFactory();
+            const matches: readonly SymbolMatch[] = [['first', '0x1000'], ['second', '0x2000']];
+            resolver.resolveSymbol.mockResolvedValue(matches);
+            const { model, adapter } = await createModelFromText(
+                'ctrace:\n  setup:\n    - pname: first\n    - pname: second\n',
+                undefined, undefined, undefined, undefined, resolver
+            );
+            /** Applies a document edit while the expression's captured selection is pending. */
+            const editDocument = async (): Promise<void> => {
+                if (edit === 'rename') {
+                    await model.updateValue(['ctrace', 'setup', 0, 'pname'], 'replacement');
+                } else if (edit === 'remove') {
+                    await model.removeItem(['ctrace', 'setup', 0]);
+                } else {
+                    await model.addItem(['ctrace', 'setup', 0, 'data'], 'data');
+                }
+            };
+            const picker = jest.spyOn(vscode.window, 'showQuickPick');
+            if (phase === 'lookup') {
+                resolver.resolveSymbol.mockImplementationOnce(async () => {
+                    await editDocument();
+                    return matches;
+                });
+            } else {
+                picker.mockImplementationOnce(async items => {
+                    const choices = await items;
+                    await editDocument();
+                    return choices[0];
+                });
+            }
+
+            await expect(model.addDataTraceExpression('counter')).rejects.toThrow('configuration changed');
+
+            expect(model.createState().rows.some(row => row.value === 'counter')).toBe(false);
+            expect(adapter.writeCount).toBe(0);
+            await model.deactivate();
+        });
+
+        it.each([
+            'ctrace:\n  setup:\n    - core: Cortex-M33\n',
+            'ctrace:\n  data: []\n'
+        ])('resolves an implicit destination from a named single-processor build: %j', async text => {
+            const resolver = symbolServiceFactory();
+            resolver.resolveSymbol.mockResolvedValue([['cm33', '0x1000']]);
+            jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileName').mockResolvedValue('project.cbuild-run.yml');
+            mockGeneratedCBuildRunProcessors([createProcessor('Cortex-M33', 'cm33')]);
+            const { model, adapter } = await createModelFromText(text, undefined, undefined, undefined, undefined, resolver);
+
+            await model.addDataTraceExpression('counter');
+            await model.saveCurrentDocument();
+
+            expect(adapter.text).toContain('location: counter');
+            await model.deactivate();
+        });
+
+        it('does not infer implicit identity from a single match in a multi-processor build', async () => {
+            const resolver = symbolServiceFactory();
+            resolver.resolveSymbol.mockResolvedValue([['first', '0x1000']]);
+            jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileName').mockResolvedValue('project.cbuild-run.yml');
+            mockGeneratedCBuildRunProcessors([
+                createProcessor('Cortex-M33', 'first'), createProcessor('Cortex-M33', 'second')
+            ]);
+            const { model } = await createModelFromText(
+                'ctrace:\n  setup:\n    - core: Cortex-M33\n', undefined, undefined, undefined, undefined, resolver
+            );
+
+            await expect(model.addDataTraceExpression('counter')).rejects.toThrow('No processor that resolves');
+
+            expect(model.createState().dirty).toBe(false);
+            await model.deactivate();
+        });
+
+        it.each(['cm33', 'other'])('does not filter another trace file with active build matches for %s', async pname => {
+            const resolver = symbolServiceFactory();
+            resolver.resolveSymbol.mockResolvedValue([[pname, '0x1000']]);
+            const fixture = await createImageWatchModel(resolver);
+            await fixture.model.loadInitialFile();
+            const otherFile = path.join(fixture.workspaceRoot, '.cmsis', 'other.ctrace.yml');
+            await writeTemporaryTextFile(otherFile, 'ctrace:\n  setup:\n    - pname: cm33\n      core: Cortex-M33\n    - pname: second\n      core: Cortex-M33\n');
+            await fixture.model.openFile(otherFile);
+            const picker = jest.spyOn(vscode.window, 'showQuickPick').mockResolvedValueOnce(undefined);
+
+            await fixture.model.addDataTraceExpression('counter');
+
+            expect(resolver.resolveSymbol).not.toHaveBeenCalled();
+            expect(picker.mock.calls[0]?.[0]).toEqual(['cm33', 'second'].map(name => expect.objectContaining({ pname: name })));
+            expect(fixture.model.createState().dirty).toBe(false);
+
+            await fixture.model.openFile(fixture.ctraceFile);
+            resolver.resolveSymbol.mockResolvedValue([['cm33', '0x1000']]);
+            await fixture.model.addDataTraceExpression('counter');
+            expect(resolver.resolveSymbol).toHaveBeenCalledTimes(1);
+            await fixture.model.deactivate();
+        });
+
+        it('hides Data Trace actions for an unbuilt context and restores them after its first build', async () => {
+            const fixture = await createImageWatchModel();
+            await fixture.model.loadInitialFile();
+            const key = 'vscode-cmsis-debugger.traceConfiguration.canAddDataTraceExpression';
+            /** Reads the last published menu availability without triggering another model update. */
+            const menuValue = (): unknown => jest.mocked(vscode.commands.executeCommand).mock.calls.filter(
+                ([command, context]) => command === 'setContext' && context === key
+            ).at(-1)?.[2];
+            expect(menuValue()).toBe(true);
+            const unbuiltFile = path.join(fixture.workspaceRoot, 'out', 'unbuilt.cbuild-run.yml');
+            jest.mocked(fixture.locator.getCBuildRunFileName).mockResolvedValue(unbuiltFile);
+            const selected = deferred<void>();
+            const subscription = fixture.model.onDidChangeBuildFile(() => selected.resolve());
+            fixture.traceWatch.getWatch('trace-configuration.cbuild-index')?.onDidChange?.(
+                vscode.Uri.file(path.join(fixture.workspaceRoot, 'project.cbuild-idx.yml'))
+            );
+            await selected.promise;
+            await waitForWatcherWork();
+            subscription.dispose();
+
+            expect(menuValue()).toBe(false);
+            expect(fixture.model.createState().fileName).toEqualFsPath(fixture.ctraceFile);
+
+            await writeTemporaryTextFile(unbuiltFile, 'cbuild-run:\n');
+            await fixture.traceWatch.getWatch('trace-configuration.generated-cbuild-run')?.onDidCreate?.(vscode.Uri.file(unbuiltFile));
+            expect(menuValue()).toBe(true);
+            await fixture.model.deactivate();
+        });
+
+        it('rejects a build switch during the final append freshness check', async () => {
+            const workspaceRoot = await createTemporaryWorkspace();
+            const resolver = symbolServiceFactory();
+            resolver.resolveSymbol.mockResolvedValue([['first', '0x1000']]);
+            const { model, adapter } = await createModelFromText(
+                'ctrace:\n  setup:\n    - pname: first\n', undefined, undefined, undefined, undefined, resolver
+            );
+            jest.spyOn(CBuildRunFileLocator.prototype, 'getCBuildRunFileName').mockResolvedValue(
+                path.join(workspaceRoot, 'out', 'unbuilt.cbuild-run.yml')
+            );
+            await model.watchForGeneratedCBuildRunFiles();
+            const privateModel = model as unknown as TraceConfigurationModelPrivate;
+            privateModel.symbolTraceFileName = privateModel.ctraceFile?.fileName;
+            const indexWatch = getLastCreatedFileSystemWatcher();
+            const originalStat = adapter.stat.bind(adapter);
+            let calls = 0;
+            jest.spyOn(adapter, 'stat').mockImplementation(async fileName => {
+                calls++;
+                if (calls === 2) {
+                    fireWatcherHandler(indexWatch, 'change', vscode.Uri.file(path.join(workspaceRoot, 'project.cbuild-idx.yml')));
+                    await waitForWatcherWork();
+                }
+                return originalStat(fileName);
+            });
+
+            await expect(model.addDataTraceExpression('counter')).rejects.toThrow('configuration changed');
+
+            expect(model.createState().dirty).toBe(false);
+            expect(adapter.writeCount).toBe(0);
+            await model.deactivate();
+        });
+
+        it('rejects a disk document replacement during the final append freshness check', async () => {
+            const { model, adapter } = await createModelFromText('ctrace:\n  setup:\n    - pname: first\n');
+            const originalStat = adapter.stat.bind(adapter);
+            let calls = 0;
+            jest.spyOn(adapter, 'stat').mockImplementation(async fileName => {
+                calls++;
+                if (calls === 2) {
+                    adapter.simulateExternalChange('ctrace:\n  setup:\n    - pname: replacement\n');
+                }
+                return originalStat(fileName);
+            });
+
+            await expect(model.addDataTraceExpression('counter')).rejects.toThrow('configuration changed');
+
+            expect(model.createState().dirty).toBe(false);
+            expect(adapter.writeCount).toBe(0);
+            await model.deactivate();
+        });
+
+        it('cancels symbol lookup and refuses to edit when the model deactivates', async () => {
+            const resolver = symbolServiceFactory();
+            const reply = deferred<readonly SymbolMatch[]>();
+            const started = deferred<void>();
+            let signal: AbortSignal | undefined;
+            resolver.resolveSymbol.mockImplementationOnce((_expression, options) => {
+                signal = options?.signal;
+                started.resolve();
+                return reply.promise;
+            });
+            const { model } = await createModelFromText(
+                'ctrace:\n  setup:\n    - pname: first\n', undefined, undefined, undefined, undefined, resolver
+            );
+            const adding = model.addDataTraceExpression('counter');
+            await started.promise;
+            await model.deactivate();
+            reply.resolve([['first', '0x1234']]);
+            await expect(adding).rejects.toThrow('configuration changed');
+            expect(signal?.aborted).toBe(true);
+            expect(model.createState().dirty).toBe(false);
+        });
+
+        it.each([
+            { core: 'Cortex-M33', expected: true },
+            { core: 'Cortex-M0', expected: false }
+        ])('exposes Data Trace actions for $core: $expected', async ({ core, expected }) => {
+            const workspaceRoot = await createTemporaryWorkspace();
+            mockGeneratedCBuildRunProcessors([createProcessor(core, 'core0')]);
+            const cbuildRunFile = vscode.Uri.file(path.join(workspaceRoot, 'out', 'demo.cbuild-run.yml'));
+            const model = new TraceConfigurationModel();
+            const watcher = await resolveGeneratedCBuildRunWatcher(model, cbuildRunFile);
+
+            fireWatcherHandler(watcher, 'create', cbuildRunFile);
+            await waitForCondition('trace configuration load', () => !!model.createState().fileName && !model.createState().loading);
+
+            const visibilityUpdates = jest.mocked(vscode.commands.executeCommand).mock.calls.filter(
+                ([command, key]) => command === 'setContext' && key === 'vscode-cmsis-debugger.traceConfiguration.canAddDataTraceExpression'
+            );
+            expect(visibilityUpdates.at(-1)?.[2]).toBe(expected);
+            await model.deactivate();
+        });
+
+        it('keeps Data Trace actions hidden for a manually opened file without enabled trace generation', async () => {
+            const { model } = await createModelFromText('ctrace:\n  setup:\n    - core: Cortex-M33\n');
+
+            await model.refreshFile();
+
+            expect(vscode.commands.executeCommand).toHaveBeenLastCalledWith(
+                'setContext', 'vscode-cmsis-debugger.traceConfiguration.canAddDataTraceExpression', false
+            );
             await model.deactivate();
         });
 
@@ -833,6 +1266,9 @@ describe('TraceConfigurationModel', () => {
             dirty: false,
             emptyMessage: TRACE_OFF_MESSAGE
         });
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+            'setContext', 'vscode-cmsis-debugger.traceConfiguration.canAddDataTraceExpression', false
+        );
         await expect(readTemporaryTextFile(ctraceFileName)).resolves.toContain('pname: core0');
         model.dispose();
     });

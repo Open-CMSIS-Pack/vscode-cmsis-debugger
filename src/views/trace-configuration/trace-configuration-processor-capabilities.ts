@@ -217,7 +217,21 @@ export class TraceConfigurationProcessorCapabilities {
         return processor ? this.getProcessorCoreForCapabilities(processor) : undefined;
     }
 
-    private getCBuildRunProcessor(configuredProcessor: ConfiguredProcessor, processors: ProcessorType[]): ProcessorType | undefined {
+    /** Resolves an omitted trace pname only when build metadata identifies a single processor. */
+    public async resolveProcessorPname(pname: string | undefined): Promise<string | undefined> {
+        if (pname !== undefined) {
+            return pname;
+        }
+
+        const processors = await this.getCBuildRunProcessors();
+        return this.getCBuildRunProcessor({ pname }, processors)?.pname;
+    }
+
+    /** Matches explicit processor names and shares the single-processor fallback with symbol lookup. */
+    private getCBuildRunProcessor(
+        configuredProcessor: Pick<ConfiguredProcessor, 'pname'>,
+        processors: ProcessorType[]
+    ): ProcessorType | undefined {
         if (configuredProcessor.pname) {
             return processors.find(processor => processor.pname === configuredProcessor.pname);
         }

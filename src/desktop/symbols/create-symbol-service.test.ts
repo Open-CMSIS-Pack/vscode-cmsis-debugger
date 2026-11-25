@@ -20,6 +20,7 @@ import * as vscode from 'vscode';
 import { createSymbolService } from './create-symbol-service';
 import { CdtGdbSymbolSession } from './cdt-gdb-symbol-session';
 import { SymbolService } from '../../symbols/symbol-service';
+import { normalizeFsPath } from '../../utils';
 
 jest.mock('./cdt-gdb-symbol-session');
 
@@ -112,6 +113,30 @@ describe('desktop symbol service composition', () => {
         await service.setBuildFile(BUILD_FILE);
         await expect(service.resolveSymbol('main')).resolves.toEqual([]);
         expect(CdtGdbSymbolSession).not.toHaveBeenCalled();
+    });
+
+    it('reports a missing processor ELF alongside another processor match', async () => {
+        jest.spyOn(vscode.workspace.fs, 'readFile').mockResolvedValue(contents([
+            '  debug-topology:',
+            '    processors: [{pname: HP}, {pname: HE}]',
+            '  output:',
+            '    - {file: hp.elf, type: elf, pname: HP}',
+            '    - {file: missing.elf, type: elf, pname: HE}'
+        ].join('\n')));
+        const missingElfPath = normalizeFsPath(path.resolve('out/missing.elf'));
+        jest.mocked(vscode.workspace.fs.stat).mockImplementation(async uri => {
+            if (normalizeFsPath(uri.fsPath) === missingElfPath) {
+                throw new Error('ELF not built');
+            }
+            return { type: vscode.FileType.File, ctime: 0, mtime: 0, size: 1 };
+        });
+        await service.setBuildFile(BUILD_FILE);
+
+        await expect(service.lookupSymbol('main')).resolves.toEqual({
+            matches: [['HP', '0x1234']],
+            unavailableProcessors: ['HE']
+        });
+        expect(CdtGdbSymbolSession).toHaveBeenCalledTimes(1);
     });
 
     it.each([

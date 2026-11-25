@@ -28,7 +28,7 @@ import { BuiltinToolPath } from '../builtin-tool-path';
 import { FileWatchManager } from '../filesystem/file-watch-manager';
 import { CdtGdbSymbolSession } from './cdt-gdb-symbol-session';
 
-export type { SymbolAddress, SymbolHandler, SymbolImage, SymbolLookupOptions, SymbolMatch, SymbolResolver, SymbolService } from '../../symbols/symbol-service';
+export type { SymbolAddress, SymbolHandler, SymbolImage, SymbolLookupOptions, SymbolLookupResult, SymbolMatch, SymbolResolution, SymbolResolver, SymbolService } from '../../symbols/symbol-service';
 
 /** Creates an explicitly owned service; no workers start until a configured processor is queried.
  * The caller selects the cbuild-run.yml with setBuildFile and must await dispose at shutdown.

@@ -18,6 +18,8 @@ import * as vscode from 'vscode';
 import { CmsisJsonWatcher } from '../cmsis-files';
 import { extensionContextFactory } from '../__test__/vscode.factory';
 import { logger } from '../logger';
+import * as symbols from './symbols/create-symbol-service';
+import { symbolServiceFactory } from '../symbols/__test__/symbol-test-support';
 import { activate, deactivate } from './extension';
 import { ComponentViewerTreeDataProvider } from '../views/component-viewer/component-viewer-tree-view';
 import { LiveWatchTreeDataProvider } from '../views/live-watch/live-watch';
@@ -51,6 +53,20 @@ describe('extension', () => {
             await activate(createExtensionContext());
             expect(loggerSpy).toHaveBeenCalledWith('CMSIS Debugger activated');
             expect(vscode.window.showWarningMessage).not.toHaveBeenCalledWith('Cannot activate all Arm CMSIS Debugger views. Please reload the window.', 'Reload Window');
+        });
+
+        it('creates offline symbol lookup without starting queries and releases it on deactivation', async () => {
+            const service = symbolServiceFactory();
+            const createSymbols = jest.spyOn(symbols, 'createSymbolService').mockReturnValue(service);
+            try {
+                await activate(createExtensionContext());
+                expect(createSymbols).toHaveBeenCalledTimes(1);
+                expect(service.resolveSymbol).not.toHaveBeenCalled();
+                await deactivate();
+                expect(service.dispose).toHaveBeenCalledTimes(1);
+            } finally {
+                createSymbols.mockRestore();
+            }
         });
 
         it('retains the Trace Data table while its editor tab is hidden', async () => {

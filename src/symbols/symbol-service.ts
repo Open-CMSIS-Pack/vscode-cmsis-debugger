@@ -21,6 +21,16 @@ export type SymbolAddress = `0x${string}`;
 /** A successful lookup on a named processor, or an unnamed single processor. */
 export type SymbolMatch = readonly [pname: string | undefined, address: SymbolAddress];
 
+/** Distinguishes a confirmed symbol miss from an incomplete or failed processor lookup. */
+export type SymbolResolution = { readonly status: 'resolved'; readonly address: SymbolAddress }
+    | { readonly status: 'unresolved' | 'unavailable' };
+
+/** Preserves successful matches and processors whose symbols could not be checked completely. */
+export interface SymbolLookupResult {
+    readonly matches: readonly SymbolMatch[];
+    readonly unavailableProcessors: readonly (string | undefined)[];
+}
+
 /** An absolute ELF path and optional relocation applied to every section. */
 export interface SymbolImage {
     readonly path: string;
@@ -33,6 +43,10 @@ export interface SymbolLookupOptions {
 
 /** Resolves static addresses without accessing a target or an active debug session. */
 export interface SymbolResolver {
+    /** Returns matches and unavailable processors so consumers can retain uncertain destinations.
+     * Cancellation rejects with AbortError. Unsupported expressions yield no matches or unavailable processors.
+     */
+    lookupSymbol(expression: string, options?: SymbolLookupOptions): Promise<SymbolLookupResult>;
     /** Returns successful matches only; an omitted processor may be unavailable or unresolved.
      * Cancellation rejects with AbortError. Unsupported and runtime-dependent expressions yield no matches.
      */
@@ -51,6 +65,8 @@ export interface SymbolService extends SymbolResolver {
 export interface SymbolHandler {
     /** Reconciles absolute image paths and relocations without starting an unused worker. */
     setImages(images: readonly SymbolImage[]): Promise<void>;
+    /** Reports whether a miss is conclusive; missing images and worker failures are unavailable. */
+    lookupSymbol(expression: string, options?: SymbolLookupOptions): Promise<SymbolResolution>;
     /** Returns a static address, or undefined when it cannot be resolved offline. */
     resolveSymbol(expression: string, options?: SymbolLookupOptions): Promise<SymbolAddress | undefined>;
     /** Releases watches and the worker; safe to await repeatedly. */

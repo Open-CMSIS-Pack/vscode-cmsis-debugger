@@ -15,7 +15,7 @@
  */
 // generated with AI
 
-import { SymbolService } from '../symbol-service';
+import { SymbolAddress, SymbolHandler, SymbolResolution, SymbolService } from '../symbol-service';
 import { SymbolFileAccess, SymbolSession } from '../symbol-backend';
 
 /** Supplies explicit promise completion for deterministic concurrency tests. */
@@ -70,9 +70,28 @@ export function symbolFilesFactory(): SymbolFileAccess & { change(path: string):
 
 /** Creates a service fixture for desktop ownership and lookup consumer tests. */
 export function symbolServiceFactory(): jest.Mocked<SymbolService> {
+    const resolveSymbol: jest.MockedFunction<SymbolService['resolveSymbol']> = jest.fn().mockResolvedValue([]);
     return {
         setBuildFile: jest.fn().mockResolvedValue(undefined),
-        resolveSymbol: jest.fn().mockResolvedValue([]),
+        resolveSymbol,
+        lookupSymbol: jest.fn(async (expression, options) => ({
+            matches: await resolveSymbol(expression, options),
+            unavailableProcessors: []
+        })),
+        dispose: jest.fn().mockResolvedValue(undefined)
+    };
+}
+
+/** Creates a processor handler fixture with detailed results derived from its address mock. */
+export function symbolHandlerFactory(address: SymbolAddress = '0x1234'): jest.Mocked<SymbolHandler> {
+    const resolveSymbol: jest.MockedFunction<SymbolHandler['resolveSymbol']> = jest.fn().mockResolvedValue(address);
+    return {
+        setImages: jest.fn().mockResolvedValue(undefined),
+        resolveSymbol,
+        lookupSymbol: jest.fn(async (expression, options): Promise<SymbolResolution> => {
+            const address = await resolveSymbol(expression, options);
+            return address === undefined ? { status: 'unresolved' } : { status: 'resolved', address };
+        }),
         dispose: jest.fn().mockResolvedValue(undefined)
     };
 }

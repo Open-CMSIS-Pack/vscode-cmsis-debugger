@@ -1,15 +1,17 @@
 # Offline symbol service
 
 The symbol service resolves static addresses from the ELF outputs of an explicitly
-selected `cbuild-run.yml`. It works independently of active debug sessions. This
-foundation does not yet connect to the Trace Generation or Live Watch UI.
+selected `cbuild-run.yml`. It works independently of active debug sessions.
+Add to Data Trace uses the matches to select or narrow its processor choices.
 
 ## Ownership and API
 
 Use `createSymbolService` from
 `src/desktop/symbols/create-symbol-service.ts` inside the desktop extension.
-Creating the service does not start any GDB workers. A desktop owner selects
-its build file and releases its resources; UI integration is a separate step.
+The desktop extension creates the service for Trace Generation. Its provider
+selects the build file through the existing active-solution/build watcher and
+awaits service disposal at shutdown. The normal extension bundle includes the
+service; no separate webpack entry is required.
 
 ```ts
 const service = createSymbolService();
@@ -24,9 +26,9 @@ try {
 }
 ```
 
-The owner retains `SymbolService`, which provides `setBuildFile`, `resolveSymbol`
-and asynchronous, idempotent `dispose`. Consumers needing lookup only should
-receive `SymbolResolver`. The public contracts in `src/symbols/symbol-service.ts`
+The owner retains `SymbolService`, which provides `setBuildFile`, `resolveSymbol`,
+`lookupSymbol` and asynchronous, idempotent `dispose`. Consumers needing lookup
+only should receive `SymbolResolver`. The public contracts in `src/symbols/symbol-service.ts`
 contain no VS Code or CDT types. `createSymbolService({ gdbPath })` can explicitly
 override the bundled GDB executable.
 
@@ -36,11 +38,46 @@ zeroes; `0x0` is a valid address. A missing tuple can mean an unknown symbol, a
 runtime-dependent expression, a missing image, or an unavailable worker. It must
 not be interpreted as proof that a processor does not own the symbol.
 
+`lookupSymbol` returns `{ matches, unavailableProcessors }`. It distinguishes
+confirmed misses from missing images, failed workers and timeouts. Consumers
+filtering processor choices must retain unavailable processors alongside matches.
+The address-only `resolveSymbol` API continues to return successful tuples only.
+
 Expressions may contain identifiers, C++ namespace qualification, parentheses,
 member access and constant non-negative integer array indices. Calls, casts,
 pointer dereferences, assignments and variable indices are rejected. Expressions
 that require target memory, including indexing a pointer, produce no match.
 There is no active-debug-session fallback.
+
+## Add to Data Trace
+
+Editor, Watch and Live Watch actions share the same processor selection flow.
+Successful matches narrow the eligible destinations while retaining processors
+whose lookup was unavailable. One remaining destination is selected automatically;
+several destinations appear in the picker, preserving trace configuration order.
+With no matches, including unsupported expressions or an unavailable GDB, the full
+eligible processor list remains available. A match at `0x0` is valid. A missing ELF
+keeps its processor selectable even when another processor resolves the symbol.
+
+Filtering applies only to the generated trace file associated with the selected
+build. Manually opening another trace file retains its full eligible processor
+list. An omitted destination `pname` uses the build's processor identity only when
+build metadata identifies a single processor, including root-level `ctrace.data`.
+
+Trace capability checks still apply. If symbol matches exist but none belongs to
+a Data Trace destination and no eligible processor has an unavailable lookup, the
+command reports that no matching processor supports Data Trace. A lookup is a
+confirmed miss only when every configured image was loaded successfully. A match
+from an available image remains valid even if another image is missing.
+
+Build selection is propagated even when the generated file does not exist yet,
+so the service can watch for its creation. Solution changes clear the previous
+build and release its workers. Changing build context hides Data Trace actions
+until its generated trace configuration has loaded. Pending lookups and picker
+selections are rejected if the build, images or trace document changes before
+insertion, including unsaved in-memory edits. Freshness is checked again after
+the final asynchronous document refresh. No live debug session is queried for
+processor filtering.
 
 ## Layers and updates
 
@@ -74,10 +111,11 @@ There is no expression-result cache. Build and ELF generations discard results
 that became stale while an operation was pending.
 
 Startup and symbol loading have a 30 second timeout; queries have a 5 second
-timeout. Operational failures are logged and omit that processor's match. A
-failed worker is stopped and retried on the next lookup without an automatic
-restart loop. Other processors may still return matches. A missing or invalid
-build file clears old metadata, while its watch remains available for recovery.
+timeout. Operational failures are logged and mark that processor as unavailable
+in detailed lookup results. A failed worker is stopped and retried on the next
+lookup without an automatic restart loop. Other processors may still return
+matches. A missing or invalid build file clears old metadata, while its watch
+remains available for recovery.
 
 An `AbortSignal` rejects the caller with `AbortError`. Cancellation does not kill
 a shared worker: an already issued command is drained before the next command.
@@ -88,8 +126,8 @@ with bounded TERM/KILL waits. Operations after disposal reject a lifecycle error
 
 CDT 2.0.0 is pinned because the bridge imports its backend modules directly.
 Upgrades must recheck these imports and MI behavior. The package also contains
-serial-port and native PTY support. Backend imports keep those modules outside
-the dependency graph used by the service; avoid importing the root barrel.
+serial-port and native PTY support, but those modules are excluded from the
+production extension bundle by using backend imports instead of its root barrel.
 The development dependency installation still follows CDT's upstream install
 script, which builds its unused PTY helper on Linux.
 

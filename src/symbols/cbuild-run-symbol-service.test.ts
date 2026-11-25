@@ -18,7 +18,7 @@
 import * as path from 'node:path';
 import { CbuildRunSymbolService, SymbolBuild } from './cbuild-run-symbol-service';
 import { SymbolHandler } from './symbol-service';
-import { deferred, symbolFilesFactory } from './__test__/symbol-test-support';
+import { deferred, symbolFilesFactory, symbolHandlerFactory } from './__test__/symbol-test-support';
 
 /** The watched build path is absolute on every host. */
 const BUILD_FILE = path.resolve('solution.cbuild-run.yml');
@@ -32,15 +32,6 @@ const BUILD: SymbolBuild = {
     ]
 };
 
-/** Creates a handler fixture with an independent address per processor. */
-function handlerFactory(address: `0x${string}` = '0x1234'): jest.Mocked<SymbolHandler> {
-    return {
-        setImages: jest.fn().mockResolvedValue(undefined),
-        resolveSymbol: jest.fn().mockResolvedValue(address),
-        dispose: jest.fn().mockResolvedValue(undefined)
-    };
-}
-
 describe('CbuildRunSymbolService', () => {
     let files: ReturnType<typeof symbolFilesFactory>;
     let handlers: Map<string | undefined, jest.Mocked<SymbolHandler>>;
@@ -53,7 +44,7 @@ describe('CbuildRunSymbolService', () => {
         handlers = new Map();
         readBuild = jest.fn().mockResolvedValue(BUILD);
         service = new CbuildRunSymbolService({ files, readBuild, log, createHandler(pname) {
-            const handler = handlerFactory(pname === 'HE' ? '0x2000' : '0x1000');
+            const handler = symbolHandlerFactory(pname === 'HE' ? '0x2000' : '0x1000');
             handlers.set(pname, handler);
             return handler;
         } });
@@ -87,6 +78,31 @@ describe('CbuildRunSymbolService', () => {
         await he.promise;
         hp.resolve('0x0');
         await expect(result).resolves.toEqual([['HP', '0x0']]);
+    });
+
+    it.each(['unavailable', 'rejected'])('retains a %s processor alongside successful matches', async failure => {
+        await service.setBuildFile(BUILD_FILE);
+        if (failure === 'unavailable') {
+            handlers.get('HE')?.lookupSymbol.mockResolvedValue({ status: 'unavailable' });
+        } else {
+            handlers.get('HE')?.lookupSymbol.mockRejectedValue(new Error('worker unavailable'));
+        }
+
+        await expect(service.lookupSymbol('main')).resolves.toEqual({
+            matches: [['HP', '0x1000']],
+            unavailableProcessors: ['HE']
+        });
+        await expect(service.resolveSymbol('main')).resolves.toEqual([['HP', '0x1000']]);
+    });
+
+    it('distinguishes a confirmed miss from an unavailable processor', async () => {
+        await service.setBuildFile(BUILD_FILE);
+        handlers.get('HE')?.lookupSymbol.mockResolvedValue({ status: 'unresolved' });
+
+        await expect(service.lookupSymbol('unknown')).resolves.toEqual({
+            matches: [['HP', '0x1000']],
+            unavailableProcessors: []
+        });
     });
 
     it('preserves an unchanged core, removes old cores and creates new cores on file events', async () => {

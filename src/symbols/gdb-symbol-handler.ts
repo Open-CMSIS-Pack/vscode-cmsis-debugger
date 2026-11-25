@@ -17,7 +17,7 @@
 
 import * as path from 'node:path';
 import { SymbolFileAccess, SymbolLog, SymbolSession } from './symbol-backend';
-import { SymbolAddress, SymbolHandler, SymbolImage, SymbolLookupOptions } from './symbol-service';
+import { SymbolAddress, SymbolHandler, SymbolImage, SymbolLookupOptions, SymbolResolution } from './symbol-service';
 import { isStaticSymbolExpression } from './static-symbol-expression';
 import { throwIfAborted, waitForSymbolOperation, withSymbolTimeout } from './symbol-operations';
 
@@ -35,6 +35,7 @@ export class GdbSymbolHandler implements SymbolHandler {
     private readonly watches = new Map<string, { dispose(): void }>();
     private session: SymbolSession | undefined;
     private dirty = true;
+    private completeImages = false;
     private generation = 0;
     private tail = Promise.resolve();
     private readonly lifetime = new AbortController();
@@ -79,34 +80,46 @@ export class GdbSymbolHandler implements SymbolHandler {
         }
     }
 
-    /** Resolves static addresses while keeping concurrent MI requests serialized. */
+    /** Returns only the address while preserving the detailed lookup's cancellation behavior. */
     public async resolveSymbol(expression: string, options: SymbolLookupOptions = {}): Promise<SymbolAddress | undefined> {
+        const result = await this.lookupSymbol(expression, options);
+        return result.status === 'resolved' ? result.address : undefined;
+    }
+
+    /** Resolves static addresses and distinguishes symbol misses from unavailable image or worker data. */
+    public async lookupSymbol(expression: string, options: SymbolLookupOptions = {}): Promise<SymbolResolution> {
         this.assertOpen();
         throwIfAborted(options.signal);
         if (!isStaticSymbolExpression(expression)) {
-            return undefined;
+            return { status: 'unresolved' };
         }
         const generation = this.generation;
-        const operation = this.enqueue(async () => {
+        const operation = this.enqueue(async (): Promise<SymbolResolution> => {
             throwIfAborted(options.signal);
             if (this.lifetime.signal.aborted || generation !== this.generation) {
-                return undefined;
+                return { status: 'unavailable' };
             }
             if (!await this.reload()) {
-                return undefined;
+                return { status: 'unavailable' };
             }
             throwIfAborted(options.signal);
             const session = this.session;
             if (!session || generation !== this.generation) {
-                return undefined;
+                return { status: 'unavailable' };
             }
             try {
                 const address = await withSymbolTimeout(session.resolveSymbol(expression), this.options.queryTimeoutMs ?? 5000);
-                return generation === this.generation && !this.lifetime.signal.aborted ? address : undefined;
+                if (generation !== this.generation || this.lifetime.signal.aborted) {
+                    return { status: 'unavailable' };
+                }
+                if (address !== undefined) {
+                    return { status: 'resolved', address };
+                }
+                return { status: this.completeImages ? 'unresolved' : 'unavailable' };
             } catch (error) {
                 this.options.log(`Offline symbol query failed: ${expression}`, error);
                 await this.stopSession();
-                return undefined;
+                return { status: 'unavailable' };
             }
         });
         const signal = options.signal ? AbortSignal.any([options.signal, this.lifetime.signal]) : this.lifetime.signal;
@@ -138,6 +151,7 @@ export class GdbSymbolHandler implements SymbolHandler {
     private invalidate(): void {
         this.generation++;
         this.dirty = true;
+        this.completeImages = false;
     }
 
     /** Queues operations without allowing a rejected request to poison the queue. */
@@ -183,6 +197,7 @@ export class GdbSymbolHandler implements SymbolHandler {
                 }
             })(), this.options.loadTimeoutMs ?? 30000);
             this.dirty = generation !== this.generation;
+            this.completeImages = !this.dirty && images.length === this.images.length;
             return !this.dirty && !this.lifetime.signal.aborted;
         } catch (error) {
             this.options.log('Offline symbol worker initialization failed.', error);

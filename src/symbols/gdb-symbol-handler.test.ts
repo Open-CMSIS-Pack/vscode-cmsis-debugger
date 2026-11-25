@@ -73,6 +73,41 @@ describe('GdbSymbolHandler', () => {
         expect(files.watchers.has(SECOND_IMAGE.path)).toBe(true);
     });
 
+    it('distinguishes complete symbol misses from misses with missing images and recovers after rebuild', async () => {
+        await handler.setImages([IMAGE, SECOND_IMAGE]);
+        session.resolveSymbol.mockResolvedValue(undefined);
+        await expect(handler.lookupSymbol('unknown')).resolves.toEqual({ status: 'unresolved' });
+
+        files.missing.add(SECOND_IMAGE.path);
+        files.change(SECOND_IMAGE.path);
+        await expect(handler.lookupSymbol('unknown')).resolves.toEqual({ status: 'unavailable' });
+        await expect(handler.lookupSymbol('unknown')).resolves.toEqual({ status: 'unavailable' });
+
+        session.resolveSymbol.mockResolvedValueOnce('0x0');
+        await expect(handler.lookupSymbol('main')).resolves.toEqual({ status: 'resolved', address: '0x0' });
+
+        files.missing.delete(SECOND_IMAGE.path);
+        files.change(SECOND_IMAGE.path);
+        await expect(handler.lookupSymbol('unknown')).resolves.toEqual({ status: 'unresolved' });
+    });
+
+    it('reports unavailable when no images can be loaded', async () => {
+        await handler.setImages([IMAGE]);
+        files.missing.add(IMAGE.path);
+
+        await expect(handler.lookupSymbol('main')).resolves.toEqual({ status: 'unavailable' });
+        expect(createSession).not.toHaveBeenCalled();
+    });
+
+    it.each(['start', 'loadImages', 'resolveSymbol'] as const)('reports worker %s failures as unavailable and retries', async operation => {
+        await handler.setImages([IMAGE]);
+        jest.spyOn(session, operation).mockRejectedValueOnce(new Error('worker failure'));
+
+        await expect(handler.lookupSymbol('main')).resolves.toEqual({ status: 'unavailable' });
+        expect(session.dispose).toHaveBeenCalledTimes(1);
+        await expect(handler.lookupSymbol('main')).resolves.toEqual({ status: 'resolved', address: '0x1234' });
+    });
+
     it('reconciles watches and reloads only when the image set changes', async () => {
         await handler.setImages([IMAGE]);
         await handler.resolveSymbol('main');
@@ -188,9 +223,9 @@ describe('GdbSymbolHandler', () => {
         jest.useFakeTimers();
         await handler.setImages([IMAGE]);
         session.resolveSymbol.mockReturnValueOnce(new Promise(() => {}));
-        const result = handler.resolveSymbol('main');
+        const result = handler.lookupSymbol('main');
         await jest.advanceTimersByTimeAsync(100);
-        await expect(result).resolves.toBeUndefined();
+        await expect(result).resolves.toEqual({ status: 'unavailable' });
         expect(session.dispose).toHaveBeenCalledTimes(1);
         await expect(handler.resolveSymbol('main')).resolves.toBe('0x1234');
         expect(createSession).toHaveBeenCalledTimes(2);
@@ -200,9 +235,9 @@ describe('GdbSymbolHandler', () => {
         jest.useFakeTimers();
         await handler.setImages([IMAGE]);
         session.start.mockReturnValueOnce(new Promise(() => {}));
-        const result = handler.resolveSymbol('main');
+        const result = handler.lookupSymbol('main');
         await jest.advanceTimersByTimeAsync(300);
-        await expect(result).resolves.toBeUndefined();
+        await expect(result).resolves.toEqual({ status: 'unavailable' });
         await jest.advanceTimersByTimeAsync(1000);
         expect(createSession).toHaveBeenCalledTimes(1);
         await expect(handler.resolveSymbol('main')).resolves.toBe('0x1234');

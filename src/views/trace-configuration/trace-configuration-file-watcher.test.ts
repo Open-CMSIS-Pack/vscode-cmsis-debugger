@@ -25,6 +25,7 @@ import { CbuildRunReader, CBuildRunFileLocator } from '../../cbuild-run';
 import { FileWatchManager, FileWatchRegistrationOptions } from '../../desktop/filesystem/file-watch-manager';
 import { CBUILD_INDEX_FILE_GLOB, CMSIS_JSON_FILE_GLOB } from '../../manifest';
 import { waitForCondition } from '../../utils';
+import * as fileUtils from '../../utils';
 import { CTraceYamlDocument, CTraceYamlFile } from './ctrace-yaml';
 import {
     GeneratedCBuildRunFileChangeEvent,
@@ -86,6 +87,41 @@ describe('TraceConfigurationFileWatcher', () => {
     afterEach(() => {
         jest.restoreAllMocks();
         mutableWorkspace.workspaceFolders = originalWorkspaceFolders;
+    });
+
+    it('publishes build selection before the file exists and clears it when the solution changes', async () => {
+        const traceWatch = traceWatchFactory();
+        const solutionWatch = activeSolutionWatchFactory();
+        const first = path.resolve('out/first.cbuild-run.yml');
+        const second = path.resolve('out/second.cbuild-run.yml');
+        const selected = jest.fn().mockResolvedValue(first);
+        const locator = createCBuildRunFileLocator(selected);
+        jest.spyOn(fileUtils, 'fileExists').mockResolvedValue(false);
+        const watcher = new TraceConfigurationFileWatcher({
+            getCurrentFile: () => undefined,
+            onCurrentFileReloaded: jest.fn(),
+            onCurrentFileReloadFailed: jest.fn(),
+            onGeneratedCBuildRunFileChanged: jest.fn()
+        }, locator, traceWatch.fileWatchManager, solutionWatch.cmsisJsonWatcher);
+        const builds: (string | undefined)[] = [];
+        watcher.onDidChangeBuildFile(file => { builds.push(file); });
+
+        await expect(watcher.processActiveCBuildRunFile()).resolves.toBe(false);
+        await watcher.processActiveCBuildRunFile();
+        expect(builds).toEqual([first]);
+        selected.mockResolvedValue(second);
+        await watcher.processActiveCBuildRunFile();
+        expect(builds).toEqual([first, undefined, second]);
+
+        selected.mockResolvedValue(undefined);
+        solutionWatch.fireActiveSolutionChange({
+            previousActiveSolutionPath: '/workspace/first.csolution.yml',
+            activeSolutionPath: '/workspace/second.csolution.yml',
+            generation: 1
+        });
+        expect(builds).toEqual([first, undefined, second, undefined]);
+        watcher.dispose();
+        solutionWatch.activeSolutionChangeEmitter.dispose();
     });
 
     it('watches missing ELF paths, reconciles replacements and rejects removed callbacks', async () => {

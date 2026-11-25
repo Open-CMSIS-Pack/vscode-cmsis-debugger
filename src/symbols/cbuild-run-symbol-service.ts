@@ -17,7 +17,7 @@
 
 import * as path from 'node:path';
 import { SymbolFileAccess, SymbolLog } from './symbol-backend';
-import { SymbolHandler, SymbolImage, SymbolLookupOptions, SymbolMatch, SymbolService } from './symbol-service';
+import { SymbolHandler, SymbolImage, SymbolLookupOptions, SymbolLookupResult, SymbolMatch, SymbolResolution, SymbolService } from './symbol-service';
 import { throwIfAborted, waitForSymbolOperation } from './symbol-operations';
 
 /** A snapshot from one successfully parsed build file. Unqualified images apply to every processor. */
@@ -63,26 +63,40 @@ export class CbuildRunSymbolService implements SymbolService {
 
     /** Queries processors concurrently and returns successful, current-generation matches only. */
     public async resolveSymbol(expression: string, options: SymbolLookupOptions = {}): Promise<readonly SymbolMatch[]> {
+        return (await this.lookupSymbol(expression, options)).matches;
+    }
+
+    /** Queries processors concurrently, retaining unavailable processors alongside current matches. */
+    public async lookupSymbol(expression: string, options: SymbolLookupOptions = {}): Promise<SymbolLookupResult> {
         this.assertOpen();
         throwIfAborted(options.signal);
         const generation = this.generation;
-        const operation = (async (): Promise<readonly SymbolMatch[]> => {
+        const operation = (async (): Promise<SymbolLookupResult> => {
             await this.pending;
             if (!this.valid || generation !== this.generation || this.lifetime.signal.aborted) {
-                return [];
+                return { matches: [], unavailableProcessors: [] };
             }
-            const results = await Promise.all([...this.handlers].map(async ([pname, handler]): Promise<SymbolMatch | undefined> => {
+            const results = await Promise.all([...this.handlers].map(async ([pname, handler]): Promise<SymbolResolution & { pname: string | undefined }> => {
                 try {
-                    const address = await handler.resolveSymbol(expression, options);
-                    return address === undefined ? undefined : [pname, address];
+                    return { pname, ...await handler.lookupSymbol(expression, options) };
                 } catch (error) {
                     throwIfAborted(options.signal);
                     this.options.log(`Offline symbol lookup unavailable for processor ${pname ?? '<unnamed>'}.`, error);
-                    return undefined;
+                    return { pname, status: 'unavailable' };
                 }
             }));
-            return generation === this.generation && !this.lifetime.signal.aborted
-                ? results.filter(match => match !== undefined) : [];
+            const matches: SymbolMatch[] = [];
+            const unavailableProcessors: (string | undefined)[] = [];
+            if (generation === this.generation && !this.lifetime.signal.aborted) {
+                results.forEach(result => {
+                    if (result.status === 'resolved') {
+                        matches.push([result.pname, result.address]);
+                    } else if (result.status === 'unavailable') {
+                        unavailableProcessors.push(result.pname);
+                    }
+                });
+            }
+            return { matches, unavailableProcessors };
         })();
         const signal = options.signal ? AbortSignal.any([options.signal, this.lifetime.signal]) : this.lifetime.signal;
         return waitForSymbolOperation(operation, signal);
