@@ -1115,6 +1115,7 @@
     "@open-cmsis-pack/cmsis-common": "^0.2.0",
     "@tanstack/react-virtual": "3.14.24",
     "@vscode/codicons": "0.0.45",
+    "cdt-gdb-adapter": "2.0.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "vscode-uri": "3.2.0",

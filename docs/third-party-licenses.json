@@ -21,11 +21,25 @@
         "license": "https://github.com/microsoft/vscode-codicons/blob/main/LICENSE"
     },
     {
+        "name": "@vscode/debugadapter",
+        "version": "1.68.0",
+        "spdx": "MIT",
+        "url": "https://github.com/microsoft/vscode-debugadapter-node",
+        "license": "https://github.com/microsoft/vscode-debugadapter-node/blob/v1.68.0/License.txt"
+    },
+    {
         "name": "arm-none-eabi-gdb",
         "version": "15.3.1",
         "spdx": "GPL-3.0-or-later",
         "url": "https://artifacts.tools.arm.com/arm-none-eabi-gdb/15.3.1/",
         "license": "https://gitlab.arm.com/tooling/gnu-toolchains-for-arm/-/blob/releases/15.3.rel1/EULA.txt"
+    },
+    {
+        "name": "cdt-gdb-adapter",
+        "version": "2.0.0",
+        "spdx": "EPL-2.0",
+        "url": "https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter",
+        "license": "https://github.com/eclipse-cdt-cloud/cdt-gdb-adapter/blob/v2.0.0/LICENSE"
     },
     {
         "name": "ctrace",

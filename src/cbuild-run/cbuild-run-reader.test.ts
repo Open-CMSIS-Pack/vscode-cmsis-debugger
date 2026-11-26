@@ -36,6 +36,42 @@ class MockFileReader implements FileReader {
 
 describe('CbuildRunReader', () => {
 
+    it('returns symbol-bearing images with processor ownership, shared images and relocations', async () => {
+        const reader = new CbuildRunReader(new MockFileReader([
+            'cbuild-run:',
+            '  output:',
+            '    - { file: app.axf, type: elf, pname: HP, load-offset: 0x1000 }',
+            '    - { file: shared.elf, type: elf, load: symbols, load-offset: -32 }',
+            '    - { file: full.elf, type: elf, load: image+symbols }',
+            '    - { file: skip.elf, type: elf, load: image }',
+            '    - { file: none.elf, type: elf, load: none }',
+            '    - { file: data.elf, type: bin }'
+        ].join('\n')));
+        expect(reader.getSymbolImages()).toEqual([]);
+        const directory = path.resolve('test-data/out');
+        await reader.parse(path.join(directory, 'test.cbuild-run.yml'));
+        expect(reader.getSymbolImages()).toEqual([
+            { path: path.join(directory, 'app.axf'), pname: 'HP', offset: 4096n },
+            { path: path.join(directory, 'shared.elf'), offset: -32n },
+            { path: path.join(directory, 'full.elf') }
+        ]);
+    });
+
+    it.each([
+        '    - { file: app.elf, type: elf, load-offset: 1.5 }',
+        '    - { file: app.elf, type: elf, load-offset: 9007199254740992 }',
+        '    - { file: app.elf, type: elf, load-offset: "0x1000" }',
+        '    - { file: app.elf, type: elf, pname: 123 }',
+        '    - { file: app.elf, type: elf, load: invalid }',
+        '    - { file: "", type: elf }',
+        '    - { file: 42, type: elf }',
+        '    - null'
+    ])('rejects invalid symbol descriptors: %s', async output => {
+        const reader = new CbuildRunReader(new MockFileReader(`cbuild-run:\n  output:\n${output}`));
+        await reader.parse('test.cbuild-run.yml');
+        expect(() => reader.getSymbolImages()).toThrow();
+    });
+
     it('resolves and deduplicates every ELF output independently of its extension or load mode', async () => {
         const directory = path.resolve('test-data/out');
         const absoluteElf = path.join(directory, 'absolute.axf');
