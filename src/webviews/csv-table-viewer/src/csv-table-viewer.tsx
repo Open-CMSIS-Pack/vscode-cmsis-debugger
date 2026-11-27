@@ -94,7 +94,6 @@ export const CsvTableViewer = (): JSX.Element => {
     const scrollElementRef = useRef<HTMLDivElement>(null);
     const findInputRef = useRef<HTMLInputElement>(null);
     const [findState, setFindState] = useState(INITIAL_FIND_STATE);
-    const [findController] = useState(() => new CsvTableFindController(message => vscode.postMessage(message), setFindState));
     const tableHeaderRef = useRef<HTMLDivElement>(null);
     const [tableState, setTableState] = useState<TableState>(INITIAL_STATE);
     const [rows, setRows] = useState<readonly CsvTableRow[]>([]);
@@ -103,6 +102,11 @@ export const CsvTableViewer = (): JSX.Element => {
     const [sort, setSort] = useState<CsvTableSort | null>(null);
     const [columnWidths, setColumnWidths] = useState<readonly number[]>([]);
     const [selection, setSelection] = useState<RowSelectionState>(EMPTY_ROW_SELECTION);
+    const [findController] = useState(() => new CsvTableFindController(
+        message => vscode.postMessage(message),
+        setFindState,
+        rowIndex => setSelection(selectSingleRow(rowIndex)),
+    ));
     const [contextMenuPosition, setContextMenuPosition] = useState<ContextMenuPosition | null>(null);
     const [scrollTop, setScrollTop] = useState(0);
     const [rowViewportHeight, setRowViewportHeight] = useState(CSV_TABLE_ROW_HEIGHT);
@@ -138,7 +142,7 @@ export const CsvTableViewer = (): JSX.Element => {
             if (command === 'close') {
                 closeFind();
             } else {
-                findController.open();
+                findController.open(selection.intervals.length === 0 ? null : selection.caret);
                 if (command === 'open') {
                     findInputRef.current?.focus();
                     findInputRef.current?.select();
@@ -149,7 +153,7 @@ export const CsvTableViewer = (): JSX.Element => {
         };
         window.addEventListener('keydown', handleFindKeyDown, true);
         return () => window.removeEventListener('keydown', handleFindKeyDown, true);
-    }, [closeFind, findController, findState.open]);
+    }, [closeFind, findController, findState.open, selection]);
 
     useEffect(() => {
         const scrollElement = scrollElementRef.current;

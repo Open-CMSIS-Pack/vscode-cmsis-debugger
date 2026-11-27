@@ -98,6 +98,34 @@ describe('findCsvTableMatch', () => {
         expect(await find(store, direction, match)).toEqual(match);
     });
 
+    it.each(['next', 'previous'] as const)('includes the selected row when starting in %s direction', async direction => {
+        const store = createStore([['a', ''], ['a', ''], ['a', '']]);
+        expect(await findCsvTableMatch(store, 'a', direction, null, new AbortController().signal, { startRowIndex: 1 }))
+            .toEqual({ rowIndex: 1, sourceRowIndex: 1, columnIndex: 0, start: 0, end: 1 });
+    });
+
+    it.each(['next', 'previous'] as const)('wraps from a selected row without a match in %s direction', async direction => {
+        const store = createStore(direction === 'next' ? [['a', ''], ['none', '']] : [['none', ''], ['a', '']]);
+        const startRowIndex = direction === 'next' ? 1 : 0;
+        expect(await findCsvTableMatch(store, 'a', direction, null, new AbortController().signal, { startRowIndex }))
+            .toEqual(expect.objectContaining({ rowIndex: 1 - startRowIndex }));
+        expect(await findCsvTableMatch(store, 'missing', direction, null, new AbortController().signal, { startRowIndex })).toBeNull();
+    });
+
+    it.each(['next', 'previous'] as const)('retains the exact confirmed occurrence when editing the query in %s direction', async direction => {
+        const store = createStore([['a aa aa', '']]);
+        const after = { rowIndex: 0, sourceRowIndex: 0, columnIndex: 0, start: 5, end: 7 };
+        expect(await findCsvTableMatch(store, 'a', direction, after, new AbortController().signal, { includeAfter: true }))
+            .toEqual({ ...after, end: 6 });
+    });
+
+    it('advances from a confirmed occurrence when the edited query no longer matches there', async () => {
+        const store = createStore([['before target', ''], ['replacement', '']]);
+        const after = { rowIndex: 0, sourceRowIndex: 0, columnIndex: 0, start: 7, end: 13 };
+        expect(await findCsvTableMatch(store, 'replacement', 'next', after, new AbortController().signal, { includeAfter: true }))
+            .toEqual(expect.objectContaining({ rowIndex: 1, start: 0, end: 11 }));
+    });
+
     it('scans offscreen rows with bounded range requests and no retained match list', async () => {
         const store = createStore(Array.from({ length: 1025 }, (_, row) => [row === 1024 ? 'a' : 'none', '']));
         const getRows = jest.spyOn(store, 'getRows');

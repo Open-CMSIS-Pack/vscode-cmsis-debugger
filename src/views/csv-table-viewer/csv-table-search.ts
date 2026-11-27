@@ -67,6 +67,7 @@ export async function findCsvTableMatch(
     direction: CsvTableSearchDirection,
     after: CsvTableSearchMatch | null,
     signal: AbortSignal,
+    options: { readonly startRowIndex?: number; readonly includeAfter?: boolean } = {},
 ): Promise<CsvTableSearchMatch | null> {
     signal.throwIfAborted();
     if (query.length === 0 || store.rowCount === 0) {
@@ -108,7 +109,7 @@ export async function findCsvTableMatch(
                             end: textMatch.index + textMatch[0].length,
                         };
                         const comparison = after === null ? 0 : compareMatches(match, after);
-                        const inDirection = forward ? comparison > 0 : comparison < 0;
+                        const inDirection = (forward ? comparison > 0 : comparison < 0) || (options.includeAfter === true && comparison === 0);
                         const eligible = after === null || (wrapped ? !inDirection : inDirection);
                         if (eligible) {
                             if (forward) {
@@ -133,9 +134,10 @@ export async function findCsvTableMatch(
         }
         return null;
     };
-    const cursorRow = after === null ? 0 : Math.max(0, Math.min(after.rowIndex, store.rowCount - 1));
-    const result = await scan(forward && after !== null ? cursorRow : 0, !forward && after !== null ? cursorRow + 1 : store.rowCount, false);
-    if (result !== null || after === null) {
+    const hasCursor = after !== null || options.startRowIndex !== undefined;
+    const cursorRow = Math.max(0, Math.min(after?.rowIndex ?? options.startRowIndex ?? 0, store.rowCount - 1));
+    const result = await scan(forward && hasCursor ? cursorRow : 0, !forward && hasCursor ? cursorRow + 1 : store.rowCount, false);
+    if (result !== null || !hasCursor) {
         return result;
     }
     return scan(forward ? 0 : cursorRow, forward ? cursorRow + 1 : store.rowCount, true);

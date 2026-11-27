@@ -45,6 +45,9 @@ const isValidFindRequest = (
         && Number.isSafeInteger(message.viewRevision) && message.viewRevision >= 0
         && typeof message.query === 'string'
         && (message.direction === 'next' || message.direction === 'previous')
+        && (message.startRowIndex === undefined || (Number.isSafeInteger(message.startRowIndex)
+            && message.startRowIndex >= 0 && message.startRowIndex < Math.max(1, store.rowCount)))
+        && (message.includeAfter === undefined || typeof message.includeAfter === 'boolean')
         && (after === null || (typeof after === 'object' && after !== undefined
             && Number.isSafeInteger(after.rowIndex) && after.rowIndex >= 0 && after.rowIndex < store.rowCount
             && Number.isSafeInteger(after.sourceRowIndex) && after.sourceRowIndex >= 0 && after.sourceRowIndex < store.sourceRowCount
@@ -338,7 +341,7 @@ export class CsvTableEditorProvider implements vscode.CustomReadonlyEditorProvid
                     const requestedStore = rowStore;
                     const requestedRevision = viewRevision;
                     try {
-                        const match = await findCsvTableMatch(requestedStore, message.query, message.direction, message.after, controller.signal);
+                        const match = await findCsvTableMatch(requestedStore, message.query, message.direction, message.after, controller.signal, message);
                         if (!disposed && !controller.signal.aborted && canFind && requestedStore === rowStore && requestedRevision === viewRevision) {
                             postMessage({ type: 'findResult', requestId: message.requestId, viewRevision: requestedRevision, match });
                         }

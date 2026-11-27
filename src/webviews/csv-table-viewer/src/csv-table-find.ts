@@ -54,10 +54,14 @@ export class CsvTableFindController {
     private revision = 0;
     private requestId = 0;
     private timer: ReturnType<typeof setTimeout> | undefined;
+    private startRowIndex: number | null = null;
+    private sticky = false;
+    private stickyMatch: CsvTableSearchMatch | null = null;
 
     public constructor(
         private readonly postMessage: (message: CsvTableWebviewMessage) => void,
         private readonly onChange: (state: CsvTableFindState) => void,
+        private readonly selectRow: (rowIndex: number) => void = () => { },
     ) { }
 
     private update(change: Partial<CsvTableFindState>): void {
@@ -76,12 +80,13 @@ export class CsvTableFindController {
         this.cancel();
         this.update({ match: null, pending: false, status: this.state.query && !this.available ? 'Waiting for table…' : '' });
         if (this.state.open && this.state.query && this.available) {
-            this.timer = setTimeout(() => this.find('next'), FIND_DEBOUNCE_MS);
+            this.timer = setTimeout(() => this.find('next', false), FIND_DEBOUNCE_MS);
         }
     }
 
-    public open(): void {
+    public open(rowIndex: number | null = null): void {
         if (!this.state.open) {
+            this.startRowIndex = rowIndex;
             this.update({ open: true });
             this.restart();
         }
@@ -89,6 +94,8 @@ export class CsvTableFindController {
 
     public close(): void {
         this.cancel();
+        this.sticky = false;
+        this.stickyMatch = null;
         this.update({ open: false, match: null, pending: false, status: '' });
     }
 
@@ -99,6 +106,9 @@ export class CsvTableFindController {
 
     public suspend(): void {
         this.available = false;
+        this.startRowIndex = null;
+        this.sticky = false;
+        this.stickyMatch = null;
         this.restart();
     }
 
@@ -107,19 +117,31 @@ export class CsvTableFindController {
         if (available !== this.available || view.viewRevision !== this.revision) {
             this.available = available;
             this.revision = view.viewRevision;
+            this.startRowIndex = null;
+            this.sticky = false;
+            this.stickyMatch = null;
             this.restart();
         }
     }
 
-    public find(direction: CsvTableSearchDirection): void {
-        if (!this.state.open || !this.state.query || !this.available || this.state.pending) {
+    public find(direction: CsvTableSearchDirection, confirm = true): void {
+        if (!this.state.open || !this.state.query || !this.available) {
+            return;
+        }
+        this.sticky ||= confirm;
+        if (this.state.pending) {
             return;
         }
         clearTimeout(this.timer);
         this.timer = undefined;
         this.requestId += 1;
         this.update({ pending: true, status: 'Searching…' });
-        this.postMessage({ type: 'find', requestId: this.requestId, viewRevision: this.revision, query: this.state.query, direction, after: this.state.match });
+        this.postMessage({
+            type: 'find', requestId: this.requestId, viewRevision: this.revision, query: this.state.query, direction,
+            after: this.state.match ?? this.stickyMatch,
+            ...(this.startRowIndex === null ? {} : { startRowIndex: this.startRowIndex }),
+            ...(this.state.match === null && this.stickyMatch !== null ? { includeAfter: true } : {}),
+        });
     }
 
     public receive(message: CsvTableFindResult): void {
@@ -131,6 +153,10 @@ export class CsvTableFindController {
             match: message.match,
             status: message.error ?? (message.match === null ? 'No results' : `Row ${message.match.sourceRowIndex}, column ${message.match.columnIndex + 1}`),
         });
+        if (this.sticky && message.match !== null) {
+            this.stickyMatch = message.match;
+            this.selectRow(message.match.rowIndex);
+        }
     }
 
     public dispose(): void {

@@ -508,6 +508,21 @@ describe('CsvTableEditorProvider', () => {
             fixture.dispose();
         });
 
+        it('honors selected-row anchors and inclusive confirmed occurrences from the webview', async () => {
+            const fixture = await createFindFixture();
+            await fixture.sendMessage({ ...findRequest, query: 'other', startRowIndex: 100 });
+            expect(fixture.webview.postMessage).toHaveBeenLastCalledWith({
+                type: 'findResult', requestId: 10, viewRevision: 1,
+                match: { rowIndex: 100, sourceRowIndex: 100, columnIndex: 0, start: 0, end: 5 },
+            });
+            const after = { rowIndex: 259, sourceRowIndex: 259, columnIndex: 0, start: 7, end: 13 };
+            await fixture.sendMessage({ ...findRequest, query: 'targe', after, includeAfter: true });
+            expect(fixture.webview.postMessage).toHaveBeenLastCalledWith({
+                type: 'findResult', requestId: 10, viewRevision: 1, match: { ...after, end: 12 },
+            });
+            fixture.dispose();
+        });
+
         it('searches the filtered display order and reports no matches', async () => {
             const fixture = await createFindFixture();
             await fixture.sendMessage({ type: 'setFilters', filters: [{ columnIndex: 0, value: 'other' }] });
@@ -584,6 +599,11 @@ describe('CsvTableEditorProvider', () => {
             { requestId: Number.NaN },
             { query: 42 },
             { direction: 'sideways' },
+            { startRowIndex: -1 },
+            { startRowIndex: 260 },
+            { startRowIndex: 1.5 },
+            { startRowIndex: '100' },
+            { includeAfter: 'true' },
             { after: undefined },
             { after: { rowIndex: -1, sourceRowIndex: 0, columnIndex: 0, start: 0, end: 1 } },
             { after: { rowIndex: 0, sourceRowIndex: 0, columnIndex: 1, start: 0, end: 1 } },

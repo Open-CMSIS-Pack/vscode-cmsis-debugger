@@ -111,6 +111,8 @@ export interface CsvTableFind {
     readonly query: string;
     readonly direction: CsvTableSearchDirection;
     readonly after: CsvTableSearchMatch | null;
+    readonly startRowIndex?: number;
+    readonly includeAfter?: boolean;
 }
 
 export interface CsvTableCancelFind {

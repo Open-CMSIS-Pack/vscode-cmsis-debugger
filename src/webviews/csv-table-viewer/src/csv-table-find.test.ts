@@ -27,14 +27,16 @@ const createFixture = (): {
     readonly posted: CsvTableWebviewMessage[];
     readonly state: () => typeof INITIAL_FIND_STATE;
     readonly request: () => CsvTableFind;
+    readonly selectedRows: number[];
 } => {
     let state = INITIAL_FIND_STATE;
     const posted: CsvTableWebviewMessage[] = [];
-    const controller = new CsvTableFindController(message => posted.push(message), next => { state = next; });
+    const selectedRows: number[] = [];
+    const controller = new CsvTableFindController(message => posted.push(message), next => { state = next; }, rowIndex => selectedRows.push(rowIndex));
     controller.updateView(READY_VIEW);
     posted.length = 0;
     return {
-        controller, posted, state: () => state,
+        controller, posted, selectedRows, state: () => state,
         request: () => {
             const request = posted.findLast(message => message.type === 'find');
             if (request?.type !== 'find') {
@@ -80,6 +82,81 @@ describe('CSV Find shortcuts', () => {
 });
 
 describe('CSV Find lifecycle', () => {
+    it('starts searching at and including the selected row', () => {
+        const fixture = createFixture();
+        fixture.controller.open(250);
+        fixture.controller.setQuery('target');
+        jest.runOnlyPendingTimers();
+        expect(fixture.request()).toEqual(expect.objectContaining({ startRowIndex: 250, after: null }));
+        fixture.controller.dispose();
+    });
+
+    it('keeps query previews anchored to the original selection until navigation is confirmed', () => {
+        const fixture = createFixture();
+        fixture.controller.open(250);
+        fixture.controller.setQuery('target');
+        jest.runOnlyPendingTimers();
+        fixture.controller.receive({ ...fixture.request(), type: 'findResult', match: MATCH });
+        expect(fixture.selectedRows).toEqual([]);
+        fixture.controller.setQuery('targe');
+        jest.runOnlyPendingTimers();
+        expect(fixture.request()).toEqual(expect.objectContaining({ startRowIndex: 250, after: null }));
+        fixture.controller.dispose();
+    });
+
+    it('retains a confirmed occurrence across query edits and keeps its row selected after closing', () => {
+        const fixture = createFixture();
+        fixture.controller.open();
+        fixture.controller.setQuery('target');
+        jest.runOnlyPendingTimers();
+        fixture.controller.receive({ ...fixture.request(), type: 'findResult', match: MATCH });
+        fixture.controller.find('next');
+        const confirmed = { ...MATCH, rowIndex: 600, sourceRowIndex: 800, start: 20, end: 26 };
+        fixture.controller.receive({ ...fixture.request(), type: 'findResult', match: confirmed });
+        expect(fixture.selectedRows).toEqual([600]);
+        expect(fixture.state().open).toBe(true);
+        fixture.controller.setQuery('targe');
+        jest.runOnlyPendingTimers();
+        expect(fixture.request()).toEqual(expect.objectContaining({ after: confirmed, includeAfter: true }));
+        const edited = { ...confirmed, end: 25 };
+        fixture.controller.receive({ ...fixture.request(), type: 'findResult', match: edited });
+        fixture.controller.find('next');
+        expect(fixture.request().after).toEqual(edited);
+        expect(fixture.request().includeAfter).toBeUndefined();
+        fixture.controller.close();
+        fixture.controller.receive({ ...fixture.request(), type: 'findResult', match: MATCH });
+        expect(fixture.selectedRows).toEqual([600, 600]);
+        fixture.controller.open(600);
+        jest.runOnlyPendingTimers();
+        expect(fixture.request()).toEqual(expect.objectContaining({ after: null, startRowIndex: 600 }));
+        fixture.controller.dispose();
+    });
+
+    it('confirms an in-flight preview when navigation is pressed and preserves its anchor through no results', () => {
+        const fixture = createFixture();
+        fixture.controller.open();
+        fixture.controller.setQuery('target');
+        jest.runOnlyPendingTimers();
+        const preview = fixture.request();
+        fixture.controller.find('next');
+        expect(fixture.request()).toBe(preview);
+        fixture.controller.receive({ ...preview, type: 'findResult', match: MATCH });
+        expect(fixture.selectedRows).toEqual([MATCH.rowIndex]);
+        fixture.controller.setQuery('missing');
+        jest.runOnlyPendingTimers();
+        fixture.controller.receive({ ...fixture.request(), type: 'findResult', match: null });
+        fixture.controller.setQuery('target');
+        jest.runOnlyPendingTimers();
+        expect(fixture.request()).toEqual(expect.objectContaining({ after: MATCH, includeAfter: true }));
+        fixture.controller.suspend();
+        fixture.controller.updateView({ ...READY_VIEW, viewRevision: 2 });
+        jest.runOnlyPendingTimers();
+        expect(fixture.request().after).toBeNull();
+        fixture.controller.receive({ ...fixture.request(), type: 'findResult', match: MATCH });
+        expect(fixture.selectedRows).toEqual([MATCH.rowIndex]);
+        fixture.controller.dispose();
+    });
+
     it('debounces query changes and searches the complete view without a selection message', () => {
         const fixture = createFixture();
         fixture.controller.open();
