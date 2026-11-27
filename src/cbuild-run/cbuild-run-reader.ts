@@ -20,6 +20,7 @@ import {
     CbuildRunRootType,
     CbuildRunType,
     ProcessorType,
+    SymbolImageDescriptor,
     TraceModeType
 } from './cbuild-run-types';
 import { FileReader, VscodeFileReader } from '../desktop/file-reader';
@@ -89,6 +90,44 @@ export class CbuildRunReader {
             paths.set(normalizeFsPath(fileName) ?? fileName, fileName);
         }
         return [...paths.values()];
+    }
+
+    /** Returns symbol-bearing ELF outputs, retaining processor ownership and relocation.
+     * Omitted load modes default to image+symbols. Invalid descriptors reject the snapshot.
+     */
+    public getSymbolImages(): SymbolImageDescriptor[] {
+        const outputs = this.cbuildRun?.output ?? [];
+        if (!Array.isArray(outputs)) {
+            throw new Error('Invalid cbuild-run output list.');
+        }
+        const images: SymbolImageDescriptor[] = [];
+        for (const output of outputs) {
+            if (!output || typeof output !== 'object') {
+                throw new Error('Invalid cbuild-run output descriptor.');
+            }
+            if (output.type !== 'elf' || output.load === 'image' || output.load === 'none') {
+                continue;
+            }
+            if (output.load !== undefined && output.load !== 'symbols' && output.load !== 'image+symbols') {
+                throw new Error('Invalid ELF load mode.');
+            }
+            if (typeof output.file !== 'string' || !output.file.trim() || /[\r\n\0]/.test(output.file)) {
+                throw new Error('Invalid symbol image path.');
+            }
+            if (output.pname !== undefined && (typeof output.pname !== 'string' || !output.pname.trim())) {
+                throw new Error('Invalid symbol image processor name.');
+            }
+            const offset = output['load-offset'];
+            if (offset !== undefined && !Number.isSafeInteger(offset)) {
+                throw new Error('Symbol image relocation must be a safe integer.');
+            }
+            images.push({
+                path: path.resolve(this.cbuildRunDir ?? '.', output.file),
+                ...(output.pname === undefined ? {} : { pname: output.pname }),
+                ...(offset === undefined ? {} : { offset: BigInt(offset) })
+            });
+        }
+        return images;
     }
 
     public getSvdFilePaths(cmsisPackRoot?: string, pname?: string): string[] {

@@ -18,6 +18,7 @@ import * as vscode from 'vscode';
 import { GDBTargetDebugTracker } from '../debug-session';
 import { GDBTargetConfigurationProvider } from '../debug-configuration';
 import { logger } from '../logger';
+import { createSymbolService } from './symbols/create-symbol-service';
 import { addToolsToPath } from './add-to-path';
 import { CpuStatesStatusBarItem } from '../features/cpu-states/cpu-states-statusbar-item';
 import { CpuStates } from '../features/cpu-states/cpu-states';
@@ -86,7 +87,8 @@ export const activate = async (context: vscode.ExtensionContext): Promise<void> 
         fileWatchManager,
         cbuildRunFileLocator,
         cmsisJsonWatcher,
-        pyTsController
+        pyTsController,
+        createSymbolService()
     );
     const traceConfigurationCommands = new TraceConfigurationCommands();
     const csvTableEditorProvider = new CsvTableEditorProvider(

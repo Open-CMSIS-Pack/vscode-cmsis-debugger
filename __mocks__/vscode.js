@@ -101,14 +101,29 @@ function createMockFileSystemWatcher() {
 
 module.exports = {
     EventEmitter: jest.fn(() => {
-        const callbacks = [];
+        const callbacks = new Set();
+        let disposed = false;
         return {
-            dispose: jest.fn(),
-            event: (callback, thisArg) => {
-                callbacks.push(thisArg ? callback.bind(thisArg) : callback);
-                return { dispose: jest.fn() };
+            dispose: jest.fn(() => {
+                disposed = true;
+                callbacks.clear();
+            }),
+            event: (callback, thisArg, disposables) => {
+                const listener = event => callback.call(thisArg, event);
+                if (!disposed) {
+                    callbacks.add(listener);
+                }
+                const subscription = { dispose: jest.fn(() => { callbacks.delete(listener); }) };
+                disposables?.push(subscription);
+                return subscription;
             },
-            fire: event => callbacks.forEach(callback => callback(event))
+            fire: event => {
+                for (const callback of [...callbacks]) {
+                    if (callbacks.has(callback)) {
+                        callback(event);
+                    }
+                }
+            }
         };
     }),
     Uri: URI,

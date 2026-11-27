@@ -107,6 +107,19 @@ describe('ProcessManager', () => {
         expect(stderrResume).toHaveBeenCalledTimes(1);
     });
 
+    it('preserves paused stdio for a protocol consumer', async () => {
+        const stdoutResume = jest.spyOn(child.stdout, 'resume');
+        const stderrResume = jest.spyOn(child.stderr, 'resume');
+        const manager = new ProcessManager({ command: 'test-command', name: 'protocol', preserveStdio: true });
+        expect(() => manager.stdioProcess).toThrow('has not been launched');
+        manager.launch({});
+        expect(manager.stdioProcess).toBe(child);
+        expect(stdoutResume).not.toHaveBeenCalled();
+        expect(stderrResume).not.toHaveBeenCalled();
+        child.emitExit(0);
+        await manager.waitForExit();
+    });
+
     it('reports spawn errors and resolves waiting callers', async () => {
         const output = { append: jest.fn(), appendLine: jest.fn() };
         const onError = jest.fn();

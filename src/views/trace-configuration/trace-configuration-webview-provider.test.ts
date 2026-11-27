@@ -17,6 +17,7 @@
 
 import * as vscode from 'vscode';
 
+import { deferred, symbolServiceFactory } from '../../symbols/__test__/symbol-test-support';
 import { extensionContextFactory } from '../../__test__/vscode.factory';
 import {
     TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING,
@@ -43,6 +44,8 @@ interface FakeWebviewView {
 }
 
 class FakeTraceConfigurationModel {
+    public readonly buildFileChanged = new vscode.EventEmitter<string | undefined>();
+    public readonly onDidChangeBuildFile = this.buildFileChanged.event;
     public readonly setOnDidChange = jest.fn((callback: () => void) => {
         this.onDidChange = callback;
     });
@@ -168,7 +171,35 @@ describe('TraceConfigurationWebviewProvider', () => {
         expect(vscode.extensions.getExtension).toHaveBeenCalledWith('Arm.cmsis-csolution');
         expect(model.watchForGeneratedCBuildRunFiles).toHaveBeenCalledTimes(1);
         expect(model.loadInitialFile).toHaveBeenCalledTimes(1);
-        expect(model.dispose).toHaveBeenCalledTimes(1);
+        expect(model.deactivate).toHaveBeenCalledTimes(1);
+    });
+
+    it('tracks build selection and awaits symbol worker shutdown with the model', async () => {
+        const model = new FakeTraceConfigurationModel();
+        const symbols = symbolServiceFactory();
+        const provider = new TraceConfigurationWebviewProvider(
+            vscode.Uri.file('/extension'), asModel(model), undefined, undefined, undefined, undefined, symbols
+        );
+        model.buildFileChanged.fire('/workspace/out/first.cbuild-run.yml');
+        model.buildFileChanged.fire(undefined);
+        model.buildFileChanged.fire('/workspace/out/second.cbuild-run.yml');
+        expect(symbols.setBuildFile.mock.calls).toEqual([
+            ['/workspace/out/first.cbuild-run.yml'], [undefined], ['/workspace/out/second.cbuild-run.yml']
+        ]);
+        const stopped = deferred<void>();
+        symbols.dispose.mockReturnValueOnce(stopped.promise);
+        let finished = false;
+        const stopping = provider.deactivate().then(() => { finished = true; });
+        await new Promise<void>(resolve => setImmediate(resolve));
+        const finishedBeforeShutdown = finished;
+        model.buildFileChanged.fire('/workspace/out/stale.cbuild-run.yml');
+        stopped.resolve();
+        await stopping;
+        await provider.deactivate();
+        expect(finishedBeforeShutdown).toBe(false);
+        expect(symbols.dispose).toHaveBeenCalledTimes(1);
+        expect(symbols.setBuildFile).toHaveBeenCalledTimes(3);
+        expect(model.deactivate).toHaveBeenCalledTimes(1);
     });
 
     it('reveals the view before focusing a ctrace reference', async () => {
@@ -254,20 +285,13 @@ describe('TraceConfigurationWebviewProvider', () => {
         expect(vscode.window.showOpenDialog).not.toHaveBeenCalled();
     });
 
-    it.each([true, false])('handles the missing configuration picker when a file is selected: %s', async selected => {
-        jest.mocked(vscode.extensions.getExtension).mockReturnValue(undefined);
+    it('does not prompt for a configuration or add an expression when trace is off', async () => {
         const model = new FakeTraceConfigurationModel();
-        const emptyState: TraceConfigurationState = {
+        model.createState.mockReturnValue({
             loading: false,
             dirty: false,
             validationState: 'idle',
             rows: []
-        };
-        model.createState.mockReturnValue(emptyState);
-        const selectedFile = vscode.Uri.file('/workspace/selected.ctrace.yml');
-        jest.mocked(vscode.window.showOpenDialog).mockResolvedValueOnce(selected ? [selectedFile] : undefined);
-        model.openFile.mockImplementation(async (fileName: string) => {
-            model.createState.mockReturnValue({ ...emptyState, fileName });
         });
         const provider = new TraceConfigurationWebviewProvider(vscode.Uri.file('/extension'), asModel(model));
         await provider.activate(extensionContextFactory());
@@ -275,15 +299,9 @@ describe('TraceConfigurationWebviewProvider', () => {
         await addDebugExpression();
 
         expect(model.loadInitialFile).toHaveBeenCalledTimes(1);
-        expect(vscode.window.showOpenDialog).toHaveBeenCalledTimes(1);
-        if (selected) {
-            expect(model.openFile).toHaveBeenCalledWith(selectedFile.fsPath);
-            expect(model.addDataTraceExpression).toHaveBeenCalledWith('object.member');
-        } else {
-            expect(model.openFile).not.toHaveBeenCalled();
-            expect(model.addDataTraceExpression).not.toHaveBeenCalled();
-        }
-        expect(model.saveCurrentDocument).not.toHaveBeenCalled();
+        expect(vscode.window.showOpenDialog).not.toHaveBeenCalled();
+        expect(model.openFile).not.toHaveBeenCalled();
+        expect(model.addDataTraceExpression).not.toHaveBeenCalled();
     });
 
     it('routes trace configuration title commands to model operations', async () => {

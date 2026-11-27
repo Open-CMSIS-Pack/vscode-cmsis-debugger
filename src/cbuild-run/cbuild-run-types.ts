@@ -21,10 +21,17 @@ export interface OutputType {
     file: string;
     type: OutputFileType;
     info?: string;
-    load: LoadType;
+    load?: LoadType;
     'load-offset'?: number;
     pname?: string;
 };
+
+/** A symbol-bearing ELF output with its resolved path and section relocation. */
+export interface SymbolImageDescriptor {
+    readonly path: string;
+    readonly pname?: string;
+    readonly offset?: bigint;
+}
 
 export interface MemoryType {
     name: string;

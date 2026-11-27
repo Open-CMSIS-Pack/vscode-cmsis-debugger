@@ -61,7 +61,7 @@ async function main() {
     data += '\n';
     data += `Generated for release: ${release ?? 'unknown'}\n\n`;
     data += '| *Package* | *Version* | *Repository* | *License* |\n';
-    data += '|---|---|---|---|\n';
+    data += '| --- | --- | --- | --- |\n';
 
     for(const value of tpipJson) {
         data += `| ${value.name} | ${value.version} | ${value.url} | [${value.spdx}](${value.license}) |\n`;

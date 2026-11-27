@@ -124,6 +124,9 @@ export class TraceConfigurationFileWatcher {
     private currentRunFileWatchVersion = 0;
     private activeSolutionGeneration = 0;
     private readonly activeSolutionChangeSubscription: vscode.Disposable | undefined;
+    private readonly buildFileChanged = new vscode.EventEmitter<string | undefined>();
+    /** Reports the selected build path, including undefined when its solution is cleared. */
+    public readonly onDidChangeBuildFile = this.buildFileChanged.event;
     private readonly _onDidChangeGeneratedCBuildRunFileEmitter = new vscode.EventEmitter<GeneratedCBuildRunFileChangeEvent>();
     private readonly processGeneratedChange = coalesceFileEvents(async (request: {
         event: GeneratedCBuildRunFileChangeEvent; watchVersion: number; requestVersion: number; elfReadVersion: number;
@@ -310,6 +313,7 @@ export class TraceConfigurationFileWatcher {
         this.activeSolutionChangeSubscription?.dispose();
         this.resetActiveSolutionWatches();
         this._onDidChangeGeneratedCBuildRunFileEmitter.dispose();
+        this.buildFileChanged.dispose();
     }
 
     private async handleActiveSolutionChanged(event: ActiveSolutionChangeEvent): Promise<void> {
@@ -391,6 +395,7 @@ export class TraceConfigurationFileWatcher {
 
         this.disposeGeneratedCBuildRunFileWatchers();
         this.generatedCBuildRunFileName = cbuildRunFileName;
+        this.buildFileChanged.fire(cbuildRunFileName);
 
         const pattern = new vscode.RelativePattern(path.dirname(cbuildRunFileName), path.basename(cbuildRunFileName));
         this.fileWatchManager.addWatch({
@@ -459,7 +464,10 @@ export class TraceConfigurationFileWatcher {
         }
         this.elfWatches.clear();
         this.fileWatchManager.removeWatch(GENERATED_CBUILD_RUN_WATCH_ID);
-        this.generatedCBuildRunFileName = undefined;
+        if (this.generatedCBuildRunFileName !== undefined) {
+            this.generatedCBuildRunFileName = undefined;
+            this.buildFileChanged.fire(undefined);
+        }
     }
 
     /**

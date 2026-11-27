@@ -17,6 +17,8 @@
 
 import * as vscode from 'vscode';
 
+import { SymbolService } from '../../symbols/symbol-service';
+import { logger } from '../../logger';
 import { CmsisJsonWatcher } from '../../cmsis-files';
 import { CBuildRunFileLocator } from '../../cbuild-run';
 import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
@@ -47,6 +49,8 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
     private webviewView: vscode.WebviewView | undefined;
     private readonly model: TraceConfigurationModel;
     private initialLoad: Promise<void> | undefined;
+    private readonly symbolBuildSubscription: vscode.Disposable | undefined;
+    private deactivationPromise: Promise<void> | undefined;
     private cmsisSolutionExtensionChangeSubscription: vscode.Disposable | undefined;
 
     /**
@@ -61,7 +65,8 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
         fileWatchManager: FileWatchManager = new FileWatchManager(),
         cbuildRunFileLocator: CBuildRunFileLocator = new CBuildRunFileLocator(),
         cmsisJsonWatcher?: CmsisJsonWatcher,
-        pyTsController?: PyTsController
+        pyTsController?: PyTsController,
+        private readonly symbolService?: SymbolService
     ) {
         this.model = model ?? new TraceConfigurationModel(
             undefined,
@@ -74,15 +79,21 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             undefined,
             undefined,
             undefined,
-            pyTsController
+            pyTsController,
+            symbolService
         );
+        this.symbolBuildSubscription = symbolService ? this.model.onDidChangeBuildFile(file => {
+            void symbolService.setBuildFile(file).catch(error => {
+                logger.warn(`Cannot configure offline symbols for ${file ?? '<no build>'}:`, error);
+            });
+        }) : undefined;
         this.model.setOnDidChange(() => this.postState());
     }
 
     /**
      * activate registers this object as the provider for the contributed view.
-     * The model is also registered for disposal so any active file watcher is
-     * released when the extension deactivates. Configuration changes that
+     * Model and symbol-service cleanup is registered with the extension context.
+     * Configuration changes that
      * affect debugging tooltips immediately refresh an open webview.
      */
     public async activate(context: vscode.ExtensionContext): Promise<void> {
@@ -109,15 +120,22 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             vscode.commands.registerCommand('vscode-cmsis-debugger.traceConfiguration.collapseAll', () => {
                 this.toggleAllRows(false);
             }),
-            { dispose: () => this.model.dispose() }
+            { dispose: () => {
+                void this.deactivate().catch(error => logger.error('Cannot deactivate trace configuration:', error));
+            } }
         );
         await this.model.watchForGeneratedCBuildRunFiles();
         await this.initializeAfterCmsisSolutionActivation(context);
     }
 
-    /** Flushes the latest dirty-file backup and cancels validation before shutdown. */
-    public async deactivate(): Promise<void> {
-        await this.model.deactivate();
+    /** Flushes dirty-file backups and awaits symbol worker shutdown once. */
+    public deactivate(): Promise<void> {
+        this.symbolBuildSubscription?.dispose();
+        this.deactivationPromise ??= Promise.all([
+            this.model.deactivate(),
+            this.symbolService?.dispose()
+        ]).then(() => {});
+        return this.deactivationPromise;
     }
 
     /**
@@ -158,9 +176,6 @@ export class TraceConfigurationWebviewProvider implements vscode.WebviewViewProv
             await vscode.commands.executeCommand(`${TRACE_CONFIGURATION_VIEW_ID}.focus`);
             if (!this.model.createState().fileName) {
                 await this.loadInitialFileOnce();
-            }
-            if (!this.model.createState().fileName) {
-                await this.promptAndOpenFile();
             }
             if (this.model.createState().fileName) {
                 await this.model.addDataTraceExpression(expression);

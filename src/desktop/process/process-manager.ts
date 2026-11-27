@@ -17,7 +17,6 @@
 
 import { spawn } from 'child_process';
 import type { ChildProcessWithoutNullStreams } from 'child_process';
-import { waitForMs } from '../../utils';
 
 export interface ProcessOutput {
    append(value: string): void;
@@ -29,6 +28,8 @@ export interface ProcessManagerOptions {
     readonly windowsHide?: boolean;
     readonly name: string;
     readonly output?: ProcessOutput;
+    /** Leaves stdout and stderr paused until a protocol consumer attaches its listeners. */
+    readonly preserveStdio?: boolean;
     readonly onSpawn?: (process: ProcessManager) => void;
     readonly onError?: (error: Error, process: ProcessManager) => void;
     readonly onExit?: (code: number | null, signal: NodeJS.Signals | null, process: ProcessManager) => void;
@@ -91,7 +92,7 @@ export class ProcessManager {
         if (output !== undefined) {
             this.child.stdout.on('data', (chunk: Buffer) => output.append(chunk.toString('utf8')));
             this.child.stderr.on('data', (chunk: Buffer) => output.append(chunk.toString('utf8')));
-        } else {
+        } else if (!this.options.preserveStdio) {
             this.child.stdout.resume();
             this.child.stderr.resume();
         }
@@ -112,6 +113,14 @@ export class ProcessManager {
             this.options.output?.appendLine(`${this.options.name} exited with code ${code ?? 'null'}${signal ? `, signal ${signal}` : ''}.`);
             this.options.onExit?.(code, signal, this);
         });
+    }
+
+    /** Returns the owned pipes for protocol consumers; throws before launch. */
+    public get stdioProcess(): ChildProcessWithoutNullStreams {
+        if (!this.child) {
+            throw new Error(`${this.options.name} process has not been launched.`);
+        }
+        return this.child;
     }
 
     public get pid(): number | undefined {
@@ -181,7 +190,7 @@ export class ProcessManager {
             }
             await Promise.race([
                 this.waitForExit(),
-                waitForMs(Math.min(ProcessManager.WAIT_INTERVAL_MS, deadline - Date.now()))
+                new Promise(resolve => setTimeout(resolve, Math.min(ProcessManager.WAIT_INTERVAL_MS, deadline - Date.now())))
             ]);
         }
         return this.hasExited;

@@ -433,8 +433,8 @@
         },
         {
           "command": "vscode-cmsis-debugger.traceConfiguration.addFromEditor",
-          "when": "editorTextFocus && (editorLangId == c || editorLangId == cpp)",
-          "group": "z_commands@10"
+          "when": "editorTextFocus && (editorLangId == c || editorLangId == cpp) && vscode-cmsis-debugger.traceConfiguration.canAddDataTraceExpression",
+          "group": "z_commands"
         }
       ],
       "editor/lineNumber/context": [
@@ -464,8 +464,8 @@
         },
         {
           "command": "vscode-cmsis-debugger.traceConfiguration.addFromDebugView",
-          "when": "inDebugMode && (debugType == gdb || debugType == gdbtarget)",
-          "group": "z_commands@10"
+          "when": "inDebugMode && (debugType == gdb || debugType == gdbtarget) && vscode-cmsis-debugger.traceConfiguration.canAddDataTraceExpression",
+          "group": "z_commands"
         }
       ],
       "debug/callstack/context": [
@@ -861,9 +861,14 @@
           "group": "contextMenuG2@3"
         },
         {
+          "command": "vscode-cmsis-debugger.traceConfiguration.addFromLiveWatch",
+          "when": "view == cmsis-debugger.liveWatch && vscode-cmsis-debugger.traceConfiguration.canAddDataTraceExpression",
+          "group": "contextMenuG3@1"
+        },
+        {
           "command": "vscode-cmsis-debugger.liveWatch.showInMemoryInspector",
           "when": "view == cmsis-debugger.liveWatch",
-          "group": "contextMenuG3@1"
+          "group": "contextMenuG3@2"
         },
         {
           "command": "cdt.debug.setOutputRadixToDecimal",
@@ -904,11 +909,6 @@
           "command": "vscode-cmsis-debugger.corePeripherals.unlockComponent",
           "when": "view == cmsis-debugger.corePeripherals && viewItem == locked.parentInstance",
           "group": "inline@2"
-        },
-        {
-          "command": "vscode-cmsis-debugger.traceConfiguration.addFromLiveWatch",
-          "when": "view == cmsis-debugger.liveWatch",
-          "group": "z_commands@10"
         }
       ],
       "webview/context": [
@@ -1115,6 +1115,7 @@
     "@open-cmsis-pack/cmsis-common": "^0.2.0",
     "@tanstack/react-virtual": "3.14.24",
     "@vscode/codicons": "0.0.45",
+    "cdt-gdb-adapter": "2.0.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "vscode-uri": "3.2.0",

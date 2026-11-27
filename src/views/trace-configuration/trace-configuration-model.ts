@@ -24,6 +24,7 @@ import { CBuildRunFileLocator } from '../../cbuild-run';
 import { FileWatchManager } from '../../desktop/filesystem/file-watch-manager';
 import type { PyTsController } from '../../features/trace/pyts-controller';
 import { isYamlMapItem, isYamlScalarItem, isYamlSequenceItem, YamlTreeItem, yamlScalarToString } from '../../desktop/yaml-dom';
+import { SymbolLookupResult, SymbolResolver } from '../../symbols/symbol-service';
 import { logger } from '../../logger';
 import { CTRACE_FILE_GLOB, TRACE_CONFIGURATION_SHOW_CTRACE_REFS_SETTING } from '../../manifest';
 import { fileExists, normalizeFsPath } from '../../utils';
@@ -71,6 +72,13 @@ const TRACE_CONFIGURATION_IS_MODIFIED_CONTEXT = 'vscode-cmsis-debugger.traceConf
 const TRACE_CONFIGURATION_IS_VALIDATING_CONTEXT = 'vscode-cmsis-debugger.traceConfiguration.isValidating';
 const TRACE_CONFIGURATION_VALIDATION_SUCCEEDED_CONTEXT = 'vscode-cmsis-debugger.traceConfiguration.validationSucceeded';
 
+/** Identifies a processor setup that can receive a Data Trace expression. */
+interface DataTraceTarget {
+    label: string;
+    pname: string | undefined;
+    path: (string | number)[];
+}
+
 interface TraceConfigurationSaveTransition {
     readonly file: CTraceYamlFile;
     pendingProductionRunFileEvent?: TraceConfigurationRunFileChangeEvent;
@@ -98,8 +106,11 @@ export class TraceConfigurationModel {
     private ctraceFile: CTraceYamlFile | undefined;
     private readonly fileWatcher: TraceConfigurationFileWatcher;
     private readonly generatedCTraceFileManager: TraceConfigurationGeneratedCTraceFileManager;
+    /** Publishes build selection so the desktop owner can configure symbol lookup. */
+    public readonly onDidChangeBuildFile: vscode.Event<string | undefined>;
     public readonly onDidChangeGeneratedCBuildRunFile: vscode.Event<GeneratedCBuildRunFileChangeEvent>;
     private loading = false;
+    private traceEnabled = false;
     private _dirty = false;
     private errorMessage: string | undefined;
     private emptyMessage: string | undefined;
@@ -123,6 +134,10 @@ export class TraceConfigurationModel {
     private pendingImageValidation: PendingImageValidation | undefined;
     private imageValidationVersion = 0;
     private generatedFileProcessing: GeneratedFileProcessing | undefined;
+    /** Generated trace configuration associated with the resolver's currently selected build. */
+    private symbolTraceFileName: string | undefined;
+    private symbolLookupGeneration = 0;
+    private readonly symbolLookupLifetime = new AbortController();
 
     private set dirty(value: boolean) {
         if (this._dirty !== value) {
@@ -206,7 +221,8 @@ export class TraceConfigurationModel {
         backupStore?: TraceConfigurationBackupStore,
         prevalidator?: TraceConfigurationPrevalidator,
         runMessageReader?: TraceConfigurationRunMessageReader,
-        pyTsController?: PyTsController
+        pyTsController?: PyTsController,
+        private readonly symbolResolver?: SymbolResolver
     ) {
         this.runMessageReader = runMessageReader ?? new CTraceRunValidationMessageReader();
         this.generatedCTraceFileManager = generatedCTraceFileManager
@@ -248,13 +264,23 @@ export class TraceConfigurationModel {
                     this.notifyStateChanged();
                 },
                 onImageFilesChanged: uri => this.handleImageFilesChanged(uri),
-                onBuildContextChanged: () => this.cancelImageValidation()
+                onBuildContextChanged: () => {
+                    this.symbolLookupGeneration++;
+                    this.symbolTraceFileName = undefined;
+                    this.traceEnabled = false;
+                    this.cancelImageValidation();
+                    this.notifyStateChanged();
+                }
             },
             cbuildRunFileLocator,
             fileWatchManager,
             cmsisJsonWatcher
         );
+        this.onDidChangeBuildFile = this.fileWatcher.onDidChangeBuildFile;
         this.onDidChangeGeneratedCBuildRunFile = this.fileWatcher.onDidChangeGeneratedCBuildRunFile;
+        this.onDidChangeGeneratedCBuildRunFile(() => {
+            this.symbolLookupGeneration++;
+        });
     }
 
     /**
@@ -283,6 +309,7 @@ export class TraceConfigurationModel {
      */
     public deactivate(): Promise<void> {
         this.disposed = true;
+        this.symbolLookupLifetime.abort();
         this.invalidateLoad();
         this.cancelImageValidation();
         this.fileWatcher.dispose();
@@ -306,6 +333,7 @@ export class TraceConfigurationModel {
      */
     private async refreshProcessorCapabilitiesFromGeneratedCBuildRunFile(event: GeneratedCBuildRunFileChangeEvent): Promise<void> {
         if (event.type === 'deleted') {
+            this.traceEnabled = false;
             this.cancelImageValidation();
             this.notifyStateChanged();
             return;
@@ -350,6 +378,8 @@ export class TraceConfigurationModel {
                                 this.handleImageFilesChanged(event.uri);
                             }
                         }
+                        this.traceEnabled = true;
+                        this.symbolTraceFileName = result.uri.fsPath;
                         break;
                     case 'trace-off':
                         await this.backup.cancelValidationAndFlush();
@@ -465,6 +495,8 @@ export class TraceConfigurationModel {
         this.fileWatcher.disposeCurrentRunFileWatchers();
         this.sourceWatcherPausedFor = undefined;
         this.ctraceFile = undefined;
+        this.symbolTraceFileName = undefined;
+        this.traceEnabled = false;
         this.activeSolutionFileName = undefined;
         this.processorCapabilities.clear();
         this.dirty = false;
@@ -780,6 +812,7 @@ export class TraceConfigurationModel {
 
     /** Revalidates the latest edits or debounces a guarded refresh of production output. */
     private handleImageFilesChanged(cbuildRunUri: vscode.Uri): void {
+        this.symbolLookupGeneration++;
         if (this.saveTransition && this.saveTransition.file === this.ctraceFile) {
             this.saveTransition.pendingImageChange = cbuildRunUri;
             return;
@@ -1033,7 +1066,7 @@ export class TraceConfigurationModel {
         await this.appendItem(pathToUpdate, this.createNewItem(addChildKind));
     }
 
-    /** Adds an unsaved write-trace entry, asking for a processor when several support Data Trace. */
+    /** Adds an unsaved write-trace entry, preferring processors with an offline symbol match. */
     public async addDataTraceExpression(expression: string): Promise<void> {
         const location = expression.trim();
         if (!location) {
@@ -1045,8 +1078,70 @@ export class TraceConfigurationModel {
         }
         const file = this.requireFile();
         const document = this.requireDocument();
+        const targets = this.getDataTraceTargets();
+        const generation = this.symbolLookupGeneration;
+        const isCurrent = () => !this.disposed && this.ctraceFile === file && file.document === document
+            && generation === this.symbolLookupGeneration;
+
+        if (targets.length === 0) {
+            throw new Error('No processor in the current trace configuration supports Data Trace.');
+        }
+
+        let lookup: SymbolLookupResult = { matches: [], unavailableProcessors: [] };
+        try {
+            if (this.symbolTraceFileName !== undefined
+                && normalizeFsPath(this.symbolTraceFileName) === normalizeFsPath(file.fileName)) {
+                lookup = await this.symbolResolver?.lookupSymbol(location, { signal: this.symbolLookupLifetime.signal }) ?? lookup;
+            }
+        } catch (error) {
+            if (!this.symbolLookupLifetime.signal.aborted) {
+                logger.warn(`Offline symbol lookup unavailable for '${location}':`, error);
+            }
+        }
+        if (!isCurrent()) {
+            throw new Error('The trace configuration changed. Add the expression again.');
+        }
+        let choices = targets;
+        if (lookup.matches.length > 0) {
+            const matchingProcessors = new Set([
+                ...lookup.matches.map(([pname]) => pname),
+                ...lookup.unavailableProcessors
+            ]);
+            const matchingTargets = await Promise.all(targets.map(async target => {
+                const pname = await this.processorCapabilities.resolveProcessorPname(target.pname);
+                return matchingProcessors.has(pname) ? target : undefined;
+            }));
+            choices = matchingTargets.filter(target => target !== undefined);
+        }
+        if (!isCurrent()) {
+            throw new Error('The trace configuration changed. Add the expression again.');
+        }
+        if (choices.length === 0) {
+            throw new Error('No processor that resolves the expression supports Data Trace in the current configuration.');
+        }
+
+        const target = choices.length === 1 ? choices[0] : await vscode.window.showQuickPick(choices, {
+            title: 'Add to Data Trace',
+            placeHolder: 'Select the processor for the new Data Trace entry'
+        });
+        if (!target) {
+            return;
+        }
+        if (!isCurrent()) {
+            throw new Error('The trace configuration changed. Add the expression again.');
+        }
+
+        await this.appendItem(target.path, { ...this.createNewItem('data'), location }, isCurrent);
+    }
+
+    /** Lists eligible processor destinations for both menu visibility and expression insertion. */
+    private getDataTraceTargets(): DataTraceTarget[] {
+        const document = this.ctraceFile?.document;
+        if (!document) {
+            return [];
+        }
         const setup = document.yaml.getItem(['ctrace', 'setup']);
-        const targets: { label: string; path: (string | number)[] }[] = [];
+        const targets: DataTraceTarget[] = [];
 
         if (isYamlSequenceItem(setup)) {
             setup.getChildren().forEach((processor, index) => {
@@ -1060,36 +1155,30 @@ export class TraceConfigurationModel {
                     return;
                 }
 
+                const processorName = processor.getChild('pname');
                 targets.push({
                     label: this.processorCapabilities.getProcessorNameForPath(processorPath) ?? `Processor ${index + 1}`,
+                    pname: isYamlScalarItem(processorName) ? yamlScalarToString(processorName) : undefined,
                     path: [...processorPath, 'data']
                 });
             });
         } else {
-            targets.push({ label: 'Data Trace', path: ['ctrace', 'data'] });
+            targets.push({ label: 'Data Trace', pname: undefined, path: ['ctrace', 'data'] });
         }
 
-        if (targets.length === 0) {
-            throw new Error('No processor in the current trace configuration supports Data Trace.');
-        }
-
-        const target = targets.length === 1 ? targets[0] : await vscode.window.showQuickPick(targets, {
-            title: 'Add to Data Trace',
-            placeHolder: 'Select the processor for the new Data Trace entry'
-        });
-        if (!target) {
-            return;
-        }
-        if (this.ctraceFile !== file || file.document !== document) {
-            throw new Error('The trace configuration changed. Add the expression again.');
-        }
-
-        await this.appendItem(target.path, { ...this.createNewItem('data'), location });
+        return targets;
     }
 
-    /** Appends a trace item through the shared freshness, comparator, focus, and validation flow. */
-    private async appendItem(pathToUpdate: (string | number)[], item: object): Promise<void> {
+    /** Appends a trace item, rechecking any pending selection after asynchronous document refresh. */
+    private async appendItem(
+        pathToUpdate: (string | number)[],
+        item: object,
+        isCurrent?: () => boolean
+    ): Promise<void> {
         const document = await this.requireFreshDocumentForEdit();
+        if (isCurrent && !isCurrent()) {
+            throw new Error('The trace configuration changed. Add the expression again.');
+        }
         if (!document) {
             return;
         }
@@ -1206,6 +1295,7 @@ export class TraceConfigurationModel {
      * in-memory edits stay authoritative until the user clicks Save or Refresh.
      */
     private async acceptInMemoryEdit(): Promise<void> {
+        this.symbolLookupGeneration++;
         const document = this.requireDocument();
         document.normalizeDocumentOrder();
         document.assignCTraceRefs();
@@ -1501,6 +1591,11 @@ export class TraceConfigurationModel {
      */
     private notifyStateChanged(): void {
         if (!this.disposed) {
+            void vscode.commands.executeCommand(
+                'setContext',
+                'vscode-cmsis-debugger.traceConfiguration.canAddDataTraceExpression',
+                this.traceEnabled && !this.loading && this.getDataTraceTargets().length > 0
+            );
             this.onDidChange();
         }
     }
