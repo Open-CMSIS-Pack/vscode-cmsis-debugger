@@ -24,17 +24,27 @@ const MAX_COPY_BYTES = 50 * 1024 * 1024;
 
 export type CopyCsvTableRowsResult = 'copied' | 'invalid' | 'cancelled' | 'too-large';
 
+interface CopyCsvTableRowsOptions {
+    readonly batchSize?: number;
+    readonly maxBytes?: number;
+    readonly columnIndex?: number;
+}
+
 export const copyCsvTableRows = async (
     intervals: readonly RowSelectionInterval[],
     rowStore: CsvTableRowStore,
     writeText: (value: string) => Thenable<void>,
     isActive: () => boolean,
-    batchSize = 10_000,
-    maxBytes = MAX_COPY_BYTES,
+    { batchSize = 10_000, maxBytes = MAX_COPY_BYTES, columnIndex }: CopyCsvTableRowsOptions = {},
 ): Promise<CopyCsvTableRowsResult> => {
     if (!areValidRowSelectionIntervals(intervals, rowStore.rowCount)
         || !Number.isInteger(batchSize) || batchSize <= 0
         || !Number.isInteger(maxBytes) || maxBytes <= 0) {
+        return 'invalid';
+    }
+    if (columnIndex !== undefined && (!Number.isInteger(columnIndex) || columnIndex < 0
+        || columnIndex >= rowStore.columns.length || intervals.length !== 1
+        || intervals[0].start !== intervals[0].end)) {
         return 'invalid';
     }
     const lines: string[] = [];
@@ -46,8 +56,9 @@ export const copyCsvTableRows = async (
                 return 'cancelled';
             }
             for (const row of rows) {
-                const line = serializeCsvTableRow(row);
-                byteLength += Buffer.byteLength(line, 'utf8') + Buffer.byteLength(EOL, 'utf8');
+                const line = columnIndex === undefined ? serializeCsvTableRow(row) : row.cells.at(columnIndex) ?? '';
+                byteLength += Buffer.byteLength(line, 'utf8')
+                    + (columnIndex === undefined ? Buffer.byteLength(EOL, 'utf8') : 0);
                 if (byteLength > maxBytes) {
                     return 'too-large';
                 }
@@ -58,6 +69,6 @@ export const copyCsvTableRows = async (
     if (!isActive()) {
         return 'cancelled';
     }
-    await writeText(`${lines.join(EOL)}${EOL}`);
+    await writeText(columnIndex === undefined ? `${lines.join(EOL)}${EOL}` : lines.join(''));
     return 'copied';
 };

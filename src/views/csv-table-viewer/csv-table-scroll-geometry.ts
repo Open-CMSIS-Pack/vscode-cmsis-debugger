@@ -45,3 +45,19 @@ export const getCsvTableScrollGeometry = (totalRowCount: number, scrollTop: numb
         firstVisibleRow: Math.max(0, Math.floor(logicalScrollTop / CSV_TABLE_ROW_HEIGHT)),
     };
 };
+
+export const getCsvTableRowRevealScrollTop = (totalRowCount: number, scrollTop: number, viewportHeight: number, rowIndex: number): number => {
+    const { logicalTableHeight, logicalScrollTop, scrollHeight, scrollScale } = getCsvTableScrollGeometry(totalRowCount, scrollTop, viewportHeight);
+    const rowTop = rowIndex * CSV_TABLE_ROW_HEIGHT;
+    const nextLogicalScrollTop = rowTop < logicalScrollTop
+        ? rowTop
+        : Math.max(logicalScrollTop, rowTop + CSV_TABLE_ROW_HEIGHT - viewportHeight);
+    if (nextLogicalScrollTop === logicalScrollTop) {
+        return scrollTop;
+    }
+    const maximumLogicalScrollTop = Math.max(0, logicalTableHeight - viewportHeight);
+    const nextScrollTop = Math.max(0, Math.min(maximumLogicalScrollTop, nextLogicalScrollTop)) / scrollScale;
+    return nextLogicalScrollTop < logicalScrollTop
+        ? Math.floor(nextScrollTop)
+        : Math.min(Math.max(0, scrollHeight - viewportHeight), Math.ceil(nextScrollTop));
+};
