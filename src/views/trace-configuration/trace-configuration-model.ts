@@ -1030,6 +1030,65 @@ export class TraceConfigurationModel {
      * further in YAML if needed.
      */
     public async addItem(pathToUpdate: (string | number)[], addChildKind: NonNullable<TraceConfigurationRow['addChildKind']>): Promise<void> {
+        await this.appendItem(pathToUpdate, this.createNewItem(addChildKind));
+    }
+
+    /** Adds an unsaved write-trace entry, asking for a processor when several support Data Trace. */
+    public async addDataTraceExpression(expression: string): Promise<void> {
+        const location = expression.trim();
+        if (!location) {
+            return;
+        }
+
+        if (!this.dirty) {
+            await this.reloadCurrentFileIfChanged();
+        }
+        const file = this.requireFile();
+        const document = this.requireDocument();
+        const setup = document.yaml.getItem(['ctrace', 'setup']);
+        const targets: { label: string; path: (string | number)[] }[] = [];
+
+        if (isYamlSequenceItem(setup)) {
+            setup.getChildren().forEach((processor, index) => {
+                if (!isYamlMapItem(processor)) {
+                    return;
+                }
+
+                const processorPath = ['ctrace', 'setup', index];
+                const capabilities = this.processorCapabilities.getForPath(processorPath);
+                if (capabilities && (!capabilities.supportsTrace || capabilities.dwtComparators === 0)) {
+                    return;
+                }
+
+                targets.push({
+                    label: this.processorCapabilities.getProcessorNameForPath(processorPath) ?? `Processor ${index + 1}`,
+                    path: [...processorPath, 'data']
+                });
+            });
+        } else {
+            targets.push({ label: 'Data Trace', path: ['ctrace', 'data'] });
+        }
+
+        if (targets.length === 0) {
+            throw new Error('No processor in the current trace configuration supports Data Trace.');
+        }
+
+        const target = targets.length === 1 ? targets[0] : await vscode.window.showQuickPick(targets, {
+            title: 'Add to Data Trace',
+            placeHolder: 'Select the processor for the new Data Trace entry'
+        });
+        if (!target) {
+            return;
+        }
+        if (this.ctraceFile !== file || file.document !== document) {
+            throw new Error('The trace configuration changed. Add the expression again.');
+        }
+
+        await this.appendItem(target.path, { ...this.createNewItem('data'), location });
+    }
+
+    /** Appends a trace item through the shared freshness, comparator, focus, and validation flow. */
+    private async appendItem(pathToUpdate: (string | number)[], item: object): Promise<void> {
         const document = await this.requireFreshDocumentForEdit();
         if (!document) {
             return;
@@ -1040,7 +1099,7 @@ export class TraceConfigurationModel {
             return;
         }
         const newItemIndex = this.getNextSequenceIndex(document, pathToUpdate);
-        document.yaml.append(pathToUpdate, this.createNewItem(addChildKind));
+        document.yaml.append(pathToUpdate, item);
         this.expandPath(pathToUpdate);
         this.focusedRowId = this.pathToId([...pathToUpdate, newItemIndex]);
         await this.acceptInMemoryEdit();
