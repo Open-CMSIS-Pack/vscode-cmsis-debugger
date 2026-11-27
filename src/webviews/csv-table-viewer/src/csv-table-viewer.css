@@ -206,7 +206,7 @@ body {
     border: 0;
 }
 
-.table-header > :last-child .column-resize {
+.table-header> :last-child .column-resize {
     right: 0;
 }
 
@@ -350,6 +350,13 @@ body {
 .table-scroll:focus .table-row.caret .row-index-cell {
     color: inherit;
     background: inherit;
+}
+
+.table-cell.selected-cell {
+    color: var(--vscode-list-activeSelectionForeground, inherit);
+    background: var(--vscode-list-activeSelectionBackground, rgba(0, 127, 212, 0.35));
+    outline: 1px solid var(--vscode-focusBorder, #007fd4);
+    outline-offset: -1px;
 }
 
 .table-status {

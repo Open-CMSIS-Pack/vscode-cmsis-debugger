@@ -20,6 +20,76 @@ import { copyCsvTableRows } from './copy-csv-table-rows';
 import { InMemoryCsvTableRowStore, type CsvTableRowStore } from './csv-table-row-store';
 
 describe('copyCsvTableRows', () => {
+    it.each(['', 'with,comma\nand "quotes"'])('copies a single cell verbatim: %s', async value => {
+        const store = createRowStore(1, async () => [{ sourceRowIndex: 0, cells: [value] }]);
+        const writeText = jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined);
+        await expect(copyCsvTableRows([{ start: 0, end: 0 }], store, writeText, () => true,
+            { columnIndex: 0 })).resolves.toBe('copied');
+        expect(writeText).toHaveBeenCalledWith(value);
+    });
+
+    it.each([
+        { value: 'a', maxBytes: 1, result: 'copied' },
+        { value: 'ab', maxBytes: 1, result: 'too-large' },
+        { value: '\u00e9', maxBytes: 2, result: 'copied' },
+        { value: '\u00e9', maxBytes: 1, result: 'too-large' },
+    ])('counts only cell payload bytes: $value, limit $maxBytes', async ({ value, maxBytes, result }) => {
+        const store = createRowStore(1, async () => [{ sourceRowIndex: 0, cells: [value] }]);
+        const writeText = jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined);
+
+        await expect(copyCsvTableRows([{ start: 0, end: 0 }], store, writeText, () => true,
+            { columnIndex: 0, maxBytes })).resolves.toBe(result);
+
+        if (result === 'copied') {
+            expect(writeText).toHaveBeenCalledWith(value);
+        } else {
+            expect(writeText).not.toHaveBeenCalled();
+        }
+    });
+
+    it.each([0, -1])('counts every row newline with a byte-limit offset of %s', async offset => {
+        const store = createRowStore(2, async () => [
+            { sourceRowIndex: 0, cells: ['a'] },
+            { sourceRowIndex: 1, cells: ['b'] },
+        ]);
+        const payload = `a${EOL}b${EOL}`;
+        const maxBytes = Buffer.byteLength(payload, 'utf8') + offset;
+        const writeText = jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined);
+
+        await expect(copyCsvTableRows([{ start: 0, end: 1 }], store, writeText, () => true, { maxBytes }))
+            .resolves.toBe(offset === 0 ? 'copied' : 'too-large');
+
+        if (offset === 0) {
+            expect(writeText).toHaveBeenCalledWith(payload);
+        } else {
+            expect(writeText).not.toHaveBeenCalled();
+        }
+    });
+
+    it('rejects a cell copy spanning multiple rows', async () => {
+        const getRows: jest.MockedFunction<CsvTableRowStore['getRows']> = jest.fn();
+        await expect(copyCsvTableRows([{ start: 0, end: 1 }], createRowStore(2, getRows), async () => undefined,
+            () => true, { columnIndex: 0 })).resolves.toBe('invalid');
+        expect(getRows).not.toHaveBeenCalled();
+    });
+
+    it('does not publish a cell from a stale view', async () => {
+        const store = createRowStore(1, async () => [{ sourceRowIndex: 0, cells: ['value'] }]);
+        const writeText = jest.fn<Promise<void>, [string]>();
+        await expect(copyCsvTableRows([{ start: 0, end: 0 }], store, writeText, () => false,
+            { columnIndex: 0 })).resolves.toBe('cancelled');
+        expect(writeText).not.toHaveBeenCalled();
+    });
+
+    it.each([-1, 1, 0.5, NaN])('rejects invalid cell column %s', async columnIndex => {
+        const getRows: jest.MockedFunction<CsvTableRowStore['getRows']> = jest.fn();
+        const writeText = jest.fn<Promise<void>, [string]>();
+        await expect(copyCsvTableRows([{ start: 0, end: 0 }], createRowStore(1, getRows), writeText,
+            () => true, { columnIndex })).resolves.toBe('invalid');
+        expect(getRows).not.toHaveBeenCalled();
+        expect(writeText).not.toHaveBeenCalled();
+    });
+
     it('copies selected rows in current display order as valid CSV', async () => {
         const store = new InMemoryCsvTableRowStore({
             columns: ['value', 'note'],
@@ -45,7 +115,7 @@ describe('copyCsvTableRows', () => {
             .mockResolvedValueOnce([{ sourceRowIndex: 2, cells: ['c'] }]);
         const store = createRowStore(3, getRows);
 
-        await expect(copyCsvTableRows([{ start: 0, end: 2 }], store, async () => undefined, () => true, 2))
+        await expect(copyCsvTableRows([{ start: 0, end: 2 }], store, async () => undefined, () => true, { batchSize: 2 }))
             .resolves.toBe('copied');
         expect(getRows.mock.calls).toEqual([[0, 2], [2, 3]]);
     });
@@ -72,7 +142,7 @@ describe('copyCsvTableRows', () => {
         const store = createRowStore(1, async () => [{ sourceRowIndex: 0, cells: ['multibyte value'] }]);
         const writeText = jest.fn<Promise<void>, [string]>();
 
-        await expect(copyCsvTableRows([{ start: 0, end: 0 }], store, writeText, () => true, 1, 10))
+        await expect(copyCsvTableRows([{ start: 0, end: 0 }], store, writeText, () => true, { batchSize: 1, maxBytes: 10 }))
             .resolves.toBe('too-large');
         expect(writeText).not.toHaveBeenCalled();
     });

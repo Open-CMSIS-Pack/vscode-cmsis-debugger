@@ -50,7 +50,7 @@ export interface CsvTableFindResult {
     readonly error?: string;
 }
 
-export type CsvTableHostMessage = CsvTableState | CsvTableRows | CsvTableFindResult;
+export type CsvTableHostMessage = CsvTableState | CsvTableRows | CsvTableFindResult | { readonly type: 'restoreFocus' };
 
 export interface CsvTableReady {
     readonly type: 'ready';
@@ -102,6 +102,7 @@ export interface CsvTableCopyRows {
     readonly type: 'copyRows';
     readonly viewRevision: number;
     readonly intervals: readonly RowSelectionInterval[];
+    readonly columnIndex?: number;
 }
 
 export interface CsvTableFind {

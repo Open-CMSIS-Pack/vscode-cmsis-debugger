@@ -264,13 +264,51 @@ filtering and selection messages.
 
 ## Selection boundary
 
+The browser-independent `csv-table-navigation.ts` module resolves click targets,
+row-selection changes, keyboard movement modes, and context-menu item indices.
+It reuses the shared row-selection helpers and accepts normalized modifier flags
+rather than React events. The React viewer applies the resulting state and owns
+event handling, DOM measurement, focus, scrolling, and host messages. Pure
+navigation tests cover modifier precedence and row/cell mode transitions.
+
+Plain clicks on CSV data cells first select their row. A later click on an
+already selected row enters cell selection at the clicked column. Further
+clicks within that row move the cell selection; clicking another row selects
+that row first. The second click of a double-click does not change selection;
+double-click actions are reserved for future use.
+
+With the grid focused, unmodified Left or Right enters cell selection at the
+first data column of the row caret, or the first visible row when no caret
+exists. Left and Right move between data columns. Left from the first data
+column returns to row selection. Up and Down always enter row selection and
+move one row; Page Up and Page Down enter row selection and move one visible
+page. Home and End select the first and last row in row mode. Shift extends the
+row range, while Ctrl/Command moves only the row caret. Navigation scrolls only
+when the destination is outside the visible viewport, including with compressed
+scrollbars for large tables. Escape clears the selection. Cell selection is
+cleared on a new table view after filtering, sorting, or source reloads;
+indexing progress and row-window responses do not clear it.
+
+Clicking the synthetic row index always enters row selection. Shift-click
+extends the row range and Alt-click toggles a row, including when clicking a
+data cell. Ctrl/Command-click retains the trace-navigation integration described
+below.
+
+Shift+F10 and the Context Menu key open the grid context menu at the active
+cell or row caret and focus its first enabled item. Up/Down and Home/End move
+between enabled menu items. Escape dismisses the menu without clearing the
+selection, and copying returns focus to the grid. Tab dismisses the menu and
+continues focus navigation. Copy Value requires a cell target; Copy Row
+requires a row target. Mouse context menus outside rows leave both actions
+disabled.
+
 Multi-row selection is maintained by the webview and mirrored in the host for
 retention across updates. It is represented by
 normalized display-index intervals rather than a set of source rows, so large
 contiguous selections have constant memory cost. Pointer and keyboard
-navigation maintain a logical caret and range anchor. TanStack Virtual scrolls
-the caret into view while focus remains on the persistent grid container, so
-virtual row unmounting does not discard keyboard focus.
+navigation maintain a logical caret and range anchor. The shared scroll-geometry
+helper reveals the caret while focus remains on the persistent grid container,
+so virtual row unmounting does not discard keyboard focus.
 
 Filtering, sorting, and source reloads change display-index meaning, so the host
 captures row identities before an update and restores selection, caret, and
@@ -293,8 +331,7 @@ before restoring selection; they do not reuse old display indices as row
 identities. Hiding the editor does not clear selection or scroll state because
 the custom editor retains its webview context.
 
-Right-click selection is resolved by the row handler before its context-menu
-event bubbles to the grid handler, which opens the Copy-only menu:
+Right-click selection is resolved before opening the clipboard context menu:
 
 - Right-clicking a selected row preserves all selection intervals, the caret,
   and the anchor, regardless of modifiers.
@@ -304,11 +341,12 @@ event bubbles to the grid handler, which opens the Copy-only menu:
   existing selection and sets both caret and anchor to it. Shift does not
   select an intervening range, and Alt never removes an already selected row.
 
-This policy applies to both the synthetic row-index cell and CSV data cells.
-Normal left-click range selection and toggling are unchanged. Right-click does
-not emit a cell-navigation event.
+This policy applies to the synthetic row-index cell and to Shift/Alt-right-click
+on CSV data cells. A plain right-click on a data cell preserves an existing row
+selection if that row is selected; otherwise it selects that single cell.
+Right-click does not emit a cell-navigation event.
 
-A clicked cell still emits a singular integration event rather than the full
+Ctrl/Command-click on a cell emits a singular integration event rather than the full
 row selection. The webview sends its source coordinates and value to the
 provider. The provider reads the authoritative source row and verifies the row,
 column name, and value. For navigable trace records, it resolves the matching
@@ -317,13 +355,25 @@ columns and focuses that reference in the Trace Configuration view. Invalid or
 stale cell events are discarded with a warning.
 
 Ctrl/Cmd+C sends the selected display-index intervals to the provider. The
-context-menu Copy action uses the same request. The provider validates their
+context-menu actions use the same request. The provider validates their
 normalized bounds, reads rows from the active store in bounded batches,
 serializes data cells as CSV in current display order, and
 writes one CRLF-delimited value to the VS Code clipboard. Clipboard exports are
 limited to 50 MiB to avoid exhausting extension-host memory; larger selections
 show a warning without publishing partial content. The synthetic `#` column is
 excluded. A reload or panel disposal cancels clipboard publication.
+
+When a single cell is selected, the same copy request includes its column index
+and a single-row interval. The provider validates both coordinates and reads the
+cell from the active store. It copies the raw cell value without CSV quoting or
+a trailing newline, including empty cells, subject to the same stale-view and
+clipboard-size checks.
+
+The context menu offers **Copy Value** for the right-clicked data cell and
+**Copy Row** for its complete CSV row, regardless of the current selection.
+Copy Value is disabled on the synthetic row index. Both actions are disabled
+when right-clicking outside a row. A new table view closes the menu so its
+coordinates cannot refer to a different row after sorting, filtering, or reload.
 
 ## Build boundaries
 
