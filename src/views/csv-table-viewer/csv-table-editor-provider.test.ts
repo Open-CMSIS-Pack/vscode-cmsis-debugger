@@ -105,6 +105,7 @@ function createWebviewPanel(): {
     readonly webview: {
         options?: vscode.WebviewOptions;
         html?: string;
+        readonly cspSource: string;
         readonly postMessage: jest.Mock;
     };
     sendMessage(message: CsvTableWebviewMessage): Promise<void>;
@@ -233,6 +234,8 @@ describe('CsvTableEditorProvider', () => {
         expect(fixture.webview.options?.enableScripts).toBe(true);
         expect(fixture.webview.options?.localResourceRoots?.map(uri => uri.path)).toEqual(['/extension']);
         expect(fixture.webview.html).toContain('csv-table-viewer.js');
+        expect(fixture.webview.html).toContain('codicon.css');
+        expect(fixture.webview.html).toContain(`font-src ${fixture.webview.cspSource};`);
         expect(readRowStore).toHaveBeenCalledWith(document.uri);
         expect(fixture.webview.postMessage).toHaveBeenNthCalledWith(1, expect.objectContaining({
             type: 'tableState', loading: true, totalRowCount: 0,
@@ -482,6 +485,181 @@ describe('CsvTableEditorProvider', () => {
             },
             loading: false,
         }));
+    });
+
+    describe('find', () => {
+        const findRequest = {
+            type: 'find', requestId: 10, viewRevision: 1, query: 'target', direction: 'next', after: null,
+        } satisfies CsvTableWebviewMessage;
+
+        async function createFindFixture(store: CsvTableRowStore = new InMemoryCsvTableRowStore({
+            columns: ['event'],
+            rows: Array.from({ length: 260 }, (_, sourceRowIndex) => ({
+                sourceRowIndex,
+                cells: [sourceRowIndex === 259 ? 'target target' : 'other'],
+            })),
+            malformedRowCount: 0,
+        })): Promise<ReturnType<typeof createWebviewPanel> & { readonly store: CsvTableRowStore }> {
+            const provider = new CsvTableEditorProvider(vscode.Uri.file('/extension'));
+            jest.spyOn(provider as unknown as { readRowStore(uri: vscode.Uri): Promise<CsvTableRowStore> }, 'readRowStore')
+                .mockResolvedValue(store);
+            const fixture = createWebviewPanel();
+            await provider.resolveCustomEditor(
+                { uri: vscode.Uri.file('/workspace/.trace/find.SWO.csv'), dispose: jest.fn() },
+                fixture.panel,
+                {} as vscode.CancellationToken,
+            );
+            await fixture.sendMessage({ type: 'ready' });
+            await waitFor(() => expect(fixture.webview.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({
+                type: 'tableState', loading: false, viewRevision: 1,
+            })));
+            return { ...fixture, store };
+        }
+
+        it('finds offscreen cells and navigates their text offsets without changing row selection', async () => {
+            const fixture = await createFindFixture();
+            const selection = { intervals: [{ start: 2, end: 2 }], caret: 2, anchor: 2 };
+            await fixture.sendMessage({ type: 'selectionChanged', ...selection });
+            fixture.webview.postMessage.mockClear();
+            await fixture.sendMessage(findRequest);
+            const first = { rowIndex: 259, sourceRowIndex: 259, columnIndex: 0, start: 0, end: 6 };
+            expect(fixture.webview.postMessage).toHaveBeenCalledTimes(1);
+            expect(fixture.webview.postMessage).toHaveBeenLastCalledWith({
+                type: 'findResult', requestId: 10, viewRevision: 1, match: first,
+            });
+            await fixture.sendMessage({ ...findRequest, requestId: 11, after: first });
+            expect(fixture.webview.postMessage).toHaveBeenLastCalledWith({
+                type: 'findResult', requestId: 11, viewRevision: 1, match: { ...first, start: 7, end: 13 },
+            });
+            await fixture.sendMessage({ ...findRequest, requestId: 12, direction: 'previous', after: first });
+            expect(fixture.webview.postMessage).toHaveBeenLastCalledWith({
+                type: 'findResult', requestId: 12, viewRevision: 1, match: { ...first, start: 7, end: 13 },
+            });
+            await fixture.sendMessage({ type: 'setSort', sort: null });
+            await waitFor(() => expect(fixture.webview.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({
+                type: 'tableState', updating: false, selection,
+            })));
+            fixture.dispose();
+        });
+
+        it('honors selected-row anchors and inclusive confirmed occurrences from the webview', async () => {
+            const fixture = await createFindFixture();
+            await fixture.sendMessage({ ...findRequest, query: 'other', startRowIndex: 100 });
+            expect(fixture.webview.postMessage).toHaveBeenLastCalledWith({
+                type: 'findResult', requestId: 10, viewRevision: 1,
+                match: { rowIndex: 100, sourceRowIndex: 100, columnIndex: 0, start: 0, end: 5 },
+            });
+            const after = { rowIndex: 259, sourceRowIndex: 259, columnIndex: 0, start: 7, end: 13 };
+            await fixture.sendMessage({ ...findRequest, query: 'targe', after, includeAfter: true });
+            expect(fixture.webview.postMessage).toHaveBeenLastCalledWith({
+                type: 'findResult', requestId: 10, viewRevision: 1, match: { ...after, end: 12 },
+            });
+            fixture.dispose();
+        });
+
+        it('searches the filtered display order and reports no matches', async () => {
+            const fixture = await createFindFixture();
+            await fixture.sendMessage({ type: 'setFilters', filters: [{ columnIndex: 0, value: 'other' }] });
+            await waitFor(() => expect(fixture.webview.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({
+                type: 'tableState', updating: false, viewRevision: 2,
+            })));
+            await fixture.sendMessage({ ...findRequest, viewRevision: 2 });
+            expect(fixture.webview.postMessage).toHaveBeenLastCalledWith({
+                type: 'findResult', requestId: 10, viewRevision: 2, match: null,
+            });
+            fixture.dispose();
+        });
+
+        it.each(['cancel', 'filter', 'sort', 'dispose', 'reload'] as const)('cancels pending search on %s', async action => {
+            const fixture = await createFindFixture();
+            const rows = await fixture.store.getRows(0, 128);
+            const pending = Promise.withResolvers<readonly CsvTableRow[]>();
+            const getRows = jest.spyOn(fixture.store, 'getRows').mockImplementationOnce(() => pending.promise);
+            const search = fixture.sendMessage(findRequest);
+            await waitFor(() => expect(getRows).toHaveBeenCalled());
+            switch (action) {
+                case 'cancel':
+                    await fixture.sendMessage({ type: 'cancelFind' });
+                    break;
+                case 'filter':
+                    await fixture.sendMessage({ type: 'setFilters', filters: [] });
+                    break;
+                case 'sort':
+                    await fixture.sendMessage({ type: 'setSort', sort: null });
+                    break;
+                case 'dispose':
+                    fixture.dispose();
+                    break;
+                case 'reload':
+                    await fixture.sendMessage({ type: 'ready' });
+                    break;
+            }
+            pending.resolve(rows);
+            await search;
+            expect(fixture.webview.postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'findResult' }));
+            if (action !== 'dispose') {
+                fixture.dispose();
+            }
+        });
+
+        it('supersedes an older search when a new query arrives', async () => {
+            const fixture = await createFindFixture();
+            const pending = Promise.withResolvers<readonly CsvTableRow[]>();
+            const getRows = jest.spyOn(fixture.store, 'getRows').mockImplementationOnce(() => pending.promise);
+            const firstSearch = fixture.sendMessage(findRequest);
+            await waitFor(() => expect(getRows).toHaveBeenCalled());
+            await fixture.sendMessage({ ...findRequest, requestId: 11, query: 'other' });
+            pending.resolve([]);
+            await firstSearch;
+            expect(fixture.webview.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'findResult', requestId: 11 }));
+            expect(fixture.webview.postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'findResult', requestId: 10 }));
+            fixture.dispose();
+        });
+
+        it('reports search failures without exposing file contents to the webview', async () => {
+            const fixture = await createFindFixture();
+            jest.spyOn(fixture.store, 'getRows').mockRejectedValueOnce(new Error('read failed'));
+            await fixture.sendMessage(findRequest);
+            expect(fixture.webview.postMessage).toHaveBeenLastCalledWith({
+                type: 'findResult', requestId: 10, viewRevision: 1, match: null,
+                error: 'Unable to search CSV. See the extension log for details.',
+            });
+            fixture.dispose();
+        });
+
+        it.each([
+            { viewRevision: 0 },
+            { requestId: -1 },
+            { requestId: Number.NaN },
+            { query: 42 },
+            { direction: 'sideways' },
+            { startRowIndex: -1 },
+            { startRowIndex: 260 },
+            { startRowIndex: 1.5 },
+            { startRowIndex: '100' },
+            { includeAfter: 'true' },
+            { after: undefined },
+            { after: { rowIndex: -1, sourceRowIndex: 0, columnIndex: 0, start: 0, end: 1 } },
+            { after: { rowIndex: 0, sourceRowIndex: 0, columnIndex: 1, start: 0, end: 1 } },
+            { after: { rowIndex: 0, sourceRowIndex: 0, columnIndex: 0, start: 2, end: 1 } },
+        ])('ignores stale or malformed search requests: %j', async override => {
+            const fixture = await createFindFixture();
+            const getRows = jest.spyOn(fixture.store, 'getRows');
+            // Exercise the untyped webview message boundary.
+            await fixture.sendMessage({ ...findRequest, ...override } as CsvTableWebviewMessage);
+            expect(getRows).not.toHaveBeenCalled();
+            expect(fixture.webview.postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'findResult' }));
+            fixture.dispose();
+        });
+
+        it('does not search an incomplete index', async () => {
+            const store = new IndexingCsvTableRowStore([{ sourceRowIndex: 0, cells: ['target'] }]);
+            const fixture = await createFindFixture(store);
+            const getRows = jest.spyOn(store, 'getRows');
+            await fixture.sendMessage(findRequest);
+            expect(getRows).not.toHaveBeenCalled();
+            fixture.dispose();
+        });
     });
 
     it('reports a row-store loading error to the webview', async () => {

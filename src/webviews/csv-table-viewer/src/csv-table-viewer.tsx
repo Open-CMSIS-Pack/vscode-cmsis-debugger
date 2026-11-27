@@ -15,7 +15,7 @@
  */
 // generated with AI
 
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import {
     clearSelectedRows,
@@ -25,6 +25,7 @@ import {
     moveRowCaret,
     selectAllRows,
     selectRowForContextMenu,
+    selectSingleRow,
     toggleRow,
     type RowSelectionMovement,
     type RowSelectionState,
@@ -32,8 +33,10 @@ import {
 import type { CsvTableFilter, CsvTableRow, CsvTableSort } from '../../../views/csv-table-viewer/csv-table';
 import type { CsvTableHostMessage, CsvTableWebviewMessage } from '../../../views/csv-table-viewer/csv-table-protocol';
 import { getCsvTableRowRevealScrollTop, getCsvTableScrollGeometry, CSV_TABLE_ROW_HEIGHT } from '../../../views/csv-table-viewer/csv-table-scroll-geometry';
+import { getCsvTableCellMatches, type CsvTableSearchMatch } from '../../../views/csv-table-viewer/csv-table-search';
 import { shouldRequestRows, type LoadedRowRange } from './csv-table-row-request';
 import { isContextMenuShortcut, isPrimaryModifierPressed } from './csv-table-modifiers';
+import { CsvTableFindController, getCsvTableFindCommand, INITIAL_FIND_STATE } from './csv-table-find';
 import { getCsvTableClickTarget, getCsvTableMenuItemIndex, getCsvTableNavigationTarget, type CsvTableSelectedCell } from './csv-table-navigation';
 import './csv-table-viewer.css';
 
@@ -81,8 +84,18 @@ const INITIAL_STATE: TableState = {
 };
 
 
+const renderCellText = (value: string, query: string, active: CsvTableSearchMatch | null): JSX.Element => {
+    const matches = getCsvTableCellMatches(value, query, active);
+    return <>{matches.map((match, index) => <Fragment key={match.start}>
+        {value.slice(index === 0 ? 0 : matches[index - 1].end, match.start)}
+        <mark className={active?.start === match.start && active.end === match.end ? 'find-match active' : 'find-match'}>{value.slice(match.start, match.end)}</mark>
+    </Fragment>)}{value.slice(matches.at(-1)?.end ?? 0)}</>;
+};
+
 export const CsvTableViewer = (): JSX.Element => {
     const scrollElementRef = useRef<HTMLDivElement>(null);
+    const findInputRef = useRef<HTMLInputElement>(null);
+    const [findState, setFindState] = useState(INITIAL_FIND_STATE);
     const lastFocusedControl = useRef<HTMLElement | null>(null);
     const tableHeaderRef = useRef<HTMLDivElement>(null);
     const [tableState, setTableState] = useState<TableState>(INITIAL_STATE);
@@ -94,6 +107,14 @@ export const CsvTableViewer = (): JSX.Element => {
     const [selection, setSelection] = useState<RowSelectionState>(EMPTY_ROW_SELECTION);
     const [selectedCell, setSelectedCell] = useState<CsvTableSelectedCell | null>(null);
     const revealedCell = useRef<CsvTableSelectedCell | null>(null);
+    const [findController] = useState(() => new CsvTableFindController(
+        message => vscode.postMessage(message),
+        setFindState,
+        rowIndex => {
+            setSelectedCell(null);
+            setSelection(selectSingleRow(rowIndex));
+        },
+    ));
     const [contextMenuPosition, setContextMenuPosition] = useState<ContextMenuPosition | null>(null);
     const contextMenuRef = useRef<HTMLDivElement>(null);
     const [scrollTop, setScrollTop] = useState(0);
@@ -114,6 +135,34 @@ export const CsvTableViewer = (): JSX.Element => {
     const visibleRowCount = Math.max(1, Math.ceil(rowViewportHeight / CSV_TABLE_ROW_HEIGHT));
     const renderedRowStart = Math.max(0, firstVisibleRow - ROW_OVERSCAN);
     const renderedRowEnd = Math.min(tableState.totalRowCount, firstVisibleRow + visibleRowCount + ROW_OVERSCAN);
+    const closeFind = useCallback((): void => {
+        findController.close();
+        scrollElementRef.current?.focus({ preventScroll: true });
+    }, [findController]);
+
+    useEffect(() => {
+        const handleFindKeyDown = (event: KeyboardEvent): void => {
+            const command = getCsvTableFindCommand(event, navigator.platform, findState.open, event.target === findInputRef.current);
+            if (command === null) {
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            if (command === 'close') {
+                closeFind();
+            } else {
+                findController.open(selectedCell?.rowIndex ?? (selection.intervals.length === 0 ? null : selection.caret));
+                if (command === 'open') {
+                    findInputRef.current?.focus();
+                    findInputRef.current?.select();
+                } else {
+                    findController.find(command);
+                }
+            }
+        };
+        window.addEventListener('keydown', handleFindKeyDown, true);
+        return () => window.removeEventListener('keydown', handleFindKeyDown, true);
+    }, [closeFind, findController, findState.open, selection, selectedCell]);
 
     useEffect(() => {
         const grid = scrollElementRef.current;
@@ -193,6 +242,10 @@ export const CsvTableViewer = (): JSX.Element => {
                 return;
             }
             const message = event.data;
+            if (message.type === 'findResult') {
+                findController.receive(message);
+                return;
+            }
             if (message.type === 'restoreFocus') {
                 const control = lastFocusedControl.current;
                 if (control?.isConnected) {
@@ -201,6 +254,7 @@ export const CsvTableViewer = (): JSX.Element => {
                 return;
             }
             if (message.type === 'tableState') {
+                findController.updateView(message);
                 viewRevision.current = message.viewRevision;
                 setTableState(previousState => {
                     const isProgressUpdate = message.viewRevision === previousState.viewRevision
@@ -248,8 +302,53 @@ export const CsvTableViewer = (): JSX.Element => {
         };
         window.addEventListener('message', receiveMessage);
         vscode.postMessage({ type: 'ready' });
-        return () => window.removeEventListener('message', receiveMessage);
-    }, []);
+        return () => {
+            window.removeEventListener('message', receiveMessage);
+            findController.dispose();
+        };
+    }, [findController]);
+
+    useEffect(() => {
+        if (findState.open) {
+            findInputRef.current?.focus();
+            findInputRef.current?.select();
+        }
+    }, [findState.open]);
+
+    useEffect(() => {
+        const match = findState.match;
+        const element = scrollElementRef.current;
+        if (match !== null && element !== null) {
+            element.scrollTop = getCsvTableRowRevealScrollTop(tableState.totalRowCount, element.scrollTop, rowViewportHeight, match.rowIndex);
+            setScrollTop(element.scrollTop);
+        }
+    }, [findState.match, tableState.totalRowCount, rowViewportHeight]);
+
+    useEffect(() => {
+        const element = scrollElementRef.current;
+        const cell = element?.querySelector<HTMLButtonElement>('.table-cell.find-active-cell');
+        if (element === null || cell === undefined || cell === null) {
+            return;
+        }
+        const viewport = element.getBoundingClientRect();
+        const leftEdge = viewport.left + (element.querySelector('.row-index-cell')?.getBoundingClientRect().width ?? 0);
+        const bounds = cell.getBoundingClientRect();
+        if (bounds.left < leftEdge) {
+            element.scrollLeft += bounds.left - leftEdge;
+        } else if (bounds.right > viewport.right) {
+            element.scrollLeft += Math.min(bounds.left - leftEdge, bounds.right - viewport.right);
+        }
+        const mark = cell.querySelector<HTMLElement>('.find-match.active');
+        if (mark !== null) {
+            cell.scrollLeft += mark.getBoundingClientRect().left - cell.getBoundingClientRect().left - 6;
+            const matchBounds = mark.getBoundingClientRect();
+            if (matchBounds.left < leftEdge) {
+                element.scrollLeft += matchBounds.left - leftEdge;
+            } else if (matchBounds.right > viewport.right) {
+                element.scrollLeft += Math.min(matchBounds.left - leftEdge, matchBounds.right - viewport.right);
+            }
+        }
+    }, [rows, findState.match, columnWidths]);
 
     useEffect(() => () => {
         if (clearSortSuppressionTimer.current !== null) {
@@ -309,6 +408,7 @@ export const CsvTableViewer = (): JSX.Element => {
     }, [renderedRowEnd, renderedRowStart, rowRequestVersion, tableRevision, tableState.loading, tableState.totalRowCount, tableState.viewRevision]);
 
     const updateFilter = (columnIndex: number, value: string): void => {
+        findController.suspend();
         const nextFilters = tableState.columns.map((_, index) => ({ columnIndex: index, value: index === columnIndex ? value : filters.find(filter => filter.columnIndex === index)?.value ?? '' }));
         setFilters(nextFilters);
         vscode.postMessage({ type: 'cancelViewUpdate' });
@@ -326,6 +426,7 @@ export const CsvTableViewer = (): JSX.Element => {
         if (suppressSort.current || tableState.indexing) {
             return;
         }
+        findController.suspend();
         const nextSort = sort?.columnIndex !== columnIndex
             ? { columnIndex, direction: 'ascending' as const }
             : sort.direction === 'ascending'
@@ -592,7 +693,22 @@ export const CsvTableViewer = (): JSX.Element => {
     const activeRowIsRendered = selection.caret !== null
         && selection.caret >= renderedRowStart
         && selection.caret < renderedRowEnd;
+    const findHasNoResults = findState.status === 'No results';
+    const findNavigationDisabled = !findState.query || findState.pending || findHasNoResults || tableState.loading || tableState.indexing || tableState.updating || tableState.error !== undefined;
     return <main className="csv-table-viewer">
+        {findState.open && <section className={findHasNoResults ? 'csv-find-bar no-results' : 'csv-find-bar'} role="search" aria-label="Find in CSV">
+            <input ref={findInputRef} type="text" aria-label="Find in CSV" placeholder="Find" value={findState.query} onChange={event => findController.setQuery(event.target.value)} />
+            <span className={findState.pending ? 'csv-find-status searching' : 'csv-find-status'} role="status" aria-live="polite">{findState.status}</span>
+            <button type="button" aria-label="Previous match (Shift+Enter)" title="Previous match (Shift+Enter)" disabled={findNavigationDisabled} onClick={() => findController.find('previous')}>
+                <span className="codicon codicon-arrow-up codicon-find-previous-match" aria-hidden="true" />
+            </button>
+            <button type="button" aria-label="Next match (Enter)" title="Next match (Enter)" disabled={findNavigationDisabled} onClick={() => findController.find('next')}>
+                <span className="codicon codicon-arrow-down codicon-find-next-match" aria-hidden="true" />
+            </button>
+            <button type="button" aria-label="Close Find (Escape)" title="Close Find (Escape)" onClick={closeFind}>
+                <span className="codicon codicon-close codicon-widget-close" aria-hidden="true" />
+            </button>
+        </section>}
         <section className="table-frame" aria-label="CSV table">
             <div
                 className="table-scroll"
@@ -657,34 +773,39 @@ export const CsvTableViewer = (): JSX.Element => {
                             <button type="button" className="row-index-cell" role="gridcell" aria-colindex={1} tabIndex={-1}
                                 onClick={event => { updateClickSelection(event, rowIndex, null); }}
                             >{row.sourceRowIndex}</button>
-                            {row.cells.map((cellValue, columnIndex) => <button
-                                type="button"
-                                className={`table-cell${selectedCell?.rowIndex === rowIndex && selectedCell.columnIndex === columnIndex ? ' selected-cell' : ''}`}
-                                id={`csv-table-cell-${rowIndex}-${columnIndex}`}
-                                key={`${row.sourceRowIndex}-${columnIndex}`}
-                                role="gridcell"
-                                aria-colindex={columnIndex + 2}
-                                aria-selected={selected || (selectedCell?.rowIndex === rowIndex && selectedCell.columnIndex === columnIndex)}
-                                tabIndex={-1}
-                                onContextMenu={event => {
-                                    event.stopPropagation();
-                                    if (event.shiftKey || event.altKey) {
-                                        setSelectedCell(null);
-                                        setSelection(current => selectRowForContextMenu(current, rowIndex, true));
-                                    } else if (selectedCell !== null || !selected) {
-                                        selectCell(rowIndex, columnIndex);
-                                    }
-                                    showContextMenu(event, rowIndex, columnIndex);
-                                }}
-                                onClick={event => {
-                                    if (!updateClickSelection(event, rowIndex, columnIndex)) {
-                                        return;
-                                    }
-                                    if (isPrimaryModifierPressed(event, navigator.platform)) {
-                                        vscode.postMessage({ type: 'cellSelected', sourceRowIndex: row.sourceRowIndex, columnIndex, columnName: tableState.columns[columnIndex], cellValue });
-                                    }
-                                }}
-                            >{cellValue}</button>)}
+                            {row.cells.map((cellValue, columnIndex) => {
+                                const active = findState.match?.rowIndex === rowIndex
+                                    && findState.match.sourceRowIndex === row.sourceRowIndex
+                                    && findState.match.columnIndex === columnIndex ? findState.match : null;
+                                return <button
+                                    type="button"
+                                    className={`table-cell${selectedCell?.rowIndex === rowIndex && selectedCell.columnIndex === columnIndex ? ' selected-cell' : ''}${active === null ? '' : ' find-active-cell'}`}
+                                    id={`csv-table-cell-${rowIndex}-${columnIndex}`}
+                                    key={`${row.sourceRowIndex}-${columnIndex}`}
+                                    role="gridcell"
+                                    aria-colindex={columnIndex + 2}
+                                    aria-selected={selected || (selectedCell?.rowIndex === rowIndex && selectedCell.columnIndex === columnIndex)}
+                                    tabIndex={-1}
+                                    onContextMenu={event => {
+                                        event.stopPropagation();
+                                        if (event.shiftKey || event.altKey) {
+                                            setSelectedCell(null);
+                                            setSelection(current => selectRowForContextMenu(current, rowIndex, true));
+                                        } else if (selectedCell !== null || !selected) {
+                                            selectCell(rowIndex, columnIndex);
+                                        }
+                                        showContextMenu(event, rowIndex, columnIndex);
+                                    }}
+                                    onClick={event => {
+                                        if (!updateClickSelection(event, rowIndex, columnIndex)) {
+                                            return;
+                                        }
+                                        if (isPrimaryModifierPressed(event, navigator.platform)) {
+                                            vscode.postMessage({ type: 'cellSelected', sourceRowIndex: row.sourceRowIndex, columnIndex, columnName: tableState.columns[columnIndex], cellValue });
+                                        }
+                                    }}
+                                >{findState.open ? renderCellText(cellValue, findState.query, active) : cellValue}</button>;
+                            })}
                         </div>;
                     })}
                 </div>

@@ -21,6 +21,7 @@ import { stat } from 'node:fs/promises';
 import * as path from 'node:path';
 import { logger } from '../../logger';
 import { copyCsvTableRows } from './copy-csv-table-rows';
+import { findCsvTableMatch } from './csv-table-search';
 import { resolveCTraceRunReference } from './ctrace-run-resolver';
 import { IndexedCsvTableRowStore } from './indexed-csv-table-row-store';
 import { getCsvTableSelectionIdentity, restoreCsvTableSelection } from './csv-table-selection-retention';
@@ -34,6 +35,27 @@ const IN_MEMORY_FILE_SIZE_LIMIT = 20 * 1024 * 1024;
 const INDEX_PROGRESS_UPDATE_INTERVAL_MS = 250;
 
 const formatMilliseconds = (milliseconds: number): string => `${milliseconds.toFixed(1)}ms`;
+
+const isValidFindRequest = (
+    message: Extract<CsvTableWebviewMessage, { type: 'find' }>,
+    store: CsvTableRowStore,
+): boolean => {
+    const { after } = message;
+    return Number.isSafeInteger(message.requestId) && message.requestId >= 0
+        && Number.isSafeInteger(message.viewRevision) && message.viewRevision >= 0
+        && typeof message.query === 'string'
+        && (message.direction === 'next' || message.direction === 'previous')
+        && (message.startRowIndex === undefined || (Number.isSafeInteger(message.startRowIndex)
+            && message.startRowIndex >= 0 && message.startRowIndex < Math.max(1, store.rowCount)))
+        && (message.includeAfter === undefined || typeof message.includeAfter === 'boolean')
+        && (after === null || (typeof after === 'object' && after !== undefined
+            && Number.isSafeInteger(after.rowIndex) && after.rowIndex >= 0 && after.rowIndex < store.rowCount
+            && Number.isSafeInteger(after.sourceRowIndex) && after.sourceRowIndex >= 0 && after.sourceRowIndex < store.sourceRowCount
+            && Number.isSafeInteger(after.columnIndex) && after.columnIndex >= 0 && after.columnIndex < store.columns.length
+            && Number.isSafeInteger(after.start) && after.start >= 0
+            && Number.isSafeInteger(after.end) && after.end > after.start));
+};
+
 interface PendingFirstRender {
     readonly loadGeneration: number;
     readonly loadStartedAt: number;
@@ -91,11 +113,21 @@ export class CsvTableEditorProvider implements vscode.CustomReadonlyEditorProvid
         let disposeIndexProgressListener: (() => void) | undefined;
         let indexProgressTimer: ReturnType<typeof setTimeout> | undefined;
         let viewUpdateController: AbortController | undefined;
+        let findController: AbortController | undefined;
+        let canFind = false;
 
+        const cancelFind = (): void => {
+            findController?.abort();
+            findController = undefined;
+        };
         const postMessage = (message: CsvTableHostMessage): void => {
             void webviewPanel.webview.postMessage(message);
         };
         const postState = (loading: boolean, error?: string, loadingMessage?: string, updating = false): void => {
+            canFind = !loading && !updating && !rowStore.isIndexing && error === undefined;
+            if (!canFind) {
+                cancelFind();
+            }
             const message: CsvTableHostMessage = {
                 type: 'tableState',
                 viewRevision,
@@ -295,6 +327,39 @@ export class CsvTableEditorProvider implements vscode.CustomReadonlyEditorProvid
                     sort = message.sort;
                     void updateRowsWithProgress('Sorting CSV...', 'sort');
                     break;
+                case 'find': {
+                    if (!isValidFindRequest(message, rowStore)) {
+                        logger.warn('[CsvTableEditor] Ignored invalid find message');
+                        break;
+                    }
+                    if (disposed || !canFind || message.viewRevision !== viewRevision) {
+                        break;
+                    }
+                    cancelFind();
+                    const controller = new AbortController();
+                    findController = controller;
+                    const requestedStore = rowStore;
+                    const requestedRevision = viewRevision;
+                    try {
+                        const match = await findCsvTableMatch(requestedStore, message.query, message.direction, message.after, controller.signal, message);
+                        if (!disposed && !controller.signal.aborted && canFind && requestedStore === rowStore && requestedRevision === viewRevision) {
+                            postMessage({ type: 'findResult', requestId: message.requestId, viewRevision: requestedRevision, match });
+                        }
+                    } catch (error) {
+                        if (!disposed && !controller.signal.aborted && canFind && requestedStore === rowStore && requestedRevision === viewRevision) {
+                            logger.error(`[CsvTableEditor] Find failed: ${error instanceof Error ? error.message : String(error)}`);
+                            postMessage({ type: 'findResult', requestId: message.requestId, viewRevision: requestedRevision, match: null, error: 'Unable to search CSV. See the extension log for details.' });
+                        }
+                    } finally {
+                        if (findController === controller) {
+                            findController = undefined;
+                        }
+                    }
+                    break;
+                }
+                case 'cancelFind':
+                    cancelFind();
+                    break;
                 case 'cellSelected':
                     await this.handleCellSelection(document.uri, message, rowStore);
                     break;
@@ -353,6 +418,7 @@ export class CsvTableEditorProvider implements vscode.CustomReadonlyEditorProvid
             loadGeneration += 1;
             updateGeneration += 1;
             viewUpdateController?.abort();
+            cancelFind();
             windowFocusListener.dispose();
             watcher.dispose();
             clearIndexProgressUpdates();
@@ -363,12 +429,16 @@ export class CsvTableEditorProvider implements vscode.CustomReadonlyEditorProvid
     private buildShell(webview: vscode.Webview): string {
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'dist', 'webviews', 'csv-table-viewer.js'));
         const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'dist', 'webviews', 'csv-table-viewer.css'));
+        const codiconCssUri = webview.asWebviewUri(vscode.Uri.joinPath(
+            this.extensionUri, 'node_modules', '@vscode', 'codicons', 'dist', 'codicon.css'
+        ));
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src ${webview.cspSource};">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src ${webview.cspSource}; font-src ${webview.cspSource};">
+<link rel="stylesheet" href="${codiconCssUri}">
 <link rel="stylesheet" href="${styleUri}">
 </head>
 <body>

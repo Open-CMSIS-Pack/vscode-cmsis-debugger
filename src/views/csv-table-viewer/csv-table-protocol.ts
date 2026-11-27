@@ -17,6 +17,7 @@
 
 import type { CsvTableFilter, CsvTableRow, CsvTableSort } from './csv-table';
 import type { RowSelectionInterval, RowSelectionState } from './row-selection';
+import type { CsvTableSearchDirection, CsvTableSearchMatch } from './csv-table-search';
 
 export interface CsvTableState {
     readonly type: 'tableState';
@@ -41,7 +42,15 @@ export interface CsvTableRows {
     readonly totalRowCount: number;
 }
 
-export type CsvTableHostMessage = CsvTableState | CsvTableRows | { readonly type: 'restoreFocus' };
+export interface CsvTableFindResult {
+    readonly type: 'findResult';
+    readonly requestId: number;
+    readonly viewRevision: number;
+    readonly match: CsvTableSearchMatch | null;
+    readonly error?: string;
+}
+
+export type CsvTableHostMessage = CsvTableState | CsvTableRows | CsvTableFindResult | { readonly type: 'restoreFocus' };
 
 export interface CsvTableReady {
     readonly type: 'ready';
@@ -96,4 +105,19 @@ export interface CsvTableCopyRows {
     readonly columnIndex?: number;
 }
 
-export type CsvTableWebviewMessage = CsvTableReady | CsvTableRequestRows | CsvTableSetFilters | CsvTableCancelViewUpdate | CsvTableSetSort | CsvTableCellSelected | CsvTableRowsRendered | CsvTableSelectionChanged | CsvTableCopyRows;
+export interface CsvTableFind {
+    readonly type: 'find';
+    readonly requestId: number;
+    readonly viewRevision: number;
+    readonly query: string;
+    readonly direction: CsvTableSearchDirection;
+    readonly after: CsvTableSearchMatch | null;
+    readonly startRowIndex?: number;
+    readonly includeAfter?: boolean;
+}
+
+export interface CsvTableCancelFind {
+    readonly type: 'cancelFind';
+}
+
+export type CsvTableWebviewMessage = CsvTableReady | CsvTableRequestRows | CsvTableSetFilters | CsvTableCancelViewUpdate | CsvTableSetSort | CsvTableCellSelected | CsvTableRowsRendered | CsvTableSelectionChanged | CsvTableCopyRows | CsvTableFind | CsvTableCancelFind;
